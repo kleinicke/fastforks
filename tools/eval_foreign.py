@@ -9,6 +9,8 @@ per-item file `<out>/stereo/<ref>__<tier>.jsonl`, so `eval_stereo_depth.py rows`
 - HITNet: the authors' frozen graphs `eth3d.pb` (gray, BT.601 luma) / `middlebury_d400.pb` (RGB), images in 0..1 as
   `tools/golden/hitnet.py`; the graph pads and scales itself. `upstream` = float32; `upstream16` = TensorFlow's
   automatic mixed precision graph rewrite (`auto_mixed_precision`, float16; a frozen graph has no own option).
+- crestereo-eth3d-pt: the same through the community PyTorch port ibaiGorordo/CREStereo-Pytorch (GPU-capable here; the
+  MegEngine build has no sm_120 kernels), weights from its convert_weights.py; `upstream16` = torch.autocast fp16.
 - CREStereo: upstream `test.py` `inference` (half resolution, then full resolution from its flow, 20 iterations each)
   on BGR float32 images padded to a multiple of 32 (edge), as `tools/golden/crestereo_mge.py`. `upstream` =
   `Model(mixed_precision=False)`, `upstream16` = the authors' `mixed_precision=True`.
@@ -42,6 +44,10 @@ HITNET = {"hitnet-eth3d": ("eth3d.pb", 1), "hitnet-middlebury-d400": ("middlebur
 CRE_COMMIT = "ad3a1613bdedd88b93247e5f002cb7c80799762d"
 CRE_REPO = DATA / "crestereo-src/CREStereo"
 CRE_WEIGHTS = DATA / "crestereo-mge/crestereo_eth3d.mge"
+CREPT_COMMIT = "b6c7a9fe8dc2e9e56ba7b96f4677312309282d15"
+CREPT_REPO = Path(__file__).resolve().parents[1].parent / "ext/CREStereo-Pytorch"  # next to the worktrees
+CREPT_WEIGHTS = DATA / "crestereo-pytorch/crestereo_eth3d.pth"  # the port's convert_weights.py output
+BUDGET_S = float(os.environ.get("FF_BUDGET_S", "120"))  # a chunk stops with exit 3 after this; the next resumes
 _ = NONFINITE_MAX
 
 
@@ -192,15 +198,70 @@ class _Crestereo:
             return None, None
 
 
+class _CrestereoPt:
+    """ibaiGorordo/CREStereo-Pytorch (community PyTorch port of the original; runs on current GPUs): test_model.py."""
+
+    commit = CREPT_COMMIT
+
+    def __init__(self, _ref: str, tier: str) -> None:
+        import torch  # noqa: PLC0415
+
+        sys.path.insert(0, str(CREPT_REPO))
+        from nets import Model  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+        self.torch = torch
+        self.model = Model(max_disp=256, mixed_precision=False, test_mode=True)
+        self.model.load_state_dict(torch.load(CREPT_WEIGHTS, weights_only=True), strict=True)
+        self.model.cuda().eval()
+        self.fp16 = tier == "upstream16"
+        self.dtype = "float16" if self.fp16 else "float32"
+        self.how = "torch.autocast fp16" if self.fp16 else "fp32"
+        self.note = (
+            f"PyTorch {torch.__version__}, community port ibaiGorordo/CREStereo-Pytorch @ {CREPT_COMMIT[:7]}, "
+            "test_model.py inference (2 x 20 iters), BGR, pad 32 (edge)"
+            + (", torch.autocast fp16" if self.fp16 else "")
+        )
+        self.gpu = True
+
+    def __call__(self, left: np.ndarray, right: np.ndarray) -> np.ndarray:
+        torch = self.torch
+        lb, rb = (x[..., ::-1].astype(np.float32) for x in (left, right))
+        h, w = lb.shape[:2]
+        ph, pw = (-h) % 32, (-w) % 32
+        pads = ((ph // 2, ph - ph // 2), (pw // 2, pw - pw // 2), (0, 0))
+        img = [torch.from_numpy(np.ascontiguousarray(np.pad(x, pads, mode="edge").transpose(2, 0, 1)[None])).cuda()
+               for x in (lb, rb)]  # fmt: skip
+        half = [torch.nn.functional.interpolate(x, size=(x.shape[2] // 2, x.shape[3] // 2), mode="bilinear",
+                                                align_corners=True) for x in img]  # fmt: skip
+        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.float16, enabled=self.fp16):
+            flow = self.model(half[0], half[1], iters=20, flow_init=None)
+            flow = self.model(img[0], img[1], iters=20, flow_init=flow)
+        disp = flow[0, 0].float().cpu().numpy()
+        return disp[pads[0][0] : pads[0][0] + h, pads[1][0] : pads[1][0] + w]
+
+    def reset_peak(self) -> None:
+        self.torch.cuda.synchronize()
+        self.torch.cuda.reset_peak_memory_stats()
+
+    def peak(self) -> tuple[int | None, int | None]:
+        c = self.torch.cuda
+        return round(c.max_memory_allocated() / 2**20), round(c.max_memory_reserved() / 2**20)
+
+
+def _net(ref: str) -> type:
+    return _Hitnet if ref in HITNET else _CrestereoPt if ref.endswith("-pt") else _Crestereo
+
+
 def main() -> None:
     """Command line entry."""
     ap = argparse.ArgumentParser()
-    ap.add_argument("ref", choices=[*HITNET, "crestereo-eth3d"])
+    ap.add_argument("ref", choices=[*HITNET, "crestereo-eth3d", "crestereo-eth3d-pt"])
     ap.add_argument("tiers")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--out", required=True)
     ap.add_argument("--speed", action="store_true", help="speed rows (bench_upstream inputs and protocol) to --out")
     a = ap.parse_args()
+    t_start = time.perf_counter()
     if a.speed:
         _speed(a)
         return
@@ -215,7 +276,7 @@ def main() -> None:
         if not todo or any("error" in r for r in rows):
             continue
         t0 = time.perf_counter()
-        net = (_Hitnet if a.ref in HITNET else _Crestereo)(a.ref, tier)
+        net = _net(a.ref)(a.ref, tier)
         meta = {"meta": True, "ref": a.ref, "tier": tier, "mode": "upstream", "dtype": net.dtype, "how": net.how,
                 "note": net.note + ("" if net.gpu else ", CPU (no GPU device)"), "backend": f"original {net.how}",
                 "kind": "", "build_s": round(time.perf_counter() - t0, 1), "commit": _commit(),
@@ -226,6 +287,8 @@ def main() -> None:
             f.write(json.dumps(meta) + "\n")
             first = True
             for ds, key, ld in todo:
+                if time.perf_counter() - t_start > BUDGET_S:
+                    sys.exit(3)  # budget hit: the caller starts the next chunk, which resumes from this file
                 left, right, gt = ld()
                 net.reset_peak()
                 tc = time.perf_counter()
@@ -263,7 +326,7 @@ def _speed(a: argparse.Namespace, warmup: int = 3, runs: int = 5) -> None:
     )
     for tier in a.tiers.split(","):
         t0 = time.perf_counter()
-        net = (_Hitnet if a.ref in HITNET else _Crestereo)(a.ref, tier)
+        net = _net(a.ref)(a.ref, tier)
         load_s = time.perf_counter() - t0
         for label, scene, pat, sides in SPEED_INPUTS:
             if (a.ref, tier, label) in have:
@@ -290,7 +353,8 @@ def _speed(a: argparse.Namespace, warmup: int = 3, runs: int = 5) -> None:
                    "protocol": f"median of {runs} after {warmup} warm-up, host uint8 images in, host disparity out "
                    "(as the authors' scripts), original code at the pinned commit; peak = the framework's peak",
                    "gpu": os.environ.get("FF_GPU_NAME", "NVIDIA GeForce RTX 5060 Ti"), "torch": None,
-                   "date": time.strftime("%Y-%m-%d"), "commit": CRE_COMMIT if a.ref.startswith("crestereo") else "",
+                   "date": time.strftime("%Y-%m-%d"),
+                   "commit": getattr(net, "commit", CRE_COMMIT if a.ref == "crestereo-eth3d" else ""),
                    "ff_commit": _commit(), "source": "",
                    "command": " ".join(["python", "tools/eval_foreign.py", *sys.argv[1:]])}  # fmt: skip
             with out.open("a") as f:
