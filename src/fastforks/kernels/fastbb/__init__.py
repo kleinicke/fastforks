@@ -14,10 +14,14 @@ import functools
 import logging
 import math
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import torch
 
-from fastforks._core.kernels import cubin_library
+from fastforks._core.kernels import checked, checking, cubin_library, defer_check
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # p: pointer, i: int32, l: int64, f: float32 (must match the extern "C" kernels in fastbb_kernels.cu)
 _FLASH = "pppp" + "ii" + "lii" * 4 + "f"
@@ -74,11 +78,13 @@ class Flash64:
 
     `"hh"` accumulates the unscaled q k^T in fp16, `"hh"` / `"fh"` a 64-key tile of p v in fp16: past 65504 the sum
     is inf and the online softmax gives NaN (DINOv3 ViT-S / B: q k^T up to 36x the fp16 range). The first `probe`
-    eager launches of this object check their output (one sync each); a non-finite output is recomputed with the
-    next variant of `FLASH_VARIANTS`, and the first variant giving a finite output is kept for every later call.
-    Non-finite in every variant (NaN inputs): returned as is, the variant is kept. After the probe launches, and
-    while a CUDA graph is captured, nothing is checked (no sync, no extra work). The outliers that overflow come from
-    the weights (fixed channels), so the first images of a model show them.
+    eager launches of this object record whether their output is finite on the device (`kernels.defer_check`, no
+    sync); the model call (`kernels.checked`: one sync per call) reruns with the next variant of `FLASH_VARIANTS` (and
+    a new probe window) after a non-finite output, and the first variant giving a finite output is kept for every
+    later call. Non-finite in every variant (NaN inputs): returned as is, the variant is kept. Called outside a model
+    call, a launch is checked alone. After the probe launches, and while a CUDA graph is captured, nothing is checked
+    (no extra work). The outliers that overflow come from the weights (fixed channels), so the first images of a model
+    show them.
     """
 
     def __init__(self, variant: str = "hh", *, probe: int = FLASH_PROBE) -> None:
@@ -86,23 +92,31 @@ class Flash64:
         if variant not in FLASH_VARIANTS:
             msg = f"flash64 variant {variant!r}: expected one of {FLASH_VARIANTS}"
             raise ValueError(msg)
-        self.variant, self.probe = variant, probe
+        self.variant, self.probe, self.window = variant, probe, probe
 
     def __call__(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, scale: float) -> torch.Tensor:
         """softmax(q k^T * scale) v of fp16 CUDA `[B, N, heads, 64]` views (unit last stride) -> `[B, N, heads, 64]`."""
-        o = self._run(self.variant, q, k, v, scale)
         if self.probe <= 0 or torch.cuda.is_current_stream_capturing():
-            return o
+            return self._run(self.variant, q, k, v, scale)
+        if not checking():  # outside a model call: this launch alone
+            return checked(self, q, k, v, scale)
         self.probe -= 1
-        if bool(torch.isfinite(o).all()):
-            return o
-        for variant in FLASH_VARIANTS[FLASH_VARIANTS.index(self.variant) + 1 :]:
-            o = self._run(variant, q, k, v, scale)
-            if bool(torch.isfinite(o).all()):
-                _log.info("flash64: fp16 overflow in %r (non-finite output), using %r", self.variant, variant)
-                self.variant = variant
-                break
+        o = self._run(self.variant, q, k, v, scale)
+        defer_check(o.sum(dtype=torch.float32), self._widen)  # inf / NaN anywhere: a non-finite sum
         return o
+
+    def _widen(self) -> Callable[[], None] | None:
+        """`kernels.defer_check`'s fallback: the next variant with a new probe window; its undo, or None after "ff"."""
+        i = FLASH_VARIANTS.index(self.variant) + 1
+        if i == len(FLASH_VARIANTS):
+            return None
+        undo = functools.partial(self._set, self.variant, self.probe)
+        _log.info("flash64: non-finite output of %r (fp16 overflow), running %r", self.variant, FLASH_VARIANTS[i])
+        self._set(FLASH_VARIANTS[i], self.window)
+        return undo
+
+    def _set(self, variant: str, probe: int) -> None:
+        self.variant, self.probe = variant, probe
 
     @staticmethod
     def _run(variant: str, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, scale: float) -> torch.Tensor:

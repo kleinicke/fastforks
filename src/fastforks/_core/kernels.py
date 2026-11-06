@@ -28,7 +28,7 @@ import threading
 import tomllib
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypeVar
 
 import torch
 
@@ -522,3 +522,51 @@ def begin_call() -> None:
 def call_index() -> int:
     """The index of the current model call (0 before the first); see `begin_call`."""
     return _call
+
+
+T = TypeVar("T")
+
+# output checks of the running `checked` call on this thread: (0-dim value, the launcher's fallback) per launch
+_CHECKS = threading.local()
+
+
+def checking() -> bool:
+    """Whether a `checked` call runs on this thread (its launches record their checks with `defer_check`)."""
+    return getattr(_CHECKS, "pending", None) is not None
+
+
+def defer_check(value: torch.Tensor, fallback: Callable[[], Callable[[], None] | None]) -> None:
+    """Record a launch's output check in the running `checked` call: it fails when the 0-dim `value` is not finite.
+
+    `fallback()` switches the launcher to a wider variant and returns how to undo that, or `None` if it has none left.
+    """
+    _CHECKS.pending.append((value, fallback))
+
+
+def checked(fn: Callable[..., T], *args: object, **kwargs: object) -> T:
+    """`fn(*args, **kwargs)`, run again while a launch it recorded with `defer_check` failed and has a fallback.
+
+    The model call's (`Model`'s kernels entry points) or a CUDA graph warm-up's: one host sync per run, only if a
+    launch recorded a check. The first failed launch (later ones may only see its NaN) switches its launcher and the
+    call runs again; a launcher with no wider variant left (non-finite inputs, not an overflow) gets its variant of
+    the call's start back, and the output is returned as is. A nested call checks its own launches.
+    """
+    outer = getattr(_CHECKS, "pending", None)
+    undo: dict[Callable[[], Callable[[], None] | None], Callable[[], None]] = {}
+    try:
+        while True:
+            _CHECKS.pending = pending = []
+            out = fn(*args, **kwargs)
+            if not pending:
+                return out
+            finite = torch.stack([v for v, _ in pending]).isfinite().tolist()
+            bad = next((fb for (_, fb), ok in zip(pending, finite, strict=True) if not ok), None)
+            if bad is None:
+                return out
+            if (step := bad()) is None:
+                if bad in undo:
+                    undo[bad]()
+                return out
+            undo.setdefault(bad, step)
+    finally:
+        _CHECKS.pending = outer
