@@ -10,7 +10,8 @@ per-item file `<out>/stereo/<ref>__<tier>.jsonl`, so `eval_stereo_depth.py rows`
   `tools/golden/hitnet.py`; the graph pads and scales itself. `upstream` = float32; `upstream16` = TensorFlow's
   automatic mixed precision graph rewrite (`auto_mixed_precision`, float16; a frozen graph has no own option).
 - crestereo-eth3d-pt: the same through the community PyTorch port ibaiGorordo/CREStereo-Pytorch (GPU-capable here; the
-  MegEngine build has no sm_120 kernels), weights from its convert_weights.py; `upstream16` = torch.autocast fp16.
+  MegEngine build has no sm_120 kernels), weights from its convert_weights.py; `upstream16` = the port's
+  `mixed_precision=True` (its own autocast blocks switch an outer autocast off).
 - CREStereo: upstream `test.py` `inference` (half resolution, then full resolution from its flow, 20 iterations each)
   on BGR float32 images padded to a multiple of 32 (edge), as `tools/golden/crestereo_mge.py`. `upstream` =
   `Model(mixed_precision=False)`, `upstream16` = the authors' `mixed_precision=True`.
@@ -210,16 +211,16 @@ class _CrestereoPt:
         from nets import Model  # noqa: PLC0415  # ty: ignore[unresolved-import]
 
         self.torch = torch
-        self.model = Model(max_disp=256, mixed_precision=False, test_mode=True)
+        self.fp16 = tier == "upstream16"
+        self.model = Model(max_disp=256, mixed_precision=self.fp16, test_mode=True)
         self.model.load_state_dict(torch.load(CREPT_WEIGHTS, weights_only=True), strict=True)
         self.model.cuda().eval()
-        self.fp16 = tier == "upstream16"
         self.dtype = "float16" if self.fp16 else "float32"
-        self.how = "torch.autocast fp16" if self.fp16 else "fp32"
+        self.how = "mixed_precision=True" if self.fp16 else "fp32"
         self.note = (
             f"PyTorch {torch.__version__}, community port ibaiGorordo/CREStereo-Pytorch @ {CREPT_COMMIT[:7]}, "
             "test_model.py inference (2 x 20 iters), BGR, pad 32 (edge)"
-            + (", torch.autocast fp16" if self.fp16 else "")
+            + (", the port's mixed_precision=True" if self.fp16 else "")
         )
         self.gpu = True
 
@@ -233,7 +234,7 @@ class _CrestereoPt:
                for x in (lb, rb)]  # fmt: skip
         half = [torch.nn.functional.interpolate(x, size=(x.shape[2] // 2, x.shape[3] // 2), mode="bilinear",
                                                 align_corners=True) for x in img]  # fmt: skip
-        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.float16, enabled=self.fp16):
+        with torch.inference_mode():
             flow = self.model(half[0], half[1], iters=20, flow_init=None)
             flow = self.model(img[0], img[1], iters=20, flow_init=flow)
         disp = flow[0, 0].float().cpu().numpy()
@@ -241,6 +242,7 @@ class _CrestereoPt:
 
     def reset_peak(self) -> None:
         self.torch.cuda.synchronize()
+        self.torch.cuda.empty_cache()  # reserved peak of this call, not the cache of earlier ones
         self.torch.cuda.reset_peak_memory_stats()
 
     def peak(self) -> tuple[int | None, int | None]:
