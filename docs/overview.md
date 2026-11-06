@@ -23,7 +23,7 @@ Measured on one RTX 5060 Ti at the size in each section header (median of warm r
 |---|---|---|---|---|---|---|---|
 | [`las2-s`](models/stereo.md#liteanystereo-v2) | yes | 4.10 ? | 43.5 (994x1482) | 46.9 | 14.3 | 3.0x vs original (994x1482) | 320 |
 | [`las2-m`](models/stereo.md#liteanystereo-v2) | yes | 2.98 ? | 52.4 (994x1482) | 54.1 | 18.3 | 2.9x vs original (994x1482) | 329 |
-| [`hitnet-eth3d`](models/stereo.md#hitnet) | yes | 0.93 † | – | 67.8 | 23.2 | 2.9x vs portable | 647 |
+| [`hitnet-eth3d`](models/stereo.md#hitnet) | yes | 0.93 † | 182.2 (994x1482) | 67.8 | 23.2 | 7.9x vs original (994x1482) | 647 |
 | [`coex-sceneflow`](models/stereo.md#coex) | yes | 33.46 | 60.0 (994x1482) | 49.9 | 23.5 | 2.6x vs original (994x1482) | 495 |
 | [`las2-l`](models/stereo.md#liteanystereo-v2) | yes | 2.24 ? | 90.8 (994x1482) | 80.3 | 29.9 | 3.0x vs original (994x1482) | 397 |
 | [`fast-acvnet-generalization`](models/stereo.md#fast-acvnet) | yes | 6.51 | 60.6 (994x1482) | 54.7 | 38.2 | 1.6x vs original (994x1482) | 739 |
@@ -34,7 +34,7 @@ Measured on one RTX 5060 Ti at the size in each section header (median of warm r
 | [`fast-acvnet-plus-kitti12`](models/stereo.md#fast-acvnet) | yes | 21.62 | 80.9 (994x1482) | 70.6 | 46.4 | 1.7x vs original (994x1482) | 790 |
 | [`fast-acvnet-plus-kitti15`](models/stereo.md#fast-acvnet) | yes | 21.63 | 80.9 (994x1482) | 70.6 | 46.4 | 1.7x vs original (994x1482) | 790 |
 | [`fast-acvnet-plus-sceneflow`](models/stereo.md#fast-acvnet) | yes | 12.62 | 80.9 (994x1482) | 70.6 | 46.4 | 1.7x vs original (994x1482) | 790 |
-| [`hitnet-middlebury-d400`](models/stereo.md#hitnet) | yes | 7.07 | – | 176.0 | 52.7 | 3.3x vs portable | 1263 |
+| [`hitnet-middlebury-d400`](models/stereo.md#hitnet) | yes | 7.07 | 483.1 (994x1482) | 176.0 | 52.7 | 9.2x vs original (994x1482) | 1263 |
 | [`las2-h`](models/stereo.md#liteanystereo-v2) | yes | 2.14 ? | 134.9 (994x1482) | 122.8 | 53.3 | 2.5x vs original (994x1482) | 1021 |
 | [`aanet-plus-sceneflow`](models/stereo.md#aanet) | yes | 18.50 | 194.2 (994x1482) | 159.2 | 88.9 | 2.2x vs original (994x1482) | 813 |
 | [`rt-monster-plusplus-mix-all`](models/stereo.md#rt-monster) | no | 2.05 ? | 251.4 (994x1482) | 113.4 | 94.1 | 2.7x vs original (994x1482) | 2704 |
@@ -46,7 +46,7 @@ Measured on one RTX 5060 Ti at the size in each section header (median of warm r
 | [`dlnr-middlebury`](models/stereo.md#dlnr) | yes | 34.38 | 597.7 (994x1482) | 398.2 | 213.9 | 2.8x vs original (994x1482) | 1236 |
 | [`dlnr-sceneflow`](models/stereo.md#dlnr) | yes | 30.27 | 597.7 (994x1482) | 398.2 | 213.9 | 2.8x vs original (994x1482) | 1236 |
 | [`cas-gwcnet-c-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 7.85 | 389.1 (994x1482) | 327.0 | 225.4 | 1.7x vs original (994x1482) | 1725 |
-| [`crestereo-eth3d`](models/stereo.md#crestereo) | yes | 1.39 † | 1925.0 (994x1482) | 731.8 | 228.9 | 8.4x vs original (994x1482) | 644 |
+| [`crestereo-eth3d`](models/stereo.md#crestereo) | yes | 1.39 † | 1597.4 (994x1482) | 731.8 | 228.9 | 7.0x vs original (994x1482) | 644 |
 | [`psmnet-sceneflow`](models/stereo.md#psmnet) | yes | 15.13 | 607.8 (994x1482) | 340.0 | 231.8 | 2.6x vs original (994x1482) | 1786 |
 | [`gwcnet-g-sceneflow`](models/stereo.md#gwcnet) | yes | 9.59 | 352.4 (994x1482) | 344.2 | 238.1 | 1.5x vs original (994x1482) | 1799 |
 | [`s2m2-m`](models/stereo.md#s2m2) | no | 0.95 ? | 666.2 (994x1482) | 670.4 | 247.9 | 2.7x vs original (994x1482) | 876 |
@@ -69,8 +69,8 @@ Measured on one RTX 5060 Ti at the size in each section header (median of warm r
 | [`selective-igev-middlebury-train`](models/stereo.md#selective-igev) | yes | 10.25 | 1455.0 (994x1482) | 998.4 | 348.8 | 4.2x vs original (994x1482) | 1109 |
 | [`selective-igev-sceneflow`](models/stereo.md#selective-igev) | yes | 6.06 | 1455.0 (994x1482) | 998.4 | 348.8 | 4.2x vs original (994x1482) | 1109 |
 | [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | no | 1.22 ? | 470.1 (994x1482) | 441.6 | 353.6 | 1.3x vs original (994x1482) | 2361 |
-| [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 8.09 | – | 471.6 | 357.5 | 1.3x vs portable | 2272 |
-| [`s2m2-l`](models/stereo.md#s2m2) | no | 0.82 ? | – | 1015.3 | 375.8 | 2.7x vs portable | 1249 |
+| [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 8.09 | 566.7 (994x1482) | 471.6 | 357.5 | 1.6x vs original (994x1482) | 2272 |
+| [`s2m2-l`](models/stereo.md#s2m2) | no | 0.82 ? | 1004.7 (994x1482) | 1015.3 | 375.8 | 2.7x vs original (994x1482) | 1249 |
 | [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1137.2 | 392.9 | 2.9x vs original (994x1482) | 1907 |
 | [`igev-plusplus-eth3d`](models/stereo.md#igev) | yes | 0.50 † | 1277.9 (994x1482) | 1080.6 | 393.0 | 3.3x vs original (994x1482) | 1389 |
 | [`igev-plusplus-kitti12`](models/stereo.md#igev) | yes | 26.78 | 1277.9 (994x1482) | 1080.6 | 393.0 | 3.3x vs original (994x1482) | 1389 |
@@ -80,11 +80,11 @@ Measured on one RTX 5060 Ti at the size in each section header (median of warm r
 | [`great-igev-eth3d`](models/stereo.md#great-igev) | yes | 0.49 † | 1458.3 (994x1482) | 1084.7 | 393.1 | 3.7x vs original (994x1482) | 1192 |
 | [`great-igev-kitti`](models/stereo.md#great-igev) | yes | 23.36 | 1458.3 (994x1482) | 1084.7 | 393.1 | 3.7x vs original (994x1482) | 1192 |
 | [`great-igev-sceneflow`](models/stereo.md#great-igev) | yes | 4.44 | 1458.3 (994x1482) | 1084.7 | 393.1 | 3.7x vs original (994x1482) | 1192 |
-| [`cfnet-sceneflow`](models/stereo.md#cfnet) | yes | 5.60 | – | 484.3 | 400.7 | 1.2x vs portable | 3662 |
+| [`cfnet-sceneflow`](models/stereo.md#cfnet) | yes | 5.60 | 545.4 (994x1482) | 484.3 | 400.7 | 1.4x vs original (994x1482) | 3662 |
 | [`mocha-v2-sceneflow`](models/stereo.md#mocha-stereo) | yes | 3.82 | 1295.1 (994x1482) | 1033.5 | 448.1 | 2.9x vs original (994x1482) | 1587 |
 | [`mocha-v1-sceneflow`](models/stereo.md#mocha-stereo) | yes | 4.35 | 1456.2 (994x1482) | 1057.2 | 455.5 | 3.2x vs original (994x1482) | 1588 |
 | [`great-igev-middlebury`](models/stereo.md#great-igev) | yes | 27.53 ? | – | 1785.3 | 578.8 | 3.1x vs portable | 1553 |
-| [`defom-stereo-vitl-sceneflow`](models/stereo.md#defom-stereo) | no | 2.44 | – | 1530.9 | 658.7 | 2.3x vs portable | 3154 |
+| [`defom-stereo-vitl-sceneflow`](models/stereo.md#defom-stereo) | no | 2.44 | 2815.8 (994x1482) | 1530.9 | 658.7 | 4.3x vs original (994x1482) | 3154 |
 | [`monster-mix-all`](models/stereo.md#monster) | no | 1.25 † | 4275.0 (994x1482) | 1585.2 | 667.6 | 6.4x vs original (994x1482) | 2356 |
 | [`monster-sceneflow`](models/stereo.md#monster) | no | 1.34 | 4275.0 (994x1482) | 1585.2 | 667.6 | 6.4x vs original (994x1482) | 2356 |
 | [`s2m2-xl`](models/stereo.md#s2m2) | no | 0.52 ? | 1796.1 (994x1482) | 1814.7 | 681.9 | 2.6x vs original (994x1482) | 2092 |

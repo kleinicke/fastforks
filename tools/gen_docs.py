@@ -119,7 +119,8 @@ def _note(row: dict) -> str:
 def _peak(row: dict | None) -> str:
     if row is None or "peak_alloc_mb" not in row:
         return DASH
-    return f"{row['peak_alloc_mb']} / " + (str(row["peak_reserved_mb"]) if "peak_reserved_mb" in row else DASH)
+    res = row.get("peak_reserved_mb")  # None: the framework has no reserved figure (TensorFlow)
+    return f"{row['peak_alloc_mb']} / " + (DASH if res is None else str(res))
 
 
 def _ms_str(ms: object) -> str:
