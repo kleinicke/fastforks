@@ -197,7 +197,7 @@ def test_overview_lists_every_variant_once_and_links_resolve():
     """Each task of the overview has one row per variant and every row links to a heading of its model page."""
     page = gen_docs.overview()
     for task in registry.TASKS:
-        section = page.split(f"## {task.capitalize().replace('_', ' ')}\n", 1)[1].split("\n## ", 1)[0]
+        section = page.split(f"## {gen_docs._title(task)}\n", 1)[1].split("\n## ", 1)[0]
         rows = re.findall(r"^\| \[`([^`]+)`\]\(models/(\w+)\.md#([^)]+)\) \|", section, re.MULTILINE)
         ids = [r[0] for r in rows]
         expected = sorted({gen_docs._name(v) for card, _ in registry.cards(task).values() for v in card.variants})

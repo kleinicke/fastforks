@@ -97,7 +97,7 @@ Measured on one RTX 5060 Ti at the size in each section header (median of warm r
 
 ? training data not stated; overlap with this dataset's public images cannot be excluded.
 
-## Depth
+## Monocular depth
 
 18 models; size 994x1482.
 
