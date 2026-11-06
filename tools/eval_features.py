@@ -13,7 +13,8 @@ per model: top-1 per tier, mean / min cosine between kernels and portable featur
 Tier mode (2026-11-05 campaign; `--tiers T,... --chunk N --max-seconds S --cache FILE --out DIR`): one record per model
 and tier in `DIR/features.jsonl` (top-1, img/s, peak MB, mode / dtype / how). The decoded 224 crops of train + test are
 cached once in `--cache` (`.npy`, uint8, made on the CPU by `--make-cache`); features are extracted in chunks of N
-images into `DIR/feat/` (resumable, exit 3 = call again), the kNN runs once all chunks exist. Tiers: fastforks
+images into `DIR/feat/MODEL__TIER__START-STOP.npz` (resumable, exit 3 = call again), the kNN runs once all chunks
+exist. Tiers: fastforks
 `portable32`, `portable`, `kernels`; the authors' code (`upstream` fp32, `upstream16` autocast float16, `upstreamhalf`
 `.half()` + float16 input; none has an own option): DINOv2 = facebookresearch/dinov2 `forward_features` CLS
 (`x_norm_clstoken`, bench adapter, 006 venv), DINOv3 ViT / ConvNeXt = transformers `DINOv3ViTModel` /
@@ -149,6 +150,11 @@ def _fastforks(ref: str, tier: str) -> tuple[Any, dict[str, Any]]:
     return (lambda x: m(x, size=(224, 224)).pooler_output), rec
 
 
+def _part(stem: Path, s0: int, chunk: int, n: int) -> Path:
+    """Feature file of images [s0, s1): start and stop in the name, so a rerun with another --chunk never reuses it."""
+    return Path(f"{stem}__{s0:05d}-{min(s0 + chunk, n):05d}.npz")
+
+
 def _tiers(a: argparse.Namespace) -> int:  # noqa: C901, PLR0912, PLR0915 - resumable chunk loop
     """Tier mode: chunks of features per model / tier, then one kNN record each; 3 = budget hit."""
     t0 = time.perf_counter()
@@ -171,7 +177,7 @@ def _tiers(a: argparse.Namespace) -> int:  # noqa: C901, PLR0912, PLR0915 - resu
             meta: dict[str, Any] = {}
             err = None
             for s0 in range(0, len(imgs), a.chunk):
-                f = Path(f"{stem}__{s0:05d}.npz")
+                f = _part(stem, s0, a.chunk, len(imgs))
                 if f.exists():
                     continue
                 if time.perf_counter() - t0 > a.max_seconds:
@@ -210,7 +216,7 @@ def _tiers(a: argparse.Namespace) -> int:  # noqa: C901, PLR0912, PLR0915 - resu
             rec: dict[str, Any] = {"model": ref, "tier": tier, "train": a.train, "test": a.test, "seed": a.seed,
                                    "k": a.k, "weighted": a.weighted}  # fmt: skip
             if err is None:
-                parts = [np.load(Path(f"{stem}__{s0:05d}.npz")) for s0 in range(0, len(imgs), a.chunk)]
+                parts = [np.load(_part(stem, s0, a.chunk, len(imgs))) for s0 in range(0, len(imgs), a.chunk)]
                 feats = torch.from_numpy(np.concatenate([p["feat"] for p in parts])).float().cuda()
                 feats = torch.nn.functional.normalize(feats.nan_to_num(), dim=1)
                 ntr = len(tr)

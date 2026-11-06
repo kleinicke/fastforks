@@ -22,6 +22,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -92,6 +93,10 @@ def _chunks(recs: list[dict[str, Any]], task: str) -> list[dict[str, Any]]:
             row["note"] = last["backend"]
         row |= {k: last.get(k) for k in KEEP}
         good = {(r["start"], r["stop"]): r for r in rs if "error" not in r}  # last record of a chunk wins
+        spans = sorted(good)
+        if any(b0 < a1 for (_, a1), (b0, _) in pairwise(spans)):  # a rerun with another --chunk: images twice
+            msg = f"{task} {ref} {tier}: overlapping chunks {spans}; drop the stale chunk size's records"
+            raise SystemExit(msg)
         err = next((r["error"] for r in rs if "error" in r and (r["start"], r["stop"]) not in good), None)
         ok = list(good.values())
         if err:

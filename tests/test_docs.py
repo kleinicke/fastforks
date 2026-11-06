@@ -318,3 +318,14 @@ def test_measured_cells_read_nested_metrics_and_optional_ones():
     assert gen_docs._suffixes("detection", box["dataset"], [mask]) == [" / mask mAP"]
     for (task, dataset), metrics in [(k, v) for k, v in gen_docs._METRICS.items() if isinstance(k, tuple)]:
         assert dataset in gen_docs._DATASETS[task], (task, dataset, metrics)
+
+
+def test_a_failing_original_is_a_cell_and_a_failing_fastforks_tier_is_not():
+    """An original that raises on the eval data (PatchMatchNet fp16 on DTU) is a result; our own tiers must not fail."""
+    d = "dtu-scans1-9-24-33-75-view24"
+    err = {"ref": "x", "dataset": d, "error": "call: _LinAlgError: linalg.inv: (Batch element 0): singular"}
+    assert gen_docs._accuracy("multiview", {("upstream-fp16", d): err}, "upstream-fp16", d) == (
+        "fails (LinAlgError: linalg.inv)"
+    )
+    with pytest.raises(ValueError, match="no cell"):
+        gen_docs._accuracy("multiview", {("portable", d): err}, "portable", d)

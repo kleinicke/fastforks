@@ -24,6 +24,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import NoReturn
 
 import numpy as np
 import torch
@@ -87,6 +88,34 @@ def metrics(pred: np.ndarray, gt: np.ndarray) -> dict:
     return out
 
 
+def _commit() -> str:
+    wt = Path(multiview.__file__).resolve().parents[2]
+    return subprocess.check_output(["git", "-C", str(wt), "log", "-1", "--format=%h", "--", "src"], text=True).strip()
+
+
+def _meta() -> dict:
+    return {"commit": _commit(), "gpu": torch.cuda.get_device_name(), "torch": torch.__version__,
+            "date": time.strftime("%Y-%m-%d %H:%M"),
+            "command": "python tools/eval_multiview.py " + " ".join(sys.argv[1:])}  # fmt: skip
+
+
+def _write(row: dict) -> None:
+    print(json.dumps(row), flush=True)
+    if a.out:
+        with Path(a.out).open("a") as f:
+            f.write(json.dumps(row) + "\n")
+
+
+def _failed(e: Exception) -> NoReturn:
+    """The original failing on this data is a result: one error row (`OOM, ...` for out of memory), exit 0."""
+    err = f"call: {type(e).__name__}: {e}"[:400]
+    _write({"ref": a.ref, "mode": a.mode, "scans": a.scans, "ref_view": a.ref_view,
+            "error": f"OOM, {err}" if "out of memory" in str(e).lower() else err,
+            "backend": {"mode": "upstream", "dtype": orig.dtype, "how": orig.how, "note": orig.note},
+            **_meta()})  # fmt: skip
+    sys.exit(0)
+
+
 def call(imgs: np.ndarray, kw: dict) -> object:
     """Call with all cameras; a model that does not take a depth range (MVSAnywhere) gets it dropped."""
     if UP:  # the original: depth of view 0
@@ -94,7 +123,10 @@ def call(imgs: np.ndarray, kw: dict) -> object:
         x = x.float() / 255 if x.dtype == torch.uint8 else x.float()
         t = lambda v: torch.as_tensor(np.asarray(v, np.float32)).cuda()  # noqa: E731
         args = (x, t(kw["intrinsics"]), t(kw["cam_to_world"]), t(kw["depth_range"]))
-        return orig(*orig.prep(args))[0]
+        try:
+            return orig(*orig.prep(args))[0]
+        except Exception as e:  # noqa: BLE001 - e.g. PatchMatchNet fp16 on DTU: singular projection matrices
+            _failed(e)
     try:
         return m(imgs, **kw)
     except InputError:
@@ -127,8 +159,7 @@ for scan in a.scans:
             Path(a.out).with_name(f"depth_{a.ref}_{a.mode}_scan{scan}.png")
         )
 mean = {k: round(float(np.mean([x[k] for x in rows])), 4) for k in rows[0] if k != "scan"}
-wt = Path(multiview.__file__).resolve().parents[2]
-row = {
+_write({
     "ref": a.ref, "mode": a.mode, "options": opts, "scans": a.scans, "ref_view": a.ref_view, "sources": a.sources,
     "calibrated": calibrated, "input": "640x512", "metrics": mean, "per_scan": rows,
     "ms": round(float(np.median(times)), 1), "ms_all": [round(t, 1) for t in times],
@@ -137,11 +168,5 @@ row = {
     "peak_reserved_mib": round(torch.cuda.max_memory_reserved() / 2**20),
     "backend": {"mode": "upstream", "dtype": orig.dtype, "how": orig.how, "note": orig.note} if UP else
     {"mode": r.backend.mode, "dtype": str(r.backend.dtype), "kernels": sorted(r.backend.kernels)},
-    "commit": subprocess.check_output(["git", "-C", str(wt), "log", "-1", "--format=%h", "--", "src"], text=True).strip(),  # noqa: E501
-    "gpu": torch.cuda.get_device_name(), "torch": torch.__version__, "date": time.strftime("%Y-%m-%d %H:%M"),
-    "command": "python tools/eval_multiview.py " + " ".join(sys.argv[1:]),
-}  # fmt: skip
-print(json.dumps(row), flush=True)
-if a.out:
-    with Path(a.out).open("a") as f:
-        f.write(json.dumps(row) + "\n")
+    **_meta(),
+})  # fmt: skip

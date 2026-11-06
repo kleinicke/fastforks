@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 import acc_collect
 
 
@@ -42,3 +44,13 @@ def test_text_prompt_rows_are_their_own_dataset(tmp_path):
     (tmp_path / "coco_rows.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
     got = [r["dataset"] for r in acc_collect._coco(tmp_path)]
     assert got == ["coco-val2017-every10", "coco-val2017-every10-text", "coco-val2017-every10"]
+
+
+def test_overlapping_chunks_of_two_sizes_are_refused():
+    """A resumed run with another --chunk must not count the images of both chunk sizes."""
+    rec = {"model": "m", "tier": "portable", "subset": 10, "seed": 0, "images": 5, "top1_correct": 1,
+           "top5_correct": 2, "ms_per_image": 1.0, "alloc_mb": 1, "res_mb": 1}  # fmt: skip
+    ok = [rec | {"start": 0, "stop": 5}, rec | {"start": 5, "stop": 10}]
+    assert acc_collect._chunks(ok, "classification")[0]["n"] == 10
+    with pytest.raises(SystemExit, match="overlapping"):
+        acc_collect._chunks([*ok, rec | {"start": 0, "stop": 10, "images": 10}], "classification")

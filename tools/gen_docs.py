@@ -58,6 +58,8 @@ _DATASETS = {
         "imagenet-val-knn-train10000-test5000-seed0-k20": "ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / "
         "5000 test images)"
     },
+    "multiview": {"dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %"},
+    "classification": {"imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %"},
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
 # task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
@@ -76,6 +78,8 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         "images",
     ),
     "features": ((("top1", "{:.2f}", ""),), "n", "images"),
+    "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
+    "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
@@ -91,6 +95,11 @@ _PROTOCOL = {
     "image; the top 100 instances go to pycocotools COCOeval. ",
     "features": "Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop "
     "224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. ",
+    "multiview": "640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light "
+    "points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras "
+    "(calibrated MVS: cameras + depth range 425-935 mm, error in mm). ",
+    "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
+    "and its PIL eval transform. ",
 }
 # family -> what its original columns ran where that differs from the original code under Details (note column)
 _ORIGINAL_IS = {
@@ -533,6 +542,8 @@ def _accuracy(task: str, by: dict[tuple[str, str], dict], mode: str, dataset: st
     err = r.get("error", "")
     if err.startswith("OOM"):  # the original at this size does not fit the GPU
         return "out of memory"
+    if err.startswith("call: ") and mode.startswith("upstream"):  # the original itself fails on this data
+        return "fails (" + ": ".join(err.split(": ")[1:3]).lstrip("_") + ")"
     if err and not err.startswith("non-finite"):
         msg = f"{r['ref']} {mode} {dataset}: no cell for the error {err!r}"
         raise ValueError(msg)
