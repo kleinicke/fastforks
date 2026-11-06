@@ -128,6 +128,7 @@ def test_kernels_needs_cuda(ref):
         depth.load(ref, mode="kernels", device="cpu")
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_metric3d_depth_scales_with_fx():
     model = _load("metric3d-vit-large")
@@ -138,6 +139,7 @@ def test_metric3d_depth_scales_with_fx():
     torch.testing.assert_close(_map(model(x, intrinsics=k)), 2 * one, rtol=1e-5, atol=0)
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", ["metric3d-vit-large", "midas-dpt-beit-large-512"])
 def test_odd_size(ref):
@@ -159,6 +161,7 @@ def test_beit_index_cache_bounded(monkeypatch):
     torch.testing.assert_close(bias, attn._get_rel_pos_bias((2, 3)), rtol=0, atol=0)
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_marigold_seed():
     x = image(64, 128)  # sides multiples of 64: the UNet needs latents divisible by 8
@@ -172,6 +175,7 @@ def test_marigold_seed():
     assert (other - first).abs().max() > 1e-3
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_zoedepth_too_small_for_reflect_padding():
     model = _load("zoedepth-nk")
@@ -186,6 +190,7 @@ def _fit(ratio: torch.Tensor) -> tuple[float, float]:
     return float(slope), float(-icept / slope)
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_da3_metric_focal_at_network_size():
     model = _load("da3metric-large")
@@ -201,6 +206,7 @@ def test_da3_metric_focal_at_network_size():
     torch.testing.assert_close(_map(model(x, intrinsics=k)), 2 * one, rtol=1e-5, atol=0)
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", ["da3-large-1.1", "da3nested-giant-large-1.1"])
 def test_da3_camera_head_and_nested(ref):
@@ -221,6 +227,7 @@ def test_da3_camera_head_and_nested(ref):
         assert out.mask.dtype == torch.bool
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_moge_given_fx_unprojects_the_points():
     model = _load("moge-2-vits-normal", normals=True)
@@ -260,6 +267,7 @@ def test_depth_pro_depth_scales_with_fx():
     torch.testing.assert_close(_map(model(x, intrinsics=k)), 2 * one, rtol=1e-4, atol=0)
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_unik3d_rays_from_given_intrinsics():
     model = _load("unik3d-vitl")

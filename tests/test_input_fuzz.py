@@ -180,6 +180,7 @@ def test_pil_sample_types(model, tmp_path):
         model(Image.fromarray(g16[0].astype(np.float32) / 65535, mode="F"), Image.fromarray(g16[1]))
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_tiny_and_odd_sizes(ref, monkeypatch):
@@ -300,6 +301,7 @@ def _file_inputs(tmp_path) -> dict[str, Any]:
     }
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("hw", [(97, 131), (96, 128), (95, 129), (113, 150)], ids=lambda s: f"{s[0]}x{s[1]}")
 def test_real_models_odd_sizes_and_input_kinds(real, hw, tmp_path):
@@ -317,6 +319,7 @@ def test_real_models_odd_sizes_and_input_kinds(real, hw, tmp_path):
         torch.testing.assert_close(got, ref, rtol=0, atol=tol, msg=lambda m, n=name: f"{n}: {m}")
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_real_models_gray_inputs(real, tmp_path):
     """Gray (HW array, 8/16-bit PNG file, PIL `L`) equals the same gray replicated to RGB."""
@@ -337,6 +340,7 @@ def test_real_models_gray_inputs(real, tmp_path):
         )
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_real_models_16bit_colour_png_raises(real, tmp_path):
     """A 16-bit colour PNG would be read as 8-bit by Pillow: `InputError`, never a silent wrong result."""
@@ -349,6 +353,7 @@ def test_real_models_16bit_colour_png_raises(real, tmp_path):
         _go(real, lambda x, t: p, _textured(97, 131))
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_real_models_exif_orientation_is_ignored(real, tmp_path):
     """JPEG files are read as stored: the EXIF orientation tag is not applied (see `_core.image`)."""
@@ -369,6 +374,7 @@ def test_real_models_exif_orientation_is_ignored(real, tmp_path):
     torch.testing.assert_close(got, ref, rtol=0, atol=1e-6)
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_real_models_batch_equals_single(real):
     """Batched BHWC / BCHW inputs give, per image, the single-image result."""

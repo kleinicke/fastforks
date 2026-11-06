@@ -137,6 +137,7 @@ def test_mismatched_weights_list_the_keys(tmp_path, change, error):
         stereo.load(REF, device="cpu", weights=tmp_path / "w.ckpt")
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("content", ["empty", "zip", "truncated"])
 def test_unreadable_file_names_the_path_and_the_variant(tmp_path, content):
     """Another format, an empty or a truncated file is a `WeightsError` naming it, not a raw torch / pickle error."""
@@ -212,6 +213,7 @@ def test_load_strict_casts_floats_and_rejects_integers():
 ASSIGNED = [r for r in SMALLEST if r.startswith(("da3", "depth-pro", "dinov2", "dinov3", "sam3", "unik3d"))]
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", ASSIGNED)
 def test_recorded_checkpoints_load_without_a_cast(ref, monkeypatch):
@@ -252,6 +254,7 @@ def _perturbed(change: str):
     return load
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("change", ["add", "drop", "shape"])
 @pytest.mark.parametrize("ref", [r for r in SMALLEST if not r.startswith("hitnet")])  # hitnet: graph files
@@ -315,6 +318,7 @@ LENIENT_REFS = [
 _BIG = {"s2m2-xl": "1.6 GB", "sam3": "3.4 GB"}  # keep the suite well under its 20 GB cgroup
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", LENIENT_REFS)
 def test_strict_load_keeps_every_tensor_of_the_lenient_one(ref, monkeypatch):

@@ -4,18 +4,17 @@ from __future__ import annotations
 
 import gc
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
+
+import pytest
 
 from fastforks.kernels import cudnn_hacc
-
-if TYPE_CHECKING:
-    import pytest
 
 
 class _Owner:
     pass
 
 
+@pytest.mark.slow
 def test_release_after_last_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     freed: list[int] = []
 

@@ -57,6 +57,7 @@ def test_override_runs_fn_on_this_instance_only():
     assert type(b) is Net
 
 
+@pytest.mark.slow
 def test_no_reference_cycle(gc_off):
     m = Net()
     override(m, _double)
@@ -67,6 +68,7 @@ def test_no_reference_cycle(gc_off):
     assert ref_conv() is None
 
 
+@pytest.mark.slow
 def test_bound_method_assignment_is_a_cycle(gc_off):
     """The pattern `override` replaces: documents why it exists."""
     m: Any = Net()
@@ -130,6 +132,7 @@ def test_compile_and_export():
     torch.testing.assert_close(ep.module()(x), want)
 
 
+@pytest.mark.slow
 def test_fast_vit_no_reference_cycle(gc_off):
     """`use_fast_vit` keeps its ViT weakly: the ViT holds the FastViT through its `get_intermediate_layers`."""
     from fastforks.shared.depth_anything_v2 import use_fast_vit  # noqa: PLC0415 - needs the DINOv2 net

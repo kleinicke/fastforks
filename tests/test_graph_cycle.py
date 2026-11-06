@@ -23,6 +23,7 @@ class _Owner:
         return x @ x + 1
 
 
+@pytest.mark.slow
 def test_owner_is_freed_without_gc():
     gc.collect()
     gc.disable()

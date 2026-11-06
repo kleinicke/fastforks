@@ -45,6 +45,7 @@ def _two(mk):
 # --- finding 3: the stem_c8 packed-weight cache --------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_stem_c8_cache_hits_follows_writes_and_drops_dead_weights():
     w = torch.randn(16, 8, 3, 3)
     a = conv_ops._stem_c8_weight(w)

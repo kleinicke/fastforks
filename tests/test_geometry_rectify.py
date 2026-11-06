@@ -354,6 +354,7 @@ def test_cuda_matches_cpu():
     assert np.abs(out_np.astype(int) - out_cpu.permute(1, 2, 0).numpy().astype(int)).max() <= 1
 
 
+@pytest.mark.slow
 def test_rectify_reuses_a_live_result_for_the_same_calibration():
     """Equal calibrations share one Rectification (and its maps) while it is alive; different ones do not."""
     import gc  # noqa: PLC0415

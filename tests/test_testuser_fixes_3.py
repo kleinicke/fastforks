@@ -22,6 +22,7 @@ from fastforks._core.model import Backend, Model, ReadOnlyDict
 ROOT = pathlib.Path(fastforks.__file__).parent
 
 
+@pytest.mark.slow
 def test_pil_resize_is_one_clean_graph_break():  # TE-7
     from fastforks.detection._resize import pil_bilinear  # noqa: PLC0415
 

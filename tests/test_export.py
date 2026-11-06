@@ -119,6 +119,7 @@ def _main_map(result: Any) -> torch.Tensor:
     return next(getattr(result, k) for k in spec(TASK[result.model]).standard if getattr(result, k) is not None)
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_module_in_eval_mode(ref):
@@ -153,6 +154,7 @@ def _check_export_names(ref: str, model: Any, module: torch.nn.Module, out: Any)
         assert not set(names) & set(model.variant.outputs), f"{ref}: {names} reuse card outputs"
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.filterwarnings("ignore:The .grad attribute of a Tensor that is not a leaf")  # dynamo reads .grad
 @pytest.mark.parametrize("ref", SMALLEST)
@@ -364,6 +366,7 @@ def test_export_defaults_per_task():
     assert spec("features").export_size == (224, 224)
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_depth_export_rejects_kernels(tmp_path, monkeypatch):
     model = _load(DEPTH[0])
@@ -414,6 +417,7 @@ def test_kernels_op_unknown_model():
         torch.ops.fastforks.stereo_disparity(-1, torch.zeros(1, 3, 8, 8), torch.zeros(1, 3, 8, 8))
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_export_rejects_kernels_and_small_sizes(tmp_path, monkeypatch):
     model = _load("hitnet-eth3d@1")
@@ -463,6 +467,7 @@ def _tensors(result: Any) -> dict[str, torch.Tensor]:
     return {k: v for k, v in vars(result).items() if isinstance(v, torch.Tensor)}
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.filterwarnings("ignore:Dynamo detected")  # detection's resize taps are lru_cached: traced, fine
 @pytest.mark.parametrize("ref", _first_per_task())
@@ -486,6 +491,7 @@ def test_model_compile_equals_eager(ref):
         model._runner.__class__ = runner_type  # the sweep model is shared with later tests
 
 
+@pytest.mark.slow
 def test_compile_rejects_kernels(monkeypatch):
     model = _load("hitnet-eth3d@1")
     monkeypatch.setattr(model, "backend", stereo.Backend("kernels", "cuda:0", "float16"))
@@ -493,6 +499,7 @@ def test_compile_rejects_kernels(monkeypatch):
         model.compile()
 
 
+@pytest.mark.slow
 def test_failed_compiled_call_keeps_eager_torch_working(monkeypatch):
     """A compiled call that fails in AOT autograd must not break torch's dispatcher for the rest of the process.
 

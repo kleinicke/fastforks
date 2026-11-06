@@ -43,6 +43,7 @@ def test_errors_exit_1(capsys):
     assert "unknown model 'nope' (no task has it; tasks: stereo, depth" in capsys.readouterr().err
 
 
+@pytest.mark.slow
 def test_closed_stdout_exits_1_quietly():
     """`fastforks list | head`: a reader that went away is exit 1 without a traceback, not exit 120."""
     r, w = os.pipe()
@@ -99,6 +100,7 @@ def test_bench_cpu(capsys):
     assert " ms (median of 1)" in out
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_bench_depth_cpu(capsys):
     _local("depth-anything-v2-s")
@@ -404,6 +406,7 @@ def test_list_installed_and_info_requires(capsys, monkeypatch):
     assert "requires" in capsys.readouterr().out
 
 
+@pytest.mark.slow
 def test_bench_compares_portable_and_kernels(monkeypatch, capsys):
     """Without --mode, both backends are timed (the kernels one is reported unavailable here) and shown in a table."""
     calls = []
@@ -428,6 +431,7 @@ def test_bench_compares_portable_and_kernels(monkeypatch, capsys):
     assert "second line" not in out
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(("device", "modes"), [("mps", ["portable", "kernels"]), ("cpu", ["portable"])])
 def test_bench_offers_kernels_per_device(monkeypatch, capsys, device, modes):
     """The portable / kernels comparison covers Apple MPS (Metal kernels), not only CUDA; the CPU has no kernels."""
@@ -537,6 +541,7 @@ def test_bench_rejects_nonpositive_numbers(flag, capsys):
     assert "error" in capsys.readouterr().err
 
 
+@pytest.mark.slow
 def test_bench_float32_skips_the_kernels_row(monkeypatch, capsys):
     from fastforks import OptionsError  # noqa: PLC0415
 

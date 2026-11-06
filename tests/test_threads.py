@@ -52,6 +52,7 @@ def _run_threads(fns: list) -> list:
         return [f.result() for f in [pool.submit(go, fn) for fn in fns]]
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", REFS)
 def test_two_threads_share_one_model(ref):
@@ -64,6 +65,7 @@ def test_two_threads_share_one_model(ref):
             assert torch.equal(out, want[s])
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_threads_use_different_models():
     refs = REFS[:2] + REFS[2:]
@@ -75,6 +77,7 @@ def test_threads_use_different_models():
             assert torch.equal(out, want[r])
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", REFS)
 def test_two_threads_load_the_same_ref(ref):

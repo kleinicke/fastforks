@@ -84,6 +84,9 @@ def pytest_addoption(parser):
         action="store_true",
         help="GPU goldens: record the kernel builds of passing kernels runs as [validated] in the family golden.toml",
     )
+    parser.addoption(
+        "--slow", action="store_true", help="also run the tests marked `slow` (> 1 s; release suite, changed code)"
+    )
 
 
 _OPTIONAL = ("timm", "torchvision", "transformers", "scipy")  # the opt-in `vision` group / extras
@@ -118,9 +121,15 @@ def _sweep_ref(item: pytest.Item) -> str | None:
     return callspec.params.get("ref")
 
 
-def pytest_collection_modifyitems(items):
-    """The ref-parametrized tests of `LOAD_ONCE` modules run as one block, grouped by ref (in collection order within a
-    ref), at the place of the first of them: `sweep_model` then loads each model once. Tests do not depend on order."""
+def pytest_collection_modifyitems(config, items):
+    """Tests marked `slow` are skipped without `--slow`. The ref-parametrized tests of `LOAD_ONCE` modules run as one
+    block, grouped by ref (in collection order within a ref), at the place of the first of them: `sweep_model` then
+    loads each model once. Tests do not depend on order."""
+    if not config.getoption("--slow"):
+        skip = pytest.mark.skip(reason="slow (> 1 s): --slow runs it")
+        for item in items:
+            if "slow" in item.keywords:
+                item.add_marker(skip)
     block = [i for i in items if _sweep_ref(i) is not None]
     if block:
         first = items.index(block[0])

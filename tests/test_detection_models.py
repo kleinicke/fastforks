@@ -59,6 +59,7 @@ def _load(ref: str, device: str, mode: Mode, **options: object) -> detection.Det
     return detection.load(ref, mode=mode, device=device, options=options)
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize(
     ("device", "mode"),
@@ -91,6 +92,7 @@ def test_no_detections(ref: str, device: str, mode: Mode) -> None:
             assert r.masks is None
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", ["faster-rcnn-r50-fpn-3x-coco", "detr-r50-coco", "rtdetrv2-s-coco"])
 def test_per_call_score_threshold_equals_the_load_option(ref: str) -> None:

@@ -142,6 +142,7 @@ def _local_weights(ref):
         pytest.skip(f"weights of {ref} not available locally: {e}")
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_offline_model_runs_from_a_copied_cache(tmp_path):
     """Copy a small model's weights into a fresh cache, then load and run it with the network guarded."""

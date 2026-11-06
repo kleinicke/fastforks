@@ -281,6 +281,7 @@ markers = [
   "model: needs model weights (per-model parity tests)",
   "gpu: needs a CUDA GPU",
   "mps: needs an Apple GPU (MPS)",
+  "slow: takes > 1 s; skipped without --slow (release suite, the tests of changed code)",
 ]
 
 # VGGT pose_enc: `H, W = image_size_hw` on an argument typed Optional upstream.

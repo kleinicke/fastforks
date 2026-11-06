@@ -5,6 +5,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
+
 import fastforks
 import gen_docs
 from fastforks import ModelNotFoundError, stereo
@@ -14,6 +16,7 @@ from fastforks.stereo import geometry
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.slow
 def test_model_pages_current():
     subprocess.run([sys.executable, ROOT / "tools" / "gen_docs.py", "--check"], check=True)
 

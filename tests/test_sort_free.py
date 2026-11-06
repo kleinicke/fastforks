@@ -31,6 +31,7 @@ class _Fit(torch.nn.Module):
         return fit(mono, disp)
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("seed", range(5))
 def test_exported_quantile_is_the_sorted_value(seed):
     mono, _ = _data(seed)
@@ -50,6 +51,7 @@ def test_scale_shift_matches_upstream(seed):
     assert got[1].item() == pytest.approx(want[1], abs=2e-3)  # px; upstream solves the fp32 normal equations
 
 
+@pytest.mark.slow
 def test_exported_fit_matches_eager():
     mono, gt = _data(0, (2, 1, 23, 31))
     want = fit(mono, gt)
@@ -86,6 +88,7 @@ class _Quantile(torch.nn.Module):
         return _quantile(v, valid, self.q)
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("q", [0.5, 0.99, 0.0, 1.0, 0.37])
 def test_da3_exported_quantile_matches_sort(q):
     g = torch.Generator().manual_seed(0)
@@ -119,6 +122,7 @@ def test_quantile_matches_torch(q):
     torch.testing.assert_close(quantile(v, q), torch.quantile(v, q, dim=-1), rtol=1e-6, atol=1e-6)
 
 
+@pytest.mark.slow
 def test_mvsanywhere_exported_range_matches_eager():
     from fastforks.multiview.models.mvsanywhere.model import refine_range  # noqa: PLC0415
 

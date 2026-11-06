@@ -528,6 +528,7 @@ class _Redirects(http.server.BaseHTTPRequestHandler):
         pass
 
 
+@pytest.mark.slow
 @pytest.mark.filterwarnings("error::pytest.PytestUnraisableExceptionWarning")
 def test_http_responses_are_closed(tmp_path, monkeypatch):
     """Redirected, failed and looping HTTP fetches leave no unclosed socket (ResourceWarning at gc)."""

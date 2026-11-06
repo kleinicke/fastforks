@@ -377,6 +377,7 @@ def test_writer_errors_name_the_pair(tmp_path):
     assert _no_threads()
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("how", ["end", "close", "with_break", "gc"])
 def test_no_thread_leak(how):
     lefts, rights = _pairs(12)
@@ -579,6 +580,7 @@ def test_autocast_of_the_caller_applies():
     assert seen == [True, True]
 
 
+@pytest.mark.slow
 def test_dev_mode_has_no_warnings(tmp_path):
     code = (
         "import sys; sys.path.insert(0, 'tests');"

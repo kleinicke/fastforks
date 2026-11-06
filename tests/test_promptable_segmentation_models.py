@@ -40,6 +40,7 @@ def _boxes(n: int) -> tuple[torch.Tensor, torch.Tensor]:
     return torch.cat([xy, xy + wh], 1), (torch.arange(n) % 3 != 2).long()
 
 
+@pytest.mark.slow
 @pytest.mark.model
 def test_box_padding_is_exact_on_cpu():
     """Padded exemplar boxes (as in the kernels CUDA graphs) give the unpadded result in float32: the mask is exact.
