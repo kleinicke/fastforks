@@ -5,7 +5,8 @@
 
 Per scan: reference view `--ref-view` plus its top `--sources` co-visible views (the cache's `pairs` order), 640x512
 crops, GT depth = z-buffer render of the structured-light points (sparse, mm). Every model gets the same views.
-Models that need cameras get the cache's intrinsics / cam_to_world (mm) and the DTU depth range 425-935 mm.
+Models that need cameras get the cache's intrinsics / cam_to_world (mm); the DTU depth range 425-935 mm only
+PatchMatchNet, which needs one (MVSAnywhere sets its range from the camera baselines, as its original adapter).
 Metrics per reference view over GT pixels, averaged over scans: AbsRel and delta<1.25, after per-image median
 scaling for scale-free models (`kind != "metric"` with cameras not given); calibrated MVS: mm error, % within 2 / 4 mm.
 Speed: median of `--reps` timed calls per scan (CUDA events, after one warm-up call), peak allocated / reserved
@@ -51,7 +52,7 @@ if UP:
     import _original
 
     _original.bench()  # puts the library on sys.path with its metadata stand-ins
-from fastforks import InputError, multiview  # noqa: E402
+from fastforks import multiview  # noqa: E402
 
 if UP:
     orig = _original.load("multiview", a.ref, a.mode)
@@ -63,6 +64,7 @@ calibrated = multiview.model_card(a.ref).family in {
     "mvsanywhere",
     "patchmatchnet",
 }  # calibrated MVS: cameras are inputs
+RANGE = multiview.model_card(a.ref).family == "patchmatchnet"  # the only one that needs the depth range
 MM_NEAR, MM_FAR = 425.0, 935.0  # DTU depth range
 D125, MM2, MM4 = 1.25, 2.0, 4.0
 
@@ -70,7 +72,9 @@ D125, MM2, MM4 = 1.25, 2.0, 4.0
 def sample(scan: int) -> tuple[np.ndarray, dict, np.ndarray]:
     d = np.load(f"{a.dtu}/scan{scan}/cache_640x512.npz")
     ids = [a.ref_view, *d["pairs"][a.ref_view][: a.sources].tolist()]
-    kw = {"intrinsics": d["K"][ids], "cam_to_world": d["c2w"][ids], "depth_range": (MM_NEAR, MM_FAR)}
+    kw = {"intrinsics": d["K"][ids], "cam_to_world": d["c2w"][ids]}
+    if RANGE or UP:  # the original adapters take it positionally (MVSAnywhere's ignores it)
+        kw["depth_range"] = (MM_NEAR, MM_FAR)
     return d["images"][ids], kw if calibrated or UP else {}, d["depth_gt"][a.ref_view]
 
 
@@ -90,7 +94,7 @@ def metrics(pred: np.ndarray, gt: np.ndarray) -> dict:
 
 def _commit() -> str:
     wt = Path(multiview.__file__).resolve().parents[2]
-    return subprocess.check_output(["git", "-C", str(wt), "log", "-1", "--format=%h", "--", "src"], text=True).strip()
+    return subprocess.check_output(["git", "-C", str(wt), "log", "-1", "--format=%h", "--", "."], text=True).strip()
 
 
 def _meta() -> dict:
@@ -117,7 +121,7 @@ def _failed(e: Exception) -> NoReturn:
 
 
 def call(imgs: np.ndarray, kw: dict) -> object:
-    """Call with all cameras; a model that does not take a depth range (MVSAnywhere) gets it dropped."""
+    """Call with the cameras of `sample`."""
     if UP:  # the original: depth of view 0
         x = torch.from_numpy(np.ascontiguousarray(imgs)).cuda().permute(0, 3, 1, 2)
         x = x.float() / 255 if x.dtype == torch.uint8 else x.float()
@@ -127,10 +131,7 @@ def call(imgs: np.ndarray, kw: dict) -> object:
             return orig(*orig.prep(args))[0]
         except Exception as e:  # noqa: BLE001 - e.g. PatchMatchNet fp16 on DTU: singular projection matrices
             _failed(e)
-    try:
-        return m(imgs, **kw)
-    except InputError:
-        return m(imgs, **{k: v for k, v in kw.items() if k != "depth_range"})
+    return m(imgs, **kw)
 
 
 imgs, kw, _ = sample(a.scans[0])

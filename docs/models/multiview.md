@@ -52,7 +52,7 @@ Commercial use: yes.
 
 ### Measured
 
-640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras + depth range 425-935 mm, error in mm). Original = the original code named under Details, same checkpoint and protocol.
+640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -104,11 +104,11 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 
 ### Measured
 
-640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras + depth range 425-935 mm, error in mm). Original = the original code named under Details, same checkpoint and protocol.
+640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
-| `mvsanywhere` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm | 0.0077 / 99.82 / 5.57 | 0.0110 / 99.84 / 7.85 | 0.0093 / 99.82 / 7.34 | 0.0093 / 99.82 / 7.34 |  |
+| `mvsanywhere` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm | 0.0077 / 99.82 / 5.57 | 0.0110 / 99.84 / 7.85 | 0.0078 / 99.82 / 5.60 | 0.0077 / 99.82 / 5.59 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-06.
 
@@ -155,7 +155,7 @@ Commercial use: yes.
 
 ### Measured
 
-640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras + depth range 425-935 mm, error in mm). Original = the original code named under Details, same checkpoint and protocol.
+640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -208,7 +208,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 ### Measured
 
-640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras + depth range 425-935 mm, error in mm). Original = the original code named under Details, same checkpoint and protocol.
+640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -261,7 +261,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 
 ### Measured
 
-640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras + depth range 425-935 mm, error in mm). Original = the original code named under Details, same checkpoint and protocol.
+640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
