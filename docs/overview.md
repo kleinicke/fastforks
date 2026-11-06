@@ -243,7 +243,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`dinov2-vits14-reg`](models/features.md#dinov2) | yes | – | 3.0 | 0.8 | 3.7x vs portable | 112 |
+| [`dinov2-vits14-reg`](models/features.md#dinov2) | yes | 4.1 (224x224) | 3.0 | 0.8 | 5.0x vs original (224x224) | 112 |
 | [`dinov2-vits14`](models/features.md#dinov2) | yes | 3.3 (224x224) | 3.0 | 0.8 | 3.9x vs original (224x224) | 112 |
 | [`dinov3-vits16`](models/features.md#dinov3-vit) | yes | 6.5 (224x224) | 4.7 | 0.9 | 7.2x vs original (224x224) | 77 |
 | [`dinov3-convnext-tiny`](models/features.md#dinov3-convnext) | yes | 3.0 (224x224) | 3.0 | 1.2 | 2.5x vs original (224x224) | 86 |
@@ -255,9 +255,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`dinov3-vitl16`](models/features.md#dinov3-vit) | yes | 17.7 (224x224) | 9.1 | 3.3 | 5.4x vs original (224x224) | 617 |
 | [`dinov3-convnext-large`](models/features.md#dinov3-convnext) | yes | 9.6 (224x224) | 5.4 | 3.6 | 2.7x vs original (224x224) | 441 |
 | [`dinov2-vitl14`](models/features.md#dinov2) | yes | 9.8 (224x224) | 6.1 | 4.6 | 2.1x vs original (224x224) | 655 |
-| [`dinov2-vitl14-reg`](models/features.md#dinov2) | yes | – | 6.2 | 4.6 | 1.3x vs portable | 655 |
+| [`dinov2-vitl14-reg`](models/features.md#dinov2) | yes | 10.7 (224x224) | 6.2 | 4.6 | 2.3x vs original (224x224) | 655 |
 | [`dinov3-vith16plus`](models/features.md#dinov3-vit) | yes | 25.9 (224x224) | 13.3 | 9.3 | 2.8x vs original (224x224) | 1644 |
-| [`dinov2-vitg14-reg`](models/features.md#dinov2) | yes | – | 18.7 | 13.0 | 1.4x vs portable | 2222 |
+| [`dinov2-vitg14-reg`](models/features.md#dinov2) | yes | 34.2 (224x224) | 18.7 | 13.0 | 2.6x vs original (224x224) | 2222 |
 | [`dinov2-vitg14`](models/features.md#dinov2) | yes | 33.9 (224x224) | 18.9 | 13.2 | 2.6x vs original (224x224) | 2246 |
 
 ## Multiview
