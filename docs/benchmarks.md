@@ -574,7 +574,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 Portable with `model.compile()` (Inductor, default mode) and the fp16 TensorRT engine of the portable model
 (`export_tensorrt`), one variant per family at the task's standard size, next to portable and `kernels`
 ([export](export.md) has the methods). The compile time is the cold first call (empty Inductor cache); the engine
-runs `module()` on the synthetic module inputs and its memory is the device memory it holds. Rows measured by
+runs `module()` on synthetic inputs of the shape the timed call gives the network (classifier crop, all views of a
+scene; "only" marks engines of part of the call) and its memory is the device memory it holds. Rows measured by
 `tools/speed_check.py run --modes compile tensorrt`; a failure is shown as `fails: reason`.
 
 <!-- compile:begin (tools/gen_docs.py, from docs/data/speed_compile.jsonl) -->

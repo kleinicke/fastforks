@@ -198,6 +198,17 @@ def _orig(fp16: dict | None, fp32: dict | None) -> dict | None:
 
 
 _COMPILE_LABEL = {"compile": "portable + torch.compile", "tensorrt": "TensorRT fp16"}  # speed_compile.jsonl modes
+_ENGINE_PART = {"promptable_segmentation": "image encoder", "rcnn": "backbone + FPN"}  # task / family: `module()`
+
+
+@functools.cache
+def _engine_part(model_id: str) -> str:
+    """` (image encoder only)` where the TensorRT engine (`module()`) runs only part of the timed call, else ''."""
+    for task in registry.TASKS:
+        for card, v in registry.cards(task).values():
+            if v.id == model_id and (part := _ENGINE_PART.get(card.family) or _ENGINE_PART.get(task)):
+                return f" ({part} only)"
+    return ""
 
 
 @functools.cache
@@ -218,7 +229,8 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
             lines.append((label, f"fails: {_fail_reason(r['fails'])}", DASH))
             continue
         engine = mode == "tensorrt" and "device_mb" in r
-        lines.append((label, _ms_str(r["ms"]), f"{r['device_mb']} (engine)" if engine else _peak(r)))
+        ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
+        lines.append((label, ms, f"{r['device_mb']} (engine)" if engine else _peak(r)))
         first = r["compile_s"] if mode == "compile" else r["onnx_export_s"] + r["engine_build_s"]
         setup.append(f"{label} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
     return lines, setup
@@ -1288,7 +1300,9 @@ def _compile_ms(r: dict | None) -> str:
     """The time cell of a compile / tensorrt row: `N ms`, `fails: reason`, or a dash."""
     if r is None:
         return DASH
-    return f"fails: {_fail_reason(r['fails'])}" if "fails" in r else f"{_ms_str(r['ms'])} ms"
+    if "fails" in r:
+        return f"fails: {_fail_reason(r['fails'])}"
+    return f"{_ms_str(r['ms'])} ms" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
 
 
 def _compile_block() -> str:
