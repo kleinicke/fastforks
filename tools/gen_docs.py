@@ -1284,13 +1284,11 @@ def _fail_reason(msg: str) -> str:
     return re.sub(r"\x1b\[\d+m|/tmp/\S+/", "", msg.removeprefix("run: "))[:60]
 
 
-def _compile_cells(r: dict | None, *fields: str) -> list[str]:
-    """Cells of a compile / tensorrt row: `fields` formatted, or `fails: reason` (spanning the first cell) / dashes."""
+def _compile_ms(r: dict | None) -> str:
+    """The time cell of a compile / tensorrt row: `N ms`, `fails: reason`, or a dash."""
     if r is None:
-        return [DASH] * len(fields)
-    if "fails" in r:
-        return [f"fails: {_fail_reason(r['fails'])}", *[DASH] * (len(fields) - 1)]
-    return [f"{r[f]:.1f}" if isinstance(r.get(f), float) else str(r.get(f, DASH)) for f in fields]
+        return DASH
+    return f"fails: {_fail_reason(r['fails'])}" if "fails" in r else f"{_ms_str(r['ms'])} ms"
 
 
 def _compile_block() -> str:
@@ -1300,8 +1298,9 @@ def _compile_block() -> str:
     tasks = {v.id: t for t in registry.TASKS for _, v in registry.cards(t).values()}
     order = {t: i for i, t in enumerate(registry.TASKS)}
     head = (
-        "| model | input | portable ms | compile ms | compile s (cold) | TensorRT fp16 ms | ONNX + build s | kernels ms"
-        " | peak MiB (alloc / reserved): portable | compile | TensorRT (device) |"
+        "| model | input | time: portable | compile | TensorRT fp16 | kernels"
+        " | preparation: compile (cold first call) | ONNX + engine build"
+        " | peak MiB (alloc / reserved): portable | compile | kernels | TensorRT (device) |"
     )
     out = [f"{_COMPILE_BEGIN} (tools/gen_docs.py, from docs/data/speed_compile.jsonl) -->"]
     if not latest:
@@ -1311,20 +1310,21 @@ def _compile_block() -> str:
         comp, trt = latest.get((ref, "compile")), latest.get((ref, "tensorrt"))
         size = next(r["input"] for r in (comp, trt) if r)
         at = {r["mode"]: r for r in speed.get(ref, []) if r["input"] == size}
-        build = "fails" in (trt or {}) or trt is None
-        build_s = DASH if build else f"{trt['onnx_export_s'] + trt['engine_build_s']:.0f}"
-        trt_mem = DASH if build or "device_mb" not in trt else str(trt["device_mb"])
+        built = trt is not None and "fails" not in trt
+        ms = {m: f"{_ms_str(at[m]['ms'])} ms" if m in at else DASH for m in ("portable", "kernels")}
         cells = [
             ref,
             size,
-            _ms_cell(at.get("portable")),
-            *_compile_cells(comp, "ms", "compile_s"),
-            *_compile_cells(trt, "ms")[:1],
-            build_s,
-            _ms_cell(at.get("kernels")),
+            ms["portable"],
+            _compile_ms(comp),
+            _compile_ms(trt),
+            ms["kernels"],
+            DASH if comp is None or "fails" in comp else f"{_ms_str(comp['compile_s'])} s",
+            f"{_ms_str(trt['onnx_export_s'] + trt['engine_build_s'])} s" if built else DASH,
             _peak(at.get("portable")),
             _peak(comp) if comp and "fails" not in comp else DASH,
-            trt_mem,
+            _peak(at.get("kernels")),
+            str(trt["device_mb"]) if built and "device_mb" in trt else DASH,
         ]
         out.append("| " + " | ".join(cells) + " |")
     return "\n".join([*out, _COMPILE_END])
