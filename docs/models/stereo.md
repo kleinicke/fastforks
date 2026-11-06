@@ -508,7 +508,6 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - CUDA output (float16, kernels, float32 with PyTorch's default TF32 convolutions) differs from the CPU by ~0.1-0.2 px mean / 3 px p99 at 720x1280, 0.03 px with full float32: rounding amplified by 2 x 20 GRU iterations. Portable and kernels reach the same ETH3D / Middlebury accuracy.
-- Middlebury accuracy differs from the original code (about -0.3 bad-%; the original run padded differently).
 
 </details>
 

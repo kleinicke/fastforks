@@ -12,9 +12,8 @@ below give every measured input, the startup times and, at the end, the same mod
 
 Accuracy matches the original code. On ETH3D and Middlebury (the "Measured" tables on the model pages) both modes
 stay within 0.15 bad-% / 0.025 EPE of the original with the same checkpoint for AANet, AANet+, CoEx, IGEV,
-Selective-IGEV, LiteAnyStereo V2 M/H, DEFOM and FoundationStereo-L. S2M2 is better (up to 1 bad-% lower) because our
-port uses the cost-volume lookup convention the released weights were trained with. CREStereo is 0.3 bad-% better on
-Middlebury; the original run padded the input differently.
+Selective-IGEV, LiteAnyStereo V2 M/H, DEFOM, FoundationStereo-L and CREStereo. S2M2 is better (up to 1 bad-% lower)
+because our port uses the cost-volume lookup convention the released weights were trained with.
 
 The accuracy columns on the model pages check parity (original code vs portable vs kernels) on public images; they are not a
 ranking. Variants trained or fine-tuned on ETH3D / Middlebury are marked `†` in those columns (`?` where the training data
