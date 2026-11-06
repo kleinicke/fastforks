@@ -330,7 +330,7 @@ def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, P
 def summary_rows(out: Path) -> list[dict[str, Any]]:
     """One docs row per model, tier and dataset from the per-item files under `out`."""
     res = []
-    for per in sorted(out.glob("*/*__*.jsonl")):
+    for per in sorted(p for task in ("stereo", "depth") for p in (out / task).glob("*__*.jsonl")):  # not coco/
         task = per.parent.name
         ref, tier = per.stem.split("__")
         rows = [json.loads(x) for x in per.read_text().splitlines()]
