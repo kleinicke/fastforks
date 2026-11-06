@@ -97,7 +97,8 @@ _PROTOCOL = {
     "224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. ",
     "multiview": "640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light "
     "points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras "
-    "(calibrated MVS: cameras + depth range 425-935 mm, error in mm). ",
+    "(calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range "
+    "from the camera baselines). ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
