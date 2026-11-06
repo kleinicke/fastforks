@@ -416,31 +416,27 @@ def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int
     """(batch or views, h, w) of the image the network takes in one timed call (`module()` takes the same).
 
     The runner's first image argument (classification: the crop, multi-view: `[views, 3, H, W]`); detection, whose
-    `module()` starts after the resize: the first 3-channel image a submodule gets.
+    `module()` starts after the resize: the first 3-channel image a submodule gets, if one does (R-CNN: the runner's).
     """
     import torch  # noqa: PLC0415
 
     seen: list[torch.Size] = []
-    if task == "detection":
 
-        def hook(_mod: Any, args: tuple[Any, ...]) -> None:  # noqa: ANN401
-            x = args[0] if args else None
-            if not seen and isinstance(x, torch.Tensor) and x.ndim == 4 and x.shape[1] == 3:  # noqa: PLR2004
-                seen.append(x.shape)
+    def hook(_mod: Any, args: tuple[Any, ...]) -> None:  # noqa: ANN401
+        x = args[0] if args else None
+        if not seen and isinstance(x, torch.Tensor) and x.ndim == 4 and x.shape[1] == 3:  # noqa: PLR2004
+            seen.append(x.shape)
 
-        handle = torch.nn.modules.module.register_module_forward_pre_hook(hook)
-        try:
-            full()
-        finally:
+    runner = model._runner  # noqa: SLF001 - the task's own runner contract
+    cap = model._runner = _Capture(runner)  # noqa: SLF001
+    handle = torch.nn.modules.module.register_module_forward_pre_hook(hook) if task == "detection" else None
+    try:
+        full()
+    finally:
+        model._runner = runner  # noqa: SLF001
+        if handle is not None:
             handle.remove()
-    else:
-        runner = model._runner  # noqa: SLF001 - the task's own runner contract
-        cap = model._runner = _Capture(runner)  # noqa: SLF001
-        try:
-            full()
-        finally:
-            model._runner = runner  # noqa: SLF001
-        seen += [a.shape for a in cap.__dict__["_args"][1] if isinstance(a, torch.Tensor)][:1]
+    seen += [a.shape for a in cap.__dict__["_args"][1] if isinstance(a, torch.Tensor)][:1]
     n, _, h, w = seen[0]
     return n, h, w
 

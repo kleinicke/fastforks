@@ -35,7 +35,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `detr-r50-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 55.5<br>62.0<br>12.4<br>9.93<br>9.27<br>4.41 | 491 / 540<br>459 / 558<br>280 / 332<br>218 / 272<br>233 / 292<br>188 (engine) |
+| `detr-r50-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 55.5<br>62.0<br>12.4<br>9.93<br>9.27<br>4.40 | 491 / 540<br>459 / 558<br>280 / 332<br>218 / 272<br>233 / 292<br>182 (engine) |
 | `detr-r101-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 78.9<br>80.8<br>18.7<br>13.7 | 564 / 634<br>531 / 650<br>316 / 368<br>254 / 328 |
 
 <details><summary>Details</summary>
@@ -51,7 +51,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `detr-r50-coco` 3000x4000 (0.6 GiB peak allocated, 0.6 reserved); `detr-r101-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved)
-- `detr-r50-coco` 800x1344, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 32 s (ONNX + engine).
+- `detr-r50-coco` 800x1344, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 33 s (ONNX + engine).
 - `detr-r50-coco` original (fp32) 800x1344: incl. CPU resize + host copy (official pipeline)
 - `detr-r50-coco` original 800x1344: torch.autocast(fp16) around the forward; incl. CPU resize + host copy (official pipeline)
 - `detr-r101-coco` original (fp32) 800x1344: incl. CPU resize + host copy (official pipeline)
@@ -93,7 +93,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.3<br>29.1<br>10.3<br>2.72<br>5.43<br>1.43 | 91 / 122<br>92 / 126<br>88 / 116<br>124 / 202<br>101 / 118<br>94 (engine) |
+| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.3<br>29.1<br>10.3<br>2.72<br>5.43<br>0.942 | 91 / 122<br>92 / 126<br>88 / 116<br>124 / 202<br>101 / 118<br>56 (engine) |
 | `dfine-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 25.7<br>31.9<br>11.1<br>4.04 | 180 / 204<br>152 / 184<br>105 / 128<br>138 / 212 |
 | `dfine-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 30.8<br>38.2<br>13.5<br>5.97 | 231 / 264<br>209 / 256<br>126 / 142<br>156 / 252 |
 | `dfine-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 37.1<br>44.9<br>16.2<br>8.70 | 281 / 328<br>278 / 350<br>152 / 172<br>179 / 300 |
@@ -112,7 +112,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dfine-n-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-l-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `dfine-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved)
-- `dfine-n-coco` 800x1344, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
+- `dfine-n-coco` 800x1344, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
 - `dfine-n-coco` original (fp32) 800x1344: incl. CPU PIL resize + host-to-device copy of the HF-transformers pipeline (the official D-FINE .pth is not in the weights dir)
 - `dfine-n-coco` original 800x1344: torch.autocast(fp16) around the forward; incl. CPU PIL resize + host-to-device copy of the HF-transformers pipeline (the official D-FINE .pth is not in the weights dir); fp16 differs from the reference (box max diff 65.17 px)
 - `dfine-s-coco` original (fp32) 800x1344: incl. CPU PIL resize + host-to-device copy of the HF-transformers pipeline (the official D-FINE .pth is not in the weights dir)
@@ -159,7 +159,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `mask-rcnn-r50-fpn-3x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 85.4<br>43.5<br>24.6<br>21.0 | 1601 / 1918<br>604 / 650<br>352 / 440<br>353 / 400 |
-| `faster-rcnn-r50-fpn-3x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 83.6<br>41.4<br>22.8<br>19.5<br>18.9<br>5.34 | 1591 / 1898<br>626 / 708<br>390 / 490<br>391 / 450<br>413 / 438<br>258 (engine) |
+| `faster-rcnn-r50-fpn-3x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 83.6<br>41.4<br>22.8<br>19.5<br>18.9<br>5.35 (backbone + FPN only) | 1591 / 1898<br>626 / 708<br>390 / 490<br>391 / 450<br>413 / 438<br>258 (engine) |
 
 <details><summary>Details</summary>
 
@@ -215,7 +215,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rtdetrv2-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.1<br>16.8<br>8.04<br>4.19<br>4.22<br>3.56 | 196 / 226<br>192 / 220<br>134 / 166<br>155 / 250<br>152 / 182<br>152 (engine) |
+| `rtdetrv2-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.1<br>16.8<br>8.04<br>4.19<br>4.22<br>1.81 | 196 / 226<br>192 / 220<br>134 / 166<br>155 / 250<br>152 / 182<br>98 (engine) |
 | `rtdetrv2-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 17.1<br>20.9<br>10.4<br>5.27 | 239 / 254<br>254 / 270<br>156 / 170<br>177 / 274 |
 | `rtdetrv2-ms-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 24.7<br>22.5<br>9.60<br>5.46 | 322 / 374<br>309 / 358<br>166 / 182<br>189 / 306 |
 | `rtdetrv2-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 30.3<br>38.4<br>12.1<br>6.61 | 366 / 424<br>354 / 412<br>177 / 200<br>200 / 306 |
@@ -234,7 +234,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtdetrv2-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `rtdetrv2-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `rtdetrv2-ms-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `rtdetrv2-l-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved); `rtdetrv2-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.8 reserved)
-- `rtdetrv2-s-coco` 800x1344, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 45 s (ONNX + engine).
+- `rtdetrv2-s-coco` 800x1344, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `rtdetrv2-s-coco` original (fp32) 800x1344: incl. CPU resize + host copy (official pipeline)
 - `rtdetrv2-s-coco` original 800x1344: torch.autocast(fp16) around the forward; incl. CPU resize + host copy (official pipeline)
 - `rtdetrv2-m-coco` original (fp32) 800x1344: incl. CPU resize + host copy (official pipeline)

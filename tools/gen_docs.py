@@ -1280,6 +1280,7 @@ _FAIL_REASONS = (  # (pattern in the recorded error, short reason for the table)
     (r"ConversionError", "ONNX export: conversion failed"),
     (r"doesn't match model \((\d+)\)", r"ONNX export: fixed \1 px input"),
     (r"compilation subprocess exited", "Inductor: compile worker crashed"),
+    (r"InductorError: SubprocException", "Inductor: Triton kernel does not compile (torch bug)"),
     (r"Guard failed on the same frame", "Dynamo guard error (torch bug)"),
     (r"version_counter for inference tensor", "Inductor: inference tensors"),
     (r"inference_mode expects no kwargs", "Dynamo: inference_mode in model code"),
