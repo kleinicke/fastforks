@@ -8,34 +8,34 @@ Input: one RGB image. Output: ImageNet-1k class logits.
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
 
-| model | commercial | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`alexnet`](#alexnet) | yes | 0.604, 1.9x | 228 (-56) |
-| [`convnextv2_base`](#convnextv2) | no | 2.936, 3.7x | 380 (-38) |
-| [`deit_base_patch16_224`](#deit) | yes | 1.64, 3.3x | 370 (-16) |
-| [`densenet121`](#densenet) | yes | 1.279, 8.4x | 132 (+40) |
-| [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.929, 2.2x | 950 (-274) |
-| [`efficientnet_b0`](#efficientnet) | yes | 0.769, 7.3x | 118 (+40) |
-| [`efficientnet_b4`](#efficientnet) | yes | 1.999, 5.5x | 180 (+6) |
-| [`efficientnet_v2_s`](#efficientnetv2) | yes | 1.893, 6.4x | 188 (+30) |
-| [`efficientvit_b2`](#efficientvit) | yes | 1.105, 9.7x | 212 (+52) |
-| [`eva02_large_patch14_448`](#eva02) | yes | 14.06, 2.3x | 1386 (+102) |
-| [`fastvit_sa24`](#fastvit) | yes | 1.393, 8.6x | 190 (+46) |
-| [`inception_v3`](#inception_v3) | yes | 1.3, 6.1x | 228 (+48) |
-| [`mobilenet_v2`](#mobilenetv2) | yes | 0.439, 8.2x | 92 (+22) |
-| [`mobilenet_v3_large`](#mobilenetv3) | yes | 0.545, 7.9x | 114 (+36) |
-| [`mobilenetv1_100`](#mobilenetv1) | yes | 0.37, 5.9x | 114 (+42) |
-| [`mobilenetv4_conv_medium`](#mobilenetv4) | yes | 0.641, 9.0x | 124 (+30) |
-| [`regnety_160`](#regnet) | yes | 1.865, 6.5x | 316 (-102) |
-| [`resnet152`](#resnet) | yes | 1.831, 7.0x | 266 (-22) |
-| [`resnet18`](#resnet) | yes | 0.459, 4.2x | 150 (+20) |
-| [`resnet50`](#resnet) | yes | 0.826, 5.7x | 162 (+0) |
-| [`shufflenet_v2_x1_0`](#shufflenetv2) | yes | 0.787, 6.1x | 116 (+68) |
-| [`squeezenet1_1`](#squeezenet) | yes | 0.359, 4.8x | 12 (-16) |
-| [`swin_base_patch4_window7_224`](#swin) | yes | 2.149, 7.0x | 300 (-116) |
-| [`vgg16`](#vgg) | yes | 1.5, 2.4x | 388 (-236) |
-| [`vit_base_patch16_224`](#vit) | yes | 1.647, 3.3x | 370 (-16) |
-| [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.755, 2.0x | 1346 (-398) |
+| [`alexnet`](#alexnet) | yes | 0.604, 1.9x | 228, 0.8x |
+| [`convnextv2_base`](#convnextv2) | no | 2.936, 3.7x | 380, 0.91x |
+| [`deit_base_patch16_224`](#deit) | yes | 1.64, 3.3x | 370, 0.96x |
+| [`densenet121`](#densenet) | yes | 1.279, 8.4x | 132, 1.4x |
+| [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.929, 2.2x | 950, 0.78x |
+| [`efficientnet_b0`](#efficientnet) | yes | 0.769, 7.3x | 118, 1.5x |
+| [`efficientnet_b4`](#efficientnet) | yes | 1.999, 5.5x | 180, 1.0x |
+| [`efficientnet_v2_s`](#efficientnetv2) | yes | 1.893, 6.4x | 188, 1.2x |
+| [`efficientvit_b2`](#efficientvit) | yes | 1.105, 9.7x | 212, 1.3x |
+| [`eva02_large_patch14_448`](#eva02) | yes | 14.06, 2.3x | 1386, 1.1x |
+| [`fastvit_sa24`](#fastvit) | yes | 1.393, 8.6x | 190, 1.3x |
+| [`inception_v3`](#inception_v3) | yes | 1.3, 6.1x | 228, 1.3x |
+| [`mobilenet_v2`](#mobilenetv2) | yes | 0.439, 8.2x | 92, 1.3x |
+| [`mobilenet_v3_large`](#mobilenetv3) | yes | 0.545, 7.9x | 114, 1.5x |
+| [`mobilenetv1_100`](#mobilenetv1) | yes | 0.37, 5.9x | 114, 1.6x |
+| [`mobilenetv4_conv_medium`](#mobilenetv4) | yes | 0.641, 9.0x | 124, 1.3x |
+| [`regnety_160`](#regnet) | yes | 1.865, 6.5x | 316, 0.76x |
+| [`resnet152`](#resnet) | yes | 1.831, 7.0x | 266, 0.92x |
+| [`resnet18`](#resnet) | yes | 0.459, 4.2x | 150, 1.2x |
+| [`resnet50`](#resnet) | yes | 0.826, 5.7x | 162, 1.0x |
+| [`shufflenet_v2_x1_0`](#shufflenetv2) | yes | 0.787, 6.1x | 116, 2.4x |
+| [`squeezenet1_1`](#squeezenet) | yes | 0.359, 4.8x | 12, 0.43x |
+| [`swin_base_patch4_window7_224`](#swin) | yes | 2.149, 7.0x | 300, 0.72x |
+| [`vgg16`](#vgg) | yes | 1.5, 2.4x | 388, 0.62x |
+| [`vit_base_patch16_224`](#vit) | yes | 1.647, 3.3x | 370, 0.96x |
+| [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.755, 2.0x | 1346, 0.77x |
 
 <a id="alexnet"></a>
 

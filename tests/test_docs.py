@@ -262,13 +262,13 @@ def test_summary_table_matches_the_speed_tables():
     assert f"| [`crestereo-eth3d`](#crestereo) | yes | 1.39 \u2020 | {row['ms']}, " in page
 
 
-def test_summary_memory_change_uses_the_smaller_original():
-    """Kernels peak reserved minus the smaller original peak; nothing without a measured original."""
+def test_summary_memory_ratio_uses_the_smaller_original():
+    """Kernels peak reserved over the smaller original peak; nothing without a measured original."""
     fp32, fp16 = {"peak_reserved_mb": 624}, {"peak_reserved_mb": 846}
-    assert gen_docs._mem_change(388, fp16, fp32) == " (-236)"
-    assert gen_docs._mem_change(900, None, fp32) == " (+276)"
-    assert gen_docs._mem_change(388, None, {"ms": 1.0}) == ""
-    assert gen_docs._mem_change(gen_docs._DASH, fp16, fp32) == ""
+    assert gen_docs._mem_ratio(388, fp16, fp32) == ", 0.62x"
+    assert gen_docs._mem_ratio(900, None, fp32) == ", 1.4x"
+    assert gen_docs._mem_ratio(388, None, {"ms": 1.0}) == ""
+    assert gen_docs._mem_ratio(gen_docs._DASH, fp16, fp32) == ""
 
 
 def test_plain_licence_words_match_the_cards():

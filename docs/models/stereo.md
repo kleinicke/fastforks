@@ -8,79 +8,79 @@ Input: a rectified left / right image pair. Output: a disparity map (pixels, lef
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured. The accuracy column is lower-is-better (ETH3D bad > 1 px (%)).
 
-| model | commercial | ETH3D bad > 1 px (%) ↓ | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+| model | commercial | ETH3D bad > 1 px (%) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`aanet-plus-sceneflow`](#aanet) | yes | 18.50 | 88.91, 2.2x | 920 (-2864) |
-| [`aanet-sceneflow`](#aanet) | yes | 14.64 | 100.81, 1.8x | 644 (-482) |
-| [`bridgedepth-rvc-pretrain`](#bridgedepth) | no | 1.22 ? | 353.63, 1.3x | 2686 (-492) |
-| [`bridgedepth-sf`](#bridgedepth) | no | 1.24 | 348.37, 1.3x | 2634 (-494) |
-| [`c-fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | yes | 2.20 | 134.91, 3.9x | 1516 (-1480) |
-| [`c-foundationstereo-s`](#c_foundationstereo) | yes | 1.24 | 1362.1, 2.8x | 4376 (-8494) |
-| [`cas-gwcnet-c-sceneflow`](#cas_gwcnet) | yes | 7.85 | 225.4, 1.7x | 1930 (-1040) |
-| [`cas-gwcnet-gc-sceneflow`](#cas_gwcnet) | yes | 8.09 | 357.52 | 2514 (-8138) |
-| [`cfnet-sceneflow`](#cfnet) | yes | 5.60 | 400.67 | 4718 (-4178) |
-| [`coex-sceneflow`](#coex) | yes | 33.46 | 23.48, 2.6x | 886 (-1274) |
+| [`aanet-plus-sceneflow`](#aanet) | yes | 18.50 | 88.91, 2.2x | 920, 0.24x |
+| [`aanet-sceneflow`](#aanet) | yes | 14.64 | 100.81, 1.8x | 644, 0.57x |
+| [`bridgedepth-rvc-pretrain`](#bridgedepth) | no | 1.22 ? | 353.63, 1.3x | 2686, 0.85x |
+| [`bridgedepth-sf`](#bridgedepth) | no | 1.24 | 348.37, 1.3x | 2634, 0.84x |
+| [`c-fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | yes | 2.20 | 134.91, 3.9x | 1516, 0.51x |
+| [`c-foundationstereo-s`](#c_foundationstereo) | yes | 1.24 | 1362.1, 2.8x | 4376, 0.34x |
+| [`cas-gwcnet-c-sceneflow`](#cas_gwcnet) | yes | 7.85 | 225.4, 1.7x | 1930, 0.65x |
+| [`cas-gwcnet-gc-sceneflow`](#cas_gwcnet) | yes | 8.09 | 357.52 | 2514, 0.24x |
+| [`cfnet-sceneflow`](#cfnet) | yes | 5.60 | 400.67 | 4718, 0.53x |
+| [`coex-sceneflow`](#coex) | yes | 33.46 | 23.48, 2.6x | 886, 0.41x |
 | [`crestereo-eth3d`](#crestereo) | yes | 1.39 † | 228.95, 8.4x | 732 |
-| [`defom-stereo-vitl-sceneflow`](#defom_stereo) | no | 2.44 | 658.71 | 3566 (-7486) |
-| [`dlnr-middlebury`](#dlnr) | yes | 34.38 | 213.87, 2.8x | 1606 (-1946) |
-| [`dlnr-sceneflow`](#dlnr) | yes | 30.27 | 213.87, 2.8x | 1606 (-1946) |
-| [`fast-acvnet-generalization`](#fast_acvnet) | yes | 6.51 | 38.16, 1.6x | 1042 (-464) |
-| [`fast-acvnet-kitti12`](#fast_acvnet) | yes | 19.06 | 38.16, 1.6x | 1042 (-464) |
-| [`fast-acvnet-kitti15`](#fast_acvnet) | yes | 17.59 | 38.16, 1.6x | 1042 (-464) |
-| [`fast-acvnet-plus-generalization`](#fast_acvnet) | yes | 6.20 | 46.41, 1.7x | 1120 (-402) |
-| [`fast-acvnet-plus-kitti12`](#fast_acvnet) | yes | 21.62 | 46.41, 1.7x | 1120 (-402) |
-| [`fast-acvnet-plus-kitti15`](#fast_acvnet) | yes | 21.63 | 46.41, 1.7x | 1120 (-402) |
-| [`fast-acvnet-plus-sceneflow`](#fast_acvnet) | yes | 12.62 | 46.41, 1.7x | 1120 (-402) |
-| [`fast-acvnet-sceneflow`](#fast_acvnet) | yes | 8.43 | 38.16, 1.6x | 1042 (-464) |
-| [`fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | no | 1.72 | 134.98, 3.9x | 1576 (-1730) |
-| [`foundationstereo-vit-l`](#foundationstereo) | no | 0.65 ? | 1513.07, 2.8x | 3300 (-5450) |
-| [`foundationstereo-vit-s`](#foundationstereo) | no | 1.10 ? | 1120.17, 3.2x | 2470 (-4810) |
-| [`great-igev-eth3d`](#great_igev) | yes | 0.49 † | 393.14, 3.7x | 1564 (-7642) |
-| [`great-igev-kitti`](#great_igev) | yes | 23.36 | 393.14, 3.7x | 1564 (-7642) |
+| [`defom-stereo-vitl-sceneflow`](#defom_stereo) | no | 2.44 | 658.71 | 3566, 0.32x |
+| [`dlnr-middlebury`](#dlnr) | yes | 34.38 | 213.87, 2.8x | 1606, 0.45x |
+| [`dlnr-sceneflow`](#dlnr) | yes | 30.27 | 213.87, 2.8x | 1606, 0.45x |
+| [`fast-acvnet-generalization`](#fast_acvnet) | yes | 6.51 | 38.16, 1.6x | 1042, 0.69x |
+| [`fast-acvnet-kitti12`](#fast_acvnet) | yes | 19.06 | 38.16, 1.6x | 1042, 0.69x |
+| [`fast-acvnet-kitti15`](#fast_acvnet) | yes | 17.59 | 38.16, 1.6x | 1042, 0.69x |
+| [`fast-acvnet-plus-generalization`](#fast_acvnet) | yes | 6.20 | 46.41, 1.7x | 1120, 0.74x |
+| [`fast-acvnet-plus-kitti12`](#fast_acvnet) | yes | 21.62 | 46.41, 1.7x | 1120, 0.74x |
+| [`fast-acvnet-plus-kitti15`](#fast_acvnet) | yes | 21.63 | 46.41, 1.7x | 1120, 0.74x |
+| [`fast-acvnet-plus-sceneflow`](#fast_acvnet) | yes | 12.62 | 46.41, 1.7x | 1120, 0.74x |
+| [`fast-acvnet-sceneflow`](#fast_acvnet) | yes | 8.43 | 38.16, 1.6x | 1042, 0.69x |
+| [`fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | no | 1.72 | 134.98, 3.9x | 1576, 0.48x |
+| [`foundationstereo-vit-l`](#foundationstereo) | no | 0.65 ? | 1513.07, 2.8x | 3300, 0.38x |
+| [`foundationstereo-vit-s`](#foundationstereo) | no | 1.10 ? | 1120.17, 3.2x | 2470, 0.34x |
+| [`great-igev-eth3d`](#great_igev) | yes | 0.49 † | 393.14, 3.7x | 1564, 0.17x |
+| [`great-igev-kitti`](#great_igev) | yes | 23.36 | 393.14, 3.7x | 1564, 0.17x |
 | [`great-igev-middlebury`](#great_igev) (max_disp 768) | yes | 27.53 ? | 578.81 | 1744 |
-| [`great-igev-sceneflow`](#great_igev) | yes | 4.44 | 393.14, 3.7x | 1564 (-7642) |
-| [`gwcnet-g-sceneflow`](#gwcnet) | yes | 9.59 | 238.13, 1.5x | 2102 (-3312) |
-| [`gwcnet-gc-sceneflow`](#gwcnet) | yes | 10.96 | 257.33, 1.4x | 1962 (-4252) |
+| [`great-igev-sceneflow`](#great_igev) | yes | 4.44 | 393.14, 3.7x | 1564, 0.17x |
+| [`gwcnet-g-sceneflow`](#gwcnet) | yes | 9.59 | 238.13, 1.5x | 2102, 0.39x |
+| [`gwcnet-gc-sceneflow`](#gwcnet) | yes | 10.96 | 257.33, 1.4x | 1962, 0.32x |
 | [`hitnet-eth3d`](#hitnet) | yes | 0.93 † | 23.16 | 1248 |
 | [`hitnet-middlebury-d400`](#hitnet) | yes | 7.07 | 52.73 | 2368 |
-| [`igev-plusplus-eth3d`](#igev_plusplus) | yes | 0.50 † | 393.04, 3.3x | 2302 (-806) |
-| [`igev-plusplus-kitti12`](#igev_plusplus) | yes | 26.78 | 393.04, 3.3x | 2302 (-806) |
-| [`igev-plusplus-kitti15`](#igev_plusplus) | yes | 25.50 | 393.04, 3.3x | 2302 (-806) |
-| [`igev-plusplus-middlebury`](#igev_plusplus) | yes | 18.46 ? | 393.04, 3.3x | 2302 (-806) |
-| [`igev-plusplus-sceneflow`](#igev_plusplus) | yes | 4.66 | 393.04, 3.3x | 2302 (-806) |
-| [`igev-stereo-eth3d`](#igev_stereo) | yes | 0.56 ? | 288.25, 3.3x | 1374 (-562) |
-| [`igev-stereo-kitti12`](#igev_stereo) | yes | 26.02 | 288.25, 3.3x | 1374 (-562) |
-| [`igev-stereo-kitti15`](#igev_stereo) | yes | 24.63 | 288.25, 3.3x | 1374 (-562) |
-| [`igev-stereo-middlebury`](#igev_stereo) | yes | 19.80 ? | 288.25, 3.3x | 1374 (-562) |
-| [`igev-stereo-sceneflow`](#igev_stereo) | yes | 4.04 | 288.25, 3.3x | 1374 (-562) |
-| [`las2-h`](#las2) | yes | 2.14 ? | 53.27, 2.5x | 1388 (+304) |
-| [`las2-l`](#las2) | yes | 2.24 ? | 29.92, 3.0x | 600 (-482) |
-| [`las2-m`](#las2) | yes | 2.98 ? | 18.29, 2.9x | 572 (-428) |
-| [`las2-s`](#las2) | yes | 4.10 ? | 14.35, 3.0x | 558 (-420) |
-| [`mocha-v1-sceneflow`](#mocha_stereo) | yes | 4.35 | 455.46, 3.2x | 1730 (-2252) |
-| [`mocha-v2-sceneflow`](#mocha_stereo) | yes | 3.82 | 448.12, 2.9x | 1790 (-2192) |
-| [`monster-mix-all`](#monster) | no | 1.25 † | 667.63, 6.4x | 2714 (-3716) |
-| [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 697.92, 6.2x | 2760 (-3670) |
-| [`monster-sceneflow`](#monster) | no | 1.34 | 667.63, 6.4x | 2714 (-3716) |
-| [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 195.66, 1.6x | 1112 (-942) |
-| [`psmnet-sceneflow`](#psmnet) | yes | 15.13 | 231.81, 2.6x | 2122 (-3968) |
-| [`raft-stereo-eth3d`](#raft_stereo) | yes | 2.61 ? | 272.78, 3.8x | 802 (-1826) |
-| [`raft-stereo-middlebury`](#raft_stereo) | yes | 2.79 | 272.78, 3.8x | 802 (-1826) |
-| [`raft-stereo-sceneflow`](#raft_stereo) | yes | 2.60 | 272.78, 3.8x | 802 (-1826) |
-| [`rt-monster-plusplus-mix-all`](#rt_monster_plusplus) | no | 2.05 ? | 94.13, 2.7x | 3976 (+952) |
-| [`s2m2-l`](#s2m2) | no | 0.82 ? | 375.83 | 1568 (-3664) |
-| [`s2m2-m`](#s2m2) | no | 0.95 ? | 247.87, 2.7x | 1162 (-1758) |
-| [`s2m2-s`](#s2m2) | no | 1.10 ? | 113.45, 3.1x | 820 (-1166) |
-| [`s2m2-xl`](#s2m2) | no | 0.52 ? | 681.94, 2.6x | 2274 (-3806) |
-| [`selective-igev-eth3d-finetune`](#selective_igev) | yes | 0.32 † | 348.76, 4.2x | 1390 (-762) |
-| [`selective-igev-eth3d-train`](#selective_igev) | yes | 0.78 † | 348.76, 4.2x | 1390 (-762) |
-| [`selective-igev-kitti12`](#selective_igev) | yes | 24.07 | 348.76, 4.2x | 1390 (-762) |
-| [`selective-igev-kitti15`](#selective_igev) | yes | 24.26 | 348.76, 4.2x | 1390 (-762) |
-| [`selective-igev-middlebury-finetune`](#selective_igev) | yes | 24.24 | 348.76, 4.2x | 1390 (-762) |
-| [`selective-igev-middlebury-train`](#selective_igev) | yes | 10.25 | 348.76, 4.2x | 1390 (-762) |
-| [`selective-igev-sceneflow`](#selective_igev) | yes | 6.06 | 348.76, 4.2x | 1390 (-762) |
-| [`waft-stereo-b`](#waft_stereo) | no | 0.74 ? | 392.88, 2.9x | 2316 (-3560) |
-| [`waft-stereo-s`](#waft_stereo) | yes | 0.95 ? | 283.76, 2.4x | 1286 (-2112) |
+| [`igev-plusplus-eth3d`](#igev_plusplus) | yes | 0.50 † | 393.04, 3.3x | 2302, 0.74x |
+| [`igev-plusplus-kitti12`](#igev_plusplus) | yes | 26.78 | 393.04, 3.3x | 2302, 0.74x |
+| [`igev-plusplus-kitti15`](#igev_plusplus) | yes | 25.50 | 393.04, 3.3x | 2302, 0.74x |
+| [`igev-plusplus-middlebury`](#igev_plusplus) | yes | 18.46 ? | 393.04, 3.3x | 2302, 0.74x |
+| [`igev-plusplus-sceneflow`](#igev_plusplus) | yes | 4.66 | 393.04, 3.3x | 2302, 0.74x |
+| [`igev-stereo-eth3d`](#igev_stereo) | yes | 0.56 ? | 288.25, 3.3x | 1374, 0.71x |
+| [`igev-stereo-kitti12`](#igev_stereo) | yes | 26.02 | 288.25, 3.3x | 1374, 0.71x |
+| [`igev-stereo-kitti15`](#igev_stereo) | yes | 24.63 | 288.25, 3.3x | 1374, 0.71x |
+| [`igev-stereo-middlebury`](#igev_stereo) | yes | 19.80 ? | 288.25, 3.3x | 1374, 0.71x |
+| [`igev-stereo-sceneflow`](#igev_stereo) | yes | 4.04 | 288.25, 3.3x | 1374, 0.71x |
+| [`las2-h`](#las2) | yes | 2.14 ? | 53.27, 2.5x | 1388, 1.3x |
+| [`las2-l`](#las2) | yes | 2.24 ? | 29.92, 3.0x | 600, 0.55x |
+| [`las2-m`](#las2) | yes | 2.98 ? | 18.29, 2.9x | 572, 0.57x |
+| [`las2-s`](#las2) | yes | 4.10 ? | 14.35, 3.0x | 558, 0.57x |
+| [`mocha-v1-sceneflow`](#mocha_stereo) | yes | 4.35 | 455.46, 3.2x | 1730, 0.43x |
+| [`mocha-v2-sceneflow`](#mocha_stereo) | yes | 3.82 | 448.12, 2.9x | 1790, 0.45x |
+| [`monster-mix-all`](#monster) | no | 1.25 † | 667.63, 6.4x | 2714, 0.42x |
+| [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 697.92, 6.2x | 2760, 0.43x |
+| [`monster-sceneflow`](#monster) | no | 1.34 | 667.63, 6.4x | 2714, 0.42x |
+| [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 195.66, 1.6x | 1112, 0.54x |
+| [`psmnet-sceneflow`](#psmnet) | yes | 15.13 | 231.81, 2.6x | 2122, 0.35x |
+| [`raft-stereo-eth3d`](#raft_stereo) | yes | 2.61 ? | 272.78, 3.8x | 802, 0.31x |
+| [`raft-stereo-middlebury`](#raft_stereo) | yes | 2.79 | 272.78, 3.8x | 802, 0.31x |
+| [`raft-stereo-sceneflow`](#raft_stereo) | yes | 2.60 | 272.78, 3.8x | 802, 0.31x |
+| [`rt-monster-plusplus-mix-all`](#rt_monster_plusplus) | no | 2.05 ? | 94.13, 2.7x | 3976, 1.3x |
+| [`s2m2-l`](#s2m2) | no | 0.82 ? | 375.83 | 1568, 0.3x |
+| [`s2m2-m`](#s2m2) | no | 0.95 ? | 247.87, 2.7x | 1162, 0.4x |
+| [`s2m2-s`](#s2m2) | no | 1.10 ? | 113.45, 3.1x | 820, 0.41x |
+| [`s2m2-xl`](#s2m2) | no | 0.52 ? | 681.94, 2.6x | 2274, 0.37x |
+| [`selective-igev-eth3d-finetune`](#selective_igev) | yes | 0.32 † | 348.76, 4.2x | 1390, 0.65x |
+| [`selective-igev-eth3d-train`](#selective_igev) | yes | 0.78 † | 348.76, 4.2x | 1390, 0.65x |
+| [`selective-igev-kitti12`](#selective_igev) | yes | 24.07 | 348.76, 4.2x | 1390, 0.65x |
+| [`selective-igev-kitti15`](#selective_igev) | yes | 24.26 | 348.76, 4.2x | 1390, 0.65x |
+| [`selective-igev-middlebury-finetune`](#selective_igev) | yes | 24.24 | 348.76, 4.2x | 1390, 0.65x |
+| [`selective-igev-middlebury-train`](#selective_igev) | yes | 10.25 | 348.76, 4.2x | 1390, 0.65x |
+| [`selective-igev-sceneflow`](#selective_igev) | yes | 6.06 | 348.76, 4.2x | 1390, 0.65x |
+| [`waft-stereo-b`](#waft_stereo) | no | 0.74 ? | 392.88, 2.9x | 2316, 0.39x |
+| [`waft-stereo-s`](#waft_stereo) | yes | 0.95 ? | 283.76, 2.4x | 1286, 0.38x |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 

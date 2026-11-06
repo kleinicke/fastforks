@@ -606,12 +606,13 @@ def _at(rows: list[dict], size: str) -> str:
     return size if size in ins or not ins else max(ins, key=_pixels)
 
 
-def _mem_change(mem: object, *originals: dict | None) -> str:
-    """` (-236)`: kernels peak reserved minus the smallest original peak reserved (conservative), else empty."""
+def _mem_ratio(mem: object, *originals: dict | None) -> str:
+    """`, 0.62x`: kernels peak reserved / the smallest original peak reserved (conservative), else empty."""
     orig = [r["peak_reserved_mb"] for r in originals if r and isinstance(r.get("peak_reserved_mb"), int | float)]
     if not orig or not isinstance(mem, int | float) or isinstance(mem, bool):
         return ""
-    return f" ({round(mem - min(orig)):+d})"
+    x = mem / min(orig)
+    return f", {x:.2g}x" if x < 1 else f", {x:.1f}x"
 
 
 def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list[dict]], size: str) -> list[str]:
@@ -620,7 +621,7 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
     ov = {r["id"]: r for r in _overview_rows(task, fixed, speed, rows)}
     acc_col = _OVERVIEW_ACC.get(task)
     head = ["model", "commercial"] + ([f"{acc_col[2]} \u2193"] if acc_col else [])
-    head += ["kernels time (ms), speed-up vs original", "kernels peak memory (MiB, reserved), change vs original"]
+    head += ["kernels time (ms),<br>speed-up vs original", "kernels peak memory (MiB, reserved),<br>ratio to original"]
     body: list[list[str]] = []
     marks = set()
     for card, v in registry.cards(task).values():
@@ -640,7 +641,7 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
         else:
             ms, mem = _DASH, _DASH
         speedup = f", {orig['ms'] / mx['ms']:.1f}x" if mx and orig else ""
-        mem = f"{mem}{_mem_change(mem, by.get('upstream'), by.get('upstream-default'))}"
+        mem = f"{mem}{_mem_ratio(mem, by.get('upstream'), by.get('upstream-default'))}"
         cells = [
             f"[`{_name(v)}`](#{card.family})"
             + (f" ({setting(card.variants, v)})" if setting(card.variants, v) else ""),

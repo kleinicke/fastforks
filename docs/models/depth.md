@@ -8,26 +8,26 @@ Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured. The accuracy column is lower-is-better (NYUv2 AbsRel (scale+shift aligned)).
 
-| model | commercial | NYUv2 AbsRel (scale+shift aligned) ↓ | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+| model | commercial | NYUv2 AbsRel (scale+shift aligned) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`da3-giant-1.1`](#depth_anything_3) | no | – | 44.19, 5.1x | 2710 (-3786) |
-| [`da3-large-1.1`](#depth_anything_3) | no | – | 17.13, 9.7x | 1090 (-1782) |
-| [`da3metric-large`](#depth_anything_3) | yes | – | 14.71, 5.8x | 868 (-1582) |
-| [`da3mono-large`](#depth_anything_3) | yes | – | 14.56, 5.8x | 868 (-1582) |
-| [`da3nested-giant-large-1.1`](#depth_anything_3) | no | – | 58.23, 5.3x | 3378 (-4382) |
-| [`depth-anything-v2-b`](#depth_anything_v2) | no | 0.0462 | 10.51, 6.0x | 436 (-504) |
-| [`depth-anything-v2-l`](#depth_anything_v2) | no | 0.0439 | 31.12, 4.5x | 1034 (-1292) |
-| [`depth-anything-v2-s`](#depth_anything_v2) | yes | 0.0509 | 4.51, 9.1x | 248 (-170) |
-| [`depth-pro`](#depth_pro) | no | – | 270.93, 2.1x | 3778 (-516) |
-| [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 383.17 | 3762 (-2942) |
-| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 158.46, 2.8x | 1688 (-1434) |
-| [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.89, 5.2x | 1436 (-1462) |
-| [`moge-2-vitl-normal`](#moge) | yes | – | 73.43, 2.3x | 1610 (-828) |
-| [`moge-2-vits-normal`](#moge) | yes | – | 29.73, 2.8x | 1008 (-260) |
+| [`da3-giant-1.1`](#depth_anything_3) | no | – | 44.19, 5.1x | 2710, 0.42x |
+| [`da3-large-1.1`](#depth_anything_3) | no | – | 17.13, 9.7x | 1090, 0.38x |
+| [`da3metric-large`](#depth_anything_3) | yes | – | 14.71, 5.8x | 868, 0.35x |
+| [`da3mono-large`](#depth_anything_3) | yes | – | 14.56, 5.8x | 868, 0.35x |
+| [`da3nested-giant-large-1.1`](#depth_anything_3) | no | – | 58.23, 5.3x | 3378, 0.44x |
+| [`depth-anything-v2-b`](#depth_anything_v2) | no | 0.0462 | 10.51, 6.0x | 436, 0.46x |
+| [`depth-anything-v2-l`](#depth_anything_v2) | no | 0.0439 | 31.12, 4.5x | 1034, 0.44x |
+| [`depth-anything-v2-s`](#depth_anything_v2) | yes | 0.0509 | 4.51, 9.1x | 248, 0.59x |
+| [`depth-pro`](#depth_pro) | no | – | 270.93, 2.1x | 3778, 0.88x |
+| [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 383.17 | 3762, 0.56x |
+| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 158.46, 2.8x | 1688, 0.54x |
+| [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.89, 5.2x | 1436, 0.5x |
+| [`moge-2-vitl-normal`](#moge) | yes | – | 73.43, 2.3x | 1610, 0.66x |
+| [`moge-2-vits-normal`](#moge) | yes | – | 29.73, 2.8x | 1008, 0.79x |
 | [`moge-3-vitl`](#moge) | yes | – | 214.048 | 1844 |
-| [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 66.37, 2.0x | 1472 (-2036) |
-| [`unik3d-vitl`](#unik3d) | no | – | 62.92, 2.1x | 1266 (-2304) |
-| [`zoedepth-nk`](#zoedepth) | yes | 0.0528 | 88.87, 3.1x | 1960 (-186) |
+| [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 66.37, 2.0x | 1472, 0.42x |
+| [`unik3d-vitl`](#unik3d) | no | – | 62.92, 2.1x | 1266, 0.35x |
+| [`zoedepth-nk`](#zoedepth) | yes | 0.0528 | 88.87, 3.1x | 1960, 0.91x |
 
 <a id="depth_anything_3"></a>
 

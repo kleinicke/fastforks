@@ -8,13 +8,13 @@ Input: several images of one scene (posed and calibrated for multi-view stereo, 
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses each model's own benchmark input (see Benchmarks): kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
 
-| model | commercial | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`mapanything-apache`](#mapanything) | yes | 543.98, 3.6x | 4072 (-4600) |
-| [`mvsanywhere`](#mvsanywhere) | no | 35.63 | 884 (-616) |
-| [`patchmatchnet`](#patchmatchnet) | yes | 29.57, 7.4x | 856 (-416) |
-| [`vggt-1b`](#vggt) | no | 458.37, 2.1x | 4654 (-2704) |
-| [`vggt-omega-1b-512`](#vggt_omega) | no | 464.37, 2.0x | 3518 (-2394) |
+| [`mapanything-apache`](#mapanything) | yes | 543.98, 3.6x | 4072, 0.47x |
+| [`mvsanywhere`](#mvsanywhere) | no | 35.63 | 884, 0.59x |
+| [`patchmatchnet`](#patchmatchnet) | yes | 29.57, 7.4x | 856, 0.67x |
+| [`vggt-1b`](#vggt) | no | 458.37, 2.1x | 4654, 0.63x |
+| [`vggt-omega-1b-512`](#vggt_omega) | no | 464.37, 2.0x | 3518, 0.6x |
 
 <a id="mapanything"></a>
 

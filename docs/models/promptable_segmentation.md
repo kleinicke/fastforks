@@ -8,16 +8,16 @@ Input: one image plus a point, box or text prompt. Output: masks with quality sc
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
 
-| model | commercial | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`sam-vit-b`](#sam) | yes | 36.95 | 420 (-2412) |
-| [`sam-vit-h`](#sam) | yes | 143.13 | 1524 (-4210) |
-| [`sam-vit-l`](#sam) | yes | 81.53 | 862 (-3592) |
-| [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.09 | 524 (-324) |
-| [`sam2.1-hiera-large`](#sam2) | yes | 48.81 | 828 (-650) |
-| [`sam2.1-hiera-small`](#sam2) | yes | 15.56 | 386 (-292) |
-| [`sam2.1-hiera-tiny`](#sam2) | yes | 13.91 | 362 (-274) |
-| [`sam3`](#sam3) | yes | 116.47, 2.4x | 2264 (-1670) |
+| [`sam-vit-b`](#sam) | yes | 36.95 | 420, 0.15x |
+| [`sam-vit-h`](#sam) | yes | 143.13 | 1524, 0.27x |
+| [`sam-vit-l`](#sam) | yes | 81.53 | 862, 0.19x |
+| [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.09 | 524, 0.62x |
+| [`sam2.1-hiera-large`](#sam2) | yes | 48.81 | 828, 0.56x |
+| [`sam2.1-hiera-small`](#sam2) | yes | 15.56 | 386, 0.57x |
+| [`sam2.1-hiera-tiny`](#sam2) | yes | 13.91 | 362, 0.57x |
+| [`sam3`](#sam3) | yes | 116.47, 2.4x | 2264, 0.58x |
 
 <a id="sam"></a>
 

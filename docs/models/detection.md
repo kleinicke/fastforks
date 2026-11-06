@@ -8,22 +8,22 @@ Input: one RGB image. Output: boxes, class labels, scores and instance masks.
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 800x1344: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
 
-| model | commercial | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`detr-r101-coco`](#detr) | yes | 13.69, 5.8x | 328 (-306) |
-| [`detr-r50-coco`](#detr) | yes | 9.93, 5.6x | 272 (-268) |
-| [`dfine-l-coco`](#dfine) | yes | 8.695, 4.3x | 300 (-28) |
-| [`dfine-m-coco`](#dfine) | yes | 5.966, 5.2x | 252 (-4) |
-| [`dfine-n-coco`](#dfine) | yes | 2.723, 8.9x | 202 (+80) |
-| [`dfine-s-coco`](#dfine) | yes | 4.037, 6.4x | 212 (+28) |
-| [`dfine-x-coco`](#dfine) | yes | 14.086, 3.2x | 364 (-124) |
-| [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.47, 2.1x | 450 (-258) |
-| [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 20.98, 2.1x | 400 (-250) |
-| [`rtdetrv2-l-coco`](#rtdetrv2) | yes | 6.61, 4.6x | 306 (-106) |
-| [`rtdetrv2-m-coco`](#rtdetrv2) | yes | 5.27, 3.2x | 274 (+20) |
-| [`rtdetrv2-ms-coco`](#rtdetrv2) | yes | 5.46, 4.1x | 306 (-52) |
-| [`rtdetrv2-s-coco`](#rtdetrv2) | yes | 4.19, 3.4x | 250 (+30) |
-| [`rtdetrv2-x-coco`](#rtdetrv2) | yes | 9.24, 3.9x | 384 (-212) |
+| [`detr-r101-coco`](#detr) | yes | 13.69, 5.8x | 328, 0.52x |
+| [`detr-r50-coco`](#detr) | yes | 9.93, 5.6x | 272, 0.5x |
+| [`dfine-l-coco`](#dfine) | yes | 8.695, 4.3x | 300, 0.91x |
+| [`dfine-m-coco`](#dfine) | yes | 5.966, 5.2x | 252, 0.98x |
+| [`dfine-n-coco`](#dfine) | yes | 2.723, 8.9x | 202, 1.7x |
+| [`dfine-s-coco`](#dfine) | yes | 4.037, 6.4x | 212, 1.2x |
+| [`dfine-x-coco`](#dfine) | yes | 14.086, 3.2x | 364, 0.75x |
+| [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.47, 2.1x | 450, 0.64x |
+| [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 20.98, 2.1x | 400, 0.62x |
+| [`rtdetrv2-l-coco`](#rtdetrv2) | yes | 6.61, 4.6x | 306, 0.74x |
+| [`rtdetrv2-m-coco`](#rtdetrv2) | yes | 5.27, 3.2x | 274, 1.1x |
+| [`rtdetrv2-ms-coco`](#rtdetrv2) | yes | 5.46, 4.1x | 306, 0.85x |
+| [`rtdetrv2-s-coco`](#rtdetrv2) | yes | 4.19, 3.4x | 250, 1.1x |
+| [`rtdetrv2-x-coco`](#rtdetrv2) | yes | 9.24, 3.9x | 384, 0.64x |
 
 <a id="detr"></a>
 

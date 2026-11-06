@@ -8,24 +8,24 @@ Input: one RGB image. Output: per-pixel class labels (logits with `logits=True`)
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x2048: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
 
-| model | commercial | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.06, 2.7x | 518 (-1616) |
-| [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 18.02, 3.0x | 560 (-1464) |
-| [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 22.63, 1.8x | 904 (-1320) |
-| [`dinov2-l-linear-ade20k`](#dinov2_linear) | yes | 56.78, 1.7x | 1244 (-1880) |
-| [`dinov2-s-linear-ade20k`](#dinov2_linear) | yes | 12.44, 2.0x | 676 (-1334) |
-| [`eomt-l-dinov2-ade20k`](#eomt) | yes | 34.99, 1.8x | 1584 (-1942) |
-| [`eomt-l-dinov3-ade20k`](#eomt) | yes | 38.8, 1.9x | 1584 (-1944) |
-| [`fcn-r101-d8-ade20k`](#mmseg) | yes | 16.65, 2.8x | 478 (-1596) |
-| [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.86, 4.1x | 430 (-1440) |
-| [`mask2former-swinl-ade20k`](#mask2former) | no | 60.44, 2.4x | 1400 (-2260) |
-| [`oneformer-swinl-ade20k`](#oneformer) | yes | 99.95, 2.1x | 2476 (-5316) |
-| [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.96, 1.9x | 494 (-1580) |
-| [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.56, 1.9x | 1762 (-962) |
-| [`sapiens-seg-1b-goliath`](#sapiens) | no | 185.2, 1.9x | 3382 (-2524) |
-| [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.479, 5.0x | 238 (-1400) |
-| [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.347, 2.8x | 534 (-2004) |
+| [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.06, 2.7x | 518, 0.24x |
+| [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 18.02, 3.0x | 560, 0.28x |
+| [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 22.63, 1.8x | 904, 0.41x |
+| [`dinov2-l-linear-ade20k`](#dinov2_linear) | yes | 56.78, 1.7x | 1244, 0.4x |
+| [`dinov2-s-linear-ade20k`](#dinov2_linear) | yes | 12.44, 2.0x | 676, 0.34x |
+| [`eomt-l-dinov2-ade20k`](#eomt) | yes | 34.99, 1.8x | 1584, 0.45x |
+| [`eomt-l-dinov3-ade20k`](#eomt) | yes | 38.8, 1.9x | 1584, 0.45x |
+| [`fcn-r101-d8-ade20k`](#mmseg) | yes | 16.65, 2.8x | 478, 0.23x |
+| [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.86, 4.1x | 430, 0.23x |
+| [`mask2former-swinl-ade20k`](#mask2former) | no | 60.44, 2.4x | 1400, 0.38x |
+| [`oneformer-swinl-ade20k`](#oneformer) | yes | 99.95, 2.1x | 2476, 0.32x |
+| [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.96, 1.9x | 494, 0.24x |
+| [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.56, 1.9x | 1762, 0.65x |
+| [`sapiens-seg-1b-goliath`](#sapiens) | no | 185.2, 1.9x | 3382, 0.57x |
+| [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.479, 5.0x | 238, 0.15x |
+| [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.347, 2.8x | 534, 0.21x |
 
 <a id="mmseg"></a>
 

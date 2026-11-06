@@ -8,24 +8,24 @@ Input: one RGB image. Output: dense patch features and a pooled image feature.
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
 
-| model | commercial | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`dinov2-vitb14`](#dinov2) | yes | 1.478, 3.0x | 290 (-96) |
-| [`dinov2-vitb14-reg`](#dinov2) | yes | 1.501, 2.9x | 288 (-98) |
-| [`dinov2-vitg14`](#dinov2) | yes | 13.156, 2.6x | 2318 (-2088) |
+| [`dinov2-vitb14`](#dinov2) | yes | 1.478, 3.0x | 290, 0.75x |
+| [`dinov2-vitb14-reg`](#dinov2) | yes | 1.501, 2.9x | 288, 0.75x |
+| [`dinov2-vitg14`](#dinov2) | yes | 13.156, 2.6x | 2318, 0.53x |
 | [`dinov2-vitg14-reg`](#dinov2) | yes | 12.98 | 4430 |
-| [`dinov2-vitl14`](#dinov2) | yes | 4.593, 2.1x | 714 (-510) |
+| [`dinov2-vitl14`](#dinov2) | yes | 4.593, 2.1x | 714, 0.58x |
 | [`dinov2-vitl14-reg`](#dinov2) | yes | 4.6 | 714 |
-| [`dinov2-vits14`](#dinov2) | yes | 0.848, 3.9x | 148 (+16) |
+| [`dinov2-vits14`](#dinov2) | yes | 0.848, 3.9x | 148, 1.1x |
 | [`dinov2-vits14-reg`](#dinov2) | yes | 0.814 | 142 |
-| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.179, 3.4x | 214 (-180) |
-| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.593, 2.7x | 494 (-404) |
-| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.99, 3.0x | 152 (-122) |
-| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.18, 2.5x | 112 (-50) |
-| [`dinov3-vitb16`](#dinov3) | yes | 1.404, 5.0x | 252 (-138) |
-| [`dinov3-vith16plus`](#dinov3) | yes | 9.301, 2.8x | 1694 (-1582) |
-| [`dinov3-vitl16`](#dinov3) | yes | 3.279, 5.4x | 674 (-538) |
-| [`dinov3-vits16`](#dinov3) | yes | 0.903, 7.2x | 106 (-26) |
+| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.179, 3.4x | 214, 0.54x |
+| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.593, 2.7x | 494, 0.55x |
+| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.99, 3.0x | 152, 0.55x |
+| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.18, 2.5x | 112, 0.69x |
+| [`dinov3-vitb16`](#dinov3) | yes | 1.404, 5.0x | 252, 0.65x |
+| [`dinov3-vith16plus`](#dinov3) | yes | 9.301, 2.8x | 1694, 0.52x |
+| [`dinov3-vitl16`](#dinov3) | yes | 3.279, 5.4x | 674, 0.56x |
+| [`dinov3-vits16`](#dinov3) | yes | 0.903, 7.2x | 106, 0.8x |
 
 <a id="dinov2"></a>
 
