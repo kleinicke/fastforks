@@ -1,0 +1,9 @@
+{
+  "pspnet-r101-d8-ade20k 1024x2048 portable vs upstream": "open, owned by the segmentation workstream (attempt/seg-fork-parity): 2026-11-03 fork A/B lib/fork 1.054",
+  "efficientvit_b2.r288_in1k 224x224 portable vs upstream-default": "launch-bound fp16 (2.7 ms CUDA of 11 ms wall); same-process lib/fork 1.002; fp32 weights would give 10.0 ms at 2x weight memory (2026-11-03 clf_fmt)",
+  "squeezenet1_1.tv_in1k 224x224 portable vs upstream-default": "launch-bound (0.29 ms CUDA of 1.8 ms wall), gap inside the noise band (27 %); same-process lib/fork 1.003; fp32 / NCHW not faster (2026-11-03 clf_fmt)",
+  "las2-m 375x1242 portable vs upstream": "deterministic cuDNN + channels-last portable (repeat maxdiff 0); without both 21.6 ms (+8 %) and non-deterministic (maxdiff 0.04 px); 2026-11-03 runs/fork_ab/fix/las2.jsonl",
+  "las2-m 994x1482 portable vs upstream": "deterministic cuDNN + channels-last portable; without both 52.6 ms (= upstream 52.4) but non-deterministic (maxdiff 0.004 px); 2026-11-03 las2.jsonl",
+  "las2-s 375x1242 portable vs upstream": "deterministic cuDNN + channels-last portable (repeat maxdiff 0); without both 18.9 ms (+9 %) and non-deterministic (maxdiff 0.05 px); 2026-11-03 las2.jsonl",
+  "las2-s 994x1482 portable vs upstream": "deterministic cuDNN + channels-last portable; without both 43.7 ms (= upstream 43.5) but non-deterministic (maxdiff 0.003 px); 2026-11-03 las2.jsonl"
+}

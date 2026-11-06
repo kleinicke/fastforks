@@ -1,0 +1,51 @@
+schema = 2
+name = "DEFOM-Stereo"
+summary = "DEFOM-Stereo (Jiang et al. 2025): Depth Anything V2 (ViT-L) features and initial disparity, then RAFT-style ConvGRU updates with scale updates, 32 iterations."
+tier = "stable"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "depth_anything_v2"]  # fastforks.shared modules this family imports
+limitations = [
+  "Only the ViT-L SceneFlow checkpoint is included (ViT-S / ViT-B and the Middlebury / ETH3D / KITTI fine-tunes are not).",
+  "Portable is faster than the original code but allocates more memory (about 1.25x at 994x1482); kernels is several times faster and needs a fraction of the memory.",
+]
+licence_notes = [
+  "The weights embed Depth Anything V2 ViT-L weights released under CC-BY-NC-4.0, so they are non-commercial even though the code is MIT.",
+]
+
+[upstream]
+repo = "https://github.com/Insta360-Research-Team/DEFOM-Stereo"
+commit = "5b27591d83956e5d329ff66704271a9e68b1c75f"
+
+[licence]
+code = "MIT"
+weights = "CC-BY-NC-4.0"  # the checkpoint contains the Depth Anything V2 ViT-L weights (CC-BY-NC-4.0); original states no licence for its own weights
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/Insta360-Research-Team/DEFOM-Stereo/blob/5b27591d83956e5d329ff66704271a9e68b1c75f/README.md"  # README links the weights (Google Drive); the encoder is DAv2-L, whose weights are CC-BY-NC-4.0 (https://huggingface.co/depth-anything/Depth-Anything-V2-Large)
+
+[io]
+input = "0-255"
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+
+[params]
+encoder = "vitl"  # DINOv2 encoder of the Depth Anything V2 branch
+
+[options]
+iters = { default = 32, min = 1 }  # GRU update iterations
+scale_iters = { default = 8, min = 0 }  # of which scale updates
+
+[modes.portable]
+cuda_dtype = "bfloat16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
+mps_kernels = ["stereo_metal"]
+
+# Upstream also publishes ViT-S / ViT-B SceneFlow checkpoints and Middlebury / ETH3D / KITTI fine-tunes; only the
+# ViT-L SceneFlow checkpoint is added so far (the only one we have locally).
+
+[[variants]]
+id = "defom-stereo-vitl-sceneflow"
+revision = 1
+weights = [{ name = "defomstereo_vitl_sceneflow.pth", size = 1530900383, sha256 = "0be5c5ddd25e26d6077cdeed2ffcec1cd0d664aee2159c92d98c65832e1a8f3d", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1XuAM4vqzura_6NKN70hMW5lFD4TafnDL" }]

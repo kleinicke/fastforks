@@ -1,0 +1,43 @@
+schema = 2
+name = "UniDepth V2"
+summary = "UniDepth V2 (Piccinelli et al. 2025): universal metric depth from a DINOv2 ViT-L encoder and a camera-prompted decoder; predicts depth, 3-D points, a confidence map and the pinhole intrinsics, or uses given intrinsics."
+tier = "experimental"
+outputs = ["depth", "points", "intrinsics", "confidence"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 layers and the fast ViT)
+limitations = [
+  "The confidence head adds measurable time; the option confidence = false skips it.",
+]
+
+[output]
+kind = "metric"  # metres
+
+[upstream]
+repo = "https://github.com/lpiccinelli-eth/UniDepth"
+commit = "8d8cfe4"
+
+[licence]
+code = "CC-BY-NC-4.0"
+weights = "assumed from code"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Mixture of public metric-depth datasets (indoor, outdoor, driving, synthetic) per the UniDepthV2 paper (arXiv 2502.20110)"
+evidence = "https://github.com/lpiccinelli-eth/UniDepth/blob/8d8cfe4c7ee15297099983607febf0d4f32eb3d6/README.md#license"
+
+[io]
+input = "imagenet"  # the runner pads to the aspect-ratio bounds, resizes (200k-600k pixels, multiple of 14) and normalises itself
+pad = "none"
+
+[options]
+confidence = true  # false: skip the confidence branch (kernels runs faster; portable only drops the output)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "cudnn_hacc", "dpt_fused"]
+
+[[variants]]
+id = "unidepth-v2-vitl14"
+revision = 1
+weights = [{ name = "model.safetensors", size = 1415383604, sha256 = "ba73d3de735302ccc64a50f1e557122050c4b1893e6060b28dba05d6af3e67c6", url = "https://huggingface.co/lpiccinelli/unidepth-v2-vitl14/resolve/52b349b514bd8b47642f67ac78cb7b5dc5c51dd9/model.safetensors" }]

@@ -1,0 +1,22 @@
+diff --git a/moge/utils/geometry_numpy.py b/moge/utils/geometry_numpy.py
+index d3bb4b3..179afe0 100644
+--- a/moge/utils/geometry_numpy.py
++++ b/moge/utils/geometry_numpy.py
+@@ -90,7 +90,7 @@ def solve_optimal_focal_shift(uv: np.ndarray, xyz: np.ndarray):
+         err = (f * xy_proj - uv).ravel()
+         return err
+ 
+-    solution = least_squares(partial(fn, uv, xy, z), x0=0, ftol=1e-3, method='lm')
++    solution = least_squares(partial(fn, uv, xy, z), x0=0, ftol=1e-14, xtol=1e-14, gtol=1e-14, method='lm')  # fastforks golden: converged
+     optim_shift = solution['x'].squeeze().astype(np.float32)
+ 
+     xy_proj = xy / (z + optim_shift)[: , None]
+@@ -109,7 +109,7 @@ def solve_optimal_shift(uv: np.ndarray, xyz: np.ndarray, focal: float):
+         err = (focal * xy_proj - uv).ravel()
+         return err
+ 
+-    solution = least_squares(partial(fn, uv, xy, z), x0=0, ftol=1e-3, method='lm')
++    solution = least_squares(partial(fn, uv, xy, z), x0=0, ftol=1e-14, xtol=1e-14, gtol=1e-14, method='lm')  # fastforks golden: converged
+     optim_shift = solution['x'].squeeze().astype(np.float32)
+ 
+     return optim_shift

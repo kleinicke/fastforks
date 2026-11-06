@@ -1,0 +1,82 @@
+schema = 2
+name = "LiteAnyStereo V2"
+summary = "LiteAnyStereo V2: efficient zero-shot stereo with FasterNet-T0 features, a correlation volume and FasterNet 2-D cost aggregation (sizes S / M / L), or a group-wise volume with a selective-GRU update (H)."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "cuda_graphs", "fasternet"]  # fastforks.shared modules this family imports
+limitations = [
+  "The original code's LAS1 (LiteAnyStereo.pth, another architecture) is not included.",
+  "Portable LAS2-H is faster than the original code but allocates more memory.",
+]
+licence_notes = [
+  "Trained on a mixture that includes NVIDIA's FSD dataset and Dynamic Replica, whose terms for commercial use of trained models are unclear (the repository lists no data terms); the status does not depend on the training data.",
+]
+
+[upstream]
+repo = "https://github.com/TomTomTommi/LiteAnyStereo"
+commit = "8c97bd4c4da3712c2ac60003a23201dfdb5935f4"
+
+[licence]
+code = "MIT"
+weights = "MIT"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Zero-shot model trained on a mixture of synthetic stereo datasets that includes FSD and Dynamic Replica (non-commercial data terms); the repository does not list the data or its terms"
+evidence = "https://huggingface.co/tomtomtommi/LiteAnyStereoV2/blob/17788d91618646fa781a14462e2926a034b9f49d/README.md#L2"  # HF model card header: license: mit
+
+[io]
+input = "0-255"  # the model normalizes with the ImageNet mean / std itself
+pad = { multiple = 32, mode = "centre", fill = "replicate" }  # original InputPadder(divis_by=32)
+
+[params]
+max_disp = 192  # cost-volume depth at full resolution
+iters = 4  # LAS2-H update iterations (original default `valid_iters`; S / M / L are feed-forward)
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "stereo_ops"]
+mps_kernels = ["stereo_metal"]
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 1M (up to 1280x720)
+# replays a CUDA graph, captured on a shape's 4th call (below), at most 2 shapes per model (LAS2-M 640x480 4.0 ms,
+# before the `stereo_ops` kernels 8.7 ms; eager 18.7 ms). The graph pool stays reserved (up to ~2x eager reserved memory) until `model.release_graphs()`;
+# `options={"cuda_graphs": False}` turns it off. Larger inputs are GPU-bound and run eagerly
+# New sizes (`cudnn_hacc` per-shape dispatch): a new padded size builds its fp16-accumulate cuDNN plans on its first
+# call (all calls give the same output) and captures its CUDA graph on the 4th (time after 4 warm-up calls per size); a
+# stream of new sizes around 640x480 costs LAS2-S 20.8 ms per call (with the deferral below 17.5).
+# Measured below with the earlier deferral, now
+# `fastforks.kernels.cudnn_hacc.BUILD_AFTER = 3`: first 3 calls on torch convs, builds on the 4th, so a stream of new
+# sizes pays no builds. Mean ms per pair, kernels vs portable (kernels before the `stereo_ops` kernels): LAS2-S Midd-H 21.9 vs
+# 49.6 (34.4), LAS2-H Midd-H 65.3 vs 112.9 (90.5). ETH3D, where 2 padded sizes
+# repeat 16 and 8 times: LAS2-S 16.6 vs 20.3, LAS2-H 33.8 vs 36.0 (before the cheaper plan builds 20.6 / 37.7)
+
+# Upstream also publishes LAS1 (LiteAnyStereo.pth, a different architecture): not part of this family.
+
+[[variants]]
+id = "las2-s"
+revision = 1
+params = { size = "s" }
+weights = [{ name = "LAS2_S.pth", size = 24380949, sha256 = "dda5ad5495710466f7e5c5a2dff395223893ef68a17d57d88e7ea7dfbb9d08e1", url = "https://huggingface.co/tomtomtommi/LiteAnyStereoV2/resolve/17788d91618646fa781a14462e2926a034b9f49d/LAS2_S.pth" }]
+
+[[variants]]
+id = "las2-m"
+revision = 1
+params = { size = "m" }
+weights = [{ name = "LAS2_M.pth", size = 41925933, sha256 = "c41b61efce9b36e6b8b38b580421cd20cc9e84a47f0f45361767281938f69696", url = "https://huggingface.co/tomtomtommi/LiteAnyStereoV2/resolve/17788d91618646fa781a14462e2926a034b9f49d/LAS2_M.pth" }]
+
+[[variants]]
+id = "las2-l"
+revision = 1
+params = { size = "l" }
+weights = [{ name = "LAS2_L.pth", size = 109270797, sha256 = "12f86f758b0aa6cd59c11d40f41e7d954121d7626e4719eff71d9dd22da36539", url = "https://huggingface.co/tomtomtommi/LiteAnyStereoV2/resolve/17788d91618646fa781a14462e2926a034b9f49d/LAS2_L.pth" }]
+
+[[variants]]
+id = "las2-h"
+revision = 1
+params = { size = "h" }
+weights = [{ name = "LAS2_H.pth", size = 46698761, sha256 = "758585a25c3a332711f92a28ad1437e08080fb714ad1146de7cf2c01ce8479f4", url = "https://huggingface.co/tomtomtommi/LiteAnyStereoV2/resolve/17788d91618646fa781a14462e2926a034b9f49d/LAS2_H.pth" }]

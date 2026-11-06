@@ -1,0 +1,42 @@
+schema = 2
+name = "CFNet"
+summary = "CFNet (Shen et al. 2021): cascade and fused cost volumes (fused 1/8-1/32 3-D volumes), then two refinement stages that adapt to the uncertainty of the disparity (max disparity 192)."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/gallenszl/CFNet"
+commit = "982230dd360583fc35743d0b7ed528982fe5fd38"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"  # original states no weights licence
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/gallenszl/CFNet/blob/982230dd360583fc35743d0b7ed528982fe5fd38/README.md#L72"  # README links the weights (Google Drive) with no licence of their own
+
+[io]
+input = "imagenet"
+pad = { multiple = 64, mode = "top_right", fill = "zero" }  # the original code's ETH3D test loader pads the normalized images on top and on the right with zeros to a multiple of 64
+
+[params]
+max_disp = 192  # cost-volume depth at full resolution
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+mps_kernels = ["stereo_metal"]
+# Kernels is 1.2x faster at a repeated input size (490x940: 90 vs 112 ms; Midd-H 397 vs 481 ms), but every new padded
+# size first builds fp16-accumulate cuDNN graphs (~0.2 s once vs ~0.04 s for portable). On ETH3D, which has many
+# different sizes, this cancels out the gain (95.9 vs 94.3 ms mean per pair).
+
+# Upstream also links a model fine-tuned on KITTI / ETH3D / Middlebury (Robust Vision Challenge): not added yet.
+
+[[variants]]
+id = "cfnet-sceneflow"
+revision = 1
+weights = [{ name = "sceneflow_pretraining.ckpt", size = 277005766, sha256 = "07ea542501a75f25491d05e3236d92f7b55a16fc033e664177d55c4db69249c2", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1gFNUc4cOCFXbGv6kkjjcPw2cJWmodypv" }]

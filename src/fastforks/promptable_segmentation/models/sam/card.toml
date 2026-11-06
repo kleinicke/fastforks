@@ -1,0 +1,50 @@
+schema = 2
+name = "Segment Anything (SAM)"
+summary = "Segment Anything (Kirillov et al. 2023): promptable segmentation with a ViT image encoder (windowed + global attention, relative positions) and a light prompt encoder / mask decoder; masks from points, boxes and mask logits. The portable `module()` is the image encoder only."
+tier = "stable"
+outputs = ["pred_masks", "iou_scores"]
+
+[upstream]
+repo = "https://github.com/facebookresearch/segment-anything"
+commit = "dca509f"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "SA-1B (11M licensed images, 1.1B automatically generated masks) per the paper; the dataset itself is under the SA-1B research licence"
+evidence = "https://github.com/facebookresearch/segment-anything/blob/main/README.md (License section: model checkpoints and code under Apache 2.0)"
+
+[io]
+input = "imagenet"  # original pixel_mean / std (123.675, 116.28, 103.53) / (58.395, 57.12, 57.375) on 0..255; the runner resizes (longest side image_size, PIL bilinear) and pads itself
+
+[params]
+image_size = 1024  # longest side of the encoder input (padded to a square)
+window_size = 14
+global_attn = 4  # 4 evenly spaced global-attention blocks, the last of each quarter (original global_attn_indexes: B 2, 5, 8, 11; L 5, 11, 17, 23; H 7, 15, 23, 31)
+
+[modes.portable]
+cuda_dtype = "float16"  # image encoder; prompt encoder / mask decoder stay float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["dpt_fused"]
+
+[[variants]]
+id = "sam-vit-b"
+revision = 1
+params = { embed_dim = 768, depth = 12, num_heads = 12 }
+weights = [{ name = "sam_vit_b_01ec64.pth", size = 375042383, sha256 = "ec2df62732614e57411cdcf32a23ffdf28910380d03139ee0f4fcbe91eb8c912", url = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth" }]
+
+[[variants]]
+id = "sam-vit-l"
+revision = 1
+params = { embed_dim = 1024, depth = 24, num_heads = 16 }
+weights = [{ name = "sam_vit_l_0b3195.pth", size = 1249524607, sha256 = "3adcc4315b642a4d2101128f611684e8734c41232a17c648ed1693702a49a622", url = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth" }]
+
+[[variants]]
+id = "sam-vit-h"
+revision = 1
+params = { embed_dim = 1280, depth = 32, num_heads = 16 }
+weights = [{ name = "sam_vit_h_4b8939.pth", size = 2564550879, sha256 = "a7bf3b02f3ebf1267aba913ff637d9a2d5c33d3173bb679e46d9f338c26f262e", url = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth" }]

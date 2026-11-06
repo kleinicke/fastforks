@@ -1,0 +1,7 @@
+# Built by tools/build_kernels.py into one shared library per target (CUDA runtime linked statically, so it only
+# needs the driver); manifest.toml is generated from it. Needs the CUTLASS v4.7.1 headers (--cutlass).
+kind = "shared"
+sources = ["cutlass_conv.cu"]
+targets = ["sm_80", "sm_86", "sm_89", "sm_90", "sm_100", "sm_120", "compute_80"]
+flags = ["-O3", "-std=c++17", "--expt-relaxed-constexpr"]
+needs = ["cutlass"]

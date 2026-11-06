@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"
+derived_from = "our PatchmatchNet fork (patchmatchnet-opt a2c2c1a, pmn_kernels.cu): fused warp + group correlation + view weighting + similarity MLP, adaptive aggregation + softmax regression + confidence, hypothesis perturbation + propagation + sort; our code (no upstream PatchmatchNet code); torch-extension launchers replaced by extern \"C\" entry points"

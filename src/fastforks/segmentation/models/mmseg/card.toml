@@ -1,0 +1,78 @@
+schema = 2
+name = "mmseg CNN classics"
+summary = "The mmsegmentation ADE20K checkpoints of the CNN classics: FCN, PSPNet, DeepLabV3 and DeepLabV3+ on a dilated ResNet-101 (output stride 8), and HRNetV2-W48 with an FCN head; networks vendored from mmsegmentation (no mmseg / mmcv dependency)."
+tier = "stable"
+outputs = ["logits"]
+uses = ["cnn_kernels", "cuda_graphs", "seginfer"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/open-mmlab/mmsegmentation"
+commit = "c685fe6767c4cadf6b051983ca6208f1b9d1ccb8"  # v1.2.2; net.py condenses its backbones / heads (and mmcv's ConvModule)
+
+[licence]
+code = "Apache-2.0"  # open-mmlab/mmsegmentation LICENSE
+weights = "Apache-2.0"  # the model zoo checkpoints are released with the repository (README: Apache 2.0)
+files = ["LICENSE"]
+training_data = ["imagenet-1k", "ade20k"]
+evidence = "https://github.com/open-mmlab/mmsegmentation/blob/c685fe6767c4cadf6b051983ca6208f1b9d1ccb8/README.md#license"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU). The image is first resized to the family's test-time scale (`resize`), then padded or window-split by the network, so tiny inputs are upscaled and the result is resampled back.
+input = "imagenet"
+pad = "none"
+
+[params]
+resize = ["mmseg", 2048, 512]  # test_pipeline Resize(scale=(2048, 512), keep_ratio=True), whole inference
+hacc = true  # kernels: fp16-accumulate cuDNN convs (HRNet overrides)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "seg_conv", "seg_up"]  # fastforks.shared.cnn_kernels: epilogue, CUTLASS and fp16-acc convs
+# BatchNorm folded into fp32 conv epilogues: dense convs with C, K % 8 == 0 (dilated included) and the depthwise ones
+# (DeepLabV3+) run `seg_conv` CUTLASS kernels; the convs it does not take run the fp16-accumulate cuDNN graph
+# (`cudnn_hacc`), except on HRNet-W48 (`hacc = false`: plain fp16 cuDNN, its ~300 small convs re-plan per size). A
+# repeated input size replays a CUDA graph; `seg_up` resizes the logits and takes the argmax in one pass. 512x512,
+# batch 1 (2026-11-04): FCN-R101-d8 8.1 vs 18.8 ms portable, PSPNet-R101-d8 10.4 vs 20.5 ms.
+
+[output]
+label_set = "ade20k-150"
+
+# Not added (yet): SegNeXt (MSCAN + Hamburger NMF head, random NMF init at test time) and the Cityscapes-only nets.
+
+[[variants]]
+# FCN (Long et al. 2015) on a dilated ResNet-101-V1c (output stride 8); config fcn_r101-d8_512x512_160k_ade20k
+id = "fcn-r101-d8-ade20k"
+revision = 1
+weights = [{ name = "fcn-r101-d8-ade20k.pth", size = 274929067, sha256 = "fd192bd5eced800e4f1d80dec4092295b8b68846debfff6c98549be029f862a2", url = "https://download.openmmlab.com/mmsegmentation/v0.5/fcn/fcn_r101-d8_512x512_160k_ade20k/fcn_r101-d8_512x512_160k_ade20k_20200615_105816-fd192bd5.pth" }]
+params = { arch = "fcn-r101-d8" }
+
+[[variants]]
+# PSPNet (Zhao et al. 2017); config pspnet_r101-d8_512x512_160k_ade20k
+id = "pspnet-r101-d8-ade20k"
+revision = 1
+weights = [{ name = "pspnet-r101-d8-ade20k.pth", size = 272850621, sha256 = "967c316f8cd513d6310d31282f6735775e19ed6ad25f79e7f21ef15ca77dd9ea", url = "https://download.openmmlab.com/mmsegmentation/v0.5/pspnet/pspnet_r101-d8_512x512_160k_ade20k/pspnet_r101-d8_512x512_160k_ade20k_20200615_100650-967c316f.pth" }]
+params = { arch = "psp-r101-d8" }
+
+[[variants]]
+# DeepLabV3 (Chen et al. 2017); config deeplabv3_r101-d8_512x512_160k_ade20k
+id = "deeplabv3-r101-d8-ade20k"
+revision = 1
+weights = [{ name = "deeplabv3-r101-d8-ade20k.pth", size = 349405947, sha256 = "b1f72b3ba583af703ed52297a86171647a0acf608cc7499a93548105beb3f918", url = "https://download.openmmlab.com/mmsegmentation/v0.5/deeplabv3/deeplabv3_r101-d8_512x512_160k_ade20k/deeplabv3_r101-d8_512x512_160k_ade20k_20200615_105816-b1f72b3b.pth" }]
+params = { arch = "aspp-r101-d8" }
+
+[[variants]]
+# DeepLabV3+ (Chen et al. 2018); config deeplabv3plus_r101-d8_512x512_160k_ade20k
+id = "deeplabv3plus-r101-d8-ade20k"
+revision = 1
+weights = [{ name = "deeplabv3plus-r101-d8-ade20k.pth", size = 251389496, sha256 = "38ed86bbd4684eae5e4a0fe7578f8fa6adfecc334409c97b84fe19b678305758", url = "https://download.openmmlab.com/mmsegmentation/v0.5/deeplabv3plus/deeplabv3plus_r101-d8_512x512_160k_ade20k/deeplabv3plus_r101-d8_512x512_160k_ade20k_20200615_123232-38ed86bb.pth" }]
+params = { arch = "sepaspp-r101-d8" }
+
+[[variants]]
+# HRNetV2-W48 (Wang et al. 2019) with an FCN head; config fcn_hr48_512x512_160k_ade20k
+id = "hrnet-w48-fcn-ade20k"
+revision = 1
+weights = [{ name = "hrnet-w48-fcn-ade20k.pth", size = 264512327, sha256 = "a52fc02c63283c7457e8beba0ccc6d26516f11291e16410071c770a70139dc35", url = "https://download.openmmlab.com/mmsegmentation/v0.5/hrnet/fcn_hr48_512x512_160k_ade20k/fcn_hr48_512x512_160k_ade20k_20200614_214407-a52fc02c.pth" }]
+params = { arch = "fcn-hr48", hacc = false }  # kernels: plain cuDNN fp16 convs + CUTLASS-fused conv-BN beat fp16-accumulate here

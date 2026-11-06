@@ -1,0 +1,63 @@
+schema = 2
+name = "DINOv3 ViT"
+summary = "DINOv3 ViT (Meta, 2025): self-supervised ViT backbones with 4 register tokens and RoPE; dense patch + cls features at any size (Hugging Face format checkpoints). Gated weights: accept the DINOv3 licence on each model's Hugging Face page, download model.safetensors yourself and put it under FASTFORKS_WEIGHTS_PATH (path and SHA-256 in the load error); fastforks does not send HF_TOKEN there."
+tier = "stable"
+outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
+uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (fastbb flash attention / fp16-accumulate GEMMs)
+limitations = [
+  "kernels replays a CUDA graph per small input shape and layer set (up to 512 px, ViT-S 1024 px), captured on the shape's second call; at most 8 per model holding at most 256 MB of outputs (a full cache replaces only graphs unused for 64 calls, other new shapes run eagerly).",
+  "The graphs' shared memory pool (intermediates) comes on top of that limit and stays reserved: up to about 470 MB more PyTorch cache than eager for ViT-H+ at 512 px with all layers, usually under 75 MB; `model.release_graphs()` frees it on the device.",
+]
+licence_notes = [
+  "Code and weights use the DINOv3 License (Meta: attribution and conditions apply); read it before commercial use.",
+]
+
+[upstream]
+repo = "https://github.com/huggingface/transformers"  # `DINOv3ViTModel` (models/dinov3_vit), the reference of these checkpoints
+commit = "v5.19.0"  # release tag; net.py re-implements its eval maths with the checkpoint's parameter names
+
+[licence]
+code = "LicenseRef-DINOv3-License"
+weights = "LicenseRef-DINOv3-License"
+files = ["LICENSE.md"]
+training_data = ["unstated"]
+training_note = "LVD-1689M: 1.689B images curated from 17B public Instagram images by retrieval / clustering, self-supervised (no labels), per the paper; not released"
+evidence = "https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m/blob/114c1379950215c8b35dfcd4e90a5c251dde0d32/LICENSE.md (DINOv3 License, the same file in every model repo; gated: accept on Hugging Face to download)"
+
+[io]
+input = "imagenet"
+interpolation = "bilinear"  # as the checkpoints' preprocessor_config.json; the core resizes (never pads / crops) to multiples of 16, antialiased
+pad = { multiple = 16, mode = "none" }
+
+[options]
+fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, patch-token error vs fp32 about 2.5x higher)
+
+[modes.portable]
+cuda_dtype = "float16"
+
+[modes.kernels]
+kernels = ["fastbb"]
+
+[[variants]]
+id = "dinov3-vits16"
+revision = 1
+params = { arch = "vits16" }
+weights = [{ name = "dinov3-vits16-pretrain-lvd1689m/model.safetensors", size = 86406384, sha256 = "4610ad75edef83e75afdebf162d148dc628045ea6cbb83d67d4708c709c4f91d", url = "https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m/resolve/114c1379950215c8b35dfcd4e90a5c251dde0d32/model.safetensors" }]
+
+[[variants]]
+id = "dinov3-vitb16"
+revision = 1
+params = { arch = "vitb16" }
+weights = [{ name = "dinov3-vitb16-pretrain-lvd1689m/model.safetensors", size = 342662192, sha256 = "9a21ac3df0c63839d62612dda6f454d816c25611cc7a52966ed5a5a94921dc8b", url = "https://huggingface.co/facebook/dinov3-vitb16-pretrain-lvd1689m/resolve/5931719e67bbdb9737e363e781fb0c67687896bc/model.safetensors" }]
+
+[[variants]]
+id = "dinov3-vitl16"
+revision = 1
+params = { arch = "vitl16" }
+weights = [{ name = "dinov3-vitl16-pretrain-lvd1689m/model.safetensors", size = 1212559808, sha256 = "dcb2e45127cccbf1601e5f42fef165eea275c8e5213197e8dcf3f48822718179", url = "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m/resolve/ea8dc2863c51be0a264bab82070e3e8836b02d51/model.safetensors" }]
+
+[[variants]]
+id = "dinov3-vith16plus"
+revision = 1
+params = { arch = "vith16plus" }
+weights = [{ name = "dinov3-vith16plus-pretrain-lvd1689m/model.safetensors", size = 3362432800, sha256 = "3e1d4d18b9bfa9f28fad8e9de6a783f1313532d3460efa4cd0b12521d81d1a4d", url = "https://huggingface.co/facebook/dinov3-vith16plus-pretrain-lvd1689m/resolve/c807c9eeea853df70aec4069e6f56b28ddc82acc/model.safetensors" }]

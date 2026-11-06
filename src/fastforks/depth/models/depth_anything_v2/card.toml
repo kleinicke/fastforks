@@ -1,0 +1,59 @@
+schema = 2
+name = "Depth Anything V2"
+summary = "Depth Anything V2 (Yang et al. 2024): relative monocular depth from a DINOv2 ViT encoder and a DPT head, trained on synthetic labels and 62M pseudo-labelled real images."
+tier = "stable"
+outputs = ["inverse_depth"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
+
+licence_notes = [
+  "Only the Small weights are Apache-2.0; the Base and Large weights are CC-BY-NC-4.0. The training data of even the Small model has unclear commercial terms (a note only).",
+]
+
+[output]
+kind = "affine_invariant_inverse"  # relative disparity: true inverse depth up to an unknown scale and shift
+
+[upstream]
+repo = "https://github.com/DepthAnything/Depth-Anything-V2"
+commit = "a561b84"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"  # Small; Base / Large override below
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Teacher (ViT-G) on 595K synthetic images (BlendedMVS, Hypersim, IRS, TartanAir, VKITTI 2); students on 62M pseudo-labelled real images (SA-1B, Open Images, BDD100K, Google Landmarks, ImageNet-21K, LSUN, Objects365, Places365) per the paper"
+evidence = "https://github.com/DepthAnything/Depth-Anything-V2/blob/main/README.md (LICENSE section) and the Hugging Face model cards"
+
+[io]
+input = "imagenet"  # the runner resizes (shorter side to short_side, multiple of 14, bicubic) and normalises itself
+pad = "none"
+
+[options]
+short_side = { default = 518, min = 14, aliases = ["input_size"] }  # lower bound of the resized sides (original infer_image's input_size)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused"]
+
+[[variants]]
+id = "depth-anything-v2-s"
+revision = 1
+params = { arch = "vits" }
+weights = [{ name = "depth_anything_v2_vits.pth", size = 99218434, sha256 = "715fade13be8f229f8a70cc02066f656f2423a59effd0579197bbf57860e1378", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/03876f8651c73a60fe4c2c48294e09fcb6838fcf/depth_anything_v2_vits.pth" }]
+
+[[variants]]
+id = "depth-anything-v2-b"
+revision = 1
+params = { arch = "vitb" }
+licence = { weights = "CC-BY-NC-4.0" }
+weights = [{ name = "depth_anything_v2_vitb.pth", size = 389961218, sha256 = "0d2b7002e62d39d655571c371333340bd88f67ab95050c03591555aa05645328", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Base/resolve/a4e71a6c2ce52fe50df0f212066b0d4a87be9b5e/depth_anything_v2_vitb.pth" }]
+
+[[variants]]
+id = "depth-anything-v2-l"
+revision = 1
+params = { arch = "vitl" }
+licence = { weights = "CC-BY-NC-4.0" }
+weights = [{ name = "depth_anything_v2_vitl.pth", size = 1341395338, sha256 = "a7ea19fa0ed99244e67b624c72b8580b7e9553043245905be58796a608eb9345", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/cbbb86a30ce19b5684b7a05155dc7e6cbc7685b9/depth_anything_v2_vitl.pth" }]

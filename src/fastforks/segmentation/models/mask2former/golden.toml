@@ -1,0 +1,24 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.001
+gpu_p99 = 0.01
+
+[refs."mask2former-swinl-ade20k@1"]
+sha256 = "30a594d6c4b8b62b3a8806a03e4f531b225673d41ebed9dd8edf3b9034c8f14a"
+upstream = "https://github.com/huggingface/transformers@c4c4605f961877852b89b97478536bb3a26b6fd1"
+settings = "CPU float32, transformers 5.19.0, torch 2.14.1+cu130"
+
+[validated."mask2former-swinl-ade20k@1"]
+kernels = ["fvm_seg@739693dff3b4:sm_120", "seg_up@3e44e71200cd:sm_120"]
+symbols = {"fvm_seg" = {"gather_add_ln_h" = "1aa6c1582ee6416b", "ln_gather_h" = "4df7b38c37d0bd68", "msda_self_h" = "487c07434f533d17"}, "seg_up" = {"up_add8_h" = "78a37cbea5cf9075", "up_add_h" = "ebb1773324f88508", "up_argmax_f" = "87c09c019ab9e0dc", "up_argmax_h" = "87c09c019ab9e0dc", "up_argmax_pf" = "87c09c019ab9e0dc", "up_argmax_ph" = "87c09c019ab9e0dc", "up_argmax_rf" = "87c09c019ab9e0dc", "up_argmax_rh" = "87c09c019ab9e0dc", "up_f" = "87c09c019ab9e0dc", "up_h" = "87c09c019ab9e0dc"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-04"
+mean_px = 2e-05
+p99_px = 0.00024

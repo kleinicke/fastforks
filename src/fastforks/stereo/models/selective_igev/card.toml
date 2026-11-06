@@ -1,0 +1,82 @@
+schema = 2
+name = "Selective-IGEV"
+summary = "Selective-IGEV (Wang et al. 2024, Selective-Stereo): IGEV-Stereo with selective recurrent units, attention-blended small (1x1) and large (3x3) ConvGRUs on a channel- and spatially re-weighted context, 32 iterations."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "igev_blocks", "mobilenetv2"]  # fastforks.shared modules this family imports
+limitations = [
+  "ONNX export needs torch >= 2.14 (older exporters fail on this network).",
+]
+
+[upstream]
+repo = "https://github.com/Windsrain/Selective-Stereo"
+commit = "c39acbfef9fbe36fbc01efa4abeafc62bbe2da36"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"  # original states no weights licence; the code licence is assumed
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/Windsrain/Selective-Stereo/blob/c39acbfef9fbe36fbc01efa4abeafc62bbe2da36/README.md#L25"  # README links the weights (Google Drive folder) with no licence of their own
+
+[io]
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+
+[params]
+max_disp = 192  # cost-volume depth at full resolution
+
+[options]
+iters = { default = 32, min = 1 }  # GRU update iterations
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+mps_kernels = ["stereo_metal"]
+
+# Upstream also publishes Selective-RAFT weights (another architecture): not part of this family.
+# All variants run with max_disp 192 (the cost-volume depth); the upstream Middlebury demo uses 768. It stays a
+# [params] entry: the kernels path has not been run at other values.
+
+[[variants]]
+id = "selective-igev-sceneflow"
+revision = 1
+weights = [{ mirror = true, name = "sceneflow.pth", size = 52990211, sha256 = "27286b184d68efe31c150f53229bbe72300c4e302524395f5bfbbad7a4604727", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1N0VfCFcAwSEPeXdWcrSS0JlNa4xm2gIn" }]
+
+[[variants]]
+id = "selective-igev-kitti12"
+revision = 1
+licence = { training_data = ["sceneflow", "kitti"], training_note = "SceneFlow, then fine-tuned on KITTI (KITTI 2012 model)" }
+weights = [{ mirror = true, name = "kitti12.pth", size = 52994813, sha256 = "3a9ed6f2e778bedf35887691bb7072621aa053ca114221f889b1fd772f8b6b49", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1FS5LapV8uP19hce5pXw0wXMf7ZTz0djf" }]
+
+[[variants]]
+id = "selective-igev-kitti15"
+revision = 1
+licence = { training_data = ["sceneflow", "kitti"], training_note = "SceneFlow, then fine-tuned on KITTI (KITTI 2015 model)" }
+weights = [{ mirror = true, name = "kitti15.pth", size = 52994046, sha256 = "488254b5cfbf88ab262c6b69b093de48c3cf57289d6c4dd5d7be5fcb5b1a27d1", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1ewtQTWvmPa4iGlRzIq4fcfk78LIq-Rim" }]
+
+[[variants]]
+id = "selective-igev-middlebury-finetune"
+revision = 1
+licence = { training_data = ["sceneflow", "middlebury"], training_note = "SceneFlow, then fine-tuned on Middlebury (final fine-tune stage; Selective-Stereo README training commands, 'middlebury_finetune' stage); original demo runs it with max_disp 768, 80 iterations" }
+weights = [{ mirror = true, name = "middlebury_finetune.pth", size = 52994813, sha256 = "ce019e97bbe8d806765cc9189399388393e400cbbf197bdece82acd4d9250798", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1eBi5DC_mFfMNjvA13XhxpHkoP2ScUTqN" }]
+
+[[variants]]
+id = "selective-igev-middlebury-train"
+revision = 1
+licence = { training_data = ["sceneflow", "middlebury"], training_note = "SceneFlow, then fine-tuned on Middlebury (first fine-tune stage; Selective-Stereo README training commands, 'middlebury_train' stage)" }
+weights = [{ mirror = true, name = "middlebury_train.pth", size = 52990211, sha256 = "a51f67029d77789c053637763c6009546a6e9104bdf6ba1685acfa89e43beb78", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1WDFD3qNaklB_OQDxHAdnMFNWCd678iAI" }]
+
+[[variants]]
+id = "selective-igev-eth3d-finetune"
+revision = 1
+licence = { training_data = ["sceneflow", "eth3d"], training_note = "SceneFlow, then fine-tuned on ETH3D (final fine-tune stage; Selective-Stereo README training commands, 'eth3d_finetune' stage)" }
+weights = [{ mirror = true, name = "eth3d_finetune.pth", size = 52990211, sha256 = "29d62b91c58e892e836524946d405b7efe45c43b8c58e316507bf640c73ec858", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1fHtm5bno6usdcKEYLgH__yBLhMYDz0fs" }]
+
+[[variants]]
+id = "selective-igev-eth3d-train"
+revision = 1
+licence = { training_data = ["sceneflow", "eth3d"], training_note = "SceneFlow, then fine-tuned on ETH3D (first fine-tune stage; Selective-Stereo README training commands, 'eth3d_train' stage)" }
+weights = [{ mirror = true, name = "eth3d_train.pth", size = 52990211, sha256 = "989327ad02206755d55374b68803011be19be89e67ffdb2b402c5e4647b99d7e", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1IQ6eP7oVy2MfRB9pIU0afPiXhnBT4QbG" }]

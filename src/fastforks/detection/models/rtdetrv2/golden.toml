@@ -1,0 +1,85 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.2
+gpu_p99 = 1.0
+
+[refs."rtdetrv2-l-coco@1"]
+sha256 = "c5aeaa1b2604b942ad6539ace52230ff99c69b293474d2002d04fcc2fac0ebf3"
+upstream = "https://github.com/lyuwenyu/RT-DETR@df2a96c8c3a098567a1149bf0248da6efe6d495d"
+settings = "CPU float32, official deploy model + postprocessor, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.45, torch 2.14.1+cu130"
+options = [["score_threshold", 0.45]]
+
+[refs."rtdetrv2-m-coco@1"]
+sha256 = "a245fd6a570b9f70f354ab3ead2f0fee2c2c8de2151ae65c286f24268a2700ae"
+upstream = "https://github.com/lyuwenyu/RT-DETR@df2a96c8c3a098567a1149bf0248da6efe6d495d"
+settings = "CPU float32, official deploy model + postprocessor, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.68, torch 2.14.1+cu130"
+options = [["score_threshold", 0.68]]
+
+[refs."rtdetrv2-ms-coco@1"]
+sha256 = "e5cdf8ba3ffb00c7b6079227b4379ee360abe2dcd3d7356dc1fa289f2f834177"
+upstream = "https://github.com/lyuwenyu/RT-DETR@df2a96c8c3a098567a1149bf0248da6efe6d495d"
+settings = "CPU float32, official deploy model + postprocessor, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.6, torch 2.14.1+cu130"
+options = [["score_threshold", 0.6]]
+
+[refs."rtdetrv2-s-coco@1"]
+sha256 = "624325ff6c551260b030b598c6d172454a8e0bd819745183941234f504a9e76d"
+upstream = "https://github.com/lyuwenyu/RT-DETR@df2a96c8c3a098567a1149bf0248da6efe6d495d"
+settings = "CPU float32, official deploy model + postprocessor, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.67, torch 2.14.1+cu130"
+options = [["score_threshold", 0.67]]
+
+[refs."rtdetrv2-x-coco@1"]
+sha256 = "33d7f3b9704a529ca18ac059cfeeac7d9ee95559874dba88f8c491c1c7febdd1"
+upstream = "https://github.com/lyuwenyu/RT-DETR@df2a96c8c3a098567a1149bf0248da6efe6d495d"
+settings = "CPU float32, official deploy model + postprocessor, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.5, torch 2.14.1+cu130"
+options = [["score_threshold", 0.5]]
+
+[validated."rtdetrv2-l-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-03"
+mean_px = 0.04387
+p99_px = 0.1019
+
+[validated."rtdetrv2-m-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-03"
+mean_px = 0.06517
+p99_px = 0.13434
+
+[validated."rtdetrv2-ms-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-03"
+mean_px = 0.06765
+p99_px = 0.17406
+
+[validated."rtdetrv2-s-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-03"
+mean_px = 0.03739
+p99_px = 0.1098
+
+[validated."rtdetrv2-x-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-03"
+mean_px = 0.05571
+p99_px = 0.2201

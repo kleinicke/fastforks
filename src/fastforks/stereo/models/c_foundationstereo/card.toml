@@ -1,0 +1,65 @@
+schema = 2
+name = "C-FoundationStereo"
+summary = "NVIDIA's commercially licensed FoundationStereo releases (TAO code): C-FoundationStereo-S (DepthAnything-ViT-S + CNN features, 3D cost-volume filtering with disparity transformer, ConvGRU, 22 iterations), the distilled C-Fast-FoundationStereo (EdgeNeXt features, 8 iterations) and the same network with the research checkpoint (Fast-FoundationStereo)."
+tier = "stable"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "depth_anything_v2", "edgenext"]  # fastforks.shared modules this family imports
+limitations = [
+  "ONNX export needs torch >= 2.14 (older exporters fail on this network).",
+]
+licence_notes = [
+  "fast-foundationstereo is the research checkpoint 23-36-37 (the original demo default, the most accurate released): weights are non-commercial (NVIDIA Source Code License NC); our code here is the Apache-2.0 TAO code, which does not change that. For commercial use take c-foundationstereo-s (its model card says 'ready for commercial use').",
+  "Trained on NVIDIA's FSD dataset, whose terms for commercial use of trained models are unclear; the status does not depend on the training data.",
+  "c-fast-foundationstereo: the weights are governed by the NVIDIA Open Model Agreement, which allows commercial use; the model card's description also calls the model 'for research and evaluation purposes only', which contradicts it. We follow the governing terms.",
+]
+
+[upstream]
+repo = "https://github.com/NVIDIA/tao_pytorch_backend"
+commit = "77fb1a4bca02de3ea43de333a5822d57694b6b22"
+
+[licence]
+code = "Apache-2.0"  # NVIDIA TAO PyTorch (all vendored files, incl. its Depth Anything V2 / EdgeNeXt copies)
+weights = "LicenseRef-NVIDIA-Open-Model-License"
+files = ["LICENSE", "NOTICE"]  # NOTICE: TAO attribution, weights notice
+training_data = ["fsd", "crestereo", "tartanair"]
+training_note = "pretrained on the Foundation Stereo Dataset (FSD, NVIDIA synthetic) and CREStereo, fine-tuned on FSD and TartanAir"
+evidence = "https://huggingface.co/nvidia/c-foundationstereo-s/blob/d776ba855977e99cc9f16246f911d701da0bbc7a/README.md"
+
+[io]
+input = "imagenet"
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+
+[params]
+arch = "fs"
+encoder = "vits"
+max_disp = 416
+valid_iters = 22
+
+[options]
+iters = { default = 0, min = 0 }  # GRU update iterations; 0 = the variant's default (22 C-FS-S, 8 C-FFS)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "fs", "fs_cutlass", "cfs", "ffs_cutlass"]
+
+[[variants]]
+id = "c-foundationstereo-s"
+revision = 1
+weights = [{ name = "trainable_foundation_stereo_small.pth", size = 537817365, sha256 = "5e578fdf1105b2b111d7da6e40a0fdd514958557ffc0066d76743ae4c0678f0c", url = "https://huggingface.co/nvidia/c-foundationstereo-s/resolve/d776ba855977e99cc9f16246f911d701da0bbc7a/trainable_foundation_stereo_small.pth" }]
+
+[[variants]]
+id = "c-fast-foundationstereo"
+revision = 1
+params = { arch = "ffs", encoder = "vitl", max_disp = 192, valid_iters = 8 }
+licence = { weights = "LicenseRef-NVIDIA-Open-Model-Agreement", training_data = ["fsd", "nvidia-internal", "stereo4d"], training_note = "large synthetic NVIDIA set (1.4 M pairs; 'internal, proprietary dataset') plus real Stereo4D", evidence = "https://huggingface.co/nvidia/c-fast-foundationstereo/blob/53a84e28a368f37e699776250215fcb450d6a109/README.md" }
+weights = [{ name = "model_best_bp2_serialize.pth", size = 71105659, sha256 = "7aee85948373da62b0503c2542507129a3e7cab9d97d10e6790d89512a7db214", url = "https://huggingface.co/nvidia/c-fast-foundationstereo/resolve/53a84e28a368f37e699776250215fcb450d6a109/model_best_bp2_serialize.pth" }]
+
+[[variants]]
+id = "fast-foundationstereo"
+revision = 1
+params = { arch = "ffs", encoder = "vitl", max_disp = 192, valid_iters = 8 }
+licence = { weights = "LicenseRef-NVIDIA-Source-Code-License-NC", training_data = ["fsd"], training_note = "Foundation Stereo Dataset (FSD, NVIDIA synthetic) plus further real and synthetic data, distilled from FoundationStereo; no per-dataset terms checked", evidence = "https://github.com/NVlabs/Fast-FoundationStereo/blob/476f4249561f7c79ca707326954f9255643412a6/readme.md" }
+weights = [{ name = "23-36-37/model_best_bp2_serialize.pth", size = 71098210, sha256 = "af0658f289ec840b292645f8d5538978f06e8cabaa1fd31e84acc91af268e990", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1W1V1H64l9bAi97boEQQ2ueNzzGmSMz-E" }]

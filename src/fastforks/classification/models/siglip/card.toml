@@ -1,0 +1,50 @@
+schema = 2
+name = "SigLIP (fine-tuned)"
+summary = "SigLIP So400m/14 image tower (Zhai et al. 2023) fine-tuned on ImageNet-1k with an attention-pool head."
+tier = "stable"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["webli", "imagenet-1k"]
+evidence = "https://huggingface.co/timm/vit_so400m_patch14_siglip_378.webli_ft_in1k/blob/efb07b5711bda4e3eb24630db9879e0832615ad4/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "mean_std"
+resize = 378
+crop = 378
+interpolation = "bicubic"
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+# Per-shape dispatch (kernels, `_optimize.transformer.lin`): a GEMM with a residual add, fewer than 2048 rows and at least
+# 2^29 multiply-adds (SigLIP-so400m 378: attention projection and MLP down-projection, 729 rows) runs cuBLAS + add,
+# which is faster there than the fused CUTLASS GEMM; every other GEMM is the fused kernel.
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+# timm resizes to a square (crop_mode squash); fastforks resizes the shorter side and centre-crops
+id = "vit_so400m_patch14_siglip_378.webli_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "vit_so400m_patch14_siglip_378.webli_ft_in1k.safetensors", size = 1717547296, sha256 = "1aa26b75cd67e6498a1b84a81a6956363b33d2e850f5442876f2d5915a85bf29", url = "https://huggingface.co/timm/vit_so400m_patch14_siglip_378.webli_ft_in1k/resolve/efb07b5711bda4e3eb24630db9879e0832615ad4/model.safetensors" }]
+params = { arch = "vit_so400m_patch14_siglip_378.webli_ft_in1k" }

@@ -1,0 +1,51 @@
+schema = 2
+name = "MonSter"
+summary = "MonSter (Cheng et al. 2025): Depth Anything V2 (ViT-L) monocular branch + IGEV-style geometry volume, with stereo and mono ConvGRUs that refine each other, 32 iterations. The original README flags its monster-sceneflow checkpoint as buggy."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "depth_anything_v2", "monster_fit"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/Junda24/MonSter"
+commit = "49016c9a72b4260c0d119c77bb14e78a132cea8c"
+
+[licence]
+code = "LicenseRef-noncommercial"  # MonSter Model License v1.0: non-commercial research and educational use only
+weights = "LicenseRef-noncommercial AND CC-BY-NC-4.0"  # the MonSter licence covers the weights too; they contain the Depth Anything V2 ViT-L weights (CC-BY-NC-4.0)
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/Junda24/MonSter/blob/49016c9a72b4260c0d119c77bb14e78a132cea8c/README.md#L93"  # README weights table (Hugging Face cjd24/MonSter); LICENSE at the same commit names the model weights
+
+[io]
+input = "0-255"
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+
+[params]
+encoder = "vitl"  # DINOv2 encoder of the Depth Anything V2 branch
+max_disp = 192  # cost-volume depth at full resolution
+
+[options]
+iters = { default = 32, min = 1 }  # update iterations; the last 7 are mixed stereo / mono updates after the mono scale / shift fit (fewer than 8: mixed only, no fit, as original)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
+mps_kernels = ["stereo_metal"]
+
+# Upstream also publishes KITTI / Middlebury / ETH3D fine-tunes (same Hugging Face repo); not added yet (not local).
+
+[[variants]]
+id = "monster-sceneflow"
+revision = 1
+# Known issue (upstream README L103): "There is a bug in the sceneflow model reproduction. We are working on it and will
+# re-upload it later." Shipped as published; prefer monster-mix-all.
+weights = [{ name = "sceneflow.pth", size = 1555162307, sha256 = "ece58ae6f8ffdacce1e6d4871eaab3432f86a81c78216b07bb5d258ee3e6e1ae", url = "https://huggingface.co/cjd24/MonSter/resolve/e6821d996174f60ea0cb05d14eaaa37b34777f6e/sceneflow.pth?download=true" }]
+
+[[variants]]
+id = "monster-mix-all"
+revision = 1
+licence = { training_data = ["sceneflow", "kitti", "eth3d", "middlebury", "tartanair", "crestereo", "falling_things", "instereo2k", "sintel", "hr_vs"], training_note = "mix of all the datasets the README lists; the README recommends it for zero-shot use" }
+weights = [{ name = "mix_all.pth", size = 1555109647, sha256 = "fe0f25eacc4d937da3a380366f9530904c730e646062609beedb9267898872c0", url = "https://huggingface.co/cjd24/MonSter/resolve/e6821d996174f60ea0cb05d14eaaa37b34777f6e/mix_all.pth?download=true" }]

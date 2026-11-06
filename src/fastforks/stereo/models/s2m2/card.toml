@@ -1,0 +1,59 @@
+schema = 2
+name = "S2M2"
+summary = "S2M2 (Min et al. 2025): multi-resolution transformer with optimal-transport matching; also outputs confidence and occlusion maps."
+tier = "stable"
+outputs = ["disparity", "confidence", "occlusion"]
+limitations = [
+  "At 994x1482 portable S2M2-S is about as fast as the original code and allocates slightly more memory; use kernels for speed and memory.",
+]
+
+[upstream]
+repo = "https://github.com/junhong-3dv/s2m2"
+commit = "8f3bd785df593619d955203c6f2c741bef6e31df"
+
+[licence]
+code = "CC-BY-NC-4.0"
+weights = "CC-BY-NC-4.0"
+files = ["LICENSE.md"]
+training_data = ["unstated"]
+training_note = "README: extended training data incl. transparent objects"
+evidence = "https://github.com/junhong-3dv/s2m2/blob/8f3bd785df593619d955203c6f2c741bef6e31df/README.md#L24"  # "solely for non-commercial research and education purposes"
+
+[io]
+pad = { multiple = 32, mode = "centre", fill = "family" }  # upstream: blurred image in the border
+
+[params]
+dim_expansion = 1
+use_positivity = true
+refine_iter = 3
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["s2m2", "s2m2_cutlass", "cudnn_hacc"]
+
+[[variants]]
+id = "s2m2-s"
+revision = 1
+params = { feature_channels = 128, num_transformer = 1 }
+weights = [{ name = "CH128NTR1.pth", size = 107453000, sha256 = "93f7177d8159d6666506df3abb0cdd75473614fab0e39f25e397acade0f9e241", url = "https://huggingface.co/minimok/s2m2/resolve/880bc49f2a7cf54a42570f8550c46cb57454bac9/CH128NTR1.pth" }]
+
+[[variants]]
+id = "s2m2-m"
+revision = 1
+params = { feature_channels = 192, num_transformer = 2 }
+weights = [{ name = "CH192NTR2.pth", size = 323834816, sha256 = "6e767e0977dd0a81a51021429f82b1c8451fd2534862170cb18a0019a33ae8ad", url = "https://huggingface.co/minimok/s2m2/resolve/880bc49f2a7cf54a42570f8550c46cb57454bac9/CH192NTR2.pth" }]
+
+[[variants]]
+id = "s2m2-l"
+revision = 1
+params = { feature_channels = 256, num_transformer = 3 }
+weights = [{ name = "CH256NTR3.pth", size = 725422626, sha256 = "770e822272585f843288507a2274349f032f2ef8106d1370bdefa8849b37cf87", url = "https://huggingface.co/minimok/s2m2/resolve/880bc49f2a7cf54a42570f8550c46cb57454bac9/CH256NTR3.pth" }]
+
+[[variants]]
+id = "s2m2-xl"
+revision = 1
+params = { feature_channels = 384, num_transformer = 3 }
+weights = [{ name = "CH384NTR3.pth", size = 1626450722, sha256 = "78dee08652ac6b6d42ff60d2ccd8184021b1e7beb93b091f379f82ba9f0b3032", url = "https://huggingface.co/minimok/s2m2/resolve/880bc49f2a7cf54a42570f8550c46cb57454bac9/CH384NTR3.pth" }]

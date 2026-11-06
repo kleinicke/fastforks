@@ -1,0 +1,43 @@
+schema = 2
+name = "VGGT-Omega"
+summary = "VGGT-Omega (Meta), the successor of VGGT: cameras and depth maps of every view from unposed images in one forward pass. A DINOv3 ViT-L/16 patch embedding feeds 24 frame and 24 inter-frame (global or register-only) attention blocks with q/k norm and 2-D RoPE; a camera head and a DPT dense head decode the tokens. The checkpoint is gated on Hugging Face (accept the FAIR licence there, then put the file on FASTFORKS_WEIGHTS_PATH); there is no mirror."
+tier = "experimental"
+outputs = ["depth", "confidence", "intrinsics", "cam_to_world"]  # world points: multiview.unproject(depth, intrinsics, cam_to_world)
+
+licence_notes = [
+  "Code and weights are under the FAIR Noncommercial Research License; the checkpoint is gated on Hugging Face (accept the licence there) and not mirrored.",
+]
+
+[output]
+kind = "scale_invariant"  # depth and camera translations share one unknown scale (scene normalised as VGGT)
+
+[upstream]
+repo = "https://github.com/facebookresearch/vggt-omega"
+commit = "48b23c8"
+
+[licence]
+code = "LicenseRef-FAIR-Noncommercial-Research"  # FAIR Noncommercial Research License v1 (2024-10-16) + Acceptable Use Policy
+weights = "LicenseRef-FAIR-Noncommercial-Research"  # Hugging Face facebook/VGGT-Omega: license fair-noncommercial-research-license
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Per the repository README: a mixture of public multi-view datasets (uCO3D annotations released); DINOv3 initialisation. The 512 checkpoint is recommended for in-the-wild use, not benchmarking (vggt_omega_1b_416_reproduce.pt is the benchmark reference)."
+evidence = "https://github.com/facebookresearch/vggt-omega/blob/48b23c8/LICENSE and https://huggingface.co/facebook/VGGT-Omega/blob/1041e80fc0e911235d3426b0a3d9a81075111a53/LICENSE.txt"
+
+[io]
+input = "0-1"  # the runner resizes (original "balanced": ~(area_side/16)^2 patches, multiples of 16, bicubic antialiased)
+pad = "none"
+
+[options]
+area_side = { default = 512, min = 16, aliases = ["resolution"] }  # side in px of a square with the network input's area (original image_resolution of load_and_preprocess_images(mode="balanced"))
+
+[modes.portable]
+cuda_dtype = "float16"
+
+[modes.kernels]
+kernels = ["fastbb", "vggt_omega"]
+
+[[variants]]
+id = "vggt-omega-1b-512"
+revision = 1
+# gated download: the URL needs a Hugging Face token of an account whose access request was approved
+weights = [{ name = "vggt_omega_1b_512.pt", size = 4576706117, sha256 = "c02da418b18bb01d0392598d3f6147366bcde1bb70fd08a5e3bf7925b0667934", url = "https://huggingface.co/facebook/VGGT-Omega/resolve/1041e80fc0e911235d3426b0a3d9a81075111a53/vggt_omega_1b_512.pt" }]

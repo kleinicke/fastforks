@@ -1,0 +1,52 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."raft-stereo-eth3d@1"]
+sha256 = "8a9fb8bd26a0ee002b4f0700589c258307ce139de1104024ad97d03068916c11"
+upstream = "https://github.com/princeton-vl/RAFT-Stereo@6e93ed2169bd858dbb43033988563f3b0bb49506"
+settings = "CPU float32, 32 iters, torch 2.14.1+cu130"
+
+[refs."raft-stereo-middlebury@1"]
+sha256 = "3a9c9276c7c4c77789358d10893cb6110757e913485a664d5178cd1c885e1e30"
+upstream = "https://github.com/princeton-vl/RAFT-Stereo@6e93ed2169bd858dbb43033988563f3b0bb49506"
+settings = "CPU float32, 32 iters, torch 2.14.1+cu130"
+
+[refs."raft-stereo-sceneflow@1"]
+sha256 = "0fd2bd03746b5d94aa1828fdb69c569e486cb8214fa741646c113ff8f3cb3b59"
+upstream = "https://github.com/princeton-vl/RAFT-Stereo@6e93ed2169bd858dbb43033988563f3b0bb49506"
+settings = "CPU float32, 32 iters, torch 2.14.1+cu130"
+
+[validated."raft-stereo-eth3d@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "raft@9524a68234cc:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "raft" = {"affine_act" = "e6cd11dcb1f6a329", "convf1_direct" = "c81b68b04f3c5488", "corr_gemm" = "eb0a1f40adf15819", "corr_lookup" = "1488d37aaacba9a3", "corr_pool" = "3cf5b80dcb0528de", "flow_head_out_br" = "c6ba13e265b9548d", "gru_zr" = "a7a16163e579313e", "in_apply" = "8c21e239d5885486", "in_stats_final" = "3431e668e0dbf59a", "in_stats_partial" = "bbce29c577674c53", "init_coords" = "52a13e062bf18e08", "interp_dual" = "0d47c03254095465", "pool2x_dual" = "275855c2c9292db7", "prep_context" = "b6bdccc37249d944", "prep_image_chw" = "53fb60ce94a66387", "upsample_out" = "6fe5838fc01db961"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00166
+p99_px = 0.01285
+
+[validated."raft-stereo-middlebury@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "raft@9524a68234cc:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "raft" = {"affine_act" = "e6cd11dcb1f6a329", "convf1_direct" = "c81b68b04f3c5488", "corr_gemm" = "eb0a1f40adf15819", "corr_lookup" = "1488d37aaacba9a3", "corr_pool" = "3cf5b80dcb0528de", "flow_head_out_br" = "c6ba13e265b9548d", "gru_zr" = "a7a16163e579313e", "in_apply" = "8c21e239d5885486", "in_stats_final" = "3431e668e0dbf59a", "in_stats_partial" = "bbce29c577674c53", "init_coords" = "52a13e062bf18e08", "interp_dual" = "0d47c03254095465", "pool2x_dual" = "275855c2c9292db7", "prep_context" = "b6bdccc37249d944", "prep_image_chw" = "53fb60ce94a66387", "upsample_out" = "6fe5838fc01db961"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00836
+p99_px = 0.07899
+
+[validated."raft-stereo-sceneflow@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "raft@9524a68234cc:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "raft" = {"affine_act" = "e6cd11dcb1f6a329", "convf1_direct" = "c81b68b04f3c5488", "corr_gemm" = "eb0a1f40adf15819", "corr_lookup" = "1488d37aaacba9a3", "corr_pool" = "3cf5b80dcb0528de", "flow_head_out_br" = "c6ba13e265b9548d", "gru_zr" = "a7a16163e579313e", "in_apply" = "8c21e239d5885486", "in_stats_final" = "3431e668e0dbf59a", "in_stats_partial" = "bbce29c577674c53", "init_coords" = "52a13e062bf18e08", "interp_dual" = "0d47c03254095465", "pool2x_dual" = "275855c2c9292db7", "prep_context" = "b6bdccc37249d944", "prep_image_chw" = "53fb60ce94a66387", "upsample_out" = "6fe5838fc01db961"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.0019
+p99_px = 0.01941

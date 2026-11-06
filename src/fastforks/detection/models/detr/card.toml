@@ -1,0 +1,59 @@
+schema = 2
+name = "DETR (ResNet-50 / ResNet-101)"
+summary = "DETR (Carion et al. 2020, Facebook): end-to-end detection with a ResNet backbone and a 6+6 layer transformer encoder-decoder over 100 object queries, no NMS; boxes, scores and COCO classes at the input size. The portable `module()` is the whole network (class logits and normalised boxes)."
+tier = "stable"
+outputs = ["boxes", "scores", "labels"]
+
+[upstream]
+repo = "https://github.com/facebookresearch/detr"
+commit = "29901c51d7fe8712168b8d0d64351170bc0f83e0"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"  # README "License": "DETR is released under the Apache 2.0 license" (code and the released checkpoints)
+files = ["LICENSE"]
+training_data = ["coco", "imagenet-1k"]
+training_note = "COCO 2017 train (500 epochs); the ResNet backbone was initialised from torchvision's ImageNet-1k model"
+evidence = "https://github.com/facebookresearch/detr/blob/29901c51d7fe8712168b8d0d64351170bc0f83e0/README.md (License section)"
+
+[io]
+input = "mean_std"  # the runner resizes (shortest side min_size, PIL bilinear) and normalises itself
+mean = [0.485, 0.456, 0.406]
+std = [0.229, 0.224, 0.225]
+
+[params]
+d_model = 256
+heads = 8
+enc_layers = 6
+dec_layers = 6
+ffn = 2048
+num_queries = 100
+num_classes = 91  # COCO category ids 0..90 (11 are unused and dropped); one more output is "no object"
+min_size = 800
+max_size = 1333
+
+[options]
+score_threshold = { default = 0.05, min = 0.0, max = 1.0 }  # official DETR keeps all 100 queries; 0.05 drops the "no object"-like ones
+max_detections = { default = 100, min = 1 }
+
+[modes.portable]
+cuda_dtype = "float16"  # backbone and transformer; heads, softmax and box decoding stay float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU / conv-add-ReLU), fp16-accumulate GEMMs
+
+[output]
+label_set = "coco-80"
+
+[[variants]]
+id = "detr-r50-coco"
+revision = 1
+params = { blocks = [3, 4, 6, 3] }
+weights = [{ name = "detr-r50-e632da11.pth", size = 166618694, sha256 = "e632da11ec76ae67bac2f8579fbed3724e08dead7d200ca13e019b197784eadc", url = "https://dl.fbaipublicfiles.com/detr/detr-r50-e632da11.pth" }]
+
+[[variants]]
+id = "detr-r101-coco"
+revision = 1
+params = { blocks = [3, 4, 23, 3] }
+weights = [{ name = "detr-r101-2c7b67e5.pth", size = 242846568, sha256 = "2c7b67e52d2e687cefa3c4a5e701a148664159c96725c62984600d2d9d5c4104", url = "https://dl.fbaipublicfiles.com/detr/detr-r101-2c7b67e5.pth" }]

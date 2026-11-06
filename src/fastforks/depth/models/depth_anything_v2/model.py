@@ -1,0 +1,141 @@
+"""Depth Anything V2 runners: weights -> network and the portable / kernels forward passes.
+
+Both follow upstream `infer_image`: resize so that both sides are at least `short_side` and multiples of 14 (keeping
+the aspect ratio, bicubic), normalise with the ImageNet mean / std, run, ReLU, and upsample the relative inverse depth
+back to the input size (bilinear, `align_corners=True`). Upstream resizes with OpenCV's `INTER_CUBIC` on the CPU;
+PyTorch's bicubic uses the same kernel (a = -0.75, replicated borders) on the device.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+import torch
+import torch.nn.functional as F
+
+from fastforks._core.half import pure_half
+from fastforks.depth._runner import Forward, Runner, scale
+from fastforks.kernels.dpt_fused import load as load_dpt_fused
+from fastforks.shared.depth_anything_v2 import DepthAnythingV2, fold_layer_scale, use_sdpa_attention
+
+from .fused import FusedHead, FusedViT
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from fastforks.depth._runner import Context
+
+PATCH = 14  # fixed: the DINOv2 ViT-*/14 patch; upstream hard-codes ensure_multiple_of=14
+_CONFIGS = {  # upstream run.py model_configs
+    "vits": {"features": 64, "out_channels": [48, 96, 192, 384]},
+    "vitb": {"features": 128, "out_channels": [96, 192, 384, 768]},
+    "vitl": {"features": 256, "out_channels": [256, 512, 1024, 1024]},
+}
+
+
+@dataclass(frozen=True)
+class Params:
+    """Variant `params` + load options."""
+
+    arch: str  # "vits", "vitb" or "vitl"
+    short_side: int  # lower bound of both resized sides
+
+
+def network_size(h: int, w: int, short_side: int) -> tuple[int, int]:
+    """Upstream `Resize(keep_aspect_ratio=True, ensure_multiple_of=14, resize_method="lower_bound")` for `h x w`."""
+    s = max(short_side / h, short_side / w)
+
+    def multiple(x: float) -> int:
+        y = round(x / PATCH) * PATCH  # numpy's round: half to even, like Python's
+        return y if y >= short_side else math.ceil(x / PATCH) * PATCH
+
+    return multiple(s * h), multiple(s * w)
+
+
+def _net(ctx: Context) -> DepthAnythingV2:
+    net = DepthAnythingV2(encoder=ctx.params.arch, **_CONFIGS[ctx.params.arch])
+    net.load_state_dict(ctx.state_dict())
+    return net.eval().to(ctx.device)
+
+
+def _prepare(ctx: Context, image: torch.Tensor) -> torch.Tensor:
+    """`[B, 3, H, W]` in `[0, 1]` -> resized, normalised network input (float32)."""
+    h, w = network_size(*image.shape[-2:], ctx.params.short_side)
+    return scale(F.interpolate(image, (h, w), mode="bicubic", align_corners=False), ctx.io)
+
+
+def _restore(d: torch.Tensor, size: Sequence[int]) -> torch.Tensor:
+    """Network output `[B, h, w]` -> float32 `[B, H, W]` at the input size."""
+    return F.interpolate(d[:, None].float(), size, mode="bilinear", align_corners=True)[:, 0]
+
+
+class Portable(Runner):
+    """Plain PyTorch with fused SDPA attention: float32, or on CUDA the network in fp16 (channels-last convs).
+
+    The fp16 network has no autocast: weights are cast once, the 1-channel output conv runs in fp32 (depth precision).
+    """
+
+    dtypes = ("float32", "float16")
+    batch = None
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network."""
+        super().__init__(ctx)
+        self.net = _net(ctx)
+        use_sdpa_attention(self.net)
+        fold_layer_scale(self.net)
+        self.half = ctx.dtype == "float16"
+        if self.half:
+            pure_half(self.net, fp32=[self.net.depth_head.scratch.output_conv2[2]])
+
+    def _run(self, image: torch.Tensor) -> torch.Tensor:
+        return _restore(self.net(_prepare(self.ctx, image)), image.shape[-2:])
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
+        """Relative inverse depth of a batch."""
+        return {"inverse_depth": self._run(image)}
+
+    def module(self) -> torch.nn.Module:
+        """The network with its input handling: `[B, 3, H, W]` in `[0, 1]` -> inverse depth `[B, H, W]`."""
+        return Forward(self.net, lambda _net, image: self._run(image))
+
+
+# flash attention variant per encoder (fastbb `flash64_*`): fp16 QK^T accumulation ("hh") keeps ViT-S / L within
+# 1.3e-3 / 2.4e-3 rel p99 of the fp32 reference, ViT-B needs fp32 QK^T ("fh": 5.6e-3 -> 2.6e-3, +0.9 ms at 518x770)
+_KERNELS_ATTN = {"vitb": "fh"}
+
+
+class Kernels(Runner):
+    """dpt_fused kernels: fused-epilogue CUTLASS GEMMs / convs (fp16 accumulation), flash attention, NHWC fp16 head.
+
+    The input resize + normalisation, the patch embedding and the position embedding are fused too; the 1-channel
+    output conv runs in fp32. Weights are converted on the CPU, so the GPU holds only the fp16 network.
+    """
+
+    batch = None
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network on the CPU, convert it, move it to the device."""
+        super().__init__(ctx)
+        net = DepthAnythingV2(encoder=ctx.params.arch, **_CONFIGS[ctx.params.arch])
+        net.load_state_dict(ctx.state_dict())
+        net.eval()
+        k = load_dpt_fused(ctx.device)
+        self.vit = FusedViT(net.pretrained, ctx.device, k, _KERNELS_ATTN.get(ctx.params.arch, "hh"))
+        self.head = FusedHead(net.depth_head, ctx.device, k)
+        self.layers = net.intermediate_layer_idx[net.encoder]
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
+        """Relative inverse depth of a batch."""
+        h, w = network_size(*image.shape[-2:], self.ctx.params.short_side)
+        with torch.autocast("cuda", enabled=False):
+            feats = self.vit.features(image, (h, w), self.layers)
+            d = self.head(feats, h // PATCH, w // PATCH)
+        return {"inverse_depth": _restore(d, image.shape[-2:])}
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

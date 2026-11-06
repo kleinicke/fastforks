@@ -1,0 +1,6 @@
+# Built by tools/build_kernels.py into one shared library per target (CUDA runtime linked statically, so it only
+# needs the driver); manifest.toml is generated from it. cuBLASLt is bound at run time (dlopen of the loaded copy).
+kind = "shared"
+sources = ["fvm_r3.cu"]
+targets = ["sm_80", "sm_86", "sm_89", "sm_90", "sm_100", "sm_120", "compute_80"]
+flags = ["-O3", "-std=c++17", "--expt-relaxed-constexpr"]

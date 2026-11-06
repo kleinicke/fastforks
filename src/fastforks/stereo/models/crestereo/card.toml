@@ -1,0 +1,43 @@
+schema = 2
+name = "CREStereo"
+summary = "CREStereo (Li et al. 2022): cascaded recurrent stereo with adaptive group correlation (2-D / 1-D local search, learned offsets, cross attention at 1/16), a 1/16 -> 1/8 -> 1/4 GRU cascade and two passes (half, then full resolution) of 20 iterations each."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+limitations = [
+  "CUDA output (float16, kernels, float32 with PyTorch's default TF32 convolutions) differs from the CPU by ~0.1-0.2 px mean / 3 px p99 at 720x1280, 0.03 px with full float32: rounding amplified by 2 x 20 GRU iterations. Portable and kernels reach the same ETH3D / Middlebury accuracy.",
+  "Middlebury accuracy differs from the original code (about -0.3 bad-%; the original run padded differently).",
+]
+
+[upstream]
+repo = "https://github.com/megvii-research/CREStereo"
+commit = "ad3a1613bdedd88b93247e5f002cb7c80799762d"  # MegEngine original; net/ is our PyTorch translation of it
+
+[licence]
+code = "Apache-2.0"
+weights = "assumed from code"  # original states no weights licence; the code licence is assumed
+files = ["LICENSE"]
+training_data = ["crestereo", "sceneflow", "sintel", "middlebury", "eth3d", "kitti", "falling_things", "instereo2k", "hr_vs"]
+training_note = "the datasets original README lists as used for training; which of them the released checkpoint saw is not stated"
+evidence = "https://github.com/megvii-research/CREStereo/blob/ad3a1613bdedd88b93247e5f002cb7c80799762d/README.md#L82"  # README links the weights (Google Drive) with no licence of their own
+
+[io]
+input = "0-255"  # original normalises 2 * x / 255 - 1; the runners flip RGB to BGR (original reads cv2.imread)
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+min_size = 33  # at <= 32 px the padded 1/16 level is 2 px high or wide and the whole disparity map is NaN
+
+[options]
+iters = { default = 20, min = 1 }  # GRU iterations per stage and pass (original test.py n_iter)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["crestereo", "fastbb", "igev", "cutlass_conv", "cudnn_hacc"]
+mps_kernels = ["stereo_metal"]
+
+[[variants]]
+id = "crestereo-eth3d"
+revision = 1
+weights = [{ mirror = true, name = "crestereo_eth3d.mge", size = 21738986, sha256 = "6a11b16a121d36077231ee65a793c7e60ba91d8fe7fe9475688fb5145c44596e", url = "https://drive.usercontent.google.com/download?id=1Wx_-zDQh7BUFBmN9im_26DFpnf3AkXj4&export=download&confirm=t" }]

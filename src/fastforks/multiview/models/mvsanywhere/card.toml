@@ -1,0 +1,45 @@
+schema = 2
+name = "MVSAnywhere"
+summary = "MVSAnywhere (Izquierdo et al. 2025): zero-shot multi-view stereo, the depth of a reference view from posed, calibrated source views. A view-agnostic MLP cost volume (warped matching features + camera metadata, softmax over the views) is encoded by a DINOv2 ViT-B fused with a second DINOv2's image features and decoded by a DPT head; the depth range comes from the camera baselines and is refined once."
+tier = "experimental"
+outputs = ["depth", "mask", "sky", "depth_range"]  # mask: not sky; extras: sky probability [1, H, W], depth range used [1, 2]
+uses = ["depth_anything_v2", "cnn_kernels", "quantile"]  # fastforks.shared modules this family imports (DINOv2, DPT fusion blocks)
+
+licence_notes = [
+  "Niantic's non-commercial licence covers the code and the checkpoint; the BlurPool stem comes from Adobe's antialiased-cnns (CC-BY-NC-SA-4.0).",
+]
+
+[output]
+kind = "metric"  # in the units of the given cam_to_world (metres if the poses are metric)
+
+[upstream]
+repo = "https://github.com/nianticlabs/mvsanywhere"
+commit = "5bd49bb"
+
+[licence]
+code = "LicenseRef-noncommercial AND CC-BY-NC-SA-4.0"  # Niantic non-commercial licence; antialiased-cnns (Adobe) BlurPool stem
+weights = "assumed from code"
+files = ["LICENSE", "LICENSE-antialiased-cnns.md"]
+training_data = ["unstated"]
+training_note = "Synthetic data per the paper (arXiv 2411.14390): Hypersim, TartanAir, BlendedMVG, MatrixCity, VKITTI2, Dynamic Replica, MVS-Synth, SAIL-VOS 3D; DINOv2 / Depth Anything V2 initialisation"
+evidence = "https://github.com/nianticlabs/mvsanywhere/blob/5bd49bb/LICENSE and README.md (the checkpoint is published under the repository's licence)"
+
+[io]
+input = "imagenet"  # the runner resizes (long side long_side, multiples of 16, bilinear antialiased) and normalises itself
+pad = "none"
+
+[options]
+long_side = { default = 640, min = 64 }  # network long side; the short side follows the aspect ratio (multiples of 16)
+refinement_steps = { default = 1, min = 0 }  # depth-range refinement passes (original num_refinement_steps)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "igev", "cutlass_conv", "cudnn_hacc", "mvsanywhere"]
+
+[[variants]]
+id = "mvsanywhere"
+revision = 1
+weights = [{ name = "mvsanywhere_hero.ckpt", size = 2420601860, sha256 = "00878bab903b1d384cd6bb9ea092e247a9036d429cb8bcc3d6dcbb81f67e556d", url = "https://storage.googleapis.com/niantic-lon-static/research/mvsanywhere/mvsanywhere_hero.ckpt" }]

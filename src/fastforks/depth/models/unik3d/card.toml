@@ -1,0 +1,41 @@
+schema = 2
+name = "UniK3D"
+summary = "UniK3D (Piccinelli et al. 2025): monocular metric 3-D for any camera model; a DINOv2 ViT-L encoder and a camera-prompted decoder predict a spherical-harmonic ray model and per-pixel radii (depth, 3-D points, confidence), or use given pinhole intrinsics."
+tier = "experimental"
+outputs = ["depth", "points", "confidence"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 layers and the fast ViT)
+
+[output]
+kind = "metric"  # metres
+
+[upstream]
+repo = "https://github.com/lpiccinelli-eth/UniK3D"
+commit = "29f7862"
+
+[licence]
+code = "CC-BY-NC-SA-4.0"
+weights = "assumed from code"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Mixture of public metric-depth datasets (pinhole, fisheye and panoramic cameras) per the UniK3D paper (arXiv 2503.16591)"
+evidence = "https://github.com/lpiccinelli-eth/UniK3D/blob/29f7862f3c3ee79c53ef0153dfc901ce511df575/LICENSE"
+
+[io]
+input = "imagenet"  # the runner pads to the aspect-ratio bounds, resizes (by resolution_level, multiple of 14) and normalises itself
+pad = "none"
+
+[options]
+resolution_level = { default = 9, min = 0, max = 9 }  # 0-9: network input of 200k-240k ... 560k-600k pixels (original infer's resolution_level)
+confidence = true  # false: skip the confidence branch (kernels runs faster; portable only drops the output)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused"]
+
+[[variants]]
+id = "unik3d-vitl"
+revision = 1
+weights = [{ name = "model.safetensors", size = 1435366192, sha256 = "890be79699dd68abb3c9a3aab24b528bf09d97eca4dd073e3e83c0a2028566b2", url = "https://huggingface.co/lpiccinelli/unik3d-vitl/resolve/008aa54308b8bc142f74c9c7b098833aaede06bd/model.safetensors" }]

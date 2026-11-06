@@ -1,0 +1,4 @@
+summary = "MiDaS v3.1 DPT-BEiT (BEiT backbone with arbitrary-size relative position bias, readout / reassemble, DPT fusion blocks, depth head); checkpoints load unchanged."
+licence = "MIT AND Apache-2.0"
+files = ["LICENSE", "LICENSE-timm"]
+derived_from = "https://github.com/isl-org/MiDaS (4545977, MIT: midas/blocks.py, midas/backbones/{beit,utils}.py, midas/dpt_depth.py vendored) and https://github.com/huggingface/pytorch-image-models (Apache-2.0: BEiT attention / block / patch embedding layout and gen_relative_position_index, re-implemented without timm). Weights are NOT part of this module."

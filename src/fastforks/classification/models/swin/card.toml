@@ -1,0 +1,48 @@
+schema = 2
+name = "Swin Transformer"
+summary = "Swin Transformer (Liu et al. 2021): shifted-window attention in a four-stage hierarchy."
+tier = "stable"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+weights = "MIT"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-21k", "imagenet-1k"]
+evidence = "https://huggingface.co/timm/swin_base_patch4_window7_224.ms_in22k_ft_in1k/blob/a6a1eb2321b4f556fa0fa243fb777d47679f13c9/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 248
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+# Per-shape dispatch (kernels, `_optimize.transformer.lin`): a GEMM with a residual add, fewer than 2048 rows (batch x
+# tokens) and at least 2^29 multiply-adds runs cuBLAS + add instead of the fused CUTLASS GEMM, which is faster there;
+# every other GEMM is the fused kernel. Window attention and MLP GEMMs above 2^29 multiply-adds with fewer than 2048 rows use it. The choice depends on the shape only, so two batch sizes of one image can
+# take different GEMM paths (fp16 rounding differs at the last bit). Measured with the rule on vs off: not separately measured.
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+id = "swin_base_patch4_window7_224.ms_in22k_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "swin_base_patch4_window7_224.ms_in22k_ft_in1k.safetensors", size = 352685652, sha256 = "c5d8c5ec47726ea2f4fd2b60954972ffe9d765f2c166812ffc2b1d61eef02cb8", url = "https://huggingface.co/timm/swin_base_patch4_window7_224.ms_in22k_ft_in1k/resolve/a6a1eb2321b4f556fa0fa243fb777d47679f13c9/model.safetensors" }]
+params = { arch = "swin_base_patch4_window7_224.ms_in22k_ft_in1k" }

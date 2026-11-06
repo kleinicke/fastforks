@@ -1,0 +1,81 @@
+schema = 2
+name = "DINOv2"
+summary = "DINOv2 (Oquab et al. 2023, Meta): self-supervised ViT backbones; patch + cls token features at any size; -reg = with 4 register tokens."
+tier = "stable"
+outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
+uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+
+[upstream]
+repo = "https://github.com/facebookresearch/dinov2"
+commit = "7764ea0"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "LVD-142M: 142M images retrieved from web crawls by similarity to curated datasets (ImageNet-22k/1k train, Google Landmarks, fine-grained sets), self-supervised (no labels), per the paper; not released"
+evidence = "https://github.com/facebookresearch/dinov2/blob/7764ea0/README.md (License section: code and model weights under Apache 2.0)"
+
+[io]
+input = "imagenet"
+interpolation = "bicubic"  # the core resizes (never pads / crops) to multiples of 14 with antialiased bicubic
+pad = { multiple = 14, mode = "none" }
+
+[options]
+fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, patch-token error vs fp32 about 2.5x higher)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["fastbb"]
+
+[[variants]]
+id = "dinov2-vits14"
+revision = 1
+params = { arch = "vits", registers = 0 }
+weights = [{ name = "dinov2_vits14_pretrain.pth", size = 88283115, sha256 = "b938bf1bc15cd2ec0feacfe3a1bb553fe8ea9ca46a7e1d8d00217f29aef60cd9", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_pretrain.pth" }]
+
+[[variants]]
+id = "dinov2-vits14-reg"
+revision = 1
+params = { arch = "vits", registers = 4 }
+weights = [{ name = "dinov2_vits14_reg4_pretrain.pth", size = 88291785, sha256 = "f433177089a681826f849f194ece3bb48f4d63fb38d32fc837e3dc7a4e5641fb", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_reg4_pretrain.pth" }]
+
+[[variants]]
+id = "dinov2-vitb14"
+revision = 1
+params = { arch = "vitb", registers = 0 }
+weights = [{ name = "dinov2_vitb14_pretrain.pth", size = 346378731, sha256 = "0b8b82f85de91b424aded121c7e1dcc2b7bc6d0adeea651bf73a13307fad8c73", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth" }]
+
+[[variants]]
+id = "dinov2-vitb14-reg"
+revision = 1
+params = { arch = "vitb", registers = 4 }
+weights = [{ name = "dinov2_vitb14_reg4_pretrain.pth", size = 346393545, sha256 = "73182a088cf94833c94b1666d1c99e02fe87e2007bff57b564fb6206e25dba71", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_reg4_pretrain.pth" }]
+
+[[variants]]
+id = "dinov2-vitl14"
+revision = 1
+params = { arch = "vitl", registers = 0 }
+weights = [{ name = "dinov2_vitl14_pretrain.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth" }]
+
+[[variants]]
+id = "dinov2-vitl14-reg"
+revision = 1
+params = { arch = "vitl", registers = 4 }
+weights = [{ name = "dinov2_vitl14_reg4_pretrain.pth", size = 1217607321, sha256 = "36e4deffbaef061a2576705b0c36f93621e2ae20bf6274694821b0b492551b51", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_reg4_pretrain.pth" }]
+
+[[variants]]
+id = "dinov2-vitg14"
+revision = 1
+params = { arch = "vitg", registers = 0 }
+weights = [{ name = "dinov2_vitg14_pretrain.pth", size = 4546108579, sha256 = "baf8467e50af277596bbbafa06887c177ee899ab46033649c383577d7e9309d3", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitg14/dinov2_vitg14_pretrain.pth" }]
+
+[[variants]]
+id = "dinov2-vitg14-reg"
+revision = 1
+params = { arch = "vitg", registers = 4 }
+weights = [{ name = "dinov2_vitg14_reg4_pretrain.pth", size = 4546140349, sha256 = "746ecb8c6301c645c5c855be91687d274587d6e48fdaec4a729753160b34a283", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitg14/dinov2_vitg14_reg4_pretrain.pth" }]

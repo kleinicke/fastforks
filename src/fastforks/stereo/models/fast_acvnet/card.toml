@@ -1,0 +1,111 @@
+schema = 2
+name = "Fast-ACVNet"
+summary = "Fast-ACVNet (Xu et al. 2022): MobileNetV2 features; attention weights from a correlation volume (1/8 group-wise, propagated to 1/4; Fast-ACVNet+: 1/4) select the top-24 disparities of a concatenation volume, then a 3-D hourglass, top-2 soft-argmax and superpixel upsampling (max disparity 192)."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "cuda_graphs", "mobilenetv2"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/gangweix/Fast-ACVNet"
+commit = "61d5375e1816f124f4417cea506eeaddac1504e4"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"  # original states no weights licence
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/gangweix/Fast-ACVNet/blob/61d5375e1816f124f4417cea506eeaddac1504e4/LICENSE.md"  # README links the weights (Google Drive folders) with no licence of their own
+
+[io]
+input = "imagenet"
+pad = { multiple = 32, mode = "top_right", fill = "zero" }  # the original code's KITTI test loader pads the normalized images on top and on the right with zeros
+# Upstream evaluates the generalization variants with test_mid.py, which pads differently (top-left, black before the
+# normalization, always + 32 px); the card pad modes have no "always add" option, so all variants use the KITTI loader's
+# pad. Upstream used the test_mid.py pad: ETH3D EPE 0.55 vs our 0.64 for fast-acvnet-plus-generalization.
+
+[params]
+max_disp = 192  # cost-volume depth at full resolution
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x H x W <= 500k (up to KITTI 375x1242)
+# replays a CUDA graph, captured on a shape's 4th call (below), at most 2 shapes per model (Fast-ACVNet+ 640x480 7.8 vs
+# 14.0 ms eager). The graph pool stays reserved (up to ~2x eager reserved memory) until `model.release_graphs()`;
+# `options={"cuda_graphs": False}` turns it off. Larger inputs are GPU-bound and run eagerly
+# New sizes (`cudnn_hacc` per-shape dispatch): a new padded size builds its fp16-accumulate cuDNN plans on its first
+# call (all calls give the same output) and captures its CUDA graph on the 4th (time after 4 warm-up calls per size); a
+# stream of new sizes around 640x480 costs Fast-ACVNet+ 28.6 ms per call (with the deferral below 16.9).
+# Measured below with the earlier deferral, now
+# `fastforks.kernels.cudnn_hacc.BUILD_AFTER = 3`: first 3 calls on torch convs, builds on the 4th (~120 ms incl. the
+# call at ETH3D sizes), so a stream of new sizes pays no builds: Midd-H evaluation 38.3 vs 59.1 ms portable mean per
+# pair (Fast-ACVNet+ 45.7 vs 67.9; before 139 / 152). ETH3D, where 2 padded sizes
+# repeat 16 and 8 times: 18.9 vs 18.8 ms (Fast-ACVNet+ 19.8 vs 20.5; before the cheaper plan builds 25.0 / 26.0)
+
+[[variants]]
+id = "fast-acvnet-generalization"
+revision = 1
+# Fast-ACVNet, `generalization.ckpt`: the README's Middlebury generalization weights
+# (SceneFlow, with the augmentations of sceneflow_dataset_augmentation.py)
+weights = [{ name = "Fast-ACVNet/generalization.ckpt", size = 12633079, sha256 = "b9d06b9d3df3063d186d9043a7ec26f11ac60948377f1b59066b3376a0524503", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1lWdOoNIY2YGfoKPhRAmekoU05RDW4orK" }]
+params = { plus = false }
+
+[[variants]]
+id = "fast-acvnet-sceneflow"
+revision = 1
+# Fast-ACVNet, SceneFlow only
+weights = [{ name = "Fast-ACVNet/sceneflow.ckpt", size = 12633079, sha256 = "ee7ca89926f72ead248cc2eb37b05c34a9e9c1293df76ddf7ef4666000421fea", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1NUByydKfHWB6k8VBmhCDjrbQ9Uk8XRvu" }]
+params = { plus = false }
+
+[[variants]]
+id = "fast-acvnet-kitti12"
+revision = 1
+# Fast-ACVNet, fine-tuned on KITTI 2012
+weights = [{ name = "Fast-ACVNet/kitti_2012.ckpt", size = 12633079, sha256 = "221b21107e602b5832bef8c16faa98d4e8eff23967409696dd62be88b44ddd2a", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1NzUgZkfvzqbB_4GLIvr1Kpvfr1aZiq1O" }]
+params = { plus = false }
+licence = { training_data = ["sceneflow", "kitti"], training_note = "SceneFlow, then fine-tuned on KITTI 2012" }
+
+[[variants]]
+id = "fast-acvnet-kitti15"
+revision = 1
+# Fast-ACVNet, fine-tuned on KITTI 2015
+weights = [{ name = "Fast-ACVNet/kitti_2015.ckpt", size = 12633079, sha256 = "b7d8c609b8b2e233f03290089c80fbebfc791cc34bef6364b9b1864c4637c94f", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1Mq8G4bNLip238IKI3Z3F4hQYfJ-dTvqN" }]
+params = { plus = false }
+licence = { training_data = ["sceneflow", "kitti"], training_note = "SceneFlow, then fine-tuned on KITTI 2015" }
+
+[[variants]]
+id = "fast-acvnet-plus-generalization"
+revision = 1
+# Fast-ACVNet+, `generalization.ckpt`: the README's Middlebury generalization weights
+# (SceneFlow, with the augmentations of sceneflow_dataset_augmentation.py)
+weights = [{ name = "Fast-ACVNet+/generalization.ckpt", size = 13165139, sha256 = "bd2f796805195efa8606f4e5ba4862fd2a442b7615ae2aa542d9bd2992789b36", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=138iDN7m-DUzgk9okzAoASh93dSTE8IoA" }]
+params = { plus = true }
+
+[[variants]]
+id = "fast-acvnet-plus-sceneflow"
+revision = 1
+# Fast-ACVNet+, SceneFlow only
+weights = [{ name = "Fast-ACVNet+/sceneflow.ckpt", size = 13165139, sha256 = "1a1328828bafea3a6bf3439ee6d6e0cbf86680534b85fb92e04dfc6615e5bf5a", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1VQMJg2scaRLspIzIBB9ErTC86TvfJTSH" }]
+params = { plus = true }
+
+[[variants]]
+id = "fast-acvnet-plus-kitti12"
+revision = 1
+# Fast-ACVNet+, fine-tuned on KITTI 2012
+weights = [{ name = "Fast-ACVNet+/kitti_2012.ckpt", size = 13165139, sha256 = "e3ce45f2dc6295f6547e2f089736e99df8e9efa1dea565bcc336a8636fb2ac5f", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1oqkrVLc-mzCZwjBSTse1zZaEuFl4SL-z" }]
+params = { plus = true }
+licence = { training_data = ["sceneflow", "kitti"], training_note = "SceneFlow, then fine-tuned on KITTI 2012" }
+
+[[variants]]
+id = "fast-acvnet-plus-kitti15"
+revision = 1
+# Fast-ACVNet+, fine-tuned on KITTI 2015
+weights = [{ name = "Fast-ACVNet+/kitti_2015.ckpt", size = 13165139, sha256 = "bf4c8ef707eb6d878c104b227f668bdcc389ddd27871869850ce1e15494a0516", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1LiIreLmQfOzsjTY-4V8ygcbsgS-k_0rt" }]
+params = { plus = true }
+licence = { training_data = ["sceneflow", "kitti"], training_note = "SceneFlow, then fine-tuned on KITTI 2015" }

@@ -1,0 +1,68 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.0001
+cpu_rtol = 1e-06
+gpu_mean = 0.015
+gpu_p99 = 0.06
+relative = true
+
+[refs."dinov3-vitb16@1"]
+gated = true
+sha256 = "e0b685353b7c06f901d594839538f2ea4ffe5529f64d9b04daa0b80a9c12950c"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, DINOv3ViTModel eager, 112x176 input, torch 2.14.1+cu130"
+
+[refs."dinov3-vith16plus@1"]
+gated = true
+sha256 = "2114163f2d598e49130f2f513c811f110a65aec07827bfb5175bc67adf039289"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, DINOv3ViTModel eager, 112x176 input, torch 2.14.1+cu130"
+
+[refs."dinov3-vitl16@1"]
+gated = true
+sha256 = "5e70693777e13a9f5b6fd4b3f58b21906e4cc1b5601370aeeab4692c4573d8bd"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, DINOv3ViTModel eager, 112x176 input, torch 2.14.1+cu130"
+
+[refs."dinov3-vits16@1"]
+gated = true
+sha256 = "f60892f3369c05db3351bf91a707c015978e69cbc82dcd414130b80a858e720c"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, DINOv3ViTModel eager, 112x176 input, torch 2.14.1+cu130"
+
+[validated."dinov3-vitb16@1"]
+kernels = ["fastbb@7d058322634d:sm_120"]
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-28"
+mean_px = 0.00562
+p99_px = 0.01956
+
+[validated."dinov3-vith16plus@1"]
+kernels = ["fastbb@7d058322634d:sm_120"]
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-28"
+mean_px = 0.00567
+p99_px = 0.0234
+
+[validated."dinov3-vitl16@1"]
+kernels = ["fastbb@7d058322634d:sm_120"]
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-28"
+mean_px = 0.00773
+p99_px = 0.02994
+
+[validated."dinov3-vits16@1"]
+kernels = ["fastbb@7d058322634d:sm_120"]
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-28"
+mean_px = 0.00418
+p99_px = 0.01399

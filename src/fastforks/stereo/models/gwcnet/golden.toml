@@ -1,0 +1,38 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.05
+gpu_p99 = 0.5
+
+[refs."gwcnet-g-sceneflow@1"]
+sha256 = "bd18b4b5cddd07f008a6472d6e651e6f8415e0637326f89016faa41f30c84c53"
+upstream = "https://github.com/xy-guo/GwcNet@0987074f48b098c6e975a58ca5aacf233b0fb0eb"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[refs."gwcnet-gc-sceneflow@1"]
+sha256 = "50d05cb17804a8208bc98a7797a9c73c5f7a26fd32c43f3da27d78a0d213a710"
+upstream = "https://github.com/xy-guo/GwcNet@0987074f48b098c6e975a58ca5aacf233b0fb0eb"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[validated."gwcnet-g-sceneflow@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00375
+p99_px = 0.01272
+
+[validated."gwcnet-gc-sceneflow@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00494
+p99_px = 0.01739

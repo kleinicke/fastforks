@@ -1,0 +1,80 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.04
+gpu_p99 = 0.15
+
+[refs."deeplabv3-r101-d8-ade20k@1"]
+sha256 = "8ae72cceb2616484157535067d9fc5e772b512e133d43a957463f66b1860ae71"
+upstream = "https://github.com/open-mmlab/mmsegmentation@c685fe6767c4cadf6b051983ca6208f1b9d1ccb8"
+settings = "CPU float32, mmsegmentation 1.2.2, torch 2.14.1+cu130"
+
+[refs."deeplabv3plus-r101-d8-ade20k@1"]
+sha256 = "375dc6a919988a255f4f8324ed6648654cfb69adcca739362739ee724dfb7a21"
+upstream = "https://github.com/open-mmlab/mmsegmentation@c685fe6767c4cadf6b051983ca6208f1b9d1ccb8"
+settings = "CPU float32, mmsegmentation 1.2.2, torch 2.14.1+cu130"
+
+[refs."fcn-r101-d8-ade20k@1"]
+sha256 = "1267bb7d7ae9a14c06f8c846c1c02472c21fe29b22f1fabb05539bb675688f1a"
+upstream = "https://github.com/open-mmlab/mmsegmentation@c685fe6767c4cadf6b051983ca6208f1b9d1ccb8"
+settings = "CPU float32, mmsegmentation 1.2.2, torch 2.14.1+cu130"
+
+[refs."hrnet-w48-fcn-ade20k@1"]
+sha256 = "c43856d10651ed05eb92611a54c2efdbd86ae109620e8676e3105b110e768684"
+upstream = "https://github.com/open-mmlab/mmsegmentation@c685fe6767c4cadf6b051983ca6208f1b9d1ccb8"
+settings = "CPU float32, mmsegmentation 1.2.2, torch 2.14.1+cu130"
+
+[refs."pspnet-r101-d8-ade20k@1"]
+sha256 = "64a34e45cd187326955bf553aa4228f33f983f5ac1d05ee9459e060608c4f069"
+upstream = "https://github.com/open-mmlab/mmsegmentation@c685fe6767c4cadf6b051983ca6208f1b9d1ccb8"
+settings = "CPU float32, mmsegmentation 1.2.2, torch 2.14.1+cu130"
+
+[validated."deeplabv3-r101-d8-ade20k@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "seg_conv@8eec95783e28:sm_120", "seg_up@3e44e71200cd:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}, "seg_conv" = {"seg_conv" = "2714ee255914208e", "seg_dwconv" = "8e4fed63ba056024"}, "seg_up" = {"up_add8_h" = "78a37cbea5cf9075", "up_add_h" = "ebb1773324f88508", "up_argmax_f" = "87c09c019ab9e0dc", "up_argmax_h" = "87c09c019ab9e0dc", "up_argmax_pf" = "87c09c019ab9e0dc", "up_argmax_ph" = "87c09c019ab9e0dc", "up_argmax_rf" = "87c09c019ab9e0dc", "up_argmax_rh" = "87c09c019ab9e0dc", "up_f" = "87c09c019ab9e0dc", "up_h" = "87c09c019ab9e0dc"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-04"
+mean_px = 0.00223
+p99_px = 0.00945
+
+[validated."deeplabv3plus-r101-d8-ade20k@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "seg_conv@8eec95783e28:sm_120", "seg_up@3e44e71200cd:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}, "seg_conv" = {"seg_conv" = "2714ee255914208e", "seg_dwconv" = "8e4fed63ba056024"}, "seg_up" = {"up_add8_h" = "78a37cbea5cf9075", "up_add_h" = "ebb1773324f88508", "up_argmax_f" = "87c09c019ab9e0dc", "up_argmax_h" = "87c09c019ab9e0dc", "up_argmax_pf" = "87c09c019ab9e0dc", "up_argmax_ph" = "87c09c019ab9e0dc", "up_argmax_rf" = "87c09c019ab9e0dc", "up_argmax_rh" = "87c09c019ab9e0dc", "up_f" = "87c09c019ab9e0dc", "up_h" = "87c09c019ab9e0dc"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-04"
+mean_px = 0.00313
+p99_px = 0.01297
+
+[validated."fcn-r101-d8-ade20k@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "seg_conv@8eec95783e28:sm_120", "seg_up@3e44e71200cd:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}, "seg_conv" = {"seg_conv" = "2714ee255914208e", "seg_dwconv" = "8e4fed63ba056024"}, "seg_up" = {"up_add8_h" = "78a37cbea5cf9075", "up_add_h" = "ebb1773324f88508", "up_argmax_f" = "87c09c019ab9e0dc", "up_argmax_h" = "87c09c019ab9e0dc", "up_argmax_pf" = "87c09c019ab9e0dc", "up_argmax_ph" = "87c09c019ab9e0dc", "up_argmax_rf" = "87c09c019ab9e0dc", "up_argmax_rh" = "87c09c019ab9e0dc", "up_f" = "87c09c019ab9e0dc", "up_h" = "87c09c019ab9e0dc"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-04"
+mean_px = 0.00228
+p99_px = 0.00975
+
+[validated."hrnet-w48-fcn-ade20k@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "seg_conv@8eec95783e28:sm_120", "seg_up@3e44e71200cd:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}, "seg_conv" = {"seg_conv" = "2714ee255914208e", "seg_dwconv" = "8e4fed63ba056024"}, "seg_up" = {"up_add8_h" = "78a37cbea5cf9075", "up_add_h" = "ebb1773324f88508", "up_argmax_f" = "87c09c019ab9e0dc", "up_argmax_h" = "87c09c019ab9e0dc", "up_argmax_pf" = "87c09c019ab9e0dc", "up_argmax_ph" = "87c09c019ab9e0dc", "up_argmax_rf" = "87c09c019ab9e0dc", "up_argmax_rh" = "87c09c019ab9e0dc", "up_f" = "87c09c019ab9e0dc", "up_h" = "87c09c019ab9e0dc"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-04"
+mean_px = 0.00175
+p99_px = 0.00723
+
+[validated."pspnet-r101-d8-ade20k@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "seg_conv@8eec95783e28:sm_120", "seg_up@3e44e71200cd:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}, "seg_conv" = {"seg_conv" = "2714ee255914208e", "seg_dwconv" = "8e4fed63ba056024"}, "seg_up" = {"up_add8_h" = "78a37cbea5cf9075", "up_add_h" = "ebb1773324f88508", "up_argmax_f" = "87c09c019ab9e0dc", "up_argmax_h" = "87c09c019ab9e0dc", "up_argmax_pf" = "87c09c019ab9e0dc", "up_argmax_ph" = "87c09c019ab9e0dc", "up_argmax_rf" = "87c09c019ab9e0dc", "up_argmax_rh" = "87c09c019ab9e0dc", "up_f" = "87c09c019ab9e0dc", "up_h" = "87c09c019ab9e0dc"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-04"
+mean_px = 0.00713
+p99_px = 0.02575

@@ -1,0 +1,46 @@
+schema = 2
+name = "VGGT"
+summary = "VGGT, Visual Geometry Grounded Transformer (Wang et al. 2025): cameras, depth maps and point maps of every view from unposed images in one forward pass. A DINOv2 ViT-L patch embedding feeds 24 alternating frame / global attention blocks; a camera head and two DPT heads decode the tokens."
+tier = "experimental"
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (DINOv2 ViT-L for the kernels patch embed)
+outputs = ["depth", "confidence", "world_points", "intrinsics", "cam_to_world", "points_confidence"]  # extra: confidence of world_points [V, H, W]
+
+licence_notes = [
+  "The VGGT code licence allows commercial use, but the VGGT-1B weights are CC-BY-NC-4.0; Meta's separately licensed commercial checkpoint is not packaged.",
+]
+
+[output]
+kind = "scale_invariant"  # VGGT normalises the scene: depth, points and translations share one unknown scale
+
+[upstream]
+repo = "https://github.com/facebookresearch/vggt"
+commit = "a288dd0"
+
+[licence]
+code = "LicenseRef-VGGT"  # Meta VGGT License v1 (2025-07-29) + Acceptable Use Policy
+weights = "CC-BY-NC-4.0"  # Hugging Face model card of facebook/VGGT-1B: license cc-by-nc-4.0
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Per the paper (arXiv 2503.11651): Co3Dv2, BlendMVS, DL3DV, MegaDepth, Kubric, WildRGB, ScanNet, HyperSim, Mapillary, Habitat, Replica, MVS-Synth, PointOdyssey, Virtual KITTI, Aria Synthetic Environments, Aria Digital Twin; DINOv2 initialisation"
+evidence = "https://github.com/facebookresearch/vggt/blob/a288dd0/LICENSE.txt and https://huggingface.co/facebook/VGGT-1B (license: cc-by-nc-4.0)"
+
+[io]
+input = "0-1"  # the runner resizes (long side long_side, multiples of 14, bicubic antialiased) and normalises itself
+pad = "none"
+
+[options]
+long_side = { default = 518, min = 14 }  # network long side (original preprocessing: width 518)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "cudnn_hacc"]
+mps_kernels = ["vggt_metal"]  # the aggregator's q / k LayerNorm + RoPE
+mps_dtype = "float32"  # MPS runs VGGT in float32 only (mps_dtypes)
+
+[[variants]]
+id = "vggt-1b"
+revision = 1
+weights = [{ name = "model.pt", size = 5026874952, sha256 = "d15bf50a8615c8225ed48b51ea5cac673d82442ec0309036df555a053253afe0", url = "https://huggingface.co/facebook/VGGT-1B/resolve/860abec7937da0a4c03c41d3c269c366e82abdf9/model.pt" }]

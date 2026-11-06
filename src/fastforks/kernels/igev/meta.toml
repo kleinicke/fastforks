@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"  # our code; portions follow MIT-licensed upstream code, notices in THIRD_PARTY_NOTICES.md
+derived_from = "our IGEV fork (cuda-kernels 25aeee1): kernels for IGEV-family layers; defom_lookup (DEFOM-Stereo fork 0bd7847); act codes silu/gelu (WAFT-Stereo fork 8dec350)"

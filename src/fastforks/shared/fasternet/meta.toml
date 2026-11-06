@@ -1,0 +1,4 @@
+summary = "FasterNet-T0 feature stages with timm's module names (timm features_only checkpoints load unchanged)."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/huggingface/pytorch-image-models (fasternet_t0 layer layout, itself from https://github.com/JierunChen/FasterNet, MIT, Microsoft Corporation; re-implemented)"

@@ -1,0 +1,56 @@
+schema = 2
+name = "SegFormer"
+summary = "SegFormer (Xie et al. 2021): hierarchical Mix Transformer encoder (overlapping patch embeddings, reduced-key attention, Mix-FFN) and an all-MLP decoder."
+tier = "stable"
+outputs = ["logits"]
+uses = ["cuda_graphs", "seginfer"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/transformers"
+commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # transformers
+weights = "LicenseRef-NVIDIA-Source-Code-License-NC"  # the model cards link NVlabs/SegFormer's LICENSE (non-commercial)
+files = []  # no vendored code: the architecture is transformers' own module
+training_data = ["imagenet-1k", "ade20k"]
+evidence = "https://huggingface.co/nvidia/segformer-b0-finetuned-ade-512-512/blob/489d5cd81a0b59fab9b7ea758d3548ebe99677da/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU). The image is first resized to the family's test-time scale (`resize`), then padded or window-split by the network, so tiny inputs are upscaled and the result is resampled back.
+input = "imagenet"
+pad = "none"
+
+[params]
+arch = "SegformerForSemanticSegmentation"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3", "seg_up"]  # fastforks._optimize.ops loads all six; SegFormer runs fvm_conv
+# Per-layer dispatch (kernels): the encoder linears run cuBLAS (torch ops), not the fused CUTLASS GEMM, which measured slower
+# at every B0 / B5 linear shape (K, N <= 512 and 25600 rows at most); the Mix-FFN depthwise conv + GELU is the fused
+# kernel. B0 max 5.49 vs 5.85 ms portable at 512 x 512 (interleaved runs).
+
+[output]
+label_set = "ade20k-150"
+
+[[variants]]
+id = "segformer-b0-ade20k"
+revision = 1
+weights = [
+    { name = "segformer-b0-ade20k.config.json", size = 6884, sha256 = "209caa9091e4632f7c8883c11170cd08ad29af68b23c09590aa4a5befb1a2a7f", url = "https://huggingface.co/nvidia/segformer-b0-finetuned-ade-512-512/resolve/489d5cd81a0b59fab9b7ea758d3548ebe99677da/config.json" },
+    { name = "segformer-b0-ade20k.safetensors", size = 15036944, sha256 = "6ae39addd01de6b1b8bde2cf677d43a5cd733424b8d186de3f95d1c51fee23f9", url = "https://huggingface.co/nvidia/segformer-b0-finetuned-ade-512-512/resolve/489d5cd81a0b59fab9b7ea758d3548ebe99677da/model.safetensors" },
+]
+params = { resize = ["mmseg", 2048, 512] }
+
+[[variants]]
+id = "segformer-b5-ade20k"
+revision = 1
+weights = [
+    { name = "segformer-b5-ade20k.config.json", size = 6886, sha256 = "083fbb6bc7ce4a2fc54bdb08686943cc5a72d14b32e81187b6ae12a58092bc13", url = "https://huggingface.co/nvidia/segformer-b5-finetuned-ade-640-640/resolve/739f5d4692954e4a185eac280dec1ba5a7d52f1d/config.json" },
+    { name = "segformer-b5-ade20k.bin", size = 339299397, sha256 = "a3dbf2d7a9912203078f304d88df8cfee9fd752ca2d2413f82036bdb02c5e7df", url = "https://huggingface.co/nvidia/segformer-b5-finetuned-ade-640-640/resolve/739f5d4692954e4a185eac280dec1ba5a7d52f1d/pytorch_model.bin" },
+]
+params = { resize = ["mmseg", 2048, 640] }

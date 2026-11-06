@@ -1,0 +1,4 @@
+summary = "Kernels-mode CNN building blocks: fp16 NHWC convs (fp16-accumulate cuDNN / fused CUTLASS) with fp32 affine epilogues."
+licence = "MIT"
+files = ["LICENSE"]
+derived_from = "our IGEV fork (cuda-kernels 25aeee1, core/inference.py) and the stereo zoo forks' zoo_fastgen/generic.py"

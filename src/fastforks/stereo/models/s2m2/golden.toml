@@ -1,0 +1,74 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."s2m2-l@1"]
+sha256 = "1d0b9b8a91b5d124e75b8fec39b649538f16354b786a3c8b018345968a59bd89"
+upstream = "https://github.com/junhong-3dv/s2m2@8f3bd785df593619d955203c6f2c741bef6e31df"
+patch = "s2m2-lookup-fix.patch"
+patch_sha256 = "6ca9014f61c468733d87e87f789e8e6176d3f34c3ed32b48c5045ab106f8247f"
+settings = "CPU float32, torch 2.14.1+cu130"
+
+[refs."s2m2-m@1"]
+sha256 = "9573fcf5a66c54d07f6fa17343c06735cab634d1ccab485d58c6e7f5ed82b481"
+upstream = "https://github.com/junhong-3dv/s2m2@8f3bd785df593619d955203c6f2c741bef6e31df"
+patch = "s2m2-lookup-fix.patch"
+patch_sha256 = "6ca9014f61c468733d87e87f789e8e6176d3f34c3ed32b48c5045ab106f8247f"
+settings = "CPU float32, torch 2.14.1+cu130"
+
+[refs."s2m2-s@1"]
+sha256 = "578e0092c0a56448a1b007ba422558283f39c9fc2c5eb52843e8b995fa32e7be"
+upstream = "https://github.com/junhong-3dv/s2m2@8f3bd785df593619d955203c6f2c741bef6e31df"
+patch = "s2m2-lookup-fix.patch"
+patch_sha256 = "6ca9014f61c468733d87e87f789e8e6176d3f34c3ed32b48c5045ab106f8247f"
+settings = "CPU float32, torch 2.14.1+cu130"
+
+[refs."s2m2-xl@1"]
+sha256 = "2af11360e1c7e42ff57ede81e9ed7a1a951c94a67fd7e4fea1289a05217d6134"
+upstream = "https://github.com/junhong-3dv/s2m2@8f3bd785df593619d955203c6f2c741bef6e31df"
+patch = "s2m2-lookup-fix.patch"
+patch_sha256 = "6ca9014f61c468733d87e87f789e8e6176d3f34c3ed32b48c5045ab106f8247f"
+settings = "CPU float32, torch 2.14.1+cu130"
+
+[validated."s2m2-l@1"]
+kernels = ["cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@3aec99821257:sm_120"]
+symbols = {"s2m2" = {"affine_nc8" = "176ab9e318a3386c", "attn_d384" = "fcd0894d42572a45", "bias_act" = "2ee6d187289f68b7", "bias_act8" = "400ec2cb6945ccea", "convex_up" = "4e29c18dc7baee19", "cv_lookup_otf" = "80ba6653e6886421", "gate_mix8" = "53266887d89b3403", "gate_mix8s" = "006c0194f6d70111", "gn_stats" = "3f28b64654d2a1a0", "ln_rows" = "f71d4e0ea2a577d3", "ot_col_lse" = "2b9285b7f6b213f7", "ot_final" = "1644ea9c1e804bbf", "ot_row_lse" = "1594082c6044efb4", "pool2x_nhwc8" = "2786801be8ff5562", "up2x_nhwc8" = "69b2dd091c78924d"}, "s2m2_cutlass" = {"s2m2_conv" = "7e3b7cb4da6ad8de"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-02"
+mean_px = 0.01523
+p99_px = 0.05073
+
+[validated."s2m2-m@1"]
+kernels = ["cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@3aec99821257:sm_120"]
+symbols = {"s2m2" = {"affine_nc8" = "176ab9e318a3386c", "attn_d384" = "fcd0894d42572a45", "bias_act" = "2ee6d187289f68b7", "bias_act8" = "400ec2cb6945ccea", "convex_up" = "4e29c18dc7baee19", "cv_lookup_otf" = "80ba6653e6886421", "gate_mix8" = "53266887d89b3403", "gate_mix8s" = "006c0194f6d70111", "gn_stats" = "3f28b64654d2a1a0", "ln_rows" = "f71d4e0ea2a577d3", "ot_col_lse" = "2b9285b7f6b213f7", "ot_final" = "1644ea9c1e804bbf", "ot_row_lse" = "1594082c6044efb4", "pool2x_nhwc8" = "2786801be8ff5562", "up2x_nhwc8" = "69b2dd091c78924d"}, "s2m2_cutlass" = {"s2m2_conv" = "7e3b7cb4da6ad8de"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-02"
+mean_px = 0.00618
+p99_px = 0.02223
+
+[validated."s2m2-s@1"]
+kernels = ["cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@3aec99821257:sm_120"]
+symbols = {"s2m2" = {"affine_nc8" = "176ab9e318a3386c", "attn_d384" = "fcd0894d42572a45", "bias_act" = "2ee6d187289f68b7", "bias_act8" = "400ec2cb6945ccea", "convex_up" = "4e29c18dc7baee19", "cv_lookup_otf" = "80ba6653e6886421", "gate_mix8" = "53266887d89b3403", "gate_mix8s" = "006c0194f6d70111", "gn_stats" = "3f28b64654d2a1a0", "ln_rows" = "f71d4e0ea2a577d3", "ot_col_lse" = "2b9285b7f6b213f7", "ot_final" = "1644ea9c1e804bbf", "ot_row_lse" = "1594082c6044efb4", "pool2x_nhwc8" = "2786801be8ff5562", "up2x_nhwc8" = "69b2dd091c78924d"}, "s2m2_cutlass" = {"s2m2_conv" = "7e3b7cb4da6ad8de"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-02"
+mean_px = 0.00973
+p99_px = 0.03415
+
+[validated."s2m2-xl@1"]
+kernels = ["cudnn_hacc@cudnn92400", "s2m2@73d0d3fa70d2:sm_120", "s2m2_cutlass@3aec99821257:sm_120"]
+symbols = {"s2m2" = {"affine_nc8" = "176ab9e318a3386c", "attn_d384" = "fcd0894d42572a45", "bias_act" = "2ee6d187289f68b7", "bias_act8" = "400ec2cb6945ccea", "convex_up" = "4e29c18dc7baee19", "cv_lookup_otf" = "80ba6653e6886421", "gate_mix8" = "53266887d89b3403", "gate_mix8s" = "006c0194f6d70111", "gn_stats" = "3f28b64654d2a1a0", "ln_rows" = "f71d4e0ea2a577d3", "ot_col_lse" = "2b9285b7f6b213f7", "ot_final" = "1644ea9c1e804bbf", "ot_row_lse" = "1594082c6044efb4", "pool2x_nhwc8" = "2786801be8ff5562", "up2x_nhwc8" = "69b2dd091c78924d"}, "s2m2_cutlass" = {"s2m2_conv" = "7e3b7cb4da6ad8de"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-02"
+mean_px = 0.01853
+p99_px = 0.0624

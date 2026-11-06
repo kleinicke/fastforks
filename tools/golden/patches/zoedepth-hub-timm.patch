@@ -1,0 +1,30 @@
+diff --git a/zoedepth/models/base_models/midas.py b/zoedepth/models/base_models/midas.py
+index e26f858..9903e7b 100644
+--- a/zoedepth/models/base_models/midas.py
++++ b/zoedepth/models/base_models/midas.py
+@@ -338,7 +338,10 @@ class MidasCore(nn.Module):
+             kwargs = MidasCore.parse_img_size(kwargs)
+         img_size = kwargs.pop("img_size", [384, 384])
+         print("img_size", img_size)
+-        midas = torch.hub.load("intel-isl/MiDaS", midas_model_type,
++        # baseline-compat: load the MiDaS hub code from the local clone (no network); same architecture code
++        import os as _os
++        _local = _os.environ.get("MIDAS_LOCAL_REPO", _os.path.join(_os.path.dirname(__file__), "../../../../MiDaS"))
++        midas = torch.hub.load(_os.path.abspath(_local), midas_model_type, source="local",
+                                pretrained=use_pretrained_midas, force_reload=force_reload)
+         kwargs.update({'keep_aspect_ratio': force_keep_ar})
+         midas_core = MidasCore(midas, trainable=train_midas, fetch_features=fetch_features,
+diff --git a/zoedepth/models/model_io.py b/zoedepth/models/model_io.py
+index 78b6579..bb338ed 100644
+--- a/zoedepth/models/model_io.py
++++ b/zoedepth/models/model_io.py
+@@ -46,6 +46,9 @@ def load_state_dict(model, state_dict):
+ 
+         state[k] = v
+ 
++    # baseline-compat (timm >= 0.9): BEiT relative_position_index is a non-persistent buffer (recomputed, same values)
++    own = model.state_dict()
++    state = {k: v for k, v in state.items() if not (k.endswith("relative_position_index") and k not in own)}
+     model.load_state_dict(state)
+     print("Loaded successfully")
+     return model

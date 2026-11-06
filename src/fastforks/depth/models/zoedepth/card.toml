@@ -1,0 +1,48 @@
+schema = 2
+name = "ZoeDepth"
+summary = "ZoeDepth (Bhat et al. 2023): metric monocular depth from a MiDaS v3.1 BEiT-L/16 core with metric-bins heads (NYU indoor, KITTI outdoor) chosen by a learned domain router (ZoeD_M12_NK)."
+tier = "experimental"
+outputs = ["depth"]
+uses = ["midas_beit"]  # fastforks.shared modules this family imports
+limitations = [
+  "torch.compile(fullgraph=True) and torch.export are not supported: graph break in the vendored MiDaS core call and data-dependent NYU / KITTI head routing (documented xfail).",
+  "Inputs below 5 px per side raise InputError when pad_input is on.",
+]
+
+[output]
+kind = "metric"  # metres; no intrinsics input (the router picks the indoor 10 m or outdoor 80 m head)
+
+[upstream]
+repo = "https://github.com/isl-org/ZoeDepth"
+commit = "d87f17b"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "MiDaS v3.1 BEiT-L relative-depth pre-training on 12 datasets, then metric fine-tuning on NYU Depth V2 and KITTI (ZoeDepth paper, arXiv 2302.12288)"
+evidence = "https://github.com/isl-org/ZoeDepth/blob/d87f17b2f5fdcb174cf4fb115491f4a6c60de152/LICENSE (weights are release assets of the same repository)"
+
+[io]
+input = "mean_std"  # the runner pads, resizes (keep ratio, "minimal" to 384 x 512, multiple of 32, bilinear) and normalises itself
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+pad = "none"
+min_size = 5  # pad_input reflect-pads int(3 * sqrt(side / 2)) px per side, which needs sides of >= 5 px
+
+[options]
+pad_input = true  # original infer's reflect padding (against border artefacts)
+flip = true  # average with the horizontally flipped pass (original infer default; false halves the work)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]
+
+[[variants]]
+id = "zoedepth-nk"
+revision = 1
+weights = [{ name = "ZoeD_M12_NK.pt", size = 1448574259, sha256 = "5d26daa15d420eb2908f1f486a37cc84e7a91751b44ce4b4d104eb8e433f9813", url = "https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_NK.pt" }]

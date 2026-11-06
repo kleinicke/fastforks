@@ -1,0 +1,47 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 1.0
+gpu_p99 = 2.0
+relative = false
+
+[refs."faster-rcnn-r50-fpn-3x-coco@1"]
+sha256 = "174589b3f955b1cb8cc33661b467540dfda089522595d6344473ee03ad025e22"
+upstream = "https://github.com/facebookresearch/detectron2@1e3e13bbf607b54f62205c4c33922521822fb298"
+settings = "CPU float32, model-zoo config + DefaultPredictor (BGR uint8), skimage coffee.png, score threshold 0.35, torch 2.14.1+cu130"
+options = [["score_threshold", 0.35]]
+gpu_mean = 1.6
+gpu_p99 = 8.8
+gpu_extra = [["labels", 0.001, 0.001], ["scores", 0.028, 0.09]]
+
+[refs."mask-rcnn-r50-fpn-3x-coco@1"]
+sha256 = "0785680852ee25e6183379b3457d7f9ed62dbd60720c20f6c84dee3958b7cb4b"
+upstream = "https://github.com/facebookresearch/detectron2@1e3e13bbf607b54f62205c4c33922521822fb298"
+settings = "CPU float32, model-zoo config + DefaultPredictor (BGR uint8), skimage coffee.png, score threshold 0.35, torch 2.14.1+cu130"
+options = [["score_threshold", 0.35]]
+gpu_mean = 0.29
+gpu_p99 = 1.5
+gpu_extra = [["labels", 0.001, 0.001], ["masks", 0.002, 0.5], ["scores", 0.004, 0.015]]
+
+[validated."faster-rcnn-r50-fpn-3x-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-03"
+mean_px = 0.49736
+p99_px = 2.92376
+
+[validated."mask-rcnn-r50-fpn-3x-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-03"
+mean_px = 0.09391
+p99_px = 0.46488

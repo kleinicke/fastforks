@@ -1,0 +1,27 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.01
+gpu_p99 = 0.03
+relative = true
+
+[refs."zoedepth-nk@1"]
+sha256 = "1a0f945f067d96322647c49ef709f0db5737bd4eaa96433d40fe56104edb5fb5"
+upstream = "https://github.com/isl-org/ZoeDepth@d87f17b2f5fdcb174cf4fb115491f4a6c60de152"
+patch = "zoedepth-hub-timm.patch"
+patch_sha256 = "c990acbf9c5d11c504eec505da80f6970bff30b1cb2cc8b23359369d0e9bc5aa"
+settings = "CPU float32, zoedepth_nk infer config, model.infer (pad_input, flip), torch 2.14.1+cu130"
+
+[validated."zoedepth-nk@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-29"
+mean_px = 0.00045
+p99_px = 0.00078

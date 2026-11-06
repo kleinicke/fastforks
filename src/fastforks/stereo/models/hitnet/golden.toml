@@ -1,0 +1,40 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.02
+gpu_mean = 0.15
+gpu_p99 = 1.0
+real_gpu_mean = 0.3
+real_gpu_p99 = 6.0
+
+[refs."hitnet-eth3d@1"]
+sha256 = "f4835289ebdacc46576fb018f25d4bb25ae61ff6928e28a9fc398783230fcc71"
+upstream = "https://github.com/google-research/google-research@f200f2b89d29484bf0dd0fef0c3979ac8bed9af4"
+settings = "TensorFlow 2.21.0 CPU float32, frozen graph eth3d.pb (PINTO 142_HITNET archive)"
+
+[refs."hitnet-middlebury-d400@1"]
+sha256 = "5d7d6679b5cd2de14425520cd73823ac2c6d632cb0171b932e818f14df252d64"
+upstream = "https://github.com/google-research/google-research@f200f2b89d29484bf0dd0fef0c3979ac8bed9af4"
+settings = "TensorFlow 2.21.0 CPU float32, frozen graph middlebury_d400.pb (PINTO 142_HITNET archive)"
+
+[validated."hitnet-eth3d@1"]
+kernels = ["hitnet@45145b49dcb1:sm_120", "hitnet_conv@e5637e8a93cf:sm_120"]
+symbols = {"hitnet" = {"cat_cl" = "0dad96ba5f5b0b86", "deconv2x2" = "086139da01fa873e", "img_conv3" = "4f184209057fb4c4", "init_cost_f16" = "9f2176359acfb97d", "ref_sad_f16" = "9e0d8fdeb0841179", "tile_sad_f16" = "a6c66461fceb85d0"}, "hitnet_conv" = {"hitnet_conv" = "0b5e44f3038cfba6"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00343
+p99_px = 0.02548
+
+[validated."hitnet-middlebury-d400@1"]
+kernels = ["hitnet@45145b49dcb1:sm_120", "hitnet_conv@e5637e8a93cf:sm_120"]
+symbols = {"hitnet" = {"cat_cl" = "0dad96ba5f5b0b86", "deconv2x2" = "086139da01fa873e", "img_conv3" = "4f184209057fb4c4", "init_cost_f16" = "9f2176359acfb97d", "ref_sad_f16" = "9e0d8fdeb0841179", "tile_sad_f16" = "a6c66461fceb85d0"}, "hitnet_conv" = {"hitnet_conv" = "0b5e44f3038cfba6"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.1139
+p99_px = 0.74705

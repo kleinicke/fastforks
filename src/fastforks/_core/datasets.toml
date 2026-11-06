@@ -1,0 +1,127 @@
+# Training datasets referenced by model cards (`training_data = [...]`), with the terms stated on their official page
+# (read 2026-10-26). `commercial` is about the dataset itself; how it affects trained weights is in _core/licences.py.
+
+[sceneflow]
+name = "Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)"
+licence = "LicenseRef-research-only"  # "provided for research purposes only ... Any commercial use is prohibited."
+commercial = "no"
+url = "https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html"
+
+[kitti]
+name = "KITTI stereo 2012 / 2015"
+licence = "CC-BY-NC-SA-3.0"
+commercial = "no"
+url = "https://www.cvlibs.net/datasets/kitti/"
+
+[eth3d]
+name = "ETH3D two-view stereo"
+licence = "CC-BY-NC-SA-4.0"
+commercial = "no"
+url = "https://www.eth3d.net/"
+
+[middlebury]
+name = "Middlebury stereo (2014)"
+licence = "not stated"  # "We grant permission to use and publish all images and disparity maps on this website."
+commercial = "unclear"
+url = "https://vision.middlebury.edu/stereo/data/"
+
+[crestereo]
+name = "CREStereo synthetic stereo dataset (Megvii)"
+licence = "not stated"  # the repository README links the download with no terms of its own (the repo code is Apache-2.0)
+commercial = "unclear"
+url = "https://github.com/megvii-research/CREStereo/blob/ad3a1613bdedd88b93247e5f002cb7c80799762d/README.md#L17"
+
+[sintel]
+name = "MPI Sintel stereo"
+licence = "not stated"  # the stereo page states only "(c) 2012 Max Planck Gesellschaft" and asks for a citation
+commercial = "unclear"
+url = "https://sintel.is.tue.mpg.de/stereo"
+
+[falling_things]
+name = "NVIDIA Falling Things (FAT)"
+licence = "CC-BY-NC-SA-4.0"
+commercial = "no"
+url = "https://research.nvidia.com/publication/2018-06_Falling-Things"
+
+[instereo2k]
+name = "InStereo2K"
+licence = "LicenseRef-noncommercial"  # "made freely available to academic and non-academic entities for non-commercial purposes"
+commercial = "no"
+url = "https://github.com/YuhuaXu/StereoDataset/blob/b9ba15d0380a18a7b974c5dc37d9155acebaff4e/README.md"
+
+[hr_vs]
+name = "HR-VS (high-resolution virtual stereo, Yang et al. CVPR 2019)"
+licence = "not stated"  # the HSMNet README links the download with no terms
+commercial = "unclear"
+url = "https://github.com/gengshan-y/high-res-stereo/blob/bd657d4e855c8dfa3ba1eeb7b894111b9ac14646/README.md"
+
+[fsd]
+name = "Foundation Stereo Dataset (FSD, NVIDIA synthetic)"
+licence = "LicenseRef-NVIDIA-Source-Code-License-NC"  # readme: "For dataset license, please check this" -> the NC repo LICENSE; NVIDIA owns the data
+commercial = "no"
+url = "https://github.com/NVlabs/FoundationStereo/blob/6e8806816b533e4d13ddbb95ffa907b797060a62/README.md"
+
+[tartanair]
+name = "TartanAir"
+licence = "CC-BY-4.0"  # "licensed under a Creative Commons Attribution 4.0 International License"
+commercial = "yes"
+url = "https://theairlab.org/tartanair-dataset/"
+
+[stereo4d]
+name = "Stereo4D (stereo YouTube videos)"
+licence = "CC-BY-4.0"  # annotations "under CC license" (CC BY 4.0; repo LICENSE file: CC0-1.0); the videos have no stated terms
+commercial = "unclear"
+url = "https://github.com/Stereo4d/stereo4d-code/blob/3f40d4139d6ed4126b50ae13cea80e77bd2affd9/README.md"
+
+[nvidia-internal]
+name = "NVIDIA internal proprietary data"
+licence = "not stated"  # C-Fast-FoundationStereo card: "Internal, proprietary dataset" (1.4 M synthetic pairs)
+commercial = "unclear"
+url = "https://huggingface.co/nvidia/c-fast-foundationstereo/blob/53a84e28a368f37e699776250215fcb450d6a109/README.md"
+
+[coco]
+name = "COCO 2017 (train, instance annotations)"
+licence = "CC-BY-4.0"  # "The annotations in this dataset belong to the COCO Consortium and are licensed under a CC BY 4.0"; the images follow the Flickr terms of use of each image
+commercial = "unclear"
+url = "https://cocodataset.org/#termsofuse"
+
+[imagenet-1k]
+name = "ImageNet-1k (ILSVRC 2012 classification)"
+licence = "LicenseRef-noncommercial"  # terms of access: "non-commercial research and educational purposes" only
+commercial = "no"
+url = "https://image-net.org/download.php"
+
+[imagenet-21k]
+name = "ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release)"
+licence = "LicenseRef-noncommercial"  # same terms of access as ImageNet-1k
+commercial = "no"
+url = "https://image-net.org/download.php"
+
+[lvd-142m]
+name = "LVD-142M (DINOv2's curated web-image set, not released)"
+licence = "not stated"  # described in the DINOv2 paper only; the images are not distributed
+commercial = "unclear"
+url = "https://arxiv.org/abs/2304.07193"
+
+[merged-38m]
+name = "Merged-38M (EVA-02 pre-training mix: ImageNet-22k, CC12M, CC3M, COCO, ADE20K, Objects365, OpenImages)"
+licence = "not stated"  # a mix of public datasets with their own terms (ImageNet: non-commercial)
+commercial = "unclear"
+url = "https://github.com/baaivision/EVA/blob/5623d08bb08a8268c7bc18e1d9b8b4bd651fe4d9/EVA-02/README.md"
+
+[webli]
+name = "WebLI (Google web image-text data, not released)"
+licence = "not stated"  # described in the PaLI / SigLIP papers only; not distributed
+commercial = "unclear"
+url = "https://arxiv.org/abs/2303.15343"
+
+[ade20k]
+name = "ADE20K (SceneParsing, 150 classes)"
+licence = "LicenseRef-noncommercial"  # images "for non-commercial research and/or educational purposes" (MIT terms of use)
+commercial = "no"
+url = "https://ade20k.csail.mit.edu/terms/"
+[dtu]
+name = "DTU Robot Image Data Sets (MVS 2014)"
+licence = "not stated"  # not re-read 2026-10-27 (offline): terms to be checked on the official page
+commercial = "unclear"
+url = "https://roboimagedata.compute.dtu.dk/"

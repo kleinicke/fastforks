@@ -1,0 +1,44 @@
+schema = 2
+name = "NMRF"
+summary = "NMRF (Guan et al. 2024): neural Markov random field with disparity proposals from a group-wise cost volume, CSWin label-seed propagation and window-attention inference at 1/8 resolution plus a 1/4 refinement."
+tier = "experimental"
+outputs = ["disparity"]
+
+[upstream]
+repo = "https://github.com/aeolusguan/NMRF"
+commit = "a50bd8f407ae481c38f95cf141e1b5256e962cb7"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"  # original states no weights licence
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/aeolusguan/NMRF/blob/a50bd8f407ae481c38f95cf141e1b5256e962cb7/README.md#L103"  # README links the weights (Google Drive) with no licence of their own
+
+[io]
+input = "0-255"
+min_size = 9  # <= 8 px pads to 8 px: a 1 x 1 InstanceNorm at 1/8 (and NaN maps on thin inputs such as 1 x 14 / 8 x 97)
+pad = { multiple = 8, mode = "bottom_right", fill = "replicate" }  # original InputPadder(mode="proposal", divis_by=8)
+
+[params]
+max_disp = 312  # disparity range of the proposal cost volume (configs/zero_shot_evaluation.yaml; training: 320)
+
+[modes.portable]
+cuda_dtype = "float16"  # our fork's general path runs under float16 autocast (original evaluates in float32)
+mps_dtypes = ["float32"]  # MPS vs CPU: 0.03 px mean on non-occluded pixels, ~0.7 px where the cost curve is flat
+# (occlusions, left border): the local-maximum test of the proposals flips on last-bit rounding there
+
+[modes.kernels]
+kernels = ["fastbb"]
+mps_kernels = ["stereo_metal"]
+# Kernels: the portable float16 path with every window attention (MRF inference and refinement) as one fused kernel
+# (fastbb win_rpe_attn: relative-position embeddings, mask, online softmax; reads the packed qkv projection with the
+# Swin shift folded into the indexing). Middlebury-H 196 vs 217 ms (our earlier fork 205), peak 1.0 vs 1.5 GB; KITTI
+# 51.8 vs 58.5 ms.
+
+# Upstream also publishes a KITTI fine-tune and Swin-T models (need MSDeformAttn; not added).
+
+[[variants]]
+id = "nmrf-sceneflow"
+revision = 1
+weights = [{ name = "sceneflow.pth", size = 24605344, sha256 = "e7c4a0a4bfe5cfa5ebdfa11e3586381df567dab2b6fa5e6da946fd86cbbf35aa", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1VI-vyMIeNs_jMD6TVTNqFl70nQVgMSIR" }]

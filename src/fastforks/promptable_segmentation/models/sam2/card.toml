@@ -1,0 +1,54 @@
+schema = 2
+name = "Segment Anything 2.1 (SAM 2.1), image"
+summary = "Segment Anything 2.1 (Ravi et al. 2024), image mode: promptable segmentation with a hierarchical Hiera image encoder, an FPN neck and the SAM prompt encoder / mask decoder with high-resolution skip features; masks from points, boxes and mask logits (no video memory). The portable `module()` is the image encoder only."
+tier = "stable"
+outputs = ["pred_masks", "iou_scores"]
+
+[upstream]
+repo = "https://github.com/facebookresearch/sam2"
+commit = "2b90b9f"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "SA-1B and the SA-V video dataset (plus internal data) per the paper; SA-V itself is under CC BY 4.0, SA-1B under its research licence"
+evidence = "https://github.com/facebookresearch/sam2/blob/main/README.md (License section: model checkpoints and code under Apache 2.0)"
+
+[io]
+input = "imagenet"  # original SAM2Transforms: ToTensor (/255), Resize to image_size x image_size (bilinear, antialias), Normalize(ImageNet mean / std)
+
+[params]
+image_size = 1024  # the encoder input is resized to image_size x image_size (no aspect-ratio padding)
+
+[modes.portable]
+cuda_dtype = "float16"  # image encoder; prompt encoder / mask decoder stay float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["dpt_fused"]
+
+[[variants]]
+id = "sam2.1-hiera-tiny"
+revision = 1
+params = { embed_dim = 96, num_heads = 1, stages = [1, 2, 7, 2], global_att_blocks = [5, 7, 9], window_spec = [8, 4, 14, 7], pos_embed_size = [7, 7] }
+weights = [{ name = "sam2.1_hiera_tiny.pt", size = 156008466, sha256 = "7402e0d864fa82708a20fbd15bc84245c2f26dff0eb43a4b5b93452deb34be69", url = "https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_tiny.pt" }]
+
+[[variants]]
+id = "sam2.1-hiera-small"
+revision = 1
+params = { embed_dim = 96, num_heads = 1, stages = [1, 2, 11, 2], global_att_blocks = [7, 10, 13], window_spec = [8, 4, 14, 7], pos_embed_size = [7, 7] }
+weights = [{ name = "sam2.1_hiera_small.pt", size = 184416285, sha256 = "6d1aa6f30de5c92224f8172114de081d104bbd23dd9dc5c58996f0cad5dc4d38", url = "https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_small.pt" }]
+
+[[variants]]
+id = "sam2.1-hiera-base-plus"
+revision = 1
+params = { embed_dim = 112, num_heads = 2, stages = [2, 3, 16, 3], global_att_blocks = [12, 16, 20], window_spec = [8, 4, 14, 7], pos_embed_size = [14, 14] }
+weights = [{ name = "sam2.1_hiera_base_plus.pt", size = 323606802, sha256 = "a2345aede8715ab1d5d31b4a509fb160c5a4af1970f199d9054ccfb746c004c5", url = "https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_base_plus.pt" }]
+
+[[variants]]
+id = "sam2.1-hiera-large"
+revision = 1
+params = { embed_dim = 144, num_heads = 2, stages = [2, 6, 36, 4], global_att_blocks = [23, 33, 43], window_spec = [8, 4, 16, 8], pos_embed_size = [7, 7] }
+weights = [{ name = "sam2.1_hiera_large.pt", size = 898083611, sha256 = "2647878d5dfa5098f2f8649825738a9345572bae2d4350a2468587ece47dd318", url = "https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt" }]

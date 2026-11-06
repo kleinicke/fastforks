@@ -1,0 +1,11 @@
+TAO PyTorch
+Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
+The files in net/ are derived from NVIDIA TAO PyTorch (https://github.com/NVIDIA/tao_pytorch_backend, commit
+77fb1a4bca02de3ea43de333a5822d57694b6b22), licensed under the Apache License 2.0 (see LICENSE); the changes are
+listed in net/__init__.py. (TAO's own NOTICE further lists its bundled PyTorch ONNX exporter code, which is not
+included here.)
+
+The weights are not included: fastforks downloads them from NVIDIA's Hugging Face pages. C-FoundationStereo-S is
+"Licensed by NVIDIA Corporation under the NVIDIA Open Model License", C-Fast-FoundationStereo under the NVIDIA Open
+Model Agreement; whoever redistributes the weights must ship that notice.

@@ -1,0 +1,26 @@
+diff --git a/CasStereoNet/models/gwcnet.py b/CasStereoNet/models/gwcnet.py
+index a18b859..2a8b25c 100644
+--- a/CasStereoNet/models/gwcnet.py
++++ b/CasStereoNet/models/gwcnet.py
+@@ -281,7 +281,7 @@ class GetCostVolume(nn.Module):
+         grid = torch.stack([coords_x, coords_y], dim=4) #(B, D, H, W, 2)
+ 
+         y_warped = F.grid_sample(y, grid.view(bs, ndisp * height, width, 2), mode='bilinear',
+-                               padding_mode='zeros').view(bs, channels, ndisp, height, width)  #(B, C, D, H, W)
++                               padding_mode='zeros', align_corners=True).view(bs, channels, ndisp, height, width)  #(B, C, D, H, W)
+ 
+ 
+         # a littel difference, no zeros filling
+diff --git a/CasStereoNet/models/psmnet.py b/CasStereoNet/models/psmnet.py
+index ad8857e..c0af6be 100644
+--- a/CasStereoNet/models/psmnet.py
++++ b/CasStereoNet/models/psmnet.py
+@@ -303,7 +303,7 @@ class GetCostVolume(nn.Module):
+         grid = torch.stack([coords_x, coords_y], dim=4)   #(B, D, H, W, 2)
+ 
+         cost[:, x.size()[1]:, :, :, :] = F.grid_sample(y, grid.view(bs, ndisp * height, width, 2), mode='bilinear',
+-                                                       padding_mode='zeros').view(bs, channels, ndisp, height, width)
++                                                       padding_mode='zeros', align_corners=True).view(bs, channels, ndisp, height, width)
+ 
+         # a littel difference, no zeros filling
+         tmp = x.unsqueeze(2).repeat(1, 1, ndisp, 1, 1) #(B, C, D, H, W)

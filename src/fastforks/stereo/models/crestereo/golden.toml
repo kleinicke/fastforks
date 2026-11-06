@@ -1,0 +1,26 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.02
+gpu_p99 = 0.25
+real_gpu_mean = 0.25
+real_gpu_p99 = 5.0
+
+[refs."crestereo-eth3d@1"]
+sha256 = "f68d34ccccb378a97d7b0217e5ecc63420fe454a4c0d41c5505567cd1dfecc88"
+upstream = "https://github.com/megvii-research/CREStereo@ad3a1613bdedd88b93247e5f002cb7c80799762d"
+settings = "CPU float32, test.py inference (2 passes x 20 iters), BGR input, megengine 1.13.0"
+
+[validated."crestereo-eth3d@1"]
+kernels = ["crestereo@4e3c00b2d395:sm_120", "cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "fastbb@7d058322634d:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"crestereo" = {"agcl_corr" = "1b53117015998530", "flow_pack" = "843d851f49a83b07"}, "cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "fastbb" = {"in_apply_h" = "7070fd936a52ae6a", "in_stats_final" = "891b933057d094c4", "in_stats_h" = "91e1f5f344c0d209"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-02"
+mean_px = 0.00231
+p99_px = 0.03308

@@ -1,0 +1,50 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:  # a newer push cancels the run it supersedes
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --frozen --no-default-groups --group dev --group cpu
+      - run: uv run --frozen ruff format --check
+      - run: uv run --frozen ruff check
+      - run: uv run --frozen ty check
+
+  test:
+    # CPU only: unit tests, card/policy checks and CPU golden parity of the models a change touches.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { python: "3.11", torch: "torch==2.8.* torchvision==0.23.*", goldens: false } # oldest supported
+          - { python: "3.14", torch: "torch torchvision", goldens: true } # newest; CPU goldens run in this leg only
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # tools/fetch_goldens.py --changed diffs against the base branch
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --frozen --no-default-groups --group dev --group cpu
+      - run: uv pip install ${{ matrix.torch }} --index-url https://download.pytorch.org/whl/cpu
+      # Reference outputs of the original code (huggingface.co/datasets/fastforks/reference-outputs); the golden tests
+      # run once the repository variable GOLDENS_PUBLIC=true is set, else they skip.
+      - name: Golden outputs of affected models (smallest variant per family on pull requests)
+        if: matrix.goldens && vars.GOLDENS_PUBLIC == 'true'
+        run: |
+          echo "FASTFORKS_GOLDEN_PATH=$RUNNER_TEMP/golden" >> "$GITHUB_ENV"
+          echo "FASTFORKS_REQUIRE_GOLDENS=$RUNNER_TEMP/required.txt" >> "$GITHUB_ENV"
+          uv run --no-sync python tools/fetch_goldens.py --changed ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before || 'HEAD~1' }} \
+            ${{ github.event_name == 'pull_request' && '--smallest' || '' }} \
+            --required "$RUNNER_TEMP/required.txt" "$RUNNER_TEMP/golden"
+      - run: uv run --no-sync pytest -m "not gpu"

@@ -1,0 +1,26 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.01
+gpu_p99 = 0.03
+relative = true
+
+[refs."metric3d-vit-large@1"]
+sha256 = "a4703c11f76a9341589e6eaeeb64e3a087912f603f57fe85ca70fc9ed9a2efbe"
+upstream = "https://github.com/YvanYin/Metric3D@eb5b6fac0dc155e4e52f576e304fbf11655ff339"
+patch = "metric3d-mmengine.patch"
+patch_sha256 = "e65eae4a98cf43e1b155aadac603e63ef4885688a9b5a37f768c5bb0839e79bc"
+settings = "CPU float32, hubconf __main__ recipe (float32 image, CPU depth bins), no intrinsics, torch 2.14.1+cu130"
+
+[validated."metric3d-vit-large@1"]
+kernels = ["fastbb@7d058322634d:sm_120"]
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-28"
+mean_px = 0.00028
+p99_px = 0.00075

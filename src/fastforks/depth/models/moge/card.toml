@@ -1,0 +1,59 @@
+schema = 2
+name = "MoGe"
+summary = "MoGe-2 / MoGe-3 (Wang et al., Microsoft): monocular metric geometry; a DINOv2 ViT with conv heads predicts an affine point map, a validity mask, normals and a metric scale, and the focal length and shift are recovered from the points (MoGe-3 adds a sparse 3-D refiner)."
+tier = "experimental"
+outputs = ["depth", "points", "intrinsics", "mask", "normals"]  # intrinsics: the camera of the points (given ones: only fx is used; fy != fx or an off-centre principal point raise); normals: option `normals`
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
+
+[output]
+kind = "metric"
+
+[upstream]
+repo = "https://github.com/microsoft/MoGe"
+commit = "74fbce0"
+
+[licence]
+code = "MIT"
+weights = "MIT"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Mixture of public synthetic and real RGB-D / multi-view datasets per the MoGe-2 and MoGe-3 papers"
+evidence = "https://github.com/microsoft/MoGe/blob/main/README.md (License section) and the Hugging Face model cards (license: mit)"
+
+[io]
+input = "imagenet"  # the runner resizes (bilinear, antialiased, to ~1200-3600 ViT tokens at the input's aspect ratio) and normalises
+pad = "none"
+
+[options]
+resolution_level = { default = 9, min = 0, max = 9 }  # 0-9: 1200-3600 ViT tokens (original infer's resolution_level)
+normals = false  # also run the normal head
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+# Kernels keeps the class token (the only source of the metric scale) in a float32 residual. Its golden error (synthetic
+# test image, vs CPU float32: ~1e-3..4e-3 relative depth) is fp16-stream noise, not the model's error: on 16 real images
+# (8 iBims-1 + 8 NYUv2) the kernels metric scale is within 4.5e-4 mean (1.7e-3 max) of the float32 scale.
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused", "sparse_conv"]  # sparse_conv: the MoGe-3 refiner
+mps_kernels = ["sparse_metal"]  # the MoGe-3 refiner's sparse convs (MoGe-2: the portable network as is)
+mps_dtype = "float32"  # the portable network's float16 misses the metric scale (no float32 class-token residual)
+
+[[variants]]
+id = "moge-2-vits-normal"
+revision = 1
+params = { arch = "vits", version = 2 }
+weights = [{ name = "model.pt", size = 140550416, sha256 = "79a16621928c2bf0ed04659218c55c01075e950507f40bb3332fb4c873d3e1dc", url = "https://huggingface.co/Ruicheng/moge-2-vits-normal/resolve/26b477f41595707c5db6770294c0d1721e8ed4ed/model.pt" }]
+
+[[variants]]
+id = "moge-2-vitl-normal"
+revision = 1
+params = { arch = "vitl", version = 2 }
+weights = [{ name = "model.pt", size = 1323815904, sha256 = "280741fd09bc3f403ccff9967784c2a391b52d2c0742ae3efdb21d9f90cc1a01", url = "https://huggingface.co/Ruicheng/moge-2-vitl-normal/resolve/cb0e8bbd6b1e243589717c78e750b1ba4c093acf/model.pt" }]
+
+[[variants]]
+id = "moge-3-vitl"
+revision = 1
+params = { arch = "vitl", version = 3 }
+weights = [{ name = "model.pt", size = 1481333394, sha256 = "9b41b7b9f65ad80aab7ad686f5e9cc0d1fd33f1964022618dfbcd52fc1fb7925", url = "https://huggingface.co/Ruicheng/moge-3-vitl/resolve/184008f877d7ad1ad4c2cd2182a9bd1f63d0e5be/model.pt" }]

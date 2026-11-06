@@ -1,0 +1,55 @@
+schema = 2
+name = "Cas-GwcNet"
+summary = "Cas-GwcNet (cascade stereo, Gu et al. 2020): two-stage cascade cost volume (48 then 24 disparity hypotheses, the second narrowed around the first result) on GwcNet-style 3-D hourglasses; group-wise correlation + concatenation (gc) or concatenation (c) volumes."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/alibaba/cascade-stereo"
+commit = "2ae7da65515c82025383a0fbee8d6fe063dc7101"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"  # original states no weights licence
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/alibaba/cascade-stereo/blob/2ae7da65515c82025383a0fbee8d6fe063dc7101/CasStereoNet/README.md#L17-L19"  # README links the weights with no licence of their own
+
+[io]
+input = "imagenet"
+pad = { multiple = 32, mode = "top_right", fill = "zero" }  # the original code's KITTI test loader pads the normalized images on top and on the right with zeros
+
+[params]
+max_disp = 192
+ndisps = [48, 24]  # hypotheses per stage at full resolution (README eval: --ndisps "48,24")
+disp_interval = [4.0, 1.0]  # px between hypotheses (README eval: --disp_inter_r "4,1")
+base_channels = [32, 32, 16]  # cost-aggregation channels per stage (main.py default --cr_base_chs)
+ns_size = 3  # neighbour-search window of the stage-2 range (scripts/sceneflow.sh --using_ns --ns_size 3)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+# The warp's grid_sample uses align_corners=True, the PyTorch 1.2 default the checkpoints were trained with (upstream's
+# code at the pinned commit leaves it unset, which current PyTorch reads as False); the goldens use the same setting
+# (tools/golden/cas_gwcnet.py, patches/cas-gwcnet-align-corners.patch).
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+
+# Upstream also links a KITTI 2015 fine-tuned Cas-GwcNet-c: not added.
+
+[[variants]]
+id = "cas-gwcnet-gc-sceneflow"
+revision = 1
+# Cas-GwcNet-gc (`--model gwcnet`), Scene Flow
+params = { arch = "gc" }
+weights = [{ name = "casgwcnet.ckpt", size = 131672430, sha256 = "8a3638501cd5d4cb31d6ec523757134db967db8139715443d83f08913bffa8ab", url = "https://virutalbuy-public.oss-cn-hangzhou.aliyuncs.com/share/cascade-stereo/CasStereoNet/gwcnet/casgwcnet.ckpt" }]
+
+[[variants]]
+id = "cas-gwcnet-c-sceneflow"
+revision = 1
+# Cas-GwcNet-c (`--model gwcnet-c`, concatenation volume only, PSMNet-style features), Scene Flow
+params = { arch = "c" }
+io = { min_size = 225 }  # the 64 x 64 pyramid pooling at 1/4 resolution needs padded sizes >= 256
+weights = [{ name = "casgwcnet-c-2.ckpt", size = 126424865, sha256 = "9d30ee767111718e87728e09587263d0edecca76319e8cdbdd789946014ce85f", url = "https://virutalbuy-public.oss-cn-hangzhou.aliyuncs.com/share/cascade-stereo/CasStereoNet/gwcnet-c/casgwcnet-c-2.ckpt" }]

@@ -1,0 +1,43 @@
+schema = 2
+name = "Depth Pro"
+summary = "Depth Pro (Bochkovskii et al. 2024, Apple): sharp monocular metric depth from three DINOv2 ViT-L/16 encoders (35 overlapping windows of a 3-level image pyramid, the whole image, the field of view) and a multi-resolution conv decoder at 1536x1536; also estimates the focal length."
+tier = "experimental"
+outputs = ["depth", "intrinsics"]  # intrinsics: only when none are given (then fx replaces the field-of-view estimate)
+uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports
+
+licence_notes = [
+  "The Apple sample-code licence and the model licence allow research use only.",
+]
+
+[output]
+kind = "metric"
+
+[upstream]
+repo = "https://github.com/apple/ml-depth-pro"
+commit = "9e65e4d"
+
+[licence]
+code = "LicenseRef-Apple-Sample-Code"
+weights = "LicenseRef-research-only"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Mixture of real and synthetic metric-depth datasets per the Depth Pro paper (Table 15); the list is not on the model card"
+evidence = "https://github.com/apple/ml-depth-pro/blob/9e65e4d/README.md (License section: code and weights under LICENSE, the Apple sample-code licence) and https://huggingface.co/apple/DepthPro (license: apple-amlr, research use only); the stricter model-card terms are recorded for the weights"
+
+[io]
+input = "mean_std"  # the runner normalises (original Normalize(0.5, 0.5)) and resizes to 1536x1536 (bilinear)
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+pad = "none"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused"]
+
+[[variants]]
+id = "depth-pro"
+revision = 1
+weights = [{ name = "depth_pro.pt", size = 1904446787, sha256 = "3eb35ca68168ad3d14cb150f8947a4edf85589941661fdb2686259c80685c0ce", url = "https://ml-site.cdn-apple.com/models/depth-pro/depth_pro.pt" }]

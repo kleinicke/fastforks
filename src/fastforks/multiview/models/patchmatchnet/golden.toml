@@ -1,0 +1,25 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.005
+gpu_p99 = 0.03
+relative = true
+
+[refs."patchmatchnet@1"]
+sha256 = "b3a237a9f795e719ba25207e47c6cc591a89d852da0b90035d0304e81676372d"
+upstream = "https://github.com/FangjinhuaWang/PatchmatchNet@8dc6cb40bdb7053e856598b378425c76a9dcf5e0"
+settings = "CPU float32, eval.py settings, torch.manual_seed(0), synth scene (ref 0 + 3 sources) at 120x160, torch 2.14.1+cu130"
+
+[validated."patchmatchnet@1"]
+kernels = ["patchmatchnet@e73cbaa02d34:sm_120"]
+symbols = {"patchmatchnet" = {"pmn_aggregate" = "ed23ef7dd9078996", "pmn_cost_16_4" = "db8bce40d21a3044", "pmn_cost_32_8" = "1db386b46b858e09", "pmn_cost_64_8" = "9a89392a1251c2d9", "pmn_feat_weight_16_4" = "42c08adbb67dc9d3", "pmn_feat_weight_32_8" = "2f2476091df91127", "pmn_feat_weight_64_8" = "7048162ec51e2485", "pmn_hypo" = "60e5b07293481f93", "pmn_view_weight_16_4" = "543944be3f130fa9", "pmn_view_weight_32_8" = "0c84d67cac03cf84", "pmn_view_weight_64_8" = "c6a82f60f576b25f"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 6e-05
+p99_px = 0.00021

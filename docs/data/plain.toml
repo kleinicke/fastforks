@@ -1,0 +1,103 @@
+# Plain-language one-liners per model family for the generated model pages (tools/gen_docs.py).
+# Facts only, each from the family's card.toml, its LICENSE or the page's own tables: what it is for, who made it
+# (only where the card or the vendored LICENSE names them), the licence in plain words. No speed or ranking claims.
+# "commercially usable" needs every variant of the family to be commercial yes, "non-commercial" at least one no
+# (tests/test_docs.py).
+
+# --- stereo
+aanet = "A stereo network that aggregates matching costs with sparse deformable sampling across scales, trained on synthetic SceneFlow data. Commercially usable."
+bridgedepth = "A stereo network that aligns Depth Anything V2 features with NMRF-style disparity proposals. Non-commercial weights."
+c_foundationstereo = "NVIDIA's releases of FoundationStereo for commercial use, including a distilled fast variant. The licence differs by variant, see the table."
+cas_gwcnet = "Alibaba's cascade version of GwcNet: two cost-volume stages, the second narrowed around the first disparity. Trained on synthetic data. Commercially usable."
+cfnet = "A stereo network with cascaded and fused cost volumes, trained on synthetic data. Commercially usable."
+coex = "A stereo network on a MobileNetV2 backbone with guided cost excitation (correlate and excite). Commercially usable."
+crestereo = "Megvii's cascaded recurrent stereo network, trained on a wide mix of real and synthetic stereo data. Commercially usable."
+defom_stereo = "A stereo network from the Insta360 Research Team that uses Depth Anything V2 features and an initial depth prior. Non-commercial weights."
+dlnr = "A stereo network in the RAFT-Stereo style with a decoupled LSTM and normalization refinement. Commercially usable."
+fast_acvnet = "A stereo network by Gangwei Xu et al. that uses attention-selected disparities and a MobileNetV2 backbone, in a base and a plus version. Commercially usable."
+foundationstereo = "NVIDIA's zero-shot stereo foundation model. Non-commercial weights."
+great_igev = "IGEV-Stereo extended with global attention (spatial, epipolar-row and volume attention). Commercially usable."
+gwcnet = "A classic stereo network by Xiaoyang Guo et al. that builds a group-wise correlation cost volume. Commercially usable."
+hitnet = "Google Research's tile-based stereo model; the authors' ETH3D and Middlebury versions, ported to PyTorch. Commercially usable."
+igev_plusplus = "The successor of IGEV-Stereo by Gangwei Xu et al., with multi-range geometry encoding volumes for large disparity ranges. Commercially usable."
+igev_stereo = "An iterative stereo network by Gangwei Xu et al. (geometry encoding volume with ConvGRU updates), with several fine-tuned checkpoints. Commercially usable."
+las2 = "LiteAnyStereo V2, an efficient zero-shot stereo family in sizes S, M, L and H. Commercially usable."
+mocha_stereo = "A stereo network by Ziyang Chen et al. that adds motif channel attention to an IGEV-style volume. Commercially usable."
+monster = "A stereo network that combines Depth Anything V2 mono depth with stereo matching. Non-commercial licence."
+monster_plusplus = "The accuracy model of MonSter++, which combines mono depth and stereo matching; Autel Robotics and Huazhong University of Science and Technology. Non-commercial licence."
+nmrf = "A stereo network from the CUHK T-Stone Robotics Institute that treats matching as Markov random field inference. Commercially usable."
+psmnet = "A classic stereo network by Jia-Ren Chang with a spatial-pyramid backbone and stacked 3D hourglasses. Commercially usable."
+raft_stereo = "A recurrent stereo network from the Princeton Vision & Learning Lab, with checkpoints for several datasets. Commercially usable."
+rt_monster_plusplus = "The real-time version of MonSter++ (Autel Robotics and Huazhong University of Science and Technology), using a small mono depth model. Non-commercial licence."
+s2m2 = "A transformer-based stereo family in four sizes (S, M, L, XL). Non-commercial licence."
+selective_igev = "IGEV-Stereo with selective recurrent units, by Xianqi Wang et al., with checkpoints for several datasets. Commercially usable."
+waft_stereo = "A stereo network from the Princeton Vision & Learning Lab that warps features instead of building a cost volume, in sizes S and B. The licence differs by size, see the table."
+
+# --- depth
+depth_anything_3 = "ByteDance's Depth Anything 3: depth from one image, with relative, metric and multi-view versions. The licence differs by variant, see the table."
+depth_anything_v2 = "Depth Anything V2: relative depth from one image, in small, base and large. The licence differs by size, see the table."
+depth_pro = "Apple's single-image model for metric depth and the camera focal length, at 1536x1536 internal resolution. Research-only licence."
+marigold = "Marigold from ETH Zurich (PRS): depth from one image by diffusion on a Stable Diffusion UNet. Commercially usable under an OpenRAIL licence."
+metric3d = "Metric3D v2 (Wei Yin and Mu Hu et al.): metric depth and surface normals from one image, given the focal length. Commercially usable; the authors ask commercial users to contact them."
+midas = "MiDaS v3.1 from Intel ISL, with a BEiT-L encoder: relative depth from one image. Commercially usable."
+moge = "Microsoft's MoGe: depth, 3D points, normals and focal length from one image. Commercially usable."
+unidepth_v2 = "UniDepth V2: metric depth from one image without known camera data. Non-commercial licence."
+unik3d = "UniK3D: metric 3D from one image for any camera type, using a spherical-harmonic ray model. Non-commercial licence."
+zoedepth = "ZoeDepth from the Intelligent Systems Lab: metric depth from one image, for indoor and outdoor scenes. Commercially usable."
+
+# --- classification (ImageNet-1k classifiers)
+alexnet = "AlexNet (Krizhevsky et al. 2012): five convolutions and three fully connected layers; an early deep convolutional classifier."
+convnextv2 = "ConvNeXt V2 (Woo et al. 2023): a convolutional classifier with global response normalisation. Non-commercial weights."
+deit = "DeiT (Touvron et al. 2021): a vision transformer trained on ImageNet-1k only."
+densenet = "DenseNet (Huang et al. 2016): a classifier with densely connected convolution blocks."
+dinov2_linear_cls = "DINOv2 ViT-L/14 (Oquab et al. 2023) with its official linear ImageNet head."
+efficientnet = "EfficientNet (Tan and Le 2019): compound-scaled classifiers of different sizes."
+efficientnetv2 = "EfficientNetV2 (Tan and Le 2021): the follow-up to EfficientNet with fused-MBConv early stages."
+efficientvit = "EfficientViT (Cai et al. 2023, MIT Han lab): a classifier with multi-scale linear attention."
+eva02 = "EVA-02 (Fang et al. 2023): a vision transformer pre-trained with masked image modelling."
+fastvit = "FastViT (Vasu et al. 2023): a hybrid classifier with reparameterisable token mixing."
+inception_v3 = "Inception-v3 (Szegedy et al. 2015): a classic classifier with factorised inception modules; takes 299 px input."
+mobilenetv1 = "MobileNet V1 (Howard et al. 2017): a classifier built on depthwise-separable convolutions."
+mobilenetv2 = "MobileNetV2 (Sandler et al. 2018): a classifier built on inverted residuals."
+mobilenetv3 = "MobileNetV3 (Howard et al. 2019): a classifier found by architecture search, with squeeze-excite and hard-swish."
+mobilenetv4 = "MobileNetV4 (Qin et al. 2024): a classifier built on universal inverted bottlenecks."
+regnet = "RegNetY (Radosavovic et al. 2020): classifiers from a designed family of residual stages."
+resnet = "ResNet (He et al. 2015): the standard residual classifier."
+shufflenetv2 = "ShuffleNet V2 (Ma et al. 2018): a classifier built on channel split and shuffle units."
+siglip = "SigLIP So400m/14 (Zhai et al. 2023) fine-tuned on ImageNet-1k."
+squeezenet = "SqueezeNet 1.1 (Iandola et al. 2016): a classifier built from fire modules."
+swin = "Swin Transformer (Liu et al. 2021): a vision transformer with shifted-window attention."
+vgg = "VGG (Simonyan and Zisserman 2014): a classifier of stacked 3x3 convolutions."
+vit = "Vision Transformer (Dosovitskiy et al. 2020): a transformer classifier on 16x16 image patches."
+
+# --- segmentation
+mmseg = "The MMSegmentation authors' ADE20K checkpoints of FCN, PSPNet, DeepLabV3, DeepLabV3+ and HRNet, convolutional scene segmentation. Commercially usable."
+dinov2_linear = "Meta's DINOv2 features with a linear layer on top for ADE20K scene segmentation. Commercially usable."
+eomt = "EoMT: a plain vision transformer that also predicts masks, for ADE20K scene segmentation, with DINOv2 or DINOv3 pre-training. Commercially usable."
+mask2former = "Mask2Former with a Swin-L backbone for ADE20K scene segmentation. Non-commercial weights."
+oneformer = "OneFormer (SHI Labs): one network for several segmentation tasks, used here for ADE20K scene segmentation. Commercially usable."
+sapiens = "Meta's Sapiens: segmentation of human body parts (28 Goliath classes such as face, hair, limbs and clothing). Non-commercial licence."
+segformer = "NVIDIA's SegFormer: a transformer for ADE20K scene segmentation, sizes B0 and B5. Non-commercial weights."
+
+# --- promptable segmentation
+sam = "Segment Anything: masks from clicks, boxes or mask prompts, in sizes B, L and H. Commercially usable."
+sam2 = "Segment Anything 2.1 in image mode: masks from clicks, boxes or mask prompts, in four sizes. Commercially usable."
+sam3 = "Segment Anything 3: masks for every object that matches a text or example prompt, as well as clicks and boxes. Meta's SAM License applies; commercially usable under it."
+
+# --- detection
+rcnn = "Faster R-CNN and Mask R-CNN from the detectron2 model zoo (ResNet-50 FPN, COCO): boxes, classes and, for Mask R-CNN, instance masks. Commercially usable."
+detr = "DETR (ResNet-50 and ResNet-101, COCO) from Facebook Research: end-to-end boxes and classes from 100 object queries, no NMS. Commercially usable."
+rtdetrv2 = "RT-DETRv2 (S, M, M*, L, X; ResNet-vd, COCO) from the RT-DETR authors: real-time end-to-end detector, 300 queries and deformable attention, no NMS. Commercially usable."
+dfine = "D-FINE (N, S, M, L, X; HGNetV2, COCO) from USTC: real-time end-to-end detector in the RT-DETR style, 300 queries, deformable attention and box edges refined as distributions, no NMS. Commercially usable."
+
+# --- features
+dinov2 = "Meta's DINOv2: self-supervised image features (patch and class tokens) in four sizes, with and without register tokens. Commercially usable."
+dinov3_convnext = "Meta's DINOv3 distilled into ConvNeXt backbones (T, S, B, L): image features. Needs the gated DINOv3 licence."
+dinov3 = "Meta's DINOv3 vision transformers: self-supervised image features with register tokens and RoPE. Needs the gated DINOv3 licence."
+
+# --- multiview
+mapanything = "MapAnything (Meta): metric 3D reconstruction (cameras and depth) from several unposed images in one pass. Commercially usable (Apache variant)."
+mvsanywhere = "MVSAnywhere (Niantic): depth of a reference view from several posed images, for any scene type. Non-commercial licence."
+patchmatchnet = "PatchmatchNet by Fangjinhua Wang et al.: learned PatchMatch multi-view stereo, depth from posed images. Commercially usable."
+vggt = "VGGT (Meta): cameras, depth and 3D points for many images in one pass. Non-commercial weights."
+vggt_omega = "VGGT-Omega (Meta): the successor of VGGT with a DINOv3 backbone, cameras and depth from many images. Non-commercial licence."

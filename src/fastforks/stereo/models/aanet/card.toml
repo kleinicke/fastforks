@@ -1,0 +1,61 @@
+schema = 2
+name = "AANet"
+summary = "AANet (Xu and Zhang 2020): sparse deformable-sampling cost aggregation within and across scales on a 2-D correlation pyramid, without 3-D convolutions."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+limitations = [
+  "Only the SceneFlow checkpoints of AANet and AANet+ are included; the original code's KITTI fine-tunes are not.",
+  "At 375x1242 AANet is launch-bound: portable is about as fast as the original code. At 994x1482 portable is faster but allocates more memory.",
+]
+
+[upstream]
+repo = "https://github.com/haofeixu/aanet"
+commit = "8d0d747e69bbdba43e2578b60ad7df63ba7fdac2"
+
+[licence]
+code = "Apache-2.0"
+weights = "assumed from code"  # original states no weights licence; the code licence is assumed
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/haofeixu/aanet/blob/8d0d747e69bbdba43e2578b60ad7df63ba7fdac2/LICENSE"  # MODEL_ZOO.md links the weights (Google Drive) with no licence of their own
+
+[io]
+input = "imagenet"
+pad = { multiple = 48, mode = "top_right", fill = "zero" }  # normalized images, zeros on top and on the right (original predict.py); AANet+ overrides the multiple
+
+[params]
+max_disp = 192  # cost-volume depth at full resolution
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["deform_conv", "igev", "cutlass_conv", "cudnn_hacc"]
+mps_kernels = ["stereo_metal"]
+# New sizes (`cudnn_hacc` per-shape dispatch): a new padded size builds its fp16-accumulate cuDNN plans on its first
+# call (all calls give the same output). Measured below with the earlier deferral, now
+# `fastforks.kernels.cudnn_hacc.BUILD_AFTER = 3`: first 3 calls on torch convs, builds on the 4th, so a stream of new
+# sizes pays no builds. The deformable convs run on `deform_conv` (fused
+# sampling + mask + conv + BN/ReLU, no column buffer). Mean ms per pair, kernels vs portable (kernels before deform_conv): AANet
+# Midd-H 100.3 vs 144.1 (147.0), ETH3D 39.8 vs 56.7 (88.1); AANet+ Midd-H 93.8 vs 243.9 (208.0), ETH3D 71.2 vs 88.4
+# (79.8); AANet+ Midd-H peak allocated 778 vs 5312 MB.
+
+# Upstream also links KITTI 2012 / 2015 fine-tuned weights of both networks and the StereoNet / GC-Net / PSMNet / GA-Net
+# variants with adaptive aggregation (MODEL_ZOO.md): not added (not available locally). The network code supports them.
+
+[[variants]]
+id = "aanet-sceneflow"
+revision = 1
+# AANet: AANet feature extractor + FPN, StereoDRNet refinement
+weights = [{ mirror = true, name = "aanet_sceneflow.pth", size = 16312526, sha256 = "5aa5a24e2ba8936ef527905f088c21d1dcd813fe43d320f977ced90b54b1eb62", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1_OuMEE5v5DcSUuKUZeCBZ17TZgxi4--h" }]
+params = { plus = false }
+
+[[variants]]
+id = "aanet-plus-sceneflow"
+revision = 1
+# AANet+: GA-Net feature extractor + feature pyramid, hourglass refinement
+weights = [{ mirror = true, name = "aanet+_sceneflow.pth", size = 34339749, sha256 = "d3e13ef00d3d5384dd0e3db3851398ab66846d3e5f17344fd72b12896863b7bd", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1m3Wo2k7w3OlVaDYdIm-x9K8_frQ4Vq9u" }]
+params = { plus = true }
+io = { pad = { multiple = 96 } }  # the original code's inference scripts use 96 for AANet+ (48 for AANet) at the size of the SceneFlow checkpoints

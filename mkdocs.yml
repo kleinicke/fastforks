@@ -1,0 +1,55 @@
+site_name: fastforks
+repo_url: https://github.com/kleinicke/fastforks
+theme:
+  name: material
+  features: [content.code.copy, navigation.sections]
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: false
+            inherited_members: true
+nav:
+  - Home: index.md
+  - Usage: usage.md
+  - Docker and offline: docker.md
+  - Export: export.md
+  - Stereo geometry: stereo_geometry.md
+  - Which model: overview.md
+  - Benchmarks: benchmarks.md
+  - Other GPUs: OTHER_GPUS.md
+  - API:
+      - fastforks: api/index.md
+      - Stereo: api/stereo.md
+      - Stereo geometry: api/geometry.md
+      - Depth: api/depth.md
+      - Classification: api/classification.md
+      - Segmentation: api/segmentation.md
+      - Features: api/features.md
+      - Promptable segmentation: api/promptable_segmentation.md
+      - Detection: api/detection.md
+      - Multi-view: api/multiview.md
+      - Errors: api/errors.md
+  - Models:
+      - Stereo: models/stereo.md
+      - Depth: models/depth.md
+      - Classification: models/classification.md
+      - Segmentation: models/segmentation.md
+      - Features: models/features.md
+      - Promptable segmentation: models/promptable_segmentation.md
+      - Detection: models/detection.md
+      - Multi-view: models/multiview.md
+  - Contributing: contributing.md
+markdown_extensions:
+  - admonition
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.snippets
+  - toc:
+      permalink: true

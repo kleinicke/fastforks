@@ -1,0 +1,42 @@
+schema = 2
+name = "MiDaS v3.1"
+summary = "MiDaS v3.1 (Birkl et al. 2023): relative monocular depth from a BEiT-L/16 encoder and a DPT decoder, trained on a mix of 12 depth datasets."
+tier = "experimental"
+outputs = ["inverse_depth"]
+uses = ["midas_beit"]  # fastforks.shared modules this family imports
+
+[output]
+kind = "affine_invariant_inverse"  # relative disparity: inverse depth up to an unknown scale and shift
+
+[upstream]
+repo = "https://github.com/isl-org/MiDaS"
+commit = "4545977"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "12 datasets (ReDWeb, DIML, Movies, MegaDepth, WSVD, TartanAir, HRWSI, ApolloScape, BlendedMVS, IRS, KITTI, NYU Depth V2) per the MiDaS v3.1 paper (arXiv 2307.14460)"
+evidence = "https://github.com/isl-org/MiDaS/blob/454597711a62eabcbf7d1e89f3fb9f569051ac9b/LICENSE (weights are release assets of the same repository)"
+
+[io]
+input = "mean_std"  # the runner resizes (keep ratio, "minimal" to 512, multiple of 32, bicubic) and normalises itself
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+pad = "none"
+
+[options]
+input_size = { default = 512, min = 32 }  # target side of the original code's "minimal" resize
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]
+
+[[variants]]
+id = "midas-dpt-beit-large-512"
+revision = 1
+weights = [{ name = "dpt_beit_large_512.pt", size = 1581966003, sha256 = "9e9e900747e9e8b3112df716979219836a27716277b3d0dc53889cbba8b82328", url = "https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_beit_large_512.pt" }]

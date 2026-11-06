@@ -1,0 +1,51 @@
+schema = 2
+name = "MoCha-Stereo"
+summary = "MoCha-Stereo (Chen et al. 2024): EfficientNetV2-L features, a motif channel correlation volume next to an IGEV-style geometry volume, 3-level Mogrifier LSTM updates and a refinement step, 32 iterations. mocha-v2-sceneflow is an unofficial reconstruction (the authors released no V2 code)."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/ZYangChen/MoCha-Stereo"
+commit = "78c5889c467fe31414c9425f1280afc0a8f6c1a0"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"  # original states no weights licence
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/ZYangChen/MoCha-Stereo/blob/78c5889c467fe31414c9425f1280afc0a8f6c1a0/README.md#L69"  # README links the Scene Flow weights (GitHub release MoCha-Stereo-V1) with no licence of their own
+
+[io]
+input = "0-255"
+pad = { multiple = 32, mode = "centre", fill = "replicate" }  # original evaluate_stereo.py InputPadder(divis_by=32)
+
+[params]
+max_disp = 192  # geometry-volume depth at full resolution
+
+[options]
+iters = { default = 32, min = 1 }  # LSTM update iterations (original valid_iters)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["igev", "mocha", "cutlass_conv", "cudnn_hacc"]
+mps_kernels = ["stereo_metal"]
+
+[[variants]]
+id = "mocha-v1-sceneflow"
+revision = 1
+# MoCha-Stereo (CVPR 2024), Scene Flow
+params = { mccv = true }
+weights = [{ name = "mocha-stereo.pth", size = 391030339, sha256 = "4d26f51d632145ff080b4c516fad958ef1a8c37914d6a1be81bec2b48e7dbe50", url = "https://github.com/ZYangChen/MoCha-Stereo/releases/download/MoCha-Stereo-V1/mocha-stereo.pth" }]
+
+[[variants]]
+id = "mocha-v2-sceneflow"
+revision = 1
+# Unofficial reconstruction. MoCha-V2 (arXiv 2411.12426, release MoCha-V2), Scene Flow. Upstream publishes no V2 code: the checkpoint is the V1
+# network with a `CCV` module instead of the MCCV that only builds a 1/4 volume, which the hourglass never reads. Like
+# we run it without the MCCV (the hourglass reads the plain left features) and drop the `CCV.` weights.
+params = { mccv = false }
+weights = [{ name = "mocha-V2.pth", size = 391297599, sha256 = "b7cd8969158b3f658c646fc32aa5b369d602e003f26b8ca0d3dd21390c761bc8", url = "https://github.com/ZYangChen/MoCha-Stereo/releases/download/MoCha-V2/mocha-V2.pth" }]

@@ -1,0 +1,68 @@
+schema = 2
+name = "IGEV-Stereo"
+summary = "IGEV-Stereo (Xu et al. 2023): iterative geometry encoding volume, a 3-D regularised group-wise correlation volume refined by ConvGRU updates, 32 iterations."
+tier = "stable"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "igev_blocks", "mobilenetv2"]  # fastforks.shared modules this family imports
+limitations = [
+  "The original code's dtu.ckpt (IGEV-MVS, another architecture) is not included.",
+]
+
+[upstream]
+repo = "https://github.com/gangweix/IGEV"
+commit = "4a3d937aab788b3ff3ed49b7b5c81340ab46a5eb"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"  # original states no weights licence; the code licence is assumed
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/gangweix/IGEV/blob/4a3d937aab788b3ff3ed49b7b5c81340ab46a5eb/README.md#L17"  # README links the weights (Google Drive) with no licence of their own
+
+[io]
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+
+[params]
+max_disp = 192  # cost-volume depth at full resolution
+
+[options]
+iters = { default = 32, min = 1 }  # GRU update iterations
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+mps_kernels = ["stereo_metal"]
+
+# Upstream also publishes dtu.ckpt (IGEV-MVS, another architecture): not part of this family.
+
+[[variants]]
+id = "igev-stereo-sceneflow"
+revision = 1
+weights = [{ mirror = true, name = "sceneflow.pth", size = 50808741, sha256 = "ce482e600c5c08f647b2728553bec73e212ed965be43f7ec41ac6cfd2b11916d", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=16e9NR_RfzFdYT5mPaGwpjccplCi82C2e" }]
+
+[[variants]]
+id = "igev-stereo-middlebury"
+revision = 1
+licence = { training_data = ["unstated"], training_note = "Middlebury submission model" }
+weights = [{ mirror = true, name = "middlebury.pth", size = 50812261, sha256 = "018b6788a3c2d998aa6384d19fa2f511004c1b46c83b100125a0af26ac445dc5", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=12VFCIo6hiVbaTfpk2xOP_olQVTjQbl-B" }]
+
+[[variants]]
+id = "igev-stereo-eth3d"
+revision = 1
+licence = { training_data = ["unstated"], training_note = "ETH3D submission model" }
+weights = [{ mirror = true, name = "eth3d.pth", size = 50812261, sha256 = "de31bb775757f214c0783c8dc8d59c5aca57d30cca8a00cbf87fbbf0259fcb0a", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=19wL74xlvwCVsS0ZbotYDJ7B7K_BCpYzi" }]
+
+[[variants]]
+id = "igev-stereo-kitti12"
+revision = 1
+licence = { training_data = ["sceneflow", "kitti"], training_note = "SceneFlow, then fine-tuned on KITTI (KITTI 2012 submission model)" }
+weights = [{ mirror = true, name = "kitti12.pth", size = 50808741, sha256 = "b940a96d4c7e10080c527c20470a91e59e8c91474a7d1d66f5d4868bb741f513", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1RpymdFO9sjtwDdjHk-PzSwb7h-qPbpis" }]
+
+[[variants]]
+id = "igev-stereo-kitti15"
+revision = 1
+licence = { training_data = ["sceneflow", "kitti"], training_note = "SceneFlow, then fine-tuned on KITTI (KITTI 2015 submission model)" }
+weights = [{ mirror = true, name = "kitti15.pth", size = 50808741, sha256 = "5764931a3ab94ece06d917fe6dd75498cf8452d5f07942b4c6657e6d84552a8f", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1VG47N7gPzkg-FIhge0XHtlOVHDVmMdek" }]

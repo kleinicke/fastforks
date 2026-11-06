@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"
+derived_from = "our HITNet fork (hitnet-official efe9fb7, kernels.cu): level-init cost + argmin, tile SAD, refinement warp SAD; fastforks: first convolution / transposed convolution of the feature head"

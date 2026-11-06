@@ -1,0 +1,44 @@
+schema = 2
+name = "MapAnything"
+summary = "MapAnything (Keetha et al. 2025): metric multi-view reconstruction from unposed images in one forward pass. DINOv2 ViT-g/14 features per view, 16 alternating global / per-view attention blocks with a metric-scale token, a DPT head (ray directions, depth along the ray, confidence, non-ambiguity) and pose / scale heads. Images only (the original code's optional geometric inputs are not supported). Apache-2.0 code and weights (the map-anything-apache checkpoint)."
+tier = "experimental"
+outputs = ["depth", "confidence", "mask", "world_points", "intrinsics", "cam_to_world", "metric_scale"]  # metric_scale: [V] (one value per scene, repeated)
+
+licence_notes = [
+  "The map-anything-apache weights are Apache-2.0, but the repository does not list the datasets they were trained on (the paper names the commercially usable subset), so their training-data terms are unclear here.",
+  "The CC-BY-NC facebook/map-anything checkpoint is not packaged.",
+]
+
+[output]
+kind = "metric"  # metres; world = the first camera (OpenCV axes)
+
+[upstream]
+repo = "https://github.com/facebookresearch/map-anything"
+commit = "3d10cf7"
+
+[licence]
+code = "Apache-2.0"  # our DPT head is a rewrite (uniception's dpt_block.py is CC BY-NC-SA 4.0; not used)
+weights = "Apache-2.0"  # Hugging Face facebook/map-anything-apache: license apache-2.0
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "The apache variant is trained on the subset of the paper's 13 datasets whose licences allow commercial use (README 'Models'; the exact list is in the paper). The CC-BY-NC facebook/map-anything checkpoint is not packaged."
+evidence = "https://github.com/facebookresearch/map-anything/blob/3d10cf7/LICENSE and https://huggingface.co/facebook/map-anything-apache/blob/00f9c245bbcb60522d1ed7f9e9d88462c6e3f38a/README.md"
+
+[io]
+input = "0-1"  # the runner resizes: long side `long_side`, sides multiples of 14, bicubic antialiased (original crops)
+pad = "none"
+
+[options]
+long_side = { default = 518, min = 14, aliases = ["resolution"] }  # network long side (original load_images: 518)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["fastbb"]
+
+[[variants]]
+id = "mapanything-apache"
+revision = 1
+weights = [{ name = "model.safetensors", size = 4914062480, sha256 = "fa06c0fdccefc5048e072c85935d5789b1e36b307f3859033c17f9dcb9fd5201", url = "https://huggingface.co/facebook/map-anything-apache/resolve/00f9c245bbcb60522d1ed7f9e9d88462c6e3f38a/model.safetensors" }]

@@ -1,0 +1,4 @@
+summary = "EdgeNeXt-small feature stages (stem + 4 stages, no head) with timm's module names (timm features_only checkpoints load unchanged)."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/huggingface/pytorch-image-models (edgenext_small layer layout, itself from https://github.com/mmaaz60/EdgeNeXt, MIT; re-implemented)"

@@ -1,0 +1,62 @@
+schema = 2
+name = "CoEx"
+summary = "CoEx (Bangunharcana et al. 2021): MobileNetV2 features, an attention-weighted correlation volume, 3-D aggregation with guided cost excitation, top-2 soft-argmax and superpixel upsampling (max disparity 192)."
+tier = "stable"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "cuda_graphs", "mobilenetv2"]  # fastforks.shared modules this family imports
+limitations = [
+  "SceneFlow-only weights: zero-shot output on real images is poor, so this is mainly a latency reference.",
+  "The original code's KITTI weights (in its git repository) are not included.",
+]
+licence_notes = [
+  "The code is GPL-3.0 (copyleft) and ships in the separate fastforks-nc distribution (`pip install 'fastforks-core[nc]'`); the authors state no weights licence.",
+]
+
+[upstream]
+repo = "https://github.com/antabangun/coex"
+commit = "a98b37d33f37754582b1e71f38216af8c69f2347"
+
+[licence]
+code = "GPL-3.0-only"  # GPL v3 text without an "or later" grant, no per-file headers
+weights = "assumed from code"  # original states no weights licence; the code licence is assumed
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/antabangun/coex/blob/a98b37d33f37754582b1e71f38216af8c69f2347/LICENSE"  # the repository's only licence statement; the README links the weights (Dropbox) with none of their own
+
+[io]
+input = "imagenet"
+pad = { multiple = 32, mode = "bottom_right", fill = "zero" }  # original pads the normalised images below and to the right with zeros
+
+[params]
+max_disp = 192  # cost-volume depth at full resolution
+top_k = 2  # disparity candidates of the soft-argmax
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "stereo_ops"]
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x H x W <= 500k (up to KITTI 375x1242)
+# replays a CUDA graph, captured on a shape's 4th call (below), at most 2 shapes per model (640x480 4.4 ms, before
+# the `stereo_ops` kernels 6.3 ms; eager 10.3 ms). The graph pool stays reserved (up to ~2x eager reserved memory) until `model.release_graphs()`;
+# `options={"cuda_graphs": False}` turns it off. Larger inputs are GPU-bound and run eagerly
+# New sizes (`cudnn_hacc` per-shape dispatch): a new padded size builds its fp16-accumulate cuDNN plans on its first
+# call (all calls give the same output) and captures its CUDA graph on the 4th (time after 4 warm-up calls per size); a
+# stream of new sizes around 640x480 costs 17.7 ms per call (with the deferral below 12.1).
+# Measured below with the earlier deferral, now
+# `fastforks.kernels.cudnn_hacc.BUILD_AFTER = 3`: first 3 calls on torch convs, builds on the 4th (~90 ms incl. the call
+# at ETH3D sizes), so a stream of new sizes pays no builds: Midd-H evaluation 27.3 vs 53.5 ms portable mean per pair
+# (before the `stereo_ops` kernels 35.8). ETH3D, where 2 padded sizes repeat 16 and
+# 8 times: 15.2 vs 15.9 ms (before the cheaper plan builds 20.7).
+
+# SceneFlow-only weights: zero-shot output on real images is poor, so this is mainly a latency reference.
+# Upstream also ships KITTI weights inside its git repository (logs/): not added.
+
+[[variants]]
+id = "coex-sceneflow"
+revision = 1
+weights = [{ name = "sceneflow.ckpt", size = 33177929, sha256 = "e618be2d75cd80bac96d89d45642a397c5379076fb10126f6b1705b782005ab0", url = "https://www.dropbox.com/s/c1v2r74tlbrrmsr/sceneflow.ckpt?dl=1" }]

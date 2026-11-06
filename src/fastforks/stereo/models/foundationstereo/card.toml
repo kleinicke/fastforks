@@ -1,0 +1,53 @@
+schema = 2
+name = "FoundationStereo"
+summary = "FoundationStereo (Wen et al. 2025): zero-shot stereo foundation model with Depth Anything ViT + CNN features, a 3-D regularised cost volume with a disparity transformer and selective ConvGRU updates, 32 iterations."
+tier = "stable"
+outputs = ["disparity"]
+uses = ["depth_anything_v2", "edgenext"]  # fastforks.shared modules this family imports
+limitations = [
+  "ONNX export needs torch >= 2.14 (older exporters fail on this network).",
+]
+licence_notes = [
+  "Code and weights are under the NVIDIA Source Code License-NC (non-commercial research use only). Our kernels for this family count as derived work and inherit the NC limit; the family ships in fastforks-nc.",
+]
+
+[upstream]
+repo = "https://github.com/NVlabs/FoundationStereo"
+commit = "6e8806816b533e4d13ddbb95ffa907b797060a62"
+
+[licence]
+code = "LicenseRef-NVIDIA-Source-Code-License-NC AND Apache-2.0"  # NVIDIA code + the shared DINOv2 / Depth Anything V2 / EdgeNeXt modules (Apache-2.0)
+weights = "LicenseRef-NVIDIA-Source-Code-License-NC"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Foundation Stereo Dataset (FSD, synthetic, NVIDIA) plus SceneFlow, Falling Things, Sintel, CREStereo, InStereo2K and others; no per-dataset terms checked"
+evidence = "https://github.com/NVlabs/FoundationStereo/blob/6e8806816b533e4d13ddbb95ffa907b797060a62/readme.md#L158"
+
+[io]
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+
+[params]
+max_disp = 416
+encoder = "vitl"  # Depth Anything V2 / DINOv2 feature encoder
+
+[options]
+iters = { default = 32, min = 1 }  # GRU update iterations
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["fs", "fs_cutlass", "cudnn_hacc", "fastbb"]
+mps_kernels = ["stereo_metal"]
+
+[[variants]]
+id = "foundationstereo-vit-l"
+revision = 1
+weights = [{ name = "23-51-11/model_best_bp2.pth", size = 3298527334, sha256 = "60e79bde9c6a00acea551625ff814fe06e5a6806e2c0c9829baee248de87c5f1", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1Yh_2o9QCUrVqZrnAXZ7RUr0zTp3JrMKe" }]
+
+[[variants]]
+id = "foundationstereo-vit-s"
+revision = 1
+params = { encoder = "vits" }
+weights = [{ name = "11-33-40/model_best_bp2.pth", size = 787711942, sha256 = "8d7850b9dc68d1366722a02a39745704b1db41471211be6abd93ef463727e6be", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1Ei-EBaF3EQA977zdjbXdmoXE7WuyJ1ib" }]

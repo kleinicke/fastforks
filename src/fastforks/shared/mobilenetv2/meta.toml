@@ -1,0 +1,4 @@
+summary = "MobileNetV2 1.0x feature stages with timm's module names (timm checkpoints load unchanged)."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/huggingface/pytorch-image-models (mobilenetv2_100 layer layout; re-implemented)"

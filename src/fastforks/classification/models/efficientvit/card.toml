@@ -1,0 +1,47 @@
+schema = 2
+name = "EfficientViT (MIT)"
+summary = "EfficientViT (Cai et al. 2023, MIT Han lab): MBConv stages with multi-scale ReLU linear attention."
+tier = "stable"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+evidence = "https://huggingface.co/timm/efficientvit_b2.r288_in1k/blob/891530d0c5a400dd2d4549c81d433661b192abe1/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 288
+crop = 288
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+# Per-shape dispatch (kernels, `_optimize.HACC_PIX`; CNNs on `cudnn_hacc`): inputs of at least 8 x 224 x 224 pixels (batch
+# * H * W) run the fp16-accumulate cuDNN convs (`cudnn_hacc`, plans built on the first call of a size); smaller, launch-bound inputs run the
+# same optimized network on plain fp16 cuDNN convs, which are faster there. This is not a fallback to the portable model.
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+id = "efficientvit_b2.r288_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "efficientvit_b2.r288_in1k.safetensors", size = 97473592, sha256 = "f5726851b5c55fab49f8302a79c3a898814e11bc20df76cc23cab28ae15c7328", url = "https://huggingface.co/timm/efficientvit_b2.r288_in1k/resolve/891530d0c5a400dd2d4549c81d433661b192abe1/model.safetensors" }]
+params = { arch = "efficientvit_b2.r288_in1k" }

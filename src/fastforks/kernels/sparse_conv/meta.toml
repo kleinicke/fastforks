@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"
+derived_from = "our code: fp16 submanifold 3x3x3 conv (gather implicit GEMM over a neighbour table, tiles of voxels sorted by neighbour mask as in FlexGEMM's masked implicit GEMM), neighbour tables and LayerNorm + SiLU for MoGe-3's sparse refiner (no FlexGEMM or NVIDIA code)"

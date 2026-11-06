@@ -1,0 +1,333 @@
+[project]
+name = "fastforks-core"
+version = "0.1.0"
+description = "Fast, typed inference for published vision models: portable PyTorch and custom-kernel backends."
+readme = "README.md"
+license = "Apache-2.0 AND BSD-3-Clause AND MIT"  # + shared/cnn_kernels (MIT) and the CUTLASS-linked kernels (BSD-3-Clause); tests/test_policy.py checks
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "src/fastforks/shared/*/LICENSE*"]
+authors = [{ name = "Florian Kleinicke", email = "coding@f-kleinicke.de" }]
+requires-python = ">=3.11"
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Image Recognition",
+  "Typing :: Typed",
+]
+# Runtime allowlist: nothing else may be imported by library or model code.
+# torch >= 2.8: the oldest release the test suite passes on, CPU and GPU.
+dependencies = [
+  # TIFF writer deflate: python-isal 1.8 (PSF-2.0, bundles Intel ISA-L, BSD-3-Clause). Wheels exist only for CPython
+  # 3.9-3.14 on Linux (glibc + musl) x86_64/aarch64, macOS x86_64/arm64 and Windows AMD64; the marker matches exactly
+  # these (`==`, not the substring `in`, so 32-bit Windows "x86" stays out; Windows reports AMD64, uv's resolver
+  # x86_64); elsewhere pip would build the sdist.
+  # Not expressible as a marker: free-threaded 3.13t (no wheel; 3.14t has one). Without isal the stdlib zlib writes
+  # the same files, slower.
+  "isal>=1.8; platform_python_implementation == 'CPython' and python_version < '3.15' and ((sys_platform == 'linux' and (platform_machine == 'x86_64' or platform_machine == 'aarch64')) or (sys_platform == 'darwin' and (platform_machine == 'x86_64' or platform_machine == 'arm64')) or (sys_platform == 'win32' and (platform_machine == 'AMD64' or platform_machine == 'x86_64')))",
+  # `.las` / `.laz` point clouds (`result.save("scene.laz")`): laspy (BSD-2-Clause, pure Python) and its LAZ codec
+  # lazrs (MIT, Rust). lazrs has wheels for the same CPython platforms as isal, so it takes the same marker; elsewhere
+  # `.las` works and `.laz` needs `pip install lazrs`. Not expressible: free-threaded builds (no lazrs wheel).
+  "laspy>=2.5",
+  "lazrs>=0.6; platform_python_implementation == 'CPython' and python_version < '3.15' and ((sys_platform == 'linux' and (platform_machine == 'x86_64' or platform_machine == 'aarch64')) or (sys_platform == 'darwin' and (platform_machine == 'x86_64' or platform_machine == 'arm64')) or (sys_platform == 'win32' and (platform_machine == 'AMD64' or platform_machine == 'x86_64')))",
+  "numpy>=1.26",
+  "pillow>=10.1",
+  "platformdirs>=4.2",
+  "safetensors>=0.4",
+  "torch>=2.8",
+]
+
+[project.optional-dependencies]
+# Empty on purpose: kernels mode needs nothing beyond torch; the extra keeps `pip install fastforks-core[kernels]` working.
+kernels = []
+# StereoModel.export_onnx / `fastforks export --format onnx` (torch's dynamo ONNX exporter).
+onnx = ["onnx>=1.18", "onnxscript>=0.3", "onnxruntime>=1.23"]  # onnxruntime: the export check
+# TensorRT engines of the portable backend (`fastforks export --format trt`); pick tensorrt-cu12 for CUDA 12 torch.
+tensorrt = ["tensorrt>=10.13"]
+# fastforks.patch() on models built with these libraries, and the classification / segmentation families that
+# build their network with them (we extend timm / torchvision / transformers, we do not re-implement them).
+timm = ["timm>=1.0.30"]  # 1.0.30: the tested version
+torchvision = ["torchvision>=0.23"]
+transformers = ["transformers>=5.19,<6", "scipy>=1.10"]  # scipy: transformers builds Mask2Former / OneFormer with it
+# Every optional library at once (not TensorRT: CUDA-version specific); the `fastforks` metapackage is this plus `nc`.
+libs = ["fastforks-core[timm,torchvision,transformers,onnx]"]
+
+[project.scripts]
+fastforks = "fastforks._core.cli:main"
+
+[project.urls]
+Repository = "https://github.com/kleinicke/fastforks"
+
+[dependency-groups]
+dev = [
+  "huggingface-hub==2.4.0",  # tests of the gated-download path (optional at run time)
+  "opencv-python-headless>=4.10",  # tests only: oracle for fastforks.stereo.geometry
+  "pre-commit==4.7.0",
+  "pytest==9.1.1",
+  "ruff==0.17.2",
+  "ty==0.0.91",
+]
+docs = [
+  "mkdocs-material==9.8.0",
+  "mkdocstrings-python==2.0.10",
+]
+# Exactly one torch flavour: CPU wheels (CI) or CUDA 13.0 wheels (GPU development).
+cpu = ["torch>=2.8", "torchvision>=0.23"]
+cu130 = ["torch>=2.10", "torchvision>=0.25"]
+# Vision model libraries for the classification / segmentation families and fastforks.patch() tests.
+vision = ["timm==1.0.30", "transformers==5.19.0", "scipy==1.17.1"]
+# Export checks: ONNX export + onnxruntime parity (CPU suite), TensorRT engines (GPU checks, CUDA 13 torch).
+export = ["onnx==1.23.2", "onnxscript==0.7.2", "onnxruntime==1.23.2"]
+trt = ["tensorrt-cu13==11.4.0.106"]
+# Kernel builds (tools/build_kernels.py): nvcc matched to the cu130 torch build.
+kernels = [
+  "nvidia-cuda-nvcc==13.0.*",
+  "nvidia-cuda-crt==13.0.*",
+  "nvidia-nvvm==13.0.*",
+  "nvidia-cuda-runtime==13.0.*",
+  "nvidia-cuda-cccl==13.0.*",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fastforks"]
+# A plain build (`pip install .`) carries every model family, like `pip install -e .`, but no golden files and no
+# kernel sources; its licence metadata names only the core licences (see each model card). tools/build_dists.py builds
+# the release wheels: it extends this exclude so the core one keeps the permissive families, plus dists.toml's.
+exclude = ["src/fastforks/*/models/*/golden.toml", "src/fastforks/kernels/*/*.cu"]
+
+[tool.uv]
+default-groups = ["dev", "cu130"]
+conflicts = [[{ group = "cpu" }, { group = "cu130" }]]
+
+[tool.uv.sources]
+# No CUDA wheels for macOS: there the default cu130 group takes the PyPI build (MPS), so `uv run` works on a Mac.
+torch = [
+  { index = "pytorch-cpu", group = "cpu" },
+  { index = "pytorch-cu130", group = "cu130", marker = "sys_platform != 'darwin'" },
+]
+torchvision = [
+  { index = "pytorch-cpu", group = "cpu" },
+  { index = "pytorch-cu130", group = "cu130", marker = "sys_platform != 'darwin'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+# --------------------------------------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests", "tools"]
+
+[tool.ruff.format]
+# Vendored upstream network code keeps upstream formatting so it stays diffable against upstream.
+exclude = ["src/fastforks/*/models/*/net/**", "src/fastforks/shared/*/net/**"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  # Conflict with the formatter (https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules).
+  "COM812",
+  "ISC001",
+  # Conflict with each other: D203/D213 are already deselected by the google convention below.
+  # Unfit for ML code: `import torch.nn.functional as F` is the universal convention.
+  "N812",
+  # Preview-only copyright header rule; licence headers are handled per vendored file.
+  "CPY001",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+  "S101",    # pytest asserts
+  "PLR2004", # literal expected values
+  "D",       # test names are the documentation
+  "INP001",  # tests are not a package
+  "SLF001",  # tests may inspect private state
+  "ANN",     # fixtures and parametrized arguments are typed by pytest
+  "ARG001",  # fixtures requested only for their side effects
+  "S603",    # subprocess runs sys.executable with a literal script
+]
+"src/fastforks/_core/cli.py" = ["T201"]  # the command line prints its output
+"tools/**" = [
+  "T201",   # command-line tools print
+  "INP001", # scripts, not a package
+  "D103",   # helpers of single-purpose scripts; usage is in the module docstring
+  "S603",   # subprocess argv built from repo files and fixed tool names, no shell
+  "S607",   # `git` from PATH in developer tools
+]
+# One-off measurement scripts (not part of the package, not type-checked).
+"runs/**" = ["ANN", "D", "E501", "FURB", "INP001", "PLC3002", "PLR2004", "PTH", "S607", "SLF001", "T201"]
+# Model packages import their own modules relatively, so a model directory is self-contained.
+"src/fastforks/*/models/**" = ["TID252"]
+# Vendored upstream network code: byte-close to upstream (only import lines changed) so upstream fixes can be diffed
+# and ported. Style and annotation rules are off; correctness rules (F, B, S, PLE, PLW, RUF0, ...) stay on.
+"src/fastforks/*/models/*/net/**" = [
+  "D", "Q", "UP", "I", "E", "W", "N", "ANN", "C4", "C90", "COM", "ERA", "FBT", "ARG", "TRY", "EM", "SIM", "RET",
+  "PLR", "PERF", "TID252", "RUF005", "RUF059", "B007", "B905", "E741", "PLC0415", "INP001",
+  "F401", "F841", "T201",  # upstream dead imports / variables and a load-time print (only on shape mismatch)
+  "S101", "A002",  # upstream shape asserts and argument names (`input`)
+  "F403", "F405",  # upstream star imports (IGEV family: `from .submodule import *`)
+  "B006", "PT018", "SLF001", "RUF012",  # upstream list defaults (never mutated), compound asserts, BN affine on modules
+  "EXE", "RUF046", "PTH120", "T100", "A001", "PLW2901", "TD", "FIX", "RUF013", "FLY002", "B008", "RUF007", "PGH003",  # FoundationStereo / DEFOM: pdb imports, loop vars, FIXME notes
+  "PGH004", "RUF100",  # upstream blanket `# noqa` (SAM)
+]
+# VGGT: upstream sets XFORMERS_AVAILABLE = False, so its xformers-only branches name undefined functions (dead code).
+"src/fastforks/multiview/models/vggt/net/layers/{attention,block}.py" = ["F821"]
+# VGGT-Omega: upstream DINOv3 logging f-strings and training helpers in layers/utils.py (git sha, seeding; unused here).
+"src/fastforks/multiview/models/vggt_omega/net/models/layers/{utils,vision_transformer}.py" = [
+  "G004", "BLE001", "NPY002", "PTH100", "S110", "S603", "S607",
+]
+"src/fastforks/shared/*/net/**" = [
+  "PLW2901", "FLY", "TD", "FIX", "PGH003", "RUF013", "RUF012", "RUF100", "B008", "RUF046",  # more upstream (DINOv2 / DPT / EdgeNeXt) style
+  "D", "Q", "UP", "I", "E", "W", "N", "ANN", "C4", "C90", "COM", "ERA", "FBT", "ARG", "TRY", "EM", "SIM", "RET",
+  "PLR", "PERF", "TID252", "RUF005", "RUF059", "B007", "B905", "E741", "PLC0415", "INP001",
+  "F401", "F841", "T201",  # upstream dead imports / variables and a load-time print (only on shape mismatch)
+  "S101", "A002",  # upstream shape asserts and argument names (`input`)
+  "F403", "F405",  # upstream star imports (IGEV family: `from .submodule import *`)
+  "B006", "PT018", "SLF001",  # upstream list defaults (never mutated), compound asserts, BN affine on modules
+]
+# Ported research fast paths (our code from the experiments): relaxed set, to tighten later.
+"src/fastforks/*/models/*/kernels/**" = [
+  "N802", "N803", "N806",                   # tensor shape names (B, C, H, W)
+  "D",                                      # internal helpers; module docstrings carry the design
+  "C901", "PLR0912", "PLR0913", "PLR0915", "PLR0911",
+  "PLR2004",                                # tile sizes, kernel constants
+  "FBT001", "FBT002", "FBT003",
+  "SLF001",                                 # binds fast forwards onto upstream modules
+  "E501",
+  "PLW2901", "SIM108", "RET504",
+  "ARG001", "ARG002", "ARG005",
+  "PLR0917",                                # kernel wrappers mirror the kernel argument lists
+  "TRY003", "EM101", "EM102",
+  "RUF059",                                 # unpacked shapes kept for readability
+  "S101", "PT018", "RUF005", "B007", "B905", "RUF007", "PLW0108", "E731", "PLR0402", "E741",  # FoundationStereo port
+]
+
+# --------------------------------------------------------------------------------------------- ty
+[tool.ty.environment]
+python-version = "3.11"
+extra-paths = ["tests", "tools", "tools/golden"]  # tests/synth.py (shared with tools/golden), tools imported by tests, `_common`
+
+[tool.ty.src]
+include = ["src", "tests", "tools"]
+
+[tool.ty.analysis]
+# Optional extras the CI lint job does not install, and upstream reference trees put on sys.path at run time.
+allowed-unresolved-imports = [
+  "timm", "timm.**", "transformers", "transformers.**", "scipy", "scipy.**", "onnx", "onnx_ir", "onnxruntime",
+  "tensorrt", "laspy", "lazrs", "pycocotools", "pycocotools.**", "depth_anything_v2.**", "s2m2.**",
+]
+
+[tool.ty.rules]
+# Everything else stays at the default (error).
+possibly-unresolved-reference = "error"
+# torch declares `Module.forward` as a mutable `Callable[..., Any]` attribute, so every `def forward` is flagged.
+invalid-mutable-override = "ignore"
+
+# Vendored upstream networks keep their own (loose) annotations, e.g. `x: Tensor = None`, `torch.cat(axis=)`,
+# list kernel sizes, list-of-list defaults typed `[128]`, names bound in loops / under flags; they stay byte-close to
+# upstream and are checked by the golden tests instead.
+[[tool.ty.overrides]]
+include = ["src/fastforks/*/models/*/net/**", "src/fastforks/shared/*/net/**"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore"
+invalid-parameter-default = "ignore"
+invalid-return-type = "ignore"
+invalid-assignment = "ignore"
+unknown-argument = "ignore"
+not-subscriptable = "ignore"
+unsupported-operator = "ignore"
+possibly-unresolved-reference = "ignore"
+no-matching-overload = "ignore"
+call-non-callable = "ignore"  # `self.fuse_layers[-1].append(...)` on a ModuleList indexed as Tensor | Module (AANet)
+redundant-condition = "ignore"  # `if self.q_stride:` on a tuple default (SAM 2 Hiera)
+unresolved-attribute = "ignore"  # `Tensor.require_grad` typo in a dead path, `Optional` members (FoundationStereo)
+invalid-method-override = "ignore"  # `forward(self, x_or_x_list)`, extra `forward` arguments (FoundationStereo)
+possibly-missing-submodule = "ignore"
+unresolved-reference = "ignore"  # xFormers names, only reached when xFormers is available (disabled in our copy)
+
+
+# --------------------------------------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+pythonpath = ["tests", "tools"]  # tests/synth.py (shared with tools/golden); tools checked by tests
+addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+xfail_strict = true
+filterwarnings = ["error"]
+markers = [
+  "model: needs model weights (per-model parity tests)",
+  "gpu: needs a CUDA GPU",
+  "mps: needs an Apple GPU (MPS)",
+]
+
+# VGGT pose_enc: `H, W = image_size_hw` on an argument typed Optional upstream.
+[[tool.ty.overrides]]
+include = ["src/fastforks/multiview/models/vggt/net/utils/pose_enc.py"]
+
+[tool.ty.overrides.rules]
+not-iterable = "ignore"
+
+# Kernel wrappers patch the forward of vendored `nn.Module` trees (free functions taking `self`, `block.conv1.weight`
+# on `Tensor | Module` attributes, `nn.Sequential` indexing). The signatures are annotated (ruff ANN is enforced);
+# only the attribute / call / index rules that torch's loose `Module.__getattr__` typing trips are relaxed.
+[[tool.ty.overrides]]
+include = ["src/fastforks/*/models/*/kernels/**", "src/fastforks/shared/cnn_kernels/**"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore"
+invalid-argument-type = "ignore"
+call-non-callable = "ignore"
+not-subscriptable = "ignore"
+unsupported-operator = "ignore"
+invalid-assignment = "ignore"
+invalid-return-type = "ignore"
+no-matching-overload = "ignore"
+not-iterable = "ignore"
+
+# Tests use duck-typed fakes (`SimpleNamespace` contexts, `Fake` models) and assert on Optional results right after
+# an `assert`-free call; tools are one-off scripts around optional extras. Only the rules those patterns trip are
+# relaxed; unresolved imports, bad calls into src and the like stay errors.
+[[tool.ty.overrides]]
+include = ["tests/**", "tools/**"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore"
+unresolved-attribute = "ignore"
+not-subscriptable = "ignore"
+possibly-unresolved-reference = "ignore"
+invalid-assignment = "ignore"
+invalid-return-type = "ignore"
+invalid-method-override = "ignore"
+no-matching-overload = "ignore"
+deprecated = "ignore"
+unsupported-operator = "ignore"
+
+# Golden-reference scripts import the upstream repos, which exist only in the reference environments.
+[[tool.ty.overrides]]
+include = ["tools/golden/**"]
+
+[tool.ty.overrides.rules]
+unresolved-import = "ignore"

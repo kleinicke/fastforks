@@ -1,0 +1,4 @@
+summary = "Depth Anything V2 backbone pieces (DINOv2 ViT, DPT blocks and head), vendored from upstream without xFormers/cv2."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/DepthAnything/Depth-Anything-V2 (a561b84, Apache-2.0 code; DINOv2 layers (c) Meta, Apache-2.0). Weights are NOT part of this module: DAv2-Small is Apache-2.0, DAv2-Base/Large/Giant are CC-BY-NC-4.0, so a model using them carries that licence in its card."

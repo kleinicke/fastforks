@@ -1,0 +1,14 @@
+# Model distributions cut from this source tree by tools/build_dists.py. The core `fastforks-core` wheel (pyproject.toml)
+# ships every model family whose code licence is permissive; the entries here select the other families by class of
+# the code licence (`_core/licences.py`), across all tasks unless `tasks` is given. Every model family is in exactly
+# one wheel, so wheels never share files. Weights come from the authors' hosts, so a weights licence only changes a
+# variant's listed status, never which wheel its code is in. All distributions install into
+# `fastforks/<task>/models/` and pin the same fastforks-core version; the core wheel installs each as the extra named
+# after it without the `fastforks-` prefix (user 2026-11-03: permissive code by default, the rest behind `[nc]`). The
+# `fastforks` metapackage installs fastforks-core with every distribution here and the `libs` extra.
+
+# fast-foundationstereo (research checkpoint, NC weights) lives in the C-FFS family: only our Apache-2.0 TAO-derived
+# code is used, no research-repo code is copied, so the code class stays permissive; the NC weights are listed on its card.
+[fastforks-nc]
+summary = "Model families whose code licence forbids commercial use or is copyleft (GPL); see each model card."
+code_classes = ["noncommercial", "copyleft"]

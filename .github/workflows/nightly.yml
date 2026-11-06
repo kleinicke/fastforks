@@ -1,0 +1,20 @@
+name: nightly
+on:
+  schedule:
+    - cron: "17 2 * * 0" # weekly (Sunday): the full CPU run takes hours of Actions minutes
+  workflow_dispatch:
+
+jobs:
+  all-models:
+    # CPU golden parity of every model, and every weight / kernel URL still serves the recorded file.
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v5
+      - run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL && df -h / # ~14 GB free is too little for the biggest weights (4.3 GB DINOv2-g next to the venv and goldens)
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --frozen --no-default-groups --group dev --group cpu --group vision # vision: timm / transformers families too
+      - run: printf "FASTFORKS_GOLDEN_PATH=$RUNNER_TEMP/golden\nFASTFORKS_REQUIRE_GOLDENS=1\n" >> "$GITHUB_ENV"
+      - run: uv run --no-sync python tools/fetch_goldens.py --all "$RUNNER_TEMP/golden"
+      - run: uv run --no-sync pytest -m "not gpu"
+      - run: uv run --no-sync python tools/check_urls.py

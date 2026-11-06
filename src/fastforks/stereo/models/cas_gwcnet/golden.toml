@@ -1,0 +1,42 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.05
+gpu_p99 = 0.5
+
+[refs."cas-gwcnet-c-sceneflow@1"]
+sha256 = "288e92f7f742d57e058930dbe7b4fc222e5168c9ea341557bd840c6d139ce124"
+upstream = "https://github.com/alibaba/cascade-stereo@2ae7da65515c82025383a0fbee8d6fe063dc7101"
+patch = "cas-gwcnet-align-corners.patch"
+patch_sha256 = "ab74fa8d4f02ecb3d6efabd232afdea5c817a39bbdb169e49c4f7ea7131e5f18"
+settings = "CPU float32, model gwcnet-c, ndisps 48,24, intervals 4,1, ns 3, torch 2.14.1+cu130"
+
+[refs."cas-gwcnet-gc-sceneflow@1"]
+sha256 = "9328d77946cc1fe6d01c7344c298d1ec83dec2214f7df231c62dc240bed813f6"
+upstream = "https://github.com/alibaba/cascade-stereo@2ae7da65515c82025383a0fbee8d6fe063dc7101"
+patch = "cas-gwcnet-align-corners.patch"
+patch_sha256 = "ab74fa8d4f02ecb3d6efabd232afdea5c817a39bbdb169e49c4f7ea7131e5f18"
+settings = "CPU float32, model gwcnet, ndisps 48,24, intervals 4,1, ns 3, torch 2.14.1+cu130"
+
+[validated."cas-gwcnet-c-sceneflow@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00354
+p99_px = 0.02642
+
+[validated."cas-gwcnet-gc-sceneflow@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00441
+p99_px = 0.07446

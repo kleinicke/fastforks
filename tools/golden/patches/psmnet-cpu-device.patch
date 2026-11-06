@@ -1,0 +1,26 @@
+diff --git a/models/stackhourglass.py b/models/stackhourglass.py
+index 48238de..e4600f1 100644
+--- a/models/stackhourglass.py
++++ b/models/stackhourglass.py
+@@ -107,7 +107,7 @@ class PSMNet(nn.Module):
+ 
+ 
+         #matching
+-        cost = Variable(torch.FloatTensor(refimg_fea.size()[0], refimg_fea.size()[1]*2, self.maxdisp//4,  refimg_fea.size()[2],  refimg_fea.size()[3]).zero_()).cuda()
++        cost = Variable(torch.FloatTensor(refimg_fea.size()[0], refimg_fea.size()[1]*2, self.maxdisp//4,  refimg_fea.size()[2],  refimg_fea.size()[3]).zero_()).to(refimg_fea.device)
+ 
+         for i in range(self.maxdisp//4):
+             if i > 0 :
+diff --git a/models/submodule.py b/models/submodule.py
+index 2953bfd..c07ca66 100644
+--- a/models/submodule.py
++++ b/models/submodule.py
+@@ -45,7 +45,7 @@ class BasicBlock(nn.Module):
+ class disparityregression(nn.Module):
+     def __init__(self, maxdisp):
+         super(disparityregression, self).__init__()
+-        self.disp = torch.Tensor(np.reshape(np.array(range(maxdisp)),[1, maxdisp,1,1])).cuda()
++        self.disp = torch.Tensor(np.reshape(np.array(range(maxdisp)),[1, maxdisp,1,1]))
+ 
+     def forward(self, x):
+         out = torch.sum(x*self.disp.data,1, keepdim=True)

@@ -1,0 +1,14 @@
+diff --git a/bridgedepth/stereo/DPN.py b/bridgedepth/stereo/DPN.py
+index da450c5..556ae4b 100644
+--- a/bridgedepth/stereo/DPN.py
++++ b/bridgedepth/stereo/DPN.py
+@@ -96,7 +96,8 @@ class DPN(nn.Module):
+ 
+         prob_ = prob.clone().detach()
+         prob_[non_local_max] = self.eps
+-        _, disp_seeds = torch.topk(prob_, self.num_proposals, dim=-1)
++        # fastforks golden: ties to the lower index as CUDA's topk (the CPU's partial sort picks any tied bin)
++        disp_seeds = torch.sort(prob_, dim=-1, descending=True, stable=True)[1][..., :self.num_proposals]
+ 
+         # ---- step 2: label seed propagation ---- #
+         context = self.proj(context)  # visual context is used in affinity computation

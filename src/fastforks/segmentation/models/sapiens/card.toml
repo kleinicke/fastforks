@@ -1,0 +1,56 @@
+schema = 2
+name = "Sapiens segmentation"
+summary = "Sapiens (Khirodkar et al. 2024) human body-part segmentation: a ViT pretrained on 300 M human images, fine-tuned with a deconvolution head on Goliath's 28 classes (face, hair, left / right limbs, clothing, lips, teeth, ...); 1024 x 768 input, the Sapiens-Lite TorchScript checkpoints."
+tier = "stable"
+outputs = ["logits"]
+uses = ["seginfer"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/facebookresearch/sapiens"
+commit = "2cb07227a740cf09896309ea3a3b8fa44429865c"
+
+[licence]
+code = "CC-BY-NC-4.0"  # README: "This project is licensed under LICENSE. Portions derived from open-source projects are licensed under Apache 2.0." (LICENSE: CC BY-NC 4.0; the ViT layers come from mmpretrain)
+weights = "CC-BY-NC-4.0"  # Hugging Face model cards facebook/sapiens-seg-*-torchscript: license cc-by-nc-4.0
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "MAE pretraining on Humans-300M (Meta-internal, not released); segmentation fine-tuning on Goliath body-part annotations (Meta, not released)"
+evidence = "https://huggingface.co/facebook/sapiens-seg-1b-torchscript/blob/584504252a6d2a27ea6560927811db734ee42332/README.md"
+
+[io]
+input = "mean_std"  # lite demo: (RGB 0..255 - (123.5, 116.5, 103.5)) / (58.5, 57.0, 57.5), here on the 0..1 scale
+mean = [0.48431372549019608, 0.45686274509803922, 0.40588235294117647]
+std = [0.22941176470588237, 0.22352941176470589, 0.22549019607843138]
+
+[params]
+grid = [64, 48]  # position table of the checkpoints: every image is resized to 1024 x 768 (lite demo default)
+channels = 768  # decode head width
+num_classes = 28
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = [
+  "fastbb",  # flash attention (head_dim 64)
+  "cudnn_hacc",  # fp16-accumulating convolutions and deconvolutions
+  "seg_up",  # logits resize / labels in one pass
+]
+
+[output]
+label_set = "goliath-28"
+
+# Not added: 0.6b (not downloaded here) and 2b (head_dim 64 too, ~8 GB fp32 file; not measured).
+
+[[variants]]
+id = "sapiens-seg-0.3b-goliath"
+revision = 1
+params = { embed_dim = 1024, depth = 24, num_heads = 16 }
+weights = [{ name = "sapiens_0.3b_goliath_best_goliath_mIoU_7673_epoch_194_torchscript.pt2", size = 1358871599, sha256 = "735a9a8d63fe8f3f6a4ca3d787de07e69b1f9708ad550e09bb33c9854b7eafbc", url = "https://huggingface.co/facebook/sapiens-seg-0.3b-torchscript/resolve/18e07d7474a00d30728f22de33325741ce27046f/sapiens_0.3b_goliath_best_goliath_mIoU_7673_epoch_194_torchscript.pt2" }]
+
+[[variants]]
+id = "sapiens-seg-1b-goliath"
+revision = 1
+params = { embed_dim = 1536, depth = 40, num_heads = 24 }
+weights = [{ name = "sapiens_1b_goliath_best_goliath_mIoU_7994_epoch_151_torchscript.pt2", size = 4716314057, sha256 = "33bba30f3de8d9cfd44e4eaa4817b1bfdd98c188edfc87fa7cc031ba0f4edc17", url = "https://huggingface.co/facebook/sapiens-seg-1b-torchscript/resolve/584504252a6d2a27ea6560927811db734ee42332/sapiens_1b_goliath_best_goliath_mIoU_7994_epoch_151_torchscript.pt2" }]

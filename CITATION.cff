@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use fastforks, please cite it as below, and cite the papers of the models you use."
+title: "fastforks"
+abstract: "Fast, typed inference for published vision models: portable PyTorch and custom-kernel backends."
+type: software
+version: 0.1.0
+license: Apache-2.0
+repository-code: "https://github.com/kleinicke/fastforks"
+authors:
+  - family-names: Kleinicke
+    given-names: Florian

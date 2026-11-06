@@ -1,0 +1,43 @@
+schema = 2
+name = "Metric3D v2"
+summary = "Metric3D v2 (Hu et al. 2024): metric depth and surface normals from one image; a DINOv2-reg ViT-L encoder and a RAFT-style iterative depth / normal decoder in a canonical camera space (focal 1000 px), rescaled by the given focal length."
+tier = "experimental"
+licence_notes = [
+  "The upstream README says 'for further commercial inquiries, please contact' the authors; no weights licence is stated, so the BSD-2-Clause code licence is assumed.",
+]
+outputs = ["depth", "normals", "confidence"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the fast ViT)
+limitations = [
+  "The normals convention (camera axes / sign) is not checked against a dataset; it is passed through as original returns it.",
+]
+
+[output]
+kind = "metric"  # metres with the given intrinsics (fx); without them the canonical camera is assumed
+
+[upstream]
+repo = "https://github.com/YvanYin/Metric3D"
+commit = "eb5b6fa"
+
+[licence]
+code = "BSD-2-Clause"
+weights = "assumed from code"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "16M images from 18 public metric-depth datasets (indoor, outdoor, driving) per the Metric3D v2 paper (arXiv 2404.15506); original asks commercial users to contact the authors"
+evidence = "https://github.com/YvanYin/Metric3D/blob/eb5b6fac0dc155e4e52f576e304fbf11655ff339/README.md#license-and-contact"
+
+[io]
+input = "imagenet"  # the runner resizes (keep ratio into 616 x 1064, bilinear), pads with the mean and normalises itself
+pad = "none"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb"]
+
+[[variants]]
+id = "metric3d-vit-large"
+revision = 1
+weights = [{ name = "metric_depth_vit_large_800k.pth", size = 1647972663, sha256 = "15328ffc42b528b95f188687418f6f03b3f123eb34ccdbd686c112abbea6d972", url = "https://huggingface.co/JUGGHM/Metric3D/resolve/80d2d1410afb4b23cd9d18c6be9144483d4b70b6/metric_depth_vit_large_800k.pth" }]

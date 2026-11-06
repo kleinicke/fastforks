@@ -1,0 +1,55 @@
+schema = 2
+name = "EfficientNet"
+summary = "EfficientNet (Tan and Le 2019): compound-scaled MBConv networks with squeeze-excite."
+tier = "stable"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/pytorch/vision"
+commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
+
+[licence]
+code = "BSD-3-Clause"  # torchvision
+weights = "assumed from code"  # torchvision states no separate weights licence
+files = []  # no vendored code: the architecture is torchvision's own module
+training_data = ["imagenet-1k"]
+evidence = "https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 256
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "torchvision"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+# Per-shape dispatch (kernels, `_optimize.HACC_PIX`; CNNs on `cudnn_hacc`): inputs of at least 8 x 224 x 224 pixels (batch
+# * H * W) run the fp16-accumulate cuDNN convs (`cudnn_hacc`, plans built on the first call of a size); smaller, launch-bound inputs run the
+# same optimized network on plain fp16 cuDNN convs, which are faster there. This is not a fallback to the portable model.
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+id = "efficientnet_b0.tv_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "efficientnet_b0_rwightman-7f5810bc.pth", size = 21444401, sha256 = "7f5810bc96def8f7552d5b7e68d53c4786f81167d28291b21c0d90e1fca14934", url = "https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth" }]
+params = { arch = "efficientnet_b0" }
+
+[[variants]]
+id = "efficientnet_b4.tv_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "efficientnet_b4_rwightman-23ab8bcd.pth", size = 78107389, sha256 = "23ab8bcd5bdbef61a7a43b91adcad81f622fd7f36fb4935a569828d77888c44e", url = "https://download.pytorch.org/models/efficientnet_b4_rwightman-23ab8bcd.pth" }]
+params = { arch = "efficientnet_b4" }
+io = { resize = 384, crop = 380 }

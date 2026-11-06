@@ -1,0 +1,32 @@
+diff --git a/unidepth/models/unidepthv2/unidepthv2.py b/unidepth/models/unidepthv2/unidepthv2.py
+index c2a9453..ecadec6 100644
+--- a/unidepth/models/unidepthv2/unidepthv2.py
++++ b/unidepth/models/unidepthv2/unidepthv2.py
+@@ -94,13 +94,13 @@ def _postprocess_intrinsics(K, resize_factors, paddings):
+     K_new = K.clone()
+ 
+     for i in range(batch_size):
+-        scale = resize_factors[i]
++        scale_x, scale_y = resize_factors[i]  # fastforks golden: the actual resize per axis
+         pad_l, _, pad_t, _ = paddings[i]
+ 
+-        K_new[i, 0, 0] /= scale  # fx
+-        K_new[i, 1, 1] /= scale  # fy
+-        K_new[i, 0, 2] /= scale  # cx
+-        K_new[i, 1, 2] /= scale  # cy
++        K_new[i, 0, 0] /= scale_x  # fx
++        K_new[i, 1, 1] /= scale_y  # fy
++        K_new[i, 0, 2] /= scale_x  # cx
++        K_new[i, 1, 2] /= scale_y  # cy
+ 
+         K_new[i, 0, 2] -= pad_l  # cx
+         K_new[i, 1, 2] -= pad_t  # cy
+@@ -328,7 +328,7 @@ class UniDepthV2(
+             interpolation_mode=self.interpolation_mode,
+         )
+         out["intrinsics"] = _postprocess_intrinsics(
+-            model_outputs["intrinsics"], [resize_factor] * B, [paddings] * B
++            model_outputs["intrinsics"], [(new_W / padded_W, new_H / padded_H)] * B, [paddings] * B
+         )
+ 
+         out["radius"] = points.norm(dim=1, keepdim=True)

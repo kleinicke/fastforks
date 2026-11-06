@@ -1,0 +1,54 @@
+schema = 2
+name = "RAFT-Stereo"
+summary = "RAFT-Stereo (Lipson et al. 2021): multi-level GRU updates over a 1-D all-pairs correlation pyramid, 32 iterations."
+tier = "stable"
+outputs = ["disparity"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+limitations = [
+  "raftstereo-realtime.pth and iraftstereo_rvc.pth from the original zip (another architecture / instance-norm context) are not included and not supported by the kernels engine.",
+]
+
+[upstream]
+repo = "https://github.com/princeton-vl/RAFT-Stereo"
+commit = "6e93ed2169bd858dbb43033988563f3b0bb49506"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"  # original states no weights licence; the code licence is assumed
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/princeton-vl/RAFT-Stereo/blob/6e93ed2169bd858dbb43033988563f3b0bb49506/README.md#L79"  # README links the weights (models.zip) with no licence of their own
+
+[io]
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+
+[options]
+iters = { default = 32, min = 1 }  # GRU update iterations
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["raft", "cutlass_conv", "cudnn_hacc"]
+mps_kernels = ["stereo_metal"]
+
+# The upstream zip also holds raftstereo-realtime.pth (other architecture) and iraftstereo_rvc.pth (instance-norm
+# context): not supported by the kernels engine yet.
+
+[[variants]]
+id = "raft-stereo-middlebury"
+revision = 1
+licence = { training_data = ["sceneflow", "middlebury"], training_note = "SceneFlow, then fine-tuned on the 23 Middlebury 2014 training scenes" }
+weights = [{ mirror = true, name = "raftstereo-middlebury.pth", size = 44617876, sha256 = "d22e84c0e431bf31d7cc66902c40601859eb40b35ef7f4399ea81276c2915819", url = "https://www.dropbox.com/scl/fi/5khx1bhz84dapi8vtwapg/models.zip?rlkey=ggddrn1du1iiq6mgc2dsdpmwi&dl=1", member = "raftstereo-middlebury.pth", archive = { size = 201799175, sha256 = "95c5dbbbbb6dd49e71c3fbe42d9e2252f9898666cfffb7ae2c9b68e5e8aa6455" } }]
+
+[[variants]]
+id = "raft-stereo-sceneflow"
+revision = 1
+weights = [{ mirror = true, name = "raftstereo-sceneflow.pth", size = 44617876, sha256 = "ba75bdcb379b4c3942d1e714565d0e66e6b2450a3da8129f54073302d67e0a6d", url = "https://www.dropbox.com/scl/fi/5khx1bhz84dapi8vtwapg/models.zip?rlkey=ggddrn1du1iiq6mgc2dsdpmwi&dl=1", member = "raftstereo-sceneflow.pth", archive = { size = 201799175, sha256 = "95c5dbbbbb6dd49e71c3fbe42d9e2252f9898666cfffb7ae2c9b68e5e8aa6455" } }]
+
+[[variants]]
+id = "raft-stereo-eth3d"
+revision = 1
+licence = { training_data = ["unstated"], training_note = "ETH3D submission model" }
+weights = [{ mirror = true, name = "raftstereo-eth3d.pth", size = 44617748, sha256 = "9ea862904b5bf097a5265ca0469d06a7c3ad33c27e94cb45935109562e0a80ec", url = "https://www.dropbox.com/scl/fi/5khx1bhz84dapi8vtwapg/models.zip?rlkey=ggddrn1du1iiq6mgc2dsdpmwi&dl=1", member = "raftstereo-eth3d.pth", archive = { size = 201799175, sha256 = "95c5dbbbbb6dd49e71c3fbe42d9e2252f9898666cfffb7ae2c9b68e5e8aa6455" } }]

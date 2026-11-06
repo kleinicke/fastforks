@@ -1,0 +1,71 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.0001
+gpu_mean = 0.01
+gpu_p99 = 0.04
+relative = true
+
+[refs."dinov3-convnext-base@1"]
+gated = true
+sha256 = "38f4df94bc5cabd3e3fa9b51a1b7917f2f7474e78e662300fcbc37a8ae03c0dd"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, DINOv3ConvNextModel, 128x160 input, torch 2.14.1+cu130"
+
+[refs."dinov3-convnext-large@1"]
+gated = true
+sha256 = "1caf483d3868cadd2488f150a1cd6861b51652a0be9f2239c50e0372b3f6ac85"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, DINOv3ConvNextModel, 128x160 input, torch 2.14.1+cu130"
+
+[refs."dinov3-convnext-small@1"]
+gated = true
+sha256 = "9bdb0453abda1e21ee6955f903fe77998b1878bc52fa458f986abd36ef0ba601"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, DINOv3ConvNextModel, 128x160 input, torch 2.14.1+cu130"
+
+[refs."dinov3-convnext-tiny@1"]
+gated = true
+sha256 = "b49323e540fcb3be54bb286151dcfee4560d94de8cc27affac3ec1b168274962"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, DINOv3ConvNextModel, 128x160 input, torch 2.14.1+cu130"
+
+[validated."dinov3-convnext-base@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "fvm_seg@739693dff3b4:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_seg" = {"ln_gather_h" = "4df7b38c37d0bd68"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-04"
+mean_px = 0.0054
+p99_px = 0.0206
+
+[validated."dinov3-convnext-large@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "fvm_seg@739693dff3b4:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_seg" = {"ln_gather_h" = "4df7b38c37d0bd68"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-04"
+mean_px = 0.0057
+p99_px = 0.02671
+
+[validated."dinov3-convnext-small@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "fvm_seg@739693dff3b4:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_seg" = {"ln_gather_h" = "4df7b38c37d0bd68"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-04"
+mean_px = 0.00412
+p99_px = 0.01531
+
+[validated."dinov3-convnext-tiny@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "fvm_seg@739693dff3b4:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_seg" = {"ln_gather_h" = "4df7b38c37d0bd68"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-04"
+mean_px = 0.00491
+p99_px = 0.01731

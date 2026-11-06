@@ -1,0 +1,4 @@
+summary = "Segmentation networks built by Hugging Face transformers from a variant's verified files, and the upstream test-time protocols (mmseg / detectron2 resizing, mmseg sliding windows, EoMT windows, mask classification)."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "our fast-vision-models segmentation zoo (segmentation/zoo.py, common.py); the architectures stay in transformers"

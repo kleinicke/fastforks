@@ -1,0 +1,16 @@
+diff --git a/mono/utils/comm.py b/mono/utils/comm.py
+index 939e4e1..00bf82b 100644
+--- a/mono/utils/comm.py
++++ b/mono/utils/comm.py
+@@ -5,7 +5,10 @@ from .avg_meter import AverageMeter
+ from collections import defaultdict, OrderedDict
+ import os
+ import socket
+-from mmcv.utils import collect_env as collect_base_env
++try:
++    from mmcv.utils import collect_env as collect_base_env
++except ImportError:  # baseline-compat: mmcv 2.x / mmengine only
++    from mmengine.utils.dl_utils import collect_env as collect_base_env
+ try:
+     from mmcv.utils import get_git_hash
+ except:

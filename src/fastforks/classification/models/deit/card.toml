@@ -1,0 +1,48 @@
+schema = 2
+name = "DeiT"
+summary = "DeiT (Touvron et al. 2021): ViT trained on ImageNet-1k only."
+tier = "stable"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+evidence = "https://huggingface.co/timm/deit_base_patch16_224.fb_in1k/blob/b78cc5532a69df6bcad9c3a8d76653fd20b31ac6/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 248
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+# Per-shape dispatch (kernels, `_optimize.transformer.lin`): a GEMM with a residual add, fewer than 2048 rows (batch x
+# tokens) and at least 2^29 multiply-adds runs cuBLAS + add instead of the fused CUTLASS GEMM, which is faster there;
+# every other GEMM is the fused kernel. DeiT-B 224 (197 rows) does not reach it. The choice depends on the shape only, so two batch sizes of one image can
+# take different GEMM paths (fp16 rounding differs at the last bit). Measured with the rule on vs off: deit_base 2.85 ms kernels vs 2.94 portable.
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+id = "deit_base_patch16_224.fb_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "deit_base_patch16_224.fb_in1k.safetensors", size = 346284714, sha256 = "cd2da27b74ed7f68b599f16c77af3e1e80f01c75f9ad96029d22ce747a247e8e", url = "https://huggingface.co/timm/deit_base_patch16_224.fb_in1k/resolve/b78cc5532a69df6bcad9c3a8d76653fd20b31ac6/model.safetensors" }]
+params = { arch = "deit_base_patch16_224.fb_in1k" }

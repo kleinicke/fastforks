@@ -1,0 +1,122 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."fast-acvnet-generalization@1"]
+sha256 = "c8ac6d0f43305b63dd85da8576a471038be89424c53ebddec8ccc213add224d5"
+upstream = "https://github.com/gangweix/Fast-ACVNet@61d5375e1816f124f4417cea506eeaddac1504e4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[refs."fast-acvnet-kitti12@1"]
+sha256 = "b3f8623b549583ad8b3a720a32c529eaaf12a8e21ca88e321ac43584ca205965"
+upstream = "https://github.com/gangweix/Fast-ACVNet@61d5375e1816f124f4417cea506eeaddac1504e4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[refs."fast-acvnet-kitti15@1"]
+sha256 = "16959b70029dbeffbf317e8e1bcef5d79887131f34db9405379b9cdb812c82f6"
+upstream = "https://github.com/gangweix/Fast-ACVNet@61d5375e1816f124f4417cea506eeaddac1504e4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[refs."fast-acvnet-plus-generalization@1"]
+sha256 = "6eeeca5eabe16259e768f119a00673c5356213ec4e4997d8d61d9ad76d8c7fba"
+upstream = "https://github.com/gangweix/Fast-ACVNet@61d5375e1816f124f4417cea506eeaddac1504e4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[refs."fast-acvnet-plus-kitti12@1"]
+sha256 = "d3daf1c37a6288e7177422e11cc5c5dcea2cc443957207145d6287cbb966f9f8"
+upstream = "https://github.com/gangweix/Fast-ACVNet@61d5375e1816f124f4417cea506eeaddac1504e4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[refs."fast-acvnet-plus-kitti15@1"]
+sha256 = "e3aeaba60c3109aadc1249af3b8fb8b065ad87cc19a7192fefd54187fec1c68d"
+upstream = "https://github.com/gangweix/Fast-ACVNet@61d5375e1816f124f4417cea506eeaddac1504e4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[refs."fast-acvnet-plus-sceneflow@1"]
+sha256 = "54cdd91b39d34e8e81d461b5b4c81e472d14f384d69a223a604d46d3506fea6e"
+upstream = "https://github.com/gangweix/Fast-ACVNet@61d5375e1816f124f4417cea506eeaddac1504e4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[refs."fast-acvnet-sceneflow@1"]
+sha256 = "ddb9d530debb65264a2260896243aa86461a4aee78cc5ef98fe0085468c924a2"
+upstream = "https://github.com/gangweix/Fast-ACVNet@61d5375e1816f124f4417cea506eeaddac1504e4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[validated."fast-acvnet-generalization@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00092
+p99_px = 0.00938
+
+[validated."fast-acvnet-kitti12@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00112
+p99_px = 0.00401
+
+[validated."fast-acvnet-kitti15@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00147
+p99_px = 0.00436
+
+[validated."fast-acvnet-plus-generalization@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00114
+p99_px = 0.01085
+
+[validated."fast-acvnet-plus-kitti12@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00068
+p99_px = 0.00258
+
+[validated."fast-acvnet-plus-kitti15@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00125
+p99_px = 0.01454
+
+[validated."fast-acvnet-plus-sceneflow@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.01838
+p99_px = 0.06381
+
+[validated."fast-acvnet-sceneflow@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00216
+p99_px = 0.03439

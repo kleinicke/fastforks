@@ -1,0 +1,31 @@
+# Hooks run the tool versions pinned in pyproject.toml (dev group) through uv, so CI and local runs agree.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+        exclude: ^src/fastforks/.*/models/.*/net/
+      - id: trailing-whitespace
+        exclude: ^src/fastforks/.*/models/.*/net/
+      - id: check-added-large-files
+        args: [--maxkb=512]
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --frozen ruff format
+        language: system
+        types: [python]
+      - id: ruff
+        name: ruff check
+        entry: uv run --frozen ruff check --fix
+        language: system
+        types: [python]
+      - id: ty
+        name: ty check
+        entry: uv run --frozen ty check
+        language: system
+        types: [python]
+        pass_filenames: false

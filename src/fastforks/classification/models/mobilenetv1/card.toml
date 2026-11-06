@@ -1,0 +1,49 @@
+schema = 2
+name = "MobileNetV1"
+summary = "MobileNet V1 (Howard et al. 2017): depthwise-separable convolutions (timm weights)."
+tier = "stable"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+evidence = "https://huggingface.co/timm/mobilenetv1_100.ra4_e3600_r224_in1k/blob/6e88b523abded44469eafcd52f7832d5e0300b1b/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "mean_std"
+resize = 256
+crop = 224
+interpolation = "bicubic"
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+# Per-shape dispatch (kernels, `_optimize.HACC_PIX`; CNNs on `cudnn_hacc`): inputs of at least 8 x 224 x 224 pixels (batch
+# * H * W) run the fp16-accumulate cuDNN convs (`cudnn_hacc`, plans built on the first call of a size); smaller, launch-bound inputs run the
+# same optimized network on plain fp16 cuDNN convs, which are faster there. This is not a fallback to the portable model.
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+id = "mobilenetv1_100.ra4_e3600_r224_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "mobilenetv1_100.ra4_e3600_r224_in1k.safetensors", size = 17030248, sha256 = "15c2f1411deb8e0533acbb41fe9523062f80d444d0393e7ad2b429f41378efc3", url = "https://huggingface.co/timm/mobilenetv1_100.ra4_e3600_r224_in1k/resolve/6e88b523abded44469eafcd52f7832d5e0300b1b/model.safetensors" }]
+params = { arch = "mobilenetv1_100.ra4_e3600_r224_in1k" }

@@ -1,0 +1,66 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.05
+gpu_p99 = 0.5
+
+[refs."las2-h@1"]
+sha256 = "8ddd1e76bfe8af082c5ac9d8c98fc75f999162a689e4ab7cfb39242ef061fe01"
+upstream = "https://github.com/TomTomTommi/LiteAnyStereo@8c97bd4c4da3712c2ac60003a23201dfdb5935f4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[refs."las2-l@1"]
+sha256 = "b0770b07551215dd573140c0d8a2636b0e8b8c8ccf8ecb48f40aaed85a0a0195"
+upstream = "https://github.com/TomTomTommi/LiteAnyStereo@8c97bd4c4da3712c2ac60003a23201dfdb5935f4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[refs."las2-m@1"]
+sha256 = "25a5e5c94bb4a3cdeb2692b72cbd6bddf4bc9fd520b0ee787c1df6cc9de159c7"
+upstream = "https://github.com/TomTomTommi/LiteAnyStereo@8c97bd4c4da3712c2ac60003a23201dfdb5935f4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[refs."las2-s@1"]
+sha256 = "9a374c87a96297b32094bb62fd35d249326fd38f916f4c371cf57b45164ca2b6"
+upstream = "https://github.com/TomTomTommi/LiteAnyStereo@8c97bd4c4da3712c2ac60003a23201dfdb5935f4"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[validated."las2-h@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "stereo_ops@899b54f4a755:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73", "affine_act8x" = "8fc98dd41372eb3b", "affine_actx" = "ca5ad43f555f75b3", "defom_lookup" = "b66109ba963ab1a8", "geo_lookup" = "a45447e9edb3f4a9", "gru_update" = "d1b5d534d87e9caf", "gru_zr" = "d28c9176a6b7ece1", "interp_into" = "0fc04d17714db0b2", "interp_into2" = "cb79f763385127b5", "pool2x_into" = "ebe853855c44d114", "pool2x_into2" = "9e6a34ab181beaf8"}, "stereo_ops" = {"corr_volume" = "db4364fb998614e5", "dw_line" = "0e53d9c6a7e1d854", "norm_pad_pair" = "120b256c81c9fe7e", "soft_argmax" = "90128a2a6a5aff6a", "spx_upsample" = "00261574ae32ef2e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00169
+p99_px = 0.00883
+
+[validated."las2-l@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "stereo_ops@899b54f4a755:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73", "affine_act8x" = "8fc98dd41372eb3b", "affine_actx" = "ca5ad43f555f75b3", "defom_lookup" = "b66109ba963ab1a8", "geo_lookup" = "a45447e9edb3f4a9", "gru_update" = "d1b5d534d87e9caf", "gru_zr" = "d28c9176a6b7ece1", "interp_into" = "0fc04d17714db0b2", "interp_into2" = "cb79f763385127b5", "pool2x_into" = "ebe853855c44d114", "pool2x_into2" = "9e6a34ab181beaf8"}, "stereo_ops" = {"corr_volume" = "db4364fb998614e5", "dw_line" = "0e53d9c6a7e1d854", "norm_pad_pair" = "120b256c81c9fe7e", "soft_argmax" = "90128a2a6a5aff6a", "spx_upsample" = "00261574ae32ef2e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.0082
+p99_px = 0.04395
+
+[validated."las2-m@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "stereo_ops@899b54f4a755:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73", "affine_act8x" = "8fc98dd41372eb3b", "affine_actx" = "ca5ad43f555f75b3", "defom_lookup" = "b66109ba963ab1a8", "geo_lookup" = "a45447e9edb3f4a9", "gru_update" = "d1b5d534d87e9caf", "gru_zr" = "d28c9176a6b7ece1", "interp_into" = "0fc04d17714db0b2", "interp_into2" = "cb79f763385127b5", "pool2x_into" = "ebe853855c44d114", "pool2x_into2" = "9e6a34ab181beaf8"}, "stereo_ops" = {"corr_volume" = "db4364fb998614e5", "dw_line" = "0e53d9c6a7e1d854", "norm_pad_pair" = "120b256c81c9fe7e", "soft_argmax" = "90128a2a6a5aff6a", "spx_upsample" = "00261574ae32ef2e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00574
+p99_px = 0.02524
+
+[validated."las2-s@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "stereo_ops@899b54f4a755:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73", "affine_act8x" = "8fc98dd41372eb3b", "affine_actx" = "ca5ad43f555f75b3", "defom_lookup" = "b66109ba963ab1a8", "geo_lookup" = "a45447e9edb3f4a9", "gru_update" = "d1b5d534d87e9caf", "gru_zr" = "d28c9176a6b7ece1", "interp_into" = "0fc04d17714db0b2", "interp_into2" = "cb79f763385127b5", "pool2x_into" = "ebe853855c44d114", "pool2x_into2" = "9e6a34ab181beaf8"}, "stereo_ops" = {"corr_volume" = "db4364fb998614e5", "dw_line" = "0e53d9c6a7e1d854", "norm_pad_pair" = "120b256c81c9fe7e", "soft_argmax" = "90128a2a6a5aff6a", "spx_upsample" = "00261574ae32ef2e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00524
+p99_px = 0.01843

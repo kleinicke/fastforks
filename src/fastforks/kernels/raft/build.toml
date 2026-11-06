@@ -1,0 +1,5 @@
+# Built by tools/build_kernels.py into one cubin per target; manifest.toml is generated from it.
+kind = "cubin"
+sources = ["raft_kernels.cu"]
+targets = ["sm_80", "sm_86", "sm_89", "sm_90", "sm_100", "sm_120", "compute_80"]
+flags = ["-O3", "-std=c++17", "--expt-relaxed-constexpr"]

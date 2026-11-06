@@ -1,0 +1,41 @@
+schema = 2
+name = "Segment Anything 3 (SAM 3), image"
+summary = "Segment Anything 3 (Meta, 2025), image mode: promptable concept segmentation, every instance matching a text and / or exemplar-box prompt (positive / negative boxes; returns boxes, scores, masks). A ViT trunk with an FPN neck, a CLIP text encoder, a geometry encoder, a DETR encoder / decoder with a presence token and a mask decoder (no video tracker). The portable `module()` is the image encoder only."
+tier = "stable"
+outputs = ["boxes", "scores", "masks"]  # the `ConceptSegmentationResult` fields
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+licence_notes = [
+  "The weights use Meta's SAM License, not Apache-2.0; its terms were not re-checked here.",
+]
+
+[upstream]
+repo = "https://github.com/facebookresearch/sam3"
+commit = "0570b3a"
+
+[licence]
+code = "LicenseRef-SAM-License AND Apache-2.0"  # LICENSE = SAM License (the sam3 repo code); LICENSE-transformers = Apache-2.0 (the transformers models/sam3 port this code follows)
+weights = "LicenseRef-SAM-License"
+files = ["LICENSE", "LICENSE-transformers"]
+training_data = ["unstated"]
+training_note = "the SA-Co data engine's image and video annotations plus public and internal datasets per the paper; not released as one dataset"
+evidence = "https://huggingface.co/facebook/sam3/blob/main/LICENSE (SAM License, Nov 19 2025); the weights are gated: download them from Meta's Hugging Face repo after accepting the licence and point FASTFORKS_WEIGHTS_PATH at the local copy; fastforks never mirrors them"
+
+[io]
+input = "mean_std"  # original Sam3Processor: uint8 Resize((1008, 1008)) (bilinear, antialias), /255, Normalize(0.5, 0.5); the runner resizes itself
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+
+[modes.portable]
+cuda_dtype = "float16"  # trunk, neck and text encoder; the geometry encoder, DETR encoder / decoder and the heads stay float32
+
+[modes.kernels]
+kernels = ["fastbb", "cudnn_hacc"]
+
+[[variants]]
+id = "sam3"
+revision = 1
+weights = [
+  { name = "model.safetensors", size = 3439938512, sha256 = "6d06f0a5f84e435071fe6603e61d0b4cc7b40e0d39d487cfd4d67d8cc11cc14a", url = "https://huggingface.co/facebook/sam3/resolve/3c879f39826c281e95690f02c7821c4de09afae7/model.safetensors" },
+  { name = "vocab.json", size = 862328, sha256 = "5047b556ce86ccaf6aa22b3ffccfc52d391ea4accdab9c2f2407da5b742d4363", url = "https://huggingface.co/facebook/sam3/resolve/3c879f39826c281e95690f02c7821c4de09afae7/vocab.json" },
+  { name = "merges.txt", size = 524619, sha256 = "9fd691f7c8039210e0fced15865466c65820d09b63988b0174bfe25de299051a", url = "https://huggingface.co/facebook/sam3/resolve/3c879f39826c281e95690f02c7821c4de09afae7/merges.txt" },
+]

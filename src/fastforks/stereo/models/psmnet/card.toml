@@ -1,0 +1,40 @@
+schema = 2
+name = "PSMNet"
+summary = "PSMNet (Chang and Chen 2018): spatial-pyramid features, a concatenation 3-D cost volume with three stacked 3-D hourglasses and soft-argmin regression (max disparity 192)."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/JiaRenChang/PSMNet"
+commit = "87ac9093afbf6545c093bd9d26c5ffd66e49a7b8"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"  # original states no weights licence
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/JiaRenChang/PSMNet/blob/87ac9093afbf6545c093bd9d26c5ffd66e49a7b8/README.md#L96-L98"  # README links the weights (Google Drive) with no licence of their own
+
+[io]
+input = "imagenet"
+pad = { multiple = 16, mode = "top_right", fill = "zero" }  # the original code's Test_img.py pads the normalized images on top and on the right with zeros
+min_size = 241  # the 64 x 64 pyramid pooling at 1/4 resolution needs padded sizes >= 256
+
+[params]
+max_disp = 192  # cost-volume depth at full resolution
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+
+# Upstream also links KITTI 2012 / 2015 fine-tuned weights and an older (torch 0.4.1) SceneFlow model: not added.
+
+[[variants]]
+id = "psmnet-sceneflow"
+revision = 1
+# SceneFlow model retrained with torch 1.8.1 (README "Scene Flow (torch 1.8.1)")
+weights = [{ name = "pretrained_sceneflow_new.tar", size = 21149386, sha256 = "eb3029f7ed5e62eae26dff42e3e5a44d47f014292ff680c7d76adca4749a9113", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1NDKrWHkwgMKtDwynXVU12emK3G5d5kkp" }]

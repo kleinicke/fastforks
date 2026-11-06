@@ -1,0 +1,56 @@
+schema = 2
+name = "DINOv3 ConvNeXt"
+summary = "DINOv3 ConvNeXt T/S/B/L (Meta, 2025), distilled from the DINOv3 ViT-7B: stride-32 grid features + pooled token (Hugging Face format checkpoints). Gated weights: accept the DINOv3 licence on each model's Hugging Face page, download model.safetensors yourself and put it under FASTFORKS_WEIGHTS_PATH (path and SHA-256 in the load error); fastforks does not send HF_TOKEN there."
+tier = "experimental"
+outputs = ["last_hidden_state", "pooler_output"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+licence_notes = [
+  "Code and weights use the DINOv3 License (Meta: attribution and conditions apply); read it before commercial use.",
+]
+
+[upstream]
+repo = "https://github.com/huggingface/transformers"  # `DINOv3ConvNextModel` (models/dinov3_convnext), the reference of these checkpoints
+commit = "v5.19.0"  # release tag; model.py re-implements its eval maths with the checkpoint's parameter names
+
+[licence]
+code = "LicenseRef-DINOv3-License"
+weights = "LicenseRef-DINOv3-License"
+files = ["LICENSE.md"]
+training_data = ["unstated"]
+training_note = "distilled from the DINOv3 ViT-7B teacher on LVD-1689M (1.689B images curated from public Instagram images), self-supervised, per the paper; not released"
+evidence = "https://huggingface.co/facebook/dinov3-convnext-tiny-pretrain-lvd1689m/blob/10d30274b4d445111e2d5bf75ac93bbd94db274b/LICENSE.md (DINOv3 License; gated: accept on Hugging Face to download)"
+
+[io]
+input = "imagenet"
+interpolation = "bilinear"  # as the checkpoints' preprocessor_config.json; the core resizes (never pads / crops) to multiples of 32, antialiased
+pad = { multiple = 32, mode = "none" }
+
+[modes.portable]
+cuda_dtype = "float16"
+
+[modes.kernels]
+kernels = ["fvm_conv", "fvm_seg"]  # _optimize.conv_ops (fvm_conv) + fvm_seg: the only libraries this family imports
+
+[[variants]]
+id = "dinov3-convnext-tiny"
+revision = 1
+params = { arch = "tiny" }
+weights = [{ name = "dinov3-convnext-tiny-pretrain-lvd1689m/model.safetensors", size = 111299216, sha256 = "bd30a9459d6149564ef53af6e8a1999980953b009b94cde836ac1bac4d339cb2", url = "https://huggingface.co/facebook/dinov3-convnext-tiny-pretrain-lvd1689m/resolve/10d30274b4d445111e2d5bf75ac93bbd94db274b/model.safetensors" }]
+
+[[variants]]
+id = "dinov3-convnext-small"
+revision = 1
+params = { arch = "small" }
+weights = [{ name = "dinov3-convnext-small-pretrain-lvd1689m/model.safetensors", size = 197854928, sha256 = "8182492b73345ceb449ed6be0de486d778a73afb273ba2684de785a71ef1da9d", url = "https://huggingface.co/facebook/dinov3-convnext-small-pretrain-lvd1689m/resolve/421020015aa4266363db803b6049a529999afb1e/model.safetensors" }]
+
+[[variants]]
+id = "dinov3-convnext-base"
+revision = 1
+params = { arch = "base" }
+weights = [{ name = "dinov3-convnext-base-pretrain-lvd1689m/model.safetensors", size = 350302312, sha256 = "ec90bd798b5fc5b8e30443796a6c24a7a73e28ad85c6c0ceda78b1d249a694cc", url = "https://huggingface.co/facebook/dinov3-convnext-base-pretrain-lvd1689m/resolve/e619358a5fe272554f17d2fb6cc65a679326bac0/model.safetensors" }]
+
+[[variants]]
+id = "dinov3-convnext-large"
+revision = 1
+params = { arch = "large" }
+weights = [{ name = "dinov3-convnext-large-pretrain-lvd1689m/model.safetensors", size = 784957976, sha256 = "8bab82eaa133954d0557bebf70416e0b667fa417a19ea47b697683b34190633d", url = "https://huggingface.co/facebook/dinov3-convnext-large-pretrain-lvd1689m/resolve/e959efa74c867491dcfe3ec3e4f97382e39025b3/model.safetensors" }]

@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"
+derived_from = "fastforks (written for the kernels path on Apple MPS): ConvGRU gates, 1-D correlation lookup (RAFT-Stereo), geometry / correlation lookup (IGEV family), warped stage volume (CFNet), group-wise correlation volume (LaS2), level-init cost and warp SADs (HITNet), deformable-convolution columns (AANet), group correlation (CREStereo), window attention with relative-position embeddings (NMRF, BridgeDepth; the math of `fastbb` win_rpe_attn)"

@@ -1,0 +1,40 @@
+schema = 2
+name = "PatchmatchNet"
+summary = "PatchmatchNet (Wang et al. 2021): learned PatchMatch multi-view stereo, the depth of a reference view from posed, calibrated source views and a depth search range. Three coarse-to-fine PatchMatch stages (random initialisation, adaptive propagation, group-wise correlation with pixel-wise view weights, adaptive spatial cost aggregation) on FPN features, then a depth refinement net at full resolution."
+tier = "experimental"
+outputs = ["depth", "confidence"]  # confidence: original photometric confidence (probability mass around the regressed depth)
+
+licence_notes = [
+  "The code is MIT; the checkpoint ships in the repository without a licence of its own (MIT assumed) and is trained on DTU, whose terms of use are not stated.",
+]
+
+[output]
+kind = "metric"  # in the units of the given cam_to_world and depth_range
+
+[upstream]
+repo = "https://github.com/FangjinhuaWang/PatchmatchNet"
+commit = "8dc6cb4"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"
+files = ["LICENSE"]
+training_data = ["dtu"]
+training_note = "The released checkpoint (checkpoints/params_000007.ckpt) is trained on DTU (README); the paper evaluates it zero-shot on Tanks and Temples and ETH3D"
+evidence = "https://github.com/FangjinhuaWang/PatchmatchNet/blob/8dc6cb4/LICENSE and README.md (the checkpoint ships in the repository)"
+
+[io]
+input = "0-1"  # original reads images / 255; the runner resizes to multiples of 8 itself (bilinear, as original)
+pad = "none"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["patchmatchnet"]
+
+[[variants]]
+id = "patchmatchnet"
+revision = 1
+weights = [{ name = "params_000007.ckpt", size = 2839519, sha256 = "477b056c62355d82649cdd00a01086a34183ac11f2ce0ddabbf84efb0248d8d4", url = "https://github.com/FangjinhuaWang/PatchmatchNet/raw/8dc6cb40bdb7053e856598b378425c76a9dcf5e0/checkpoints/params_000007.ckpt" }]

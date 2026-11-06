@@ -1,0 +1,47 @@
+schema = 2
+name = "MobileNetV4"
+summary = "MobileNetV4 (Qin et al. 2024): universal inverted bottlenecks (conv-medium)."
+tier = "stable"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+evidence = "https://huggingface.co/timm/mobilenetv4_conv_medium.e500_r256_in1k/blob/ad66898c045c1b5223ea3f2c0830b74cf2e75bac/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 269
+crop = 256
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+# Per-shape dispatch (kernels, `_optimize.HACC_PIX`; CNNs on `cudnn_hacc`): inputs of at least 8 x 224 x 224 pixels (batch
+# * H * W) run the fp16-accumulate cuDNN convs (`cudnn_hacc`, plans built on the first call of a size); smaller, launch-bound inputs run the
+# same optimized network on plain fp16 cuDNN convs, which are faster there. This is not a fallback to the portable model.
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+id = "mobilenetv4_conv_medium.e500_r256_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "mobilenetv4_conv_medium.e500_r256_in1k.safetensors", size = 39179184, sha256 = "35ca23dc46c0075d9acdcab06d30e5395c4d97e422d8cb5e5e627823aeb7c1fa", url = "https://huggingface.co/timm/mobilenetv4_conv_medium.e500_r256_in1k/resolve/ad66898c045c1b5223ea3f2c0830b74cf2e75bac/model.safetensors" }]
+params = { arch = "mobilenetv4_conv_medium.e500_r256_in1k" }

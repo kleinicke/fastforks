@@ -1,0 +1,57 @@
+schema = 2
+name = "BridgeDepth"
+summary = "BridgeDepth (Guan et al. 2025): Depth Anything V2 (ViT-L) features combined with NMRF stereo hypotheses; window-attention message passing between mono and stereo embeddings, inference at 1/8 resolution plus a 1/4 refinement."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
+licence_notes = [
+  "The weights embed Depth Anything V2 weights released under CC-BY-NC-4.0, so they are non-commercial even though the code is MIT.",
+]
+
+[upstream]
+repo = "https://github.com/aeolusguan/BridgeDepth"
+commit = "9a231601e6981d3536fa6a78ebaccebc1edb99a4"
+
+[licence]
+code = "MIT"
+weights = "CC-BY-NC-4.0"  # the checkpoints contain the Depth Anything V2 ViT-L weights (CC-BY-NC-4.0); original states no licence for its own weights
+files = ["LICENSE", "LICENSE-torchvision"]  # net/convnext.py is reduced from torchvision (BSD-3-Clause)
+training_data = ["sceneflow"]
+evidence = "https://github.com/aeolusguan/BridgeDepth/blob/9a231601e6981d3536fa6a78ebaccebc1edb99a4/README.md#L40"  # README checkpoint table (Hugging Face aeolusguan/BridgeDepth); the mono branch is DAv2-L, whose weights are CC-BY-NC-4.0 (https://huggingface.co/depth-anything/Depth-Anything-V2-Large)
+
+[io]
+input = "0-255"
+pad = { multiple = 16, mode = "top_right", fill = "replicate" }  # original InputPadder(mode="nmrf", divis_by=16)
+
+[params]
+encoder = "vitl"  # DINOv2 encoder of the Depth Anything V2 branch
+backbone = "resnet"  # stereo feature encoder: "resnet" (BasicEncoder) or "convnext" (ConvNeXt-T + DPT)
+backbone_channels = 256
+max_disp = 320  # disparity range of the proposal cost volume (at full resolution)
+
+[modes.portable]
+cuda_dtype = "float16"  # original runs the mono branch under float16 autocast; our fork runs the whole net so
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb"]
+mps_kernels = ["stereo_metal"]
+# Kernels: the portable float16 path with every window attention as one fused kernel (fastbb win_rpe_attn, as NMRF) and
+# the Depth Anything V2 ViT-L as the fp16 DINOv2 of fastforks.shared.depth_anything_v2 (fp16-accumulate GEMMs, fastbb
+# flash attention). Middlebury-H 350 vs 437 ms (our earlier fork 430), peak 2.7 vs 2.9 GB; KITTI 92.9 vs 111.6 ms
+
+# Upstream also publishes l_sf (a
+# Scene Flow pretraining checkpoint for fine-tuning; fails on real images: not added), rvc and the KITTI / ETH3D /
+# Middlebury fine-tunes (not added yet).
+
+[[variants]]
+id = "bridgedepth-sf"
+revision = 1
+weights = [{ name = "bridge_sf.pth", size = 1386085217, sha256 = "d2cd44b6f749ca5b0b901ed23df13e0454dc210e79b304c41c245f7085bba829", url = "https://huggingface.co/aeolusguan/BridgeDepth/resolve/4a96016c4cf01473f90ba80ff5983af7cfb026d3/bridge_sf.pth" }]
+
+[[variants]]
+id = "bridgedepth-rvc-pretrain"
+revision = 1
+params = { backbone = "convnext", backbone_channels = 128 }
+licence = { training_data = ["sceneflow", "falling_things", "crestereo", "tartanair", "sintel", "unstated"], training_note = "configs/rvc_pretrain.yaml: Scene Flow, Falling Things, CREStereo, TartanAir, CARLA high-res, Sintel, Virtual KITTI 2 (started from l_sf, Scene Flow); README recommends it for in-the-wild use" }
+weights = [{ name = "bridge_rvc_pretrain.pth", size = 1439973233, sha256 = "4cb8d0395e6733a92f1d998077dc08b4e6b17a1b4f9cd814593cf8cf8c8842f9", url = "https://huggingface.co/aeolusguan/BridgeDepth/resolve/4a96016c4cf01473f90ba80ff5983af7cfb026d3/bridge_rvc_pretrain.pth" }]

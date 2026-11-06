@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0 AND BSD-3-Clause"
+derived_from = "our mono-depth fork (attempt/trtgap 2171802: mfs_fused.cu, mono_kernels.cu), itself from our classification-CNN / RAFT-Stereo kernels; compiled against CUTLASS v4.7.1 headers (BSD-3-Clause)"

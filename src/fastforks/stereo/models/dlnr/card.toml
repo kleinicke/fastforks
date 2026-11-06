@@ -1,0 +1,52 @@
+schema = 2
+name = "DLNR"
+summary = "DLNR (Zhao et al. 2023): Restormer channel-attention feature extractor, a RAFT-Stereo style 1-D correlation pyramid and 3-level LSTM updates with normalization refinement, 10 iterations."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/David-Zhao-1997/High-frequency-Stereo-Matching-Network"
+commit = "c10475fe30ff198781ecc7c712c24c781ff05096"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"  # original states no weights licence
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/David-Zhao-1997/High-frequency-Stereo-Matching-Network/blob/c10475fe30ff198781ecc7c712c24c781ff05096/README.md#L84"  # README links the weights (GitHub release v1.0.0) with no licence of their own
+
+[io]
+input = "0-255"
+pad = { multiple = 32, mode = "centre", fill = "replicate" }  # original evaluate_stereo.py InputPadder(divis_by=32)
+
+[options]
+iters = { default = 10, min = 1 }  # LSTM update iterations (original valid_iters)
+
+[modes.portable]
+cuda_dtype = "float16"  # original evaluates under float16 autocast (mixed_precision defaults to on)
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["raft", "igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
+# Kernels: the convs outside the Restormer blocks on the fp16-accumulate / CUTLASS kernels (LSTM gates with the context
+# and sigmoids in the epilogue), the fp16 correlation volume + lookup of the RAFT-Stereo kernels, the refinement
+# hourglass in fp16 (portable: fp32, 75 of 400 ms at Middlebury-H), the Restormer blocks on the fastbb LayerNorm /
+# depthwise / GELU-gate kernels (port of our earlier version). Middlebury-H 213 vs 398 ms (our earlier fork 265), peak 1.2 vs 2.6 GB;
+# KITTI 75 vs 118 ms.
+# Upstream also publishes DLNR_KITTI2015.pth (not added yet).
+# ETH3D (30-34 % bad > 1 px, EPE 5.9 for both checkpoints) is upstream behaviour, not a porting error: upstream
+# (CPU fp32, InputPadder /32, 10 iters) and our portable fp32 agree to 0.0003-0.0009 px mean on forest_1s
+# (EPE 36.4), delivery_area_2l (EPE 18.2) and electro_1l (EPE 0.29); found the same with upstream's
+# evaluate_stereo.py (5.93 / 30.3 %). A few grey low-texture pairs fail outright; Middlebury-H is fine.
+
+[[variants]]
+id = "dlnr-sceneflow"
+revision = 1
+weights = [{ name = "DLNR_SceneFlow.pth", size = 229811941, sha256 = "76e5e66694919133db9cfc8f663cde540b4edf339db37040631befc6fb046e52", url = "https://github.com/David-Zhao-1997/High-frequency-Stereo-Matching-Network/releases/download/v1.0.0/DLNR_SceneFlow.pth" }]
+
+[[variants]]
+id = "dlnr-middlebury"
+revision = 1
+licence = { training_data = ["sceneflow", "middlebury"], training_note = "SceneFlow, then fine-tuned on Middlebury (README; the training set is not stated)" }
+weights = [{ name = "DLNR_Middlebury.pth", size = 229811941, sha256 = "57e46b8fed66b685f732b730ebffd71998dcabea49f8443ca77e015419f6ae18", url = "https://github.com/David-Zhao-1997/High-frequency-Stereo-Matching-Network/releases/download/v1.0.0/DLNR_Middlebury.pth" }]

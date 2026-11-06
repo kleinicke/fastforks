@@ -1,0 +1,70 @@
+schema = 2
+name = "detectron2 Mask / Faster R-CNN (R50-FPN)"
+summary = "Mask R-CNN (He et al. 2017) and Faster R-CNN (Ren et al. 2015) from the detectron2 model zoo, COCO, ResNet-50 + FPN backbone, RPN proposals, ROIAlign box head (+ mask head); returns boxes, classes and instance masks at the input size. The portable `module()` is backbone + FPN."
+tier = "stable"
+outputs = ["boxes", "scores", "labels", "masks"]
+licence_notes = [
+  "The detectron2 model-zoo weights are CC-BY-SA-3.0 (share-alike), and the COCO images carry their own licences.",
+]
+
+[upstream]
+repo = "https://github.com/facebookresearch/detectron2"
+commit = "1e3e13b"
+
+[licence]
+code = "Apache-2.0"
+weights = "CC-BY-SA-3.0"  # detectron2 MODEL_ZOO.md: "All models available for download through this document are licensed under the Creative Commons Attribution-ShareAlike 3.0 license"
+files = ["LICENSE"]
+training_data = ["coco"]
+training_note = "COCO 2017 train (3x schedule); the ResNet-50 backbone was initialised from MSRA's ImageNet-1k model"
+evidence = "https://github.com/facebookresearch/detectron2/blob/1e3e13bbf607b54f62205c4c33922521822fb298/MODEL_ZOO.md (License section)"
+
+[io]
+input = "mean_std"  # original subtracts PIXEL_MEAN (BGR 103.530, 116.280, 123.675) from 0..255 values, PIXEL_STD 1; the runner resizes (shortest side min_size, PIL bilinear), normalises and pads itself
+mean = [0.485, 0.456, 0.406]
+std = [0.00392156862745098, 0.00392156862745098, 0.00392156862745098]
+
+[params]
+blocks = [3, 4, 6, 3]  # ResNet-50
+fpn_dim = 256
+num_anchors = 3
+box_pool = 7
+mask_pool = 14
+fc_dim = 1024
+num_classes = 80
+min_size = 800  # INPUT.MIN_SIZE_TEST
+max_size = 1333  # INPUT.MAX_SIZE_TEST
+size_divisibility = 32
+anchor_sizes = [32, 64, 128, 256, 512]  # one per level P2 .. P6
+aspect_ratios = [0.5, 1.0, 2.0]
+pre_nms_topk = 1000  # RPN, per level (test)
+post_nms_topk = 1000  # RPN, per image (test)
+rpn_nms = 0.7
+box_nms = 0.5
+
+[options]
+score_threshold = { default = 0.05, min = 0.0, max = 1.0 }  # MODEL.ROI_HEADS.SCORE_THRESH_TEST
+max_detections = { default = 100, min = 1 }  # TEST.DETECTIONS_PER_IMAGE
+
+[modes.portable]
+cuda_dtype = "float16"  # backbone, FPN, RPN / box / mask heads; ROIAlign, box decoding, NMS and mask pasting stay float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU / conv-add-ReLU)
+
+[output]
+label_set = "coco-80"
+
+[[variants]]
+id = "mask-rcnn-r50-fpn-3x-coco"
+revision = 1
+params = { mask = true }
+weights = [{ name = "mask_rcnn_R_50_FPN_3x.pkl", size = 177841981, sha256 = "9a737e290372f1f70994ebcbd89d8004dbb3ae30a605fd915a190fa4a782dd66", url = "https://dl.fbaipublicfiles.com/detectron2/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl" }]
+
+[[variants]]
+id = "faster-rcnn-r50-fpn-3x-coco"
+revision = 1
+outputs = ["boxes", "scores", "labels"]
+params = { mask = false }
+weights = [{ name = "faster_rcnn_R_50_FPN_3x.pkl", size = 167266879, sha256 = "3c25caca37baabbff3e22cc9eb0923db165a0c18b867871a3bf3570bac9b7ef0", url = "https://dl.fbaipublicfiles.com/detectron2/COCO-Detection/faster_rcnn_R_50_FPN_3x/137849458/model_final_280758.pkl" }]

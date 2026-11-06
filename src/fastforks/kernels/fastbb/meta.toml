@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"
+derived_from = "fastbb (our backbone kernels, Apache-2.0, export fastbb): flash attention for head_dim 64, NHWC instance norm, the in-place DINOv3 q / k RoPE, the Restormer LayerNorm / depthwise / GELU-gate kernels (fastbb.normconv, fastbb.fused); the DINOv2 flash attention follows the usual online-softmax scheme. win_rpe_attn: the fused window attention of our NMRF fork (nmrf_kernels.cu, our code)"

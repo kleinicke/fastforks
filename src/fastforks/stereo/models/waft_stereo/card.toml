@@ -1,0 +1,60 @@
+schema = 2
+name = "WAFT-Stereo"
+summary = "WAFT-Stereo (Wang and Deng 2025): warping instead of a cost volume; Depth Anything V2 (LoRA) features, a ViT-based disparity proposal and 3 warp-and-refine iterations."
+tier = "stable"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "depth_anything_v2"]  # fastforks.shared modules this family imports
+limitations = [
+  "Only the two SynLarge checkpoints (S, B) are included; DAv2L-5 and the Real / KITTI / Middlebury fine-tunes are not.",
+  "Portable WAFT-B is slightly slower than the original code and allocates slightly more memory; kernels is about 3x faster with a third of the memory.",
+  "WAFT-Stereo-B kernels runs its ViT attention with fp16 accumulation: single attention outputs differ from fp32 by up to 34 % (relative), but end-to-end ETH3D / Middlebury-H accuracy matches the fp32 original (EPE 0.163 / 0.728).",
+]
+licence_notes = [
+  "WAFT-Stereo-B is labelled CC-BY-NC-4.0 conservatively although the Hugging Face card says BSD-3-Clause: the checkpoint embeds a fine-tuned Depth Anything V2 ViT-B whose original weights are CC-BY-NC-4.0.",
+  "Both checkpoints were trained on data that includes NVIDIA's FSD dataset, whose terms for commercial use of trained models are unclear; the status does not depend on the training data.",
+]
+
+[upstream]
+repo = "https://github.com/princeton-vl/WAFT-Stereo"
+commit = "c534320860f4bbb2c0df896e3ccb95de49284aec"
+
+[licence]
+code = "BSD-3-Clause"
+weights = "BSD-3-Clause"  # Hugging Face model card of MemorySlices/WAFT-Stereo: license bsd-3-clause
+files = ["LICENSE"]
+training_data = ["sceneflow", "unstated"]
+training_note = "SceneFlow, TartanAir, CREStereo, Falling Things, Sintel, Virtual KITTI 2, UnrealStereo4K, WMGStereo, CARLA, Spring, TartanGround, FSD (configs/SynLarge/*.yaml); only SceneFlow is in datasets.toml"
+evidence = "https://github.com/princeton-vl/WAFT-Stereo/blob/c534320860f4bbb2c0df896e3ccb95de49284aec/LICENSE; vendored files (net/*.py) checked against c534320: none carries an NVIDIA or FoundationStereo header, original only credits FoundationStereo in its README, so BSD-3-Clause holds"  # code; the weights' licence is from https://huggingface.co/MemorySlices/WAFT-Stereo (README front matter)
+
+[io]
+input = "0-255"  # the network normalises with the ImageNet mean / std and pads to a multiple of 16 itself (zeros after normalisation)
+pad = "none"
+min_size = 17  # 16 x 16 px images reach an InstanceNorm over 1 x 1 px, which raises (17 bounds the smaller side)
+
+[params]
+max_disp = 800
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
+
+# Upstream also publishes DAv2L-5 (SynLarge) and the Real/ KITTI and Middlebury fine-tunes; only the two SynLarge
+# checkpoints below are available locally and added so far.
+
+[[variants]]
+id = "waft-stereo-s"
+revision = 1
+params = { arch = "vits" }
+weights = [{ name = "DAv2S-4.pth", size = 747814994, sha256 = "340d6bff17adff7d4b488b394250464abd9c9dcdee4682f7014f247011b5cef9", url = "https://huggingface.co/MemorySlices/WAFT-Stereo/resolve/dfcf8ac0b65966aaaec86abb682030ae6ed66a8e/SynLarge/DAv2S-4.pth" }]
+
+[[variants]]
+id = "waft-stereo-b"
+revision = 1
+params = { arch = "vitb" }
+# The checkpoint contains the (fine-tuned) Depth Anything V2 ViT-B encoder, whose weights are CC-BY-NC-4.0; the HF
+# card states BSD-3-Clause for the whole checkpoint. Treated as non-commercial until the authors clarify.
+licence = { weights = "CC-BY-NC-4.0" }
+weights = [{ name = "DAv2B-4.pth", size = 1127676882, sha256 = "65c52425722edab5916e8fa7d4c8848faba3b30beb507010d54fa35ec17fa046", url = "https://huggingface.co/MemorySlices/WAFT-Stereo/resolve/dfcf8ac0b65966aaaec86abb682030ae6ed66a8e/SynLarge/DAv2B-4.pth" }]

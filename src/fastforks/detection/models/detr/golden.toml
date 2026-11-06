@@ -1,0 +1,40 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.2
+gpu_p99 = 1.0
+
+[refs."detr-r101-coco@1"]
+sha256 = "e85cb491d77401af9ea7402827eb4c1aab137487f354a5741e80584765a5dacd"
+upstream = "https://github.com/facebookresearch/detr@29901c51d7fe8712168b8d0d64351170bc0f83e0"
+settings = "CPU float32, official eval transform + PostProcess, skimage coffee.png, score threshold 0.5, torch 2.14.1+cu130"
+options = [["score_threshold", 0.5]]
+
+[refs."detr-r50-coco@1"]
+sha256 = "1c699677b0637a9913c663a9f74f7f5ffebb4e59b2a5327af4fe836c9c545d06"
+upstream = "https://github.com/facebookresearch/detr@29901c51d7fe8712168b8d0d64351170bc0f83e0"
+settings = "CPU float32, official eval transform + PostProcess, skimage coffee.png, score threshold 0.5, torch 2.14.1+cu130"
+options = [["score_threshold", 0.5]]
+
+[validated."detr-r101-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-03"
+mean_px = 0.03227
+p99_px = 0.07451
+
+[validated."detr-r50-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-03"
+mean_px = 0.02003
+p99_px = 0.04454

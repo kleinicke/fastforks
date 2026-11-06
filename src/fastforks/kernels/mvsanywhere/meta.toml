@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"
+derived_from = "our MVSAnywhere fork (mvsanywhere-opt 496243b, fast_cv.cu): fused cost volume and stem pooling, our code (no Niantic / Adobe code); MLP weights moved from module constants to a by-value kernel parameter"

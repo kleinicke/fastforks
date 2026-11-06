@@ -1,0 +1,24 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."coex-sceneflow@1"]
+sha256 = "394202a2a3ebcbaa068a0e46683ecd0153bbb5e2a31fc3a3ed77e426a758ce65"
+upstream = "https://github.com/antabangun/coex@a98b37d33f37754582b1e71f38216af8c69f2347"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[validated."coex-sceneflow@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "stereo_ops@899b54f4a755:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}, "stereo_ops" = {"corr_volume" = "db4364fb998614e5", "dw_line" = "0e53d9c6a7e1d854", "norm_pad_pair" = "120b256c81c9fe7e", "soft_argmax" = "90128a2a6a5aff6a", "spx_upsample" = "00261574ae32ef2e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00104
+p99_px = 0.00449

@@ -1,0 +1,75 @@
+schema = 2
+name = "IGEV++"
+summary = "IGEV++ (Xu et al. 2025): IGEV-Stereo with geometry encoding volumes for small, medium and large disparity ranges (48 bins each at 1/4 resolution, up to 768 px), aggregated separately and blended per pixel in the ConvGRU update, 32 iterations."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "cuda_graphs", "igev_blocks", "mobilenetv2"]  # fastforks.shared modules this family imports
+limitations = [
+  "CUDA output (float16, kernels, float32 with PyTorch's default TF32 convolutions) differs from the CPU by ~0.06 px mean / 1.2 px p99 at 720x1280, 0.005 px with full float32: rounding amplified by 32 GRU iterations. Portable and kernels reach the same ETH3D / Middlebury accuracy.",
+]
+
+[upstream]
+repo = "https://github.com/gangweix/IGEV-plusplus"
+commit = "099dec97989780d151700459c682df1cc2c18e88"
+
+[licence]
+code = "MIT"
+weights = "assumed from code"  # original states no weights licence; the code licence is assumed
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/gangweix/IGEV-plusplus/blob/099dec97989780d151700459c682df1cc2c18e88/README.md#L23"  # README links the weights (Google Drive folder) with no licence of their own
+
+[io]
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+
+[params]
+max_disp = 768  # disparity range at full resolution; the three range volumes take 1/16, 1/8 and 1/4 of it (48 bins each)
+
+[options]
+iters = { default = 32, min = 1 }  # GRU update iterations
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["igev", "igevpp", "cutlass_conv", "cudnn_hacc"]
+mps_kernels = ["stereo_metal"]
+# CUDA graphs (kernels): batch x padded H x W <= 500k replays a CUDA graph, captured on a shape's 4th call (`cudnn_hacc`
+# plans first), at most 2 shapes per model (graph vs eager, interleaved: 126.4 vs 144.7 ms at KITTI 384x1248, reserved
+# 1774 vs 694 MiB). Larger shapes run eagerly: the gain falls to 7.7 % at 544x960 and 2.1 % at 736x1280 for 1.1-1.8 GB
+# more reserved memory. The graph pool stays reserved until `model.release_graphs()`; `options={"cuda_graphs": False}`
+# turns it off.
+
+# Upstream also publishes RT-IGEV++ weights (another architecture): not part of this family. All variants run with
+# upstream's evaluation settings (max_disp 768, 32 iterations).
+
+[[variants]]
+id = "igev-plusplus-sceneflow"
+revision = 1
+weights = [{ mirror = true, name = "sceneflow.pth", size = 58525223, sha256 = "550227fb7b73cbe038149ab2c86884866e68af51db7e438e2485da7da3cff433", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1n8tu7eoByY_Xpyox5XJnjJC_bGBM2r4M" }]
+
+[[variants]]
+id = "igev-plusplus-kitti12"
+revision = 1
+licence = { training_data = ["sceneflow", "kitti"], training_note = "SceneFlow, then fine-tuned on KITTI 2012 + 2015 (README recipe; KITTI 2012 model)" }
+weights = [{ mirror = true, name = "kitti2012.pth", size = 58525223, sha256 = "2e7947101eecc21187490e88a6e9098e1b48bf1f7efaf64ff9391a5d0bd06563", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1j5grw6AKhwhJNWJXn_RfhpFfiWBYboqH" }]
+
+[[variants]]
+id = "igev-plusplus-kitti15"
+revision = 1
+licence = { training_data = ["sceneflow", "kitti"], training_note = "SceneFlow, then fine-tuned on KITTI 2012 + 2015 (README recipe; KITTI 2015 model)" }
+weights = [{ mirror = true, name = "kitti2015.pth", size = 58525223, sha256 = "42db237df5f882c8e6fdb2e01ec0d465596a7fb84331775984914311195cbc89", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=15kWs23CO4bBDy3DJE4kNv_tlbeEvp1bk" }]
+
+[[variants]]
+id = "igev-plusplus-middlebury"
+revision = 1
+licence = { training_data = ["sceneflow", "tartanair", "falling_things", "crestereo", "instereo2k", "middlebury", "unstated"], training_note = "Middlebury submission model; original recipe (README, core/stereo_datasets.py): SceneFlow model, then TartanAir, SceneFlow, Falling Things, InStereo2K, CARLA, CREStereo and Middlebury 2005 / 2006 / 2014 / 2021 / MiddEval3, then a fine-tune on CREStereo, InStereo2K, CARLA, Falling Things and Middlebury" }
+weights = [{ mirror = true, name = "middlebury.pth", size = 58525223, sha256 = "eecddfa4549dc6180ce96e7ed8bf24a0bb0d702d5e747623eac54abed1fd7579", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1R9a2YP4kaAv4oT0wtwTnWXrb82Shpp3O" }]
+
+[[variants]]
+id = "igev-plusplus-eth3d"
+revision = 1
+licence = { training_data = ["sceneflow", "tartanair", "sintel", "crestereo", "instereo2k", "eth3d"], training_note = "ETH3D submission model; original recipe (README, core/stereo_datasets.py): SceneFlow model, then TartanAir, SceneFlow, Sintel, CREStereo, InStereo2K and ETH3D, then a fine-tune on CREStereo, InStereo2K and ETH3D" }
+weights = [{ mirror = true, name = "eth3d.pth", size = 58525223, sha256 = "4595ac1c164b92e9b749907f09248c05abb6485e3121924b2d0bcd3eb3572e97", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1gN8J9YVJMupJVjUAUMSJ0jldkqH1YJUo" }]

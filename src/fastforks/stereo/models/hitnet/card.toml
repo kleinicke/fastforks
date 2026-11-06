@@ -1,0 +1,76 @@
+schema = 2
+name = "HITNet"
+summary = "HITNet (Tankovich et al. 2021): slanted tile hypotheses propagated and refined from coarse to fine; the authors' ETH3D (gray, max disparity 128) and Middlebury (half resolution, max disparity 400) graphs."
+tier = "stable"
+licence_notes = [
+  "The authors state no weights licence; the checkpoints are fetched from the PINTO model-zoo mirror (a third-party host), not from Google, and the code licence is assumed to cover them.",
+]
+outputs = ["disparity"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+limitations = [
+  "CUDA output (float16, kernels, float32 with PyTorch's default TF32 convolutions) differs from the CPU by ~0.2 px mean / 4 px p99 at 720x1280: the argmin flips on near-equal tile costs. Full float32 (`torch.backends.cudnn.allow_tf32 = False`) matches the CPU to 0.00002 px.",
+  "The weights are the authors' frozen TensorFlow graphs read without TensorFlow; the FlyingThings and Middlebury d160 / d288 graphs are not included.",
+  "The original code is TensorFlow and was not timed.",
+]
+
+[upstream]
+repo = "https://github.com/google-research/google-research"  # directory hitnet/; the code here is our PyTorch port of the released graphs
+commit = "f200f2b89d29484bf0dd0fef0c3979ac8bed9af4"  # last commit that touched hitnet/ (2020-12-14, "Scripts to run experiments for HITNet paper")
+
+[licence]
+code = "Apache-2.0"  # google-research/LICENSE; the port is ours, written from the released graphs
+weights = "assumed from code"  # original states no weights licence; the code licence is assumed
+files = ["LICENSE"]
+training_data = ["unstated"]
+evidence = "https://github.com/google-research/google-research/blob/f200f2b89d29484bf0dd0fef0c3979ac8bed9af4/LICENSE"  # the monorepo's licence; the hitnet README says nothing about weights
+
+[io]
+input = "0-255"
+pad = "none"  # the runner pads below and to the right with the graph's own constants
+
+# Architecture numbers of the released graphs (read from their constants and node names), set per variant; a wrong
+# number fails the goldens.
+[params]
+in_ch = 3
+channels = []
+disparities = []
+refine_channels = []
+refine_dilations = []
+refine_sad_scale = []  # per refinement stage; 0: no warp SAD
+pad_multiple = 64  # the graph pads below and to the right to this multiple
+pad_value = 0.0  # input padding of the left image in the network's [-1, 1] input units
+pad_value_right = 0.0  # same for the right image
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["hitnet", "hitnet_conv"]
+mps_kernels = ["stereo_metal"]
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 500k (up to KITTI
+# 375x1242) replays a CUDA graph, captured on a shape's second call, at most 2 shapes per model 
+# The graph pool stays reserved (up to ~2x eager reserved memory) until
+# `model.release_graphs()`; `options={"cuda_graphs": False}` turns it off. Larger inputs are GPU-bound and run eagerly
+
+# Weights: the authors' frozen graphs, unmodified, from the PINTO model zoo archive 142_HITNET. The authors' own bucket
+# (storage.googleapis.com/tensorflow-graphics/models/hitnet) is no longer public. The archive (pinned in `archive`, read
+# 2026-10-26) is downloaded once and hash-checked before it is opened; only the members are kept. Read without TensorFlow (`net/pb.py`). Upstream also releases FlyingThings (finalpass /
+# cleanpass) and Middlebury d160 / d288 graphs: not added.
+
+[[variants]]
+id = "hitnet-eth3d"
+revision = 1
+weights = [{ mirror = true, name = "eth3d.pb", size = 3374674, sha256 = "ab34a01de126985cbdcd8c482494851f11fa7fac555f83bdc5d5b8af9f2b9797", url = "https://s3.ap-northeast-2.wasabisys.com/pinto-model-zoo/142_HITNET/resources.tar.gz", member = "eth3d.pb", archive = { size = 440098687, sha256 = "6adb1ed9f226ed1682c4dec7b667cf4e3f81f71ac468a29635dd4c6578dd2da5" } }]
+licence = { training_data = ["eth3d"], training_note = "fine-tuned on the ETH3D training pairs (paper); any pre-training data is not stated by the authors" }
+params = { in_ch = 1, channels = [16, 16, 24, 24, 32], disparities = [8, 16, 32, 64, 128], refine_channels = [32, 32, 16], refine_dilations = [[1, 3, 1, 1], [1, 3, 1, 1], [1, 1]], refine_sad_scale = [0.0, 0.0, 0.0], pad_multiple = 64, pad_value = 0.0, pad_value_right = 0.0 }
+
+[[variants]]
+id = "hitnet-middlebury-d400"
+revision = 1
+weights = [{ mirror = true, name = "middlebury_d400.pb", size = 7663483, sha256 = "cc386fbb3181932e9ca9ac77f4a7bafc16f605ee490d5a0466b22f3df5e77fb0", url = "https://s3.ap-northeast-2.wasabisys.com/pinto-model-zoo/142_HITNET/resources.tar.gz", member = "middlebury_d400.pb", archive = { size = 440098687, sha256 = "6adb1ed9f226ed1682c4dec7b667cf4e3f81f71ac468a29635dd4c6578dd2da5" } }]
+licence = { training_data = ["middlebury"], training_note = "trained for half-resolution Middlebury images (README); any pre-training data is not stated by the authors" }
+params = { in_ch = 3, channels = [32, 40, 48, 56, 64, 72], disparities = [12, 25, 50, 100, 200, 400], refine_channels = [32, 32, 32], refine_dilations = [[1, 2, 4, 8, 1, 1], [1, 2, 4, 8, 1, 1], [1, 2, 4, 8, 1, 1]], refine_sad_scale = [0.25, 0.5, 1.0], pad_multiple = 128, pad_value = -1.0, pad_value_right = 1.0 }

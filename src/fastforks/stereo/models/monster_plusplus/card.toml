@@ -1,0 +1,48 @@
+schema = 2
+name = "MonSter++"
+summary = "MonSter++ (Cheng et al. 2025), accuracy model (the MonSter network, max disparity 416): Depth Anything V2 (ViT-L) monocular branch + IGEV-style geometry volume, with stereo and mono ConvGRUs that refine each other, 32 iterations."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "depth_anything_v2", "monster_fit"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/Junda24/MonSter-plusplus"
+commit = "9167101af8fbe93c706707daa7a8181089c8b1b4"
+
+[licence]
+code = "LicenseRef-noncommercial"  # MonSter-plusplus Model License v1.0: non-commercial research and educational use only
+weights = "LicenseRef-noncommercial AND CC-BY-NC-4.0"  # the MonSter-plusplus licence covers the weights too; they contain the Depth Anything V2 ViT-L weights (CC-BY-NC-4.0)
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "mix_all: 'all the datasets we collect over 2M image pairs' (README), not listed"
+evidence = "https://github.com/Junda24/MonSter-plusplus/blob/9167101af8fbe93c706707daa7a8181089c8b1b4/LICENSE#L34"  # the licence names the trained model weights; README weights table: Hugging Face cjd24/MonSter-plusplus
+
+[io]
+input = "0-255"
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+
+[params]
+encoder = "vitl"  # DINOv2 encoder of the Depth Anything V2 branch
+max_disp = 416  # cost-volume depth at full resolution (original evaluate_stereo.py default)
+
+[options]
+iters = { default = 32, min = 1 }  # update iterations; the last 7 are mixed stereo / mono updates after the mono scale / shift fit (fewer than 8: mixed only, no fit, as original)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["igev", "igevpp", "cutlass_conv", "cudnn_hacc", "fastbb"]
+mps_kernels = ["stereo_metal"]
+
+# CPU golden tolerance (golden.toml cpu_atol 0.2 px): ours vs upstream (CPU fp32, synthetic pair) is <= 0.007 px max up to
+# 16 iterations, 0.052 at 24 and 0.156 at 32 (mean 0.006). The last mixed stereo / mono updates amplify fp32
+# rounding: upstream itself moves by 0.132 px max when the left image changes by 1e-3 grey levels (ours: 0.090).
+# Upstream also publishes KITTI / Middlebury / ETH3D fine-tunes (same Hugging Face repo); not added yet (not local).
+# RT-MonSter++ (same repository, a different network) is the family rt_monster_plusplus.
+
+[[variants]]
+id = "monster-plusplus-mix-all"
+revision = 1
+weights = [{ name = "Mix_all_large.pth", size = 1555120152, sha256 = "e86dede921dcd4a169aae0fb32d07293583ea1daff3d5536f59724eeeaa602d9", url = "https://huggingface.co/cjd24/MonSter-plusplus/resolve/0c140353fa4b0485f08a9d18c2a5c0735188a84b/Mix_all_large.pth?download=true" }]

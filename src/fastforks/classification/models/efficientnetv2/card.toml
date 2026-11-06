@@ -1,0 +1,47 @@
+schema = 2
+name = "EfficientNetV2"
+summary = "EfficientNetV2 (Tan and Le 2021): fused-MBConv early stages, MBConv later."
+tier = "stable"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/pytorch/vision"
+commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
+
+[licence]
+code = "BSD-3-Clause"  # torchvision
+weights = "assumed from code"  # torchvision states no separate weights licence
+files = []  # no vendored code: the architecture is torchvision's own module
+training_data = ["imagenet-1k"]
+evidence = "https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 384
+crop = 384
+interpolation = "bilinear"
+
+[params]
+library = "torchvision"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+# Per-shape dispatch (kernels, `_optimize.HACC_PIX`; CNNs on `cudnn_hacc`): inputs of at least 8 x 224 x 224 pixels (batch
+# * H * W) run the fp16-accumulate cuDNN convs (`cudnn_hacc`, plans built on the first call of a size); smaller, launch-bound inputs run the
+# same optimized network on plain fp16 cuDNN convs, which are faster there. This is not a fallback to the portable model.
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+id = "efficientnet_v2_s.tv_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "efficientnet_v2_s-dd5fe13b.pth", size = 86721253, sha256 = "dd5fe13b1d60ec15317ccc8ca158186e134d3366c3dde9cb9a4e301f2dc66c74", url = "https://download.pytorch.org/models/efficientnet_v2_s-dd5fe13b.pth" }]
+params = { arch = "efficientnet_v2_s" }

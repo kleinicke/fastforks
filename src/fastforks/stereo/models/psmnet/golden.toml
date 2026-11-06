@@ -1,0 +1,26 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.05
+gpu_p99 = 0.5
+
+[refs."psmnet-sceneflow@1"]
+sha256 = "71929adc3589cbc377a612265fd0fffa8c078c66e76d5c60fa4da9435561ac19"
+upstream = "https://github.com/JiaRenChang/PSMNet@87ac9093afbf6545c093bd9d26c5ffd66e49a7b8"
+patch = "psmnet-cpu-device.patch"
+patch_sha256 = "a5d7d28007e5c27ab7c0becb0bbc1bbe59c47a5fc47ca715eaca00cad8f34824"
+settings = "CPU float32, max disparity 192, torch 2.14.1+cu130"
+
+[validated."psmnet-sceneflow@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-31"
+mean_px = 0.00412
+p99_px = 0.01422

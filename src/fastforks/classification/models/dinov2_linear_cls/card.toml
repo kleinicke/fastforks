@@ -1,0 +1,47 @@
+schema = 2
+name = "DINOv2 linear"
+summary = "DINOv2 ViT-L/14 (Oquab et al. 2023) with its official linear ImageNet head on [class token; mean patch token]."
+tier = "stable"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["lvd-142m", "imagenet-1k"]
+evidence = "https://huggingface.co/timm/vit_large_patch14_dinov2.lvd142m/blob/4741e1cafbf45415e77074bb0cb42dba76c8684a/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 256
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+# Per-shape dispatch (kernels, `_optimize.transformer.lin`): a GEMM with a residual add, fewer than 2048 rows (batch x
+# tokens) and at least 2^29 multiply-adds runs cuBLAS + add instead of the fused CUTLASS GEMM, which is faster there;
+# every other GEMM is the fused kernel. DINOv2-L/14 224 hits it in the MLP down-projection (257 rows x 4096 x 1024). The choice depends on the shape only, so two batch sizes of one image can
+# take different GEMM paths (fp16 rounding differs at the last bit). Measured with the rule on vs off: same GEMM as the EVA-02-L case.
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+id = "dinov2_vitl14_lc"
+revision = 1
+weights = [{ name = "vit_large_patch14_dinov2.lvd142m.safetensors", size = 1217502758, sha256 = "0424a5d1b515278cba3c6640ccbeaacc41de59d3a93df0dd5e494285eea2b355", url = "https://huggingface.co/timm/vit_large_patch14_dinov2.lvd142m/resolve/4741e1cafbf45415e77074bb0cb42dba76c8684a/model.safetensors" }, { name = "dinov2_vitl14_linear_head.pth", size = 8197159, sha256 = "5b499079fe2c85b6b5d72cc01fe31f192e30302ef8e9c6d999a9513425abd5f1", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_linear_head.pth" }]
+params = { arch = "vit_large_patch14_dinov2.lvd142m" }

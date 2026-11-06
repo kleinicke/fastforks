@@ -1,0 +1,27 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.02
+gpu_mean = 0.005
+gpu_p99 = 0.02
+relative = true
+
+[refs."midas-dpt-beit-large-512@1"]
+sha256 = "ed79a5105b8836683c63c274ef6d6af1d7f4fdf2b8902cba6246a86e1128945c"
+upstream = "https://github.com/isl-org/MiDaS@454597711a62eabcbf7d1e89f3fb9f569051ac9b"
+patch = "midas-timm.patch"
+patch_sha256 = "1e79b69b28e80c84a63145e61707f95a53efe5ac9a0e1d81f701003951eaa7d5"
+settings = "CPU float32, run.py dpt_beit_large_512 (optimize=False), torch 2.14.1+cu130"
+
+[validated."midas-dpt-beit-large-512@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-10-29"
+mean_px = 0.00213
+p99_px = 0.00388

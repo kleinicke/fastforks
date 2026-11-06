@@ -1,0 +1,68 @@
+schema = 2
+name = "GREAT-IGEV"
+summary = "GREAT-IGEV (Li et al. 2025): IGEV-Stereo with global attention (spatial, epipolar-row matching and volume attention) that builds an excitation-weighted cost volume, then IGEV's ConvGRU updates, 32 iterations."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "cuda_graphs", "igev_blocks", "mobilenetv2"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/JarvisLee0423/GREAT-Stereo"
+commit = "2a6b1efede8c3a9eec9540790c2700ea2f3dee7d"
+
+[licence]
+code = "Apache-2.0"
+weights = "assumed from code"  # original states no weights licence; the code licence is assumed
+files = ["LICENSE"]
+training_data = ["sceneflow"]
+evidence = "https://github.com/JarvisLee0423/GREAT-Stereo/blob/2a6b1efede8c3a9eec9540790c2700ea2f3dee7d/README.md#L558"  # README links the weights (Google Drive folder) with no licence of their own
+
+[io]
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+
+[params]
+max_disp = 192  # cost-volume depth at full resolution (upstream: 768 for Middlebury, 192 for the others)
+
+[options]
+iters = { default = 32, min = 1 }  # GRU update iterations
+cuda_graphs = { default = false, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (true: -9 % at KITTI, +1.3 GB reserved)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["igev", "igevpp", "cutlass_conv", "cudnn_hacc"]
+mps_kernels = ["stereo_metal"]
+# CUDA graphs (kernels, opt-in with `options={"cuda_graphs": True}`): batch x padded H x W <= 500k replays a CUDA graph,
+# captured on a shape's 4th call (`cudnn_hacc` plans first), at most 2 shapes per model. Off by default: the gain is
+# below 10 % for about 1.3 GB more reserved memory (graph vs eager, interleaved: 119.2 vs 131.0 ms at KITTI 384x1248,
+# reserved 2032 vs 740 MiB; 4.6 % at 544x960, 0.7 % at 736x1280). The graph pool stays reserved until
+# `model.release_graphs()`.
+
+# Upstream also publishes GREAT-RAFT, GREAT-Selective, the "solid" GREAT-IGEV variants and GREAT-IGEV-DepthAny (other
+# architectures): not part of this family. Variants run with upstream's evaluation settings (32 iterations, max_disp
+# 768 for Middlebury, 192 for the others).
+
+[[variants]]
+id = "great-igev-sceneflow"
+revision = 1
+weights = [{ mirror = true, name = "great-igev-sceneflow-submit.pth", size = 58418528, sha256 = "dd131ef44fc08c8898fa23699dc9cf05b03fdf829035b221384faf9dd7af0dde", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1G2y1ClXWlHf8YuP19E1HFNzyZ5D6T73f" }]
+
+[[variants]]
+id = "great-igev-kitti"
+revision = 1
+licence = { training_data = ["sceneflow", "kitti"], training_note = "SceneFlow, then fine-tuned on KITTI 2012 + 2015 (launchers/.../great_igev_trainer_kitti.sh; KITTI submission model)" }
+weights = [{ mirror = true, name = "great-igev-kitti-submit.pth", size = 58426062, sha256 = "c80d31c62d9391692d646309f5b190e0ac819e53fc32f8eeccc8cf49e6e991b4", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=10XYu8RWa-HpUbiGwDp3AvyRzJvYNEbMb" }]
+
+[[variants]]
+id = "great-igev-eth3d"
+revision = 1
+licence = { training_data = ["sceneflow", "crestereo", "instereo2k", "eth3d", "unstated"], training_note = "ETH3D submission model; original recipe (launchers, utils/stereo_matching/data_utils/data_fetchers.py): SceneFlow model fine-tuned on eth3d_finetune (ETH3D, InStereo2K, CREStereo); whether the eth3d_train mixture (+ TartanAir, Sintel) ran first is not stated" }
+weights = [{ mirror = true, name = "great-igev-eth3d-submit.pth", size = 58418528, sha256 = "17b528b619af20e674fb4e7fb686b50a898091038c023578043aa3cfb47c53bc", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1wvR4a07-cQOXNaNa2Y1XxUVZIKqUyT9H" }]
+
+[[variants]]
+id = "great-igev-middlebury"
+revision = 1
+params = { max_disp = 768 }
+licence = { training_data = ["sceneflow", "crestereo", "instereo2k", "hr_vs", "middlebury", "falling_things", "unstated"], training_note = "Middlebury submission model; original recipe (launchers, utils/stereo_matching/data_utils/data_fetchers.py): SceneFlow model fine-tuned on middlebury_finetune (CREStereo, InStereo2K, HR-VS, Middlebury 2005 / 2006 / 2014 / 2021 / MiddEval3 H + F, Falling Things); whether the middlebury_train mixture (+ TartanAir) ran first is not stated" }
+weights = [{ mirror = true, name = "great-igev-middlebury-submit.pth", size = 58426062, sha256 = "2f11060a718713df561cfb402494c11f05b157ce8a5da1b8364a0b9d53ef29cb", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1OPRHwfLid56J4Bvo7Lzx_7wkJujGD40f" }]

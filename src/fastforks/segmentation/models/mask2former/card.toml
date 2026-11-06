@@ -1,0 +1,49 @@
+schema = 2
+name = "Mask2Former"
+summary = "Mask2Former (Cheng et al. 2022): Swin backbone, multi-scale deformable attention pixel decoder and a masked-attention transformer decoder; semantic logits from mask classification."
+tier = "stable"
+outputs = ["logits"]
+uses = ["maskformer", "seginfer"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/transformers"
+commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # huggingface/transformers builds the network; nothing is vendored
+weights = "CC-BY-NC-4.0"  # original MODEL_ZOO.md (License section): all downloadable models are CC-BY-NC-4.0; the HF card only says `other`
+# Evidence (re-audited 2026-10-31): facebookresearch/Mask2Former MODEL_ZOO.md at 9b0651c "License: All models available
+# for download through this document are licensed under the Creative Commons Attribution-NonCommercial 4.0
+# International License". The README's "majority MIT" text covers the code only, and the HF card (`license: other`)
+# states no terms of its own; the weights are therefore non-commercial.
+files = []  # no vendored code: the architecture is transformers' own module
+training_data = ["imagenet-21k", "ade20k"]
+evidence = "https://github.com/facebookresearch/Mask2Former/blob/9b0651c6c1d5b3af2e6da0589b719c514ec0d69a/MODEL_ZOO.md#license"  # the HF card (facebook/mask2former-swin-large-ade-semantic, `license: other`) refers to the original repo
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU). The image is first resized to the family's test-time scale (`resize`), then padded or window-split by the network, so tiny inputs are upscaled and the result is resampled back.
+input = "imagenet"
+pad = "none"
+
+[params]
+arch = "Mask2FormerForUniversalSegmentation"
+resize = ["short", 640, 2560]  # detectron2 ResizeShortestEdge, the ADE20K test config
+pad = 32  # detectron2 size_divisibility (zeros after normalisation, bottom / right)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["fvm_seg", "seg_up"]
+
+[output]
+label_set = "ade20k-150"
+
+[[variants]]
+id = "mask2former-swinl-ade20k"
+revision = 1
+weights = [
+    { name = "mask2former-swinl-ade20k.config.json", size = 82540, sha256 = "573b9330846ed787069557d7eaf78d20a695a4ac7155b957becff02748a8d293", url = "https://huggingface.co/facebook/mask2former-swin-large-ade-semantic/resolve/aa25c92404a40599614215e76514c79b427c7527/config.json" },
+    { name = "mask2former-swinl-ade20k.safetensors", size = 866052064, sha256 = "b143c144341c15b4f20165cc6d2c9305fb1b66792f68a6e0e06d2b20dc063b14", url = "https://huggingface.co/facebook/mask2former-swin-large-ade-semantic/resolve/aa25c92404a40599614215e76514c79b427c7527/model.safetensors" },
+]

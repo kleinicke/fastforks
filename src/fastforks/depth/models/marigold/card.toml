@@ -1,0 +1,54 @@
+schema = 2
+name = "Marigold"
+summary = "Marigold (Ke et al. 2023): affine-invariant monocular depth by diffusion; a Stable Diffusion 2 UNet fine-tuned to denoise a depth latent conditioned on the image latent (depth v1-1, few DDIM steps)."
+tier = "experimental"
+outputs = ["depth"]
+limitations = [
+  "Diffusion model: the seeded noise comes from a CPU generator and differs from the original code's CUDA generator for the same seed.",
+  "A traced or exported module reuses the noise of its traced shape.",
+  "Kernels time is dominated by unfused elementwise kernels (GroupNorm / SiLU / adds).",
+]
+
+licence_notes = [
+  "The weights use the OpenRAIL++-M licence: commercial use is allowed but with use restrictions that must be passed on; the training data terms are not checked.",
+]
+
+[output]
+kind = "affine_invariant"  # depth in [0, 1] (near to far) up to an unknown scale and shift
+
+[upstream]
+repo = "https://github.com/prs-eth/Marigold"
+commit = "2bfbdea"
+
+[licence]
+code = "Apache-2.0"
+weights = "LicenseRef-CreativeML-OpenRAIL-PlusPlus-M"
+files = ["LICENSE", "LICENSE-MODEL", "LICENSE-huggingface"]
+training_data = ["unstated"]
+training_note = "Stable Diffusion 2 (LAION-5B subsets) fine-tuned on the synthetic Hypersim and Virtual KITTI 2 datasets per the Marigold papers (arXiv 2312.02145, 2505.09358)"
+evidence = "https://huggingface.co/prs-eth/marigold-depth-v1-1/blob/9571e7123e258cf052b4e54241f17971c290e9a8/README.md (License: CreativeML Open RAIL++-M)"
+
+[io]
+input = "0-255"  # the runner resizes (longest side to long_side, bilinear, antialiased, rounded) and maps to [-1, 1] itself
+pad = "none"
+
+[options]
+steps = { default = 4, min = 1, max = 1000 }  # DDIM denoising steps (original default for v1-1: 4); fewer is faster, more is not more accurate
+long_side = { default = 768, min = 0, aliases = ["processing_res"] }  # longest side of the network input (original default); 0 = the input size
+seed = 2024  # seed of the initial noise (CPU generator); the output depends on it
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]
+
+[[variants]]
+id = "marigold-depth-v1-1"
+revision = 1
+weights = [
+  { name = "unet/diffusion_pytorch_model.safetensors", size = 3463772592, sha256 = "ad9342d79bb5773bb3fae5e55cbe5aa7f9c9433ba30dc1ace18998d4fb5dd9a2", url = "https://huggingface.co/prs-eth/marigold-depth-v1-1/resolve/9571e7123e258cf052b4e54241f17971c290e9a8/unet/diffusion_pytorch_model.safetensors" },
+  { name = "vae/diffusion_pytorch_model.safetensors", size = 334643276, sha256 = "a1d993488569e928462932c8c38a0760b874d166399b14414135bd9c42df5815", url = "https://huggingface.co/prs-eth/marigold-depth-v1-1/resolve/9571e7123e258cf052b4e54241f17971c290e9a8/vae/diffusion_pytorch_model.safetensors" },
+  { name = "text_encoder/model.safetensors", size = 1361597018, sha256 = "cce6febb0b6d876ee5eb24af35e27e764eb4f9b1d0b7c026c8c3333d4cfc916c", url = "https://huggingface.co/prs-eth/marigold-depth-v1-1/resolve/9571e7123e258cf052b4e54241f17971c290e9a8/text_encoder/model.safetensors" },
+]

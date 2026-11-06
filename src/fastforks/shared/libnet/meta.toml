@@ -1,0 +1,4 @@
+summary = "Networks built by an installed model library (timm, torchvision) from a variant's verified weights, run through fastforks._optimize."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "our fast-vision-models zoo builders (classification/zoo.py); the architectures stay in timm / torchvision"

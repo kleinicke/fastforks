@@ -1,0 +1,58 @@
+schema = 2
+name = "EoMT"
+summary = "EoMT (Kerssies et al. 2025): encoder-only mask transformer, a plain ViT-L/16 whose last blocks also carry the mask queries; DINOv2 or DINOv3 pre-training, semantic ADE20K checkpoints."
+tier = "stable"
+licence_notes = [
+  "The eomt-l-dinov3-ade20k checkpoint is fine-tuned from DINOv3, so it also carries the DINOv3 License (redistribution must include its text); that licence does not exclude commercial use.",
+]
+outputs = ["logits"]
+uses = ["seginfer"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/transformers"
+commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # transformers
+weights = "MIT"  # the Hugging Face model card (license: mit); tue-mps/eomt is MIT
+files = []  # no vendored code: the architecture is transformers' own module
+training_data = ["lvd-142m", "ade20k"]
+evidence = "https://huggingface.co/tue-mps/ade20k_semantic_eomt_large_512/blob/aeb262f5a0bc609236d27f1277c3173ce57aeb27/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU). The image is first resized to the family's test-time scale (`resize`), then padded or window-split by the network, so tiny inputs are upscaled and the result is resampled back.
+input = "imagenet"
+pad = "none"
+
+[params]
+resize = ["eomt", 512]  # shorter side to 512, rounded with round() (EoMT window_imgs_semantic)
+window = 512  # square windows along the longer side (the training crop; the DINOv2 grid is fixed to it)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["fastbb", "seg_up"]
+
+[output]
+label_set = "ade20k-150"
+
+[[variants]]
+id = "eomt-l-dinov2-ade20k"
+revision = 1
+weights = [
+    { name = "eomt-l-dinov2-ade20k.config.json", size = 6778, sha256 = "5b11b6c2cc74bfbe1c31871e107d90cf161015818a1bc96dc4db5f1f003e55af", url = "https://huggingface.co/tue-mps/ade20k_semantic_eomt_large_512/resolve/aeb262f5a0bc609236d27f1277c3173ce57aeb27/config.json" },
+    { name = "eomt-l-dinov2-ade20k.safetensors", size = 1264130192, sha256 = "715f374b2bc9f2329caa99c9c3d425dcb072f2d0751a960534b4bfd35fe5930c", url = "https://huggingface.co/tue-mps/ade20k_semantic_eomt_large_512/resolve/aeb262f5a0bc609236d27f1277c3173ce57aeb27/model.safetensors" },
+]
+params = { arch = "EomtForUniversalSegmentation", res_scale = 1.0 }
+
+[[variants]]
+id = "eomt-l-dinov3-ade20k"
+revision = 1
+weights = [
+    { name = "eomt-l-dinov3-ade20k.config.json", size = 7055, sha256 = "a061170347144a5a1e7877e583ef55996bd57fbc847c33bddec6db59a54aa1a3", url = "https://huggingface.co/tue-mps/eomt-dinov3-ade-semantic-large-512/resolve/1d1f172700ab69371df7afe778fe133fff7dd521/config.json" },
+    { name = "eomt-l-dinov3-ade20k.safetensors", size = 1259835392, sha256 = "319c72ee001fad0f81876fab96ae7148d13c259cd433a7326746e85e6b89d482", url = "https://huggingface.co/tue-mps/eomt-dinov3-ade-semantic-large-512/resolve/1d1f172700ab69371df7afe778fe133fff7dd521/model.safetensors" },
+]
+params = { arch = "EomtDinov3ForUniversalSegmentation", res_scale = 16.0 }  # residual stream up to ~1.5e5: / 16 keeps fp16 finite
+licence = { weights = "MIT AND LicenseRef-DINOv3-License", training_data = ["ade20k"], training_note = "fine-tuned from Meta's DINOv3 ViT-L/16 (pre-trained on LVD-1689M, not in datasets.toml; the DINOv3 weights are under the DINOv3 License); the EoMT model card says MIT", evidence = "https://huggingface.co/tue-mps/eomt-dinov3-ade-semantic-large-512/blob/1d1f172700ab69371df7afe778fe133fff7dd521/README.md" }

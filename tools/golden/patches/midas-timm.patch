@@ -1,0 +1,25 @@
+diff --git a/midas/backbones/beit.py b/midas/backbones/beit.py
+index 7a24e02..f093e5c 100644
+--- a/midas/backbones/beit.py
++++ b/midas/backbones/beit.py
+@@ -95,6 +95,8 @@ def block_forward(self, x, resolution, shared_rel_pos_bias: Optional[torch.Tenso
+     """
+     Modification of timm.models.beit.py: Block.forward to support arbitrary window sizes.
+     """
++    if not hasattr(self, "drop_path"):  # baseline-compat (timm >= 0.9: drop_path1/2; identity at inference)
++        self.drop_path = self.drop_path1
+     if self.gamma_1 is None:
+         x = x + self.drop_path(self.attn(self.norm1(x), resolution, shared_rel_pos_bias=shared_rel_pos_bias))
+         x = x + self.drop_path(self.mlp(self.norm2(x)))
+diff --git a/midas/base_model.py b/midas/base_model.py
+index 5cf4302..c1f2d9b 100644
+--- a/midas/base_model.py
++++ b/midas/base_model.py
+@@ -13,4 +13,7 @@ class BaseModel(torch.nn.Module):
+         if "optimizer" in parameters:
+             parameters = parameters["model"]
+ 
++        # baseline-compat (timm >= 0.9): BEiT relative_position_index is a non-persistent buffer there (recomputed, same values)
++        own = self.state_dict()
++        parameters = {k: v for k, v in parameters.items() if not (k.endswith("relative_position_index") and k not in own)}
+         self.load_state_dict(parameters)

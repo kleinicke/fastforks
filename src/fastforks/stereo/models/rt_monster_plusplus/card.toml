@@ -1,0 +1,62 @@
+schema = 2
+name = "RT-MonSter++"
+summary = "RT-MonSter++ (Cheng et al. 2025), the real-time MonSter++: Depth Anything V2 (ViT-S) monocular branch + coarse-to-fine (1/16, 1/8, 1/4) local geometry volumes, stereo and mono ConvGRUs, 4 updates."
+tier = "experimental"
+outputs = ["disparity"]
+uses = ["cnn_kernels", "cuda_graphs", "depth_anything_v2", "monster_fit"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/Junda24/MonSter-plusplus"
+commit = "9167101af8fbe93c706707daa7a8181089c8b1b4"
+
+[licence]
+code = "LicenseRef-noncommercial"  # MonSter-plusplus Model License v1.0: non-commercial research and educational use only
+weights = "LicenseRef-noncommercial"  # the MonSter-plusplus licence covers the weights too; the Depth Anything V2 ViT-S weights inside are Apache-2.0
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "mix_all (Zero_shot.pth): 'all the datasets we collect over 2M image pairs' (README), not listed"
+evidence = "https://github.com/Junda24/MonSter-plusplus/blob/9167101af8fbe93c706707daa7a8181089c8b1b4/LICENSE#L34"  # the licence names the trained model weights; README RT-MonSter++ weights table: Hugging Face cjd24/MonSter-plusplus
+
+[io]
+input = "0-255"
+pad = { multiple = 32, mode = "centre", fill = "replicate" }
+
+[params]
+encoder = "vits"  # DINOv2 encoder of the Depth Anything V2 branch
+max_disp = 192  # cost-volume depth at full resolution (the 1/16 volume has max_disp / 16 bins)
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
+# Kernels: the portable fp16 path with the ViT-S as the fp16 DINOv2 of fastforks.shared.depth_anything_v2 and every other
+# conv on the fp16-accumulate cuDNN / CUTLASS kernels (fastforks.shared.cnn_kernels, BN / activation in the epilogue).
+# Middlebury-H 93.9 vs 113.7 ms (our earlier fork's fast path 119.5); peak alloc 2660 vs 2595 MB, +65 MB (+2.5 %, likely
+# the cnn_kernels conv workspaces); KITTI 38.7 vs 42.5 ms (eager). The kernels forward is launch-bound
+# on small inputs (~1100 launches): batch x H x W <= 700k (KITTI, 375x1242 -> 31.3 vs 41.4 ms eager) replays a CUDA
+# graph, captured on a shape's 4th call (below), at most 2 shapes per model (a third shape runs eagerly until a graph is
+# unused for 64 calls). The graph pool stays reserved (~1.1 GB at KITTI size, 2.5 GB peak while capturing) until
+# `model.release_graphs()`; `options={"cuda_graphs": False}` turns it off. Larger inputs (Middlebury-H) are
+# GPU-bound and run eagerly.
+# New sizes (`cudnn_hacc` per-shape dispatch): a new padded size builds its fp16-accumulate cuDNN plans on its first
+# call (all calls give the same output) and captures its CUDA graph on the 4th (time after 4 warm-up calls per size); a
+# stream of new sizes around 640x480 costs 56.0 ms per call (with the deferral below 50.3).
+# Measured below with the earlier deferral, now
+# `fastforks.kernels.cudnn_hacc.BUILD_AFTER = 3`: first 3 calls on torch convs, builds on the 4th (~150 ms incl. the
+# call at ETH3D sizes), so a stream of new sizes pays no builds: Midd-H evaluation 99.2 vs 107.5 ms portable mean per
+# pair (before 241.1). ETH3D, where 2 padded sizes repeat 16 and 8 times: 38.7 vs
+# 40.5 ms (before the cheaper plan builds 48.5).
+
+# Upstream's test-mode schedule is fixed (1 / 1 / 2 updates at 1/16 /
+# 1/8 / 1/4), so there is no iteration option. Upstream also publishes KITTI 2012 / 2015 fine-tunes (same Hugging Face
+# repo); not added yet.
+
+[[variants]]
+id = "rt-monster-plusplus-mix-all"
+revision = 1
+weights = [{ name = "Zero_shot.pth", size = 171538128, sha256 = "0741dd6f622bf772045de87be5922f026d7702f4d39d15ada6aba5173161dd65", url = "https://huggingface.co/cjd24/MonSter-plusplus/resolve/0c140353fa4b0485f08a9d18c2a5c0735188a84b/Zero_shot.pth?download=true" }]

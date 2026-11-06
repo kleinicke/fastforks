@@ -1,0 +1,35 @@
+diff --git a/src/depth_anything_3/model/da3.py b/src/depth_anything_3/model/da3.py
+index f9e5bd6..ee12238 100644
+--- a/src/depth_anything_3/model/da3.py
++++ b/src/depth_anything_3/model/da3.py
+@@ -165,7 +165,7 @@ class DepthAnything3Net(nn.Module):
+             return output
+         
+         non_sky_depth = output.depth[non_sky_mask]
+-        if non_sky_depth.numel() > 100000:
++        if False:  # fastforks golden: exact quantile on all pixels
+             idx = torch.randint(0, non_sky_depth.numel(), (100000,), device=non_sky_depth.device)
+             sampled_depth = non_sky_depth[idx]
+         else:
+@@ -427,7 +427,7 @@ class NestedDepthAnything3Net(nn.Module):
+         # Compute maximum depth for non-sky regions
+         # Use sampling to safely compute quantile on large tensors
+         non_sky_depth = output.depth[non_sky_mask]
+-        if non_sky_depth.numel() > 100000:
++        if False:  # fastforks golden: exact quantile on all pixels
+             idx = torch.randint(0, non_sky_depth.numel(), (100000,), device=non_sky_depth.device)
+             sampled_depth = non_sky_depth[idx]
+         else:
+diff --git a/src/depth_anything_3/utils/alignment.py b/src/depth_anything_3/utils/alignment.py
+index ceb8983..50891c7 100644
+--- a/src/depth_anything_3/utils/alignment.py
++++ b/src/depth_anything_3/utils/alignment.py
+@@ -108,7 +108,7 @@ def sample_tensor_for_quantile(tensor: torch.Tensor, max_samples: int = 100000)
+     Returns:
+         Sampled tensor
+     """
+-    if tensor.numel() <= max_samples:
++    if True:  # fastforks golden: exact quantile on all pixels
+         return tensor
+ 
+     idx = torch.randperm(tensor.numel(), device=tensor.device)[:max_samples]

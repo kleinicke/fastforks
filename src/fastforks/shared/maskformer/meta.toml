@@ -1,0 +1,4 @@
+summary = "Inference fast paths for the transformers Mask2Former / OneFormer networks, patched into the modules in place: gather-based Swin windows, SDPA attention, fused multi-scale deformable attention, fp32 query transformer."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "our fast-vision-models segmentation fast paths (segmentation/fast/maskformer.py, swin.py); OneFormerTransformerDecoderLayer.forward follows transformers (Apache-2.0)"

@@ -1,0 +1,67 @@
+schema = 2
+name = "DINOv2 linear"
+summary = "DINOv2 (Oquab et al. 2023) linear probe: the frozen self-supervised ViT-S/B/L/14, a batch norm and a 1x1 classifier on the last block's patch tokens; the authors' ADE20K `linear` heads, sliding-window inference."
+tier = "stable"
+outputs = ["logits"]
+uses = ["depth_anything_v2", "seginfer"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/facebookresearch/dinov2"
+commit = "7764ea0f912e53c92e82eb78a2a1631e92725fc8"
+
+[licence]
+code = "Apache-2.0"  # facebookresearch/dinov2; the ViT comes from fastforks.shared.depth_anything_v2 (DINOv2 layers, Apache-2.0)
+weights = "Apache-2.0"  # backbones and heads: the repository's README / LICENSE (Apache-2.0 since 2023-08)
+files = []  # no vendored code in this family: the ViT is the shared module's, the head is two folded tensors
+training_data = ["lvd-142m", "ade20k"]
+evidence = "https://github.com/facebookresearch/dinov2/blob/7764ea0f912e53c92e82eb78a2a1631e92725fc8/README.md#L660"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU). The image is first resized to the family's test-time scale (`resize`), then padded or window-split by the network, so tiny inputs are upscaled and the result is resampled back.
+input = "imagenet"
+pad = "none"
+
+[params]
+resize = ["mmseg", 99999999, 512]  # keep-ratio resize, shorter side to 512 (the config's test img_scale)
+crop = 512  # mmseg slide_inference crop and stride (test_cfg); each crop zero-padded to a multiple of 14 centred
+stride = 341
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "seg_up"]
+
+[output]
+label_set = "ade20k-150"
+
+# Not added: ViT-g/14 (its SwiGLU FFN is not supported by the fast ViT path) and the `ms` (multi-scale, 4-layer)
+# and `m2f` heads.
+
+[[variants]]
+id = "dinov2-s-linear-ade20k"
+revision = 1
+params = { arch = "vits" }
+weights = [
+    { name = "dinov2-s-linear-ade20k.backbone.pth", size = 88283115, sha256 = "b938bf1bc15cd2ec0feacfe3a1bb553fe8ea9ca46a7e1d8d00217f29aef60cd9", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_pretrain.pth" },
+    { name = "dinov2-s-linear-ade20k.head.pth", size = 719673, sha256 = "67e10225e0bf1e2c6e8bc9e07020211ab58cbb4aa14efbaa32c52914931c4ade", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_ade20k_linear_head.pth" },
+]
+
+[[variants]]
+id = "dinov2-b-linear-ade20k"
+revision = 1
+params = { arch = "vitb" }
+weights = [
+    { name = "dinov2-b-linear-ade20k.backbone.pth", size = 346378731, sha256 = "0b8b82f85de91b424aded121c7e1dcc2b7bc6d0adeea651bf73a13307fad8c73", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth" },
+    { name = "dinov2-b-linear-ade20k.head.pth", size = 1423161, sha256 = "7c3545c3a6f79ccc130d075dfe66e84f8c32d72d2acd31fc218f8a15cd2c7b23", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_ade20k_linear_head.pth" },
+]
+
+[[variants]]
+id = "dinov2-l-linear-ade20k"
+revision = 1
+params = { arch = "vitl" }
+weights = [
+    { name = "dinov2-l-linear-ade20k.backbone.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth" },
+    { name = "dinov2-l-linear-ade20k.head.pth", size = 1892153, sha256 = "59137f319d7e83c79f3253ab7bf63041f1f884e54ba865a2c7ef0046655306a0", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_ade20k_linear_head.pth" },
+]

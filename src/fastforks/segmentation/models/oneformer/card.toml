@@ -1,0 +1,46 @@
+schema = 2
+name = "OneFormer"
+summary = "OneFormer (Jain et al. 2023): Mask2Former-style universal segmentation conditioned on a task token; Swin backbone, run here for the semantic task."
+tier = "stable"
+outputs = ["logits"]
+uses = ["maskformer", "seginfer"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/transformers"
+commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # transformers
+weights = "MIT"  # the Hugging Face model card (license: mit); SHI-Labs/OneFormer is MIT
+files = []  # no vendored code: the architecture is transformers' own module
+training_data = ["imagenet-21k", "ade20k"]
+evidence = "https://huggingface.co/shi-labs/oneformer_ade20k_swin_large/blob/4a5bac8e64f82681a12db2e151a4c2f4ce6092b2/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU). The image is first resized to the family's test-time scale (`resize`), then padded or window-split by the network, so tiny inputs are upscaled and the result is resampled back.
+input = "imagenet"
+pad = "none"
+
+[params]
+arch = "OneFormerForUniversalSegmentation"
+resize = ["short", 640, 2560]  # detectron2 ResizeShortestEdge, the ADE20K test config
+pad = 32  # detectron2 size_divisibility (zeros after normalisation, bottom / right)
+task_tokens = [49406, 518, 10549, 533, 29119, 1550, 49407]  # "the task is semantic", CLIP tokenizer (zero-padded to the config's task_seq_len)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["fvm_seg", "seg_up"]
+
+[output]
+label_set = "ade20k-150"
+
+[[variants]]
+id = "oneformer-swinl-ade20k"
+revision = 1
+weights = [
+    { name = "oneformer-swinl-ade20k.config.json", size = 84289, sha256 = "27452b656a467dbdebdf879dc413d6f3facd2bfe3643824ae66c32c22884b4bd", url = "https://huggingface.co/shi-labs/oneformer_ade20k_swin_large/resolve/4a5bac8e64f82681a12db2e151a4c2f4ce6092b2/config.json" },
+    { name = "oneformer-swinl-ade20k.bin", size = 879517517, sha256 = "c0b2fe11dfecee6f2f1f315f466946e96f4e94813f3f6d660ff3747b83c28cc9", url = "https://huggingface.co/shi-labs/oneformer_ade20k_swin_large/resolve/4a5bac8e64f82681a12db2e151a4c2f4ce6092b2/pytorch_model.bin" },
+]

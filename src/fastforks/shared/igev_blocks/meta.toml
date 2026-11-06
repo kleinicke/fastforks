@@ -1,0 +1,4 @@
+summary = "IGEV-Stereo feature extractor (MobileNetV2 + up-sampling) and context encoder, plus the 2D/3D conv building blocks and cost-volume helpers; byte-identical in IGEV-Stereo and Selective-IGEV."
+licence = "MIT"
+files = ["LICENSE"]
+derived_from = "https://github.com/gangweix/IGEV (4a3d937, core/extractor.py + core/submodule.py, MIT; identical in https://github.com/Windsrain/Selective-Stereo c39acbf, MIT)"

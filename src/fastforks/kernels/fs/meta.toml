@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"
+derived_from = "our FoundationStereo fork (cuda-kernels 683f110), written from our own RAFT / IGEV kernels; no NVIDIA code"
