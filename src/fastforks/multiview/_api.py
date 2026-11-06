@@ -172,7 +172,7 @@ class MultiViewResult(MapOutputs):
             if self.depth is None:
                 msg = "max_depth= needs the result's depth"
                 raise InputError(msg)
-            points = points.masked_fill((self.depth[i] > max_depth)[..., None], float("nan"))
+            points = points.masked_fill((self.depth[i] > max_depth).to(points.device)[..., None], float("nan"))
         image = self.__dict__.get("_image")
         colors = None if image is None else image[i].movedim(-3, -1)
         write_cloud(os.fspath(path), points, colors, axes=axes, frame="world", units=units)
@@ -192,7 +192,7 @@ class MultiViewResult(MapOutputs):
             )
             raise InputError(msg)
         if self.mask is not None:
-            points = points.masked_fill(~self.mask[i, ..., None], float("nan"))
+            points = points.masked_fill(~self.mask[i, ..., None].to(points.device), float("nan"))  # float64: CPU points
         return points, units
 
     def save_scene(

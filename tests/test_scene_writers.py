@@ -173,6 +173,33 @@ def test_float64_poses_keep_precision(tmp_path):
     np.testing.assert_allclose(np.linalg.inv(w2c)[:3, 3], c2w[1, :3, 3].numpy(), rtol=0, atol=1e-8)
 
 
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param(
+            "cuda", marks=[pytest.mark.gpu, pytest.mark.skipif(not torch.cuda.is_available(), reason="no CUDA")]
+        ),
+        pytest.param(
+            "mps", marks=[pytest.mark.mps, pytest.mark.skipif(not torch.backends.mps.is_available(), reason="no MPS")]
+        ),
+    ],
+)
+def test_accelerator_maps_with_cpu_float64_poses(tmp_path, device):
+    # float64 poses stay on the CPU, so the unprojected points do too: the depth / mask filters must follow them
+    r = _result(2, world_points=False)
+    on = dataclasses.replace(r, depth=r.depth.to(device), mask=r.mask.to(device), intrinsics=r.intrinsics.to(device))
+    object.__setattr__(on, "_image", r.__dict__["_image"].to(device))
+    for d, x in (("cpu", r), (device, on)):
+        x.save(tmp_path / f"{d}.ply", max_depth=3.0)
+        x.save_scene(tmp_path / d, "colmap")
+    (head, a), (head_cpu, b) = _ply(tmp_path / f"{device}.ply"), _ply(tmp_path / "cpu.ply")
+    assert head == head_cpu  # the same points kept
+    np.testing.assert_array_equal(a["rgb"], b["rgb"])
+    np.testing.assert_allclose(a["xyz"], b["xyz"], rtol=1e-5, atol=1e-5)  # the device's float32 depth x K^-1
+    xyz = [np.loadtxt(tmp_path / d / "sparse/0/points3D.txt", usecols=(1, 2, 3)) for d in (device, "cpu")]
+    np.testing.assert_allclose(*xyz, rtol=1e-5, atol=1e-5)
+
+
 def test_quaternion_matches_the_reader():
     rng = np.random.default_rng(0)
     rots = [_rotation_from_vector(rng.normal(size=3) * s) for s in (0.01, 1, 3)]
