@@ -6,7 +6,7 @@
 
 Input: one image plus a point, box or text prompt. Output: masks with quality scores.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
@@ -29,7 +29,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 173<br>–<br>48.3<br>37.0 | 2798 / 2832<br>–<br>378 / 420<br>377 / 420 |
+| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 173<br>–<br>48.3<br>37.0<br>40.9<br>27.3 | 2798 / 2832<br>–<br>378 / 420<br>377 / 420<br>362 / 400<br>322 (engine) |
 | `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 414<br>–<br>116<br>81.5 | 4428 / 4454<br>–<br>833 / 1262<br>831 / 862 |
 | `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 742<br>–<br>214<br>143 | 5702 / 5734<br>–<br>1484 / 2524<br>1480 / 1524 |
 
@@ -45,6 +45,7 @@ Commercial use: yes.
 - Outputs: pred_masks, iou_scores
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 1024x1024 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam-vit-b` 1080x1920 (0.4 GiB peak allocated, 0.5 reserved); `sam-vit-l` 1080x1920 (0.8 GiB peak allocated, 1.0 reserved); `sam-vit-h` 1080x1920 (1.5 GiB peak allocated, 1.9 reserved)
+- `sam-vit-b` 1024x1024, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `sam-vit-b` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 0.4139 (<0.0021), p99 1.2603 (<0.0098))
 - `sam-vit-l` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 0.3938 (<0.048), p99 1.9073 (<0.21))
 - `sam-vit-h` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 0.3634 (<0.0099), p99 1.3486 (<0.036))
@@ -76,7 +77,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam2.1-hiera-tiny` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 61.3<br>–<br>16.6<br>13.9 | 622 / 636<br>–<br>304 / 382<br>316 / 362 |
+| `sam2.1-hiera-tiny` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 61.3<br>–<br>16.6<br>13.9<br>14.2<br>8.56 | 622 / 636<br>–<br>304 / 382<br>316 / 362<br>270 / 322<br>266 (engine) |
 | `sam2.1-hiera-small` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 68.5<br>–<br>18.8<br>15.6 | 649 / 678<br>–<br>318 / 366<br>330 / 386 |
 | `sam2.1-hiera-base-plus` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 102<br>–<br>32.0<br>25.1 | 830 / 848<br>–<br>412 / 464<br>426 / 524 |
 | `sam2.1-hiera-large` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 243<br>–<br>68.0<br>48.8 | 1474 / 1478<br>–<br>742 / 768<br>760 / 828 |
@@ -93,6 +94,7 @@ Commercial use: yes.
 - Outputs: pred_masks, iou_scores
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 1024x1024 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam2.1-hiera-tiny` 1080x1920 (0.3 GiB peak allocated, 0.4 reserved); `sam2.1-hiera-small` 1080x1920 (0.3 GiB peak allocated, 0.4 reserved); `sam2.1-hiera-base-plus` 1080x1920 (0.4 GiB peak allocated, 0.6 reserved); `sam2.1-hiera-large` 1080x1920 (0.7 GiB peak allocated, 0.9 reserved)
+- `sam2.1-hiera-tiny` 1024x1024, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `sam2.1-hiera-tiny` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 1.8172 (<0.0037), p99 4.2140 (<0.015))
 - `sam2.1-hiera-small` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 1.1068 (<0.017), p99 3.3109 (<0.051))
 - `sam2.1-hiera-base-plus` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 0.5384 (<0.0074), p99 1.8414 (<0.026))
@@ -127,7 +129,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 695<br>281<br>179<br>116 | 3865 / 3934<br>5255 / 5334<br>1922 / 2004<br>2019 / 2264 |
+| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>281<br>179<br>116<br>168<br>89.5 | 3865 / 3934<br>5255 / 5334<br>1922 / 2004<br>2019 / 2264<br>1910 / 2004<br>1122 (engine) |
 
 <details><summary>Details</summary>
 
@@ -142,6 +144,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, masks
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 1008x1008 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam3` 1080x1920 (1.9 GiB peak allocated, 2.1 reserved)
+- `sam3` 1024x1024, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `sam3` original 1024x1024: torch.autocast(fp16) around the forward
 - `sam3` load / first call: original 1.12 s / 0.957 s (840x1297), portable 2.95 s / 0.181† s, kernels 0.7† s / 0.116† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.

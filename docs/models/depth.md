@@ -6,7 +6,7 @@
 
 Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field, `result.kind`) says what the numbers mean: `metric` = metres; `scale_invariant`, `affine_invariant` and `affine_invariant_inverse` are relative (unknown scale or shift, not metres). Metric models that use the focal length take `model(image, intrinsics=K)` (K `[3, 3]`, pixels of the input): `metric3d-vit-large` and `da3metric-large` need it for correct metres (`da3metric-large`: metres = output x focal / 300; without `intrinsics=` a 300 px focal length is assumed, wrong for a real camera). `unidepth-v2-vitl14`, `unik3d-vitl`, `depth-pro` and MoGe estimate the camera themselves (given `intrinsics=` replace `fx`); `zoedepth-nk` and the relative models (`da3mono-large` too) take none.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured. The accuracy column is lower-is-better (NYUv2 AbsRel (scale+shift aligned)).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured. The accuracy column is lower-is-better (NYUv2 AbsRel (scale+shift aligned)).
 
 | model | commercial | NYUv2 AbsRel (scale+shift aligned) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
@@ -39,7 +39,7 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `da3mono-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 127<br>85.2<br>23.9<br>14.6 | 2419 / 2450<br>2997 / 3052<br>818 / 1328<br>814 / 868 |
+| `da3mono-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 127<br>85.2<br>23.9<br>14.6<br>21.2<br>14.4 | 2419 / 2450<br>2997 / 3052<br>818 / 1328<br>814 / 868<br>792 / 828<br>754 (engine) |
 | `da3metric-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 128<br>85.1<br>24.1<br>14.7 | 2418 / 2450<br>2996 / 3050<br>815 / 1328<br>811 / 868 |
 | `da3-large-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 208<br>166<br>37.4<br>17.1 | 2797 / 2872<br>3374 / 3472<br>992 / 1350<br>985 / 1090 |
 | `da3-giant-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 410<br>227<br>81.8<br>44.2 | 6428 / 6496<br>8590 / 8718<br>2638 / 4608<br>2628 / 2710 |
@@ -62,6 +62,7 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 - Outputs: depth, confidence, intrinsics, mask, sky (in `extras`); kind: `metric`
 - Input size: any H x W >= 8, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `da3mono-large` 3000x4000 (1.9 GiB peak allocated, 2.1 reserved); `da3metric-large` 3000x4000 (1.9 GiB peak allocated, 2.1 reserved); `da3-large-1.1` 3000x4000 (1.9 GiB peak allocated, 2.2 reserved); `da3-giant-1.1` 3000x4000 (5.1 GiB peak allocated, 5.4 reserved); `da3nested-giant-large-1.1` 3000x4000 (6.3 GiB peak allocated, 6.7 reserved)
+- `da3mono-large` 994x1482, first call: portable + torch.compile 25 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
 - `da3mono-large` original (fp32) 994x1482: float32 (the authors' autocast off)
 - `da3mono-large` original 994x1482: original default (api.py): torch.autocast(bfloat16)
 - `da3metric-large` original (fp32) 994x1482: float32 (the authors' autocast off)
@@ -100,7 +101,7 @@ Commercial use: `depth-anything-v2-s`: yes; `depth-anything-v2-b`, `depth-anythi
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depth-anything-v2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 53.6<br>41.0<br>7.82<br>4.51 | 407 / 478<br>373 / 418<br>249 / 326<br>190 / 248 |
+| `depth-anything-v2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 53.6<br>41.0<br>7.82<br>4.51<br>6.65<br>4.46 | 407 / 478<br>373 / 418<br>249 / 326<br>190 / 248<br>201 / 224<br>186 (engine) |
 | `depth-anything-v2-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 93.6<br>63.2<br>18.8<br>10.5 | 858 / 940<br>928 / 1026<br>450 / 516<br>387 / 436 |
 | `depth-anything-v2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 245<br>140<br>55.1<br>31.1 | 2109 / 2326<br>2560 / 2654<br>1026 / 1352<br>921 / 1034 |
 
@@ -120,6 +121,7 @@ Commercial use: `depth-anything-v2-s`: yes; `depth-anything-v2-b`, `depth-anythi
 - Outputs: inverse_depth; kind: `affine_invariant_inverse`
 - Input size: any H x W >= 8, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depth-anything-v2-s` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `depth-anything-v2-b` 3000x4000 (0.8 GiB peak allocated, 0.9 reserved); `depth-anything-v2-l` 3000x4000 (1.8 GiB peak allocated, 2.2 reserved)
+- `depth-anything-v2-s` 994x1482, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
 - `depth-anything-v2-s` original 994x1482: torch.autocast(fp16) around the forward
 - `depth-anything-v2-b` original 994x1482: torch.autocast(fp16) around the forward
 - `depth-anything-v2-l` original 994x1482: torch.autocast(fp16) around the forward
@@ -172,7 +174,7 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depth-pro` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 1776<br>569<br>518<br>271 | 8170 / 9020<br>3828 / 4294<br>3306 / 3498<br>3667 / 3778 |
+| `depth-pro` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1776<br>569<br>518<br>271<br>488<br>299 | 8170 / 9020<br>3828 / 4294<br>3306 / 3498<br>3667 / 3778<br>3053 / 3198<br>2926 (engine) |
 
 <details><summary>Details</summary>
 
@@ -187,6 +189,7 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 - Outputs: depth, intrinsics; kind: `metric`
 - Input size: any H x W >= 8, resized or padded inside the model (ViT patch 16)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depth-pro` 3000x4000 (3.4 GiB peak allocated, 4.0 reserved)
+- `depth-pro` 994x1482, first call: portable + torch.compile 39 s (cold Inductor cache), TensorRT fp16 163 s (ONNX + engine).
 - `depth-pro` original 994x1482: torch.autocast(fp16) around the forward; fp16 = original's own precision=float16 model
 - `depth-pro` load / first call: original 17.34 s / 0.745 s, portable 4.67 s / 0.584 s, kernels 1.11† s / 0.371 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -212,7 +215,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `marigold-depth-v1-1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 976<br>–<br>408<br>383 | 6406 / 6704<br>–<br>2817 / 3760<br>2583 / 3762 |
+| `marigold-depth-v1-1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 976<br>–<br>408<br>383<br>342<br>172 | 6406 / 6704<br>–<br>2817 / 3760<br>2583 / 3762<br>2341 / 2418<br>2368 (engine) |
 
 <details><summary>Details</summary>
 
@@ -228,6 +231,7 @@ Commercial use: yes.
 - Outputs: depth; kind: `affine_invariant`
 - Input size: any H x W >= 8, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-depth-v1-1` 3000x4000 (3.0 GiB peak allocated, 3.8 reserved)
+- `marigold-depth-v1-1` 994x1482, first call: portable + torch.compile 127 s (cold Inductor cache), TensorRT fp16 285 s (ONNX + engine).
 - `marigold-depth-v1-1` original (fp32) 994x1482: fp32, original default (fp16 out of tolerance: mean 0.0267 (<0.01), p99 0.0990 (<0.03))
 - `marigold-depth-v1-1` load / first call: original 1.73 s / 1.063 s, portable 8.2 s / 0.556 s, kernels 1.1† s / 0.523 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -272,7 +276,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 629<br>438<br>200<br>158 | 3077 / 3122<br>3275 / 3350<br>1484 / 1696<br>1516 / 1688 |
+| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>200<br>158<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1484 / 1696<br>1516 / 1688<br>1126 / 1148<br>1010 (engine) |
 
 <details><summary>Details</summary>
 
@@ -287,6 +291,7 @@ Commercial use: yes.
 - Outputs: depth, normals, confidence; kind: `metric`
 - Input size: any H x W >= 8, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `metric3d-vit-large` 3000x4000 (2.3 GiB peak allocated, 2.9 reserved)
+- `metric3d-vit-large` 994x1482, first call: portable + torch.compile 55 s (cold Inductor cache), TensorRT fp16 97 s (ONNX + engine).
 - `metric3d-vit-large` original 994x1482: torch.autocast(fp16) around the forward
 - `metric3d-vit-large` load / first call: original 9.96 s / 0.876 s, portable 3.45 s / 0.233 s, kernels 0.31† s / 0.159 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -329,7 +334,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `midas-dpt-beit-large-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 386<br>333<br>78.8<br>63.9 | 3616 / 3778<br>2759 / 2898<br>992 / 1418<br>1003 / 1436 |
+| `midas-dpt-beit-large-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>333<br>78.8<br>63.9<br>58.8<br>52.2 | 3616 / 3778<br>2759 / 2898<br>992 / 1418<br>1003 / 1436<br>1088 / 1116<br>800 (engine) |
 
 <details><summary>Details</summary>
 
@@ -344,6 +349,7 @@ Commercial use: yes.
 - Outputs: inverse_depth; kind: `affine_invariant_inverse`
 - Input size: any H x W >= 8, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `midas-dpt-beit-large-512` 3000x4000 (1.8 GiB peak allocated, 1.9 reserved)
+- `midas-dpt-beit-large-512` 994x1482, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `midas-dpt-beit-large-512` original 994x1482: torch.autocast(fp16) around the forward
 - `midas-dpt-beit-large-512` load / first call: original 5.16 s / 1.135 s, portable 2.49 s / 0.093 s, kernels 0.28† s / 0.067 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -382,7 +388,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 162<br>82.6<br>64.2<br>29.7 | 1491 / 1628<br>1193 / 1268<br>1066 / 1336<br>884 / 1008 |
+| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>64.2<br>29.7<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1066 / 1336<br>884 / 1008<br>836 / 992<br>620 (engine) |
 | `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 501<br>171<br>144<br>73.4 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610 |
 | `moge-3-vitl` | Middlebury 2014 half (994x1482) | original<br>portable<br>kernels | –<br>905<br>214 | –<br>2157 / 2424<br>1690 / 1844 |
 
@@ -399,6 +405,7 @@ Commercial use: yes.
 - Outputs: depth, points, intrinsics, mask, normals; kind: `metric`
 - Input size: any H x W >= 8, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `moge-2-vits-normal` 3000x4000 (1.2 GiB peak allocated, 1.4 reserved); `moge-2-vitl-normal` 3000x4000 (2.4 GiB peak allocated, 2.5 reserved); `moge-3-vitl` 3000x4000 (2.6 GiB peak allocated, 3.0 reserved)
+- `moge-2-vits-normal` 994x1482, first call: portable + torch.compile 124 s (cold Inductor cache), TensorRT fp16 131 s (ONNX + engine).
 - `moge-2-vits-normal` load / first call: original 0.88 s / 1.501 s, portable 0.35 s / 0.084 s, kernels 0.11† s / 0.099 s
 - `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 1.37 s / 0.144 s, kernels 0.63† s / 0.131 s
 - `moge-3-vitl` load / first call: portable 1.47 s / 0.951 s, kernels 1.13 s / 0.291 s
@@ -427,7 +434,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `unidepth-v2-vitl14` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 132<br>132<br>99.8<br>66.4 | 3230 / 3508<br>3230 / 3508<br>1208 / 1472<br>1211 / 1472 |
+| `unidepth-v2-vitl14` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>132<br>99.8<br>66.4<br>96.4<br>64.3 | 3230 / 3508<br>3230 / 3508<br>1208 / 1472<br>1211 / 1472<br>1304 / 1392<br>1050 (engine) |
 
 <details><summary>Details</summary>
 
@@ -442,6 +449,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Outputs: depth, points, intrinsics, confidence; kind: `metric`
 - Input size: any H x W >= 8, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `unidepth-v2-vitl14` 3000x4000 (2.6 GiB peak allocated, 3.2 reserved)
+- `unidepth-v2-vitl14` 994x1482, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp16 119 s (ONNX + engine).
 - `unidepth-v2-vitl14` original 994x1482: torch.autocast(fp16) around the forward
 - `unidepth-v2-vitl14` load / first call: original 3.8 s / 0.383 s, portable 4.16 s / 0.147 s, kernels 0.9† s / 0.069 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -484,7 +492,7 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `unik3d-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 134<br>134<br>108<br>62.9 | 3307 / 3570<br>3307 / 3570<br>1219 / 1492<br>1166 / 1266 |
+| `unik3d-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 134<br>134<br>108<br>62.9<br>94.4<br>58.0 | 3307 / 3570<br>3307 / 3570<br>1219 / 1492<br>1166 / 1266<br>1258 / 1312<br>846 (engine) |
 
 <details><summary>Details</summary>
 
@@ -499,6 +507,7 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 - Outputs: depth, points, confidence; kind: `metric`
 - Input size: any H x W >= 8, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `unik3d-vitl` 3000x4000 (2.2 GiB peak allocated, 2.4 reserved)
+- `unik3d-vitl` 994x1482, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 105 s (ONNX + engine).
 - `unik3d-vitl` original 994x1482: torch.autocast(fp16) around the forward
 - `unik3d-vitl` load / first call: original 7.28 s / 0.575 s, portable 4.16 s / 0.136 s, kernels 0.84† s / 0.067 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -524,7 +533,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `zoedepth-nk` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 408<br>271<br>124<br>88.9 | 3897 / 3948<br>2040 / 2146<br>2037 / 2124<br>1771 / 1960 |
+| `zoedepth-nk` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 408<br>271<br>124<br>88.9<br>71.7<br>73.3 | 3897 / 3948<br>2040 / 2146<br>2037 / 2124<br>1771 / 1960<br>1813 / 1880<br>852 (engine) |
 
 <details><summary>Details</summary>
 
@@ -539,6 +548,7 @@ Commercial use: yes.
 - Outputs: depth; kind: `metric`
 - Input size: any H x W >= 8, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `zoedepth-nk` 3000x4000 (2.4 GiB peak allocated, 2.6 reserved)
+- `zoedepth-nk` 994x1482, first call: portable + torch.compile 94 s (cold Inductor cache), TensorRT fp16 138 s (ONNX + engine).
 - `zoedepth-nk` original 994x1482: torch.autocast(fp16) around the forward
 - `zoedepth-nk` load / first call: original 8.35 s / 1.528 s, portable 1.92 s / 0.275 s, kernels 0.33† s / 0.122 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.

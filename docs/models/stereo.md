@@ -6,7 +6,7 @@
 
 Input: a rectified left / right image pair. Output: a disparity map (pixels, left view).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured. The accuracy column is lower-is-better (ETH3D bad > 1 px (%)).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured. The accuracy column is lower-is-better (ETH3D bad > 1 px (%)).
 
 | model | commercial | ETH3D bad > 1 px (%) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
@@ -96,7 +96,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aanet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 289<br>178<br>140<br>101 | 1785 / 1962<br>1000 / 1126<br>845 / 986<br>536 / 644 |
+| `aanet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 289<br>178<br>140<br>101<br>91.8<br>91.2 | 1785 / 1962<br>1000 / 1126<br>845 / 986<br>536 / 644<br>754 / 928<br>482 (engine) |
 | `aanet-plus-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 263<br>194<br>159<br>88.9 | 3618 / 3896<br>3652 / 3784<br>1142 / 1278<br>813 / 920 |
 
 <details><summary>Details</summary>
@@ -113,6 +113,7 @@ Commercial use: yes.
   - `aanet-sceneflow`: any H x W >= 48, padded to a multiple of 48
   - `aanet-plus-sceneflow`: any H x W >= 96, padded to a multiple of 96
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aanet-sceneflow` 3000x4000 (9.4 GiB peak allocated, 12.5 reserved); `aanet-plus-sceneflow` 1024x2048 (7.1 GiB peak allocated, 8.1 reserved)
+- `aanet-sceneflow` 994x1482, first call: portable + torch.compile 80 s (cold Inductor cache), TensorRT fp16 211 s (ONNX + engine).
 - `aanet-sceneflow` original (fp32) 994x1482: deformable conv via torchvision.ops.deform_conv2d (original CUDA extension not built)
 - `aanet-sceneflow` original 994x1482: torch.autocast(fp16) around the forward; deformable conv via torchvision.ops.deform_conv2d (original CUDA extension not built)
 - `aanet-plus-sceneflow` original (fp32) 994x1482: deformable conv via torchvision.ops.deform_conv2d (original CUDA extension not built)
@@ -161,7 +162,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `bridgedepth-sf` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 616<br>460<br>437<br>348 | 2852 / 3128<br>2852 / 3144<br>2916 / 3214<br>2310 / 2634 |
+| `bridgedepth-sf` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 616<br>460<br>437<br>348<br>325<br>fails: TensorRT bug: Myelin internal error | 2852 / 3128<br>2852 / 3144<br>2916 / 3214<br>2310 / 2634<br>2280 / 2308<br>– |
 | `bridgedepth-rvc-pretrain` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 629<br>470<br>442<br>354 | 2903 / 3178<br>2903 / 3200<br>2968 / 3246<br>2361 / 2686 |
 
 <details><summary>Details</summary>
@@ -178,6 +179,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Outputs: disparity
 - Input size: any H x W >= 16, padded to a multiple of 16
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `bridgedepth-sf` 3000x4000 (13.3 GiB peak allocated, 14.2 reserved); `bridgedepth-rvc-pretrain` 3000x4000 (13.3 GiB peak allocated, 14.2 reserved)
+- `bridgedepth-sf` 994x1482, first call: portable + torch.compile 111 s (cold Inductor cache).
 - `bridgedepth-sf` original (fp32) 994x1482: original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
 - `bridgedepth-sf` original 994x1482: torch.autocast(fp16) around the forward; original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
 - `bridgedepth-rvc-pretrain` original (fp32) 994x1482: original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
@@ -222,7 +224,7 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `c-foundationstereo-s` | Middlebury 2014 half (994x1482) | original<br>portable<br>kernels | 3874<br>3646<br>1362 | 8338 / 12870<br>6312 / 6590<br>3107 / 4376 |
-| `c-fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 741<br>527<br>330<br>135 | 4569 / 5358<br>2892 / 2996<br>2109 / 2336<br>1196 / 1516 |
+| `c-fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>527<br>330<br>135<br>339<br>451 | 4569 / 5358<br>2892 / 2996<br>2109 / 2336<br>1196 / 1516<br>1649 / 1792<br>1252 (engine) |
 | `fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 741<br>527<br>330<br>135 | 4616 / 5408<br>2939 / 3306<br>2109 / 2256<br>1196 / 1576 |
 
 <details><summary>Details</summary>
@@ -245,6 +247,7 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `c-foundationstereo-s` 1024x2048 (8.3 GiB peak allocated, 11.1 reserved); `c-fast-foundationstereo` 1988x2880 (9.3 GiB peak allocated, 12.3 reserved); `fast-foundationstereo` 1988x2880 (9.3 GiB peak allocated, 12.3 reserved)
+- `c-fast-foundationstereo` 994x1482, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 240 s (ONNX + engine).
 - `c-foundationstereo-s` original 994x1482: reference implementation (FoundationStereo repo code) with the C-FS-S checkpoint, AMP; NVIDIA's TAO code OOMs (fp32) or errors (AMP) in the same harness
 - `c-foundationstereo-s` load / first call: original 1.67 s / 2.731 s (375x1242), portable 0.62 s / 3.647† s, kernels 0.4† s / 1.362† s
 - `c-fast-foundationstereo` load / first call: original 0.17 s / 0.172 s (375x1242), portable 0.24 s / 0.332† s, kernels 0.16† s / 0.136† s
@@ -294,7 +297,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `cas-gwcnet-gc-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 863<br>–<br>472<br>358 | 10079 / 10652<br>–<br>2338 / 2794<br>2272 / 2514 |
-| `cas-gwcnet-c-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 656<br>389<br>327<br>225 | 4816 / 5534<br>2791 / 2970<br>2006 / 2474<br>1725 / 1930 |
+| `cas-gwcnet-c-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 656<br>389<br>327<br>225<br>295<br>220 | 4816 / 5534<br>2791 / 2970<br>2006 / 2474<br>1725 / 1930<br>2098 / 2448<br>1440 (engine) |
 
 <details><summary>Details</summary>
 
@@ -310,6 +313,7 @@ Commercial use: yes.
   - `cas-gwcnet-gc-sceneflow`: any H x W >= 32, padded to a multiple of 32
   - `cas-gwcnet-c-sceneflow`: any H x W >= 225, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `cas-gwcnet-gc-sceneflow` 1988x2880 (9.4 GiB peak allocated, 14.1 reserved); `cas-gwcnet-c-sceneflow` 1988x2880 (8.2 GiB peak allocated, 9.2 reserved)
+- `cas-gwcnet-c-sceneflow` 994x1482, first call: portable + torch.compile 62 s (cold Inductor cache), TensorRT fp16 131 s (ONNX + engine).
 - `cas-gwcnet-gc-sceneflow` original (fp32) 994x1482: fp32, original default (fp16 non-finite output)
 - `cas-gwcnet-c-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
 - `cas-gwcnet-gc-sceneflow` load / first call: original 0.25 s / 0.251 s (375x1242), portable 0.97 s / 0.472† s, kernels 0.17† s / 0.358† s
@@ -351,7 +355,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `cfnet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 660<br>–<br>484<br>401 | 8551 / 8896<br>–<br>3441 / 4376<br>3662 / 4718 |
+| `cfnet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 660<br>–<br>484<br>401<br>249<br>171 | 8551 / 8896<br>–<br>3441 / 4376<br>3662 / 4718<br>1026 / 1398<br>1238 (engine) |
 
 <details><summary>Details</summary>
 
@@ -365,6 +369,7 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 64, padded to a multiple of 64
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `cfnet-sceneflow` 1988x2880 (8.2 GiB peak allocated, 11.5 reserved)
+- `cfnet-sceneflow` 994x1482, first call: portable + torch.compile 53 s (cold Inductor cache), TensorRT fp16 139 s (ONNX + engine).
 - `cfnet-sceneflow` original (fp32) 994x1482: fp32, original default (fp16 non-finite output)
 - `cfnet-sceneflow` load / first call: original 0.39 s / 0.239 s (375x1242), portable 0.94 s / 0.484† s, kernels 0.21† s / 0.402† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -401,7 +406,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `coex-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 94.9<br>60.0<br>49.9<br>23.5 | 2292 / 2384<br>2098 / 2160<br>1136 / 1254<br>495 / 886 |
+| `coex-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 94.9<br>60.0<br>49.9<br>23.5<br>29.4<br>20.6 | 2292 / 2384<br>2098 / 2160<br>1136 / 1254<br>495 / 886<br>351 / 452<br>360 (engine) |
 
 <details><summary>Details</summary>
 
@@ -417,6 +422,7 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `coex-sceneflow` 3000x4000 (8.5 GiB peak allocated, 10.7 reserved)
+- `coex-sceneflow` 994x1482, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 57 s (ONNX + engine).
 - `coex-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
 - `coex-sceneflow` load / first call: original – s / 0.629 s (375x1242), portable 0.16 s / 0.062† s, kernels 0.09† s / 0.036† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -458,7 +464,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `crestereo-eth3d` | Middlebury 2014 half (994x1482) | original<br>portable<br>kernels | 1925<br>732<br>229 | –<br>884 / 1030<br>644 / 732 |
+| `crestereo-eth3d` | Middlebury 2014 half (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1925<br>732<br>229<br>398<br>298 | –<br>884 / 1030<br>644 / 732<br>695 / 748<br>584 (engine) |
 
 <details><summary>Details</summary>
 
@@ -473,6 +479,7 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 33, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `crestereo-eth3d` 3000x4000 (6.4 GiB peak allocated, 8.8 reserved)
+- `crestereo-eth3d` 994x1482, first call: portable + torch.compile 120 s (cold Inductor cache), TensorRT fp16 224 s (ONNX + engine).
 - `crestereo-eth3d` load / first call: portable 0.03 s / 0.75† s, kernels 0.03† s / 0.229† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -513,7 +520,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 4176<br>–<br>1531<br>659 | 10896 / 11052<br>–<br>4362 / 4838<br>3154 / 3566 |
+| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4176<br>–<br>1531<br>659<br>1002<br>fails: TensorRT bug: Myelin internal error | 10896 / 11052<br>–<br>4362 / 4838<br>3154 / 3566<br>3021 / 3292<br>– |
 
 <details><summary>Details</summary>
 
@@ -529,6 +536,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `defom-stereo-vitl-sceneflow` 1988x2880 (12.0 GiB peak allocated, 14.5 reserved)
+- `defom-stereo-vitl-sceneflow` 994x1482, first call: portable + torch.compile 122 s (cold Inductor cache).
 - `defom-stereo-vitl-sceneflow` original (fp32) 994x1482: fp32, original default (fp16 non-finite output)
 - `defom-stereo-vitl-sceneflow` load / first call: original 9.54 s / 1.041 s (375x1242), portable 2.31 s / 1.534† s, kernels 1.18† s / 0.663† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -570,7 +578,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dlnr-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 978<br>598<br>398<br>214 | 3191 / 3608<br>3004 / 3552<br>2635 / 3142<br>1236 / 1606 |
+| `dlnr-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 978<br>598<br>398<br>214<br>301<br>241 | 3191 / 3608<br>3004 / 3552<br>2635 / 3142<br>1236 / 1606<br>1343 / 1672<br>1492 (engine) |
 
 <details><summary>Details</summary>
 
@@ -587,6 +595,7 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dlnr-sceneflow` 1988x2880 (10.1 GiB peak allocated, 12.7 reserved); `dlnr-middlebury` 1988x2880 (10.1 GiB peak allocated, 12.7 reserved)
 - `dlnr-middlebury`: same network and settings as `dlnr-sceneflow`, measured once (rows not repeated).
+- `dlnr-sceneflow` 994x1482, first call: portable + torch.compile 69 s (cold Inductor cache), TensorRT fp16 161 s (ONNX + engine).
 - `dlnr-sceneflow` load / first call: original 0.83 s / 1.712 s (375x1242), portable 0.63 s / 0.399† s, kernels 0.26† s / 0.213† s
 - `dlnr-middlebury` load / first call: original 0.83 s / 1.712 s (375x1242), portable 0.63 s / 0.399† s, kernels 0.26† s / 0.213† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -716,7 +725,7 @@ Commercial use: **no** (code: LicenseRef-NVIDIA-Source-Code-License-NC AND Apach
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `foundationstereo-vit-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 9228<br>4237<br>2990<br>1513 | 11323 / 11632<br>8286 / 8750<br>3141 / 3436<br>2818 / 3300 |
-| `foundationstereo-vit-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 7129<br>3609<br>2514<br>1120 | 9991 / 15144<br>6987 / 7280<br>2493 / 2606<br>2169 / 2470 |
+| `foundationstereo-vit-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7129<br>3609<br>2514<br>1120<br>2044<br>1196 | 9991 / 15144<br>6987 / 7280<br>2493 / 2606<br>2169 / 2470<br>2822 / 3646<br>2570 (engine) |
 
 <details><summary>Details</summary>
 
@@ -732,6 +741,7 @@ Commercial use: **no** (code: LicenseRef-NVIDIA-Source-Code-License-NC AND Apach
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `foundationstereo-vit-l` 1988x2880 (7.1 GiB peak allocated, 11.4 reserved); `foundationstereo-vit-s` 1988x2880 (6.5 GiB peak allocated, 10.7 reserved)
+- `foundationstereo-vit-s` 994x1482, first call: portable + torch.compile 212 s (cold Inductor cache), TensorRT fp16 545 s (ONNX + engine).
 - `foundationstereo-vit-l` load / first call: original 10.86 s / 2.563 s (375x1242), portable 1.98 s / 2.99† s, kernels 1.17† s / 1.517† s
 - `foundationstereo-vit-s` load / first call: original 1.44 s / 1.058 s (375x1242), portable 1.03 s / 2.514† s, kernels 0.33† s / 1.12† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -844,7 +854,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `gwcnet-gc-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 632<br>365<br>353<br>257 | 8252 / 8822<br>5887 / 6214<br>2082 / 2402<br>1768 / 1962 |
-| `gwcnet-g-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 604<br>352<br>344<br>238 | 6691 / 7280<br>5105 / 5414<br>2081 / 2402<br>1799 / 2102 |
+| `gwcnet-g-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 604<br>352<br>344<br>238<br>417<br>275 | 6691 / 7280<br>5105 / 5414<br>2081 / 2402<br>1799 / 2102<br>1527 / 1864<br>3548 (engine) |
 
 <details><summary>Details</summary>
 
@@ -858,6 +868,7 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gwcnet-gc-sceneflow` 3000x4000 (13.6 GiB peak allocated, 13.7 reserved); `gwcnet-g-sceneflow` 3000x4000 (13.3 GiB peak allocated, 14.8 reserved)
+- `gwcnet-g-sceneflow` 994x1482, first call: portable + torch.compile 53 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
 - `gwcnet-gc-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
 - `gwcnet-g-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
 - `gwcnet-gc-sceneflow` load / first call: original 0.29 s / 0.119 s (375x1242), portable 0.39 s / 0.353† s, kernels 0.44† s / 0.258† s
@@ -904,7 +915,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hitnet-eth3d` | Middlebury 2014 half (994x1482) | original<br>portable<br>kernels | –<br>67.8<br>23.2 | –<br>860 / 1090<br>647 / 1248 |
+| `hitnet-eth3d` | Middlebury 2014 half (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>67.8<br>23.2<br>27.7<br>31.1 | –<br>860 / 1090<br>647 / 1248<br>719 / 728<br>836 (engine) |
 | `hitnet-middlebury-d400` | Middlebury 2014 half (994x1482) | original<br>portable<br>kernels | –<br>176<br>52.7 | –<br>1744 / 2414<br>1263 / 2368 |
 
 <details><summary>Details</summary>
@@ -923,6 +934,7 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 8, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hitnet-eth3d` 3000x4000 (6.4 GiB peak allocated, 10.8 reserved); `hitnet-middlebury-d400` 1988x2880 (6.4 GiB peak allocated, 10.1 reserved)
+- `hitnet-eth3d` 994x1482, first call: portable + torch.compile 39 s (cold Inductor cache), TensorRT fp16 136 s (ONNX + engine).
 - `hitnet-eth3d` load / first call: portable 0.09 s / 0.078† s, kernels 0.07† s / 0.026† s
 - `hitnet-middlebury-d400` load / first call: portable 0.13 s / 0.177† s, kernels 0.1† s / 0.053† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -1121,7 +1133,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `las2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 62.0<br>43.5<br>46.9<br>14.3 | 1676 / 1746<br>933 / 978<br>955 / 988<br>320 / 558 |
+| `las2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 62.0<br>43.5<br>46.9<br>14.3<br>23.7<br>10.3 | 1676 / 1746<br>933 / 978<br>955 / 988<br>320 / 558<br>238 / 264<br>162 (engine) |
 | `las2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 79.1<br>52.4<br>54.1<br>18.3 | 1691 / 1762<br>948 / 1000<br>972 / 1026<br>329 / 572 |
 | `las2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 154<br>90.8<br>80.3<br>29.9 | 1753 / 1812<br>1010 / 1082<br>1036 / 1098<br>397 / 600 |
 | `las2-h` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 205<br>135<br>123<br>53.3 | 1839 / 1884<br>1022 / 1084<br>1050 / 1110<br>1021 / 1388 |
@@ -1140,6 +1152,7 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `las2-s` 3000x4000 (7.0 GiB peak allocated, 7.4 reserved); `las2-m` 3000x4000 (7.0 GiB peak allocated, 7.4 reserved); `las2-l` 3000x4000 (7.0 GiB peak allocated, 7.4 reserved); `las2-h` 3000x4000 (8.5 GiB peak allocated, 11.7 reserved)
+- `las2-s` 994x1482, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 87 s (ONNX + engine).
 - `las2-s` original 994x1482: torch.autocast(fp16) around the forward
 - `las2-m` original 994x1482: torch.autocast(fp16) around the forward
 - `las2-l` original 994x1482: torch.autocast(fp16) around the forward
@@ -1198,7 +1211,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `mocha-v1-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 2148<br>1456<br>1057<br>455 | 4140 / 4598<br>3637 / 3982<br>1632 / 1770<br>1588 / 1730 |
-| `mocha-v2-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 2054<br>1295<br>1033<br>448 | 4017 / 4418<br>3576 / 3982<br>1632 / 1770<br>1587 / 1790 |
+| `mocha-v2-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2054<br>1295<br>1033<br>448<br>713<br>437 | 4017 / 4418<br>3576 / 3982<br>1632 / 1770<br>1587 / 1790<br>1122 / 1308<br>1098 (engine) |
 
 <details><summary>Details</summary>
 
@@ -1213,6 +1226,7 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mocha-v1-sceneflow` 3000x4000 (12.2 GiB peak allocated, 15.2 reserved); `mocha-v2-sceneflow` 3000x4000 (12.2 GiB peak allocated, 14.8 reserved)
+- `mocha-v2-sceneflow` 994x1482, first call: portable + torch.compile 148 s (cold Inductor cache), TensorRT fp16 361 s (ONNX + engine).
 - `mocha-v1-sceneflow` load / first call: original 1.95 s / 1.846 s (375x1242), portable 0.79 s / 1.057† s, kernels 0.48† s / 0.454† s
 - `mocha-v2-sceneflow` load / first call: original 2.37 s / 0.399 s (375x1242), portable 1.3 s / 1.033† s, kernels 0.45† s / 0.447† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -1252,7 +1266,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `monster-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 4275<br>4277<br>1585<br>668 | 6382 / 6430<br>6382 / 6430<br>2336 / 2494<br>2356 / 2714 |
+| `monster-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4275<br>4277<br>1585<br>668<br>1096<br>671 | 6382 / 6430<br>6382 / 6430<br>2336 / 2494<br>2356 / 2714<br>2081 / 2272<br>2018 (engine) |
 
 <details><summary>Details</summary>
 
@@ -1269,6 +1283,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `monster-sceneflow` 1988x2880 (6.8 GiB peak allocated, 9.0 reserved); `monster-mix-all` 1988x2880 (6.8 GiB peak allocated, 9.0 reserved)
 - `monster-mix-all`: same network and settings as `monster-sceneflow`, measured once (rows not repeated).
+- `monster-sceneflow` 994x1482, first call: portable + torch.compile 103 s (cold Inductor cache), TensorRT fp16 384 s (ONNX + engine).
 - `monster-sceneflow` load / first call: original 5.85 s / 1.256 s (375x1242), portable 4.83 s / 1.595† s, kernels 0.95† s / 0.669† s
 - `monster-mix-all` load / first call: original 5.85 s / 1.256 s (375x1242), portable 4.83 s / 1.595† s, kernels 0.95† s / 0.669† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -1308,7 +1323,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 4339<br>4334<br>1633<br>698 | 6382 / 6430<br>6382 / 6430<br>2583 / 2918<br>2438 / 2760 |
+| `monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4339<br>4334<br>1633<br>698<br>1126<br>697 | 6382 / 6430<br>6382 / 6430<br>2583 / 2918<br>2438 / 2760<br>2328 / 2532<br>2642 (engine) |
 
 <details><summary>Details</summary>
 
@@ -1323,6 +1338,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `monster-plusplus-mix-all` 1988x2880 (7.7 GiB peak allocated, 9.6 reserved)
+- `monster-plusplus-mix-all` 994x1482, first call: portable + torch.compile 109 s (cold Inductor cache), TensorRT fp16 416 s (ONNX + engine).
 - `monster-plusplus-mix-all` load / first call: original 8.37 s / 1.233 s (375x1242), portable 2.45 s / 1.633† s, kernels 0.79† s / 0.698† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -1358,7 +1374,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nmrf-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 445<br>313<br>216<br>196 | 2300 / 2426<br>1656 / 2054<br>1510 / 1552<br>1022 / 1112 |
+| `nmrf-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 445<br>313<br>216<br>196<br>161<br>184 | 2300 / 2426<br>1656 / 2054<br>1510 / 1552<br>1022 / 1112<br>854 / 1104<br>826 (engine) |
 
 <details><summary>Details</summary>
 
@@ -1372,6 +1388,7 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 9, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nmrf-sceneflow` 3000x4000 (11.0 GiB peak allocated, 13.3 reserved)
+- `nmrf-sceneflow` 994x1482, first call: portable + torch.compile 85 s (cold Inductor cache), TensorRT fp16 142 s (ONNX + engine).
 - `nmrf-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
 - `nmrf-sceneflow` load / first call: original 0.21 s / 0.766 s (375x1242), portable 0.1 s / 0.218† s, kernels 0.07† s / 0.197† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -1408,7 +1425,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `psmnet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 760<br>608<br>340<br>232 | 7544 / 7640<br>6015 / 6090<br>2078 / 2442<br>1786 / 2122 |
+| `psmnet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 760<br>608<br>340<br>232<br>440<br>669 | 7544 / 7640<br>6015 / 6090<br>2078 / 2442<br>1786 / 2122<br>1760 / 2082<br>1528 (engine) |
 
 <details><summary>Details</summary>
 
@@ -1422,6 +1439,7 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 241, padded to a multiple of 16
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `psmnet-sceneflow` 1988x2880 (7.6 GiB peak allocated, 10.6 reserved)
+- `psmnet-sceneflow` 994x1482, first call: portable + torch.compile 60 s (cold Inductor cache), TensorRT fp16 89 s (ONNX + engine).
 - `psmnet-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
 - `psmnet-sceneflow` load / first call: original 0.2 s / 0.525 s (375x1242), portable 0.1 s / 0.352† s, kernels 0.08† s / 0.232† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -1525,7 +1543,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rt-monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 252<br>251<br>113<br>94.1 | 2922 / 3024<br>2922 / 3044<br>2592 / 2646<br>2704 / 3976 |
+| `rt-monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 252<br>251<br>113<br>94.1<br>77.0<br>44.1 | 2922 / 3024<br>2922 / 3044<br>2592 / 2646<br>2704 / 3976<br>2750 / 2942<br>952 (engine) |
 
 <details><summary>Details</summary>
 
@@ -1540,6 +1558,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rt-monster-plusplus-mix-all` 1988x2880 (9.3 GiB peak allocated, 11.1 reserved)
+- `rt-monster-plusplus-mix-all` 994x1482, first call: portable + torch.compile 69 s (cold Inductor cache), TensorRT fp16 150 s (ONNX + engine).
 - `rt-monster-plusplus-mix-all` load / first call: original 0.99 s / 0.662 s (375x1242), portable 0.26 s / 0.131† s, kernels 0.23† s / 0.104† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -1575,7 +1594,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `s2m2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 582<br>350<br>348<br>113 | 2775 / 3008<br>1759 / 1986<br>1733 / 1930<br>686 / 820 |
+| `s2m2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 582<br>350<br>348<br>113<br>186<br>137 | 2775 / 3008<br>1759 / 1986<br>1733 / 1930<br>686 / 820<br>1579 / 1710<br>980 (engine) |
 | `s2m2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 1242<br>666<br>670<br>248 | 3399 / 3704<br>2371 / 2920<br>2300 / 2786<br>876 / 1162 |
 | `s2m2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 1936<br>–<br>1015<br>376 | 4333 / 5232<br>–<br>3245 / 3838<br>1249 / 1568 |
 | `s2m2-xl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 3510<br>1796<br>1815<br>682 | 6940 / 8254<br>5606 / 6080<br>5228 / 6016<br>2092 / 2274 |
@@ -1592,6 +1611,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Outputs: disparity, confidence, occlusion (in `extras`)
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `s2m2-s` 1988x2880 (7.4 GiB peak allocated, 10.6 reserved); `s2m2-m` 1988x2880 (8.9 GiB peak allocated, 11.5 reserved); `s2m2-l` 1988x2880 (11.4 GiB peak allocated, 14.2 reserved); `s2m2-xl` 1024x2048 (7.3 GiB peak allocated, 8.5 reserved)
+- `s2m2-s` 994x1482, first call: portable + torch.compile 96 s (cold Inductor cache), TensorRT fp16 363 s (ONNX + engine).
 - `s2m2-s` original 994x1482: torch.autocast(fp16) around the forward
 - `s2m2-m` original 994x1482: torch.autocast(fp16) around the forward
 - `s2m2-l` original (fp32) 994x1482: fp32, original default (fp16 out of tolerance: mean 0.0308 (<0.02), p99 0.0805 (<0.25))
@@ -1734,7 +1754,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 1252<br>689<br>689<br>284 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>1113 / 1286 |
+| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>689<br>284<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>1113 / 1286<br>2024 / 2058<br>662 (engine) |
 | `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 1898<br>1140<br>1137<br>393 | 7348 / 7528<br>5743 / 5876<br>5775 / 5852<br>1907 / 2316 |
 
 <details><summary>Details</summary>
@@ -1752,6 +1772,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 - Outputs: disparity
 - Input size: any H x W >= 17, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `waft-stereo-s` 1024x2048 (5.3 GiB peak allocated, 8.3 reserved); `waft-stereo-b` 1024x1024 (3.2 GiB peak allocated, 4.7 reserved)
+- `waft-stereo-s` 994x1482, first call: portable + torch.compile 95 s (cold Inductor cache), TensorRT fp16 152 s (ONNX + engine).
 - `waft-stereo-s` original 994x1482: torch.autocast(fp16) around the forward
 - `waft-stereo-b` original 994x1482: torch.autocast(fp16) around the forward
 - `waft-stereo-s` load / first call: original 1.6 s / 0.14 s (375x1242), portable 0.58 s / 0.691† s, kernels 0.3† s / 0.284† s

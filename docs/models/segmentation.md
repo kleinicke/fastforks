@@ -6,7 +6,7 @@
 
 Input: one RGB image. Output: per-pixel class labels (logits with `logits=True`).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x2048: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x2048: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
@@ -41,7 +41,7 @@ Commercial use: yes.
 | `pspnet-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 92.5<br>47.2<br>48.8<br>25.0 | 1797 / 2074<br>1922 / 2222<br>417 / 492<br>341 / 494 |
 | `deeplabv3-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 108<br>54.8<br>47.9<br>20.1 | 1870 / 2134<br>2031 / 2162<br>453 / 532<br>362 / 518 |
 | `deeplabv3plus-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 104<br>53.4<br>47.1<br>18.0 | 1776 / 2036<br>1891 / 2024<br>413 / 492<br>365 / 560 |
-| `hrnet-w48-fcn-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 48.1<br>54.8<br>26.9<br>11.9 | 1789 / 1870<br>1915 / 2010<br>424 / 490<br>274 / 430 |
+| `hrnet-w48-fcn-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.1<br>54.8<br>26.9<br>11.9<br>26.8<br>20.9 | 1789 / 1870<br>1915 / 2010<br>424 / 490<br>274 / 430<br>421 / 450<br>888 (engine) |
 
 <details><summary>Details</summary>
 
@@ -55,6 +55,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `fcn-r101-d8-ade20k` 3000x4000 (7.2 GiB peak allocated, 7.5 reserved); `pspnet-r101-d8-ade20k` 3000x4000 (7.2 GiB peak allocated, 7.5 reserved); `deeplabv3-r101-d8-ade20k` 3000x4000 (7.3 GiB peak allocated, 7.5 reserved); `deeplabv3plus-r101-d8-ade20k` 3000x4000 (7.2 GiB peak allocated, 7.5 reserved); `hrnet-w48-fcn-ade20k` 3000x4000 (7.2 GiB peak allocated, 7.5 reserved)
+- `hrnet-w48-fcn-ade20k` 1024x2048, first call: portable + torch.compile 0 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
 - `fcn-r101-d8-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `pspnet-r101-d8-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `deeplabv3-r101-d8-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
@@ -92,7 +93,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov2-s-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 55.8<br>24.7<br>18.3<br>12.4 | 1653 / 2010<br>1694 / 2046<br>642 / 696<br>645 / 676 |
+| `dinov2-s-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 55.8<br>24.7<br>18.3<br>12.4<br>18.3<br>40.3 | 1653 / 2010<br>1694 / 2046<br>642 / 696<br>645 / 676<br>639 / 676<br>1794 (engine) |
 | `dinov2-b-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 115<br>40.1<br>33.3<br>22.6 | 1899 / 2224<br>2063 / 2426<br>765 / 884<br>771 / 904 |
 | `dinov2-l-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 332<br>95.7<br>83.9<br>56.8 | 2730 / 3124<br>3308 / 3726<br>1181 / 1244<br>1189 / 1244 |
 
@@ -108,6 +109,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dinov2-s-linear-ade20k` 3000x4000 (7.2 GiB peak allocated, 7.9 reserved); `dinov2-b-linear-ade20k` 3000x4000 (7.3 GiB peak allocated, 8.1 reserved); `dinov2-l-linear-ade20k` 3000x4000 (7.7 GiB peak allocated, 8.5 reserved)
+- `dinov2-s-linear-ade20k` 1024x2048, first call: portable + torch.compile 0 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `dinov2-s-linear-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `dinov2-b-linear-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `dinov2-l-linear-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
@@ -139,7 +141,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `eomt-l-dinov2-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 178<br>63.7<br>50.8<br>35.0 | 3376 / 3526<br>3827 / 4086<br>1515 / 1584<br>1515 / 1584 |
+| `eomt-l-dinov2-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 178<br>63.7<br>50.8<br>35.0<br>50.8<br>54.3 | 3376 / 3526<br>3827 / 4086<br>1515 / 1584<br>1515 / 1584<br>1512 / 1604<br>1798 (engine) |
 | `eomt-l-dinov3-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 186<br>72.1<br>54.6<br>38.8 | 3372 / 3528<br>3822 / 4086<br>1514 / 1584<br>1514 / 1584 |
 
 <details><summary>Details</summary>
@@ -157,6 +159,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `eomt-l-dinov2-ade20k` 3000x4000 (14.5 GiB peak allocated, 14.7 reserved); `eomt-l-dinov3-ade20k` 3000x4000 (14.5 GiB peak allocated, 14.7 reserved)
+- `eomt-l-dinov2-ade20k` 1024x2048, first call: portable + torch.compile 0 s (cold Inductor cache), TensorRT fp16 53 s (ONNX + engine).
 - `eomt-l-dinov2-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `eomt-l-dinov3-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `eomt-l-dinov2-ade20k` load / first call: original 4.8 s / 0.537 s (512x512), portable 3.13 s / 0.053 s, kernels 3.27† s / 0.036† s
@@ -185,7 +188,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mask2former-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 244<br>145<br>103<br>60.4 | 2966 / 3660<br>3572 / 3878<br>1164 / 1400<br>1164 / 1400 |
+| `mask2former-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>145<br>103<br>60.4<br>103<br>55.6 | 2966 / 3660<br>3572 / 3878<br>1164 / 1400<br>1164 / 1400<br>1155 / 1338<br>1816 (engine) |
 
 <details><summary>Details</summary>
 
@@ -199,6 +202,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mask2former-swinl-ade20k` 3000x4000 (14.1 GiB peak allocated, 15.1 reserved)
+- `mask2former-swinl-ade20k` 1024x2048, first call: portable + torch.compile 0 s (cold Inductor cache), TensorRT fp16 129 s (ONNX + engine).
 - `mask2former-swinl-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `mask2former-swinl-ade20k` load / first call: original 4.86 s / 0.763 s (512x512), portable 3.03 s / 0.127 s, kernels 3.17† s / 0.069† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -224,7 +228,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 307<br>205<br>139<br>100.0 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476 |
+| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>139<br>100.0<br>139<br>83.3 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476<br>2046 / 2474<br>3258 (engine) |
 
 <details><summary>Details</summary>
 
@@ -238,6 +242,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `oneformer-swinl-ade20k` 1988x2880 (8.4 GiB peak allocated, 14.9 reserved)
+- `oneformer-swinl-ade20k` 1024x2048, first call: portable + torch.compile 0 s (cold Inductor cache), TensorRT fp16 140 s (ONNX + engine).
 - `oneformer-swinl-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `oneformer-swinl-ade20k` load / first call: original 5.08 s / 0.805 s (512x512), portable 4.1 s / 0.147† s, kernels 3.27† s / 0.109† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -263,7 +268,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sapiens-seg-0.3b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 466<br>173<br>132<br>92.6 | 3673 / 4104<br>2520 / 2724<br>1643 / 1762<br>1643 / 1762 |
+| `sapiens-seg-0.3b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 466<br>173<br>132<br>92.6<br>132<br>156 | 3673 / 4104<br>2520 / 2724<br>1643 / 1762<br>1643 / 1762<br>1640 / 1762<br>1564 (engine) |
 | `sapiens-seg-1b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 1189<br>354<br>275<br>185 | 6874 / 7284<br>5721 / 5906<br>3259 / 3384<br>3259 / 3382 |
 
 <details><summary>Details</summary>
@@ -278,6 +283,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Outputs: logits; label_set: `goliath-28`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sapiens-seg-0.3b-goliath` 3000x4000 (2.2 GiB peak allocated, 3.2 reserved); `sapiens-seg-1b-goliath` 3000x4000 (3.8 GiB peak allocated, 5.0 reserved)
+- `sapiens-seg-0.3b-goliath` 1024x2048, first call: portable + torch.compile 0 s (cold Inductor cache), TensorRT fp16 53 s (ONNX + engine).
 - `sapiens-seg-0.3b-goliath` original 1024x2048: torch.autocast(fp16) around the forward
 - `sapiens-seg-1b-goliath` original 1024x2048: torch.autocast(fp16) around the forward
 - `sapiens-seg-0.3b-goliath` load / first call: original 4.92 s / 1.024 s (512x512), portable 1.22 s / 0.132† s, kernels 0.96† s / 0.092† s
@@ -306,7 +312,7 @@ Commercial use: **no** (weights: LicenseRef-NVIDIA-Source-Code-License-NC).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `segformer-b0-ade20k` (resize 2048x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 17.2<br>17.4<br>11.4<br>3.48 | 1583 / 1638<br>1590 / 1766<br>339 / 376<br>148 / 238 |
+| `segformer-b0-ade20k` (resize 2048x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.2<br>17.4<br>11.4<br>3.48<br>11.4<br>5.51 | 1583 / 1638<br>1590 / 1766<br>339 / 376<br>148 / 238<br>336 / 356<br>792 (engine) |
 | `segformer-b5-ade20k` (resize 2048x640) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 132<br>72.0<br>38.7<br>25.3 | 2529 / 2538<br>2531 / 2620<br>546 / 590<br>407 / 534 |
 
 <details><summary>Details</summary>
@@ -321,6 +327,7 @@ Commercial use: **no** (weights: LicenseRef-NVIDIA-Source-Code-License-NC).
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `segformer-b0-ade20k` 3000x4000 (3.8 GiB peak allocated, 4.0 reserved); `segformer-b5-ade20k` 3000x4000 (4.0 GiB peak allocated, 4.3 reserved)
+- `segformer-b0-ade20k` 1024x2048, first call: portable + torch.compile 0 s (cold Inductor cache), TensorRT fp16 61 s (ONNX + engine).
 - `segformer-b0-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `segformer-b5-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `segformer-b0-ade20k` load / first call: original 4.83 s / 2.232 s (512x512), portable 2.55 s / 0.082 s, kernels 2.92 s / 0.009 s

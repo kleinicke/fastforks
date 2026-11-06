@@ -6,7 +6,7 @@
 
 Input: one RGB image. Output: ImageNet-1k class logits.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
@@ -47,7 +47,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `alexnet.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 1.17<br>1.82<br>0.970<br>0.604 | 271 / 284<br>383 / 404<br>151 / 224<br>184 / 228 |
+| `alexnet.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.17<br>1.82<br>0.970<br>0.604<br>0.824<br>0.401 | 271 / 284<br>383 / 404<br>151 / 224<br>184 / 228<br>183 / 204<br>128 (engine) |
 
 <details><summary>Details</summary>
 
@@ -61,6 +61,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `alexnet.tv_in1k` 224x224 (0.1 GiB peak allocated, 0.3 reserved)
+- `alexnet.tv_in1k` 224x224, first call: portable + torch.compile 4 s (cold Inductor cache), TensorRT fp16 13 s (ONNX + engine).
 - `alexnet.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `alexnet.tv_in1k` load / first call: original 2.51 s / 0.811 s, portable 1.3 s / 0.016 s, kernels 1.4 s / 0.055 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -85,7 +86,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `convnextv2_base.fcmae_ft_in22k_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 10.7<br>14.6<br>10.2<br>2.94 | 395 / 418<br>542 / 566<br>299 / 376<br>318 / 380 |
+| `convnextv2_base.fcmae_ft_in22k_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.6<br>10.2<br>2.94<br>3.85<br>2.13 | 395 / 418<br>542 / 566<br>299 / 376<br>318 / 380<br>324 / 356<br>204 (engine) |
 
 <details><summary>Details</summary>
 
@@ -99,6 +100,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `convnextv2_base.fcmae_ft_in22k_in1k` 224x224 (0.3 GiB peak allocated, 0.4 reserved)
+- `convnextv2_base.fcmae_ft_in22k_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `convnextv2_base.fcmae_ft_in22k_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `convnextv2_base.fcmae_ft_in22k_in1k` load / first call: original 2.7 s / 0.631 s, portable 1.23 s / 0.029 s, kernels 2.12 s / 0.158 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -123,7 +125,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `deit_base_patch16_224.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 6.39<br>5.46<br>2.98<br>1.64 | 371 / 386<br>531 / 548<br>203 / 386<br>300 / 370 |
+| `deit_base_patch16_224.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.39<br>5.46<br>2.98<br>1.64<br>2.09<br>1.12 | 371 / 386<br>531 / 548<br>203 / 386<br>300 / 370<br>238 / 266<br>196 (engine) |
 
 <details><summary>Details</summary>
 
@@ -137,6 +139,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 248) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `deit_base_patch16_224.fb_in1k` 224x224 (0.2 GiB peak allocated, 0.3 reserved)
+- `deit_base_patch16_224.fb_in1k` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 28 s (ONNX + engine).
 - `deit_base_patch16_224.fb_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `deit_base_patch16_224.fb_in1k` load / first call: original 2.52 s / 0.309 s, portable 0.72 s / 0.004 s, kernels 1.96 s / 0.067 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -161,7 +164,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `densenet121.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 10.7<br>13.6<br>9.41<br>1.28 | 78 / 92<br>80 / 102<br>53 / 90<br>83 / 132 |
+| `densenet121.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>13.6<br>9.41<br>1.28<br>5.49<br>0.686 | 78 / 92<br>80 / 102<br>53 / 90<br>83 / 132<br>89 / 112<br>36 (engine) |
 
 <details><summary>Details</summary>
 
@@ -175,6 +178,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `densenet121.tv_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved)
+- `densenet121.tv_in1k` 224x224, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `densenet121.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `densenet121.tv_in1k` load / first call: original 1.22 s / 0.556 s, portable 0.41 s / 0.094 s, kernels 1.89 s / 0.045 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -199,7 +203,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov2_vitl14_lc` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 22.4<br>10.8<br>5.43<br>4.93 | 1210 / 1224<br>1782 / 1806<br>623 / 1228<br>890 / 950 |
+| `dinov2_vitl14_lc` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.4<br>10.8<br>5.43<br>4.93<br>5.09<br>4.22 | 1210 / 1224<br>1782 / 1806<br>623 / 1228<br>890 / 950<br>660 / 688<br>618 (engine) |
 
 <details><summary>Details</summary>
 
@@ -213,6 +217,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dinov2_vitl14_lc` 224x224 (0.6 GiB peak allocated, 0.7 reserved)
+- `dinov2_vitl14_lc` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 38 s (ONNX + engine).
 - `dinov2_vitl14_lc` original 224x224: torch.autocast(fp16) around the forward
 - `dinov2_vitl14_lc` load / first call: original 5.8 s / 0.323 s, portable 3.34 s / 0.017 s, kernels 3.94 s / 0.095 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -237,7 +242,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientnet_b0.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 5.64<br>7.91<br>4.98<br>0.769 | 64 / 78<br>64 / 84<br>48 / 96<br>78 / 118 |
+| `efficientnet_b0.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.64<br>7.91<br>4.98<br>0.769<br>2.88<br>0.536 | 64 / 78<br>64 / 84<br>48 / 96<br>78 / 118<br>80 / 96<br>38 (engine) |
 | `efficientnet_b4.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 11.1<br>15.7<br>10.0<br>2.00 | 156 / 190<br>147 / 174<br>89 / 114<br>111 / 180 |
 
 <details><summary>Details</summary>
@@ -254,6 +259,7 @@ Commercial use: yes.
   - `efficientnet_b0.tv_in1k`: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
   - `efficientnet_b4.tv_in1k`: fixed 380x380: the input is resized (short side 384) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientnet_b0.tv_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `efficientnet_b4.tv_in1k` 380x380 (0.1 GiB peak allocated, 0.1 reserved)
+- `efficientnet_b0.tv_in1k` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
 - `efficientnet_b0.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `efficientnet_b4.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `efficientnet_b0.tv_in1k` load / first call: original 1.25 s / 2.863 s, portable 0.17 s / 0.378 s, kernels 1.53 s / 0.063 s
@@ -281,7 +287,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientnet_v2_s.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 12.1<br>16.6<br>10.2<br>1.89 | 137 / 158<br>159 / 176<br>81 / 106<br>114 / 188 |
+| `efficientnet_v2_s.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.1<br>16.6<br>10.2<br>1.89<br>5.39<br>0.971 | 137 / 158<br>159 / 176<br>81 / 106<br>114 / 188<br>116 / 146<br>68 (engine) |
 
 <details><summary>Details</summary>
 
@@ -295,6 +301,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 384x384: the input is resized (short side 384) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientnet_v2_s.tv_in1k` 384x384 (0.1 GiB peak allocated, 0.1 reserved)
+- `efficientnet_v2_s.tv_in1k` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 28 s (ONNX + engine).
 - `efficientnet_v2_s.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `efficientnet_v2_s.tv_in1k` load / first call: original 1.48 s / 0.969 s, portable 0.35 s / 0.043 s, kernels 1.9 s / 0.053 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -319,7 +326,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientvit_b2.r288_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 10.7<br>14.7<br>11.9<br>1.10 | 144 / 160<br>173 / 194<br>85 / 124<br>120 / 212 |
+| `efficientvit_b2.r288_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.7<br>11.9<br>1.10<br>6.91<br>0.677 | 144 / 160<br>173 / 194<br>85 / 124<br>120 / 212<br>120 / 164<br>72 (engine) |
 
 <details><summary>Details</summary>
 
@@ -333,6 +340,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 288x288: the input is resized (short side 288) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientvit_b2.r288_in1k` 288x288 (0.1 GiB peak allocated, 0.1 reserved)
+- `efficientvit_b2.r288_in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
 - `efficientvit_b2.r288_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `efficientvit_b2.r288_in1k` load / first call: original 1.84 s / 1.888 s, portable 0.4 s / 0.039 s, kernels 1.92 s / 0.051 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -357,7 +365,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 83.7<br>32.1<br>18.0<br>14.1 | 1260 / 1284<br>1819 / 1864<br>648 / 1206<br>1236 / 1386 |
+| `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 83.7<br>32.1<br>18.0<br>14.1<br>14.9<br>12.4 | 1260 / 1284<br>1819 / 1864<br>648 / 1206<br>1236 / 1386<br>674 / 684<br>642 (engine) |
 
 <details><summary>Details</summary>
 
@@ -371,6 +379,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 448x448: the input is resized (short side 448) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` 448x448 (0.7 GiB peak allocated, 0.8 reserved)
+- `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` 224x224, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 44 s (ONNX + engine).
 - `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` load / first call: original 6.98 s / 0.389 s, portable 2.8 s / 0.02 s, kernels 3.61 s / 0.096 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -395,7 +404,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `fastvit_sa24.apple_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 11.9<br>16.5<br>6.88<br>1.39 | 132 / 144<br>157 / 176<br>81 / 108<br>112 / 190 |
+| `fastvit_sa24.apple_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.9<br>16.5<br>6.88<br>1.39<br>3.87<br>0.810 | 132 / 144<br>157 / 176<br>81 / 108<br>112 / 190<br>113 / 148<br>70 (engine) |
 
 <details><summary>Details</summary>
 
@@ -410,6 +419,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 256x256: the input is resized (short side 284) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `fastvit_sa24.apple_dist_in1k` 256x256 (0.1 GiB peak allocated, 0.1 reserved)
+- `fastvit_sa24.apple_dist_in1k` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `fastvit_sa24.apple_dist_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `fastvit_sa24.apple_dist_in1k` load / first call: original 2.49 s / 1.669 s, portable 0.62 s / 0.17 s, kernels 2.42 s / 0.048 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -434,7 +444,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `inception_v3.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 7.88<br>10.3<br>5.21<br>1.30 | 155 / 180<br>185 / 206<br>120 / 166<br>150 / 228 |
+| `inception_v3.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.88<br>10.3<br>5.21<br>1.30<br>3.03<br>0.591 | 155 / 180<br>185 / 206<br>120 / 166<br>150 / 228<br>152 / 184<br>68 (engine) |
 
 <details><summary>Details</summary>
 
@@ -448,6 +458,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 299x299: the input is resized (short side 342) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `inception_v3.tv_in1k` 299x299 (0.1 GiB peak allocated, 0.2 reserved)
+- `inception_v3.tv_in1k` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 22 s (ONNX + engine).
 - `inception_v3.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `inception_v3.tv_in1k` load / first call: original 1.62 s / 0.403 s, portable 0.28 s / 0.04 s, kernels 1.86 s / 0.048 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -472,7 +483,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mobilenet_v2.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 3.60<br>5.14<br>2.95<br>0.439 | 57 / 70<br>54 / 72<br>43 / 70<br>75 / 92 |
+| `mobilenet_v2.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.60<br>5.14<br>2.95<br>0.439<br>1.82<br>0.261 | 57 / 70<br>54 / 72<br>43 / 70<br>75 / 92<br>77 / 92<br>36 (engine) |
 
 <details><summary>Details</summary>
 
@@ -486,6 +497,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 232) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mobilenet_v2.tv2_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved)
+- `mobilenet_v2.tv2_in1k` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
 - `mobilenet_v2.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `mobilenet_v2.tv2_in1k` load / first call: original 1.23 s / 1.647 s, portable 0.11 s / 0.026 s, kernels 1.51 s / 0.051 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -510,7 +522,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mobilenet_v3_large.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 4.33<br>6.20<br>3.80<br>0.545 | 61 / 78<br>65 / 80<br>46 / 76<br>78 / 114 |
+| `mobilenet_v3_large.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.33<br>6.20<br>3.80<br>0.545<br>2.19<br>0.393 | 61 / 78<br>65 / 80<br>46 / 76<br>78 / 114<br>79 / 90<br>36 (engine) |
 
 <details><summary>Details</summary>
 
@@ -524,6 +536,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 232) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mobilenet_v3_large.tv2_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved)
+- `mobilenet_v3_large.tv2_in1k` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `mobilenet_v3_large.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `mobilenet_v3_large.tv2_in1k` load / first call: original 1.25 s / 1.966 s, portable 0.34 s / 0.034 s, kernels 1.46 s / 0.052 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -548,7 +561,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mobilenetv1_100.ra4_e3600_r224_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 2.19<br>2.96<br>1.77<br>0.370 | 59 / 72<br>58 / 74<br>44 / 72<br>76 / 114 |
+| `mobilenetv1_100.ra4_e3600_r224_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2.19<br>2.96<br>1.77<br>0.370<br>1.21<br>0.176 | 59 / 72<br>58 / 74<br>44 / 72<br>76 / 114<br>77 / 90<br>36 (engine) |
 
 <details><summary>Details</summary>
 
@@ -562,6 +575,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mobilenetv1_100.ra4_e3600_r224_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved)
+- `mobilenetv1_100.ra4_e3600_r224_in1k` 224x224, first call: portable + torch.compile 5 s (cold Inductor cache), TensorRT fp16 14 s (ONNX + engine).
 - `mobilenetv1_100.ra4_e3600_r224_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `mobilenetv1_100.ra4_e3600_r224_in1k` load / first call: original 1.34 s / 1.502 s, portable 0.06 s / 0.011 s, kernels 1.7 s / 0.049 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -586,7 +600,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mobilenetv4_conv_medium.e500_r256_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 5.78<br>7.77<br>3.91<br>0.641 | 81 / 94<br>90 / 106<br>54 / 86<br>87 / 124 |
+| `mobilenetv4_conv_medium.e500_r256_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.78<br>7.77<br>3.91<br>0.641<br>2.48<br>0.345 | 81 / 94<br>90 / 106<br>54 / 86<br>87 / 124<br>87 / 102<br>34 (engine) |
 
 <details><summary>Details</summary>
 
@@ -600,6 +614,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 256x256: the input is resized (short side 269) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mobilenetv4_conv_medium.e500_r256_in1k` 256x256 (0.1 GiB peak allocated, 0.1 reserved)
+- `mobilenetv4_conv_medium.e500_r256_in1k` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 19 s (ONNX + engine).
 - `mobilenetv4_conv_medium.e500_r256_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `mobilenetv4_conv_medium.e500_r256_in1k` load / first call: original 1.56 s / 2.286 s, portable 0.36 s / 0.035 s, kernels 1.89 s / 0.051 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -624,7 +639,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `regnety_160.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 12.1<br>12.2<br>8.34<br>1.86 | 385 / 418<br>512 / 524<br>208 / 250<br>229 / 316 |
+| `regnety_160.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.1<br>12.2<br>8.34<br>1.86<br>5.42<br>1.78 | 385 / 418<br>512 / 524<br>208 / 250<br>229 / 316<br>236 / 290<br>172 (engine) |
 
 <details><summary>Details</summary>
 
@@ -638,6 +653,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 232) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `regnety_160.tv2_in1k` 224x224 (0.3 GiB peak allocated, 0.3 reserved)
+- `regnety_160.tv2_in1k` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 28 s (ONNX + engine).
 - `regnety_160.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `regnety_160.tv2_in1k` load / first call: original 3.07 s / 0.484 s, portable 1.08 s / 0.042 s, kernels 2.22 s / 0.055 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -662,8 +678,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `resnet18.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 1.91<br>2.44<br>1.48<br>0.459 | 94 / 130<br>105 / 130<br>61 / 90<br>90 / 150 |
-| `resnet50.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 4.74<br>5.84<br>3.15<br>0.826 | 148 / 162<br>180 / 192<br>89 / 142<br>116 / 162 |
+| `resnet18.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.91<br>2.44<br>1.48<br>0.459<br>1.04<br>0.220 | 94 / 130<br>105 / 130<br>61 / 90<br>90 / 150<br>91 / 108<br>34 (engine) |
+| `resnet50.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.74<br>5.84<br>3.15<br>0.826<br>2.10<br>0.466 | 148 / 162<br>180 / 192<br>89 / 142<br>116 / 162<br>119 / 138<br>70 (engine) |
 | `resnet152.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 12.8<br>16.3<br>8.36<br>1.83 | 280 / 288<br>378 / 390<br>155 / 186<br>182 / 266 |
 
 <details><summary>Details</summary>
@@ -680,6 +696,8 @@ Commercial use: yes.
   - `resnet18.tv_in1k`: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
   - `resnet50.tv2_in1k`, `resnet152.tv2_in1k`: fixed 224x224: the input is resized (short side 232) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resnet18.tv_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `resnet50.tv2_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `resnet152.tv2_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved)
+- `resnet18.tv_in1k` 224x224, first call: portable + torch.compile 4 s (cold Inductor cache), TensorRT fp16 14 s (ONNX + engine).
+- `resnet50.tv2_in1k` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 24 s (ONNX + engine).
 - `resnet18.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `resnet50.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `resnet152.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
@@ -710,7 +728,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `shufflenet_v2_x1_0.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 4.79<br>6.53<br>3.71<br>0.787 | 45 / 68<br>47 / 48<br>41 / 72<br>87 / 116 |
+| `shufflenet_v2_x1_0.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.79<br>6.53<br>3.71<br>0.787<br>1.98<br>0.329 | 45 / 68<br>47 / 48<br>41 / 72<br>87 / 116<br>71 / 88<br>32 (engine) |
 
 <details><summary>Details</summary>
 
@@ -724,6 +742,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `shufflenet_v2_x1_0.tv_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved)
+- `shufflenet_v2_x1_0.tv_in1k` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 17 s (ONNX + engine).
 - `shufflenet_v2_x1_0.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `shufflenet_v2_x1_0.tv_in1k` load / first call: original 1.13 s / 1.146 s, portable 0.14 s / 0.016 s, kernels 1.55 s / 0.078 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -748,7 +767,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `squeezenet1_1.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 1.72<br>2.63<br>1.82<br>0.359 | 11 / 28<br>10 / 30<br>41 / 72<br>8 / 12 |
+| `squeezenet1_1.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.72<br>2.63<br>1.82<br>0.359<br>1.13<br>0.214 | 11 / 28<br>10 / 30<br>41 / 72<br>8 / 12<br>39 / 48<br>34 (engine) |
 
 <details><summary>Details</summary>
 
@@ -762,6 +781,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `squeezenet1_1.tv_in1k` 224x224 (0.0 GiB peak allocated, 0.0 reserved)
+- `squeezenet1_1.tv_in1k` 224x224, first call: portable + torch.compile 4 s (cold Inductor cache), TensorRT fp16 9 s (ONNX + engine).
 - `squeezenet1_1.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `squeezenet1_1.tv_in1k` load / first call: original 1.09 s / 0.374 s, portable 0.05 s / 0.02 s, kernels 1.44 s / 0.028 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -786,7 +806,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `swin_base_patch4_window7_224.ms_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 15.0<br>19.1<br>10.8<br>2.15 | 389 / 416<br>538 / 550<br>213 / 394<br>246 / 300 |
+| `swin_base_patch4_window7_224.ms_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.0<br>19.1<br>10.8<br>2.15<br>4.19<br>1.48 | 389 / 416<br>538 / 550<br>213 / 394<br>246 / 300<br>243 / 270<br>202 (engine) |
 
 <details><summary>Details</summary>
 
@@ -800,6 +820,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 248) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `swin_base_patch4_window7_224.ms_in22k_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.3 reserved)
+- `swin_base_patch4_window7_224.ms_in22k_ft_in1k` 224x224, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 64 s (ONNX + engine).
 - `swin_base_patch4_window7_224.ms_in22k_ft_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `swin_base_patch4_window7_224.ms_in22k_ft_in1k` load / first call: original 2.71 s / 0.414 s, portable 0.94 s / 0.026 s, kernels 2.28 s / 0.087 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -824,7 +845,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vgg16.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 3.62<br>4.09<br>1.99<br>1.50 | 610 / 624<br>825 / 846<br>313 / 372<br>332 / 388 |
+| `vgg16.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.62<br>4.09<br>1.99<br>1.50<br>1.86<br>1.17 | 610 / 624<br>825 / 846<br>313 / 372<br>332 / 388<br>342 / 368<br>302 (engine) |
 
 <details><summary>Details</summary>
 
@@ -838,6 +859,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vgg16.tv_in1k` 224x224 (0.3 GiB peak allocated, 0.7 reserved)
+- `vgg16.tv_in1k` 224x224, first call: portable + torch.compile 4 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
 - `vgg16.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `vgg16.tv_in1k` load / first call: original 3.22 s / 0.304 s, portable 1.74 s / 0.003 s, kernels 1.9 s / 0.056 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -862,7 +884,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vit_base_patch16_224.augreg2_in21k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 6.33<br>5.48<br>3.02<br>1.65 | 371 / 386<br>531 / 548<br>205 / 390<br>300 / 370 |
+| `vit_base_patch16_224.augreg2_in21k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.33<br>5.48<br>3.02<br>1.65<br>2.10<br>1.14 | 371 / 386<br>531 / 548<br>205 / 390<br>300 / 370<br>238 / 266<br>196 (engine) |
 
 <details><summary>Details</summary>
 
@@ -876,6 +898,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 248) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vit_base_patch16_224.augreg2_in21k_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.3 reserved)
+- `vit_base_patch16_224.augreg2_in21k_ft_in1k` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 29 s (ONNX + engine).
 - `vit_base_patch16_224.augreg2_in21k_ft_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `vit_base_patch16_224.augreg2_in21k_ft_in1k` load / first call: original 2.49 s / 0.283 s, portable 0.73 s / 0.004 s, kernels 2.05 s / 0.069 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -900,7 +923,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vit_so400m_patch14_siglip_378.webli_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 76.9<br>25.8<br>13.1<br>12.8 | 1710 / 1744<br>2495 / 2564<br>879 / 1708<br>1216 / 1346 |
+| `vit_so400m_patch14_siglip_378.webli_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.9<br>25.8<br>13.1<br>12.8<br>13.3<br>11.4 | 1710 / 1744<br>2495 / 2564<br>879 / 1708<br>1216 / 1346<br>909 / 944<br>848 (engine) |
 
 <details><summary>Details</summary>
 
@@ -914,6 +937,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 378x378: the input is resized (short side 378) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vit_so400m_patch14_siglip_378.webli_ft_in1k` 378x378 (0.9 GiB peak allocated, 1.0 reserved)
+- `vit_so400m_patch14_siglip_378.webli_ft_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 61 s (ONNX + engine).
 - `vit_so400m_patch14_siglip_378.webli_ft_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `vit_so400m_patch14_siglip_378.webli_ft_in1k` load / first call: original 7.52 s / 0.346 s, portable 7.29 s / 0.069 s, kernels 5.82 s / 0.093 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls

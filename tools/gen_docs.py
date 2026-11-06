@@ -12,6 +12,7 @@ tests/test_docs.py runs the check.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import math
 import re
@@ -144,6 +145,33 @@ def _faster(*rows: dict | None) -> dict | None:
 def _orig(fp16: dict | None, fp32: dict | None) -> dict | None:
     """The original row a speed-up uses; an fp32 row with a `dtype` is no stand-in for a missing fp16 original."""
     return _faster(fp16, None if fp16 is None and fp32 and fp32.get("dtype") else fp32)
+
+
+_COMPILE_LABEL = {"compile": "portable + torch.compile", "tensorrt": "TensorRT fp16"}  # speed_compile.jsonl modes
+
+
+@functools.cache
+def _compile_rows() -> dict[tuple[str, str], dict]:
+    """docs/data/speed_compile.jsonl: the latest row per (model id, mode)."""
+    path = ROOT / "docs" / "data" / "speed_compile.jsonl"
+    return {(r["ref"], r["mode"]): r for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])}
+
+
+def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]], list[str]]:
+    """The compile / TensorRT cell lines (label, time, memory) of one variant and input, and their one-time setup."""
+    lines, setup = [], []
+    for mode, label in _COMPILE_LABEL.items():
+        r = _compile_rows().get((model_id, mode))
+        if r is None or r["input"] != size:
+            continue
+        if "fails" in r:
+            lines.append((label, f"fails: {_fail_reason(r['fails'])}", DASH))
+            continue
+        engine = mode == "tensorrt" and "device_mb" in r
+        lines.append((label, _ms_str(r["ms"]), f"{r['device_mb']} (engine)" if engine else _peak(r)))
+        first = r["compile_s"] if mode == "compile" else r["onnx_export_s"] + r["engine_build_s"]
+        setup.append(f"{label} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
+    return lines, setup
 
 
 _COMPUTE_KEYS = ("max_disp", "iters", "valid_iters", "resize")  # variant params that change the work per call
@@ -346,10 +374,13 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
             cells = [by.get(m) for m in modes]
             scene = _scene(next(iter(by.values())).get("scene", ""))
             inp = f"{scene} ({size})" if scene else size
-            ms = "<br>".join(_ms_str(r["ms"]) if r else DASH for r in cells)
-            mem = "<br>".join(_peak(r) for r in cells)
-            names = "<br>".join(_label(m) for m in modes)
+            extra, setup = _compile_lines(v.id, size)
+            names = "<br>".join([*(_label(m) for m in modes), *(e[0] for e in extra)])
+            ms = "<br>".join([*(_ms_str(r["ms"]) if r else DASH for r in cells), *(e[1] for e in extra)])
+            mem = "<br>".join([*(_peak(r) for r in cells), *(e[2] for e in extra)])
             lines.append(f"| {labelled(measured_all, v)} | {inp} | {names} | {ms} | {mem} |")
+            if setup:
+                notes.append(f"- `{v.id}` {size}, first call: {', '.join(setup)}.")
             for m in modes:
                 if (r := by.get(m)) and _note(r):
                     given.setdefault((v.id, _note(r)), []).append(f"{_label(m)} {size}")
@@ -704,7 +735,9 @@ def render(task: str) -> str:
         (
             f"Measured on {gpu or _default_gpu(speed)}; `fastforks bench MODEL --size HxW` measures yours. "
             f"The summary uses {basis}: kernels time with its speed-up over the faster original run, and kernels "
-            "peak reserved memory with its change against the smaller original one (MiB). "
+            "peak reserved memory with its ratio to the smaller original one. "
+            "Where measured (one variant per family), a variant's table also lists portable under `torch.compile` "
+            "and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). "
             f"{_DASH} = not measured."
             + (f" The accuracy column is lower-is-better ({_OVERVIEW_ACC[task][2]})." if task in _OVERVIEW_ACC else "")
         ),
@@ -1182,11 +1215,7 @@ def _compile_cells(r: dict | None, *fields: str) -> list[str]:
 
 def _compile_block() -> str:
     """torch.compile and TensorRT table of docs/benchmarks.md, from docs/data/speed_compile.jsonl (+ speed.jsonl)."""
-    path = ROOT / "docs" / "data" / "speed_compile.jsonl"
-    latest: dict[tuple[str, str], dict] = {}
-    for line in path.read_text().splitlines() if path.is_file() else []:
-        r = json.loads(line)
-        latest[r["ref"], r["mode"]] = r
+    latest = _compile_rows()
     speed = _speed_rows()
     tasks = {v.id: t for t in registry.TASKS for _, v in registry.cards(t).values()}
     order = {t: i for i, t in enumerate(registry.TASKS)}
