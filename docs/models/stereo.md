@@ -125,7 +125,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -191,7 +191,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -257,7 +257,7 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -323,7 +323,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -377,7 +377,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -430,7 +430,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -488,7 +488,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -546,7 +546,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -605,7 +605,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -676,7 +676,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -751,7 +751,7 @@ Commercial use: **no** (code: LicenseRef-NVIDIA-Source-Code-License-NC AND Apach
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -817,7 +817,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -880,7 +880,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -948,7 +948,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1017,7 +1017,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1094,7 +1094,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1173,7 +1173,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1240,7 +1240,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1297,7 +1297,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1351,7 +1351,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1402,7 +1402,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1453,7 +1453,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1510,7 +1510,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1571,7 +1571,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1631,7 +1631,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1709,7 +1709,7 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -1788,7 +1788,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 
 ### Measured
 
-Original = the authors' code, same checkpoint and protocol.
+Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|

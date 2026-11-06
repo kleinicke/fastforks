@@ -71,7 +71,7 @@ Commercial use: yes.
 
 ### Measured
 
-Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -135,7 +135,7 @@ Commercial use: yes.
 
 ### Measured
 
-Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -195,7 +195,7 @@ Commercial use: yes.
 
 ### Measured
 
-Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -247,7 +247,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 ### Measured
 
-Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -297,7 +297,7 @@ Commercial use: yes.
 
 ### Measured
 
-Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -350,7 +350,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 ### Measured
 
-Any body part counts as person; ground truth = the COCO person masks. Original = the authors' code, same checkpoint and protocol.
+Any body part counts as person; ground truth = the COCO person masks. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -404,7 +404,7 @@ Commercial use: **no** (weights: LicenseRef-NVIDIA-Source-Code-License-NC).
 
 ### Measured
 
-Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|

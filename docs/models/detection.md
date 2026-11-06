@@ -63,7 +63,7 @@ Commercial use: yes.
 
 ### Measured
 
-pycocotools COCOeval of the top 100 detections per image. Original = the authors' code, same checkpoint and protocol.
+pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -185,7 +185,7 @@ Commercial use: yes.
 
 ### Measured
 
-pycocotools COCOeval of the top 100 detections per image. Original = the authors' code, same checkpoint and protocol.
+pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -255,7 +255,7 @@ Commercial use: yes.
 
 ### Measured
 
-pycocotools COCOeval of the top 100 detections per image. Original = the authors' code, same checkpoint and protocol.
+pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|

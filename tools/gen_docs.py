@@ -54,6 +54,10 @@ _DATASETS = {
         "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
         "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
     },
+    "features": {
+        "imagenet-val-knn-train10000-test5000-seed0-k20": "ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / "
+        "5000 test images)"
+    },
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
 # task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
@@ -71,6 +75,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         "n",
         "images",
     ),
+    "features": ((("top1", "{:.2f}", ""),), "n", "images"),
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
@@ -84,8 +89,10 @@ _PROTOCOL = {
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
     "image; the top 100 instances go to pycocotools COCOeval. ",
+    "features": "Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop "
+    "224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. ",
 }
-# family -> what its original columns ran where that is not the authors' own code (note column of the measured table)
+# family -> what its original columns ran where that differs from the original code under Details (note column)
 _ORIGINAL_IS = {
     "crestereo": "original = the community PyTorch port (MegEngine 1.13 has no sm_120 build)",
     "sam3": "original = transformers `Sam3Model`, the port this code follows",
@@ -93,7 +100,7 @@ _ORIGINAL_IS = {
 _MODES = ("upstream", "upstream-default", "portable", "kernels")
 _EVAL_MODES = ("upstream", "upstream-fp16", "portable", "kernels")
 _EVAL_LABEL = {"upstream": "original fp32", "upstream-fp16": "original fp16"}
-_PROTO = "Original = the authors' code, same checkpoint and protocol."
+_PROTO = "Original = the original code named under Details, same checkpoint and protocol."
 
 
 def _label(mode: str) -> str:
@@ -1135,7 +1142,10 @@ def overview() -> str:
             "accuracy, more sizes); [benchmarks](benchmarks.md) explains the method."
         ),
         "",
-        "- `kernels` = our kernels, `portable` = plain PyTorch, `original` = the authors' code (size in brackets).",
+        (
+            "- `kernels` = our kernels, `portable` = plain PyTorch, `original` = the original code named on the model "
+            "page (size in brackets)."
+        ),
         (
             "- speed-up: `kernels` against the faster of original fp16 / fp32 where both were timed at the original's "
             "size, else against `portable` (labelled)."

@@ -505,9 +505,8 @@ def _speed_section(task: str, variants: list[Variant]) -> list[str]:
             "",
             "Hardware, protocol and caveats: "
             f"[benchmarks]({GITHUB}/blob/main/docs/benchmarks.md) (RTX 5060 Ti 16 GB, sm_120). "
-            "Original = the authors' code at the precision of portable (fp16, or `(fp32)` where fp16 is unsupported or "
-            "not finite); original fp32 = its default fp32 run. Peak memory is the torch "
-            "allocator's.",
+            "Original = the original code named above at the precision of portable (fp16, or `(fp32)` where fp16 is "
+            "unsupported or not finite); original fp32 = its default fp32 run. Peak memory is the torch allocator's.",
         ]
         return lines
     return ["Not measured yet."]

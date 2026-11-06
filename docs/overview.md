@@ -4,7 +4,7 @@
 
 Measured on one RTX 5060 Ti at the size in each section header (median of warm runs); `fastforks bench MODEL --size HxW` measures your GPU. Each model links to its model page (licences, accuracy, more sizes); [benchmarks](benchmarks.md) explains the method.
 
-- `kernels` = our kernels, `portable` = plain PyTorch, `original` = the authors' code (size in brackets).
+- `kernels` = our kernels, `portable` = plain PyTorch, `original` = the original code named on the model page (size in brackets).
 - speed-up: `kernels` against the faster of original fp16 / fp32 where both were timed at the original's size, else against `portable` (labelled).
 - commercial use: `yes` only if the code and the weights licence both allow it.
 - Accuracy is a check on public images, not a leaderboard: † = trained on that data, ? = training data not stated; the most-accurate picks skip both. Best trade-off = the fastest model within 1.25x of the lowest error.
