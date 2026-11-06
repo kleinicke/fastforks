@@ -117,25 +117,27 @@ class Camera(Protocol):
         ...
 
 
-def _to_tensor(a: np.ndarray | torch.Tensor, last: int, what: str) -> tuple[torch.Tensor, bool]:
+def _to_tensor(a: np.ndarray | torch.Tensor, last: int, what: str) -> torch.Tensor:
     if isinstance(a, np.ndarray):
-        t, numpy = torch.from_numpy(np.ascontiguousarray(a, dtype=np.float64)), True
+        t = torch.from_numpy(np.ascontiguousarray(a, dtype=np.float64))
     elif isinstance(a, torch.Tensor):
-        t, numpy = a.to(torch.float64), False
+        t = (a.cpu() if a.device.type == "mps" else a).to(torch.float64)  # no float64 on MPS: computed on the CPU
     else:
         msg = f"{what} must be a numpy array or torch tensor, got {type(a).__name__}"
         raise InputError(msg)
     if t.ndim == 0 or t.shape[-1] != last:
         msg = f"{what} must have shape [..., {last}], got {tuple(t.shape)}"
         raise InputError(msg)
-    return t, numpy
+    return t
 
 
-def _finish(value: torch.Tensor, valid: torch.Tensor, numpy: bool) -> tuple[ArrayT, ArrayT]:  # noqa: FBT001
+def _finish(value: torch.Tensor, valid: torch.Tensor, like: np.ndarray | torch.Tensor) -> tuple[ArrayT, ArrayT]:
     valid = valid & torch.isfinite(value).all(-1)
     value = torch.where(valid[..., None], value, torch.nan)
-    if numpy:
+    if isinstance(like, np.ndarray):
         return value.numpy(), valid.numpy()
+    if like.device.type == "mps":
+        return value.float().to(like.device), valid.to(like.device)  # ty: ignore[invalid-return-type]
     return value, valid  # ty: ignore[invalid-return-type]
 
 
@@ -295,9 +297,9 @@ class _Base:
         Returns:
             `(pixels [..., 2], valid [...])`, same array kind and device as `points`; pixels are NaN where invalid.
         """
-        t, numpy = _to_tensor(points, 3, "points")
+        t = _to_tensor(points, 3, "points")
         m, valid = self._project_normalized(t[..., 0], t[..., 1], t[..., 2])
-        return _finish(torch.stack([self.fx * m[0] + self.cx, self.fy * m[1] + self.cy], -1), valid, numpy)
+        return _finish(torch.stack([self.fx * m[0] + self.cx, self.fy * m[1] + self.cy], -1), valid, points)
 
     def unproject(self, pixels: ArrayT) -> tuple[ArrayT, ArrayT]:
         """Unproject pixels to unit rays in the camera frame.
@@ -308,11 +310,11 @@ class _Base:
         Returns:
             `(rays [..., 3], valid [...])`, same array kind and device as `pixels`; rays are NaN where invalid.
         """
-        t, numpy = _to_tensor(pixels, 2, "pixels")
+        t = _to_tensor(pixels, 2, "pixels")
         mx = (t[..., 0] - self.cx) / self.fx
         my = (t[..., 1] - self.cy) / self.fy
         ray, valid = self._unproject_normalized(mx, my)
-        return _finish(ray, valid, numpy)
+        return _finish(ray, valid, pixels)
 
     def _project_normalized(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> tuple[Pair, torch.Tensor]:
         raise NotImplementedError

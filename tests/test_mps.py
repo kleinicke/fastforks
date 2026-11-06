@@ -10,6 +10,8 @@ import pytest
 import torch
 
 from fastforks._core import mps
+from fastforks.multiview import unproject
+from fastforks.stereo import geometry as g
 
 pytestmark = [
     pytest.mark.mps,
@@ -72,3 +74,19 @@ def test_exit_with_queued_work():
     for _ in range(3):
         p = subprocess.run([sys.executable, "-c", _EXIT], capture_output=True, text=True, timeout=120, check=False)
         assert p.returncode == 0, p.stderr[-2000:]
+
+
+def test_float64_geometry_from_mps_tensors():
+    # float64 poses (large world offsets) stay on the CPU: MPS points must reach it before the float64 cast
+    pts = unproject(
+        torch.ones(1, 2, 2, device="mps"), torch.eye(3, device="mps")[None], torch.eye(4, dtype=torch.float64)[None]
+    )
+    assert pts.dtype == torch.float64
+    assert pts.device.type == "cpu"
+    cam = g.Pinhole(4, 4, 2.0, 2.0, 2.0, 2.0)
+    uv, valid = cam.project(torch.tensor([[0.5, 0.5, 1.0]], device="mps"))
+    assert uv.device.type == "mps"
+    assert bool(valid.all())
+    torch.testing.assert_close(uv.cpu(), torch.tensor([[3.0, 3.0]]))
+    rays, _ = cam.unproject(uv)
+    assert rays.device.type == "mps"

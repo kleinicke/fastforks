@@ -258,7 +258,8 @@ def unproject(depth: torch.Tensor, intrinsics: torch.Tensor, cam_to_world: torch
     pts = rays * depth.reshape(v, -1, 1)
     if cam_to_world is not None:
         c2w = cam_to_world if cam_to_world.dtype == torch.float64 else cam_to_world.to(depth)  # float64: UTM-sized
-        pts = pts.to(c2w) @ c2w[:, :3, :3].transpose(1, 2) + c2w[:, None, :3, 3]
+        # to the CPU before float64 (MPS has no float64)
+        pts = pts.to(c2w.device).to(c2w.dtype) @ c2w[:, :3, :3].transpose(1, 2) + c2w[:, None, :3, 3]
     return pts.reshape(v, h, w, 3)
 
 
