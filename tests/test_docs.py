@@ -304,3 +304,17 @@ def test_measured_date_span():
     """A campaign that crosses midnight is one row set; the card shows the date span."""
     assert gen_docs._span({"2026-11-05"}) == "2026-11-05"
     assert gen_docs._span({"2026-11-06", "2026-11-05"}) == "2026-11-05 to 2026-11-06"
+
+
+def test_measured_cells_read_nested_metrics_and_optional_ones():
+    """Rows of the COCO / ADE20K evals nest their metrics; an optional metric shows only where the row has it."""
+    box = {"ref": "x", "mode": "portable", "dataset": "coco-val2017-every10", "n": 500, "metrics": {"box_map": 41.5}}
+    mask = box | {"metrics": {"box_map": 42.13, "mask_map": 38.67}}
+    assert gen_docs._accuracy("detection", {("portable", box["dataset"]): box}, "portable", box["dataset"]) == "41.50"
+    assert gen_docs._accuracy("detection", {("portable", box["dataset"]): mask}, "portable", box["dataset"]) == (
+        "42.13 / 38.67"
+    )
+    assert gen_docs._suffixes("detection", box["dataset"], [box]) == []
+    assert gen_docs._suffixes("detection", box["dataset"], [mask]) == [" / mask mAP"]
+    for (task, dataset), metrics in [(k, v) for k, v in gen_docs._METRICS.items() if isinstance(k, tuple)]:
+        assert dataset in gen_docs._DATASETS[task], (task, dataset, metrics)

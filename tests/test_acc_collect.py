@@ -30,3 +30,15 @@ def test_port_fills_the_original_columns(tmp_path):
         ("crestereo-eth3d", "upstream", "upstream-default"),
         ("crestereo-eth3d", "upstream16", "upstream"),
     ]
+
+
+def test_text_prompt_rows_are_their_own_dataset(tmp_path):
+    """SAM 3 (class-name prompts, mAP) and SAM (point prompts, mIoU) share the images, not the benchmark."""
+    rows = [
+        {"task": "promptable_segmentation", "dataset": "coco-val2017-every10", "metrics": {"miou_best": 1.0}},
+        {"task": "promptable_segmentation", "dataset": "coco-val2017-every10", "metrics": {"box_map": 1.0}},
+        {"task": "detection", "dataset": "coco-val2017-every10", "metrics": {"box_map": 1.0}},
+    ]
+    (tmp_path / "coco_rows.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    got = [r["dataset"] for r in acc_collect._coco(tmp_path)]
+    assert got == ["coco-val2017-every10", "coco-val2017-every10-text", "coco-val2017-every10"]

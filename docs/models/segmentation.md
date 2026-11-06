@@ -69,6 +69,20 @@ Commercial use: yes.
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `fcn-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 39.40 / 79.09 | 39.40 / 79.10 | 39.39 / 79.10 | 39.39 / 79.09 |  |
+| `pspnet-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.44 / 80.97 | 44.44 / 80.97 | 44.43 / 80.97 | 44.44 / 80.97 |  |
+| `deeplabv3-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 43.62 / 80.80 | 43.62 / 80.80 | 43.61 / 80.80 | 43.62 / 80.80 |  |
+| `deeplabv3plus-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.36 / 81.01 | 44.36 / 81.01 | 44.35 / 81.01 | 44.36 / 81.01 |  |
+| `hrnet-w48-fcn-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 40.11 / 79.34 | 40.11 / 79.35 | 40.10 / 79.35 | 40.11 / 79.34 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.04 and p99 <= 0.15 (absolute error of the output `logits`).
@@ -119,6 +133,18 @@ Commercial use: yes.
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `dinov2-s-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 42.39 / 79.40 | 42.38 / 79.40 | 42.38 / 79.39 | 42.37 / 79.39 |  |
+| `dinov2-b-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 45.12 / 80.29 | 45.12 / 80.29 | 45.12 / 80.28 | 45.12 / 80.28 |  |
+| `dinov2-l-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 45.08 / 80.13 | 45.09 / 80.13 | 45.08 / 80.13 | 45.08 / 80.13 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.05 and p99 <= 0.25 (absolute error of the output `logits`).
@@ -167,6 +193,17 @@ Commercial use: yes.
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `eomt-l-dinov2-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 57.31 / 86.44 | 57.31 / 86.44 | 57.34 / 86.44 | 57.37 / 86.43 |  |
+| `eomt-l-dinov3-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 57.62 / 86.60 | 57.62 / 86.60 | 57.62 / 86.60 | 57.60 / 86.59 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.0002 and p99 <= 0.003 (absolute error of the output `logits`).
@@ -208,6 +245,16 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `mask2former-swinl-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 53.55 / 85.10 | 53.63 / 85.10 | 53.68 / 85.12 | 53.68 / 85.10 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.001 and p99 <= 0.01 (absolute error of the output `logits`).
@@ -247,6 +294,16 @@ Commercial use: yes.
 - `oneformer-swinl-ade20k` load / first call: original 5.08 s / 0.805 s (512x512), portable 4.1 s / 0.147† s, kernels 3.27† s / 0.109† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
+
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `oneformer-swinl-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 54.49 / 85.06 | 54.26 / 85.05 | 54.37 / 85.05 | 54.38 / 85.14 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -291,6 +348,17 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 
+### Measured
+
+Any body part counts as person; ground truth = the COCO person masks. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `sapiens-seg-0.3b-goliath` | COCO val2017 persons, every 10th image, person IoU % | 32.60 | 32.61 | 32.61 | 32.62 |  |
+| `sapiens-seg-1b-goliath` | COCO val2017 persons, every 10th image, person IoU % | 54.22 | 54.22 | 54.22 | 54.19 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.05 and p99 <= 0.25 (absolute error of the output `logits`).
@@ -333,6 +401,17 @@ Commercial use: **no** (weights: LicenseRef-NVIDIA-Source-Code-License-NC).
 - `segformer-b0-ade20k` load / first call: original 4.83 s / 2.232 s (512x512), portable 2.55 s / 0.082 s, kernels 2.92 s / 0.009 s
 - `segformer-b5-ade20k` load / first call: original 1.24 s / 0.501 s (512x512), portable 3.09 s / 0.077 s, kernels 3.43 s / 0.032 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
+
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `segformer-b0-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 34.68 / 76.41 | 34.68 / 76.41 | 34.67 / 76.41 | 34.67 / 76.41 |  |
+| `segformer-b5-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

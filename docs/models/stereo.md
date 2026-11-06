@@ -492,8 +492,8 @@ Original = the authors' code, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
-| `crestereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 1.40 / 0.185 | 1.39 / 0.185 | 1.39 / 0.184 | 1.39 / 0.184 | trained on this dataset's public images; not a zero-shot result |
-| `crestereo-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 4.89 / 0.693 | 4.86 / 0.693 | 4.84 / 0.699 | 4.86 / 0.693 | trained on this dataset's public images; not a zero-shot result |
+| `crestereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 1.40 / 0.185 | 1.39 / 0.185 | 1.39 / 0.184 | 1.39 / 0.184 | trained on this dataset's public images; not a zero-shot result; original = the community PyTorch port (MegEngine 1.13 has no sm_120 build) |
+| `crestereo-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 4.89 / 0.693 | 4.86 / 0.693 | 4.84 / 0.699 | 4.86 / 0.693 | trained on this dataset's public images; not a zero-shot result; original = the community PyTorch port (MegEngine 1.13 has no sm_120 build) |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 

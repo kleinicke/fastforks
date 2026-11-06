@@ -61,6 +61,17 @@ Commercial use: yes.
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+pycocotools COCOeval of the top 100 detections per image. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `detr-r50-coco` | COCO val2017, every 10th image, box mAP | 43.59 | 43.53 | 43.59 | 43.62 |  |
+| `detr-r101-coco` | COCO val2017, every 10th image, box mAP | 44.04 | 44.00 | 44.11 | 44.05 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.2 and p99 <= 1.0 (absolute error of the output `boxes`).
@@ -172,6 +183,17 @@ Commercial use: yes.
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+pycocotools COCOeval of the top 100 detections per image. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `mask-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 42.13 / 38.67 | 42.13 / 38.66 | 42.12 / 38.65 | 42.10 / 38.64 |  |
+| `faster-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP | 41.54 | 41.44 | 41.58 | 41.58 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 1.0 and p99 <= 2.0 (absolute error of the output `boxes`).
@@ -230,6 +252,20 @@ Commercial use: yes.
 - `rtdetrv2-x-coco` load / first call: original 1.13 s / 0.076 s, portable 1.09 s / 0.048 s, kernels 0.29† s / 0.021 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+pycocotools COCOeval of the top 100 detections per image. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `rtdetrv2-s-coco` | COCO val2017, every 10th image, box mAP | 49.29 | 49.26 | 49.29 | 49.31 |  |
+| `rtdetrv2-m-coco` | COCO val2017, every 10th image, box mAP | 49.83 | 49.81 | 49.84 | 49.79 |  |
+| `rtdetrv2-ms-coco` | COCO val2017, every 10th image, box mAP | 51.97 | 51.98 | 51.95 | 51.96 |  |
+| `rtdetrv2-l-coco` | COCO val2017, every 10th image, box mAP | 54.52 | 54.57 | 54.51 | 54.49 |  |
+| `rtdetrv2-x-coco` | COCO val2017, every 10th image, box mAP | 55.51 | 55.54 | 55.51 | 55.49 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

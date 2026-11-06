@@ -10,13 +10,13 @@ Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`sam-vit-b`](#sam) | yes | 36.95 | 420, 0.15x |
-| [`sam-vit-h`](#sam) | yes | 143.13 | 1524, 0.27x |
-| [`sam-vit-l`](#sam) | yes | 81.53 | 862, 0.19x |
-| [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.09 | 524, 0.62x |
-| [`sam2.1-hiera-large`](#sam2) | yes | 48.81 | 828, 0.56x |
-| [`sam2.1-hiera-small`](#sam2) | yes | 15.56 | 386, 0.57x |
-| [`sam2.1-hiera-tiny`](#sam2) | yes | 13.91 | 362, 0.57x |
+| [`sam-vit-b`](#sam) | yes | 36.95, 2.7x | 420, 0.23x |
+| [`sam-vit-h`](#sam) | yes | 143.13, 2.1x | 1524, 0.28x |
+| [`sam-vit-l`](#sam) | yes | 81.53, 2.4x | 862, 0.25x |
+| [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.09, 1.9x | 524, 0.6x |
+| [`sam2.1-hiera-large`](#sam2) | yes | 48.81, 1.8x | 828, 0.55x |
+| [`sam2.1-hiera-small`](#sam2) | yes | 15.56, 2.7x | 386, 0.58x |
+| [`sam2.1-hiera-tiny`](#sam2) | yes | 13.91, 2.7x | 362, 0.57x |
 | [`sam3`](#sam3) | yes | 116.47, 2.4x | 2264, 0.58x |
 
 <a id="sam"></a>
@@ -29,9 +29,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 173<br>–<br>48.3<br>37.0<br>40.9<br>27.3 | 2798 / 2832<br>–<br>378 / 420<br>377 / 420<br>362 / 400<br>322 (engine) |
-| `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 414<br>–<br>116<br>81.5 | 4428 / 4454<br>–<br>833 / 1262<br>831 / 862 |
-| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 742<br>–<br>214<br>143 | 5702 / 5734<br>–<br>1484 / 2524<br>1480 / 1524 |
+| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 168<br>98.2<br>48.3<br>37.0<br>40.9<br>27.3 | 2798 / 2832<br>1769 / 1802<br>378 / 420<br>377 / 420<br>362 / 400<br>322 (engine) |
+| `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 406<br>197<br>116<br>81.5 | 4428 / 4474<br>3411 / 3464<br>833 / 1262<br>831 / 862 |
+| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 734<br>306<br>214<br>143 | 5702 / 5754<br>5295 / 5404<br>1484 / 2524<br>1480 / 1524 |
 
 <details><summary>Details</summary>
 
@@ -46,14 +46,26 @@ Commercial use: yes.
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 1024x1024 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam-vit-b` 1080x1920 (0.4 GiB peak allocated, 0.5 reserved); `sam-vit-l` 1080x1920 (0.8 GiB peak allocated, 1.0 reserved); `sam-vit-h` 1080x1920 (1.5 GiB peak allocated, 1.9 reserved)
 - `sam-vit-b` 1024x1024, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
-- `sam-vit-b` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 0.4139 (<0.0021), p99 1.2603 (<0.0098))
-- `sam-vit-l` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 0.3938 (<0.048), p99 1.9073 (<0.21))
-- `sam-vit-h` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 0.3634 (<0.0099), p99 1.3486 (<0.036))
-- `sam-vit-b` load / first call: original 0.76 s / 0.266 s, portable 0.46 s / 0.048† s, kernels 0.17† s / 0.037† s
-- `sam-vit-l` load / first call: original 1.46 s / 0.42 s, portable 1.21 s / 0.116† s, kernels 0.43† s / 0.081† s
-- `sam-vit-h` load / first call: original 3.53 s / 0.733 s, portable 2.45 s / 0.214† s, kernels 0.89† s / 0.143† s
+- `sam-vit-b` original 1024x1024: torch.autocast(float16) around the call
+- `sam-vit-l` original 1024x1024: torch.autocast(float16) around the call
+- `sam-vit-h` original 1024x1024: torch.autocast(float16) around the call
+- `sam-vit-b` load / first call: original 0.75 s / 0.176 s, portable 0.46 s / 0.048† s, kernels 0.17† s / 0.037† s
+- `sam-vit-l` load / first call: original 1.8 s / 0.268 s, portable 1.21 s / 0.116† s, kernels 0.43† s / 0.081† s
+- `sam-vit-h` load / first call: original 4.61 s / 0.376 s, portable 2.45 s / 0.214† s, kernels 0.89† s / 0.143† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `sam-vit-b` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 52.91 / 50.31 | 53.08 / 50.39 | 52.91 / 50.31 | 52.89 / 50.32 |  |
+| `sam-vit-l` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 57.89 / 53.32 | 57.76 / 53.31 | 57.84 / 53.32 | 57.85 / 53.33 |  |
+| `sam-vit-h` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 57.93 / 53.13 | 57.92 / 53.13 | 57.97 / 53.12 | 57.99 / 53.12 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -77,10 +89,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam2.1-hiera-tiny` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 61.3<br>–<br>16.6<br>13.9<br>14.2<br>8.56 | 622 / 636<br>–<br>304 / 382<br>316 / 362<br>270 / 322<br>266 (engine) |
-| `sam2.1-hiera-small` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 68.5<br>–<br>18.8<br>15.6 | 649 / 678<br>–<br>318 / 366<br>330 / 386 |
-| `sam2.1-hiera-base-plus` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 102<br>–<br>32.0<br>25.1 | 830 / 848<br>–<br>412 / 464<br>426 / 524 |
-| `sam2.1-hiera-large` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 243<br>–<br>68.0<br>48.8 | 1474 / 1478<br>–<br>742 / 768<br>760 / 828 |
+| `sam2.1-hiera-tiny` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 66.3<br>38.0<br>16.6<br>13.9<br>14.2<br>8.56 | 622 / 676<br>577 / 636<br>304 / 382<br>316 / 362<br>270 / 322<br>266 (engine) |
+| `sam2.1-hiera-small` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 74.8<br>41.8<br>18.8<br>15.6 | 649 / 698<br>618 / 662<br>318 / 366<br>330 / 386 |
+| `sam2.1-hiera-base-plus` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 107<br>47.2<br>32.0<br>25.1 | 830 / 868<br>823 / 870<br>412 / 464<br>426 / 524 |
+| `sam2.1-hiera-large` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 242<br>86.4<br>68.0<br>48.8 | 1474 / 1518<br>1656 / 1724<br>742 / 768<br>760 / 828 |
 
 <details><summary>Details</summary>
 
@@ -95,16 +107,29 @@ Commercial use: yes.
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 1024x1024 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam2.1-hiera-tiny` 1080x1920 (0.3 GiB peak allocated, 0.4 reserved); `sam2.1-hiera-small` 1080x1920 (0.3 GiB peak allocated, 0.4 reserved); `sam2.1-hiera-base-plus` 1080x1920 (0.4 GiB peak allocated, 0.6 reserved); `sam2.1-hiera-large` 1080x1920 (0.7 GiB peak allocated, 0.9 reserved)
 - `sam2.1-hiera-tiny` 1024x1024, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
-- `sam2.1-hiera-tiny` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 1.8172 (<0.0037), p99 4.2140 (<0.015))
-- `sam2.1-hiera-small` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 1.1068 (<0.017), p99 3.3109 (<0.051))
-- `sam2.1-hiera-base-plus` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 0.5384 (<0.0074), p99 1.8414 (<0.026))
-- `sam2.1-hiera-large` original (fp32) 1024x1024: fp32, original default (fp16 out of tolerance: mean 2.3119 (<0.057), p99 5.7225 (<0.27))
-- `sam2.1-hiera-tiny` load / first call: original 0.41 s / 0.132 s, portable 0.25 s / 0.017† s, kernels 0.11† s / 0.014† s
-- `sam2.1-hiera-small` load / first call: original 0.32 s / 0.069 s, portable 0.36 s / 0.019† s, kernels 0.13† s / 0.016† s
-- `sam2.1-hiera-base-plus` load / first call: original 0.53 s / 0.099 s, portable 0.43 s / 0.032† s, kernels 0.19† s / 0.025† s
-- `sam2.1-hiera-large` load / first call: original 2.92 s / 0.243 s, portable 1.1 s / 0.068† s, kernels 0.39† s / 0.049† s
+- `sam2.1-hiera-tiny` original 1024x1024: torch.autocast(float16) around the call
+- `sam2.1-hiera-small` original 1024x1024: torch.autocast(float16) around the call
+- `sam2.1-hiera-base-plus` original 1024x1024: torch.autocast(float16) around the call
+- `sam2.1-hiera-large` original 1024x1024: torch.autocast(float16) around the call
+- `sam2.1-hiera-tiny` load / first call: original 0.41 s / 0.147 s, portable 0.25 s / 0.017† s, kernels 0.11† s / 0.014† s
+- `sam2.1-hiera-small` load / first call: original 0.48 s / 0.136 s, portable 0.36 s / 0.019† s, kernels 0.13† s / 0.016† s
+- `sam2.1-hiera-base-plus` load / first call: original 0.74 s / 0.143 s, portable 0.43 s / 0.032† s, kernels 0.19† s / 0.025† s
+- `sam2.1-hiera-large` load / first call: original 1.95 s / 0.184 s, portable 1.1 s / 0.068† s, kernels 0.39† s / 0.049† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `sam2.1-hiera-tiny` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 57.63 / 57.69 | 57.56 / 57.64 | 57.62 / 57.72 | 57.61 / 57.77 |  |
+| `sam2.1-hiera-small` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 59.39 / 58.46 | 59.34 / 58.42 | 59.38 / 58.49 | 59.38 / 58.47 |  |
+| `sam2.1-hiera-base-plus` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 58.79 / 58.67 | 58.73 / 58.57 | 58.81 / 58.71 | 58.82 / 58.73 |  |
+| `sam2.1-hiera-large` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 64.88 / 64.71 | 64.77 / 64.73 | 64.86 / 64.68 | 64.87 / 64.70 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -149,6 +174,16 @@ Commercial use: yes.
 - `sam3` load / first call: original 1.12 s / 0.957 s (840x1297), portable 2.95 s / 0.181† s, kernels 0.7† s / 0.116† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+One text prompt (the COCO class name) per class in the image; the top 100 instances go to pycocotools COCOeval. Original = the authors' code, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `sam3` | COCO val2017, every 10th image, class-name prompts, box / mask mAP | 52.54 / 44.56 | 52.54 / 44.54 | 52.79 / 45.13 | 52.83 / 45.14 | original = transformers `Sam3Model`, the port this code follows |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

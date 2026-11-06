@@ -45,7 +45,8 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
 - Detection: `box_map` (and `mask_map` for Mask R-CNN), COCO val2017 every 10th image (500), pycocotools.
 - Promptable segmentation: SAM / SAM 2 `miou_best` (the candidate with the best predicted IoU of three) and
   `miou_single`, one interior point per non-crowd instance of the same 500 COCO images. SAM 3 (concept prompts):
-  `box_map` / `mask_map`, one text prompt per COCO category present in the image, threshold 0.5.
+  `box_map` / `mask_map`, one text prompt per COCO category present in the image, threshold 0.5; dataset key
+  `coco-val2017-every10-text` (same images, another benchmark).
 - Features: kNN `top1` (k = 20, cosine, similarity-weighted) of the CLS feature at 224x224, ImageNet val split into two
   seeded disjoint subsets (10000 memory, 5000 test).
 - Multiview: `absrel`, `d125` (% within 1.25) on DTU scans 1, 9, 24, 33, 75 (reference view 24 + 7 sources, 640x512),

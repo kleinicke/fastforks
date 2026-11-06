@@ -201,14 +201,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`sam2.1-hiera-tiny`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | – | 16.6 | 13.9 | 1.2x vs portable | 316 |
-| [`sam2.1-hiera-small`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | – | 18.8 | 15.6 | 1.2x vs portable | 330 |
-| [`sam2.1-hiera-base-plus`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | – | 32.0 | 25.1 | 1.3x vs portable | 426 |
-| [`sam-vit-b`](models/promptable_segmentation.md#segment-anything-sam) | yes | – | 48.3 | 37.0 | 1.3x vs portable | 377 |
-| [`sam2.1-hiera-large`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | – | 68.0 | 48.8 | 1.4x vs portable | 760 |
-| [`sam-vit-l`](models/promptable_segmentation.md#segment-anything-sam) | yes | – | 115.7 | 81.5 | 1.4x vs portable | 831 |
+| [`sam2.1-hiera-tiny`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 38.0 (1024x1024) | 16.6 | 13.9 | 2.7x vs original (1024x1024) | 316 |
+| [`sam2.1-hiera-small`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 41.8 (1024x1024) | 18.8 | 15.6 | 2.7x vs original (1024x1024) | 330 |
+| [`sam2.1-hiera-base-plus`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 47.2 (1024x1024) | 32.0 | 25.1 | 1.9x vs original (1024x1024) | 426 |
+| [`sam-vit-b`](models/promptable_segmentation.md#segment-anything-sam) | yes | 98.2 (1024x1024) | 48.3 | 37.0 | 2.7x vs original (1024x1024) | 377 |
+| [`sam2.1-hiera-large`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 86.4 (1024x1024) | 68.0 | 48.8 | 1.8x vs original (1024x1024) | 760 |
+| [`sam-vit-l`](models/promptable_segmentation.md#segment-anything-sam) | yes | 197.2 (1024x1024) | 115.7 | 81.5 | 2.4x vs original (1024x1024) | 831 |
 | [`sam3`](models/promptable_segmentation.md#segment-anything-3-sam-3-image) | yes | 281.0 (1024x1024) | 179.4 | 116.5 | 2.4x vs original (1024x1024) | 2019 |
-| [`sam-vit-h`](models/promptable_segmentation.md#segment-anything-sam) | yes | – | 214.5 | 143.1 | 1.5x vs portable | 1480 |
+| [`sam-vit-h`](models/promptable_segmentation.md#segment-anything-sam) | yes | 306.5 (1024x1024) | 214.5 | 143.1 | 2.1x vs original (1024x1024) | 1480 |
 
 ## Detection
 

@@ -127,6 +127,8 @@ def _coco(raw: Path) -> list[dict[str, Any]]:
             r["ms_per_img"] = r["ms"]
         elif "ms_embed" in r:
             r["ms_per_img"] = round(r["ms_embed"] + r["ms_prompts"], 2)
+        if "box_map" in r["metrics"] and r["task"] == "promptable_segmentation":
+            r["dataset"] += "-text"  # SAM 3: class-name text prompts, mAP; not the point-prompt mIoU of the same images
         out.append(r)
     return out
 

@@ -45,17 +45,50 @@ _DATASETS = {
         "eth3d": "ETH3D two-view train left, AbsRel / delta1",
         "middH": "Middlebury 2014 trainingH left, AbsRel / delta1",
     },
+    "segmentation": {
+        "ade20k-val": "ADE20K val, every 4th image, mIoU / aAcc %",
+        "coco-val2017-persons-every10": "COCO val2017 persons, every 10th image, person IoU %",
+    },
+    "detection": {"coco-val2017-every10": "COCO val2017, every 10th image, box mAP"},
+    "promptable_segmentation": {
+        "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
+        "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
+    },
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
-# task -> (metric a, metric b, format, sample count key, sample noun)
-_METRICS = {
-    "stereo": ("bad", "epe", "{:.2f} / {:.3f}", "n_pairs", "pairs"),
-    "depth": ("rel_absrel", "rel_d1", "{:.4f} / {:.4f}", "n_images", "images"),
+# task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
+# shown where the row has it, its suffix appended to the dataset title where a row of the table has it
+_Metric = tuple[str, str, str]
+_METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
+    "stereo": ((("bad", "{:.2f}", ""), ("epe", "{:.3f}", "")), "n_pairs", "pairs"),
+    "depth": ((("rel_absrel", "{:.4f}", ""), ("rel_d1", "{:.4f}", "")), "n_images", "images"),
+    "segmentation": ((("miou", "{:.2f}", ""), ("aacc", "{:.2f}", "")), "n", "images"),
+    ("segmentation", "coco-val2017-persons-every10"): ((("person_iou", "{:.2f}", ""),), "n", "images"),
+    "detection": ((("box_map", "{:.2f}", ""), ("mask_map", "{:.2f}", " / mask mAP")), "n", "images"),
+    "promptable_segmentation": ((("miou_best", "{:.2f}", ""), ("miou_single", "{:.2f}", "")), "n", "images"),
+    ("promptable_segmentation", "coco-val2017-every10-text"): (
+        (("box_map", "{:.2f}", ""), ("mask_map", "{:.2f}", "")),
+        "n",
+        "images",
+    ),
 }
-# task -> protocol sentence of the measured tables
+# task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
     "depth": "AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), "
     "mean over images. ",
+    ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
+    ("segmentation", "coco-val2017-persons-every10"): "Any body part counts as person; ground truth = the COCO person "
+    "masks. ",
+    "detection": "pycocotools COCOeval of the top 100 detections per image. ",
+    ("promptable_segmentation", "coco-val2017-every10"): "One point per ground-truth instance (the interior point "
+    "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
+    ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
+    "image; the top 100 instances go to pycocotools COCOeval. ",
+}
+# family -> what its original columns ran where that is not the authors' own code (note column of the measured table)
+_ORIGINAL_IS = {
+    "crestereo": "original = the community PyTorch port (MegEngine 1.13 has no sm_120 build)",
+    "sam3": "original = transformers `Sam3Model`, the port this code follows",
 }
 _MODES = ("upstream", "upstream-default", "portable", "kernels")
 _EVAL_MODES = ("upstream", "upstream-fp16", "portable", "kernels")
@@ -489,15 +522,17 @@ def _accuracy(task: str, by: dict[tuple[str, str], dict], mode: str, dataset: st
     r = by.get((mode, dataset))
     if r is None:
         return ""
-    a, b, fmt, count, noun = _METRICS[task]
+    metrics, count, noun = _METRICS.get((task, dataset)) or _METRICS[task]
     err = r.get("error", "")
     if err.startswith("OOM"):  # the original at this size does not fit the GPU
         return "out of memory"
     if err and not err.startswith("non-finite"):
         msg = f"{r['ref']} {mode} {dataset}: no cell for the error {err!r}"
         raise ValueError(msg)
+    m = r.get("metrics") or r
     n, full = r.get(count), by.get(("portable", dataset), r).get(count)
-    cell = fmt.format(r[a], r[b]) + (f" ({n} {noun})" if n and full and n < full else "")
+    cell = " / ".join(fmt.format(m[k]) for k, fmt, opt in metrics if not opt or k in m)
+    cell += f" ({n} {noun})" if n and full and n < full else ""
     return cell + (" (NaN / inf output)" if err else "")
 
 
@@ -518,6 +553,12 @@ def _where(gpu: str, torch: str, commit: str, date: str) -> str:
 def _span(days: set[str]) -> str:
     """`2026-11-05`, or `2026-11-05 to 2026-11-06` for rows of several days."""
     return " to ".join(dict.fromkeys((min(days), max(days))))
+
+
+def _suffixes(task: str, dataset: str, rows: list[dict]) -> list[str]:
+    """Title suffixes of the optional metrics of `dataset` that one of `rows` has."""
+    metrics = (_METRICS.get((task, dataset)) or _METRICS[task])[0]
+    return [opt for k, _, opt in metrics if opt and any(k in (r.get("metrics") or r) for r in rows)]
 
 
 def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[str]:
@@ -553,7 +594,7 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
         "",
         "### Measured",
         "",
-        _PROTOCOL.get(task, "") + _PROTO,
+        _PROTOCOL.get(task, "") + "".join(_PROTOCOL.get((task, d), "") for d in sets) + _PROTO,
         "",
         f"| variant | dataset | {' | '.join(_EVAL_LABEL.get(m, m) for m in shown)} | note |",
         f"|---|---|{'---|' * len(shown)}---|",
@@ -563,9 +604,10 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
         for d in sets:
             if not any(k[1] == d for k in by):
                 continue
-            mark = _overlap(card, v, d)
+            title = titles[d] + "".join(_suffixes(task, d, [r for r in rows[v.id] if r["dataset"] == d]))
             cells = [_accuracy(task, by, m, d) for m in shown]
-            lines.append(f"| `{v.id}` | {titles[d]} | {' | '.join(cells)} | {_NOTE.get(mark, '')} |")
+            note = "; ".join(n for n in (_NOTE.get(_overlap(card, v, d), ""), _ORIGINAL_IS.get(card.family, "")) if n)
+            lines.append(f"| `{v.id}` | {title} | {' | '.join(cells)} | {note} |")
     lines += ["", "Measured on " + where.rstrip(". ") + "."] if where else []
     return lines
 
