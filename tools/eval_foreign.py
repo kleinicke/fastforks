@@ -55,8 +55,30 @@ def _metrics(pred: np.ndarray, gt: np.ndarray, ds: str) -> dict[str, Any]:
     return row | {"epe": float(e.mean()), "bad": float((e > thr).mean()), "n_px": int(v.sum())}
 
 
+def _preload_pip_cuda() -> None:
+    """Load the pip CUDA libraries (site-packages/nvidia/*/lib) by path before TensorFlow looks them up by soname.
+
+    TensorFlow's rpath misses some of them (libcusolver.so.11 in TF 2.21): it then silently runs on the CPU.
+    """
+    import ctypes  # noqa: PLC0415
+    import site  # noqa: PLC0415
+
+    todo = sorted({p for sp in site.getsitepackages() for p in Path(sp).glob("nvidia/*/lib/lib*.so*")})
+    while todo:  # retry until no library loads: a few depend on others of the set
+        left = []
+        for p in todo:
+            try:
+                ctypes.CDLL(str(p), mode=ctypes.RTLD_GLOBAL)
+            except OSError:
+                left.append(p)
+        if len(left) == len(todo):
+            return
+        todo = left
+
+
 class _Hitnet:
     def __init__(self, ref: str, tier: str) -> None:
+        _preload_pip_cuda()
         import tensorflow as tf  # noqa: PLC0415 - reference-only dependency (its own venv)  # ty: ignore[unresolved-import]
 
         self.tf = tf
