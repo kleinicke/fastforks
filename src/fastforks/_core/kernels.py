@@ -19,6 +19,7 @@ import functools
 import hashlib
 import itertools
 import logging
+import math
 import os
 import platform
 import re
@@ -526,21 +527,57 @@ def call_index() -> int:
 
 T = TypeVar("T")
 
-# output checks of the running `checked` call on this thread: (0-dim value, the launcher's fallback) per launch
+_SLOTS = 1024  # fixed: launch checks per fp32 buffer of a `checked` run (4 KB; more launches: one more buffer + sync)
+
+# the output checks of the running `checked` call on this thread (a `_Checks`), or None
 _CHECKS = threading.local()
+
+
+class _Checks:
+    """One run's launch checks: each launch's output sum in an fp32 slot, all read with one copy per buffer.
+
+    Only the sum reduction runs on the device; `isfinite` / `stack` would load their kernels on the first call
+    (+35 / +7 ms on an RTX 5060 Ti).
+    """
+
+    def __init__(self) -> None:
+        self.buffers: list[torch.Tensor] = []
+        self.used = 0  # slots used, over all buffers
+        self.launches: list[tuple[int, Callable[[], Callable[[], None] | None], Callable[[], None]]] = []
+
+    def add(
+        self, output: torch.Tensor, widen: Callable[[], Callable[[], None] | None], refund: Callable[[], None]
+    ) -> None:
+        """Queue the sum of `output` (inf / NaN anywhere: a non-finite sum)."""
+        if self.used == len(self.buffers) * _SLOTS or self.buffers[-1].device != output.device:
+            self.used = len(self.buffers) * _SLOTS
+            self.buffers.append(torch.empty(_SLOTS, device=output.device))
+        slot = self.buffers[-1][self.used % _SLOTS]
+        torch.sum(output, tuple(range(output.dim())), dtype=torch.float32, out=slot)
+        self.launches.append((self.used, widen, refund))
+        self.used += 1
+
+    def finite(self) -> list[bool]:
+        """Per launch: its output was finite (one host sync per buffer)."""
+        ends = {n // _SLOTS: n % _SLOTS + 1 for n, _, _ in self.launches}
+        values = {i: self.buffers[i][:k].tolist() for i, k in ends.items()}
+        return [math.isfinite(values[n // _SLOTS][n % _SLOTS]) for n, _, _ in self.launches]
 
 
 def checking() -> bool:
     """Whether a `checked` call runs on this thread (its launches record their checks with `defer_check`)."""
-    return getattr(_CHECKS, "pending", None) is not None
+    return getattr(_CHECKS, "run", None) is not None
 
 
-def defer_check(value: torch.Tensor, fallback: Callable[[], Callable[[], None] | None]) -> None:
-    """Record a launch's output check in the running `checked` call: it fails when the 0-dim `value` is not finite.
+def defer_check(
+    output: torch.Tensor, widen: Callable[[], Callable[[], None] | None], refund: Callable[[], None]
+) -> None:
+    """Record a launch's output check in the running `checked` call: it fails when `output` has an inf or NaN.
 
-    `fallback()` switches the launcher to a wider variant and returns how to undo that, or `None` if it has none left.
+    `widen()` switches the launcher to a wider variant and returns how to undo that, or `None` if it has none left;
+    `refund()` gives the launch back to the launcher's checked-launch budget when the call runs again.
     """
-    _CHECKS.pending.append((value, fallback))
+    _CHECKS.run.add(output, widen, refund)
 
 
 def checked(fn: Callable[..., T], *args: object, **kwargs: object) -> T:
@@ -551,16 +588,16 @@ def checked(fn: Callable[..., T], *args: object, **kwargs: object) -> T:
     call runs again; a launcher with no wider variant left (non-finite inputs, not an overflow) gets its variant of
     the call's start back, and the output is returned as is. A nested call checks its own launches.
     """
-    outer = getattr(_CHECKS, "pending", None)
+    outer = getattr(_CHECKS, "run", None)
     undo: dict[Callable[[], Callable[[], None] | None], Callable[[], None]] = {}
     try:
         while True:
-            _CHECKS.pending = pending = []
+            _CHECKS.run = run = _Checks()
             out = fn(*args, **kwargs)
-            if not pending:
+            if not run.launches:
                 return out
-            finite = torch.stack([v for v, _ in pending]).isfinite().tolist()
-            bad = next((fb for (_, fb), ok in zip(pending, finite, strict=True) if not ok), None)
+            finite = run.finite()
+            bad = next((w for (_, w, _), ok in zip(run.launches, finite, strict=True) if not ok), None)
             if bad is None:
                 return out
             if (step := bad()) is None:
@@ -568,5 +605,8 @@ def checked(fn: Callable[..., T], *args: object, **kwargs: object) -> T:
                     undo[bad]()
                 return out
             undo.setdefault(bad, step)
+            for _, w, refund in run.launches:  # the rerun launches them again: only the returned run counts
+                if w != bad:
+                    refund()
     finally:
-        _CHECKS.pending = outer
+        _CHECKS.run = outer

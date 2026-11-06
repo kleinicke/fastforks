@@ -21,7 +21,7 @@ from fastforks._core.model import _kernels_entry_points
 from fastforks._core.runner import Runner
 from fastforks.kernels import fastbb
 from fastforks.kernels.fastbb import FLASH_VARIANTS, Flash64
-from test_golden import API, SMALLEST, TASK, forward, golden, options
+from test_golden import API, INPUTS, SMALLEST, TASK, _check, forward, golden, options
 
 SRC = Path(__file__).parents[1] / "src" / "fastforks"
 
@@ -108,9 +108,9 @@ def test_model_call_reruns_after_the_first_bad_launch(fake, monkeypatch):
         return torch.full_like(q, float("nan")) if q.isnan().any() or (variant == "hh" and q.eq(0).all()) else q + 1
 
     monkeypatch.setattr(Flash64, "_run", staticmethod(run))
-    syncs = []
-    stack = torch.stack
-    monkeypatch.setattr(torch, "stack", lambda ts: syncs.append(len(ts)) or stack(ts))
+    syncs = []  # launches read per sync
+    finite = kernels._Checks.finite
+    monkeypatch.setattr(kernels._Checks, "finite", lambda self: syncs.append(len(self.launches)) or finite(self))
     model = _TwoAttentions()
     _kernels_entry_points(model)
     q = torch.zeros(1, 4, 2, 64)
@@ -128,7 +128,32 @@ def test_model_call_with_nan_inputs_keeps_the_variants(fake):
     _kernels_entry_points(run)
     assert run(torch.zeros(1, 4, 2, 64)).isnan().all()
     assert (run.a.variant, run.b.variant, run.calls) == ("hh", "hh", 3)  # hh, fh, ff: all non-finite
-    assert run.a.probe == fastbb.FLASH_PROBE - 1  # the first run's launch counts, no new window
+    assert run.a.probe == run.b.probe == fastbb.FLASH_PROBE - 1  # one run's launch counts, no new window
+
+
+class _Launchers(Runner):
+    """A model call with `n` `Flash64` launchers, each launched `repeat` times."""
+
+    def __init__(self, n: int, repeat: int) -> None:
+        super().__init__(None)  # no card needed
+        self.attns, self.repeat = [Flash64("hh") for _ in range(n)], repeat
+
+    def __call__(self, q: torch.Tensor) -> torch.Tensor:
+        for a in self.attns:
+            for _ in range(self.repeat):
+                q = a(q, q, q, 0.125)
+        return q
+
+
+@pytest.mark.parametrize("slots", [kernels._SLOTS, 7])  # 7: the checks span several buffers
+def test_reruns_do_not_use_up_the_other_launchers_probes(fake, monkeypatch, slots):
+    """3 launchers x 40 launches, "hh" / "fh" overflow: 6 reruns, yet every launcher is checked until it is at "ff"."""
+    monkeypatch.setattr(kernels, "_SLOTS", slots)
+    fake.bad = {"hh", "fh"}
+    run = _Launchers(3, 40)
+    _kernels_entry_points(run)
+    assert run(torch.zeros(1, 4, 2, 64)).isfinite().all()
+    assert [(a.variant, a.probe) for a in run.attns] == [("ff", fastbb.FLASH_PROBE - 40)] * 3
 
 
 def test_unknown_variant_raises():
@@ -183,8 +208,8 @@ def _on_fastbb(ref: str) -> bool:
 @pytest.mark.gpu
 @pytest.mark.parametrize("ref", [r for r in SMALLEST if _on_fastbb(r)])
 def test_forced_overflow_reruns_the_model_call(ref, monkeypatch):
-    """Every family on fastbb, public call: "hh" / "fh" outputs set to inf, so each launcher ends at "ff" and the call
-    returns what a call pinned at "ff" returns (the rerun reads unchanged inputs)."""
+    """Every family on fastbb, public call: "hh" / "fh" outputs set to inf, so each launcher ends at "ff"; the rerun
+    call and the next one (pinned; a graph capture where the family has one) are within the golden's tolerances."""
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     want = golden(ref)
@@ -207,11 +232,10 @@ def test_forced_overflow_reruns_the_model_call(ref, monkeypatch):
     model = API[TASK[ref]].load(ref, mode="kernels", device="cuda", options=options(ref, want))
     monkeypatch.setattr(Flash64, "_run", staticmethod(run))
     monkeypatch.setattr(Flash64, "__call__", spy)
-    first, _ = forward(model, ref, want)
-    if not attns:
-        pytest.skip(f"{ref}: no flash64 attention on this input")
-    assert {a.variant for a in attns} == {"ff"}
-    assert all(torch.isfinite(t).all() for t in first.values()), "the rerun output is not finite"
-    pinned, _ = forward(model, ref, want)
-    for name, t in pinned.items():
-        torch.testing.assert_close(first[name], t, rtol=1e-3, atol=1e-3 * max(1.0, t.abs().max().item()), msg=name)
+    outputs = {k: v for k, v in want.items() if k not in INPUTS}
+    for i in (1, 2):
+        got, _ = forward(model, ref, want)
+        if not attns:
+            pytest.skip(f"{ref}: no flash64 attention on this input")
+        assert {a.variant for a in attns} == {"ff"}
+        _check(ref, "kernels", outputs, got, f"call {i}: ")

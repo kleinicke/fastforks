@@ -78,13 +78,13 @@ class Flash64:
 
     `"hh"` accumulates the unscaled q k^T in fp16, `"hh"` / `"fh"` a 64-key tile of p v in fp16: past 65504 the sum
     is inf and the online softmax gives NaN (DINOv3 ViT-S / B: q k^T up to 36x the fp16 range). The first `probe`
-    eager launches of this object record whether their output is finite on the device (`kernels.defer_check`, no
-    sync); the model call (`kernels.checked`: one sync per call) reruns with the next variant of `FLASH_VARIANTS` (and
-    a new probe window) after a non-finite output, and the first variant giving a finite output is kept for every
-    later call. Non-finite in every variant (NaN inputs): returned as is, the variant is kept. Called outside a model
-    call, a launch is checked alone. After the probe launches, and while a CUDA graph is captured, nothing is checked
-    (no extra work). The outliers that overflow come from the weights (fixed channels), so the first images of a model
-    show them.
+    eager launches of this object sum their output into an fp32 slot on the device (`kernels.defer_check`, no sync);
+    the model call (`kernels.checked`: one sync per call) reruns with the next variant of `FLASH_VARIANTS` (and a new
+    probe window) after a non-finite sum, and the first variant giving a finite output is kept for every later call.
+    A rerun gives the other launchers their launches back, so their probes still cover a whole call.
+    Non-finite in every variant (NaN inputs): returned as is, the variant is kept. Called outside a model call, a launch
+    is checked alone. After the probe launches, and while a CUDA graph is captured, nothing is checked (no extra work).
+    The outliers that overflow come from the weights (fixed channels), so the first images of a model show them.
     """
 
     def __init__(self, variant: str = "hh", *, probe: int = FLASH_PROBE) -> None:
@@ -102,8 +102,11 @@ class Flash64:
             return checked(self, q, k, v, scale)
         self.probe -= 1
         o = self._run(self.variant, q, k, v, scale)
-        defer_check(o.sum(dtype=torch.float32), self._widen)  # inf / NaN anywhere: a non-finite sum
+        defer_check(o, self._widen, self._refund)
         return o
+
+    def _refund(self) -> None:
+        self.probe += 1
 
     def _widen(self) -> Callable[[], None] | None:
         """`kernels.defer_check`'s fallback: the next variant with a new probe window; its undo, or None after "ff"."""
