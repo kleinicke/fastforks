@@ -26,7 +26,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mapanything-apache` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2875<br>1967<br>636<br>544<br>596<br>36.4 | 8064 / 8672<br>10227 / 10952<br>3697 / 4092<br>3697 / 4072<br>3347 / 3792<br>2438 (engine) |
+| `mapanything-apache` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2875<br>1967<br>636<br>544<br>596<br>367 | 8064 / 8672<br>10227 / 10952<br>3697 / 4092<br>3697 / 4072<br>3347 / 3792<br>3880 (engine) |
 
 <details><summary>Details</summary>
 
@@ -43,7 +43,7 @@ Commercial use: yes.
 - Outputs: depth, confidence, mask, world_points, intrinsics, cam_to_world, metric_scale (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mapanything-apache` 3000x4000 (7.1 GiB peak allocated, 9.2 reserved)
-- `mapanything-apache` 336x518, first call: portable + torch.compile 46 s (cold Inductor cache), TensorRT fp16 120 s (ONNX + engine).
+- `mapanything-apache` 336x518, first call: portable + torch.compile 46 s (cold Inductor cache), TensorRT fp16 137 s (ONNX + engine).
 - `mapanything-apache` original (fp32) 336x518: float32 (the authors' autocast off)
 - `mapanything-apache` original 336x518: original default MapAnything.infer(use_amp=True, amp_dtype='bf16')
 - `mapanything-apache` load / first call: original 6.12 s / 2.619 s (336x518), portable 2.89 s / 0.657 s (336x518), kernels 0.57† s / 0.541 s (336x518)
@@ -132,7 +132,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `patchmatchnet` | synthetic (1536x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 248<br>220<br>202<br>29.6<br>175<br>28.2 | 1330 / 1412<br>1228 / 1272<br>1806 / 2096<br>740 / 856<br>1798 / 1888<br>790 (engine) |
+| `patchmatchnet` | synthetic (1536x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 248<br>220<br>202<br>29.6<br>175<br>51.0 | 1330 / 1412<br>1228 / 1272<br>1806 / 2096<br>740 / 856<br>1798 / 1888<br>844 (engine) |
 
 <details><summary>Details</summary>
 
@@ -147,7 +147,7 @@ Commercial use: yes.
 - Outputs: depth, confidence; kind: `metric`
 - Input size: any H x W >= 5, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `patchmatchnet` 1988x2880 (7.9 GiB peak allocated, 9.4 reserved)
-- `patchmatchnet` 1536x1024, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
+- `patchmatchnet` 1536x1024, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
 - `patchmatchnet` original 1536x1024: torch.autocast(fp16) around the forward
 - `patchmatchnet` load / first call: original 0.04 s / 0.917 s (1536x1024), portable 0.06 s / 0.25 s (1536x1024), kernels 0.05† s / 0.035 s (1536x1024)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -183,7 +183,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vggt-1b` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2502<br>965<br>651<br>458<br>557<br>54.3 | 6958 / 7358<br>8688 / 9158<br>3691 / 4674<br>3702 / 4654<br>3611 / 3856<br>2988 (engine) |
+| `vggt-1b` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2502<br>965<br>651<br>458<br>557<br>424 | 6958 / 7358<br>8688 / 9158<br>3691 / 4674<br>3702 / 4654<br>3611 / 3856<br>3642 (engine) |
 
 <details><summary>Details</summary>
 
@@ -199,7 +199,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Outputs: depth, confidence, world_points, intrinsics, cam_to_world, points_confidence (in `extras`); kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vggt-1b` 3000x4000 (8.0 GiB peak allocated, 10.1 reserved)
-- `vggt-1b` 336x518, first call: portable + torch.compile 74 s (cold Inductor cache), TensorRT fp16 150 s (ONNX + engine).
+- `vggt-1b` 336x518, first call: portable + torch.compile 74 s (cold Inductor cache), TensorRT fp16 199 s (ONNX + engine).
 - `vggt-1b` original (fp32) 336x518: float32 (the authors' autocast off)
 - `vggt-1b` original 336x518: original default (README / demo): torch.autocast(bfloat16)
 - `vggt-1b` load / first call: original 19.37 s / 1.289 s (336x518), portable 4.98 s / 0.689 s (336x518), kernels 5.99† s / 0.459 s (336x518)
@@ -236,7 +236,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2650<br>906<br>726<br>464<br>589<br>38.5 | 5765 / 5912<br>7495 / 7654<br>3421 / 3518<br>3422 / 3518<br>3082 / 3154<br>2664 (engine) |
+| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 2650<br>906<br>726<br>464<br>589 | 5765 / 5912<br>7495 / 7654<br>3421 / 3518<br>3422 / 3518<br>3082 / 3154 |
 
 <details><summary>Details</summary>
 
@@ -252,7 +252,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vggt-omega-1b-512` 3000x4000 (5.5 GiB peak allocated, 6.7 reserved)
-- `vggt-omega-1b-512` 336x518, first call: portable + torch.compile 66 s (cold Inductor cache), TensorRT fp16 174 s (ONNX + engine).
+- `vggt-omega-1b-512` 336x518, first call: portable + torch.compile 66 s (cold Inductor cache).
 - `vggt-omega-1b-512` original (fp32) 336x518: float32 (the authors' autocast off)
 - `vggt-omega-1b-512` original 336x518: original default VGGTOmega(autocast=True): bfloat16 aggregator, float32 heads
 - `vggt-omega-1b-512` load / first call: original 16.31 s / 1.1 s (336x518), portable 3.31 s / 0.734 s (336x518), kernels 2.27† s / 0.461 s (336x518)

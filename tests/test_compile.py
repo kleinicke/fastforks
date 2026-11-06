@@ -7,6 +7,7 @@ Real families: `test_export.test_model_compile_equals_eager`; here, every runner
 from __future__ import annotations
 
 import dataclasses
+import importlib
 import threading
 import types
 from typing import Any
@@ -197,6 +198,30 @@ def test_compiled_methods_exist(task):
             assert len(cls.compiled_methods) > 1, card.family
 
 
+HELPERS = {"module", "input_use", "pad", "upsample", "scene", "segment_concept"}  # host code around the entry points
+
+
+@pytest.mark.parametrize("task", registry.TASKS)
+def test_overridden_entry_points_are_compiled(task):
+    """A family override of a task entry point (`__call__`, segmentation `labels`, ...) is in `compiled_methods`.
+
+    The 2026-11-04 segmentation compile rows timed eager code: the default call ran `labels` overrides, not `__call__`.
+    """
+    for card, _ in registry.cards(task).values():
+        try:
+            cls = core_model.runner_class(card, "portable")
+        except BackendUnavailableError as e:
+            if not isinstance(e.__cause__, ImportError):
+                raise
+            continue
+        base = importlib.import_module(f"fastforks.{task}._runner").Runner
+        names = {n for n, v in vars(base).items() if callable(v) and (n == "__call__" or not n.startswith("_"))}
+        if "text" in getattr(cls, "prompts", ()):  # concept models: `predict` only raises, `segment_concept` runs
+            names.discard("predict")
+        missed = {n for n in names - HELPERS if getattr(cls, n) is not getattr(base, n)} - set(cls.compiled_methods)
+        assert not missed, (card.family, missed)
+
+
 @pytest.mark.parametrize(
     "module",
     [
@@ -207,7 +232,6 @@ def test_compiled_methods_exist(task):
 def test_resize_sizes_trace_as_ints(module):
     """FoundationStereo's ViT resize size is plain int math: dynamo traced `np.ceil` / `np.lcm` into tensors, and
     torch 2.14's guard on them failed under `inference_mode` ("Guard failed on the same frame it was created")."""
-    import importlib  # noqa: PLC0415
     import math  # noqa: PLC0415
 
     resize = importlib.import_module(module).get_resize_keep_aspect_ratio
