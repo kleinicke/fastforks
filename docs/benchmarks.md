@@ -662,7 +662,7 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 35.6 ms | 153 s | – | 931 / 1226 | 818 / 860 | 761 / 884 | – |
 | patchmatchnet | 1536x1024 | 202 ms | 175 ms | 51.0 ms | 29.6 ms | 29.4 s | 82.1 s | 1806 / 2096 | 1798 / 1888 | 740 / 856 | 844 |
 | vggt-1b | 336x518 | 651 ms | 557 ms | 424 ms | 458 ms | 74.3 s | 199 s | 3691 / 4674 | 3611 / 3856 | 3702 / 4654 | 3642 |
-| vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | – | 464 ms | 65.7 s | – | 3421 / 3518 | 3082 / 3154 | 3422 / 3518 | – |
+| vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 464 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3422 / 3518 | 2994 |
 <!-- compile:end -->
 
 ## Original code

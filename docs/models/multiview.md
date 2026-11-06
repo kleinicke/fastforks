@@ -236,7 +236,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 2650<br>906<br>726<br>464<br>589 | 5765 / 5912<br>7495 / 7654<br>3421 / 3518<br>3422 / 3518<br>3082 / 3154 |
+| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2650<br>906<br>726<br>464<br>589<br>377 | 5765 / 5912<br>7495 / 7654<br>3421 / 3518<br>3422 / 3518<br>3082 / 3154<br>2994 (engine) |
 
 <details><summary>Details</summary>
 
@@ -252,7 +252,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vggt-omega-1b-512` 3000x4000 (5.5 GiB peak allocated, 6.7 reserved)
-- `vggt-omega-1b-512` 336x518, first call: portable + torch.compile 66 s (cold Inductor cache).
+- `vggt-omega-1b-512` 336x518, first call: portable + torch.compile 66 s (cold Inductor cache), TensorRT fp16 187 s (ONNX + engine).
 - `vggt-omega-1b-512` original (fp32) 336x518: float32 (the authors' autocast off)
 - `vggt-omega-1b-512` original 336x518: original default VGGTOmega(autocast=True): bfloat16 aggregator, float32 heads
 - `vggt-omega-1b-512` load / first call: original 16.31 s / 1.1 s (336x518), portable 3.31 s / 0.734 s (336x518), kernels 2.27† s / 0.461 s (336x518)
