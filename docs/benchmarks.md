@@ -381,9 +381,9 @@ is not stated); to rank models use the official Middlebury and ETH3D test-set le
 
 ### Multiview, synthetic, 448x672
 
-| model | time (ms): original fp32 | portable | kernels | kernels speed-up: vs portable | peak memory (MiB, allocated / reserved): portable | kernels |
-|---|---|---|---|---|---|---|
-| mvsanywhere | 273 | 93.2 | 35.6 | 2.6x | 931 / 1226 | 761 / 884 |
+| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|---|
+| mvsanywhere | 273 | 219 | 93.2 | 35.6 | 6.1x | 2.6x | 1504 / 1576 | 931 / 1226 | 761 / 884 |
 
 ### Startup and first call
 
@@ -561,7 +561,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | dinov3-vitl16 | 2.37 | 0.54 | 0.52 | 0.02 | 0.18 | 0.25 |
 | dinov3-vits16 | 0.48 | 0.07 | 0.06 | 0.95 | 0.27 | 0.26 |
 | mapanything-apache | 6.12 (336x518) | 2.89 (336x518) | 0.57† (336x518) | 2.62 (336x518) | 0.66 (336x518) | 0.54 (336x518) |
-| mvsanywhere | 3.25 (448x672) | 1.88 (448x672) | 0.52† (448x672) | 0.35 (448x672) | 0.22 (448x672) | 0.05 (448x672) |
+| mvsanywhere | 3.21 (448x672) | 1.88 (448x672) | 0.52† (448x672) | 1.04 (448x672) | 0.22 (448x672) | 0.05 (448x672) |
 | patchmatchnet | 0.04 (1536x1024) | 0.06 (1536x1024) | 0.05† (1536x1024) | 0.92 (1536x1024) | 0.25 (1536x1024) | 0.04 (1536x1024) |
 | vggt-1b | 19.37 (336x518) | 4.98 (336x518) | 5.99† (336x518) | 1.29 (336x518) | 0.69 (336x518) | 0.46 (336x518) |
 | vggt-omega-1b-512 | 16.31 (336x518) | 3.31 (336x518) | 2.27† (336x518) | 1.10 (336x518) | 0.73 (336x518) | 0.46 (336x518) |

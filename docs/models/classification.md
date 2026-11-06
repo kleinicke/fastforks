@@ -66,6 +66,16 @@ Commercial use: yes.
 - `alexnet.tv_in1k` load / first call: original 2.51 s / 0.811 s, portable 1.3 s / 0.016 s, kernels 1.4 s / 0.055 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `alexnet.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 57.72 / 80.54 | 57.66 / 80.54 | 57.80 / 80.50 | 57.82 / 80.42 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -104,6 +114,16 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `convnextv2_base.fcmae_ft_in22k_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `convnextv2_base.fcmae_ft_in22k_in1k` load / first call: original 2.7 s / 0.631 s, portable 1.23 s / 0.029 s, kernels 2.12 s / 0.158 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `convnextv2_base.fcmae_ft_in22k_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.32 / 98.18 | 87.32 / 98.18 | 87.10 / 98.14 | 87.10 / 98.14 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -144,6 +164,16 @@ Commercial use: yes.
 - `deit_base_patch16_224.fb_in1k` load / first call: original 2.52 s / 0.309 s, portable 0.72 s / 0.004 s, kernels 1.96 s / 0.067 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `deit_base_patch16_224.fb_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.12 / 95.92 | 83.14 / 95.88 | 83.22 / 95.84 | 83.16 / 95.84 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -183,6 +213,16 @@ Commercial use: yes.
 - `densenet121.tv_in1k` load / first call: original 1.22 s / 0.556 s, portable 0.41 s / 0.094 s, kernels 1.89 s / 0.045 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `densenet121.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 75.60 / 92.12 | 75.58 / 92.14 | 75.64 / 92.14 | 75.74 / 92.14 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -221,6 +261,16 @@ Commercial use: yes.
 - `dinov2_vitl14_lc` original 224x224: torch.autocast(fp16) around the forward
 - `dinov2_vitl14_lc` load / first call: original 5.8 s / 0.323 s, portable 3.34 s / 0.017 s, kernels 3.94 s / 0.095 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `dinov2_vitl14_lc` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.68 / 97.78 | 86.62 / 97.78 | 86.68 / 97.80 | 86.74 / 97.78 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -266,6 +316,17 @@ Commercial use: yes.
 - `efficientnet_b4.tv_in1k` load / first call: original 0.41 s / 1.72 s, portable 0.37 s / 0.061 s, kernels 1.94 s / 0.065 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `efficientnet_b0.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.62 / 93.86 | 78.62 / 93.86 | 78.60 / 93.86 | 78.56 / 93.88 |  |
+| `efficientnet_b4.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.04 / 96.82 | 84.02 / 96.86 | 84.02 / 96.86 | 84.02 / 96.86 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -306,6 +367,16 @@ Commercial use: yes.
 - `efficientnet_v2_s.tv_in1k` load / first call: original 1.48 s / 0.969 s, portable 0.35 s / 0.043 s, kernels 1.9 s / 0.053 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `efficientnet_v2_s.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.00 / 96.90 | 84.96 / 96.90 | 84.96 / 96.86 | 84.92 / 96.84 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -345,6 +416,16 @@ Commercial use: yes.
 - `efficientvit_b2.r288_in1k` load / first call: original 1.84 s / 1.888 s, portable 0.4 s / 0.039 s, kernels 1.92 s / 0.051 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `efficientvit_b2.r288_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.28 / 96.64 | 84.26 / 96.64 | 84.22 / 96.64 | 84.28 / 96.60 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.05 and p99 <= 0.2 (absolute error of the output `logits`).
@@ -383,6 +464,16 @@ Commercial use: yes.
 - `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` load / first call: original 6.98 s / 0.389 s, portable 2.8 s / 0.02 s, kernels 3.61 s / 0.096 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 90.62 / 99.10 | 90.62 / 99.10 | 90.46 / 99.08 | 90.50 / 99.08 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -424,6 +515,16 @@ Commercial use: yes.
 - `fastvit_sa24.apple_dist_in1k` load / first call: original 2.49 s / 1.669 s, portable 0.62 s / 0.17 s, kernels 2.42 s / 0.048 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `fastvit_sa24.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.78 / 96.48 | 83.78 / 96.48 | 83.78 / 96.44 | 83.80 / 96.42 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -462,6 +563,16 @@ Commercial use: yes.
 - `inception_v3.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `inception_v3.tv_in1k` load / first call: original 1.62 s / 0.403 s, portable 0.28 s / 0.04 s, kernels 1.86 s / 0.048 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `inception_v3.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.00 / 93.50 | 77.98 / 93.52 | 77.98 / 93.48 | 78.04 / 93.56 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -502,6 +613,16 @@ Commercial use: yes.
 - `mobilenet_v2.tv2_in1k` load / first call: original 1.23 s / 1.647 s, portable 0.11 s / 0.026 s, kernels 1.51 s / 0.051 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `mobilenet_v2.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 73.72 / 91.16 | 73.72 / 91.14 | 73.88 / 91.20 | 73.88 / 91.18 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -540,6 +661,16 @@ Commercial use: yes.
 - `mobilenet_v3_large.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `mobilenet_v3_large.tv2_in1k` load / first call: original 1.25 s / 1.966 s, portable 0.34 s / 0.034 s, kernels 1.46 s / 0.052 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `mobilenet_v3_large.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 76.36 / 92.94 | 76.28 / 92.96 | 76.20 / 93.06 | 76.24 / 93.04 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -580,6 +711,16 @@ Commercial use: yes.
 - `mobilenetv1_100.ra4_e3600_r224_in1k` load / first call: original 1.34 s / 1.502 s, portable 0.06 s / 0.011 s, kernels 1.7 s / 0.049 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `mobilenetv1_100.ra4_e3600_r224_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 76.44 / 92.02 | 76.46 / 92.08 | 76.48 / 92.04 | 76.50 / 92.12 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.08 and p99 <= 0.3 (absolute error of the output `logits`).
@@ -619,6 +760,16 @@ Commercial use: yes.
 - `mobilenetv4_conv_medium.e500_r256_in1k` load / first call: original 1.56 s / 2.286 s, portable 0.36 s / 0.035 s, kernels 1.89 s / 0.051 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `mobilenetv4_conv_medium.e500_r256_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.80 / 95.36 | 80.80 / 95.32 | 80.86 / 95.38 | 80.84 / 95.38 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -657,6 +808,16 @@ Commercial use: yes.
 - `regnety_160.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `regnety_160.tv2_in1k` load / first call: original 3.07 s / 0.484 s, portable 1.08 s / 0.042 s, kernels 2.22 s / 0.055 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `regnety_160.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.62 / 96.56 | 83.62 / 96.54 | 83.64 / 96.64 | 83.70 / 96.64 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -706,6 +867,18 @@ Commercial use: yes.
 - `resnet152.tv2_in1k` load / first call: original 2.34 s / 0.243 s, portable 0.43 s / 0.024 s, kernels 1.88 s / 0.041 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `resnet18.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 70.80 / 89.18 | 70.80 / 89.18 | 70.82 / 89.12 | 70.74 / 89.10 |  |
+| `resnet50.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.02 / 95.32 | 82.00 / 95.30 | 81.94 / 95.30 | 81.96 / 95.34 |  |
+| `resnet152.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.90 / 96.22 | 82.90 / 96.20 | 82.90 / 96.24 | 82.90 / 96.24 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -747,6 +920,16 @@ Commercial use: yes.
 - `shufflenet_v2_x1_0.tv_in1k` load / first call: original 1.13 s / 1.146 s, portable 0.14 s / 0.016 s, kernels 1.55 s / 0.078 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `shufflenet_v2_x1_0.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 71.00 / 88.72 | 71.06 / 88.74 | 71.04 / 88.80 | 71.10 / 88.78 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -785,6 +968,16 @@ Commercial use: yes.
 - `squeezenet1_1.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `squeezenet1_1.tv_in1k` load / first call: original 1.09 s / 0.374 s, portable 0.05 s / 0.02 s, kernels 1.44 s / 0.028 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `squeezenet1_1.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 59.02 / 81.26 | 58.98 / 81.28 | 59.18 / 81.32 | 59.18 / 81.30 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -825,6 +1018,16 @@ Commercial use: yes.
 - `swin_base_patch4_window7_224.ms_in22k_ft_in1k` load / first call: original 2.71 s / 0.414 s, portable 0.94 s / 0.026 s, kernels 2.28 s / 0.087 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `swin_base_patch4_window7_224.ms_in22k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.28 / 97.82 | 86.30 / 97.82 | 86.24 / 97.86 | 86.24 / 97.86 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -863,6 +1066,16 @@ Commercial use: yes.
 - `vgg16.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `vgg16.tv_in1k` load / first call: original 3.22 s / 0.304 s, portable 1.74 s / 0.003 s, kernels 1.9 s / 0.056 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `vgg16.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 72.86 / 90.68 | 72.84 / 90.68 | 72.90 / 90.64 | 72.96 / 90.62 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -903,6 +1116,16 @@ Commercial use: yes.
 - `vit_base_patch16_224.augreg2_in21k_ft_in1k` load / first call: original 2.49 s / 0.283 s, portable 0.73 s / 0.004 s, kernels 2.05 s / 0.069 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `vit_base_patch16_224.augreg2_in21k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.88 / 97.70 | 85.90 / 97.70 | 85.84 / 97.70 | 85.88 / 97.68 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.08 (absolute error of the output `logits`).
@@ -941,6 +1164,16 @@ Commercial use: yes.
 - `vit_so400m_patch14_siglip_378.webli_ft_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `vit_so400m_patch14_siglip_378.webli_ft_in1k` load / first call: original 7.52 s / 0.346 s, portable 7.29 s / 0.069 s, kernels 5.82 s / 0.093 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `vit_so400m_patch14_siglip_378.webli_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 90.04 / 98.90 | 90.02 / 98.88 | 89.98 / 98.94 | 90.00 / 98.92 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
