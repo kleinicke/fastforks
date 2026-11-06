@@ -102,10 +102,10 @@ Measured on one RTX 5060 Ti at the size in each section header (median of warm r
 18 models; size 994x1482.
 
 - Fastest: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
-- Most accurate: [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) (66.4 ms, error 0.0355).
-- Best trade-off: [`depth-anything-v2-l`](models/depth.md#depth-anything-v2) (31.1 ms, error 0.0439).
+- Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.9 ms, error 0.0346).
+- Best trade-off: [`da3mono-large`](models/depth.md#depth-anything-3) (14.6 ms, error 0.0402).
 - Fastest commercially usable: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
-- Most accurate commercially usable: [`midas-dpt-beit-large-512`](models/depth.md#midas-v31) (63.9 ms, error 0.0487).
+- Most accurate commercially usable: [`moge-3-vitl`](models/depth.md#moge) (214.0 ms, error 0.0356).
 
 The error is AbsRel after a per-image scale and shift alignment for every model: it ranks relative depth quality, not metric accuracy (metric error is not measured here). Best relative, commercially usable: the most accurate pick above. Metric (metres), commercially usable: `metric3d-vit-large` and `da3metric-large` (give `intrinsics=`), `moge-2-vitl-normal`, `zoedepth-nk`; non-commercial: `unidepth-v2-vitl14`. See the [depth page](models/depth.md) for `kind` and `intrinsics=`.
 
@@ -113,22 +113,22 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 |---|---|---|---|---|---|---|---|
 | [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) | yes | 0.0509 | 41.0 (994x1482) | 7.8 | 4.5 | 9.1x vs original (994x1482) | 190 |
 | [`depth-anything-v2-b`](models/depth.md#depth-anything-v2) | no | 0.0462 | 63.2 (994x1482) | 18.8 | 10.5 | 6.0x vs original (994x1482) | 387 |
-| [`da3mono-large`](models/depth.md#depth-anything-3) | yes | – | 85.2 (994x1482) | 23.9 | 14.6 | 5.8x vs original (994x1482) | 814 |
-| [`da3metric-large`](models/depth.md#depth-anything-3) | yes | – | 85.1 (994x1482) | 24.1 | 14.7 | 5.8x vs original (994x1482) | 811 |
-| [`da3-large-1.1`](models/depth.md#depth-anything-3) | no | – | 165.6 (994x1482) | 37.4 | 17.1 | 9.7x vs original (994x1482) | 985 |
-| [`moge-2-vits-normal`](models/depth.md#moge) | yes | – | 82.6 (994x1482) | 64.2 | 29.7 | 2.8x vs original (994x1482) | 884 |
+| [`da3mono-large`](models/depth.md#depth-anything-3) | yes | 0.0402 | 85.2 (994x1482) | 23.9 | 14.6 | 5.8x vs original (994x1482) | 814 |
+| [`da3metric-large`](models/depth.md#depth-anything-3) | yes | 0.0398 | 85.1 (994x1482) | 24.1 | 14.7 | 5.8x vs original (994x1482) | 811 |
+| [`da3-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0468 | 165.6 (994x1482) | 37.4 | 17.1 | 9.7x vs original (994x1482) | 985 |
+| [`moge-2-vits-normal`](models/depth.md#moge) | yes | 0.0484 | 82.6 (994x1482) | 64.2 | 29.7 | 2.8x vs original (994x1482) | 884 |
 | [`depth-anything-v2-l`](models/depth.md#depth-anything-v2) | no | 0.0439 | 140.2 (994x1482) | 55.1 | 31.1 | 4.5x vs original (994x1482) | 921 |
-| [`da3-giant-1.1`](models/depth.md#depth-anything-3) | no | – | 227.1 (994x1482) | 81.8 | 44.2 | 5.1x vs original (994x1482) | 2628 |
-| [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | – | 308.2 (994x1482) | 108.0 | 58.2 | 5.3x vs original (994x1482) | 3271 |
-| [`unik3d-vitl`](models/depth.md#unik3d) | no | – | 133.7 (994x1482) | 107.8 | 62.9 | 2.1x vs original (994x1482) | 1166 |
+| [`da3-giant-1.1`](models/depth.md#depth-anything-3) | no | 0.0397 | 227.1 (994x1482) | 81.8 | 44.2 | 5.1x vs original (994x1482) | 2628 |
+| [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0387 | 308.2 (994x1482) | 108.0 | 58.2 | 5.3x vs original (994x1482) | 3271 |
+| [`unik3d-vitl`](models/depth.md#unik3d) | no | 0.0346 | 133.7 (994x1482) | 107.8 | 62.9 | 2.1x vs original (994x1482) | 1166 |
 | [`midas-dpt-beit-large-512`](models/depth.md#midas-v31) | yes | 0.0487 | 333.2 (994x1482) | 78.8 | 63.9 | 5.2x vs original (994x1482) | 1003 |
 | [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 66.4 | 2.0x vs original (994x1482) | 1211 |
-| [`moge-2-vitl-normal`](models/depth.md#moge) | yes | – | 170.7 (994x1482) | 144.5 | 73.4 | 2.3x vs original (994x1482) | 1498 |
-| [`zoedepth-nk`](models/depth.md#zoedepth) | yes | 0.0528 | 271.2 (994x1482) | 124.0 | 88.9 | 3.1x vs original (994x1482) | 1771 |
+| [`moge-2-vitl-normal`](models/depth.md#moge) | yes | 0.0357 | 170.7 (994x1482) | 144.5 | 73.4 | 2.3x vs original (994x1482) | 1498 |
+| [`zoedepth-nk`](models/depth.md#zoedepth) | yes | 0.0532 | 271.2 (994x1482) | 124.0 | 88.9 | 3.1x vs original (994x1482) | 1771 |
 | [`metric3d-vit-large`](models/depth.md#metric3d-v2) | yes | 0.0546 | 438.5 (994x1482) | 200.3 | 158.5 | 2.8x vs original (994x1482) | 1516 |
-| [`moge-3-vitl`](models/depth.md#moge) | yes | – | – | 904.9 | 214.0 | 4.2x vs portable | 1690 |
-| [`depth-pro`](models/depth.md#depth-pro) | no | – | 568.8 (994x1482) | 518.4 | 270.9 | 2.1x vs original (994x1482) | 3667 |
-| [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | – | 408.1 | 383.2 | 1.1x vs portable | 2583 |
+| [`moge-3-vitl`](models/depth.md#moge) | yes | 0.0356 | – | 904.9 | 214.0 | 4.2x vs portable | 1690 |
+| [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 518.4 | 270.9 | 2.1x vs original (994x1482) | 3667 |
+| [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 408.1 | 383.2 | 1.1x vs original (994x1482) | 2583 |
 
 ## Classification
 

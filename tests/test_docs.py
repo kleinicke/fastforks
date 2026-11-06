@@ -298,3 +298,9 @@ def test_mps_section_names_every_metal_kernel_family():
     assert len(families) >= 19
     missing = sorted(f for f in families if f not in section)
     assert not missing, f"docs/usage.md Apple silicon section does not name {missing}"
+
+
+def test_measured_date_span():
+    """A campaign that crosses midnight is one row set; the card shows the date span."""
+    assert gen_docs._span({"2026-11-05"}) == "2026-11-05"
+    assert gen_docs._span({"2026-11-06", "2026-11-05"}) == "2026-11-05 to 2026-11-06"

@@ -515,6 +515,11 @@ def _where(gpu: str, torch: str, commit: str, date: str) -> str:
     return f"{gpu}, torch {torch}, " + (f"fastforks {commit}, " if commit else "") + date
 
 
+def _span(days: set[str]) -> str:
+    """`2026-11-05`, or `2026-11-05 to 2026-11-06` for rows of several days."""
+    return " to ".join(dict.fromkeys((min(days), max(days))))
+
+
 def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[str]:
     """Accuracy (original fp32 / fp16, portable, kernels) of the measured variants (speed: the speed tables)."""
     measured = [v for v in card.variants if v.id in rows]
@@ -523,18 +528,22 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
     mine = [r for v in measured for r in rows[v.id]]
     titles = _DATASETS[task]
     sets = [d for d in titles if any(r["dataset"] == d for r in mine)]
-    meta: dict[str, set[tuple[str, str, str, str]]] = {}  # mode -> {(gpu, torch, commit, date)}
+    meta: dict[str, set[tuple[str, str]]] = {}  # mode -> {(gpu, torch)}
+    commits: dict[str, set[str]] = {}  # mode -> fastforks commits (a campaign may move to a fix commit)
+    days: dict[str, set[str]] = {}  # mode -> dates (a run may cross midnight)
     for r in mine:
         if not r["mode"].startswith("upstream"):
-            meta.setdefault(r["mode"], set()).add((r["gpu"], r["torch"], r["commit"], r["date"][:10]))
+            meta.setdefault(r["mode"], set()).add((r["gpu"], r["torch"]))
+            commits.setdefault(r["mode"], set()).add(r["commit"])
+            days.setdefault(r["mode"], set()).add(r["date"][:10])
     thr = {r["bad_thr"] for r in mine if "bad_thr" in r and r["bad_thr"] != _BAD_THR.get(r["dataset"])}
     if any(len(m) > 1 for m in meta.values()) or thr or len(sets) != len({r["dataset"] for r in mine}):
-        msg = (
-            f"{card.family}: rows of a mode need one gpu / torch / commit / date, known datasets and thresholds: "
-            f"{meta} {thr}"
-        )
+        msg = f"{card.family}: rows of a mode need one gpu / torch, known datasets and thresholds: {meta} {thr}"
         raise ValueError(msg)
-    per_mode = {mode: next(iter(m)) for mode, m in meta.items()}
+    per_mode = {
+        mode: (*next(iter(m)), " / ".join(sorted(commits[mode])), _span(days[mode])) for mode, m in meta.items()
+    }
+    per_mode = {mode: w for mode, w in per_mode.items() if mode in _MODES}  # the modes the table shows
     if len(set(per_mode.values())) <= 1:
         where = _where(*next(iter(per_mode.values()))) + ". " if per_mode else ""
     else:  # e.g. a kernels backend re-measured after a kernel change
