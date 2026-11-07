@@ -24,7 +24,7 @@ otherwise the PTX, which the driver compiles on the first load.
 | compute capability | example GPUs | `kernels` uses | tested |
 |---|---|---|---|
 | CPU | any | not available, `portable` only | yes |
-| MPS | Apple silicon | Metal kernels for the families in the table below, else `portable` | M1 Pro ([usage](usage.md#apple-silicon-mps)); recent Metal changes not yet rechecked |
+| MPS | Apple silicon | Metal kernels for the families in the table below, else `portable` | M1 Pro ([usage](usage.md#apple-silicon-mps), [speed](devices/apple-m1-pro-16gb.md)); recent Metal changes not yet rechecked |
 | < 8.0 | T4, V100, RTX 20xx, GTX 10xx | not available, `portable` only | no |
 | 8.0 | A100, A30 | sm_80 | no |
 | 8.6 | RTX 30xx, A10, A40, RTX A6000 | sm_86 | no |

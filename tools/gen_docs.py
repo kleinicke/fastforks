@@ -16,12 +16,12 @@ import functools
 import json
 import math
 import re
-import statistics
 import sys
 import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import _devices
 import goldens
 from fastforks._core import licences, registry
 from fastforks._core.sizes import card_size_lines
@@ -630,12 +630,6 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
     return lines
 
 
-def _default_gpu(speed: dict[str, list[dict]]) -> str:
-    """The GPU most speed rows were measured on."""
-    gpus = [r["gpu"].removeprefix("NVIDIA GeForce ") for rs in speed.values() for r in rs]
-    return statistics.mode(gpus) if gpus else "the benchmark GPU"
-
-
 def _name(v: Variant) -> str:
     """The name shown in the docs: without the tag where the default tag resolves (`alexnet`), else the id."""
     return v.id.split(".", 1)[0] if v.default_tag else v.id
@@ -810,7 +804,7 @@ def render(task: str) -> str:
         TASK_IO[task],
         "",
         (
-            f"Measured on {gpu or _default_gpu(speed)}; `fastforks bench MODEL --size HxW` measures yours. "
+            f"Measured on {gpu or _devices.reference().name}; `fastforks bench MODEL --size HxW` measures yours. "
             f"The summary uses {basis}: kernels time with its speed-up over the faster original run, and kernels "
             "peak reserved memory with its ratio to the smaller original one. "
             "Where measured (one variant per family), a variant's table also lists portable under `torch.compile` "
@@ -818,6 +812,8 @@ def render(task: str) -> str:
             f"{_DASH} = not measured."
             + (f" The accuracy column is lower-is-better ({_OVERVIEW_ACC[task][2]})." if task in _OVERVIEW_ACC else "")
         ),
+        "",
+        _other_devices_line("../"),
         "",
         *_summary_table(task, speed, rows, std),
     ]
@@ -1140,8 +1136,7 @@ def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
 def overview() -> str:
     """The overview page: which model to use and the speed-ups, per task, from the cards and docs/data."""
     fixed, speed = _fixed_sizes(), _speed_rows()
-    gpus = [r["gpu"].removeprefix("NVIDIA GeForce ") for rs in speed.values() for r in rs]
-    gpu = statistics.mode(gpus) if gpus else "the benchmark GPU"
+    gpu = _devices.reference().name
     lines = [
         "# Which model to use",
         "",
@@ -1172,6 +1167,7 @@ def overview() -> str:
             "summary tables list peak reserved (what the caching allocator holds, larger). "
             f"{_DASH} = not measured."
         ),
+        f"- {_other_devices_line('')}",
     ]
     for task in registry.TASKS:
         lines += ["", *_overview_task(task, fixed, speed, _eval_rows(task))]
@@ -1387,6 +1383,236 @@ def _caps_block() -> str:
     )
 
 
+# Devices (surveys).
+# docs/data/devices.toml: the reference device (docs/benchmarks.md, docs/data/speed.jsonl) and the survey devices
+# (docs/devices/<slug>.md, docs/data/speed/<slug>.jsonl). tools/_devices.py reads and checks both.
+_OTHER_BEGIN, _OTHER_END = "<!-- devices:begin", "<!-- devices:end -->"
+_DEV_BEGIN, _DEV_END = "<!-- device:begin", "<!-- device:end -->"
+_SHORT_DTYPE = {"float32": "fp32", "float16": "fp16", "bfloat16": "bf16", "default": ""}
+_STATUS_CELL = {"unsupported": "unsupported", "failed": "failed", "oom": "OOM"}
+_FAST_MODES = ("portable", "kernels")  # the fastforks modes of the cross-device table
+
+
+def _other_devices_line(prefix: str) -> str:
+    """The one line of the overview and the model pages that points at the other measured devices."""
+    others = [d for d in _devices.devices() if not d.reference]
+    names = ", ".join(f"[{d.name}]({prefix}{d.page})" for d in others)
+    return (
+        f"Other devices: {names}; [across devices]({prefix}benchmarks.md#other-devices)."
+        if others
+        else f"Other devices: none measured yet ([benchmarks]({prefix}benchmarks.md#other-devices))."
+    )
+
+
+def _models_by_id() -> dict[str, tuple[str, str]]:
+    """Model id -> (task, family) of every variant."""
+    return {
+        v.id: (task, card.family)
+        for task in registry.TASKS
+        for card, _ in registry.cards(task).values()
+        for v in card.variants
+    }
+
+
+def _model_link(ref: str, models: dict[str, tuple[str, str]], prefix: str) -> str:
+    known = models.get(ref.split("@", 1)[0])
+    return f"[`{ref}`]({prefix}models/{known[0]}.md#{known[1]})" if known else f"`{ref}`"
+
+
+def _col_name(mode: str, dtype: str) -> str:
+    """`original fp32`, `portable fp16`, `kernels fp16`: every timing column names its dtype."""
+    name = "original" if mode.startswith("upstream") else mode
+    return f"{name} {_SHORT_DTYPE.get(dtype, dtype)}".strip()
+
+
+def _state(rows: list[dict]) -> str:
+    """The cell of rows without a time: the most telling status (OOM, then failed, then unsupported)."""
+    st = {_devices.status_of(r) for r in rows}
+    return next((_STATUS_CELL[s] for s in ("oom", "failed", "unsupported") if s in st), DASH)
+
+
+def _dev_time(r: dict | None) -> str:
+    if r is None:
+        return DASH
+    if _devices.status_of(r) != "ok":
+        return _STATUS_CELL[_devices.status_of(r)]
+    return _ms_str(r["ms"]) + (" (golden fail)" if r.get("golden") == "fail" else "")
+
+
+def _dev_mem(r: dict | None) -> str:
+    if r is None or _devices.status_of(r) != "ok" or not r.get("memory_kind"):
+        return DASH
+    return " / ".join(str(r[k]) for k in _devices.MEMORY_KINDS[r["memory_kind"]][0])
+
+
+def _fastest(rows: list[dict], modes: tuple[str, ...] = _FAST_MODES) -> dict | None:
+    ok = [r for r in rows if r["mode"] in modes and _devices.status_of(r) == "ok" and r.get("golden") != "fail"]
+    return min(ok, key=lambda r: r["ms"]) if ok else None
+
+
+def _device_group(by: dict[str, list[dict]], models: dict[str, tuple[str, str]]) -> list[str]:
+    """Timing and memory table of one (task, input, scene) of a survey device."""
+    cols = sorted(
+        {(r["mode"], _devices.dtype_of(r)) for rs in by.values() for r in rs},
+        key=lambda c: (_devices.MODES.index(c[0]), list(_SHORT_DTYPE).index(c[1]) if c[1] in _SHORT_DTYPE else 9),
+    )
+    kinds = {r["memory_kind"] for rs in by.values() for r in rs if r.get("memory_kind")}
+    if len(kinds) > 1:
+        msg = f"one table mixes memory kinds {sorted(kinds)}: {sorted(by)}"
+        raise ValueError(msg)
+    speedup = any(c[0] == "kernels" for c in cols) and any(c[0] == "portable" for c in cols)
+    head = ["model", *(f"{_col_name(*c)} (ms)" for c in cols)]
+    head += ["kernels vs fastest portable"] if speedup else []
+    body, mem, notes = [], [], []
+    for ref, rs in by.items():
+        cell = {(r["mode"], _devices.dtype_of(r)): r for r in rs}
+        row = [_model_link(ref, models, "../"), *(_dev_time(cell.get(c)) for c in cols)]
+        if speedup:
+            k, p = _fastest(rs, ("kernels",)), _fastest(rs, ("portable",))
+            row.append(f"{_ratio(p, k)} (vs {_SHORT_DTYPE[_devices.dtype_of(p)]})" if k and p else DASH)
+        body.append(row)
+        mem.append([f"`{ref}`", *(_dev_mem(cell.get(c)) for c in cols)])
+        notes += [r["note"] for r in rs if r.get("note") and r["note"] not in notes]
+    lines = _md_table(head, body, keep=1)
+    if kinds:
+        lines += ["", f"Memory, {_devices.MEMORY_KINDS[kinds.pop()][1]}:", ""]
+        lines += _md_table(["model", *(_col_name(*c) for c in cols)], mem, keep=1)
+    protocols = sorted({r["protocol"] for rs in by.values() for r in rs})
+    lines += ["", *(f"Protocol: {p}." for p in protocols)]
+    return lines + [f"Note: {n}." for n in notes]
+
+
+def _device_block(dev: _devices.Device) -> str:
+    """The generated part of a survey device's page: environment, then tables per task and input."""
+    rows, models = _devices.rows(dev), _models_by_id()
+    data = dev.data.relative_to(ROOT)
+    torches = sorted({str(r["torch"]) for r in rows if r.get("torch")})
+    dates = sorted({r["date"] for r in rows})
+    out = [
+        f"{_DEV_BEGIN} (tools/gen_docs.py, from docs/data/devices.toml and {data}) -->",
+        "",
+        "| | |",
+        "|---|---|",
+        f"| device | {dev.name} |",
+        f"| backend | {dev.backend} |",
+        *([f"| memory | {dev.memory} |"] if dev.memory else []),
+        *([f"| hardware | {dev.details} |"] if dev.details else []),
+        *([f"| software | {dev.software} |"] if dev.software else []),
+        f"| torch (rows) | {', '.join(torches) or DASH} |",
+        f"| measured | {dates[0]} to {dates[-1]} |" if dates else f"| measured | {DASH} |",
+        f"| rows | {len(rows)} in `{data}` |",
+        "",
+        (
+            "A survey, not a regression floor: the models and dtypes measured here, as recorded. Cells are median ms; "
+            "every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this "
+            f"backend, `failed` = it ran and raised, `OOM` = out of memory, {DASH} = not tested; "
+            "`(golden fail)` = it ran but its result failed the "
+            "golden check on this device (never counted as fastest). Speed-up = kernels "
+            "against the fastest `portable` row of the same input (its dtype in brackets). Memory is measured the way "
+            "the table says; it is not comparable with another device's. Each model links to its model page; "
+            "[benchmarks](../benchmarks.md) has the method and the reference device."
+        ),
+    ]
+    tasks = {r["task"] for r in rows}
+    for task in [t for t in registry.TASKS if t in tasks]:
+        groups: dict[tuple[str, str], dict[str, list[dict]]] = {}
+        for r in sorted((r for r in rows if r["task"] == task), key=lambda r: r["ref"]):
+            groups.setdefault((r["input"], _scene(r.get("scene", "synthetic"))), {}).setdefault(r["ref"], []).append(r)
+        out += ["", f"## {task.capitalize().replace('_', ' ')}"]
+        for (size, scene), by in sorted(groups.items(), key=lambda kv: _pixels(kv[0][0])):
+            out += ["", f"### {task.capitalize().replace('_', ' ')}, {scene}, {size}", "", *_device_group(by, models)]
+    out.append(_DEV_END)
+    return "\n".join(out)
+
+
+def device_page(dev: _devices.Device) -> str:
+    """A survey device's page: its hand-written text around the generated block (a new page gets a skeleton)."""
+    path = ROOT / "docs" / dev.page
+    text = path.read_text() if path.is_file() else f"# {dev.name}\n\n{_DEV_BEGIN} -->\n{_DEV_END}\n"
+    return _with_block(text, _DEV_BEGIN, _DEV_END, _device_block(dev))
+
+
+def _cross_cell(rows: list[dict]) -> str:
+    """`12.3 ms · kernels fp16`: the fastest validated fastforks row, else the most telling state."""
+    best = _fastest(rows)
+    if best is None:
+        return _state([r for r in rows if r["mode"] in _FAST_MODES]) if rows else DASH
+    return f"{_ms_str(best['ms'])} ms · {_col_name(best['mode'], _devices.dtype_of(best))}"
+
+
+def _other_block() -> str:  # noqa: C901 - one table per task, filtered by input and protocol
+    """docs/benchmarks.md: the survey devices and, per task, the fastest mode per device at the standard input."""
+    devs = _devices.devices()
+    others = [d for d in devs if not d.reference]
+    by_dev = {d.slug: _devices.rows(d) for d in devs}
+    models = _models_by_id()
+
+    def task_of(r: dict) -> str:
+        return r.get("task") or models.get(r["ref"].split("@", 1)[0], ("",))[0]
+
+    out = [f"{_OTHER_BEGIN} (tools/gen_docs.py, from docs/data/devices.toml and docs/data/speed*) -->", ""]
+    out += ["## Other devices", ""]
+    if not others:
+        out += ["None measured yet.", _OTHER_END]
+        return "\n".join(out)
+    for d in others:
+        rs = by_dev[d.slug]
+        out.append(
+            f"- [{d.name}]({d.page}) ({d.backend}): {len({r['ref'] for r in rs})} models, "
+            f"{len(rs)} rows, measured {min(r['date'] for r in rs)} to {max(r['date'] for r in rs)}."
+            if rs
+            else f"- [{d.name}]({d.page}) ({d.backend}): no rows yet."
+        )
+    out += [
+        "",
+        "### Across devices",
+        "",
+        (
+            "Each task at its standard input (the overview's). A cell is the fastest validated fastforks mode on that "
+            "device (`portable` or `kernels`, time and dtype), or why there is none; a row needs a survey device "
+            "measured at that input. Cells compare only rows of the same input and protocol "
+            f"(`warm-median`: {_devices.PROTOCOLS['warm-median']}); no speed-up is derived across devices, as the "
+            f"modes and dtypes differ. {DASH} = not measured at this input."
+        ),
+    ]
+    tables = 0
+    for task in registry.TASKS:
+        size = _std_input(task)
+        if size == _OWN:
+            continue
+        at: dict[str, dict[str, list[dict]]] = {}  # device -> model id -> its comparable rows at the standard input
+        for slug, rs in by_dev.items():
+            for r in rs:
+                if task_of(r) == task and r["input"] == size and _devices.protocol_id(r) == "warm-median":
+                    at.setdefault(slug, {}).setdefault(r["ref"], []).append(r)
+        refs = sorted({ref for d in others for ref in at.get(d.slug, {})})
+        if not refs:
+            continue
+        tables += 1
+        body = [
+            [_model_link(ref, models, ""), *(_cross_cell(at.get(d.slug, {}).get(ref, [])) for d in devs)]
+            for ref in refs
+        ]
+        out += ["", f"#### {task.capitalize().replace('_', ' ')}, {size}", ""]
+        out += _md_table(["model", *(d.name for d in devs)], body, keep=1)
+    if not tables:
+        out += [
+            "",
+            "No survey device has rows at the standard inputs yet; each device page lists what was measured there.",
+        ]
+    out.append(_OTHER_END)
+    return "\n".join(out)
+
+
+def _nav_problems() -> list[str]:
+    """Survey pages missing from the mkdocs nav, and device pages without a registry entry."""
+    nav = (ROOT / "mkdocs.yml").read_text()
+    slugs = {d.slug for d in _devices.devices() if not d.reference}
+    out = [f"mkdocs.yml: nav lacks devices/{s}.md" for s in sorted(slugs) if f"devices/{s}.md" not in nav]
+    pages = {p.stem for p in (ROOT / "docs" / "devices").glob("*.md")}
+    return out + [f"docs/devices/{s}.md: not in docs/data/devices.toml" for s in sorted(pages - slugs)]
+
+
 def _with_block(text: str, begin: str, end: str, block: str) -> str:
     head, rest = text.split(begin, 1)
     return head + block + rest.split(end, 1)[1]
@@ -1407,7 +1633,12 @@ def main() -> None:
     bench, gpus = ROOT / "docs" / "benchmarks.md", ROOT / "docs" / "OTHER_GPUS.md"
     outputs = {
         bench: _with_block(
-            _with_block(bench.read_text(), _TABLE_BEGIN, _TABLE_END, _bench_block()),
+            _with_block(
+                _with_block(bench.read_text(), _OTHER_BEGIN, _OTHER_END, _other_block()),
+                _TABLE_BEGIN,
+                _TABLE_END,
+                _bench_block(),
+            ),
             _COMPILE_BEGIN,
             _COMPILE_END,
             _compile_block(),
@@ -1417,6 +1648,9 @@ def main() -> None:
             _with_block(gpus.read_text(), _LIBS_BEGIN, _LIBS_END, _libs_block()), _CAPS_BEGIN, _CAPS_END, _caps_block()
         ),
     }
+    for dev in _devices.devices():
+        if not dev.reference:
+            outputs[ROOT / "docs" / dev.page] = device_page(dev)
     for task in registry.TASKS:
         outputs[ROOT / "docs" / "models" / f"{task}.md"] = render(task)
         outputs[ROOT / "src" / "fastforks" / task / "known_models.toml"] = known_models(task)
@@ -1429,6 +1663,8 @@ def main() -> None:
             stale.append(str(path.relative_to(ROOT)))
     if stale:
         sys.exit(f"out of date (run tools/gen_docs.py): {', '.join(stale)}")
+    if problems := _nav_problems():
+        sys.exit("\n".join(problems))
 
 
 if __name__ == "__main__":

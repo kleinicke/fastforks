@@ -119,7 +119,9 @@ def golden_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls:
         want = tg.golden(ref)
         opts = tg.options(ref, want)
         if opts:
-            m = tg.API[tg.TASK[ref]].load(ref, mode=spec["mode"], device="cuda", options=opts)
+            m = tg.API[tg.TASK[ref]].load(
+                ref, mode=spec["mode"], device=spec.get("device", "cuda"), dtype=spec.get("dtype"), options=opts
+            )
             row["golden_reload"] = True
         kernels.reset_fallbacks()
         got, backend = tg.calls_of(m, ref, want, built=tg.gpu_built(ref, spec["mode"]))
@@ -134,7 +136,8 @@ def golden_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls:
     speed_check()._append(out, row)  # noqa: SLF001 - speed_check's row writer
     del m
     gc.collect()
-    torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
 
 def worker(spec: dict[str, Any]) -> int:

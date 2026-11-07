@@ -8,6 +8,8 @@ Input: a rectified left / right image pair. Output: a disparity map (pixels, lef
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured. The accuracy column is lower-is-better (ETH3D bad > 1 px (%)).
 
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md); [across devices](../benchmarks.md#other-devices).
+
 | model | commercial | ETH3D bad > 1 px (%) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
 | [`aanet-plus-sceneflow`](#aanet) | yes | 18.50 | 88.91, 2.2x | 920, 0.24x |

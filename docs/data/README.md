@@ -78,6 +78,80 @@ the precision the accuracy tables use: `upstream-default` = fp32, `upstream` = t
 `tier`, `dtype` and `how`; `commit` = the upstream pin, `ff_commit` = the fastforks commit; peaks over the first and the
 timed calls, `peak_first_*` of the first call alone.
 
+## Devices: `devices.toml`, `speed/<slug>.jsonl`
+
+`devices.toml` lists the measured devices (slug = vendor + model + memory, e.g. `rx-7900-xtx-24gb`; fields described
+in the file). Exactly one is the reference (`reference = true`, the RTX 5060 Ti): its rows are `speed.jsonl` above, its
+tables `docs/benchmarks.md`, and only its rows are a regression floor (`tests/test_speed_floor.py`,
+`tools/speed_check.py`, `tools/merge_check.py`). Every other device is a survey: rows in `speed/<slug>.jsonl`, a
+generated page `docs/devices/<slug>.md`, and **no floor**: a slower survey row never fails a check.
+
+A survey row has the keys of `speed.jsonl` plus:
+
+| key | meaning |
+|---|---|
+| `device` | the slug; must match the file name |
+| `task` | the model's task (`stereo`, `depth`, ...) |
+| `dtype` | `float32`, `bfloat16` or `float16`: every row names its compute dtype |
+| `status` | `ok`, `unsupported` (the card does not offer this mode / dtype on the backend), `failed` (it ran and raised; `error`), `oom` |
+| `protocol_id` | the timing protocol class; cross-device tables compare only equal ids. `warm-median`: median of warm, synchronised calls after warm-up |
+| `memory_kind` | `torch-peak` (`peak_alloc_mb`, `peak_reserved_mb`; CUDA, ROCm) or `process-footprint` (`peak_footprint_mb`, the process's peak physical footprint; MPS, unified memory). Kinds are never compared |
+| `golden` | optional: `pass`, `fail` or `skip`, the golden check (`tests/test_golden.py::test_gpu`) of the same loaded model on this device; `golden_mean` / `golden_p99` (error), `golden_msg` (why skipped), `golden_error`. A `fail` row keeps its time but is never a table's fastest |
+
+An `ok` row has `ms` and its memory fields; any other status has no `ms` and a `note` or `error`. `ref`, `mode`,
+`dtype`, `input` are unique per file. `tools/gen_docs.py` checks every row and fails on a bad one.
+
+Adding a device:
+
+1. On the device: `uv run python tools/speed_survey.py detect` prints a `devices.toml` entry for its GPU; paste it
+   (`backend` = `cuda`, `rocm` or `mps`; `match` = the GPU name the tools record; edit the slug if you like).
+2. Add `docs/devices/<slug>.md` to the Benchmarks section of `mkdocs.yml` (`gen_docs.py` refuses a page missing there).
+3. `... speed_survey.py list --device <slug>` shows the jobs (`*` = cross-device subset); `... prepare --device
+   <slug>` downloads their weights (and on CUDA the kernel binaries for this GPU) and checks them; `... run --device
+   <slug>` measures every ref of the floor at its task's standard input, in each mode and dtype the card validates for
+   the backend (the rest become `unsupported` rows), runs the golden check on the loaded model, and merges the rows
+   into `speed/<slug>.jsonl`. `--subset` = only one variant per family; `--only REF ...` a part; rows already there
+   are skipped unless `--force`; `run` is offline (`FASTFORKS_OFFLINE=1`) unless `--online`.
+4. `uv run python tools/gen_docs.py` writes the page (hand-written text outside its markers is kept) and the
+   "Other devices" / "Across devices" block of `docs/benchmarks.md`.
+
+On CUDA / ROCm the worker is `tools/merge_check.py`'s, i.e. the floor's own (`tools/speed_check.py`: first call, 3
+warm-up, peak reset, median of 3 rounds x 5), so a survey time and the reference time of the same input are measured
+the same way. MPS has its own worker (4 warm-up, median of 5; process footprint). Rows record the environment
+(`gpu`, `torch`; on NVIDIA `arch`, `cuda`, `driver`, `power_limit`, `clocks`, `throttle_reasons`; on a Mac `gpu_cores`
+and `os`, as the chip name does not say how many GPU cores it has).
+
+On a Mac (Apple silicon only; an Intel Mac is refused): the MPS allocator is capped at the recommended working set
+(about 75 % of RAM), so a model that needs more is an `oom` row instead of swapping, and before each job the run waits
+until 15 GiB (`FASTFORKS_MIN_FREE_GB`) are free on the system disk (macOS swaps there). `match` must equal the chip name exactly ("Apple M1" is
+not an M1 Pro). The Metal kernels compile on the device at first use (`torch.mps.compile_shader`): nothing to
+download, `prepare` fetches only weights.
+
+### Runbook: a rented NVIDIA GPU
+
+Rented time is paid by the minute, so everything that is not a measurement happens before or after it.
+
+1. Before: on the Mac, nothing to build. Have the goldens ready to copy (`FASTFORKS_GOLDEN_PATH`, about 200 MB) and
+   a Hugging Face token if the gated families (DINOv3, SAM 3) are wanted.
+2. On the box (any CUDA image with a driver >= 570; a persistent volume for the cache saves the downloads next time):
+
+       git clone <repo> fastforks && cd fastforks && git checkout <branch>
+       uv sync                                      # the same lock as the reference
+       rsync -a mac:/Volumes/Daten/fastforks-golden/ ~/golden/ && export FASTFORKS_GOLDEN_PATH=~/golden
+       uv run python tools/speed_survey.py detect   # paste into docs/data/devices.toml, add the page to mkdocs.yml
+       uv run python tools/speed_survey.py prepare --device <slug>   # downloads; exit 1 = a file is missing
+       nvidia-smi -q -d CLOCK,POWER | head -40      # what the rows will record; lock clocks only where the host allows
+
+3. Measure, subset first (about 10 min), then the rest (about 1 h for every ref) in the same file:
+
+       uv run python tools/speed_survey.py run --device <slug> --subset
+       uv run python tools/speed_survey.py run --device <slug>
+
+   A kill or a lost connection loses at most the job in flight; the same command continues. Use `tmux` or `nohup`.
+4. After: copy `docs/data/speed/<slug>.jsonl` (and the `devices.toml` entry) back, then `uv run python
+   tools/gen_docs.py` and `mkdocs build --strict` on the Mac. Check the rows: `golden` `fail` cells say a mode is
+   wrong on this GPU, and `throttle_reasons` other than none / idle say a time is not the GPU's best.
+
 ## `plain.toml`
 
 One plain-language sentence per model family, shown on the model pages.

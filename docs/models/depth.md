@@ -8,6 +8,8 @@ Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured. The accuracy column is lower-is-better (NYUv2 AbsRel (scale+shift aligned)).
 
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md); [across devices](../benchmarks.md#other-devices).
+
 | model | commercial | NYUv2 AbsRel (scale+shift aligned) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
 | [`da3-giant-1.1`](#depth_anything_3) | no | 0.0397 | 44.19, 5.1x | 2710, 0.42x |

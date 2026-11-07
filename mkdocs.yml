@@ -20,7 +20,9 @@ nav:
   - Export: export.md
   - Stereo geometry: stereo_geometry.md
   - Which model: overview.md
-  - Benchmarks: benchmarks.md
+  - Benchmarks:
+      - Methods and RTX 5060 Ti (reference): benchmarks.md
+      - Apple M1 Pro: devices/apple-m1-pro-16gb.md
   - Other GPUs: OTHER_GPUS.md
   - API:
       - fastforks: api/index.md

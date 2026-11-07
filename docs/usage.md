@@ -536,7 +536,8 @@ sparse convolutions) and VGGT (the aggregator's q / k LayerNorm and RoPE) in flo
 under a second on first use; `mode="auto"` picks it. Every other family runs `portable`.
 
 - dtype: float32 by default. `dtype="float16"` works where the card lists it (`fastforks info MODEL`, row
-  `apple gpu`), mainly to save memory (up to half); the M1-M3 GPUs compute float16 no faster than float32.
+  `apple gpu`). It saves memory (up to half) and on an M1 Pro is also faster: median 1.15x over 60 models, up to
+  2.9x on memory-bound stereo cost volumes (GREAT-IGEV, CoEx, CAS-GwcNet), rarely slower (HITNet, Mask2Former 0.94x).
 - A few small steps run on the CPU or in float32 by design: float64 maths in MoGe and SAM, one adaptive pooling in
   S2M2, Depth Anything 3's bicubic resize.
 - The first call at a new input size takes 0.5-4 s longer (PyTorch compiles the Metal kernels for that shape).
@@ -544,7 +545,7 @@ under a second on first use; `mode="auto"` picks it. Every other family runs `po
   (Activity Monitor). A model larger than the free RAM swaps (slower, but it runs); keep several GB free on
   the system disk, since with a full disk swapping can freeze the machine.
 
-Time, memory and accuracy per model on an M1 Pro: [benchmarks](benchmarks.md#apple-silicon-mps).
+Time and memory per model on an M1 Pro: [Apple M1 Pro](devices/apple-m1-pro-16gb.md).
 
 ## torch.compile, torch.export, ONNX and TensorRT
 

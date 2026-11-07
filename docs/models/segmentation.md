@@ -8,6 +8,8 @@ Input: one RGB image. Output: per-pixel class labels (logits with `logits=True`)
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x2048: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
 
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md); [across devices](../benchmarks.md#other-devices).
+
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.06, 2.7x | 518, 0.24x |

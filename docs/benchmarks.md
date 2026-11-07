@@ -19,6 +19,237 @@ The accuracy columns on the model pages check parity (original code vs portable 
 ranking. Variants trained or fine-tuned on ETH3D / Middlebury are marked `†` in those columns (`?` where the training data
 is not stated); to rank models use the official Middlebury and ETH3D test-set leaderboards.
 
+## Modes, states and devices
+
+These terms apply to every device:
+
+- Modes: `original` = the authors' code with the same checkpoint (fp32 and the authors' own fp16 option, else
+  `torch.autocast`), `portable` = fastforks in plain PyTorch, `kernels` = fastforks with its own kernels (CUDA, or Metal on
+  Apple silicon). Every time column names its dtype or its original precision.
+- Timing: median of warm, synchronised calls after warm-up, one model at a time. Startup (load, first call) is
+  listed separately.
+- Memory is recorded as one of two kinds, never compared with each other: peak torch memory (allocated / reserved,
+  CUDA and ROCm) or the peak process footprint (Apple silicon, where weights and activations share the system memory).
+- Speed-ups name their baseline (`vs original`, `vs portable`, `vs fastest portable`). When a baseline is missing the
+  cell stays empty; another baseline is not used in its place.
+- States: `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised,
+  `OOM` = out of memory, `–` = not tested.
+- The reference device is the RTX 5060 Ti below: its rows are the regression floor (`tests/test_speed_floor.py`).
+  Every other device is a survey with its own page; no floor is kept for it. Adding a device:
+  "Devices" in `docs/data/README.md`.
+
+<!-- devices:begin (tools/gen_docs.py, from docs/data/devices.toml and docs/data/speed*) -->
+
+## Other devices
+
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 169 models, 602 rows, measured 2026-11-03 to 2026-11-06.
+
+### Across devices
+
+Each task at its standard input (the overview's). A cell is the fastest validated fastforks mode on that device (`portable` or `kernels`, time and dtype), or why there is none; a row needs a survey device measured at that input. Cells compare only rows of the same input and protocol (`warm-median`: median of warm, synchronised calls after warm-up (at least 5; 2 for calls over 2 s on surveys)); no speed-up is derived across devices, as the modes and dtypes differ. – = not measured at this input.
+
+#### Stereo, 994x1482
+
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB |
+|---|---|---|
+| [`aanet-plus-sceneflow`](models/stereo.md#aanet) | 88.9 ms · kernels fp16 | 818 ms · kernels fp16 |
+| [`aanet-sceneflow`](models/stereo.md#aanet) | 101 ms · kernels fp16 | 631 ms · kernels fp16 |
+| [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | 354 ms · kernels fp16 | 3756 ms · kernels fp16 |
+| [`bridgedepth-sf`](models/stereo.md#bridgedepth) | 348 ms · kernels fp16 | 3693 ms · kernels fp16 |
+| [`c-fast-foundationstereo`](models/stereo.md#c_foundationstereo) | 135 ms · kernels fp16 | 4881 ms · portable fp32 |
+| [`c-foundationstereo-s`](models/stereo.md#c_foundationstereo) | 1362 ms · kernels fp16 | OOM |
+| [`cas-gwcnet-c-sceneflow`](models/stereo.md#cas_gwcnet) | 225 ms · kernels fp16 | 2489 ms · portable fp16 |
+| [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas_gwcnet) | 358 ms · kernels fp16 | 2995 ms · portable fp16 |
+| [`cfnet-sceneflow`](models/stereo.md#cfnet) | 401 ms · kernels fp16 | 2206 ms · kernels fp16 |
+| [`coex-sceneflow`](models/stereo.md#coex) | 23.5 ms · kernels fp16 | 411 ms · portable fp16 |
+| [`crestereo-eth3d`](models/stereo.md#crestereo) | 229 ms · kernels fp16 | 3342 ms · kernels fp16 |
+| [`defom-stereo-vitl-sceneflow`](models/stereo.md#defom_stereo) | 659 ms · kernels fp16 | 8224 ms · kernels fp16 |
+| [`dlnr-middlebury`](models/stereo.md#dlnr) | 214 ms · kernels fp16 | 2143 ms · portable fp16 |
+| [`dlnr-sceneflow`](models/stereo.md#dlnr) | 214 ms · kernels fp16 | 2143 ms · portable fp16 |
+| [`fast-acvnet-generalization`](models/stereo.md#fast_acvnet) | 38.2 ms · kernels fp16 | 944 ms · portable fp32 |
+| [`fast-acvnet-kitti12`](models/stereo.md#fast_acvnet) | 38.2 ms · kernels fp16 | 942 ms · portable fp32 |
+| [`fast-acvnet-kitti15`](models/stereo.md#fast_acvnet) | 38.2 ms · kernels fp16 | 943 ms · portable fp32 |
+| [`fast-acvnet-plus-generalization`](models/stereo.md#fast_acvnet) | 46.4 ms · kernels fp16 | 1322 ms · portable fp32 |
+| [`fast-acvnet-plus-kitti12`](models/stereo.md#fast_acvnet) | 46.4 ms · kernels fp16 | 1321 ms · portable fp32 |
+| [`fast-acvnet-plus-kitti15`](models/stereo.md#fast_acvnet) | 46.4 ms · kernels fp16 | 1322 ms · portable fp32 |
+| [`fast-acvnet-plus-sceneflow`](models/stereo.md#fast_acvnet) | 46.4 ms · kernels fp16 | 1322 ms · portable fp32 |
+| [`fast-acvnet-sceneflow`](models/stereo.md#fast_acvnet) | 38.2 ms · kernels fp16 | 942 ms · portable fp32 |
+| [`fast-foundationstereo`](models/stereo.md#c_foundationstereo) | 135 ms · kernels fp16 | 5195 ms · portable fp32 |
+| [`foundationstereo-vit-l`](models/stereo.md#foundationstereo) | 1513 ms · kernels fp16 | 24480 ms · kernels fp16 |
+| [`foundationstereo-vit-s`](models/stereo.md#foundationstereo) | 1120 ms · kernels fp16 | 19496 ms · kernels fp16 |
+| [`great-igev-eth3d`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9636 ms · kernels fp16 |
+| [`great-igev-kitti`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9634 ms · kernels fp16 |
+| [`great-igev-middlebury`](models/stereo.md#great_igev) | 579 ms · kernels fp16 | 25368 ms · kernels fp16 |
+| [`great-igev-sceneflow`](models/stereo.md#great_igev) | 393 ms · kernels fp16 | 9861 ms · kernels fp16 |
+| [`gwcnet-g-sceneflow`](models/stereo.md#gwcnet) | 238 ms · kernels fp16 | 4340 ms · portable fp32 |
+| [`gwcnet-gc-sceneflow`](models/stereo.md#gwcnet) | 257 ms · kernels fp16 | 4461 ms · portable fp32 |
+| [`hitnet-eth3d`](models/stereo.md#hitnet) | 23.2 ms · kernels fp16 | 136 ms · kernels fp16 |
+| [`hitnet-middlebury-d400`](models/stereo.md#hitnet) | 52.7 ms · kernels fp16 | 440 ms · kernels fp16 |
+| [`igev-plusplus-eth3d`](models/stereo.md#igev_plusplus) | 393 ms · kernels fp16 | 6139 ms · kernels fp16 |
+| [`igev-plusplus-kitti12`](models/stereo.md#igev_plusplus) | 393 ms · kernels fp16 | 6124 ms · kernels fp16 |
+| [`igev-plusplus-kitti15`](models/stereo.md#igev_plusplus) | 393 ms · kernels fp16 | 6125 ms · kernels fp16 |
+| [`igev-plusplus-middlebury`](models/stereo.md#igev_plusplus) | 393 ms · kernels fp16 | 6130 ms · kernels fp16 |
+| [`igev-plusplus-sceneflow`](models/stereo.md#igev_plusplus) | 393 ms · kernels fp16 | 6135 ms · kernels fp16 |
+| [`igev-stereo-eth3d`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 3998 ms · kernels fp16 |
+| [`igev-stereo-kitti12`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4006 ms · kernels fp16 |
+| [`igev-stereo-kitti15`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4008 ms · kernels fp16 |
+| [`igev-stereo-middlebury`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4007 ms · kernels fp16 |
+| [`igev-stereo-sceneflow`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4001 ms · kernels fp16 |
+| [`las2-h`](models/stereo.md#las2) | 53.3 ms · kernels fp16 | 734 ms · kernels fp16 |
+| [`las2-l`](models/stereo.md#las2) | 29.9 ms · kernels fp16 | 519 ms · kernels fp16 |
+| [`las2-m`](models/stereo.md#las2) | 18.3 ms · kernels fp16 | 281 ms · kernels fp16 |
+| [`las2-s`](models/stereo.md#las2) | 14.3 ms · kernels fp16 | 198 ms · kernels fp16 |
+| [`mocha-v1-sceneflow`](models/stereo.md#mocha_stereo) | 455 ms · kernels fp16 | 6693 ms · kernels fp16 |
+| [`mocha-v2-sceneflow`](models/stereo.md#mocha_stereo) | 448 ms · kernels fp16 | 6501 ms · kernels fp16 |
+| [`monster-mix-all`](models/stereo.md#monster) | 668 ms · kernels fp16 | 9646 ms · kernels fp16 |
+| [`monster-plusplus-mix-all`](models/stereo.md#monster_plusplus) | 698 ms · kernels fp16 | 10202 ms · kernels fp16 |
+| [`monster-sceneflow`](models/stereo.md#monster) | 668 ms · kernels fp16 | 9642 ms · kernels fp16 |
+| [`nmrf-sceneflow`](models/stereo.md#nmrf) | 196 ms · kernels fp16 | 1204 ms · kernels fp16 |
+| [`psmnet-sceneflow`](models/stereo.md#psmnet) | 232 ms · kernels fp16 | 4615 ms · portable fp32 |
+| [`raft-stereo-eth3d`](models/stereo.md#raft_stereo) | 273 ms · kernels fp16 | 3638 ms · kernels fp16 |
+| [`raft-stereo-middlebury`](models/stereo.md#raft_stereo) | 273 ms · kernels fp16 | 3634 ms · kernels fp16 |
+| [`raft-stereo-sceneflow`](models/stereo.md#raft_stereo) | 273 ms · kernels fp16 | 3637 ms · kernels fp16 |
+| [`rt-monster-plusplus-mix-all`](models/stereo.md#rt_monster_plusplus) | 94.1 ms · kernels fp16 | 663 ms · portable fp32 |
+| [`s2m2-l`](models/stereo.md#s2m2) | 376 ms · kernels fp16 | 6590 ms · portable fp16 |
+| [`s2m2-m`](models/stereo.md#s2m2) | 248 ms · kernels fp16 | 3620 ms · portable fp16 |
+| [`s2m2-s`](models/stereo.md#s2m2) | 113 ms · kernels fp16 | 1607 ms · portable fp16 |
+| [`s2m2-xl`](models/stereo.md#s2m2) | 682 ms · kernels fp16 | 13398 ms · portable fp16 |
+| [`selective-igev-eth3d-finetune`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5708 ms · kernels fp16 |
+| [`selective-igev-eth3d-train`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5710 ms · kernels fp16 |
+| [`selective-igev-kitti12`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5709 ms · kernels fp16 |
+| [`selective-igev-kitti15`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5710 ms · kernels fp16 |
+| [`selective-igev-middlebury-finetune`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5778 ms · kernels fp16 |
+| [`selective-igev-middlebury-train`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5738 ms · kernels fp16 |
+| [`selective-igev-sceneflow`](models/stereo.md#selective_igev) | 349 ms · kernels fp16 | 5710 ms · kernels fp16 |
+| [`waft-stereo-b`](models/stereo.md#waft_stereo) | 393 ms · kernels fp16 | 11022 ms · portable fp32 |
+| [`waft-stereo-s`](models/stereo.md#waft_stereo) | 284 ms · kernels fp16 | 3360 ms · portable fp32 |
+
+#### Depth, 994x1482
+
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB |
+|---|---|---|
+| [`da3-giant-1.1`](models/depth.md#depth_anything_3) | 44.2 ms · kernels fp16 | 759 ms · portable fp16 |
+| [`da3-large-1.1`](models/depth.md#depth_anything_3) | 17.1 ms · kernels fp16 | 327 ms · portable fp16 |
+| [`da3metric-large`](models/depth.md#depth_anything_3) | 14.7 ms · kernels fp16 | 318 ms · portable fp16 |
+| [`da3mono-large`](models/depth.md#depth_anything_3) | 14.6 ms · kernels fp16 | 272 ms · portable fp16 |
+| [`da3nested-giant-large-1.1`](models/depth.md#depth_anything_3) | 58.2 ms · kernels fp16 | 1184 ms · portable fp16 |
+| [`depth-anything-v2-b`](models/depth.md#depth_anything_v2) | 10.5 ms · kernels fp16 | 212 ms · portable fp32 |
+| [`depth-anything-v2-l`](models/depth.md#depth_anything_v2) | 31.1 ms · kernels fp16 | 622 ms · portable fp32 |
+| [`depth-anything-v2-s`](models/depth.md#depth_anything_v2) | 4.51 ms · kernels fp16 | 87.3 ms · portable fp32 |
+| [`depth-pro`](models/depth.md#depth_pro) | 271 ms · kernels fp16 | 5026 ms · portable fp16 |
+| [`marigold-depth-v1-1`](models/depth.md#marigold) | 383 ms · kernels fp16 | 2498 ms · portable fp16 |
+| [`metric3d-vit-large`](models/depth.md#metric3d) | 158 ms · kernels fp16 | 1822 ms · portable fp32 |
+| [`midas-dpt-beit-large-512`](models/depth.md#midas) | 63.9 ms · kernels fp16 | 635 ms · portable fp16 |
+| [`moge-2-vitl-normal`](models/depth.md#moge) | 73.4 ms · kernels fp16 | 1454 ms · kernels fp32 |
+| [`moge-2-vits-normal`](models/depth.md#moge) | 29.7 ms · kernels fp16 | 363 ms · portable fp32 |
+| [`moge-3-vitl`](models/depth.md#moge) | 905 ms · portable fp16 | 2764 ms · kernels fp32 |
+| [`unidepth-v2-vitl14`](models/depth.md#unidepth_v2) | 66.4 ms · kernels fp16 | 1260 ms · portable fp32 |
+| [`unik3d-vitl`](models/depth.md#unik3d) | 62.9 ms · kernels fp16 | 1217 ms · portable fp32 |
+| [`zoedepth-nk`](models/depth.md#zoedepth) | 88.9 ms · kernels fp16 | 778 ms · portable fp32 |
+
+#### Classification, 224x224
+
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB |
+|---|---|---|
+| [`alexnet.tv_in1k`](models/classification.md#alexnet) | 0.660 ms · kernels fp16 | 3.04 ms · portable fp16 |
+| [`convnextv2_base.fcmae_ft_in22k_in1k`](models/classification.md#convnextv2) | 3.07 ms · kernels fp16 | 36.1 ms · portable fp32 |
+| [`deit_base_patch16_224.fb_in1k`](models/classification.md#deit) | 1.79 ms · kernels fp16 | 16.9 ms · portable fp32 |
+| [`densenet121.tv_in1k`](models/classification.md#densenet) | 1.57 ms · kernels fp16 | 25.4 ms · portable fp32 |
+| [`dinov2_vitl14_lc`](models/classification.md#dinov2_linear_cls) | 5.24 ms · kernels fp16 | 64.5 ms · portable fp32 |
+| [`efficientnet_b0.tv_in1k`](models/classification.md#efficientnet) | 0.870 ms · kernels fp16 | 13.0 ms · portable fp32 |
+| [`efficientnet_b4.tv_in1k`](models/classification.md#efficientnet) | 2.19 ms · kernels fp16 | 38.3 ms · portable fp32 |
+| [`efficientnet_v2_s.tv_in1k`](models/classification.md#efficientnetv2) | 2.11 ms · kernels fp16 | 34.0 ms · portable fp32 |
+| [`efficientvit_b2.r288_in1k`](models/classification.md#efficientvit) | 1.20 ms · kernels fp16 | 18.6 ms · portable fp32 |
+| [`eva02_large_patch14_448.mim_m38m_ft_in22k_in1k`](models/classification.md#eva02) | 14.2 ms · kernels fp16 | 235 ms · portable fp16 |
+| [`fastvit_sa24.apple_dist_in1k`](models/classification.md#fastvit) | 1.49 ms · kernels fp16 | 16.8 ms · portable fp32 |
+| [`inception_v3.tv_in1k`](models/classification.md#inception_v3) | 1.56 ms · kernels fp16 | 17.4 ms · portable fp32 |
+| [`mobilenet_v2.tv2_in1k`](models/classification.md#mobilenetv2) | 0.520 ms · kernels fp16 | 6.48 ms · portable fp32 |
+| [`mobilenet_v3_large.tv2_in1k`](models/classification.md#mobilenetv3) | 0.630 ms · kernels fp16 | 8.54 ms · portable fp32 |
+| [`mobilenetv1_100.ra4_e3600_r224_in1k`](models/classification.md#mobilenetv1) | 0.430 ms · kernels fp16 | 4.29 ms · portable fp32 |
+| [`mobilenetv4_conv_medium.e500_r256_in1k`](models/classification.md#mobilenetv4) | 0.750 ms · kernels fp16 | 9.58 ms · portable fp32 |
+| [`regnety_160.tv2_in1k`](models/classification.md#regnet) | 1.96 ms · kernels fp16 | 33.1 ms · portable fp16 |
+| [`resnet152.tv2_in1k`](models/classification.md#resnet) | 2.17 ms · kernels fp16 | 25.7 ms · portable fp32 |
+| [`resnet18.tv_in1k`](models/classification.md#resnet) | 0.550 ms · kernels fp16 | 4.67 ms · portable fp32 |
+| [`resnet50.tv2_in1k`](models/classification.md#resnet) | 0.990 ms · kernels fp16 | 11.2 ms · portable fp32 |
+| [`shufflenet_v2_x1_0.tv_in1k`](models/classification.md#shufflenetv2) | 0.840 ms · kernels fp16 | 6.33 ms · portable fp32 |
+| [`squeezenet1_1.tv_in1k`](models/classification.md#squeezenet) | 0.420 ms · kernels fp16 | 3.72 ms · portable fp16 |
+| [`swin_base_patch4_window7_224.ms_in22k_ft_in1k`](models/classification.md#swin) | 2.45 ms · kernels fp16 | 28.2 ms · portable fp32 |
+| [`vgg16.tv_in1k`](models/classification.md#vgg) | 1.56 ms · kernels fp16 | 11.7 ms · portable fp16 |
+| [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](models/classification.md#vit) | 1.78 ms · kernels fp16 | 16.9 ms · portable fp32 |
+| [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](models/classification.md#siglip) | 12.9 ms · kernels fp16 | 197 ms · portable fp16 |
+
+#### Segmentation, 1024x2048
+
+| model | Apple M1 Pro 16 GB |
+|---|---|
+| [`deeplabv3-r101-d8-ade20k`](models/segmentation.md#mmseg) | 528 ms · portable fp16 |
+| [`deeplabv3plus-r101-d8-ade20k`](models/segmentation.md#mmseg) | 430 ms · portable fp16 |
+| [`dinov2-b-linear-ade20k`](models/segmentation.md#dinov2_linear) | 409 ms · portable fp32 |
+| [`dinov2-l-linear-ade20k`](models/segmentation.md#dinov2_linear) | 1032 ms · portable fp32 |
+| [`dinov2-s-linear-ade20k`](models/segmentation.md#dinov2_linear) | 224 ms · portable fp32 |
+| [`eomt-l-dinov2-ade20k`](models/segmentation.md#eomt) | 540 ms · portable fp16 |
+| [`eomt-l-dinov3-ade20k`](models/segmentation.md#eomt) | 575 ms · portable fp16 |
+| [`fcn-r101-d8-ade20k`](models/segmentation.md#mmseg) | 405 ms · portable fp16 |
+| [`hrnet-w48-fcn-ade20k`](models/segmentation.md#mmseg) | 228 ms · portable fp16 |
+| [`mask2former-swinl-ade20k`](models/segmentation.md#mask2former) | 909 ms · portable fp32 |
+| [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | 1127 ms · portable fp32 |
+| [`pspnet-r101-d8-ade20k`](models/segmentation.md#mmseg) | 411 ms · portable fp16 |
+| [`sapiens-seg-0.3b-goliath`](models/segmentation.md#sapiens) | 1517 ms · portable fp16 |
+| [`sapiens-seg-1b-goliath`](models/segmentation.md#sapiens) | 3113 ms · portable fp16 |
+| [`segformer-b0-ade20k`](models/segmentation.md#segformer) | 106 ms · portable fp32 |
+| [`segformer-b5-ade20k`](models/segmentation.md#segformer) | 428 ms · portable fp32 |
+
+#### Promptable segmentation, 1024x1024
+
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB |
+|---|---|---|
+| [`sam-vit-b`](models/promptable_segmentation.md#sam) | 37.0 ms · kernels fp16 | 631 ms · portable fp32 |
+| [`sam-vit-h`](models/promptable_segmentation.md#sam) | 143 ms · kernels fp16 | 2518 ms · portable fp32 |
+| [`sam-vit-l`](models/promptable_segmentation.md#sam) | 81.5 ms · kernels fp16 | 1373 ms · portable fp32 |
+| [`sam2.1-hiera-base-plus`](models/promptable_segmentation.md#sam2) | 25.1 ms · kernels fp16 | 424 ms · portable fp32 |
+| [`sam2.1-hiera-large`](models/promptable_segmentation.md#sam2) | 48.8 ms · kernels fp16 | 613 ms · portable fp32 |
+| [`sam2.1-hiera-small`](models/promptable_segmentation.md#sam2) | 15.6 ms · kernels fp16 | 177 ms · portable fp32 |
+| [`sam2.1-hiera-tiny`](models/promptable_segmentation.md#sam2) | 13.9 ms · kernels fp16 | 151 ms · portable fp32 |
+| [`sam3`](models/promptable_segmentation.md#sam3) | 116 ms · kernels fp16 | unsupported |
+
+#### Detection, 800x1344
+
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB |
+|---|---|---|
+| [`detr-r101-coco`](models/detection.md#detr) | 13.7 ms · kernels fp16 | 183 ms · portable fp32 |
+| [`detr-r50-coco`](models/detection.md#detr) | 9.93 ms · kernels fp16 | 125 ms · portable fp32 |
+| [`faster-rcnn-r50-fpn-3x-coco`](models/detection.md#rcnn) | 19.5 ms · kernels fp16 | 214 ms · portable fp32 |
+| [`mask-rcnn-r50-fpn-3x-coco`](models/detection.md#rcnn) | 21.0 ms · kernels fp16 | 222 ms · portable fp32 |
+| [`rtdetrv2-l-coco`](models/detection.md#rtdetrv2) | 6.61 ms · kernels fp16 | 82.6 ms · portable fp32 |
+| [`rtdetrv2-m-coco`](models/detection.md#rtdetrv2) | 5.27 ms · kernels fp16 | 55.3 ms · portable fp32 |
+| [`rtdetrv2-ms-coco`](models/detection.md#rtdetrv2) | 5.46 ms · kernels fp16 | 67.9 ms · portable fp32 |
+| [`rtdetrv2-s-coco`](models/detection.md#rtdetrv2) | 4.19 ms · kernels fp16 | 44.0 ms · portable fp32 |
+| [`rtdetrv2-x-coco`](models/detection.md#rtdetrv2) | 9.24 ms · kernels fp16 | 114 ms · portable fp32 |
+
+#### Features, 224x224
+
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB |
+|---|---|---|
+| [`dinov2-vitb14`](models/features.md#dinov2) | – | 21.7 ms · portable fp16 |
+| [`dinov2-vitb14-reg`](models/features.md#dinov2) | – | 42.8 ms · portable fp16 |
+| [`dinov2-vitg14`](models/features.md#dinov2) | – | 193 ms · portable fp16 |
+| [`dinov2-vitg14-reg`](models/features.md#dinov2) | 13.0 ms · kernels fp16 | 235 ms · portable fp16 |
+| [`dinov2-vitl14`](models/features.md#dinov2) | – | 59.4 ms · portable fp16 |
+| [`dinov2-vitl14-reg`](models/features.md#dinov2) | – | 86.3 ms · portable fp16 |
+| [`dinov2-vits14`](models/features.md#dinov2) | – | 11.2 ms · portable fp16 |
+| [`dinov2-vits14-reg`](models/features.md#dinov2) | – | 22.1 ms · portable fp16 |
+| [`dinov3-convnext-base`](models/features.md#dinov3_convnext) | – | unsupported |
+| [`dinov3-convnext-large`](models/features.md#dinov3_convnext) | – | unsupported |
+| [`dinov3-convnext-small`](models/features.md#dinov3_convnext) | – | unsupported |
+| [`dinov3-convnext-tiny`](models/features.md#dinov3_convnext) | – | unsupported |
+| [`dinov3-vitb16`](models/features.md#dinov3) | – | unsupported |
+| [`dinov3-vith16plus`](models/features.md#dinov3) | – | unsupported |
+| [`dinov3-vitl16`](models/features.md#dinov3) | – | unsupported |
+| [`dinov3-vits16`](models/features.md#dinov3) | – | unsupported |
+<!-- devices:end -->
+
+## RTX 5060 Ti 16 GB (reference)
+
 <!-- tables:begin (tools/gen_docs.py, from docs/data/speed.jsonl) -->
 
 ### Stereo, KITTI 2015, 375x1242
@@ -1030,145 +1261,3 @@ Fixed-input models (classification, features), run at their one native size, 224
 | vit_so400m_patch14_siglip_378.webli_ft_in1k | portable | 13.1 ms / 901 / 1050 |
 | vit_so400m_patch14_siglip_378.webli_ft_in1k | kernels | 12.9 ms / 1254 / 1446 |
 <!-- sizes:end -->
-
-## Apple silicon (MPS)
-
-`portable` on an M1 Pro (16 GB, 16-core GPU, torch 2.14, macOS 27), one variant per family, on the same
-`fastforks bench` input as the tables above (480x640; classification and features at their native crop). Cells: median
-ms of 5 warm calls (2 for calls over 2 s) / the process's peak footprint in MiB (Activity Monitor's "Memory": model and
-activations, which share the system RAM on a Mac). float16 is measured only where the card offers it on MPS (n/a = it does not). The first
-call at a new size takes 0.5-4 s longer. Not measured: the gated DINOv3, DINOv3-ConvNeXt, SAM 3 and VGGT-Omega
-weights. Reproduce (`bench` prints the Metal driver's memory: the GPU buffers only, not the whole process):
-
-    fastforks bench MODEL --device mps --size 480x640 --views 4 [--dtype float16]
-
-Accuracy against the CPU (float32, Middlebury ArtL for stereo): MPS float32 outputs match to 1e-3 px mean or better
-(most families 1e-5), except MonSter++ (0.006 px) and NMRF (0.03 px on non-occluded pixels, about 0.7 px in
-occlusions, where its local-maximum test flips on last-bit differences in flat cost curves; the error against ground
-truth is unchanged). float16 moves stereo outputs by 0.003-0.07 px mean. Depth: float32 matches the CPU to 1e-4 of the
-median depth, float16 moves it by 0.02-0.12 %.
-
-| task | model | float32 | float16 |
-|---|---|---|---|
-| classification | `alexnet.tv_in1k` | 5.3 ms / 1590 | 4.5 ms / 1583 |
-| classification | `convnextv2_base.fcmae_ft_in22k_in1k` | 36.6 ms / 2317 | n/a |
-| classification | `deit_base_patch16_224.fb_in1k` | 18.1 ms / 1330 | n/a |
-| classification | `densenet121.tv_in1k` | 26.5 ms / 727 | n/a |
-| classification | `dinov2_vitl14_lc` | 65.8 ms / 4435 | n/a |
-| classification | `efficientnet_b0.tv_in1k` | 12.9 ms / 487 | n/a |
-| classification | `efficientnet_v2_s.tv_in1k` | 34.7 ms / 633 | n/a |
-| classification | `efficientvit_b2.r288_in1k` | 20.6 ms / 1710 | n/a |
-| classification | `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` | 266 ms / 4108 | 236 ms / 4106 |
-| classification | `fastvit_sa24.apple_dist_in1k` | 18.0 ms / 669 | n/a |
-| classification | `inception_v3.tv_in1k` | 18.2 ms / 766 | n/a |
-| classification | `mobilenet_v2.tv2_in1k` | 7.1 ms / 444 | n/a |
-| classification | `mobilenet_v3_large.tv2_in1k` | 10.5 ms / 481 | n/a |
-| classification | `mobilenetv1_100.ra4_e3600_r224_in1k` | 5.1 ms / 456 | n/a |
-| classification | `mobilenetv4_conv_medium.e500_r256_in1k` | 10.2 ms / 601 | n/a |
-| classification | `regnety_160.tv2_in1k` | 40.0 ms / 2025 | 33.8 ms / 2038 |
-| classification | `resnet152.tv2_in1k` | 25.9 ms / 1101 | n/a |
-| classification | `resnet50.tv2_in1k` | 12.9 ms / 660 | n/a |
-| classification | `shufflenet_v2_x1_0.tv_in1k` | 7.1 ms / 386 | n/a |
-| classification | `squeezenet1_1.tv_in1k` | 4.4 ms / 359 | 4.3 ms / 356 |
-| classification | `swin_base_patch4_window7_224.ms_in22k_ft_in1k` | 29.0 ms / 2283 | n/a |
-| classification | `vgg16.tv_in1k` | 14.5 ms / 2453 | 12.5 ms / 2459 |
-| classification | `vit_base_patch16_224.augreg2_in21k_ft_in1k` | 18.1 ms / 1331 | n/a |
-| classification | `vit_so400m_patch14_siglip_378.webli_ft_in1k` | 216 ms / 5563 | 197 ms / 5560 |
-| features | `dinov2-vitb14` | 130 ms / 1964 | 116 ms / 819 |
-| segmentation | `deeplabv3-r101-d8-ade20k` | 415 ms / 2133 | 354 ms / 2035 |
-| segmentation | `dinov2-b-linear-ade20k` | 267 ms / 1974 |  |
-| segmentation | `eomt-l-dinov2-ade20k` | 615 ms / 6298 | 548 ms / 4257 |
-| segmentation | `mask2former-swinl-ade20k` | 587 ms / 5599 | 639 ms / 4473 |
-| segmentation | `oneformer-swinl-ade20k` | 661 ms / 6174 | 697 ms / 4512 |
-| segmentation | `sapiens-seg-0.3b-goliath` | 4287 ms / 4522 | 2791 ms / 2813 |
-| segmentation | `segformer-b0-ade20k` | 64.7 ms / 1522 |  |
-| detection | `faster-rcnn-r50-fpn-3x-coco` | 189 ms / 1932 |  |
-| promptable_segmentation | `sam-vit-b` | 635 ms / 4350 |  |
-| promptable_segmentation | `sam2.1-hiera-base-plus` | 428 ms / 3951 |  |
-| multiview | `mapanything-apache` | 3507 ms / 8525 | 3138 ms / 5482 |
-| multiview | `mvsanywhere` | 770 ms / 2507 |  |
-| multiview | `patchmatchnet` | 184 ms / 1379 |  |
-| multiview | `vggt-1b` | 4072 ms / 9555 |  |
-| depth | `da3-giant-1.1` | 939 ms / 6565 | 935 ms / 6567 |
-| depth | `da3-large-1.1` | 368 ms / 3480 | 373 ms / 2438 |
-| depth | `depth-anything-v2-b` | 199 ms / 2011 | n/a |
-| depth | `depth-anything-v2-l` | 588 ms / 3952 | n/a |
-| depth | `depth-pro` | 5598 ms / 11224 | 5117 ms / 6086 |
-| depth | `marigold-depth-v1-1` | 3451 ms / 9757 | 2882 ms / 6701 |
-| depth | `metric3d-vit-large` | 1811 ms / 3445 | n/a |
-| depth | `midas-dpt-beit-large-512` | 581 ms / 3385 | 590 ms / 2351 |
-| depth | `moge-2-vitl-normal` | 1487 ms / 3892 | n/a |
-| depth | `moge-3-vitl` | 3975 ms / 6330 | n/a |
-| depth | `unidepth-v2-vitl14` | 611 ms / 4003 | n/a |
-| depth | `unik3d-vitl` | 1151 ms / 3986 | n/a |
-| depth | `zoedepth-nk` | 734 ms / 3499 | 709 ms / 2454 |
-| stereo | `aanet-plus-sceneflow` | 345 ms / 2623 | n/a |
-| stereo | `bridgedepth-rvc-pretrain` | 726 ms / 4004 | n/a |
-| stereo | `c-fast-foundationstereo` | 1169 ms / 2696 | n/a |
-| stereo | `cas-gwcnet-c-sceneflow` | 1369 ms / 2579 | 1335 ms / 1533 |
-| stereo | `cfnet-sceneflow` | 1829 ms / 5992 | 1775 ms / 5589 |
-| stereo | `coex-sceneflow` | 196 ms / 1387 | 187 ms / 1448 |
-| stereo | `crestereo-eth3d` | 954 ms / 1629 | 788 ms / 1626 |
-| stereo | `defom-stereo-vitl-sceneflow` | 1863 ms / 5088 | n/a |
-| stereo | `dlnr-middlebury` | 591 ms / 1981 | 537 ms / 1932 |
-| stereo | `fast-acvnet-generalization` | 242 ms / 1432 | n/a |
-| stereo | `foundationstereo-vit-l` | 8814 ms / 8229 | 6265 ms / 4485 |
-| stereo | `great-igev-eth3d` | 5446 ms / 3559 | 2176 ms / 2845 |
-| stereo | `gwcnet-g-sceneflow` | 1185 ms / 2531 | n/a |
-| stereo | `hitnet-eth3d` | 117 ms / 1408 | 124 ms / 1408 |
-| stereo | `igev-plusplus-eth3d` | 2283 ms / 2960 | 2154 ms / 1790 |
-| stereo | `igev-stereo-eth3d` | 1441 ms / 1671 | n/a |
-| stereo | `las2-h` | 278 ms / 1564 | n/a |
-| stereo | `mocha-v1-sceneflow` | 2066 ms / 2486 | 1916 ms / 2399 |
-| stereo | `monster-mix-all` | 2512 ms / 4176 | 2275 ms / 3494 |
-| stereo | `monster-plusplus-mix-all` | 2707 ms / 4212 | 2467 ms / 3493 |
-| stereo | `nmrf-sceneflow` | 305 ms / 2430 | n/a |
-| stereo | `psmnet-sceneflow` | 1092 ms / 2448 | n/a |
-| stereo | `raft-stereo-eth3d` | 953 ms / 1548 | 866 ms / 1507 |
-| stereo | `rt-monster-plusplus-mix-all` | 148 ms / 1916 | n/a |
-| stereo | `s2m2-l` | 1300 ms / 3959 | 1198 ms / 3955 |
-| stereo | `selective-igev-eth3d-finetune` | 1845 ms / 1704 | 1666 ms / 1703 |
-| stereo | `waft-stereo-b` | 740 ms / 3362 | n/a |
-
-RAFT-Stereo `kernels` on MPS (Metal ConvGRU and correlation lookup, float16) against float16 `portable`, interleaved
-runs in separate processes: 1.08x at 480x640, 1.12x at 992x1440, about 30 MiB less. Its convolutions already run
-near the M1 Pro's peak, so fusing the elementwise steps gains little.
-
-`kernels` on MPS (float16; Metal ConvGRUs, correlation / geometry lookups, cost volumes, warp costs, deformable
-sampling, window attention) against the fastest validated `portable` dtype, 384x1248, each run in its own process (median of 5, peak footprint):
-
-| model | `portable` | `kernels` | speed-up |
-| --- | --- | --- | --- |
-| `raft-stereo-sceneflow` | 1273 ms / 2604 MiB (float16) | 1192 ms / 2538 MiB | 1.07x |
-| `igev-stereo-sceneflow` | 2090 ms / 2752 MiB (float32) | 1354 ms / 1665 MiB | 1.54x |
-| `selective-igev-sceneflow` | 2292 ms / 1727 MiB (float16) | 1878 ms / 1704 MiB | 1.22x |
-| `great-igev-sceneflow` | 3366 ms / 3416 MiB (float16) | 2869 ms / 3463 MiB | 1.17x |
-| `igev-plusplus-sceneflow` | 2852 ms / 1783 MiB (float16) | 2054 ms / 1803 MiB | 1.39x |
-| `mocha-v1-sceneflow` | 2734 ms / 2403 MiB (float16) | 2277 ms / 2382 MiB | 1.20x |
-| `monster-sceneflow` | 3344 ms / 3491 MiB (float16) | 2756 ms / 4093 MiB | 1.21x |
-| `monster-plusplus-mix-all` | 3518 ms / 3490 MiB (float16) | 2928 ms / 3492 MiB | 1.20x |
-| `cfnet-sceneflow` | 2228 ms / 5463 MiB (float16) | 758 ms / 2931 MiB | 2.94x |
-| `las2-h` | 418 ms / 2625 MiB (float32) | 266 ms / 1642 MiB | 1.57x |
-| `las2-s` | 94 ms / 1501 MiB (float32) | 85 ms / 1542 MiB | 1.11x |
-| `hitnet-eth3d` | 206 ms / 2444 MiB (float32) | 74 ms / 1409 MiB | 2.80x |
-| `hitnet-middlebury-d400` | 448 ms / 4539 MiB (float32) | 175 ms / 1454 MiB | 2.57x |
-| `aanet-sceneflow` | 319 ms / 1484 MiB (float32) | 246 ms / 1466 MiB | 1.30x |
-| `aanet-plus-sceneflow` | 457 ms / 2650 MiB (float32) | 410 ms / 1585 MiB | 1.11x |
-| `crestereo-eth3d` | 1265 ms / 1597 MiB (float16) | 1104 ms / 1642 MiB | 1.15x |
-| `defom-stereo-vitl-sceneflow` | 3505 ms / 6120 MiB (float32) | 2627 ms / 4069 MiB | 1.33x |
-| `foundationstereo-vit-s` | 7825 ms / 4304 MiB (float16) | 7383 ms / 4284 MiB | 1.06x |
-| `nmrf-sceneflow` | 455 ms / 2408 MiB (float32) | 365 ms / 1425 MiB | 1.24x |
-| `bridgedepth-sf` | 1065 ms / 4145 MiB (float32) | 1012 ms / 4093 MiB | 1.05x |
-
-Most of the IGEV family's gain is the lookup (the portable one gathers from each pyramid level separately); the fused
-ConvGRUs add about 5 % (Selective-IGEV and MoCha get the lookup only: a selective GRU and an LSTM). IGEV-Stereo
-`portable` is validated in float32 only on MPS, hence its larger factor (as DEFOM-Stereo's: fused lookup and ConvGRUs
-in float16). CFNet's gain is the warped volumes of its refinement stages built by one kernel (and 2.5 GB less memory);
-HITNet's is the warp costs of its tile hypotheses, which `portable` builds from many small ops. FoundationStereo's
-Metal geometry lookup gains little: its hourglass and transformer dominate. NMRF and BridgeDepth get their window
-attention with relative-position embeddings as one kernel (2.5-4x faster than the float16 module); BridgeDepth's time is
-mostly its ViT and alignment layers. Both modes, in every dtype, replace the transposed
-convolutions MPS runs slowly: a stride-2 one as one convolution per output parity (four `conv2d` or eight `conv3d`
-calls; MPS has no float16 3-D kernel at all), a 2-D one whose kernel equals its stride (ViT necks, DPT heads) as a
-1 x 1 convolution and `pixel_shuffle`. End to end at 384x1248 that makes CAS-GwcNet float16 2.3x, CoEx float16 1.9x,
-GwcNet 1.3x and PSMNet 1.15x faster, and Sapiens 1.9x at 1024x768.

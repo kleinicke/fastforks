@@ -8,6 +8,8 @@ Input: several images of one scene (posed and calibrated for multi-view stereo, 
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses each model's own benchmark input (see Benchmarks): kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
 
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md); [across devices](../benchmarks.md#other-devices).
+
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`mapanything-apache`](#mapanything) | yes | 543.98, 3.6x | 4072, 0.47x |
