@@ -44,7 +44,7 @@ revision = 1
 params = { arch = "mono" }
 outputs = ["depth", "mask", "sky"]
 output = { kind = "affine_invariant" }
-weights = [{ name = "model.safetensors", size = 1336734448, sha256 = "7a799a7f95eb8d4c404c2ca8be3dc3276b350a417ddc4420db72ba850cc0e960", url = "https://huggingface.co/depth-anything/DA3MONO-LARGE/resolve/f465978e618db8cc79c83b8bbf24964857db1875/model.safetensors" }]
+weights = [{ name = "DA3MONO-LARGE/model.safetensors", size = 1336734448, sha256 = "7a799a7f95eb8d4c404c2ca8be3dc3276b350a417ddc4420db72ba850cc0e960", url = "https://huggingface.co/depth-anything/DA3MONO-LARGE/resolve/f465978e618db8cc79c83b8bbf24964857db1875/model.safetensors" }]
 
 [[variants]]
 id = "da3metric-large"
@@ -52,7 +52,7 @@ revision = 1
 params = { arch = "metric" }
 outputs = ["depth", "intrinsics", "mask", "sky"]
 output = { kind = "metric" }
-weights = [{ name = "model.safetensors", size = 1336734448, sha256 = "bbea5b0b3ee389849cffa7ddae89de064a90abd2b055fc5aa99aac68db324776", url = "https://huggingface.co/depth-anything/DA3METRIC-LARGE/resolve/4010e39f3634a45bc60553321fb49fb760bd594e/model.safetensors" }]
+weights = [{ name = "DA3METRIC-LARGE/model.safetensors", size = 1336734448, sha256 = "bbea5b0b3ee389849cffa7ddae89de064a90abd2b055fc5aa99aac68db324776", url = "https://huggingface.co/depth-anything/DA3METRIC-LARGE/resolve/4010e39f3634a45bc60553321fb49fb760bd594e/model.safetensors" }]
 
 [[variants]]
 id = "da3-large-1.1"
@@ -61,7 +61,7 @@ params = { arch = "large" }
 outputs = ["depth", "confidence", "intrinsics"]
 output = { kind = "scale_invariant" }
 licence = { weights = "CC-BY-NC-4.0" }
-weights = [{ name = "model.safetensors", size = 1643843860, sha256 = "739905c423cf0d6ccaf9e61a8401d82ba1ac32d7f4d3ee6dca8f92b377633f64", url = "https://huggingface.co/depth-anything/DA3-LARGE-1.1/resolve/0e109ae307c5982f319a67cf6f9f99ccdc0ec97c/model.safetensors" }]
+weights = [{ name = "DA3-LARGE-1.1/model.safetensors", size = 1643843860, sha256 = "739905c423cf0d6ccaf9e61a8401d82ba1ac32d7f4d3ee6dca8f92b377633f64", url = "https://huggingface.co/depth-anything/DA3-LARGE-1.1/resolve/0e109ae307c5982f319a67cf6f9f99ccdc0ec97c/model.safetensors" }]
 
 [[variants]]
 id = "da3-giant-1.1"
@@ -70,7 +70,7 @@ params = { arch = "giant" }
 outputs = ["depth", "confidence", "intrinsics"]
 output = { kind = "scale_invariant" }
 licence = { weights = "CC-BY-NC-4.0" }
-weights = [{ name = "model.safetensors", size = 5422814644, sha256 = "1e47a08338ca73a6d6a21d37fd060b26b993b672bc6ddf6295fe474df2592001", url = "https://huggingface.co/depth-anything/DA3-GIANT-1.1/resolve/72ee9f89ce4e50d704e9d55ee9c646ec8dc25a19/model.safetensors" }]
+weights = [{ name = "DA3-GIANT-1.1/model.safetensors", size = 5422814644, sha256 = "1e47a08338ca73a6d6a21d37fd060b26b993b672bc6ddf6295fe474df2592001", url = "https://huggingface.co/depth-anything/DA3-GIANT-1.1/resolve/72ee9f89ce4e50d704e9d55ee9c646ec8dc25a19/model.safetensors" }]
 
 [[variants]]
 id = "da3nested-giant-large-1.1"
@@ -79,4 +79,4 @@ params = { arch = "nested" }
 outputs = ["depth", "confidence", "intrinsics", "mask", "sky"]
 output = { kind = "metric" }
 licence = { weights = "CC-BY-NC-4.0" }
-weights = [{ name = "model.safetensors", size = 6759558100, sha256 = "8ebe871a022ed58d2fc8fdfb2ebdb31d57b60fe39611c849095851a7b7c6020c", url = "https://huggingface.co/depth-anything/DA3NESTED-GIANT-LARGE-1.1/resolve/b2359bdf726fb44ef62acca04d629dcf158053e7/model.safetensors" }]
+weights = [{ name = "DA3NESTED-GIANT-LARGE-1.1/model.safetensors", size = 6759558100, sha256 = "8ebe871a022ed58d2fc8fdfb2ebdb31d57b60fe39611c849095851a7b7c6020c", url = "https://huggingface.co/depth-anything/DA3NESTED-GIANT-LARGE-1.1/resolve/b2359bdf726fb44ef62acca04d629dcf158053e7/model.safetensors" }]
