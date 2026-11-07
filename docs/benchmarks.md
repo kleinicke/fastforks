@@ -44,6 +44,9 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 169 models, 422 rows, measured 2026-11-06 to 2026-11-07.
+- [NVIDIA L4](devices/l4-22gb.md) (cuda): 18 models, 36 rows, measured 2026-11-07 to 2026-11-07.
+- [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 18 models, 36 rows, measured 2026-11-07 to 2026-11-07.
+- [NVIDIA A10](devices/a10-22gb.md) (cuda): 18 models, 36 rows, measured 2026-11-07 to 2026-11-07.
 
 ### Across devices
 
@@ -127,26 +130,26 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 #### Depth, 994x1482
 
-| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB |
-|---|---|---|
-| [`da3-giant-1.1`](models/depth.md#depth_anything_3) | 44.2 ms · kernels fp16 | 759 ms · portable fp16 |
-| [`da3-large-1.1`](models/depth.md#depth_anything_3) | 17.1 ms · kernels fp16 | 327 ms · portable fp16 |
-| [`da3metric-large`](models/depth.md#depth_anything_3) | 14.7 ms · kernels fp16 | 318 ms · portable fp16 |
-| [`da3mono-large`](models/depth.md#depth_anything_3) | 14.6 ms · kernels fp16 | 272 ms · portable fp16 |
-| [`da3nested-giant-large-1.1`](models/depth.md#depth_anything_3) | 58.2 ms · kernels fp16 | 1184 ms · portable fp16 |
-| [`depth-anything-v2-b`](models/depth.md#depth_anything_v2) | 10.5 ms · kernels fp16 | 212 ms · portable fp32 |
-| [`depth-anything-v2-l`](models/depth.md#depth_anything_v2) | 31.1 ms · kernels fp16 | 622 ms · portable fp32 |
-| [`depth-anything-v2-s`](models/depth.md#depth_anything_v2) | 4.51 ms · kernels fp16 | 87.3 ms · portable fp32 |
-| [`depth-pro`](models/depth.md#depth_pro) | 271 ms · kernels fp16 | 5026 ms · portable fp16 |
-| [`marigold-depth-v1-1`](models/depth.md#marigold) | 383 ms · kernels fp16 | 2498 ms · portable fp16 |
-| [`metric3d-vit-large`](models/depth.md#metric3d) | 158 ms · kernels fp16 | 1822 ms · portable fp32 |
-| [`midas-dpt-beit-large-512`](models/depth.md#midas) | 63.9 ms · kernels fp16 | 635 ms · portable fp16 |
-| [`moge-2-vitl-normal`](models/depth.md#moge) | 73.4 ms · kernels fp16 | 1454 ms · kernels fp32 |
-| [`moge-2-vits-normal`](models/depth.md#moge) | 29.7 ms · kernels fp16 | 363 ms · portable fp32 |
-| [`moge-3-vitl`](models/depth.md#moge) | 905 ms · portable fp16 | 2764 ms · kernels fp32 |
-| [`unidepth-v2-vitl14`](models/depth.md#unidepth_v2) | 66.4 ms · kernels fp16 | 1260 ms · portable fp32 |
-| [`unik3d-vitl`](models/depth.md#unik3d) | 62.9 ms · kernels fp16 | 1217 ms · portable fp32 |
-| [`zoedepth-nk`](models/depth.md#zoedepth) | 88.9 ms · kernels fp16 | 778 ms · portable fp32 |
+| model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 |
+|---|---|---|---|---|---|
+| [`da3-giant-1.1`](models/depth.md#depth_anything_3) | 44.2 ms · kernels fp16 | 759 ms · portable fp16 | 71.0 ms · kernels fp16 | 22.6 ms · kernels fp16 | 58.4 ms · kernels fp16 |
+| [`da3-large-1.1`](models/depth.md#depth_anything_3) | 17.1 ms · kernels fp16 | 327 ms · portable fp16 | 24.0 ms · kernels fp16 | 8.55 ms · kernels fp16 | 21.2 ms · kernels fp16 |
+| [`da3metric-large`](models/depth.md#depth_anything_3) | 14.7 ms · kernels fp16 | 318 ms · portable fp16 | 20.1 ms · kernels fp16 | 7.90 ms · kernels fp16 | 18.7 ms · kernels fp16 |
+| [`da3mono-large`](models/depth.md#depth_anything_3) | 14.6 ms · kernels fp16 | 272 ms · portable fp16 | 20.5 ms · kernels fp16 | 7.48 ms · kernels fp16 | 18.4 ms · kernels fp16 |
+| [`da3nested-giant-large-1.1`](models/depth.md#depth_anything_3) | 58.2 ms · kernels fp16 | 1184 ms · portable fp16 | 92.3 ms · kernels fp16 | 30.4 ms · kernels fp16 | 76.0 ms · kernels fp16 |
+| [`depth-anything-v2-b`](models/depth.md#depth_anything_v2) | 10.5 ms · kernels fp16 | 212 ms · portable fp32 | 15.9 ms · kernels fp16 | 4.86 ms · kernels fp16 | 13.4 ms · kernels fp16 |
+| [`depth-anything-v2-l`](models/depth.md#depth_anything_v2) | 31.1 ms · kernels fp16 | 622 ms · portable fp32 | 47.5 ms · kernels fp16 | 14.4 ms · kernels fp16 | 41.4 ms · kernels fp16 |
+| [`depth-anything-v2-s`](models/depth.md#depth_anything_v2) | 4.51 ms · kernels fp16 | 87.3 ms · portable fp32 | 5.85 ms · kernels fp16 | 2.69 ms · kernels fp16 | 5.46 ms · kernels fp16 |
+| [`depth-pro`](models/depth.md#depth_pro) | 271 ms · kernels fp16 | 5026 ms · portable fp16 | 559 ms · kernels fp16 | 132 ms · kernels fp16 | 347 ms · kernels fp16 |
+| [`marigold-depth-v1-1`](models/depth.md#marigold) | 383 ms · kernels fp16 | 2498 ms · portable fp16 | 457 ms · portable fp16 | 140 ms · portable fp16 | 341 ms · portable fp16 |
+| [`metric3d-vit-large`](models/depth.md#metric3d) | 158 ms · kernels fp16 | 1822 ms · portable fp32 | 193 ms · kernels fp16 | 56.9 ms · kernels fp16 | 166 ms · kernels fp16 |
+| [`midas-dpt-beit-large-512`](models/depth.md#midas) | 63.9 ms · kernels fp16 | 635 ms · portable fp16 | 91.5 ms · kernels fp16 | 26.8 ms · kernels fp16 | 73.1 ms · portable fp16 |
+| [`moge-2-vitl-normal`](models/depth.md#moge) | 73.4 ms · kernels fp16 | 1454 ms · kernels fp32 | 113 ms · kernels fp16 | 36.8 ms · kernels fp16 | 90.4 ms · kernels fp16 |
+| [`moge-2-vits-normal`](models/depth.md#moge) | 29.7 ms · kernels fp16 | 363 ms · portable fp32 | 42.3 ms · kernels fp16 | 15.0 ms · kernels fp16 | 33.5 ms · kernels fp16 |
+| [`moge-3-vitl`](models/depth.md#moge) | 905 ms · portable fp16 | 2764 ms · kernels fp32 | 302 ms · kernels fp16 | 95.8 ms · kernels fp16 | 270 ms · kernels fp16 |
+| [`unidepth-v2-vitl14`](models/depth.md#unidepth_v2) | 66.4 ms · kernels fp16 | 1260 ms · portable fp32 | 92.7 ms · kernels fp16 | 25.1 ms · kernels fp16 | 75.7 ms · kernels fp16 |
+| [`unik3d-vitl`](models/depth.md#unik3d) | 62.9 ms · kernels fp16 | 1217 ms · portable fp32 | 91.1 ms · kernels fp16 | 27.4 ms · kernels fp16 | 75.2 ms · kernels fp16 |
+| [`zoedepth-nk`](models/depth.md#zoedepth) | 88.9 ms · kernels fp16 | 778 ms · portable fp32 | 116 ms · kernels fp16 | 32.1 ms · kernels fp16 | 92.9 ms · kernels fp16 |
 
 #### Classification, 224x224
 

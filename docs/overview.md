@@ -9,7 +9,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 - commercial use: `yes` only if the code and the weights licence both allow it.
 - Accuracy is a check on public images, not a leaderboard: † = trained on that data, ? = training data not stated; the most-accurate picks skip both. Best trade-off = the fastest model within 1.25x of the lowest error.
 - Peak memory = the kernels run's peak allocated GPU memory (CUDA, weights included); the model pages' summary tables list peak reserved (what the caching allocator holds, larger). – = not measured.
-- Other devices: [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md); [across devices](benchmarks.md#other-devices).
+- Other devices: [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md), [NVIDIA L4](devices/l4-22gb.md), [NVIDIA L40S](devices/l40s-44gb.md), [NVIDIA A10](devices/a10-22gb.md); [across devices](benchmarks.md#other-devices).
 
 ## Stereo
 

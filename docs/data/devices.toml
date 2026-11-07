@@ -29,3 +29,27 @@ match = "Apple M1 Pro"
 memory = "16 GB unified"
 details = "16-core GPU"
 software = "macOS 27, torch 2.14"
+
+[l4-22gb]
+name = "NVIDIA L4"
+backend = "cuda"
+match = "NVIDIA L4"
+memory = "22 GB"
+details = "sm_89"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
+
+[l40s-44gb]
+name = "NVIDIA L40S"
+backend = "cuda"
+match = "NVIDIA L40S"
+memory = "44 GB"
+details = "sm_89"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
+
+[a10-22gb]
+name = "NVIDIA A10"
+backend = "cuda"
+match = "NVIDIA A10"
+memory = "22 GB"
+details = "sm_86"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
