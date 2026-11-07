@@ -152,6 +152,19 @@ Rented time is paid by the minute, so everything that is not a measurement happe
    tools/gen_docs.py` and `mkdocs build --strict` on the Mac. Check the rows: `golden` `fail` cells say a mode is
    wrong on this GPU, and `throttle_reasons` other than none / idle say a time is not the GPU's best.
 
+### Runbook: a Modal GPU
+
+`tools/modal_survey.py` does the steps above on [Modal](https://modal.com). Weights, goldens and the Middlebury scene
+go onto a `fastforks-survey` volume from a CPU container, so the GPU is billed only for checking and measuring:
+
+    uvx modal setup                                                # once: browser login, writes ~/.modal.toml
+    uvx modal run tools/modal_survey.py::prefetch                  # CPU only, about 110 GB the first time
+    uvx modal run tools/modal_survey.py::main --gpu L4 --subset    # then without --subset for every ref
+
+The rows go to the volume as they are measured, and a preempted run resumes from them. At the end the entrypoint copies
+`docs/data/speed/<slug>.jsonl` and the `devices.toml` entry into this checkout. Then continue with step 4.
+`--detach` keeps a run going after you close the terminal, and `::fetch` copies its rows later.
+
 ## `plain.toml`
 
 One plain-language sentence per model family, shown on the model pages.

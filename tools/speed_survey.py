@@ -451,7 +451,7 @@ def run(a: argparse.Namespace) -> int:
     if not os.environ.get("FASTFORKS_GOLDEN_PATH"):
         print("FASTFORKS_GOLDEN_PATH is not set: every golden check will be `skip`", file=sys.stderr)
     done = {(r["ref"], r["mode"], r["dtype"], r["input"]) for r in _devices.survey_rows(dev)}
-    env, commit = _env(online=a.online), _commit()
+    env, commit = _env(online=a.online), os.environ.get("FASTFORKS_COMMIT") or _commit()  # no .git: modal_survey
     common = {k: info[k] for k in _ENV_KEYS if k in info}
     common |= {"date": time.strftime("%F"), "commit": commit, "protocol_id": "warm-median"}
     common["protocol"] = (
