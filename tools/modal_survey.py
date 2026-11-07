@@ -6,6 +6,7 @@ One-time setup on the Mac (the login is a browser OAuth that writes ~/.modal.tom
 
 Then, cheapest first:
 
+    uvx modal run tools/modal_survey.py::upload --src /Volumes/Daten/fastforks-weights  # the gated weights, once
     uvx modal run tools/modal_survey.py::prefetch                 # CPU only: weights, goldens, scene
     uvx modal run tools/modal_survey.py::main --gpu L4 --subset    # cross-device subset (~10-20 min)
     uvx modal run tools/modal_survey.py::main --gpu L4             # every ref, same file (resumes)
@@ -19,8 +20,13 @@ fetch its rows later with `modal run tools/modal_survey.py::fetch`.
 Everything that is not a measurement stays off the GPU: `prefetch` fills the `fastforks-survey` volume on a CPU
 container (about 110 GB of weights the first time, then nothing), so the GPU container only verifies and measures. The
 rows are written to the volume as they are measured (committed every few minutes), so a preempted or killed run
-continues where it stopped. The gated families (DINOv3, SAM 3) need a Hugging Face token: create a Modal secret
-`huggingface` with HF_TOKEN and set FASTFORKS_MODAL_SECRETS=huggingface when running.
+continues where it stopped.
+
+The gated families (DINOv3, SAM 3, VGGT-Omega) cannot be downloaded without a Hugging Face token, so `upload` copies
+the weights this Mac already has (a FASTFORKS_WEIGHTS_PATH folder, about 8 GB) into the volume's weights/ once; the
+containers search there first. Everything else downloads inside Modal, which is much faster than a home upload. A gated
+file that is neither uploaded nor fetchable (no token) is only a `failed` row. To fetch the rest of them too, create a
+Modal secret `huggingface` with HF_TOKEN and set FASTFORKS_MODAL_SECRETS=huggingface when running.
 """
 
 from __future__ import annotations
@@ -40,9 +46,9 @@ import modal  # ty: ignore[unresolved-import] - not a project dependency: `uvx m
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = Path("/repo")  # the checkout inside the container
-VOL = Path("/vol")  # the persistent volume: caches, goldens, scene, rows
-VENV = "/opt/venv"
-PY = f"{VENV}/bin/python"
+VOL = Path("/vol")  # the persistent volume: caches, goldens, scene, rows, uploaded weights
+WEIGHTS = VOL / "weights"  # `upload`'s copy of local FASTFORKS_WEIGHTS_PATH folders
+PY = "/usr/local/bin/python"  # the image's Python: the functions run in it too, so it holds every dependency
 GROUPS = ("dev", "cu130", "vision")  # the lock's cu130 torch + timm / transformers for the originals
 MIDDLEBURY = "https://vision.middlebury.edu/stereo/submit3/zip/MiddEval3-data-H.zip"  # the floor's stereo scene
 COMMIT_EVERY_S = 300
@@ -57,9 +63,9 @@ image = (
     .pip_install("uv")
     .add_local_file(ROOT / "pyproject.toml", f"{REPO}/pyproject.toml", copy=True)
     .add_local_file(ROOT / "uv.lock", f"{REPO}/uv.lock", copy=True)
-    .run_commands(  # the dependency layer: rebuilt only when the lock changes, not on every source edit
-        f"cd {REPO} && UV_PROJECT_ENVIRONMENT={VENV} uv sync --frozen --no-install-project --no-default-groups "
-        + " ".join(f"--group {g}" for g in GROUPS)
+    .run_commands(  # the dependency layer, into the image's own Python: rebuilt only when the lock changes
+        f"cd {REPO} && UV_PROJECT_ENVIRONMENT=/usr/local uv sync --frozen --inexact --no-install-project "
+        "--no-default-groups " + " ".join(f"--group {g}" for g in GROUPS)
     )
     .env(
         {
@@ -76,7 +82,9 @@ image = (
         ROOT,
         str(REPO),
         ignore=[".git", ".venv", "site", "runs", "o", "**/__pycache__", "**/.pytest_cache", "**/.ruff_cache", "tests"],
+        copy=True,  # built in, so the project can be installed (its metadata: `fastforks.__version__`)
     )
+    .run_commands(f"uv pip install --system --no-deps -e {REPO}")  # seconds; the only layer a source edit rebuilds
 )
 
 
@@ -110,6 +118,19 @@ def _scene() -> None:
     zipf.unlink(missing_ok=True)
 
 
+def _weights_path() -> None:
+    """FASTFORKS_WEIGHTS_PATH: the uploaded weights/, plus each folder in it that holds only folders.
+
+    `<dir>/<group>/<name>` already finds a family folder of files (sam3/model.safetensors). A folder of folders holds
+    names with a sub-folder, possibly of another group (the ConvNeXt `dinov3-convnext-*/model.safetensors` under
+    dinov3/), so it is searched itself. A folder of files is not: its generic names (model.safetensors) would be
+    offered to every other family, which only the size check would turn down.
+    """
+    if WEIGHTS.is_dir():
+        nested = [d for d in sorted(WEIGHTS.iterdir()) if d.is_dir() and all(p.is_dir() for p in d.iterdir())]
+        os.environ["FASTFORKS_WEIGHTS_PATH"] = os.pathsep.join(map(str, [WEIGHTS, *nested]))
+
+
 def _goldens() -> None:
     if not any((VOL / "golden").glob("*")):
         _sh(PY, "tools/fetch_goldens.py", "--all", str(VOL / "golden"))
@@ -123,19 +144,21 @@ def prefetch(only: str = "", subset: bool = False) -> None:  # noqa: FBT001, FBT
 
     stop = threading.Event()
     _committer(stop)
+    _weights_path()
     _goldens()
     _scene()
     any_dev = next(d for d in _devices.devices() if d.backend == "cuda")
     dev = dataclasses.replace(any_dev, reference=False)  # plan() reads only the backend
     refs = sorted({j["ref"] for j in speed_survey.plan(dev, only.split(), subset=subset) if not j["skip"]})
     env = {**os.environ, "FASTFORKS_NONCOMMERCIAL": "1"}
-    cmd = [PY, "-m", "fastforks", "download", *refs, "--kernels", "--all-archs"]
-    print("$", " ".join(cmd[:4]), f"... ({len(refs)} refs) --kernels --all-archs", flush=True)
-    rc = subprocess.run(cmd, cwd=REPO, env=env, check=False).returncode
+    # one call: a file that cannot be fetched (gated, no token) is a `MISSING` line at the end, the rest still come
+    rc = subprocess.run(
+        [PY, "-m", "fastforks", "download", *refs, "--kernels", "--all-archs"], cwd=REPO, env=env, check=False
+    ).returncode
     stop.set()
     volume.commit()
     if rc:
-        print(f"download exit {rc}: a file is missing (the GPU run's `prepare` says which)", file=sys.stderr)
+        print("some files were not fetched (the MISSING lines above); their rows will be `failed`", file=sys.stderr)
 
 
 def _entry() -> tuple[str, str]:
@@ -156,13 +179,14 @@ def _entry() -> tuple[str, str]:
     secrets=secrets,
     cpu=8,
     memory=32768,  # weights load on the host first
-    gpu="L4",  # overridden per call with .with_options(gpu=...)
+    # no gpu here: `main` sets it per call (.with_options), so the CPU-only `prefetch` runs without GPU billing set up
     timeout=12 * 3600,
     retries=modal.Retries(max_retries=2, initial_delay=10.0),  # preemption: the survey resumes from the volume rows
 )
 def survey(commit: str, only: str = "", subset: bool = False, force: bool = False) -> str:  # noqa: FBT001, FBT002
     """Detect, prepare, run; returns the device slug (rows: /vol/rows/<slug>.jsonl, entry: /vol/devices/<slug>.toml)."""
     _sh("nvidia-smi", "-q", "-d", "CLOCK,POWER")
+    _weights_path()
     entry, slug = _entry()
     registry = REPO / "docs/data/devices.toml"
     if slug not in tomllib.loads(registry.read_text()):
@@ -242,6 +266,30 @@ def main(gpu: str = "L4", only: str = "", subset: bool = False, force: bool = Fa
     """Survey one Modal GPU type and copy its rows here (`--only` takes space-separated refs)."""
     slug = survey.with_options(gpu=gpu).remote(_commit_here(), only, subset, force)
     _next_steps(_fetch([slug]))
+
+
+@app.local_entrypoint()
+def upload(src: str = "") -> None:
+    """Copy local weight folders (`--src`, else FASTFORKS_WEIGHTS_PATH) into the volume; skips files already there."""
+    dirs = [Path(p).expanduser() for p in (src or os.environ.get("FASTFORKS_WEIGHTS_PATH", "")).split(os.pathsep) if p]
+    if not dirs:
+        msg = "pass --src DIR (or set FASTFORKS_WEIGHTS_PATH)"
+        raise SystemExit(msg)
+    try:
+        have = {e.path.lstrip("/").removeprefix("weights/"): e.size for e in volume.listdir("weights", recursive=True)}
+    except FileNotFoundError:
+        have = {}
+    todo: dict[str, Path] = {}
+    for d in dirs:
+        for f in sorted(d.rglob("*")):
+            rel = f.relative_to(d).as_posix()
+            if f.is_file() and not f.name.startswith(".") and have.get(rel) != f.stat().st_size:
+                todo.setdefault(rel, f)
+    size = sum(f.stat().st_size for f in todo.values())
+    print(f"uploading {len(todo)} files, {size / 1e9:.1f} GB ({len(have)} already in the volume)", flush=True)
+    with volume.batch_upload(force=True) as batch:
+        for rel, f in todo.items():
+            batch.put_file(f, f"/weights/{rel}")
 
 
 @app.local_entrypoint()

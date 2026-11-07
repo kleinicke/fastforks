@@ -158,8 +158,13 @@ Rented time is paid by the minute, so everything that is not a measurement happe
 go onto a `fastforks-survey` volume from a CPU container, so the GPU is billed only for checking and measuring:
 
     uvx modal setup                                                # once: browser login, writes ~/.modal.toml
+    uvx modal run tools/modal_survey.py::upload --src /Volumes/Daten/fastforks-weights   # once: gated weights, ~8 GB
     uvx modal run tools/modal_survey.py::prefetch                  # CPU only, about 110 GB the first time
     uvx modal run tools/modal_survey.py::main --gpu L4 --subset    # then without --subset for every ref
+
+`upload` copies local weight folders into the volume (files already there are skipped), so the gated families (DINOv3,
+SAM 3, VGGT-Omega) need no Hugging Face token on Modal; everything else downloads inside Modal, which is faster than
+an upload from home.
 
 The rows go to the volume as they are measured, and a preempted run resumes from them. At the end the entrypoint copies
 `docs/data/speed/<slug>.jsonl` and the `devices.toml` entry into this checkout. Then continue with step 4.
