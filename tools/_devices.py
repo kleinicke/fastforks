@@ -148,6 +148,14 @@ def survey_rows(dev: Device) -> list[dict[str, Any]]:
         if key in seen:
             errs.append(f"{path.relative_to(ROOT)}:{n}: same ref / mode / dtype / input as line {seen[key]}")
         seen[key] = n
+    inputs: dict[str, set[str]] = {}
+    for r in rows:
+        inputs.setdefault(r.get("ref", ""), set()).add(r.get("input", ""))
+    errs += [  # one input per model, its standard one (speed_survey.plan): the device's tables compare like with like
+        f"{path.relative_to(ROOT)}: {ref} has rows at {sorted(s)}; keep only its standard input"
+        for ref, s in sorted(inputs.items())
+        if len(s) > 1
+    ]
     if errs:
         raise ValueError("\n".join(errs))
     return rows

@@ -1450,8 +1450,16 @@ def _fastest(rows: list[dict], modes: tuple[str, ...] = _FAST_MODES) -> dict | N
     return min(ok, key=lambda r: r["ms"]) if ok else None
 
 
+_DEV_MEM_HEAD = {"torch-peak": "allocated / reserved", "process-footprint": "process footprint"}
+_ORIG_MODES = ("upstream-default", "upstream")
+
+
 def _device_group(by: dict[str, list[dict]], models: dict[str, tuple[str, str]]) -> list[str]:
-    """Timing and memory table of one (task, input, scene) of a survey device."""
+    """One table of one (task, input, scene) of a survey device, laid out like the reference's.
+
+    Time per (mode, dtype), then the kernels speed-up against the fastest original and portable row, then the peak
+    memory of each mode's fastest row. A column nothing was measured for is left out.
+    """
     cols = sorted(
         {(r["mode"], _devices.dtype_of(r)) for rs in by.values() for r in rs},
         key=lambda c: (_devices.MODES.index(c[0]), list(_SHORT_DTYPE).index(c[1]) if c[1] in _SHORT_DTYPE else 9),
@@ -1460,26 +1468,27 @@ def _device_group(by: dict[str, list[dict]], models: dict[str, tuple[str, str]])
     if len(kinds) > 1:
         msg = f"one table mixes memory kinds {sorted(kinds)}: {sorted(by)}"
         raise ValueError(msg)
-    speedup = any(c[0] == "kernels" for c in cols) and any(c[0] == "portable" for c in cols)
-    head = ["model", *(f"{_col_name(*c)} (ms)" for c in cols)]
-    head += ["kernels vs fastest portable"] if speedup else []
-    body, mem, notes = [], [], []
+    mem_head = f"peak memory (MiB, {_DEV_MEM_HEAD[next(iter(kinds))]}, fastest dtype): " if kinds else ""
+    heads = [("time (ms): ", _col_name(*c)) for c in cols]
+    heads += [("kernels speed-up: ", "vs original"), ("kernels speed-up: ", "vs portable")]
+    heads += [(mem_head, n) for n in ("original", "portable", "kernels")]
+    body, notes = [], []
     for ref, rs in by.items():
         cell = {(r["mode"], _devices.dtype_of(r)): r for r in rs}
-        row = [_model_link(ref, models, "../"), *(_dev_time(cell.get(c)) for c in cols)]
-        if speedup:
-            k, p = _fastest(rs, ("kernels",)), _fastest(rs, ("portable",))
-            row.append(f"{_ratio(p, k)} (vs {_SHORT_DTYPE[_devices.dtype_of(p)]})" if k and p else DASH)
-        body.append(row)
-        mem.append([f"`{ref}`", *(_dev_mem(cell.get(c)) for c in cols)])
+        o, p, k = (_fastest(rs, m) for m in (_ORIG_MODES, ("portable",), ("kernels",)))
+        row = [_dev_time(cell.get(c)) for c in cols] + [_ratio(o, k), _ratio(p, k)]
+        row += [_dev_mem(o), _dev_mem(p), _dev_mem(k)] if kinds else [DASH] * 3
+        body.append([_model_link(ref, models, "../"), *row])
         notes += [r["note"] for r in rs if r.get("note") and r["note"] not in notes]
-    lines = _md_table(head, body, keep=1)
-    if kinds:
-        lines += ["", f"Memory, {_devices.MEMORY_KINDS[kinds.pop()][1]}:", ""]
-        lines += _md_table(["model", *(_col_name(*c) for c in cols)], mem, keep=1)
-    protocols = sorted({r["protocol"] for rs in by.values() for r in rs})
-    lines += ["", *(f"Protocol: {p}." for p in protocols)]
-    return lines + [f"Note: {n}." for n in notes]
+    use = [i for i in range(len(heads)) if any(r[i + 1] != DASH for r in body)]
+    head, seen = ["model"], set()
+    for i in use:
+        group, name = heads[i]
+        head.append(name if group in seen else group + name)
+        seen.add(group)
+    lines = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
+    lines += ["| " + " | ".join([r[0], *(r[i + 1] for i in use)]) + " |" for r in body]
+    return lines + ([""] if notes else []) + [f"Note: {n}." for n in notes]
 
 
 def _device_block(dev: _devices.Device) -> str:
@@ -1508,10 +1517,13 @@ def _device_block(dev: _devices.Device) -> str:
             f"backend, `failed` = it ran and raised, `OOM` = out of memory, {DASH} = not tested; "
             "`(golden fail)` = it ran but its result failed the "
             "golden check on this device (never counted as fastest). Speed-up = kernels "
-            "against the fastest `portable` row of the same input (its dtype in brackets). Memory is measured the way "
-            "the table says; it is not comparable with another device's. Each model links to its model page; "
+            "against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the "
+            "peak of that mode's fastest row, measured the way the column says (not comparable with another "
+            "device's). One input per model, the task's standard one. Each model links to its model page; "
             "[benchmarks](../benchmarks.md) has the method and the reference device."
         ),
+        "",
+        *(f"Protocol: {p}." for p in sorted({r["protocol"] for r in rows})),
     ]
     tasks = {r["task"] for r in rows}
     for task in [t for t in registry.TASKS if t in tasks]:

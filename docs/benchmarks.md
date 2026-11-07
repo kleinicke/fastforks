@@ -42,7 +42,7 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 169 models, 602 rows, measured 2026-11-03 to 2026-11-06.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 169 models, 412 rows, measured 2026-11-06 to 2026-11-06.
 
 ### Across devices
 
