@@ -8,7 +8,8 @@ input at the task's default size. Speeds are medians of warm runs (5 for most ro
 Sizes are written height x width everywhere (`375x1242`, as in `fastforks bench --size`).
 
 To choose a model, use the [overview](overview.md): one standard size per task, generated from the same data. The tables
-below give every measured input, the startup times and, at the end, the same models at fixed sizes up to 12 MP.
+below give one table per task and scene (each model at the standard size, or its own input where it has no other;
+the model pages list every measured size), the startup times and, at the end, the same models at fixed sizes up to 12 MP.
 
 Accuracy matches the original code. On ETH3D and Middlebury (the "Measured" tables on the model pages) both modes
 stay within 0.15 bad-% / 0.025 EPE of the original with the same checkpoint for AANet, AANet+, CoEx, IGEV,
@@ -173,29 +174,6 @@ is not stated); to rank models use the official Middlebury and ETH3D test-set le
 | waft-stereo-b | 1898 | 1140 | 1137 | 393 | 2.9x | 2.9x | 5743 / 5876 | 5775 / 5852 | 1907 / 2316 |
 | waft-stereo-s | 1252 | 689 | 689 | 284 | 2.4x | 2.4x | 3314 / 3398 | 3293 / 3456 | 1113 / 1286 |
 
-### Depth, synthetic, 518x770
-
-| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
-|---|---|---|---|---|---|---|---|---|---|
-| da3-giant-1.1 | 406 | 224 | 81.5 | 44.2 | 5.1x | 1.8x | 8590 / 8718 | 2621 / 4608 | 2527 / 2710 |
-| da3-large-1.1 | 205 | 163 | 36.9 | 16.7 | 9.7x | 2.2x | 3374 / 3472 | 975 / 1350 | 883 / 1090 |
-| da3metric-large | 125 | 82.7 | 23.7 | 14.3 | 5.8x | 1.7x | 2996 / 3050 | 798 / 1328 | 794 / 868 |
-| da3mono-large | 125 | 82.7 | 23.5 | 14.2 | 5.8x | 1.7x | 2997 / 3052 | 801 / 1328 | 797 / 868 |
-| da3nested-giant-large-1.1 | 529 | 307 | 105 | 58.3 | 5.3x | 1.8x | 10332 / 10402 | 3259 / 5914 | 3171 / 3378 |
-| depth-anything-v2-b | 88.8 | 53.8 | 18.8 | 10.6 | 5.1x | 1.8x | 928 / 1026 | 433 / 516 | 370 / 436 |
-| depth-anything-v2-l | 240 | 136 | 55.0 | 31.6 | 4.3x | 1.7x | 2560 / 2654 | 1009 / 1352 | 904 / 1034 |
-| depth-anything-v2-s | 45.5 | 38.1 | 7.73 | 4.45 | 8.6x | 1.7x | 373 / 418 | 232 / 326 | 173 / 248 |
-| depth-pro | 1769 | 566 | 519 | 271 | 2.1x | 1.9x | 3822 / 4354 | 3289 / 3498 | 3650 / 3778 |
-| marigold-depth-v1-1 | 962 | 429 | 408 | 384 | 1.1x | 1.1x | 3414 / 3580 | 2800 / 3760 | 2566 / 3762 |
-| metric3d-vit-large | 630 | 439 | 200 | 158 | 2.8x | 1.3x | 3275 / 3370 | 1467 / 1696 | 1499 / 1688 |
-| midas-dpt-beit-large-512 | 399 | 320 | 75.6 | 63.9 | 5.0x | 1.2x | 2759 / 2858 | 975 / 1418 | 986 / 1436 |
-| moge-2-vitl-normal | 500 | 169 | 145 | 73.9 | 2.3x | 2.0x | 2326 / 2418 | 1645 / 1836 | 1481 / 1610 |
-| moge-2-vits-normal | 160 | 81.2 | 61.3 | 32.9 | 2.5x | 1.9x | 1180 / 1288 | 1049 / 1336 | 867 / 1008 |
-| moge-3-vitl | 3713 | – | 608 | 149 | – | 4.1x | – | 1992 / 2424 | 1506 / 1662 |
-| unidepth-v2-vitl14 | 78.5 | 78.6 | 59.6 | 40.7 | 1.9x | 1.5x | 2820 / 3030 | 1053 / 1472 | 1061 / 1472 |
-| unik3d-vitl | 123 | 123 | 99.2 | 58.2 | 2.1x | 1.7x | 3220 / 3530 | 1172 / 1492 | 1130 / 1266 |
-| zoedepth-nk | 295 | 250 | 114 | 80.0 | 3.1x | 1.4x | 1965 / 2124 | 1950 / 2124 | 1658 / 1960 |
-
 ### Depth, Middlebury 2014 half, 994x1482
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
@@ -219,11 +197,28 @@ is not stated); to rank models use the official Middlebury and ETH3D test-set le
 | unik3d-vitl | 134 | 134 | 108 | 62.9 | 2.1x | 1.7x | 3307 / 3570 | 1219 / 1492 | 1166 / 1266 |
 | zoedepth-nk | 408 | 271 | 124 | 88.9 | 3.1x | 1.4x | 2040 / 2146 | 2037 / 2124 | 1771 / 1960 |
 
-### Depth, synthetic, 504x504
+### Depth, synthetic, 518x770
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
-| da3mono-large | 124 | 52.4 | 35.5 | 21.3 | 2.5x | 1.7x | 2283 / 2330 | 861 / 1332 | 854 / 932 |
+| da3-giant-1.1 | 406 | 224 | 81.5 | 44.2 | 5.1x | 1.8x | 8590 / 8718 | 2621 / 4608 | 2527 / 2710 |
+| da3-large-1.1 | 205 | 163 | 36.9 | 16.7 | 9.7x | 2.2x | 3374 / 3472 | 975 / 1350 | 883 / 1090 |
+| da3metric-large | 125 | 82.7 | 23.7 | 14.3 | 5.8x | 1.7x | 2996 / 3050 | 798 / 1328 | 794 / 868 |
+| da3mono-large | 125 | 82.7 | 23.5 | 14.2 | 5.8x | 1.7x | 2997 / 3052 | 801 / 1328 | 797 / 868 |
+| da3nested-giant-large-1.1 | 529 | 307 | 105 | 58.3 | 5.3x | 1.8x | 10332 / 10402 | 3259 / 5914 | 3171 / 3378 |
+| depth-anything-v2-b | 88.8 | 53.8 | 18.8 | 10.6 | 5.1x | 1.8x | 928 / 1026 | 433 / 516 | 370 / 436 |
+| depth-anything-v2-l | 240 | 136 | 55.0 | 31.6 | 4.3x | 1.7x | 2560 / 2654 | 1009 / 1352 | 904 / 1034 |
+| depth-anything-v2-s | 45.5 | 38.1 | 7.73 | 4.45 | 8.6x | 1.7x | 373 / 418 | 232 / 326 | 173 / 248 |
+| depth-pro | 1769 | 566 | 519 | 271 | 2.1x | 1.9x | 3822 / 4354 | 3289 / 3498 | 3650 / 3778 |
+| marigold-depth-v1-1 | 962 | 429 | 408 | 384 | 1.1x | 1.1x | 3414 / 3580 | 2800 / 3760 | 2566 / 3762 |
+| metric3d-vit-large | 630 | 439 | 200 | 158 | 2.8x | 1.3x | 3275 / 3370 | 1467 / 1696 | 1499 / 1688 |
+| midas-dpt-beit-large-512 | 399 | 320 | 75.6 | 63.9 | 5.0x | 1.2x | 2759 / 2858 | 975 / 1418 | 986 / 1436 |
+| moge-2-vitl-normal | 500 | 169 | 145 | 73.9 | 2.3x | 2.0x | 2326 / 2418 | 1645 / 1836 | 1481 / 1610 |
+| moge-2-vits-normal | 160 | 81.2 | 61.3 | 32.9 | 2.5x | 1.9x | 1180 / 1288 | 1049 / 1336 | 867 / 1008 |
+| moge-3-vitl | 3713 | – | 608 | 149 | – | 4.1x | – | 1992 / 2424 | 1506 / 1662 |
+| unidepth-v2-vitl14 | 78.5 | 78.6 | 59.6 | 40.7 | 1.9x | 1.5x | 2820 / 3030 | 1053 / 1472 | 1061 / 1472 |
+| unik3d-vitl | 123 | 123 | 99.2 | 58.2 | 2.1x | 1.7x | 3220 / 3530 | 1172 / 1492 | 1130 / 1266 |
+| zoedepth-nk | 295 | 250 | 114 | 80.0 | 3.1x | 1.4x | 1965 / 2124 | 1950 / 2124 | 1658 / 1960 |
 
 ### Classification, synthetic, 224x224
 
@@ -277,27 +272,6 @@ is not stated); to rank models use the official Middlebury and ETH3D test-set le
 | segformer-b0-ade20k | 17.2 | 17.4 | 11.4 | 3.48 | 5.0x | 3.3x | 1590 / 1766 | 339 / 376 | 148 / 238 |
 | segformer-b5-ade20k | 132 | 72.0 | 38.7 | 25.3 | 2.8x | 1.5x | 2531 / 2620 | 546 / 590 | 407 / 534 |
 
-### Segmentation, synthetic, 512x512
-
-| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
-|---|---|---|---|---|---|---|---|---|---|
-| deeplabv3-r101-d8-ade20k | 50.3 | 27.8 | 22.5 | 9.86 | 2.8x | 2.3x | 807 / 942 | 301 / 334 | 274 / 540 |
-| deeplabv3plus-r101-d8-ade20k | 47.4 | 25.5 | 21.3 | 8.70 | 2.9x | 2.4x | 667 / 784 | 270 / 316 | 251 / 562 |
-| dinov2-b-linear-ade20k | 37.8 | 13.3 | 9.04 | 6.57 | 2.0x | 1.4x | 864 / 886 | 376 / 444 | 312 / 382 |
-| dinov2-l-linear-ade20k | 109 | 33.6 | 25.9 | 18.3 | 1.8x | 1.4x | 2116 / 2186 | 792 / 842 | 730 / 804 |
-| dinov2-s-linear-ade20k | 18.0 | 8.89 | 4.28 | 3.62 | 2.5x | 1.2x | 485 / 506 | 253 / 296 | 185 / 216 |
-| eomt-l-dinov2-ade20k | 88.9 | 32.4 | 22.5 | 15.9 | 2.0x | 1.4x | 2377 / 2526 | 1230 / 1264 | 1230 / 1264 |
-| eomt-l-dinov3-ade20k | 92.6 | 36.1 | 24.2 | 17.6 | 2.1x | 1.4x | 2372 / 2526 | 1228 / 1264 | 1228 / 1264 |
-| fcn-r101-d8-ade20k | 42.5 | 23.6 | 18.8 | 8.12 | 2.9x | 2.3x | 701 / 802 | 242 / 294 | 223 / 500 |
-| hrnet-w48-fcn-ade20k | 40.4 | 47.9 | 20.4 | 5.76 | 7.0x | 3.5x | 691 / 750 | 234 / 310 | 211 / 474 |
-| mask2former-swinl-ade20k | 124 | 77.7 | 55.1 | 36.0 | 2.2x | 1.5x | 1963 / 2118 | 873 / 1016 | 873 / 996 |
-| oneformer-swinl-ade20k | 149 | 95.6 | 63.1 | 43.8 | 2.2x | 1.4x | 2242 / 2370 | 948 / 1174 | 948 / 1034 |
-| pspnet-r101-d8-ade20k | 41.9 | 23.6 | 20.6 | 10.2 | 2.3x | 2.0x | 698 / 862 | 253 / 314 | 246 / 516 |
-| sapiens-seg-0.3b-goliath | 466 | 172 | 131 | 92.2 | 1.9x | 1.4x | 2499 / 2704 | 1643 / 1762 | 1643 / 1762 |
-| sapiens-seg-1b-goliath | 1188 | 354 | 274 | 184 | 1.9x | 1.5x | 5700 / 5886 | 3259 / 3384 | 3259 / 3382 |
-| segformer-b0-ade20k | 8.58 | 10.4 | 4.57 | 1.54 | 5.6x | 3.0x | 366 / 466 | 149 / 196 | 115 / 178 |
-| segformer-b5-ade20k | 61.0 | 55.4 | 24.0 | 12.2 | 4.5x | 2.0x | 1518 / 1582 | 441 / 472 | 303 / 414 |
-
 ### Promptable segmentation, synthetic, 1024x1024
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
@@ -310,19 +284,6 @@ is not stated); to rank models use the official Middlebury and ETH3D test-set le
 | sam2.1-hiera-small | 74.8 | 41.8 | 18.8 | 15.6 | 2.7x | 1.2x | 618 / 662 | 318 / 366 | 330 / 386 |
 | sam2.1-hiera-tiny | 66.3 | 38.0 | 16.6 | 13.9 | 2.7x | 1.2x | 577 / 636 | 304 / 382 | 316 / 362 |
 | sam3 | 695 | 281 | 179 | 116 | 2.4x | 1.5x | 5255 / 5334 | 1922 / 2004 | 2019 / 2264 |
-
-### Promptable segmentation, synthetic, 840x1297
-
-| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
-|---|---|---|---|---|---|---|---|---|---|
-| sam-vit-b | – | – | 48.7 | 37.3 | – | 1.3x | – | 378 / 420 | 377 / 420 |
-| sam-vit-h | – | – | 215 | 144 | – | 1.5x | – | 1484 / 2524 | 1480 / 1524 |
-| sam-vit-l | – | – | 116 | 81.8 | – | 1.4x | – | 833 / 1262 | 831 / 862 |
-| sam2.1-hiera-base-plus | – | – | 31.9 | 25.0 | – | 1.3x | – | 412 / 464 | 426 / 524 |
-| sam2.1-hiera-large | – | – | 67.9 | 48.7 | – | 1.4x | – | 742 / 768 | 760 / 828 |
-| sam2.1-hiera-small | – | – | 18.8 | 15.5 | – | 1.2x | – | 318 / 366 | 330 / 386 |
-| sam2.1-hiera-tiny | – | – | 16.6 | 13.9 | – | 1.2x | – | 304 / 382 | 316 / 362 |
-| sam3 | 695 | 282 | 180 | 116 | 2.4x | 1.6x | 5255 / 5332 | 1922 / 2004 | 2048 / 2264 |
 
 ### Detection, synthetic, 800x1344
 
@@ -364,25 +325,15 @@ is not stated); to rank models use the official Middlebury and ETH3D test-set le
 | dinov3-vitl16 | 19.2 | 17.7 | 9.13 | 3.28 | 5.4x | 2.8x | 1772 / 1812 | 617 / 646 | 617 / 674 |
 | dinov3-vits16 | 6.47 | 9.16 | 4.67 | 0.903 | 7.2x | 5.2x | 158 / 166 | 77 / 80 | 77 / 106 |
 
-### Multiview, synthetic, 336x518
+### Multiview, synthetic
 
-| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
-|---|---|---|---|---|---|---|---|---|---|
-| mapanything-apache | 2875 | 1967 | 636 | 544 | 3.6x | 1.2x | 10227 / 10952 | 3697 / 4092 | 3697 / 4072 |
-| vggt-1b | 2502 | 965 | 651 | 458 | 2.1x | 1.4x | 8688 / 9158 | 3691 / 4674 | 3702 / 4654 |
-| vggt-omega-1b-512 | 2650 | 906 | 726 | 464 | 2.0x | 1.6x | 7495 / 7654 | 3421 / 3518 | 3422 / 3518 |
-
-### Multiview, synthetic, 1536x1024
-
-| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
-|---|---|---|---|---|---|---|---|---|---|
-| patchmatchnet | 248 | 220 | 202 | 29.6 | 7.4x | 6.8x | 1228 / 1272 | 1806 / 2096 | 740 / 856 |
-
-### Multiview, synthetic, 448x672
-
-| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
-|---|---|---|---|---|---|---|---|---|---|
-| mvsanywhere | 273 | 219 | 93.2 | 35.6 | 6.1x | 2.6x | 1504 / 1576 | 931 / 1226 | 761 / 884 |
+| model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|---|---|
+| mapanything-apache | 336x518 | 2875 | 1967 | 636 | 544 | 3.6x | 1.2x | 10227 / 10952 | 3697 / 4092 | 3697 / 4072 |
+| mvsanywhere | 448x672 | 273 | 219 | 93.2 | 35.6 | 6.1x | 2.6x | 1504 / 1576 | 931 / 1226 | 761 / 884 |
+| patchmatchnet | 1536x1024 | 248 | 220 | 202 | 29.6 | 7.4x | 6.8x | 1228 / 1272 | 1806 / 2096 | 740 / 856 |
+| vggt-1b | 336x518 | 2502 | 965 | 651 | 458 | 2.1x | 1.4x | 8688 / 9158 | 3691 / 4674 | 3702 / 4654 |
+| vggt-omega-1b-512 | 336x518 | 2650 | 906 | 726 | 464 | 2.0x | 1.6x | 7495 / 7654 | 3421 / 3518 | 3422 / 3518 |
 
 ### Startup and first call
 
@@ -677,7 +628,7 @@ overview shows the speed-up against portable instead.
 
 Every model, `portable` and `kernels`, on a synthetic input of the size in the column header, median of 10 warm runs
 (3 for calls over 2 s). Cells: median ms / peak allocated MiB / peak reserved MiB, weights included. OOM = out of memory
-on the 16 GB GPU. Fixed-input models (classification, DINO features) have their own table at the end, at their native size. The 12 MP column probes the largest size
+on the 16 GB GPU. Fixed-input models (classification, DINO features) run only at their native size: see their speed table above. The 12 MP column probes the largest size
 that fits. Depth-anything-v2, midas-dpt-beit-large-512 and zoedepth-nk resize to their working resolution: time depends on the aspect ratio, not the input pixels (12 MP is 4:3, so it is faster than 1080p at 16:9). Measured 2026-10/11 on main at the time; the fixed-input table and the GREAT-IGEV and IGEV++ rows are from 2026-11-03, and the other columns have not been re-measured since.
 
 <!-- sizes:begin (tools/bench_sizes.py docs) -->
@@ -974,62 +925,6 @@ size is outside the model's range).
 | igev-plusplus-sceneflow | portable | 201.0 ms / 354 / 612 | 606.2 ms / 987 / 1662 | 1534.9 ms / 2172 / 3496 | OOM |
 | igev-plusplus-sceneflow | kernels | 88.6 ms / 357 / 1092 | 240.6 ms / 830 / 1210 | 535.4 ms / 1799 / 2464 | 3143.9 ms (n=3) / 8419 / 9752 |
 
-Fixed-input models (classification, features), run at their one native size, 224x224:
-
-| model | mode | 224x224 |
-|---|---|---|
-| alexnet.tv_in1k | portable | 1.0 ms / 152 / 272 |
-| alexnet.tv_in1k | kernels | 0.7 ms / 185 / 310 |
-| convnextv2_base.fcmae_ft_in22k_in1k | portable | 10.2 ms / 300 / 370 |
-| convnextv2_base.fcmae_ft_in22k_in1k | kernels | 3.0 ms / 334 / 450 |
-| deit_base_patch16_224.fb_in1k | portable | 2.9 ms / 214 / 338 |
-| deit_base_patch16_224.fb_in1k | kernels | 1.8 ms / 316 / 418 |
-| densenet121.tv_in1k | portable | 9.5 ms / 53 / 84 |
-| densenet121.tv_in1k | kernels | 1.6 ms / 86 / 168 |
-| dinov2_vitl14_lc | portable | 5.4 ms / 625 / 724 |
-| dinov2_vitl14_lc | kernels | 5.2 ms / 897 / 1040 |
-| efficientnet_b0.tv_in1k | portable | 5.0 ms / 48 / 84 |
-| efficientnet_b0.tv_in1k | kernels | 0.9 ms / 81 / 164 |
-| efficientnet_b4.tv_in1k | portable | 9.9 ms / 92 / 120 |
-| efficientnet_b4.tv_in1k | kernels | 2.2 ms / 125 / 200 |
-| efficientnet_v2_s.tv_in1k | portable | 10.0 ms / 82 / 132 |
-| efficientnet_v2_s.tv_in1k | kernels | 2.1 ms / 116 / 210 |
-| efficientvit_b2.r288_in1k | portable | 11.9 ms / 87 / 116 |
-| efficientvit_b2.r288_in1k | kernels | 1.2 ms / 122 / 200 |
-| eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | portable | 18.0 ms / 666 / 864 |
-| eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | kernels | 14.0 ms / 1296 / 1456 |
-| fastvit_sa24.apple_dist_in1k | portable | 6.9 ms / 81 / 118 |
-| fastvit_sa24.apple_dist_in1k | kernels | 1.5 ms / 113 / 194 |
-| inception_v3.tv_in1k | portable | 5.2 ms / 123 / 226 |
-| inception_v3.tv_in1k | kernels | 1.6 ms / 154 / 306 |
-| mobilenet_v2.tv2_in1k | portable | 3.0 ms / 43 / 62 |
-| mobilenet_v2.tv2_in1k | kernels | 0.5 ms / 75 / 98 |
-| mobilenet_v3_large.tv2_in1k | portable | 3.6 ms / 46 / 66 |
-| mobilenet_v3_large.tv2_in1k | kernels | 0.6 ms / 78 / 104 |
-| mobilenetv1_100.ra4_e3600_r224_in1k | portable | 1.8 ms / 44 / 62 |
-| mobilenetv1_100.ra4_e3600_r224_in1k | kernels | 0.4 ms / 75 / 98 |
-| mobilenetv4_conv_medium.e500_r256_in1k | portable | 3.8 ms / 55 / 74 |
-| mobilenetv4_conv_medium.e500_r256_in1k | kernels | 0.8 ms / 87 / 112 |
-| regnety_160.tv2_in1k | portable | 8.3 ms / 211 / 524 |
-| regnety_160.tv2_in1k | kernels | 2.0 ms / 238 / 610 |
-| resnet152.tv2_in1k | portable | 8.4 ms / 157 / 192 |
-| resnet152.tv2_in1k | kernels | 2.2 ms / 188 / 270 |
-| resnet18.tv_in1k | portable | 1.4 ms / 60 / 68 |
-| resnet18.tv_in1k | kernels | 0.6 ms / 91 / 144 |
-| resnet50.tv2_in1k | portable | 3.1 ms / 91 / 110 |
-| resnet50.tv2_in1k | kernels | 1.0 ms / 121 / 190 |
-| shufflenet_v2_x1_0.tv_in1k | portable | 3.7 ms / 39 / 58 |
-| shufflenet_v2_x1_0.tv_in1k | kernels | 0.8 ms / 87 / 102 |
-| squeezenet1_1.tv_in1k | portable | 1.8 ms / 7 / 28 |
-| squeezenet1_1.tv_in1k | kernels | 0.4 ms / 8 / 14 |
-| swin_base_patch4_window7_224.ms_in22k_ft_in1k | portable | 10.6 ms / 218 / 312 |
-| swin_base_patch4_window7_224.ms_in22k_ft_in1k | kernels | 2.5 ms / 261 / 412 |
-| vgg16.tv_in1k | portable | 2.0 ms / 313 / 338 |
-| vgg16.tv_in1k | kernels | 1.6 ms / 343 / 412 |
-| vit_base_patch16_224.augreg2_in21k_ft_in1k | portable | 2.9 ms / 214 / 338 |
-| vit_base_patch16_224.augreg2_in21k_ft_in1k | kernels | 1.8 ms / 316 / 418 |
-| vit_so400m_patch14_siglip_378.webli_ft_in1k | portable | 13.1 ms / 901 / 1050 |
-| vit_so400m_patch14_siglip_378.webli_ft_in1k | kernels | 12.9 ms / 1254 / 1446 |
 <!-- sizes:end -->
 
 ## Apple silicon (MPS)

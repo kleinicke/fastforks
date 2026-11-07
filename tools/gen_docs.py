@@ -19,6 +19,7 @@ import re
 import statistics
 import sys
 import tomllib
+from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -1194,8 +1195,11 @@ def overview() -> str:
 _TABLE_BEGIN, _TABLE_END = "<!-- tables:begin", "<!-- tables:end -->"
 
 
-def _speed_table(by: dict[str, dict[str, dict]]) -> list[str]:
-    """Table of one (task, input), per model; a column nothing was measured for is left out."""
+def _speed_table(by: dict[str, dict[str, dict]], inputs: dict[str, str] | None = None) -> list[str]:
+    """Table of one (task, scene), per model; `inputs` (model -> size) adds an input column.
+
+    A column nothing was measured for is left out.
+    """
     names = ["original fp32", "original", "portable", "kernels", "vs original", "vs portable"]
     groups = [("time (ms): ", 4), ("kernels speed-up: ", 2), ("peak memory (MiB, allocated / reserved): ", 3)]
     body = []
@@ -1206,33 +1210,42 @@ def _speed_table(by: dict[str, dict[str, dict]]) -> list[str]:
     cols = [(groups[0][0], n) for n in names[:4]] + [(groups[1][0], n) for n in names[4:]]
     cols += [(groups[2][0], n) for n in ("original", "portable", "kernels")]
     use = [i for i in range(len(cols)) if any(r[i + 1] != DASH for r in body)]
-    head, seen = ["model"], set()
+    head, seen = ["model", *(["input"] if inputs else [])], set()
     for i in use:
         g, n = cols[i]
         head.append(n if g in seen else g + n)
         seen.add(g)
     lines = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
-    return lines + ["| " + " | ".join([r[0], *(r[i + 1] for i in use)]) + " |" for r in body]
+    return lines + [
+        "| " + " | ".join([r[0], *([inputs[r[0]]] if inputs else []), *(r[i + 1] for i in use)]) + " |" for r in body
+    ]
 
 
 def _bench_block() -> str:
-    """Speed and memory tables per task and input, from docs/data/speed.jsonl (the block of docs/benchmarks.md)."""
+    """Speed and memory tables per task and scene, from docs/data/speed.jsonl (the block of docs/benchmarks.md)."""
     speed = _speed_rows()
     tasks = {v.id: t for t in registry.TASKS for _, v in registry.cards(t).values()}
-    groups: dict[tuple[str, str, str], dict[str, dict[str, dict]]] = {}
+    groups: dict[tuple[str, str], dict[str, dict[str, dict[str, dict]]]] = {}  # (task, scene) -> model -> input
     for model_id, rows in sorted(speed.items()):
         for r in rows:
             if model_id in tasks and r["mode"] in _SPEED_MODES:
-                key = (tasks[model_id], r["input"], _scene(r["scene"]))
-                groups.setdefault(key, {}).setdefault(model_id, {})[r["mode"]] = r
+                key = (tasks[model_id], _scene(r["scene"]))
+                groups.setdefault(key, {}).setdefault(model_id, {}).setdefault(r["input"], {})[r["mode"]] = r
     order = {t: i for i, t in enumerate(registry.TASKS)}
     out = [f"{_TABLE_BEGIN} (tools/gen_docs.py, from docs/data/speed.jsonl) -->"]
-    for key in sorted(groups, key=lambda k: (order[k[0]], -len(groups[k]), k[1:])):
-        task, size, scene = key
-        by = groups[key]
+    for key in sorted(groups, key=lambda k: (order[k[0]], -len(groups[k]), k[1])):
+        task, scene = key
+        # one table per task and scene: each model at the standard size, else at the size most models share,
+        # else at its own largest input (the model pages list every size)
+        n = Counter(i for m in groups[key].values() for i in m)
+        main = _STD_SIZE[task] if _STD_SIZE.get(task) in n else max(n, key=lambda i: (n[i], _pixels(i)))
+        inputs = {m: main if main in by_in else max(by_in, key=_pixels) for m, by_in in groups[key].items()}
+        by = {m: groups[key][m][i] for m, i in inputs.items()}
         if not any("kernels" in m or "portable" in m for m in by.values()):
             continue
-        out += ["", f"### {task.capitalize().replace('_', ' ')}, {scene}, {size}", "", *_speed_table(by)]
+        one = len(set(inputs.values())) == 1
+        title = f"### {task.capitalize().replace('_', ' ')}, {scene}" + (f", {main}" if one else "")
+        out += ["", title, "", *_speed_table(by, None if one else inputs)]
     out += [
         "",
         "### Startup and first call",
