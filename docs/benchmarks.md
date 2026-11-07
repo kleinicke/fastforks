@@ -42,7 +42,7 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 169 models, 412 rows, measured 2026-11-06 to 2026-11-06.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 169 models, 422 rows, measured 2026-11-06 to 2026-11-07.
 
 ### Across devices
 
@@ -210,7 +210,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`sam2.1-hiera-large`](models/promptable_segmentation.md#sam2) | 48.8 ms · kernels fp16 | 613 ms · portable fp32 |
 | [`sam2.1-hiera-small`](models/promptable_segmentation.md#sam2) | 15.6 ms · kernels fp16 | 177 ms · portable fp32 |
 | [`sam2.1-hiera-tiny`](models/promptable_segmentation.md#sam2) | 13.9 ms · kernels fp16 | 151 ms · portable fp32 |
-| [`sam3`](models/promptable_segmentation.md#sam3) | 116 ms · kernels fp16 | unsupported |
+| [`sam3`](models/promptable_segmentation.md#sam3) | 116 ms · kernels fp16 | 3620 ms · portable fp32 |
 
 #### Detection, 800x1344
 
@@ -238,14 +238,14 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`dinov2-vitl14-reg`](models/features.md#dinov2) | – | 86.3 ms · portable fp16 |
 | [`dinov2-vits14`](models/features.md#dinov2) | – | 11.2 ms · portable fp16 |
 | [`dinov2-vits14-reg`](models/features.md#dinov2) | – | 22.1 ms · portable fp16 |
-| [`dinov3-convnext-base`](models/features.md#dinov3_convnext) | – | unsupported |
-| [`dinov3-convnext-large`](models/features.md#dinov3_convnext) | – | unsupported |
-| [`dinov3-convnext-small`](models/features.md#dinov3_convnext) | – | unsupported |
-| [`dinov3-convnext-tiny`](models/features.md#dinov3_convnext) | – | unsupported |
-| [`dinov3-vitb16`](models/features.md#dinov3) | – | unsupported |
-| [`dinov3-vith16plus`](models/features.md#dinov3) | – | unsupported |
-| [`dinov3-vitl16`](models/features.md#dinov3) | – | unsupported |
-| [`dinov3-vits16`](models/features.md#dinov3) | – | unsupported |
+| [`dinov3-convnext-base`](models/features.md#dinov3_convnext) | – | failed |
+| [`dinov3-convnext-large`](models/features.md#dinov3_convnext) | – | failed |
+| [`dinov3-convnext-small`](models/features.md#dinov3_convnext) | – | 21.7 ms · portable fp16 |
+| [`dinov3-convnext-tiny`](models/features.md#dinov3_convnext) | – | failed |
+| [`dinov3-vitb16`](models/features.md#dinov3) | – | 22.7 ms · portable fp16 |
+| [`dinov3-vith16plus`](models/features.md#dinov3) | – | failed |
+| [`dinov3-vitl16`](models/features.md#dinov3) | – | failed |
+| [`dinov3-vits16`](models/features.md#dinov3) | – | failed |
 <!-- devices:end -->
 
 ## RTX 5060 Ti 16 GB (reference)

@@ -27,6 +27,7 @@ std = [0.5, 0.5, 0.5]
 
 [modes.portable]
 cuda_dtype = "float16"  # trunk, neck and text encoder; the geometry encoder, DETR encoder / decoder and the heads stay float32
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc"]

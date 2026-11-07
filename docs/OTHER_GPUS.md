@@ -59,10 +59,9 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | families | CUDA portable | CUDA kernels | MPS portable (validated) | MPS kernels (libraries, dtype) |
 |---|---|---|---|---|
 | c_foundationstereo, convnextv2, deit, densenet, depth_anything_v2, detr, dfine, dinov2_linear, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, fast_acvnet, fastvit, gwcnet, inception_v3, metric3d, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, patchmatchnet, psmnet, rcnn, resnet, rt_monster_plusplus, rtdetrv2, sam, sam2, segformer, shufflenetv2, swin, unidepth_v2, unik3d, vit, waft_stereo | fp16 | fp16 | fp32 | - |
-| alexnet, cas_gwcnet, coex, depth_anything_3, depth_pro, dinov2, dlnr, eomt, eva02, mapanything, marigold, mask2former, midas, mmseg, oneformer, regnet, s2m2, sapiens, siglip, squeezenet, vgg, zoedepth | fp16 | fp16 | fp32/fp16 | - |
+| alexnet, cas_gwcnet, coex, depth_anything_3, depth_pro, dinov2, dinov3, dinov3_convnext, dlnr, eomt, eva02, mapanything, marigold, mask2former, midas, mmseg, oneformer, regnet, s2m2, sam3, sapiens, siglip, squeezenet, vgg, vggt_omega, zoedepth | fp16 | fp16 | fp32/fp16 | - |
 | cfnet, crestereo, foundationstereo, great_igev, hitnet, igev_plusplus, mocha_stereo, monster, monster_plusplus, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 |
 | aanet, bridgedepth, igev_stereo, las2, nmrf | fp16 | fp16 | fp32 | stereo_metal fp16 |
-| dinov3, dinov3_convnext, sam3, vggt_omega | fp16 | fp16 | - | - |
 | moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
 | vggt | fp16 | fp16 | fp32 | vggt_metal fp32 |

@@ -32,6 +32,7 @@ area_side = { default = 512, min = 16, aliases = ["resolution"] }  # side in px 
 
 [modes.portable]
 cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "vggt_omega"]

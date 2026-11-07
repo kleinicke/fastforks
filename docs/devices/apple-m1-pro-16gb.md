@@ -6,8 +6,9 @@ same model on the RTX 5060 Ti. The tables are generated from the data file named
 written by hand.
 
 Memory is the process's peak footprint (Activity Monitor's "Memory": model and activations, which share the system
-RAM on a Mac). It is not comparable with the CUDA tables' torch peak memory. Not measured: the gated DINOv3,
-DINOv3-ConvNeXt, SAM 3 and VGGT-Omega weights, and D-FINE. Reproduce or extend:
+RAM on a Mac). It is not comparable with the CUDA tables' torch peak memory. Not run: DINOv3 ViT-S/16,
+ViT-L/16, ViT-H+/16 and DINOv3-ConvNeXt Tiny / Base / Large (`failed`: their gated weights are not on this Mac; the
+family's ViT-B/16 and ConvNeXt-Small rows pass the goldens on MPS) and D-FINE (no rows: weights not downloaded). Reproduce or extend:
 `uv run python tools/speed_survey.py run --device apple-m1-pro-16gb` (docs/data/README.md, "Devices").
 
 Accuracy against the CPU (float32, Middlebury ArtL for stereo): MPS float32 outputs match to 1e-3 px mean or better
@@ -26,8 +27,8 @@ median depth, float16 moves it by 0.02-0.12 %.
 | hardware | 16-core GPU |
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-06 to 2026-11-06 |
-| rows | 412 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| measured | 2026-11-06 to 2026-11-07 |
+| rows | 422 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 A survey, not a regression floor: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -204,19 +205,18 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 ### Promptable segmentation, synthetic, 1024x1024
 
-| model | time (ms): portable fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
-|---|---|---|---|
-| [`sam-vit-b`](../models/promptable_segmentation.md#sam) | 631 | unsupported | 4362 |
-| [`sam-vit-h`](../models/promptable_segmentation.md#sam) | 2518 | unsupported | 8821 |
-| [`sam-vit-l`](../models/promptable_segmentation.md#sam) | 1373 | unsupported | 7227 |
-| [`sam2.1-hiera-base-plus`](../models/promptable_segmentation.md#sam2) | 424 | unsupported | 3973 |
-| [`sam2.1-hiera-large`](../models/promptable_segmentation.md#sam2) | 613 | unsupported | 2950 |
-| [`sam2.1-hiera-small`](../models/promptable_segmentation.md#sam2) | 177 | unsupported | 1597 |
-| [`sam2.1-hiera-tiny`](../models/promptable_segmentation.md#sam2) | 151 | unsupported | 1536 |
-| [`sam3`](../models/promptable_segmentation.md#sam3) | unsupported | unsupported | – |
+| model | time (ms): portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|
+| [`sam-vit-b`](../models/promptable_segmentation.md#sam) | 631 | – | unsupported | 4362 |
+| [`sam-vit-h`](../models/promptable_segmentation.md#sam) | 2518 | – | unsupported | 8821 |
+| [`sam-vit-l`](../models/promptable_segmentation.md#sam) | 1373 | – | unsupported | 7227 |
+| [`sam2.1-hiera-base-plus`](../models/promptable_segmentation.md#sam2) | 424 | – | unsupported | 3973 |
+| [`sam2.1-hiera-large`](../models/promptable_segmentation.md#sam2) | 613 | – | unsupported | 2950 |
+| [`sam2.1-hiera-small`](../models/promptable_segmentation.md#sam2) | 177 | – | unsupported | 1597 |
+| [`sam2.1-hiera-tiny`](../models/promptable_segmentation.md#sam2) | 151 | – | unsupported | 1536 |
+| [`sam3`](../models/promptable_segmentation.md#sam3) | 3620 | 3688 | unsupported | 5807 |
 
 Note: no Metal kernels for this family (card mps_kernels).
-Note: the family is not validated on MPS (card mps_dtypes).
 
 ## Detection
 
@@ -250,17 +250,16 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`dinov2-vitl14-reg`](../models/features.md#dinov2) | 96.1 | 86.3 | unsupported | 1563 |
 | [`dinov2-vits14`](../models/features.md#dinov2) | 12.2 | 11.2 | unsupported | 341 |
 | [`dinov2-vits14-reg`](../models/features.md#dinov2) | 22.2 | 22.1 | unsupported | 344 |
-| [`dinov3-convnext-base`](../models/features.md#dinov3_convnext) | unsupported | – | unsupported | – |
-| [`dinov3-convnext-large`](../models/features.md#dinov3_convnext) | unsupported | – | unsupported | – |
-| [`dinov3-convnext-small`](../models/features.md#dinov3_convnext) | unsupported | – | unsupported | – |
-| [`dinov3-convnext-tiny`](../models/features.md#dinov3_convnext) | unsupported | – | unsupported | – |
-| [`dinov3-vitb16`](../models/features.md#dinov3) | unsupported | – | unsupported | – |
-| [`dinov3-vith16plus`](../models/features.md#dinov3) | unsupported | – | unsupported | – |
-| [`dinov3-vitl16`](../models/features.md#dinov3) | unsupported | – | unsupported | – |
-| [`dinov3-vits16`](../models/features.md#dinov3) | unsupported | – | unsupported | – |
+| [`dinov3-convnext-base`](../models/features.md#dinov3_convnext) | failed | failed | unsupported | – |
+| [`dinov3-convnext-large`](../models/features.md#dinov3_convnext) | failed | failed | unsupported | – |
+| [`dinov3-convnext-small`](../models/features.md#dinov3_convnext) | 23.4 | 21.7 | unsupported | 614 |
+| [`dinov3-convnext-tiny`](../models/features.md#dinov3_convnext) | failed | failed | unsupported | – |
+| [`dinov3-vitb16`](../models/features.md#dinov3) | 25.0 | 22.7 | unsupported | 726 |
+| [`dinov3-vith16plus`](../models/features.md#dinov3) | failed | failed | unsupported | – |
+| [`dinov3-vitl16`](../models/features.md#dinov3) | failed | failed | unsupported | – |
+| [`dinov3-vits16`](../models/features.md#dinov3) | failed | failed | unsupported | – |
 
 Note: no Metal kernels for this family (card mps_kernels).
-Note: the family is not validated on MPS (card mps_dtypes).
 
 ## Multiview
 
@@ -270,10 +269,9 @@ Note: the family is not validated on MPS (card mps_dtypes).
 |---|---|---|---|---|---|---|---|
 | [`mapanything-apache`](../models/multiview.md#mapanything) | 7357 | 6369 | – | unsupported | – | 7218 | – |
 | [`vggt-1b`](../models/multiview.md#vggt) | 7209 | – | 7016 | – | 1.0x | 10654 | 10692 |
-| [`vggt-omega-1b-512`](../models/multiview.md#vggt_omega) | unsupported | – | – | unsupported | – | – | – |
+| [`vggt-omega-1b-512`](../models/multiview.md#vggt_omega) | 7938 | 7242 | – | unsupported | – | 8602 | – |
 
 Note: no Metal kernels for this family (card mps_kernels).
-Note: the family is not validated on MPS (card mps_dtypes).
 
 ### Multiview, synthetic, 448x672
 
