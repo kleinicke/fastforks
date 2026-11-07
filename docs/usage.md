@@ -327,7 +327,8 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   file name. Both are only read; a copy that does not match, or a cache directory that cannot be read, is skipped and
   the file is downloaded.
 - `fastforks download MODEL` (`--kernels` for the kernel binaries) fetches everything into the user cache ahead of
-  time, e.g. before going offline. `--arch sm_89` fetches the binaries of a GPU you do not have, `--check` verifies the
+  time, e.g. before going offline. A model that fails (e.g. gated without a token) does not stop the others: it is
+  listed as `MISSING ...` at the end and the command exits 1. `--arch sm_89` fetches the binaries of a GPU you do not have, `--check` verifies the
   cache without network (a file whose size and mtime match its recorded stamp is not re-hashed), `--dry-run` lists
   the download size (the archive, once) and licence classes. `FASTFORKS_OFFLINE=1` (or `HF_HUB_OFFLINE=1`)
   forbids every download; a missing file then raises an error naming it and the command that fetches it. For

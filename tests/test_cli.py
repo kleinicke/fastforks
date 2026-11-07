@@ -589,6 +589,26 @@ def test_download_dry_run_and_check_handle_noncommercial_weights(monkeypatch, ca
     assert "non-commercial weights" in capsys.readouterr().err
 
 
+def test_download_keeps_going_past_a_failed_model(monkeypatch, capsys, tmp_path):
+    """A model whose weights fail (e.g. gated, no token) is listed as MISSING at the end; the rest still download."""
+
+    seen: list[str] = []
+
+    def weights(_card, v, **_k):
+        seen.append(v.ref)
+        if len(seen) == 1:
+            msg = "gated, no token"
+            raise FastforksError(msg)
+        return [tmp_path / "w.bin"]
+
+    monkeypatch.setattr(cli.registry, "weights", weights)
+    assert cli.main(["download", "hitnet-eth3d", "densenet121.tv_in1k"]) == 1
+    cap = capsys.readouterr()
+    assert len(seen) == 2
+    assert f"{seen[1]}: {tmp_path / 'w.bin'}" in cap.out
+    assert cap.err.strip().splitlines()[-1] == f"MISSING {seen[0]}: gated, no token"
+
+
 def test_info_shows_option_bounds_and_auto_choice(capsys):
     assert cli.main(["info", "igev-stereo-sceneflow"]) == 0
     assert "iters=32 (>= 1)" in capsys.readouterr().out

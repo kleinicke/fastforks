@@ -377,7 +377,10 @@ def _size_text(n: int) -> str:
 
 
 def _weights(args: argparse.Namespace, entries: Sequence[tuple[ModelCard, Variant]]) -> list[str]:
-    """Print each model's licence class and size, fetch its weights (`--check`: look only); returns what is missing."""
+    """Print each model's licence class and size, fetch its weights (`--check`: look only); returns what is missing.
+
+    A model that fails to download does not stop the others: it is reported as missing at the end.
+    """
     missing: list[str] = []
     for card, v in entries:
         st = card.status(v)
@@ -395,7 +398,12 @@ def _weights(args: argparse.Namespace, entries: Sequence[tuple[ModelCard, Varian
             found = _missing(v.ref, lambda card=card, v=v: registry.weights(card, v, allow_download=False))
             missing += [f"{m}; needs {registry.NONCOMMERCIAL_ENV}=1 to download" for m in found] if nc else found
         elif not args.dry_run:
-            for p in registry.weights(card, v):
+            try:
+                paths = registry.weights(card, v)
+            except FastforksError as e:  # keep going: the other models still download, MISSING lists this one
+                missing.append(f"{v.ref}: {e}")
+                continue
+            for p in paths:
                 print(f"{v.ref}: {p}")
     return missing
 
@@ -407,7 +415,11 @@ def _kernel(args: argparse.Namespace, lib: str, tag: str, spec: FileSpec) -> lis
     elif args.check:
         return _missing(tag, lambda: [locate(spec, group=lib, env_var=KERNEL_PATH_ENV, allow_download=False)])
     else:
-        print(f"{tag}: {locate(spec, group=lib, env_var=KERNEL_PATH_ENV)}")
+        try:
+            path = locate(spec, group=lib, env_var=KERNEL_PATH_ENV)
+        except FastforksError as e:
+            return [f"{tag}: {e}"]
+        print(f"{tag}: {path}")
     return []
 
 
