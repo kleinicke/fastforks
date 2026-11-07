@@ -245,7 +245,7 @@ def test_fixed_size_table_parser():
     assert isinstance(cell, tuple)
     assert cell[0] > 0
     assert set(next(iter(fixed.values()))) >= {"480x640", "1080x1920"}
-    assert "224x224" in fixed["resnet50.tv2_in1k", "kernels"]
+    assert ("resnet50.tv2_in1k", "kernels") not in fixed  # native-size models are in the speed tables
 
 
 def test_every_family_has_a_plain_description():
@@ -263,6 +263,18 @@ def test_summary_table_matches_the_speed_tables():
     row = next(r for r in speed["crestereo-eth3d"] if r["mode"] == "kernels" and r["input"] == "994x1482")
     page = (ROOT / "docs" / "models" / "stereo.md").read_text()
     assert f"| [`crestereo-eth3d`](#crestereo) | yes | 1.39 \u2020 | {row['ms']}, " in page
+
+
+def test_one_speed_table_per_task_and_scene():
+    """benchmarks.md: one speed table per (task, scene); models at different inputs get an input column."""
+    text = (ROOT / "docs" / "benchmarks.md").read_text()
+    block = text.split(gen_docs._TABLE_BEGIN, 1)[1].split("### Startup and first call")[0]
+    titles = re.findall(r"^### (.+)$", block, re.MULTILINE)
+    keys = [tuple(t.split(", ")[:2]) for t in titles]
+    assert len(keys) == len(set(keys)), titles
+    multiview = block.split("### Multiview, synthetic\n", 1)[1].split("\n### ", 1)[0]
+    assert "| model | input |" in multiview
+    assert "| patchmatchnet | 1536x1024 |" in multiview
 
 
 def test_summary_memory_ratio_uses_the_smaller_original():

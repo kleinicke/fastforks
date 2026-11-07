@@ -44,16 +44,16 @@ mps_dtype = "float32"  # the portable network's float16 misses the metric scale 
 id = "moge-2-vits-normal"
 revision = 1
 params = { arch = "vits", version = 2 }
-weights = [{ name = "model.pt", size = 140550416, sha256 = "79a16621928c2bf0ed04659218c55c01075e950507f40bb3332fb4c873d3e1dc", url = "https://huggingface.co/Ruicheng/moge-2-vits-normal/resolve/26b477f41595707c5db6770294c0d1721e8ed4ed/model.pt" }]
+weights = [{ name = "moge-2-vits-normal/model.pt", size = 140550416, sha256 = "79a16621928c2bf0ed04659218c55c01075e950507f40bb3332fb4c873d3e1dc", url = "https://huggingface.co/Ruicheng/moge-2-vits-normal/resolve/26b477f41595707c5db6770294c0d1721e8ed4ed/model.pt" }]
 
 [[variants]]
 id = "moge-2-vitl-normal"
 revision = 1
 params = { arch = "vitl", version = 2 }
-weights = [{ name = "model.pt", size = 1323815904, sha256 = "280741fd09bc3f403ccff9967784c2a391b52d2c0742ae3efdb21d9f90cc1a01", url = "https://huggingface.co/Ruicheng/moge-2-vitl-normal/resolve/cb0e8bbd6b1e243589717c78e750b1ba4c093acf/model.pt" }]
+weights = [{ name = "moge-2-vitl-normal/model.pt", size = 1323815904, sha256 = "280741fd09bc3f403ccff9967784c2a391b52d2c0742ae3efdb21d9f90cc1a01", url = "https://huggingface.co/Ruicheng/moge-2-vitl-normal/resolve/cb0e8bbd6b1e243589717c78e750b1ba4c093acf/model.pt" }]
 
 [[variants]]
 id = "moge-3-vitl"
 revision = 1
 params = { arch = "vitl", version = 3 }
-weights = [{ name = "model.pt", size = 1481333394, sha256 = "9b41b7b9f65ad80aab7ad686f5e9cc0d1fd33f1964022618dfbcd52fc1fb7925", url = "https://huggingface.co/Ruicheng/moge-3-vitl/resolve/184008f877d7ad1ad4c2cd2182a9bd1f63d0e5be/model.pt" }]
+weights = [{ name = "moge-3-vitl/model.pt", size = 1481333394, sha256 = "9b41b7b9f65ad80aab7ad686f5e9cc0d1fd33f1964022618dfbcd52fc1fb7925", url = "https://huggingface.co/Ruicheng/moge-3-vitl/resolve/184008f877d7ad1ad4c2cd2182a9bd1f63d0e5be/model.pt" }]

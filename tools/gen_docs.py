@@ -18,6 +18,7 @@ import math
 import re
 import sys
 import tomllib
+from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -97,7 +98,8 @@ _PROTOCOL = {
     "224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. ",
     "multiview": "640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light "
     "points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras "
-    "(calibrated MVS: cameras + depth range 425-935 mm, error in mm). ",
+    "(calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range "
+    "from the camera baselines). ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
@@ -198,6 +200,17 @@ def _orig(fp16: dict | None, fp32: dict | None) -> dict | None:
 
 
 _COMPILE_LABEL = {"compile": "portable + torch.compile", "tensorrt": "TensorRT fp16"}  # speed_compile.jsonl modes
+_ENGINE_PART = {"promptable_segmentation": "image encoder", "rcnn": "backbone + FPN"}  # task / family: `module()`
+
+
+@functools.cache
+def _engine_part(model_id: str) -> str:
+    """` (image encoder only)` where the TensorRT engine (`module()`) runs only part of the timed call, else ''."""
+    for task in registry.TASKS:
+        for card, v in registry.cards(task).values():
+            if v.id == model_id and (part := _ENGINE_PART.get(card.family) or _ENGINE_PART.get(task)):
+                return f" ({part} only)"
+    return ""
 
 
 @functools.cache
@@ -218,7 +231,8 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
             lines.append((label, f"fails: {_fail_reason(r['fails'])}", DASH))
             continue
         engine = mode == "tensorrt" and "device_mb" in r
-        lines.append((label, _ms_str(r["ms"]), f"{r['device_mb']} (engine)" if engine else _peak(r)))
+        ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
+        lines.append((label, ms, f"{r['device_mb']} (engine)" if engine else _peak(r)))
         first = r["compile_s"] if mode == "compile" else r["onnx_export_s"] + r["engine_build_s"]
         setup.append(f"{label} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
     return lines, setup
@@ -1177,8 +1191,11 @@ def overview() -> str:
 _TABLE_BEGIN, _TABLE_END = "<!-- tables:begin", "<!-- tables:end -->"
 
 
-def _speed_table(by: dict[str, dict[str, dict]]) -> list[str]:
-    """Table of one (task, input), per model; a column nothing was measured for is left out."""
+def _speed_table(by: dict[str, dict[str, dict]], inputs: dict[str, str] | None = None) -> list[str]:
+    """Table of one (task, scene), per model; `inputs` (model -> size) adds an input column.
+
+    A column nothing was measured for is left out.
+    """
     names = ["original fp32", "original", "portable", "kernels", "vs original", "vs portable"]
     groups = [("time (ms): ", 4), ("kernels speed-up: ", 2), ("peak memory (MiB, allocated / reserved): ", 3)]
     body = []
@@ -1189,33 +1206,42 @@ def _speed_table(by: dict[str, dict[str, dict]]) -> list[str]:
     cols = [(groups[0][0], n) for n in names[:4]] + [(groups[1][0], n) for n in names[4:]]
     cols += [(groups[2][0], n) for n in ("original", "portable", "kernels")]
     use = [i for i in range(len(cols)) if any(r[i + 1] != DASH for r in body)]
-    head, seen = ["model"], set()
+    head, seen = ["model", *(["input"] if inputs else [])], set()
     for i in use:
         g, n = cols[i]
         head.append(n if g in seen else g + n)
         seen.add(g)
     lines = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
-    return lines + ["| " + " | ".join([r[0], *(r[i + 1] for i in use)]) + " |" for r in body]
+    return lines + [
+        "| " + " | ".join([r[0], *([inputs[r[0]]] if inputs else []), *(r[i + 1] for i in use)]) + " |" for r in body
+    ]
 
 
 def _bench_block() -> str:
-    """Speed and memory tables per task and input, from docs/data/speed.jsonl (the block of docs/benchmarks.md)."""
+    """Speed and memory tables per task and scene, from docs/data/speed.jsonl (the block of docs/benchmarks.md)."""
     speed = _speed_rows()
     tasks = {v.id: t for t in registry.TASKS for _, v in registry.cards(t).values()}
-    groups: dict[tuple[str, str, str], dict[str, dict[str, dict]]] = {}
+    groups: dict[tuple[str, str], dict[str, dict[str, dict[str, dict]]]] = {}  # (task, scene) -> model -> input
     for model_id, rows in sorted(speed.items()):
         for r in rows:
             if model_id in tasks and r["mode"] in _SPEED_MODES:
-                key = (tasks[model_id], r["input"], _scene(r["scene"]))
-                groups.setdefault(key, {}).setdefault(model_id, {})[r["mode"]] = r
+                key = (tasks[model_id], _scene(r["scene"]))
+                groups.setdefault(key, {}).setdefault(model_id, {}).setdefault(r["input"], {})[r["mode"]] = r
     order = {t: i for i, t in enumerate(registry.TASKS)}
     out = [f"{_TABLE_BEGIN} (tools/gen_docs.py, from docs/data/speed.jsonl) -->"]
-    for key in sorted(groups, key=lambda k: (order[k[0]], -len(groups[k]), k[1:])):
-        task, size, scene = key
-        by = groups[key]
+    for key in sorted(groups, key=lambda k: (order[k[0]], -len(groups[k]), k[1])):
+        task, scene = key
+        # one table per task and scene: each model at the standard size, else at the size most models share,
+        # else at its own largest input (the model pages list every size)
+        n = Counter(i for m in groups[key].values() for i in m)
+        main = _STD_SIZE[task] if _STD_SIZE.get(task) in n else max(n, key=lambda i: (n[i], _pixels(i)))
+        inputs = {m: main if main in by_in else max(by_in, key=_pixels) for m, by_in in groups[key].items()}
+        by = {m: groups[key][m][i] for m, i in inputs.items()}
         if not any("kernels" in m or "portable" in m for m in by.values()):
             continue
-        out += ["", f"### {task.capitalize().replace('_', ' ')}, {scene}, {size}", "", *_speed_table(by)]
+        one = len(set(inputs.values())) == 1
+        title = f"### {task.capitalize().replace('_', ' ')}, {scene}" + (f", {main}" if one else "")
+        out += ["", title, "", *_speed_table(by, None if one else inputs)]
     out += [
         "",
         "### Startup and first call",
@@ -1264,6 +1290,7 @@ _FAIL_REASONS = (  # (pattern in the recorded error, short reason for the table)
     (r"ConversionError", "ONNX export: conversion failed"),
     (r"doesn't match model \((\d+)\)", r"ONNX export: fixed \1 px input"),
     (r"compilation subprocess exited", "Inductor: compile worker crashed"),
+    (r"InductorError: SubprocException", "Inductor: Triton kernel does not compile (torch bug)"),
     (r"Guard failed on the same frame", "Dynamo guard error (torch bug)"),
     (r"version_counter for inference tensor", "Inductor: inference tensors"),
     (r"inference_mode expects no kwargs", "Dynamo: inference_mode in model code"),
@@ -1284,7 +1311,9 @@ def _compile_ms(r: dict | None) -> str:
     """The time cell of a compile / tensorrt row: `N ms`, `fails: reason`, or a dash."""
     if r is None:
         return DASH
-    return f"fails: {_fail_reason(r['fails'])}" if "fails" in r else f"{_ms_str(r['ms'])} ms"
+    if "fails" in r:
+        return f"fails: {_fail_reason(r['fails'])}"
+    return f"{_ms_str(r['ms'])} ms" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
 
 
 def _compile_block() -> str:

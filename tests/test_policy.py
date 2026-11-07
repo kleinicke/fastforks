@@ -231,6 +231,19 @@ def test_card_uses_matches_imports(task):
 
 
 @pytest.mark.parametrize("task", registry.TASKS)
+def test_weight_names_are_unique_per_family(task):
+    """A local weights folder holds `<family>/<name>`: two different files of one family need two names
+    (e.g. `DA3MONO-LARGE/model.safetensors`, not `model.safetensors` for every variant)."""
+    for card, _ in registry.cards(task).values():
+        files: dict[str, set[str]] = {}
+        for v in card.variants:
+            for w in v.weights:
+                files.setdefault(w.name, set()).add(w.sha256)
+        clash = sorted(name for name, shas in files.items() if len(shas) > 1)
+        assert not clash, f"{card.family}: one name for different files: {clash}"
+
+
+@pytest.mark.parametrize("task", registry.TASKS)
 def test_every_family_has_max_or_says_why_not(task):
     """Portable + kernels per family; one without kernels states why (`[modes.kernels] status = "none"`)."""
     for card, _ in registry.cards(task).values():

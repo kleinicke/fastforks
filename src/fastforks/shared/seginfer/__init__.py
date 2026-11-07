@@ -264,6 +264,11 @@ def upsample_argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]], *, fus
     Returns:
         Labels `[B, H, W]` int64.
     """
+    # under `Model.compile()` eager: Inductor fuses each resize into the class max, 3x slower (segformer, 2026-11-06)
+    return (_argmax_eager if torch.compiler.is_compiling() else _argmax)(scores, sizes, fused=fused)
+
+
+def _argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]], *, fused: bool) -> torch.Tensor:
     if fused and _fused(scores, sizes):
         return _launch(scores, sizes, argmax=True)
     b, c = scores.shape[:2]
@@ -283,6 +288,9 @@ def upsample_argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]], *, fus
         del i
     k = torch.stack(vals).argmax(0)  # the first chunk with the largest max (NaN wins), as `argmax`
     return (k * step).add_(torch.stack(idx).gather(0, k[None])[0])
+
+
+_argmax_eager = torch.compiler.disable(_argmax)
 
 
 def pad_bottom_right(x: torch.Tensor, multiple: int) -> torch.Tensor:

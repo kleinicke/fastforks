@@ -31,7 +31,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 168<br>98.2<br>48.3<br>37.0<br>40.9<br>27.3 | 2798 / 2832<br>1769 / 1802<br>378 / 420<br>377 / 420<br>362 / 400<br>322 (engine) |
+| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 168<br>98.2<br>48.3<br>37.0<br>40.9<br>27.3 (image encoder only) | 2798 / 2832<br>1769 / 1802<br>378 / 420<br>377 / 420<br>362 / 400<br>322 (engine) |
 | `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 406<br>197<br>116<br>81.5 | 4428 / 4474<br>3411 / 3464<br>833 / 1262<br>831 / 862 |
 | `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 734<br>306<br>214<br>143 | 5702 / 5754<br>5295 / 5404<br>1484 / 2524<br>1480 / 1524 |
 
@@ -91,7 +91,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam2.1-hiera-tiny` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 66.3<br>38.0<br>16.6<br>13.9<br>14.2<br>8.56 | 622 / 676<br>577 / 636<br>304 / 382<br>316 / 362<br>270 / 322<br>266 (engine) |
+| `sam2.1-hiera-tiny` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 66.3<br>38.0<br>16.6<br>13.9<br>14.2<br>8.56 (image encoder only) | 622 / 676<br>577 / 636<br>304 / 382<br>316 / 362<br>270 / 322<br>266 (engine) |
 | `sam2.1-hiera-small` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 74.8<br>41.8<br>18.8<br>15.6 | 649 / 698<br>618 / 662<br>318 / 366<br>330 / 386 |
 | `sam2.1-hiera-base-plus` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 107<br>47.2<br>32.0<br>25.1 | 830 / 868<br>823 / 870<br>412 / 464<br>426 / 524 |
 | `sam2.1-hiera-large` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 242<br>86.4<br>68.0<br>48.8 | 1474 / 1518<br>1656 / 1724<br>742 / 768<br>760 / 828 |
@@ -156,7 +156,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>281<br>179<br>116<br>168<br>89.5 | 3865 / 3934<br>5255 / 5334<br>1922 / 2004<br>2019 / 2264<br>1910 / 2004<br>1122 (engine) |
+| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>281<br>179<br>116<br>168<br>89.5 (image encoder only) | 3865 / 3934<br>5255 / 5334<br>1922 / 2004<br>2019 / 2264<br>1910 / 2004<br>1122 (engine) |
 
 <details><summary>Details</summary>
 
