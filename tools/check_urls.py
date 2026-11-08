@@ -1,6 +1,11 @@
 """Check that every weight and kernel URL still serves a file of the recorded size (nightly CI).
 
     uv run python tools/check_urls.py
+    uv run python tools/check_urls.py --kernels   # only our kernel binaries: the first step of the PyPI publish
+
+`--kernels` stops a release whose manifests name a kernel build not yet uploaded to Hugging Face (users would fall
+back to portable, and `mode="kernels"` would raise). It leaves out the weights: the gated ones (DINOv3, VGGT-Omega)
+answer an anonymous request with 401, and a third-party link is not ours to fix before a release.
 
 Fetches one byte per file (HTTP range request) instead of the whole file; for an archive member, the size of the
 pinned archive (`archive` in the card) is checked. Weight mirrors are checked too. URLs in our own Hugging Face repos
@@ -43,9 +48,9 @@ def remote_size(url: str) -> int | None:
         return int(length) if resp.status == 200 and length else None  # noqa: PLR2004 - HTTP OK
 
 
-def files() -> Iterator[tuple[str, FileSpec]]:
-    """(owner, file) of every downloadable weight and kernel binary."""
-    for task in registry.TASKS:
+def files(*, kernels_only: bool = False) -> Iterator[tuple[str, FileSpec]]:
+    """(owner, file) of every downloadable weight and kernel binary (`kernels_only`: the kernel binaries)."""
+    for task in () if kernels_only else registry.TASKS:
         for _, variant in registry.cards(task).values():
             yield from ((variant.ref, spec) for spec in variant.weights if spec.url is not None)
             yield from (
@@ -61,7 +66,7 @@ def files() -> Iterator[tuple[str, FileSpec]]:
 
 def main() -> None:
     broken: list[str] = []
-    for owner, spec in files():
+    for owner, spec in files(kernels_only="--kernels" in sys.argv[1:]):
         assert spec.url is not None  # noqa: S101 - filtered in files()
         try:
             size = remote_size(hub_url(spec.url))
