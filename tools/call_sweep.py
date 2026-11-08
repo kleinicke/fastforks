@@ -31,7 +31,7 @@ import torch.nn.functional as F
 
 import fastforks
 from fastforks.depth.models.depth_anything_v2 import fused as da2_fused
-from fastforks.kernels.dpt_fused import _I, ACT_GELU, ACT_NONE, ACT_RELU, DptFused, _rows
+from fastforks.kernels.dpt_fused import _I, ACT_GELU, ACT_GELU_TANH, ACT_NONE, ACT_RELU, DptFused, _rows
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -60,7 +60,11 @@ def _time(vs: dict[str, Callable[[], Any]]) -> dict[str, float]:
 
 
 def _act(t: torch.Tensor, act: int) -> torch.Tensor:
-    return F.relu(t) if act == ACT_RELU else F.gelu(t) if act == ACT_GELU else t
+    if act == ACT_RELU:
+        return F.relu(t)
+    if act in {ACT_GELU, ACT_GELU_TANH}:
+        return F.gelu(t, approximate="tanh" if act == ACT_GELU_TANH else "none")
+    return t
 
 
 def _epilogue(t: torch.Tensor, m: int, n: int, c: dict) -> torch.Tensor:
@@ -130,7 +134,7 @@ class Sweep:
             gh, gw, sh, sw = shuffle
             cout, b = n // (sh * sw), m // (gh * gw)
             y = torch.empty((b, gh * sh, gw * sw, cout), device=x.device, dtype=torch.half)
-        rule_cfg = (5 if -(-m // 128) * -(-n // 64) >= k.sms else 6) if acc32 else k.gemm_cfg(m, n, act)
+        rule_cfg = (5 if -(-m // 128) * -(-n // 64) >= k.sms else 6) if acc32 else k.gemm_cfg(m, n, kk, act)
 
         def ff(cfg: int) -> Callable[[], torch.Tensor]:
             def run() -> torch.Tensor:

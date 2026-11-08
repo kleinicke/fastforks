@@ -148,9 +148,20 @@ def _speed_rows() -> dict[str, list[dict]]:
     rows: dict[str, list[dict]] = {}
     for line in path.read_text().splitlines() if path.is_file() else []:
         row = json.loads(line)
+        if row.get("status") == "oom":  # no time: read by _oom
+            continue
         if not row.get("cold") or "ms" in row:  # speed_check rows: a fresh process, warm timings included
             rows.setdefault(row["ref"], []).append(row)
     return rows
+
+
+@functools.cache
+def _oom() -> frozenset[tuple[str, str, str]]:
+    """(ref, mode, input) of the speed.jsonl rows that ran out of GPU memory (`status: "oom"`, no time)."""
+    path = ROOT / "docs" / "data" / "speed.jsonl"
+    lines = path.read_text().splitlines() if path.is_file() else []
+    rows = [json.loads(line) for line in lines if '"oom"' in line]
+    return frozenset((r["ref"], r["mode"], r["input"]) for r in rows if r.get("status") == "oom")
 
 
 NM = "not measured"
@@ -181,10 +192,10 @@ def _ms_str(ms: object) -> str:
     return f"{ms:.{max(0, 2 - math.floor(math.log10(abs(ms))))}f}"
 
 
-def _ms_cell(row: dict | None) -> str:
-    """A speed row's time; an fp32 original (fp16 unsupported or non-finite) is marked."""
+def _ms_cell(row: dict | None, *, oom: bool = False) -> str:
+    """A speed row's time; an fp32 original (fp16 unsupported or non-finite) is marked; no row: OOM if it ran out."""
     if row is None:
-        return DASH
+        return "OOM" if oom else DASH
     fp32 = row["mode"] == "upstream" and row.get("protocol", "").endswith("float32")
     return f"{_ms_str(row['ms'])} (fp32)" if fp32 else _ms_str(row["ms"])
 
@@ -434,13 +445,17 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
         std = _std_input(card.task, {})
         for size in [std] if std in sizes else sizes[-1:] if std != _OWN else sizes:
             by = {r["mode"]: r for r in rows[v.id] if r["input"] == size}
-            modes = [m for m in _SPEED_MODES if m in by or m in ("upstream", "portable", "kernels")]
+            oom = {m for m in _SPEED_MODES if (v.id, m, size) in _oom()}
+            modes = [m for m in _SPEED_MODES if m in by or m in oom or m in ("upstream", "portable", "kernels")]
             cells = [by.get(m) for m in modes]
             scene = _scene(next(iter(by.values())).get("scene", ""))
             inp = f"{scene} ({size})" if scene else size
             extra, setup = _compile_lines(v.id, size)
             names = "<br>".join([*(_label(m) for m in modes), *(e[0] for e in extra)])
-            ms = "<br>".join([*(_ms_str(r["ms"]) if r else DASH for r in cells), *(e[1] for e in extra)])
+            ms = "<br>".join(
+                [*(_ms_str(r["ms"]) if r else "OOM" if m in oom else DASH for m, r in zip(modes, cells, strict=True))]
+                + [e[1] for e in extra]
+            )
             mem = "<br>".join([*(_peak(r) for r in cells), *(e[2] for e in extra)])
             lines.append(f"| {labelled(measured_all, v)} | {inp} | {names} | {ms} | {mem} |")
             if setup:
@@ -1037,10 +1052,12 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
             mx, pt = (
                 _fixed_cell(mine.get((m, at)), fixed.get((v.id, m), {}).get(size)) for m in ("kernels", "portable")
             )
-            orig = _orig(mine.get(("upstream", orig_size)), mine.get(("upstream-default", orig_size)))
-            max_o = mine.get(("kernels", orig_size))
+            # Multiview has no shared size: each model's original run is at its own input, the one its kernels row has.
+            osz = at if size == _OWN else orig_size
+            orig = _orig(mine.get(("upstream", osz)), mine.get(("upstream-default", osz)))
+            max_o = mine.get(("kernels", osz))
             if orig and max_o:
-                speedup = (orig["ms"] / max_o["ms"], f"original ({orig_size})")
+                speedup = (orig["ms"] / max_o["ms"], f"original ({osz})")
             elif isinstance(mx, tuple) and isinstance(pt, tuple):
                 speedup = (pt[0] / mx[0], "portable")
             else:
@@ -1058,6 +1075,8 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
                     "kernels": mx,
                     "portable": pt,
                     "original": orig["ms"] if orig else None,
+                    "orig_oom": orig is None and (v.id, "upstream", osz) in _oom(),
+                    "orig_size": osz,
                     "speedup": speedup,
                     "error": a_row[key] if a_row else None,
                     "mark": mark,
@@ -1066,7 +1085,7 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
                 }
             )
     rows.sort(key=lambda r: (r["ms"] is None, r["ms"] or 0.0, r["id"]))
-    return [{**r, "std": size, "orig_size": orig_size, "fmt": fmt} for r in rows]
+    return [{**r, "std": size, "fmt": fmt} for r in rows]
 
 
 def _picks(rows: list[dict]) -> list[str]:
@@ -1104,7 +1123,7 @@ def _picks(rows: list[dict]) -> list[str]:
 
 def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
     rows = _overview_rows(task, fixed, speed, acc)
-    std, orig_size = rows[0]["std"], rows[0]["orig_size"]  # the task's standard size, the size of its original rows
+    std = rows[0]["std"]  # the task's standard size (or _OWN)
     acc_col = _OVERVIEW_ACC.get(task)
     lines = [
         f"## {_title(task)}",
@@ -1134,7 +1153,11 @@ def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
             cells.append(err)
         sp = r["speedup"]
         cells += [
-            _DASH if r["original"] is None else f"{r['original']:.1f} ({orig_size})",
+            f"OOM ({r['orig_size']})"
+            if r["orig_oom"]
+            else _DASH
+            if r["original"] is None
+            else f"{r['original']:.1f} ({r['orig_size']})",
             _ms(r["portable"]),
             _ms(r["kernels"]) + (f" ({r['at']})" if r["at"] != std and std != _OWN and r["kernels"] else ""),
             _DASH if sp is None else f"{sp[0]:.1f}x vs {sp[1]}",
@@ -1201,7 +1224,9 @@ def _speed_table(by: dict[str, dict[str, dict]], inputs: dict[str, str] | None =
     body = []
     for model_id, m in by.items():
         o32, o, pt, k = (m.get(mode) for mode in _SPEED_MODES)
-        cells = [_ms_cell(o32), _ms_cell(o), _ms_cell(pt), _ms_cell(k), _ratio(_orig(o, o32), k), _ratio(pt, k)]
+        size = next(iter(m.values()))["input"]
+        cells = [_ms_cell(m.get(mode), oom=(model_id, mode, size) in _oom()) for mode in _SPEED_MODES]
+        cells += [_ratio(_orig(o, o32), k), _ratio(pt, k)]
         body.append([model_id, *cells, _peak(o), _peak(pt), _peak(k)])
     cols = [(groups[0][0], n) for n in names[:4]] + [(groups[1][0], n) for n in names[4:]]
     cols += [(groups[2][0], n) for n in ("original", "portable", "kernels")]
@@ -1424,7 +1449,7 @@ _FAST_MODES = ("portable", "kernels")  # the fastforks modes of the cross-device
 
 def _other_devices_line(prefix: str) -> str:
     """The one line of the overview and the model pages that points at the other measured devices."""
-    others = [d for d in _devices.devices() if not d.reference]
+    others = [d for d in _devices.shown() if not d.reference]
     names = ", ".join(f"[{d.name}]({prefix}{d.page})" for d in others)
     return (
         f"Other devices: {names}; [across devices]({prefix}benchmarks.md#other-devices)."
@@ -1583,7 +1608,7 @@ def _cross_cell(rows: list[dict]) -> str:
 
 def _other_block() -> str:  # noqa: C901 - one table per task, filtered by input and protocol
     """docs/benchmarks.md: the survey devices and, per task, the fastest mode per device at the standard input."""
-    devs = _devices.devices()
+    devs = _devices.shown()
     others = [d for d in devs if not d.reference]
     by_dev = {d.slug: _devices.rows(d) for d in devs}
     models = _models_by_id()
@@ -1646,12 +1671,21 @@ def _other_block() -> str:  # noqa: C901 - one table per task, filtered by input
 
 
 def _nav_problems() -> list[str]:
-    """Survey pages missing from the mkdocs nav, and device pages without a registry entry."""
+    """Survey pages missing from the mkdocs nav, and device pages without a shown registry entry.
+
+    Hidden devices get no page, but their rows are still checked here (`_devices.rows` raises on a bad row).
+    """
     nav = (ROOT / "mkdocs.yml").read_text()
-    slugs = {d.slug for d in _devices.devices() if not d.reference}
+    slugs = {d.slug for d in _devices.shown() if not d.reference}
+    hidden = {d.slug for d in _devices.devices() if d.hidden}
+    for d in _devices.devices():
+        if d.hidden:
+            _devices.rows(d)
     out = [f"mkdocs.yml: nav lacks devices/{s}.md" for s in sorted(slugs) if f"devices/{s}.md" not in nav]
+    out += [f"mkdocs.yml: nav lists hidden device devices/{s}.md" for s in sorted(hidden) if f"devices/{s}.md" in nav]
     pages = {p.stem for p in (ROOT / "docs" / "devices").glob("*.md")}
-    return out + [f"docs/devices/{s}.md: not in docs/data/devices.toml" for s in sorted(pages - slugs)]
+    out += [f"docs/devices/{s}.md: hidden in docs/data/devices.toml, remove the page" for s in sorted(pages & hidden)]
+    return out + [f"docs/devices/{s}.md: not in docs/data/devices.toml" for s in sorted(pages - slugs - hidden)]
 
 
 def _with_block(text: str, begin: str, end: str, block: str) -> str:
@@ -1689,7 +1723,7 @@ def main() -> None:
             _with_block(gpus.read_text(), _LIBS_BEGIN, _LIBS_END, _libs_block()), _CAPS_BEGIN, _CAPS_END, _caps_block()
         ),
     }
-    for dev in _devices.devices():
+    for dev in _devices.shown():
         if not dev.reference:
             outputs[ROOT / "docs" / dev.page] = device_page(dev)
     for task in registry.TASKS:

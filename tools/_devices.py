@@ -50,6 +50,7 @@ class Device:
     details: str
     software: str
     reference: bool
+    hidden: bool = False  # measured and kept, but not shown in the docs (no page, no column)
 
     @property
     def data(self) -> Path:
@@ -66,7 +67,7 @@ def devices() -> list[Device]:
     """The registry in its order; exactly one reference device."""
     out = []
     for slug, d in tomllib.loads(REGISTRY.read_text()).items():
-        extra = set(d) - {"name", "backend", "match", "memory", "details", "software", "reference"}
+        extra = set(d) - {"name", "backend", "match", "memory", "details", "software", "reference", "hidden"}
         if not _SLUG.match(slug) or extra or d.get("backend") not in BACKENDS:
             msg = f"devices.toml [{slug}]: bad slug, unknown keys {sorted(extra)} or backend not one of {BACKENDS}"
             raise ValueError(msg)
@@ -80,12 +81,18 @@ def devices() -> list[Device]:
                 d.get("details", ""),
                 d.get("software", ""),
                 bool(d.get("reference", False)),
+                bool(d.get("hidden", False)),
             )
         )
-    if sum(d.reference for d in out) != 1:
-        msg = "devices.toml: exactly one device needs `reference = true`"
+    if sum(d.reference for d in out) != 1 or any(d.reference and d.hidden for d in out):
+        msg = "devices.toml: exactly one device needs `reference = true`, and it cannot be hidden"
         raise ValueError(msg)
     return out
+
+
+def shown() -> list[Device]:
+    """The devices the docs show: every one without `hidden = true`."""
+    return [d for d in devices() if not d.hidden]
 
 
 def reference() -> Device:

@@ -799,7 +799,8 @@ def static_violations() -> list[tuple[str, str]]:
     """(key, message) of floor rows slower than a mode they must not lose to (same ref and input)."""
     by: dict[tuple[str, str], dict[str, float]] = {}
     for r in floor_rows():
-        by.setdefault((r["ref"], r["input"]), {})[r["mode"]] = r["ms"]
+        if "ms" in r:  # an OOM original has no time
+            by.setdefault((r["ref"], r["input"]), {})[r["mode"]] = r["ms"]
     out = []
     for (ref, inp), ms in sorted(by.items()):
         origs = [m for m in ("upstream", "upstream-default") if m in ms]

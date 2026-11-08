@@ -4,7 +4,8 @@
     uvx modal run tools/modal_survey.py::lab --gpu L4 --spec lab.json --out result.json   # on a Modal GPU
 
 The spec is JSON: `{"model": "depth-pro", "variants": [...], "sources": {"name": "path of a dpt_fused.cu"}}`.
-A variant is `{"name", "gemm": {...}, "conv": {...}, "attn": ..., "lib": "base" | <source>, "streams": true}`, every
+A variant is `{"name", "gemm": {...}, "conv": {...}, "attn": ..., "lib": "base" | <source>, "streams": true,
+"full_rate": bool, "act": 5 | 6}` (the last two: the card class and GELU epilogue, default the library's), every
 key but the name optional; `attn`: "flash64" (the model's, checked), "sdpa", or a fixed flash64 variant "hh" / "fh" /
 "ff". `gemm` maps `"MxN"` (exact problem) / `"gelu"` / `"default"`
 to a tile configuration (`dpt_fused.cu` cases), `conv` maps `"MxK"` / `"xK"` (any M) / `"default"`; what no key
@@ -41,8 +42,10 @@ import torch.nn.functional as F
 import fastforks
 import fastforks.depth.models.depth_anything_v2.fused as da2_fused
 import fastforks.kernels.dpt_fused as dpt
-from fastforks.kernels.dpt_fused import ACT_GELU, DptFused
+from fastforks.kernels.dpt_fused import ACT_GELU, ACT_GELU_TANH, DptFused
 from fastforks.kernels.fastbb import FLASH_VARIANTS, Flash64
+
+GELUS = (ACT_GELU, ACT_GELU_TANH)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -134,6 +137,7 @@ class Lab:
         self.libs = {"base": self.k.lib} | libs
         self.flash = da2_fused._flash  # noqa: SLF001
         self.rules = (DptFused.gemm_cfg.__get__(self.k), DptFused.conv_cfg.__get__(self.k))
+        self.card = (self.k.full_rate, self.k.gelu)
         self.seen: Counter[str] = Counter()
         self.fixed: dict[str, Flash64] = {}
 
@@ -141,15 +145,17 @@ class Lab:
         """Set variant `v` (unset keys: the library's defaults)."""
         g, c = v.get("gemm", {}), v.get("conv", {})
         rule_g, rule_c = self.rules
+        self.k.full_rate = v.get("full_rate", self.card[0])
+        self.k.gelu = v.get("act", self.card[1])
 
-        def gemm_cfg(m: int, n: int, act: int) -> int:
+        def gemm_cfg(m: int, n: int, kd: int, act: int) -> int:
             key = f"{m}x{n}"
-            self.seen[f"gemm {key}{' gelu' if act == ACT_GELU else ''} rule {rule_g(m, n, act)}"] += 1
+            self.seen[f"gemm {key}{' gelu' if act in GELUS else ''} rule {rule_g(m, n, kd, act)}"] += 1
             if key in g:
                 return g[key]
-            if act == ACT_GELU and "gelu" in g:
+            if act in GELUS and "gelu" in g:
                 return g["gelu"]
-            return g.get("default", rule_g(m, n, act))
+            return g.get("default", rule_g(m, n, kd, act))
 
         def conv_cfg(m: int, k: int) -> int:
             self.seen[f"conv {m}x{k} rule {rule_c(m, k)}"] += 1

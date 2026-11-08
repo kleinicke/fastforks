@@ -67,7 +67,7 @@ def _variants(k, s: dict) -> dict[str, Callable[[], torch.Tensor]]:  # noqa: ANN
     def ff(cfg: int | None) -> Callable[[], torch.Tensor]:
         def run() -> torch.Tensor:
             e = k._epi(m, n, out, b, gs, res, None, None, act)  # noqa: SLF001 - the library's own argument packing
-            c = k.gemm_cfg(m, n, act) if cfg is None else cfg
+            c = k.gemm_cfg(m, n, kk, act) if cfg is None else cfg
             st = torch.cuda.current_stream().cuda_stream
             k._check(k.lib.dpt_gemm(c, m, n, kk, x.data_ptr(), kk, w.data_ptr(), e, st), "gemm")  # noqa: SLF001
             return out
@@ -132,7 +132,7 @@ def bench(ms: list[int]) -> dict:  # noqa: C901 - measure loop, flat on purpose
                 "m": s["m"],
                 "n": s["n"],
                 "k": s["k"],
-                "rule_cfg": k.gemm_cfg(s["m"], s["n"], s["act"]),
+                "rule_cfg": k.gemm_cfg(s["m"], s["n"], s["k"], s["act"]),
             }
             for name in vs:
                 if name in times:

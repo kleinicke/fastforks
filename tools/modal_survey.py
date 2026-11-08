@@ -14,8 +14,12 @@ Then, cheapest first:
     uvx modal run tools/modal_survey.py::profile --gpu L4 --only depth-pro --out trace.jsonl   # kernel groups
     uvx modal run tools/modal_survey.py::shootout --gpu L4 --out gemm.json                     # GEMM tiles vs cuBLAS
     uvx modal run tools/modal_survey.py::sweep --gpu L4 --out calls.json    # every kernels call of a forward
+    uvx modal run tools/modal_survey.py::convs --gpu L4 --out convs.json    # CUTLASS conv tile configs vs cuDNN
+    uvx modal run tools/modal_survey.py::goldens --gpu A10 --select marigold # GPU golden parity (no --record)
     uvx modal run tools/modal_survey.py::sections --gpu L4 --out sections.json  # wall time by section
     uvx modal run tools/modal_survey.py::lab --gpu L4 --spec lab.json --out lab-out.json  # kernel variants
+    FASTFORKS_MODAL_LOCAL_KERNELS=1 uvx modal run tools/modal_survey.py::main --gpu L4 --only depth-pro \
+        --modes kernels --force                                  # an unpublished build/kernels, re-measured
 
 `--gpu` takes Modal's names (T4, L4, A10, L40S, A100-40GB, A100-80GB, H100, H200, B200). The local entrypoint waits
 for the run, then copies the rows and the device's devices.toml entry into this checkout; add `devices/<slug>.md` to
@@ -58,7 +62,26 @@ GROUPS = ("dev", "cu130", "vision")  # the lock's cu130 torch + timm / transform
 MIDDLEBURY = "https://vision.middlebury.edu/stereo/submit3/zip/MiddEval3-data-H.zip"  # the floor's stereo scene
 COMMIT_EVERY_S = 300
 
+
+def _run_label(argv: list[str]) -> str | None:
+    """`modal app list`'s description of a local run: `fastforks <entrypoint> <gpu>` (`fastforks main RTX-PRO-6000`).
+
+    None inside a container (no `::<entrypoint>` argument), which keeps the app's name there.
+    """
+    entry = next((a.rpartition("::")[2] for a in argv if "modal_survey.py::" in a), None)
+    if entry is None:
+        return None
+    gpu = ""
+    for i, a in enumerate(argv):
+        if a == "--gpu" and i + 1 < len(argv):
+            gpu = argv[i + 1]
+        elif a.startswith("--gpu="):
+            gpu = a.removeprefix("--gpu=")
+    return " ".join(p for p in ("fastforks", entry, gpu) if p)
+
+
 app = modal.App("fastforks-survey")
+app.description = _run_label(sys.argv) or app.description  # the name stays: the volume below shares it
 volume = modal.Volume.from_name("fastforks-survey", create_if_missing=True)
 secrets = [modal.Secret.from_name(s) for s in os.environ.get("FASTFORKS_MODAL_SECRETS", "").split(",") if s]
 
@@ -86,8 +109,15 @@ _deps = (
 )
 
 
+LOCAL_KERNELS = os.environ.get("FASTFORKS_MODAL_LOCAL_KERNELS") == "1"
+"""FASTFORKS_MODAL_LOCAL_KERNELS=1: kernel libraries from this checkout's build/kernels (`tools/build_kernels.py`
+output, with the regenerated manifests in src/) instead of the published ones, to survey a build before uploading it."""
+
+
 def _with_source(img: modal.Image) -> modal.Image:
     """The checkout on top of `img`: the only layers a source edit rebuilds."""
+    if LOCAL_KERNELS:
+        img = img.env({"FASTFORKS_KERNEL_PATH": f"{REPO}/build/kernels"})
     return (
         img.add_local_dir(
             ROOT,
@@ -102,6 +132,7 @@ def _with_source(img: modal.Image) -> modal.Image:
                 "**/.pytest_cache",
                 "**/.ruff_cache",
                 "tests",
+                *([] if LOCAL_KERNELS else ["build"]),
             ],
             copy=True,  # built in, so the project can be installed (its metadata: `fastforks.__version__`)
         ).run_commands(f"uv pip install --system --no-deps -e {REPO}")  # seconds; the only layer a source edit rebuilds
@@ -217,7 +248,13 @@ def _entry() -> tuple[str, str]:
     timeout=12 * 3600,
     retries=modal.Retries(max_retries=2, initial_delay=10.0),  # preemption: the survey resumes from the volume rows
 )
-def survey(commit: str, only: str = "", subset: bool = False, force: bool = False) -> str:  # noqa: FBT001, FBT002
+def survey(
+    commit: str,
+    only: str = "",
+    subset: bool = False,  # noqa: FBT001, FBT002
+    force: bool = False,  # noqa: FBT001, FBT002
+    modes: str = "",
+) -> str:
     """Detect, prepare, run; returns the device slug (rows: /vol/rows/<slug>.jsonl, entry: /vol/devices/<slug>.toml)."""
     _sh("nvidia-smi", "-q", "-d", "CLOCK,POWER")
     _weights_path()
@@ -245,7 +282,8 @@ def survey(commit: str, only: str = "", subset: bool = False, force: bool = Fals
         if _sh(PY, "tools/speed_survey.py", "prepare", "--device", slug, *sel):
             print("prepare: a file is missing; its rows will be `failed`", file=sys.stderr)
         print(f"prepare took {time.monotonic() - t0:.0f} s", flush=True)
-        rc = _sh(PY, "tools/speed_survey.py", "run", "--device", slug, *sel, *(["--force"] if force else []))
+        run = [*sel, *(["--modes", *modes.split()] if modes else []), *(["--force"] if force else [])]
+        rc = _sh(PY, "tools/speed_survey.py", "run", "--device", slug, *run)
     finally:
         stop.set()
         volume.commit()
@@ -285,6 +323,32 @@ def calls(model: str = "depth-pro") -> str:
     out.parent.mkdir(parents=True, exist_ok=True)
     _sh(PY, "tools/call_sweep.py", "--model", model, "--out", str(out))
     return out.read_text() if out.is_file() else ""
+
+
+@app.function(image=image, volumes={str(VOL): volume}, cpu=4, memory=32768, timeout=1800)
+def cutlass_convs(model: str = "crestereo-eth3d") -> str:
+    """`tools/conv_sweep.py` on this GPU: every CUTLASS conv call of one forward, tile configs 0-7 vs cuDNN."""
+    _sh("nvidia-smi", "--query-gpu=name,power.limit,clocks.max.sm", "--format=csv")
+    _weights_path()
+    out = VOL / "traces" / "convs.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    _sh(PY, "tools/conv_sweep.py", "--model", model, "--out", str(out))
+    return out.read_text() if out.is_file() else ""
+
+
+test_image = image.add_local_dir(ROOT / "tests", f"{REPO}/tests", ignore=["**/__pycache__", "**/.pytest_cache"])
+
+
+@app.function(image=test_image, volumes={str(VOL): volume}, cpu=4, memory=32768, timeout=3600)
+def golden_tests(k: str) -> str:
+    """`pytest -m gpu tests/test_golden.py -k <k>` on this GPU (parity only: never `--record`); returns the summary."""
+    _weights_path()
+    _goldens()
+    r = subprocess.run(
+        [PY, "-m", "pytest", "-m", "gpu", "tests/test_golden.py", "-k", k, "-q", "-rfEs", "--no-header", "-p",
+         "no:cacheprovider"], cwd=REPO, capture_output=True, text=True, check=False,
+    )  # fmt: skip
+    return r.stdout[-20000:] + r.stderr[-4000:]
 
 
 @app.function(image=image, volumes={str(VOL): volume}, cpu=4, memory=32768, timeout=1800)
@@ -366,10 +430,38 @@ def _commit_here() -> str:
     return head.stdout.strip() + ("+dirty" if dirty.stdout.strip() else "")
 
 
+def _unpublished_kernels() -> list[str]:
+    """The kernel libraries whose checkout manifest names a build that is not published (one HEAD request each).
+
+    The containers run offline, so such a library is a `failed` kernels row on every GPU unless the run brings the
+    binaries itself (FASTFORKS_MODAL_LOCAL_KERNELS=1).
+    """
+    import urllib.error  # noqa: PLC0415
+    import urllib.request  # noqa: PLC0415
+
+    missing = []
+    for path in sorted((ROOT / "src/fastforks/kernels").glob("*/manifest.toml")):
+        m = tomllib.loads(path.read_text())
+        name = next(iter(m["files"].values()))["name"]
+        url = m["url"].format(lib=m["name"], file=name)
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=30):  # noqa: S310
+                pass
+        except urllib.error.HTTPError as e:
+            if e.code == 404:  # noqa: PLR2004
+                missing.append(f"{m['name']}@{m['build_id']}")
+    return missing
+
+
 @app.local_entrypoint()
-def main(gpu: str = "L4", only: str = "", subset: bool = False, force: bool = False) -> None:  # noqa: FBT001, FBT002
-    """Survey one Modal GPU type and copy its rows here (`--only` takes space-separated refs)."""
-    slug = survey.with_options(gpu=gpu).remote(_commit_here(), only, subset, force)
+def main(gpu: str = "L4", only: str = "", subset: bool = False, force: bool = False, modes: str = "") -> None:  # noqa: FBT001, FBT002
+    """Survey one Modal GPU type and copy its rows here (`--only`, `--modes`: space-separated refs / modes)."""
+    if not LOCAL_KERNELS and (not modes or "kernels" in modes.split()) and (missing := _unpublished_kernels()):
+        sys.exit(
+            f"unpublished kernel builds in this checkout: {', '.join(missing)}; their kernels rows would fail. "
+            "Publish them, or survey the local build with FASTFORKS_MODAL_LOCAL_KERNELS=1."
+        )
+    slug = survey.with_options(gpu=gpu).remote(_commit_here(), only, subset, force, modes)
     _next_steps(_fetch([slug]))
 
 
@@ -423,6 +515,19 @@ def sweep(out: str, gpu: str = "L4", model: str = "depth-pro") -> None:
     """Per-call sweep (`tools/call_sweep.py`) of one model's kernels forward on one GPU, JSON to `--out`."""
     Path(out).write_text(calls.with_options(gpu=gpu).remote(model))
     print(f"{out} written")
+
+
+@app.local_entrypoint()
+def convs(out: str, gpu: str = "L4", model: str = "crestereo-eth3d") -> None:
+    """CUTLASS conv sweep (`tools/conv_sweep.py`) of one model's kernels forward on one GPU, JSON to `--out`."""
+    Path(out).write_text(cutlass_convs.with_options(gpu=gpu).remote(model))
+    print(f"{out} written")
+
+
+@app.local_entrypoint()
+def goldens(select: str, gpu: str = "L4") -> None:
+    """GPU golden parity (`tests/test_golden.py -m gpu -k <select>`) on one GPU; prints pytest's summary."""
+    print(golden_tests.with_options(gpu=gpu).remote(select))
 
 
 @app.local_entrypoint()
