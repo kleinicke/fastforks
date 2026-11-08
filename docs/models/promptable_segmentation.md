@@ -8,7 +8,7 @@ Input: one image plus a point, box or text prompt. Output: masks with quality sc
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
 
-Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md); [across devices](../benchmarks.md#other-devices).
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
@@ -75,9 +75,9 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `sam-vit-b` | 0.00044 / 0.00203 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120` |
-| `sam-vit-l` | 0.01589 / 0.06758 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120` |
-| `sam-vit-h` | 0.00329 / 0.01177 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120` |
+| `sam-vit-b` | 0.00044 / 0.00203 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
+| `sam-vit-l` | 0.01589 / 0.06758 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
+| `sam-vit-h` | 0.00329 / 0.01177 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 
 </details>
 
@@ -139,10 +139,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `sam2.1-hiera-tiny` | 0.00122 / 0.00428 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120` |
-| `sam2.1-hiera-small` | 0.00539 / 0.01677 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120` |
-| `sam2.1-hiera-base-plus` | 0.00245 / 0.00842 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120` |
-| `sam2.1-hiera-large` | 0.01872 / 0.08865 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120` |
+| `sam2.1-hiera-tiny` | 0.00122 / 0.00428 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
+| `sam2.1-hiera-small` | 0.00539 / 0.01677 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
+| `sam2.1-hiera-base-plus` | 0.00245 / 0.00842 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
+| `sam2.1-hiera-large` | 0.01872 / 0.08865 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 
 </details>
 

@@ -123,7 +123,7 @@ Next measurement (experiment 2): wall time of the kernels forward by section (en
   `flash64` 45 ms, LayerNorm 16 ms, everything else 5 ms. Nothing outside the kernels is left to win; the GEMMs are
   the target, and on a power-capped card the cheapest work per FLOP wins.
 
-## Experiment 3: kernel lab, sustained (in progress)
+## Experiment 3: kernel lab, sustained (done)
 
 `tools/kernel_lab.py` (`modal_survey.py::lab`) loads depth-pro once and switches variants in place: the tile cfg per
 problem, the `dpt_fused` library (built in the container from a modified source), the attention, the side streams.
@@ -149,6 +149,129 @@ Results on the A10 (iterations 2-4; ms, J per forward):
 - **Tiles have plateaued.** Only cfg 4 for the large non-GELU ViT GEMMs gains (about 2%), bit-identically.
 - **Attention is not a lever on the A10.** All three flash64 variants are equal; `ff` (SDPA precision) costs nothing.
 
+Results on the L4 (iteration 7, one run, steps added one at a time):
+
+| variant | ms | J | SM MHz | err vs fp32 (max / mean) |
+|---|---|---|---|---|
+| base | 559 | 40.2 | 689 | 0.0177 / 0.0021 |
+| tanh GELU only | 544 | 39.2 | 701 | 0.0122 / 0.0019 |
+| + cfg 4 for the 20195-row qkv / proj / fc2 | 520 | 37.7 | 759 | same |
+| + fc1 cfg 0 (or 11) instead of the rule's cfg 2 | **485** | **35.1** | 780 | same |
+| the same, flash64 `ff` | 484 | 34.9 | 788 | 0.0177 / 0.0022 |
+
+- **On the L4 the three steps add up to 13% (time and energy).** The tanh GELU alone gives 3%, the tiles give the
+  rest. That differs from the A10, where the GELU gave most of it, so the change has to ship as a whole: tanh GELU
+  plus both tile changes.
+- **`ff` attention costs nothing on either card.** It could become the default on full-rate cards (SDPA precision,
+  no overflow fallback needed), but it gains no speed.
+
+Results on the RTX 5060 Ti (ubuntu, 180 W cap, ~2360 MHz sustained; the same variants as the L4):
+
+| variant | ms | J | err vs fp32 (max / mean) |
+|---|---|---|---|
+| base | 272.4 | 49.0 | 0.0134 / 0.00087 |
+| tanh GELU only | 268.2 | 48.3 | 0.0197 / 0.0036 |
+| + cfg 4 for the 20195-row qkv / proj / fc2 | 277.0 | | |
+| + fc1 cfg 0 | 268.7 | 48.4 | |
+| the same, flash64 `ff` | 279.2 | | |
+
+- **On GeForce the change is not worth it.** The tanh GELU gains 1.5%, but quadruples the mean error against fp32:
+  GeForce's base output is much closer to fp32 than the full-rate cards' (0.00087 mean against 0.0021), and the tanh
+  form's own error then dominates. cfg 4 and `ff` attention are slower there.
+- **So it ships per card class** (`DptFused.full_rate`, from `half_rate_fp32_acc`): full-rate cards get the tanh
+  GELU (`DptFused.gelu`) and cfg 4; GeForce keeps erf and today's tiles. fc1 with the tanh GELU takes the rule's
+  128x128 pick (cfg 0) by itself, as the rule only forces 128x64 for the erf GELU.
+
+## Experiment 4: the shipped build, checked (done)
+
+The build `dpt_fused@48e0065bb7cf` ships the per-card switch: act 6 (tanh GELU) and cfg 4 for K >= 1024 GEMMs with at
+least 4 waves of 128x256 tiles on full-rate cards. The lab now takes `full_rate` and `act` per variant, so the old
+rule, the shipped rule with erf and the shipped rule with tanh run side by side on the same build (depth-pro, ms):
+
+| variant | L4 | A10 |
+|---|---|---|
+| old (GeForce rule, erf) | 564 | 367 |
+| full-rate rule, erf | 520 | 364 |
+| **full-rate rule, tanh (shipped)** | **484** | **349** |
+| the same, fc1 cfg 4 | 477 | 390 |
+| the same, fc1 cfg 1 (128x128, 4 stages) | 504 | 437 |
+| A10 only: fc1 128x128 / 64x64 warps, 3 stages (the lab's "cfg 11") | | 386 |
+| A10 only: the same, plus 128x256 4-stage or 256x128 for qkv / proj / fc2 | | 385-387 |
+
+- **Shipped: −14% on the L4, −5% on the A10.** On the L4 cfg 4 gives 8 points and the tanh GELU 6. On the A10 almost
+  all of it is the GELU.
+- **The A10's −11% in experiment 3 does not reproduce.** The "fc1 cfg 11" tile is 11% slower than cfg 0 here, and
+  no other tile beats the shipped pick. The cause is not found. Experiment 3 built its tanh variant from an older
+  source (the tanh form in place of act 5), and the base run differs by 2-3% between containers (357-367 ms).
+
+**Goldens with the tanh GELU** (5060 Ti, the full-rate path forced with `FASTFORKS_ACC=fp32`, 21 dpt_fused refs):
+two fail. depth-pro's intrinsics are off by 0.0023 (tolerance 0.00047), and UniK3D's depth by 0.020 mean (tolerance
+0.01). Both are uniform shifts (focal length, depth scale): the tanh form's slight negative bias (−5.6e-5 on N(0,1))
+accumulates through 24 blocks. The erf GELU with the full-rate tiles passes all 21.
+
+Cheaper exact-enough GELUs were tried as well (5060 Ti, depth-pro, forced full rate):
+- **A degree-3 odd fit inside `tanh.approx`** (max error 4.5e-5, bias ~0), clamped to |x| <= 6: the unclamped fit
+  turns over past |x| 11, and ViT outlier activations reach that. It passes all 21 goldens and is as accurate as
+  erf (0.00086 mean against fp32), but 7-10% slower than both erf and the tanh form.
+- **The same fit as x·sigmoid(2u)** (`ex2.approx` and a fast divide): one golden fails (MoGe points), and it is as
+  slow.
+
+**Shipped:** the tanh GELU for every family whose goldens pass with it, the erf GELU for depth-pro and UniK3D on every
+card (`FusedViT(gelu=ACT_GELU)`). Both families keep cfg 4. With that, all 21 goldens pass on both paths: GeForce
+default and full rate forced.
+
+## Experiment 5: CREStereo, a strong family (done)
+
+Question: what carries CREStereo's gain (kernels ÷ portable 0.31 on the 5060 Ti, 0.34 / 0.39 / 0.37 on the
+L4 / A10 / L40S), and is anything left on full-rate cards? Traces (`modal_survey.py::profile`) and a per-call sweep of
+the shared CUTLASS conv (`tools/conv_sweep.py`, `modal_survey.py::convs`), 994x1482.
+
+- **What worked:** the fusion. On the L4, portable → kernels goes from 941 to 327 ms and from 7,694 to 1,636 launches.
+  Elementwise drops from 332 to 8 ms, layout copies from 48 to 0 ms, reductions from 50 to 2 ms and norms from 16 to
+  0 ms, and the 137 ms of cuDNN NCHW↔NHWC transposes are gone. `agcl_corr` (21 ms) replaces `bilinear_sampler` plus
+  its elementwise ops (64 ms).
+- **What is left:** the CUTLASS convs (`fused_conv_kernel`, 616 launches), 72–75 % of the kernels forward:
+  225 / 190 / 70 ms on the L4 / A10 / L40S. They run at 48 / 57 / 155 TF/s on average (50–60 TF/s on the L4's large
+  shapes, which is about what its 72 W cap allows).
+- **Tile rule:** the best config per shape would save 5 %: 225 → 213, 190 → 179 and 70 → 67 ms. No single config
+  beats the rule by more than 1 %. cfg 2 (identity raster) and cfg 5 tie with cfg 0, and cfg 1 (the rule's
+  small-problem tile) is the worst on every card.
+- **fp16 vs fp32 accumulation:** cuDNN with fp32 accumulation (conv only, no epilogue) sums to 274 / 173 / 76 ms. Only on
+  the A10 is it faster than the fused kernels (173 vs 190 ms), and it would still need the epilogue passes the fusion
+  saves. An fp32-accumulate CUTLASS build is not worth it here.
+- **The one outlier:** `convf1`, the 7x7 conv over the flow (2 channels padded to 8), runs at 21 TF/s. cuDNN does it in
+  less than half the time (0.205 vs 0.451 ms at 1/4 resolution, 20 calls). Fixing it (im2col of the 98 real taps in
+  `flow_pack`, then a K = 104 GEMM) saves about 7 ms per forward on the L4 and A10 and 2 ms on the L40S, roughly 2 %.
+
+Verdict: CREStereo is at its ceiling on these cards; what is left is about 2 % (`convf1`) plus up to 5 % of conv time
+from tiles. The families that lost speed on full-rate cards (marigold, rt-monster++, cfnet, sam3, eomt) are worth more.
+
+## Experiment 6: the families that lost speed (done)
+
+Question: why are marigold, rt-monster++ and cfnet slower in kernels mode than portable on full-rate cards (kernels ÷
+portable 1.24 / 1.26 / 1.01 on the A10), and why do sam3 and eomt keep so little? A10 traces of both modes, then a
+fix per family, traced again on the A10 (and L4), GPU goldens on the A10 (`modal_survey.py::goldens`, all pass).
+None of the three losses was the convs or GEMMs: each was layout or algorithm choice around them, so the fixes help
+the GeForce cards as well.
+Times: A10 traces before → after, L4 survey rows after the fix (2026-11-08) against the earlier survey; portable in
+parentheses.
+
+| family | cause | fix | A10 kernels (portable) | L4 kernels (portable) |
+|---|---|---|---|---|
+| marigold | `nn.GroupNorm` on the channels-last maps: copy to NCHW, NCHW out, the next conv copies back (96 + 55 ms copies, 52 ms norm) | `net/fast.py` `group_norm`: group statistics (fp32-accumulated `var_mean`) on the channels-last view folded into a per-channel scale + shift (`addcmul`), SiLU in place; no layout copy, 7 launches | 427 → 259 ms (335) | 489 → 346 ms (457) |
+| rt-monster++ | `grid_sample` and `repeat` on channels-last fp32 features (the fused affine kernels keep them NHWC; portable's InstanceNorm returns NCHW): uncoalesced, 28 vs 4 ms and 14 vs 1.4 ms | `net/inference.py` `_nchw32`: the fp32 copy those lookups already made, as NCHW | 140 → 105 ms (111) | 130 → 125 ms (132) |
+| cfnet | the kernels runner did not ask for deterministic cuDNN (Portable does): its fp32 transposed 3D convs got the atomic `convolveNd_dgrad_float_engine`, 32 ms for 4 calls | `Kernels.deterministic_cudnn = True` | 462 → 433 ms (457) | 484 ms (544) |
+
+- **Launches on the L40S:** there the kernels forward is launch-bound (kernel time 101 vs 136 ms portable, wall about
+  equal). A first `group_norm` with fp32 casts took about 14 launches per norm (6,709 launches against portable's
+  4,994); folded into 7 fp16 ops it is 4,637, and the traced forward 147 → 124 ms (portable 161).
+- **What is left in cfnet:** the stage volumes' warp (`mul` + `gather`, about 190 ms of 433, the same in both modes).
+  A CUDA version of the Metal `WarpVolume` kernel would be the next step there.
+- **sam3, eomt:** GEMM-bound ViTs (sam3: 63 of 135 ms in two cuBLAS `h16816` fp16-accumulate GEMMs). On a full-rate
+  card fp16 accumulation gains nothing (diagnosis 1), so what is left is attention and elementwise fusion: kernels ÷
+  portable 0.90 (sam3) and about 1.0 (eomt, 19 ms) on the A10. No layout loss to fix; their gain comes back only
+  with fp32-accumulate fused blocks or a better tile table (design 2 and 3).
+
 ## Diagnosis (revised)
 
 1. **fp16 accumulation buys nothing on these cards.** In the cuBLAS test, fp16 and fp32 accumulation run at the
@@ -171,7 +294,9 @@ Results on the A10 (iterations 2-4; ms, J per forward):
 5. **The erf GELU epilogue is expensive on the power-capped L4.** fc1 runs 26% below qkv with the same tiles. On the
    A10 the gap is 9%, on the L40S 3%. A cheaper GELU (tanh form with `tanh.approx.f32`, as cuBLASLt uses, or a
    cheaper erf) would close most of it. Its accuracy cost is measured above as negligible.
-6. **`cudnn_hacc` only (Marigold, MiDaS) is plain loss on full-rate cards.** Use the default cuDNN engines there.
+6. **`cudnn_hacc` only (Marigold, MiDaS) gains little on full-rate cards.** Marigold's loss was its GroupNorm layout
+   copies, not the convs (experiment 6); with those gone its kernels path is 21 % / 23 % faster than portable on the
+   A10 / L4.
 
 ## Design (revised)
 
@@ -181,7 +306,7 @@ Start flexible: per-card switches and a sweep. Later, the full per-card benchmar
 
 The compute capability does not separate the classes: sm_86, sm_89 and sm_120 each contain GeForce (half-rate fp32
 accumulation) and datacenter or pro cards (full rate). The rule is: `"GeForce" in name` means half rate, everything
-else full rate. It lives in `fastforks._core.kernels.half_rate_fp32_acc(device)`, with an env override
+else full rate. It lives in `fastforks._core.kernels.half_rate_fp32_acc(device)` (done), with an env override
 (`FASTFORKS_ACC=fp16|fp32`) for experiments. A timing probe is not needed for dispatch; the sweep tool can check the
 rule on each new card.
 
@@ -191,7 +316,7 @@ rule on each new card.
 |---|---|---|
 | `dpt_fused` GEMM / conv | fp16 accumulation | fp32-accumulate variants of the same tiles. Today only cfg 5/6 (GEMM) and 6/7 (conv) exist; add fp32 versions of cfg 0, 2 and 4. |
 | tile choice | `gemm_cfg` / `conv_cfg` rule | the measured table (item 3), else the rule |
-| GELU epilogue | erf | tanh approximation (`tanh.approx.f32`), if the goldens pass; worth trying on GeForce too |
+| GELU epilogue | erf | tanh approximation (`tanh.approx.f32`), shipped (`DptFused.gelu`), except depth-pro and UniK3D (goldens, experiment 4); measured on GeForce too and not worth it |
 | attention | `flash64_*` (fp16 QK and PV) | `F.scaled_dot_product_attention` |
 | `cudnn_hacc` | fp16-accumulate engines | default cuDNN heuristic |
 
@@ -226,4 +351,11 @@ to cuBLAS is large, use cuBLASLt there, or a CUTLASS 3.x kernel with an epilogue
 - **Per-card tiles plus SDPA (experiment 1):** per-call sums go down by 30 ms on the L4 (419 to 390), 9 ms on the A10 and
   8 ms on the L40S. The cheap GELU comes on top (fc1 is the largest single GEMM on the L4: 80 ms).
 - **The 50-140 ms outside the calls** are worth more than all tile work together, once experiment 2 says where they are.
-- **5060 Ti:** nothing changes, except the cheap GELU if it is worth it there too.
+- **5060 Ti:** nothing changes; the cheap GELU is not worth it there (experiment 3).
+- **Shipped (experiment 4), sustained:** depth-pro −8% on the L4 (cfg 4 only: it keeps the erf GELU) and about −1% on
+  the A10. The other ViT families also get the tanh GELU: −14% / −5% in the lab on depth-pro's shapes.
+  Survey (burst, kernels mode, against HEAD): on the L4, −3 to −11% on most depth models, depth-pro −15.5% and
+  UniK3D −2.5%; DA-V2-s +1% and MoGe-2-vits +4%, within noise for models this small. The L40S is roughly neutral
+  (−0.5 to −6%, depth-pro +0.5%), with DA-V2-s at −17% and MoGe-2-vits at +20%, both one-off small-model noise.
+  On the A10, flat to +6%: no gain. Modal twice placed the depth-pro / UniK3D re-run on an A10G; a third run on a real
+  A10 measured 358.8 / 78.4 ms, the rows the A10 page shows.

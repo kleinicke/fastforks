@@ -84,7 +84,8 @@ timed calls, `peak_first_*` of the first call alone.
 in the file). Exactly one is the reference (`reference = true`, the RTX 5060 Ti): its rows are `speed.jsonl` above, its
 tables `docs/benchmarks.md`, and only its rows are a regression floor (`tests/test_speed_floor.py`,
 `tools/speed_check.py`, `tools/merge_check.py`). Every other device is a survey: rows in `speed/<slug>.jsonl`, a
-generated page `docs/devices/<slug>.md`, and **no floor**: a slower survey row never fails a check.
+generated page `docs/devices/<slug>.md`, and **no floor**: a slower survey row never fails a check. A device with
+`hidden = true` keeps its rows (still checked) but gets no page, nav entry or column until the flag is removed.
 
 A survey row has the keys of `speed.jsonl` plus:
 

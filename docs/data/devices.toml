@@ -12,6 +12,7 @@
 #   memory    memory as sold (unified on Apple silicon)
 #   details   further hardware facts (cores, power limit, host)
 #   software  OS / driver / torch / toolkit of the shown measurements
+#   hidden    true: rows kept and checked, but the docs show nothing (no page, nav entry or column); for later
 
 [rtx-5060-ti-16gb]
 name = "RTX 5060 Ti 16 GB"
@@ -52,4 +53,29 @@ backend = "cuda"
 match = "NVIDIA A10"
 memory = "22 GB"
 details = "sm_86"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
+
+[a10g-22gb]
+name = "NVIDIA A10G"
+hidden = true  # by-product: Modal placed an "A10" run on an A10G; kept, not shown
+backend = "cuda"
+match = "NVIDIA A10G"
+memory = "22 GB"
+details = "sm_86"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
+
+[a100-sxm4-40gb]
+name = "NVIDIA A100-SXM4-40GB"
+backend = "cuda"
+match = "NVIDIA A100-SXM4-40GB"
+memory = "40 GB"
+details = "sm_80"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
+
+[rtx-pro-6000-96gb]
+name = "NVIDIA RTX PRO 6000"
+backend = "cuda"
+match = "NVIDIA RTX PRO 6000 Blackwell Server Edition"
+memory = "96 GB GDDR7"
+details = "Blackwell Server Edition, sm_120, 600 W"
 software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"

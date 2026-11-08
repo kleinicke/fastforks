@@ -9,7 +9,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 - commercial use: `yes` only if the code and the weights licence both allow it.
 - Accuracy is a check on public images, not a leaderboard: † = trained on that data, ? = training data not stated; the most-accurate picks skip both. Best trade-off = the fastest model within 1.25x of the lowest error.
 - Peak memory = the kernels run's peak allocated GPU memory (CUDA, weights included); the model pages' summary tables list peak reserved (what the caching allocator holds, larger). – = not measured.
-- Other devices: [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md), [NVIDIA L4](devices/l4-22gb.md), [NVIDIA L40S](devices/l40s-44gb.md), [NVIDIA A10](devices/a10-22gb.md); [across devices](benchmarks.md#other-devices).
+- Other devices: [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md), [NVIDIA L4](devices/l4-22gb.md), [NVIDIA L40S](devices/l40s-44gb.md), [NVIDIA A10](devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](devices/rtx-pro-6000-96gb.md); [across devices](benchmarks.md#other-devices).
 
 ## Stereo
 
@@ -84,7 +84,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`cfnet-sceneflow`](models/stereo.md#cfnet) | yes | 5.60 | 545.4 (994x1482) | 484.3 | 400.7 | 1.4x vs original (994x1482) | 3662 |
 | [`mocha-v2-sceneflow`](models/stereo.md#mocha-stereo) | yes | 3.82 | 1295.1 (994x1482) | 1033.5 | 448.1 | 2.9x vs original (994x1482) | 1587 |
 | [`mocha-v1-sceneflow`](models/stereo.md#mocha-stereo) | yes | 4.35 | 1456.2 (994x1482) | 1057.2 | 455.5 | 3.2x vs original (994x1482) | 1588 |
-| [`great-igev-middlebury`](models/stereo.md#great-igev) | yes | 27.53 ? | – | 1785.3 | 578.8 | 3.1x vs portable | 1553 |
+| [`great-igev-middlebury`](models/stereo.md#great-igev) | yes | 27.53 ? | OOM (994x1482) | 1785.3 | 578.8 | 3.1x vs portable | 1553 |
 | [`defom-stereo-vitl-sceneflow`](models/stereo.md#defom-stereo) | no | 2.44 | 2815.8 (994x1482) | 1530.9 | 658.7 | 4.3x vs original (994x1482) | 3154 |
 | [`monster-mix-all`](models/stereo.md#monster) | no | 1.25 † | 4275.0 (994x1482) | 1585.2 | 667.6 | 6.4x vs original (994x1482) | 2356 |
 | [`monster-sceneflow`](models/stereo.md#monster) | no | 1.34 | 4275.0 (994x1482) | 1585.2 | 667.6 | 6.4x vs original (994x1482) | 2356 |
@@ -106,7 +106,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 - Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.9 ms, error 0.0346).
 - Best trade-off: [`da3mono-large`](models/depth.md#depth-anything-3) (14.6 ms, error 0.0402).
 - Fastest commercially usable: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
-- Most accurate commercially usable: [`moge-3-vitl`](models/depth.md#moge) (214.0 ms, error 0.0356).
+- Most accurate commercially usable: [`moge-3-vitl`](models/depth.md#moge) (214.7 ms, error 0.0356).
 
 The error is AbsRel after a per-image scale and shift alignment for every model: it ranks relative depth quality, not metric accuracy (metric error is not measured here). Best relative, commercially usable: the most accurate pick above. Metric (metres), commercially usable: `metric3d-vit-large` and `da3metric-large` (give `intrinsics=`), `moge-2-vitl-normal`, `zoedepth-nk`; non-commercial: `unidepth-v2-vitl14`. See the [depth page](models/depth.md) for `kind` and `intrinsics=`.
 
@@ -127,7 +127,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`moge-2-vitl-normal`](models/depth.md#moge) | yes | 0.0357 | 170.7 (994x1482) | 144.5 | 73.4 | 2.3x vs original (994x1482) | 1498 |
 | [`zoedepth-nk`](models/depth.md#zoedepth) | yes | 0.0532 | 271.2 (994x1482) | 124.0 | 88.9 | 3.1x vs original (994x1482) | 1771 |
 | [`metric3d-vit-large`](models/depth.md#metric3d-v2) | yes | 0.0546 | 438.5 (994x1482) | 200.3 | 158.5 | 2.8x vs original (994x1482) | 1516 |
-| [`moge-3-vitl`](models/depth.md#moge) | yes | 0.0356 | – | 904.9 | 214.0 | 4.2x vs portable | 1690 |
+| [`moge-3-vitl`](models/depth.md#moge) | yes | 0.0356 | 485.6 (994x1482) | 513.7 | 214.7 | 2.3x vs original (994x1482) | 1673 |
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 518.4 | 270.9 | 2.1x vs original (994x1482) | 3667 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 408.1 | 383.2 | 1.1x vs original (994x1482) | 2583 |
 
@@ -271,7 +271,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
 | [`patchmatchnet`](models/multiview.md#patchmatchnet) | yes | 219.7 (1536x1024) | 201.7 | 29.6 | 7.4x vs original (1536x1024) | 740 |
-| [`mvsanywhere`](models/multiview.md#mvsanywhere) | no | – | 93.2 | 35.6 | 2.6x vs portable | 761 |
-| [`vggt-1b`](models/multiview.md#vggt) | no | – | 651.2 | 458.4 | 1.4x vs portable | 3702 |
-| [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | – | 725.7 | 464.4 | 1.6x vs portable | 3422 |
-| [`mapanything-apache`](models/multiview.md#mapanything) | yes | – | 635.9 | 544.0 | 1.2x vs portable | 3697 |
+| [`mvsanywhere`](models/multiview.md#mvsanywhere) | no | 218.7 (448x672) | 93.2 | 35.6 | 6.1x vs original (448x672) | 761 |
+| [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 651.2 | 458.4 | 2.1x vs original (336x518) | 3702 |
+| [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 464.4 | 2.0x vs original (336x518) | 3422 |
+| [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |

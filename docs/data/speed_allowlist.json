@@ -5,5 +5,7 @@
   "las2-m 375x1242 portable vs upstream": "deterministic cuDNN + channels-last portable (repeat maxdiff 0); without both 21.6 ms (+8 %) and non-deterministic (maxdiff 0.04 px); 2026-11-03 runs/fork_ab/fix/las2.jsonl",
   "las2-m 994x1482 portable vs upstream": "deterministic cuDNN + channels-last portable; without both 52.6 ms (= upstream 52.4) but non-deterministic (maxdiff 0.004 px); 2026-11-03 las2.jsonl",
   "las2-s 375x1242 portable vs upstream": "deterministic cuDNN + channels-last portable (repeat maxdiff 0); without both 18.9 ms (+9 %) and non-deterministic (maxdiff 0.05 px); 2026-11-03 las2.jsonl",
-  "las2-s 994x1482 portable vs upstream": "deterministic cuDNN + channels-last portable; without both 43.7 ms (= upstream 43.5) but non-deterministic (maxdiff 0.003 px); 2026-11-03 las2.jsonl"
+  "las2-s 994x1482 portable vs upstream": "deterministic cuDNN + channels-last portable; without both 43.7 ms (= upstream 43.5) but non-deterministic (maxdiff 0.003 px); 2026-11-03 las2.jsonl",
+  "moge-3-vitl 518x770 portable vs upstream": "sparse refiner: portable is plain PyTorch (CUDA fp16: one gather + GEMM over the common taps, index-add for the rest; 354 vs 324 ms), the original runs FlexGEMM's fused Triton kernels (CUDA only); index_select / GEMM-then-gather / other block sizes not faster (2026-11-08); kernels 150 ms beats both",
+  "moge-3-vitl 994x1482 portable vs upstream": "sparse refiner: portable is plain PyTorch (CUDA fp16: one gather + GEMM over the common taps, index-add for the rest; 514 vs 486 ms), the original runs FlexGEMM's fused Triton kernels (CUDA only); index_select / GEMM-then-gather / other block sizes not faster (2026-11-08); kernels 215 ms beats both"
 }

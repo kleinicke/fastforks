@@ -8,7 +8,7 @@ Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured. The accuracy column is lower-is-better (NYUv2 AbsRel (scale+shift aligned)).
 
-Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md); [across devices](../benchmarks.md#other-devices).
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | NYUv2 AbsRel (scale+shift aligned) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
@@ -26,7 +26,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.89, 5.2x | 1436, 0.5x |
 | [`moge-2-vitl-normal`](#moge) | yes | 0.0357 | 73.43, 2.3x | 1610, 0.66x |
 | [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 29.73, 2.8x | 1008, 0.79x |
-| [`moge-3-vitl`](#moge) | yes | 0.0356 | 214.048 | 1844, 0.62x |
+| [`moge-3-vitl`](#moge) | yes | 0.0356 | 214.71, 2.3x | 1884, 0.72x |
 | [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 66.37, 2.0x | 1472, 0.42x |
 | [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.92, 2.1x | 1266, 0.35x |
 | [`zoedepth-nk`](#zoedepth) | yes | 0.0532 | 88.87, 3.1x | 1960, 0.91x |
@@ -114,11 +114,11 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `da3mono-large` | 0.00032 / 0.00078 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3metric-large` | 0.00196 / 0.00259 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3-large-1.1` | 0.00011 / 0.00031 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3-giant-1.1` | 0.00014 / 0.00037 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `da3nested-giant-large-1.1` | 0.00151 / 0.00184 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3mono-large` | 0.00032 / 0.00078 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3metric-large` | 0.00196 / 0.00259 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3-large-1.1` | 0.00011 / 0.00031 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3-giant-1.1` | 0.00014 / 0.00037 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `da3nested-giant-large-1.1` | 0.00151 / 0.00184 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 </details>
 
@@ -189,9 +189,9 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `depth-anything-v2-s` | 0.00038 / 0.00124 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `depth-anything-v2-b` | 0.00072 / 0.00264 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `depth-anything-v2-l` | 0.00077 / 0.0024 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `depth-anything-v2-s` | 0.00038 / 0.00124 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `depth-anything-v2-b` | 0.00072 / 0.00264 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `depth-anything-v2-l` | 0.00077 / 0.0024 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 </details>
 
@@ -245,7 +245,7 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `depth-pro` | 0.00107 / 0.00197 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `depth-pro` | 0.00107 / 0.00197 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 </details>
 
@@ -434,7 +434,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>64.2<br>29.7<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1066 / 1336<br>884 / 1008<br>836 / 992<br>620 (engine) |
 | `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 501<br>171<br>144<br>73.4 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610 |
-| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 32368<br>–<br>905<br>214 | 2834 / 2990<br>–<br>2157 / 2424<br>1690 / 1844 |
+| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 843<br>486<br>514<br>215 | 2812 / 2990<br>2505 / 2630<br>1686 / 1924<br>1673 / 1884 |
 
 <details><summary>Details</summary>
 
@@ -452,9 +452,10 @@ Commercial use: yes.
 - `moge-2-vits-normal` 994x1482, first call: portable + torch.compile 124 s (cold Inductor cache), TensorRT fp16 131 s (ONNX + engine).
 - `moge-2-vits-normal` load / first call: original 0.88 s / 1.501 s, portable 0.35 s / 0.084 s, kernels 0.11† s / 0.099 s
 - `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 1.37 s / 0.144 s, kernels 0.63† s / 0.131 s
-- `moge-3-vitl` load / first call: original 9.64 s / 34.35 s, portable 1.47 s / 0.951 s, kernels 1.13 s / 0.291 s
+- `moge-3-vitl` load / first call: original 10.6 s / 2.918 s, portable 1.02 s / 0.562 s, kernels 1.66 s / 0.301 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
-- Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- Protocol, `moge-2-vits-normal`, `moge-2-vitl-normal`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- Protocol, `moge-3-vitl`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -483,9 +484,9 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `moge-2-vits-normal` | 0.00116 / 0.0013 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
-| `moge-2-vitl-normal` | 0.00382 / 0.00394 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
-| `moge-3-vitl` | 0.00421 / 0.0049 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
+| `moge-2-vits-normal` | 0.00116 / 0.0013 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
+| `moge-2-vitl-normal` | 0.00382 / 0.00394 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
+| `moge-3-vitl` | 0.00421 / 0.0049 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
 
 </details>
 
@@ -539,7 +540,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `unidepth-v2-vitl14` | 0.004 / 0.00526 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `unidepth-v2-vitl14` | 0.004 / 0.00526 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 
@@ -597,7 +598,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `unik3d-vitl` | 0.00257 / 0.00355 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@415b13f0e87b:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `unik3d-vitl` | 0.00257 / 0.00355 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 </details>
 
