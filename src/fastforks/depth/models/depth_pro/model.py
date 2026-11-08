@@ -325,9 +325,11 @@ class _KernelsNet:
         fov = net.fov
         self.fov_linear = fov.encoder[1].float().to(device)
         self.fov_down, self.fov_head = fov.downsample.float().to(device), fov.head.float().to(device)
-        self.pvit = FusedViT(enc.patch_encoder, device, k)
-        self.ivit = FusedViT(enc.image_encoder, device, k)
-        self.fvit = FusedViT(fov.encoder[0], device, k)
+        # exact GELU throughout: the tanh form's bias shifts the focal length past the golden's tolerance (in every
+        # encoder: the FOV head reads the patch features too)
+        self.pvit = FusedViT(enc.patch_encoder, device, k, gelu=ACT_GELU)
+        self.ivit = FusedViT(enc.image_encoder, device, k, gelu=ACT_GELU)
+        self.fvit = FusedViT(fov.encoder[0], device, k, gelu=ACT_GELU)
         self.streams = (side_stream(device, 0), side_stream(device, 1)) if streams else None
 
     def _vit(self, fv: FusedViT, cols: torch.Tensor) -> torch.Tensor:
@@ -487,7 +489,7 @@ _MEAN = (0.5, 0.5, 0.5)  # fixed: upstream Normalize([0.5] * 3, [0.5] * 3) (mean
 
 # after the portable part: kernels-only dependencies
 from fastforks.depth.models.depth_anything_v2.fused import FusedViT, _conv, _linear_1x1  # noqa: E402 - shared conversions
-from fastforks.kernels.dpt_fused import ACT_RELU, DptFused  # noqa: E402
+from fastforks.kernels.dpt_fused import ACT_GELU, ACT_RELU, DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}

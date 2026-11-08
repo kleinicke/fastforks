@@ -5,7 +5,9 @@ Upstream runs it on FlexGEMM (Triton, CUDA only). The same operations here, on a
 - voxels: `[b, i, j, z]` integer coordinates; a level's voxels are kept sorted by their key `((b H + i) W + j) Z + z`
 - submanifold 3x3x3 conv: `out[n] = bias + sum_v W[:, v] x[nbr(n, v)]` over the present neighbours `coord + d_v`,
   `d_v` in `product((-1, 0, 1), repeat=3)` over `(i, j, z)` (FlexGEMM's weight layout `[C_out, 3, 3, 3, C_in]`), as one
-  gather + GEMM + index-add per tap over the precomputed neighbour pairs (each output once per tap: deterministic)
+  gather + GEMM + index-add per tap over the precomputed neighbour pairs (each output once per tap: deterministic).
+  On CUDA in fp16 the taps most voxels have (`_DENSE_SHARE`: the centre and the in-plane `dz = 0` ones) instead run as
+  one gather + GEMM over a `[N, taps]` neighbour table (a zero row for a missing neighbour), the rest per tap
 - mean pool 2x2x2 / stride 2: parent = `coord // 2`, mean over the present children (segment reduce); nearest
   upsampling copies the parent's features back to the skip level's voxels
 - the bottleneck is fused with the dense encoder features at the parent pixel `(i, j)` of the deepest level
@@ -38,6 +40,11 @@ if TYPE_CHECKING:
 
 _TAPS = list(itertools.product((-1, 0, 1), repeat=3))  # (di, dj, dz), FlexGEMM's order (dz fastest)
 _CENTER = 13
+# CUDA fp16: taps present at >= this share of a level's voxels join the one gather + GEMM; the rest run per tap.
+# Measured on the RTX 5060 Ti (MoGe-3 refiner, fp16): 0.4 the fastest (994x1482 400 ms vs 443 ms per tap, 518x770 214
+# vs 291); float32 and MPS stay per tap (the table gather loses there).
+_DENSE_SHARE = 0.4
+_GATHER_BLOCK = 1 << 24  # elements of one gathered `[rows, taps * C_in]` block
 _LN_EPS = 1e-6  # fixed: upstream SparseResBlock3d LayerNorm
 
 
@@ -63,6 +70,19 @@ class Level:
         """`pairs[v]` = (output indices, input indices) of tap `v`; `None` for the centre tap (every voxel)."""
         assert self.nbr is not None  # noqa: S101 - a sparse level
         return _pairs(self.nbr)
+
+    @functools.cached_property
+    def dense(self) -> tuple[list[int], torch.Tensor]:
+        """The taps present at >= `_DENSE_SHARE` of the voxels (the centre included) and their table.
+
+        Table `[N, taps]`: the int64 input index, `N` for none (a zero row).
+        """
+        assert self.nbr is not None  # noqa: S101 - a sparse level
+        n = self.nbr.shape[1]
+        share = ((self.nbr >= 0).sum(1) / n).tolist()
+        taps = [v for v in range(len(_TAPS)) if v == _CENTER or share[v] >= _DENSE_SHARE]
+        nb = self.nbr[taps]
+        return taps, torch.where(nb >= 0, nb, n).t().long().contiguous()
 
 
 def _key(c: torch.Tensor, extent: tuple[int, int, int]) -> torch.Tensor:
@@ -177,10 +197,26 @@ def subm_conv(x: torch.Tensor, lv: Level, weight: torch.Tensor, bias: torch.Tens
     if lv.grid is not None:
         return _grid_conv(x, lv, weight, bias)
     w = weight.reshape(weight.shape[0], len(_TAPS), weight.shape[-1]).to(x.dtype)
-    out = torch.addmm(bias.to(x.dtype), x, w[:, _CENTER].t())
+    if x.is_cuda and x.dtype == torch.float16:
+        taps, table = lv.dense
+        out = _gather_mm(x, table, w[:, taps].reshape(w.shape[0], -1).t(), bias.to(x.dtype))
+    else:
+        taps = [_CENTER]
+        out = torch.addmm(bias.to(x.dtype), x, w[:, _CENTER].t())
     for v, p in enumerate(lv.pairs):
-        if p is not None and p[0].numel():
+        if v not in taps and p is not None and p[0].numel():
             out.index_add_(0, p[0], x[p[1]] @ w[:, v].t())
+    return out
+
+
+def _gather_mm(x: torch.Tensor, table: torch.Tensor, w: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
+    """`bias + x[table] @ w` per row block (`table [N, taps]`, `N` = a zero row; `w [taps * C_in, C_out]`)."""
+    xp = torch.cat([x, x.new_zeros(1, x.shape[1])])
+    out = x.new_empty(table.shape[0], w.shape[1])
+    rows = max(1, _GATHER_BLOCK // w.shape[0])
+    for s in range(0, table.shape[0], rows):
+        t = table[s : s + rows]
+        torch.addmm(bias, xp[t].view(t.shape[0], -1), w, out=out[s : s + rows])
     return out
 
 

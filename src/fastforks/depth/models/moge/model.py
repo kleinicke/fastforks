@@ -255,8 +255,8 @@ def _rep_conv(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
 class Portable(Runner):
     """The upstream modules with fused SDPA attention: float32, or fp16 autocast.
 
-    In float16 the point / normal output convs, the metric-scale MLP, the post-processing and the MoGe-3 refiner stay in
-    float32.
+    In float16 the point / normal output convs, the metric-scale MLP and the post-processing stay in float32, and so
+    does the MoGe-3 refiner except on CUDA (fp16 there, as upstream's `use_fp16` and the kernels mode run it).
     """
 
     dtypes = ("float32", "float16")
@@ -279,6 +279,8 @@ class Portable(Runner):
                 half_weights(m)
             net.points_head.output_blocks.float()
             net.normal_head.output_blocks.float()
+            if net.refiner is not None and ctx.device.type == "cuda":
+                net.refiner.half()
             for m in net.modules():
                 if isinstance(m, nn.Conv2d) and m.padding_mode == "replicate" and m.padding == (1, 1):
                     override(m, _rep_conv)
@@ -303,7 +305,8 @@ class Portable(Runner):
         with torch.autocast(image.device.type, enabled=False):
             scale = net.scale_head(cls.float())[:, 0].exp()
             if net.refiner is not None:
-                coords = refine(net.refiner, coords, enc.float(), torch.float32)
+                rdt = next(net.refiner.parameters()).dtype
+                coords = refine(net.refiner, coords, enc.float(), rdt)
         return coords, mask, normal, scale
 
     def _run(self, image: torch.Tensor, k: torch.Tensor | None) -> dict[str, torch.Tensor]:
@@ -323,7 +326,7 @@ class Portable(Runner):
 # kernels-only dependencies (after the portable part)
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD  # noqa: E402
 from fastforks.depth.models.depth_anything_v2.fused import FusedViT, _linear_1x1, _resize  # noqa: E402 - shared DPT conversions
-from fastforks.kernels.dpt_fused import ACT_GELU, DptFused  # noqa: E402
+from fastforks.kernels.dpt_fused import DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 from fastforks.shared.depth_anything_v2.fast_vit import _flash  # noqa: E402
 
@@ -476,7 +479,7 @@ class _MoGeViT(FusedViT):
             att = _flash(qkv, (c // h) ** -0.5, self.attn)
             c32 = self._cls_block(i, c32, att.view(b, -1, c)[:, 0])
             k.gemm(att, a.proj.weight, a.proj.bias, scale=g1, res=t, out=t)
-            hid = k.gemm(blk.norm2(t), m.fc1.weight, m.fc1.bias, act=ACT_GELU)
+            hid = k.gemm(blk.norm2(t), m.fc1.weight, m.fc1.bias, act=k.gelu)
             k.gemm(hid, m.fc2.weight, m.fc2.bias, scale=g2, res=t, out=t)
             if i in layers:
                 outs.append(vit.norm(t[:, 1:]))

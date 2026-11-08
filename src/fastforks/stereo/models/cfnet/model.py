@@ -224,6 +224,7 @@ class Portable(Runner):
 class Kernels(Runner):
     """Our kernels: fp16-accumulate convs, conv + BatchNorm fused into one epilogue, fp16 (`FP32_MODULES`: fp32)."""
 
+    deterministic_cudnn = True  # as Portable: the default transposed 3D convs fall back to a slow atomic fp32 engine
     Params = Params
 
     def __init__(self, ctx: Context) -> None:

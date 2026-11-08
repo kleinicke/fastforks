@@ -8,7 +8,8 @@
 //
 //   v = act((acc + bias[n]) * scale[n] + res[p, n] + res2[p, n])      (every term optional)
 //   y[p, n] = v;  y2[p, n] = relu(v) if y2                            (row strides ldy / ldy2 / lres / lres2)
-//   act: 0 none, 1 relu, 5 gelu (erf)
+//   act: 0 none, 1 relu, 5 gelu (erf), 6 gelu (tanh form with tanh.approx.f32: far fewer instructions than erff, which
+//   matters on power-capped cards; its error is below the fp16 output rounding)
 //   shuffle (sh > 0): deconvolution with kernel == stride as a GEMM: row p = (b, h, w) of a [B, H, W] grid, column
 //   n = (a, c, k) with a < sh, c < sw, k < cout -> y[((b * H + h) * sh + a) * (W * sw) + w * sw + c, k] (NHWC, ldy)
 //
@@ -50,6 +51,11 @@ __device__ __forceinline__ float act_f(float v, int act) {
     switch (act) {
         case 1: return fmaxf(v, 0.f);
         case 5: return 0.5f * v * (1.f + erff(v * 0.70710678118654752f));
+        case 6: {
+            float t, u = 0.7978845608028654f * v * (1.f + 0.044715f * v * v);  // sqrt(2 / pi) (v + 0.044715 v^3)
+            asm("tanh.approx.f32 %0, %1;" : "=f"(t) : "f"(u));
+            return 0.5f * v * (1.f + t);
+        }
     }
     return v;
 }

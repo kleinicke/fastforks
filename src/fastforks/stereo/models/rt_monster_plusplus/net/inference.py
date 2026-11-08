@@ -62,6 +62,12 @@ def _lookup(geo, disp, coords, ndisps=None):
     return torch.cat([g, c.view(b, h, w, -1)], -1).permute(0, 3, 1, 2).contiguous().float()
 
 
+def _nchw32(x):
+    """fp32 NCHW copy: `grid_sample` / `repeat` read a channels-last map uncoalesced (the kernels path keeps the
+    features channels-last; portable's InstanceNorm returns NCHW). Several times slower on an A10 otherwise."""
+    return x.to(torch.float32, memory_format=torch.contiguous_format)
+
+
 def warp(img, disp):
     """warp.disp_warp(img, disp)[0] (border padding, same coordinate formula, fp32) without the unused valid mask."""
     b, _, h, w = img.shape
@@ -147,7 +153,7 @@ def _forward(self, image1, image2):
                 drs = get_cur_disp_range_samples(cur_disp=disp_next.squeeze(1), ndisp=self.ndisps[i - 1],
                                                  disp_interval_pixel=self.disp_interval_pixel[i - 1],
                                                  shape=[match_left.shape[0], match_left.shape[2], match_left.shape[3]])
-                gwc_volume = build_gwc_volume_selective(match_left.float(), match_right.float(), drs,
+                gwc_volume = build_gwc_volume_selective(_nchw32(match_left), _nchw32(match_right), drs,
                                                         self.ndisps[i - 1], 8)
             gwc_volume = self.corr_stem(gwc_volume.to(match_left.dtype))
             gwc_volume = self.corr_feature_att_list[i](gwc_volume, feat_left)
@@ -169,7 +175,7 @@ def _forward(self, image1, image2):
                       iter04=(self.args.n_gru_layers >= 1 and i >= 2))
             if i == 2 and itr == iters_list[2] - 1:  # last 1/4 iteration: dual-branch update (its mono half is unused)
                 with _f32(dev):
-                    fr, fl = feat_right.float(), feat_left.float()
+                    fr, fl = _nchw32(feat_right), feat_left.float()
                     flaw_mono = warp(fr, disp_mono_list[i]) - fl
                     flaw_stereo = warp(fr, disp) - fl
                     geo_feat_mono = _lookup(geo_fn, disp_mono_list[i], coords, nd)

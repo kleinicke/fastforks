@@ -23,7 +23,7 @@ import torch
 from torch import nn
 
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
-from fastforks.kernels.dpt_fused import ACT_GELU, ACT_RELU, DptFused
+from fastforks.kernels.dpt_fused import ACT_RELU, DptFused
 from fastforks.shared.depth_anything_v2.fast_vit import POS_SIZES, FastViT, _flash
 
 if TYPE_CHECKING:
@@ -55,8 +55,18 @@ def _linear_1x1(m: nn.Module, device: torch.device) -> tuple[torch.Tensor, torch
 class FusedViT(FastViT):
     """DINOv2 with fused-epilogue GEMMs (`features`); weights converted on the CPU, then moved to `device`."""
 
-    def __init__(self, vit: Any, device: torch.device, k: DptFused, attn: str = "hh") -> None:  # noqa: ANN401 - duck-typed DINOv2 module
-        """Check and convert the ViT (fp16, LayerScale kept in fp32), move it to `device`; `attn`: flash variant."""
+    def __init__(
+        self,
+        vit: Any,  # noqa: ANN401 - duck-typed DINOv2 module
+        device: torch.device,
+        k: DptFused,
+        attn: str = "hh",
+        gelu: int | None = None,
+    ) -> None:
+        """Check and convert the ViT (fp16, LayerScale kept in fp32), move it to `device`.
+
+        `attn`: the flash variant; `gelu`: the MLP epilogue (default `k.gelu`, the card's).
+        """
         blocks = list(vit.blocks)
         gammas = [
             tuple(
@@ -81,6 +91,7 @@ class FusedViT(FastViT):
         wp = torch.zeros(c, self.kp, dtype=torch.float16)
         wp[:, :kin] = conv.weight.detach().reshape(c, kin)
         self.k = k
+        self.gelu = k.gelu if gelu is None else gelu
         self.w_patch = wp.to(device)
         self.b_patch = conv.bias.detach().half().to(device)
         self.gammas = [tuple(g.to(device) if g is not None else None for g in gs) for gs in gammas]
@@ -107,7 +118,7 @@ class FusedViT(FastViT):
         h = a.num_heads
         qkv = k.gemm(blk.norm1(x), a.qkv.weight, a.qkv.bias).view(b, n, 3, h, c // h)
         k.gemm(_flash(qkv, (c // h) ** -0.5, self.attn), a.proj.weight, a.proj.bias, scale=g1, res=x, out=x)
-        hid = k.gemm(blk.norm2(x), m.fc1.weight, m.fc1.bias, act=ACT_GELU)
+        hid = k.gemm(blk.norm2(x), m.fc1.weight, m.fc1.bias, act=self.gelu)
         k.gemm(hid, m.fc2.weight, m.fc2.bias, scale=g2, res=x, out=x)
         return x
 

@@ -14,9 +14,11 @@ from pathlib import Path
 
 import torch
 
-from fastforks._core.kernels import cuda_device, current_stream, shared_library
+from fastforks._core.kernels import cuda_device, current_stream, half_rate_fp32_acc, shared_library
 
-ACT_NONE, ACT_RELU, ACT_GELU = 0, 1, 5
+ACT_NONE, ACT_RELU, ACT_GELU, ACT_GELU_TANH = 0, 1, 5, 6
+"""Epilogue activations; `ACT_GELU` is the exact (erf) GELU, `ACT_GELU_TANH` its tanh form (`tanh.approx.f32`). Models
+take `DptFused.gelu`, which picks one per card class (see there)."""
 _P = ctypes.c_void_p
 _I = ctypes.c_int
 
@@ -66,6 +68,12 @@ class DptFused:
     Attributes:
         tag: `name@build_id:target`.
         sms: Number of SMs of the device (tile rule).
+        full_rate: The card runs fp32-accumulate tensor-core math at full rate (datacenter / pro cards, not GeForce).
+        gelu: The GELU epilogue for this card: `ACT_GELU_TANH` on full-rate cards, which are power-capped and gain
+            3-11 % end to end from its far fewer instructions (L4, A10); `ACT_GELU` (erf) on GeForce, where the tanh
+            form gains ~1.5 % and quadruples the mean error vs float32 (RTX 5060 Ti, `tools/kernel_lab.py`). Its
+            slight negative bias moves depth-pro's focal length and UniK3D's depth scale past their goldens: those
+            two take `ACT_GELU` on every card.
     """
 
     def __init__(self, device: torch.device) -> None:
@@ -76,6 +84,8 @@ class DptFused:
         """
         self.lib, self.tag = shared_library(Path(__file__).with_name("manifest.toml"), device)
         self.sms = torch.cuda.get_device_properties(device).multi_processor_count
+        self.full_rate = not half_rate_fp32_acc(device)
+        self.gelu = ACT_GELU_TANH if self.full_rate else ACT_GELU
         e = ctypes.POINTER(EpiArgs)
         lib = self.lib
         lib.dpt_gemm.argtypes = [_I, _I, _I, _I, _P, _I, _P, e, _P]
@@ -91,14 +101,20 @@ class DptFused:
             msg = f"dpt_fused: {what} failed ({reason}, status {rc})"
             raise ValueError(msg)
 
-    def gemm_cfg(self, m: int, n: int, act: int) -> int:
-        """Fixed tile rule (sweep of ViT-L block GEMMs): GELU epilogues 128x64, else 128x128 for >= 2 waves."""
+    def gemm_cfg(self, m: int, n: int, k: int, act: int) -> int:
+        """Fixed tile rule (sustained sweeps of ViT-L blocks, `tools/kernel_lab.py`).
+
+        erf GELU: 128x64. tanh GELU and the rest: on full-rate cards 128x256 for deep (K >= 1024) GEMMs of >= 4 waves
+        of such tiles (the ViT blocks of many patches; slower on GeForce), else 128x128 for >= 2 waves, else narrower.
+        """
 
         def tiles(tm: int, tn: int) -> int:
             return -(-m // tm) * -(-n // tn)
 
         if act == ACT_GELU:
             return 2
+        if self.full_rate and act != ACT_GELU_TANH and k >= 1024 and tiles(128, 256) >= 4 * self.sms:  # noqa: PLR2004
+            return 4
         if tiles(128, 128) >= 2 * self.sms:
             return 0
         return 2 if tiles(128, 64) >= self.sms else 3
@@ -195,7 +211,7 @@ class DptFused:
                 raise ValueError(msg)
             e = self._epi(m, n, y, bias, scale, None, None, None, act)
             e.ldy, e.sh, e.sw, e.gh, e.gw, e.cout = cout, sh, sw, gh, gw, cout
-        cfg = (5 if -(-m // 128) * -(-n // 64) >= self.sms else 6) if acc32 else self.gemm_cfg(m, n, act)
+        cfg = (5 if -(-m // 128) * -(-n // 64) >= self.sms else 6) if acc32 else self.gemm_cfg(m, n, k, act)
         self._check(self.lib.dpt_gemm(cfg, m, n, k, x.data_ptr(), lda, w.data_ptr(), e, current_stream()), "gemm")
         return y
 

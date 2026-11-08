@@ -38,6 +38,22 @@ def test_select_target(arch, want):
     assert select_target(ALL, arch) == want
 
 
+@pytest.mark.parametrize(
+    ("name", "env", "want"),
+    [
+        ("NVIDIA GeForce RTX 5060 Ti", "", True),
+        ("NVIDIA L4", "", False),
+        ("NVIDIA RTX A6000", "", False),
+        ("NVIDIA L4", "fp16", True),
+        ("NVIDIA GeForce RTX 4090", "FP32", False),
+    ],
+)
+def test_half_rate_fp32_acc(monkeypatch, name, env, want):
+    monkeypatch.setattr(torch.cuda, "get_device_name", lambda _d=None: name)
+    monkeypatch.setenv("FASTFORKS_ACC", env)
+    assert kernels.half_rate_fp32_acc(torch.device("cuda", 0)) is want
+
+
 def test_select_target_prefers_newest_ptx():
     assert select_target(["compute_80", "compute_90"], (12, 0)) == "compute_90"
     assert select_target(["compute_80", "compute_90"], (8, 9)) == "compute_80"
