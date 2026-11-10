@@ -36,7 +36,9 @@ In this order, unless something more useful turns up:
 3. ConvNeXt: move the datacenter notes from the comments in its `card.toml` to `datacenter-tuning.md`. RTMDet and
    RTMPose each carry their own CSPNeXt; move it to `shared/`.
 4. `docs/data/flow_eval.jsonl`: the RAFT rows still name the old model ids.
-5. Next networks, from [model-landscape.md](model-landscape.md): a ConvNeXt v1 feature backbone (nearly free),
+5. CLIP: `clip-l14-dfn2b`, `clip-h14-dfn5b` and `clip-h14-378-dfn5b` have no `torch.compile` or TensorRT rows in
+   `docs/data/speed_compile.jsonl`.
+6. Next networks, from [model-landscape.md](model-landscape.md): a ConvNeXt v1 feature backbone (nearly free),
    TIPSv2, MaxViT / RepViT, MobileSAM (licence not checked yet), the MoGe-2 extras, more flow and pose models.
 
 ## Waiting for the Mac
