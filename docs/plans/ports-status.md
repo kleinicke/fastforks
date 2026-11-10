@@ -41,6 +41,8 @@ In this order, unless something more useful turns up:
 Done on 2026-11-10 for every family on the branch: Mac speed rows (`portable`, and `kernels` where Metal kernels
 exist) and the MPS goldens, all passing. Still open:
 
+- TIPSv2 `b14`, `l14` (new family, features): MPS goldens (cpu_atol 6.9e-05, gpu mean 0.019 / p99 0.069) and
+  portable fp32/fp16 speed rows. Weights from the pinned HF URLs.
 - Perception Encoder `g14`: the peak footprint (about 17.8 GB) is above the 16 GB of the machine, so the times
   include swapping.
 - SEA-RAFT `spring` variants run about ten times faster than the others at the same labelled input; not looked into.

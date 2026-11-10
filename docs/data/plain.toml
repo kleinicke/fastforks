@@ -106,6 +106,7 @@ c_radio = "NVIDIA's C-RADIOv3 (B, L, H, g): one backbone distilled from several 
 clip = "CLIP image encoders from OpenAI and OpenCLIP (LAION-2B, DataComp-XL, DFN; B, L, H): image features aligned with text."
 perception_encoder = "Meta's Perception Encoder (T, S, B, L, G): PE-Core image features aligned with text, and PE-Spatial for dense tasks."
 siglip2 = "Google's SigLIP 2 image encoders (B, L, So400m, g): image features aligned with text, at several resolutions."
+tipsv2 = "Google DeepMind's TIPSv2 image encoders (B, L): image features aligned with text, with patch features meant for dense tasks. Apache-2.0."
 
 # --- multiview
 mapanything = "MapAnything (Meta): metric 3D reconstruction (cameras and depth) from several unposed images in one pass. Commercially usable (Apache variant)."

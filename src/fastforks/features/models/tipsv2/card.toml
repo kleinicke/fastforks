@@ -1,0 +1,52 @@
+schema = 2
+name = "TIPSv2"
+summary = "TIPSv2 (Google DeepMind, CVPR 2026) image encoders: ViT-B / L at patch 14 from text-image pretraining with patch-text alignment; dense patch tokens and two global tokens at any size (native 448 px)."
+tier = "experimental"
+outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
+uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+limitations = [
+  "Image encoder only: the text encoder in the checkpoint is not loaded (the features task has no text input), although the file is downloaded whole.",
+  "last_hidden_state holds 2 prefix tokens, then the patches: upstream's first cls token (pooler_output, the global image embedding aligned with text) and its second cls token (index 1, the spatially aware global embedding).",
+  "kernels replays a CUDA graph per small input shape without hidden states (up to about 520k activations: ViT-B ~360 px, ViT-L ~310 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",
+]
+
+[upstream]
+repo = "https://github.com/google-deepmind/tips"
+commit = "bf10a73"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "image-text pairs; the dataset is not named in the repository README or on the model cards at the pinned revisions"
+evidence = "https://huggingface.co/google/tipsv2-b14/blob/ed1e4dc6b74bf3935ae099e9d5eb30fa96528454/README.md (license: apache-2.0); code: https://github.com/google-deepmind/tips/blob/bf10a73765b048edfbfcdf1f7e6ca8292542baae/LICENSE"
+
+[io]
+# the core resizes (never pads / crops) to multiples of 14 with antialiased bilinear (upstream: torchvision Resize);
+# upstream takes RGB in [0, 1] without normalisation (mean 0, std 1)
+input = "0-1"
+interpolation = "bilinear"
+pad = { multiple = 14, mode = "none" }
+
+[options]
+fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, larger error vs fp32)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["fastbb"]
+
+[[variants]]
+id = "tipsv2-b14"
+revision = 1
+params = { arch = "vitb" }
+weights = [{ name = "tipsv2-b14/model.safetensors", size = 783830160, sha256 = "c19aec1a777c381cc3d351b4882c56fc3041505c8f5b97535816a92dce3d20c5", url = "https://huggingface.co/google/tipsv2-b14/resolve/ed1e4dc6b74bf3935ae099e9d5eb30fa96528454/model.safetensors" }]
+
+[[variants]]
+id = "tipsv2-l14"
+revision = 1
+params = { arch = "vitl" }
+weights = [{ name = "tipsv2-l14/model.safetensors", size = 1951820760, sha256 = "c75707eabca655e641a6c47a59dd26b347290ceadb993b34af184e7f654c5809", url = "https://huggingface.co/google/tipsv2-l14/resolve/52847a71eb02a3082c370fbcd98cd799687bd4d0/model.safetensors" }]

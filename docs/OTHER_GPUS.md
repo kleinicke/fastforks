@@ -60,7 +60,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | families | CUDA portable | CUDA kernels | MPS portable (validated) | MPS kernels (libraries, dtype) |
 |---|---|---|---|---|
 | c_foundationstereo, convnext, convnextv2, deit, densenet, depth_anything_v2, detr, dfine, dinov2_linear, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, fast_acvnet, fastvit, gwcnet, inception_v3, metric3d, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, patchmatchnet, psmnet, raft, rcnn, resnet, rt_monster_plusplus, rtdetrv2, sam, sam2, sam_hq, sea_raft, segformer, shufflenetv2, swin, unidepth_v2, unik3d, vit, waft_stereo | fp16 | fp16 | fp32 | - |
-| alexnet, c_radio, cas_gwcnet, clip, coex, depth_anything_3, depth_pro, dinov2, dinov3, dinov3_convnext, dlnr, eomt, eva02, mapanything, marigold, mask2former, midas, mmseg, oneformer, regnet, rtmdet, s2m2, sam3, sapiens, siglip, siglip2, squeezenet, vgg, vggt_omega, zoedepth | fp16 | fp16 | fp32/fp16 | - |
+| alexnet, c_radio, cas_gwcnet, clip, coex, depth_anything_3, depth_pro, dinov2, dinov3, dinov3_convnext, dlnr, eomt, eva02, mapanything, marigold, mask2former, midas, mmseg, oneformer, regnet, rtmdet, s2m2, sam3, sapiens, siglip, siglip2, squeezenet, tipsv2, vgg, vggt_omega, zoedepth | fp16 | fp16 | fp32/fp16 | - |
 | cfnet, crestereo, foundationstereo, great_igev, hitnet, igev_plusplus, mocha_stereo, monster, monster_plusplus, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 |
 | aanet, bridgedepth, igev_stereo, las2, nmrf | fp16 | fp16 | fp32 | stereo_metal fp16 |
 | rtmpose | fp16 | fp16 | fp32/fp16 | pose_metal fp32 |
@@ -94,7 +94,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `cutlass_conv` | aanet, c_foundationstereo, cas_gwcnet, cfnet, coex, crestereo, defom_stereo, dlnr, fast_acvnet, great_igev, gwcnet, igev_plusplus, igev_stereo, las2, mmseg, mocha_stereo, monster, monster_plusplus, mvsanywhere, psmnet, raft, raft_stereo, rt_monster_plusplus, sea_raft, selective_igev, waft_stereo |
 | `deform_conv` | aanet |
 | `dpt_fused` | depth_anything_3, depth_anything_v2, depth_pro, moge, sam, sam2, sam_hq, unidepth_v2, unik3d |
-| `fastbb` | bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, mapanything, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, rt_monster_plusplus, sam3, sapiens, unidepth_v2, unik3d, vggt, vggt_omega, waft_stereo |
+| `fastbb` | bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, mapanything, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, rt_monster_plusplus, sam3, sapiens, tipsv2, unidepth_v2, unik3d, vggt, vggt_omega, waft_stereo |
 | `ffs_cutlass` | c_foundationstereo |
 | `fs` | c_foundationstereo, foundationstereo |
 | `fs_cutlass` | c_foundationstereo, foundationstereo |

@@ -42,6 +42,8 @@ class _Features:
         self.fn, meta = eval_features._original(ref, tier)  # noqa: SLF001
         self.dtype, self.how = meta["dtype"], meta["how"]
         self.note = "transformers pooler_output" if ref.startswith("dinov3") else "dinov2 forward_features CLS"
+        if ref.startswith("tipsv2"):
+            self.note = "tips image_encoder first cls token"
 
     def prep(self, args: tuple[Any, ...]) -> tuple[Any, ...]:
         return args

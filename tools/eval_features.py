@@ -18,7 +18,8 @@ exist. Tiers: fastforks
 `portable32`, `portable`, `kernels`; the authors' code (`upstream` fp32, `upstream16` autocast float16, `upstreamhalf`
 `.half()` + float16 input; none has an own option): DINOv2 = facebookresearch/dinov2 `forward_features` CLS
 (`x_norm_clstoken`, bench adapter, 006 venv), DINOv3 ViT / ConvNeXt = transformers `DINOv3ViTModel` /
-`DINOv3ConvNextModel` `pooler_output`; input normalised with the ImageNet mean / std.
+`DINOv3ConvNextModel` `pooler_output`; input normalised with the ImageNet mean / std. TIPSv2 = google-deepmind/tips
+`image_encoder` first cls token, input in [0, 1].
 """
 
 from __future__ import annotations
@@ -115,6 +116,16 @@ def _original(ref: str, tier: str) -> tuple[Any, dict[str, Any]]:
         def feat(x: torch.Tensor) -> torch.Tensor:
             return net.forward_features(x)["x_norm_clstoken"]
 
+    elif (
+        card.family == "tipsv2"
+    ):  # TIPS_REPO = a google-deepmind/tips checkout, TIPS_WEIGHTS = the golden's WEIGHTS_DIR
+        g = orig._golden("tipsv2")  # noqa: SLF001 - the golden's builder
+        net = g.build(Path(os.environ["TIPS_REPO"]), Path(os.environ["TIPS_WEIGHTS"]), ref.removeprefix("tipsv2-"))
+        net = net.cuda()
+
+        def feat(x: torch.Tensor) -> torch.Tensor:
+            return net(x)[0][:, 0]
+
     else:
         import transformers  # noqa: PLC0415
 
@@ -130,6 +141,9 @@ def _original(ref: str, tier: str) -> tuple[Any, dict[str, Any]]:
         net.half()
     m = torch.tensor(MEAN, device="cuda").view(1, 3, 1, 1)
     sd = torch.tensor(STD, device="cuda").view(1, 3, 1, 1)
+
+    if card.family == "tipsv2":  # the encoder takes [0, 1] images
+        m, sd = torch.zeros_like(m), torch.ones_like(sd)
 
     def fn(x: torch.Tensor) -> torch.Tensor:
         xx = (x.float() / 255 - m) / sd

@@ -210,7 +210,7 @@ def test_load_strict_casts_floats_and_rejects_integers():
         load_strict(torch.nn.Linear(2, 3), {**half, "bias": torch.zeros(3, dtype=torch.long)}, "test checkpoint")
 
 
-ASSIGNED = [r for r in SMALLEST if r.startswith(("da3", "depth-pro", "dinov2", "dinov3", "sam3", "unik3d"))]
+ASSIGNED = [r for r in SMALLEST if r.startswith(("da3", "depth-pro", "dinov2", "dinov3", "sam3", "tipsv2", "unik3d"))]
 
 
 @pytest.mark.slow
@@ -242,6 +242,7 @@ def _perturbed(change: str):
     def load(*args, **kwargs):
         sd = real(*args, **kwargs)
         floats = [k for k, v in sd.items() if isinstance(v, torch.Tensor) and v.is_floating_point() and v.ndim >= 1]
+        floats = [k for k in floats if not k.startswith("text_encoder.")]  # TIPSv2: the text tower is not loaded
         big = max(floats, key=lambda k: sd[k].numel())  # surely used by the network
         if change == "add":
             sd["zz_unexpected.weight"] = torch.zeros(3)

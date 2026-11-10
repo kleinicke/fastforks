@@ -300,7 +300,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Features
 
-50 models; size 224x224.
+52 models; size 224x224.
 
 - Fastest: [`pe-spatial-t16-512`](models/features.md#perception-encoder) (0.7 ms).
 - Fastest commercially usable: [`pe-spatial-t16-512`](models/features.md#perception-encoder) (0.7 ms).
@@ -324,6 +324,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`siglip2-b16-512`](models/features.md#siglip-2) | yes | 6.0 (224x224) | 3.3 | 1.4 | 4.2x vs original (224x224) | 287 |
 | [`pe-core-b16-224`](models/features.md#perception-encoder) | yes | 7.1 (224x224) | 5.0 | 1.5 | 4.9x vs original (224x224) | 285 |
 | [`dinov2-vitb14`](models/features.md#dinov2) | yes | 4.5 (224x224) | 2.9 | 1.5 | 3.0x vs original (224x224) | 237 |
+| [`tipsv2-b14`](models/features.md#tipsv2) | yes | 7.0 (224x224) | 2.9 | 1.5 | 4.7x vs original (224x224) | 206 |
 | [`dinov2-vitb14-reg`](models/features.md#dinov2) | yes | 4.3 (224x224) | 2.9 | 1.5 | 2.9x vs original (224x224) | 237 |
 | [`dinov3-convnext-small`](models/features.md#dinov3-convnext) | yes | 6.0 (224x224) | 5.4 | 2.0 | 3.0x vs original (224x224) | 127 |
 | [`dinov3-convnext-base`](models/features.md#dinov3-convnext) | yes | 7.4 (224x224) | 5.7 | 2.2 | 3.4x vs original (224x224) | 200 |
@@ -336,6 +337,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`siglip2-so400m16-256`](models/features.md#siglip-2) | yes | 12.6 (224x224) | 6.4 | 4.2 | 3.0x vs original (224x224) | 1181 |
 | [`siglip2-so400m14-378`](models/features.md#siglip-2) | yes | 12.5 (224x224) | 6.4 | 4.3 | 2.9x vs original (224x224) | 1185 |
 | [`siglip2-so400m14-224`](models/features.md#siglip-2) | yes | 12.4 (224x224) | 6.4 | 4.3 | 2.9x vs original (224x224) | 1182 |
+| [`tipsv2-l14`](models/features.md#tipsv2) | yes | 14.2 (224x224) | 6.2 | 4.6 | 3.1x vs original (224x224) | 624 |
 | [`dinov2-vitl14`](models/features.md#dinov2) | yes | 9.8 (224x224) | 6.1 | 4.6 | 2.1x vs original (224x224) | 655 |
 | [`dinov2-vitl14-reg`](models/features.md#dinov2) | yes | 10.7 (224x224) | 6.2 | 4.6 | 2.3x vs original (224x224) | 655 |
 | [`clip-l14-openai`](models/features.md#clip) | yes | 10.8 (224x224) | 6.2 | 4.7 | 2.3x vs original (224x224) | 1054 |
