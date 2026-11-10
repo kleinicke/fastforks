@@ -1,0 +1,118 @@
+schema = 2
+name = "RTMPose"
+summary = "RTMPose (Jiang et al. 2023): real-time top-down 2D human pose from OpenMMLab: a CSPNeXt CNN backbone and a SimCC head (a gated attention unit over one token per keypoint, then x and y classified as 1D bins at half-pixel resolution, no heatmaps). The body7 checkpoints (trained on seven public pose datasets) return the 17 COCO keypoints; the DWPose ones (Yang et al. 2023, distilled on COCO-WholeBody + UBody, the pose model of ControlNet's openpose preprocessors) the 133 COCO-WholeBody keypoints (body, feet, face, both hands). Takes person boxes (e.g. from `fastforks.detection`) and crops each at 256 x 192 (or 384 x 288); vendored from mmpose (no mmpose / mmcv dependency). The portable `module()` maps crops to SimCC logits."
+tier = "stable"
+outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
+
+[upstream]
+repo = "https://github.com/open-mmlab/mmpose"
+commit = "5408bc76f5b848cf925a0d1857899011d8c5b497"  # v1.3.2; net.py condenses RTMCCHead and mmdet 3.3.0's CSPNeXt (both Apache-2.0, OpenMMLab)
+
+[licence]
+code = "Apache-2.0"  # open-mmlab/mmpose LICENSE (mmdet's CSPNeXt: the same licence and authors)
+weights = "Apache-2.0"  # the model zoo checkpoints are released with the repository (README: Apache 2.0)
+files = ["LICENSE"]
+training_data = ["coco", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "imagenet-1k"]
+training_note = "body7: COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18 keypoints; the CSPNeXt backbone was pre-trained on ImageNet-1k (and on the same pose data, `pt-body7`)"
+evidence = "https://github.com/open-mmlab/mmpose/blob/5408bc76f5b848cf925a0d1857899011d8c5b497/README.md#license"
+
+[io]
+input = "imagenet"  # the runner crops each box at the network size and normalises the crops itself (0..255 mmpose means)
+
+[options]
+flip_test = { default = false }  # true: average with the mirrored crop (mmpose's COCO AP protocol; two network passes)
+
+[params]
+deepen = 0.67
+widen = 0.75
+keypoints = 17
+height = 256
+width = 192
+
+[modes.portable]
+cuda_dtype = "float16"  # crops, decoding and keypoint mapping stay float32
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the CSPNeXt backbone through fastforks._optimize (fused conv + SiLU, residual, concat); fp16 SimCC head
+mps_kernels = ["pose_metal"]  # the OpenCV-style crops in one pass (the network: portable; fp16 is not faster on MPS)
+mps_dtype = "float32"  # fp16 is not faster on MPS and moves unsure keypoints more (dwpose-l: up to 81 px)
+
+[output]
+label_set = "coco-keypoints-17"
+
+[[variants]]
+id = "rtmpose-t"  # RTMPose-t, 256 x 192; body7 COCO val AP 65.9 (flip test)
+revision = 1
+params = { deepen = 0.167, widen = 0.375 }
+weights = [{ name = "rtmpose-t-body7-256x192.pth", size = 13454104, sha256 = "026a1439c5695f74f2e6e744427fc8190b57d630923eb772c1e9b4409a036f2f", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-t_simcc-body7_pt-body7_420e-256x192-026a1439_20230504.pth" }]
+
+[[variants]]
+id = "rtmpose-s"  # RTMPose-s, 256 x 192; body7 COCO val AP 69.7
+revision = 1
+params = { deepen = 0.33, widen = 0.5 }
+weights = [{ name = "rtmpose-s-body7-256x192.pth", size = 22022140, sha256 = "acd4a1efd8f01669cadd699ce0cceeebfc0f57a008074858e0d3063110c73c94", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-body7_pt-body7_420e-256x192-acd4a1ef_20230504.pth" }]
+
+[[variants]]
+id = "rtmpose-m"  # RTMPose-m, 256 x 192; body7 COCO val AP 74.9
+revision = 1
+params = {}
+weights = [{ name = "rtmpose-m-body7-256x192.pth", size = 54551099, sha256 = "e48f03d0cfe1285ee8b6d3457ac3ce33a4594a92b080053ab1ec4a7e300975f2", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-body7_pt-body7_420e-256x192-e48f03d0_20230504.pth" }]
+
+[[variants]]
+id = "rtmpose-l"  # RTMPose-l, 256 x 192; body7 COCO val AP 76.7
+revision = 1
+params = { deepen = 1.0, widen = 1.0 }
+weights = [{ name = "rtmpose-l-body7-256x192.pth", size = 110930645, sha256 = "4dba18fc4632f9a2abe11469c31b626311b7cc266170e21008d7c5bd2933e414", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-l_simcc-body7_pt-body7_420e-256x192-4dba18fc_20230504.pth" }]
+
+[[variants]]
+id = "rtmpose-m-384"  # RTMPose-m, 384 x 288; body7 COCO val AP 76.6
+revision = 1
+params = { height = 384, width = 288 }
+weights = [{ name = "rtmpose-m-body7-384x288.pth", size = 55072135, sha256 = "65e718c4ccb6af9b7b62168e2a63b6450a060192b3b04b5706d3c7b466245be3", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-body7_pt-body7_420e-384x288-65e718c4_20230504.pth" }]
+
+[[variants]]
+id = "rtmpose-l-384"  # RTMPose-l, 384 x 288; body7 COCO val AP 78.3
+revision = 1
+params = { deepen = 1.0, widen = 1.0, height = 384, width = 288 }
+weights = [{ name = "rtmpose-l-body7-384x288.pth", size = 111451062, sha256 = "3f5a14373b1937149765719f02a3033ad904782baf022e83559a077273e3c584", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-l_simcc-body7_pt-body7_420e-384x288-3f5a1437_20230504.pth" }]
+
+[[variants]]
+id = "dwpose-t"  # DWPose-t (RTMPose-t distilled), 256 x 192; COCO-WholeBody val whole-body AP 48.5
+revision = 1
+params = { deepen = 0.167, widen = 0.375, keypoints = 133 }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "coco", "aic", "imagenet-1k"], training_note = "COCO-WholeBody and UBody whole-body keypoints, distilled from a larger RTMPose (DWPose two-stage distillation); the CSPNeXt backbone was pre-trained on ImageNet-1k and on AI Challenger + COCO body keypoints" }
+weights = [{ name = "dwpose-t-ucoco-256x192.pth", size = 22178722, sha256 = "dcf277bf6ba4563d5ce7b1bede0f78fd5fcd518128b8f38cdf3d74e100addc51", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-t_simcc-ucoco_dw-ucoco_270e-256x192-dcf277bf_20230728.pth" }]
+
+[[variants]]
+id = "dwpose-s"  # DWPose-s (RTMPose-s distilled), 256 x 192; COCO-WholeBody val whole-body AP 53.8
+revision = 1
+params = { deepen = 0.33, widen = 0.5, keypoints = 133 }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "coco", "aic", "imagenet-1k"], training_note = "COCO-WholeBody and UBody whole-body keypoints, distilled from a larger RTMPose (DWPose two-stage distillation); the CSPNeXt backbone was pre-trained on ImageNet-1k and on AI Challenger + COCO body keypoints" }
+weights = [{ name = "dwpose-s-ucoco-256x192.pth", size = 33655885, sha256 = "3fd922c87ac2fb1f3b5045d73c6c697843922ecae6088002752e1cd48779a5fc", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-ucoco_dw-ucoco_270e-256x192-3fd922c8_20230728.pth" }]
+
+[[variants]]
+id = "dwpose-m"  # DWPose-m (RTMPose-m distilled), 256 x 192; COCO-WholeBody val whole-body AP 60.6
+revision = 1
+params = { keypoints = 133 }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "coco", "aic", "imagenet-1k"], training_note = "COCO-WholeBody and UBody whole-body keypoints, distilled from a larger RTMPose (DWPose two-stage distillation); the CSPNeXt backbone was pre-trained on ImageNet-1k and on AI Challenger + COCO body keypoints" }
+weights = [{ name = "dwpose-m-ucoco-256x192.pth", size = 72002125, sha256 = "c8b7641988ce785c987b8ad156e411f328b54766d353df19aea5b08433ef1aaf", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-ucoco_dw-ucoco_270e-256x192-c8b76419_20230728.pth" }]
+
+[[variants]]
+id = "dwpose-l"  # DWPose-l (RTMPose-l distilled), 256 x 192; COCO-WholeBody val whole-body AP 63.1
+revision = 1
+params = { deepen = 1.0, widen = 1.0, keypoints = 133 }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "coco", "aic", "imagenet-1k"], training_note = "COCO-WholeBody and UBody whole-body keypoints, distilled from a larger RTMPose (DWPose two-stage distillation); the CSPNeXt backbone was pre-trained on ImageNet-1k and on AI Challenger + COCO body keypoints" }
+weights = [{ name = "dwpose-l-ucoco-256x192.pth", size = 134198415, sha256 = "4d6dfc622672ae34cb37f202b5f0ca530ec3772e2f2d992be2f82f50d10e477a", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-l_simcc-ucoco_dw-ucoco_270e-256x192-4d6dfc62_20230728.pth" }]
+
+[[variants]]
+id = "dwpose-l-384"  # DWPose-l (RTMPose-l distilled), 384 x 288; COCO-WholeBody val whole-body AP 66.5
+revision = 1
+params = { deepen = 1.0, widen = 1.0, height = 384, width = 288, keypoints = 133 }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "coco", "aic", "imagenet-1k"], training_note = "COCO-WholeBody and UBody whole-body keypoints, distilled from a larger RTMPose (DWPose two-stage distillation); the CSPNeXt backbone was pre-trained on ImageNet-1k and on AI Challenger + COCO body keypoints" }
+weights = [{ name = "dwpose-l-ucoco-384x288.pth", size = 134718606, sha256 = "2438fd992e6561cb559defa6448c7464457c3a3ef20e372a524f34a15af40706", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-l_simcc-ucoco_dw-ucoco_270e-384x288-2438fd99_20230728.pth" }]

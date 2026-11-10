@@ -94,7 +94,7 @@ def test_top_level_list_models_spans_tasks():
     every = fastforks.list_models()
     assert every == sorted(every)
     assert set(every) == {i for task in registry.TASKS for i in registry.cards(task)}
-    assert fastforks.list_models("*anything-v2*", task="depth", exclude_filters=["*-b", "*-l"]) == [
+    assert fastforks.list_models("*anything-v2*", task="depth", exclude_filters=["*-b", "*-l", "*-metric-*"]) == [
         "depth-anything-v2-s"
     ]
     assert fastforks.list_models(task="stereo") == stereo.list_models()

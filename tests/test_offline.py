@@ -187,6 +187,7 @@ def test_download_kernels_without_gpu_or_arch_names_both_options(capsys, monkeyp
     import torch  # noqa: PLC0415
 
     monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    monkeypatch.setattr(torch.backends.mps, "is_available", lambda: False)  # a Mac would take the Metal path
     assert cli.main(["download", "hitnet-eth3d", "--dry-run", "--kernels"]) == 1
     assert "--arch sm_XX or use --all-archs" in capsys.readouterr().err
 

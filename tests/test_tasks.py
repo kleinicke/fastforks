@@ -36,7 +36,9 @@ from fastforks.depth._runner import Runner as DepthRunner
 from fastforks.detection._runner import Runner as DetRunner
 from fastforks.features._runner import Forward
 from fastforks.features._runner import Runner as FeatRunner
+from fastforks.flow._runner import Runner as FlowRunner
 from fastforks.multiview._runner import Runner as MultiViewRunner
+from fastforks.pose._runner import Runner as PoseRunner
 from fastforks.promptable_segmentation._api import MAX_EXEMPLARS, ConceptModelId, _model_class
 from fastforks.promptable_segmentation._runner import Runner as PromptRunner
 from fastforks.segmentation._runner import Runner as SegRunner
@@ -534,13 +536,26 @@ def test_resize_crop_bicubic_stays_in_range():
 
 
 @pytest.mark.parametrize(
-    "task", ["stereo", "depth", "classification", "segmentation", "features", "promptable_segmentation", "multiview"]
+    "task",
+    [
+        "stereo",
+        "depth",
+        "classification",
+        "segmentation",
+        "features",
+        "promptable_segmentation",
+        "multiview",
+        "pose",
+        "flow",
+    ],
 )
 def test_runner_without_call_cannot_be_built(task):
     base = {"stereo": __import__("fastforks.stereo._runner", fromlist=["Runner"]).Runner, "depth": DepthRunner}
     base |= {"classification": ClsRunner, "segmentation": SegRunner, "features": FeatRunner}
     base["promptable_segmentation"] = PromptRunner
     base["multiview"] = MultiViewRunner
+    base["pose"] = PoseRunner
+    base["flow"] = FlowRunner
 
     class NoCall(base[task]):
         pass
@@ -876,6 +891,28 @@ def test_bench_inputs_instance_tasks(fake, task, runner, outputs, output):
         assert r.boxes.tolist() == [[0.0, 0.0, 6.5, 9.0]]
         assert r.masks.shape == (1, 9, 13)
         assert r.masks[0, :, :6].all()
+
+
+class Pose(PoseRunner):
+    def __call__(self, image, boxes):  # noqa: ARG002 - a stub: keypoints from the boxes alone
+        p = boxes.shape[0]
+        centre = torch.stack(((boxes[:, 0] + boxes[:, 2]) / 2, (boxes[:, 1] + boxes[:, 3]) / 2), -1)
+        return {
+            "keypoints": centre[:, None].expand(p, 17, 2).contiguous(),
+            "keypoint_scores": torch.ones(p, 17),
+            "scores": torch.ones(p),
+        }
+
+
+def test_bench_inputs_pose(fake):
+    fake("pose", Pose, ["keypoints", "keypoint_scores", "boxes", "scores"], {"label_set": "coco-keypoints-17"})
+    m = importlib.import_module("fastforks.pose").load("fake", device="cpu")
+    args, kwargs = bench_inputs(m, BenchSize(256, 384))
+    assert args[0].shape == (3, 256, 384)
+    assert kwargs["boxes"].shape == (3, 4)  # one person box per 128 px of width
+    r = m(*args, **kwargs)
+    assert r.boxes.shape == (3, 4)
+    assert r.keypoints.shape[0] == r.keypoint_scores.shape[0] == len(r) == 3
 
 
 def _tagged_card(*variants):

@@ -44,7 +44,8 @@ class FeaturesResult(NumpyOutputs):
     Attributes:
         last_hidden_state: All tokens after the final norm `[N, C]`.
         pooler_output: The model's image embedding `[C]` (the cls token after the final LayerNorm, not unit length;
-            ConvNeXt: the pooled mean after its LayerNorm).
+            ConvNeXt: the pooled mean after its LayerNorm; the family's pool where its card says, e.g. C-RADIO's
+            summary `[3 * C]`; `Model.pooler_size` channels).
         hidden_states: As HF `output_hidden_states=True`: a tuple of `num_layers + 1` entries, entry 0 the embedding
             output, entry i the output of block i, before the final norm, each `[N, C]`; entries not requested with
             `layers=` are `None`. `None` if no layers were requested.
@@ -164,6 +165,7 @@ class FeaturesModel(core.Model):
         num_layers: Blocks (HF `hidden_states` has `num_layers + 1` entries).
         num_prefix_tokens: Tokens in front of the patch grid (cls + registers).
         num_register_tokens: Register tokens among them.
+        pooler_size: Channels of `pooler_output` (`hidden_size`, except C-RADIO: 3 x `hidden_size`).
     """
 
     _runner: Runner
@@ -176,6 +178,7 @@ class FeaturesModel(core.Model):
         self.num_layers = runner.num_layers
         self.num_prefix_tokens = runner.num_prefix_tokens
         self.num_register_tokens = runner.num_register_tokens
+        self.pooler_size = runner.pooler_size or runner.hidden_size
 
     def __call__(self, image: ImageLike, *, size: Size = None, layers: Layers = ()) -> FeaturesResult:
         """Extract features of an image.
@@ -208,7 +211,11 @@ class FeaturesModel(core.Model):
         out = self._batched(lambda xb: self._runner(prepare(xb, hw, self.variant.io), idx), x)
         b, c = x.shape[0], self.hidden_size
         n = self.num_prefix_tokens + (hw[0] // self.stride) * (hw[1] // self.stride)
-        shapes = {"last_hidden_state": (b, n, c), "pooler_output": (b, c), "hidden_states": (b, len(idx), n, c)}
+        shapes = {
+            "last_hidden_state": (b, n, c),
+            "pooler_output": (b, self.pooler_size),
+            "hidden_states": (b, len(idx), n, c),
+        }
         maps = unbatch(self._check_outputs(out, shapes), image)
         hidden = None
         if idx:

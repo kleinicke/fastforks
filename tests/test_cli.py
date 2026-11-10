@@ -22,7 +22,8 @@ def test_list_filters(capsys):
 
 
 def test_list_task_and_exclude(capsys):
-    assert cli.main(["list", "--task", "depth", "--exclude", "*-l", "--exclude", "*-b", "DEPTH-anything-v2-*"]) == 0
+    excl = ["--exclude", "*-l", "--exclude", "*-b", "--exclude", "*-metric-*"]
+    assert cli.main(["list", "--task", "depth", *excl, "DEPTH-anything-v2-*"]) == 0
     lines = capsys.readouterr().out.splitlines()
     assert [line.split()[:2] for line in lines] == [["depth-anything-v2-s@1", "depth"]]
     assert cli.main(["list", "s2m2-s"]) == 0

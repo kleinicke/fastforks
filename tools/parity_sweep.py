@@ -49,6 +49,7 @@ DTU = DATA / "multiview" / "dtu" / "cache" / "scan1" / "cache_640x512.npz"
 CPU_LIMIT_S = 60
 TASKS = (
     "stereo",
+    "flow",
     "depth",
     "multiview",
     "classification",
@@ -56,15 +57,18 @@ TASKS = (
     "features",
     "promptable_segmentation",
     "detection",
+    "pose",
 )
 STANDARD = {  # the task's output order: the first one present is the primary map (tolerances apply to it)
     "stereo": ("disparity", "confidence"),
+    "flow": ("flow",),
     "depth": ("depth", "inverse_depth", "points", "intrinsics", "confidence", "mask", "normals"),
     "multiview": ("depth", "world_points", "confidence", "mask", "intrinsics", "cam_to_world"),
     "classification": ("logits",),
     "segmentation": ("logits",),
     "features": ("last_hidden_state", "pooler_output", "hidden_states"),
     "promptable_segmentation": ("pred_masks", "iou_scores", "boxes", "scores", "masks"),
+    "pose": ("keypoints", "keypoint_scores", "boxes", "scores"),
 }
 MASK_CLASSIFICATION = {"eomt", "mask2former", "oneformer"}
 INSTANCE_TASKS = {"detection"}
@@ -147,7 +151,7 @@ def pick_sizes(task: str, m: Any) -> list[Case]:
 
 def make_call(task: str, m: Any, case: Case) -> Callable[[], Any]:  # noqa: PLR0911 - one branch per task
     _, arg = case
-    if task == "stereo":
+    if task in {"stereo", "flow"}:  # flow: the shifted pair as two frames
         left, right = stereo_pair(*arg)
         return lambda: m(left, right)
     if task == "multiview":
@@ -166,6 +170,10 @@ def make_call(task: str, m: Any, case: Case) -> Callable[[], Any]:  # noqa: PLR0
         return lambda: m(img, logits=True)
     if task in {"detection", "depth"}:
         return lambda: m(img)
+    if task == "pose":  # top-down: two person boxes inside the image
+        h, w = arg
+        boxes = [[w * 0.1, h * 0.1, w * 0.5, h * 0.9], [w * 0.5, h * 0.2, w * 0.9, h * 0.8]]
+        return lambda: m(img, boxes=boxes)
     h, w = arg  # promptable segmentation
     if "text" in m.prompts:
         return lambda: {"": m(img, text="person")}

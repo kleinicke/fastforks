@@ -1,12 +1,18 @@
 schema = 2
 name = "Depth Anything V2"
-summary = "Depth Anything V2 (Yang et al. 2024): relative monocular depth from a DINOv2 ViT encoder and a DPT head, trained on synthetic labels and 62M pseudo-labelled real images."
+summary = "Depth Anything V2 (Yang et al. 2024): relative monocular depth from a DINOv2 ViT encoder and a DPT head, trained on synthetic labels and 62M pseudo-labelled real images; with the authors' metric fine-tunes (Hypersim indoor, Virtual KITTI 2 outdoor) and the Distill-Any-Depth checkpoints (He et al. 2025) of the same network."
 tier = "stable"
-outputs = ["inverse_depth"]
+outputs = ["inverse_depth", "depth"]  # union; each variant lists its own
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
 
 licence_notes = [
   "Only the Small weights are Apache-2.0; the Base and Large weights are CC-BY-NC-4.0. The training data of even the Small model has unclear commercial terms (a note only).",
+  "The six metric checkpoints are Apache-2.0 on their Hugging Face cards, but the Base / Large ones are fine-tuned from the CC-BY-NC-4.0 relative Base / Large weights, and Virtual KITTI 2 (the outdoor fine-tune) is CC BY-NC-SA 3.0, Hypersim CC BY-SA 3.0.",
+  "Distill-Any-Depth: Apache-2.0 on the Hugging Face card (the authors' transformers ports say MIT, the code is MIT). The paper initialises the Large model from the CC-BY-NC-4.0 Depth Anything V2 Large weights; its teachers include Depth Anything V2 and it trains on unlabeled SA-1B images (research licence).",
+]
+limitations = [
+  "Metric checkpoints predict at most max_depth (20 m Hypersim, 80 m Virtual KITTI 2): the head is a sigmoid scaled by it. Each was fine-tuned on one synthetic domain, so indoor / outdoor scenes outside it get a wrong scale.",
+  "Distill-Any-Depth runs with this family's pipeline (short side 518, aspect kept, as the authors' transformers ports); the authors' demo squashes to 700 x 700. Their Dav2-Teacher-Large-2w-iter checkpoint is not included.",
 ]
 
 [output]
@@ -31,6 +37,10 @@ pad = "none"
 [options]
 short_side = { default = 518, min = 14, aliases = ["input_size"] }  # lower bound of the resized sides (original infer_image's input_size)
 
+[params]
+max_depth = 0.0  # relative (ReLU head); metric variants set the sigmoid head's scale in metres
+layout = "dav2"  # checkpoint keys; "dam": Distill-Any-Depth Large's DepthAnything layout
+
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32"]
@@ -41,12 +51,14 @@ kernels = ["fastbb", "dpt_fused"]
 [[variants]]
 id = "depth-anything-v2-s"
 revision = 1
+outputs = ["inverse_depth"]
 params = { arch = "vits" }
 weights = [{ name = "depth_anything_v2_vits.pth", size = 99218434, sha256 = "715fade13be8f229f8a70cc02066f656f2423a59effd0579197bbf57860e1378", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/03876f8651c73a60fe4c2c48294e09fcb6838fcf/depth_anything_v2_vits.pth" }]
 
 [[variants]]
 id = "depth-anything-v2-b"
 revision = 1
+outputs = ["inverse_depth"]
 params = { arch = "vitb" }
 licence = { weights = "CC-BY-NC-4.0" }
 weights = [{ name = "depth_anything_v2_vitb.pth", size = 389961218, sha256 = "0d2b7002e62d39d655571c371333340bd88f67ab95050c03591555aa05645328", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Base/resolve/a4e71a6c2ce52fe50df0f212066b0d4a87be9b5e/depth_anything_v2_vitb.pth" }]
@@ -54,6 +66,85 @@ weights = [{ name = "depth_anything_v2_vitb.pth", size = 389961218, sha256 = "0d
 [[variants]]
 id = "depth-anything-v2-l"
 revision = 1
+outputs = ["inverse_depth"]
 params = { arch = "vitl" }
 licence = { weights = "CC-BY-NC-4.0" }
 weights = [{ name = "depth_anything_v2_vitl.pth", size = 1341395338, sha256 = "a7ea19fa0ed99244e67b624c72b8580b7e9553043245905be58796a608eb9345", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/cbbb86a30ce19b5684b7a05155dc7e6cbc7685b9/depth_anything_v2_vitl.pth" }]
+
+[[variants]]
+id = "depth-anything-v2-metric-hypersim-s"
+revision = 1
+outputs = ["depth"]
+output = { kind = "metric" }
+params = { arch = "vits", max_depth = 20.0 }
+licence = { weights = "Apache-2.0", training_data = ["unstated"], training_note = "Fine-tuned from the relative Depth Anything V2 Small on Hypersim (indoor, synthetic) per the metric_depth README", evidence = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hypersim-Small (model card: license apache-2.0)" }
+weights = [{ name = "depth_anything_v2_metric_hypersim_vits.pth", size = 99222290, sha256 = "b782898d8a3e8be1f639de33837ed85e9b4b73e40f8f5e5cd99067588d722545", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hypersim-Small/resolve/3bc65d4e14a6786a61acec16453c50e12bf5f338/depth_anything_v2_metric_hypersim_vits.pth" }]
+
+[[variants]]
+id = "depth-anything-v2-metric-hypersim-b"
+revision = 1
+outputs = ["depth"]
+output = { kind = "metric" }
+params = { arch = "vitb", max_depth = 20.0 }
+licence = { weights = "Apache-2.0", training_data = ["unstated"], training_note = "Fine-tuned from the relative Depth Anything V2 Base on Hypersim (indoor, synthetic) per the metric_depth README", evidence = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hypersim-Base (model card: license apache-2.0)" }
+weights = [{ name = "depth_anything_v2_metric_hypersim_vitb.pth", size = 389965138, sha256 = "9dc9e274c5eff55c6daf27b660c0ced0eca4e8593a6da90cdcb04d2b4d3f3fa2", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hypersim-Base/resolve/4ebcd7fd0858cbb953451619ca943ea39ec08e00/depth_anything_v2_metric_hypersim_vitb.pth" }]
+
+[[variants]]
+id = "depth-anything-v2-metric-hypersim-l"
+revision = 1
+outputs = ["depth"]
+output = { kind = "metric" }
+params = { arch = "vitl", max_depth = 20.0 }
+licence = { weights = "Apache-2.0", training_data = ["unstated"], training_note = "Fine-tuned from the relative Depth Anything V2 Large on Hypersim (indoor, synthetic) per the metric_depth README", evidence = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hypersim-Large (model card: license apache-2.0)" }
+weights = [{ name = "depth_anything_v2_metric_hypersim_vitl.pth", size = 1341401882, sha256 = "6f82ff2bc543ac02ddff4aa31fa363676a8305dd3ccf04e80e2af115a044cb6d", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hypersim-Large/resolve/79720800638389a78b2defc92caa885104f69974/depth_anything_v2_metric_hypersim_vitl.pth" }]
+
+[[variants]]
+id = "depth-anything-v2-metric-vkitti-s"
+revision = 1
+outputs = ["depth"]
+output = { kind = "metric" }
+params = { arch = "vits", max_depth = 80.0 }
+licence = { weights = "Apache-2.0", training_data = ["unstated"], training_note = "Fine-tuned from the relative Depth Anything V2 Small on Virtual KITTI 2 (outdoor driving, synthetic) per the metric_depth README", evidence = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-VKITTI-Small (model card: license apache-2.0)" }
+weights = [{ name = "depth_anything_v2_metric_vkitti_vits.pth", size = 99221808, sha256 = "9203e538d35255c90dda4b7fedb47ff33fe725497bcca3b1e53b3a65ee63f0cb", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-VKITTI-Small/resolve/c725b8589bdf6ab04072cab74c0467830db80d6d/depth_anything_v2_metric_vkitti_vits.pth" }]
+
+[[variants]]
+id = "depth-anything-v2-metric-vkitti-b"
+revision = 1
+outputs = ["depth"]
+output = { kind = "metric" }
+params = { arch = "vitb", max_depth = 80.0 }
+licence = { weights = "Apache-2.0", training_data = ["unstated"], training_note = "Fine-tuned from the relative Depth Anything V2 Base on Virtual KITTI 2 (outdoor driving, synthetic) per the metric_depth README", evidence = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-VKITTI-Base (model card: license apache-2.0)" }
+weights = [{ name = "depth_anything_v2_metric_vkitti_vitb.pth", size = 389964656, sha256 = "4dad67a7cc10b462bca48e6b8569c762b8eb3c1adada170a3851a6d3ba37bb3e", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-VKITTI-Base/resolve/e96fd0c8cedf1825a55b9c61309f754982948df0/depth_anything_v2_metric_vkitti_vitb.pth" }]
+
+[[variants]]
+id = "depth-anything-v2-metric-vkitti-l"
+revision = 1
+outputs = ["depth"]
+output = { kind = "metric" }
+params = { arch = "vitl", max_depth = 80.0 }
+licence = { weights = "Apache-2.0", training_data = ["unstated"], training_note = "Fine-tuned from the relative Depth Anything V2 Large on Virtual KITTI 2 (outdoor driving, synthetic) per the metric_depth README", evidence = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-VKITTI-Large (model card: license apache-2.0)" }
+weights = [{ name = "depth_anything_v2_metric_vkitti_vitl.pth", size = 1341401064, sha256 = "239b1054a369e66da2576e9a118d6d7c12d90dc8ebe609579a9a09cd8e05fe38", url = "https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-VKITTI-Large/resolve/070e97e4b80e317ec1d03c19927304f4091a180b/depth_anything_v2_metric_vkitti_vitl.pth" }]
+
+[[variants]]
+id = "distill-any-depth-s"
+revision = 1
+outputs = ["inverse_depth"]
+params = { arch = "vits" }
+licence = { weights = "Apache-2.0", training_data = ["unstated"], training_note = "Distilled from Depth Anything V2 and GenPercept teachers on 200K unlabeled SA-1B images per the paper (arXiv 2502.19204)", evidence = "https://huggingface.co/xingyang1/Distill-Any-Depth (model card: license apache-2.0); code https://github.com/Westlake-AGI-Lab/Distill-Any-Depth (MIT)" }
+weights = [{ name = "Distill-Any-Depth/small/model.safetensors", size = 99165428, sha256 = "56a173c0e1b5045bf6296a5c1fb16eace0bbde2eddc24b37532cb1774ac09caa", url = "https://huggingface.co/xingyang1/Distill-Any-Depth/resolve/38095a41cca1e28a28e8bb6372c68df721455a2d/small/model.safetensors" }]
+
+[[variants]]
+id = "distill-any-depth-b"
+revision = 1
+outputs = ["inverse_depth"]
+params = { arch = "vitb" }
+licence = { weights = "Apache-2.0", training_data = ["unstated"], training_note = "Distilled from Depth Anything V2 and GenPercept teachers on 200K unlabeled SA-1B images per the paper (arXiv 2502.19204)", evidence = "https://huggingface.co/xingyang1/Distill-Any-Depth (model card: license apache-2.0); code https://github.com/Westlake-AGI-Lab/Distill-Any-Depth (MIT)" }
+weights = [{ name = "Distill-Any-Depth/base/model.safetensors", size = 389908668, sha256 = "ee99258af6c40302e7046b510190e3e4624d22d03909fa34e543cd6f6ce567ac", url = "https://huggingface.co/xingyang1/Distill-Any-Depth/resolve/38095a41cca1e28a28e8bb6372c68df721455a2d/base/model.safetensors" }]
+
+[[variants]]
+id = "distill-any-depth-l"
+revision = 1
+outputs = ["inverse_depth"]
+params = { arch = "vitl", layout = "dam" }
+licence = { weights = "Apache-2.0", training_data = ["unstated"], training_note = "Distilled from Depth Anything V2 and GenPercept teachers on 200K unlabeled SA-1B images per the paper (arXiv 2502.19204)", evidence = "https://huggingface.co/xingyang1/Distill-Any-Depth (model card: license apache-2.0); code https://github.com/Westlake-AGI-Lab/Distill-Any-Depth (MIT)" }
+weights = [{ name = "Distill-Any-Depth/large/model.safetensors", size = 1341306476, sha256 = "c7d46f6f0048bc13e40691713294d0e8c6099231bf3130457123ce48aab425eb", url = "https://huggingface.co/xingyang1/Distill-Any-Depth/resolve/38095a41cca1e28a28e8bb6372c68df721455a2d/large/model.safetensors" }]

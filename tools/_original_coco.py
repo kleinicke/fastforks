@@ -13,6 +13,9 @@ Code paths (each family's venv, `bench/bench_upstream.py list`):
   `SCORE_THRESH_TEST` 0.05 and 100 detections (the config defaults the cards copy). 007 venv.
 - DETR / RT-DETRv2: `bench/detr_original.py build` (official transforms + postprocessor); DETR keeps score >= 0.05
   (card default), RT-DETRv2 all 300 queries (the official postprocessor, as the fastforks tiers of this eval). 007 venv.
+- RTMDet: mmdet 3.3.0 `inference_detector` on the model of `tools/golden/rtmdet.py` (`FF_MMDET_SITE`: mmdet,
+  mmengine, mmcv-lite; NMS through torchvision's operator), the configs' test settings (COCO: score 0.001, 300
+  detections; the person detectors: 0.05, 100).
 - SAM: `segment_anything.SamPredictor.set_image` + `predict_torch` (point coordinates through its `ResizeLongestSide`).
 - SAM 2: `SAM2ImagePredictor.set_image` + its `_prep_prompts` / `_predict` (the torch path of `predict`, masks stay on
   the GPU); the authors' README runs it under `torch.autocast("cuda", torch.bfloat16)`: that is the `upstream16` tier.
@@ -172,8 +175,35 @@ def _detr(ref: str, tier: str) -> _Detector:
     return _Detector(t, fn, "detr" if ref.startswith("detr") else "rtdetr")
 
 
+def _rtmdet(ref: str, tier: str) -> _Detector:
+    """The mmdet `inference_detector` on the `tools/golden/rtmdet.py` model with the config's test settings."""
+    import os  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _original._golden("rtmdet")  # noqa: SLF001 - the family's reference recipe
+    site = os.environ.get("FF_MMDET_SITE")
+    if not site:
+        msg = "FF_MMDET_SITE: site-packages with mmdet 3.3.0 (+ mmcv-lite, mmengine) for the original-code tiers"
+        raise RuntimeError(msg)
+    card, variant = registry.resolve("detection", ref)
+    net = g.reference(site, card, variant).cuda()
+    from mmdet.apis import inference_detector  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    t = _Tier(tier, "rtmdet", [net])
+
+    def fn(img: np.ndarray) -> tuple[Any, ...]:
+        r = inference_detector(net, np.ascontiguousarray(img[..., ::-1])).pred_instances
+        return r.bboxes, r.scores, r.labels, None
+
+    det = _Detector(t, fn, "rtmdet")
+    if variant.output_info["label_set"] == "person-1":
+        det.class_names = ["person"]
+    return det
+
+
 class _Points:
-    """SAM / SAM 2 point-prompt model."""
+    """SAM / SAM 2 / EfficientViT-SAM point-prompt model."""
 
     prompts = frozenset({"points", "boxes", "masks"})
 
@@ -182,9 +212,25 @@ class _Points:
 
         self.torch, self.family = torch, family
         bu = _original.bench()
-        a = bu.FAM[family]
-        a.setup()
-        if family == "sam":
+        a = bu.FAM.get(family)
+        if a is not None:
+            a.setup()
+        if family == "efficientvit_sam":
+            from fastforks._core import registry  # noqa: PLC0415
+
+            card, variant = registry.resolve("promptable_segmentation", ref)
+            weights = registry.weights(card, variant, allow_download=False)[0]
+            self.pred = _original.efficientvit_sam_recipe().predictor(variant.params["arch"], weights)
+            net = self.pred.model.cuda()
+        elif family == "sam_hq":
+            from fastforks._core import registry  # noqa: PLC0415
+
+            card, variant = registry.resolve("promptable_segmentation", ref)
+            weights = registry.weights(card, variant, allow_download=False)[0]
+            key = variant.id.removeprefix("sam-hq-").replace("-", "_")
+            self.pred = _original.sam_hq_recipe().predictor(key, weights)
+            net = self.pred.model.cuda()
+        elif family == "sam":
             k = ref.rsplit("-", 1)[1]
             sam = a.reg[a.KEYS[k]]()
             sam.load_state_dict(torch.load(bu.wfile(a.FILES[k]), map_location="cpu", weights_only=True))
@@ -213,7 +259,7 @@ class _Points:
     ) -> Result:
         pts, lab = input_points.cuda().float(), input_labels.cuda().int()
         with self.t.ctx():
-            if self.family == "sam":
+            if self.family in {"sam", "sam_hq", "efficientvit_sam"}:  # the same predictor interface
                 c = self.pred.transform.apply_coords_torch(pts, size)
                 masks, iou, _ = self.pred.predict_torch(c, lab, multimask_output=multimask_output)
             else:
@@ -270,9 +316,15 @@ def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401
     """The original of `ref` (id without `@rev`) in `tier`."""
     ref = ref.split("@", maxsplit=1)[0]
     if task == "detection":
+        if ref.startswith("rtmdet"):
+            return _rtmdet(ref, tier)
         return _rcnn(ref, tier) if "rcnn" in ref else _detr(ref, tier)
     if ref.startswith("sam3"):
         return _Concept(tier)
+    if ref.startswith("efficientvit-sam"):
+        return _Points(ref, tier, "efficientvit_sam")
+    if ref.startswith("sam-hq"):
+        return _Points(ref, tier, "sam_hq")
     return _Points(ref, tier, "sam2" if ref.startswith("sam2") else "sam")
 
 

@@ -1,0 +1,96 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.005
+gpu_mean = 0.13
+gpu_p99 = 0.75
+gpu_min_score = 0.3  # keypoints the reference scores lower: argmax ties between heatmap peaks (369 px at score 0.028)
+gpu_extra = [["boxes", 1e-06, 1e-06], ["keypoint_scores", 0.012, 0.068], ["scores", 0.0061, 0.012]]
+
+[refs."vitpose-base-simple@1"]
+sha256 = "62dce8b576f0c9366a43f77f6b3138e57ac8819bf1279b5486a574c62ebf1a4f"
+upstream = "https://github.com/huggingface/transformers@v4.57.1"
+settings = "CPU float32, VitPoseImageProcessor (float input, do_rescale=False) + post_process_pose_estimation, dataset_index 0, skimage astronaut.png, 2 boxes, torch 2.14.1+cu130"
+
+[refs."vitpose-base@1"]
+sha256 = "b7acf111cb9a61e727bb7e3a1e70582fa99f6bd5372ede1f12f1df803403167d"
+upstream = "https://github.com/huggingface/transformers@v4.57.1"
+settings = "CPU float32, VitPoseImageProcessor (float input, do_rescale=False) + post_process_pose_estimation, dataset_index 0, skimage astronaut.png, 2 boxes, torch 2.14.1+cu130"
+
+[refs."vitpose-plus-base@1"]
+sha256 = "c3abf03c5e7b73fcc49b6cb3a906a6176df1029fad68b159e103d70459d6c7f0"
+upstream = "https://github.com/huggingface/transformers@v4.57.1"
+settings = "CPU float32, VitPoseImageProcessor (float input, do_rescale=False) + post_process_pose_estimation, dataset_index 0, skimage astronaut.png, 2 boxes, torch 2.14.1+cu130"
+
+[refs."vitpose-plus-huge@1"]
+sha256 = "4f858582babfe31890d033220f1bb1786a6e611a00b81f4307374dc1f41a5d4e"
+upstream = "https://github.com/huggingface/transformers@v4.57.1"
+settings = "CPU float32, VitPoseImageProcessor (float input, do_rescale=False) + post_process_pose_estimation, dataset_index 0, skimage astronaut.png, 2 boxes, torch 2.14.1+cu130"
+
+[refs."vitpose-plus-large@1"]
+sha256 = "36d340b7978bc38a798cfd0237fef997aa7d86b3a6c2d47377ce3e1a07064c92"
+upstream = "https://github.com/huggingface/transformers@v4.57.1"
+settings = "CPU float32, VitPoseImageProcessor (float input, do_rescale=False) + post_process_pose_estimation, dataset_index 0, skimage astronaut.png, 2 boxes, torch 2.14.1+cu130"
+
+[refs."vitpose-plus-small@1"]
+sha256 = "413d28fae3558bc3670bdff65bfff9792abeb0a62e5b646aca21a92136b066e7"
+upstream = "https://github.com/huggingface/transformers@v4.57.1"
+settings = "CPU float32, VitPoseImageProcessor (float input, do_rescale=False) + post_process_pose_estimation, dataset_index 0, skimage astronaut.png, 2 boxes, torch 2.14.1+cu130"
+
+[validated."vitpose-base-simple@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-09"
+mean_px = 0.0403
+p99_px = 0.27042
+
+[validated."vitpose-base@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-09"
+mean_px = 0.02513
+p99_px = 0.17409
+
+[validated."vitpose-plus-base@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-09"
+mean_px = 0.08143
+p99_px = 0.49756
+
+[validated."vitpose-plus-huge@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-09"
+mean_px = 0.01678
+p99_px = 0.09697
+
+[validated."vitpose-plus-large@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-09"
+mean_px = 0.02603
+p99_px = 0.09324
+
+[validated."vitpose-plus-small@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-09"
+mean_px = 0.02359
+p99_px = 0.11659

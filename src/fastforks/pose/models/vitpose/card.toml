@@ -1,0 +1,86 @@
+schema = 2
+name = "ViTPose / ViTPose++"
+summary = "ViTPose (Xu et al. 2022): top-down 2D human pose with a plain ViT encoder and a light deconvolution (or bilinear) decoder; ViTPose++ trains one backbone on six pose datasets with per-dataset MLP experts. Takes person boxes (e.g. from `fastforks.detection`), crops each at 256 x 192 and returns the 17 COCO keypoints with DARK sub-pixel decoding. The portable `module()` maps crops to heatmaps."
+tier = "stable"
+outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
+
+[upstream]
+repo = "https://github.com/huggingface/transformers"  # VitPoseForPoseEstimation + VitPoseImageProcessor (port of ViTAE-Transformer/ViTPose)
+commit = "v4.57.1"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"  # HF model cards of usyd-community/vitpose-*: "license: apache-2.0"; ViTPose repo: Apache-2.0
+files = ["LICENSE"]
+training_data = ["coco", "imagenet-1k"]
+training_note = "COCO 2017 keypoints; the ViT was initialised from MAE ImageNet-1k pre-training"
+evidence = "https://huggingface.co/usyd-community/vitpose-base-simple (model card licence)"
+
+[io]
+input = "imagenet"  # the runner crops each box at 256 x 192 and normalises the crops itself
+
+[options]
+fp32_accumulate = { default = false, effect = "precision" }  # true: kernels run every GEMM through cuBLAS with fp32 accumulation (the portable precision, with the CUDA graphs); slower on GeForce (half-rate fp32 accumulation)
+
+[params]
+dim = 768
+depth = 12
+heads = 12
+part = 0
+experts = 0
+decoder = "classic"
+keypoints = 17
+height = 256
+width = 192
+
+[modes.portable]
+cuda_dtype = "float16"  # crops, decoding and keypoint mapping stay float32
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["fvm_conv"]  # token GEMMs with fused bias / GELU / residual epilogues; attention (flash SDPA) and the decoder (cuDNN) stay torch
+mps_kernels = ["pose_metal"]  # patch embedding and decoder as GEMMs + Metal overlap-add, DARK decoding in one pass
+# no mps_dtype: float16 stays; M1 Pro, vitpose-base: 7-10 % faster than float32 (25.6 vs 28.1 ms, 2 people), 0.04 px mean / 0.33 px p99 from the golden
+
+[output]
+label_set = "coco-keypoints-17"
+
+[[variants]]
+id = "vitpose-base-simple"  # ViT-B, simple decoder, COCO
+revision = 1
+params = { decoder = "simple" }
+weights = [{ name = "vitpose-base-simple-85375373.safetensors", size = 343673076, sha256 = "85375373893ddd3641f3912821073e53f5435f9e966e1dca59d004454bfe4fdf", url = "https://huggingface.co/usyd-community/vitpose-base-simple/resolve/a93ac0c67e0b7e2c55287d21d4c460c8f3c54d45/model.safetensors" }]
+
+[[variants]]
+id = "vitpose-base"  # ViT-B, classic decoder, COCO
+revision = 1
+params = {}
+weights = [{ name = "vitpose-base-cd9a4e6c.safetensors", size = 360007012, sha256 = "cd9a4e6cefc33c51ddcc32dd509fc4114b5845256463a69a10ea2dfde402b2f8", url = "https://huggingface.co/usyd-community/vitpose-base/resolve/95be2991424e646950d656bb7fc15ec9be119700/model.safetensors" }]
+
+[[variants]]
+id = "vitpose-plus-small"  # ViTPose++-S
+revision = 1
+licence = { training_data = ["coco", "aic", "mpii", "ap-10k", "apt-36k", "coco-wholebody", "imagenet-1k"], training_note = "ViTPose++: one backbone trained jointly on COCO, AI Challenger, MPII, AP-10K, APT-36K and COCO-WholeBody (one MLP expert per dataset), from MAE ImageNet-1k pre-training; only the COCO expert and head are used" }
+params = { dim = 384, heads = 12, part = 96, experts = 6 }
+weights = [{ name = "vitpose-plus-small-f7bad8ed.safetensors", size = 132619932, sha256 = "f7bad8ed09eeeb2a7de6b38faaa8a88d07838e23e9c06a2a782099bca7467cb9", url = "https://huggingface.co/usyd-community/vitpose-plus-small/resolve/0c30b6534bb621af0162b481176742577264e36e/model.safetensors" }]
+
+[[variants]]
+id = "vitpose-plus-base"  # ViTPose++-B
+revision = 1
+licence = { training_data = ["coco", "aic", "mpii", "ap-10k", "apt-36k", "coco-wholebody", "imagenet-1k"], training_note = "ViTPose++: one backbone trained jointly on COCO, AI Challenger, MPII, AP-10K, APT-36K and COCO-WholeBody (one MLP expert per dataset), from MAE ImageNet-1k pre-training; only the COCO expert and head are used" }
+params = { part = 192, experts = 6 }
+weights = [{ name = "vitpose-plus-base-640225e4.safetensors", size = 501627628, sha256 = "640225e4a9dd544239f1da0ae36af865a6e76e21e5f33a12656aa7b77fa5a5fa", url = "https://huggingface.co/usyd-community/vitpose-plus-base/resolve/92be54d7a29e42fad47b6e2ca01dd9e685a61e0d/model.safetensors" }]
+
+[[variants]]
+id = "vitpose-plus-large"  # ViTPose++-L
+revision = 1
+licence = { training_data = ["coco", "aic", "mpii", "ap-10k", "apt-36k", "coco-wholebody", "imagenet-1k"], training_note = "ViTPose++: one backbone trained jointly on COCO, AI Challenger, MPII, AP-10K, APT-36K and COCO-WholeBody (one MLP expert per dataset), from MAE ImageNet-1k pre-training; only the COCO expert and head are used" }
+params = { dim = 1024, depth = 24, heads = 16, part = 256, experts = 6 }
+weights = [{ name = "vitpose-plus-large-8b249f74.safetensors", size = 1737705492, sha256 = "8b249f74fca7c90b94adb1ebcdbb32cb424fb4fb3c8c40f54a050ccce972643f", url = "https://huggingface.co/usyd-community/vitpose-plus-large/resolve/e211df377e49c89dba508ab3e83ddef13c0832b4/model.safetensors" }]
+
+[[variants]]
+id = "vitpose-plus-huge"  # ViTPose++-H
+revision = 1
+licence = { training_data = ["coco", "aic", "mpii", "ap-10k", "apt-36k", "coco-wholebody", "imagenet-1k"], training_note = "ViTPose++: one backbone trained jointly on COCO, AI Challenger, MPII, AP-10K, APT-36K and COCO-WholeBody (one MLP expert per dataset), from MAE ImageNet-1k pre-training; only the COCO expert and head are used" }
+params = { dim = 1280, depth = 32, heads = 16, part = 320, experts = 6 }
+weights = [{ name = "vitpose-plus-huge-0ecb49f1.safetensors", size = 3597730876, sha256 = "0ecb49f1ab0b18cc2f18446b8100442cec88bd99dd53779ad5a7f8c71aa08506", url = "https://huggingface.co/usyd-community/vitpose-plus-huge/resolve/9f36d7aec1800d23e97f10c2e74393aee92aa53f/model.safetensors" }]

@@ -1,0 +1,111 @@
+schema = 2
+name = "Perception Encoder"
+summary = "Perception Encoder (Bolya et al. 2025, Meta) image towers with 2D RoPE: PE core (contrastive, attention-pool embedding) and PE spatial (dense features for detection / segmentation; no learned pool: pooler_output is the mean of the patch tokens, as timm); tokens at any size."
+tier = "experimental"
+outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
+uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports (CUDA graphs, the timm network builder)
+limitations = [
+  "kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",
+  "Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.",
+  "`fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).",
+]
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+weights = "Apache-2.0"  # the timm Hugging Face model cards (facebookresearch/perception_models release)
+files = []  # no vendored code: the architecture is timm's own module (Eva with 2D RoPE)
+training_data = ["unstated"]
+training_note = "PE core: billions of web image-text pairs curated with the MetaCLIP pipeline, then video-text fine-tuning; PE spatial: PE core-G distilled with SAM 2 mask-feature alignment (Perception Encoder paper); not released"
+evidence = "https://huggingface.co/timm/vit_pe_core_small_patch16_384.fb/blob/255fa76e26fdf8daa47e0d607da46b7051879045/README.md"
+
+[io]
+# the core resizes (never pads / crops) to multiples of the patch (16; 14 for L / G), antialiased bicubic
+input = "mean_std"
+interpolation = "bicubic"
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+pad = { multiple = 16, mode = "none" }
+
+[options]
+fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, larger error vs fp32)
+fp32_accumulate = { default = false, effect = "precision" }  # true: kernels run every GEMM through cuBLAS with fp32 accumulation (the portable precision, with the CUDA graphs); slower on GeForce (half-rate fp32 accumulation), to be measured on data-centre GPUs
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+mps_kernels = ["vit_metal"]  # the blocks' interleaved q / k RoPE in one pass (the rest: the portable network)
+# no mps_dtype: float16 stays; M1 Pro at the native size: 10-12 % faster than float32 (t16 16.0 vs 18.2 ms, s16 32.2 vs 35.9 ms), inside the golden tolerances
+
+[[variants]]
+id = "pe-core-t16-384"
+revision = 1
+params = { arch = "vit_pe_core_tiny_patch16_384.fb" }
+weights = [{ name = "vit_pe_core_tiny_patch16_384.fb.safetensors", size = 24579144, sha256 = "d97f3436c9bf0cf067d92954d868012df87b74d438d153e386a4d2295166c253", url = "https://huggingface.co/timm/vit_pe_core_tiny_patch16_384.fb/resolve/29e4ebb6cc0502b84ba432add45499f4ffa44238/model.safetensors" }]
+
+[[variants]]
+id = "pe-core-s16-384"
+revision = 1
+params = { arch = "vit_pe_core_small_patch16_384.fb" }
+weights = [{ name = "vit_pe_core_small_patch16_384.fb.safetensors", size = 95147760, sha256 = "b07ccd4489dcef7e1d2f3878a8232eb2457ba5b2d2086bd1512def4644cbfdda", url = "https://huggingface.co/timm/vit_pe_core_small_patch16_384.fb/resolve/255fa76e26fdf8daa47e0d607da46b7051879045/model.safetensors" }]
+
+[[variants]]
+id = "pe-core-b16-224"
+revision = 1
+params = { arch = "vit_pe_core_base_patch16_224.fb" }
+weights = [{ name = "vit_pe_core_base_patch16_224.fb.safetensors", size = 374711304, sha256 = "802a8c86fed61c32573767f5b64c2476151fdb5c36f1ec0f2c9d0540c075530c", url = "https://huggingface.co/timm/vit_pe_core_base_patch16_224.fb/resolve/0f9fb1eea04d135faa1f15af05734fb996fcaf94/model.safetensors" }]
+
+[[variants]]
+id = "pe-core-l14-336"
+revision = 1
+params = { arch = "vit_pe_core_large_patch14_336.fb" }
+io = { pad = { multiple = 14 } }
+weights = [{ name = "vit_pe_core_large_patch14_336.fb.safetensors", size = 1268638488, sha256 = "35edcdb68eb43329192fc1530c246191e8a72f9a3dae01e2c7cccf05338d4cac", url = "https://huggingface.co/timm/vit_pe_core_large_patch14_336.fb/resolve/e63206c8e3a0e9b699e40f31080eebd78fd2258e/model.safetensors" }]
+
+[[variants]]
+id = "pe-core-g14-448"
+revision = 1
+params = { arch = "vit_pe_core_gigantic_patch14_448.fb" }
+io = { pad = { multiple = 14 } }
+weights = [{ name = "vit_pe_core_gigantic_patch14_448.fb.safetensors", size = 7528195816, sha256 = "a0a499d4a7c6d35bb5f11aa2b076eaacde06e66a08176eb3b3d362d80eb91bd8", url = "https://huggingface.co/timm/vit_pe_core_gigantic_patch14_448.fb/resolve/fb096c09d13bd2e3827aed4dbdffb8a6b8e0c10b/model.safetensors" }]
+
+[[variants]]
+id = "pe-spatial-t16-512"
+revision = 1
+params = { arch = "vit_pe_spatial_tiny_patch16_512.fb" }
+weights = [{ name = "vit_pe_spatial_tiny_patch16_512.fb.safetensors", size = 22746240, sha256 = "7242055f36d8973c569cfdd1c26ebdef0f4c00e8e4acdad1a7ffc6e94fa8043a", url = "https://huggingface.co/timm/vit_pe_spatial_tiny_patch16_512.fb/resolve/2531addff69b565668fc6f2065a1c222cf1d431b/model.safetensors" }]
+
+[[variants]]
+id = "pe-spatial-s16-512"
+revision = 1
+params = { arch = "vit_pe_spatial_small_patch16_512.fb" }
+weights = [{ name = "vit_pe_spatial_small_patch16_512.fb.safetensors", size = 87946528, sha256 = "ed334e352f8490867ca875ce13f8db766497f32a30f88b3a6c87da89a2649229", url = "https://huggingface.co/timm/vit_pe_spatial_small_patch16_512.fb/resolve/bde8c2a1ca579f414140672d311c3a4fcf1058a7/model.safetensors" }]
+
+[[variants]]
+id = "pe-spatial-b16-512"
+revision = 1
+params = { arch = "vit_pe_spatial_base_patch16_512.fb" }
+weights = [{ name = "vit_pe_spatial_base_patch16_512.fb.safetensors", size = 345749016, sha256 = "aa56bd9f500f5c5dc3ae1daf9c600c3cd1c347baaf92047ba5ed9db2d53778ab", url = "https://huggingface.co/timm/vit_pe_spatial_base_patch16_512.fb/resolve/53267ce15082ad3e246bc5b70adc6da5f9819a70/model.safetensors" }]
+
+[[variants]]
+id = "pe-spatial-l14-448"
+revision = 1
+params = { arch = "vit_pe_spatial_large_patch14_448.fb" }
+io = { pad = { multiple = 14 } }
+weights = [{ name = "vit_pe_spatial_large_patch14_448.fb.safetensors", size = 1215884536, sha256 = "c21925194deea04a30e1e7c40f84f4ce9649bc379463fa81617a6cfa295f3927", url = "https://huggingface.co/timm/vit_pe_spatial_large_patch14_448.fb/resolve/ac6f424680a305470340dac75a0a9b4c47ee030f/model.safetensors" }]
+
+[[variants]]
+id = "pe-spatial-g14-448"
+revision = 1
+params = { arch = "vit_pe_spatial_gigantic_patch14_448.fb" }
+io = { pad = { multiple = 14 } }
+weights = [{ name = "vit_pe_spatial_gigantic_patch14_448.fb.safetensors", size = 7407615928, sha256 = "db69c2e41d38a72cf3f852707367934edbea3f47c3d8b07dc3e082b8caff8d8d", url = "https://huggingface.co/timm/vit_pe_spatial_gigantic_patch14_448.fb/resolve/f2cea21ca9d5900061bee5e896031ab4e8352936/model.safetensors" }]

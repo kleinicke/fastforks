@@ -224,6 +224,7 @@ def test_python_m_fastforks(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Capt
         ("multiview", "MultiViewModel"),
         ("segmentation", "SegmentationModel"),
         ("features", "FeaturesModel"),
+        ("flow", "FlowModel"),
     ],
 )
 def test_load_return_annotation(task: str, cls: str) -> None:

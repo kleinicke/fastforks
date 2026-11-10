@@ -198,7 +198,8 @@ def test_compiled_methods_exist(task):
             assert len(cls.compiled_methods) > 1, card.family
 
 
-HELPERS = {"module", "input_use", "pad", "upsample", "scene", "segment_concept"}  # host code around the entry points
+# host code around the entry points
+HELPERS = {"module", "input_use", "pad", "resize", "restore", "upsample", "scene", "segment_concept"}
 
 
 @pytest.mark.parametrize("task", registry.TASKS)

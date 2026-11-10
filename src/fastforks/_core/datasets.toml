@@ -8,7 +8,7 @@ commercial = "no"
 url = "https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html"
 
 [kitti]
-name = "KITTI stereo 2012 / 2015"
+name = "KITTI stereo / optical flow 2012 / 2015"
 licence = "CC-BY-NC-SA-3.0"
 commercial = "no"
 url = "https://www.cvlibs.net/datasets/kitti/"
@@ -85,6 +85,12 @@ licence = "CC-BY-4.0"  # "The annotations in this dataset belong to the COCO Con
 commercial = "unclear"
 url = "https://cocodataset.org/#termsofuse"
 
+[objects365]
+name = "Objects365 (train, box annotations)"
+licence = "CC-BY-4.0"  # "available for the academic purpose only"; annotations "licensed under a Creative Commons Attribution 4.0 License", the images follow the Flickr terms of use (read 2026-11-10)
+commercial = "no"
+url = "https://www.objects365.org/download.html"
+
 [imagenet-1k]
 name = "ImageNet-1k (ILSVRC 2012 classification)"
 licence = "LicenseRef-noncommercial"  # terms of access: "non-commercial research and educational purposes" only
@@ -125,3 +131,105 @@ name = "DTU Robot Image Data Sets (MVS 2014)"
 licence = "not stated"  # not re-read 2026-10-27 (offline): terms to be checked on the official page
 commercial = "unclear"
 url = "https://roboimagedata.compute.dtu.dk/"
+
+[laion-2b]
+name = "LAION-2B-en (web image-text pairs filtered by CLIP similarity)"
+licence = "CC-BY-4.0"  # the metadata (URLs, captions); the images keep their own copyrights
+commercial = "unclear"
+url = "https://laion.ai/blog/laion-5b/"
+
+[datacomp-1b]
+name = "DataComp-1B (filtered from the CommonPool-12.8B web image-text pool)"
+licence = "CC-BY-4.0"  # the metadata (URLs, captions); the images keep their own copyrights
+commercial = "unclear"
+url = "https://arxiv.org/abs/2304.14108"
+
+[nv-cc-img-text]
+name = "NV-CC-Img-Text-Dataset (NVIDIA web image-text data, 700 M images, not released)"
+licence = "not stated"  # named on the C-RADIOv3 model cards only ("Automated" collection); not distributed
+commercial = "unclear"
+url = "https://huggingface.co/nvidia/C-RADIOv3-B/blob/44653a0482cf460bb4f12595fc3cc3dfecc403d1/README.md"
+
+[aic]
+name = "AI Challenger human keypoints (2017)"
+licence = "not stated"  # no terms found in the paper (arXiv 1711.06475) or on reachable mirrors (read 2026-11-09)
+commercial = "unclear"
+url = "https://arxiv.org/abs/1711.06475"
+
+[mpii]
+name = "MPII Human Pose"
+licence = "BSD-2-Clause"  # annotations and code; "Commercial use is not allowed" (the authors do not own the images)
+commercial = "no"
+url = "https://www.mpi-inf.mpg.de/departments/computer-vision-and-machine-learning/software-and-datasets/mpii-human-pose-dataset/download"
+
+[ap-10k]
+name = "AP-10K (animal pose)"
+licence = "CC-BY-4.0"  # "The dataset follows CC-BY-4.0 license."; no statement on the images' sources
+commercial = "unclear"
+url = "https://github.com/AlexTheBad/AP-10K/blob/181b1a04755e4dc6fe5616ef7a88496f47bfe228/README.md"
+
+[apt-36k]
+name = "APT-36K (animal pose tracking)"
+licence = "MIT"  # README: "This project is under MIT licence."; no statement on the images
+commercial = "unclear"
+url = "https://github.com/pandorgan/APT-36K/blob/366ba0109bb9586cac793d1b150d5f4261b77cfa/README.md"
+
+[coco-wholebody]
+name = "COCO-WholeBody"
+licence = "CC-BY-NC-4.0"  # "ONLY for research and non-commercial use" (the linked licence is BY-NC 4.0)
+commercial = "no"
+url = "https://github.com/jin-s13/COCO-WholeBody/blob/76f3b6331b6e15553fbee05951dbf49f1fad029c/README.md"
+
+[ubody]
+name = "UBody (upper-body whole-body keypoints, from OSX)"
+licence = "not stated"  # no licence or terms in the repository README (read 2026-11-09); the data sits behind a Google form
+commercial = "unclear"
+url = "https://github.com/IDEA-Research/OSX/blob/14b1cb41a3d2b14c9303290f45fa8189f6f685b3/README.md"
+
+[crowdpose]
+name = "CrowdPose"
+licence = "not stated"  # no licence file or terms in the repository (read 2026-11-09); images from COCO, MPII and AIC
+commercial = "unclear"
+url = "https://github.com/Jeff-sjtu/CrowdPose/blob/86fe5e11e570cad02d553db52ec72545578cd1c8/README.md"
+
+[halpe]
+name = "Halpe-FullBody"
+licence = "not stated"  # the README asks for a citation only (read 2026-11-09); images from HICO-DET (train) and COCO (val)
+commercial = "unclear"
+url = "https://github.com/Fang-Haoshu/Halpe-FullBody/blob/70d6014c007c765adc65f5f0145d3f0999ab1135/README.md"
+
+[posetrack18]
+name = "PoseTrack 2018"
+licence = "not stated"  # no terms on the public pages (read 2026-11-09); any terms sit behind the download login
+commercial = "unclear"
+url = "https://posetrack.net/"
+
+[jhmdb]
+name = "sub-JHMDB (J-HMDB)"
+licence = "not stated"  # no terms on the public pages (read 2026-11-09); any terms sit behind the download login
+commercial = "unclear"
+url = "https://ps.is.mpg.de/publications/jhuang-iccv-2013"  # the dataset site jhmdb.is.tue.mpg.de serves no https
+
+[flyingchairs]
+name = "FlyingChairs (Freiburg)"
+licence = "LicenseRef-research-only"  # "provided for research purposes only ... Any commercial use is prohibited." (read 2026-11-09)
+commercial = "no"
+url = "https://lmb.informatik.uni-freiburg.de/resources/datasets/FlyingChairs.en.html"
+
+[sintel-flow]
+name = "MPI Sintel optical flow"
+licence = "LicenseRef-noncommercial"  # licence page: non-commercial research, education or artistic use only (read 2026-11-09)
+commercial = "no"
+url = "https://sintel.is.tue.mpg.de/license"
+
+[hd1k]
+name = "HCI HD1K optical flow benchmark"
+licence = "not stated"  # the site did not answer when checked (2026-11-09); no terms verified
+commercial = "unclear"
+url = "https://hci-benchmark.iwr.uni-heidelberg.de/"
+
+[spring]
+name = "Spring (scene flow / optical flow / stereo, University of Stuttgart)"
+licence = "CC-BY-4.0"  # DaRUS record doi:10.18419/darus-3376 (version 2): licence "CC BY 4.0" (read 2026-11-09)
+commercial = "yes"
+url = "https://spring-benchmark.org/"

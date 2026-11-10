@@ -99,6 +99,7 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
     ),
     "depth-anything-v2-s@1": (209, 26, {}),
     "depth-pro@1": (1249, 150, {}),
+    "distill-any-depth-s@1": (209, 26, {}),  # the family smallest since 2026-11-10; same structure as DAv2-S
     "dinov2-vits14@1": (211, 26, {}),
     "dinov3-convnext-tiny@1": (
         0,
@@ -397,7 +398,7 @@ def load_and_call(ref: str) -> Any:
     task = TASK[ref]
     m = API[task].load(ref, mode="kernels", device="cuda")
     hw = size(m.variant.io.min_size)
-    m(*pair(*hw)) if task == "stereo" else m(image(*hw))
+    m(*pair(*hw)) if task in {"stereo", "flow"} else m(image(*hw))
     return m
 
 

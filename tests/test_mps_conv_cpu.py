@@ -84,6 +84,11 @@ def test_autocast_dtype():
         assert m(x).dtype == ref(x).dtype == torch.bfloat16
 
 
+# Metal runners with nothing for `mps.adapt`: vitpose runs its transposed convolutions as GEMMs + a Metal overlap-add
+# (`deconv4s2_relu`); rtmpose (CSPNeXt + SimCC) has none
+OWN_DECONV = {"vitpose", "rtmpose"}
+
+
 def test_metal_runners_adapt():
     """Every `MetalKernels` runner that subclasses a portable one adapts its transposed convs itself."""
     from pathlib import Path  # noqa: PLC0415
@@ -94,6 +99,8 @@ def test_metal_runners_adapt():
     for path in Path(fastforks.__file__).parent.rglob("model.py"):
         src = path.read_text()
         if "class MetalKernels(Portable)" in src:
+            if path.parent.name in OWN_DECONV:
+                continue
             found += 1
             assert "mps.adapt(self.net)" in src, path
     assert found >= 3

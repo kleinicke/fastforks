@@ -76,7 +76,13 @@ def test_load_keyword_typo_is_an_argument_error():
         fastforks.load("s2m2-s", mdoe="kernels")  # ty: ignore[unknown-argument]
     assert isinstance(e.value, FastforksError)
     assert isinstance(e.value, TypeError)
-    for task in (fastforks.stereo, fastforks.depth, fastforks.classification, fastforks.promptable_segmentation):
+    for task in (
+        fastforks.stereo,
+        fastforks.depth,
+        fastforks.classification,
+        fastforks.pose,
+        fastforks.promptable_segmentation,
+    ):
         with pytest.raises(ArgumentError, match="did you mean 'dtype'"):
             task.load("x", dtpye="float16")  # ty: ignore[unknown-argument]
     assert fastforks.ArgumentError is ArgumentError

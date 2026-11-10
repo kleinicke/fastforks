@@ -5,10 +5,11 @@ also holds the family's tolerances and the kernel builds a GPU run validated (`-
 without them. `FASTFORKS_REQUIRE_GOLDENS` turns a missing golden into a failure: `1` for all, or the path of a file
 listing the required refs (CI: the goldens `tools/fetch_goldens.py --required` selected). CPU: portable float32 must
 match the reference closely. GPU: every backend must stay within the fp16 tolerance of the float32 reference (the main
-output; a family's `gpu_extra` tolerances cover all its other stored outputs), and `kernels` must not hand any work to
-PyTorch (`fastforks._core.kernels.fallbacks()`). Kernels families on `cudnn_hacc` are checked on two calls: the first
-call of a new size (torch convolutions until a geometry's plan is built) and one with every plan built. A boolean option
-named like a stored output (MoGe `normals`) is on.
+output; a family's `gpu_extra` tolerances cover all its other stored outputs; `gpu_min_score` (pose): keypoints whose
+reference score is below it are not position-compared, as the argmax decoders pick between near-equal peaks of unsure
+keypoints), and `kernels` must not hand any work to PyTorch (`fastforks._core.kernels.fallbacks()`). Kernels families
+on `cudnn_hacc` are checked on two calls: the first call of a new size (torch convolutions until a geometry's plan is
+built) and one with every plan built. A boolean option named like a stored output (MoGe `normals`) is on.
 """
 
 from __future__ import annotations
@@ -32,7 +33,9 @@ from fastforks import (
     depth,
     detection,
     features,
+    flow,
     multiview,
+    pose,
     promptable_segmentation,
     segmentation,
     stereo,
@@ -63,6 +66,8 @@ API: dict[str, Any] = {
     "promptable_segmentation": promptable_segmentation,
     "detection": detection,
     "multiview": multiview,
+    "pose": pose,
+    "flow": flow,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
 HEAVY_CPU = "FASTFORKS_HEAVY_CPU_TESTS"  # 1: every CPU case, also those left out of the release suite for time / RAM
@@ -84,15 +89,18 @@ CPU_ALSO = {
     "cas-gwcnet-gc-sceneflow@1": "arch gc (smallest: arch c)",
     "da3-large-1.1@1": "arch large (smallest: metric)",
     "da3mono-large@1": "arch mono (smallest: metric)",
+    "depth-anything-v2-metric-hypersim-s@1": "metric head: sigmoid * max_depth (smallest: relative, ReLU)",
     "dinov2-vits14@1": "no register tokens (smallest: registers)",
     "dinov2-vitg14-reg@1": "fused SwiGLU FFN (ViT-g only)",
     "dinov3-vith16plus@1": "gated SwiGLU FFN (ViT-H+ only)",
+    "distill-any-depth-l@1": "DepthAnything checkpoint layout, renamed on load (smallest: DepthAnythingV2 keys)",
     "fast-acvnet-plus-generalization@1": "Fast-ACVNet+ (plus = true)",
     "gwcnet-gc-sceneflow@1": "concat volume (smallest: group-wise only)",
     "hitnet-middlebury-d400@1": "RGB input, 6 levels (smallest: grey, 5 levels)",
     "hrnet-w48-fcn-ade20k@1": "HRNet-W48 backbone + FCN head (smallest: ResNet-101 + separable ASPP)",
     "mask-rcnn-r50-fpn-3x-coco@1": "mask head (smallest: Faster R-CNN, boxes only)",
     "mocha-v2-sceneflow@1": "mccv = false (smallest: true)",
+    "raft-large@1": "residual blocks, convex upsampling, two GRUs (smallest: bottleneck, bilinear, one)",
     "moge-3-vitl@1": "MoGe version 3 (smallest: version 2)",
     "resnet50.tv2_in1k@1": "bottleneck blocks (smallest: ResNet-18, basic blocks)",
 }
@@ -219,7 +227,7 @@ def _plans_at_once() -> Any:
         cudnn_hacc.BUILD_AFTER = old
 
 
-def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901 - one branch per task
+def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901, PLR0912 - one branch per task
     """One call of `m` on the golden's input: its output maps and backend."""
     task = TASK[ref]
     img = want["input"].round().astype(np.uint8) if want and "input" in want else image()
@@ -264,6 +272,14 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         r = m(img)
         assert isinstance(r, detection.DetectionResult)
         maps = {k: getattr(r, k) for k in spec("detection").standard}
+    elif task == "pose":  # the golden's person boxes; they come back as `boxes`
+        assert want is not None, "pose goldens store their input image and person boxes"
+        r = m(img, boxes=want["boxes"])
+        maps = {k: getattr(r, k) for k in spec("pose").standard}
+    elif task == "flow":  # the golden's image pair
+        assert want is not None, "flow goldens store their image pair"
+        r = m(img, want["input2"].round().astype(np.uint8))
+        maps = {"flow": r.flow}
     else:
         r = m(img, logits=True)
         assert r.logits is not None
@@ -272,8 +288,8 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     return {k: v.float().cpu() for k, v in maps.items() if v is not None}, r.backend
 
 
-# stored inputs of a golden (the image; per concept prompt, the queries whose masks are kept)
-INPUTS = ("input", *(f"{prefix}mask_query" for prefix in concepts()))
+# stored inputs of a golden (the image(s); per concept prompt, the queries whose masks are kept)
+INPUTS = ("input", "input2", *(f"{prefix}mask_query" for prefix in concepts()))
 
 
 def primary(ref: str, maps: dict[str, np.ndarray]) -> str:
@@ -380,6 +396,9 @@ def test_cpu_portable(ref, record_property):
     assert not any(line.startswith("FAIL") for line in lines), f"{ref} vs golden:\n" + "\n".join(lines)
 
 
+MIN_SURE = 1 / 3  # share of a pose golden's keypoints `gpu_min_score` must keep (the goldens: 42% .. 85%)
+
+
 def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torch.Tensor], what: str) -> np.ndarray:
     """Assert `got` within the GPU tolerances of the golden; the error map of the primary output."""
     for k in want.keys() & got.keys():  # e.g. the same detections
@@ -390,6 +409,10 @@ def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torc
     tol = tolerance(ref, mode)
     unit = np.median(np.abs(want[key])) if tol.get("relative") else 1.0  # scale-free outputs (relative depth)
     err = np.abs(got[key].numpy() - want[key]) / unit
+    if "gpu_min_score" in tol:  # pose: argmax decoders flip between near-equal peaks of unsure keypoints
+        sure = want["keypoint_scores"] >= tol["gpu_min_score"]
+        assert sure.mean() >= MIN_SURE, f"{what}{key}: the score mask keeps {sure.mean():.0%} of the keypoints"
+        err = err[sure]
     assert err.mean() < tol["gpu_mean"], f"{what}{key}: mean |diff| {err.mean():.4f}"
     assert np.percentile(err, 99) < tol["gpu_p99"], f"{what}{key}: p99 |diff| {np.percentile(err, 99):.4f}"
     rows = tol.get("gpu_extra", [])

@@ -474,7 +474,7 @@ Commercial use: yes.
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0 (assumed from code)
 - Licence evidence: <https://github.com/megvii-research/CREStereo/blob/ad3a1613bdedd88b93247e5f002cb7c80799762d/README.md#L82>
-- Training data: CREStereo synthetic stereo dataset (Megvii), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel stereo, Middlebury stereo (2014), ETH3D two-view stereo, KITTI stereo 2012 / 2015, NVIDIA Falling Things (FAT), InStereo2K, HR-VS (high-resolution virtual stereo, Yang et al. CVPR 2019) (the datasets original README lists as used for training; which of them the released checkpoint saw is not stated)
+- Training data: CREStereo synthetic stereo dataset (Megvii), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel stereo, Middlebury stereo (2014), ETH3D two-view stereo, KITTI stereo / optical flow 2012 / 2015, NVIDIA Falling Things (FAT), InStereo2K, HR-VS (high-resolution virtual stereo, Yang et al. CVPR 2019) (the datasets original README lists as used for training; which of them the released checkpoint saw is not stated)
 - Options: `iters` = 20 (>= 1)
 - Kernel libraries: `crestereo`, `fastbb`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `crestereo-eth3d`
@@ -648,10 +648,10 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: <https://github.com/gangweix/Fast-ACVNet/blob/61d5375e1816f124f4417cea506eeaddac1504e4/LICENSE.md>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
-  - `fast-acvnet-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2012)
-  - `fast-acvnet-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2015)
-  - `fast-acvnet-plus-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2012)
-  - `fast-acvnet-plus-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2015)
+  - `fast-acvnet-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2012)
+  - `fast-acvnet-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2015)
+  - `fast-acvnet-plus-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2012)
+  - `fast-acvnet-plus-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2015)
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `fast-acvnet-generalization`, `fast-acvnet-sceneflow`, `fast-acvnet-kitti12`, `fast-acvnet-kitti15`, `fast-acvnet-plus-generalization`, `fast-acvnet-plus-sceneflow`, `fast-acvnet-plus-kitti12`, `fast-acvnet-plus-kitti15`
@@ -798,7 +798,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0 (assumed from code)
 - Licence evidence: <https://github.com/JarvisLee0423/GREAT-Stereo/blob/2a6b1efede8c3a9eec9540790c2700ea2f3dee7d/README.md#L558>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
-  - `great-igev-kitti`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2012 + 2015 (launchers/.../great_igev_trainer_kitti.sh; KITTI submission model))
+  - `great-igev-kitti`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2012 + 2015 (launchers/.../great_igev_trainer_kitti.sh; KITTI submission model))
   - `great-igev-eth3d`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), CREStereo synthetic stereo dataset (Megvii), InStereo2K, ETH3D two-view stereo, not stated by the authors (ETH3D submission model; original recipe (launchers, utils/stereo_matching/data_utils/data_fetchers.py): SceneFlow model fine-tuned on eth3d_finetune (ETH3D, InStereo2K, CREStereo); whether the eth3d_train mixture (+ TartanAir, Sintel) ran first is not stated)
   - `great-igev-middlebury`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), CREStereo synthetic stereo dataset (Megvii), InStereo2K, HR-VS (high-resolution virtual stereo, Yang et al. CVPR 2019), Middlebury stereo (2014), NVIDIA Falling Things (FAT), not stated by the authors (Middlebury submission model; original recipe (launchers, utils/stereo_matching/data_utils/data_fetchers.py): SceneFlow model fine-tuned on middlebury_finetune (CREStereo, InStereo2K, HR-VS, Middlebury 2005 / 2006 / 2014 / 2021 / MiddEval3 H + F, Falling Things); whether the middlebury_train mixture (+ TartanAir) ran first is not stated)
 - Options: `iters` = 32 (>= 1), `cuda_graphs` = False (speed only)
@@ -996,8 +996,8 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: <https://github.com/gangweix/IGEV-plusplus/blob/099dec97989780d151700459c682df1cc2c18e88/README.md#L23>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
-  - `igev-plusplus-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2012 + 2015 (README recipe; KITTI 2012 model))
-  - `igev-plusplus-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2012 + 2015 (README recipe; KITTI 2015 model))
+  - `igev-plusplus-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2012 + 2015 (README recipe; KITTI 2012 model))
+  - `igev-plusplus-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2012 + 2015 (README recipe; KITTI 2015 model))
   - `igev-plusplus-middlebury`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), TartanAir, NVIDIA Falling Things (FAT), CREStereo synthetic stereo dataset (Megvii), InStereo2K, Middlebury stereo (2014), not stated by the authors (Middlebury submission model; original recipe (README, core/stereo_datasets.py): SceneFlow model, then TartanAir, SceneFlow, Falling Things, InStereo2K, CARLA, CREStereo and Middlebury 2005 / 2006 / 2014 / 2021 / MiddEval3, then a fine-tune on CREStereo, InStereo2K, CARLA, Falling Things and Middlebury)
   - `igev-plusplus-eth3d`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), TartanAir, MPI Sintel stereo, CREStereo synthetic stereo dataset (Megvii), InStereo2K, ETH3D two-view stereo (ETH3D submission model; original recipe (README, core/stereo_datasets.py): SceneFlow model, then TartanAir, SceneFlow, Sintel, CREStereo, InStereo2K and ETH3D, then a fine-tune on CREStereo, InStereo2K and ETH3D)
 - Options: `iters` = 32 (>= 1), `cuda_graphs` = True (speed only)
@@ -1074,8 +1074,8 @@ Commercial use: yes.
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
   - `igev-stereo-middlebury`: Middlebury submission model
   - `igev-stereo-eth3d`: ETH3D submission model
-  - `igev-stereo-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2012 submission model))
-  - `igev-stereo-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2015 submission model))
+  - `igev-stereo-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2012 submission model))
+  - `igev-stereo-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2015 submission model))
 - Options: `iters` = 32 (>= 1)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `igev-stereo-sceneflow`, `igev-stereo-middlebury`, `igev-stereo-eth3d`, `igev-stereo-kitti12`, `igev-stereo-kitti15`
@@ -1282,7 +1282,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Weights licence: LicenseRef-noncommercial AND CC-BY-NC-4.0
 - Licence evidence: <https://github.com/Junda24/MonSter/blob/49016c9a72b4260c0d119c77bb14e78a132cea8c/README.md#L93>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
-  - `monster-mix-all`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015, ETH3D two-view stereo, Middlebury stereo (2014), TartanAir, CREStereo synthetic stereo dataset (Megvii), NVIDIA Falling Things (FAT), InStereo2K, MPI Sintel stereo, HR-VS (high-resolution virtual stereo, Yang et al. CVPR 2019) (mix of all the datasets the README lists; the README recommends it for zero-shot use)
+  - `monster-mix-all`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015, ETH3D two-view stereo, Middlebury stereo (2014), TartanAir, CREStereo synthetic stereo dataset (Megvii), NVIDIA Falling Things (FAT), InStereo2K, MPI Sintel stereo, HR-VS (high-resolution virtual stereo, Yang et al. CVPR 2019) (mix of all the datasets the README lists; the README recommends it for zero-shot use)
 - Options: `iters` = 32 (>= 1)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`
 - Variants: `monster-sceneflow`, `monster-mix-all`
@@ -1683,8 +1683,8 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: <https://github.com/Windsrain/Selective-Stereo/blob/c39acbfef9fbe36fbc01efa4abeafc62bbe2da36/README.md#L25>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
-  - `selective-igev-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2012 model))
-  - `selective-igev-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2015 model))
+  - `selective-igev-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2012 model))
+  - `selective-igev-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2015 model))
   - `selective-igev-middlebury-finetune`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), Middlebury stereo (2014) (SceneFlow, then fine-tuned on Middlebury (final fine-tune stage; Selective-Stereo README training commands, 'middlebury_finetune' stage); original demo runs it with max_disp 768, 80 iterations)
   - `selective-igev-middlebury-train`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), Middlebury stereo (2014) (SceneFlow, then fine-tuned on Middlebury (first fine-tune stage; Selective-Stereo README training commands, 'middlebury_train' stage))
   - `selective-igev-eth3d-finetune`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), ETH3D two-view stereo (SceneFlow, then fine-tuned on ETH3D (final fine-tune stage; Selective-Stereo README training commands, 'eth3d_finetune' stage))
@@ -1904,7 +1904,7 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | id | dataset | licence | commercial use |
 |---|---|---|---|
 | `sceneflow` | [Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)](https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html) | LicenseRef-research-only | no |
-| `kitti` | [KITTI stereo 2012 / 2015](https://www.cvlibs.net/datasets/kitti/) | CC-BY-NC-SA-3.0 | no |
+| `kitti` | [KITTI stereo / optical flow 2012 / 2015](https://www.cvlibs.net/datasets/kitti/) | CC-BY-NC-SA-3.0 | no |
 | `eth3d` | [ETH3D two-view stereo](https://www.eth3d.net/) | CC-BY-NC-SA-4.0 | no |
 | `middlebury` | [Middlebury stereo (2014)](https://vision.middlebury.edu/stereo/data/) | not stated | unclear |
 | `crestereo` | [CREStereo synthetic stereo dataset (Megvii)](https://github.com/megvii-research/CREStereo/blob/ad3a1613bdedd88b93247e5f002cb7c80799762d/README.md#L17) | not stated | unclear |

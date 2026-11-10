@@ -80,7 +80,7 @@ NEW_MODES = ("compile", "tensorrt")  # portable + `model.compile()`; the fp16 Te
 COMPILE_DATA = ROOT / "docs" / "data" / "speed_compile.jsonl"
 WARMUP, RUNS, ROUNDS = 3, 5, 3
 TOL_MS, TOL_MB, TOL_MB_ABS, TOL_STATIC = 0.05, 0.05, 8, 0.03
-SCENES = {  # floor scene prefix -> left image (right: image_3 / im1), under $FASTFORKS_DATA as in eval_stereo.py
+SCENES = {  # floor scene prefix -> left image (right: image_3 / im1; flow: the next frame _11), under $FASTFORKS_DATA
     "KITTI": DATA / "KITTI/training/image_2/000000_10.png",
     "Middlebury": DATA / "Middlebury/MiddEval3/trainingH/Motorcycle/im0.png",
 }
@@ -94,6 +94,7 @@ STANDARD = {  # the task's standard input of docs/benchmarks.md (tools/gen_docs.
     "features": "224x224",
     "promptable_segmentation": "1024x1024",
     "detection": "800x1344",
+    "flow": "1080x1920",
 }
 PROFILE_INPUT = {
     "stereo": "994x1482",
@@ -177,8 +178,11 @@ def lib_inputs(model: Any, task: str, ref: str, inp: dict[str, str]) -> tuple[tu
     scene = next((p for k, p in SCENES.items() if inp["scene"].startswith(k)), None)
     if scene is not None and scene.exists():  # else the synthetic bench inputs (no local datasets)
         left = _image(scene)
-        right = Path(str(scene).replace("image_2", "image_3").replace("im0", "im1"))
-        args = (left, _image(right)) if task == "stereo" else (left,)
+        if task == "flow":
+            args = (left, _image(Path(str(scene).replace("_10.png", "_11.png"))))
+        else:
+            right = Path(str(scene).replace("image_2", "image_3").replace("im0", "im1"))
+            args = (left, _image(right)) if task == "stereo" else (left,)
     return args, kw
 
 
@@ -416,7 +420,8 @@ def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int
     """(batch or views, h, w) of the image the network takes in one timed call (`module()` takes the same).
 
     The runner's first image argument (classification: the crop, multi-view: `[views, 3, H, W]`); detection, whose
-    `module()` starts after the resize: the first 3-channel image a submodule gets, if one does (R-CNN: the runner's).
+    `module()` starts after the resize, and pose, whose `module()` takes the box crops: the first 3-channel image a
+    submodule gets, if one does (R-CNN: the runner's).
     """
     import torch  # noqa: PLC0415
 
@@ -429,7 +434,7 @@ def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int
 
     runner = model._runner  # noqa: SLF001 - the task's own runner contract
     cap = model._runner = _Capture(runner)  # noqa: SLF001
-    handle = torch.nn.modules.module.register_module_forward_pre_hook(hook) if task == "detection" else None
+    handle = torch.nn.modules.module.register_module_forward_pre_hook(hook) if task in {"detection", "pose"} else None
     try:
         full()
     finally:

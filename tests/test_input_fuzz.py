@@ -190,8 +190,8 @@ def test_tiny_and_odd_sizes(ref, monkeypatch):
     `ValueError` at 16 x 16 px before their cards declared a `min_size`.
     """
     task = TASK[ref]
-    if task not in {"stereo", "depth"}:
-        pytest.skip("dense stereo / depth only")
+    if task not in {"stereo", "depth", "flow"}:
+        pytest.skip("dense stereo / depth / flow only")
     monkeypatch.setattr(Model, "_check_size", REAL_CHECK)  # the real size check, not `card_min_size`
     m = sweep_model(ref)
     lo = m.size_range().reject_below
@@ -199,17 +199,23 @@ def test_tiny_and_odd_sizes(ref, monkeypatch):
         x = RNG.integers(0, 256, (h, w, 3), dtype=np.uint8)
         if min(h, w) < lo:
             with pytest.raises(InputError, match="at least"):
-                m(x, x) if task == "stereo" else m(x)
+                m(x, x) if task in {"stereo", "flow"} else m(x)
             continue
-        r = m(x, np.roll(x, -1, 1)) if task == "stereo" else m(x)
-        main = r.disparity if task == "stereo" else r.depth if r.depth is not None else r.inverse_depth
-        assert main.shape == (h, w), (h, w)
+        r = m(x, np.roll(x, -1, 1)) if task in {"stereo", "flow"} else m(x)
+        if task == "flow":
+            main = r.flow
+            assert main.shape == (2, h, w), (h, w)
+        else:
+            main = r.disparity if task == "stereo" else r.depth if r.depth is not None else r.inverse_depth
+            assert main.shape == (h, w), (h, w)
         assert torch.isfinite(main).all(), (h, w)
 
 
 def test_depth_intrinsics_rejected_for_unused(monkeypatch):
+    from fastforks.depth.models.depth_anything_v2.model import Params as FamilyParams  # noqa: PLC0415
+
     class Inv(DepthRunner):
-        Params = DepthParams
+        Params = FamilyParams  # the card's params (layout, max_depth, ...)
 
         def __call__(self, image, intrinsics):  # noqa: ARG002
             return {"inverse_depth": image[:, 0]}

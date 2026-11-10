@@ -1,0 +1,107 @@
+schema = 2
+name = "SigLIP 2"
+summary = "SigLIP 2 (Tschannen et al. 2025, Google) image towers: ViT-B / L / So400m / g (fixed-resolution checkpoints), patch tokens + attention-pool embedding at any size; the native resolution is in the id."
+tier = "experimental"
+outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
+uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports (CUDA graphs, the timm network builder)
+limitations = [
+  "kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",
+  "Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.",
+  "`fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).",
+]
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+weights = "Apache-2.0"  # the timm Hugging Face model cards (Google big_vision release)
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["webli"]
+training_note = "WebLI image-text pairs (multilingual), sigmoid contrastive loss plus captioning / self-distillation / masked prediction (SigLIP 2 paper); not released"
+evidence = "https://huggingface.co/timm/vit_base_patch16_siglip_256.v2_webli/blob/ac4cc431026674dcac29e34a00d3bd2048390eb3/README.md"
+
+[io]
+# the core resizes (never pads / crops) to multiples of the patch (16; 14 for So400m/14), antialiased bicubic
+input = "mean_std"
+interpolation = "bicubic"
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+pad = { multiple = 16, mode = "none" }
+
+[options]
+fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, larger error vs fp32)
+fp32_accumulate = { default = false, effect = "precision" }  # true: kernels run every GEMM through cuBLAS with fp32 accumulation (the portable precision, with the CUDA graphs); slower on GeForce (half-rate fp32 accumulation), to be measured on data-centre GPUs
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+
+[[variants]]
+id = "siglip2-b16-256"
+revision = 1
+params = { arch = "vit_base_patch16_siglip_256.v2_webli" }
+weights = [{ name = "vit_base_patch16_siglip_256.v2_webli.safetensors", size = 371736256, sha256 = "13ab9d238865f89b14005c5e92a099add04cbfab331a64245acab813509cb2b0", url = "https://huggingface.co/timm/vit_base_patch16_siglip_256.v2_webli/resolve/ac4cc431026674dcac29e34a00d3bd2048390eb3/model.safetensors" }]
+
+[[variants]]
+id = "siglip2-b16-512"
+revision = 1
+params = { arch = "vit_base_patch16_siglip_512.v2_webli" }
+weights = [{ name = "vit_base_patch16_siglip_512.v2_webli.safetensors", size = 374095552, sha256 = "dc3df9f40f64583d3f037fd8f08bf55768f520f3ee7db954d965f55f8b2ac7a2", url = "https://huggingface.co/timm/vit_base_patch16_siglip_512.v2_webli/resolve/3c4b2d3989d7cfae00a09fff172c0a6cf8cbb32a/model.safetensors" }]
+
+[[variants]]
+id = "siglip2-l16-256"
+revision = 1
+params = { arch = "vit_large_patch16_siglip_256.v2_webli" }
+weights = [{ name = "vit_large_patch16_siglip_256.v2_webli.safetensors", size = 1263854024, sha256 = "ffe422ca7824ec263dc6bac74806f3bb458a18ff6258eb7d01b918a4dc11907b", url = "https://huggingface.co/timm/vit_large_patch16_siglip_256.v2_webli/resolve/19c59e9f40a22029e4116ea7a0f03e38e13a17c3/model.safetensors" }]
+
+[[variants]]
+id = "siglip2-l16-512"
+revision = 1
+params = { arch = "vit_large_patch16_siglip_512.v2_webli" }
+weights = [{ name = "vit_large_patch16_siglip_512.v2_webli.safetensors", size = 1266999752, sha256 = "d4176258770229ff56e6ec4235111b3238a470bc6f73e0b4d5d9a05857f0d192", url = "https://huggingface.co/timm/vit_large_patch16_siglip_512.v2_webli/resolve/b851638144511ac7277f2dd771ad65a029415b89/model.safetensors" }]
+
+[[variants]]
+id = "siglip2-so400m14-224"
+revision = 1
+params = { arch = "vit_so400m_patch14_siglip_224.v2_webli" }
+io = { pad = { multiple = 14 } }
+weights = [{ name = "vit_so400m_patch14_siglip_224.v2_webli.safetensors", size = 1710755536, sha256 = "1c079ddc4d7fc5875c3e0dcc8f7f33bdd00453d7e1c6362a3787e5c24121b454", url = "https://huggingface.co/timm/vit_so400m_patch14_siglip_224.v2_webli/resolve/897c2e2e04a678247ec4d1c12cd267c5f9073395/model.safetensors" }]
+
+[[variants]]
+id = "siglip2-so400m14-378"
+revision = 1
+params = { arch = "vit_so400m_patch14_siglip_378.v2_webli" }
+io = { pad = { multiple = 14 } }
+weights = [{ name = "vit_so400m_patch14_siglip_378.v2_webli.safetensors", size = 1712935120, sha256 = "03e8de52efb04d9c570d697df5ff38e5d5a9d811c655a03b61012bf2a62ea83f", url = "https://huggingface.co/timm/vit_so400m_patch14_siglip_378.v2_webli/resolve/089d92c25ac75658b36885acb4b8ebb954b35ed3/model.safetensors" }]
+
+[[variants]]
+id = "siglip2-so400m16-256"
+revision = 1
+params = { arch = "vit_so400m_patch16_siglip_256.v2_webli" }
+weights = [{ name = "vit_so400m_patch16_siglip_256.v2_webli.safetensors", size = 1711584976, sha256 = "68c976f5691fd6a20187da6b3c6132601dba52242c349acf8534c64b99ab2b96", url = "https://huggingface.co/timm/vit_so400m_patch16_siglip_256.v2_webli/resolve/a8dedb158968170d6fb45a000e0d5755d8021386/model.safetensors" }]
+
+[[variants]]
+id = "siglip2-so400m16-512"
+revision = 1
+params = { arch = "vit_so400m_patch16_siglip_512.v2_webli" }
+weights = [{ name = "vit_so400m_patch16_siglip_512.v2_webli.safetensors", size = 1715123920, sha256 = "8e937c5c827ae7a5b79cadf66524f7eaa9ffeb8562364f5dd9a7db6874d643bc", url = "https://huggingface.co/timm/vit_so400m_patch16_siglip_512.v2_webli/resolve/273e5aa0ba7bd1d2e878f55688b1af8cdfbf8ee5/model.safetensors" }]
+
+[[variants]]
+id = "siglip2-g16-256"
+revision = 1
+params = { arch = "vit_giantopt_patch16_siglip_256.v2_webli" }
+weights = [{ name = "vit_giantopt_patch16_siglip_256.v2_webli.safetensors", size = 4652721160, sha256 = "2fb45abae97f68139eb15734e6e85365e0c7f6e1682fae06960072f42ff0d15c", url = "https://huggingface.co/timm/vit_giantopt_patch16_siglip_256.v2_webli/resolve/f52e08e13d44e2bd84779ab3520fec29455b9a29/model.safetensors" }]
+
+[[variants]]
+id = "siglip2-g16-384"
+revision = 1
+params = { arch = "vit_giantopt_patch16_siglip_384.v2_webli" }
+weights = [{ name = "vit_giantopt_patch16_siglip_384.v2_webli.safetensors", size = 4654687240, sha256 = "877646a6cefcf0274f12387708b28435c8da7a8283ee5e0f6bfdfe75a7eb01a6", url = "https://huggingface.co/timm/vit_giantopt_patch16_siglip_384.v2_webli/resolve/4776c4a3e299fc5c8545608474c92d8b3a748040/model.safetensors" }]

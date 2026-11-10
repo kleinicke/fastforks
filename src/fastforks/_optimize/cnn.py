@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 KC = 32  # expanded-channel granularity of the fvm_mb kernels
 MERGE_M = 8192  # cat2: one merged conv up to this many output pixels
 XDW_MAX_CIN = 64  # expand + depthwise fusion only for narrow inputs (halo tile size)
+DW2_MAX_ACT = 4  # fixed: the last epilogue code of fvm_r3's dwconv2 (hardswish; 5 / 6 are GELU)
 DW2_MAX_TAPS = 7
 _BIN = 2  # binary op argument count
 _TC_MAX_ACT = 4  # conv_tc epilogue: none, relu, relu6, silu, hardswish
@@ -819,12 +820,14 @@ def to_pw(gm: fx.GraphModule) -> int:
 
 
 def to_dw2(gm: fx.GraphModule) -> int:
-    """ops.dwconv (taps <= 7)  ==>  ops.dwconv2 (half2 accumulation)."""
+    """ops.dwconv (taps <= 7, act none ... hardswish)  ==>  ops.dwconv2 (half2 accumulation)."""
     n = 0
     for node in list(gm.graph.nodes):
         if node.op == "call_function" and node.target is ops.dwconv:
             w = attr(gm, node.args[1])
             if w is not None and max(w.shape[:2]) > DW2_MAX_TAPS:  # weight [R, S, C]
+                continue
+            if node.args[5] > DW2_MAX_ACT:  # fvm_r3 has no GELU epilogue (it would return the conv without the act)
                 continue
             node.target = ops.dwconv2
             n += 1

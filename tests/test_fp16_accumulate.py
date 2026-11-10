@@ -9,7 +9,7 @@ import pytest
 import torch
 
 from fastforks import _optimize
-from fastforks._core.half import fp16_accumulate
+from fastforks._core.half import cublas_gemms, cublas_gemms_on, fp16_accumulate
 from fastforks.shared.depth_anything_v2 import fast_vit
 
 
@@ -46,3 +46,30 @@ def test_fp16_accumulate_threads(ctx):
         assert mm.allow_fp16_accumulation is False
     finally:
         mm.allow_fp16_accumulation = old
+
+
+def test_cublas_gemms_scope():
+    """`cublas_gemms` holds per thread / context and nests; the process-wide cuBLAS flag is untouched."""
+    old = torch.backends.cuda.matmul.allow_fp16_accumulation
+    seen: dict[str, bool] = {}
+    inside = threading.Event()
+    done = threading.Event()
+
+    def other() -> None:
+        inside.wait()
+        seen["other"] = cublas_gemms_on()
+        done.set()
+
+    t = threading.Thread(target=other)
+    t.start()
+    assert not cublas_gemms_on()
+    with cublas_gemms():
+        with cublas_gemms():
+            assert cublas_gemms_on()
+        assert cublas_gemms_on()
+        inside.set()
+        done.wait()
+        assert torch.backends.cuda.matmul.allow_fp16_accumulation == old
+    t.join()
+    assert not cublas_gemms_on()
+    assert seen == {"other": False}

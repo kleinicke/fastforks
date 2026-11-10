@@ -50,7 +50,10 @@ _DATASETS = {
         "ade20k-val": "ADE20K val, every 4th image, mIoU / aAcc %",
         "coco-val2017-persons-every10": "COCO val2017 persons, every 10th image, person IoU %",
     },
-    "detection": {"coco-val2017-every10": "COCO val2017, every 10th image, box mAP"},
+    "detection": {
+        "coco-val2017-every10": "COCO val2017, every 10th image, box mAP",
+        "coco-val2017-every10-person": "COCO val2017, every 10th image, box AP of the person class",
+    },
     "promptable_segmentation": {
         "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
         "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
@@ -61,6 +64,8 @@ _DATASETS = {
     },
     "multiview": {"dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %"},
     "classification": {"imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %"},
+    "pose": {"coco-val2017-every1-keypoints-gtbox": "COCO val2017, ground-truth person boxes, keypoint AP"},
+    "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
 # task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
@@ -72,6 +77,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "segmentation": ((("miou", "{:.2f}", ""), ("aacc", "{:.2f}", "")), "n", "images"),
     ("segmentation", "coco-val2017-persons-every10"): ((("person_iou", "{:.2f}", ""),), "n", "images"),
     "detection": ((("box_map", "{:.2f}", ""), ("mask_map", "{:.2f}", " / mask mAP")), "n", "images"),
+    ("detection", "coco-val2017-every10-person"): ((("person_ap", "{:.2f}", ""),), "n", "images"),
     "promptable_segmentation": ((("miou_best", "{:.2f}", ""), ("miou_single", "{:.2f}", "")), "n", "images"),
     ("promptable_segmentation", "coco-val2017-every10-text"): (
         (("box_map", "{:.2f}", ""), ("mask_map", "{:.2f}", "")),
@@ -81,6 +87,8 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "features": ((("top1", "{:.2f}", ""),), "n", "images"),
     "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
+    "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
+    "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
@@ -90,6 +98,9 @@ _PROTOCOL = {
     ("segmentation", "coco-val2017-persons-every10"): "Any body part counts as person; ground truth = the COCO person "
     "masks. ",
     "detection": "pycocotools COCOeval of the top 100 detections per image. ",
+    "pose": "Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; "
+    "people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' "
+    "AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. ",
     ("promptable_segmentation", "coco-val2017-every10"): "One point per ground-truth instance (the interior point "
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
@@ -100,6 +111,8 @@ _PROTOCOL = {
     "points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras "
     "(calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range "
     "from the camera baselines). ",
+    "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
+    "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
@@ -120,7 +133,7 @@ def _label(mode: str) -> str:
 
 
 # eval dataset id -> training-data id (_core/datasets.toml) of the same public images (NYU / iBims: no id, none known)
-_EVAL_TRAIN_ID = {"eth3d": "eth3d", "middH": "middlebury"}
+_EVAL_TRAIN_ID = {"eth3d": "eth3d", "middH": "middlebury", "kitti2015-train": "kitti"}
 _DAGGER = "\u2020"
 _NOTE = {
     _DAGGER: "trained on this dataset's public images; not a zero-shot result",
@@ -211,7 +224,11 @@ def _orig(fp16: dict | None, fp32: dict | None) -> dict | None:
 
 
 _COMPILE_LABEL = {"compile": "portable + torch.compile", "tensorrt": "TensorRT fp16"}  # speed_compile.jsonl modes
-_ENGINE_PART = {"promptable_segmentation": "image encoder", "rcnn": "backbone + FPN"}  # task / family: `module()`
+_ENGINE_PART = {
+    "promptable_segmentation": "image encoder",
+    "rcnn": "backbone + FPN",
+    "pose": "network on person crops",
+}  # task / family: `module()`
 
 
 @functools.cache
@@ -242,10 +259,11 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
             lines.append((label, f"fails: {_fail_reason(r['fails'])}", DASH))
             continue
         engine = mode == "tensorrt" and "device_mb" in r
+        name = "TensorRT fp32" if r.get("engine_dtype") == "float32" else label
         ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
-        lines.append((label, ms, f"{r['device_mb']} (engine)" if engine else _peak(r)))
+        lines.append((name, ms, f"{r['device_mb']} (engine)" if engine else _peak(r)))
         first = r["compile_s"] if mode == "compile" else r["onnx_export_s"] + r["engine_build_s"]
-        setup.append(f"{label} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
+        setup.append(f"{name} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
     return lines, setup
 
 
@@ -784,6 +802,10 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
 
 TASK_IO = {
     "stereo": "Input: a rectified left / right image pair. Output: a disparity map (pixels, left view).",
+    "flow": (
+        "Input: two RGB images (consecutive frames). Output: per-pixel motion from the first to the second "
+        "(dx, dy in pixels)."
+    ),
     "depth": (
         "Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field, `result.kind`) says what "
         "the numbers mean: `metric` = metres; `scale_invariant`, `affine_invariant` and `affine_invariant_inverse` "
@@ -796,6 +818,7 @@ TASK_IO = {
     ),
     "classification": "Input: one RGB image. Output: ImageNet-1k class logits.",
     "detection": "Input: one RGB image. Output: boxes, class labels, scores and instance masks.",
+    "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",
     "multiview": (
         "Input: several images of one scene (posed and calibrated for multi-view stereo, unposed otherwise). "
@@ -978,6 +1001,7 @@ _OWN = "own input"  # multiview: every model runs its own number of views and si
 _OVERVIEW_ACC = {
     "stereo": ("eth3d", "bad", "ETH3D bad > 1 px (%)", "{:.2f}"),
     "depth": ("nyu", "rel_absrel", "NYUv2 AbsRel (scale+shift aligned)", "{:.4f}"),
+    "flow": ("kitti2015-train", "epe", "KITTI 2015 train EPE (px)", "{:.3f}"),
 }
 _PICK_NOTES = {
     "depth": (
@@ -1338,7 +1362,8 @@ def _compile_ms(r: dict | None) -> str:
         return DASH
     if "fails" in r:
         return f"fails: {_fail_reason(r['fails'])}"
-    return f"{_ms_str(r['ms'])} ms" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
+    fp32 = ", fp32 engine" if r.get("engine_dtype") == "float32" else ""  # the fp16 engine misses the golden tolerance
+    return f"{_ms_str(r['ms'])} ms{fp32}" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
 
 
 def _compile_block() -> str:

@@ -90,7 +90,7 @@ features.load("dinov2-vitb14")("cat.jpg").pooler_output  # image embedding; .las
 ```python
 # needs: pip install "fastforks-core[torchvision]" "fastforks-core[nc]"
 # MVSAnywhere's code and weights are non-commercial: its weights download only with FASTFORKS_NONCOMMERCIAL=1
-from fastforks import detection, multiview, promptable_segmentation
+from fastforks import detection, flow, multiview, pose, promptable_segmentation
 
 det = detection.load("faster-rcnn-r50-fpn-3x-coco")
 det("street.jpg", score_threshold=0.5).to_list()  # dicts: box, class_name, score
@@ -104,14 +104,20 @@ best = r.masks[r.iou_scores.argmax()]  # [H, W]; several prompts add a leading a
 multiview.load("mvsanywhere")(
     ["a.jpg", "b.jpg"], intrinsics=K, cam_to_world=poses
 ).depth  # [1, H, W]: the reference view (reference= picks it)
+people = pose.load("rtmpose-m")(  # top-down: one box (x0, y0, x1, y1 in pixels) per person
+    "street.jpg", boxes=[[40, 30, 220, 400]]
+)  # e.g. the person boxes of a detector
+people.keypoints, people.keypoint_scores  # [P, 17, 2] pixels of the input, [P, 17]; names: people.keypoint_names
+flow.load("raft-large")("frame1.png", "frame2.png").flow  # [2, H, W]: dx, dy in pixels, frame 1 -> frame 2
 ```
 
 How a call runs: the model card (`card.toml`) is resolved to a variant (the id and revision); the variant and `mode` select a
 runner (portable or kernels backend) with its weights; the task API (`<task>.load`) wraps the runner and turns the input into
 tensors; calling it returns the typed result, whose `.backend` records what ran. The exceptions follow.
 
-Each task has its own module: `fastforks.stereo`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
-`fastforks.features`, `fastforks.detection`, `fastforks.promptable_segmentation` and `fastforks.multiview`.
+Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
+`fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation` and
+`fastforks.multiview`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
 PatchmatchNet return the reference view only. See the [API pages](api/index.md) for every result's fields.
 
@@ -249,8 +255,8 @@ One name per concept across families; the old (upstream) names are accepted as a
 
 Options are checked at load (`OptionsError`) against the bounds and choices on the card, the same ones
 `fastforks info MODEL` and the model pages list (e.g. MoGe `resolution_level` 0 to 9). Options marked "speed only"
-(`cuda_graphs`) give the same results up to floating-point rounding, "precision only" (`fp16_accumulate`) trades
-accuracy for speed; all others change the outputs.
+(`cuda_graphs`) give the same results up to floating-point rounding, "precision only" (`fp16_accumulate`,
+`fp32_accumulate`) trade accuracy against speed; all others change the outputs.
 
 What a model takes and returns, without loading weights: `depth.model_card("moge-2-vitl-normal").contract()` lists the
 inputs (required, optional or unused: e.g. `intrinsics`, `depth_range`, prompts), the outputs with units and pixel /
@@ -382,7 +388,8 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
 - Any size above the model's minimum: resizing or padding to what the network needs and back happen inside the call, so
   dense maps (disparity, depth, labels) have the input's resolution. Classifiers resize and crop as the model expects.
 - Batches: pass `[B, 3, H, W]` tensors (or `BHWC` arrays) to get `[B, H, W]` maps (`[B, classes]` logits).
-- Exceptions to batching: detection returns a `list` of `DetectionResult` (one per image); promptable segmentation
+- Exceptions to batching: detection and pose return a `list` of results (one per image; pose takes a list of box
+  arrays, one per image); promptable segmentation
   calls take one image (batch the image encoder with `get_image_embeddings`, then prompt per image); multi-view models
   take the `N` views of one scene as the leading dimension (not independent images). Stereo, depth, classification,
   segmentation and features return tensors with a leading `B`.
@@ -404,7 +411,7 @@ nerfstudio): `cx_colmap = cx_opencv + 0.5` (same for `cy`); `read_calib(..., "co
 ### Saving maps
 
 `save` exists on results that hold dense maps: stereo, depth, multi-view, segmentation (`labels`) and promptable
-segmentation (`masks`); classification, features and detection results have none (use `result.numpy()` or the
+segmentation (`masks`); classification, features, pose and detection results have none (use `result.numpy()` or the
 fields). `result.save(path)` writes the primary map (`disparity`, `depth` or `inverse_depth`, `labels`, `masks`;
 `key="confidence"` or an `extras` name picks another) as one `[H, W]` file; the suffix selects the format, and an
 unknown suffix raises with the list this result accepts. Batches are not split (pass one image per call; leading
@@ -533,8 +540,10 @@ DINOv3-ConvNeXt, SAM 3, VGGT-Omega). `device="mps"` also runs those, unvalidated
 MonSter, MonSter++), CFNet, LiteAnyStereo V2 (LaS2), HITNet, AANet, CREStereo, NMRF, BridgeDepth, DEFOM-Stereo and
 FoundationStereo: Metal kernels for each family's hot spot (ConvGRUs, correlation and
 geometry lookups, cost volumes, HITNet's warp costs, AANet's deformable sampling), float16, and for MoGe-3 (its
-sparse convolutions) and VGGT (the aggregator's q / k LayerNorm and RoPE) in float32. They compile on the device in
-under a second on first use; `mode="auto"` picks it. Every other family runs `portable`.
+sparse convolutions) and VGGT (the aggregator's q / k LayerNorm and RoPE) in float32. Pose and features have them
+too: RTMPose (the person crops, float32), ViTPose / ViTPose++ (patch embedding, decoder and keypoint decoding, float16) and
+Perception Encoder (the blocks' RoPE, float16). They compile on the device in under a second on first use;
+`mode="auto"` picks it. Every other family runs `portable`.
 
 - dtype: float32 by default. `dtype="float16"` works where the card lists it (`fastforks info MODEL`, row
   `apple gpu`). It saves memory (up to half) and on an M1 Pro is also faster: median 1.15x over 60 models, up to

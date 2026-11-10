@@ -27,7 +27,9 @@ from .conv_ops import lin  # re-exported: `transformer.lin`
 from .fold import hooked
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
+
+    _PeRope = Callable[[torch.Tensor, torch.Tensor, int], tuple[torch.Tensor, torch.Tensor]]  # `_pe_rope`'s signature
 
 _Blk = Any  # a timm / torchvision / transformers block patched with our buffers: untyped to the checker
 
@@ -37,8 +39,10 @@ def _modules(model: nn.Module) -> Iterator[_Blk]:
     return (m for m in model.modules() if not any(hooked(d) for d in itertools.islice(m.modules(), 1, None)))
 
 
+_SILU = 3
 _GELU = 5
 _GELU_TANH = 6
+_QUICK_GELU = 1.702  # QuickGELU(x) = x * sigmoid(1.702 x) = SiLU(1.702 x) / 1.702 (CLIP)
 
 
 def _w4(w: torch.Tensor) -> torch.Tensor:
@@ -69,6 +73,12 @@ def _gelu(act: object) -> int:
     if cls is not None and is_base(act, cls[0]):
         return _GELU
     return _GELU_TANH if cls is not None and is_base(act, cls[1]) else 0
+
+
+def _quick_gelu(act: object) -> bool:
+    """Timm's QuickGELU (OpenAI / DFN / MetaCLIP CLIP towers)."""
+    cls = _timm("layers.activations", "QuickGELU")
+    return cls is not None and is_base(act, cls[0])
 
 
 def _id_or(m: object, *classes: type) -> bool:
@@ -251,7 +261,7 @@ def _vit_kernels(
     o = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, is_causal=is_causal, scale=a.scale)
     o = o.transpose(1, 2).reshape(b, n, c)
     x = lin(o, self._w_proj, self._b_proj, res=x)
-    y = lin(self.norm2(x), self._w_fc1, self.mlp.fc1.bias, act=self._act)
+    y = lin(self.norm2(x), self._w_fc1, self._b_fc1, act=self._act)
     return lin(y, self._w_fc2, self._b_fc2, res=x)
 
 
@@ -262,15 +272,20 @@ def _vit_act(mod: _Blk) -> int:
         return 0
     if a.qkv.bias is None or a.proj.bias is None or m.fc1.bias is None or m.fc2.bias is None:
         return 0
-    return _gelu(m.act)
+    return _SILU if _quick_gelu(m.act) else _gelu(m.act)
 
 
 def _vit_prep(mod: _Blk) -> None:
+    """Fused-path buffers: LayerScale folded into proj / fc2; QuickGELU as SiLU on fc1 x 1.702, fc2 / 1.702."""
     a, m = mod.attn, mod.mlp
     g1, g2 = _gamma(mod.ls1), _gamma(mod.ls2)
+    quick = _quick_gelu(m.act)
     with torch.no_grad():
         wp, bp = a.proj.weight.float(), a.proj.bias.float()
+        w1, b1 = m.fc1.weight.float(), m.fc1.bias.float()
         w2, b2 = m.fc2.weight.float(), m.fc2.bias.float()
+        if quick:
+            w1, b1, w2 = w1 * _QUICK_GELU, b1 * _QUICK_GELU, w2 / _QUICK_GELU
         if g1 is not None:
             wp, bp = wp * g1.float()[:, None], bp * g1.float()
         if g2 is not None:
@@ -282,7 +297,8 @@ def _vit_prep(mod: _Blk) -> None:
                 "_w_qkv": _w4(a.qkv.weight),
                 "_w_proj": _w4(wp.to(dt)),
                 "_b_proj": bp.to(dt),
-                "_w_fc1": _w4(m.fc1.weight),
+                "_w_fc1": _w4(w1.to(dt)) if quick else _w4(m.fc1.weight),  # unscaled: the parameter's storage
+                "_b_fc1": b1.to(dt) if quick else m.fc1.bias,
                 "_w_fc2": _w4(w2.to(dt)),
                 "_b_fc2": b2.to(dt),
             },
@@ -593,6 +609,193 @@ def patch_eva(model: nn.Module) -> int:
             _eva_prep(blk)
             override(blk, _eva_kernels)
             on_load(blk, _eva_reload)
+            n += 1
+    return n
+
+
+# --- Perception Encoder (timm EvaBlock with AttentionRope and a GELU Mlp) -----------------------------------------
+
+
+def _pe_ok(blk: _Blk) -> bool:
+    """An unmodified timm EvaBlock: `AttentionRope` (fused qkv, interleaved RoPE, no q / k norm, no GQA) and `Mlp`."""
+    cls = _timm("models.eva", "EvaBlock")
+    lay = _timm("layers.attention", "AttentionRope")
+    mlp = _timm("layers.mlp", "Mlp")
+    dp = _timm("layers.drop", "DropPath")
+    if cls is None or lay is None or mlp is None or not is_base(blk, cls[0]):
+        return False
+    a, m = blk.attn, blk.mlp
+    if not (is_base(a, lay[0]) and is_base(m, mlp[0]) and _own_forwards(blk, a, m)):
+        return False
+    if a.qkv is None or not all(is_base(x, nn.Linear) for x in (a.qkv, a.proj, m.fc1, m.fc2)):
+        return False
+    c = a.qkv.in_features
+    return (
+        a.num_heads * a.head_dim == a.attn_dim == c
+        and getattr(a, "num_kv_heads", a.num_heads) == a.num_heads
+        and a.qkv.out_features == 3 * c
+        and a.proj.in_features == a.proj.out_features == c
+        and m.fc1.in_features == m.fc2.out_features == c
+        and _is_id(a.q_norm)
+        and _is_id(a.k_norm)
+        and _is_id(a.norm)
+        and _is_id(getattr(m, "norm", None))
+        and getattr(a, "gate", None) is None
+        and not getattr(a, "rotate_half", False)
+        and all(p.bias is not None for p in (a.qkv, a.proj, m.fc1, m.fc2))
+        and _gelu(m.act) != 0
+        and all(_id_or(x, *(dp or ())) for x in (blk.drop_path1, blk.drop_path2))
+    )
+
+
+def _pe_prep(blk: _Blk) -> None:
+    a, m = blk.attn, blk.mlp
+    with torch.no_grad():
+        wp, bp = a.proj.weight.float(), a.proj.bias.float()
+        w2, b2 = m.fc2.weight.float(), m.fc2.bias.float()
+        if blk.gamma_1 is not None:
+            wp, bp = wp * blk.gamma_1.float()[:, None], bp * blk.gamma_1.float()
+        if blk.gamma_2 is not None:
+            w2, b2 = w2 * blk.gamma_2.float()[:, None], b2 * blk.gamma_2.float()
+        dt = a.qkv.weight.dtype
+        _reg(
+            blk,
+            {
+                "_w_qkv": _w4(a.qkv.weight),
+                "_w_proj": _w4(wp.to(dt)),
+                "_b_proj": bp.to(dt),
+                "_w_fc1": _w4(m.fc1.weight),
+                "_w_fc2": _w4(w2.to(dt)),
+                "_b_fc2": b2.to(dt),
+            },
+        )
+
+
+def _pe_kernels(
+    self: _Blk,
+    x: torch.Tensor,
+    rope: torch.Tensor | None = None,
+    attn_mask: torch.Tensor | None = None,
+    is_causal: bool = False,  # noqa: FBT001, FBT002 - timm's signature
+) -> torch.Tensor:
+    a = self.attn
+    b, n, c = x.shape
+    h = a.num_heads
+    d = c // h
+    qkv = lin(self.norm1(x), self._w_qkv, a.qkv.bias)  # [B, N, 3C]
+    if rope is not None:
+        q, k = ops.rope_qk(qkv, rope, a.num_prefix_tokens, h)
+    else:
+        q, k = qkv[..., :c].reshape(b, n, h, d), qkv[..., c : 2 * c].reshape(b, n, h, d)
+    v = qkv.view(b, n, 3, h, d)[:, :, 2]
+    o = F.scaled_dot_product_attention(
+        q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), attn_mask=attn_mask, is_causal=is_causal, scale=a.scale
+    )
+    x = lin(o.transpose(1, 2).reshape(b, n, c), self._w_proj, self._b_proj, res=x)
+    y = lin(self.norm2(x), self._w_fc1, self.mlp.fc1.bias, act=self._act)
+    return lin(y, self._w_fc2, self._b_fc2, res=x)
+
+
+def _pe_rope(qkv: torch.Tensor, rope: torch.Tensor, npt: int) -> tuple[torch.Tensor, torch.Tensor]:
+    """q, k `[B, H, N, D]` of `qkv` `[B, N, 3, H, D]` with timm's interleaved RoPE after the `npt` prefix tokens.
+
+    timm's `apply_rot_embed_cat` on q and k together, in float32, then cast back (timm's `.type_as(v)`).
+    """
+    sin, cos = (t[:, None, None] for t in rope.chunk(2, -1))  # [N - npt, 1, 1, D]
+    qk = qkv[:, npt:, :2]
+    rot = torch.stack([-qk[..., 1::2], qk[..., ::2]], -1).reshape(qk.shape)  # timm's `rot`
+    qk = (qk * cos + rot * sin).to(qkv.dtype)
+    if npt:
+        qk = torch.cat([qkv[:, :npt, :2], qk], 1)
+    q, k = qk.permute(2, 0, 3, 1, 4).unbind(0)
+    return q, k
+
+
+def _pe_portable(
+    self: _Blk,
+    x: torch.Tensor,
+    rope: torch.Tensor | None = None,
+    attn_mask: torch.Tensor | None = None,
+    is_causal: bool = False,  # noqa: FBT001, FBT002 - timm's signature
+) -> torch.Tensor:
+    return _pe_forward(self, x, rope, attn_mask, is_causal=is_causal, qk_rope=_pe_rope)
+
+
+def _pe_own_rope(
+    self: _Blk,
+    x: torch.Tensor,
+    rope: torch.Tensor | None = None,
+    attn_mask: torch.Tensor | None = None,
+    is_causal: bool = False,  # noqa: FBT001, FBT002 - timm's signature
+) -> torch.Tensor:
+    return _pe_forward(self, x, rope, attn_mask, is_causal=is_causal, qk_rope=vars(self)["_qk_rope"])
+
+
+def _pe_forward(  # noqa: PLR0913 - timm's arguments + the RoPE function
+    self: _Blk,
+    x: torch.Tensor,
+    rope: torch.Tensor | None,
+    attn_mask: torch.Tensor | None,
+    *,
+    is_causal: bool,
+    qk_rope: _PeRope,
+) -> torch.Tensor:
+    a = self.attn
+    b, n, c = x.shape
+    h = a.num_heads
+    qkv = F.linear(self.norm1(x), a.qkv.weight, a.qkv.bias).view(b, n, 3, h, c // h)
+    if rope is not None:
+        q, k = qk_rope(qkv, rope, a.num_prefix_tokens)
+    else:
+        q, k = qkv[:, :, :2].permute(2, 0, 3, 1, 4).unbind(0)
+    v = qkv[:, :, 2].transpose(1, 2)
+    o = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, is_causal=is_causal, scale=a.scale)
+    o = F.linear(o.transpose(1, 2).reshape(b, n, c), a.proj.weight, a.proj.bias)
+    x = torch.addcmul(x, o, self.gamma_1) if self.gamma_1 is not None else x + o
+    m = self.mlp
+    o = F.linear(m.act(F.linear(self.norm2(x), m.fc1.weight, m.fc1.bias)), m.fc2.weight, m.fc2.bias)
+    g = self.gamma_2
+    if torch.is_grad_enabled():  # norm2 saved x for backward: in place only without autograd (TG-2)
+        return torch.addcmul(x, o, g) if g is not None else x + o
+    return x.addcmul_(o, g) if g is not None else x.add_(o)
+
+
+def _pe_reload(blk: _Blk, _keys: object) -> None:
+    _pe_prep(blk)
+
+
+def pe_rope(model: nn.Module, qk_rope: _PeRope) -> int:
+    """Give every portable-patched Perception Encoder block of `model` its own q / k RoPE (e.g. a Metal kernel).
+
+    Args:
+        model: A model `optimize` patched in portable mode.
+        qk_rope: `_pe_rope`'s replacement: `(qkv [B, N, 3, H, D], rope [N - npt, 2 D] float32, npt)` -> q, k
+            `[B, H, N, D]`.
+
+    Returns:
+        The number of blocks changed.
+    """
+    n = 0
+    for blk in _modules(model):
+        if dict(getattr(type(blk), "_fastforks_methods", ())).get("forward") is _pe_portable:
+            object.__setattr__(blk, "_qk_rope", qk_rope)  # a plain function: not a submodule, no binding
+            override(blk, _pe_own_rope)
+            n += 1
+    return n
+
+
+def patch_pe(model: nn.Module, mode: str) -> int:
+    """Patch every Perception Encoder EvaBlock (see `_pe_ok`): `_pe_kernels` in kernels mode, else `_pe_portable`."""
+    n = 0
+    for blk in _modules(model):
+        if _pe_ok(blk) and mode != "kernels":
+            override(blk, _pe_portable)
+            n += 1
+        elif _pe_ok(blk):
+            _pe_prep(blk)
+            blk._act = _gelu(blk.mlp.act)
+            override(blk, _pe_kernels)
+            on_load(blk, _pe_reload)
             n += 1
     return n
 

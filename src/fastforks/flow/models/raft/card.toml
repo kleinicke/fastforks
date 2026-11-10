@@ -1,0 +1,61 @@
+schema = 2
+name = "RAFT"
+summary = "RAFT (Teed & Deng 2020): all-pairs correlation pyramid at 1/8 resolution and a ConvGRU that refines the flow in 12 iterations, upsampled with a learned convex mask (raft-small: bilinear). torchvision's V2 weights (trained from scratch with its optical-flow reference recipe); the network is ported from torchvision (no torchvision dependency)."
+tier = "experimental"
+outputs = ["flow"]
+uses = []  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/pytorch/vision"
+commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1; net.py ports torchvision/models/optical_flow/raft.py
+
+[licence]
+code = "BSD-3-Clause"  # torchvision
+weights = "assumed from code"  # torchvision states no separate weights licence
+files = ["LICENSE"]
+training_data = ["flyingchairs", "sceneflow"]
+training_note = "FlyingChairs, then FlyingThings3D (part of SceneFlow)"
+evidence = "https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/torchvision/models/optical_flow/raft.py#L576"  # Raft_Large_Weights: the weights, their training data and no licence of their own
+
+[io]
+input = "mean_std"  # torchvision's OpticalFlow transform: [0, 1] -> [-1, 1]
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+min_size = 128  # the 4-level correlation pyramid needs 1/8 feature maps of at least 16 px (torchvision's min_size)
+pad = { multiple = 8, mode = "centre", fill = "replicate" }  # upstream RAFT InputPadder ('sintel' mode)
+
+[options]
+iters = { default = 12, min = 1 }  # flow updates (torchvision's num_flow_updates)
+
+[params]
+size = "large"
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast for the encoders and the update block; correlation, lookup and upsampling in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["raft_flow", "cutlass_conv", "cudnn_hacc"]
+
+[[variants]]
+id = "raft-large"  # torchvision Raft_Large_Weights.C_T_SKHT_V2 (its default); Sintel test EPE 1.819 clean / 3.067 final
+revision = 1
+licence = { training_data = ["flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "FlyingChairs, FlyingThings3D, then fine-tuned on a mix of Sintel, KITTI 2015, HD1K and FlyingThings3D (clean pass)" }
+weights = [{ name = "raft_large_C_T_SKHT_V2-ff5fadd5.pth", size = 21106607, sha256 = "ff5fadd56d26b40647388883af1547351ea17868b765c05b27231e72dd16a322", url = "https://download.pytorch.org/models/raft_large_C_T_SKHT_V2-ff5fadd5.pth" }]
+
+[[variants]]
+id = "raft-large-things"  # torchvision Raft_Large_Weights.C_T_V2; Sintel train EPE 1.382 clean / 2.716 final
+revision = 1
+weights = [{ name = "raft_large_C_T_V2-1bb1363a.pth", size = 21106607, sha256 = "1bb1363a43b40f8dea96c530217a7e8b1804ffc77506058db2ec0afa428ad4f6", url = "https://download.pytorch.org/models/raft_large_C_T_V2-1bb1363a.pth" }]
+
+[[variants]]
+id = "raft-large-kitti"  # torchvision Raft_Large_Weights.C_T_SKHT_K_V2; KITTI 2015 test Fl-all 5.19 %
+revision = 1
+licence = { training_data = ["flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "as raft-large, then fine-tuned on KITTI 2015" }
+weights = [{ name = "raft_large_C_T_SKHT_K_V2-b5c70766.pth", size = 21106607, sha256 = "b5c7076664d2e53ef175e06619f44a514e10fbba58731d6956536c8c48c42dd0", url = "https://download.pytorch.org/models/raft_large_C_T_SKHT_K_V2-b5c70766.pth" }]
+
+[[variants]]
+id = "raft-small"  # torchvision Raft_Small_Weights.C_T_V2; Sintel train EPE 1.990 clean / 3.283 final
+revision = 1
+params = { size = "small" }
+weights = [{ name = "raft_small_C_T_V2-01064c6d.pth", size = 4006189, sha256 = "01064c6dba73b0fc9fc8edf772248560a00a3acfd62ac6677e9eeebad9680e27", url = "https://download.pytorch.org/models/raft_small_C_T_V2-01064c6d.pth" }]

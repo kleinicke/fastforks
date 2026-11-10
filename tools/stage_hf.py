@@ -212,6 +212,7 @@ _HF_LICENCES = {
 }
 _PIPELINE = {
     "stereo": "depth-estimation",
+    "flow": "image-to-image",
     "depth": "depth-estimation",
     "features": "image-feature-extraction",
     "classification": "image-classification",
@@ -219,9 +220,11 @@ _PIPELINE = {
     "promptable_segmentation": "mask-generation",
     "detection": "object-detection",
     "multiview": "image-to-3d",
+    "pose": "keypoint-detection",
 }
 _TASK_TAGS = {
     "stereo": ["stereo", "stereo-matching", "disparity"],
+    "flow": ["optical-flow", "motion-estimation"],
     "depth": ["mono-depth", "monocular-depth"],
     "features": ["backbone", "feature-extraction"],
     "classification": ["image-classification"],
@@ -229,9 +232,13 @@ _TASK_TAGS = {
     "promptable_segmentation": ["segment-anything", "promptable-segmentation"],
     "detection": ["object-detection", "instance-segmentation"],
     "multiview": ["multi-view-stereo", "3d-reconstruction", "camera-pose-estimation"],
+    "pose": ["pose-estimation", "human-pose-estimation", "keypoint-detection"],
 }
 _SNIPPET = {
     "stereo": 'result = model("left.png", "right.png")\nresult.{out}  # [H, W] float32 tensor, input resolution',
+    "flow": (
+        'result = model("frame1.png", "frame2.png")\nresult.{out}  # [2, H, W] float32 tensor: dx, dy in input pixels'
+    ),
     "depth": (
         'result = model("room.jpg")\nresult.{out}  # [H, W] float32 tensor; result.kind says what the maps mean\n'
         '# models that take a camera: model("room.jpg", intrinsics=K), K [3, 3] in pixels'
@@ -247,6 +254,10 @@ _SNIPPET = {
     "multiview": (
         'result = model(["view0.jpg", "view1.jpg", "view2.jpg"])  # the views of one scene, no cameras needed\n'
         "result.{out}  # [V, H, W] float32 tensor; result.kind says what the maps mean"
+    ),
+    "pose": (
+        'result = model("photo.jpg", boxes=[[x0, y0, x1, y1]])  # one box per person, or a fastforks.detection result\n'
+        "result.{out}, result.keypoint_scores  # [P, K, 2] input pixels, [P, K]"
     ),
 }
 # Families whose call differs from their task's snippet (the family's runner decides, see tests/test_hf_cards.py).

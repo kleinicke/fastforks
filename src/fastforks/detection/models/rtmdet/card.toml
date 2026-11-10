@@ -1,0 +1,109 @@
+schema = 2
+name = "RTMDet (CSPNeXt, tiny / S / M / L / X; nano and M person detectors)"
+summary = "RTMDet (Lyu et al. 2022, OpenMMLab): real-time one-stage detector, all convolutions: a CSPNeXt backbone (5 x 5 depthwise convs), a CSPNeXt-PAFPN neck and a head that predicts, per cell of the stride 8 / 16 / 32 maps, a score per class and the distances to the four box edges; class-wise NMS. COCO checkpoints (80 classes) from mmdetection and the person-only detectors mmpose ships as the box source of RTMPose (same backbone family as `fastforks.pose`'s RTMPose). The image is fitted into 640 x 640 (nano: 320 x 320); vendored from mmdetection (no mmdet / mmcv dependency). The portable `module()` is the whole network (class logits and decoded boxes per cell, before NMS)."
+tier = "experimental"
+outputs = ["boxes", "scores", "labels"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+limitations = [
+  "The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what mmdetection calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.",
+  "Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.",
+  "The person detectors' released config names COCO only; the training config stored in the checkpoints (and the file name) also lists Objects365.",
+]
+
+[upstream]
+repo = "https://github.com/open-mmlab/mmdetection"
+commit = "44ebd17b145c2372c4b700bfb9cb20dbd28ab64a"  # v3.3.0; the person detectors' configs: mmpose v1.3.2 (5408bc76), projects/rtmpose/rtmdet/person
+
+[licence]
+code = "Apache-2.0"  # open-mmlab/mmdetection LICENSE
+weights = "Apache-2.0"  # the model zoo checkpoints are released with the repository (README: Apache 2.0)
+files = ["LICENSE"]
+training_data = ["coco", "imagenet-1k"]
+training_note = "COCO 2017 train (300 epochs); the CSPNeXt backbones start from ImageNet-1k pretraining (configs/rtmdet/README.md)"
+evidence = "https://github.com/open-mmlab/mmdetection/blob/44ebd17b145c2372c4b700bfb9cb20dbd28ab64a/configs/rtmdet/README.md"
+
+[io]
+input = "imagenet"  # the runner fits the image into size x size (OpenCV-style bilinear), pads with 114 and normalises (0..255 mmdet means)
+
+[params]
+size = 640
+num_classes = 80
+deepen = 1.0
+widen = 1.0
+neck_blocks = 3
+exp_on_reg = true
+depthwise = false
+nms_pre = 30000  # reference test_cfg (candidates per level before NMS)
+nms_iou = 0.65  # reference test_cfg
+
+[options]
+score_threshold = { default = 0.05, min = 0.0, max = 1.0 }  # as the other detection families; the reference's COCO test_cfg is 0.001
+max_detections = { default = 100, min = 1 }  # COCO evaluation keeps the best 100 per image; the reference's test_cfg returns 300
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay normalisation, network and box decoding from a CUDA graph (false: eager, no graph pool)
+
+[modes.portable]
+# fp16 moves single low-score boxes by pixels (golden image: worst box 1.6 px portable, 10.7 px kernels on S, 6.4 px on
+# tiny; M, X and nano-person stay below 0.5 px): the network amplifies rounding there. CUDA float32 without TF32 is
+# within 0.002 px of the CPU golden, cuDNN's default TF32 convolutions are already 3.1 px off on S. COCO box AP is
+# unchanged (docs/data/detection_eval.jsonl).
+cuda_dtype = "float16"  # the network; scores, boxes and NMS stay float32
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+# Not built, for datacenter GPUs (A100 / L40S / H100 class): the net is convolutions only, so batching is where the
+# headroom is (one graph per batch size; decoding and NMS are per image already); TF32 buys nothing over fp16 here and
+# bf16 has no fused conv kernels; larger graphs are done (the whole network plus decoding is one graph); FP8 / INT8
+# needs calibration and moves box AP, so it belongs to a TensorRT export, not to this mode.
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the whole network through fastforks._optimize (fused conv + SiLU, residual, concat); one CUDA graph
+
+[output]
+label_set = "coco-80"
+
+[[variants]]
+id = "rtmdet-tiny-coco"  # RTMDet-tiny; COCO val box AP 41.1 (README)
+revision = 1
+params = { deepen = 0.167, widen = 0.375, neck_blocks = 1, exp_on_reg = false }
+weights = [{ name = "rtmdet_tiny_8xb32-300e_coco_20220902_112414-78e30dcc.pth", size = 57532893, sha256 = "78e30dcce0c6f594eaff0d6977b84b4103688b4aff0ad1aa16008a8cc854a7fb", url = "https://download.openmmlab.com/mmdetection/v3.0/rtmdet/rtmdet_tiny_8xb32-300e_coco/rtmdet_tiny_8xb32-300e_coco_20220902_112414-78e30dcc.pth" }]
+
+[[variants]]
+id = "rtmdet-s-coco"  # RTMDet-s; AP 44.6
+revision = 1
+params = { deepen = 0.33, widen = 0.5, neck_blocks = 1, exp_on_reg = false }
+weights = [{ name = "rtmdet_s_8xb32-300e_coco_20220905_161602-387a891e.pth", size = 91450098, sha256 = "387a891e157cf0ab57d76b3ffc17bf77247089d672532427930b3140f9e789d6", url = "https://download.openmmlab.com/mmdetection/v3.0/rtmdet/rtmdet_s_8xb32-300e_coco/rtmdet_s_8xb32-300e_coco_20220905_161602-387a891e.pth" }]
+
+[[variants]]
+id = "rtmdet-m-coco"  # RTMDet-m; AP 49.4
+revision = 1
+params = { deepen = 0.67, widen = 0.75, neck_blocks = 2 }
+weights = [{ name = "rtmdet_m_8xb32-300e_coco_20220719_112220-229f527c.pth", size = 224299609, sha256 = "229f527ca88498e8894a778a62a878a322b4a3ea2cae09ea537d34b7e907792b", url = "https://download.openmmlab.com/mmdetection/v3.0/rtmdet/rtmdet_m_8xb32-300e_coco/rtmdet_m_8xb32-300e_coco_20220719_112220-229f527c.pth" }]
+
+[[variants]]
+id = "rtmdet-l-coco"  # RTMDet-l; AP 51.5
+revision = 1
+params = {}
+weights = [{ name = "rtmdet_l_8xb32-300e_coco_20220719_112030-5a0be7c4.pth", size = 453765285, sha256 = "5a0be7c4a8123d1e634ce09b08682af373f503de2040e1532d254791f9332cec", url = "https://download.openmmlab.com/mmdetection/v3.0/rtmdet/rtmdet_l_8xb32-300e_coco/rtmdet_l_8xb32-300e_coco_20220719_112030-5a0be7c4.pth" }]
+
+[[variants]]
+id = "rtmdet-x-coco"  # RTMDet-x; AP 52.8
+revision = 1
+params = { deepen = 1.33, widen = 1.25, neck_blocks = 4 }
+weights = [{ name = "rtmdet_x_8xb32-300e_coco_20220715_230555-cc79b9ae.pth", size = 395581614, sha256 = "cc79b9ae0970f7f597e2aa5f81663129f3aa24e5612549b4f1a383da7fff825d", url = "https://download.openmmlab.com/mmdetection/v3.0/rtmdet/rtmdet_x_8xb32-300e_coco/rtmdet_x_8xb32-300e_coco_20220715_230555-cc79b9ae.pth" }]
+
+# Person detectors of mmpose's RTMPose project (one class). Their test_cfg: 1000 candidates per level, NMS IoU 0.6.
+# Training data: the checkpoints' stored training config concatenates COCO train2017 and Objects365 train (persons),
+# as the file name says; the config in the repository lists COCO only.
+[[variants]]
+id = "rtmdet-nano-person"  # RTMDet-nano at 320 x 320, depthwise convs; COCO val person AP 40.3 (mmpose README)
+revision = 1
+params = { size = 320, num_classes = 1, deepen = 0.33, widen = 0.25, neck_blocks = 1, exp_on_reg = false, depthwise = true, nms_pre = 1000, nms_iou = 0.6 }
+output = { label_set = "person-1" }
+licence = { training_data = ["coco", "objects365", "imagenet-1k"], training_note = "persons of COCO 2017 train and Objects365 train (100 epochs; the training config stored in the checkpoint); the CSPNeXt backbone starts from ImageNet-1k pretraining", evidence = "https://github.com/open-mmlab/mmpose/blob/5408bc76f5b848cf925a0d1857899011d8c5b497/projects/rtmpose/README.md" }
+weights = [{ name = "rtmdet_nano_8xb32-100e_coco-obj365-person-05d8511e.pth", size = 4224050, sha256 = "05d8511e7b3fabc62e27d2f624179e004ad14ee63a86ca9d9d22c88f3db0eee1", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmpose/rtmdet_nano_8xb32-100e_coco-obj365-person-05d8511e.pth" }]
+
+[[variants]]
+id = "rtmdet-m-person"  # RTMDet-m at 640 x 640; COCO val person AP 62.5 (mmpose README)
+revision = 1
+params = { num_classes = 1, deepen = 0.67, widen = 0.75, neck_blocks = 2, nms_pre = 1000, nms_iou = 0.6 }
+output = { label_set = "person-1" }
+licence = { training_data = ["coco", "objects365", "imagenet-1k"], training_note = "persons of COCO 2017 train and Objects365 train (100 epochs; the training config stored in the checkpoint); the CSPNeXt backbone starts from ImageNet-1k pretraining", evidence = "https://github.com/open-mmlab/mmpose/blob/5408bc76f5b848cf925a0d1857899011d8c5b497/projects/rtmpose/README.md" }
+weights = [{ name = "rtmdet_m_8xb32-100e_coco-obj365-person-235e8209.pth", size = 99021988, sha256 = "235e820939cb2ff33c505441e71f7e9532958c281636a963c6829d100867aed9", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmpose/rtmdet_m_8xb32-100e_coco-obj365-person-235e8209.pth" }]

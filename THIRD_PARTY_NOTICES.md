@@ -54,8 +54,8 @@ Apache-2.0), and the card's `[licence]` section records the code and weights lic
 
 The `raft` and `igev` kernel libraries (`src/fastforks/kernels/raft/`, `.../igev/`) re-implement layers of RAFT-Stereo,
 IGEV-Stereo and DEFOM-Stereo (MIT) and the activation codes of WAFT-Stereo (BSD-3-Clause), e.g. the correlation lookup
-and the ConvGRU, partly following the upstream CUDA sampler. As their notice requires, the notices of that original code
-follow.
+and the ConvGRU, partly following the upstream CUDA sampler; the `raft_flow` library (`src/fastforks/kernels/raft_flow/`)
+adapts the `raft` kernels to RAFT optical flow. As their notice requires, the notices of that original code follow.
 
 ```
 MIT License
@@ -104,3 +104,26 @@ ConvGRU in turn follows RAFT, https://github.com/princeton-vl/RAFT, BSD-3-Clause
 Selective-IGEV (https://github.com/Windsrain/Selective-Stereo, MIT, Copyright (c) 2024 Xianqi Wang). The three licence
 texts are appended to `src/fastforks/stereo/models/las2/LICENSE` (the code carries no attribution header upstream; origin
 identified by class names and structure).
+
+## OpenCV resize arithmetic
+
+`src/fastforks/detection/_cv2_resize.py` re-implements the 8-bit `INTER_LINEAR` path of OpenCV's `cv2.resize`
+(https://github.com/opencv/opencv, `modules/imgproc/src/resize.cpp`, Apache-2.0, Copyright (C) 2000-2022 Intel
+Corporation and the OpenCV contributors) in PyTorch integer arithmetic, so that RTMDet sees the pixels mmdetection's
+test pipeline gives it; no OpenCV source is copied. The Apache-2.0 licence text is in
+`src/fastforks/detection/models/rtmdet/LICENSE` (the vendored mmdetection code's licence file).
+
+## EfficientViT-SAM prompt side
+
+`src/fastforks/promptable_segmentation/models/efficientvit_sam/net/` is the EfficientViT-SAM code of
+https://github.com/mit-han-lab/efficientvit (Apache-2.0, Copyright 2023 Han Cai); its `segment_anything/` folder is
+that repository's copy of the prompt encoder, mask decoder and two-way transformer of Segment Anything
+(https://github.com/facebookresearch/segment-anything, Apache-2.0, Copyright (c) Meta Platforms, Inc. and affiliates).
+Both licence texts are in the family folder (`LICENSE`, `LICENSE-segment-anything`).
+
+## HQ-SAM
+
+`src/fastforks/promptable_segmentation/models/sam_hq/net/` is the model code of https://github.com/SysCV/sam-hq
+(Apache-2.0): Segment Anything (https://github.com/facebookresearch/segment-anything, Apache-2.0, Copyright (c) Meta
+Platforms, Inc. and affiliates) as modified by the HQ-SAM team (image encoder that also returns its early features,
+`MaskDecoderHQ`). The licence text is in the family folder (`LICENSE`).

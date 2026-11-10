@@ -17,6 +17,11 @@ occlusions, where its local-maximum test flips on last-bit differences in flat c
 truth is unchanged). float16 moves stereo outputs by 0.003-0.07 px mean. Depth: float32 matches the CPU to 1e-4 of the
 median depth, float16 moves it by 0.02-0.12 %.
 
+Pose and Perception Encoder Metal `kernels` (added 2026-11-09, not yet in the tables below; median ms per call,
+`kernels` vs `portable` in the same dtype): RTMPose-t / -m / DWPose-l fp32 with 16 boxes 29.7 / 59.3 / 102.9 ->
+18.6 / 45.1 / 80.6 (keypoints unchanged); ViTPose-B / ViTPose+-S fp16 with 16 boxes 192 / 79 -> 161 / 58 (one box:
+22.2 / 13.1 -> 16.1 / 8.6); PE-Core-B/16 fp16 batch 8 112 -> 84, PE-Spatial-B/16 at 512 fp16 batch 8 620 -> 467.
+
 <!-- device:begin (tools/gen_docs.py, from docs/data/devices.toml and docs/data/speed/apple-m1-pro-16gb.jsonl) -->
 
 | | |

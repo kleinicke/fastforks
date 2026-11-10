@@ -33,20 +33,24 @@ nav:
       - fastforks: api/index.md
       - Stereo: api/stereo.md
       - Stereo geometry: api/geometry.md
+      - Optical flow: api/flow.md
       - Depth: api/depth.md
       - Classification: api/classification.md
       - Segmentation: api/segmentation.md
       - Features: api/features.md
+      - Pose: api/pose.md
       - Promptable segmentation: api/promptable_segmentation.md
       - Detection: api/detection.md
       - Multi-view: api/multiview.md
       - Errors: api/errors.md
   - Models:
       - Stereo: models/stereo.md
+      - Optical flow: models/flow.md
       - Depth: models/depth.md
       - Classification: models/classification.md
       - Segmentation: models/segmentation.md
       - Features: models/features.md
+      - Pose: models/pose.md
       - Promptable segmentation: models/promptable_segmentation.md
       - Detection: models/detection.md
       - Multi-view: models/multiview.md

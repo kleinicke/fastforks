@@ -33,6 +33,10 @@ s2m2 = "A transformer-based stereo family in four sizes (S, M, L, XL). Non-comme
 selective_igev = "IGEV-Stereo with selective recurrent units, by Xianqi Wang et al., with checkpoints for several datasets."
 waft_stereo = "A stereo network from the Princeton Vision & Learning Lab that warps features instead of building a cost volume, in sizes S and B. The licence differs by size, see the table."
 
+# --- flow
+raft = "RAFT (Teed and Deng, Princeton) with torchvision's weights: dense optical flow refined step by step over an all-pairs correlation volume. BSD-3-Clause code; some training sets (FlyingChairs, Sintel) are research-only."
+sea_raft = "SEA-RAFT (Princeton, 2024): a faster and more accurate successor of RAFT for dense optical flow, needing only 4 refinement steps. BSD-3-Clause code and weights; some training sets are research-only."
+
 # --- depth
 depth_anything_3 = "ByteDance's Depth Anything 3: depth from one image, with relative, metric and multi-view versions. The licence differs by variant, see the table."
 depth_anything_v2 = "Depth Anything V2: relative depth from one image, in small, base and large. The licence differs by size, see the table."
@@ -47,6 +51,7 @@ zoedepth = "ZoeDepth from the Intelligent Systems Lab: metric depth from one ima
 
 # --- classification (ImageNet-1k classifiers)
 alexnet = "AlexNet (Krizhevsky et al. 2012): five convolutions and three fully connected layers; an early deep convolutional classifier."
+convnext = "Meta's ConvNeXt (Liu et al. 2022; tiny, small, base, large; ImageNet-1k, and ImageNet-22k fine-tuned at 224 and 384): a convolutional classifier of 7x7 depthwise convolutions, LayerNorm and MLP blocks. Apache-2.0."
 convnextv2 = "ConvNeXt V2 (Woo et al. 2023): a convolutional classifier with global response normalisation. Non-commercial weights."
 deit = "DeiT (Touvron et al. 2021): a vision transformer trained on ImageNet-1k only."
 densenet = "DenseNet (Huang et al. 2016): a classifier with densely connected convolution blocks."
@@ -80,7 +85,9 @@ sapiens = "Meta's Sapiens: segmentation of human body parts (28 Goliath classes 
 segformer = "NVIDIA's SegFormer: a transformer for ADE20K scene segmentation, sizes B0 and B5. Non-commercial weights."
 
 # --- promptable segmentation
+efficientvit_sam = "EfficientViT-SAM (MIT Han lab): Segment Anything with a fast convolutional image encoder, in five sizes."
 sam = "Segment Anything: masks from clicks, boxes or mask prompts, in sizes B, L and H."
+sam_hq = "HQ-SAM (ETH Zurich): Segment Anything with an added head for sharper mask borders and thin structures, in sizes B, L and H."
 sam2 = "Segment Anything 2.1 in image mode: masks from clicks, boxes or mask prompts, in four sizes."
 sam3 = "Segment Anything 3: masks for every object that matches a text or example prompt, as well as clicks and boxes. Meta's SAM License applies; commercially usable under it."
 
@@ -88,12 +95,17 @@ sam3 = "Segment Anything 3: masks for every object that matches a text or exampl
 rcnn = "Faster R-CNN and Mask R-CNN from the detectron2 model zoo (ResNet-50 FPN, COCO): boxes, classes and, for Mask R-CNN, instance masks."
 detr = "DETR (ResNet-50 and ResNet-101, COCO) from Facebook Research: end-to-end boxes and classes from 100 object queries, no NMS."
 rtdetrv2 = "RT-DETRv2 (S, M, M*, L, X; ResNet-vd, COCO) from the RT-DETR authors: real-time end-to-end detector, 300 queries and deformable attention, no NMS."
+rtmdet = "OpenMMLab's RTMDet (tiny, s, m, l, x on COCO; nano and m person detectors): real-time one-stage box detector, a CSPNeXt CNN with NMS. The person detectors supply the boxes for RTMPose. Apache-2.0."
 dfine = "D-FINE (N, S, M, L, X; HGNetV2, COCO) from USTC: real-time end-to-end detector in the RT-DETR style, 300 queries, deformable attention and box edges refined as distributions, no NMS."
 
 # --- features
 dinov2 = "Meta's DINOv2: self-supervised image features (patch and class tokens) in four sizes, with and without register tokens."
 dinov3_convnext = "Meta's DINOv3 distilled into ConvNeXt backbones (T, S, B, L): image features. Needs the gated DINOv3 licence."
 dinov3 = "Meta's DINOv3 vision transformers: self-supervised image features with register tokens and RoPE. Needs the gated DINOv3 licence."
+c_radio = "NVIDIA's C-RADIOv3 (B, L, H, g): one backbone distilled from several teachers (DINOv2, SigLIP 2, SAM), image features at any resolution. NVIDIA Open Model License."
+clip = "CLIP image encoders from OpenAI and OpenCLIP (LAION-2B, DataComp-XL, DFN; B, L, H): image features aligned with text."
+perception_encoder = "Meta's Perception Encoder (T, S, B, L, G): PE-Core image features aligned with text, and PE-Spatial for dense tasks."
+siglip2 = "Google's SigLIP 2 image encoders (B, L, So400m, g): image features aligned with text, at several resolutions."
 
 # --- multiview
 mapanything = "MapAnything (Meta): metric 3D reconstruction (cameras and depth) from several unposed images in one pass. Commercially usable (Apache variant)."
@@ -101,3 +113,7 @@ mvsanywhere = "MVSAnywhere (Niantic): depth of a reference view from several pos
 patchmatchnet = "PatchmatchNet by Fangjinhua Wang et al.: learned PatchMatch multi-view stereo, depth from posed images."
 vggt = "VGGT (Meta): cameras, depth and 3D points for many images in one pass. Non-commercial weights."
 vggt_omega = "VGGT-Omega (Meta): the successor of VGGT with a DINOv3 backbone, cameras and depth from many images. Non-commercial licence."
+
+# --- pose
+rtmpose = "OpenMMLab's RTMPose (t, s, m, l; 256x192 and 384x288): real-time top-down 2D human pose, a CSPNeXt CNN with a SimCC head, trained on seven public pose datasets. Apache-2.0."
+vitpose = "ViTPose and ViTPose++ (base, small, large, huge): top-down 2D human pose with a plain vision transformer, from the weights published by the University of Sydney on Hugging Face. Apache-2.0."

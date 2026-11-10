@@ -186,12 +186,14 @@ class FusedHead:
         self.oc1 = _conv(s.output_conv1, device)
         oc2 = s.output_conv2
         last = oc2[2]
-        if not (isinstance(oc2[1], nn.ReLU) and isinstance(oc2[3], nn.ReLU) and last.out_channels == 1):
+        if not (isinstance(oc2[1], nn.ReLU) and isinstance(oc2[3], (nn.ReLU, nn.Sigmoid)) and last.out_channels == 1):
             msg = "dpt_fused head: unexpected output_conv2"
             raise ValueError(msg)
+        self.sigmoid = isinstance(oc2[3], nn.Sigmoid)  # metric head (upstream metric_depth)
         self.oc2 = _conv(oc2[0], device)
         self.w_last = last.weight.detach().float().flatten().contiguous().to(device)
         self.b_last = float(last.bias.detach().float()[0])
+        self.w_neg = -self.w_last
 
     def _conv(self, x: torch.Tensor, c: _Conv, **kw: Any) -> torch.Tensor:  # noqa: ANN401 - epilogue options
         w, b, pad, stride = c
@@ -217,7 +219,10 @@ class FusedHead:
         return self.k.bilinear(self.k.gemm(z, wo, bo), size, align_corners=True)
 
     def __call__(self, feats: list[torch.Tensor], gh: int, gw: int) -> torch.Tensor:
-        """Tokens `[B, gh * gw, C]` of the 4 layers -> relative inverse depth `[B, 14 gh, 14 gw]` (fp32)."""
+        """Tokens `[B, gh * gw, C]` of the 4 layers -> relative inverse depth `[B, 14 gh, 14 gw]` (fp32).
+
+        A metric head returns the sigmoid instead of the ReLU of the last conv (the caller scales it by max_depth).
+        """
         k = self.k
         ls, rs = [], []
         for t, (wp, bp), rz, rn in zip(feats, self.projects, self.resize, self.rn, strict=True):
@@ -236,4 +241,9 @@ class FusedHead:
         p = self._fuse(1, p, None, l2, rs[1], l1.shape[1:3])
         p = self._fuse(0, p, None, l1, rs[0], (2 * l1.shape[1], 2 * l1.shape[2]))
         o = k.bilinear(self._conv(p, self.oc1), (14 * gh, 14 * gw), align_corners=True)
-        return k.head_dot(self._conv(o, self.oc2, act=ACT_RELU), self.w_last, self.b_last)
+        o = self._conv(o, self.oc2, act=ACT_RELU)
+        z = k.head_dot(o, self.w_last, self.b_last)
+        if not self.sigmoid:
+            return z
+        # the kernel ends in a ReLU: the fp32 pre-activation is relu(z) - relu(-z), a second pass over the 32 channels
+        return torch.sigmoid(z - k.head_dot(o, self.w_neg, -self.b_last))

@@ -1,0 +1,124 @@
+schema = 2
+name = "CLIP"
+summary = "CLIP image towers (Radford et al. 2021): OpenAI, OpenCLIP (LAION-2B, DataComp-1B) and Apple DFN weights in timm's format; cls + patch tokens at any size, pooler_output = the post-LayerNorm cls token before the projection (QuickGELU for the OpenAI and DFN weights)."
+tier = "experimental"
+outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
+uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports (CUDA graphs, the timm network builder)
+limitations = [
+  "kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",
+  "Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.",
+  "`fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).",
+  "fp16 error against the fp32 original is higher than for the other ViTs on L/14 DataComp (mean 2.8 % portable, 4.8 % kernels): one residual channel sits near 120, where fp16 steps are 0.06, about 10 % of the median activation. No overflow; float32 portable gives 0.3 %.",
+  "DFN weights: the relative error (mean 1.3-3.9 % portable, 3.9-6.5 % kernels) is measured against a median |output| of only 0.015-0.021 (other weights: 0.5-0.6) with values up to 0.7; `fp32_accumulate = true` lowers kernels to about 1.5 %.",
+]
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library; OpenAI / DFN weights use its `_quickgelu` architectures
+
+[licence]
+code = "Apache-2.0"  # timm
+weights = "MIT"  # the original releases (openai/CLIP, the laion/CLIP-* OpenCLIP repos); the timm re-host cards say Apache-2.0; DFN variants override
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["unstated"]
+evidence = "https://huggingface.co/timm/vit_large_patch14_clip_336.openai/blob/81e38efc4637de5023b10e75a7f9bd1c6fa6b010/README.md"
+
+[io]
+# the core resizes (never pads / crops) to multiples of the patch (16 or 14), antialiased bicubic; mean / std per variant
+input = "mean_std"
+interpolation = "bicubic"
+mean = [0.48145466, 0.4578275, 0.40821073]
+std = [0.26862954, 0.26130258, 0.27577711]
+pad = { multiple = 16, mode = "none" }
+
+[options]
+fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, larger error vs fp32)
+fp32_accumulate = { default = false, effect = "precision" }  # true: kernels run every GEMM through cuBLAS with fp32 accumulation (the portable precision, with the CUDA graphs); slower on GeForce (half-rate fp32 accumulation), to be measured on data-centre GPUs
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+
+[[variants]]
+id = "clip-b16-openai"
+revision = 1
+params = { arch = "vit_base_patch16_clip_quickgelu_224.openai" }
+licence = { training_data = ["unstated"], training_note = "WIT: 400M image-text pairs collected from the web by OpenAI (CLIP paper); not released" }
+weights = [{ name = "vit_base_patch16_clip_224.openai.safetensors", size = 598516980, sha256 = "4b8699299b1e8997753c64b052ba32031449d5d853f55a039148560ee02b820f", url = "https://huggingface.co/timm/vit_base_patch16_clip_224.openai/resolve/977e3dd0ec55ab8da155f2fbeb6b5f54948b6e3d/open_clip_model.safetensors" }]
+
+[[variants]]
+id = "clip-l14-openai"
+revision = 1
+params = { arch = "vit_large_patch14_clip_quickgelu_224.openai" }
+io = { pad = { multiple = 14 } }
+licence = { training_data = ["unstated"], training_note = "WIT: 400M image-text pairs collected from the web by OpenAI (CLIP paper); not released" }
+weights = [{ name = "vit_large_patch14_clip_224.openai.safetensors", size = 1710517724, sha256 = "9ce2e8a8ebfff3793d7d375ad6d3c35cb9aebf3de7ace0fc7308accab7cd207e", url = "https://huggingface.co/timm/vit_large_patch14_clip_224.openai/resolve/18d0535469bb561bf468d76c1d73aa35156c922b/open_clip_model.safetensors" }]
+
+[[variants]]
+id = "clip-l14-336-openai"
+revision = 1
+params = { arch = "vit_large_patch14_clip_quickgelu_336.openai" }
+io = { pad = { multiple = 14 } }
+licence = { training_data = ["unstated"], training_note = "WIT: 400M image-text pairs collected from the web by OpenAI (CLIP paper); not released" }
+weights = [{ name = "vit_large_patch14_clip_336.openai.safetensors", size = 1217206856, sha256 = "18012c7809644a2614981b737de7a550d2bd244751678dad1eaaaffad0c4930a", url = "https://huggingface.co/timm/vit_large_patch14_clip_336.openai/resolve/81e38efc4637de5023b10e75a7f9bd1c6fa6b010/model.safetensors" }]
+
+[[variants]]
+id = "clip-b16-laion2b"
+revision = 1
+params = { arch = "vit_base_patch16_clip_224.laion2b" }
+licence = { training_data = ["laion-2b"], evidence = "https://huggingface.co/timm/vit_base_patch16_clip_224.laion2b/blob/fbadfdd1c0e903c58855b70ae04740b22da9d305/README.md" }
+weights = [{ name = "vit_base_patch16_clip_224.laion2b.safetensors", size = 344786776, sha256 = "35fcf20089626ce1534aa3d4d8d97a02ca79e171a1735d0c8d58e150eded9ad5", url = "https://huggingface.co/timm/vit_base_patch16_clip_224.laion2b/resolve/fbadfdd1c0e903c58855b70ae04740b22da9d305/model.safetensors" }]
+
+[[variants]]
+id = "clip-l14-laion2b"
+revision = 1
+params = { arch = "vit_large_patch14_clip_224.laion2b" }
+io = { pad = { multiple = 14 }, mean = [0.5, 0.5, 0.5], std = [0.5, 0.5, 0.5] }
+licence = { training_data = ["laion-2b"], evidence = "https://huggingface.co/timm/vit_base_patch16_clip_224.laion2b/blob/fbadfdd1c0e903c58855b70ae04740b22da9d305/README.md" }
+weights = [{ name = "vit_large_patch14_clip_224.laion2b.safetensors", size = 1215896136, sha256 = "e7204b9868d12f1bd6a515e1af86480f6ff48b8162a7c0a4f67b871719d95dcc", url = "https://huggingface.co/timm/vit_large_patch14_clip_224.laion2b/resolve/ce143c10d3592fce8cfabbee2b990656c2aaead6/model.safetensors" }]
+
+[[variants]]
+id = "clip-h14-laion2b"
+revision = 1
+params = { arch = "vit_huge_patch14_clip_224.laion2b" }
+io = { pad = { multiple = 14 } }
+licence = { training_data = ["laion-2b"], evidence = "https://huggingface.co/timm/vit_base_patch16_clip_224.laion2b/blob/fbadfdd1c0e903c58855b70ae04740b22da9d305/README.md" }
+weights = [{ name = "vit_huge_patch14_clip_224.laion2b.safetensors", size = 2528349064, sha256 = "a18dfb0dedf03f423969838ff4fd2fb1d78021c64539004d7ccbfb32d6268d6a", url = "https://huggingface.co/timm/vit_huge_patch14_clip_224.laion2b/resolve/b8441fa3f968a5e469c166176ee82f8ce8dbc4eb/model.safetensors" }]
+
+[[variants]]
+id = "clip-l14-datacompxl"
+revision = 1
+params = { arch = "vit_large_patch14_clip_224.datacompxl" }
+io = { pad = { multiple = 14 } }
+licence = { training_data = ["datacomp-1b"], evidence = "https://huggingface.co/timm/vit_large_patch14_clip_224.datacompxl/blob/7fb391265b74ed5bdcc84c84b892595addb833be/README.md" }
+weights = [{ name = "vit_large_patch14_clip_224.datacompxl.safetensors", size = 1215896136, sha256 = "b63e3d1bc90abdd14bcc3e4b7eef772dd9972fa3619e9be2f83b06d6cda0f8c6", url = "https://huggingface.co/timm/vit_large_patch14_clip_224.datacompxl/resolve/7fb391265b74ed5bdcc84c84b892595addb833be/model.safetensors" }]
+
+[[variants]]
+id = "clip-l14-dfn2b"
+revision = 1
+params = { arch = "vit_large_patch14_clip_quickgelu_224.dfn2b" }
+io = { pad = { multiple = 14 } }
+licence = { weights = "LicenseRef-Apple-AMLR", training_data = ["unstated"], training_note = "DFN-2B / DFN-5B: CommonPool-12.8B (and further web pairs for 5B) filtered by Apple's data-filtering network; not released", evidence = "https://huggingface.co/apple/DFN2B-CLIP-ViT-L-14/blob/13d68e40771108ec1812f566404e8c6f7de85f67/LICENSE (Apple's release; the timm re-host card still says apple-ascl)" }
+weights = [{ name = "vit_large_patch14_clip_224.dfn2b.safetensors", size = 1215896136, sha256 = "7a20e7340404cb03ae1e21cae8afaf3f8db6407cf37b85b589a5c9d06272413e", url = "https://huggingface.co/timm/vit_large_patch14_clip_224.dfn2b/resolve/0052124c38aa20f89fb2b186b6c2599ffa91ca5b/model.safetensors" }]
+
+[[variants]]
+id = "clip-h14-dfn5b"
+revision = 1
+params = { arch = "vit_huge_patch14_clip_quickgelu_224.dfn5b" }
+io = { pad = { multiple = 14 } }
+licence = { weights = "LicenseRef-Apple-AMLR", training_data = ["unstated"], training_note = "DFN-2B / DFN-5B: CommonPool-12.8B (and further web pairs for 5B) filtered by Apple's data-filtering network; not released", evidence = "https://huggingface.co/apple/DFN5B-CLIP-ViT-H-14/blob/11738501a1db6d5e0a3451a71ba100be02e577e6/LICENSE (Apple's release; the timm re-host card still says apple-ascl)" }
+weights = [{ name = "vit_huge_patch14_clip_224.dfn5b.safetensors", size = 2528349064, sha256 = "7ebd4bca4bae0bb780bddff4f39dcc723c0756643b89f1795d88957e12e8086d", url = "https://huggingface.co/timm/vit_huge_patch14_clip_224.dfn5b/resolve/f578dd8feffd415d1dd999618fe2fc55ed262d78/model.safetensors" }]
+
+[[variants]]
+id = "clip-h14-378-dfn5b"
+revision = 1
+params = { arch = "vit_huge_patch14_clip_quickgelu_378.dfn5b" }
+io = { pad = { multiple = 14 } }
+licence = { weights = "LicenseRef-Apple-AMLR", training_data = ["unstated"], training_note = "DFN-2B / DFN-5B: CommonPool-12.8B (and further web pairs for 5B) filtered by Apple's data-filtering network; not released", evidence = "https://huggingface.co/apple/DFN5B-CLIP-ViT-H-14-378/blob/01b771ed0d1395ca5ffdd279897d665ebe00dfd2/LICENSE (Apple's release; the timm re-host card still says apple-ascl)" }
+weights = [{ name = "vit_huge_patch14_clip_378.dfn5b.safetensors", size = 2530770824, sha256 = "81d5bf47b916583e0e1ad4d74863823a8eac90de7752ef921fc9e14df3c78b30", url = "https://huggingface.co/timm/vit_huge_patch14_clip_378.dfn5b/resolve/ae5cf5b82fdef1db1128b946ef3635ec99b5660a/model.safetensors" }]

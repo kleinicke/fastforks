@@ -1,0 +1,51 @@
+schema = 2
+name = "HQ-SAM"
+summary = "Segment Anything in High Quality (Ke et al. 2023): SAM with one more output token and a small head that fuses the final embedding with an early ViT feature, for sharper mask borders and thin structures; SAM's weights are frozen, so prompts work the same. Each prompt gives one mask (SAM's mask plus the HQ mask, upstream's default); `multimask_output` picks the best-scored of SAM's three candidates as the SAM part. The portable `module()` is the image side only (embedding and HQ feature)."
+tier = "experimental"
+outputs = ["pred_masks", "iou_scores"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/SysCV/sam-hq"
+commit = "e696978d60352dc9a26b12631cd91781502c6546"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "the HQ head is trained on HQSeg-44K (six existing fine-mask datasets, per the paper; their terms were not checked) on top of SAM's frozen weights (SA-1B, under the SA-1B research licence)"
+evidence = "https://huggingface.co/lkeab/hq-sam/blob/09b02a333b37772133eff3997bdba997867374b7/README.md (license: apache-2.0); code: https://github.com/SysCV/sam-hq/blob/e696978d60352dc9a26b12631cd91781502c6546/LICENSE"
+
+[io]
+input = "imagenet"  # original pixel_mean / std (123.675, 116.28, 103.53) / (58.395, 57.12, 57.375) on 0..255; the runner resizes (longest side image_size, PIL bilinear) and pads itself
+
+[params]
+image_size = 1024  # longest side of the encoder input (padded to a square)
+window_size = 14
+global_attn = 4  # 4 evenly spaced global-attention blocks, the last of each quarter (original global_attn_indexes: B 2, 5, 8, 11; L 5, 11, 17, 23; H 7, 15, 23, 31)
+
+[modes.portable]
+cuda_dtype = "float16"  # image encoder; HQ feature, prompt encoder and mask decoder stay float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["dpt_fused"]  # fused fp16 image encoder; the prompt decode of up to 4 prompts replays a CUDA graph (float32; `release_graphs()` frees them)
+
+[[variants]]
+id = "sam-hq-vit-b"
+revision = 1
+params = { embed_dim = 768, depth = 12, num_heads = 12 }
+weights = [{ name = "sam_hq_vit_b.pth", size = 379335069, sha256 = "14a9d662cd6f5a9c2dba6d40ab0058d88d287e4a18fd6fdc6ad5fb1a3fdeaa57", url = "https://huggingface.co/lkeab/hq-sam/resolve/09b02a333b37772133eff3997bdba997867374b7/sam_hq_vit_b.pth" }]
+
+[[variants]]
+id = "sam-hq-vit-l"
+revision = 1
+params = { embed_dim = 1024, depth = 24, num_heads = 16 }
+weights = [{ name = "sam_hq_vit_l.pth", size = 1254865805, sha256 = "e1a6c385d62bf005ded91a54d5ec55c985cfc4103ef89c08d90f39f04934c343", url = "https://huggingface.co/lkeab/hq-sam/resolve/09b02a333b37772133eff3997bdba997867374b7/sam_hq_vit_l.pth" }]
+
+[[variants]]
+id = "sam-hq-vit-h"
+revision = 1
+params = { embed_dim = 1280, depth = 32, num_heads = 16 }
+weights = [{ name = "sam_hq_vit_h.pth", size = 2570940653, sha256 = "a7ac14a085326d9fa6199c8c698c4f0e7280afdbb974d2c4660ec60877b45e35", url = "https://huggingface.co/lkeab/hq-sam/resolve/09b02a333b37772133eff3997bdba997867374b7/sam_hq_vit_h.pth" }]

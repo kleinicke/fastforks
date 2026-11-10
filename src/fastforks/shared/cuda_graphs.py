@@ -172,6 +172,10 @@ class GraphCache:
             side.wait_stream(cur)
             checked(self._forward, *static)  # warm-up outside the capture (lazy inits, workspaces, overflow fallbacks)
             side.synchronize()
+            # the warm-up's cuBLAS workspace is a block of the default pool, and PyTorch frees every workspace when any
+            # CUDA graph is destroyed: a graph captured with it would replay into freed memory after an eviction.
+            # Dropped here, the capture allocates its own in the graph pool, which outlives the graph
+            torch._C._cuda_clearCublasWorkspaces()  # noqa: SLF001 - no public API
             graph.capture_begin(self._pool, capture_error_mode="thread_local")
             try:
                 out = self._forward(*static)

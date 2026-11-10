@@ -72,6 +72,10 @@ CLASSES: dict[str, CodeClass] = {
             "LicenseRef-noncommercial",  # custom terms that forbid commercial use (e.g. InStereo2K)
             "LicenseRef-none",  # upstream publishes no licence at all: no grant, so no commercial use
             "LicenseRef-FAIR-Noncommercial-Research",  # Meta FAIR Noncommercial Research License v1 (VGGT-Omega)
+            # Apple Machine Learning Research Model licence (the DFN CLIP weights): research purposes only, no
+            # commercial or product use. https://huggingface.co/apple/DFN5B-CLIP-ViT-H-14/blob/main/LICENSE (read
+            # 2026-11-10).
+            "LicenseRef-Apple-AMLR",
         ),
         "noncommercial",
     ),

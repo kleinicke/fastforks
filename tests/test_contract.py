@@ -228,10 +228,12 @@ def test_input_use_of_the_runners():
 
 _NOT_OUTPUTS = {  # result fields that are metadata, not outputs
     "model", "backend", "options", "class_names", "kind", "extras", "views", "layers", "grid",
-    "num_prefix_tokens", "num_register_tokens", "labels",
+    "num_prefix_tokens", "num_register_tokens", "labels", "keypoint_names", "skeleton", "to_list",
 }  # fmt: skip
 _RESULTS = {
     "detection": "DetectionResult",
+    "pose": "PoseResult",
+    "flow": "FlowResult",
     "depth": "DepthResult",
     "features": "FeaturesResult",
     "multiview": "MultiViewResult",

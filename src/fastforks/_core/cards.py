@@ -63,6 +63,7 @@ _CODE_REQUIRES: Mapping[tuple[str, str], tuple[str, ...]] = MappingProxyType(
         ("segmentation", "mask2former"): ("transformers", "scipy"),
         ("segmentation", "oneformer"): ("transformers", "scipy"),
         ("detection", "rcnn"): ("torchvision",),
+        ("detection", "rtmdet"): ("torchvision",),
     }
 )
 

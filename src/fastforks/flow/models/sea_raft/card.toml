@@ -1,0 +1,85 @@
+schema = 2
+name = "SEA-RAFT"
+summary = "SEA-RAFT (Wang, Lipson & Deng 2024): RAFT with ResNet encoders, an initial flow regressed from the context features and a ConvNeXt update block, so 4 iterations suffice; correlation pyramid at 1/8 resolution, convex upsampling. The authors' released weights (pretrained on TartanAir); the network is ported from princeton-vl/SEA-RAFT. `sea-raft-m` / `sea-raft-s` are the general checkpoints (trained on the FlyingThings3D, Sintel, KITTI and HD1K mix); the `-spring` variants are made for 1080p footage and work at half resolution, as upstream evaluates them: the pair is halved (bilinear), the flow is upsampled and doubled. Paper (zero-shot after FlyingChairs + FlyingThings, the C-T weights): KITTI 2015 train EPE 4.29 / Fl-all 14.2 % (M), Sintel train EPE 1.21 clean / 4.04 final (M); M with 12 iterations (`iters=12`) is the paper's SEA-RAFT (L)."
+tier = "experimental"
+outputs = ["flow"]
+uses = []  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/princeton-vl/SEA-RAFT"
+commit = "9137517ba24e628442aec097d3afe71d03503b75"  # net.py ports core/raft.py, extractor.py, layer.py, update.py, corr.py
+
+[licence]
+code = "BSD-3-Clause"  # LICENSE: Copyright (c) 2024, Princeton Vision & Learning Lab
+weights = "BSD-3-Clause"  # Hugging Face model cards MemorySlices/Tartan-C-T*: "license: bsd-3-clause"
+files = ["LICENSE"]
+training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"]
+training_note = "TartanAir pretraining, FlyingChairs, FlyingThings3D (part of SceneFlow), then a mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH)"
+evidence = "https://huggingface.co/MemorySlices/Tartan-C-T-TSKH432x960-M/blob/85a47dc9096cca6e907ef9100dc1847a19b26a2a/README.md"  # weights licence; the training stages are the names of upstream's config/train/*.json
+
+[io]
+input = "mean_std"  # upstream: 2 * (x / 255) - 1, i.e. [0, 1] -> [-1, 1]
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+min_size = 128  # the 4-level correlation pyramid needs 1/8 feature maps of at least 16 px (as RAFT)
+pad = { multiple = 8, mode = "centre", fill = "replicate" }  # upstream InputPadder ('sintel' mode)
+
+[options]
+iters = { default = 4, min = 1 }  # flow updates after the initial regression (upstream config/eval: 4; its "L" uses 12)
+
+[params]
+size = "medium"
+scale = 0  # upstream config/eval "scale": the network runs on the pair resized by 2^scale (bilinear) and the flow is resized back and divided by 2^scale; -1 in upstream's spring-*.json, 0 in all others
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast for the encoders and the update block; correlation, lookup and upsampling in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["raft_flow", "cutlass_conv", "cudnn_hacc"]
+
+[[variants]]
+id = "sea-raft-m"  # upstream Tartan-C-T-TSKH432x960-M (its Sintel submission); Sintel test EPE 1.44 clean / 2.86 final (M)
+revision = 1
+weights = [{ name = "Tartan-C-T-TSKH432x960-M.safetensors", size = 78778760, sha256 = "83e4319d1029f414a342227db17f64089f21b7324da085122beb008aa9c4d0e5", url = "https://huggingface.co/MemorySlices/Tartan-C-T-TSKH432x960-M/resolve/85a47dc9096cca6e907ef9100dc1847a19b26a2a/model.safetensors" }]
+
+[[variants]]
+id = "sea-raft-m-kitti"  # upstream Tartan-C-T-TSKH-kitti432x960-M; KITTI 2015 test Fl-all 4.64 % (M), 4.30 % (L = 12 iterations)
+revision = 1
+licence = { training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "TartanAir, FlyingChairs, FlyingThings3D, the TSKH mix, then fine-tuned on KITTI 2015" }
+weights = [{ name = "Tartan-C-T-TSKH-kitti432x960-M.safetensors", size = 78778760, sha256 = "9a2d2a9b9e788736c0f177a17edb8cfaa3a18542242dcaeaab3f41f957e4de5a", url = "https://huggingface.co/MemorySlices/Tartan-C-T-TSKH-kitti432x960-M/resolve/695dd3938858641b87d85b87d2e478004b4bdbbc/model.safetensors" }]
+
+[[variants]]
+id = "sea-raft-m-spring"  # upstream Tartan-C-T-TSKH-spring540x960-M (its Spring submission, config/eval/spring-M.json); Spring test 1px 3.686 %, EPE 0.363
+revision = 1
+params = { scale = -1 }  # half resolution, as upstream's spring-M.json
+io = { min_size = 256 }  # 128 px after the halving
+licence = { training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k", "spring"], training_note = "TartanAir, FlyingChairs, FlyingThings3D, the TSKH mix, then fine-tuned on Spring", evidence = "https://huggingface.co/MemorySlices/Tartan-C-T-TSKH-spring540x960-M/blob/eb97ef34ba5d856c3fa2cdcd073150c057ac8b69/README.md" }
+weights = [{ name = "Tartan-C-T-TSKH-spring540x960-M.safetensors", size = 78778760, sha256 = "cb8cfbf14c5e0f6734b64add383708b7ff68cc6089a0007c67165d4761346102", url = "https://huggingface.co/MemorySlices/Tartan-C-T-TSKH-spring540x960-M/resolve/eb97ef34ba5d856c3fa2cdcd073150c057ac8b69/model.safetensors" }]
+
+[[variants]]
+id = "sea-raft-m-things"  # upstream Tartan-C-T432x960-M (zero-shot); paper: Sintel train EPE 1.21 / 4.04, KITTI 2015 train EPE 4.29, Fl-all 14.2 %
+revision = 1
+licence = { training_data = ["tartanair", "flyingchairs", "sceneflow"], training_note = "TartanAir, FlyingChairs, then FlyingThings3D (part of SceneFlow)" }
+weights = [{ name = "Tartan-C-T432x960-M.safetensors", size = 78778760, sha256 = "41f9a087377a4d3578e57e461cc07642a41dfe5fde992215d4d26288ddba27c7", url = "https://huggingface.co/MemorySlices/Tartan-C-T432x960-M/resolve/0ab5da9ac5e6b9c174f420b876ae3d85449c07dd/model.safetensors" }]
+
+[[variants]]
+id = "sea-raft-s"  # upstream Tartan-C-T-TSKH432x960-S
+revision = 1
+params = { size = "small" }
+weights = [{ name = "Tartan-C-T-TSKH432x960-S.safetensors", size = 35595384, sha256 = "9752a49fca0a3f33551d51fec7bc5bd87f93a155b1e9fadd803e8176f4edb423", url = "https://huggingface.co/MemorySlices/Tartan-C-T-TSKH432x960-S/resolve/de21657a1519e5b14d2a9c10885ec369a8654c05/model.safetensors" }]
+
+[[variants]]
+id = "sea-raft-s-kitti"  # upstream Tartan-C-T-TSKH-kitti432x960-S
+revision = 1
+params = { size = "small" }
+licence = { training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "TartanAir, FlyingChairs, FlyingThings3D, the TSKH mix, then fine-tuned on KITTI 2015" }
+weights = [{ name = "Tartan-C-T-TSKH-kitti432x960-S.safetensors", size = 35595384, sha256 = "b607b2ca2e55b1eb5d184b3a39bae24fbd8187da73aa8033fe83c83e7f12ea69", url = "https://huggingface.co/MemorySlices/Tartan-C-T-TSKH-kitti432x960-S/resolve/ea7e86f88712d5d36f8bc264f196fa0153c52ea1/model.safetensors" }]
+
+[[variants]]
+id = "sea-raft-s-spring"  # upstream Tartan-C-T-TSKH-spring540x960-S (config/eval/spring-S.json); Spring test 1px 3.904 %, EPE 0.377
+revision = 1
+params = { size = "small", scale = -1 }  # half resolution, as upstream's spring-S.json
+io = { min_size = 256 }  # 128 px after the halving
+licence = { training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k", "spring"], training_note = "TartanAir, FlyingChairs, FlyingThings3D, the TSKH mix, then fine-tuned on Spring", evidence = "https://huggingface.co/MemorySlices/Tartan-C-T-TSKH-spring540x960-S/blob/31b9b4b711bd2d0d0d38cb99d93ba144beb2dc92/README.md" }
+weights = [{ name = "Tartan-C-T-TSKH-spring540x960-S.safetensors", size = 35595384, sha256 = "d6a75e47f2630ba6c354ce84a322e24c3d9def668a6956f340a054b9a3211908", url = "https://huggingface.co/MemorySlices/Tartan-C-T-TSKH-spring540x960-S/resolve/31b9b4b711bd2d0d0d38cb99d93ba144beb2dc92/model.safetensors" }]

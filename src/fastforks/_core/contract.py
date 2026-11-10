@@ -264,6 +264,28 @@ def _outputs(card: ModelCard, v: Variant, uses: Mapping[str, Any]) -> dict[str, 
     return out
 
 
+_FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tables that depend on the task alone
+    "stereo": {
+        "disparity": ("[B, H, W]", "float32", "pixels of the input, x_left - x_right >= 0", "left view"),
+        "confidence": ("[B, H, W]", "float32", "[0, 1]", "left view"),
+    },
+    "flow": {
+        "flow": ("[B, 2, H, W]", "float32", "pixels of the input, (dx, dy)", "image1 -> image2, image1 pixels"),
+    },
+    "features": {
+        "last_hidden_state": ("[B, N, C]", "float32", "tokens after the final norm", "prefix tokens, then patches"),
+        "pooler_output": ("[B, C]", "float32", "image embedding", ""),
+        "hidden_states": ("tuple of [B, N, C]", "float32", "block outputs before the final norm", ""),
+    },
+    "pose": {
+        "keypoints": ("[P, K, 2]", "float32", "pixels of the input image", "(x, y), corner origin"),
+        "keypoint_scores": ("[P, K]", "float32", "keypoint confidence (heatmap maximum)", ""),
+        "boxes": ("[P, 4]", "float32", "pixels of the input image", "(x0, y0, x1, y1); top-down: the boxes given"),
+        "scores": ("[P]", "float32", "person confidence", ""),
+    },
+}
+
+
 def _output(card: ModelCard, v: Variant, name: str, uses: Mapping[str, Any]) -> dict[str, str]:
     task, info = card.task, v.output_info
     std = name in spec(task).standard
@@ -293,21 +315,12 @@ def _output(card: ModelCard, v: Variant, name: str, uses: Mapping[str, Any]) -> 
             "intrinsics": ("[V, 3, 3]", "float32", "pixels of the input", f"{OPENCV_PIXELS} pixels"),
             "cam_to_world": ("[V, 4, 4]", "float32 (float64 if given as float64)", unit, world),
         }
-    elif task == "stereo":
-        table = {
-            "disparity": ("[B, H, W]", "float32", "pixels of the input, x_left - x_right >= 0", "left view"),
-            "confidence": ("[B, H, W]", "float32", "[0, 1]", "left view"),
-        }
+    elif task in _FIXED_TABLES:
+        table = _FIXED_TABLES[task]
     elif task == "classification":
         return _d("[B, classes]", "float32", f"logits over the label set {info['label_set']}", "")
     elif task == "segmentation":
         return _d("[B, classes, H, W]", "float32", f"logits over the label set {info['label_set']}", "input pixels")
-    elif task == "features":
-        table = {
-            "last_hidden_state": ("[B, N, C]", "float32", "tokens after the final norm", "prefix tokens, then patches"),
-            "pooler_output": ("[B, C]", "float32", "image embedding", ""),
-            "hidden_states": ("tuple of [B, N, C]", "float32", "block outputs before the final norm", ""),
-        }
     elif task == "detection":
         table = {
             "boxes": ("[N, 4]", "float32", "pixels of the input image", "(x0, y0, x1, y1), corner origin"),
@@ -335,6 +348,7 @@ def _d(shape: str, dtype: str, unit: str, frame: str, present: str = _ALWAYS) ->
 
 _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "stereo": (("scale", "pad", "network", "crop"), ("image conversion", "rig= rectification", "depth / points")),
+    "flow": (("scale", "pad", "network", "crop"), ("image conversion",)),
     "depth": (
         ("resize to the processing size", "pad", "network", "crop / resize to the input"),
         ("image conversion", "other maps than the main one", "intrinsics="),
@@ -351,6 +365,10 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         ("image conversion", "resize", "proposals", "NMS", "score_threshold", "box scaling", "mask pasting"),
     ),
     "multiview": (("resize to the network size", "network", "resize to the input"), ("image conversion",)),
+    "pose": (
+        ("normalise", "network (person crop -> heatmaps)"),
+        ("image conversion", "person crops", "heatmap decoding"),
+    ),
 }
 
 

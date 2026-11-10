@@ -105,7 +105,7 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
         return (scale(resize_crop(pair[0], io), io),)
     if TASK[ref] == "multiview":  # one scene: views + the cameras the runner requires
         return model.example_inputs(*_shape(model)[2:], batch=2)
-    return pair if TASK[ref] == "stereo" else pair[:1]
+    return pair if TASK[ref] in {"stereo", "flow"} else pair[:1]
 
 
 def _multiview_call(model: Any, inputs: tuple[torch.Tensor, ...]) -> Any:
@@ -171,6 +171,9 @@ def test_module_compile_export(ref):
     _check_export_names(ref, model, module, want)
     if TASK[ref] in {"stereo", "depth"}:  # [B, 3, H, W] in [0, 1] -> the main map, as the model call
         assert want.shape == (1, *inputs[0].shape[2:])
+        assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs))))
+    elif TASK[ref] == "flow":  # two [B, 3, H, W] in [0, 1] -> [B, 2, H, W], as the model call
+        assert want.shape == (1, 2, *inputs[0].shape[2:])
         assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs))))
     elif TASK[ref] == "features":  # -> last_hidden_state [B, N, C], as the model call with the default size
         assert torch.equal(want[0], model(inputs[0][0]).last_hidden_state)

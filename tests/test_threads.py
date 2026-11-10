@@ -28,7 +28,7 @@ ENV = "FF_TEST_PATH"
 
 def _call(model: Any, ref: str, seed: int = 0) -> torch.Tensor:
     """The main map of one call on a seeded synthetic input (copied off the model's buffers)."""
-    if TASK[ref] == "stereo":
+    if TASK[ref] in {"stereo", "flow"}:
         left, right = pair(96, 128, seed)
         result = model(left, right)
     else:
@@ -152,7 +152,7 @@ def test_processes_download_the_same_file(tmp_path, monkeypatch):
 
 # --- repeated calls on the GPU: memory stays flat, outputs repeat --------------------------------------------------
 
-LEAK_REFS = ["s2m2-s@1", "hitnet-eth3d@1", "depth-anything-v2-s@1", "mobilenet_v2.tv2_in1k@1"]
+LEAK_REFS = ["s2m2-s@1", "hitnet-eth3d@1", "depth-anything-v2-s@1", "mobilenet_v2.tv2_in1k@1", "raft-small@1"]
 RESERVED_SLACK = 4 << 20  # one late allocator block (DAv2 kernels: +2 MiB once, then flat)
 LEAK_SIZES = ((384, 512), (480, 640))
 
@@ -160,7 +160,7 @@ LEAK_SIZES = ((384, 512), (480, 640))
 def _gpu_call(model: Any, ref: str, size: tuple[int, int]) -> torch.Tensor:
     """The main map of one call on a seeded input of `size`, left on the GPU."""
     h, w = size
-    result = model(*pair(h, w, 0)) if TASK[ref] == "stereo" else model(image(h, w, 0))
+    result = model(*pair(h, w, 0)) if TASK[ref] in {"stereo", "flow"} else model(image(h, w, 0))
     name = next(k for k in (*spec(TASK[ref]).standard, "labels") if getattr(result, k, None) is not None)
     return getattr(result, name)
 
@@ -252,6 +252,8 @@ FIRST_REFS = [
     "depth-anything-v2-s@1",
     "resnet50.tv2_in1k@1",
     "dinov3-convnext-tiny@1",  # fvm_conv max, CUDA graph from the second call
+    "raft-small@1",  # the flow engines: raw raft_flow launches around CUTLASS and cudnn_hacc convs
+    "sea-raft-s@1",
 ]
 FIRST_SIZE = (328, 584)  # used by no other test: the call below is the first at this size in the process
 OPT_IN_SIZE = (264, 488)  # used by no other test either (BUILD_AFTER = 3 opt-in)

@@ -1,0 +1,75 @@
+schema = 2
+name = "C-RADIOv3"
+summary = "C-RADIOv3 (NVIDIA 2025), the commercially licensed agglomerative ViT distilled from CLIP, SigLIP 2, DINOv2 and SAM: ViT-B / L / H / g at patch 16, dense patch tokens and a 3-teacher summary embedding at any size up to 2048 px."
+tier = "experimental"
+outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
+uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports (CUDA graphs, the timm feature walk)
+limitations = [
+  "last_hidden_state holds 8 prefix tokens (4 summary, 4 registers), then the patches (upstream's `features` are `[:, 8:]`); pooler_output is upstream's `summary`: the clip, siglip2 and dino_v2 summary tokens concatenated (3 x hidden size).",
+  "The teacher adaptors (the heads mapping the summary to CLIP / SigLIP 2 text space) are not included.",
+  "kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",
+  "Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.",
+  "`fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).",
+]
+licence_notes = [
+  "The weights are governed by the NVIDIA Open Model License Agreement, which allows commercial use (the model card: 'ready for commercial/non-commercial use'). Our code is timm's VisionTransformer plus our own walk; no NVIDIA code is vendored.",
+]
+
+[upstream]
+repo = "https://huggingface.co/nvidia/C-RADIOv3-B"
+commit = "44653a0482cf460bb4f12595fc3cc3dfecc403d1"  # hf_model.RADIOModel (trust_remote_code) of the B repo; the sizes' repos differ: B / H resample the position table with align_corners, L / g without (`pos_align_corners`), each pinned by its weights url
+
+[licence]
+code = "Apache-2.0"  # timm's VisionTransformer and our walk (no vendored code)
+weights = "LicenseRef-NVIDIA-Open-Model-License"
+files = []
+training_data = ["nv-cc-img-text"]
+training_note = "700 M web images (NV-CC-Img-Text-Dataset), distilled from the DFN CLIP ViT-H/14, SigLIP 2 (So400m; g for C-RADIOv3-H), DINOv2-g and SAM ViT-H teachers, whose own training data does not carry over as terms"
+evidence = "https://huggingface.co/nvidia/C-RADIOv3-B/blob/44653a0482cf460bb4f12595fc3cc3dfecc403d1/README.md"
+
+[io]
+# the core resizes (never pads / crops) to multiples of 16, antialiased bicubic; upstream takes RGB in [0, 1] and
+# standardises it inside the model (input_conditioner: the OpenAI CLIP mean / std, checked against the checkpoint)
+input = "mean_std"
+interpolation = "bicubic"
+mean = [0.48145466, 0.4578275, 0.40821073]
+std = [0.26862954, 0.26130258, 0.27577711]
+pad = { multiple = 16, mode = "none" }
+
+[options]
+fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, larger error vs fp32)
+fp32_accumulate = { default = false, effect = "precision" }  # true: kernels run every GEMM through cuBLAS with fp32 accumulation (the portable precision, with the CUDA graphs); slower on GeForce (half-rate fp32 accumulation), to be measured on data-centre GPUs
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+
+[[variants]]
+id = "c-radio-v3-b"
+revision = 1
+params = { embed_dim = 768, depth = 12, num_heads = 12, layer_scale = true, pos_align_corners = true }
+weights = [{ name = "c-radio-v3-b.safetensors", size = 393038784, sha256 = "27881c65f10ab2a16d4b2bda2d6f52ddc8410b0980837fc96914e72a7d190b9b", url = "https://huggingface.co/nvidia/C-RADIOv3-B/resolve/44653a0482cf460bb4f12595fc3cc3dfecc403d1/model.safetensors" }]
+
+[[variants]]
+id = "c-radio-v3-l"
+revision = 1
+params = { embed_dim = 1024, depth = 24, num_heads = 16, layer_scale = true, pos_align_corners = false }
+weights = [{ name = "c-radio-v3-l.safetensors", size = 1279776576, sha256 = "2aedceebd3f8bd04a55bb23977dccf9d539724d715461f74db10c2a9b800e1a1", url = "https://huggingface.co/nvidia/C-RADIOv3-L/resolve/9d0413465e8a91e67bbf2c1ad342815478d1b906/model.safetensors" }]
+
+[[variants]]
+id = "c-radio-v3-h"
+revision = 1
+params = { embed_dim = 1280, depth = 32, num_heads = 16, layer_scale = false, pos_align_corners = true }
+weights = [{ name = "c-radio-v3-h.safetensors", size = 2606616136, sha256 = "58d6b8cc69071ac1435346b0ca85607b854b590b2f628eedd421f573b6327cb2", url = "https://huggingface.co/nvidia/C-RADIOv3-H/resolve/d7fd0e2b0a1761f1af150582e06c41e9a99b0bf8/model.safetensors" }]
+
+[[variants]]
+id = "c-radio-v3-g"
+revision = 1
+params = { embed_dim = 1536, depth = 40, num_heads = 24, layer_scale = false, pos_align_corners = false }
+weights = [{ name = "c-radio-v3-g.safetensors", size = 4638530056, sha256 = "8234e4556fcbbc36cb7935861ddbf795b5a1dab13ab2ccfe0e39a1e1ee6b899e", url = "https://huggingface.co/nvidia/C-RADIOv3-g/resolve/28e70735780c22cd7fca20f0c509cb9fc3893aeb/model.safetensors" }]

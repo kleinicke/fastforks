@@ -12,9 +12,18 @@ processed in order and the run resumes where the last one stopped (`--budget` se
 Each tier and model writes `<out>/<task>__<model>__<tier>.jsonl` (progress rows: images, per-image ms, peak MiB) and
 `.dets.json` / `.ious.json` (raw detections / per-instance IoUs, appended per chunk).
 
+Pose (`--task pose`, `person_keypoints_val2017.json`): top-down on the GT person boxes (non-crowd, at least one
+labelled keypoint) in one call per image; the 17 COCO body keypoints (the first 17 of a whole-body model) with their
+scores as visibility, the mean of the 17 keypoint scores as the person score, to `COCOeval` (keypoints, OKS). Not the
+mmpose `CocoMetric` ranking (box score x mean of the keypoint scores above 0.2, then OKS-NMS at 0.9) and no flip test,
+so the AP is not the papers' number even on the same boxes; GT boxes give higher AP than the detector boxes of the
+papers' headline numbers. Timing is the call per image (all its people).
+
 Detection: the model's own call on the RGB uint8 image; boxes (and for Mask R-CNN the pasted masks) of the top 100
 detections go to pycocotools `COCOeval` (bbox, and segm for masks); the 80 classes map to the 91 COCO category ids by
-name. Promptable segmentation (SAM / SAM 2 point prompts): one point per non-crowd GT instance with area >= 1 px, the
+name. A one-class detector (the RTMDet person detectors) gets the box AP of its class alone (`person_ap`, dataset
+`...-person`), on the same images.
+Promptable segmentation (SAM / SAM 2 point prompts): one point per non-crowd GT instance with area >= 1 px, the
 interior point farthest from the mask border (Euclidean distance transform on the mask padded by one zero pixel; first
 maximum in row-major order); label 1. One call per image with all points as separate prompts. IoU against the GT mask of
 (a) the candidate with the best predicted `iou_scores` of the three (`multimask_output=True`) and (b) the single mask
@@ -55,10 +64,11 @@ def _images(every: int) -> list[Path]:
     return sorted((Path(COCO) / "val2017").glob("*.jpg"))[::every]
 
 
-def _gt() -> Any:  # noqa: ANN401 - pycocotools.coco.COCO
+def _gt(task: str = "detection") -> Any:  # noqa: ANN401 - pycocotools.coco.COCO
     from pycocotools.coco import COCO as Coco  # noqa: PLC0415, N811
 
-    return Coco(f"{COCO}/annotations/instances_val2017.json")
+    name = "person_keypoints" if task == "pose" else "instances"
+    return Coco(f"{COCO}/annotations/{name}_val2017.json")
 
 
 def _f(stem: Path, ext: str) -> Path:
@@ -94,11 +104,17 @@ def _load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401 - a model of e
 
         return _original_coco.load(task, ref, tier)
     import fastforks.detection as det  # noqa: PLC0415
+    import fastforks.pose as pos  # noqa: PLC0415
     import fastforks.promptable_segmentation as seg  # noqa: PLC0415
+
+    mode, dtype = ("portable", "float32") if tier == "portable32" else (tier, None)
+    if task == "pose":
+        return pos.load(ref, mode=mode, device="cuda", dtype=dtype)
 
     # RT-DETRv2 / D-FINE mAP: the official postprocessor (all 300 queries, no threshold); defaults: 0.05 / 100
     opts = {"score_threshold": 0.0, "max_detections": 300} if ref.startswith(("rtdetrv2", "dfine")) else None
-    mode, dtype = ("portable", "float32") if tier == "portable32" else (tier, None)
+    if ref.startswith("rtmdet") and ref.endswith("-coco"):  # the reference configs' COCO test settings
+        opts = {"score_threshold": 0.001, "max_detections": 300}
     return (det if task == "detection" else seg).load(ref, mode=mode, device="cuda", options=opts, dtype=dtype)
 
 
@@ -135,6 +151,31 @@ def _detect(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tu
                 d["segmentation"] = {"size": rles[i]["size"], "counts": rles[i]["counts"].decode()}
             dets.append(d)
     rec["masks"] = bool(dets and "segmentation" in dets[0])
+    rec["only"] = model.class_names[0] if len(cats) == 1 else None  # a one-class detector: AP of that class alone
+    return dets, ms
+
+
+def _pose(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tuple[list[dict[str, Any]], list[float]]:  # noqa: ANN401
+    """Top-down pose on the GT person boxes (non-crowd, >= 1 labelled keypoint); the 17 COCO body keypoints."""
+    dets, ms = [], []
+    for f in files:
+        iid = int(f.stem)
+        anns = [a for a in coco.loadAnns(coco.getAnnIds(imgIds=iid, iscrowd=False)) if a["num_keypoints"] > 0]
+        if not anns:
+            continue
+        boxes = np.array([[a["bbox"][0], a["bbox"][1], a["bbox"][0] + a["bbox"][2], a["bbox"][1] + a["bbox"][3]]
+                          for a in anns], dtype=np.float32)  # fmt: skip
+        img = np.asarray(Image.open(f).convert("RGB"))
+        t = _sync()
+        r = model(img, boxes=boxes)
+        ms.append(1e3 * (_sync() - t))
+        kp = np.asarray(r.keypoints.float().cpu())[:, :17]  # whole-body models: the body keypoints come first
+        ks = np.asarray(r.keypoint_scores.float().cpu())[:, :17]
+        for i in range(len(anns)):
+            k = np.concatenate([kp[i], ks[i, :, None]], 1)
+            dets.append({"image_id": iid, "category_id": 1, "keypoints": [float(x) for x in k.ravel()],
+                         "score": float(ks[i].mean())})  # fmt: skip
+    rec["people"] = len(dets) + rec.get("people", 0)
     return dets, ms
 
 
@@ -222,7 +263,7 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:  # noqa: PLR0915
     if start >= len(files):
         return True
     deadline = time.perf_counter() + a.budget
-    coco = _gt()
+    coco = _gt(a.task)
     rec: dict[str, Any] = {"model": ref, "tier": tier, "task": a.task, "every": a.every}
     torch.cuda.empty_cache()
     torch.cuda.reset_peak_memory_stats()
@@ -239,7 +280,7 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:  # noqa: PLR0915
     rec["dtype"] = str(be.dtype).removeprefix("torch.")
     rec["how"] = getattr(be, "how", None)
     rec["build_s"] = round(time.perf_counter() - t0, 1)
-    fn = _detect if a.task == "detection" else _prompt
+    fn = {"detection": _detect, "pose": _pose}.get(a.task, _prompt)
     if start == 0:  # warm-up on the first image, untimed
         try:
             fn(model, coco, files[:1], {})
@@ -281,7 +322,7 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:  # noqa: PLR0915
         date=time.strftime("%Y-%m-%d %H:%M"),
         command=" ".join(["python", *sys.argv]),
     )
-    ext = ".dets.json" if a.task == "detection" or rec.get("concept") else ".ious.json"
+    ext = ".dets.json" if a.task in ("detection", "pose") or rec.get("concept") else ".ious.json"
     f = _f(stem, ext)
     f.write_text(json.dumps((json.loads(f.read_text()) if f.exists() else []) + items))
     _append(stem, rec)
@@ -294,22 +335,25 @@ def _append(stem: Path, rec: dict[str, Any]) -> None:
         f.write(json.dumps(rec) + "\n")
 
 
-def _coco_map(coco: Any, dets: list[dict[str, Any]], kind: str, ids: list[int]) -> float:  # noqa: ANN401
+def _coco_map(coco: Any, dets: list[dict[str, Any]], kind: str, ids: list[int], only: str = "") -> float:  # noqa: ANN401
+    """COCO AP (0.50:0.95, in %) over the images `ids`; `only`: of that one category (else the mean over all)."""
     from pycocotools.cocoeval import COCOeval  # noqa: PLC0415
 
     if not dets:
         return 0.0
     ev = COCOeval(coco, coco.loadRes(dets), kind)
     ev.params.imgIds = ids
+    if only:
+        ev.params.catIds = coco.getCatIds(catNms=[only])
     ev.evaluate()
     ev.accumulate()
     ev.summarize()
     return round(100 * float(ev.stats[0]), 2)
 
 
-def _summarize(a: argparse.Namespace) -> None:
+def _summarize(a: argparse.Namespace) -> None:  # noqa: PLR0915 - one branch per task
     out = Path(a.out)
-    coco = _gt()
+    cocos = {}
     ids = [int(f.stem) for f in _images(a.every)]
     lines = ["| task | model | tier | metric | ms/image | MiB alloc / reserved | images |", "|---" * 7 + "|"]
     docs = []
@@ -317,9 +361,11 @@ def _summarize(a: argparse.Namespace) -> None:
         rows = [json.loads(x) for x in jl.read_text().splitlines()]
         stem = jl.parent / jl.name.removesuffix(".jsonl")
         task, ref, tier = stem.name.split("__")
+        coco = cocos.setdefault(task, _gt(task))
         last = rows[-1]
         row: dict[str, Any] = {"ref": ref, "task": task, "tier": tier, "mode": last.get("mode", tier),
-                               "dtype": last.get("dtype"), "how": last.get("how"), "dataset": f"coco-val2017-every{a.every}"}  # fmt: skip  # noqa: E501
+                               "dtype": last.get("dtype"), "how": last.get("how"),
+                               "dataset": f"coco-val2017-every{a.every}" + ("-keypoints-gtbox" if task == "pose" else "")}  # fmt: skip  # noqa: E501
         if err := next((r for r in rows if "error" in r or "skipped" in r), None):
             lines.append(f"| {task} | {ref} | {tier} | skipped: {err.get('error') or err['skipped']} | | | |")
             docs.append(row | {"error": err.get("error") or err["skipped"], "date": err.get("date")})
@@ -328,10 +374,21 @@ def _summarize(a: argparse.Namespace) -> None:
         ms = [m for r in rows for m in r["ms"]]
         alloc, res = max(r["alloc_mb"] for r in rows), max(r["res_mb"] for r in rows)
         met: dict[str, Any] = {}
-        if task == "detection" or rows[0].get("concept"):
+        if task == "pose":
             dets = json.loads(_f(stem, ".dets.json").read_text())
-            met["box_map"] = _coco_map(coco, dets, "bbox", ids)
-            metric = f"box mAP {met['box_map']}"
+            met["keypoint_ap"] = _coco_map(coco, dets, "keypoints", ids)
+            metric = f"keypoint AP {met['keypoint_ap']} (GT boxes, {len(dets)} people)"
+            t = f"{statistics.median(ms):.1f}"
+            tm = {"ms": round(statistics.median(ms), 2)}
+        elif task == "detection" or rows[0].get("concept"):
+            dets = json.loads(_f(stem, ".dets.json").read_text())
+            if only := rows[0].get("only"):  # a one-class detector (RTMDet person): the box AP of its class
+                row["dataset"] += f"-{only}"
+                met[f"{only}_ap"] = _coco_map(coco, dets, "bbox", ids, only)
+                metric = f"{only} box AP {met[f'{only}_ap']}"
+            else:
+                met["box_map"] = _coco_map(coco, dets, "bbox", ids)
+                metric = f"box mAP {met['box_map']}"
             if rows[0].get("masks"):
                 met["mask_map"] = _coco_map(coco, dets, "segm", ids)
                 metric += f", mask mAP {met['mask_map']}"
@@ -365,7 +422,7 @@ def main() -> None:
     """Command line entry."""
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["run", "summarize"])
-    ap.add_argument("--task", choices=["detection", "promptable_segmentation"], default="detection")
+    ap.add_argument("--task", choices=["detection", "promptable_segmentation", "pose"], default="detection")
     ap.add_argument("--models", default="")
     ap.add_argument("--tiers", default="portable,max")
     ap.add_argument("--every", type=int, default=10)

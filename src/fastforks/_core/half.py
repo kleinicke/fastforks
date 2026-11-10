@@ -13,6 +13,7 @@ Plain PyTorch only, so the converted network still exports (`torch.export`, ONNX
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import threading
 from typing import TYPE_CHECKING, Any
 
@@ -50,6 +51,53 @@ def fp16_accumulate() -> Generator[None]:
             _acc[0] -= 1
             if _acc[0] == 0:
                 torch.backends.cuda.matmul.allow_fp16_accumulation = _acc[1]
+
+
+_CUBLAS = contextvars.ContextVar("cublas_gemms", default=False)
+
+
+@contextlib.contextmanager
+def cublas_gemms() -> Generator[None]:
+    """The kernels' token GEMMs (`_optimize.conv_ops.lin`) run as cuBLAS `F.linear` + a torch epilogue inside the block.
+
+    Outside `fp16_accumulate` that is fp32 accumulation: the portable precision, at the rate of the GPU's
+    fp32-accumulate tensor-core path (half the fp16-accumulate rate on GeForce, the same on data-centre and
+    workstation parts). Per thread / context (unlike the cuBLAS flag), read at trace time, so a CUDA graph captured
+    inside the block keeps it.
+    """
+    tok = _CUBLAS.set(True)
+    try:
+        yield
+    finally:
+        _CUBLAS.reset(tok)
+
+
+def cublas_gemms_on() -> bool:
+    """Whether the caller is inside `cublas_gemms`."""
+    return _CUBLAS.get()
+
+
+_GRAPH_SIZED = contextvars.ContextVar("graph_sized", default=False)
+
+
+@contextlib.contextmanager
+def graph_sized() -> Generator[None]:
+    """The small token GEMMs inside the block run on cuBLAS (`_optimize.conv_ops.lin`, `LIN_GRAPH_ROWS`). Opt-in.
+
+    `shared.libnet.features.Kernels` runs every call small enough for a CUDA graph inside it: the capture, the eager
+    calls before it and the eager calls that return hidden states, so they all give the same output. Per thread /
+    context, read at trace time. No other runner enters it.
+    """
+    tok = _GRAPH_SIZED.set(True)
+    try:
+        yield
+    finally:
+        _GRAPH_SIZED.reset(tok)
+
+
+def graph_sized_on() -> bool:
+    """Whether the caller is inside `graph_sized`."""
+    return _GRAPH_SIZED.get()
 
 
 def half_weights(net: nn.Module, *, channels_last: bool = True) -> None:

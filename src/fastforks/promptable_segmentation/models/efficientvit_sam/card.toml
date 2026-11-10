@@ -1,0 +1,61 @@
+schema = 2
+name = "EfficientViT-SAM"
+summary = "EfficientViT-SAM (Zhang, Cai et al. 2024, MIT Han lab): Segment Anything with the ViT-H image encoder replaced by an EfficientViT (conv stages + ReLU linear attention) distilled from it; SAM's prompt encoder and mask decoder, so points, boxes and mask logits work the same. The portable `module()` is the image encoder only."
+tier = "experimental"
+outputs = ["pred_masks", "iou_scores"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/mit-han-lab/efficientvit"
+commit = "de7d7733cc0329f391b33f1f459271562ec27bd5"
+
+[licence]
+code = "Apache-2.0"  # LICENSE = mit-han-lab/efficientvit (image encoder); LICENSE-segment-anything = facebookresearch/segment-anything (prompt encoder, mask decoder)
+weights = "Apache-2.0"
+files = ["LICENSE", "LICENSE-segment-anything"]
+training_data = ["unstated"]
+training_note = "distilled from SAM ViT-H, then trained on SA-1B (11M licensed images, 1.1B automatically generated masks) per the paper; the dataset itself is under the SA-1B research licence"
+evidence = "https://huggingface.co/mit-han-lab/efficientvit-sam/blob/a2f0c5929196a13ef1ffc9338d3f9e482e1e0e68/README.md (license: apache-2.0, with LICENSE.txt); code: https://github.com/mit-han-lab/efficientvit/blob/de7d7733cc0329f391b33f1f459271562ec27bd5/LICENSE"
+
+[io]
+input = "imagenet"  # upstream mean / std (123.675, 116.28, 103.53) / (58.395, 57.12, 57.375) on 0..255; the runner resizes (longest side input_size, PIL bilinear) and pads itself
+
+[params]
+image_size = 1024  # the prompt frame: prompts and masks live in SAM's 1024 square whatever the encoder input
+
+[modes.portable]
+cuda_dtype = "float16"  # image encoder; prompt encoder / mask decoder stay float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # fused fp16 image encoder; the prompt decode of up to 4 prompts replays a CUDA graph (float32, bit-identical; `release_graphs()` frees them)
+
+[[variants]]
+id = "efficientvit-sam-l0"
+revision = 1
+params = { arch = "l0", input_size = 512 }
+weights = [{ name = "efficientvit_sam_l0.pt", size = 139410184, sha256 = "c4f994b01a16d48bcf2fbbb089448cfbf58fae5811edfa8113c953b8b8cc64b8", url = "https://huggingface.co/mit-han-lab/efficientvit-sam/resolve/a2f0c5929196a13ef1ffc9338d3f9e482e1e0e68/efficientvit_sam_l0.pt" }]
+
+[[variants]]
+id = "efficientvit-sam-l1"
+revision = 1
+params = { arch = "l1", input_size = 512 }
+weights = [{ name = "efficientvit_sam_l1.pt", size = 190916834, sha256 = "fa151df2b9b96896accd505470755cdd293a4c50cdabac95478f3fbd86d9152b", url = "https://huggingface.co/mit-han-lab/efficientvit-sam/resolve/a2f0c5929196a13ef1ffc9338d3f9e482e1e0e68/efficientvit_sam_l1.pt" }]
+
+[[variants]]
+id = "efficientvit-sam-l2"
+revision = 1
+params = { arch = "l2", input_size = 512 }
+weights = [{ name = "efficientvit_sam_l2.pt", size = 245724244, sha256 = "d4bfd842224cbb99de09acc3325e81ac5b7e8725c8fbdab152305e5d934bfe4a", url = "https://huggingface.co/mit-han-lab/efficientvit-sam/resolve/a2f0c5929196a13ef1ffc9338d3f9e482e1e0e68/efficientvit_sam_l2.pt" }]
+
+[[variants]]
+id = "efficientvit-sam-xl0"
+revision = 1
+params = { arch = "xl0", input_size = 1024 }
+weights = [{ name = "efficientvit_sam_xl0.pt", size = 468211343, sha256 = "9bc2f87bd23d6e6d1f7b5beff910f98835c7c333fac73e695bac0bec685968f8", url = "https://huggingface.co/mit-han-lab/efficientvit-sam/resolve/a2f0c5929196a13ef1ffc9338d3f9e482e1e0e68/efficientvit_sam_xl0.pt" }]
+
+[[variants]]
+id = "efficientvit-sam-xl1"
+revision = 1
+params = { arch = "xl1", input_size = 1024 }
+weights = [{ name = "efficientvit_sam_xl1.pt", size = 814022923, sha256 = "10f42277679427c1183dcff19758e536aa86bcc4304e4b387ff48865784be05c", url = "https://huggingface.co/mit-han-lab/efficientvit-sam/resolve/a2f0c5929196a13ef1ffc9338d3f9e482e1e0e68/efficientvit_sam_xl1.pt" }]

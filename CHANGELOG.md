@@ -1,5 +1,46 @@
 # Changelog
 
+## Unreleased
+
+- New task `fastforks.flow`: optical flow. `model(image1, image2)` returns `flow` `[2, H, W]` float32 (dx, dy in
+  pixels of the input, from image1 to image2). RAFT (torchvision's weights: `raft-large`, `raft-large-things`,
+  `raft-large-kitti`, `raft-small`) on `portable` and `kernels`, with the load option `iters` (refinement steps,
+  default 12). RAFT on `kernels` builds no correlation volume (the lookup computes it on the fly from a pooled
+  feature pyramid, O(HW) memory): about 2x portable fp16 at KITTI size, 3.6x at 1080p with 370 instead of 8400 MiB.
+- New task `fastforks.pose`: top-down 2D human pose. `model(image, boxes=person_boxes)` returns the keypoints with
+  scores per person (boxes from `fastforks.detection` or ground truth): 17 COCO body keypoints, or 133 whole-body
+  ones (body, feet, face, hands) for DWPose.
+- ViTPose and ViTPose++ (6 variants: base-simple, base, plus-small, plus-base, plus-large, plus-huge) and RTMPose
+  (t, s, m, l at 256x192; m and l at 384x288), plus the DWPose whole-body weights for RTMPose (t, s, m, l at
+  256x192; l at 384x288).
+- Pose on `kernels` runs under CUDA graphs. RTMPose has the load option `flip_test` (average with the mirrored crop,
+  two network passes).
+- New detector RTMDet (OpenMMLab, Apache-2.0): `rtmdet-tiny-coco`, `-s-`, `-m-`, `-l-`, `-x-coco` (80 COCO classes,
+  640 x 640) and the person detectors of the RTMPose project, `rtmdet-nano-person` (320 x 320) and `rtmdet-m-person`,
+  on `portable` and `kernels`. Their boxes feed `fastforks.pose` directly.
+- New classifier ConvNeXt (Meta's V1 weights from timm, Apache-2.0): tiny, small, base and large, each trained on
+  ImageNet-1k (`convnext_base.fb_in1k`) and on ImageNet-22k fine-tuned on ImageNet-1k at 224
+  (`convnext_base.fb_in22k_ft_in1k`) and 384 (`..._384`), on `portable` and `kernels`.
+- New feature backbones: SigLIP 2, CLIP / OpenCLIP, Perception Encoder and C-RADIOv3.
+- New depth models: Depth Anything V2 Metric (Hypersim indoor, max 20 m; Virtual KITTI outdoor, max 80 m; each S, B,
+  L), which return metric `depth` in metres, and Distill-Any-Depth (S, B, L; relative `inverse_depth`, Apache-2.0
+  weights), on `portable` and `kernels`.
+- New promptable-segmentation family EfficientViT-SAM (MIT Han lab, Apache-2.0 code and weights):
+  `efficientvit-sam-l0`, `-l1`, `-l2` (512 input) and `-xl0`, `-xl1` (1024 input), on `portable` and `kernels`.
+  Same call and prompts as SAM (points, boxes, masks). On the RTX 5060 Ti the full call with one point takes
+  4.4 ms (L0) to 15.3 ms (XL1) on `kernels`, against 26.9 and 72.6 ms for the original in float32.
+- Fix: the `kernels` conv optimizer no longer hands a depthwise convolution followed by GELU to the `fvm_r3`
+  kernel, which has no GELU (EfficientViT-SAM is the first model with the pattern in its fused graph).
+- New promptable-segmentation family HQ-SAM (ETH Zurich, Apache-2.0 code and weights): `sam-hq-vit-b`, `-l`, `-h`,
+  on `portable` and `kernels`. SAM's ViT encoder and decoder plus a small HQ head; one call returns one mask per
+  prompt (SAM's best mask plus the HQ mask, as upstream's default). Same call and prompts as SAM. On the RTX 5060 Ti
+  the full call with one point takes 36.8 ms (B) to 143.5 ms (H) on `kernels`, against 172 and 738 ms for the
+  original in float32.
+- Fix: the ONNX export of EfficientViT-SAM no longer produces NaN. The exporter dropped the `+ 1e-15` of the linear
+  attention's division as a no-op, so zero sums gave 0 / 0 in ONNX Runtime and TensorRT; the epsilon is now a tensor
+  the exporter keeps. Torch results are unchanged. The fp16 TensorRT engine is finite but misses the golden
+  tolerance (fp16 sums in the wide 1x1 convolutions); an engine of the model loaded with `dtype="float32"` matches.
+
 ## 0.1.1
 
 Fixes and faster kernels. No new models.

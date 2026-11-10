@@ -258,19 +258,28 @@ def to_rgb_batches(imgs: Sequence[ImageLike], device: torch.device) -> list[torc
     return [t for t, _, _ in conv]
 
 
-def to_rgb_pair(left: ImageLike, right: ImageLike, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
+def to_rgb_pair(
+    left: ImageLike, right: ImageLike, device: torch.device, names: tuple[str, str] = ("left", "right")
+) -> tuple[torch.Tensor, torch.Tensor]:
     """`to_rgb_batch` of both images of a pair, which must have the same shape and both be gray or both colour.
+
+    Args:
+        left: First image of the pair.
+        right: Second image.
+        device: Target device.
+        names: What the two images are called in error messages.
 
     Raises:
         InputError: As `to_rgb_batch`, or the two images differ in shape or in gray / colour.
     """
     (lt, lc, lb), (rt, rc, rb) = _to_rgb(left, device), _to_rgb(right, device)
     _check_ranges([lb, rb])  # one host sync for both
+    a, b = names
     if lt.shape != rt.shape:
-        msg = f"left and right differ in shape: {tuple(lt.shape)} vs {tuple(rt.shape)}"
+        msg = f"{a} and {b} differ in shape: {tuple(lt.shape)} vs {tuple(rt.shape)}"
         raise InputError(msg)
     if (lc == 1) != (rc == 1):
-        msg = f"left and right differ in colour: {lc} vs {rc} channel(s); convert both to RGB (or both to gray)"
+        msg = f"{a} and {b} differ in colour: {lc} vs {rc} channel(s); convert both to RGB (or both to gray)"
         raise InputError(msg)
     return lt, rt
 

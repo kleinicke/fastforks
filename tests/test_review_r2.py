@@ -19,7 +19,9 @@ from fastforks.classification import ClassificationResult
 from fastforks.depth import DepthResult
 from fastforks.detection import DetectionResult
 from fastforks.features import FeaturesResult
+from fastforks.flow import FlowResult
 from fastforks.multiview import MultiViewResult
+from fastforks.pose import PoseResult
 from fastforks.promptable_segmentation._api import ConceptSegmentationResult, PromptableSegmentationResult
 from fastforks.segmentation import SegmentationResult
 from fastforks.stereo import StereoResult
@@ -31,6 +33,8 @@ RESULTS = {
     "depth": (DepthResult,),
     "multiview": (MultiViewResult,),
     "detection": (DetectionResult,),
+    "pose": (PoseResult,),
+    "flow": (FlowResult,),
     "features": (FeaturesResult,),
     "classification": (ClassificationResult,),
     "promptable_segmentation": (PromptableSegmentationResult, ConceptSegmentationResult),

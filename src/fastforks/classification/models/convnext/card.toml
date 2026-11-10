@@ -1,0 +1,147 @@
+schema = 2
+name = "ConvNeXt"
+summary = "ConvNeXt (Liu et al. 2022): a pure convolutional network of 7x7 depthwise conv + LayerNorm + MLP blocks, Meta's ImageNet-1k and ImageNet-22k checkpoints."
+tier = "experimental"
+outputs = ["logits"]
+uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints are Meta's (facebookresearch/ConvNeXt, MIT:
+# https://github.com/facebookresearch/ConvNeXt/blob/048efcea897d999aed302f2639b6270aedf8d4c8/LICENSE), converted to
+# safetensors by timm, whose model cards of all 12 repositories state apache-2.0.
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-21k", "imagenet-1k"]
+evidence = "https://huggingface.co/timm/convnext_base.fb_in22k_ft_in1k/blob/67758fcbcf9f007ec7630bf8636b74a8f24e52a0/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 256
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+# Own runner (model.py), measured on an RTX 5060 Ti against the generic `_optimize` ConvNeXt path (what ConvNeXt V2
+# gets: fused GEMMs with the LayerScale folded into the second one, fvm depthwise conv, one CUDA graph):
+#   kept: fvm_seg LayerNorm (0-4 % at batch 1, 7-13 % at batch 8), fused stem / downsampling convolutions (1-2 %),
+#     cuBLAS for GEMMs of <= 600 rows (7-12 % at batch 1), cuDNN depthwise conv for maps of <= 256 rows (3-7 % at
+#     batch 1 of the 224 variants).
+#   not kept: fp32-accumulate second GEMM for wide layers (no accuracy gain, Large 3.45 -> 3.88 ms), cuBLAS above 600
+#     rows (slower at batch 8), cuDNN depthwise conv everywhere (wins at batch 8, loses at batch 4 and at 384).
+#   LayerNorm fused into the depthwise conv would need a new kernel (the norm needs the whole channel vector of a
+#     pixel, the conv writes channel by channel): not built.
+# Not built, for datacenter GPUs (A100 / L40S / H100 class): batch 1 is launch bound there (~100 launches per call),
+# so batching is where the headroom is (a graph per batch size exists up to 2^20 input pixels; raise it and re-measure
+# the two row thresholds, which are tuned for this card); TF32 / fp32 accumulation costs nothing there but buys no
+# accuracy here (fp16 top-1 = fp32 top-1); bf16 has no fused conv kernels; INT8 belongs to a TensorRT export.
+kernels = ["fvm_conv", "fvm_seg"]  # _optimize.conv_ops (fvm_conv) + fvm_seg: the only libraries this family imports
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+id = "convnext_tiny.fb_in1k"
+revision = 1
+weights = [{ name = "convnext_tiny.fb_in1k.safetensors", size = 114374272, sha256 = "08b9dc9c3a3a29421de7996761e176501896d1ae7fc3085cf56a643772329276", url = "https://huggingface.co/timm/convnext_tiny.fb_in1k/resolve/b43a6303c9fcf176d2d707478a128c2c91e93528/model.safetensors" }]
+params = { arch = "convnext_tiny.fb_in1k" }
+licence = { training_data = ["imagenet-1k"], evidence = "https://huggingface.co/timm/convnext_tiny.fb_in1k/blob/b43a6303c9fcf176d2d707478a128c2c91e93528/README.md" }
+
+[[variants]]
+id = "convnext_small.fb_in1k"
+revision = 1
+weights = [{ name = "convnext_small.fb_in1k.safetensors", size = 200928946, sha256 = "5ec5ed9e97fb835093aaf3e6c3fce406b160b367117b6a2b8c7b703386218d1b", url = "https://huggingface.co/timm/convnext_small.fb_in1k/resolve/7941c0c00f3ca64f5048de06464b90ad12da0ccb/model.safetensors" }]
+params = { arch = "convnext_small.fb_in1k" }
+licence = { training_data = ["imagenet-1k"], evidence = "https://huggingface.co/timm/convnext_small.fb_in1k/blob/7941c0c00f3ca64f5048de06464b90ad12da0ccb/README.md" }
+
+[[variants]]
+id = "convnext_base.fb_in1k"
+revision = 1
+weights = [{ name = "convnext_base.fb_in1k.safetensors", size = 354400320, sha256 = "0d397521d5943d55f8fda5d98560b70e9d8e6a4b68c26bdaf806669961123487", url = "https://huggingface.co/timm/convnext_base.fb_in1k/resolve/28a94f6353acecb8a5ce70491f9bc29a21d93e2e/model.safetensors" }]
+params = { arch = "convnext_base.fb_in1k" }
+licence = { training_data = ["imagenet-1k"], evidence = "https://huggingface.co/timm/convnext_base.fb_in1k/blob/28a94f6353acecb8a5ce70491f9bc29a21d93e2e/README.md" }
+
+[[variants]]
+id = "convnext_large.fb_in1k"
+revision = 1
+weights = [{ name = "convnext_large.fb_in1k.safetensors", size = 791103952, sha256 = "657d0be988c24d14138f74805c34c69b5e493596a92dadbd3a63e7079ddbe28e", url = "https://huggingface.co/timm/convnext_large.fb_in1k/resolve/ee59ee399377a9c7d0fa318e3fc969de6ca2b380/model.safetensors" }]
+params = { arch = "convnext_large.fb_in1k" }
+licence = { training_data = ["imagenet-1k"], evidence = "https://huggingface.co/timm/convnext_large.fb_in1k/blob/ee59ee399377a9c7d0fa318e3fc969de6ca2b380/README.md" }
+
+[[variants]]
+id = "convnext_tiny.fb_in22k_ft_in1k"
+revision = 1
+weights = [{ name = "convnext_tiny.fb_in22k_ft_in1k.safetensors", size = 114374272, sha256 = "77b619e187de71bce58721689da0c009e84cc20677293d7d43105307e34d868a", url = "https://huggingface.co/timm/convnext_tiny.fb_in22k_ft_in1k/resolve/bc48a87f119bae1b06418f5340bfa97ef75d4609/model.safetensors" }]
+params = { arch = "convnext_tiny.fb_in22k_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/convnext_tiny.fb_in22k_ft_in1k/blob/bc48a87f119bae1b06418f5340bfa97ef75d4609/README.md" }
+
+[[variants]]
+id = "convnext_small.fb_in22k_ft_in1k"
+revision = 1
+weights = [{ name = "convnext_small.fb_in22k_ft_in1k.safetensors", size = 200928946, sha256 = "2457488bec2ffcb2061b9e3fdd63360114549615e3e35ef6dc5c5efe549cbbc9", url = "https://huggingface.co/timm/convnext_small.fb_in22k_ft_in1k/resolve/fe6b358aa409414cdb522ae3d43a2c9922f7cc1b/model.safetensors" }]
+params = { arch = "convnext_small.fb_in22k_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/convnext_small.fb_in22k_ft_in1k/blob/fe6b358aa409414cdb522ae3d43a2c9922f7cc1b/README.md" }
+
+[[variants]]
+id = "convnext_base.fb_in22k_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "convnext_base.fb_in22k_ft_in1k.safetensors", size = 354400320, sha256 = "4853efc8d5dd3ed9b0f888a9c601d7556373599f944f9ac79af8b8ec81aa7381", url = "https://huggingface.co/timm/convnext_base.fb_in22k_ft_in1k/resolve/67758fcbcf9f007ec7630bf8636b74a8f24e52a0/model.safetensors" }]
+params = { arch = "convnext_base.fb_in22k_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/convnext_base.fb_in22k_ft_in1k/blob/67758fcbcf9f007ec7630bf8636b74a8f24e52a0/README.md" }
+
+[[variants]]
+id = "convnext_large.fb_in22k_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "convnext_large.fb_in22k_ft_in1k.safetensors", size = 791103952, sha256 = "e70c6c68fbd2bc7a4151f6004553116f0787dd9c08162fcfced6064f9fe77cee", url = "https://huggingface.co/timm/convnext_large.fb_in22k_ft_in1k/resolve/dc2e53fad264aa1fb4e5940e0d1c9b79ac6e0854/model.safetensors" }]
+params = { arch = "convnext_large.fb_in22k_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/convnext_large.fb_in22k_ft_in1k/blob/dc2e53fad264aa1fb4e5940e0d1c9b79ac6e0854/README.md" }
+
+[[variants]]
+# timm resizes to a square (crop_mode squash); fastforks resizes the shorter side and centre-crops
+id = "convnext_tiny.fb_in22k_ft_in1k_384"
+revision = 1
+weights = [{ name = "convnext_tiny.fb_in22k_ft_in1k_384.safetensors", size = 114374272, sha256 = "a5cbe10cfa2e90ec787a082253033ac0a61de0264b68210815a988e53a1a5d7c", url = "https://huggingface.co/timm/convnext_tiny.fb_in22k_ft_in1k_384/resolve/32c741ba106f9e062174ef829354a16719c3dcac/model.safetensors" }]
+params = { arch = "convnext_tiny.fb_in22k_ft_in1k_384" }
+licence = { evidence = "https://huggingface.co/timm/convnext_tiny.fb_in22k_ft_in1k_384/blob/32c741ba106f9e062174ef829354a16719c3dcac/README.md" }
+io = { resize = 384, crop = 384 }
+
+[[variants]]
+# timm resizes to a square (crop_mode squash); fastforks resizes the shorter side and centre-crops
+id = "convnext_small.fb_in22k_ft_in1k_384"
+revision = 1
+weights = [{ name = "convnext_small.fb_in22k_ft_in1k_384.safetensors", size = 200928946, sha256 = "17e4aa3c6ba437a7ba160dc2792c86ec35a22d4a9d51443f0422e97e14f49097", url = "https://huggingface.co/timm/convnext_small.fb_in22k_ft_in1k_384/resolve/14a837353b6ffeced1c635dc5c8c799356e316f4/model.safetensors" }]
+params = { arch = "convnext_small.fb_in22k_ft_in1k_384" }
+licence = { evidence = "https://huggingface.co/timm/convnext_small.fb_in22k_ft_in1k_384/blob/14a837353b6ffeced1c635dc5c8c799356e316f4/README.md" }
+io = { resize = 384, crop = 384 }
+
+[[variants]]
+# timm resizes to a square (crop_mode squash); fastforks resizes the shorter side and centre-crops
+id = "convnext_base.fb_in22k_ft_in1k_384"
+revision = 1
+weights = [{ name = "convnext_base.fb_in22k_ft_in1k_384.safetensors", size = 354400320, sha256 = "bc0cfafc7d7755e8271f51343c4374725bf6409c0434e64028a863c4aca7d9fe", url = "https://huggingface.co/timm/convnext_base.fb_in22k_ft_in1k_384/resolve/2b2698d86523262ca8065d0957c7f80d963bb43f/model.safetensors" }]
+params = { arch = "convnext_base.fb_in22k_ft_in1k_384" }
+licence = { evidence = "https://huggingface.co/timm/convnext_base.fb_in22k_ft_in1k_384/blob/2b2698d86523262ca8065d0957c7f80d963bb43f/README.md" }
+io = { resize = 384, crop = 384 }
+
+[[variants]]
+# timm resizes to a square (crop_mode squash); fastforks resizes the shorter side and centre-crops
+id = "convnext_large.fb_in22k_ft_in1k_384"
+revision = 1
+weights = [{ name = "convnext_large.fb_in22k_ft_in1k_384.safetensors", size = 791103952, sha256 = "d2d9196af67de8731710f67cfe0f6edcb4ce47986c29af3544d24f327e167b43", url = "https://huggingface.co/timm/convnext_large.fb_in22k_ft_in1k_384/resolve/1c3c222eca50028b09e888e12746ac10f2403a36/model.safetensors" }]
+params = { arch = "convnext_large.fb_in22k_ft_in1k_384" }
+licence = { evidence = "https://huggingface.co/timm/convnext_large.fb_in22k_ft_in1k_384/blob/1c3c222eca50028b09e888e12746ac10f2403a36/README.md" }
+io = { resize = 384, crop = 384 }

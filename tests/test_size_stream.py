@@ -21,7 +21,9 @@ from fastforks import (
     depth,
     detection,
     features,
+    flow,
     multiview,
+    pose,
     promptable_segmentation,
     segmentation,
     stereo,
@@ -42,9 +44,12 @@ API: dict[str, Any] = {
     "promptable_segmentation": promptable_segmentation,
     "detection": detection,
     "multiview": multiview,
+    "pose": pose,
+    "flow": flow,
 }
 OUTPUTS = (  # the outputs checked, where a result has them
     "disparity",
+    "flow",
     "depth",
     "inverse_depth",
     "points",
@@ -54,6 +59,8 @@ OUTPUTS = (  # the outputs checked, where a result has them
     "iou_scores",
     "scores",
     "boxes",
+    "keypoints",
+    "keypoint_scores",
 )
 A, B, C = (243, 333), (307, 451), (259, 397)  # odd sizes off every tile; B > A, both small enough for graphs
 LARGE = (1001, 1497)
@@ -78,7 +85,7 @@ REFS = _smallest()
 
 def _call(m: Any, task: str, hw: tuple[int, int]) -> dict[str, torch.Tensor]:
     """One call at `hw`: the checked outputs (float tensors)."""
-    if task == "stereo":
+    if task in ("stereo", "flow"):
         r = m(*pair(*size(m.variant.io.min_size, *hw)))
     elif task == "multiview":
         s = scene(h=VIEWS[hw][0], w=VIEWS[hw][1])
@@ -88,6 +95,9 @@ def _call(m: Any, task: str, hw: tuple[int, int]) -> dict[str, torch.Tensor]:
         r = m(image(*hw), text="coin") if "text" in m.prompts else m(image(*hw), **prompts()[""])
     elif task == "segmentation":
         r = m(image(*hw), logits=True)
+    elif task == "pose":
+        h, w = hw
+        r = m(image(*hw), boxes=[[w * 0.1, h * 0.1, w * 0.5, h * 0.9], [w * 0.5, h * 0.2, w * 0.9, h * 0.8]])
     else:
         r = m(image(*hw))
     out = {k: getattr(r, k, None) for k in OUTPUTS}

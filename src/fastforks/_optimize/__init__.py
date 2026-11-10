@@ -346,19 +346,21 @@ def _replaced(fast: FastModel, name: str) -> FastModel:
     return fast
 
 
-def optimize(
+def optimize(  # noqa: C901, PLR0913 - the one entry point: argument checks, then the pass pipeline
     model: nn.Module,
     *,
     mode: str = "portable",
     device: torch.device | str | None = None,
     fp16: bool = True,
     auto: bool = False,
+    family: str | None = None,
 ) -> FastModel:
     """Optimize a timm / torchvision / HF transformers classifier in place (the engine behind `patch`).
 
     `fp16=False` keeps portable CUDA / MPS weights float32 (no fp16 GEMMs; the registry runners' `dtype="float32"`);
     `kernels` is always fp16. `auto`: a covered model on which no kernels pass applies comes back portable instead of
-    raising (`patch(mode="auto")`).
+    raising (`patch(mode="auto")`). `family` (a `COVERED` key): the architecture family of a registry network that its
+    class names do not reveal (e.g. `"cnn"`: a plain conv / SiLU / concat / pool net of our own).
     """
     if mode not in MODES:
         msg = f"optimize: mode must be one of {MODES}, got {mode!r}"
@@ -368,7 +370,10 @@ def optimize(
         raise OptionsError(msg)
     dev = _device(model, device)
     names = {type(m).__name__ for m in model.modules()}
-    family = _family(names)
+    if family is not None and family not in COVERED:
+        msg = f"optimize: family must be one of {sorted(COVERED)}, got {family!r}"
+        raise OptionsError(msg)
+    family = family or _family(names)
     if mode == "kernels":
         if dev.type != "cuda":
             msg = f"optimize(mode='kernels') needs a CUDA device, got {dev}"
@@ -460,6 +465,11 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
         n = transformer.patch_eva(net)
         report["eva_blocks"] = n
         nmax += n
+        n = transformer.patch_pe(net, mode)
+        report["pe_blocks"] = n
+        nmax += n
+    elif "EvaBlock" in names:
+        report["pe_blocks"] = transformer.patch_pe(net, mode)
     if "Block" in names:
         n = transformer.patch_vit_blocks(net, mode)
         report["vit_blocks"] = n

@@ -19,6 +19,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.half import cublas_gemms
 from fastforks._optimize import conv_ops
 from fastforks.kernels import cudnn_hacc, fastbb, seg_up
 from fastforks.shared import cnn_kernels
@@ -222,6 +223,9 @@ def test_fvm_lin(dev, seed, record_property):
         got = conv_ops.lin(x, w4, bias, res, act)
         ref = F.linear(x.float(), w4.float().view(nout, k), bias.float()) + (0 if res is None else res.float())
         _cmp(record_property, "fvm lin", got, FVM_ACT[act](ref), 2e-2, pre=ref, mag=mag, shape=[b_, t, k, nout, act])
+        with cublas_gemms():  # every GEMM through cuBLAS (fp32 accumulation): only the fp16 output rounding
+            got = conv_ops.lin(x, w4, bias, res, act)
+        _cmp(record_property, "lin cublas", got, FVM_ACT[act](ref), 2e-3, pre=ref, mag=mag, shape=[b_, t, k, nout, act])
 
 
 # --- fastbb ---------------------------------------------------------------------------------------------------------
@@ -410,3 +414,70 @@ def test_cudnn_hacc_conv(dev, seed, record_property):
         fn = F.conv3d if three_d else F.conv2d
         ref = fn(x.float(), wt.float(), b.float(), st, pad)
         _cmp(record_property, "cudnn_hacc conv", got, ref, 2e-2, mag=mag, shape=[n, c, *sp, k, r, st])
+
+
+# --- RAFT (raft_flow): the lookup without a correlation volume, the coordinate grid, both upsamplings ----------------
+# The other raft_flow kernels (InstanceNorm, conv epilogues, the GRU gates, the flow convs, SEA-RAFT's depthwise conv)
+# take the engines' packed weights; tests/test_flow_raft.py and tests/test_flow_sea_raft.py check them through the
+# engines against the portable fp32 runners.
+
+
+@pytest.mark.parametrize("large", [True, False])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_raft_flow(dev, seed, large, record_property):
+    """avgpool2 + corr_lookup against the all-pairs pyramid of `raft/net.py`, init_coords, convex and bilinear 8x."""
+    from fastforks._core.kernels import linear  # noqa: PLC0415
+    from fastforks.flow.models.raft import net  # noqa: PLC0415
+    from fastforks.kernels import raft_flow  # noqa: PLC0415
+
+    rng, g, mag = _rng(seed, f"raft_flow{large}"), _gen(seed), MAGS[seed % 3]
+    k = raft_flow.load(dev)
+    c, radius = (256, 4) if large else (128, 3)
+    h, w = rng.randint(16, 40), rng.randint(16, 40)  # 16: the engines' smallest grid (2 x 2 cells at level 3)
+    p = h * w
+    f1, f2 = (_randn(g, h, w, c, mag=math.sqrt(mag)).to(dev).half() for _ in range(2))
+    pyr = [f2]
+    for _ in range(3):
+        src = pyr[-1]
+        hd, wd = src.shape[0] // 2, src.shape[1] // 2
+        dst = torch.empty(hd, wd, c, device=dev, dtype=torch.half)
+        k.launch("avgpool2", *linear(hd * wd * c // 8), src, src.shape[0], src.shape[1], dst, hd, wd, c)
+        pyr.append(dst)
+
+    coords = torch.full((p, 2), float("nan"), device=dev)
+    k.launch("init_coords", *linear(p), coords, w, p)
+    grid = net._coords(1, h, w, dev)
+
+    def nchw(t: torch.Tensor) -> torch.Tensor:  # the kernels' [h * w, C] -> [1, C, h, w]
+        return t.view(h, w, -1).permute(2, 0, 1)[None]
+
+    assert torch.equal(nchw(coords), grid)
+    move = rng.choice((0.7, 5.0, 40.0))  # sub-cell, inside the window of the fine levels, over the border
+    coords += _randn(g, p, 2, mag=move).to(dev)
+
+    n = 4 * (2 * radius + 1) ** 2
+    stride = (n + 7) // 8 * 8 + 8 * rng.randint(0, 1)
+    look = torch.full((h, w, stride), float("nan"), device=dev, dtype=torch.half)
+    name = "corr_lookup_c256_r4" if large else "corr_lookup_c128_r3"
+    k.launch(name, ((p + 7) // 8, 1, 1), (256, 1, 1), f1, *pyr, h, w, coords, look, stride, 1.0 / math.sqrt(c))
+    f1n, f2n = (t.permute(2, 0, 1)[None].float() for t in (f1, f2))
+    ref = net._lookup(net._pyramid(f1n, f2n, 4), nchw(coords), radius)
+    info = {"mag": mag, "shape": [h, w, c], "move": move}
+    _cmp(record_property, f"raft_flow {name}", look[..., :n].permute(2, 0, 1)[None], ref, 6.4e-4, **info)
+    assert not look[..., n:].any()  # the channels up to the stride are zero padding
+
+    flow, hh, ww = nchw(coords) - grid, 8 * h, 8 * w
+    out = torch.full((2, hh, ww), float("nan"), device=dev)
+    k.launch("upsample_bilinear", *linear(hh * ww), coords, h, w, out)
+    _cmp(record_property, "raft_flow upsample_bilinear", out[None], net._upsample(flow, None), 1e-6, **info)
+    mask = _randn(g, p, 576, mag=min(mag, 30.0)).to(dev).half()  # the raw conv output, before the 0.25
+    out = torch.full((2, hh, ww), float("nan"), device=dev)
+    k.launch("upsample_convex", *linear(hh * ww), coords, mask, h, w, out)
+    _cmp(
+        record_property,
+        "raft_flow upsample_convex",
+        out[None],
+        net._upsample(flow, 0.25 * nchw(mask).float()),
+        4.7e-7,
+        **info,
+    )

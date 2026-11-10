@@ -466,7 +466,7 @@ class Model:
         height, width = resolve_size(self, height, width)
 
         names = spec(self.card.task).inputs
-        if names == ("left", "right"):
+        if names in {("left", "right"), ("image1", "image2")}:  # image pairs: a textured, shifted pair
             views = synthetic_pair(height, width, self.device)
         else:
             views = (synthetic_image(height, width, self.device),) * len(names)

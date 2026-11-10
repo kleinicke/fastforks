@@ -172,7 +172,8 @@ class Predictor:
             self.orig = _original.load(task, ref, tier)
             _, _, variant = _original.full_ref(task, ref)
             self.kind = variant.output_info.get("kind", "relative") if task == "depth" else ""
-            self.space = "disparity" if self.orig.adapter.key == "inverse_depth" else "depth"
+            inv = self.orig.adapter.key == "inverse_depth" and "inverse_depth" in variant.outputs  # DAv2 Metric: depth
+            self.space = "disparity" if inv else "depth"
             self.mode, self.dtype, self.how, self.note = "upstream", self.orig.dtype, self.orig.how, self.orig.note
             self.backend = f"original {self.how}"
             return

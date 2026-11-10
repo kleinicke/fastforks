@@ -7,7 +7,7 @@ measuring scripts are not part of this repository; the protocols are described b
 ## Accuracy: `<task>_eval.jsonl`
 
 One file per task (`stereo`, `depth`, `classification`, `segmentation`, `detection`, `promptable_segmentation`,
-`features`, `multiview`), one JSON object per model, tier and dataset. Measured in the 2026-11-05 campaign
+`features`, `multiview`, `pose`, `flow`), one JSON object per model, tier and dataset. Measured in the 2026-11-05 campaign
 (`tools/acc_collect.py` builds the files from the raw output of the `tools/eval_*.py` scripts; the older 2026-10-27
 stereo / depth rows were replaced: they predate this repository's history and the current protocol).
 
@@ -19,7 +19,7 @@ stereo / depth rows were replaced: they predate this repository's history and th
 | `mode` | `upstream` (original fp32), `upstream-fp16` (the chosen fp16 original), `portable-fp32`, `portable`, `kernels`; unchosen fp16 variants keep their tier name. One row per `mode` and `dataset` |
 | `dtype`, `how`, `note` | precision, how it was obtained (`fp32`, `authors flag`, `autocast`, `half`), details |
 | `selection` | on the `original fp16` rows: why this variant (below) |
-| `metrics` | the task's metrics (below); stereo / depth rows also carry them flat (`bad`, `epe`, `rel_absrel`, `rel_d1`) |
+| `metrics` | the task's metrics (below); stereo / depth / flow rows also carry them flat (`bad`, `epe`, `rel_absrel`, `rel_d1`, `fl_all`) |
 | `ms_per_img`, `peak_alloc_mb`, `peak_reserved_mb` | mean time per image (pair) after the first, peak torch memory, of the eval run |
 | `error` | the row failed; the only accepted failure is fp32 running out of memory (`OOM, <size>`) |
 | `commit`, `gpu`, `torch`, `date`, `command` | fastforks commit (`git log -1 -- src`), where, when, the eval command |
@@ -43,12 +43,21 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
   non-crowd person), `person_iou` = IoU of "any body part" against the union of the person masks (crowd regions
   ignored), the primary metric.
 - Detection: `box_map` (and `mask_map` for Mask R-CNN), COCO val2017 every 10th image (500), pycocotools.
+- Pose: `keypoint_ap` (OKS AP, pycocotools), all COCO val2017 images (5000; 6352 people), top-down on the ground-truth
+  person boxes (non-crowd, at least one labelled keypoint), no flip test; whole-body models scored on their 17 body
+  keypoints. Dataset key `coco-val2017-every1-keypoints-gtbox`. Ground-truth boxes score higher than the detector
+  boxes of the papers' headline numbers, flip test (which the papers use) scores higher than this.
 - Promptable segmentation: SAM / SAM 2 `miou_best` (the candidate with the best predicted IoU of three) and
   `miou_single`, one interior point per non-crowd instance of the same 500 COCO images. SAM 3 (concept prompts):
   `box_map` / `mask_map`, one text prompt per COCO category present in the image, threshold 0.5; dataset key
   `coco-val2017-every10-text` (same images, another benchmark).
 - Features: kNN `top1` (k = 20, cosine, similarity-weighted) of the CLS feature at 224x224, ImageNet val split into two
   seeded disjoint subsets (10000 memory, 5000 test).
+- Optical flow: `epe` (mean over pairs of the per-pair mean end-point error, px) and `fl_all` (% of all valid pixels,
+  pooled over the pairs, with an error > 3 px and > 5 % of the ground-truth magnitude), KITTI 2015 training (200
+  pairs, frames `_10` -> `_11` of `image_2` at full size, `flow_occ` ground truth), as in the RAFT / SEA-RAFT evaluation
+  code; dataset key `kitti2015-train`, measured with `tools/eval_flow.py`. Variants fine-tuned on KITTI carry the
+  dagger. MPI Sintel train is not measured (not on the measuring machine).
 - Multiview: `absrel`, `d125` (% within 1.25) on DTU scans 1, 9, 24, 33, 75 (reference view 24 + 7 sources, 640x512),
   median-scaled for uncalibrated models; calibrated MVS also `mae_mm`, `le2mm`, `le4mm`. `n` = scans.
 
@@ -77,6 +86,49 @@ Rows of 2026-11-05 (`tools/speed_original.py`, HITNet / CREStereo `tools/eval_fo
 the precision the accuracy tables use: `upstream-default` = fp32, `upstream` = the chosen "original fp16" (above), with
 `tier`, `dtype` and `how`; `commit` = the upstream pin, `ff_commit` = the fastforks commit; peaks over the first and the
 timed calls, `peak_first_*` of the first call alone.
+
+## torch.compile and TensorRT: `speed_compile.jsonl`
+
+Rows of `tools/speed_check.py run --modes compile tensorrt` (`side` = `lib`): `mode` `compile` (portable +
+`torch.compile`, `compile_s` = cold first call) or `tensorrt` (fp16 engine: `onnx_export_s`, `engine_build_s`,
+`engine_mb`, `device_mb` = engine device memory, `net_input` where the engine input differs from `input`). A row with
+`fails` records why the mode does not build. The latest row per model id and mode counts. `engine_dtype` =
+`float32` marks an fp32 engine (the portable model loaded with `dtype="float32"`), recorded where the fp16 engine
+misses the golden tolerance (`golden_fp16` / `golden_fp32`: mask-logit error against the golden, relative mean / p99).
+
+Rows with `side` = `upstream` and `mode` = `upstream-tensorrt` are a like-for-like extra that the docs tables do not
+show: a TensorRT fp16 engine built from the original network (`da3mono-large`). `timed` says what one call covers,
+`net_input` the resolution the original runs its network at, and `note` the ONNX export route.
+
+## Non-default options: `speed_options.jsonl`
+
+Speed and peak memory of a model loaded with a non-default option (`options`, e.g. `{"long_side": 1008}` of Depth
+Anything 3; the original runs with the same `process_res`). Rows as in `speed_compile.jsonl` (`side` = `lib`: modes
+`portable`, `kernels`, `compile`, `tensorrt`; `side` = `upstream`: `upstream-default` = fp32, `upstream` = the
+authors' autocast), same protocol, `net_input` = the network resolution where recorded. The docs tables do not show
+these rows.
+
+## Resolution experiments: `experiments_resolution.jsonl`
+
+Two one-off measurements, not shown in the docs tables (`ref` and `dataset` as in `<task>_eval.jsonl`, same datasets,
+same protocol and timing as `tools/eval_stereo_depth.py`, which the scripts import; kernels mode, float16). One row per
+model, dataset and `setting`:
+
+- `da3mono-large` with `setting.long_side` = 504 (default), 756, 1008 or `"native"` (the longer side of each image, so no
+  resize before the network; `long_side_values` lists the values used). Metrics as in `depth_eval.jsonl`
+  (`rel_absrel`, `rel_d1`) plus two edge metrics defined in the script, at the GT size on the aligned prediction:
+  `edge_band_absrel` (AbsRel within 2 px of a GT depth jump > 10 % between 4-neighbours) and `edge_f1` (F1 of the jump
+  maps, 1 px tolerance; `edge_prec` / `edge_rec`). NYUv2 has no such jumps, so its edge metrics are `null` (not defined);
+  ETH3D's GT is a sparse laser scan, so its edge F1 is not meaningful.
+- `crestereo-eth3d` with `setting` = `{scale, iters}`: the stereo pair is resized by `scale` (bilinear, back to uint8),
+  the disparity resized back (bilinear) and divided by `scale`; `iters` is the card option (default 20). `epe` / `bad`
+  are means over images (`bad_thr` 1 px on ETH3D, 2 px on Middlebury trainingH = half resolution), `epe_small` /
+  `bad_small` and `epe_large` / `bad_large` are pooled over the pixels with GT disparity below / at least 64 px at the
+  original scale (`n_px_*`; ETH3D has none above 64). `ms_per_img` includes the resizes.
+
+`peak_*_mb` is the largest allocated / reserved memory of one call (cache emptied before each call). The scripts are
+`exp_da3_longside.py` and `exp_crestereo_scale.py` (kept outside the repo); the library is a dirty working tree on
+`commit`, and the `dpt_fused` kernel binary came from a local build of the same sources (build id `48e0065bb7cf`).
 
 ## Devices: `devices.toml`, `speed/<slug>.jsonl`
 

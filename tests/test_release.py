@@ -68,7 +68,7 @@ def test_del_frees_cuda_memory_without_gc(ref, mode):
     try:
         base = torch.cuda.memory_allocated()
         m = API[task].load(ref, mode=mode, device="cuda")
-        r = m(*pair()) if task == "stereo" else m(image())
+        r = m(*pair()) if task in {"stereo", "flow"} else m(image())
         loaded = torch.cuda.memory_allocated() - base
         weights = _weight_bytes(m)
         del m, r
