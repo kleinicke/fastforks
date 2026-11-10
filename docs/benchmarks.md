@@ -43,7 +43,7 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 258 models, 651 rows, measured 2026-11-06 to 2026-11-10.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 261 models, 660 rows, measured 2026-11-06 to 2026-11-10.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -301,9 +301,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`c-radio-v3-h`](models/features.md#c_radio) | – | 85.0 ms · portable fp16 | – | – | – | – | – |
 | [`c-radio-v3-l`](models/features.md#c_radio) | – | 47.9 ms · portable fp16 | – | – | – | – | – |
 | [`clip-b16-laion2b`](models/features.md#clip) | – | 15.3 ms · portable fp16 | – | – | – | – | – |
+| [`clip-h14-378-dfn5b`](models/features.md#clip) | – | 108 ms · portable fp16 | – | – | – | – | – |
+| [`clip-h14-dfn5b`](models/features.md#clip) | – | 109 ms · portable fp16 | – | – | – | – | – |
 | [`clip-h14-laion2b`](models/features.md#clip) | – | 102 ms · portable fp16 | – | – | – | – | – |
 | [`clip-l14-336-openai`](models/features.md#clip) | – | 58.3 ms · portable fp16 | – | – | – | – | – |
 | [`clip-l14-datacompxl`](models/features.md#clip) | – | 56.7 ms · portable fp16 | – | – | – | – | – |
+| [`clip-l14-dfn2b`](models/features.md#clip) | – | 60.1 ms · portable fp16 | – | – | – | – | – |
 | [`clip-l14-laion2b`](models/features.md#clip) | – | 56.6 ms · portable fp16 | – | – | – | – | – |
 | [`clip-l14-openai`](models/features.md#clip) | – | 58.3 ms · portable fp16 | – | – | – | – | – |
 | [`dinov2-vitb14`](models/features.md#dinov2) | – | 21.7 ms · portable fp16 | – | – | – | – | 0.985 ms · kernels fp16 |

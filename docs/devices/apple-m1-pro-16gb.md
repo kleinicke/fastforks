@@ -33,7 +33,7 @@ Pose and Perception Encoder Metal `kernels` (added 2026-11-09, not yet in the ta
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-06 to 2026-11-10 |
-| rows | 651 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| rows | 660 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -309,9 +309,12 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`c-radio-v3-h`](../models/features.md#c_radio) | 103 | 85.0 | unsupported | – | 5806 | – |
 | [`c-radio-v3-l`](../models/features.md#c_radio) | 53.3 | 47.9 | unsupported | – | 3322 | – |
 | [`clip-b16-laion2b`](../models/features.md#clip) | 16.9 | 15.3 | unsupported | – | 1480 | – |
+| [`clip-h14-378-dfn5b`](../models/features.md#clip) | 132 | 108 | unsupported | – | 8090 | – |
+| [`clip-h14-dfn5b`](../models/features.md#clip) | 134 | 109 | unsupported | – | 8089 | – |
 | [`clip-h14-laion2b`](../models/features.md#clip) | 122 | 102 | unsupported | – | 8090 | – |
 | [`clip-l14-336-openai`](../models/features.md#clip) | 63.1 | 58.3 | unsupported | – | 4429 | – |
 | [`clip-l14-datacompxl`](../models/features.md#clip) | 60.8 | 56.7 | unsupported | – | 4426 | – |
+| [`clip-l14-dfn2b`](../models/features.md#clip) | 66.4 | 60.1 | unsupported | – | 4424 | – |
 | [`clip-l14-laion2b`](../models/features.md#clip) | 60.6 | 56.6 | unsupported | – | 4424 | – |
 | [`clip-l14-openai`](../models/features.md#clip) | 63.0 | 58.3 | unsupported | – | 4898 | – |
 | [`dinov2-vitb14`](../models/features.md#dinov2) | 23.3 | 21.7 | unsupported | – | 774 | – |

@@ -41,8 +41,6 @@ In this order, unless something more useful turns up:
 Done on 2026-11-10 for every family on the branch: Mac speed rows (`portable`, and `kernels` where Metal kernels
 exist) and the MPS goldens, all passing. Still open:
 
-- CLIP `clip-l14-dfn2b`, `clip-h14-dfn5b`, `clip-h14-378-dfn5b`: no Mac rows. The weights are under Apple's research
-  licence and were not downloaded to the Mac.
 - Perception Encoder `g14`: the peak footprint (about 17.8 GB) is above the 16 GB of the machine, so the times
   include swapping.
 - SEA-RAFT `spring` variants run about ten times faster than the others at the same labelled input; not looked into.
