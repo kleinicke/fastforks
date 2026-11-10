@@ -361,6 +361,7 @@ def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tenso
     return sorted(lines, key=lambda line: not line.startswith("FAIL"))
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", sorted(GOLDEN))
 def test_cpu_portable(ref, record_property):

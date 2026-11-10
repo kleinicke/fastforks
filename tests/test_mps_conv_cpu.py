@@ -136,6 +136,7 @@ def test_subm_conv_dtype_guards():
         conv(torch.zeros(4, 32), nbr.long())
 
 
+@pytest.mark.slow
 def test_kernels_module_imports_without_grp_pwd():
     """Windows has no `grp` / `pwd`: `_core.kernels` must import (and its group check say no) without them."""
     code = (
@@ -148,6 +149,7 @@ def test_kernels_module_imports_without_grp_pwd():
     assert r.returncode == 0, r.stderr
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("family", ["nmrf", "bridgedepth"])
 def test_cuda_kernels_module_does_not_import_metal(family: str):
     code = (

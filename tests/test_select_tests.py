@@ -134,6 +134,7 @@ def _real(graph_closures: tuple[st.Graph, dict[str, set[str]]], path: str) -> se
     return {name for name, cl in closures.items() if owner in cl}
 
 
+@pytest.mark.slow
 def test_real_tree(real_graph: tuple[st.Graph, dict[str, set[str]]]) -> None:
     assert _real(real_graph, "src/fastforks/stereo/models/hitnet/model.py") == {"hitnet"}
     assert _real(real_graph, "src/fastforks/kernels/hitnet/hitnet_kernels.cu") == {"hitnet"}
@@ -143,6 +144,7 @@ def test_real_tree(real_graph: tuple[st.Graph, dict[str, set[str]]]) -> None:
     assert len(_real(real_graph, "src/fastforks/_core/model.py")) == len(real_graph[1])
 
 
+@pytest.mark.slow
 def test_real_cli_docs_only(capsys: pytest.CaptureFixture[str]) -> None:
     assert st.main(["--files", "docs/index.md", "--json"]) == 0
     out = json.loads(capsys.readouterr().out)

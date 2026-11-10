@@ -114,6 +114,7 @@ def test_the_ast_check_flags_unguarded_imports(source, flagged):
     assert bool(_scan_source(source)) is flagged
 
 
+@pytest.mark.slow
 def test_optional_imports_only_in_guarded_helpers():
     found: list[str] = []
     for f in sorted(SRC.rglob("*.py")):

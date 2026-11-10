@@ -63,6 +63,7 @@ class Seg(_Net, SegRunner):
     # `labels` is the base's: `self(image)["logits"].argmax(1)`, a nested entry point
 
 
+@pytest.mark.slow
 def test_segmentation_default_call_is_compiled(monkeypatch):
     m = _load(monkeypatch, segmentation, "fcn-r101-d8-ade20k", Seg)
     x = torch.rand(1, 3, 32, 32)

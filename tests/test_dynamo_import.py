@@ -5,6 +5,8 @@ from __future__ import annotations
 import subprocess
 import sys
 
+import pytest
+
 SCRIPT = """
 import gc, sys, weakref
 from fastforks._core.model import _import_dynamo
@@ -26,5 +28,6 @@ def _run(call: str) -> str:
     return out.stdout.strip()
 
 
+@pytest.mark.slow
 def test_first_dynamo_import_frees_the_caller():
     assert _run("_import_dynamo()") == "freed"

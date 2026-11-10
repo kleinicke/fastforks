@@ -38,6 +38,7 @@ def test_resolve_errors(model, match):
         registry.resolve("stereo", model)
 
 
+@pytest.mark.slow
 def test_listing_imports_no_model_code():
     code = (
         "import sys; from fastforks import stereo; stereo.list_models(); stereo.model_card('s2m2-s');"

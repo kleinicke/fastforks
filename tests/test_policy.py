@@ -174,6 +174,7 @@ def _family_files(task: str, family: str) -> list[Path]:
     return sorted((SRC / task / "models" / family).rglob("*.py"))
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_families_do_not_import_each_other(task):
     models = f"fastforks.{task}.models."
@@ -216,6 +217,7 @@ def test_shared_directories_have_meta():
     assert dirs == set(SHARED), f"shared/ directories without meta.toml: {dirs - set(SHARED)}"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_card_uses_matches_imports(task):
     for card, _ in registry.cards(task).values():
@@ -293,6 +295,7 @@ def _optimize_imports(files: list[Path]) -> set[str]:
     return out | {m for f in top - full for m in imported_modules(f, top_only=True)}
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_card_kernels_match_imports(task):
     libs = {p.name for p in (SRC / "kernels").iterdir() if (p / "__init__.py").is_file()}
@@ -318,6 +321,7 @@ def _calls(path: Path):
             yield node
 
 
+@pytest.mark.slow
 def test_unsafe_unpickling_only_in_core_checkpoint():
     """`weights_only=False` and `pickle.Unpickler` exist in `_core/checkpoint.py` only (the strict unpickler)."""
     for path in sorted(SRC.rglob("*.py")):

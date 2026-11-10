@@ -47,6 +47,7 @@ def _families(files: set[str]) -> set[str]:
     return {"/".join(n.split("/")[1:4:2]) for n in files if n.count("/") > 3 and n.split("/")[2] == "models"}
 
 
+@pytest.mark.slow
 def test_core_wheel_has_exactly_the_permissive_families(wheels):
     want = {f"{c.task}/{c.family}" for t in registry.TASKS for c, _ in registry.cards(t).values()}
     nc = {
@@ -61,6 +62,7 @@ def test_core_wheel_has_exactly_the_permissive_families(wheels):
     assert not [n for n in wheels["fastforks_core"] if n.endswith(("golden.toml", ".cu"))]
 
 
+@pytest.mark.slow
 def test_fastforks_metapackage_has_no_files(wheels):
     assert wheels["fastforks"] == set()
 

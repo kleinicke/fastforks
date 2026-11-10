@@ -23,6 +23,7 @@ def _maps(result: object) -> dict[str, torch.Tensor]:
     return {k: v for k, v in maps.items() if isinstance(v, torch.Tensor)}
 
 
+@pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_batch_equals_singles(ref):

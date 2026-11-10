@@ -27,7 +27,7 @@ jobs:
       matrix:
         include:
           - { python: "3.11", torch: "torch==2.8.* torchvision==0.23.*", goldens: false } # oldest supported
-          - { python: "3.14", torch: "torch torchvision", goldens: true } # newest; CPU goldens run in this leg only
+          - { python: "3.14", torch: "torch torchvision", goldens: true } # newest; CPU goldens and the other slow tests run in this leg only
     steps:
       - uses: actions/checkout@v5
         with:
@@ -47,4 +47,4 @@ jobs:
           uv run --no-sync python tools/fetch_goldens.py --changed ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before || 'HEAD~1' }} \
             ${{ github.event_name == 'pull_request' && '--smallest' || '' }} \
             --required "$RUNNER_TEMP/required.txt" "$RUNNER_TEMP/golden"
-      - run: uv run --no-sync pytest -m "not gpu"
+      - run: uv run --no-sync pytest -m "not gpu" ${{ matrix.goldens && '--slow' || '' }} # slow tests (> 1 s): newest leg only

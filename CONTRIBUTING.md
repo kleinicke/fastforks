@@ -12,9 +12,10 @@ Checks (all must pass before a commit; CI runs all but the GPU tests):
 
 ```
 uv run ruff format && uv run ruff check && uv run ty check
-uv run pytest -m "not gpu"     # CPU: unit, policy, card, docs and golden-parity tests
+uv run pytest -m "not gpu"     # CPU: the fast tests (unit, policy, card, docs)
+uv run pytest -m "not gpu" --slow   # also the slow ones (> 1 s: golden parity, exports, batch): before a release
 uv run pytest -m gpu           # GPU parity of portable and kernels (needs a CUDA GPU)
-uv run pytest -m "not gpu" -o junit_family=legacy --junitxml=j.xml && uv run python tools/coverage_report.py j.xml   # which test kinds ran per family
+uv run pytest -m "not gpu" --slow -o junit_family=legacy --junitxml=j.xml && uv run python tools/coverage_report.py j.xml   # which test kinds ran per family
 ```
 
 Golden-parity tests need the golden outputs: `python tools/fetch_goldens.py --all DIR` and

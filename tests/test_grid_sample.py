@@ -122,6 +122,7 @@ def _may_use_cudnn(call: ast.Call) -> bool:
     )
 
 
+@pytest.mark.slow
 def test_cudnn_reachable_calls_use_the_shared_sampler():
     own = SRC / "_core" / "sampling.py"
     bad = [

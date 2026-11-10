@@ -16,5 +16,5 @@ jobs:
       - run: uv sync --frozen --no-default-groups --group dev --group cpu --group vision # vision: timm / transformers families too
       - run: printf "FASTFORKS_GOLDEN_PATH=$RUNNER_TEMP/golden\nFASTFORKS_REQUIRE_GOLDENS=1\n" >> "$GITHUB_ENV"
       - run: uv run --no-sync python tools/fetch_goldens.py --all "$RUNNER_TEMP/golden"
-      - run: uv run --no-sync pytest -m "not gpu"
+      - run: uv run --no-sync pytest -m "not gpu" --slow
       - run: uv run --no-sync python tools/check_urls.py
