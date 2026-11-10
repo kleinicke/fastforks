@@ -311,7 +311,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Features
 
-52 models; size 224x224.
+56 models; size 224x224.
 
 - Fastest: [`pe-spatial-t16-512`](models/features.md#perception-encoder) (0.7 ms).
 - Fastest commercially usable: [`pe-spatial-t16-512`](models/features.md#perception-encoder) (0.7 ms).
@@ -325,6 +325,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`dinov3-vits16`](models/features.md#dinov3-vit) | yes | 6.5 (224x224) | 4.7 | 0.9 | 7.2x vs original (224x224) | 77 |
 | [`pe-spatial-s16-512`](models/features.md#perception-encoder) | yes | 6.7 (224x224) | 4.5 | 0.9 | 7.3x vs original (224x224) | 98 |
 | [`pe-core-s16-384`](models/features.md#perception-encoder) | yes | 7.0 (224x224) | 4.8 | 1.0 | 7.4x vs original (224x224) | 100 |
+| [`convnext_tiny.fb_in22k`](models/features.md#convnext) | yes | 3.9 (224x224) | 3.2 | 1.1 | 3.6x vs original (224x224) | 88 |
 | [`dinov3-convnext-tiny`](models/features.md#dinov3-convnext) | yes | 3.0 (224x224) | 3.0 | 1.2 | 2.5x vs original (224x224) | 86 |
 | [`clip-b16-openai`](models/features.md#clip) | yes | 5.7 (224x224) | 3.4 | 1.4 | 4.2x vs original (224x224) | 324 |
 | [`c-radio-v3-b`](models/features.md#c-radiov3) | yes | 5.8 (224x224) | 3.0 | 1.4 | 4.2x vs original (224x224) | 284 |
@@ -337,8 +338,11 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`dinov2-vitb14`](models/features.md#dinov2) | yes | 4.5 (224x224) | 2.9 | 1.5 | 3.0x vs original (224x224) | 237 |
 | [`tipsv2-b14`](models/features.md#tipsv2) | yes | 7.0 (224x224) | 2.9 | 1.5 | 4.7x vs original (224x224) | 206 |
 | [`dinov2-vitb14-reg`](models/features.md#dinov2) | yes | 4.3 (224x224) | 2.9 | 1.5 | 2.9x vs original (224x224) | 237 |
+| [`convnext_small.fb_in22k`](models/features.md#convnext) | yes | 7.5 (224x224) | 5.6 | 1.8 | 4.2x vs original (224x224) | 130 |
+| [`convnext_base.fb_in22k`](models/features.md#convnext) | yes | 7.7 (224x224) | 5.6 | 2.0 | 3.9x vs original (224x224) | 204 |
 | [`dinov3-convnext-small`](models/features.md#dinov3-convnext) | yes | 6.0 (224x224) | 5.4 | 2.0 | 3.0x vs original (224x224) | 127 |
 | [`dinov3-convnext-base`](models/features.md#dinov3-convnext) | yes | 7.4 (224x224) | 5.7 | 2.2 | 3.4x vs original (224x224) | 200 |
+| [`convnext_large.fb_in22k`](models/features.md#convnext) | yes | 10.5 (224x224) | 5.5 | 3.2 | 3.3x vs original (224x224) | 413 |
 | [`c-radio-v3-l`](models/features.md#c-radiov3) | yes | 10.7 (224x224) | 5.5 | 3.3 | 3.3x vs original (224x224) | 888 |
 | [`dinov3-vitl16`](models/features.md#dinov3-vit) | yes | 17.7 (224x224) | 9.1 | 3.3 | 5.4x vs original (224x224) | 617 |
 | [`siglip2-l16-512`](models/features.md#siglip-2) | yes | 11.1 (224x224) | 5.7 | 3.3 | 3.4x vs original (224x224) | 887 |

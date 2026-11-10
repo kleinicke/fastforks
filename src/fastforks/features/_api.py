@@ -38,7 +38,7 @@ class FeaturesResult(NumpyOutputs):
     """Backbone features of an image, on the model's device, float32, named and laid out as Hugging Face's output.
 
     Shapes are for one image; a batch adds a leading `B`. Tokens are `[N, C]` with `N = num_prefix_tokens + h * w`:
-    the cls token, then the register tokens, then the patch grid `grid = (h, w)` row-major (ConvNeXt: the pooled
+    the cls token, then the register tokens, then the patch grid `grid = (h, w)` row-major (DINOv3 ConvNeXt: the pooled
     token, then the final feature map).
 
     Attributes:

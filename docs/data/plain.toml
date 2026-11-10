@@ -101,6 +101,7 @@ rtmdet = "OpenMMLab's RTMDet (tiny, s, m, l, x on COCO; nano and m person detect
 dfine = "D-FINE (N, S, M, L, X; HGNetV2, COCO) from USTC: real-time end-to-end detector in the RT-DETR style, 300 queries, deformable attention and box edges refined as distributions, no NMS."
 
 # --- features
+convnext_features = "Meta's ConvNeXt (tiny, small, base, large) trained on ImageNet-22k, without the classifier: the last stage's feature map as tokens and a pooled image embedding. Apache-2.0 weights."
 dinov2 = "Meta's DINOv2: self-supervised image features (patch and class tokens) in four sizes, with and without register tokens."
 dinov3_convnext = "Meta's DINOv3 distilled into ConvNeXt backbones (T, S, B, L): image features. Needs the gated DINOv3 licence."
 dinov3 = "Meta's DINOv3 vision transformers: self-supervised image features with register tokens and RoPE. Needs the gated DINOv3 licence."

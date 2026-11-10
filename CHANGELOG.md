@@ -26,6 +26,10 @@
   `portable` and `kernels`. The re-parameterisable branches are fused at load.
 - New feature backbones: SigLIP 2, CLIP / OpenCLIP, Perception Encoder and C-RADIOv3.
 - New feature backbone: TIPSv2 (B/14, L/14 image encoders; the DINOv2 kernel path).
+- New feature backbone ConvNeXt (Meta's V1 ImageNet-22k weights from timm, Apache-2.0): `convnext_tiny.fb_in22k`,
+  `convnext_small.fb_in22k`, `convnext_base.fb_in22k`, `convnext_large.fb_in22k`, on `portable` and `kernels`.
+  `last_hidden_state` is the stride-32 map of the last stage as tokens (no prefix token), `pooler_output` the
+  normalised mean. The maps of the earlier stages are not returned.
 - New depth models: Depth Anything V2 Metric (Hypersim indoor, max 20 m; Virtual KITTI outdoor, max 80 m; each S, B,
   L), which return metric `depth` in metres, and Distill-Any-Depth (S, B, L; relative `inverse_depth`, Apache-2.0
   weights), on `portable` and `kernels`.

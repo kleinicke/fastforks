@@ -48,6 +48,9 @@ exist) and the MPS goldens, all passing. Still open:
 - RepViT, 10 variants (new family, classification; changes shared `_optimize/fold.py` reparam and
   `_core/deferred_init.py`): portable fp32 MPS goldens of all 10, check that fused weights load through
   `deferred_init`. Weights `~/scratch_tests/port-repvit/weights/` or the pinned timm URLs.
+- ConvNeXt features `convnext_{tiny,small,base,large}.fb_in22k` (new family; the kernels trunk moved to
+  `shared/convnext_trunk`): portable fp32 MPS goldens of the 4 refs, `tests/test_convnext_features.py::test_layout_cpu`,
+  and classification ConvNeXt on MPS after the move. Weights `~/scratch_tests/port-convnext1/w/` or the pinned URLs.
 - Perception Encoder `g14`: the peak footprint (about 17.8 GB) is above the 16 GB of the machine, so the times
   include swapping.
 - SEA-RAFT `spring` variants run about ten times faster than the others at the same labelled input; not looked into.

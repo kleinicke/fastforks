@@ -18,8 +18,8 @@ exist. Tiers: fastforks
 `portable32`, `portable`, `kernels`; the authors' code (`upstream` fp32, `upstream16` autocast float16, `upstreamhalf`
 `.half()` + float16 input; none has an own option): DINOv2 = facebookresearch/dinov2 `forward_features` CLS
 (`x_norm_clstoken`, bench adapter, 006 venv), DINOv3 ViT / ConvNeXt = transformers `DINOv3ViTModel` /
-`DINOv3ConvNextModel` `pooler_output`; input normalised with the ImageNet mean / std. TIPSv2 = google-deepmind/tips
-`image_encoder` first cls token, input in [0, 1].
+`DINOv3ConvNextModel` `pooler_output`, ConvNeXt = timm `num_classes=0` (pooled, head norm); input normalised
+with the ImageNet mean / std. TIPSv2 = google-deepmind/tips `image_encoder` first cls token, input in [0, 1].
 """
 
 from __future__ import annotations
@@ -125,6 +125,12 @@ def _original(ref: str, tier: str) -> tuple[Any, dict[str, Any]]:
 
         def feat(x: torch.Tensor) -> torch.Tensor:
             return net(x)[0][:, 0]
+
+    elif card.family == "convnext_features":
+        import timm  # noqa: PLC0415
+
+        pooled: Any = timm.create_model(full.split("@")[0], pretrained=True, num_classes=0).cuda().eval()
+        net = feat = pooled  # head norm of the mean stage-4 map (`forward_head(pre_logits=True)`)
 
     else:
         import transformers  # noqa: PLC0415

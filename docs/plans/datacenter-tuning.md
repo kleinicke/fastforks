@@ -77,6 +77,10 @@ surveys themselves: [device-survey.md](device-survey.md) and [OTHER_GPUS.md](../
   5060 Ti an fp32-accumulate second GEMM for wide layers was slower (Large 3.45 to 3.88 ms). Source: same card.
 - **bf16** has no fused conv kernels. **INT8** belongs to a TensorRT export. Source: same card.
 
+- **ConvNeXt as a feature backbone** (`features`, `convnext_*.fb_in22k`) runs the same trunk
+  (`src/fastforks/shared/convnext_trunk`), so the points above apply unchanged. The maps of stages 1-3 (strides 4, 8,
+  16) are computed anyway; returning them needs a multi-scale output in the features API. Not built.
+
 ## Detection: RTMDet
 
 - **Batching.** The net is convolutions only, so batching is where the headroom is: one graph per batch size

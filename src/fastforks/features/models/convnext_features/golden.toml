@@ -1,0 +1,67 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 8.1e-05
+gpu_mean = 0.016
+gpu_p99 = 0.094
+relative = true
+
+[refs."convnext_base.fb_in22k@1"]
+sha256 = "2a6782b293dcdd349cf077046203e2971e2edcdd6c92a8bad6d84d2341b334af"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, 128x160 input, torch 2.14.1+cu130"
+
+[refs."convnext_large.fb_in22k@1"]
+sha256 = "a5c58b875c5f5bca95dad1c05b84b081893457fe0c097497347034e985c54e28"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, 128x160 input, torch 2.14.1+cu130"
+
+[refs."convnext_small.fb_in22k@1"]
+sha256 = "2b4c4fbf32bfc2f2ff8ecc64177196ac4ba3cf74ac5bbeb784b5fd8b4a2f4950"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, 128x160 input, torch 2.14.1+cu130"
+
+[refs."convnext_tiny.fb_in22k@1"]
+sha256 = "39048e99ce88f5b3a3d58994894c290427e411df3383e097ffd6b2955e8bcd47"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, 128x160 input, torch 2.14.1+cu130"
+
+[validated."convnext_base.fb_in22k@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "fvm_seg@739693dff3b4:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_seg" = {"ln_gather_h" = "4df7b38c37d0bd68"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-10"
+mean_px = 0.0104
+p99_px = 0.06216
+
+[validated."convnext_large.fb_in22k@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "fvm_seg@739693dff3b4:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_seg" = {"ln_gather_h" = "4df7b38c37d0bd68"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-10"
+mean_px = 0.00787
+p99_px = 0.04251
+
+[validated."convnext_small.fb_in22k@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "fvm_seg@739693dff3b4:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_seg" = {"ln_gather_h" = "4df7b38c37d0bd68"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-10"
+mean_px = 0.00726
+p99_px = 0.04292
+
+[validated."convnext_tiny.fb_in22k@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "fvm_seg@739693dff3b4:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_seg" = {"ln_gather_h" = "4df7b38c37d0bd68"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-10"
+mean_px = 0.0066
+p99_px = 0.03812

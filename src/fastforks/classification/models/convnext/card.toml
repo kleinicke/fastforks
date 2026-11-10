@@ -3,7 +3,7 @@ name = "ConvNeXt"
 summary = "ConvNeXt (Liu et al. 2022): a pure convolutional network of 7x7 depthwise conv + LayerNorm + MLP blocks, Meta's ImageNet-1k and ImageNet-22k checkpoints."
 tier = "experimental"
 outputs = ["logits"]
-uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports
+uses = ["convnext_trunk", "cuda_graphs", "libnet"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/pytorch-image-models"
