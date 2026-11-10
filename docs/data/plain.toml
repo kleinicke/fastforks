@@ -53,6 +53,7 @@ zoedepth = "ZoeDepth from the Intelligent Systems Lab: metric depth from one ima
 alexnet = "AlexNet (Krizhevsky et al. 2012): five convolutions and three fully connected layers; an early deep convolutional classifier."
 convnext = "Meta's ConvNeXt (Liu et al. 2022; tiny, small, base, large; ImageNet-1k, and ImageNet-22k fine-tuned at 224 and 384): a convolutional classifier of 7x7 depthwise convolutions, LayerNorm and MLP blocks. Apache-2.0."
 convnextv2 = "ConvNeXt V2 (Woo et al. 2023): a convolutional classifier with global response normalisation. Non-commercial weights."
+tinyvit = "Microsoft's TinyViT (Wu et al. 2022; 5M, 11M and 21M parameters at 224, 21M also at 384 and 512; ImageNet-22k distilled, fine-tuned on ImageNet-1k): a small hybrid classifier of MBConv blocks and window attention. Apache-2.0."
 deit = "DeiT (Touvron et al. 2021): a vision transformer trained on ImageNet-1k only."
 densenet = "DenseNet (Huang et al. 2016): a classifier with densely connected convolution blocks."
 dinov2_linear_cls = "DINOv2 ViT-L/14 (Oquab et al. 2023) with its official linear ImageNet head."

@@ -142,7 +142,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Classification
 
-48 models; size 224x224.
+53 models; size 224x224.
 
 - Fastest: [`squeezenet1_1`](models/classification.md#squeezenet) (0.4 ms).
 - Fastest commercially usable: [`squeezenet1_1`](models/classification.md#squeezenet) (0.4 ms).
@@ -165,9 +165,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`repvit_m1_0`](models/classification.md#repvit) | yes | 8.8 (224x224) | 5.3 | 0.8 | 11.2x vs original (224x224) | 48 |
 | [`shufflenet_v2_x1_0`](models/classification.md#shufflenetv2) | yes | 4.8 (224x224) | 3.7 | 0.8 | 6.1x vs original (224x224) | 87 |
 | [`resnet50`](models/classification.md#resnet) | yes | 4.7 (224x224) | 3.1 | 0.8 | 5.7x vs original (224x224) | 116 |
+| [`tiny_vit_5m_224`](models/classification.md#tinyvit) | yes | 5.9 (224x224) | 5.2 | 0.8 | 7.0x vs original (224x224) | 48 |
+| [`tiny_vit_11m_224`](models/classification.md#tinyvit) | yes | 6.0 (224x224) | 5.2 | 0.9 | 6.4x vs original (224x224) | 60 |
 | [`efficientvit_b2`](models/classification.md#efficientvit-mit) | yes | 10.7 (224x224) | 11.9 | 1.1 | 9.7x vs original (224x224) | 120 |
 | [`convnext_tiny.fb_in1k`](models/classification.md#convnext) | yes | 4.0 (224x224) | 3.2 | 1.1 | 3.5x vs original (224x224) | 92 |
 | [`convnext_tiny.fb_in22k_ft_in1k`](models/classification.md#convnext) | yes | 4.1 (224x224) | 3.2 | 1.1 | 3.6x vs original (224x224) | 92 |
+| [`tiny_vit_21m_224`](models/classification.md#tinyvit) | yes | 6.0 (224x224) | 5.3 | 1.2 | 5.1x vs original (224x224) | 83 |
 | [`repvit_m1_5`](models/classification.md#repvit) | yes | 13.9 (224x224) | 8.6 | 1.2 | 11.8x vs original (224x224) | 62 |
 | [`repvit_m1_5.dist_450e_in1k`](models/classification.md#repvit) | yes | 13.9 (224x224) | 8.7 | 1.2 | 11.7x vs original (224x224) | 62 |
 | [`densenet121`](models/classification.md#densenet) | yes | 10.7 (224x224) | 9.4 | 1.3 | 8.4x vs original (224x224) | 83 |
@@ -179,6 +182,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`vit_base_patch16_224`](models/classification.md#vision-transformer) | yes | 5.5 (224x224) | 3.0 | 1.6 | 3.3x vs original (224x224) | 300 |
 | [`repvit_m2_3`](models/classification.md#repvit) | yes | 17.9 (224x224) | 11.1 | 1.7 | 10.8x vs original (224x224) | 79 |
 | [`repvit_m2_3.dist_450e_in1k`](models/classification.md#repvit) | yes | 18.2 (224x224) | 10.9 | 1.7 | 10.8x vs original (224x224) | 79 |
+| [`tiny_vit_21m_384`](models/classification.md#tinyvit) | yes | – | 5.0 | 1.8 (384x384) | 2.8x vs portable | 132 |
 | [`resnet152`](models/classification.md#resnet) | yes | 12.8 (224x224) | 8.4 | 1.8 | 7.0x vs original (224x224) | 182 |
 | [`convnext_small.fb_in1k`](models/classification.md#convnext) | yes | 7.4 (224x224) | 5.7 | 1.8 | 4.0x vs original (224x224) | 134 |
 | [`convnext_small.fb_in22k_ft_in1k`](models/classification.md#convnext) | yes | 7.5 (224x224) | 5.7 | 1.8 | 4.1x vs original (224x224) | 134 |
@@ -191,6 +195,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`convnext_small.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 8.0 (224x224) | 5.5 | 2.5 | 3.2x vs original (224x224) | 138 |
 | [`convnextv2_base`](models/classification.md#convnext-v2) | no | 10.7 (224x224) | 10.2 | 2.9 | 3.7x vs original (224x224) | 318 |
 | [`convnext_base.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 11.2 (224x224) | 5.5 | 3.0 | 3.7x vs original (224x224) | 213 |
+| [`tiny_vit_21m_512`](models/classification.md#tinyvit) | yes | – | 4.9 | 3.1 (512x512) | 1.6x vs portable | 237 |
 | [`convnext_large`](models/classification.md#convnext) | yes | 10.7 (224x224) | 5.6 | 3.3 | 3.2x vs original (224x224) | 419 |
 | [`convnext_large.fb_in1k`](models/classification.md#convnext) | yes | 10.7 (224x224) | 5.6 | 3.3 | 3.2x vs original (224x224) | 419 |
 | [`dinov2_vitl14_lc`](models/classification.md#dinov2-linear) | yes | 10.8 (224x224) | 5.4 | 4.9 | 2.2x vs original (224x224) | 890 |

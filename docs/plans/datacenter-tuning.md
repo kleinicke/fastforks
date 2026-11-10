@@ -245,3 +245,13 @@ The kernels backend optimizes the CSPDarknet backbone; neck and head remain torc
 neck/head after measuring its share of total time. Check person counts around the 0.1 score threshold as well
 as coordinates: fp16 score changes can change detection membership. Original-code rows include mmpose's CPU
 OpenCV preprocessing and decode; compare full-call time and peak memory, not only backbone throughput.
+
+## Classification: TinyViT
+
+The CUDA path uses fused convolution kernels and replays a CUDA graph while batch x height x width is at most
+1,048,576 pixels. This threshold is inherited from ConvNeXt, not tuned per device. The RTX 5060 Ti measurements
+cover batch one; there are no datacenter measurements. On faster GPUs, first measure graph versus eager execution
+across batch sizes before changing the threshold. The fixed crop makes a graph key a batch size; its four-entry
+cache can retain memory for several batches, so report reserved as well as allocated memory.
+
+Source: `src/fastforks/classification/models/tinyvit/model.py` and the family rows in `docs/data/speed.jsonl`.

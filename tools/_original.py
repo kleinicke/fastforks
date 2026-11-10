@@ -398,7 +398,7 @@ def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401
 
 
 def _convnext(a: Any, full: str) -> Any:  # noqa: ANN401
-    """ConvNeXt from timm as `tools/golden/libnet_classification.py` builds it, with the card's `[io]` transform on GPU.
+    """A timm classifier as `tools/golden/libnet_classification.py` builds it, with the card's `[io]` transform on GPU.
 
     The bench's classification adapter for a family it does not list: antialiased resize of the shorter side, clamp
     after bicubic, centre crop, normalisation, network, all in the timed call.
@@ -408,6 +408,7 @@ def _convnext(a: Any, full: str) -> Any:  # noqa: ANN401
     g = _golden("libnet_classification")
     card, variant = registry.resolve("classification", full)
     io = variant.io
+    a.sizes = ((io.crop, io.crop),)  # Benchmark each classifier at its native crop, including 384/512 variants.
     net = g._timm({**card.params, **variant.params}["arch"]).cuda().eval()  # noqa: SLF001 - the golden's builder
     tf = g.TF
     a.COMMIT = f"{card.upstream}@{card.upstream_commit}"  # as the bench's classification rows
@@ -595,7 +596,7 @@ def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
     return [[x0, y0, x1 - x0, y1 - y0] for x0, y0, x1, y1 in boxes.tolist()]
 
 
-LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, ConvNeXt)
+LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, ConvNeXt, TinyViT)
     "raft": _Local("flow", _raft, ((1080, 1920), (375, 1242))),
     "sea_raft": _Local("flow", _sea_raft, ((1080, 1920), (375, 1242))),
     "vitpose": _Local("pose", _vitpose, ((1080, 1920),), lambda a: (a[0].permute(1, 2, 0).cpu().numpy(), _xywh(a[1]))),
@@ -614,6 +615,7 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
     ),
     "convnext": _Local("classification", _convnext, ((224, 224),)),
     "repvit": _Local("classification", _convnext, ((224, 224),)),
+    "tinyvit": _Local("classification", _convnext, ((224, 224),)),
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),

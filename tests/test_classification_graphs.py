@@ -10,9 +10,9 @@ import torch
 from fastforks import classification
 from fastforks._core.errors import WeightsError
 
-# fx-traced CNN, ViT (fused attention), Swin (window masks)
+# fx-traced CNN, ViT (fused attention), Swin (window masks), TinyViT (its own kernels runner)
 REFS = ["mobilenet_v2.tv2_in1k@1", "vit_base_patch16_224.augreg2_in21k_ft_in1k@1",
-        "swin_base_patch4_window7_224.ms_in22k_ft_in1k@1"]  # fmt: skip
+        "swin_base_patch4_window7_224.ms_in22k_ft_in1k@1", "tiny_vit_5m_224.dist_in22k_ft_in1k@1"]  # fmt: skip
 
 pytestmark = [pytest.mark.model, pytest.mark.gpu]
 
@@ -56,7 +56,8 @@ def test_replay_matches_eager(ref: str) -> None:
         two = r(z)["logits"]
     assert len(g.cache.graphs) == 2
     torch.testing.assert_close(two, _eager(r, z), rtol=0, atol=0)
-    big = torch.randn(8, 3, 224, 224, device="cuda", generator=gen)  # the big-input (cudnn_hacc) path stays eager
+    # past the runner's pixel limit (the big-input path, cudnn_hacc in `libnet.Kernels`) the call stays eager
+    big = torch.randn(max(8, g.pixels // 224**2 + 1), 3, 224, 224, device="cuda", generator=gen)
     for _ in range(3):
         r(big)
     assert len(g.cache.graphs) == 2
