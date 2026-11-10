@@ -468,7 +468,7 @@ class _FastBackbone:
         x = k.gemm(o, a.proj.weight, a.proj.bias, scale=g1, res=x)
         y = blk.norm2(x)
         if isinstance(m, Mlp):
-            y = k.gemm(y, m.fc1.weight, m.fc1.bias, act=ACT_GELU)
+            y = k.gemm(y, m.fc1.weight, m.fc1.bias, act=k.gelu)
             return k.gemm(y, m.fc2.weight, m.fc2.bias, scale=g2, res=x, out=x)
         y1, y2 = k.gemm(y, m.w12.weight, m.w12.bias).chunk(2, dim=-1)  # SwiGLU (Giant)
         return k.gemm(F.silu(y1) * y2, m.w3.weight, m.w3.bias, scale=g2, res=x, out=x)
@@ -646,7 +646,7 @@ class Kernels(Runner):
 
 # after the portable part: kernels-only dependencies
 from fastforks.depth.models.depth_anything_v2.fused import _conv, _linear_1x1, _resize  # noqa: E402 - shared DPT conversions
-from fastforks.kernels.dpt_fused import ACT_GELU, ACT_RELU, DptFused  # noqa: E402
+from fastforks.kernels.dpt_fused import ACT_RELU, DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 from fastforks.kernels.fastbb import Flash64  # noqa: E402
 from fastforks.shared.depth_anything_v2 import flash_attention, fp16_accumulate  # noqa: E402

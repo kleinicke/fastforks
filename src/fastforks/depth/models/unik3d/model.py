@@ -341,7 +341,8 @@ class Kernels(Runner):
         self.k, self.flash = k, Flash64("hh")
         dec: Any = net.pixel_decoder
         rm: Any = dec.radial_module
-        self.vit = _ViT(net.pixel_encoder, dev, k)
+        # exact GELU throughout: the tanh form's bias shifts the depth scale past the golden's tolerance
+        self.vit = _ViT(net.pixel_encoder, dev, k, gelu=ACT_GELU)
         self.adapters = [(_w(a).to(dev), _b(a).to(dev)) for a in dec.input_adapter.input_adapters]
         self.camera = (dec.camera_token_adapter.to(dev), dec.angular_module.to(dev))  # fp32, run under autocast
         self.prompts = []

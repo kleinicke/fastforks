@@ -188,6 +188,19 @@ def cuda_device(device: torch.device) -> torch.device:
     return device
 
 
+def half_rate_fp32_acc(device: torch.device) -> bool:
+    """Whether `device` runs fp16 tensor-core math with fp32 accumulation at half rate (GeForce cards).
+
+    The compute capability does not tell: sm_86, sm_89 and sm_120 each hold GeForce cards (half rate) and datacenter or
+    pro cards (full rate), so the device name decides. `FASTFORKS_ACC=fp16` (half rate) or `fp32` (full rate)
+    overrides it, for experiments.
+    """
+    env = os.environ.get("FASTFORKS_ACC", "").strip().lower()
+    if env in {"fp16", "fp32"}:
+        return env == "fp16"
+    return "geforce" in torch.cuda.get_device_name(cuda_device(device)).lower()
+
+
 def driver_version() -> tuple[int, int]:
     """CUDA version supported by the installed driver, e.g. `(13, 0)`."""
     v = ctypes.c_int()

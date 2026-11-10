@@ -47,37 +47,37 @@ gpu_p99 = 0.015
 gpu_extra = [["box_iou_scores", 0.0036, 0.0036], ["box_pred_masks", 0.0035, 0.012], ["iou_scores", 0.0081, 0.013]]
 
 [validated."sam2.1-hiera-base-plus@1"]
-kernels = ["dpt_fused@415b13f0e87b:sm_120"]
-symbols = {"dpt_fused" = {"dpt_bilinear" = "f20284ba715b3847", "dpt_conv" = "62cbd2e60ea66bef", "dpt_gemm" = "863acd104f633359", "dpt_head_dot" = "1573b05b19e1358b", "dpt_patches" = "cc1829cdd2dc0dda"}}
+kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-10-31"
+date = "2026-11-07"
 mean_px = 0.00245
 p99_px = 0.00842
 
 [validated."sam2.1-hiera-large@1"]
-kernels = ["dpt_fused@415b13f0e87b:sm_120"]
-symbols = {"dpt_fused" = {"dpt_bilinear" = "f20284ba715b3847", "dpt_conv" = "62cbd2e60ea66bef", "dpt_gemm" = "863acd104f633359", "dpt_head_dot" = "1573b05b19e1358b", "dpt_patches" = "cc1829cdd2dc0dda"}}
+kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-10-31"
+date = "2026-11-07"
 mean_px = 0.01872
 p99_px = 0.08865
 
 [validated."sam2.1-hiera-small@1"]
-kernels = ["dpt_fused@415b13f0e87b:sm_120"]
-symbols = {"dpt_fused" = {"dpt_bilinear" = "f20284ba715b3847", "dpt_conv" = "62cbd2e60ea66bef", "dpt_gemm" = "863acd104f633359", "dpt_head_dot" = "1573b05b19e1358b", "dpt_patches" = "cc1829cdd2dc0dda"}}
+kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-10-31"
+date = "2026-11-07"
 mean_px = 0.00539
 p99_px = 0.01677
 
 [validated."sam2.1-hiera-tiny@1"]
-kernels = ["dpt_fused@415b13f0e87b:sm_120"]
-symbols = {"dpt_fused" = {"dpt_bilinear" = "f20284ba715b3847", "dpt_conv" = "62cbd2e60ea66bef", "dpt_gemm" = "863acd104f633359", "dpt_head_dot" = "1573b05b19e1358b", "dpt_patches" = "cc1829cdd2dc0dda"}}
+kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-10-31"
+date = "2026-11-07"
 mean_px = 0.00122
 p99_px = 0.00428
