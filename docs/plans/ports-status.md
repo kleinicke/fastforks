@@ -38,12 +38,16 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
-- ViTPose, RTMPose, DWPose, Perception Encoder: Metal kernels exist, Mac speed rows do not.
-- ViTPose, RTMPose, SEA-RAFT, SigLIP 2: MPS goldens to be run again after the last changes.
-- RAFT, SEA-RAFT, CLIP, C-RADIOv3, Depth Anything V2 Metric, Distill-Any-Depth, RTMDet, ConvNeXt: Mac speed rows.
-- EfficientViT-SAM: only `l0` was checked on MPS, `portable` only.
-- HQ-SAM: CUDA side checked again on 2026-11-10 (CPU and GPU goldens pass with `dpt_fused@48e0065bb7cf`, checks
-  clean); nothing run on the Mac yet. Weights on the CUDA machine: `~/scratch_tests/evsam/w/sam_hq_vit_{b,l,h}.pth`.
+Done on 2026-11-10 for every family on the branch: Mac speed rows (`portable`, and `kernels` where Metal kernels
+exist) and the MPS goldens, all passing. Still open:
+
+- CLIP `clip-l14-dfn2b`, `clip-h14-dfn5b`, `clip-h14-378-dfn5b`: no Mac rows. The weights are under Apple's research
+  licence and were not downloaded to the Mac.
+- Perception Encoder `g14`: the peak footprint (about 17.8 GB) is above the 16 GB of the machine, so the times
+  include swapping.
+- SEA-RAFT `spring` variants run about ten times faster than the others at the same labelled input; not looked into.
+- Metal kernels for the families that have none (flow, the feature backbones except Perception Encoder, RTMDet,
+  ConvNeXt, the SAM variants): not tried yet.
 - Depth Anything 3 `large-1.1`, `giant-1.1`, nested: `portable` now sizes the RoPE table by the token count (shared
   with VGGT in `shared/rope2d.py`; same values), so they export to ONNX / TensorRT. MPS goldens of these three and of
   VGGT to be run again.

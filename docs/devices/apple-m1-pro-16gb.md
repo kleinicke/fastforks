@@ -32,8 +32,8 @@ Pose and Perception Encoder Metal `kernels` (added 2026-11-09, not yet in the ta
 | hardware | 16-core GPU |
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-06 to 2026-11-07 |
-| rows | 422 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| measured | 2026-11-06 to 2026-11-10 |
+| rows | 651 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -132,8 +132,17 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`da3nested-giant-large-1.1`](../models/depth.md#depth_anything_3) | 1248 | 1184 | – | unsupported | – | 8136 | – |
 | [`depth-anything-v2-b`](../models/depth.md#depth_anything_v2) | 212 | – | – | unsupported | – | 2054 | – |
 | [`depth-anything-v2-l`](../models/depth.md#depth_anything_v2) | 622 | – | – | unsupported | – | 3975 | – |
+| [`depth-anything-v2-metric-hypersim-b`](../models/depth.md#depth_anything_v2) | 211 | – | – | unsupported | – | 2056 | – |
+| [`depth-anything-v2-metric-hypersim-l`](../models/depth.md#depth_anything_v2) | 628 | – | – | unsupported | – | 3977 | – |
+| [`depth-anything-v2-metric-hypersim-s`](../models/depth.md#depth_anything_v2) | 87.8 | – | – | unsupported | – | 1523 | – |
+| [`depth-anything-v2-metric-vkitti-b`](../models/depth.md#depth_anything_v2) | 211 | – | – | unsupported | – | 2056 | – |
+| [`depth-anything-v2-metric-vkitti-l`](../models/depth.md#depth_anything_v2) | 623 | – | – | unsupported | – | 3974 | – |
+| [`depth-anything-v2-metric-vkitti-s`](../models/depth.md#depth_anything_v2) | 90.0 | – | – | unsupported | – | 1523 | – |
 | [`depth-anything-v2-s`](../models/depth.md#depth_anything_v2) | 87.3 | – | – | unsupported | – | 1522 | – |
 | [`depth-pro`](../models/depth.md#depth_pro) | 5879 | 5026 | – | unsupported | – | 7172 | – |
+| [`distill-any-depth-b`](../models/depth.md#depth_anything_v2) | 212 | – | – | unsupported | – | 2056 | – |
+| [`distill-any-depth-l`](../models/depth.md#depth_anything_v2) | 622 | – | – | unsupported | – | 3977 | – |
+| [`distill-any-depth-s`](../models/depth.md#depth_anything_v2) | 87.3 | – | – | unsupported | – | 1525 | – |
 | [`marigold-depth-v1-1`](../models/depth.md#marigold) | 2970 | 2498 | – | unsupported | – | 6640 | – |
 | [`metric3d-vit-large`](../models/depth.md#metric3d) | 1822 | – | – | unsupported | – | 4523 | – |
 | [`midas-dpt-beit-large-512`](../models/depth.md#midas) | 679 | 635 | – | unsupported | – | 2407 | – |
@@ -153,6 +162,17 @@ Note: no Metal kernels for this family (card mps_kernels).
 | model | time (ms): portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
 |---|---|---|---|---|
 | [`alexnet.tv_in1k`](../models/classification.md#alexnet) | 4.91 | 3.04 | unsupported | 1567 |
+| [`convnext_base.fb_in1k`](../models/classification.md#convnext) | 27.7 | – | unsupported | 2312 |
+| [`convnext_base.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 27.4 | – | unsupported | 2311 |
+| [`convnext_base.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 50.8 | – | unsupported | 2310 |
+| [`convnext_large.fb_in1k`](../models/classification.md#convnext) | 41.3 | – | unsupported | 3491 |
+| [`convnext_large.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 41.3 | – | unsupported | 3490 |
+| [`convnext_large.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 88.7 | – | unsupported | 3495 |
+| [`convnext_small.fb_in1k`](../models/classification.md#convnext) | 19.1 | – | unsupported | 1042 |
+| [`convnext_small.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 19.4 | – | unsupported | 1043 |
+| [`convnext_small.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 33.5 | – | unsupported | 2059 |
+| [`convnext_tiny.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 11.4 | – | unsupported | 738 |
+| [`convnext_tiny.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 20.4 | – | unsupported | 1764 |
 | [`convnextv2_base.fcmae_ft_in22k_in1k`](../models/classification.md#convnextv2) | 36.1 | – | unsupported | 2301 |
 | [`deit_base_patch16_224.fb_in1k`](../models/classification.md#deit) | 16.9 | – | unsupported | 1314 |
 | [`densenet121.tv_in1k`](../models/classification.md#densenet) | 25.4 | – | unsupported | 708 |
@@ -212,6 +232,14 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
 |---|---|---|---|---|
+| [`efficientvit-sam-l0`](../models/promptable_segmentation.md#efficientvit_sam) | 50.6 | – | unsupported | 1779 |
+| [`efficientvit-sam-l1`](../models/promptable_segmentation.md#efficientvit_sam) | 75.2 | – | unsupported | 1783 |
+| [`efficientvit-sam-l2`](../models/promptable_segmentation.md#efficientvit_sam) | 91.2 | – | unsupported | 2004 |
+| [`efficientvit-sam-xl0`](../models/promptable_segmentation.md#efficientvit_sam) | 167 | – | unsupported | 3032 |
+| [`efficientvit-sam-xl1`](../models/promptable_segmentation.md#efficientvit_sam) | 259 | – | unsupported | 3452 |
+| [`sam-hq-vit-b`](../models/promptable_segmentation.md#sam_hq) | 645 | – | unsupported | 4374 |
+| [`sam-hq-vit-h`](../models/promptable_segmentation.md#sam_hq) | 2633 | – | unsupported | 8759 |
+| [`sam-hq-vit-l`](../models/promptable_segmentation.md#sam_hq) | 1420 | – | unsupported | 6205 |
 | [`sam-vit-b`](../models/promptable_segmentation.md#sam) | 631 | – | unsupported | 4362 |
 | [`sam-vit-h`](../models/promptable_segmentation.md#sam) | 2518 | – | unsupported | 8821 |
 | [`sam-vit-l`](../models/promptable_segmentation.md#sam) | 1373 | – | unsupported | 7227 |
@@ -227,42 +255,100 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 ### Detection, synthetic, 800x1344
 
-| model | time (ms): portable fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
-|---|---|---|---|
-| [`detr-r101-coco`](../models/detection.md#detr) | 183 | unsupported | 2181 |
-| [`detr-r50-coco`](../models/detection.md#detr) | 125 | unsupported | 1995 |
-| [`faster-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 214 | unsupported | 1930 |
-| [`mask-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 222 | unsupported | 1930 |
-| [`rtdetrv2-l-coco`](../models/detection.md#rtdetrv2) | 82.6 | unsupported | 1927 |
-| [`rtdetrv2-m-coco`](../models/detection.md#rtdetrv2) | 55.3 | unsupported | 1776 |
-| [`rtdetrv2-ms-coco`](../models/detection.md#rtdetrv2) | 67.9 | unsupported | 1872 |
-| [`rtdetrv2-s-coco`](../models/detection.md#rtdetrv2) | 44.0 | unsupported | 1650 |
-| [`rtdetrv2-x-coco`](../models/detection.md#rtdetrv2) | 114 | unsupported | 2189 |
+| model | time (ms): portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|
+| [`detr-r101-coco`](../models/detection.md#detr) | 183 | – | unsupported | 2181 |
+| [`detr-r50-coco`](../models/detection.md#detr) | 125 | – | unsupported | 1995 |
+| [`faster-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 214 | – | unsupported | 1930 |
+| [`mask-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 222 | – | unsupported | 1930 |
+| [`rtdetrv2-l-coco`](../models/detection.md#rtdetrv2) | 82.6 | – | unsupported | 1927 |
+| [`rtdetrv2-m-coco`](../models/detection.md#rtdetrv2) | 55.3 | – | unsupported | 1776 |
+| [`rtdetrv2-ms-coco`](../models/detection.md#rtdetrv2) | 67.9 | – | unsupported | 1872 |
+| [`rtdetrv2-s-coco`](../models/detection.md#rtdetrv2) | 44.0 | – | unsupported | 1650 |
+| [`rtdetrv2-x-coco`](../models/detection.md#rtdetrv2) | 114 | – | unsupported | 2189 |
+| [`rtmdet-l-coco`](../models/detection.md#rtmdet) | 83.7 | 75.2 | unsupported | 1927 |
+| [`rtmdet-m-coco`](../models/detection.md#rtmdet) | 54.8 | 50.9 | unsupported | 1862 |
+| [`rtmdet-m-person`](../models/detection.md#rtmdet) | 53.0 | 48.5 | unsupported | 1737 |
+| [`rtmdet-nano-person`](../models/detection.md#rtmdet) | 22.6 | 22.0 | unsupported | 1403 |
+| [`rtmdet-s-coco`](../models/detection.md#rtmdet) | 33.6 | 30.7 | unsupported | 1619 |
+| [`rtmdet-x-coco`](../models/detection.md#rtmdet) | 127 | 115 | unsupported | 2107 |
 
 Note: no Metal kernels for this family (card mps_kernels).
+
+## Pose
+
+### Pose, synthetic, 1080x1920
+
+| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
+|---|---|---|---|---|---|---|---|
+| [`dwpose-l`](../models/pose.md#rtmpose) | 99.1 | 87.6 | 92.0 | – | 1.0x | 1862 | 1917 |
+| [`dwpose-l-384`](../models/pose.md#rtmpose) | 197 | 173 | 182 | – | 1.0x | 1864 | 1916 |
+| [`dwpose-m`](../models/pose.md#rtmpose) | 69.1 | 59.1 | 57.7 | – | 1.0x | 1682 | 1791 |
+| [`dwpose-s`](../models/pose.md#rtmpose) | 41.6 | 38.3 | 33.2 | – | 1.2x | 1527 | 1595 |
+| [`dwpose-t`](../models/pose.md#rtmpose) | 33.4 | 33.1 | 26.4 | – | 1.3x | 1465 | 1539 |
+| [`rtmpose-l`](../models/pose.md#rtmpose) | 91.7 | 81.3 | 85.0 | – | 1.0x | 1849 | 1893 |
+| [`rtmpose-l-384`](../models/pose.md#rtmpose) | 180 | 158 | 167 | – | 0.9x | 1851 | 1893 |
+| [`rtmpose-m`](../models/pose.md#rtmpose) | 60.3 | 57.8 | 52.4 | – | 1.1x | 1633 | 1740 |
+| [`rtmpose-m-384`](../models/pose.md#rtmpose) | 112 | 103 | 98.3 | – | 1.0x | 1634 | 1738 |
+| [`rtmpose-s`](../models/pose.md#rtmpose) | 35.7 | 33.2 | 29.0 | – | 1.1x | 1494 | 1559 |
+| [`rtmpose-t`](../models/pose.md#rtmpose) | 25.4 | 24.6 | 20.5 | – | 1.2x | 1444 | 1513 |
+| [`vitpose-base`](../models/pose.md#vitpose) | 228 | 212 | – | 172 | 1.2x | 1929 | 1995 |
+| [`vitpose-base-simple`](../models/pose.md#vitpose) | 196 | 186 | – | 160 | 1.2x | 1910 | 1977 |
+| [`vitpose-plus-base`](../models/pose.md#vitpose) | 229 | 212 | – | 174 | 1.2x | 1939 | 2006 |
+| [`vitpose-plus-huge`](../models/pose.md#vitpose) | 1247 | 1158 | – | 1182 | 1.0x | 4956 | 4957 |
+| [`vitpose-plus-large`](../models/pose.md#vitpose) | 646 | 603 | – | 526 | 1.1x | 2663 | 2741 |
+| [`vitpose-plus-small`](../models/pose.md#vitpose) | 101 | 92.3 | – | 66.5 | 1.4x | 1545 | 1633 |
 
 ## Features
 
 ### Features, synthetic, 224x224
 
-| model | time (ms): portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
-|---|---|---|---|---|
-| [`dinov2-vitb14`](../models/features.md#dinov2) | 23.3 | 21.7 | unsupported | 774 |
-| [`dinov2-vitb14-reg`](../models/features.md#dinov2) | 44.3 | 42.8 | unsupported | 775 |
-| [`dinov2-vitg14`](../models/features.md#dinov2) | 221 | 193 | unsupported | 4502 |
-| [`dinov2-vitg14-reg`](../models/features.md#dinov2) | 263 | 235 | unsupported | 4502 |
-| [`dinov2-vitl14`](../models/features.md#dinov2) | 68.0 | 59.4 | unsupported | 1562 |
-| [`dinov2-vitl14-reg`](../models/features.md#dinov2) | 96.1 | 86.3 | unsupported | 1563 |
-| [`dinov2-vits14`](../models/features.md#dinov2) | 12.2 | 11.2 | unsupported | 341 |
-| [`dinov2-vits14-reg`](../models/features.md#dinov2) | 22.2 | 22.1 | unsupported | 344 |
-| [`dinov3-convnext-base`](../models/features.md#dinov3_convnext) | failed | failed | unsupported | – |
-| [`dinov3-convnext-large`](../models/features.md#dinov3_convnext) | failed | failed | unsupported | – |
-| [`dinov3-convnext-small`](../models/features.md#dinov3_convnext) | 23.4 | 21.7 | unsupported | 614 |
-| [`dinov3-convnext-tiny`](../models/features.md#dinov3_convnext) | failed | failed | unsupported | – |
-| [`dinov3-vitb16`](../models/features.md#dinov3) | 25.0 | 22.7 | unsupported | 726 |
-| [`dinov3-vith16plus`](../models/features.md#dinov3) | failed | failed | unsupported | – |
-| [`dinov3-vitl16`](../models/features.md#dinov3) | failed | failed | unsupported | – |
-| [`dinov3-vits16`](../models/features.md#dinov3) | failed | failed | unsupported | – |
+| model | time (ms): portable fp32 | portable fp16 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
+|---|---|---|---|---|---|---|
+| [`c-radio-v3-g`](../models/features.md#c_radio) | 180 | 145 | unsupported | – | 9394 | – |
+| [`c-radio-v3-h`](../models/features.md#c_radio) | 103 | 85.0 | unsupported | – | 5806 | – |
+| [`c-radio-v3-l`](../models/features.md#c_radio) | 53.3 | 47.9 | unsupported | – | 3322 | – |
+| [`clip-b16-laion2b`](../models/features.md#clip) | 16.9 | 15.3 | unsupported | – | 1480 | – |
+| [`clip-h14-laion2b`](../models/features.md#clip) | 122 | 102 | unsupported | – | 8090 | – |
+| [`clip-l14-336-openai`](../models/features.md#clip) | 63.1 | 58.3 | unsupported | – | 4429 | – |
+| [`clip-l14-datacompxl`](../models/features.md#clip) | 60.8 | 56.7 | unsupported | – | 4426 | – |
+| [`clip-l14-laion2b`](../models/features.md#clip) | 60.6 | 56.6 | unsupported | – | 4424 | – |
+| [`clip-l14-openai`](../models/features.md#clip) | 63.0 | 58.3 | unsupported | – | 4898 | – |
+| [`dinov2-vitb14`](../models/features.md#dinov2) | 23.3 | 21.7 | unsupported | – | 774 | – |
+| [`dinov2-vitb14-reg`](../models/features.md#dinov2) | 44.3 | 42.8 | unsupported | – | 775 | – |
+| [`dinov2-vitg14`](../models/features.md#dinov2) | 221 | 193 | unsupported | – | 4502 | – |
+| [`dinov2-vitg14-reg`](../models/features.md#dinov2) | 263 | 235 | unsupported | – | 4502 | – |
+| [`dinov2-vitl14`](../models/features.md#dinov2) | 68.0 | 59.4 | unsupported | – | 1562 | – |
+| [`dinov2-vitl14-reg`](../models/features.md#dinov2) | 96.1 | 86.3 | unsupported | – | 1563 | – |
+| [`dinov2-vits14`](../models/features.md#dinov2) | 12.2 | 11.2 | unsupported | – | 341 | – |
+| [`dinov2-vits14-reg`](../models/features.md#dinov2) | 22.2 | 22.1 | unsupported | – | 344 | – |
+| [`dinov3-convnext-base`](../models/features.md#dinov3_convnext) | failed | failed | unsupported | – | – | – |
+| [`dinov3-convnext-large`](../models/features.md#dinov3_convnext) | failed | failed | unsupported | – | – | – |
+| [`dinov3-convnext-small`](../models/features.md#dinov3_convnext) | 23.4 | 21.7 | unsupported | – | 614 | – |
+| [`dinov3-convnext-tiny`](../models/features.md#dinov3_convnext) | failed | failed | unsupported | – | – | – |
+| [`dinov3-vitb16`](../models/features.md#dinov3) | 25.0 | 22.7 | unsupported | – | 726 | – |
+| [`dinov3-vith16plus`](../models/features.md#dinov3) | failed | failed | unsupported | – | – | – |
+| [`dinov3-vitl16`](../models/features.md#dinov3) | failed | failed | unsupported | – | – | – |
+| [`dinov3-vits16`](../models/features.md#dinov3) | failed | failed | unsupported | – | – | – |
+| [`pe-core-b16-224`](../models/features.md#perception_encoder) | 20.0 | 19.5 | 16.0 | 1.2x | 1569 | 1571 |
+| [`pe-core-g14-448`](../models/features.md#perception_encoder) | 368 | 286 | 259 | 1.1x | 17853 | 17853 |
+| [`pe-core-l14-336`](../models/features.md#perception_encoder) | 68.6 | 68.7 | 58.3 | 1.2x | 4527 | 4528 |
+| [`pe-core-s16-384`](../models/features.md#perception_encoder) | 10.9 | 11.8 | 10.4 | 1.1x | 604 | 646 |
+| [`pe-spatial-b16-512`](../models/features.md#perception_encoder) | 19.2 | 19.0 | 16.1 | 1.2x | 1484 | 1486 |
+| [`pe-spatial-g14-448`](../models/features.md#perception_encoder) | 374 | 288 | 258 | 1.1x | 17726 | 17724 |
+| [`pe-spatial-l14-448`](../models/features.md#perception_encoder) | 68.1 | 68.7 | 57.6 | 1.2x | 4426 | 4429 |
+| [`pe-spatial-s16-512`](../models/features.md#perception_encoder) | 9.86 | 10.5 | 8.31 | 1.2x | 580 | 590 |
+| [`pe-spatial-t16-512`](../models/features.md#perception_encoder) | 6.90 | 7.47 | 5.94 | 1.2x | 375 | 383 |
+| [`siglip2-b16-256`](../models/features.md#siglip2) | 17.2 | 15.8 | unsupported | – | 1563 | – |
+| [`siglip2-b16-512`](../models/features.md#siglip2) | 17.2 | 15.8 | unsupported | – | 1574 | – |
+| [`siglip2-g16-256`](../models/features.md#siglip2) | 180 | 143 | unsupported | – | 13674 | – |
+| [`siglip2-g16-384`](../models/features.md#siglip2) | 180 | 142 | unsupported | – | 13640 | – |
+| [`siglip2-l16-256`](../models/features.md#siglip2) | 50.0 | 45.9 | unsupported | – | 4516 | – |
+| [`siglip2-l16-512`](../models/features.md#siglip2) | 50.3 | 45.5 | unsupported | – | 4524 | – |
+| [`siglip2-so400m14-224`](../models/features.md#siglip2) | 75.8 | 70.2 | unsupported | – | 5545 | – |
+| [`siglip2-so400m14-378`](../models/features.md#siglip2) | 75.9 | 68.6 | unsupported | – | 5553 | – |
+| [`siglip2-so400m16-256`](../models/features.md#siglip2) | 65.7 | 57.5 | unsupported | – | 5546 | – |
+| [`siglip2-so400m16-512`](../models/features.md#siglip2) | 66.2 | 56.8 | unsupported | – | 5556 | – |
 
 Note: no Metal kernels for this family (card mps_kernels).
 
@@ -291,6 +377,25 @@ Note: no Metal kernels for this family (card mps_kernels).
 | model | time (ms): portable fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
 |---|---|---|---|
 | [`patchmatchnet`](../models/multiview.md#patchmatchnet) | 1010 | unsupported | 7593 |
+
+Note: no Metal kernels for this family (card mps_kernels).
+
+## Flow
+
+### Flow, synthetic, 1080x1920
+
+| model | time (ms): portable fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|
+| [`raft-large-kitti`](../models/flow.md#raft) | 10206 | unsupported | 11509 |
+| [`raft-large-things`](../models/flow.md#raft) | 3992 | unsupported | 11624 |
+| [`raft-small`](../models/flow.md#raft) | 4513 | unsupported | 11385 |
+| [`sea-raft-m`](../models/flow.md#sea_raft) | 1820 | unsupported | 12542 |
+| [`sea-raft-m-kitti`](../models/flow.md#sea_raft) | 5026 | unsupported | 12688 |
+| [`sea-raft-m-spring`](../models/flow.md#sea_raft) | 390 | unsupported | 2574 |
+| [`sea-raft-m-things`](../models/flow.md#sea_raft) | 4162 | unsupported | 11697 |
+| [`sea-raft-s`](../models/flow.md#sea_raft) | 2115 | unsupported | 11645 |
+| [`sea-raft-s-kitti`](../models/flow.md#sea_raft) | 2000 | unsupported | 11481 |
+| [`sea-raft-s-spring`](../models/flow.md#sea_raft) | 268 | unsupported | 2483 |
 
 Note: no Metal kernels for this family (card mps_kernels).
 <!-- device:end -->
