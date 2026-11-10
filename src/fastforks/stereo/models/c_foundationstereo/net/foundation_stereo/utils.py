@@ -599,6 +599,9 @@ def build_concat_volume(refimg_feature, targetimg_feature, maxdisp):
     """
     B, C, H, W = refimg_feature.shape
 
+    if torch.jit.is_tracing() or torch.onnx.is_in_onnx_export():
+        return _concat_volume_traced(refimg_feature, targetimg_feature, maxdisp)
+
     # Initialize an empty volume to store the concatenated features.
     # The channel dimension is 2 * C because we are concatenating two C-channel feature maps.
     volume = refimg_feature.new_zeros([B, 2 * C, maxdisp, H, W])
@@ -721,6 +724,44 @@ def _gwc_volume_gemm(ref, target, max_disp, groups, normalize, rows=16):
     return volume
 
 
+def _gwc_volume_traced(ref, target, max_disp, groups, normalize, rows=32):
+    """`_gwc_volume_gemm` for traced graphs (ONNX, TensorRT): the same fp32 matmul per block of image rows, but the
+    diagonals are taken by reshape and slice instead of `as_strided`, and the blocks joined by `cat` instead of slice
+    writes. Replaces the per-disparity loop, whose `max_disp` slice writes became scatter kernels in TensorRT.
+    Needs `max_disp < W` and a fixed size (the row blocks are unrolled at trace time)."""
+    B, C, H, W = ref.shape
+    L = W - 1
+    valid = torch.arange(W, device=ref.device).view(1, W) >= torch.arange(max_disp, device=ref.device).view(-1, 1)
+    blocks = []
+    with torch.amp.autocast('cuda', enabled=False):  # fp32 like groupwise_correlation
+        for r0 in range(0, H, rows):
+            h = min(rows, H - r0)
+            n = B * groups * h
+            f1 = ref[:, :, r0:r0 + h].float().reshape(B, groups, C // groups, h, W)
+            f2 = target[:, :, r0:r0 + h].float().reshape(B, groups, C // groups, h, W)
+            if normalize:
+                f1 = F.normalize(f1, dim=2)
+                f2 = F.normalize(f2, dim=2)
+            f1 = f1.permute(0, 1, 3, 4, 2).reshape(n, W, C // groups)
+            f2 = f2.flip(-1).permute(0, 1, 3, 2, 4).reshape(n, C // groups, W)
+            m = torch.bmm(f1, f2)  # m[w, j] = <ref[w], target[W-1-j]>
+            # Disparity d of pixel w is m[w, W-1-w+d], flat index L*(w+1)+d: row w, column d of the flat tail in rows of L.
+            v = m.reshape(n, W * W)[:, L:L + L * W].reshape(n, W, L)[:, :, :max_disp].transpose(1, 2)
+            blocks.append(torch.where(valid, v, 0.0).view(B, groups, h, max_disp, W))
+    return torch.cat(blocks, dim=2).permute(0, 1, 3, 2, 4).to(ref.dtype).contiguous()
+
+
+def _concat_volume_traced(ref, target, max_disp):
+    """`build_concat_volume` for traced graphs: one gather of the shifted target features instead of `2 * max_disp`
+    slice writes (scatter kernels in TensorRT)."""
+    B, C, H, W = ref.shape
+    d = torch.arange(max_disp, device=ref.device).view(-1, 1)
+    w = torch.arange(W, device=ref.device).view(1, -1)
+    shifted = target.index_select(3, (w - d).clamp(min=0).flatten()).view(B, C, H, max_disp, W)
+    shifted = torch.where(w >= d, shifted, 0.0).permute(0, 1, 3, 2, 4)
+    return torch.cat([ref.unsqueeze(2).expand(B, C, max_disp, H, W), shifted], dim=1).contiguous()
+
+
 def build_gwc_volume(refimg_feature, targetimg_feature, maxdisp, num_groups, stride=1,
                      normalize: bool = True):
     """
@@ -763,8 +804,11 @@ def build_gwc_volume(refimg_feature, targetimg_feature, maxdisp, num_groups, str
     # Calculate the number of disparity levels in the volume based on maxdisp and stride.
     num_disparity_levels = maxdisp // stride
 
-    if not (torch.jit.is_tracing() or torch.onnx.is_in_onnx_export()) and stride == 1 and num_disparity_levels <= W:
+    traced = torch.jit.is_tracing() or torch.onnx.is_in_onnx_export()
+    if not traced and stride == 1 and num_disparity_levels <= W:
         return _gwc_volume_gemm(refimg_feature, targetimg_feature, num_disparity_levels, num_groups, normalize)
+    if traced and stride == 1 and num_disparity_levels < W:
+        return _gwc_volume_traced(refimg_feature, targetimg_feature, num_disparity_levels, num_groups, normalize)
 
     # Initialize an empty volume to store the group-wise correlation costs.
     # The channels correspond to `num_groups`, and there's a dimension for disparity levels.
