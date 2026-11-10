@@ -28,17 +28,15 @@ Status (2026-11-10): working notes for the branch `work/ports`, which sits on to
 
 In this order, unless something more useful turns up:
 
-1. HQ-SAM: the agent that built it was interrupted before it reported. The code, goldens, validated builds and rows
-   are in the tree; run the GPU goldens and the checks once more before trusting it.
-2. RAFT TensorRT at 1080 x 1920 runs out of memory (4 failure rows). Depth Anything 3 `large-1.1`, `giant-1.1` and
+1. RAFT TensorRT at 1080 x 1920 runs out of memory (4 failure rows). Depth Anything 3 `large-1.1`, `giant-1.1` and
    nested do not export to TensorRT (a data-dependent guard in the RoPE code).
-3. `docs/data/experiments_resolution.jsonl`: the two scripts its `command` fields name were lost. Write them again
+2. `docs/data/experiments_resolution.jsonl`: the two scripts its `command` fields name were lost. Write them again
    under `tools/`, and check that a model loaded with `long_side=756` gives the same result as one whose
    `long_side` was changed after loading.
-4. ConvNeXt: move the datacenter notes from the comments in its `card.toml` to `datacenter-tuning.md`. RTMDet and
+3. ConvNeXt: move the datacenter notes from the comments in its `card.toml` to `datacenter-tuning.md`. RTMDet and
    RTMPose each carry their own CSPNeXt; move it to `shared/`.
-5. `docs/data/flow_eval.jsonl`: the RAFT rows still name the old model ids.
-6. Next networks, from [model-landscape.md](model-landscape.md): a ConvNeXt v1 feature backbone (nearly free),
+4. `docs/data/flow_eval.jsonl`: the RAFT rows still name the old model ids.
+5. Next networks, from [model-landscape.md](model-landscape.md): a ConvNeXt v1 feature backbone (nearly free),
    TIPSv2, MaxViT / RepViT, MobileSAM (licence not checked yet), the MoGe-2 extras, more flow and pose models.
 
 ## Waiting for the Mac
@@ -47,7 +45,8 @@ In this order, unless something more useful turns up:
 - ViTPose, RTMPose, SEA-RAFT, SigLIP 2: MPS goldens to be run again after the last changes.
 - RAFT, SEA-RAFT, CLIP, C-RADIOv3, Depth Anything V2 Metric, Distill-Any-Depth, RTMDet, ConvNeXt: Mac speed rows.
 - EfficientViT-SAM: only `l0` was checked on MPS, `portable` only.
-- HQ-SAM: nothing run on the Mac yet.
+- HQ-SAM: CUDA side checked again on 2026-11-10 (CPU and GPU goldens pass with `dpt_fused@48e0065bb7cf`, checks
+  clean); nothing run on the Mac yet. Weights on the CUDA machine: `~/scratch_tests/evsam/w/sam_hq_vit_{b,l,h}.pth`.
 
 ## Known gaps that wait for a release
 
