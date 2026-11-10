@@ -1,12 +1,16 @@
 [project]
 name = "fastforks-core"
-version = "0.1.0"
+version = "0.1.1"
 description = "Fast, typed inference for published vision models: portable PyTorch and custom-kernel backends."
 readme = "README.md"
 license = "Apache-2.0 AND BSD-3-Clause AND MIT"  # + shared/cnn_kernels (MIT) and the CUTLASS-linked kernels (BSD-3-Clause); tests/test_policy.py checks
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "src/fastforks/shared/*/LICENSE*"]
 authors = [{ name = "Florian Kleinicke", email = "coding@f-kleinicke.de" }]
 requires-python = ">=3.11"
+keywords = [
+  "computer-vision", "pytorch", "inference", "cuda", "metal", "stereo-matching", "depth-estimation",
+  "segment-anything", "dinov2", "dinov3", "object-detection", "semantic-segmentation", "image-classification",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
@@ -60,7 +64,12 @@ libs = ["fastforks-core[timm,torchvision,transformers,onnx]"]
 fastforks = "fastforks._core.cli:main"
 
 [project.urls]
+Homepage = "https://fastforks.dev"
+Documentation = "https://fastforks.dev/usage"
+Models = "https://fastforks.dev/models"
+Benchmarks = "https://fastforks.dev/benchmarks"
 Repository = "https://github.com/kleinicke/fastforks"
+Issues = "https://github.com/kleinicke/fastforks/issues"
 
 [dependency-groups]
 dev = [

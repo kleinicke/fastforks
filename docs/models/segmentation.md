@@ -6,32 +6,34 @@
 
 Input: one RGB image. Output: per-pixel class labels (logits with `logits=True`).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x2048: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x2048: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
 
-| model | commercial | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.06, 2.7x | 518 (-1616) |
-| [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 18.02, 3.0x | 560 (-1464) |
-| [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 22.63, 1.8x | 904 (-1320) |
-| [`dinov2-l-linear-ade20k`](#dinov2_linear) | yes | 56.78, 1.7x | 1244 (-1880) |
-| [`dinov2-s-linear-ade20k`](#dinov2_linear) | yes | 12.44, 2.0x | 676 (-1334) |
-| [`eomt-l-dinov2-ade20k`](#eomt) | yes | 34.99, 1.8x | 1584 (-1942) |
-| [`eomt-l-dinov3-ade20k`](#eomt) | yes | 38.8, 1.9x | 1584 (-1944) |
-| [`fcn-r101-d8-ade20k`](#mmseg) | yes | 16.65, 2.8x | 478 (-1596) |
-| [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.86, 4.1x | 430 (-1440) |
-| [`mask2former-swinl-ade20k`](#mask2former) | no | 60.44, 2.4x | 1400 (-2260) |
-| [`oneformer-swinl-ade20k`](#oneformer) | yes | 99.95, 2.1x | 2476 (-5316) |
-| [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.96, 1.9x | 494 (-1580) |
-| [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.56, 1.9x | 1762 (-962) |
-| [`sapiens-seg-1b-goliath`](#sapiens) | no | 185.2, 1.9x | 3382 (-2524) |
-| [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.479, 5.0x | 238 (-1400) |
-| [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.347, 2.8x | 534 (-2004) |
+| [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.06, 2.7x | 518, 0.24x |
+| [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 18.02, 3.0x | 560, 0.28x |
+| [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 22.63, 1.8x | 904, 0.41x |
+| [`dinov2-l-linear-ade20k`](#dinov2_linear) | yes | 56.78, 1.7x | 1244, 0.4x |
+| [`dinov2-s-linear-ade20k`](#dinov2_linear) | yes | 12.44, 2.0x | 676, 0.34x |
+| [`eomt-l-dinov2-ade20k`](#eomt) | yes | 34.99, 1.8x | 1584, 0.45x |
+| [`eomt-l-dinov3-ade20k`](#eomt) | yes | 38.8, 1.9x | 1584, 0.45x |
+| [`fcn-r101-d8-ade20k`](#mmseg) | yes | 16.65, 2.8x | 478, 0.23x |
+| [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.86, 4.1x | 430, 0.23x |
+| [`mask2former-swinl-ade20k`](#mask2former) | no | 60.44, 2.4x | 1400, 0.38x |
+| [`oneformer-swinl-ade20k`](#oneformer) | yes | 99.95, 2.1x | 2476, 0.32x |
+| [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.96, 1.9x | 494, 0.24x |
+| [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.56, 1.9x | 1762, 0.65x |
+| [`sapiens-seg-1b-goliath`](#sapiens) | no | 185.2, 1.9x | 3382, 0.57x |
+| [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.479, 5.0x | 238, 0.15x |
+| [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.347, 2.8x | 534, 0.21x |
 
 <a id="mmseg"></a>
 
 ## mmseg CNN classics
 
-The MMSegmentation authors' ADE20K checkpoints of FCN, PSPNet, DeepLabV3, DeepLabV3+ and HRNet, convolutional scene segmentation. Commercially usable.
+The MMSegmentation authors' ADE20K checkpoints of FCN, PSPNet, DeepLabV3, DeepLabV3+ and HRNet, convolutional scene segmentation.
 
 Commercial use: yes.
 
@@ -41,7 +43,7 @@ Commercial use: yes.
 | `pspnet-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 92.5<br>47.2<br>48.8<br>25.0 | 1797 / 2074<br>1922 / 2222<br>417 / 492<br>341 / 494 |
 | `deeplabv3-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 108<br>54.8<br>47.9<br>20.1 | 1870 / 2134<br>2031 / 2162<br>453 / 532<br>362 / 518 |
 | `deeplabv3plus-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 104<br>53.4<br>47.1<br>18.0 | 1776 / 2036<br>1891 / 2024<br>413 / 492<br>365 / 560 |
-| `hrnet-w48-fcn-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 48.1<br>54.8<br>26.9<br>11.9 | 1789 / 1870<br>1915 / 2010<br>424 / 490<br>274 / 430 |
+| `hrnet-w48-fcn-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.1<br>54.8<br>26.9<br>11.9<br>23.9<br>20.9 | 1789 / 1870<br>1915 / 2010<br>424 / 490<br>274 / 430<br>421 / 448<br>888 (engine) |
 
 <details><summary>Details</summary>
 
@@ -55,6 +57,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `fcn-r101-d8-ade20k` 3000x4000 (7.2 GiB peak allocated, 7.5 reserved); `pspnet-r101-d8-ade20k` 3000x4000 (7.2 GiB peak allocated, 7.5 reserved); `deeplabv3-r101-d8-ade20k` 3000x4000 (7.3 GiB peak allocated, 7.5 reserved); `deeplabv3plus-r101-d8-ade20k` 3000x4000 (7.2 GiB peak allocated, 7.5 reserved); `hrnet-w48-fcn-ade20k` 3000x4000 (7.2 GiB peak allocated, 7.5 reserved)
+- `hrnet-w48-fcn-ade20k` 1024x2048, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
 - `fcn-r101-d8-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `pspnet-r101-d8-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `deeplabv3-r101-d8-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
@@ -67,6 +70,20 @@ Commercial use: yes.
 - `hrnet-w48-fcn-ade20k` load / first call: original 1.48 s / 0.079 s (512x512), portable 0.62 s / 0.071 s, kernels 0.85† s / 0.014† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
+
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `fcn-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 39.40 / 79.09 | 39.40 / 79.10 | 39.39 / 79.10 | 39.39 / 79.09 |  |
+| `pspnet-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.44 / 80.97 | 44.44 / 80.97 | 44.43 / 80.97 | 44.44 / 80.97 |  |
+| `deeplabv3-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 43.62 / 80.80 | 43.62 / 80.80 | 43.61 / 80.80 | 43.62 / 80.80 |  |
+| `deeplabv3plus-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.36 / 81.01 | 44.36 / 81.01 | 44.35 / 81.01 | 44.36 / 81.01 |  |
+| `hrnet-w48-fcn-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 40.11 / 79.34 | 40.11 / 79.35 | 40.10 / 79.35 | 40.11 / 79.34 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -86,13 +103,13 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ## DINOv2 linear
 
-Meta's DINOv2 features with a linear layer on top for ADE20K scene segmentation. Commercially usable.
+Meta's DINOv2 features with a linear layer on top for ADE20K scene segmentation.
 
 Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov2-s-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 55.8<br>24.7<br>18.3<br>12.4 | 1653 / 2010<br>1694 / 2046<br>642 / 696<br>645 / 676 |
+| `dinov2-s-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 55.8<br>24.7<br>18.3<br>12.4<br>20.7<br>40.3 | 1653 / 2010<br>1694 / 2046<br>642 / 696<br>645 / 676<br>1331 / 1376<br>1794 (engine) |
 | `dinov2-b-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 115<br>40.1<br>33.3<br>22.6 | 1899 / 2224<br>2063 / 2426<br>765 / 884<br>771 / 904 |
 | `dinov2-l-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 332<br>95.7<br>83.9<br>56.8 | 2730 / 3124<br>3308 / 3726<br>1181 / 1244<br>1189 / 1244 |
 
@@ -108,6 +125,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dinov2-s-linear-ade20k` 3000x4000 (7.2 GiB peak allocated, 7.9 reserved); `dinov2-b-linear-ade20k` 3000x4000 (7.3 GiB peak allocated, 8.1 reserved); `dinov2-l-linear-ade20k` 3000x4000 (7.7 GiB peak allocated, 8.5 reserved)
+- `dinov2-s-linear-ade20k` 1024x2048, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `dinov2-s-linear-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `dinov2-b-linear-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `dinov2-l-linear-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
@@ -116,6 +134,18 @@ Commercial use: yes.
 - `dinov2-l-linear-ade20k` load / first call: original 7.86 s / 0.382 s (512x512), portable 0.81 s / 0.156 s, kernels 0.92† s / 0.103† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
+
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `dinov2-s-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 42.39 / 79.40 | 42.38 / 79.40 | 42.38 / 79.39 | 42.37 / 79.39 |  |
+| `dinov2-b-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 45.12 / 80.29 | 45.12 / 80.29 | 45.12 / 80.28 | 45.12 / 80.28 |  |
+| `dinov2-l-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 45.08 / 80.13 | 45.09 / 80.13 | 45.08 / 80.13 | 45.08 / 80.13 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -133,13 +163,13 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ## EoMT
 
-EoMT: a plain vision transformer that also predicts masks, for ADE20K scene segmentation, with DINOv2 or DINOv3 pre-training. Commercially usable.
+EoMT: a plain vision transformer that also predicts masks, for ADE20K scene segmentation, with DINOv2 or DINOv3 pre-training.
 
 Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `eomt-l-dinov2-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 178<br>63.7<br>50.8<br>35.0 | 3376 / 3526<br>3827 / 4086<br>1515 / 1584<br>1515 / 1584 |
+| `eomt-l-dinov2-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 178<br>63.7<br>50.8<br>35.0<br>49.4<br>54.3 | 3376 / 3526<br>3827 / 4086<br>1515 / 1584<br>1515 / 1584<br>1585 / 1624<br>1798 (engine) |
 | `eomt-l-dinov3-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 186<br>72.1<br>54.6<br>38.8 | 3372 / 3528<br>3822 / 4086<br>1514 / 1584<br>1514 / 1584 |
 
 <details><summary>Details</summary>
@@ -157,12 +187,24 @@ Commercial use: yes.
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `eomt-l-dinov2-ade20k` 3000x4000 (14.5 GiB peak allocated, 14.7 reserved); `eomt-l-dinov3-ade20k` 3000x4000 (14.5 GiB peak allocated, 14.7 reserved)
+- `eomt-l-dinov2-ade20k` 1024x2048, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 53 s (ONNX + engine).
 - `eomt-l-dinov2-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `eomt-l-dinov3-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `eomt-l-dinov2-ade20k` load / first call: original 4.8 s / 0.537 s (512x512), portable 3.13 s / 0.053 s, kernels 3.27† s / 0.036† s
 - `eomt-l-dinov3-ade20k` load / first call: original 1.83 s / 0.065 s (512x512), portable 3.2 s / 0.078 s, kernels 3.24† s / 0.039† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
+
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `eomt-l-dinov2-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 57.31 / 86.44 | 57.31 / 86.44 | 57.34 / 86.44 | 57.37 / 86.43 |  |
+| `eomt-l-dinov3-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 57.62 / 86.60 | 57.62 / 86.60 | 57.62 / 86.60 | 57.60 / 86.59 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -185,7 +227,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mask2former-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 244<br>145<br>103<br>60.4 | 2966 / 3660<br>3572 / 3878<br>1164 / 1400<br>1164 / 1400 |
+| `mask2former-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>145<br>103<br>60.4<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>55.6 | 2966 / 3660<br>3572 / 3878<br>1164 / 1400<br>1164 / 1400<br>–<br>1816 (engine) |
 
 <details><summary>Details</summary>
 
@@ -199,10 +241,21 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mask2former-swinl-ade20k` 3000x4000 (14.1 GiB peak allocated, 15.1 reserved)
+- `mask2former-swinl-ade20k` 1024x2048, first call: TensorRT fp16 129 s (ONNX + engine).
 - `mask2former-swinl-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `mask2former-swinl-ade20k` load / first call: original 4.86 s / 0.763 s (512x512), portable 3.03 s / 0.127 s, kernels 3.17† s / 0.069† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
+
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `mask2former-swinl-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 53.55 / 85.10 | 53.63 / 85.10 | 53.68 / 85.12 | 53.68 / 85.10 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -218,13 +271,13 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ## OneFormer
 
-OneFormer (SHI Labs): one network for several segmentation tasks, used here for ADE20K scene segmentation. Commercially usable.
+OneFormer (SHI Labs): one network for several segmentation tasks, used here for ADE20K scene segmentation.
 
 Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 307<br>205<br>139<br>100.0 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476 |
+| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>139<br>100.0<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>83.3 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476<br>–<br>3258 (engine) |
 
 <details><summary>Details</summary>
 
@@ -238,10 +291,21 @@ Commercial use: yes.
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `oneformer-swinl-ade20k` 1988x2880 (8.4 GiB peak allocated, 14.9 reserved)
+- `oneformer-swinl-ade20k` 1024x2048, first call: TensorRT fp16 140 s (ONNX + engine).
 - `oneformer-swinl-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `oneformer-swinl-ade20k` load / first call: original 5.08 s / 0.805 s (512x512), portable 4.1 s / 0.147† s, kernels 3.27† s / 0.109† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
+
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `oneformer-swinl-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 54.49 / 85.06 | 54.26 / 85.05 | 54.37 / 85.05 | 54.38 / 85.14 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -263,7 +327,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sapiens-seg-0.3b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 466<br>173<br>132<br>92.6 | 3673 / 4104<br>2520 / 2724<br>1643 / 1762<br>1643 / 1762 |
+| `sapiens-seg-0.3b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 466<br>173<br>132<br>92.6<br>118<br>156 | 3673 / 4104<br>2520 / 2724<br>1643 / 1762<br>1643 / 1762<br>1373 / 1462<br>1564 (engine) |
 | `sapiens-seg-1b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 1189<br>354<br>275<br>185 | 6874 / 7284<br>5721 / 5906<br>3259 / 3384<br>3259 / 3382 |
 
 <details><summary>Details</summary>
@@ -278,12 +342,24 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Outputs: logits; label_set: `goliath-28`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sapiens-seg-0.3b-goliath` 3000x4000 (2.2 GiB peak allocated, 3.2 reserved); `sapiens-seg-1b-goliath` 3000x4000 (3.8 GiB peak allocated, 5.0 reserved)
+- `sapiens-seg-0.3b-goliath` 1024x2048, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 53 s (ONNX + engine).
 - `sapiens-seg-0.3b-goliath` original 1024x2048: torch.autocast(fp16) around the forward
 - `sapiens-seg-1b-goliath` original 1024x2048: torch.autocast(fp16) around the forward
 - `sapiens-seg-0.3b-goliath` load / first call: original 4.92 s / 1.024 s (512x512), portable 1.22 s / 0.132† s, kernels 0.96† s / 0.092† s
 - `sapiens-seg-1b-goliath` load / first call: original 11.33 s / 0.569 s (512x512), portable 3.54 s / 0.274† s, kernels 2.27† s / 0.18† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
+
+### Measured
+
+Any body part counts as person; ground truth = the COCO person masks. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `sapiens-seg-0.3b-goliath` | COCO val2017 persons, every 10th image, person IoU % | 32.60 | 32.61 | 32.61 | 32.62 |  |
+| `sapiens-seg-1b-goliath` | COCO val2017 persons, every 10th image, person IoU % | 54.22 | 54.22 | 54.22 | 54.19 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -306,7 +382,7 @@ Commercial use: **no** (weights: LicenseRef-NVIDIA-Source-Code-License-NC).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `segformer-b0-ade20k` (resize 2048x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 17.2<br>17.4<br>11.4<br>3.48 | 1583 / 1638<br>1590 / 1766<br>339 / 376<br>148 / 238 |
+| `segformer-b0-ade20k` (resize 2048x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.2<br>17.4<br>11.4<br>3.48<br>9.27<br>5.51 | 1583 / 1638<br>1590 / 1766<br>339 / 376<br>148 / 238<br>336 / 356<br>792 (engine) |
 | `segformer-b5-ade20k` (resize 2048x640) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels | 132<br>72.0<br>38.7<br>25.3 | 2529 / 2538<br>2531 / 2620<br>546 / 590<br>407 / 534 |
 
 <details><summary>Details</summary>
@@ -321,11 +397,23 @@ Commercial use: **no** (weights: LicenseRef-NVIDIA-Source-Code-License-NC).
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `segformer-b0-ade20k` 3000x4000 (3.8 GiB peak allocated, 4.0 reserved); `segformer-b5-ade20k` 3000x4000 (4.0 GiB peak allocated, 4.3 reserved)
+- `segformer-b0-ade20k` 1024x2048, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 61 s (ONNX + engine).
 - `segformer-b0-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `segformer-b5-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `segformer-b0-ade20k` load / first call: original 4.83 s / 2.232 s (512x512), portable 2.55 s / 0.082 s, kernels 2.92 s / 0.009 s
 - `segformer-b5-ade20k` load / first call: original 1.24 s / 0.501 s (512x512), portable 3.09 s / 0.077 s, kernels 3.43 s / 0.032 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
+
+### Measured
+
+Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `segformer-b0-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 34.68 / 76.41 | 34.68 / 76.41 | 34.67 / 76.41 | 34.67 / 76.41 |  |
+| `segformer-b5-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

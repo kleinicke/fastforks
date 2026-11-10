@@ -6,45 +6,47 @@
 
 Input: one RGB image. Output: dense patch features and a pooled image feature.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
 
-| model | commercial | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`dinov2-vitb14`](#dinov2) | yes | 1.478, 3.0x | 290 (-96) |
-| [`dinov2-vitb14-reg`](#dinov2) | yes | 1.501, 2.9x | 288 (-98) |
-| [`dinov2-vitg14`](#dinov2) | yes | 13.156, 2.6x | 2318 (-2088) |
-| [`dinov2-vitg14-reg`](#dinov2) | yes | 12.98 | 4430 |
-| [`dinov2-vitl14`](#dinov2) | yes | 4.593, 2.1x | 714 (-510) |
-| [`dinov2-vitl14-reg`](#dinov2) | yes | 4.6 | 714 |
-| [`dinov2-vits14`](#dinov2) | yes | 0.848, 3.9x | 148 (+16) |
-| [`dinov2-vits14-reg`](#dinov2) | yes | 0.814 | 142 |
-| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.179, 3.4x | 214 (-180) |
-| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.593, 2.7x | 494 (-404) |
-| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.99, 3.0x | 152 (-122) |
-| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.18, 2.5x | 112 (-50) |
-| [`dinov3-vitb16`](#dinov3) | yes | 1.404, 5.0x | 252 (-138) |
-| [`dinov3-vith16plus`](#dinov3) | yes | 9.301, 2.8x | 1694 (-1582) |
-| [`dinov3-vitl16`](#dinov3) | yes | 3.279, 5.4x | 674 (-538) |
-| [`dinov3-vits16`](#dinov3) | yes | 0.903, 7.2x | 106 (-26) |
+| [`dinov2-vitb14`](#dinov2) | yes | 1.478, 3.0x | 290, 0.75x |
+| [`dinov2-vitb14-reg`](#dinov2) | yes | 1.501, 2.9x | 288, 0.75x |
+| [`dinov2-vitg14`](#dinov2) | yes | 13.156, 2.6x | 2318, 0.53x |
+| [`dinov2-vitg14-reg`](#dinov2) | yes | 12.98, 2.6x | 4430, 1.0x |
+| [`dinov2-vitl14`](#dinov2) | yes | 4.593, 2.1x | 714, 0.58x |
+| [`dinov2-vitl14-reg`](#dinov2) | yes | 4.6, 2.3x | 714, 0.58x |
+| [`dinov2-vits14`](#dinov2) | yes | 0.848, 3.9x | 148, 1.1x |
+| [`dinov2-vits14-reg`](#dinov2) | yes | 0.814, 5.0x | 142, 1.1x |
+| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.179, 3.4x | 214, 0.54x |
+| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.593, 2.7x | 494, 0.55x |
+| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.99, 3.0x | 152, 0.55x |
+| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.18, 2.5x | 112, 0.69x |
+| [`dinov3-vitb16`](#dinov3) | yes | 1.404, 5.0x | 252, 0.65x |
+| [`dinov3-vith16plus`](#dinov3) | yes | 9.301, 2.8x | 1694, 0.52x |
+| [`dinov3-vitl16`](#dinov3) | yes | 3.279, 5.4x | 674, 0.56x |
+| [`dinov3-vits16`](#dinov3) | yes | 0.903, 7.2x | 106, 0.8x |
 
 <a id="dinov2"></a>
 
 ## DINOv2
 
-Meta's DINOv2: self-supervised image features (patch and class tokens) in four sizes, with and without register tokens. Commercially usable.
+Meta's DINOv2: self-supervised image features (patch and class tokens) in four sizes, with and without register tokens.
 
 Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `dinov2-vits14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 3.30<br>4.40<br>2.95<br>0.848 | 121 / 132<br>160 / 166<br>79 / 98<br>112 / 148 |
-| `dinov2-vits14-reg` | synthetic (224x224) | original<br>portable<br>kernels | –<br>2.98<br>0.814 | –<br>80 / 98<br>112 / 142 |
-| `dinov2-vitb14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 6.90<br>4.50<br>2.92<br>1.48 | 371 / 386<br>530 / 548<br>205 / 226<br>237 / 290 |
+| `dinov2-vits14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 4.11<br>5.59<br>2.98<br>0.814 | 121 / 132<br>160 / 168<br>80 / 98<br>112 / 142 |
+| `dinov2-vitb14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.90<br>4.50<br>2.92<br>1.48<br>2.20<br>1.30 | 371 / 386<br>530 / 548<br>205 / 226<br>237 / 290<br>240 / 266<br>198 (engine) |
 | `dinov2-vitb14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 7.00<br>4.30<br>2.94<br>1.50 | 371 / 386<br>530 / 548<br>207 / 226<br>237 / 288 |
 | `dinov2-vitl14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 22.8<br>9.80<br>6.12<br>4.59 | 1205 / 1224<br>1777 / 1784<br>622 / 646<br>655 / 714 |
-| `dinov2-vitl14-reg` | synthetic (224x224) | original<br>portable<br>kernels | –<br>6.17<br>4.60 | –<br>625 / 646<br>655 / 714 |
+| `dinov2-vitl14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 22.5<br>10.7<br>6.17<br>4.60 | 1205 / 1226<br>1777 / 1786<br>625 / 646<br>655 / 714 |
 | `dinov2-vitg14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 86.4<br>33.9<br>18.9<br>13.2 | 4389 / 4406<br>6542 / 6548<br>2216 / 2230<br>2246 / 2318 |
-| `dinov2-vitg14-reg` | synthetic (224x224) | original<br>portable<br>kernels | –<br>18.7<br>13.0 | –<br>2217 / 2228<br>2222 / 4430 |
+| `dinov2-vitg14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 86.6<br>34.2<br>18.7<br>13.0 | 4389 / 4406<br>6542 / 6568<br>2217 / 2228<br>2222 / 4430 |
 
 <details><summary>Details</summary>
 
@@ -59,22 +61,43 @@ Commercial use: yes.
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dinov2-vits14` 3000x4000 (0.8 GiB peak allocated, 1.2 reserved); `dinov2-vits14-reg` 3000x4000 (0.8 GiB peak allocated, 1.2 reserved); `dinov2-vitb14` 3000x4000 (1.4 GiB peak allocated, 2.2 reserved); `dinov2-vitb14-reg` 3000x4000 (1.4 GiB peak allocated, 2.2 reserved); `dinov2-vitl14` 3000x4000 (2.2 GiB peak allocated, 3.1 reserved); `dinov2-vitl14-reg` 3000x4000 (2.2 GiB peak allocated, 3.1 reserved); `dinov2-vitg14` 3000x4000 (4.8 GiB peak allocated, 5.9 reserved); `dinov2-vitg14-reg` 3000x4000 (4.8 GiB peak allocated, 5.9 reserved)
+- `dinov2-vitb14` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `dinov2-vits14` original 224x224: torch.autocast(fp16) around the forward
+- `dinov2-vits14-reg` original (fp32) 224x224, original 224x224: dinov2 forward_features CLS
 - `dinov2-vitb14` original 224x224: torch.autocast(fp16) around the forward
 - `dinov2-vitb14-reg` original 224x224: torch.autocast(fp16) around the forward
 - `dinov2-vitl14` original 224x224: torch.autocast(fp16) around the forward
+- `dinov2-vitl14-reg` original (fp32) 224x224, original 224x224: dinov2 forward_features CLS
 - `dinov2-vitg14` original 224x224: torch.autocast(fp16) around the forward
+- `dinov2-vitg14-reg` original (fp32) 224x224, original 224x224: dinov2 forward_features CLS
 - `dinov2-vits14` load / first call: original 0.41 s / 0.174 s, portable 0.07 s / 0.118 s, kernels 0.07 s / 0.153 s
-- `dinov2-vits14-reg` load / first call: portable 0.21 s / 0.126 s, kernels 0.08 s / 0.167 s
+- `dinov2-vits14-reg` load / first call: original 1.32 s / 0.107 s, portable 0.21 s / 0.126 s, kernels 0.08 s / 0.167 s
 - `dinov2-vitb14` load / first call: original 1.51 s / 0.006 s, portable 0.27 s / 0.205 s, kernels 0.19 s / 0.191 s
 - `dinov2-vitb14-reg` load / first call: original 1.71 s / 0.035 s, portable 0.59 s / 0.042 s, kernels 0.21 s / 0.205 s
 - `dinov2-vitl14` load / first call: original 7.06 s / 0.013 s, portable 0.57 s / 0.148 s, kernels 0.57 s / 0.179 s
-- `dinov2-vitl14-reg` load / first call: portable 0.66 s / 0.113 s, kernels 0.56 s / 0.205 s
+- `dinov2-vitl14-reg` load / first call: original 4.6 s / 0.068 s, portable 0.66 s / 0.113 s, kernels 0.56 s / 0.205 s
 - `dinov2-vitg14` load / first call: original 19.29 s / 0.046 s, portable 4.37 s / 0.104 s, kernels 2.22 s / 0.162 s
-- `dinov2-vitg14-reg` load / first call: portable 4.32 s / 0.033 s, kernels 2.91† s / 0.017 s
+- `dinov2-vitg14-reg` load / first call: original 14.67 s / 0.089 s, portable 4.32 s / 0.033 s, kernels 2.91† s / 0.017 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, `dinov2-vits14`, `dinov2-vits14-reg`, `dinov2-vitb14`, `dinov2-vitb14-reg`, `dinov2-vitl14`, `dinov2-vitl14-reg`, `dinov2-vitg14`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 - Protocol, `dinov2-vitg14-reg`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `dinov2-vits14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.20 | 59.22 | 59.26 | 59.16 |  |
+| `dinov2-vits14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.98 | 60.00 | 59.96 | 59.96 |  |
+| `dinov2-vitb14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.80 | 67.76 | 67.74 | 67.78 |  |
+| `dinov2-vitb14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.14 | 69.18 | 69.14 | 69.18 |  |
+| `dinov2-vitl14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 72.12 | 72.16 | 72.18 | 72.14 |  |
+| `dinov2-vitl14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.08 | 73.08 | 73.06 | 73.08 |  |
+| `dinov2-vitg14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.64 | 70.66 | 70.64 | 70.68 |  |
+| `dinov2-vitg14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 72.60 | 72.58 | 72.60 | 72.64 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -103,7 +126,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov3-convnext-tiny` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 2.96<br>4.47<br>3.04<br>1.18 | 151 / 162<br>198 / 206<br>93 / 108<br>86 / 112 |
+| `dinov3-convnext-tiny` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2.96<br>4.47<br>3.04<br>1.18<br>1.96<br>0.681 | 151 / 162<br>198 / 206<br>93 / 108<br>86 / 112<br>123 / 148<br>72 (engine) |
 | `dinov3-convnext-small` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 5.97<br>8.09<br>5.42<br>1.99 | 233 / 274<br>328 / 348<br>134 / 150<br>127 / 152 |
 | `dinov3-convnext-base` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 7.38<br>8.24<br>5.71<br>2.18 | 384 / 394<br>535 / 552<br>208 / 232<br>200 / 214 |
 | `dinov3-convnext-large` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 10.5<br>9.59<br>5.45<br>3.59 | 819 / 898<br>1163 / 1252<br>419 / 430<br>441 / 494 |
@@ -121,11 +144,25 @@ Commercial use: yes.
 - Outputs: last_hidden_state, pooler_output
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dinov3-convnext-tiny` 3000x4000 (1.9 GiB peak allocated, 2.6 reserved); `dinov3-convnext-small` 3000x4000 (1.9 GiB peak allocated, 2.6 reserved); `dinov3-convnext-base` 3000x4000 (2.5 GiB peak allocated, 3.5 reserved); `dinov3-convnext-large` 3000x4000 (3.7 GiB peak allocated, 5.1 reserved)
+- `dinov3-convnext-tiny` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 23 s (ONNX + engine).
 - `dinov3-convnext-tiny` load / first call: original 0.43 s / 1.034 s, portable 0.48 s / 0.417 s, kernels 0.08 s / 0.124 s
 - `dinov3-convnext-small` load / first call: original 0.27 s / 0.01 s, portable 0.25 s / 0.334 s, kernels 0.11 s / 0.074 s
 - `dinov3-convnext-base` load / first call: original 0.42 s / 0.015 s, portable 0.43 s / 0.27 s, kernels 0.19 s / 0.104 s
 - `dinov3-convnext-large` load / first call: original 1.64 s / 0.017 s, portable 0.85 s / 0.241 s, kernels 0.38 s / 0.2 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `dinov3-convnext-tiny` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.50 | 62.50 | 62.50 | 62.44 |  |
+| `dinov3-convnext-small` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.14 | 67.16 |  |
+| `dinov3-convnext-base` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.84 | 69.88 | 69.84 | 69.88 |  |
+| `dinov3-convnext-large` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.30 | 73.32 | 73.30 | 73.28 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -150,7 +187,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov3-vits16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 6.47<br>9.16<br>4.67<br>0.903 | 119 / 132<br>158 / 166<br>77 / 80<br>77 / 106 |
+| `dinov3-vits16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.47<br>9.16<br>4.67<br>0.903<br>2.18<br>0.564 | 119 / 132<br>158 / 166<br>77 / 80<br>77 / 106<br>109 / 138<br>64 (engine) |
 | `dinov3-vitb16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 6.95<br>9.33<br>4.86<br>1.40 | 367 / 390<br>527 / 550<br>201 / 206<br>201 / 252 |
 | `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 19.2<br>17.7<br>9.13<br>3.28 | 1199 / 1212<br>1772 / 1812<br>617 / 646<br>617 / 674 |
 | `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 48.0<br>25.9<br>13.3<br>9.30 | 3255 / 3276<br>4849 / 4876<br>1645 / 1668<br>1644 / 1694 |
@@ -169,6 +206,7 @@ Commercial use: yes.
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dinov3-vits16` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved); `dinov3-vitb16` 3000x4000 (1.6 GiB peak allocated, 2.0 reserved); `dinov3-vitl16` 3000x4000 (2.4 GiB peak allocated, 2.9 reserved); `dinov3-vith16plus` 3000x4000 (4.2 GiB peak allocated, 4.9 reserved)
+- `dinov3-vits16` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `dinov3-vits16` original 224x224: torch.autocast(fp16) around the forward
 - `dinov3-vitb16` original 224x224: torch.autocast(fp16) around the forward
 - `dinov3-vitl16` original 224x224: torch.autocast(fp16) around the forward
@@ -178,6 +216,19 @@ Commercial use: yes.
 - `dinov3-vitl16` load / first call: original 2.37 s / 0.023 s, portable 0.54 s / 0.18 s, kernels 0.52 s / 0.246 s
 - `dinov3-vith16plus` load / first call: original 5.95 s / 0.046 s, portable 2.02 s / 0.099 s, kernels 1.4 s / 0.202 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `dinov3-vits16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 55.38 | 55.42 | 55.42 | 55.36 |  |
+| `dinov3-vitb16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.54 | 66.54 | 66.52 | 66.54 |  |
+| `dinov3-vitl16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.94 | 75.92 | 75.80 | 75.88 |  |
+| `dinov3-vith16plus` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 79.50 | 79.50 | 79.52 | 79.52 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

@@ -89,8 +89,9 @@ def stage(name: str, spec: dict, version: str, out: Path, extras: dict[str, list
         )
     licences, files = _licences(dirs)
     include = [str(d.relative_to(ROOT)) for d in dirs]
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
     if extras is None:
-        extras = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["optional-dependencies"]
+        extras = project["optional-dependencies"]
     deps = [f"{CORE}=={version}", *library_requirements(spec, extras)]
     pyproject = f"""\
 [project]
@@ -102,6 +103,7 @@ license = "{_expression(licences)}"
 license-files = {files!r}
 dependencies = {json.dumps(deps)}
 
+{_urls(project)}
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
@@ -112,6 +114,11 @@ sources = ["src"]
 """
     (out / "pyproject.toml").write_text(pyproject)
     (out / "README.md").write_text(f"# {name}\n\n{spec['summary']}\n")
+
+
+def _urls(project: dict) -> str:
+    """Return the `[project.urls]` table of the source pyproject, for the generated distributions."""
+    return "[project.urls]\n" + "".join(f"{k} = {json.dumps(v)}\n" for k, v in project.get("urls", {}).items())
 
 
 _MODELS_EXCLUDE = '"src/fastforks/*/models/*/golden.toml"'
@@ -174,7 +181,7 @@ def meta_pyproject(text: str, dists: dict, version: str) -> str:
     """Return the pyproject.toml of the `fastforks` metapackage: fastforks-core with every distribution and `libs`.
 
     Args:
-        text: The source pyproject.toml (for the description, authors, classifiers and the `libs` extra check).
+        text: The source pyproject.toml (description, authors, keywords, classifiers, URLs and the `libs` extra check).
         dists: The parsed dists.toml.
         version: The fastforks-core version.
 
@@ -198,12 +205,14 @@ license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{authors}]
 requires-python = {json.dumps(project["requires-python"])}
+keywords = {json.dumps(project.get("keywords", []))}
 classifiers = {json.dumps(project["classifiers"])}
 dependencies = ["{CORE}[{picks}]=={version}"]
 
 [project.optional-dependencies]
 tensorrt = ["{CORE}[tensorrt]=={version}"]
 
+{_urls(project)}
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"

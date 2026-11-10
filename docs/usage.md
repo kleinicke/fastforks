@@ -327,7 +327,8 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   file name. Both are only read; a copy that does not match, or a cache directory that cannot be read, is skipped and
   the file is downloaded.
 - `fastforks download MODEL` (`--kernels` for the kernel binaries) fetches everything into the user cache ahead of
-  time, e.g. before going offline. `--arch sm_89` fetches the binaries of a GPU you do not have, `--check` verifies the
+  time, e.g. before going offline. A model that fails (e.g. gated without a token) does not stop the others: it is
+  listed as `MISSING ...` at the end and the command exits 1. `--arch sm_89` fetches the binaries of a GPU you do not have, `--check` verifies the
   cache without network (a file whose size and mtime match its recorded stamp is not re-hashed), `--dry-run` lists
   the download size (the archive, once) and licence classes. `FASTFORKS_OFFLINE=1` (or `HF_HUB_OFFLINE=1`)
   forbids every download; a missing file then raises an error naming it and the command that fetches it. For
@@ -536,7 +537,8 @@ sparse convolutions) and VGGT (the aggregator's q / k LayerNorm and RoPE) in flo
 under a second on first use; `mode="auto"` picks it. Every other family runs `portable`.
 
 - dtype: float32 by default. `dtype="float16"` works where the card lists it (`fastforks info MODEL`, row
-  `apple gpu`), mainly to save memory (up to half); the M1-M3 GPUs compute float16 no faster than float32.
+  `apple gpu`). It saves memory (up to half) and on an M1 Pro is also faster: median 1.15x over 60 models, up to
+  2.9x on memory-bound stereo cost volumes (GREAT-IGEV, CoEx, CAS-GwcNet), rarely slower (HITNet, Mask2Former 0.94x).
 - A few small steps run on the CPU or in float32 by design: float64 maths in MoGe and SAM, one adaptive pooling in
   S2M2, Depth Anything 3's bicubic resize.
 - The first call at a new input size takes 0.5-4 s longer (PyTorch compiles the Metal kernels for that shape).
@@ -544,7 +546,7 @@ under a second on first use; `mode="auto"` picks it. Every other family runs `po
   (Activity Monitor). A model larger than the free RAM swaps (slower, but it runs); keep several GB free on
   the system disk, since with a full disk swapping can freeze the machine.
 
-Time, memory and accuracy per model on an M1 Pro: [benchmarks](benchmarks.md#apple-silicon-mps).
+Time and memory per model on an M1 Pro: [Apple M1 Pro](devices/apple-m1-pro-16gb.md).
 
 ## torch.compile, torch.export, ONNX and TensorRT
 

@@ -12,15 +12,17 @@ tests/test_docs.py runs the check.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import math
 import re
-import statistics
 import sys
 import tomllib
+from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import _devices
 import goldens
 from fastforks._core import licences, registry
 from fastforks._core.sizes import card_size_lines
@@ -44,22 +46,72 @@ _DATASETS = {
         "eth3d": "ETH3D two-view train left, AbsRel / delta1",
         "middH": "Middlebury 2014 trainingH left, AbsRel / delta1",
     },
+    "segmentation": {
+        "ade20k-val": "ADE20K val, every 4th image, mIoU / aAcc %",
+        "coco-val2017-persons-every10": "COCO val2017 persons, every 10th image, person IoU %",
+    },
+    "detection": {"coco-val2017-every10": "COCO val2017, every 10th image, box mAP"},
+    "promptable_segmentation": {
+        "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
+        "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
+    },
+    "features": {
+        "imagenet-val-knn-train10000-test5000-seed0-k20": "ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / "
+        "5000 test images)"
+    },
+    "multiview": {"dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %"},
+    "classification": {"imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %"},
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
-# task -> (metric a, metric b, format, sample count key, sample noun)
-_METRICS = {
-    "stereo": ("bad", "epe", "{:.2f} / {:.3f}", "n_pairs", "pairs"),
-    "depth": ("rel_absrel", "rel_d1", "{:.4f} / {:.4f}", "n_images", "images"),
+# task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
+# shown where the row has it, its suffix appended to the dataset title where a row of the table has it
+_Metric = tuple[str, str, str]
+_METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
+    "stereo": ((("bad", "{:.2f}", ""), ("epe", "{:.3f}", "")), "n_pairs", "pairs"),
+    "depth": ((("rel_absrel", "{:.4f}", ""), ("rel_d1", "{:.4f}", "")), "n_images", "images"),
+    "segmentation": ((("miou", "{:.2f}", ""), ("aacc", "{:.2f}", "")), "n", "images"),
+    ("segmentation", "coco-val2017-persons-every10"): ((("person_iou", "{:.2f}", ""),), "n", "images"),
+    "detection": ((("box_map", "{:.2f}", ""), ("mask_map", "{:.2f}", " / mask mAP")), "n", "images"),
+    "promptable_segmentation": ((("miou_best", "{:.2f}", ""), ("miou_single", "{:.2f}", "")), "n", "images"),
+    ("promptable_segmentation", "coco-val2017-every10-text"): (
+        (("box_map", "{:.2f}", ""), ("mask_map", "{:.2f}", "")),
+        "n",
+        "images",
+    ),
+    "features": ((("top1", "{:.2f}", ""),), "n", "images"),
+    "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
+    "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
 }
-# task -> protocol sentence of the measured tables
+# task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
     "depth": "AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), "
     "mean over images. ",
+    ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
+    ("segmentation", "coco-val2017-persons-every10"): "Any body part counts as person; ground truth = the COCO person "
+    "masks. ",
+    "detection": "pycocotools COCOeval of the top 100 detections per image. ",
+    ("promptable_segmentation", "coco-val2017-every10"): "One point per ground-truth instance (the interior point "
+    "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
+    ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
+    "image; the top 100 instances go to pycocotools COCOeval. ",
+    "features": "Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop "
+    "224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. ",
+    "multiview": "640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light "
+    "points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras "
+    "(calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range "
+    "from the camera baselines). ",
+    "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
+    "and its PIL eval transform. ",
+}
+# family -> what its original columns ran where that differs from the original code under Details (note column)
+_ORIGINAL_IS = {
+    "crestereo": "original = the community PyTorch port (MegEngine 1.13 has no sm_120 build)",
+    "sam3": "original = transformers `Sam3Model`, the port this code follows",
 }
 _MODES = ("upstream", "upstream-default", "portable", "kernels")
 _EVAL_MODES = ("upstream", "upstream-fp16", "portable", "kernels")
 _EVAL_LABEL = {"upstream": "original fp32", "upstream-fp16": "original fp16"}
-_PROTO = "Original = the authors' code, same checkpoint and protocol."
+_PROTO = "Original = the original code named under Details, same checkpoint and protocol."
 
 
 def _label(mode: str) -> str:
@@ -96,9 +148,20 @@ def _speed_rows() -> dict[str, list[dict]]:
     rows: dict[str, list[dict]] = {}
     for line in path.read_text().splitlines() if path.is_file() else []:
         row = json.loads(line)
+        if row.get("status") == "oom":  # no time: read by _oom
+            continue
         if not row.get("cold") or "ms" in row:  # speed_check rows: a fresh process, warm timings included
             rows.setdefault(row["ref"], []).append(row)
     return rows
+
+
+@functools.cache
+def _oom() -> frozenset[tuple[str, str, str]]:
+    """(ref, mode, input) of the speed.jsonl rows that ran out of GPU memory (`status: "oom"`, no time)."""
+    path = ROOT / "docs" / "data" / "speed.jsonl"
+    lines = path.read_text().splitlines() if path.is_file() else []
+    rows = [json.loads(line) for line in lines if '"oom"' in line]
+    return frozenset((r["ref"], r["mode"], r["input"]) for r in rows if r.get("status") == "oom")
 
 
 NM = "not measured"
@@ -118,7 +181,8 @@ def _note(row: dict) -> str:
 def _peak(row: dict | None) -> str:
     if row is None or "peak_alloc_mb" not in row:
         return DASH
-    return f"{row['peak_alloc_mb']} / " + (str(row["peak_reserved_mb"]) if "peak_reserved_mb" in row else DASH)
+    res = row.get("peak_reserved_mb")  # None: the framework has no reserved figure (TensorFlow)
+    return f"{row['peak_alloc_mb']} / " + (DASH if res is None else str(res))
 
 
 def _ms_str(ms: object) -> str:
@@ -128,10 +192,10 @@ def _ms_str(ms: object) -> str:
     return f"{ms:.{max(0, 2 - math.floor(math.log10(abs(ms))))}f}"
 
 
-def _ms_cell(row: dict | None) -> str:
-    """A speed row's time; an fp32 original (fp16 unsupported or non-finite) is marked."""
+def _ms_cell(row: dict | None, *, oom: bool = False) -> str:
+    """A speed row's time; an fp32 original (fp16 unsupported or non-finite) is marked; no row: OOM if it ran out."""
     if row is None:
-        return DASH
+        return "OOM" if oom else DASH
     fp32 = row["mode"] == "upstream" and row.get("protocol", "").endswith("float32")
     return f"{_ms_str(row['ms'])} (fp32)" if fp32 else _ms_str(row["ms"])
 
@@ -144,6 +208,45 @@ def _faster(*rows: dict | None) -> dict | None:
 def _orig(fp16: dict | None, fp32: dict | None) -> dict | None:
     """The original row a speed-up uses; an fp32 row with a `dtype` is no stand-in for a missing fp16 original."""
     return _faster(fp16, None if fp16 is None and fp32 and fp32.get("dtype") else fp32)
+
+
+_COMPILE_LABEL = {"compile": "portable + torch.compile", "tensorrt": "TensorRT fp16"}  # speed_compile.jsonl modes
+_ENGINE_PART = {"promptable_segmentation": "image encoder", "rcnn": "backbone + FPN"}  # task / family: `module()`
+
+
+@functools.cache
+def _engine_part(model_id: str) -> str:
+    """` (image encoder only)` where the TensorRT engine (`module()`) runs only part of the timed call, else ''."""
+    for task in registry.TASKS:
+        for card, v in registry.cards(task).values():
+            if v.id == model_id and (part := _ENGINE_PART.get(card.family) or _ENGINE_PART.get(task)):
+                return f" ({part} only)"
+    return ""
+
+
+@functools.cache
+def _compile_rows() -> dict[tuple[str, str], dict]:
+    """docs/data/speed_compile.jsonl: the latest row per (model id, mode)."""
+    path = ROOT / "docs" / "data" / "speed_compile.jsonl"
+    return {(r["ref"], r["mode"]): r for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])}
+
+
+def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]], list[str]]:
+    """The compile / TensorRT cell lines (label, time, memory) of one variant and input, and their one-time setup."""
+    lines, setup = [], []
+    for mode, label in _COMPILE_LABEL.items():
+        r = _compile_rows().get((model_id, mode))
+        if r is None or r["input"] != size:
+            continue
+        if "fails" in r:
+            lines.append((label, f"fails: {_fail_reason(r['fails'])}", DASH))
+            continue
+        engine = mode == "tensorrt" and "device_mb" in r
+        ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
+        lines.append((label, ms, f"{r['device_mb']} (engine)" if engine else _peak(r)))
+        first = r["compile_s"] if mode == "compile" else r["onnx_export_s"] + r["engine_build_s"]
+        setup.append(f"{label} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
+    return lines, setup
 
 
 _COMPUTE_KEYS = ("max_disp", "iters", "valid_iters", "resize")  # variant params that change the work per call
@@ -342,14 +445,21 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
         std = _std_input(card.task, {})
         for size in [std] if std in sizes else sizes[-1:] if std != _OWN else sizes:
             by = {r["mode"]: r for r in rows[v.id] if r["input"] == size}
-            modes = [m for m in _SPEED_MODES if m in by or m in ("upstream", "portable", "kernels")]
+            oom = {m for m in _SPEED_MODES if (v.id, m, size) in _oom()}
+            modes = [m for m in _SPEED_MODES if m in by or m in oom or m in ("upstream", "portable", "kernels")]
             cells = [by.get(m) for m in modes]
             scene = _scene(next(iter(by.values())).get("scene", ""))
             inp = f"{scene} ({size})" if scene else size
-            ms = "<br>".join(_ms_str(r["ms"]) if r else DASH for r in cells)
-            mem = "<br>".join(_peak(r) for r in cells)
-            names = "<br>".join(_label(m) for m in modes)
+            extra, setup = _compile_lines(v.id, size)
+            names = "<br>".join([*(_label(m) for m in modes), *(e[0] for e in extra)])
+            ms = "<br>".join(
+                [*(_ms_str(r["ms"]) if r else "OOM" if m in oom else DASH for m, r in zip(modes, cells, strict=True))]
+                + [e[1] for e in extra]
+            )
+            mem = "<br>".join([*(_peak(r) for r in cells), *(e[2] for e in extra)])
             lines.append(f"| {labelled(measured_all, v)} | {inp} | {names} | {ms} | {mem} |")
+            if setup:
+                notes.append(f"- `{v.id}` {size}, first call: {', '.join(setup)}.")
             for m in modes:
                 if (r := by.get(m)) and _note(r):
                     given.setdefault((v.id, _note(r)), []).append(f"{_label(m)} {size}")
@@ -457,15 +567,19 @@ def _accuracy(task: str, by: dict[tuple[str, str], dict], mode: str, dataset: st
     r = by.get((mode, dataset))
     if r is None:
         return ""
-    a, b, fmt, count, noun = _METRICS[task]
+    metrics, count, noun = _METRICS.get((task, dataset)) or _METRICS[task]
     err = r.get("error", "")
     if err.startswith("OOM"):  # the original at this size does not fit the GPU
         return "out of memory"
+    if err.startswith("call: ") and mode.startswith("upstream"):  # the original itself fails on this data
+        return "fails (" + ": ".join(err.split(": ")[1:3]).lstrip("_") + ")"
     if err and not err.startswith("non-finite"):
         msg = f"{r['ref']} {mode} {dataset}: no cell for the error {err!r}"
         raise ValueError(msg)
+    m = r.get("metrics") or r
     n, full = r.get(count), by.get(("portable", dataset), r).get(count)
-    cell = fmt.format(r[a], r[b]) + (f" ({n} {noun})" if n and full and n < full else "")
+    cell = " / ".join(fmt.format(m[k]) for k, fmt, opt in metrics if not opt or k in m)
+    cell += f" ({n} {noun})" if n and full and n < full else ""
     return cell + (" (NaN / inf output)" if err else "")
 
 
@@ -483,6 +597,17 @@ def _where(gpu: str, torch: str, commit: str, date: str) -> str:
     return f"{gpu}, torch {torch}, " + (f"fastforks {commit}, " if commit else "") + date
 
 
+def _span(days: set[str]) -> str:
+    """`2026-11-05`, or `2026-11-05 to 2026-11-06` for rows of several days."""
+    return " to ".join(dict.fromkeys((min(days), max(days))))
+
+
+def _suffixes(task: str, dataset: str, rows: list[dict]) -> list[str]:
+    """Title suffixes of the optional metrics of `dataset` that one of `rows` has."""
+    metrics = (_METRICS.get((task, dataset)) or _METRICS[task])[0]
+    return [opt for k, _, opt in metrics if opt and any(k in (r.get("metrics") or r) for r in rows)]
+
+
 def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[str]:
     """Accuracy (original fp32 / fp16, portable, kernels) of the measured variants (speed: the speed tables)."""
     measured = [v for v in card.variants if v.id in rows]
@@ -491,18 +616,22 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
     mine = [r for v in measured for r in rows[v.id]]
     titles = _DATASETS[task]
     sets = [d for d in titles if any(r["dataset"] == d for r in mine)]
-    meta: dict[str, set[tuple[str, str, str, str]]] = {}  # mode -> {(gpu, torch, commit, date)}
+    meta: dict[str, set[tuple[str, str]]] = {}  # mode -> {(gpu, torch)}
+    commits: dict[str, set[str]] = {}  # mode -> fastforks commits (a campaign may move to a fix commit)
+    days: dict[str, set[str]] = {}  # mode -> dates (a run may cross midnight)
     for r in mine:
         if not r["mode"].startswith("upstream"):
-            meta.setdefault(r["mode"], set()).add((r["gpu"], r["torch"], r["commit"], r["date"][:10]))
+            meta.setdefault(r["mode"], set()).add((r["gpu"], r["torch"]))
+            commits.setdefault(r["mode"], set()).add(r["commit"])
+            days.setdefault(r["mode"], set()).add(r["date"][:10])
     thr = {r["bad_thr"] for r in mine if "bad_thr" in r and r["bad_thr"] != _BAD_THR.get(r["dataset"])}
     if any(len(m) > 1 for m in meta.values()) or thr or len(sets) != len({r["dataset"] for r in mine}):
-        msg = (
-            f"{card.family}: rows of a mode need one gpu / torch / commit / date, known datasets and thresholds: "
-            f"{meta} {thr}"
-        )
+        msg = f"{card.family}: rows of a mode need one gpu / torch, known datasets and thresholds: {meta} {thr}"
         raise ValueError(msg)
-    per_mode = {mode: next(iter(m)) for mode, m in meta.items()}
+    per_mode = {
+        mode: (*next(iter(m)), " / ".join(sorted(commits[mode])), _span(days[mode])) for mode, m in meta.items()
+    }
+    per_mode = {mode: w for mode, w in per_mode.items() if mode in _MODES}  # the modes the table shows
     if len(set(per_mode.values())) <= 1:
         where = _where(*next(iter(per_mode.values()))) + ". " if per_mode else ""
     else:  # e.g. a kernels backend re-measured after a kernel change
@@ -512,7 +641,7 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
         "",
         "### Measured",
         "",
-        _PROTOCOL.get(task, "") + _PROTO,
+        _PROTOCOL.get(task, "") + "".join(_PROTOCOL.get((task, d), "") for d in sets) + _PROTO,
         "",
         f"| variant | dataset | {' | '.join(_EVAL_LABEL.get(m, m) for m in shown)} | note |",
         f"|---|---|{'---|' * len(shown)}---|",
@@ -522,17 +651,12 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
         for d in sets:
             if not any(k[1] == d for k in by):
                 continue
-            mark = _overlap(card, v, d)
+            title = titles[d] + "".join(_suffixes(task, d, [r for r in rows[v.id] if r["dataset"] == d]))
             cells = [_accuracy(task, by, m, d) for m in shown]
-            lines.append(f"| `{v.id}` | {titles[d]} | {' | '.join(cells)} | {_NOTE.get(mark, '')} |")
+            note = "; ".join(n for n in (_NOTE.get(_overlap(card, v, d), ""), _ORIGINAL_IS.get(card.family, "")) if n)
+            lines.append(f"| `{v.id}` | {title} | {' | '.join(cells)} | {note} |")
     lines += ["", "Measured on " + where.rstrip(". ") + "."] if where else []
     return lines
-
-
-def _default_gpu(speed: dict[str, list[dict]]) -> str:
-    """The GPU most speed rows were measured on."""
-    gpus = [r["gpu"].removeprefix("NVIDIA GeForce ") for rs in speed.values() for r in rs]
-    return statistics.mode(gpus) if gpus else "the benchmark GPU"
 
 
 def _name(v: Variant) -> str:
@@ -606,12 +730,13 @@ def _at(rows: list[dict], size: str) -> str:
     return size if size in ins or not ins else max(ins, key=_pixels)
 
 
-def _mem_change(mem: object, *originals: dict | None) -> str:
-    """` (-236)`: kernels peak reserved minus the smallest original peak reserved (conservative), else empty."""
+def _mem_ratio(mem: object, *originals: dict | None) -> str:
+    """`, 0.62x`: kernels peak reserved / the smallest original peak reserved (conservative), else empty."""
     orig = [r["peak_reserved_mb"] for r in originals if r and isinstance(r.get("peak_reserved_mb"), int | float)]
     if not orig or not isinstance(mem, int | float) or isinstance(mem, bool):
         return ""
-    return f" ({round(mem - min(orig)):+d})"
+    x = mem / min(orig)
+    return f", {x:.2g}x" if x < 1 else f", {x:.1f}x"
 
 
 def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list[dict]], size: str) -> list[str]:
@@ -620,7 +745,7 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
     ov = {r["id"]: r for r in _overview_rows(task, fixed, speed, rows)}
     acc_col = _OVERVIEW_ACC.get(task)
     head = ["model", "commercial"] + ([f"{acc_col[2]} \u2193"] if acc_col else [])
-    head += ["kernels time (ms), speed-up vs original", "kernels peak memory (MiB, reserved), change vs original"]
+    head += ["kernels time (ms),<br>speed-up vs original", "kernels peak memory (MiB, reserved),<br>ratio to original"]
     body: list[list[str]] = []
     marks = set()
     for card, v in registry.cards(task).values():
@@ -640,7 +765,7 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
         else:
             ms, mem = _DASH, _DASH
         speedup = f", {orig['ms'] / mx['ms']:.1f}x" if mx and orig else ""
-        mem = f"{mem}{_mem_change(mem, by.get('upstream'), by.get('upstream-default'))}"
+        mem = f"{mem}{_mem_ratio(mem, by.get('upstream'), by.get('upstream-default'))}"
         cells = [
             f"[`{_name(v)}`](#{card.family})"
             + (f" ({setting(card.variants, v)})" if setting(card.variants, v) else ""),
@@ -681,6 +806,13 @@ TASK_IO = {
 }
 
 
+_TITLE = {"depth": "Monocular depth"}  # page titles that differ from the task name
+
+
+def _title(task: str) -> str:
+    return _TITLE.get(task, task.capitalize().replace("_", " "))
+
+
 def render(task: str) -> str:
     """Markdown page of all models of `task`."""
     families = {card.family: card for card, _ in registry.cards(task).values()}
@@ -689,7 +821,7 @@ def render(task: str) -> str:
     basis = {_OWN: "each model's own benchmark input (see Benchmarks)"}.get(std, f"one input, {std}")
     gpu = _env_note({i: rs for i, rs in speed.items() if i in {v.id for c in families.values() for v in c.variants}})
     lines = [
-        f"# {task.capitalize().replace('_', ' ')} models",
+        f"# {_title(task)} models (one image)" if task == "depth" else f"# {_title(task)} models",
         "",
         "<!-- Generated by tools/gen_docs.py from the model cards; do not edit. -->",
         "",
@@ -701,12 +833,16 @@ def render(task: str) -> str:
         TASK_IO[task],
         "",
         (
-            f"Measured on {gpu or _default_gpu(speed)}; `fastforks bench MODEL --size HxW` measures yours. "
+            f"Measured on {gpu or _devices.reference().name}; `fastforks bench MODEL --size HxW` measures yours. "
             f"The summary uses {basis}: kernels time with its speed-up over the faster original run, and kernels "
-            "peak reserved memory with its change against the smaller original one (MiB). "
+            "peak reserved memory with its ratio to the smaller original one. "
+            "Where measured (one variant per family), a variant's table also lists portable under `torch.compile` "
+            "and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). "
             f"{_DASH} = not measured."
             + (f" The accuracy column is lower-is-better ({_OVERVIEW_ACC[task][2]})." if task in _OVERVIEW_ACC else "")
         ),
+        "",
+        _other_devices_line("../"),
         "",
         *_summary_table(task, speed, rows, std),
     ]
@@ -916,10 +1052,12 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
             mx, pt = (
                 _fixed_cell(mine.get((m, at)), fixed.get((v.id, m), {}).get(size)) for m in ("kernels", "portable")
             )
-            orig = _orig(mine.get(("upstream", orig_size)), mine.get(("upstream-default", orig_size)))
-            max_o = mine.get(("kernels", orig_size))
+            # Multiview has no shared size: each model's original run is at its own input, the one its kernels row has.
+            osz = at if size == _OWN else orig_size
+            orig = _orig(mine.get(("upstream", osz)), mine.get(("upstream-default", osz)))
+            max_o = mine.get(("kernels", osz))
             if orig and max_o:
-                speedup = (orig["ms"] / max_o["ms"], f"original ({orig_size})")
+                speedup = (orig["ms"] / max_o["ms"], f"original ({osz})")
             elif isinstance(mx, tuple) and isinstance(pt, tuple):
                 speedup = (pt[0] / mx[0], "portable")
             else:
@@ -937,6 +1075,8 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
                     "kernels": mx,
                     "portable": pt,
                     "original": orig["ms"] if orig else None,
+                    "orig_oom": orig is None and (v.id, "upstream", osz) in _oom(),
+                    "orig_size": osz,
                     "speedup": speedup,
                     "error": a_row[key] if a_row else None,
                     "mark": mark,
@@ -945,7 +1085,7 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
                 }
             )
     rows.sort(key=lambda r: (r["ms"] is None, r["ms"] or 0.0, r["id"]))
-    return [{**r, "std": size, "orig_size": orig_size, "fmt": fmt} for r in rows]
+    return [{**r, "std": size, "fmt": fmt} for r in rows]
 
 
 def _picks(rows: list[dict]) -> list[str]:
@@ -983,10 +1123,10 @@ def _picks(rows: list[dict]) -> list[str]:
 
 def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
     rows = _overview_rows(task, fixed, speed, acc)
-    std, orig_size = rows[0]["std"], rows[0]["orig_size"]  # the task's standard size, the size of its original rows
+    std = rows[0]["std"]  # the task's standard size (or _OWN)
     acc_col = _OVERVIEW_ACC.get(task)
     lines = [
-        f"## {task.capitalize().replace('_', ' ')}",
+        f"## {_title(task)}",
         "",
         f"{len(rows)} models; "
         + ("each at its own benchmark input (views x size in Benchmarks)." if std == _OWN else f"size {std}."),
@@ -1013,7 +1153,11 @@ def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
             cells.append(err)
         sp = r["speedup"]
         cells += [
-            _DASH if r["original"] is None else f"{r['original']:.1f} ({orig_size})",
+            f"OOM ({r['orig_size']})"
+            if r["orig_oom"]
+            else _DASH
+            if r["original"] is None
+            else f"{r['original']:.1f} ({r['orig_size']})",
             _ms(r["portable"]),
             _ms(r["kernels"]) + (f" ({r['at']})" if r["at"] != std and std != _OWN and r["kernels"] else ""),
             _DASH if sp is None else f"{sp[0]:.1f}x vs {sp[1]}",
@@ -1029,8 +1173,7 @@ def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
 def overview() -> str:
     """The overview page: which model to use and the speed-ups, per task, from the cards and docs/data."""
     fixed, speed = _fixed_sizes(), _speed_rows()
-    gpus = [r["gpu"].removeprefix("NVIDIA GeForce ") for rs in speed.values() for r in rs]
-    gpu = statistics.mode(gpus) if gpus else "the benchmark GPU"
+    gpu = _devices.reference().name
     lines = [
         "# Which model to use",
         "",
@@ -1042,7 +1185,10 @@ def overview() -> str:
             "accuracy, more sizes); [benchmarks](benchmarks.md) explains the method."
         ),
         "",
-        "- `kernels` = our kernels, `portable` = plain PyTorch, `original` = the authors' code (size in brackets).",
+        (
+            "- `kernels` = our kernels, `portable` = plain PyTorch, `original` = the original code named on the model "
+            "page (size in brackets)."
+        ),
         (
             "- speed-up: `kernels` against the faster of original fp16 / fp32 where both were timed at the original's "
             "size, else against `portable` (labelled)."
@@ -1058,6 +1204,7 @@ def overview() -> str:
             "summary tables list peak reserved (what the caching allocator holds, larger). "
             f"{_DASH} = not measured."
         ),
+        f"- {_other_devices_line('')}",
     ]
     for task in registry.TASKS:
         lines += ["", *_overview_task(task, fixed, speed, _eval_rows(task))]
@@ -1067,45 +1214,59 @@ def overview() -> str:
 _TABLE_BEGIN, _TABLE_END = "<!-- tables:begin", "<!-- tables:end -->"
 
 
-def _speed_table(by: dict[str, dict[str, dict]]) -> list[str]:
-    """Table of one (task, input), per model; a column nothing was measured for is left out."""
+def _speed_table(by: dict[str, dict[str, dict]], inputs: dict[str, str] | None = None) -> list[str]:
+    """Table of one (task, scene), per model; `inputs` (model -> size) adds an input column.
+
+    A column nothing was measured for is left out.
+    """
     names = ["original fp32", "original", "portable", "kernels", "vs original", "vs portable"]
     groups = [("time (ms): ", 4), ("kernels speed-up: ", 2), ("peak memory (MiB, allocated / reserved): ", 3)]
     body = []
     for model_id, m in by.items():
         o32, o, pt, k = (m.get(mode) for mode in _SPEED_MODES)
-        cells = [_ms_cell(o32), _ms_cell(o), _ms_cell(pt), _ms_cell(k), _ratio(_orig(o, o32), k), _ratio(pt, k)]
+        size = next(iter(m.values()))["input"]
+        cells = [_ms_cell(m.get(mode), oom=(model_id, mode, size) in _oom()) for mode in _SPEED_MODES]
+        cells += [_ratio(_orig(o, o32), k), _ratio(pt, k)]
         body.append([model_id, *cells, _peak(o), _peak(pt), _peak(k)])
     cols = [(groups[0][0], n) for n in names[:4]] + [(groups[1][0], n) for n in names[4:]]
     cols += [(groups[2][0], n) for n in ("original", "portable", "kernels")]
     use = [i for i in range(len(cols)) if any(r[i + 1] != DASH for r in body)]
-    head, seen = ["model"], set()
+    head, seen = ["model", *(["input"] if inputs else [])], set()
     for i in use:
         g, n = cols[i]
         head.append(n if g in seen else g + n)
         seen.add(g)
     lines = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
-    return lines + ["| " + " | ".join([r[0], *(r[i + 1] for i in use)]) + " |" for r in body]
+    return lines + [
+        "| " + " | ".join([r[0], *([inputs[r[0]]] if inputs else []), *(r[i + 1] for i in use)]) + " |" for r in body
+    ]
 
 
 def _bench_block() -> str:
-    """Speed and memory tables per task and input, from docs/data/speed.jsonl (the block of docs/benchmarks.md)."""
+    """Speed and memory tables per task and scene, from docs/data/speed.jsonl (the block of docs/benchmarks.md)."""
     speed = _speed_rows()
     tasks = {v.id: t for t in registry.TASKS for _, v in registry.cards(t).values()}
-    groups: dict[tuple[str, str, str], dict[str, dict[str, dict]]] = {}
+    groups: dict[tuple[str, str], dict[str, dict[str, dict[str, dict]]]] = {}  # (task, scene) -> model -> input
     for model_id, rows in sorted(speed.items()):
         for r in rows:
             if model_id in tasks and r["mode"] in _SPEED_MODES:
-                key = (tasks[model_id], r["input"], _scene(r["scene"]))
-                groups.setdefault(key, {}).setdefault(model_id, {})[r["mode"]] = r
+                key = (tasks[model_id], _scene(r["scene"]))
+                groups.setdefault(key, {}).setdefault(model_id, {}).setdefault(r["input"], {})[r["mode"]] = r
     order = {t: i for i, t in enumerate(registry.TASKS)}
     out = [f"{_TABLE_BEGIN} (tools/gen_docs.py, from docs/data/speed.jsonl) -->"]
-    for key in sorted(groups, key=lambda k: (order[k[0]], -len(groups[k]), k[1:])):
-        task, size, scene = key
-        by = groups[key]
+    for key in sorted(groups, key=lambda k: (order[k[0]], -len(groups[k]), k[1])):
+        task, scene = key
+        # one table per task and scene: each model at the standard size, else at the size most models share,
+        # else at its own largest input (the model pages list every size)
+        n = Counter(i for m in groups[key].values() for i in m)
+        main = _STD_SIZE[task] if _STD_SIZE.get(task) in n else max(n, key=lambda i: (n[i], _pixels(i)))
+        inputs = {m: main if main in by_in else max(by_in, key=_pixels) for m, by_in in groups[key].items()}
+        by = {m: groups[key][m][i] for m, i in inputs.items()}
         if not any("kernels" in m or "portable" in m for m in by.values()):
             continue
-        out += ["", f"### {task.capitalize().replace('_', ' ')}, {scene}, {size}", "", *_speed_table(by)]
+        one = len(set(inputs.values())) == 1
+        title = f"### {task.capitalize().replace('_', ' ')}, {scene}" + (f", {main}" if one else "")
+        out += ["", title, "", *_speed_table(by, None if one else inputs)]
     out += [
         "",
         "### Startup and first call",
@@ -1154,6 +1315,7 @@ _FAIL_REASONS = (  # (pattern in the recorded error, short reason for the table)
     (r"ConversionError", "ONNX export: conversion failed"),
     (r"doesn't match model \((\d+)\)", r"ONNX export: fixed \1 px input"),
     (r"compilation subprocess exited", "Inductor: compile worker crashed"),
+    (r"InductorError: SubprocException", "Inductor: Triton kernel does not compile (torch bug)"),
     (r"Guard failed on the same frame", "Dynamo guard error (torch bug)"),
     (r"version_counter for inference tensor", "Inductor: inference tensors"),
     (r"inference_mode expects no kwargs", "Dynamo: inference_mode in model code"),
@@ -1170,28 +1332,25 @@ def _fail_reason(msg: str) -> str:
     return re.sub(r"\x1b\[\d+m|/tmp/\S+/", "", msg.removeprefix("run: "))[:60]
 
 
-def _compile_cells(r: dict | None, *fields: str) -> list[str]:
-    """Cells of a compile / tensorrt row: `fields` formatted, or `fails: reason` (spanning the first cell) / dashes."""
+def _compile_ms(r: dict | None) -> str:
+    """The time cell of a compile / tensorrt row: `N ms`, `fails: reason`, or a dash."""
     if r is None:
-        return [DASH] * len(fields)
+        return DASH
     if "fails" in r:
-        return [f"fails: {_fail_reason(r['fails'])}", *[DASH] * (len(fields) - 1)]
-    return [f"{r[f]:.1f}" if isinstance(r.get(f), float) else str(r.get(f, DASH)) for f in fields]
+        return f"fails: {_fail_reason(r['fails'])}"
+    return f"{_ms_str(r['ms'])} ms" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
 
 
 def _compile_block() -> str:
     """torch.compile and TensorRT table of docs/benchmarks.md, from docs/data/speed_compile.jsonl (+ speed.jsonl)."""
-    path = ROOT / "docs" / "data" / "speed_compile.jsonl"
-    latest: dict[tuple[str, str], dict] = {}
-    for line in path.read_text().splitlines() if path.is_file() else []:
-        r = json.loads(line)
-        latest[r["ref"], r["mode"]] = r
+    latest = _compile_rows()
     speed = _speed_rows()
     tasks = {v.id: t for t in registry.TASKS for _, v in registry.cards(t).values()}
     order = {t: i for i, t in enumerate(registry.TASKS)}
     head = (
-        "| model | input | portable ms | compile ms | compile s (cold) | TensorRT fp16 ms | ONNX + build s | kernels ms"
-        " | peak MiB (alloc / reserved): portable | compile | TensorRT (device) |"
+        "| model | input | time: portable | compile | TensorRT fp16 | kernels"
+        " | preparation: compile (cold first call) | ONNX + engine build"
+        " | peak MiB (alloc / reserved): portable | compile | kernels | TensorRT (device) |"
     )
     out = [f"{_COMPILE_BEGIN} (tools/gen_docs.py, from docs/data/speed_compile.jsonl) -->"]
     if not latest:
@@ -1201,20 +1360,21 @@ def _compile_block() -> str:
         comp, trt = latest.get((ref, "compile")), latest.get((ref, "tensorrt"))
         size = next(r["input"] for r in (comp, trt) if r)
         at = {r["mode"]: r for r in speed.get(ref, []) if r["input"] == size}
-        build = "fails" in (trt or {}) or trt is None
-        build_s = DASH if build else f"{trt['onnx_export_s'] + trt['engine_build_s']:.0f}"
-        trt_mem = DASH if build or "device_mb" not in trt else str(trt["device_mb"])
+        built = trt is not None and "fails" not in trt
+        ms = {m: f"{_ms_str(at[m]['ms'])} ms" if m in at else DASH for m in ("portable", "kernels")}
         cells = [
             ref,
             size,
-            _ms_cell(at.get("portable")),
-            *_compile_cells(comp, "ms", "compile_s"),
-            *_compile_cells(trt, "ms")[:1],
-            build_s,
-            _ms_cell(at.get("kernels")),
+            ms["portable"],
+            _compile_ms(comp),
+            _compile_ms(trt),
+            ms["kernels"],
+            DASH if comp is None or "fails" in comp else f"{_ms_str(comp['compile_s'])} s",
+            f"{_ms_str(trt['onnx_export_s'] + trt['engine_build_s'])} s" if built else DASH,
             _peak(at.get("portable")),
             _peak(comp) if comp and "fails" not in comp else DASH,
-            trt_mem,
+            _peak(at.get("kernels")),
+            str(trt["device_mb"]) if built and "device_mb" in trt else DASH,
         ]
         out.append("| " + " | ".join(cells) + " |")
     return "\n".join([*out, _COMPILE_END])
@@ -1277,6 +1437,257 @@ def _caps_block() -> str:
     )
 
 
+# Devices (surveys).
+# docs/data/devices.toml: the reference device (docs/benchmarks.md, docs/data/speed.jsonl) and the survey devices
+# (docs/devices/<slug>.md, docs/data/speed/<slug>.jsonl). tools/_devices.py reads and checks both.
+_OTHER_BEGIN, _OTHER_END = "<!-- devices:begin", "<!-- devices:end -->"
+_DEV_BEGIN, _DEV_END = "<!-- device:begin", "<!-- device:end -->"
+_SHORT_DTYPE = {"float32": "fp32", "float16": "fp16", "bfloat16": "bf16", "default": ""}
+_STATUS_CELL = {"unsupported": "unsupported", "failed": "failed", "oom": "OOM"}
+_FAST_MODES = ("portable", "kernels")  # the fastforks modes of the cross-device table
+
+
+def _other_devices_line(prefix: str) -> str:
+    """The one line of the overview and the model pages that points at the other measured devices."""
+    others = [d for d in _devices.shown() if not d.reference]
+    names = ", ".join(f"[{d.name}]({prefix}{d.page})" for d in others)
+    return (
+        f"Other devices: {names}; [across devices]({prefix}benchmarks.md#other-devices)."
+        if others
+        else f"Other devices: none measured yet ([benchmarks]({prefix}benchmarks.md#other-devices))."
+    )
+
+
+def _models_by_id() -> dict[str, tuple[str, str]]:
+    """Model id -> (task, family) of every variant."""
+    return {
+        v.id: (task, card.family)
+        for task in registry.TASKS
+        for card, _ in registry.cards(task).values()
+        for v in card.variants
+    }
+
+
+def _model_link(ref: str, models: dict[str, tuple[str, str]], prefix: str) -> str:
+    known = models.get(ref.split("@", 1)[0])
+    return f"[`{ref}`]({prefix}models/{known[0]}.md#{known[1]})" if known else f"`{ref}`"
+
+
+def _col_name(mode: str, dtype: str) -> str:
+    """`original fp32`, `portable fp16`, `kernels fp16`: every timing column names its dtype."""
+    name = "original" if mode.startswith("upstream") else mode
+    return f"{name} {_SHORT_DTYPE.get(dtype, dtype)}".strip()
+
+
+def _state(rows: list[dict]) -> str:
+    """The cell of rows without a time: the most telling status (OOM, then failed, then unsupported)."""
+    st = {_devices.status_of(r) for r in rows}
+    return next((_STATUS_CELL[s] for s in ("oom", "failed", "unsupported") if s in st), DASH)
+
+
+def _dev_time(r: dict | None) -> str:
+    if r is None:
+        return DASH
+    if _devices.status_of(r) != "ok":
+        return _STATUS_CELL[_devices.status_of(r)]
+    return _ms_str(r["ms"]) + (" (golden fail)" if r.get("golden") == "fail" else "")
+
+
+def _dev_mem(r: dict | None) -> str:
+    if r is None or _devices.status_of(r) != "ok" or not r.get("memory_kind"):
+        return DASH
+    return " / ".join(str(r[k]) for k in _devices.MEMORY_KINDS[r["memory_kind"]][0])
+
+
+def _fastest(rows: list[dict], modes: tuple[str, ...] = _FAST_MODES) -> dict | None:
+    ok = [r for r in rows if r["mode"] in modes and _devices.status_of(r) == "ok" and r.get("golden") != "fail"]
+    return min(ok, key=lambda r: r["ms"]) if ok else None
+
+
+_DEV_MEM_HEAD = {"torch-peak": "allocated / reserved", "process-footprint": "process footprint"}
+_ORIG_MODES = ("upstream-default", "upstream")
+
+
+def _device_group(by: dict[str, list[dict]], models: dict[str, tuple[str, str]]) -> list[str]:
+    """One table of one (task, input, scene) of a survey device, laid out like the reference's.
+
+    Time per (mode, dtype), then the kernels speed-up against the fastest original and portable row, then the peak
+    memory of each mode's fastest row. A column nothing was measured for is left out.
+    """
+    cols = sorted(
+        {(r["mode"], _devices.dtype_of(r)) for rs in by.values() for r in rs},
+        key=lambda c: (_devices.MODES.index(c[0]), list(_SHORT_DTYPE).index(c[1]) if c[1] in _SHORT_DTYPE else 9),
+    )
+    kinds = {r["memory_kind"] for rs in by.values() for r in rs if r.get("memory_kind")}
+    if len(kinds) > 1:
+        msg = f"one table mixes memory kinds {sorted(kinds)}: {sorted(by)}"
+        raise ValueError(msg)
+    mem_head = f"peak memory (MiB, {_DEV_MEM_HEAD[next(iter(kinds))]}, fastest dtype): " if kinds else ""
+    heads = [("time (ms): ", _col_name(*c)) for c in cols]
+    heads += [("kernels speed-up: ", "vs original"), ("kernels speed-up: ", "vs portable")]
+    heads += [(mem_head, n) for n in ("original", "portable", "kernels")]
+    body, notes = [], []
+    for ref, rs in by.items():
+        cell = {(r["mode"], _devices.dtype_of(r)): r for r in rs}
+        o, p, k = (_fastest(rs, m) for m in (_ORIG_MODES, ("portable",), ("kernels",)))
+        row = [_dev_time(cell.get(c)) for c in cols] + [_ratio(o, k), _ratio(p, k)]
+        row += [_dev_mem(o), _dev_mem(p), _dev_mem(k)] if kinds else [DASH] * 3
+        body.append([_model_link(ref, models, "../"), *row])
+        notes += [r["note"] for r in rs if r.get("note") and r["note"] not in notes]
+    use = [i for i in range(len(heads)) if any(r[i + 1] != DASH for r in body)]
+    head, seen = ["model"], set()
+    for i in use:
+        group, name = heads[i]
+        head.append(name if group in seen else group + name)
+        seen.add(group)
+    lines = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
+    lines += ["| " + " | ".join([r[0], *(r[i + 1] for i in use)]) + " |" for r in body]
+    return lines + ([""] if notes else []) + [f"Note: {n}." for n in notes]
+
+
+def _device_block(dev: _devices.Device) -> str:
+    """The generated part of a survey device's page: environment, then tables per task and input."""
+    rows, models = _devices.rows(dev), _models_by_id()
+    data = dev.data.relative_to(ROOT)
+    torches = sorted({str(r["torch"]) for r in rows if r.get("torch")})
+    dates = sorted({r["date"] for r in rows})
+    out = [
+        f"{_DEV_BEGIN} (tools/gen_docs.py, from docs/data/devices.toml and {data}) -->",
+        "",
+        "| | |",
+        "|---|---|",
+        f"| device | {dev.name} |",
+        f"| backend | {dev.backend} |",
+        *([f"| memory | {dev.memory} |"] if dev.memory else []),
+        *([f"| hardware | {dev.details} |"] if dev.details else []),
+        *([f"| software | {dev.software} |"] if dev.software else []),
+        f"| torch (rows) | {', '.join(torches) or DASH} |",
+        f"| measured | {dates[0]} to {dates[-1]} |" if dates else f"| measured | {DASH} |",
+        f"| rows | {len(rows)} in `{data}` |",
+        "",
+        (
+            "Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; "
+            "every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this "
+            f"backend, `failed` = it ran and raised, `OOM` = out of memory, {DASH} = not tested; "
+            "`(golden fail)` = it ran but its result failed the "
+            "golden check on this device (never counted as fastest). Speed-up = kernels "
+            "against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the "
+            "peak of that mode's fastest row, measured the way the column says (not comparable with another "
+            "device's). One input per model, the task's standard one. Each model links to its model page; "
+            "[benchmarks](../benchmarks.md) has the method and the reference device."
+        ),
+        "",
+        *(f"Protocol: {p}." for p in sorted({r["protocol"] for r in rows})),
+    ]
+    tasks = {r["task"] for r in rows}
+    for task in [t for t in registry.TASKS if t in tasks]:
+        groups: dict[tuple[str, str], dict[str, list[dict]]] = {}
+        for r in sorted((r for r in rows if r["task"] == task), key=lambda r: r["ref"]):
+            groups.setdefault((r["input"], _scene(r.get("scene", "synthetic"))), {}).setdefault(r["ref"], []).append(r)
+        out += ["", f"## {task.capitalize().replace('_', ' ')}"]
+        for (size, scene), by in sorted(groups.items(), key=lambda kv: _pixels(kv[0][0])):
+            out += ["", f"### {task.capitalize().replace('_', ' ')}, {scene}, {size}", "", *_device_group(by, models)]
+    out.append(_DEV_END)
+    return "\n".join(out)
+
+
+def device_page(dev: _devices.Device) -> str:
+    """A survey device's page: its hand-written text around the generated block (a new page gets a skeleton)."""
+    path = ROOT / "docs" / dev.page
+    text = path.read_text() if path.is_file() else f"# {dev.name}\n\n{_DEV_BEGIN} -->\n{_DEV_END}\n"
+    return _with_block(text, _DEV_BEGIN, _DEV_END, _device_block(dev))
+
+
+def _cross_cell(rows: list[dict]) -> str:
+    """`12.3 ms · kernels fp16`: the fastest validated fastforks row, else the most telling state."""
+    best = _fastest(rows)
+    if best is None:
+        return _state([r for r in rows if r["mode"] in _FAST_MODES]) if rows else DASH
+    return f"{_ms_str(best['ms'])} ms · {_col_name(best['mode'], _devices.dtype_of(best))}"
+
+
+def _other_block() -> str:  # noqa: C901 - one table per task, filtered by input and protocol
+    """docs/benchmarks.md: the survey devices and, per task, the fastest mode per device at the standard input."""
+    devs = _devices.shown()
+    others = [d for d in devs if not d.reference]
+    by_dev = {d.slug: _devices.rows(d) for d in devs}
+    models = _models_by_id()
+
+    def task_of(r: dict) -> str:
+        return r.get("task") or models.get(r["ref"].split("@", 1)[0], ("",))[0]
+
+    out = [f"{_OTHER_BEGIN} (tools/gen_docs.py, from docs/data/devices.toml and docs/data/speed*) -->", ""]
+    out += ["## Other devices", ""]
+    if not others:
+        out += ["None measured yet.", _OTHER_END]
+        return "\n".join(out)
+    for d in others:
+        rs = by_dev[d.slug]
+        out.append(
+            f"- [{d.name}]({d.page}) ({d.backend}): {len({r['ref'] for r in rs})} models, "
+            f"{len(rs)} rows, measured {min(r['date'] for r in rs)} to {max(r['date'] for r in rs)}."
+            if rs
+            else f"- [{d.name}]({d.page}) ({d.backend}): no rows yet."
+        )
+    out += [
+        "",
+        "### Across devices",
+        "",
+        (
+            "Each task at its standard input (the overview's). A cell is the fastest validated fastforks mode on that "
+            "device (`portable` or `kernels`, time and dtype), or why there is none; a row needs a survey device "
+            "measured at that input. Cells compare only rows of the same input and protocol "
+            f"(`warm-median`: {_devices.PROTOCOLS['warm-median']}); no speed-up is derived across devices, as the "
+            f"modes and dtypes differ. {DASH} = not measured at this input."
+        ),
+    ]
+    tables = 0
+    for task in registry.TASKS:
+        size = _std_input(task)
+        if size == _OWN:
+            continue
+        at: dict[str, dict[str, list[dict]]] = {}  # device -> model id -> its comparable rows at the standard input
+        for slug, rs in by_dev.items():
+            for r in rs:
+                if task_of(r) == task and r["input"] == size and _devices.protocol_id(r) == "warm-median":
+                    at.setdefault(slug, {}).setdefault(r["ref"], []).append(r)
+        refs = sorted({ref for d in others for ref in at.get(d.slug, {})})
+        if not refs:
+            continue
+        tables += 1
+        body = [
+            [_model_link(ref, models, ""), *(_cross_cell(at.get(d.slug, {}).get(ref, [])) for d in devs)]
+            for ref in refs
+        ]
+        out += ["", f"#### {task.capitalize().replace('_', ' ')}, {size}", ""]
+        out += _md_table(["model", *(d.name for d in devs)], body, keep=1)
+    if not tables:
+        out += [
+            "",
+            "No survey device has rows at the standard inputs yet; each device page lists what was measured there.",
+        ]
+    out.append(_OTHER_END)
+    return "\n".join(out)
+
+
+def _nav_problems() -> list[str]:
+    """Survey pages missing from the mkdocs nav, and device pages without a shown registry entry.
+
+    Hidden devices get no page, but their rows are still checked here (`_devices.rows` raises on a bad row).
+    """
+    nav = (ROOT / "mkdocs.yml").read_text()
+    slugs = {d.slug for d in _devices.shown() if not d.reference}
+    hidden = {d.slug for d in _devices.devices() if d.hidden}
+    for d in _devices.devices():
+        if d.hidden:
+            _devices.rows(d)
+    out = [f"mkdocs.yml: nav lacks devices/{s}.md" for s in sorted(slugs) if f"devices/{s}.md" not in nav]
+    out += [f"mkdocs.yml: nav lists hidden device devices/{s}.md" for s in sorted(hidden) if f"devices/{s}.md" in nav]
+    pages = {p.stem for p in (ROOT / "docs" / "devices").glob("*.md")}
+    out += [f"docs/devices/{s}.md: hidden in docs/data/devices.toml, remove the page" for s in sorted(pages & hidden)]
+    return out + [f"docs/devices/{s}.md: not in docs/data/devices.toml" for s in sorted(pages - slugs - hidden)]
+
+
 def _with_block(text: str, begin: str, end: str, block: str) -> str:
     head, rest = text.split(begin, 1)
     return head + block + rest.split(end, 1)[1]
@@ -1297,7 +1708,12 @@ def main() -> None:
     bench, gpus = ROOT / "docs" / "benchmarks.md", ROOT / "docs" / "OTHER_GPUS.md"
     outputs = {
         bench: _with_block(
-            _with_block(bench.read_text(), _TABLE_BEGIN, _TABLE_END, _bench_block()),
+            _with_block(
+                _with_block(bench.read_text(), _OTHER_BEGIN, _OTHER_END, _other_block()),
+                _TABLE_BEGIN,
+                _TABLE_END,
+                _bench_block(),
+            ),
             _COMPILE_BEGIN,
             _COMPILE_END,
             _compile_block(),
@@ -1307,6 +1723,9 @@ def main() -> None:
             _with_block(gpus.read_text(), _LIBS_BEGIN, _LIBS_END, _libs_block()), _CAPS_BEGIN, _CAPS_END, _caps_block()
         ),
     }
+    for dev in _devices.shown():
+        if not dev.reference:
+            outputs[ROOT / "docs" / dev.page] = device_page(dev)
     for task in registry.TASKS:
         outputs[ROOT / "docs" / "models" / f"{task}.md"] = render(task)
         outputs[ROOT / "src" / "fastforks" / task / "known_models.toml"] = known_models(task)
@@ -1319,6 +1738,8 @@ def main() -> None:
             stale.append(str(path.relative_to(ROOT)))
     if stale:
         sys.exit(f"out of date (run tools/gen_docs.py): {', '.join(stale)}")
+    if problems := _nav_problems():
+        sys.exit("\n".join(problems))
 
 
 if __name__ == "__main__":

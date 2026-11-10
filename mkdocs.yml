@@ -20,7 +20,14 @@ nav:
   - Export: export.md
   - Stereo geometry: stereo_geometry.md
   - Which model: overview.md
-  - Benchmarks: benchmarks.md
+  - Benchmarks:
+      - Methods and RTX 5060 Ti (reference): benchmarks.md
+      - Apple M1 Pro: devices/apple-m1-pro-16gb.md
+      - NVIDIA A10: devices/a10-22gb.md
+      - NVIDIA A100 40 GB: devices/a100-sxm4-40gb.md
+      - NVIDIA L4: devices/l4-22gb.md
+      - NVIDIA L40S: devices/l40s-44gb.md
+      - NVIDIA RTX PRO 6000: devices/rtx-pro-6000-96gb.md
   - Other GPUs: OTHER_GPUS.md
   - API:
       - fastforks: api/index.md

@@ -4,6 +4,8 @@ Faster versions of published vision models behind one API: stereo matching, mono
 classification, semantic and promptable segmentation (SAM), object detection and feature backbones (DINOv2, DINOv3).
 You load a model by its id and get the original network's output, faster.
 
+Docs, model tables and benchmarks: **[fastforks.dev](https://fastforks.dev)**.
+
 Every model has two backends; kernels run only where the GPU and driver fit (otherwise `auto` uses portable):
 
 - **portable**: the original network in plain PyTorch, checked against the authors' code. Validated on CPU, NVIDIA
@@ -11,25 +13,25 @@ Every model has two backends; kernels run only where the GPU and driver fit (oth
 - **kernels**: the same network with our CUDA kernels (NVIDIA sm_80 or newer, Linux x86-64) and, for 19 families, Metal
   kernels on Apple silicon. Across the models and sizes we measured, the median is 1.9x faster than portable, with a
   quarter at 2.5x or more and the best at 10x (small classifiers at batch 1). A few plain ViT classifiers gain nothing
-  ([benchmarks](https://github.com/kleinicke/fastforks/blob/main/docs/benchmarks.md)).
+  ([benchmarks](https://fastforks.dev/benchmarks)).
 
 By default (`mode="auto"`) fastforks uses kernels where they can run and the recorded measurements prefer them, and portable everywhere else.
 
 | task | package | call → result | example models |
 |---|---|---|---|
-| [stereo matching](https://github.com/kleinicke/fastforks/blob/main/docs/models/stereo.md) | `fastforks.stereo` | `model(left, right)` → disparity | `igev-stereo-sceneflow`, `raft-stereo-middlebury`, `las2-s` |
-| [monocular depth](https://github.com/kleinicke/fastforks/blob/main/docs/models/depth.md) | `fastforks.depth` | `model(image)` → depth or inverse depth | `depth-anything-v2-s`, `moge-2-vitl-normal`, `depth-pro` |
-| [multi-view depth](https://github.com/kleinicke/fastforks/blob/main/docs/models/multiview.md) | `fastforks.multiview` | `model(images)` → depth, points, cameras per view; calibrated MVS (mvsanywhere, patchmatchnet) also take `intrinsics=`, `cam_to_world=` (patchmatchnet also needs `depth_range=(near, far)` and returns the reference view only); VGGT / MapAnything: images only | `mvsanywhere`, `vggt-1b`, `mapanything-apache` |
-| [image classification](https://github.com/kleinicke/fastforks/blob/main/docs/models/classification.md) | `fastforks.classification` | `model(image)` → logits, `top(k)` | `resnet50.tv2_in1k`, `efficientnet_b0.tv_in1k`, `vit_base_patch16_224.augreg2_in21k_ft_in1k` |
-| [semantic segmentation](https://github.com/kleinicke/fastforks/blob/main/docs/models/segmentation.md) | `fastforks.segmentation` | `model(image)` → label map | `segformer-b0-ade20k`, `mask2former-swinl-ade20k`, `eomt-l-dinov2-ade20k` |
-| [promptable segmentation: SAM / SAM 2](https://github.com/kleinicke/fastforks/blob/main/docs/models/promptable_segmentation.md) | `fastforks.promptable_segmentation` | `model(image, input_points=[[x, y]], input_labels=[1])` or `input_boxes=` → `masks [3, H, W]` bool + `iou_scores [3]` (one point) | `sam-vit-b`, `sam2.1-hiera-large` |
+| [stereo matching](https://fastforks.dev/tasks/stereo) | `fastforks.stereo` | `model(left, right)` → disparity | `igev-stereo-sceneflow`, `raft-stereo-middlebury`, `las2-s` |
+| [monocular depth](https://fastforks.dev/tasks/depth) | `fastforks.depth` | `model(image)` → depth or inverse depth | `depth-anything-v2-s`, `moge-2-vitl-normal`, `depth-pro` |
+| [multi-view depth](https://fastforks.dev/tasks/multiview) | `fastforks.multiview` | `model(images)` → depth, points, cameras per view; calibrated MVS (mvsanywhere, patchmatchnet) also take `intrinsics=`, `cam_to_world=` (patchmatchnet also needs `depth_range=(near, far)` and returns the reference view only); VGGT / MapAnything: images only | `mvsanywhere`, `vggt-1b`, `mapanything-apache` |
+| [image classification](https://fastforks.dev/tasks/classification) | `fastforks.classification` | `model(image)` → logits, `top(k)` | `resnet50.tv2_in1k`, `efficientnet_b0.tv_in1k`, `vit_base_patch16_224.augreg2_in21k_ft_in1k` |
+| [semantic segmentation](https://fastforks.dev/tasks/segmentation) | `fastforks.segmentation` | `model(image)` → label map | `segformer-b0-ade20k`, `mask2former-swinl-ade20k`, `eomt-l-dinov2-ade20k` |
+| [promptable segmentation: SAM / SAM 2](https://fastforks.dev/tasks/promptable_segmentation) | `fastforks.promptable_segmentation` | `model(image, input_points=[[x, y]], input_labels=[1])` or `input_boxes=` → `masks [3, H, W]` bool + `iou_scores [3]` (one point) | `sam-vit-b`, `sam2.1-hiera-large` |
 | promptable segmentation: SAM 3 concepts | `fastforks.promptable_segmentation` | `model(image, text="cat")` and / or exemplar boxes `input_boxes=` → every instance of the concept | `sam3` |
-| [object detection](https://github.com/kleinicke/fastforks/blob/main/docs/models/detection.md) | `fastforks.detection` | `model(image)` → boxes, labels, scores | `faster-rcnn-r50-fpn-3x-coco`, `mask-rcnn-r50-fpn-3x-coco` |
-| [feature backbones](https://github.com/kleinicke/fastforks/blob/main/docs/models/features.md) | `fastforks.features` | `model(image)` → token features, image embedding | `dinov2-vitb14`, `dinov3-vitl16`, `dinov3-convnext-small` |
+| [object detection](https://fastforks.dev/tasks/detection) | `fastforks.detection` | `model(image)` → boxes, labels, scores | `faster-rcnn-r50-fpn-3x-coco`, `mask-rcnn-r50-fpn-3x-coco` |
+| [feature backbones](https://fastforks.dev/tasks/features) | `fastforks.features` | `model(image)` → token features, image embedding | `dinov2-vitb14`, `dinov3-vitl16`, `dinov3-convnext-small` |
 
 The task links go to the model pages, which list every model of the task with its licences, accuracy, speed and
 memory. Not sure which model to use? The
-[overview](https://github.com/kleinicke/fastforks/blob/main/docs/overview.md) compares them per task and names the
+[overview](https://fastforks.dev/models) compares them per task and names the
 fastest, the most accurate and the best commercially usable ones.
 
 ```python
@@ -57,8 +59,8 @@ segmentation.load("dinov2-s-linear-ade20k")("street.jpg").labels  # [H, W] class
 
 `mode="kernels"` or `mode="portable"` forces a backend; kernels raises with the reason if it cannot run here instead of
 silently falling back. `fastforks bench igev-stereo-sceneflow` times both on your machine. For deployment, TensorRT can
-be faster than kernels for a few models (see [export](https://github.com/kleinicke/fastforks/blob/main/docs/export.md)).
-The [usage guide](https://github.com/kleinicke/fastforks/blob/main/docs/usage.md) has a quickstart per task and covers
+be faster than kernels for a few models (see [export](https://fastforks.dev/export)).
+The [usage guide](https://fastforks.dev/usage) has a quickstart per task and covers
 precision, batches, video, several GPUs, `torch.compile`, ONNX and TensorRT export, and loading your own weights.
 
 ## Install
@@ -105,7 +107,7 @@ uv pip install -e '.[libs]'                      # or pip install -e '.[libs]'; 
 permissive code) are never downloaded unless you set `FASTFORKS_NONCOMMERCIAL=1`; `weights=PATH` uses a copy you have.
 A model whose library is missing fails in `load` with the extra to install. Weights and kernels are downloaded on first use
 into `~/.cache/fastforks` and checked against a recorded SHA-256; `fastforks download MODEL` fetches them ahead of
-time, and [docs/docker.md](https://github.com/kleinicke/fastforks/blob/main/docs/docker.md) covers offline machines
+time, and the [Docker guide](https://fastforks.dev/docker) covers offline machines
 and Docker images. Weights you already have are used in place: files in the Hugging Face hub cache (e.g. from
 `hf download`) or in a directory on `FASTFORKS_WEIGHTS_PATH`, or one file passed as `load(..., weights=PATH)`.
 Gated weights (e.g. DINOv3): accept the licence on the model's Hugging Face page, log in (`hf auth login`, or
@@ -115,7 +117,7 @@ handles your Hugging Face token.
 Requirements: Python >= 3.11 and PyTorch >= 2.8. Metal kernels run on Apple silicon (see the usage guide). The CUDA kernels need Linux on x86-64, an NVIDIA GPU of compute
 capability 8.0 or newer (RTX 30 series, A100 and later) and a driver >= 570. So far it is tested only on an
 RTX 5060 Ti: `fastforks env` shows what your GPU would use, and
-[Other GPUs](https://github.com/kleinicke/fastforks/blob/main/docs/OTHER_GPUS.md) explains how to measure it and send
+[Other GPUs](https://fastforks.dev/other-gpus) explains how to measure it and send
 us the numbers.
 
 ## Models and licences
@@ -134,7 +136,7 @@ print(fastforks.describe_models(stereo.list_models("igev*")))  # licences, and w
 ```
 
 Training-data terms (SceneFlow, KITTI, ImageNet, ...) are shown as a note next to the flag; the
-[usage guide](https://github.com/kleinicke/fastforks/blob/main/docs/usage.md#licences-and-commercial-use) explains how
+[usage guide](https://fastforks.dev/usage#licences-and-commercial-use) explains how
 the flag is set. None of this is legal advice.
 
 ## Command line

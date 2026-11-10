@@ -5,6 +5,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
+
 import fastforks
 import gen_docs
 from fastforks import ModelNotFoundError, stereo
@@ -14,6 +16,7 @@ from fastforks.stereo import geometry
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.slow
 def test_model_pages_current():
     subprocess.run([sys.executable, ROOT / "tools" / "gen_docs.py", "--check"], check=True)
 
@@ -194,7 +197,7 @@ def test_overview_lists_every_variant_once_and_links_resolve():
     """Each task of the overview has one row per variant and every row links to a heading of its model page."""
     page = gen_docs.overview()
     for task in registry.TASKS:
-        section = page.split(f"## {task.capitalize().replace('_', ' ')}\n", 1)[1].split("\n## ", 1)[0]
+        section = page.split(f"## {gen_docs._title(task)}\n", 1)[1].split("\n## ", 1)[0]
         rows = re.findall(r"^\| \[`([^`]+)`\]\(models/(\w+)\.md#([^)]+)\) \|", section, re.MULTILINE)
         ids = [r[0] for r in rows]
         expected = sorted({gen_docs._name(v) for card, _ in registry.cards(task).values() for v in card.variants})
@@ -242,7 +245,7 @@ def test_fixed_size_table_parser():
     assert isinstance(cell, tuple)
     assert cell[0] > 0
     assert set(next(iter(fixed.values()))) >= {"480x640", "1080x1920"}
-    assert "224x224" in fixed["resnet50.tv2_in1k", "kernels"]
+    assert ("resnet50.tv2_in1k", "kernels") not in fixed  # native-size models are in the speed tables
 
 
 def test_every_family_has_a_plain_description():
@@ -262,13 +265,25 @@ def test_summary_table_matches_the_speed_tables():
     assert f"| [`crestereo-eth3d`](#crestereo) | yes | 1.39 \u2020 | {row['ms']}, " in page
 
 
-def test_summary_memory_change_uses_the_smaller_original():
-    """Kernels peak reserved minus the smaller original peak; nothing without a measured original."""
+def test_one_speed_table_per_task_and_scene():
+    """benchmarks.md: one speed table per (task, scene); models at different inputs get an input column."""
+    text = (ROOT / "docs" / "benchmarks.md").read_text()
+    block = text.split(gen_docs._TABLE_BEGIN, 1)[1].split("### Startup and first call")[0]
+    titles = re.findall(r"^### (.+)$", block, re.MULTILINE)
+    keys = [tuple(t.split(", ")[:2]) for t in titles]
+    assert len(keys) == len(set(keys)), titles
+    multiview = block.split("### Multiview, synthetic\n", 1)[1].split("\n### ", 1)[0]
+    assert "| model | input |" in multiview
+    assert "| patchmatchnet | 1536x1024 |" in multiview
+
+
+def test_summary_memory_ratio_uses_the_smaller_original():
+    """Kernels peak reserved over the smaller original peak; nothing without a measured original."""
     fp32, fp16 = {"peak_reserved_mb": 624}, {"peak_reserved_mb": 846}
-    assert gen_docs._mem_change(388, fp16, fp32) == " (-236)"
-    assert gen_docs._mem_change(900, None, fp32) == " (+276)"
-    assert gen_docs._mem_change(388, None, {"ms": 1.0}) == ""
-    assert gen_docs._mem_change(gen_docs._DASH, fp16, fp32) == ""
+    assert gen_docs._mem_ratio(388, fp16, fp32) == ", 0.62x"
+    assert gen_docs._mem_ratio(900, None, fp32) == ", 1.4x"
+    assert gen_docs._mem_ratio(388, None, {"ms": 1.0}) == ""
+    assert gen_docs._mem_ratio(gen_docs._DASH, fp16, fp32) == ""
 
 
 def test_plain_licence_words_match_the_cards():
@@ -295,3 +310,34 @@ def test_mps_section_names_every_metal_kernel_family():
     assert len(families) >= 19
     missing = sorted(f for f in families if f not in section)
     assert not missing, f"docs/usage.md Apple silicon section does not name {missing}"
+
+
+def test_measured_date_span():
+    """A campaign that crosses midnight is one row set; the card shows the date span."""
+    assert gen_docs._span({"2026-11-05"}) == "2026-11-05"
+    assert gen_docs._span({"2026-11-06", "2026-11-05"}) == "2026-11-05 to 2026-11-06"
+
+
+def test_measured_cells_read_nested_metrics_and_optional_ones():
+    """Rows of the COCO / ADE20K evals nest their metrics; an optional metric shows only where the row has it."""
+    box = {"ref": "x", "mode": "portable", "dataset": "coco-val2017-every10", "n": 500, "metrics": {"box_map": 41.5}}
+    mask = box | {"metrics": {"box_map": 42.13, "mask_map": 38.67}}
+    assert gen_docs._accuracy("detection", {("portable", box["dataset"]): box}, "portable", box["dataset"]) == "41.50"
+    assert gen_docs._accuracy("detection", {("portable", box["dataset"]): mask}, "portable", box["dataset"]) == (
+        "42.13 / 38.67"
+    )
+    assert gen_docs._suffixes("detection", box["dataset"], [box]) == []
+    assert gen_docs._suffixes("detection", box["dataset"], [mask]) == [" / mask mAP"]
+    for (task, dataset), metrics in [(k, v) for k, v in gen_docs._METRICS.items() if isinstance(k, tuple)]:
+        assert dataset in gen_docs._DATASETS[task], (task, dataset, metrics)
+
+
+def test_a_failing_original_is_a_cell_and_a_failing_fastforks_tier_is_not():
+    """An original that raises on the eval data (PatchMatchNet fp16 on DTU) is a result; our own tiers must not fail."""
+    d = "dtu-scans1-9-24-33-75-view24"
+    err = {"ref": "x", "dataset": d, "error": "call: _LinAlgError: linalg.inv: (Batch element 0): singular"}
+    assert gen_docs._accuracy("multiview", {("upstream-fp16", d): err}, "upstream-fp16", d) == (
+        "fails (LinAlgError: linalg.inv)"
+    )
+    with pytest.raises(ValueError, match="no cell"):
+        gen_docs._accuracy("multiview", {("portable", d): err}, "portable", d)

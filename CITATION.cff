@@ -3,7 +3,7 @@ message: "If you use fastforks, please cite it as below, and cite the papers of 
 title: "fastforks"
 abstract: "Fast, typed inference for published vision models: portable PyTorch and custom-kernel backends."
 type: software
-version: 0.1.0
+version: 0.1.1
 license: Apache-2.0
 repository-code: "https://github.com/kleinicke/fastforks"
 authors:

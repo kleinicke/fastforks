@@ -1,6 +1,7 @@
 # Other GPUs
 
-All numbers and reference checks in these docs come from one RTX 5060 Ti 16 GB (sm_120). This page explains what runs on
+The reference times and parity checks in these docs come from one RTX 5060 Ti 16 GB (sm_120). The A100, A10, L4, L40S
+and RTX PRO 6000 pages are speed surveys, each result checked against the golden outputs. This page explains what runs on
 other hardware, how to check your setup, and how to measure your GPU and send us the numbers.
 
 ## What runs where
@@ -24,16 +25,16 @@ otherwise the PTX, which the driver compiles on the first load.
 | compute capability | example GPUs | `kernels` uses | tested |
 |---|---|---|---|
 | CPU | any | not available, `portable` only | yes |
-| MPS | Apple silicon | Metal kernels for the families in the table below, else `portable` | M1 Pro ([usage](usage.md#apple-silicon-mps)); recent Metal changes not yet rechecked |
+| MPS | Apple silicon | Metal kernels for the families in the table below, else `portable` | M1 Pro ([usage](usage.md#apple-silicon-mps), [speed](devices/apple-m1-pro-16gb.md)); recent Metal changes not yet rechecked |
 | < 8.0 | T4, V100, RTX 20xx, GTX 10xx | not available, `portable` only | no |
-| 8.0 | A100, A30 | sm_80 | no |
-| 8.6 | RTX 30xx, A10, A40, RTX A6000 | sm_86 | no |
+| 8.0 | A100, A30 | sm_80 | survey ([A100](devices/a100-sxm4-40gb.md)) |
+| 8.6 | RTX 30xx, A10, A40, RTX A6000 | sm_86 | survey ([A10](devices/a10-22gb.md)) |
 | 8.7 | Jetson Orin | not available (aarch64) | no |
-| 8.9 | RTX 40xx, L4, L40S, RTX 6000 Ada | sm_89 | no |
+| 8.9 | RTX 40xx, L4, L40S, RTX 6000 Ada | sm_89 | survey ([L4](devices/l4-22gb.md), [L40S](devices/l40s-44gb.md)) |
 | 9.0 | H100, H200 | sm_90 | no |
 | 10.0 | B200, GB200 (x86-64 hosts only) | sm_100 | no |
 | 10.3 | B300 | sm_100 | no |
-| 12.0 | RTX 50xx, RTX PRO 6000 Blackwell | sm_120 | yes (RTX 5060 Ti) |
+| 12.0 | RTX 50xx, RTX PRO 6000 Blackwell | sm_120 | yes (RTX 5060 Ti); survey ([RTX PRO 6000](devices/rtx-pro-6000-96gb.md)) |
 | 12.1 and newer minors | future 12.x GPUs | sm_120 | no |
 | newer majors | future GPUs | compute_80 PTX, JIT on first load | no |
 
@@ -59,10 +60,9 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | families | CUDA portable | CUDA kernels | MPS portable (validated) | MPS kernels (libraries, dtype) |
 |---|---|---|---|---|
 | c_foundationstereo, convnextv2, deit, densenet, depth_anything_v2, detr, dfine, dinov2_linear, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, fast_acvnet, fastvit, gwcnet, inception_v3, metric3d, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, patchmatchnet, psmnet, rcnn, resnet, rt_monster_plusplus, rtdetrv2, sam, sam2, segformer, shufflenetv2, swin, unidepth_v2, unik3d, vit, waft_stereo | fp16 | fp16 | fp32 | - |
-| alexnet, cas_gwcnet, coex, depth_anything_3, depth_pro, dinov2, dlnr, eomt, eva02, mapanything, marigold, mask2former, midas, mmseg, oneformer, regnet, s2m2, sapiens, siglip, squeezenet, vgg, zoedepth | fp16 | fp16 | fp32/fp16 | - |
+| alexnet, cas_gwcnet, coex, depth_anything_3, depth_pro, dinov2, dinov3, dinov3_convnext, dlnr, eomt, eva02, mapanything, marigold, mask2former, midas, mmseg, oneformer, regnet, s2m2, sam3, sapiens, siglip, squeezenet, vgg, vggt_omega, zoedepth | fp16 | fp16 | fp32/fp16 | - |
 | cfnet, crestereo, foundationstereo, great_igev, hitnet, igev_plusplus, mocha_stereo, monster, monster_plusplus, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 |
 | aanet, bridgedepth, igev_stereo, las2, nmrf | fp16 | fp16 | fp32 | stereo_metal fp16 |
-| dinov3, dinov3_convnext, sam3, vggt_omega | fp16 | fp16 | - | - |
 | moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
 | vggt | fp16 | fp16 | fp32 | vggt_metal fp32 |

@@ -6,15 +6,17 @@
 
 Input: several images of one scene (posed and calibrated for multi-view stereo, unposed otherwise). Output: depth maps and, where the model predicts them, cameras and 3-D points.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses each model's own benchmark input (see Benchmarks): kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses each model's own benchmark input (see Benchmarks): kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
 
-| model | commercial | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`mapanything-apache`](#mapanything) | yes | 543.98, 3.6x | 4072 (-4600) |
-| [`mvsanywhere`](#mvsanywhere) | no | 35.63 | 884 (-616) |
-| [`patchmatchnet`](#patchmatchnet) | yes | 29.57, 7.4x | 856 (-416) |
-| [`vggt-1b`](#vggt) | no | 458.37, 2.1x | 4654 (-2704) |
-| [`vggt-omega-1b-512`](#vggt_omega) | no | 464.37, 2.0x | 3518 (-2394) |
+| [`mapanything-apache`](#mapanything) | yes | 543.98, 3.6x | 4072, 0.47x |
+| [`mvsanywhere`](#mvsanywhere) | no | 35.63, 6.1x | 884, 0.59x |
+| [`patchmatchnet`](#patchmatchnet) | yes | 29.57, 7.4x | 856, 0.67x |
+| [`vggt-1b`](#vggt) | no | 458.37, 2.1x | 4654, 0.63x |
+| [`vggt-omega-1b-512`](#vggt_omega) | no | 464.37, 2.0x | 3518, 0.6x |
 
 <a id="mapanything"></a>
 
@@ -26,7 +28,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mapanything-apache` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels | 2875<br>1967<br>636<br>544 | 8064 / 8672<br>10227 / 10952<br>3697 / 4092<br>3697 / 4072 |
+| `mapanything-apache` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2875<br>1967<br>636<br>544<br>596<br>367 | 8064 / 8672<br>10227 / 10952<br>3697 / 4092<br>3697 / 4072<br>3347 / 3792<br>3880 (engine) |
 
 <details><summary>Details</summary>
 
@@ -43,11 +45,22 @@ Commercial use: yes.
 - Outputs: depth, confidence, mask, world_points, intrinsics, cam_to_world, metric_scale (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mapanything-apache` 3000x4000 (7.1 GiB peak allocated, 9.2 reserved)
+- `mapanything-apache` 336x518, first call: portable + torch.compile 46 s (cold Inductor cache), TensorRT fp16 137 s (ONNX + engine).
 - `mapanything-apache` original (fp32) 336x518: float32 (the authors' autocast off)
 - `mapanything-apache` original 336x518: original default MapAnything.infer(use_amp=True, amp_dtype='bf16')
 - `mapanything-apache` load / first call: original 6.12 s / 2.619 s (336x518), portable 2.89 s / 0.657 s (336x518), kernels 0.57† s / 0.541 s (336x518)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `mapanything-apache` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0875 / 93.23 | 0.0877 / 93.22 | 0.0875 / 93.23 | 0.0876 / 93.23 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-06.
 
 ### Parity
 
@@ -69,7 +82,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels | 273<br>–<br>93.2<br>35.6 | 1441 / 1500<br>–<br>931 / 1226<br>761 / 884 |
+| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 273<br>219<br>93.2<br>35.6<br>70.8<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 1441 / 1500<br>1504 / 1576<br>931 / 1226<br>761 / 884<br>818 / 860<br>– |
 
 <details><summary>Details</summary>
 
@@ -85,10 +98,21 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 - Outputs: depth, mask, sky (in `extras`), depth_range (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsanywhere` 3000x4000 (3.0 GiB peak allocated, 4.2 reserved)
-- `mvsanywhere` original (fp32) 448x672: fp32, original default (fp16 out of tolerance: mean 0.0009 (<0.001), p99 0.0052 (<0.005))
-- `mvsanywhere` load / first call: original 3.25 s / 0.347 s (448x672), portable 1.88 s / 0.221 s (448x672), kernels 0.52† s / 0.049 s (448x672)
+- `mvsanywhere` 448x672, first call: portable + torch.compile 153 s (cold Inductor cache).
+- `mvsanywhere` original 448x672: torch.autocast(float16) around the call
+- `mvsanywhere` load / first call: original 3.21 s / 1.037 s (448x672), portable 1.88 s / 0.221 s (448x672), kernels 0.52† s / 0.049 s (448x672)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `mvsanywhere` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm | 0.0077 / 99.82 / 5.57 | 0.0110 / 99.84 / 7.85 | 0.0078 / 99.82 / 5.60 | 0.0077 / 99.82 / 5.59 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79, 2026-11-06.
 
 ### Parity
 
@@ -104,13 +128,13 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ## PatchmatchNet
 
-PatchmatchNet by Fangjinhua Wang et al.: learned PatchMatch multi-view stereo, depth from posed images. Commercially usable.
+PatchmatchNet by Fangjinhua Wang et al.: learned PatchMatch multi-view stereo, depth from posed images.
 
 Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `patchmatchnet` | synthetic (1536x1024) | original (fp32)<br>original<br>portable<br>kernels | 248<br>220<br>202<br>29.6 | 1330 / 1412<br>1228 / 1272<br>1806 / 2096<br>740 / 856 |
+| `patchmatchnet` | synthetic (1536x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 248<br>220<br>202<br>29.6<br>175<br>51.0 | 1330 / 1412<br>1228 / 1272<br>1806 / 2096<br>740 / 856<br>1798 / 1888<br>844 (engine) |
 
 <details><summary>Details</summary>
 
@@ -125,10 +149,21 @@ Commercial use: yes.
 - Outputs: depth, confidence; kind: `metric`
 - Input size: any H x W >= 5, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `patchmatchnet` 1988x2880 (7.9 GiB peak allocated, 9.4 reserved)
+- `patchmatchnet` 1536x1024, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
 - `patchmatchnet` original 1536x1024: torch.autocast(fp16) around the forward
 - `patchmatchnet` load / first call: original 0.04 s / 0.917 s (1536x1024), portable 0.06 s / 0.25 s (1536x1024), kernels 0.05† s / 0.035 s (1536x1024)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `patchmatchnet` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm | 0.0087 / 99.52 / 7.03 | fails (LinAlgError: linalg.inv) | 0.0087 / 99.52 / 7.08 | 0.0087 / 99.52 / 7.08 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-06.
 
 ### Parity
 
@@ -150,7 +185,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vggt-1b` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels | 2502<br>965<br>651<br>458 | 6958 / 7358<br>8688 / 9158<br>3691 / 4674<br>3702 / 4654 |
+| `vggt-1b` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2502<br>965<br>651<br>458<br>557<br>424 | 6958 / 7358<br>8688 / 9158<br>3691 / 4674<br>3702 / 4654<br>3611 / 3856<br>3642 (engine) |
 
 <details><summary>Details</summary>
 
@@ -166,11 +201,22 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Outputs: depth, confidence, world_points, intrinsics, cam_to_world, points_confidence (in `extras`); kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vggt-1b` 3000x4000 (8.0 GiB peak allocated, 10.1 reserved)
+- `vggt-1b` 336x518, first call: portable + torch.compile 74 s (cold Inductor cache), TensorRT fp16 199 s (ONNX + engine).
 - `vggt-1b` original (fp32) 336x518: float32 (the authors' autocast off)
 - `vggt-1b` original 336x518: original default (README / demo): torch.autocast(bfloat16)
 - `vggt-1b` load / first call: original 19.37 s / 1.289 s (336x518), portable 4.98 s / 0.689 s (336x518), kernels 5.99† s / 0.459 s (336x518)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `vggt-1b` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0026 / 99.94 | 0.0027 / 99.94 | 0.0026 / 99.94 | 0.0026 / 99.94 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-06.
 
 ### Parity
 
@@ -192,7 +238,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels | 2650<br>906<br>726<br>464 | 5765 / 5912<br>7495 / 7654<br>3421 / 3518<br>3422 / 3518 |
+| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2650<br>906<br>726<br>464<br>589<br>377 | 5765 / 5912<br>7495 / 7654<br>3421 / 3518<br>3422 / 3518<br>3082 / 3154<br>2994 (engine) |
 
 <details><summary>Details</summary>
 
@@ -208,11 +254,22 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vggt-omega-1b-512` 3000x4000 (5.5 GiB peak allocated, 6.7 reserved)
+- `vggt-omega-1b-512` 336x518, first call: portable + torch.compile 66 s (cold Inductor cache), TensorRT fp16 187 s (ONNX + engine).
 - `vggt-omega-1b-512` original (fp32) 336x518: float32 (the authors' autocast off)
 - `vggt-omega-1b-512` original 336x518: original default VGGTOmega(autocast=True): bfloat16 aggregator, float32 heads
 - `vggt-omega-1b-512` load / first call: original 16.31 s / 1.1 s (336x518), portable 3.31 s / 0.734 s (336x518), kernels 2.27† s / 0.461 s (336x518)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `vggt-omega-1b-512` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0050 / 99.93 | 0.0051 / 99.93 | 0.0050 / 99.93 | 0.0051 / 99.93 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-06.
 
 ### Parity
 

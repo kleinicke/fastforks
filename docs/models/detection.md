@@ -6,36 +6,38 @@
 
 Input: one RGB image. Output: boxes, class labels, scores and instance masks.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 800x1344: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its change against the smaller original one (MiB). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 800x1344: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
 
-| model | commercial | kernels time (ms), speed-up vs original | kernels peak memory (MiB, reserved), change vs original |
+Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
+
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`detr-r101-coco`](#detr) | yes | 13.69, 5.8x | 328 (-306) |
-| [`detr-r50-coco`](#detr) | yes | 9.93, 5.6x | 272 (-268) |
-| [`dfine-l-coco`](#dfine) | yes | 8.695, 4.3x | 300 (-28) |
-| [`dfine-m-coco`](#dfine) | yes | 5.966, 5.2x | 252 (-4) |
-| [`dfine-n-coco`](#dfine) | yes | 2.723, 8.9x | 202 (+80) |
-| [`dfine-s-coco`](#dfine) | yes | 4.037, 6.4x | 212 (+28) |
-| [`dfine-x-coco`](#dfine) | yes | 14.086, 3.2x | 364 (-124) |
-| [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.47, 2.1x | 450 (-258) |
-| [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 20.98, 2.1x | 400 (-250) |
-| [`rtdetrv2-l-coco`](#rtdetrv2) | yes | 6.61, 4.6x | 306 (-106) |
-| [`rtdetrv2-m-coco`](#rtdetrv2) | yes | 5.27, 3.2x | 274 (+20) |
-| [`rtdetrv2-ms-coco`](#rtdetrv2) | yes | 5.46, 4.1x | 306 (-52) |
-| [`rtdetrv2-s-coco`](#rtdetrv2) | yes | 4.19, 3.4x | 250 (+30) |
-| [`rtdetrv2-x-coco`](#rtdetrv2) | yes | 9.24, 3.9x | 384 (-212) |
+| [`detr-r101-coco`](#detr) | yes | 13.69, 5.8x | 328, 0.52x |
+| [`detr-r50-coco`](#detr) | yes | 9.93, 5.6x | 272, 0.5x |
+| [`dfine-l-coco`](#dfine) | yes | 8.695, 4.3x | 300, 0.91x |
+| [`dfine-m-coco`](#dfine) | yes | 5.966, 5.2x | 252, 0.98x |
+| [`dfine-n-coco`](#dfine) | yes | 2.723, 8.9x | 202, 1.7x |
+| [`dfine-s-coco`](#dfine) | yes | 4.037, 6.4x | 212, 1.2x |
+| [`dfine-x-coco`](#dfine) | yes | 14.086, 3.2x | 364, 0.75x |
+| [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.47, 2.1x | 450, 0.64x |
+| [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 20.98, 2.1x | 400, 0.62x |
+| [`rtdetrv2-l-coco`](#rtdetrv2) | yes | 6.61, 4.6x | 306, 0.74x |
+| [`rtdetrv2-m-coco`](#rtdetrv2) | yes | 5.27, 3.2x | 274, 1.1x |
+| [`rtdetrv2-ms-coco`](#rtdetrv2) | yes | 5.46, 4.1x | 306, 0.85x |
+| [`rtdetrv2-s-coco`](#rtdetrv2) | yes | 4.19, 3.4x | 250, 1.1x |
+| [`rtdetrv2-x-coco`](#rtdetrv2) | yes | 9.24, 3.9x | 384, 0.64x |
 
 <a id="detr"></a>
 
 ## DETR (ResNet-50 / ResNet-101)
 
-DETR (ResNet-50 and ResNet-101, COCO) from Facebook Research: end-to-end boxes and classes from 100 object queries, no NMS. Commercially usable.
+DETR (ResNet-50 and ResNet-101, COCO) from Facebook Research: end-to-end boxes and classes from 100 object queries, no NMS.
 
 Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `detr-r50-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 55.5<br>62.0<br>12.4<br>9.93 | 491 / 540<br>459 / 558<br>280 / 332<br>218 / 272 |
+| `detr-r50-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 55.5<br>62.0<br>12.4<br>9.93<br>9.27<br>4.40 | 491 / 540<br>459 / 558<br>280 / 332<br>218 / 272<br>233 / 292<br>182 (engine) |
 | `detr-r101-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 78.9<br>80.8<br>18.7<br>13.7 | 564 / 634<br>531 / 650<br>316 / 368<br>254 / 328 |
 
 <details><summary>Details</summary>
@@ -51,6 +53,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `detr-r50-coco` 3000x4000 (0.6 GiB peak allocated, 0.6 reserved); `detr-r101-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved)
+- `detr-r50-coco` 800x1344, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 33 s (ONNX + engine).
 - `detr-r50-coco` original (fp32) 800x1344: incl. CPU resize + host copy (official pipeline)
 - `detr-r50-coco` original 800x1344: torch.autocast(fp16) around the forward; incl. CPU resize + host copy (official pipeline)
 - `detr-r101-coco` original (fp32) 800x1344: incl. CPU resize + host copy (official pipeline)
@@ -59,6 +62,17 @@ Commercial use: yes.
 - `detr-r101-coco` load / first call: original 0.95 s / 0.063 s, portable 0.81 s / 0.019 s, kernels 0.22† s / 0.014 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `detr-r50-coco` | COCO val2017, every 10th image, box mAP | 43.59 | 43.53 | 43.59 | 43.62 |  |
+| `detr-r101-coco` | COCO val2017, every 10th image, box mAP | 44.04 | 44.00 | 44.11 | 44.05 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -75,13 +89,13 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ## D-FINE (HGNetV2, N / S / M / L / X)
 
-D-FINE (N, S, M, L, X; HGNetV2, COCO) from USTC: real-time end-to-end detector in the RT-DETR style, 300 queries, deformable attention and box edges refined as distributions, no NMS. Commercially usable.
+D-FINE (N, S, M, L, X; HGNetV2, COCO) from USTC: real-time end-to-end detector in the RT-DETR style, 300 queries, deformable attention and box edges refined as distributions, no NMS.
 
 Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 24.3<br>29.1<br>10.3<br>2.72 | 91 / 122<br>92 / 126<br>88 / 116<br>124 / 202 |
+| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.3<br>29.1<br>10.3<br>2.72<br>5.43<br>0.942 | 91 / 122<br>92 / 126<br>88 / 116<br>124 / 202<br>101 / 118<br>56 (engine) |
 | `dfine-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 25.7<br>31.9<br>11.1<br>4.04 | 180 / 204<br>152 / 184<br>105 / 128<br>138 / 212 |
 | `dfine-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 30.8<br>38.2<br>13.5<br>5.97 | 231 / 264<br>209 / 256<br>126 / 142<br>156 / 252 |
 | `dfine-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 37.1<br>44.9<br>16.2<br>8.70 | 281 / 328<br>278 / 350<br>152 / 172<br>179 / 300 |
@@ -100,6 +114,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dfine-n-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-l-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `dfine-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved)
+- `dfine-n-coco` 800x1344, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
 - `dfine-n-coco` original (fp32) 800x1344: incl. CPU PIL resize + host-to-device copy of the HF-transformers pipeline (the official D-FINE .pth is not in the weights dir)
 - `dfine-n-coco` original 800x1344: torch.autocast(fp16) around the forward; incl. CPU PIL resize + host-to-device copy of the HF-transformers pipeline (the official D-FINE .pth is not in the weights dir); fp16 differs from the reference (box max diff 65.17 px)
 - `dfine-s-coco` original (fp32) 800x1344: incl. CPU PIL resize + host-to-device copy of the HF-transformers pipeline (the official D-FINE .pth is not in the weights dir)
@@ -139,14 +154,14 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ## detectron2 Mask / Faster R-CNN (R50-FPN)
 
-Faster R-CNN and Mask R-CNN from the detectron2 model zoo (ResNet-50 FPN, COCO): boxes, classes and, for Mask R-CNN, instance masks. Commercially usable.
+Faster R-CNN and Mask R-CNN from the detectron2 model zoo (ResNet-50 FPN, COCO): boxes, classes and, for Mask R-CNN, instance masks.
 
 Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `mask-rcnn-r50-fpn-3x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 85.4<br>43.5<br>24.6<br>21.0 | 1601 / 1918<br>604 / 650<br>352 / 440<br>353 / 400 |
-| `faster-rcnn-r50-fpn-3x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 83.6<br>41.4<br>22.8<br>19.5 | 1591 / 1898<br>626 / 708<br>390 / 490<br>391 / 450 |
+| `faster-rcnn-r50-fpn-3x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 83.6<br>41.4<br>22.8<br>19.5<br>18.9<br>5.35 (backbone + FPN only) | 1591 / 1898<br>626 / 708<br>390 / 490<br>391 / 450<br>413 / 438<br>258 (engine) |
 
 <details><summary>Details</summary>
 
@@ -162,12 +177,24 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels, masks; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mask-rcnn-r50-fpn-3x-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved); `faster-rcnn-r50-fpn-3x-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved)
+- `faster-rcnn-r50-fpn-3x-coco` 800x1344, first call: portable + torch.compile 26 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
 - `mask-rcnn-r50-fpn-3x-coco` original 800x1344: torch.autocast(fp16) around the forward
 - `faster-rcnn-r50-fpn-3x-coco` original 800x1344: torch.autocast(fp16) around the forward
 - `mask-rcnn-r50-fpn-3x-coco` load / first call: original 0.97 s / 0.836 s, portable 1.5 s / 0.417 s, kernels 0.22† s / 0.043 s
 - `faster-rcnn-r50-fpn-3x-coco` load / first call: original 0.73 s / 0.045 s, portable 0.53 s / 0.247 s, kernels 0.14† s / 0.04 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `mask-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 42.13 / 38.67 | 42.13 / 38.66 | 42.12 / 38.65 | 42.10 / 38.64 |  |
+| `faster-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP | 41.54 | 41.44 | 41.58 | 41.58 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -184,13 +211,13 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ## RT-DETRv2 (ResNet-vd, S / M / M* / L / X)
 
-RT-DETRv2 (S, M, M*, L, X; ResNet-vd, COCO) from the RT-DETR authors: real-time end-to-end detector, 300 queries and deformable attention, no NMS. Commercially usable.
+RT-DETRv2 (S, M, M*, L, X; ResNet-vd, COCO) from the RT-DETR authors: real-time end-to-end detector, 300 queries and deformable attention, no NMS.
 
 Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rtdetrv2-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 14.1<br>16.8<br>8.04<br>4.19 | 196 / 226<br>192 / 220<br>134 / 166<br>155 / 250 |
+| `rtdetrv2-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.1<br>16.8<br>8.04<br>4.19<br>4.22<br>1.81 | 196 / 226<br>192 / 220<br>134 / 166<br>155 / 250<br>152 / 182<br>98 (engine) |
 | `rtdetrv2-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 17.1<br>20.9<br>10.4<br>5.27 | 239 / 254<br>254 / 270<br>156 / 170<br>177 / 274 |
 | `rtdetrv2-ms-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 24.7<br>22.5<br>9.60<br>5.46 | 322 / 374<br>309 / 358<br>166 / 182<br>189 / 306 |
 | `rtdetrv2-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 30.3<br>38.4<br>12.1<br>6.61 | 366 / 424<br>354 / 412<br>177 / 200<br>200 / 306 |
@@ -209,6 +236,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtdetrv2-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `rtdetrv2-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `rtdetrv2-ms-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `rtdetrv2-l-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved); `rtdetrv2-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.8 reserved)
+- `rtdetrv2-s-coco` 800x1344, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `rtdetrv2-s-coco` original (fp32) 800x1344: incl. CPU resize + host copy (official pipeline)
 - `rtdetrv2-s-coco` original 800x1344: torch.autocast(fp16) around the forward; incl. CPU resize + host copy (official pipeline)
 - `rtdetrv2-m-coco` original (fp32) 800x1344: incl. CPU resize + host copy (official pipeline)
@@ -226,6 +254,20 @@ Commercial use: yes.
 - `rtdetrv2-x-coco` load / first call: original 1.13 s / 0.076 s, portable 1.09 s / 0.048 s, kernels 0.29† s / 0.021 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+
+### Measured
+
+pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `rtdetrv2-s-coco` | COCO val2017, every 10th image, box mAP | 49.29 | 49.26 | 49.29 | 49.31 |  |
+| `rtdetrv2-m-coco` | COCO val2017, every 10th image, box mAP | 49.83 | 49.81 | 49.84 | 49.79 |  |
+| `rtdetrv2-ms-coco` | COCO val2017, every 10th image, box mAP | 51.97 | 51.98 | 51.95 | 51.96 |  |
+| `rtdetrv2-l-coco` | COCO val2017, every 10th image, box mAP | 54.52 | 54.57 | 54.51 | 54.49 |  |
+| `rtdetrv2-x-coco` | COCO val2017, every 10th image, box mAP | 55.51 | 55.54 | 55.51 | 55.49 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

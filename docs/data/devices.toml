@@ -1,0 +1,81 @@
+# Measured devices (docs/data/README.md, "Devices"). One table per device; the key is the slug of its page
+# docs/devices/<slug>.md and its data file. Exactly one device is the reference (`reference = true`): its rows are
+# docs/data/speed.jsonl (the speed floor), its tables are docs/benchmarks.md. Every other device is a survey: rows in
+# docs/data/speed/<slug>.jsonl, no regression floor.
+#
+# Slug: vendor + model + memory size (`rtx-5060-ti-16gb`, `rx-7900-xtx-24gb`, `apple-m1-pro-16gb`); core counts and
+# the backend go in the fields, not the slug. Order = the column order of the cross-device table.
+#
+#   name      the device as the docs name it
+#   backend   cuda (NVIDIA), rocm (AMD, torch.cuda over HIP) or mps (Apple silicon)
+#   match     the `gpu` value the measuring tools record for it (torch.cuda.get_device_name(); MPS: the chip name)
+#   memory    memory as sold (unified on Apple silicon)
+#   details   further hardware facts (cores, power limit, host)
+#   software  OS / driver / torch / toolkit of the shown measurements
+#   hidden    true: rows kept and checked, but the docs show nothing (no page, nav entry or column); for later
+
+[rtx-5060-ti-16gb]
+name = "RTX 5060 Ti 16 GB"
+reference = true
+backend = "cuda"
+match = "NVIDIA GeForce RTX 5060 Ti"
+memory = "16 GB GDDR7"
+details = "Blackwell, sm_120"
+software = "Linux, torch 2.14.1+cu130, CUDA 12.8 kernels (13.0 for four stereo families), cuDNN 9.24"
+
+[apple-m1-pro-16gb]
+name = "Apple M1 Pro 16 GB"
+backend = "mps"
+match = "Apple M1 Pro"
+memory = "16 GB unified"
+details = "16-core GPU"
+software = "macOS 27, torch 2.14"
+
+[l4-22gb]
+name = "NVIDIA L4"
+backend = "cuda"
+match = "NVIDIA L4"
+memory = "22 GB"
+details = "sm_89"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
+
+[l40s-44gb]
+name = "NVIDIA L40S"
+backend = "cuda"
+match = "NVIDIA L40S"
+memory = "44 GB"
+details = "sm_89"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
+
+[a10-22gb]
+name = "NVIDIA A10"
+backend = "cuda"
+match = "NVIDIA A10"
+memory = "22 GB"
+details = "sm_86"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
+
+[a10g-22gb]
+name = "NVIDIA A10G"
+hidden = true  # by-product: Modal placed an "A10" run on an A10G; kept, not shown
+backend = "cuda"
+match = "NVIDIA A10G"
+memory = "22 GB"
+details = "sm_86"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
+
+[a100-sxm4-40gb]
+name = "NVIDIA A100-SXM4-40GB"
+backend = "cuda"
+match = "NVIDIA A100-SXM4-40GB"
+memory = "40 GB"
+details = "sm_80"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
+
+[rtx-pro-6000-96gb]
+name = "NVIDIA RTX PRO 6000"
+backend = "cuda"
+match = "NVIDIA RTX PRO 6000 Blackwell Server Edition"
+memory = "96 GB GDDR7"
+details = "Blackwell Server Edition, sm_120, 600 W"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
