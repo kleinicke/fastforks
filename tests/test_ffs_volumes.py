@@ -38,5 +38,6 @@ def test_traced_volumes_match_loops(shape, d, groups, normalize, dtype) -> None:
         cat = utils.build_concat_volume(a, b, d)
     assert gwc.dtype == dtype
     assert gwc.shape == gwc_ref.shape
-    torch.testing.assert_close(gwc.float(), gwc_ref.float(), atol=2e-4 if dtype == torch.float16 else 1e-5, rtol=1e-5)
+    # fp16: one unit in the last place below 1 (4.9e-4); the sum order differs between the two forms and torch versions
+    torch.testing.assert_close(gwc.float(), gwc_ref.float(), atol=5e-4 if dtype == torch.float16 else 1e-5, rtol=1e-5)
     assert torch.equal(cat, cat_ref)

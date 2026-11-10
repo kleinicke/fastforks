@@ -161,8 +161,8 @@ class Lab:
             self.seen[f"conv {m}x{k} rule {rule_c(m, k)}"] += 1
             return c.get(f"{m}x{k}", c.get(f"x{k}", c.get("default", rule_c(m, k))))
 
-        self.k.gemm_cfg = gemm_cfg  # ty: ignore[invalid-assignment]
-        self.k.conv_cfg = conv_cfg  # ty: ignore[invalid-assignment]
+        self.k.gemm_cfg = gemm_cfg
+        self.k.conv_cfg = conv_cfg
         self.k.lib = self.libs[v.get("lib", "base")]
         a = v.get("attn", "flash64")
         if a in FLASH_VARIANTS:  # one fixed flash64 variant, unchecked
