@@ -23,8 +23,10 @@ needed), or for every built target with
 use. `--dry-run` lists the sizes and fetches nothing; `--check` fetches nothing either and exits 1 if a file cannot be
 resolved without network (FASTFORKS_CACHE, the search paths, the Hugging Face / torch hub caches), and prints where each
 resolves from (a last `RUN` of a Dockerfile, where those other places are empty). `--arch` needs `--kernels` or
-`--kernels-only`. With `FASTFORKS_OFFLINE=1` (or `HF_HUB_OFFLINE=1`) no model
-download is attempted at all: a file that is not local raises an error that names the file and the command.
+`--kernels-only`. A file that cannot be fetched (a gated repo without access, a host that is down) does not stop
+the rest: every other model and binary is still fetched, the failures are printed as `MISSING` lines at the end, and
+the exit code is 1. With `FASTFORKS_OFFLINE=1` (or `HF_HUB_OFFLINE=1`) no model download is attempted at all: a file
+that is not local raises an error that names the file and the command.
 
 `bench` times one model of any task on synthetic input (the task's `bench_inputs`: an image, a pair for stereo,
 `--views` views for multi-view; median wall time and peak CUDA memory; on Apple MPS the Metal driver's memory after the
@@ -377,7 +379,10 @@ def _size_text(n: int) -> str:
 
 
 def _weights(args: argparse.Namespace, entries: Sequence[tuple[ModelCard, Variant]]) -> list[str]:
-    """Print each model's licence class and size, fetch its weights (`--check`: look only); returns what is missing."""
+    """Print each model's licence class and size, fetch its weights (`--check`: look only); returns what is missing.
+
+    A model that fails to download does not stop the others: it is reported as missing at the end.
+    """
     missing: list[str] = []
     for card, v in entries:
         st = card.status(v)
@@ -395,7 +400,12 @@ def _weights(args: argparse.Namespace, entries: Sequence[tuple[ModelCard, Varian
             found = _missing(v.ref, lambda card=card, v=v: registry.weights(card, v, allow_download=False))
             missing += [f"{m}; needs {registry.NONCOMMERCIAL_ENV}=1 to download" for m in found] if nc else found
         elif not args.dry_run:
-            for p in registry.weights(card, v):
+            try:
+                paths = registry.weights(card, v)
+            except FastforksError as e:  # keep going: the other models still download, MISSING lists this one
+                missing.append(f"{v.ref}: {e}")
+                continue
+            for p in paths:
                 print(f"{v.ref}: {p}")
     return missing
 
@@ -407,7 +417,11 @@ def _kernel(args: argparse.Namespace, lib: str, tag: str, spec: FileSpec) -> lis
     elif args.check:
         return _missing(tag, lambda: [locate(spec, group=lib, env_var=KERNEL_PATH_ENV, allow_download=False)])
     else:
-        print(f"{tag}: {locate(spec, group=lib, env_var=KERNEL_PATH_ENV)}")
+        try:
+            path = locate(spec, group=lib, env_var=KERNEL_PATH_ENV)
+        except FastforksError as e:
+            return [f"{tag}: {e}"]
+        print(f"{tag}: {path}")
     return []
 
 

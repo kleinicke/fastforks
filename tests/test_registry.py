@@ -206,6 +206,29 @@ def test_download_skips_or_refuses_nc_weights(monkeypatch, capsys):
     assert fetched == []
 
 
+def test_download_fetches_the_rest_past_a_failing_model(monkeypatch, capsys, tmp_path):
+    """A gated file without access is reported at the end; the other models and the kernel binaries still come."""
+    from fastforks._core import cli  # noqa: PLC0415
+
+    fetched, kernels = [], []
+
+    def weights(_card, v, **_k):
+        if v.ref.startswith("hitnet-eth3d"):
+            msg = "gated: no access"
+            raise WeightsDownloadError(msg)
+        fetched.append(v.ref)
+        return [tmp_path / "w"]
+
+    monkeypatch.setattr(registry, "weights", weights)
+    monkeypatch.setattr(cli, "locate", lambda spec, **_k: kernels.append(spec.name) or tmp_path / "k")
+    assert cli.main(["download", "hitnet-eth3d", "igev-stereo-sceneflow", "--kernels", "--all-archs"]) == 1
+    assert fetched == ["igev-stereo-sceneflow@1"]
+    assert kernels  # fetched after the failure too
+    err = capsys.readouterr().err
+    assert "MISSING hitnet-eth3d@1: gated: no access" in err
+    assert "igev-stereo" not in err
+
+
 def test_model_card_has_the_variants_outputs():
     """A variant's `[output]` overrides show on its card (the DA3 family card says metric, da3mono is affine)."""
     from fastforks import depth  # noqa: PLC0415

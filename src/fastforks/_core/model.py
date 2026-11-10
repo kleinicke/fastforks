@@ -224,6 +224,38 @@ def _import_dynamo() -> None:
         t = threading.Thread(target=importlib.import_module, args=("torch._dynamo",))
         t.start()
         t.join()  # an import error is raised again by the caller's own import
+    while _AFTER_DYNAMO:
+        with contextlib.suppress(IndexError):  # another thread took the last one
+            _AFTER_DYNAMO.pop()()
+
+
+_AFTER_DYNAMO: list[Callable[[], None]] = []  # `eager_in_compile` wrappers still to make, once dynamo is imported
+_Fn = TypeVar("_Fn", bound="Callable[..., Any]")
+
+
+def eager_in_compile(fn: _Fn) -> _Fn:
+    """`fn`, run eagerly (untraced) when it is called inside a `Model.compile()` trace.
+
+    `torch.compiler.disable` imports `torch._dynamo`, so the disabled function is not made here (at the import of
+    the caller's module) but by `_import_dynamo`, which `compile()` and every kernels load call first. A trace that
+    starts without it (a caller's own `torch.compile`) traces `fn`.
+    """
+    disabled: Callable[..., Any] | None = None
+
+    def arm() -> None:
+        nonlocal disabled
+        disabled = torch.compiler.disable(fn)
+
+    if "torch._dynamo" in sys.modules:
+        arm()
+    else:
+        _AFTER_DYNAMO.append(arm)
+
+    @functools.wraps(fn)
+    def call(*a: Any, **k: Any) -> Any:  # noqa: ANN401 - the wrapped function's own signature
+        return disabled(*a, **k) if disabled is not None and torch.compiler.is_compiling() else fn(*a, **k)
+
+    return cast("_Fn", call)
 
 
 def _kernels_entry_points(runner: Runner) -> None:

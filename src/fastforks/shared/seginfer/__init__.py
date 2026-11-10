@@ -34,6 +34,7 @@ from fastforks._core.errors import (
     install_hint,
 )
 from fastforks._core.kernels import note_fallback
+from fastforks._core.model import eager_in_compile
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Sequence
@@ -264,6 +265,12 @@ def upsample_argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]], *, fus
     Returns:
         Labels `[B, H, W]` int64.
     """
+    return _argmax(scores, sizes, fused=fused)
+
+
+# under `Model.compile()` eager: Inductor fuses each resize into the class max, 3x slower (segformer, 2026-11-06)
+@eager_in_compile
+def _argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]], *, fused: bool) -> torch.Tensor:
     if fused and _fused(scores, sizes):
         return _launch(scores, sizes, argmax=True)
     b, c = scores.shape[:2]

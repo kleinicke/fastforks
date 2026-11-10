@@ -31,3 +31,33 @@ def _run(call: str) -> str:
 @pytest.mark.slow
 def test_first_dynamo_import_frees_the_caller():
     assert _run("_import_dynamo()") == "freed"
+
+
+EAGER = """
+import sys, torch
+from fastforks._core import model
+from fastforks.shared import seginfer
+assert "torch._dynamo" not in sys.modules, "import seginfer must not import dynamo"
+assert model._AFTER_DYNAMO, "the eager label step waits for dynamo"
+scores, sizes = torch.randn(1, 5, 4, 6), [(8, 12)]
+want = seginfer.upsample_argmax(scores, sizes)
+assert "torch._dynamo" not in sys.modules, "an eager call must not import dynamo"
+model._import_dynamo()
+assert not model._AFTER_DYNAMO
+frames = []
+def count(fn):
+    def run(*a, **k):
+        frames.append(torch.compiler.is_compiling())
+        return fn(*a, **k)
+    return run
+torch.nn.functional.interpolate = count(torch.nn.functional.interpolate)  # `_argmax` calls it through `F`
+got = torch.compile(lambda s: seginfer.upsample_argmax(s, sizes), backend="eager")(scores)
+assert torch.equal(got, want)
+print("eager" if frames == [False] else f"traced {frames}")
+"""
+
+
+@pytest.mark.slow
+def test_seginfer_import_leaves_dynamo_out_and_labels_run_eagerly_in_compile():
+    out = subprocess.run([sys.executable, "-c", EAGER], capture_output=True, text=True, check=True)
+    assert out.stdout.strip() == "eager"
