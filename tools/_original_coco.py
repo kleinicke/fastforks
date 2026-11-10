@@ -230,6 +230,13 @@ class _Points:
             key = variant.id.removeprefix("sam-hq-").replace("-", "_")
             self.pred = _original.sam_hq_recipe().predictor(key, weights)
             net = self.pred.model.cuda()
+        elif family == "mobile_sam":
+            from fastforks._core import registry  # noqa: PLC0415
+
+            card, variant = registry.resolve("promptable_segmentation", ref)
+            weights = registry.weights(card, variant, allow_download=False)[0]
+            self.pred = _original.mobile_sam_recipe().predictor(weights)
+            net = self.pred.model.cuda()
         elif family == "sam":
             k = ref.rsplit("-", 1)[1]
             sam = a.reg[a.KEYS[k]]()
@@ -259,7 +266,7 @@ class _Points:
     ) -> Result:
         pts, lab = input_points.cuda().float(), input_labels.cuda().int()
         with self.t.ctx():
-            if self.family in {"sam", "sam_hq", "efficientvit_sam"}:  # the same predictor interface
+            if self.family in {"sam", "sam_hq", "efficientvit_sam", "mobile_sam"}:  # the same predictor interface
                 c = self.pred.transform.apply_coords_torch(pts, size)
                 masks, iou, _ = self.pred.predict_torch(c, lab, multimask_output=multimask_output)
             else:
@@ -312,7 +319,7 @@ class _Concept:
         )
 
 
-def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401
+def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, PLR0911 - one branch per family
     """The original of `ref` (id without `@rev`) in `tier`."""
     ref = ref.split("@", maxsplit=1)[0]
     if task == "detection":
@@ -325,6 +332,8 @@ def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401
         return _Points(ref, tier, "efficientvit_sam")
     if ref.startswith("sam-hq"):
         return _Points(ref, tier, "sam_hq")
+    if ref.startswith("mobile-sam"):
+        return _Points(ref, tier, "mobile_sam")
     return _Points(ref, tier, "sam2" if ref.startswith("sam2") else "sam")
 
 

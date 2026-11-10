@@ -86,6 +86,7 @@ segformer = "NVIDIA's SegFormer: a transformer for ADE20K scene segmentation, si
 
 # --- promptable segmentation
 efficientvit_sam = "EfficientViT-SAM (MIT Han lab): Segment Anything with a fast convolutional image encoder, in five sizes."
+mobile_sam = "MobileSAM: Segment Anything with a small TinyViT image encoder distilled from the largest SAM."
 sam = "Segment Anything: masks from clicks, boxes or mask prompts, in sizes B, L and H."
 sam_hq = "HQ-SAM (ETH Zurich): Segment Anything with an added head for sharper mask borders and thin structures, in sizes B, L and H."
 sam2 = "Segment Anything 2.1 in image mode: masks from clicks, boxes or mask prompts, in four sizes."

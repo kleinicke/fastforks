@@ -191,6 +191,24 @@ All numbers are from the RTX 5060 Ti (2026-11-10); nothing here was run on a dat
 
 Source: `src/fastforks/promptable_segmentation/models/sam_hq/` (`model.py`, `fast.py`, `fused.py`, `card.toml`).
 
+## Promptable segmentation: MobileSAM
+
+All numbers are from the RTX 5060 Ti (2026-11-10); nothing here was run on a datacenter GPU.
+
+- **Launch-bound encoder.** The TinyViT-5M encoder takes 6.5 ms on `portable` and 5.1 ms on `kernels` (fp16,
+  1024 x 1024), torch.compile 4.8 ms and the TensorRT fp16 engine 5.0 ms; the full call with one point is 10.5 /
+  6.9 / 6.2 ms. With 5 M parameters the encoder is small kernels and launches, so a faster GPU gains little per image.
+  Not built: a CUDA graph over the whole encoder (the prompt decoder already replays one, as EfficientViT-SAM) and a
+  batched `embed` (several images per call), which would fill an 80 GB card; both are the first things to try there.
+- **Prompt side.** The prompt encoder and mask decoder are SAM's (`shared/sam_prompt`), with EfficientViT-SAM's CUDA
+  graph per prompt layout (up to 4 prompts). On COCO the prompts cost 8.5 ms per image (all instances) against
+  5.6 ms for the embedding on `kernels`, so for many prompts the decoder dominates; chunked or fp16 decoding is
+  not tried.
+- **Memory.** 183 MiB allocated at 1920 x 1080 on `portable`; the COCO peak (up to 52 prompts per image) is 1.9 GB
+  allocated / 4.0 GB reserved on `kernels`, set by the decoder.
+
+Source: `src/fastforks/promptable_segmentation/models/mobile_sam/` (`model.py`, `fast.py`, `card.toml`).
+
 ## Cross-cutting
 
 - **Batching.** The `kernels` paths are tuned for batch 1, which is launch-bound on datacenter GPUs. This is the most

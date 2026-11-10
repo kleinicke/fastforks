@@ -210,7 +210,10 @@ runtime-evaluated-base-classes = []
 "src/fastforks/multiview/models/vggt_omega/net/models/layers/{utils,vision_transformer}.py" = [
   "G004", "BLE001", "NPY002", "PTH100", "S110", "S603", "S607",
 ]
+# MobileSAM's TinyViT: upstream backslash-continued f-string and lambdas over a loop variable (called in the loop).
+"src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py" = ["ISC002", "B023"]
 "src/fastforks/shared/*/net/**" = [
+  "PGH004",  # upstream blanket `# noqa` (SAM)
   "PLW2901", "FLY", "TD", "FIX", "PGH003", "RUF013", "RUF012", "RUF100", "B008", "RUF046",  # more upstream (DINOv2 / DPT / EdgeNeXt) style
   "D", "Q", "UP", "I", "E", "W", "N", "ANN", "C4", "C90", "COM", "ERA", "FBT", "ARG", "TRY", "EM", "SIM", "RET",
   "PLR", "PERF", "TID252", "RUF005", "RUF059", "B007", "B905", "E741", "PLC0415", "INP001",
@@ -296,9 +299,12 @@ markers = [
   "slow: takes > 1 s; skipped without --slow (release suite, the tests of changed code)",
 ]
 
-# VGGT pose_enc: `H, W = image_size_hw` on an argument typed Optional upstream.
+# VGGT pose_enc: `H, W = image_size_hw` on an argument typed Optional upstream. TinyViT: a ModuleList attribute.
 [[tool.ty.overrides]]
-include = ["src/fastforks/multiview/models/vggt/net/utils/pose_enc.py"]
+include = [
+  "src/fastforks/multiview/models/vggt/net/utils/pose_enc.py",
+  "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py",  # `for block in layer.blocks`
+]
 
 [tool.ty.overrides.rules]
 not-iterable = "ignore"

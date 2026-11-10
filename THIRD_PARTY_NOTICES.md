@@ -121,6 +121,15 @@ that repository's copy of the prompt encoder, mask decoder and two-way transform
 (https://github.com/facebookresearch/segment-anything, Apache-2.0, Copyright (c) Meta Platforms, Inc. and affiliates).
 Both licence texts are in the family folder (`LICENSE`, `LICENSE-segment-anything`).
 
+## MobileSAM
+
+`src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py` is the image encoder of
+https://github.com/ChaoningZhang/MobileSAM (Apache-2.0), which is TinyViT of https://github.com/microsoft/Cream
+(MIT, Copyright (c) Microsoft Corporation). Both licence texts are in the family folder (`LICENSE`,
+`LICENSE-TinyViT`). Its prompt side is `src/fastforks/shared/sam_prompt/`: the prompt encoder, mask decoder and
+two-way transformer of Segment Anything (https://github.com/facebookresearch/segment-anything, Apache-2.0, Copyright
+(c) Meta Platforms, Inc. and affiliates), licence text in that folder (`LICENSE`).
+
 ## HQ-SAM
 
 `src/fastforks/promptable_segmentation/models/sam_hq/net/` is the model code of https://github.com/SysCV/sam-hq

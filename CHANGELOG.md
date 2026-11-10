@@ -37,6 +37,10 @@
   prompt (SAM's best mask plus the HQ mask, as upstream's default). Same call and prompts as SAM. On the RTX 5060 Ti
   the full call with one point takes 36.8 ms (B) to 143.5 ms (H) on `kernels`, against 172 and 738 ms for the
   original in float32.
+- New promptable-segmentation family MobileSAM (Kyung Hee University, Apache-2.0 code and weights): `mobile-sam`, on
+  `portable` and `kernels`. SAM's prompt encoder and mask decoder with a small TinyViT image encoder (1024 input).
+  Same call and prompts as SAM. On the RTX 5060 Ti the full call with one point takes 6.9 ms on `kernels`, against
+  30.3 ms for the original in float32; COCO mIoU is the original's (51.53 best of 3).
 - Fix: the ONNX export of EfficientViT-SAM no longer produces NaN. The exporter dropped the `+ 1e-15` of the linear
   attention's division as a no-op, so zero sums gave 0 / 0 in ONNX Runtime and TensorRT; the epsilon is now a tensor
   the exporter keeps. Torch results are unchanged. The fp16 TensorRT engine is finite but misses the golden

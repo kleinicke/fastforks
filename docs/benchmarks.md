@@ -654,6 +654,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | efficientvit-sam-l2 | 34.4 | 34.4 | 17.8 | 6.83 | 5.0x | 2.6x | 313 / 344 | 221 / 260 | 232 / 312 |
 | efficientvit-sam-xl0 | 46.9 | 28.2 | 19.0 | 9.75 | 2.9x | 1.9x | 654 / 670 | 433 / 506 | 401 / 492 |
 | efficientvit-sam-xl1 | 72.6 | 40.9 | 28.9 | 15.3 | 2.7x | 1.9x | 984 / 1022 | 598 / 676 | 582 / 728 |
+| mobile-sam | 30.3 | 23.5 | 10.5 | 6.86 | 3.4x | 1.5x | 207 / 286 | 183 / 210 | 215 / 296 |
 | sam-hq-vit-b | 172 | 103 | 49.7 | 36.8 | 2.8x | 1.4x | 1704 / 1756 | 388 / 422 | 433 / 564 |
 | sam-hq-vit-h | 738 | 311 | 217 | 144 | 2.2x | 1.5x | 4266 / 4318 | 1500 / 1566 | 1541 / 1708 |
 | sam-hq-vit-l | 412 | 202 | 118 | 81.4 | 2.5x | 1.4x | 2969 / 3018 | 846 / 902 | 889 / 1046 |
@@ -969,6 +970,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | efficientvit-sam-l2 | 0.39 | 0.93 | 1.78 | 0.04 | 0.66 | 0.25 |
 | efficientvit-sam-xl0 | 0.62 | 2.67 | 2.14 | 0.59 | 0.52 | 0.26 |
 | efficientvit-sam-xl1 | 1.06 | 2.32 | 2.51 | 0.04 | 0.53 | 0.24 |
+| mobile-sam | 0.21 | 0.71 | 1.60 | 1.01 | 0.47 | 0.29 |
 | sam-hq-vit-b | 0.77 | 0.27 | 1.06 | 0.19 | 0.41 | 0.35 |
 | sam-hq-vit-h | 3.92 | 1.34 | 2.29 | 0.32 | 0.52 | 0.47 |
 | sam-hq-vit-l | 1.98 | 0.76 | 1.64 | 0.20 | 0.41 | 0.40 |
@@ -1200,6 +1202,7 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | efficientvit-sam-l2 | 1024x1024 | 17.8 ms | 10.8 ms | 9.65 ms, fp32 engine (image encoder only) | 6.83 ms | 26.1 s | 24.1 s | 221 / 260 | 238 / 278 | 232 / 312 | 330 |
 | efficientvit-sam-xl0 | 1024x1024 | 19.0 ms | 14.2 ms | 22.7 ms, fp32 engine (image encoder only) | 9.75 ms | 24.0 s | 29.8 s | 433 / 506 | 397 / 424 | 401 / 492 | 782 |
 | efficientvit-sam-xl1 | 1024x1024 | 28.9 ms | 22.9 ms | 38.4 ms, fp32 engine (image encoder only) | 15.3 ms | 26.7 s | 36.6 s | 598 / 676 | 562 / 616 | 582 / 728 | 1058 |
+| mobile-sam | 1024x1024 | 10.5 ms | 6.22 ms | 4.99 ms (image encoder only) | 6.86 ms | 25.5 s | 60.9 s | 183 / 210 | 203 / 232 | 215 / 296 | 122 |
 | sam-hq-vit-b | 1024x1024 | 49.7 ms | 39.4 ms | 28.0 ms (image encoder only) | 36.8 ms | 32.8 s | 39.0 s | 388 / 422 | 372 / 422 | 433 / 564 | 342 |
 | sam-hq-vit-h | 1024x1024 | 217 ms | 187 ms | 125 ms (image encoder only) | 144 ms | 42.3 s | 69.1 s | 1500 / 1566 | 1476 / 1526 | 1541 / 1708 | 1474 |
 | sam-hq-vit-l | 1024x1024 | 118 ms | 97.0 ms | 68.3 ms (image encoder only) | 81.4 ms | 32.9 s | 53.3 s | 846 / 902 | 822 / 902 | 889 / 1046 | 796 |

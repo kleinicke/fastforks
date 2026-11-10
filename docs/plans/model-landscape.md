@@ -207,7 +207,7 @@ timm is the golden reference.
 |---|---|---|---|---|---|---|
 | EfficientViT-SAM | mit-han-lab/efficientvit | Apache-2.0 | Apache-2.0 | yes | P1 | fast SAM; EfficientViT kernels already shipped |
 | SAM-HQ | SysCV/sam-hq | Apache-2.0 | Apache-2.0 | yes | P1 | SAM weights + small HQ head; better mask edges |
-| MobileSAM | ChaoningZhang/MobileSAM | Apache-2.0 | unverified (MIT on a mirror) | check | P2 | TinyViT encoder |
+| MobileSAM | ChaoningZhang/MobileSAM | Apache-2.0 | Apache-2.0 (`weights/mobile_sam.pt` is committed in the Apache-2.0 repository; MIT on the co-author's Hugging Face copy, same file) | yes | P2 | ported 2026-11-10; TinyViT encoder (MIT, microsoft/Cream); distilled on 1 % of SA-1B |
 | EfficientSAM | yformer/EfficientSAM | Apache-2.0 | unverified | check | P3 | |
 | FC-CLIP | bytedance/fc-clip | Apache-2.0 | unverified | check | P2 | open-vocabulary panoptic on frozen CLIP; Mask2Former kernels |
 | CAT-Seg | cvlab-kaist/CAT-Seg | MIT | unverified | check | P2 | open-vocabulary semantic |
@@ -391,7 +391,7 @@ What it means for us:
 ## Still to verify
 
 - Every `unverified` weights licence above before the model ships, especially those on GitHub releases or Google
-  Drive (SPAN, NAFNet, Restormer, GeoCalib, DeepLSD, MobileSAM, FC-CLIP, CAT-Seg, Cutie, LLMDet, Lite Any Stereo).
+  Drive (SPAN, NAFNet, Restormer, GeoCalib, DeepLSD, FC-CLIP, CAT-Seg, Cutie, LLMDet, Lite Any Stereo).
 - Custom terms not read in full: Sapiens2, VGGT-Commercial AUP, NVIDIA Open Model Licence (VISTA3D, C-RADIO), Gemma
   terms (MobileNetV5), Google HAI-DEF, Owkin (Phikon), RETFound, Rad-DINO (MSRLA).
 - Conflicts between code and card: DocLayout-YOLO (AGPL code, Apache card), PTv3 (CC-BY-NC LICENSE, MIT card),

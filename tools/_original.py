@@ -38,6 +38,7 @@ TIERS = {"upstream": "fp32", "upstream16": "autocast", "upstreamhalf": "half", "
 BF16 = {"vggt", "vggt_omega", "mapanything", "depth_anything_3"}  # the authors' mixed precision is bfloat16
 NATIVE_HALF = {"depth_pro", "marigold"}  # build(ref, True) is a float16 model, not mixed precision
 _SETUP: set[str] = set()
+_MOBILE_SAM: list[Any] = []  # the golden script of MobileSAM, see `mobile_sam_recipe`
 
 
 def bench() -> Any:  # noqa: ANN401 - the bench_upstream module
@@ -473,6 +474,45 @@ def _sam_hq(a: Any, full: str) -> Any:  # noqa: ANN401
     return call
 
 
+def mobile_sam_recipe() -> Any:  # noqa: ANN401 - tools/golden/mobile_sam.py with upstream importable
+    """The golden script of MobileSAM, with upstream's package imported from its pinned tree (once).
+
+    The checkout is `FF_MOBILE_SAM_REPO` (ChaoningZhang/MobileSAM; it imports timm). The script and upstream's package
+    are both called `mobile_sam`: the script is taken out of `sys.modules`, so its imports find the package.
+    """
+    if not _MOBILE_SAM:
+        repo = os.environ.get("FF_MOBILE_SAM_REPO")
+        if not repo:
+            msg = "FF_MOBILE_SAM_REPO: a clone of ChaoningZhang/MobileSAM for the original-code tiers"
+            raise RuntimeError(msg)
+        g = _golden("mobile_sam")
+        del sys.modules["mobile_sam"]
+        g.tree(Path(repo))
+        importlib.import_module("mobile_sam")
+        _MOBILE_SAM.append(g)
+    return _MOBILE_SAM[0]
+
+
+def _mobile_sam(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Upstream `SamPredictor` of MobileSAM as `tools/golden/mobile_sam.py`: `set_image`, then one point prompt.
+
+    Returns the three low-resolution mask logits, as the bench's SAM call.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = mobile_sam_recipe()
+    card, variant = registry.resolve("promptable_segmentation", full)
+    pred = g.predictor(registry.weights(card, variant, allow_download=False)[0])
+    pred.model.cuda()
+    a.note = "upstream SamPredictor.set_image + predict (centre point, multimask_output=True)"
+
+    def call(img: Any, points: Any, labels: Any) -> Any:  # noqa: ANN401 - uint8 HWC array, [1, 2] and [1] arrays
+        pred.set_image(img)
+        return pred.predict(point_coords=points, point_labels=labels, multimask_output=True)[2]
+
+    return call
+
+
 def _hwc_point(a: tuple[Any, ...]) -> tuple[Any, ...]:
     """(uint8 CUDA CHW, points, labels) of the bench call -> (uint8 HWC array, [1, 2] float array, [1] int array)."""
     import numpy as np  # noqa: PLC0415
@@ -538,6 +578,7 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
     "convnext": _Local("classification", _convnext, ((224, 224),)),
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
+    "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),
 }
 
 

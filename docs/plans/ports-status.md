@@ -43,6 +43,8 @@ exist) and the MPS goldens, all passing. Still open:
 
 - TIPSv2 `b14`, `l14` (new family, features): MPS goldens (cpu_atol 6.9e-05, gpu mean 0.019 / p99 0.069) and
   portable fp32/fp16 speed rows. Weights from the pinned HF URLs.
+- MobileSAM `mobile-sam` (new, promptable segmentation; new `shared/sam_prompt`): MPS golden and portable speed.
+  Weights `~/scratch_tests/port-mobilesam/weights/mobile_sam.pt` on the CUDA machine, or the pinned URL.
 - Perception Encoder `g14`: the peak footprint (about 17.8 GB) is above the 16 GB of the machine, so the times
   include swapping.
 - SEA-RAFT `spring` variants run about ten times faster than the others at the same labelled input; not looked into.
