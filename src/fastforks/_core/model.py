@@ -41,7 +41,7 @@ from fastforks._core.errors import (
     OptionsError,
     WeightsError,
 )
-from fastforks._core.kernels import begin_call, cuda_device
+from fastforks._core.kernels import begin_call, checked, cuda_device
 from fastforks._core.runner import Context, Runner
 from fastforks._core.sizes import SizeRange, size_range
 from fastforks._core.tasks import spec
@@ -226,22 +226,28 @@ def _import_dynamo() -> None:
         t.join()  # an import error is raised again by the caller's own import
 
 
-def _opaque_to_dynamo(runner: Runner) -> None:
-    """Make the runner's entry points a clean graph break inside the user's `torch.compile` (kernels are opaque).
+def _kernels_entry_points(runner: Runner) -> None:
+    """Wrap the kernels runner's entry points: deferred output checks, and a clean graph break in `torch.compile`.
 
-    Dynamo would otherwise trace into the kernel launchers (RecursionError, then a silent eager run); outside a
-    trace the check costs one `is_compiling()` call.
+    Each call runs under `checked` (the overflow fallback of `fastbb.Flash64`: one sync per call while a
+    launcher probes, else none). Dynamo would otherwise trace into the kernel launchers (RecursionError, then a silent
+    eager run); outside a trace the check costs one `is_compiling()` call.
     """
     _import_dynamo()  # `torch.compiler.disable` imports it
     base = type(runner)
 
     def opaque(name: str) -> Callable[..., Any]:
         eager = getattr(base, name)
-        disabled = torch.compiler.disable(eager)
+
+        @functools.wraps(eager)
+        def run(self: Any, *a: Any, **k: Any) -> Any:  # noqa: ANN401 - the runner's bound method
+            return checked(eager, self, *a, **k)
+
+        disabled = torch.compiler.disable(run)
 
         @functools.wraps(eager)
         def call(self: Any, *a: Any, **k: Any) -> Any:  # noqa: ANN401 - the runner's bound method
-            return disabled(self, *a, **k) if torch.compiler.is_compiling() else eager(self, *a, **k)
+            return disabled(self, *a, **k) if torch.compiler.is_compiling() else run(self, *a, **k)
 
         return call
 
@@ -289,7 +295,7 @@ class Model:
         self._fork_warned = False
         self._min_size = 0  # the documented minimum (`size_range().reject_below`), read on the first call
         if backend.mode == "kernels":
-            _opaque_to_dynamo(runner)
+            _kernels_entry_points(runner)
 
     def __repr__(self) -> str:
         """Model ref, backend and the user's weight files, if any."""

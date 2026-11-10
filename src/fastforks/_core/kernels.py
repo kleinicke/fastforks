@@ -19,6 +19,7 @@ import functools
 import hashlib
 import itertools
 import logging
+import math
 import os
 import platform
 import re
@@ -28,7 +29,7 @@ import threading
 import tomllib
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypeVar
 
 import torch
 
@@ -522,3 +523,90 @@ def begin_call() -> None:
 def call_index() -> int:
     """The index of the current model call (0 before the first); see `begin_call`."""
     return _call
+
+
+T = TypeVar("T")
+
+_SLOTS = 1024  # fixed: launch checks per fp32 buffer of a `checked` run (4 KB; more launches: one more buffer + sync)
+
+# the output checks of the running `checked` call on this thread (a `_Checks`), or None
+_CHECKS = threading.local()
+
+
+class _Checks:
+    """One run's launch checks: each launch's output sum in an fp32 slot, all read with one copy per buffer.
+
+    Only the sum reduction runs on the device; `isfinite` / `stack` would load their kernels on the first call
+    (+35 / +7 ms on an RTX 5060 Ti).
+    """
+
+    def __init__(self) -> None:
+        self.buffers: list[torch.Tensor] = []
+        self.used = 0  # slots used, over all buffers
+        self.launches: list[tuple[int, Callable[[], Callable[[], None] | None], Callable[[], None]]] = []
+
+    def add(
+        self, output: torch.Tensor, widen: Callable[[], Callable[[], None] | None], refund: Callable[[], None]
+    ) -> None:
+        """Queue the sum of `output` (inf / NaN anywhere: a non-finite sum)."""
+        if self.used == len(self.buffers) * _SLOTS or self.buffers[-1].device != output.device:
+            self.used = len(self.buffers) * _SLOTS
+            self.buffers.append(torch.empty(_SLOTS, device=output.device))
+        slot = self.buffers[-1][self.used % _SLOTS]
+        torch.sum(output, tuple(range(output.dim())), dtype=torch.float32, out=slot)
+        self.launches.append((self.used, widen, refund))
+        self.used += 1
+
+    def finite(self) -> list[bool]:
+        """Per launch: its output was finite (one host sync per buffer)."""
+        ends = {n // _SLOTS: n % _SLOTS + 1 for n, _, _ in self.launches}
+        values = {i: self.buffers[i][:k].tolist() for i, k in ends.items()}
+        return [math.isfinite(values[n // _SLOTS][n % _SLOTS]) for n, _, _ in self.launches]
+
+
+def checking() -> bool:
+    """Whether a `checked` call runs on this thread (its launches record their checks with `defer_check`)."""
+    return getattr(_CHECKS, "run", None) is not None
+
+
+def defer_check(
+    output: torch.Tensor, widen: Callable[[], Callable[[], None] | None], refund: Callable[[], None]
+) -> None:
+    """Record a launch's output check in the running `checked` call: it fails when `output` has an inf or NaN.
+
+    `widen()` switches the launcher to a wider variant and returns how to undo that, or `None` if it has none left;
+    `refund()` gives the launch back to the launcher's checked-launch budget when the call runs again.
+    """
+    _CHECKS.run.add(output, widen, refund)
+
+
+def checked(fn: Callable[..., T], *args: object, **kwargs: object) -> T:
+    """`fn(*args, **kwargs)`, run again while a launch it recorded with `defer_check` failed and has a fallback.
+
+    The model call's (`Model`'s kernels entry points) or a CUDA graph warm-up's: one host sync per run, only if a
+    launch recorded a check. The first failed launch (later ones may only see its NaN) switches its launcher and the
+    call runs again; a launcher with no wider variant left (non-finite inputs, not an overflow) gets its variant of
+    the call's start back, and the output is returned as is. A nested call checks its own launches.
+    """
+    outer = getattr(_CHECKS, "run", None)
+    undo: dict[Callable[[], Callable[[], None] | None], Callable[[], None]] = {}
+    try:
+        while True:
+            _CHECKS.run = run = _Checks()
+            out = fn(*args, **kwargs)
+            if not run.launches:
+                return out
+            finite = run.finite()
+            bad = next((w for (_, w, _), ok in zip(run.launches, finite, strict=True) if not ok), None)
+            if bad is None:
+                return out
+            if (step := bad()) is None:
+                if bad in undo:
+                    undo[bad]()
+                return out
+            undo.setdefault(bad, step)
+            for _, w, refund in run.launches:  # the rerun launches them again: only the returned run counts
+                if w != bad:
+                    refund()
+    finally:
+        _CHECKS.run = outer

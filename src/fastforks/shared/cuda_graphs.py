@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
+from fastforks._core.kernels import checked
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Hashable
 
@@ -168,7 +170,7 @@ class GraphCache:
         graph = torch.cuda.CUDAGraph()
         with CAPTURE_LOCK, torch.cuda.stream(side):
             side.wait_stream(cur)
-            self._forward(*static)  # warm-up outside the capture (lazy inits, workspaces)
+            checked(self._forward, *static)  # warm-up outside the capture (lazy inits, workspaces, overflow fallbacks)
             side.synchronize()
             graph.capture_begin(self._pool, capture_error_mode="thread_local")
             try:
