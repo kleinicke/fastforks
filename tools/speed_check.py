@@ -25,8 +25,9 @@ top kernels). `export` turns the library rows into floor rows (the fields of doc
 task's standard input (`STANDARD`, else its smallest), `model.compile()` on portable (`compile`: a fresh process
 with empty Inductor / Triton caches, so `first_call_s` = `compile_s` is the cold compile; warm `ms`, peaks as above) and
 the fp16 TensorRT engine of the portable model (`tensorrt`: `onnx_export_s`, `engine_build_s`, warm `ms` of
-`TensorRTEngine` on the synthetic module inputs, `device_mb` = device memory the engine holds after loading and running
-it). A failure (error, build failure, timeout) becomes a row with `fails: <short reason>`, not a crash.
+`TensorRTEngine` on synthetic inputs of the timed call's network input shape, `device_mb` = device memory the engine
+holds after loading and running it). A failure (error, build failure, timeout) becomes a row with
+`fails: <short reason>`, not a crash.
 
 Rows are keyed by (ref, mode, input, code hash): the hash covers the fastforks source files the job imported, the
 kernel ids of its backend and the torch version, so a later `run` skips jobs whose files did not change;
@@ -85,7 +86,6 @@ SCENES = {  # floor scene prefix -> left image (right: image_3 / im1), under $FA
 }
 VIEWS = {"mapanything-apache": 9, "patchmatchnet": 5}  # multi-view scenes of the floor (other models: 8 views)
 SWAPPED = {"patchmatchnet"}  # floor input label is WxH
-NATIVE_EXPORT = {"siglip", "eva02"}  # timm ViTs that assert the input size: the engine is built at the crop, not at 224
 STANDARD = {  # the task's standard input of docs/benchmarks.md (tools/gen_docs.py `_STD_SIZE`): compile / tensorrt rows
     "stereo": "994x1482",
     "depth": "994x1482",
@@ -412,11 +412,41 @@ def _fail(row: dict[str, Any], spec: dict[str, Any], msg: str) -> None:
         row["error"] = msg[:600]
 
 
+def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int, int]:  # noqa: ANN401
+    """(batch or views, h, w) of the image the network takes in one timed call (`module()` takes the same).
+
+    The runner's first image argument (classification: the crop, multi-view: `[views, 3, H, W]`); detection, whose
+    `module()` starts after the resize: the first 3-channel image a submodule gets, if one does (R-CNN: the runner's).
+    """
+    import torch  # noqa: PLC0415
+
+    seen: list[torch.Size] = []
+
+    def hook(_mod: Any, args: tuple[Any, ...]) -> None:  # noqa: ANN401
+        x = args[0] if args else None
+        if not seen and isinstance(x, torch.Tensor) and x.ndim == 4 and x.shape[1] == 3:  # noqa: PLR2004
+            seen.append(x.shape)
+
+    runner = model._runner  # noqa: SLF001 - the task's own runner contract
+    cap = model._runner = _Capture(runner)  # noqa: SLF001
+    handle = torch.nn.modules.module.register_module_forward_pre_hook(hook) if task == "detection" else None
+    try:
+        full()
+    finally:
+        model._runner = runner  # noqa: SLF001
+        if handle is not None:
+            handle.remove()
+    seen += [a.shape for a in cap.__dict__["_args"][1] if isinstance(a, torch.Tensor)][:1]
+    n, _, h, w = seen[0]
+    return n, h, w
+
+
 def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: list[Any], out: Path) -> None:  # noqa: ANN401
     """`tensorrt` mode: ONNX export and fp16 engine build of the portable model at the input, then the engine's timing.
 
-    The engine runs `module()` on the synthetic module inputs (`example_inputs`). `device_mb` = device memory taken by
-    loading the engine and running it (TensorRT allocates outside torch).
+    The engine runs `module()` on synthetic inputs (`example_inputs`) of the shape the timed call gives the network
+    (`_net_input`: the classifier crop, the scene's views). `device_mb` = device memory taken by loading the engine and
+    running it (TensorRT allocates outside torch).
     """
     import tempfile  # noqa: PLC0415
 
@@ -424,20 +454,18 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
 
     from fastforks._core.export import TensorRTEngine, all_nan, build_tensorrt  # noqa: PLC0415
 
-    del calls
     label = spec["inputs"][0]["label"]
-    h, w = (int(v) for v in label.split("x"))
-    native = model.size_range().native  # a fixed-size network (timm ViTs at 378 / 448 px) takes only its crop
-    if native is not None and model.card.family in NATIVE_EXPORT:
-        h, w = native
     row = {**common, "input": label, "scene": "synthetic", "first_call_cold": True}
-    if f"{h}x{w}" != label:
-        row["net_input"] = f"{h}x{w}"
     try:
-        inputs = model.example_inputs(h, w)
+        n, h, w = _net_input(model, spec["task"], calls[0][1])
+        if f"{h}x{w}" != label:
+            row["net_input"] = f"{h}x{w}"
+        if n > 1:
+            row["views"] = n
+        inputs = model.example_inputs(h, w, batch=n)
         with tempfile.TemporaryDirectory(prefix="ff-trt-") as tmp:
             t0 = time.perf_counter()
-            onnx = model.export_onnx(Path(tmp) / "model.onnx", h, w)
+            onnx = model.export_onnx(Path(tmp) / "model.onnx", h, w, batch=n)
             row["onnx_export_s"] = round(time.perf_counter() - t0, 1)
             t0 = time.perf_counter()
             engine_path = build_tensorrt(onnx, Path(tmp) / "model.engine")
@@ -771,7 +799,8 @@ def static_violations() -> list[tuple[str, str]]:
     """(key, message) of floor rows slower than a mode they must not lose to (same ref and input)."""
     by: dict[tuple[str, str], dict[str, float]] = {}
     for r in floor_rows():
-        by.setdefault((r["ref"], r["input"]), {})[r["mode"]] = r["ms"]
+        if "ms" in r:  # an OOM original has no time
+            by.setdefault((r["ref"], r["input"]), {})[r["mode"]] = r["ms"]
     out = []
     for (ref, inp), ms in sorted(by.items()):
         origs = [m for m in ("upstream", "upstream-default") if m in ms]

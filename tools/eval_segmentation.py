@@ -267,6 +267,7 @@ def _chunked(a: argparse.Namespace) -> int:  # noqa: C901
     t0 = time.perf_counter()
     ade = _files(a.ade, a.every, 0, None)
     out = Path(a.out)
+    out.parent.mkdir(parents=True, exist_ok=True)  # before the first model runs, not at its first write
     done = set()
     if out.exists():
         for r in map(json.loads, out.read_text().splitlines()):

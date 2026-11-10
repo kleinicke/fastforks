@@ -22,6 +22,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -57,6 +58,9 @@ COLS = ("original fp32", "original fp16", "portable", "kernels")
 MODE = {"upstream": "upstream", "portable": "portable", "kernels": "kernels"}
 FP16 = ("upstream16", "upstreamac")
 KEEP = ("commit", "gpu", "torch", "date", "command")
+# a port that stands for an original without a build for this GPU (MegEngine 1.13: no sm_120): its rows fill the
+# original's columns; the original's own (CPU) rows keep tier `<tier>-cpu`, shown in the report only
+PORTS = {"crestereo-eth3d-pt": "crestereo-eth3d"}
 
 
 def _jl(p: Path) -> list[dict[str, Any]]:
@@ -89,6 +93,10 @@ def _chunks(recs: list[dict[str, Any]], task: str) -> list[dict[str, Any]]:
             row["note"] = last["backend"]
         row |= {k: last.get(k) for k in KEEP}
         good = {(r["start"], r["stop"]): r for r in rs if "error" not in r}  # last record of a chunk wins
+        spans = sorted(good)
+        if any(b0 < a1 for (_, a1), (b0, _) in pairwise(spans)):  # a rerun with another --chunk: images twice
+            msg = f"{task} {ref} {tier}: overlapping chunks {spans}; drop the stale chunk size's records"
+            raise SystemExit(msg)
         err = next((r["error"] for r in rs if "error" in r and (r["start"], r["stop"]) not in good), None)
         ok = list(good.values())
         if err:
@@ -124,6 +132,8 @@ def _coco(raw: Path) -> list[dict[str, Any]]:
             r["ms_per_img"] = r["ms"]
         elif "ms_embed" in r:
             r["ms_per_img"] = round(r["ms_embed"] + r["ms_prompts"], 2)
+        if "box_map" in r["metrics"] and r["task"] == "promptable_segmentation":
+            r["dataset"] += "-text"  # SAM 3: class-name text prompts, mAP; not the point-prompt mIoU of the same images
         out.append(r)
     return out
 
@@ -180,12 +190,22 @@ def _primary(task: str, row: dict[str, Any]) -> float | None:
     return None if v is None or "error" in row else float(v) * scale
 
 
+def _ports(rows: list[dict[str, Any]]) -> None:
+    has = {PORTS[r["ref"]] for r in rows if r["ref"] in PORTS}
+    for r in rows:
+        if r["ref"] in has and r["tier"].startswith("upstream"):
+            r["tier"] += "-cpu"
+        if r["ref"] in PORTS:
+            r["ref"] = PORTS[r["ref"]]
+
+
 def choose(rows: list[dict[str, Any]]) -> dict[str, str]:
     """Set `column` / `mode` on the rows; map ref -> its fp16 original tier.
 
     `upstream16`, or `upstreamac` where the authors' own option fails (c-foundationstereo-s: "CUDA error: invalid
     argument").
     """
+    _ports(rows)
     failed = {r["ref"] for r in rows if r["tier"] == "upstream16" and "error" in r}
     ok = {r["ref"] for r in rows if r["tier"] == "upstreamac" and "error" not in r}
     picked = {r["ref"]: "upstreamac" if r["ref"] in failed & ok else "upstream16" for r in rows if r["tier"] in FP16}
@@ -215,6 +235,7 @@ def speed_rows(raw: Path, picked: dict[str, dict[str, str]]) -> list[dict[str, A
     out = []
     for f in sorted((raw / "speed").glob("*.jsonl")):
         for r in _jl(f):
+            r["ref"] = PORTS.get(r["ref"], r["ref"])
             t = r.get("tier")
             if t == "upstream":  # the docs' fp32 original convention
                 out.append(r | {"mode": "upstream-default"})

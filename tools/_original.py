@@ -120,10 +120,10 @@ def load(task: str, ref: str, tier: str) -> Original:
 
 def _moge3(full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
     """MoGe-3 (the bench adapter skips it): upstream `moge.model.v3` with FlexGEMM, as `tools/golden/moge.py`."""
-    import flex_gemm  # noqa: PLC0415 - reference-only dependency (004 venv)  # ty: ignore[unresolved-import]
     from moge.model.v3 import MoGeModel  # noqa: PLC0415  # ty: ignore[unresolved-import]
 
-    flex_gemm.config.SPCONV_ALLOW_TF32 = False
+    # FlexGEMM at its defaults (TF32 sparse convs, adaptive autotune), as a user of the original gets it; the golden
+    # reference (tools/golden/moge.py) turns TF32 off itself.
     net = MoGeModel.from_pretrained(bench().wfile(f"{full.split('@', maxsplit=1)[0]}/model.pt")).cuda().eval()
     return lambda x: net.infer(x[None].float() / 255, resolution_level=9, apply_mask=False, use_fp16=fp16)["depth"]
 

@@ -274,7 +274,7 @@ def _table(args: argparse.Namespace) -> int:
                     + " | ".join(_cell(recs.get((ref, mode, s))) for s in sizes)
                     + " |"
                 )
-    for size, members in fixed.items():
+    for size, members in fixed.items() if only is None else ():  # docs: their native size is in the speed tables
         print(f"\nFixed-input models (classification, features), run at their one native size, {size}:\n")
         print(f"| model | mode | {size} |\n|---|---|---|")
         for ref in members:
