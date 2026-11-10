@@ -37,7 +37,7 @@ def predict(model: Any, left: Any, right: Any, scale: float) -> Any:  # noqa: AN
     return F.interpolate(d.reshape(1, 1, *size).float(), (h, w), mode="bilinear", align_corners=False)[0, 0] / scale
 
 
-def main() -> None:  # noqa: D103, PLR0915
+def main() -> None:  # noqa: PLR0915
     ap = argparse.ArgumentParser()
     ap.add_argument("out", type=Path)
     ap.add_argument("--ref", default="crestereo-eth3d")
