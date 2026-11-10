@@ -21,6 +21,9 @@
 - New classifier ConvNeXt (Meta's V1 weights from timm, Apache-2.0): tiny, small, base and large, each trained on
   ImageNet-1k (`convnext_base.fb_in1k`) and on ImageNet-22k fine-tuned on ImageNet-1k at 224
   (`convnext_base.fb_in22k_ft_in1k`) and 384 (`..._384`), on `portable` and `kernels`.
+- New classifier RepViT (the authors' distilled ImageNet-1k weights from timm, Apache-2.0): `repvit_m0_9`, `m1_0`,
+  `m1_1`, `m1_5` and `m2_3`, each with the 300- and the 450-epoch weights (`repvit_m1_1.dist_450e_in1k`), on
+  `portable` and `kernels`. The re-parameterisable branches are fused at load.
 - New feature backbones: SigLIP 2, CLIP / OpenCLIP, Perception Encoder and C-RADIOv3.
 - New feature backbone: TIPSv2 (B/14, L/14 image encoders; the DINOv2 kernel path).
 - New depth models: Depth Anything V2 Metric (Hypersim indoor, max 20 m; Virtual KITTI outdoor, max 80 m; each S, B,

@@ -48,9 +48,14 @@ def _reparam_tree(module: nn.Module) -> None:
         _reparam_tree(child)
 
 
+def _timm_fuse(m: nn.Module) -> bool:
+    """A timm block with a `fuse()` method (the class's, not a submodule named `fuse` as other libraries have)."""
+    return type(m).__module__.startswith("timm.") and callable(getattr(type(m), "fuse", None))
+
+
 def reparam(model: nn.Module) -> bool:
-    """Re-parameterize timm blocks (FastViT / MobileOne / RepViT: `reparameterize` / `switch_to_deploy`) in place."""
-    if any(hasattr(m, a) for m in model.modules() for a in ("reparameterize", "switch_to_deploy")):
+    """Re-parameterize timm blocks (FastViT / MobileOne: `reparameterize` / `switch_to_deploy`; RepViT: `fuse`)."""
+    if any(hasattr(m, "reparameterize") or hasattr(m, "switch_to_deploy") or _timm_fuse(m) for m in model.modules()):
         _reparam_tree(model)
         return True
     return False

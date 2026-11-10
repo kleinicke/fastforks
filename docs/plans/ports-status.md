@@ -45,6 +45,9 @@ exist) and the MPS goldens, all passing. Still open:
   portable fp32/fp16 speed rows. Weights from the pinned HF URLs.
 - MobileSAM `mobile-sam` (new, promptable segmentation; new `shared/sam_prompt`): MPS golden and portable speed.
   Weights `~/scratch_tests/port-mobilesam/weights/mobile_sam.pt` on the CUDA machine, or the pinned URL.
+- RepViT, 10 variants (new family, classification; changes shared `_optimize/fold.py` reparam and
+  `_core/deferred_init.py`): portable fp32 MPS goldens of all 10, check that fused weights load through
+  `deferred_init`. Weights `~/scratch_tests/port-repvit/weights/` or the pinned timm URLs.
 - Perception Encoder `g14`: the peak footprint (about 17.8 GB) is above the 16 GB of the machine, so the times
   include swapping.
 - SEA-RAFT `spring` variants run about ten times faster than the others at the same labelled input; not looked into.

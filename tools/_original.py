@@ -576,6 +576,7 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
         "detection", _rtmdet, ((800, 1344),), lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),)
     ),
     "convnext": _Local("classification", _convnext, ((224, 224),)),
+    "repvit": _Local("classification", _convnext, ((224, 224),)),
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),

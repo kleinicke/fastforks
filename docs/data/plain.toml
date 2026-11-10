@@ -67,6 +67,7 @@ mobilenetv2 = "MobileNetV2 (Sandler et al. 2018): a classifier built on inverted
 mobilenetv3 = "MobileNetV3 (Howard et al. 2019): a classifier found by architecture search, with squeeze-excite and hard-swish."
 mobilenetv4 = "MobileNetV4 (Qin et al. 2024): a classifier built on universal inverted bottlenecks."
 regnet = "RegNetY (Radosavovic et al. 2020): classifiers from a designed family of residual stages."
+repvit = "RepViT (Wang et al. 2024): a mobile CNN classifier laid out like a ViT, re-parameterised to plain convolutions."
 resnet = "ResNet (He et al. 2015): the standard residual classifier."
 shufflenetv2 = "ShuffleNet V2 (Ma et al. 2018): a classifier built on channel split and shuffle units."
 siglip = "SigLIP So400m/14 (Zhai et al. 2023) fine-tuned on ImageNet-1k."
