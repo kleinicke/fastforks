@@ -48,9 +48,6 @@ exist) and the MPS goldens, all passing. Still open:
 - SEA-RAFT `spring` variants run about ten times faster than the others at the same labelled input; not looked into.
 - Metal kernels for the families that have none (flow, the feature backbones except Perception Encoder, RTMDet,
   ConvNeXt, the SAM variants): not tried yet.
-- Depth Anything 3 `large-1.1`, `giant-1.1`, nested: `portable` now sizes the RoPE table by the token count (shared
-  with VGGT in `shared/rope2d.py`; same values), so they export to ONNX / TensorRT. MPS goldens of these three and of
-  VGGT to be run again.
 
 ## Known gaps that wait for a release
 
