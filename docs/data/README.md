@@ -116,9 +116,9 @@ model, dataset and `setting`:
 
 - `da3mono-large` with `setting.long_side` = 504 (default), 756, 1008 or `"native"` (the longer side of each image, so no
   resize before the network; `long_side_values` lists the values used). Metrics as in `depth_eval.jsonl`
-  (`rel_absrel`, `rel_d1`) plus two edge metrics defined in the script, at the GT size on the aligned prediction:
-  `edge_band_absrel` (AbsRel within 2 px of a GT depth jump > 10 % between 4-neighbours) and `edge_f1` (F1 of the jump
-  maps, 1 px tolerance; `edge_prec` / `edge_rec`). NYUv2 has no such jumps, so its edge metrics are `null` (not defined);
+  (`rel_absrel`, `rel_d1`) plus the edge metrics defined in the script's docstring, at the GT size on the aligned
+  prediction: `edge_band_absrel` (AbsRel within 2 px of a GT depth jump > 10 % between 4-neighbours) and `edge_f1` (F1
+  of the jump maps, 1 px tolerance; `edge_prec` / `edge_rec`). NYUv2 has no such jumps, so its edge metrics are `null`;
   ETH3D's GT is a sparse laser scan, so its edge F1 is not meaningful.
 - `crestereo-eth3d` with `setting` = `{scale, iters}`: the stereo pair is resized by `scale` (bilinear, back to uint8),
   the disparity resized back (bilinear) and divided by `scale`; `iters` is the card option (default 20). `epe` / `bad`
@@ -127,8 +127,9 @@ model, dataset and `setting`:
   original scale (`n_px_*`; ETH3D has none above 64). `ms_per_img` includes the resizes.
 
 `peak_*_mb` is the largest allocated / reserved memory of one call (cache emptied before each call). The scripts are
-`exp_da3_longside.py` and `exp_crestereo_scale.py` (kept outside the repo); the library is a dirty working tree on
-`commit`, and the `dpt_fused` kernel binary came from a local build of the same sources (build id `48e0065bb7cf`).
+`tools/exp_da3_longside.py` and `tools/exp_crestereo_scale.py` (`python tools/<script> <out dir>` writes `rows.jsonl`);
+the `dpt_fused` kernel binary came from a local build (build id `48e0065bb7cf`). The DA3 script changes `long_side` on
+one loaded model and first checks that this is bit-equal to loading with that `long_side`.
 
 ## Devices: `devices.toml`, `speed/<slug>.jsonl`
 
