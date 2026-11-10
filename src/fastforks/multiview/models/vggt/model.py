@@ -30,6 +30,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, invert
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
+from fastforks.shared.rope2d import rope_forward
 
 from .net.heads.camera_head import CameraHead
 from .net.heads.dpt_head import DPTHead
@@ -307,22 +308,6 @@ class _Fast(_Base):
         }
 
 
-def _rope_forward(self: nn.Module, tokens: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
-    """Upstream `RotaryPositionEmbedding2D.forward` with a table sized by the token count, not `positions.max()`.
-
-    Positions are at most the token count, and a longer table has the same rows, so the result is unchanged; the
-    data-dependent size made torch.export fail and cost a device sync.
-    """
-    rope: Any = self
-    d = tokens.size(-1) // 2
-    cc, sc = rope._compute_frequency_components(d, tokens.size(-2) + 1, tokens.device, tokens.dtype)  # noqa: SLF001
-    v, h = tokens.chunk(2, dim=-1)
-    return torch.cat(
-        (rope._apply_1d_rope(v, positions[..., 0], cc, sc), rope._apply_1d_rope(h, positions[..., 1], cc, sc)),  # noqa: SLF001
-        dim=-1,
-    )
-
-
 class Portable(_Fast):
     """Plain PyTorch: float32 = upstream modules; float16 (CUDA) = friendly (fp16 aggregator, SDPA)."""
 
@@ -332,7 +317,7 @@ class Portable(_Fast):
         super().__init__(ctx)
         rope: Any = self.net.aggregator.rope
         if rope is not None:
-            override(rope, _rope_forward)
+            override(rope, rope_forward)
 
     def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         """Upstream modules in fp32 (the fused path in fp32 on MPS: ~12% faster there), or the fp16 path."""

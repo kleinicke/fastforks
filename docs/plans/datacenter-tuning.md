@@ -38,6 +38,11 @@ surveys themselves: [device-survey.md](device-survey.md) and [OTHER_GPUS.md](../
   `SmallShapeGraphs` and no `cuda_graphs` option. Source: agent report, 2026-11-09/10.
 - Measured for reference (5060 Ti, 12 iterations, kernels vs portable fp16): raft-large 20.9 vs 43.8 ms at 440x1024
   and 82.8 vs 294.6 ms at 1088x1920 (peak 367 MiB vs 8388 MiB); raft-small 11.7 vs 23.1 ms at 440x1024.
+- **TensorRT at 1080 x 1920 needs more than 16 GB to build.** At the default builder level TensorRT fuses the
+  all-pairs correlation into one node and asks for a 21 GB buffer while tuning it (all four RAFT variants; the rows in
+  `docs/data/speed_compile.jsonl` stay failures on the 5060 Ti). A card with 24 GB or more should build it. At
+  `builder_optimization_level = 0` it builds on 16 GB, but raft-large then takes 338 ms and 8.2 GB (torch.compile:
+  195 ms, 5.9 GB; kernels: 83 ms), so that is not offered. Measured 2026-11-10, TensorRT 11.4.
 - SEA-RAFT: no datacenter notes of its own were found beyond the RAFT-era ones above (the same ideas were
   repeated in the summary of that work).
 

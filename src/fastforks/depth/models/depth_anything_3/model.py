@@ -31,8 +31,10 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.patch import override
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.shared.quantile import kth_smallest
+from fastforks.shared.rope2d import rope_forward
 
 from .net.cam_dec import CameraDec
 from .net.dinov2.dinov2 import DinoV2
@@ -326,6 +328,10 @@ class Portable(Runner):
         self.arch: Arch = ctx.params.arch
         self.intrinsics = self.input_use(ctx.params)["intrinsics"]  # ty: ignore[invalid-attribute-access] - per variant
         self.net = _net(ctx)
+        for br in self._branches():
+            rope: Any = br.backbone.pretrained.rope
+            if rope is not None:
+                override(rope, rope_forward)
         self.half = ctx.dtype == "float16"
         if self.half:
             for br in self._branches():  # pure fp16 backbone + head (no autocast), the last output convs in fp32

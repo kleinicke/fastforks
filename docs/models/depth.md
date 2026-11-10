@@ -52,9 +52,9 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 |---|---|---|---|---|
 | `da3mono-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 127<br>85.2<br>23.9<br>14.6<br>21.2<br>14.4 | 2419 / 2450<br>2997 / 3052<br>818 / 1328<br>814 / 868<br>792 / 828<br>754 (engine) |
 | `da3metric-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>85.1<br>24.1<br>14.7<br>21.2<br>14.4 | 2418 / 2450<br>2996 / 3050<br>815 / 1328<br>811 / 868<br>792 / 828<br>756 (engine) |
-| `da3-large-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 208<br>166<br>37.4<br>17.1<br>26.5<br>fails: ONNX export: torch.export failed | 2797 / 2872<br>3374 / 3472<br>992 / 1350<br>985 / 1090<br>841 / 868<br>– |
-| `da3-giant-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 410<br>227<br>81.8<br>44.2<br>64.3<br>fails: ONNX export: torch.export failed | 6428 / 6496<br>8590 / 8718<br>2638 / 4608<br>2628 / 2710<br>2487 / 2528<br>– |
-| `da3nested-giant-large-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 533<br>308<br>108<br>58.2<br>85.4<br>fails: ONNX export: torch.export failed | 7702 / 7760<br>10332 / 10402<br>3275 / 5914<br>3271 / 3378<br>3124 / 3194<br>– |
+| `da3-large-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 208<br>166<br>37.4<br>17.1<br>26.5<br>13.8 | 2797 / 2872<br>3374 / 3472<br>992 / 1350<br>985 / 1090<br>841 / 868<br>816 (engine) |
+| `da3-giant-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 410<br>227<br>81.8<br>44.2<br>64.3<br>37.2 | 6428 / 6496<br>8590 / 8718<br>2638 / 4608<br>2628 / 2710<br>2487 / 2528<br>2416 (engine) |
+| `da3nested-giant-large-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 533<br>308<br>108<br>58.2<br>85.4<br>51.9 | 7702 / 7760<br>10332 / 10402<br>3275 / 5914<br>3271 / 3378<br>3124 / 3194<br>3136 (engine) |
 
 <details><summary>Details</summary>
 
@@ -75,9 +75,9 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `da3mono-large` 3000x4000 (1.9 GiB peak allocated, 2.1 reserved); `da3metric-large` 3000x4000 (1.9 GiB peak allocated, 2.1 reserved); `da3-large-1.1` 3000x4000 (1.9 GiB peak allocated, 2.2 reserved); `da3-giant-1.1` 3000x4000 (5.1 GiB peak allocated, 5.4 reserved); `da3nested-giant-large-1.1` 3000x4000 (6.3 GiB peak allocated, 6.7 reserved)
 - `da3mono-large` 994x1482, first call: portable + torch.compile 25 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
 - `da3metric-large` 994x1482, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 58 s (ONNX + engine).
-- `da3-large-1.1` 994x1482, first call: portable + torch.compile 45 s (cold Inductor cache).
-- `da3-giant-1.1` 994x1482, first call: portable + torch.compile 47 s (cold Inductor cache).
-- `da3nested-giant-large-1.1` 994x1482, first call: portable + torch.compile 60 s (cold Inductor cache).
+- `da3-large-1.1` 994x1482, first call: portable + torch.compile 45 s (cold Inductor cache), TensorRT fp16 63 s (ONNX + engine).
+- `da3-giant-1.1` 994x1482, first call: portable + torch.compile 47 s (cold Inductor cache), TensorRT fp16 84 s (ONNX + engine).
+- `da3nested-giant-large-1.1` 994x1482, first call: portable + torch.compile 60 s (cold Inductor cache), TensorRT fp16 154 s (ONNX + engine).
 - `da3mono-large` original (fp32) 994x1482: float32 (the authors' autocast off)
 - `da3mono-large` original 994x1482: original default (api.py): torch.autocast(bfloat16)
 - `da3metric-large` original (fp32) 994x1482: float32 (the authors' autocast off)

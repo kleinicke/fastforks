@@ -1023,11 +1023,11 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | s2m2-s | 994x1482 | 348 ms | 186 ms | 137 ms | 113 ms | 95.9 s | 363 s | 1733 / 1930 | 1579 / 1710 | 686 / 820 | 980 |
 | selective-igev-eth3d-finetune | 994x1482 | 998 ms | 691 ms | 461 ms | 349 ms | 126 s | 256 s | 1238 / 1488 | 919 / 1088 | 1109 / 1390 | 1148 |
 | waft-stereo-s | 994x1482 | 689 ms | 357 ms | 170 ms | 284 ms | 95.1 s | 152 s | 3293 / 3456 | 2024 / 2058 | 1113 / 1286 | 662 |
-| da3-giant-1.1 | 994x1482 | 81.8 ms | 64.3 ms | fails: ONNX export: torch.export failed | 44.2 ms | 47.2 s | – | 2638 / 4608 | 2487 / 2528 | 2628 / 2710 | – |
-| da3-large-1.1 | 994x1482 | 37.4 ms | 26.5 ms | fails: ONNX export: torch.export failed | 17.1 ms | 45.4 s | – | 992 / 1350 | 841 / 868 | 985 / 1090 | – |
+| da3-giant-1.1 | 994x1482 | 81.8 ms | 64.3 ms | 37.2 ms | 44.2 ms | 47.2 s | 84.1 s | 2638 / 4608 | 2487 / 2528 | 2628 / 2710 | 2416 |
+| da3-large-1.1 | 994x1482 | 37.4 ms | 26.5 ms | 13.8 ms | 17.1 ms | 45.4 s | 62.6 s | 992 / 1350 | 841 / 868 | 985 / 1090 | 816 |
 | da3metric-large | 994x1482 | 24.1 ms | 21.2 ms | 14.4 ms | 14.7 ms | 26.6 s | 58.2 s | 815 / 1328 | 792 / 828 | 811 / 868 | 756 |
 | da3mono-large | 994x1482 | 23.9 ms | 21.2 ms | 14.4 ms | 14.6 ms | 25.0 s | 52.3 s | 818 / 1328 | 792 / 828 | 814 / 868 | 754 |
-| da3nested-giant-large-1.1 | 994x1482 | 108 ms | 85.4 ms | fails: ONNX export: torch.export failed | 58.2 ms | 60.0 s | – | 3275 / 5914 | 3124 / 3194 | 3271 / 3378 | – |
+| da3nested-giant-large-1.1 | 994x1482 | 108 ms | 85.4 ms | 51.9 ms | 58.2 ms | 60.0 s | 154 s | 3275 / 5914 | 3124 / 3194 | 3271 / 3378 | 3136 |
 | depth-anything-v2-metric-hypersim-b | 994x1482 | 18.6 ms | 17.0 ms | 10.8 ms | 10.8 ms | 16.0 s | 32.0 s | 445 / 514 | 340 / 394 | 349 / 396 | 282 |
 | depth-anything-v2-metric-hypersim-l | 994x1482 | 54.5 ms | 51.3 ms | 32.3 ms | 31.7 ms | 20.2 s | 43.5 s | 1022 / 1092 | 850 / 910 | 917 / 1034 | 868 |
 | depth-anything-v2-metric-hypersim-s | 994x1482 | 7.66 ms | 6.67 ms | 4.47 ms | 4.67 ms | 15.8 s | 29.8 s | 244 / 288 | 201 / 224 | 152 / 208 | 186 |
