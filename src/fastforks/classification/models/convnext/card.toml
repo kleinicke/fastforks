@@ -43,10 +43,7 @@ mps_dtypes = ["float32"]
 #     rows (slower at batch 8), cuDNN depthwise conv everywhere (wins at batch 8, loses at batch 4 and at 384).
 #   LayerNorm fused into the depthwise conv would need a new kernel (the norm needs the whole channel vector of a
 #     pixel, the conv writes channel by channel): not built.
-# Not built, for datacenter GPUs (A100 / L40S / H100 class): batch 1 is launch bound there (~100 launches per call),
-# so batching is where the headroom is (a graph per batch size exists up to 2^20 input pixels; raise it and re-measure
-# the two row thresholds, which are tuned for this card); TF32 / fp32 accumulation costs nothing there but buys no
-# accuracy here (fp16 top-1 = fp32 top-1); bf16 has no fused conv kernels; INT8 belongs to a TensorRT export.
+# Datacenter tuning ideas and measurement limits: docs/plans/datacenter-tuning.md.
 kernels = ["fvm_conv", "fvm_seg"]  # _optimize.conv_ops (fvm_conv) + fvm_seg: the only libraries this family imports
 
 [output]

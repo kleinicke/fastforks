@@ -28,13 +28,12 @@ Status (2026-11-10): working notes for the branch `work/ports`, which sits on to
 
 In this order, unless something more useful turns up:
 
-1. ConvNeXt: move the datacenter notes from the comments in its `card.toml` to `datacenter-tuning.md`. RTMDet and
-   RTMPose each carry their own CSPNeXt; move it to `shared/`.
-2. `docs/data/flow_eval.jsonl`: the RAFT rows still name the old model ids.
-3. CLIP: `clip-l14-dfn2b`, `clip-h14-dfn5b` and `clip-h14-378-dfn5b` have no `torch.compile` or TensorRT rows in
+1. RTMDet and RTMPose each carry their own CSPNeXt; move it to `shared/`. ConvNeXt datacenter notes now live
+   in `datacenter-tuning.md`, with measured results distinguished from untested suggestions.
+2. CLIP: `clip-l14-dfn2b`, `clip-h14-dfn5b` and `clip-h14-378-dfn5b` have no `torch.compile` or TensorRT rows in
    `docs/data/speed_compile.jsonl`.
-4. Next networks, from [model-landscape.md](model-landscape.md): a ConvNeXt v1 feature backbone (nearly free),
-   TIPSv2, MaxViT / RepViT, MobileSAM (licence not checked yet), the MoGe-2 extras, more flow and pose models.
+3. Next networks, from [model-landscape.md](model-landscape.md): MaxViT, the MoGe-2 extras, and more flow and pose
+   models. ConvNeXt features, TIPSv2, RepViT and MobileSAM are already merged.
 
 ## Waiting for the Mac
 

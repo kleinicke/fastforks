@@ -69,12 +69,15 @@ surveys themselves: [device-survey.md](device-survey.md) and [OTHER_GPUS.md](../
 
 ## Classification: ConvNeXt (and the other `fvm_conv` families)
 
+The measurements below are from an RTX 5060 Ti. Datacenter suggestions are untested; profile on the target GPU.
+
 - **Batching.** Batch 1 is launch bound on datacenter GPUs (about 100 launches per call). A graph per batch size exists
   up to 2^20 input pixels; raise that limit and re-measure the two row thresholds (cuBLAS for GEMMs of up to 600 rows,
   cuDNN depthwise conv for maps of up to 256 rows), which are tuned for the 5060 Ti. Source:
   `src/fastforks/classification/models/convnext/card.toml`.
-- **TF32 / fp32 accumulation** costs nothing there but buys no accuracy here (fp16 top-1 equals fp32 top-1). On the
-  5060 Ti an fp32-accumulate second GEMM for wide layers was slower (Large 3.45 to 3.88 ms). Source: same card.
+- **TF32 / fp32 accumulation** may have a smaller relative cost on datacenter GPUs, but no measurements are
+  available. On the 5060 Ti it did not improve top-1 accuracy, and an fp32-accumulate second GEMM for wide layers
+  was slower (Large 3.45 to 3.88 ms). Source: same card.
 - **bf16** has no fused conv kernels. **INT8** belongs to a TensorRT export. Source: same card.
 
 - **ConvNeXt as a feature backbone** (`features`, `convnext_*.fb_in22k`) runs the same trunk
