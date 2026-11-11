@@ -514,3 +514,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
 ? training data not stated; overlap with this dataset's public images cannot be excluded.
+
+## Matching
+
+1 models; size 768x1024.
+
+- Fastest: [`romav2`](models/matching.md#roma-v2) (412.0 ms).
+- Fastest commercially usable: [`romav2`](models/matching.md#roma-v2) (412.0 ms).
+
+| model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
+|---|---|---|---|---|---|---|
+| [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 552.4 | 412.0 | 1.8x vs original (768x1024) | 2737 |

@@ -1,0 +1,27 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1.6e-05
+cpu_extra = [["warp", 0.62]]
+gpu_min_score = 0.5
+gpu_mean = 0.0086
+gpu_p99 = 0.032
+gpu_extra = [["certainty", 0.033, 0.53]]
+
+[refs."romav2@1"]
+sha256 = "6c07598382d03a4813ce3cff5c3cd23fcf26512561278b7187a2285b6a5751f2"
+upstream = "https://github.com/Parskatt/RoMaV2@95c9968145c8906b7b59383258e9f73b02853d89"
+settings = "CPU float32, upstream RoMaV2.match {'coarse_size': 800, 'fine_size': 1280}, one-directional, no threshold, autocast off, DINOv3 hub code adc254450203739c8149213a7a69d8d905b4fcfa, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[validated."romav2@1"]
+kernels = ["romav2@1c8e19405d40:sm_120"]
+symbols = {"romav2" = {"romav2_local_corr_c192_r3" = "fc18869a45df35a7", "romav2_local_corr_c48_r1" = "cd49e02c2bd6e61e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.00573
+p99_px = 0.02077

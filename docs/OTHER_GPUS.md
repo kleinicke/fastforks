@@ -69,6 +69,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 |
 | moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
 | flowformer | fp32 | - | fp32 | - |
+| romav2 | bf16 | bf16 | fp32 | - |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
 | vggt | fp16 | fp16 | fp32 | vggt_metal fp32 |
 <!-- capabilities:end -->
@@ -114,6 +115,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `patchmatchnet` | patchmatchnet |
 | `raft` | dlnr, raft_stereo |
 | `raft_flow` | neuflow_v2, raft, sea_raft |
+| `romav2` | romav2 |
 | `s2m2` | s2m2 |
 | `s2m2_cutlass` | s2m2 |
 | `seg_conv` | mmseg, segnext |

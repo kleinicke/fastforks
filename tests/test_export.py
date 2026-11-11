@@ -107,7 +107,7 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
         return (scale(resize_crop(pair[0], io), io),)
     if TASK[ref] == "multiview":  # one scene: views + the cameras the runner requires
         return model.example_inputs(*_shape(model)[2:], batch=2)
-    return pair if TASK[ref] in {"stereo", "flow"} else pair[:1]
+    return pair if TASK[ref] in {"stereo", "flow", "matching"} else pair[:1]
 
 
 def _multiview_call(model: Any, inputs: tuple[torch.Tensor, ...]) -> Any:
@@ -407,6 +407,44 @@ def test_fix_folded_weight_casts(half):
     assert torch.equal(torch.from_numpy(convs[0].inputs[1].const_value.numpy().astype("float32")), want.float())
     assert "w" not in graph.initializers
     assert _fix_folded_weight_casts(model) == 0
+
+
+@pytest.mark.parametrize("stride", [2, 4])
+@pytest.mark.parametrize("half", ["FLOAT16", "BFLOAT16"])
+def test_bf16_deconvolutions_as_convs(half, stride):
+    """bf16 upsampling ConvTranspose -> 1x1 Conv + DepthToSpace (TensorRT builds no bf16 deconvolution), same sum."""
+    ir = pytest.importorskip("onnx_ir")
+    from fastforks._core.export import _bf16_deconvolutions_as_convs  # noqa: PLC0415
+
+    dt = getattr(ir.DataType, half)
+    g = torch.Generator().manual_seed(0)
+    weight, bias = torch.randn(3, 5, stride, stride, generator=g), torch.randn(5, generator=g)
+    x = ir.Value(name="x", shape=ir.Shape([1, 3, 4, 4]), type=ir.TensorType(dt))
+    w = ir.Value(name="w", shape=ir.Shape(list(weight.shape)), type=ir.TensorType(ir.DataType.FLOAT))
+    w.const_value = ir.tensor(weight.numpy())
+    b = ir.Value(
+        name="b", shape=ir.Shape([5]), type=ir.TensorType(dt), const_value=ir.tensor(bias.numpy().astype(dt.numpy()))
+    )
+    cast = ir.Node("", "Cast", [w], attributes=[ir.AttrInt64("to", dt.value)])
+    cast.outputs[0].dtype = dt
+    deconv = ir.Node("", "ConvTranspose", [x, cast.outputs[0], b], attributes=[ir.AttrInt64s("strides", [stride] * 2)])
+    deconv.outputs[0].dtype = dt
+    graph = ir.Graph([x], deconv.outputs, nodes=[cast, deconv], initializers=[w, b], opset_imports={"": 18})
+    model = ir.Model(graph, ir_version=10)
+    if half == "FLOAT16":
+        assert _bf16_deconvolutions_as_convs(model) == 0
+        return
+    assert _bf16_deconvolutions_as_convs(model) == 1
+    assert [n.op_type for n in graph] == ["Conv", "DepthToSpace"]
+    conv, shuffle = graph.node(0), graph.node(1)
+    assert shuffle.attributes["mode"].value == "CRD"
+    assert graph.outputs[0].producer() is shuffle
+    assert set(graph.initializers) == {v.name for v in conv.inputs[1:]}
+    cw, cb = (torch.from_numpy(v.const_value.numpy().astype("float32")) for v in conv.inputs[1:])
+    xs = torch.randn(1, 3, 4, 4, generator=g)
+    want = torch.nn.functional.conv_transpose2d(xs, weight.bfloat16().float(), bias.bfloat16().float(), stride=stride)
+    got = torch.nn.functional.pixel_shuffle(torch.nn.functional.conv2d(xs, cw, cb), stride)
+    torch.testing.assert_close(got, want, rtol=1e-5, atol=1e-5)
 
 
 def test_kernels_op_fake_shape():

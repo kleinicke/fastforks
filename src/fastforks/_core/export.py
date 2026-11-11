@@ -320,6 +320,7 @@ def _export_onnx(  # noqa: PLR0913 - export_onnx's arguments plus the check swit
         msg = "torch.onnx.export returned no program"
         raise RuntimeError(msg)
     _fix_folded_weight_casts(program.model)
+    _bf16_deconvolutions_as_convs(program.model)
     program.model.metadata_props["fastforks.model"] = model.variant.ref
     program.model.metadata_props["fastforks.weights"] = (
         "official" if model.weights is None else ", ".join(map(str, model.weights))
@@ -486,6 +487,88 @@ def _fix_folded_weight_casts(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Mo
                 del model.graph.initializers[v.name]
             fixed += 1
     return fixed
+
+
+def _const_float(v: Any) -> Any:  # noqa: ANN401 - onnx_ir.Value; returns a numpy array or None
+    """The float32 array of a constant or of a Cast of one, else None."""
+    cast = v.producer() if v is not None else None
+    src = cast.inputs[0] if cast is not None and cast.op_type == "Cast" else v
+    return None if src is None or src.const_value is None else src.const_value.numpy().astype("float32")
+
+
+def _upsampling_deconv(node: Any) -> tuple[Any, Any, int] | None:  # noqa: ANN401 - an onnx_ir.Node
+    """(weight, bias or None, stride) of an upsampling ConvTranspose, else None.
+
+    Upsampling: constant weights, a square kernel equal to the stride, no padding, dilation or groups.
+    """
+    w = _const_float(node.inputs[1])
+    has_bias = len(node.inputs) > 2 and node.inputs[2] is not None  # noqa: PLR2004 - X, W, B
+    bias = _const_float(node.inputs[2]) if has_bias else None
+    if w is None or w.ndim != 4 or (has_bias and bias is None) or w.shape[2] != w.shape[3]:  # noqa: PLR2004
+        return None
+    att = {k: a.value for k, a in node.attributes.items()}
+    plain = (
+        tuple(att.get("strides", (1, 1))) == tuple(w.shape[2:])
+        and set(att.get("pads", (0,))) | set(att.get("output_padding", (0,))) == {0}
+        and set(att.get("dilations", (1,))) == {1}
+        and att.get("group", 1) == 1
+        and "output_shape" not in att
+        and att.get("auto_pad", "NOTSET") == "NOTSET"
+    )
+    return (w, bias, w.shape[2]) if plain else None
+
+
+def _bf16_deconvolutions_as_convs(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Model
+    """Rewrite bfloat16 ConvTranspose nodes with kernel == stride as a 1x1 Conv + DepthToSpace; returns how many.
+
+    TensorRT 11.4 builds no bfloat16 deconvolution (strongly typed: "Could not infer output types"; in float32
+    between casts: "no tactics"; RoMa v2's DPT head). With kernel == stride, no padding and one group the two are
+    the same sum: out[co, i*s+a, j*s+b] = sum_ci x[ci, i, j] W[ci, co, a, b] + bias[co].
+    """
+    import onnx_ir as ir  # noqa: PLC0415 - _fix_folded_weight_casts checked it
+
+    bf16 = ir.DataType.BFLOAT16
+    changed = 0
+    for node in list(model.graph.all_nodes()):
+        if node.op_type != "ConvTranspose" or not node.inputs or node.inputs[0].dtype != bf16:
+            continue
+        found = _upsampling_deconv(node)
+        if found is None:
+            continue
+        w, bias, s = found
+        graph = node.graph
+        arrays = [w.transpose(1, 2, 3, 0).reshape(-1, w.shape[0], 1, 1)]  # channel co*s*s + a*s + b (CRD)
+        if bias is not None:
+            arrays.append(bias.repeat(s * s))
+        inits = [
+            ir.Value(
+                name=f"deconv_as_conv_{changed}_{i}",
+                shape=ir.Shape(x.shape),
+                type=ir.TensorType(bf16),
+                const_value=ir.tensor(x.astype(bf16.numpy())),  # the bf16 values the graph used
+            )
+            for i, x in enumerate(arrays)
+        ]
+        for v in inits:
+            graph.register_initializer(v)
+        conv = ir.Node("", "Conv", [node.inputs[0], *inits], attributes=[ir.AttrInt64s("kernel_shape", [1, 1])])
+        conv.outputs[0].dtype = bf16
+        attrs = [ir.AttrInt64("blocksize", s), ir.AttrString("mode", "CRD")]
+        shuffle = ir.Node("", "DepthToSpace", conv.outputs, attributes=attrs)
+        shuffle.outputs[0].dtype, shuffle.outputs[0].shape = bf16, node.outputs[0].shape
+        graph.insert_before(node, [conv, shuffle])
+        old = list(node.inputs[1:])
+        node.outputs[0].replace_all_uses_with(shuffle.outputs[0], replace_graph_outputs=True)
+        graph.remove(node, safe=True)
+        for v in old:
+            cast = v.producer() if v is not None else None
+            if cast is not None and cast.op_type == "Cast" and not v.uses():
+                v = cast.inputs[0]  # noqa: PLW2901 - read before remove() detaches the inputs
+                graph.remove(cast, safe=True)
+            if v is not None and v.is_initializer() and not v.uses() and v.name in graph.initializers:
+                del graph.initializers[v.name]
+        changed += 1
+    return changed
 
 
 def build_tensorrt(

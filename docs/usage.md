@@ -116,8 +116,8 @@ runner (portable or kernels backend) with its weights; the task API (`<task>.loa
 tensors; calling it returns the typed result, whose `.backend` records what ran. The exceptions follow.
 
 Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
-`fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation` and
-`fastforks.multiview`.
+`fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation`,
+`fastforks.multiview` and `fastforks.matching`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
 PatchmatchNet return the reference view only. See the [API pages](api/index.md) for every result's fields.
 

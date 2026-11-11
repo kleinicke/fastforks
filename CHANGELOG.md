@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- New task `fastforks.matching`: dense matching. `model(image1, image2)` returns `warp` `[B, 2, H1, W1]` (each
+  pixel of image1 in pixels of image2) and `certainty` `[B, H1, W1]`. RoMa v2 (`romav2`) on `portable` (bf16 on
+  CUDA, as upstream) and `kernels` (one-pass local correlation): 412 ms kernels, 552 ms portable vs 741 ms original
+  bf16 at 768x1024, with 2.9 instead of 10.1 GiB reserved.
+
+- TensorRT export: bf16 transposed convolutions with stride == kernel (TensorRT has no bf16 deconvolution tactic)
+  are rewritten as a 1x1 convolution plus DepthToSpace.
+
 - Add FlowFormer Small optical flow: Chairs, Things and Sintel checkpoints with permissive code notices.
 
 - Add FlowSeek-T optical flow: mixed-data, FlyingThings and FlyingThings without TartanAir checkpoints.

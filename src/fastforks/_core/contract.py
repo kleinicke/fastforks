@@ -272,6 +272,10 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
     "flow": {
         "flow": ("[B, 2, H, W]", "float32", "pixels of the input, (dx, dy)", "image1 -> image2, image1 pixels"),
     },
+    "matching": {
+        "warp": ("[B, 2, H1, W1]", "float32", "pixels of image2, (x, y)", "image1 pixels"),
+        "certainty": ("[B, H1, W1]", "float32", "[0, 1]", "image1 pixels"),
+    },
     "features": {
         "last_hidden_state": ("[B, N, C]", "float32", "tokens after the final norm", "prefix tokens, then patches"),
         "pooler_output": ("[B, C]", "float32", "image embedding", ""),
@@ -349,6 +353,7 @@ def _d(shape: str, dtype: str, unit: str, frame: str, present: str = _ALWAYS) ->
 _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "stereo": (("scale", "pad", "network", "crop"), ("image conversion", "rig= rectification", "depth / points")),
     "flow": (("scale", "pad", "network", "crop"), ("image conversion",)),
+    "matching": (("scale", "resize to the network squares", "network", "resize to image1"), ("image conversion",)),
     "depth": (
         ("resize to the processing size", "pad", "network", "crop / resize to the input"),
         ("image conversion", "other maps than the main one", "intrinsics="),

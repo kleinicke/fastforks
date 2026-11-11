@@ -1,0 +1,46 @@
+schema = 2
+name = "RoMa v2"
+summary = "RoMa v2 (Edstedt, Nordström, Wadenbäck, Felsberg et al. 2025): dense feature matching between two images of any viewpoint. A frozen DINOv3 ViT-L/16 describes both images at a coarse square size, a multi-view ViT with alternating attention and a DPT head turn the global cosine matches into a coarse warp and an overlap logit, and convolutional refiners on VGG19-BN features (local correlation at strides 4, 2, 1) sharpen it, at the coarse size and again at a fine size. Returns, for every pixel of the first image, its position in the second (pixels) and the probability that it is visible there."
+tier = "experimental"
+outputs = ["warp", "certainty"]
+uses = []  # fastforks.shared modules this family imports
+limitations = [
+  "The precision matrices of the warp (upstream `precision_AB`) and upstream's sampling / keypoint helpers are not returned; tools/eval_matching.py has the MegaDepth-1500 sampling.",
+  "Both images are resized to squares (upstream's behaviour), whatever their aspect ratio.",
+]
+licence_notes = [
+  "The checkpoint includes the DINOv3 ViT-L/16 weights, and net/dinov3.py and net/vit/ come from DINOv3: the DINOv3 License (Meta: attribution and conditions apply) covers those parts; read it before commercial use.",
+]
+
+[upstream]
+repo = "https://github.com/Parskatt/romav2"
+commit = "95c9968145c8906b7b59383258e9f73b02853d89"  # v2.0.1; net/ = its romav2/ modules (einops removed, autocast regions switchable, DINOv3 descriptor vendored from facebookresearch/dinov3 adc254450203739c8149213a7a69d8d905b4fcfa)
+
+[licence]
+code = "MIT AND LicenseRef-DINOv3-License"  # LICENSE (MIT, Johan Edstedt); net/dinov3.py and net/vit/ carry the DINOv3 header (README: "All our code except DINOv3 is MIT license")
+weights = "MIT AND LicenseRef-DINOv3-License"  # the release has no separate weights licence (MIT as the code); its DINOv3 ViT-L/16 part is under the DINOv3 License
+files = ["LICENSE", "LICENSE.md"]
+training_data = ["unstated"]
+training_note = "Upstream README: a mix of wide-baseline matching datasets following UFM and MapAnything (MegaDepth and others; see the paper); none has a dataset entry here yet. The frozen DINOv3 descriptor was pretrained on LVD-1689M (not released)."
+evidence = "https://github.com/Parskatt/romav2/blob/95c9968145c8906b7b59383258e9f73b02853d89/README.md#license"
+
+[io]
+input = "0-1"  # the runner resizes both images to squares (bicubic, antialiased) and normalises with the ImageNet mean / std itself, as upstream match()
+min_size = 16
+
+[options]
+coarse_size = { default = 800, min = 16 }  # square side of the descriptor, matcher and first refinement (upstream H_lr; settings turbo 320, fast 512, base 640, precise / mega1500 800); a multiple of 16
+fine_size = { default = 1280, min = 0 }  # square side of the second refinement (upstream H_hr; precise 1280, mega1500 1024; 0 = none as turbo / fast / base); a multiple of 16
+
+[modes.portable]
+cuda_dtype = "bfloat16"  # as upstream: the DINOv3 descriptor in bf16, the multi-view ViT, DPT head, VGG and refiner blocks under bf16 autocast; matching, local correlation and warps float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+dtype = "bfloat16"  # as portable (fp16 would overflow upstream's bf16 regions)
+kernels = ["romav2"]  # the refiners' local correlation in one pass (integer-window dot products, shared bilinear weights) instead of 49 / 9 grid_sample passes; the rest is the portable bf16 path
+
+[[variants]]
+id = "romav2"  # upstream romav2.0.1.pt (RoMaV2() default weights); MegaDepth-1500 AUC@5/10/20 62.8 / 77.0 / 86.6 (paper)
+revision = 1
+weights = [{ name = "romav2.0.1.pt", size = 1095883548, sha256 = "1557dec0d21b62366465f7ff4d5fdf228cc695d0582e196ad2b80e05230828b7", url = "https://github.com/Parskatt/RoMaV2/releases/download/v2.0.1/romav2.0.1.pt" }]

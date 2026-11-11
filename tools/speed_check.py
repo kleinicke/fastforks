@@ -95,6 +95,7 @@ STANDARD = {  # the task's standard input of docs/benchmarks.md (tools/gen_docs.
     "promptable_segmentation": "1024x1024",
     "detection": "800x1344",
     "flow": "1080x1920",
+    "matching": "768x1024",
 }
 PROFILE_INPUT = {
     "stereo": "994x1482",

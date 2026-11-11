@@ -509,3 +509,18 @@ The 384 variants show argmax flips on flat heatmaps under fp16 (p99 up to 3.2 px
 
 Source: the HRNet rows in `docs/data/speed.jsonl`, `docs/data/speed_compile.jsonl` and
 `results/raw/2026-11-11_port_hrnet/`.
+
+## Matching: RoMa v2
+
+Measured on the RTX 5060 Ti, 768x1024 pair, card options 800 / 1280, bf16: kernels 412 ms, portable 552 ms,
+torch.compile 576 ms (first call 254 s), TensorRT 353 ms (engine build 109 s + ONNX export 76 s), original bf16
+741 ms and fp32 1412 ms. Peak reserved: kernels 2944, portable 3160, original bf16 10124 MiB.
+On CUDA the eval BatchNorms are folded (VGG and refiner depthwise convs), the VGG runs channels-last and the
+refiners' 1x1 convs run as GEMMs with the bias in the epilogue (-17 % vs the unfolded NCHW path). Kernels stays
+1.17x TensorRT: the remaining gap is the depthwise-conv bias + ReLU and the feature concatenations, which TensorRT
+fuses. TensorRT has no bf16 ConvTranspose: the export rewrites the DPT head's stride == kernel deconvolutions as a
+1x1 conv + DepthToSpace. Untested for datacenter GPUs: a fused depthwise conv + bias + ReLU (cuDNN's
+`cudnn_convolution_relu` made the whole call 1177 instead of 412 ms on sm_120 for these depthwise shapes).
+
+Source: the RoMa v2 rows in `docs/data/speed.jsonl`, `docs/data/speed_compile.jsonl` and
+`results/raw/2026-11-11_port_romav2/` (profile/ has the per-step trials).

@@ -25,6 +25,7 @@ reference venvs after `bench()`.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import os
 import sys
 import types
@@ -35,7 +36,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 BENCH = Path(os.environ.get("FF_BENCH_DIR", ROOT.parent / "bench"))
 TIERS = {"upstream": "fp32", "upstream16": "autocast", "upstreamhalf": "half", "upstreamac": "autocast-plain"}
-BF16 = {"vggt", "vggt_omega", "mapanything", "depth_anything_3"}  # the authors' mixed precision is bfloat16
+BF16 = {"vggt", "vggt_omega", "mapanything", "depth_anything_3", "romav2"}  # the authors' mixed precision is bfloat16
 NATIVE_HALF = {"depth_pro", "marigold", "rfdetr_keypoint"}  # build(ref, True) is a float16 model, not mixed precision
 _SETUP: set[str] = set()
 _MOBILE_SAM: list[Any] = []  # the golden script of MobileSAM, see `mobile_sam_recipe`
@@ -223,13 +224,26 @@ _SPECIAL = {  # ref -> build(ref, fp16) where the bench adapter has none
 
 
 def _golden(name: str) -> Any:  # noqa: ANN401 - a tools/golden module
-    """`tools/golden/<name>.py` as a module: the family's reference recipe (pins, configs, builders)."""
-    golden = str(Path(__file__).resolve().parent / "golden")
-    sys.path.insert(0, golden)
+    """`tools/golden/<name>.py` as a module: the family's reference recipe (pins, configs, builders).
+
+    Registered as `golden_<name>`: a recipe named like its upstream package (`romav2`) must not shadow it.
+    """
+    golden = Path(__file__).resolve().parent / "golden"
+    key = f"golden_{name}"
+    if key in sys.modules:
+        return sys.modules[key]
+    spec = importlib.util.spec_from_file_location(key, golden / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)  # ty: ignore[invalid-argument-type]
+    sys.path.insert(0, str(golden))  # the recipe's own imports (_common, raft_flow)
+    sys.modules[key] = module
     try:
-        return importlib.import_module(name)
+        spec.loader.exec_module(module)  # ty: ignore[possibly-missing-attribute]
+    except BaseException:
+        del sys.modules[key]
+        raise
     finally:
-        sys.path.remove(golden)
+        sys.path.remove(str(golden))
+    return module
 
 
 def _raft(a: Any, full: str) -> Any:  # noqa: ANN401
@@ -689,6 +703,29 @@ def _mobile_sam(a: Any, full: str) -> Any:  # noqa: ANN401
     return call
 
 
+def _romav2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream `RoMaV2.match` as `tools/golden/romav2.py` (card sizes, one direction), outputs as the API returns them.
+
+    fp16: the authors' `enable_amp` (bfloat16 autocast); fp32 replaces `torch.autocast` by a no-op for the whole
+    process (one tier per process). Needs `FF_ROMAV2_REPO` / `FF_DINOV3_REPO` checkouts with the pinned commits.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("romav2")
+    card, variant = registry.resolve("matching", full)
+    tree = g.reference_tree(Path(os.environ["FF_ROMAV2_REPO"]), g.REF_COMMIT)
+    dino = g.reference_tree(Path(os.environ["FF_DINOV3_REPO"]), g.DINOV3_COMMIT)
+    model = g.build(tree, dino, registry.weights(card, variant, allow_download=False)[0], amp=fp16).cuda()
+    g.configure(model, card.options["coarse_size"], card.options["fine_size"])
+    a.note = "upstream RoMaV2.match; local correlation: upstream's plain-torch path (no fused-local-corr)"
+
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        preds = model.match(img1[None].float() / 255, img2[None].float() / 255)
+        return g.to_api(preds, tuple(img1.shape[-2:]), tuple(img2.shape[-2:]))
+
+    return call
+
+
 def _hwc_point(a: tuple[Any, ...]) -> tuple[Any, ...]:
     """(uint8 CUDA CHW, points, labels) of the bench call -> (uint8 HWC array, [1, 2] float array, [1] int array)."""
     import numpy as np  # noqa: PLC0415
@@ -835,6 +872,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),
+    "romav2": _LocalFp16("matching", _romav2, ((768, 1024),)),
 }
 
 

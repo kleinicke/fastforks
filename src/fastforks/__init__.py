@@ -1,6 +1,6 @@
 """fastforks: fast, typed inference for published vision models, one subpackage per task.
 
-Tasks: `fastforks.stereo`, `flow`, `depth`, `multiview`, `classification`, `segmentation`, `detection`,
+Tasks: `fastforks.stereo`, `flow`, `matching`, `depth`, `multiview`, `classification`, `segmentation`, `detection`,
 `promptable_segmentation`, `features`, `pose`; `fastforks.list_models()` lists the installed models of every task
 and `fastforks.load(id)` loads any of them.
 The shared types (`Model`, `Backend`, `ModelCard`, `SizeRange`, `TensorRTEngine`, `ImageLike`) are exported here too.

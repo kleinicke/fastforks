@@ -7,7 +7,7 @@ measuring scripts are not part of this repository; the protocols are described b
 ## Accuracy: `<task>_eval.jsonl`
 
 One file per task (`stereo`, `depth`, `classification`, `segmentation`, `detection`, `promptable_segmentation`,
-`features`, `multiview`, `pose`, `flow`), one JSON object per model, tier and dataset. Measured in the 2026-11-05 campaign
+`features`, `multiview`, `pose`, `flow`, `matching`), one JSON object per model, tier and dataset. Measured in the 2026-11-05 campaign
 (`tools/acc_collect.py` builds the files from the raw output of the `tools/eval_*.py` scripts; the older 2026-10-27
 stereo / depth rows were replaced: they predate this repository's history and the current protocol).
 
@@ -58,6 +58,13 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
   pairs, frames `_10` -> `_11` of `image_2` at full size, `flow_occ` ground truth), as in the RAFT / SEA-RAFT evaluation
   code; dataset key `kitti2015-train`, measured with `tools/eval_flow.py`. Variants fine-tuned on KITTI carry the
   dagger. MPI Sintel train is not measured (not on the measuring machine).
+- Dense matching: `auc5`, `auc10`, `auc20` (%), relative-pose AUC at 5 / 10 / 20 degrees on MegaDepth-1500 (1500
+  pairs of scenes 0015 and 0022, glue-factory's `pairs_calibrated.txt`), dataset key `megadepth1500`, measured with
+  `tools/eval_matching.py`. Card options 800 / 1024 (upstream's `mega1500` setting), both directions per pair (two
+  calls), 5000 matches drawn by upstream's balanced sampling (certainty > 0.05 counts as 1, then 1 / KDE density), the
+  intrinsics scaled to a 1200 px long side, OpenCV `findEssentialMat` (RANSAC, 0.5 px over the mean focal length,
+  confidence 0.99999) and `recoverPose`; the error of a pair is the larger of the rotation and translation-direction
+  errors, 5 seeded runs per pair. `ms_per_img` is the median time of a pair's two calls.
 - Multiview: `absrel`, `d125` (% within 1.25) on DTU scans 1, 9, 24, 33, 75 (reference view 24 + 7 sources, 640x512),
   median-scaled for uncalibrated models; calibrated MVS also `mae_mm`, `le2mm`, `le4mm`. `n` = scans.
 

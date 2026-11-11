@@ -71,6 +71,10 @@ _DATASETS = {
         "coco-val2017-every10-keypoints": "COCO val2017, every 10th image, predicted people, keypoint AP",
     },
     "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
+    "matching": {
+        "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
+        "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
+    },
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
 # task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
@@ -94,6 +98,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
     "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
+    "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
@@ -128,6 +133,11 @@ _PROTOCOL = {
     "from the camera baselines). ",
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
+    "matching": "5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling), "
+    "OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the "
+    "rotation and translation-direction errors. ",
+    ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
+    "pair. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
@@ -833,6 +843,10 @@ TASK_IO = {
     ),
     "classification": "Input: one RGB image. Output: ImageNet-1k class logits.",
     "detection": "Input: one RGB image. Output: boxes, class labels, scores and instance masks.",
+    "matching": (
+        "Input: two RGB images of one scene. Output: for every pixel of the first image its position in the second "
+        "(x, y in pixels) and a certainty that the pixel is visible in both."
+    ),
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",
     "multiview": (
@@ -1010,6 +1024,7 @@ _STD_SIZE = {
     "promptable_segmentation": "1024x1024",
     "detection": "800x1344",
     "flow": "1080x1920",
+    "matching": "768x1024",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input
