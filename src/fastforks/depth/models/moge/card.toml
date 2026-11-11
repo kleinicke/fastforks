@@ -47,6 +47,12 @@ params = { arch = "vits", version = 2 }
 weights = [{ name = "moge-2-vits-normal/model.pt", size = 140550416, sha256 = "79a16621928c2bf0ed04659218c55c01075e950507f40bb3332fb4c873d3e1dc", url = "https://huggingface.co/Ruicheng/moge-2-vits-normal/resolve/26b477f41595707c5db6770294c0d1721e8ed4ed/model.pt" }]
 
 [[variants]]
+id = "moge-2-vitb-normal"
+revision = 1
+params = { arch = "vitb", version = 2 }
+weights = [{ name = "moge-2-vitb-normal/model.pt", size = 419110160, sha256 = "16b8110e86d5dc5a849db120ca96ef3a223fd30b0c9146d1d81db504073da5f6", url = "https://huggingface.co/Ruicheng/moge-2-vitb-normal/resolve/ca5f0e07ff01d3e5a364c1d954ed12ee1814b368/model.pt" }]
+
+[[variants]]
 id = "moge-2-vitl-normal"
 revision = 1
 params = { arch = "vitl", version = 2 }

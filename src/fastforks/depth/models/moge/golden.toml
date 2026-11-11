@@ -11,6 +11,18 @@ gpu_p99 = 0.015
 relative = true
 gpu_extra = [["intrinsics", 0.014, 0.062], ["mask", 0.0001, 0.0001], ["normals", 0.0081, 0.037], ["points", 0.033, 0.098]]
 
+[refs."moge-2-vitb-normal@1"]
+sha256 = "a394e10978de01e869c1da604ebaf6475e01b9fdee6bef68d05eb52038696cc6"
+upstream = "https://github.com/microsoft/MoGe@74fbce054ebed49800de42d0ad0e83495065719a"
+patch = "moge-converged-focal-shift.patch"
+patch_sha256 = "81a2b733ce648a8192460dd00bde786fa10c4abe57e694fcab4559cafaa36568"
+settings = "CPU float32, infer(resolution_level=9, apply_mask=False, use_fp16=False), torch 2.14.1+cu130"
+gpu_extra = [["intrinsics", 0.022, 0.098], ["mask", 0.0001, 0.0001], ["normals", 0.013, 0.066], ["points", 0.05, 0.15]]
+gpu_mean_portable = 0.019
+gpu_p99_portable = 0.019
+gpu_mean_kernels = 0.033
+gpu_p99_kernels = 0.033
+
 [refs."moge-2-vitl-normal@1"]
 sha256 = "39f772a6ca3f1d129fec1cbfa44b25e31f335f7aab46220a6d59aa09697c2522"
 upstream = "https://github.com/microsoft/MoGe@74fbce054ebed49800de42d0ad0e83495065719a"
@@ -19,8 +31,8 @@ patch_sha256 = "81a2b733ce648a8192460dd00bde786fa10c4abe57e694fcab4559cafaa36568
 settings = "CPU float32, infer(resolution_level=9, apply_mask=False, use_fp16=False), torch 2.14.1+cu130"
 gpu_mean_portable = 0.018
 gpu_p99_portable = 0.018
-gpu_mean_max = 0.008
-gpu_p99_max = 0.008
+gpu_mean_kernels = 0.008
+gpu_p99_kernels = 0.008
 
 [refs."moge-2-vits-normal@1"]
 sha256 = "9d9c31975bb48bcbfd3f5ae8b44d1246d6adfcba8b864c3bb08333978fe8c64b"
@@ -30,8 +42,8 @@ patch_sha256 = "81a2b733ce648a8192460dd00bde786fa10c4abe57e694fcab4559cafaa36568
 settings = "CPU float32, infer(resolution_level=9, apply_mask=False, use_fp16=False), torch 2.14.1+cu130"
 gpu_mean_portable = 0.02
 gpu_p99_portable = 0.02
-gpu_mean_max = 0.003
-gpu_p99_max = 0.003
+gpu_mean_kernels = 0.003
+gpu_p99_kernels = 0.003
 
 [refs."moge-3-vitl@1"]
 cpu_extra = [["intrinsics", 0.05]]
@@ -43,8 +55,17 @@ settings = "GPU (NVIDIA GeForce RTX 5060 Ti) float32, TF32 off, infer(resolution
 gpu_extra = [["intrinsics", 0.027, 0.12], ["mask", 0.0001, 0.0001], ["points", 0.066, 0.2]]
 gpu_mean_portable = 0.042
 gpu_p99_portable = 0.044
-gpu_mean_max = 0.009
-gpu_p99_max = 0.01
+gpu_mean_kernels = 0.009
+gpu_p99_kernels = 0.01
+
+[validated."moge-2-vitb-normal@1"]
+kernels = ["dpt_fused@48e0065bb7cf:sm_120", "fastbb@7d058322634d:sm_120", "sparse_conv@2feb2d5e0877:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}, "fastbb" = {"dwconv3_nhwc" = "461af1376dfb8afe", "dwgate_v1" = "25de990d911ff307", "dwgate_v2" = "11ee2a591d9160ab", "dwgate_v4" = "cf25266bdde3954e", "flash64_r1_ff" = "1604a30ef2d4ae6e", "flash64_r1_fh" = "009d9582cac02f1b", "flash64_r1_hh" = "d1f5d5770223fe92", "flash64_r2_ff" = "9b3746ef97a939af", "flash64_r2_fh" = "798b5f638ae8cb98", "flash64_r2_hh" = "2a9037ad469879c2", "in_apply_b" = "ab88bf1c206c6dd9", "in_apply_h" = "7070fd936a52ae6a", "in_stats_b" = "9a760b11bd7b68ba", "in_stats_final" = "891b933057d094c4", "in_stats_h" = "91e1f5f344c0d209", "ln_lastdim_v1" = "3ece7d1f56e15c7d", "ln_lastdim_v2" = "17ff4380e757afe4", "ln_lastdim_v4" = "fdd5d1a89bb0c226", "ln_lastdim_v8" = "12fb0730809c7b26", "rope_qk_h" = "4f2344f43da7554c", "win_rpe_attn" = "a9cc3be192c753c1"}, "sparse_conv" = {"grid_nbr" = "ca0cb5f7a9bfe1b9", "ln_silu" = "e64f4bfc18a8ace3", "sparse_nbr" = "84e0bf0d30248ae3", "subm_conv_n128" = "cefd5714c1279e31", "subm_conv_n32" = "0b3862a2681f7edf", "subm_conv_n64" = "82b1d407e43e2bc9", "subm_conv_n64s3" = "7d0a91b74892267d"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.02172
+p99_px = 0.02188
 
 [validated."moge-2-vitl-normal@1"]
 kernels = ["dpt_fused@48e0065bb7cf:sm_120", "fastbb@7d058322634d:sm_120", "sparse_conv@2feb2d5e0877:sm_120"]

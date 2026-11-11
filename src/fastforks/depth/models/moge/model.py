@@ -54,7 +54,7 @@ _FIT = (64, 64)  # recover_focal_shift subsample
 class Params:
     """Variant `params` + load options."""
 
-    arch: str  # "vits" or "vitl"
+    arch: str  # "vits", "vitb" or "vitl"
     version: int  # 2 or 3 (sparse refiner)
     resolution_level: int  # 0-9: 1200-3600 ViT tokens
     normals: bool  # also run the normal head

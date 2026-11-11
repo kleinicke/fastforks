@@ -23,7 +23,7 @@ from test_golden import HEAVY_CPU
 ZOO2 = ["metric3d-vit-large", "midas-dpt-beit-large-512", "zoedepth-nk", "marigold-depth-v1-1", "unidepth-v2-vitl14"]
 ZOO3 = [
     *("da3mono-large", "da3metric-large", "da3-large-1.1", "da3-giant-1.1", "da3nested-giant-large-1.1"),
-    *("moge-2-vits-normal", "moge-2-vitl-normal", "moge-3-vitl", "depth-pro", "unik3d-vitl"),
+    *("moge-2-vits-normal", "moge-2-vitb-normal", "moge-2-vitl-normal", "moge-3-vitl", "depth-pro", "unik3d-vitl"),
 ]
 
 

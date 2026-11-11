@@ -30,8 +30,8 @@ In this order, unless something more useful turns up:
 
 1. CLIP: `clip-l14-dfn2b`, `clip-h14-dfn5b` and `clip-h14-378-dfn5b` have no `torch.compile` or TensorRT rows in
    `docs/data/speed_compile.jsonl`.
-2. Next networks, from [model-landscape.md](model-landscape.md): MaxViT, the MoGe-2 extras, and more flow and pose
-   models. ConvNeXt features, TIPSv2, RepViT and MobileSAM are already merged.
+2. Next networks, from [model-landscape.md](model-landscape.md): MaxViT, `moge-2-vitl` (no normal head), and more
+   flow and pose models. ConvNeXt features, TIPSv2, RepViT and MobileSAM are already merged.
 
 ## Waiting for the Mac
 
@@ -104,6 +104,8 @@ exist) and the MPS goldens, all passing. Still open:
 - ConvNeXt features `convnext_{tiny,small,base,large}.fb_in22k` (new family; the kernels trunk moved to
   `shared/convnext_trunk`): portable fp32 MPS goldens of the 4 refs, `tests/test_convnext_features.py::test_layout_cpu`,
   and classification ConvNeXt on MPS after the move. Weights `~/scratch_tests/port-convnext1/w/` or the pinned URLs.
+- MoGe-2 `moge-2-vitb-normal` (new variant of the existing depth family `moge`): MPS golden (cpu_atol 0.005, gpu
+  portable mean / p99 0.019, kernels 0.033) and portable fp32/fp16 speed rows. Weights from the pinned HF URL.
 - Perception Encoder `g14`: the peak footprint (about 17.8 GB) is above the 16 GB of the machine, so the times
   include swapping.
 - SEA-RAFT `spring` variants run about ten times faster than the others at the same labelled input; not looked into.
