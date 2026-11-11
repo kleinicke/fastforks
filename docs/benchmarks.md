@@ -875,9 +875,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | flowformer-small-chairs | 375x1242 | 352 | 303 | 351 | – | – | – | 2382 / 2970 | 3165 / 3638 | – |
 | flowformer-small-sintel | 375x1242 | 352 | 303 | 351 | – | – | – | 2382 / 2990 | 3165 / 3638 | – |
 | flowformer-small-things | 375x1242 | 352 | 303 | 351 | – | – | – | 2382 / 3010 | 3165 / 3638 | – |
-| flowseek-t | 1080x1920 | – | 457 | 395 | – | – | – | 8693 / 9880 | 8671 / 8712 | – |
-| flowseek-t-things | 1080x1920 | – | 458 | 395 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
-| flowseek-t-things-notartan | 1080x1920 | – | 458 | 396 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
+| flowseek-t | 1080x1920 | 650 | 457 | 395 | – | – | – | 8693 / 9880 | 8671 / 8712 | – |
+| flowseek-t-things | 1080x1920 | 650 | 458 | 395 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
+| flowseek-t-things-notartan | 1080x1920 | 651 | 458 | 396 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
 | gmflow-scale1-mixdata | 1080x1920 | 1246 | 750 | 800 | – | – | – | 8360 / 8448 | 5523 / 5660 | – |
 | gmflow-scale1-things | 1080x1920 | 1245 | 750 | 801 | – | – | – | 8360 / 8468 | 5523 / 5660 | – |
 | gmflow-scale2-mixdata | 1080x1920 | 2544 | 1608 | 1645 | – | – | – | 8425 / 8572 | 6433 / 7244 | – |
@@ -1270,9 +1270,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | flowformer-small-chairs | 0.16 (375x1242) | 1.31 (375x1242) | – | 0.37 (375x1242) | 0.57 (375x1242) | – |
 | flowformer-small-sintel | 0.15 (375x1242) | 1.30 (375x1242) | – | 0.30 (375x1242) | 0.57 (375x1242) | – |
 | flowformer-small-things | 0.15 (375x1242) | 1.31 (375x1242) | – | 0.30 (375x1242) | 0.57 (375x1242) | – |
-| flowseek-t | 2.63 | 0.18 (375x1242) | – | 1.03 | 0.46 (375x1242) | – |
-| flowseek-t-things | 0.98 | 0.18 (375x1242) | – | 0.65 | 0.47 (375x1242) | – |
-| flowseek-t-things-notartan | 0.79 | 0.18 (375x1242) | – | 0.65 | 0.46 (375x1242) | – |
+| flowseek-t | 0.87 | 0.18 (375x1242) | – | 0.63 | 0.46 (375x1242) | – |
+| flowseek-t-things | 0.78 | 0.18 (375x1242) | – | 0.46 | 0.47 (375x1242) | – |
+| flowseek-t-things-notartan | 0.81 | 0.18 (375x1242) | – | 0.46 | 0.46 (375x1242) | – |
 | gmflow-scale1-mixdata | 0.13 | 0.14 (375x1242) | – | 0.76 | 0.48 (375x1242) | – |
 | gmflow-scale1-things | 0.14 | 0.18 (375x1242) | – | 0.94 | 0.56 (375x1242) | – |
 | gmflow-scale2-mixdata | 0.13 | 0.08 (375x1242) | – | 1.62 | 0.61 (375x1242) | – |

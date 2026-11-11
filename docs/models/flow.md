@@ -130,9 +130,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `flowseek-t` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 457<br>395<br>–<br>258<br>168 | 8693 / 9880<br>8671 / 8712<br>–<br>6126 / 6212<br>11022 (engine) |
-| `flowseek-t-things` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 458<br>395<br>–<br>258<br>168 | 8693 / 9820<br>8671 / 8712<br>–<br>6126 / 6212<br>11024 (engine) |
-| `flowseek-t-things-notartan` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 458<br>396<br>–<br>258<br>168 | 8693 / 9820<br>8671 / 8712<br>–<br>6126 / 6212<br>11022 (engine) |
+| `flowseek-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>457<br>395<br>–<br>258<br>168 | 9902 / 10052<br>8693 / 9880<br>8671 / 8712<br>–<br>6126 / 6212<br>11022 (engine) |
+| `flowseek-t-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>458<br>395<br>–<br>258<br>168 | 9902 / 10012<br>8693 / 9820<br>8671 / 8712<br>–<br>6126 / 6212<br>11024 (engine) |
+| `flowseek-t-things-notartan` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 651<br>458<br>396<br>–<br>258<br>168 | 9902 / 10052<br>8693 / 9820<br>8671 / 8712<br>–<br>6126 / 6212<br>11022 (engine) |
 
 <details><summary>Details</summary>
 
@@ -152,12 +152,15 @@ Commercial use: yes.
 - `flowseek-t` 1080x1920, first call: portable + torch.compile 54 s (cold Inductor cache), TensorRT fp16 107 s (ONNX + engine).
 - `flowseek-t-things` 1080x1920, first call: portable + torch.compile 55 s (cold Inductor cache), TensorRT fp16 102 s (ONNX + engine).
 - `flowseek-t-things-notartan` 1080x1920, first call: portable + torch.compile 54 s (cold Inductor cache), TensorRT fp16 98 s (ONNX + engine).
+- `flowseek-t` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
+- `flowseek-t-things` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t-things` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
+- `flowseek-t-things-notartan` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t-things-notartan` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
-- `flowseek-t` load / first call: original 2.63 s / 1.035 s, portable 0.18 s / 0.458 s (375x1242)
-- `flowseek-t-things` load / first call: original 0.98 s / 0.651 s, portable 0.18 s / 0.469 s (375x1242)
-- `flowseek-t-things-notartan` load / first call: original 0.79 s / 0.652 s, portable 0.18 s / 0.46 s (375x1242)
+- `flowseek-t` load / first call: original 0.87 s / 0.629 s, portable 0.18 s / 0.458 s (375x1242)
+- `flowseek-t-things` load / first call: original 0.78 s / 0.459 s, portable 0.18 s / 0.469 s (375x1242)
+- `flowseek-t-things-notartan` load / first call: original 0.81 s / 0.459 s, portable 0.18 s / 0.46 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
