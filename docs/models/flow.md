@@ -330,7 +330,7 @@ Commercial use: yes.
   - `neuflow-v2-sintel`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (FlyingThings3D (part of SceneFlow), then upstream's 'sintel' stage: Sintel, KITTI 2015, HD1K and FlyingThings3D)
   - `neuflow-v2-things`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa) (FlyingThings3D (part of SceneFlow), upstream's 'things' stage)
 - Options: `iters` = 8 (>= 1)
-- Kernel libraries: none (none of the existing kernels fits (LeakyReLU(0.1) convolutions, one correlation level with 128 channels at radius 4), and no new kernel was written for it)
+- Kernel libraries: `raft_flow`
 - Variants: `neuflow-v2`, `neuflow-v2-sintel`, `neuflow-v2-things`
 - Outputs: flow
 - Input size: any H x W >= 32, padded to a multiple of 16
@@ -359,7 +359,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | `neuflow-v2-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.566 / 5.61 | 1.573 / 5.61 | 1.567 / 5.61 | trained on this dataset's public images; not a zero-shot result |
 | `neuflow-v2-things` | KITTI 2015 train, EPE / Fl-all % | 4.099 / 15.02 | 4.098 / 15.01 | 4.095 / 15.01 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4080d6c1 + NeuFlow singleton-head SDPA / c4a67979, 2026-11-11.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11.
 
 ### Parity
 
@@ -367,9 +367,9 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `neuflow-v2` | no kernels backend | - | - |
-| `neuflow-v2-sintel` | no kernels backend | - | - |
-| `neuflow-v2-things` | no kernels backend | - | - |
+| `neuflow-v2` | 0.00075 / 0.00425 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@14e84c3378be:sm_120` |
+| `neuflow-v2-sintel` | 0.00084 / 0.0046 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@14e84c3378be:sm_120` |
+| `neuflow-v2-things` | 0.00094 / 0.00429 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@14e84c3378be:sm_120` |
 
 </details>
 
@@ -440,10 +440,10 @@ CPU, float32: max |diff| <= 0.00012 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `raft-large` | 0.00098 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@5d99b7e3c675:sm_120` |
-| `raft-large-things` | 0.00105 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@5d99b7e3c675:sm_120` |
-| `raft-large-kitti` | 0.00096 / 0.00441 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@5d99b7e3c675:sm_120` |
-| `raft-small` | 0.00228 / 0.00957 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@5d99b7e3c675:sm_120` |
+| `raft-large` | 0.00098 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@14e84c3378be:sm_120` |
+| `raft-large-things` | 0.00105 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@14e84c3378be:sm_120` |
+| `raft-large-kitti` | 0.00096 / 0.00441 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@14e84c3378be:sm_120` |
+| `raft-small` | 0.00228 / 0.00957 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@14e84c3378be:sm_120` |
 
 </details>
 
@@ -537,13 +537,13 @@ CPU, float32: max |diff| <= 0.00025 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `sea-raft-m` | 0.00103 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@5d99b7e3c675:sm_120` |
-| `sea-raft-m-kitti` | 0.00085 / 0.00411 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@5d99b7e3c675:sm_120` |
-| `sea-raft-m-spring` | 0.00149 / 0.00741 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@5d99b7e3c675:sm_120` |
-| `sea-raft-m-things` | 0.00083 / 0.00347 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@5d99b7e3c675:sm_120` |
-| `sea-raft-s` | 0.00149 / 0.00788 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@5d99b7e3c675:sm_120` |
-| `sea-raft-s-kitti` | 0.00141 / 0.00847 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@5d99b7e3c675:sm_120` |
-| `sea-raft-s-spring` | 0.0027 / 0.01574 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@5d99b7e3c675:sm_120` |
+| `sea-raft-m` | 0.00103 / 0.00459 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@14e84c3378be:sm_120` |
+| `sea-raft-m-kitti` | 0.00085 / 0.00411 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@14e84c3378be:sm_120` |
+| `sea-raft-m-spring` | 0.00149 / 0.00741 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@14e84c3378be:sm_120` |
+| `sea-raft-m-things` | 0.00083 / 0.00347 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@14e84c3378be:sm_120` |
+| `sea-raft-s` | 0.00149 / 0.00788 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@14e84c3378be:sm_120` |
+| `sea-raft-s-kitti` | 0.00141 / 0.00847 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@14e84c3378be:sm_120` |
+| `sea-raft-s-spring` | 0.0027 / 0.01574 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `raft_flow@14e84c3378be:sm_120` |
 
 </details>
 
@@ -570,9 +570,9 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`gmflow-scale2-regrefine6-things`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
 | [`gmflow-scale2-sintel`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 | [`gmflow-scale2-things`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
-| [`neuflow-v2`](#neuflow_v2) | portable | Apache-2.0 | Apache-2.0 | sceneflow, sintel-flow, kitti, hd1k | yes | flow |
-| [`neuflow-v2-sintel`](#neuflow_v2) | portable | Apache-2.0 | Apache-2.0 | sceneflow, sintel-flow, kitti, hd1k | yes | flow |
-| [`neuflow-v2-things`](#neuflow_v2) | portable | Apache-2.0 | Apache-2.0 | sceneflow | yes | flow |
+| [`neuflow-v2`](#neuflow_v2) | portable, kernels | Apache-2.0 | Apache-2.0 | sceneflow, sintel-flow, kitti, hd1k | yes | flow |
+| [`neuflow-v2-sintel`](#neuflow_v2) | portable, kernels | Apache-2.0 | Apache-2.0 | sceneflow, sintel-flow, kitti, hd1k | yes | flow |
+| [`neuflow-v2-things`](#neuflow_v2) | portable, kernels | Apache-2.0 | Apache-2.0 | sceneflow | yes | flow |
 | [`raft-large`](#raft) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 | [`raft-large-kitti`](#raft) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 | [`raft-large-things`](#raft) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |

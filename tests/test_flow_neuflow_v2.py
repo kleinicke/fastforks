@@ -10,7 +10,10 @@ import torch
 from fastforks import flow
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
+from fastforks.flow.models.neuflow_v2 import net as nf
+from fastforks.flow.models.neuflow_v2.model import _kernel_lookup
 from fastforks.flow.models.neuflow_v2.net import NeuFlow
+from fastforks.kernels import raft_flow
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -70,3 +73,16 @@ def test_odd_size_is_padded_and_exports(weights: Path) -> None:
     with torch.inference_mode():
         exported = model.module()(a, b)  # export does what the call does
     torch.testing.assert_close(exported, model(a, b).flow, rtol=0, atol=1e-5)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("height", "width", "batch"), [(17, 21, 2), (136, 240, 1)])  # odd cells; the 1080p cells
+def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> None:
+    """The on-the-fly window equals the volume lookup (fp16 operands, fp32 sums) up to the fp16 output rounding."""
+    torch.manual_seed(0)
+    features = torch.randn(2 * batch, nf.FEATURE, height, width, device="cuda").half()
+    flow_ = torch.randn(batch, 2, height, width, device="cuda") * 20  # windows far off and over the border
+    want = nf.volume_lookup(features)(flow_)
+    got = _kernel_lookup(raft_flow.load(torch.device("cuda")), features)(flow_)
+    assert got.shape == want.shape
+    torch.testing.assert_close(got.float(), want.half().float(), rtol=0, atol=2e-3)  # fp16 ulp of |corr| < 4

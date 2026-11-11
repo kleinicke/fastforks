@@ -100,11 +100,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`starnet_s3`](#starnet) | yes | 0.715, 6.9x | 64, 0.84x |
 | [`starnet_s4`](#starnet) | yes | 0.912, 7.5x | 72, 0.84x |
 | [`swin_base_patch4_window7_224`](#swin) | yes | 2.149, 7.0x | 300, 0.72x |
-| [`tiny_vit_11m_224`](#tinyvit) | yes | 0.93, 6.4x | 84, 0.75x |
-| [`tiny_vit_21m_224`](#tinyvit) | yes | 1.184, 5.1x | 106, 0.67x |
+| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.93, 6.4x | 84, 0.75x |
+| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 1.184, 5.1x | 106, 0.67x |
 | [`tiny_vit_21m_384`](#tinyvit) | yes | 1.795, 3.3x (384x384) | 178, 0.61x |
 | [`tiny_vit_21m_512`](#tinyvit) | yes | 3.132, 2.6x (512x512) | 258, 0.45x |
-| [`tiny_vit_5m_224`](#tinyvit) | yes | 0.846, 7.0x | 78, 0.93x |
+| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.846, 7.0x | 78, 0.93x |
 | [`vgg16`](#vgg) | yes | 1.5, 2.4x | 388, 0.62x |
 | [`vit_base_patch16_224`](#vit) | yes | 1.647, 3.3x | 370, 0.96x |
 | [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.755, 2.0x | 1346, 0.77x |
@@ -1988,7 +1988,7 @@ Commercial use: yes.
 - Licence evidence: <https://huggingface.co/timm/tiny_vit_21m_224.dist_in22k_ft_in1k/blob/bcd5d68c5650bf4d65a0a1262f28b699a4d1c35f/README.md>
 - Training data: ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release), ImageNet-1k (ILSVRC 2012 classification)
 - Kernel libraries: `fvm_conv`
-- Variants: `tiny_vit_5m_224.dist_in22k_ft_in1k` (default of `tiny_vit_5m_224`), `tiny_vit_11m_224.dist_in22k_ft_in1k` (default of `tiny_vit_11m_224`), `tiny_vit_21m_224.dist_in22k_ft_in1k` (default of `tiny_vit_21m_224`), `tiny_vit_21m_384.dist_in22k_ft_in1k` (default of `tiny_vit_21m_384`), `tiny_vit_21m_512.dist_in22k_ft_in1k` (default of `tiny_vit_21m_512`)
+- Variants: `tiny_vit_5m_224.dist_in22k_ft_in1k`, `tiny_vit_11m_224.dist_in22k_ft_in1k`, `tiny_vit_21m_224.dist_in22k_ft_in1k`, `tiny_vit_21m_384.dist_in22k_ft_in1k` (default of `tiny_vit_21m_384`), `tiny_vit_21m_512.dist_in22k_ft_in1k` (default of `tiny_vit_21m_512`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size:
   - `tiny_vit_5m_224.dist_in22k_ft_in1k`, `tiny_vit_11m_224.dist_in22k_ft_in1k`, `tiny_vit_21m_224.dist_in22k_ft_in1k`: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
@@ -2283,11 +2283,11 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`starnet_s3`](#starnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`starnet_s4`](#starnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`swin_base_patch4_window7_224`](#swin) | portable, kernels | Apache-2.0 | MIT | imagenet-21k, imagenet-1k | yes | logits |
-| [`tiny_vit_11m_224`](#tinyvit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`tiny_vit_21m_224`](#tinyvit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](#tinyvit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](#tinyvit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`tiny_vit_21m_384`](#tinyvit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`tiny_vit_21m_512`](#tinyvit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`tiny_vit_5m_224`](#tinyvit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](#tinyvit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`vgg16`](#vgg) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`vit_base_patch16_224`](#vit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`vit_so400m_patch14_siglip_378`](#siglip) | portable, kernels | Apache-2.0 | Apache-2.0 | webli, imagenet-1k | yes | logits |

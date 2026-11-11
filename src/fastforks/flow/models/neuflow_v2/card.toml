@@ -30,8 +30,7 @@ cuda_dtype = "float16"  # autocast for the convolutions and the cross-attention;
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-status = "none"
-reason = "none of the existing kernels fits (LeakyReLU(0.1) convolutions, one correlation level with 128 channels at radius 4), and no new kernel was written for it"
+kernels = ["raft_flow"]  # the correlation window on the fly (one level, 128 channels, radius 4) instead of the all-pairs volume; the convolutions stay the portable fp16 ones
 
 [[variants]]
 id = "neuflow-v2"  # upstream neuflow_mixed.pth (the default of its infer.py)

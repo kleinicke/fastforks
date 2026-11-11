@@ -1,7 +1,7 @@
 """RAFT optical-flow kernels (`raft_flow_kernels.cu`).
 
 Normalization, the correlation lookup without a volume, GRU gates, the flow head output and the upsampling (RAFT);
-the depthwise conv + LayerNorm of SEA-RAFT's ConvNeXt blocks.
+the depthwise conv + LayerNorm of SEA-RAFT's ConvNeXt blocks; the one-level lookup of NeuFlow v2.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ SIGNATURES = {
     "avgpool2": "piipiii",
     "corr_lookup_c256_r4": "pppppiippif",
     "corr_lookup_c128_r3": "pppppiippif",
+    "corr_lookup_c128_r4_l1": "ppiippif",
     "init_coords": "pil",
     "write_flow": "pilppii",
     "convflow1": "piipppi",

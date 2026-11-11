@@ -22,11 +22,16 @@ stay float32 (upstream's own half mode keeps coordinates and correlation in fp16
 from __future__ import annotations
 
 import contextlib
+import functools
 import math
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
 from torch import nn
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 FACTOR = 16  # fixed: the coarse level works at 1/16 resolution
 FEATURE, CONTEXT, ITER_CONTEXT = 128, 64, 64  # fixed: upstream NeuFlow/config.py (the same at 1/16 and 1/8)
@@ -240,6 +245,12 @@ def _lookup(corr: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
     return out.view(b, h, w, -1).permute(0, 3, 1, 2)
 
 
+def volume_lookup(features: torch.Tensor) -> Callable[[torch.Tensor], torch.Tensor]:
+    """The all-pairs volume of the pair `[2B, C, H, W]` (fp32), looked up around each refinement's flow."""
+    corr = _correlation(*features.float().chunk(2, dim=0))
+    return functools.partial(_lookup, corr)
+
+
 class NeuFlow(nn.Module):
     """NeuFlow v2: `forward(image1, image2, iters)` -> the flow `[B, 2, H, W]` in pixels."""
 
@@ -256,6 +267,8 @@ class NeuFlow(nn.Module):
         self.conv_s8 = ConvBlock(3, FEATURE, 8, 8, 0)
         self.upsample_s8 = UpSample(FEATURE)
         self.fp16 = False  # fp16 autocast for the convolutions and the cross-attention (CUDA)
+        # features -> lookup(flow); the kernels runner replaces it with a lookup without the volume
+        self.correlate: Callable[[torch.Tensor], Callable[[torch.Tensor], torch.Tensor]] = volume_lookup
 
     def _amp(self, device: torch.device) -> contextlib.AbstractContextManager:
         return torch.autocast(device.type, torch.float16) if self.fp16 else contextlib.nullcontext()
@@ -263,10 +276,10 @@ class NeuFlow(nn.Module):
     def _refine(
         self, refine: Refine, features: torch.Tensor, context: torch.Tensor, flow: torch.Tensor, iters: int
     ) -> torch.Tensor:
-        corr = _correlation(*features.float().chunk(2, dim=0))
+        lookup = self.correlate(features)
         iter_context = context.new_zeros(context.shape[0], ITER_CONTEXT, *context.shape[-2:])
         for _ in range(iters):
-            corrs = _lookup(corr, flow)
+            corrs = lookup(flow)
             with self._amp(flow.device):
                 iter_context, delta = refine(corrs, context, iter_context, flow)
             flow = flow + delta.float()
