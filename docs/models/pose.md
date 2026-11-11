@@ -250,32 +250,32 @@ Top-down on the same every-tenth-image subset for all modes, ground-truth person
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
-| `rtmpose-t` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 65.2 | 65.2 |  |
-| `rtmpose-s` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 69.8 | 69.8 |  |
-| `rtmpose-m` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 75.6 | 75.6 |  |
-| `rtmpose-l` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 77.9 | 78.0 |  |
-| `rtmpose-m-384` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 77.9 | 78.0 |  |
-| `rtmpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 80.0 | 79.9 |  |
-| `dwpose-t` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 60.1 | 60.1 |  |
-| `dwpose-s` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 65.6 | 65.5 |  |
-| `dwpose-m` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 71.8 | 71.8 |  |
-| `dwpose-l` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 74.0 | 74.0 |  |
-| `dwpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 75.7 | 75.6 |  |
-| `rtmw-m` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 74.5 | 74.6 |  |
-| `rtmw-l` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 77.0 | 76.9 |  |
-| `rtmw-x` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 77.3 | 77.4 |  |
+| `rtmpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 65.2 | 65.1 | 65.2 | 65.2 |  |
+| `rtmpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 69.8 | 69.8 | 69.8 | 69.8 |  |
+| `rtmpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.6 | 75.6 |  |
+| `rtmpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 77.9 | 77.9 | 77.9 | 78.0 |  |
+| `rtmpose-m-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.0 | 77.9 | 77.9 | 78.0 |  |
+| `rtmpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.0 | 80.0 | 80.0 | 79.9 |  |
+| `dwpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 60.2 | 60.2 | 60.1 | 60.1 |  |
+| `dwpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 65.6 | 65.6 | 65.6 | 65.5 |  |
+| `dwpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 71.7 | 71.8 | 71.8 | 71.8 |  |
+| `dwpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 73.9 | 73.9 | 74.0 | 74.0 |  |
+| `dwpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.7 | 75.6 |  |
+| `rtmw-m` | COCO val2017, ground-truth person boxes, keypoint AP | 74.5 | 74.5 | 74.5 | 74.6 |  |
+| `rtmw-l` | COCO val2017, ground-truth person boxes, keypoint AP | 76.9 | 76.9 | 77.0 | 76.9 |  |
+| `rtmw-x` | COCO val2017, ground-truth person boxes, keypoint AP | 77.3 | 77.4 | 77.3 | 77.4 |  |
 | `rtmw-l-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.2 | 80.3 | 80.2 | 80.1 |  |
-| `rtmw-l-384` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 79.5 | 79.5 |  |
+| `rtmw-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.4 | 79.4 | 79.5 | 79.5 |  |
 | `rtmw-x-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.3 | 80.2 | 80.1 | 80.4 |  |
-| `rtmw-x-384` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 79.6 | 79.6 |  |
-| `rtmpose-t-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 65.3 | 65.3 |  |
+| `rtmw-x-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.6 | 79.6 | 79.6 | 79.6 |  |
+| `rtmpose-t-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 65.3 | 65.5 | 65.3 | 65.3 |  |
 | `rtmpose-s-halpe26` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 71.4 | 71.3 | 71.4 | 71.2 |  |
-| `rtmpose-s-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 69.9 | 70.0 |  |
-| `rtmpose-m-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 76.2 | 76.2 |  |
-| `rtmpose-l-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 78.5 | 78.5 |  |
-| `rtmpose-m-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 78.3 | 78.3 |  |
-| `rtmpose-l-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 79.8 | 80.0 |  |
-| `rtmpose-x-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP |  |  | 80.5 | 80.4 |  |
+| `rtmpose-s-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 70.0 | 70.0 | 69.9 | 70.0 |  |
+| `rtmpose-m-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.2 | 76.2 | 76.2 |  |
+| `rtmpose-l-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 78.5 | 78.5 | 78.5 | 78.5 |  |
+| `rtmpose-m-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.3 | 78.4 | 78.3 | 78.3 |  |
+| `rtmpose-l-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.8 | 79.8 | 79.8 | 80.0 |  |
+| `rtmpose-x-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.5 | 80.6 | 80.5 | 80.4 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11.
 
@@ -398,7 +398,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rf-detr-keypoint-preview` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.3<br>18.3<br>9.48<br>8.00<br>4.28 (network on person crops only) | 186 / 244<br>179 / 204<br>176 / 224<br>191 / 220<br>124 (engine) |
+| `rf-detr-keypoint-preview` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 29.4<br>19.3<br>18.3<br>9.48<br>8.00<br>4.28 (network on person crops only) | 305 / 322<br>186 / 244<br>179 / 204<br>176 / 224<br>191 / 220<br>124 (engine) |
 
 <details><summary>Details</summary>
 
@@ -414,8 +414,9 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rf-detr-keypoint-preview` not measured yet
 - `rf-detr-keypoint-preview` 1080x1920, first call: portable + torch.compile 48 s (cold Inductor cache), TensorRT fp16 67 s (ONNX + engine).
+- `rf-detr-keypoint-preview` original (fp32) 1080x1920: pinned RF-DETR torchvision resize/normalize, original network and uncertainty-fused PostProcess
 - `rf-detr-keypoint-preview` original 1080x1920: the authors' float16 model option; pinned RF-DETR torchvision resize/normalize, original network and uncertainty-fused PostProcess; authors inference(compile=False, dtype=float16, inplace=True)
-- `rf-detr-keypoint-preview` load / first call: original 4.72 s / 0.657 s, portable 2.66 s / 0.386 s, kernels 2.7 s / 0.384 s
+- `rf-detr-keypoint-preview` load / first call: original 1.49 s / 0.083 s, portable 2.66 s / 0.386 s, kernels 2.7 s / 0.384 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -424,7 +425,7 @@ Bottom-up on all 5,000 validation images, no ground-truth boxes; people ranked b
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
-| `rf-detr-keypoint-preview` | COCO val2017, predicted people, keypoint AP |  |  | 71.8 | 71.8 |  |
+| `rf-detr-keypoint-preview` | COCO val2017, predicted people, keypoint AP | 71.8 | 71.8 | 71.8 | 71.8 |  |
 | `rf-detr-keypoint-preview` | COCO val2017, every 10th image, predicted people, keypoint AP | 72.7 | 72.9 | 72.9 | 72.8 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0050000f, 2026-11-11.
@@ -499,13 +500,13 @@ Bottom-up on all 5,000 validation images, no ground-truth boxes; people ranked b
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
-| `rtmo-t` | COCO val2017, predicted people, keypoint AP |  |  | 57.4 | 57.4 |  |
+| `rtmo-t` | COCO val2017, predicted people, keypoint AP | 57.4 | 57.4 | 57.4 | 57.4 |  |
 | `rtmo-t` | COCO val2017, every 10th image, predicted people, keypoint AP | 59.4 | 59.4 | 59.3 | 59.3 |  |
-| `rtmo-s` | COCO val2017, predicted people, keypoint AP |  |  | 68.5 | 68.5 |  |
+| `rtmo-s` | COCO val2017, predicted people, keypoint AP | 68.6 | 68.6 | 68.5 | 68.5 |  |
 | `rtmo-s` | COCO val2017, every 10th image, predicted people, keypoint AP | 71.1 | 71.2 | 71.2 | 71.2 |  |
-| `rtmo-m` | COCO val2017, predicted people, keypoint AP |  |  | 72.6 | 72.6 |  |
+| `rtmo-m` | COCO val2017, predicted people, keypoint AP | 72.6 | 72.6 | 72.6 | 72.6 |  |
 | `rtmo-m` | COCO val2017, every 10th image, predicted people, keypoint AP | 74.2 | 74.2 | 74.2 | 74.2 |  |
-| `rtmo-l` | COCO val2017, predicted people, keypoint AP |  |  | 74.8 | 74.8 |  |
+| `rtmo-l` | COCO val2017, predicted people, keypoint AP | 74.8 | 74.8 | 74.8 | 74.8 |  |
 | `rtmo-l` | COCO val2017, every 10th image, predicted people, keypoint AP | 76.1 | 76.0 | 76.0 | 76.0 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks be54b8b0, 2026-11-11.
