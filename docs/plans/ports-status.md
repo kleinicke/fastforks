@@ -45,6 +45,8 @@ In this order, unless something more useful turns up:
   Weights on CUDA in `~/scratch_tests/port-rtmo/w/` or its `cache/`, otherwise the pinned upstream URLs.
 - HGNetV2 B0-B6: portable fp32 MPS goldens and speed at native 224 crops. CUDA portable goldens use
   measured mean/p99 bounds 0.0080/0.033; weights are downloadable from the pinned timm Hugging Face card URLs.
+- EfficientFormerV2 S0/S1/S2/L: portable fp32 MPS goldens and speed at native 224 crops. CUDA portable
+  mean/p99 bounds are 0.12/0.42 from measured fp16 errors; pinned timm Hugging Face weights are downloadable.
 
 - SHViT S1-S4: portable fp32 MPS goldens and speed at native 224 crops (S4: 256). CUDA portable goldens pass
   with mean/p99 bounds 0.0060/0.023; weights are downloadable from the pinned timm Hugging Face card URLs.

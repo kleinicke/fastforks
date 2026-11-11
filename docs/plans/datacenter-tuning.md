@@ -336,3 +336,10 @@ transformers. The portable runner folds BatchNorm; kernels reuse the existing co
 small-batch CUDA graph cache. On another GPU, measure batch scaling across the shared HACC pixel threshold,
 convolution epilogues and depthwise kernels before changing dispatch. RTX 5060 Ti measurements do not establish
 datacenter performance.
+## EfficientFormerV2
+
+RTX 5060 Ti measurements cover the native 224 crop. Profile feature-map attention, learned bias tables,
+strided depthwise convolutions and BatchNorm folding on the target GPU before proposing new fusions.
+The fp16 golden errors are larger than for the simpler CNNs, so compare dataset accuracy and the original
+FP32/FP16 results before changing precision. Compile/TensorRT rows are separate measured alternatives;
+no datacenter performance is inferred from the consumer GPU.
