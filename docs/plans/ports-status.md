@@ -47,6 +47,8 @@ In this order, unless something more useful turns up:
   measured mean/p99 bounds 0.0080/0.033; weights are downloadable from the pinned timm Hugging Face card URLs.
 - EfficientFormerV2 S0/S1/S2/L: portable fp32 MPS goldens and speed at native 224 crops. CUDA portable
   mean/p99 bounds are 0.12/0.42 from measured fp16 errors; pinned timm Hugging Face weights are downloadable.
+- EfficientFormer L1/L3/L7: portable fp32 MPS goldens and speed at native 224 crops. CUDA portable passes
+  measured mean/p99 bounds 0.0046/0.019; pinned timm Hugging Face weights are downloadable.
 
 - SHViT S1-S4: portable fp32 MPS goldens and speed at native 224 crops (S4: 256). CUDA portable goldens pass
   with mean/p99 bounds 0.0060/0.023; weights are downloadable from the pinned timm Hugging Face card URLs.

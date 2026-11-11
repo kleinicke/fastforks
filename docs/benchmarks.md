@@ -602,6 +602,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | deit_base_patch16_224.fb_in1k | 224x224 | 6.39 | 5.46 | 2.98 | 1.64 | 3.3x | 1.8x | 531 / 548 | 203 / 386 | 300 / 370 |
 | densenet121.tv_in1k | 224x224 | 10.7 | 13.6 | 9.41 | 1.28 | 8.4x | 7.4x | 80 / 102 | 53 / 90 | 83 / 132 |
 | dinov2_vitl14_lc | 224x224 | 22.4 | 10.8 | 5.43 | 4.93 | 2.2x | 1.1x | 1782 / 1806 | 623 / 1228 | 890 / 950 |
+| efficientformer_l1.snap_dist_in1k | 224x224 | 4.87 | 6.40 | 3.72 | – | – | – | 104 / 124 | 93 / 104 | – |
+| efficientformer_l3.snap_dist_in1k | 224x224 | 8.39 | 11.0 | 6.37 | – | – | – | 214 / 236 | 161 / 216 | – |
+| efficientformer_l7.snap_dist_in1k | 224x224 | 12.3 | 15.9 | 9.65 | – | – | – | 505 / 522 | 300 / 324 | – |
 | efficientformerv2_l.snap_dist_in1k | 224x224 | 19.9 | 29.0 | 17.1 | – | – | – | 186 / 198 | 93 / 144 | – |
 | efficientformerv2_s0.snap_dist_in1k | 224x224 | 8.16 | 11.8 | 7.62 | – | – | – | 55 / 64 | 44 / 64 | – |
 | efficientformerv2_s1.snap_dist_in1k | 224x224 | 10.1 | 14.9 | 8.91 | – | – | – | 70 / 80 | 50 / 88 | – |
@@ -988,6 +991,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | deit_base_patch16_224.fb_in1k | 2.52 | 0.72 | 1.96 | 0.31 | 0.00 | 0.07 |
 | densenet121.tv_in1k | 1.22 | 0.41 | 1.89 | 0.56 | 0.09 | 0.04 |
 | dinov2_vitl14_lc | 5.80 | 3.34 | 3.94 | 0.32 | 0.02 | 0.10 |
+| efficientformer_l1.snap_dist_in1k | 0.22 | 1.71 | – | 0.22 | 0.07 | – |
+| efficientformer_l3.snap_dist_in1k | 0.37 | 1.86 | – | 0.03 | 0.08 | – |
+| efficientformer_l7.snap_dist_in1k | 0.93 | 2.27 | – | 0.03 | 0.07 | – |
 | efficientformerv2_l.snap_dist_in1k | 0.32 | 2.74 | – | 0.73 | 0.43 | – |
 | efficientformerv2_s0.snap_dist_in1k | 0.17 | 1.88 | – | 1.76 | 0.50 | – |
 | efficientformerv2_s1.snap_dist_in1k | 0.19 | 1.96 | – | 0.59 | 0.43 | – |
@@ -1291,6 +1297,9 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | deit_base_patch16_224.fb_in1k | 224x224 | 2.98 ms | 2.09 ms | 1.12 ms | 1.64 ms | 7.27 s | 28.3 s | 203 / 386 | 238 / 266 | 300 / 370 | 196 |
 | densenet121.tv_in1k | 224x224 | 9.41 ms | 5.49 ms | 0.686 ms | 1.28 ms | 20.4 s | 33.6 s | 53 / 90 | 89 / 112 | 83 / 132 | 36 |
 | dinov2_vitl14_lc | 224x224 | 5.43 ms | 5.09 ms | 4.22 ms | 4.93 ms | 12.1 s | 38.2 s | 623 / 1228 | 660 / 688 | 890 / 950 | 618 |
+| efficientformer_l1.snap_dist_in1k | 224x224 | 3.72 ms | 1.69 ms | 0.335 ms | – | 9.10 s | 35.4 s | 93 / 104 | 125 / 144 | – | 38 |
+| efficientformer_l3.snap_dist_in1k | 224x224 | 6.37 ms | 2.57 ms | 0.750 ms | – | 11.8 s | 39.4 s | 161 / 216 | 193 / 216 | – | 70 |
+| efficientformer_l7.snap_dist_in1k | 224x224 | 9.65 ms | 3.69 ms | 1.40 ms | – | 14.4 s | 40.0 s | 300 / 324 | 332 / 364 | – | 166 |
 | efficientformerv2_l.snap_dist_in1k | 224x224 | 17.1 ms | 7.32 ms | 1.20 ms | – | 20.7 s | 45.1 s | 93 / 144 | 125 / 184 | – | 70 |
 | efficientformerv2_s0.snap_dist_in1k | 224x224 | 7.62 ms | 3.34 ms | 0.550 ms | – | 11.3 s | 36.3 s | 44 / 64 | 76 / 104 | – | 36 |
 | efficientformerv2_s1.snap_dist_in1k | 224x224 | 8.91 ms | 3.91 ms | 0.632 ms | – | 12.7 s | 41.2 s | 50 / 88 | 82 / 108 | – | 38 |

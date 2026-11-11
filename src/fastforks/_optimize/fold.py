@@ -36,6 +36,22 @@ def hooked(m: nn.Module) -> bool:
     return any(getattr(f, "__module__", None) != _RECORDER for h in _HOOKS for f in getattr(m, h, {}).values())
 
 
+def _trace(tracer: fx.Tracer, model: nn.Module) -> fx.Graph:
+    """`tracer.trace(model)` that leaves no fx Proxy behind in a module's dict.
+
+    A forward that caches a derived tensor per device (timm's attention bias tables: EfficientFormer, LeViT) stores a
+    Proxy of this graph there; the next trace would read it back as a node of another graph.
+    """
+    try:
+        return tracer.trace(model)
+    finally:
+        for m in model.modules():
+            for d in vars(m).values():
+                if isinstance(d, dict):
+                    for k in [k for k, v in d.items() if isinstance(v, fx.Proxy)]:
+                        del d[k]
+
+
 def _reparam_tree(module: nn.Module) -> None:
     """The walk of timm's `reparameterize_model` (timm.utils.model), without importing timm."""
     for name, child in module.named_children():
@@ -139,7 +155,7 @@ _CONV_BN = (nn.Conv2d, nn.BatchNorm2d)
 
 def _pair_graph(m: nn.Module, leaves: set[int]) -> fx.Graph | None:
     try:
-        return _PairTracer(leaves).trace(m)
+        return _trace(_PairTracer(leaves), m)
     except Exception as e:  # noqa: BLE001 - untraceable (e.g. input-shape dependent control flow)
         log.debug("BN fold: fx trace of %s failed (%s)", type(m).__name__, type(e).__name__)
         return None
@@ -308,7 +324,7 @@ def flatten(model: nn.Module) -> fx.GraphModule | None:
     if hooked(model):
         return None
     try:
-        graph = _Tracer().trace(model)
+        graph = _trace(_Tracer(), model)
         gm = fx.GraphModule(model, graph)
     except Exception as e:  # noqa: BLE001 - any trace failure keeps the eager module
         log.debug("fx trace failed (%s: %s), eager modules kept", type(e).__name__, str(e)[:80])
@@ -384,7 +400,7 @@ def _fuse(model: fx.GraphModule) -> fx.GraphModule:
 
     if any(hooked(m) for m in model.modules()):
         return model  # the retrace below would inline modules with hooks
-    gm = fx.symbolic_trace(model)  # as torch's fuse: the same graph, so the same fusions
+    gm = fx.GraphModule(model, _trace(fx.Tracer(), model))  # as torch's fuse: the same graph, so the same fusions
     modules = dict(gm.named_modules())
     graph = copy.deepcopy(gm.graph)
     uses = module_uses(graph)

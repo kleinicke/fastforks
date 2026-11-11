@@ -63,7 +63,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | alexnet, c_radio, cas_gwcnet, clip, coex, depth_anything_3, depth_pro, dinov2, dinov3, dinov3_convnext, dlnr, eomt, eva02, mapanything, marigold, mask2former, midas, mmseg, oneformer, regnet, rfdetr_keypoint, rtmdet, rtmo, s2m2, sam3, sapiens, siglip, siglip2, squeezenet, tipsv2, vgg, vggt_omega, zoedepth | fp16 | fp16 | fp32/fp16 | - |
 | cfnet, crestereo, foundationstereo, great_igev, hitnet, igev_plusplus, mocha_stereo, monster, monster_plusplus, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 |
 | rtmpose | fp16 | fp16 | fp32/fp16 | pose_metal fp32 |
-| efficientformerv2, hgnetv2, shvit | fp16 | - | fp32 | - |
+| efficientformer, efficientformerv2, hgnetv2, shvit | fp16 | - | fp32 | - |
 | aanet, bridgedepth, igev_stereo, las2, nmrf | fp16 | fp16 | fp32 | stereo_metal fp16 |
 | perception_encoder | fp16 | fp16 | fp32/fp16 | vit_metal fp16 |
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 |

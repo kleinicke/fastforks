@@ -343,3 +343,10 @@ strided depthwise convolutions and BatchNorm folding on the target GPU before pr
 The fp16 golden errors are larger than for the simpler CNNs, so compare dataset accuracy and the original
 FP32/FP16 results before changing precision. Compile/TensorRT rows are separate measured alternatives;
 no datacenter performance is inferred from the consumer GPU.
+## EfficientFormer
+
+RTX 5060 Ti measurements cover the native 224 crop. The shared folding pass clears FX proxies left in
+forward attention-bias caches so later traces cannot reuse nodes from a different graph; real tensor
+cache entries remain intact. Profile pooling/MLP blocks and the final attention blocks on the target GPU
+before adding kernels. Compare original FP32/autocast FP16, portable, compile and TensorRT rows without
+inferring datacenter performance from this consumer GPU.

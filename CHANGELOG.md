@@ -38,6 +38,8 @@
   `portable` and `kernels`; explicit CNN dispatch folds BatchNorm despite timm naming its blocks `Block`.
 - New classifier EfficientFormerV2 (Snap Research's weights from timm, Apache-2.0): `efficientformerv2_s0`, `_s1`,
   `_s2` and `_l` (`.snap_dist_in1k`), on `portable`.
+- New classifier EfficientFormer (Snap Research's weights from timm, Apache-2.0): `efficientformer_l1`, `_l3` and
+  `_l7` (`.snap_dist_in1k`), on `portable`.
 - New feature backbones: SigLIP 2, CLIP / OpenCLIP, Perception Encoder and C-RADIOv3.
 - New feature backbone: TIPSv2 (B/14, L/14 image encoders; the DINOv2 kernel path).
 - New feature backbone ConvNeXt (Meta's V1 ImageNet-22k weights from timm, Apache-2.0): `convnext_tiny.fb_in22k`,

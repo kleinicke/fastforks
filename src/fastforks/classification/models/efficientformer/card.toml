@@ -1,0 +1,66 @@
+schema = 2
+name = "EfficientFormer"
+summary = "EfficientFormer (Li et al. 2022, Snap Research): a hybrid classifier, pooling blocks on feature maps followed by transformer blocks on tokens."
+tier = "experimental"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints are Snap Research's (snap-research/EfficientFormer; its LICENSE is an MIT-style grant by Snap Inc.
+# plus LeViT's Apache-2.0: https://github.com/snap-research/EfficientFormer/blob/main/LICENSE; the official files are
+# on Google Drive without a separate statement), re-hosted by timm, whose model cards of all 3 repositories state
+# apache-2.0 (checked 2026-11-10: https://huggingface.co/api/models/timm/<id>, cardData.license).
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+evidence = "https://huggingface.co/timm/efficientformer_l1.snap_dist_in1k/blob/8738a58190800aaf5995f453b05f643df453a565/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 235
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not built yet: pooling blocks with Conv-BN MLPs and LayerNorm transformer blocks with learned attention bias tables need a dedicated kernels runner"
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+id = "efficientformer_l1.snap_dist_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "efficientformer_l1.snap_dist_in1k.safetensors", size = 49335032, sha256 = "dab9ad0e328fe94a9c155497dc3f46cb456ae0223e19184d377e03adc3e3e08e", url = "https://huggingface.co/timm/efficientformer_l1.snap_dist_in1k/resolve/8738a58190800aaf5995f453b05f643df453a565/model.safetensors" }]
+params = { arch = "efficientformer_l1.snap_dist_in1k" }
+licence = { evidence = "https://huggingface.co/timm/efficientformer_l1.snap_dist_in1k/blob/8738a58190800aaf5995f453b05f643df453a565/README.md" }
+
+[[variants]]
+id = "efficientformer_l3.snap_dist_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "efficientformer_l3.snap_dist_in1k.safetensors", size = 125981408, sha256 = "ab0c5bfd7c1863e6b7625a08615d0ea88b6acb978d30fdd0fbb24e2e12da3e2a", url = "https://huggingface.co/timm/efficientformer_l3.snap_dist_in1k/resolve/ca929ef48f056232098ad9226a69e4c29a00cc46/model.safetensors" }]
+params = { arch = "efficientformer_l3.snap_dist_in1k" }
+licence = { evidence = "https://huggingface.co/timm/efficientformer_l3.snap_dist_in1k/blob/ca929ef48f056232098ad9226a69e4c29a00cc46/README.md" }
+
+[[variants]]
+id = "efficientformer_l7.snap_dist_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "efficientformer_l7.snap_dist_in1k.safetensors", size = 329495568, sha256 = "c497103536ff7d140713aea3d5122100f791e74c3f4fa132e471848b160b3d68", url = "https://huggingface.co/timm/efficientformer_l7.snap_dist_in1k/resolve/f9689bcd000eaeaf0d80ce3c5c353494af2d661a/model.safetensors" }]
+params = { arch = "efficientformer_l7.snap_dist_in1k" }
+licence = { evidence = "https://huggingface.co/timm/efficientformer_l7.snap_dist_in1k/blob/f9689bcd000eaeaf0d80ce3c5c353494af2d661a/README.md" }

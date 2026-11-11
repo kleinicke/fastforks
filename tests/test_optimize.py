@@ -390,3 +390,31 @@ def test_kernel_passes_leave_a_conv_with_a_second_use_alone(second_use):
     gm = fx.symbolic_trace(_Stem(second_use=second_use))
     assert cnn.pad_stem(gm) is not second_use
     assert gm.stem.weight.shape[1] == (3 if second_use else 8)
+
+
+class _DeviceCache(nn.Module):
+    """Conv + BN whose forward caches a derived tensor per device, as timm's attention bias tables do."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.conv, self.bn = nn.Conv2d(3, 4, 1), nn.BatchNorm2d(4)
+        self.bias = nn.Parameter(torch.randn(4, 1, 1))
+        self.cache: dict[str, torch.Tensor] = {}
+
+    def forward(self, x):
+        key = str(x.device)
+        if key not in self.cache:
+            self.cache[key] = self.bias * 2
+        return self.bn(self.conv(x)) + self.cache[key]
+
+
+def test_fold_leaves_no_proxy_in_a_forward_cache():
+    """Each fold pass traces the model; a Proxy cached by one trace must not reach the next one (EfficientFormer)."""
+    torch.manual_seed(0)
+    m = _DeviceCache().eval()
+    x = torch.randn(1, 3, 4, 4)
+    with torch.inference_mode():
+        want = copy.deepcopy(m)(x)
+        net, _ = fold.fold_bn(m)
+        assert (net(x) - want).abs().max() < 1e-5
+    assert not any(isinstance(v, fx.Proxy) for mod in m.modules() for v in getattr(mod, "cache", {}).values())
