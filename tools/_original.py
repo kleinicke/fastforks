@@ -293,6 +293,39 @@ def _sea_raft(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda im1, im2: g.calc_flow(net, im1[None].float(), im2[None].float(), scale)
 
 
+def _gmflow(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Upstream `UniMatch` as `tools/golden/gmflow.py` (`FF_GMFLOW_REPO`), settings of scripts/gmflow_evaluate.sh.
+
+    Upstream has no mixed-precision option. The call replicate-pads the pair to the card's multiple (centred, as
+    upstream's InputPadder) and crops the flow.
+    """
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("gmflow")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_GMFLOW_REPO")
+        if not repo:
+            msg = "FF_GMFLOW_REPO: a clone of autonomousvision/unimatch for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+    card, variant = registry.resolve("flow", full)
+    params = dict(card.params | variant.params)
+    net = g.build(a.tree, registry.weights(card, variant, allow_download=False)[0], params).cuda()
+    m = variant.io.pad_multiple
+    a.note = f"upstream UniMatch {g.settings(params)}, padded to multiples of {m}"
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        h, w = im1.shape[-2:]
+        ph, pw = -h % m, -w % m
+        pad = (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2)
+        x1, x2 = (F.pad(im[None].float(), pad, mode="replicate") for im in (im1, im2))
+        return g.calc_flow(net, x1, x2, params)[..., pad[2] : pad[2] + h, pad[0] : pad[0] + w]
+
+    return call
+
+
 def _neuflow_v2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001
     """Upstream `NeuFlow` as `tools/golden/neuflow_v2.py` (`FF_NEUFLOW_V2_REPO`); fp16 = upstream infer.py's recipe.
 
@@ -696,6 +729,7 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
     "raft": _Local("flow", _raft, ((1080, 1920), (375, 1242))),
     "sea_raft": _Local("flow", _sea_raft, ((1080, 1920), (375, 1242))),
     "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
+    "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
     "vitpose": _Local("pose", _vitpose, ((1080, 1920),), lambda a: (a[0].permute(1, 2, 0).cpu().numpy(), _xywh(a[1]))),
     "rtmpose": _Local(
         "pose", _rtmpose, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())

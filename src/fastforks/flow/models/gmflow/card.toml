@@ -1,0 +1,101 @@
+schema = 2
+name = "GMFlow"
+summary = "GMFlow (Xu, Zhang, Cai, Rezatofighi & Tao 2022) in its UniMatch release (Xu et al. 2023): optical flow as global matching. A CNN gives features at 1/8 resolution, a Transformer with self- and cross-attention (shifted windows) makes the two images' features aware of each other, the flow is the expected position of the best match over the whole image, and a self-attention layer spreads it into occluded areas. `scale2` variants repeat this at 1/4 resolution with local matching; `regrefine6` variants add 6 RAFT-like local refinements."
+tier = "experimental"
+outputs = ["flow"]
+limitations = ["No custom kernels backend is implemented.", "TensorRT builds at 1080x1920 fail for scale2 variants with a Myelin CHECK(is_const()) error on RTX 5060 Ti; scale1 variants build."]
+uses = []  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/autonomousvision/unimatch"
+commit = "943a99006950ab6c84ea72a72beb147fdd03c19a"  # net/ = its unimatch/ flow modules; explicit meshgrid indexing (see net/__init__.py)
+
+[licence]
+code = "MIT AND Apache-2.0 AND BSD-3-Clause"  # LICENSE (MIT, autonomousvision); net/position.py (DETR) and net/trident_conv.py (detectron2) are Apache-2.0
+weights = "assumed from code"  # MODEL_ZOO.md links the authors' files without a separate licence
+files = ["LICENSE", "LICENSE-Apache-2.0", "LICENSE-RAFT"]
+# net/reg_refine.py adapts RAFT core/update.py (UniMatch README acknowledges RAFT):
+# https://github.com/princeton-vl/RAFT/blob/2888e15a51fa41140771d3f498ed8023cff098d1/core/update.py
+# https://github.com/princeton-vl/RAFT/blob/2888e15a51fa41140771d3f498ed8023cff098d1/LICENSE
+training_data = ["flyingchairs", "sceneflow"]
+training_note = "FlyingChairs, then FlyingThings3D (part of SceneFlow)"
+evidence = "https://github.com/autonomousvision/unimatch/blob/943a99006950ab6c84ea72a72beb147fdd03c19a/MODEL_ZOO.md"  # the weights' source; code: https://github.com/autonomousvision/unimatch/blob/943a99006950ab6c84ea72a72beb147fdd03c19a/LICENSE
+
+[io]
+input = "mean_std"  # upstream normalize_img: ImageNet mean and std on [0, 1]
+mean = [0.485, 0.456, 0.406]
+std = [0.229, 0.224, 0.225]
+min_size = 64  # the shifted windows at 1/4 resolution (8 splits per axis) need at least 2 cells each
+pad = { multiple = 32, mode = "centre", fill = "replicate" }  # upstream InputPadder ('sintel' mode), padding_factor 32 of the scale2 commands in scripts/gmflow_evaluate.sh
+
+[params]
+scales = 1  # upstream num_scales: 1 = global matching at 1/8; 2 = then local matching at 1/4 (attn_splits 2 8, corr_radius -1 4, prop_radius -1 1)
+refine = 0  # upstream num_reg_refine with reg_refine; 0 = no refinement block in the checkpoint
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast for the CNN, the Transformer, the upsampling head and the refinement block; matching, propagation, warping and the flow in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "none of the existing kernels fits (window attention with one head, global softmax matching), and no new kernel was written for it"
+
+[[variants]]
+id = "gmflow-scale1-things"  # upstream gmflow-scale1-things-e9887eda.pth; matching at 1/8 only; zero-shot on Sintel / KITTI
+revision = 1
+io = { pad = { multiple = 16 } }  # upstream main_flow.py default padding_factor
+weights = [{ name = "gmflow-scale1-things-e9887eda.pth", size = 18768907, sha256 = "e9887eda6165e0813c03f35998d6af86e265aafce2e3349af93d691a59696088", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale1-things-e9887eda.pth" }]
+
+[[variants]]
+id = "gmflow-scale1-mixdata"  # upstream gmflow-scale1-mixdata-train320x576-4c3a6e9a.pth; upstream: "recommended for in-the-wild use cases"
+revision = 1
+io = { pad = { multiple = 16 } }  # upstream main_flow.py default padding_factor
+licence = { training_data = ["unstated"], training_note = "MODEL_ZOO.md: \"trained on several mixed public datasets\" (not listed)" }
+weights = [{ name = "gmflow-scale1-mixdata-train320x576-4c3a6e9a.pth", size = 18768907, sha256 = "4c3a6e9af9136e31bb7b523218ba615d9d3520a8cb42bf32cc92332a6efa144a", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale1-mixdata-train320x576-4c3a6e9a.pth" }]
+
+[[variants]]
+id = "gmflow-scale2-things"  # upstream gmflow-scale2-things-36579974.pth; zero-shot on Sintel / KITTI
+revision = 1
+params = { scales = 2 }
+weights = [{ name = "gmflow-scale2-things-36579974.pth", size = 18915017, sha256 = "365799747d9f1dbd81af80a190688b78585ddb1d781c35acc2874d2543854674", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-things-36579974.pth" }]
+
+[[variants]]
+id = "gmflow-scale2-sintel"  # upstream gmflow-scale2-sintel-3ed1cf48.pth
+revision = 1
+params = { scales = 2 }
+licence = { training_data = ["flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "FlyingChairs, FlyingThings3D, then upstream's 'sintel' stage: Sintel, KITTI 2015, HD1K and FlyingThings3D" }
+weights = [{ name = "gmflow-scale2-sintel-3ed1cf48.pth", size = 18915017, sha256 = "3ed1cf486cf7114709e8cf54495f82fb262ed2e2071c276f902d522e568cae5e", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-sintel-3ed1cf48.pth" }]
+
+[[variants]]
+id = "gmflow-scale2-mixdata"  # upstream gmflow-scale2-mixdata-train320x576-9ff1c094.pth
+revision = 1
+params = { scales = 2 }
+licence = { training_data = ["unstated"], training_note = "MODEL_ZOO.md: \"trained on several mixed public datasets\" (not listed)" }
+weights = [{ name = "gmflow-scale2-mixdata-train320x576-9ff1c094.pth", size = 18915017, sha256 = "9ff1c094f496f5a209e910b2c84071e712c1f2a1f391f4a4546f1a467328876e", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-mixdata-train320x576-9ff1c094.pth" }]
+
+[[variants]]
+id = "gmflow-scale2-regrefine6-things"  # upstream gmflow-scale2-regrefine6-things-776ed612.pth; zero-shot on Sintel / KITTI
+revision = 1
+params = { scales = 2, refine = 6 }
+weights = [{ name = "gmflow-scale2-regrefine6-things-776ed612.pth", size = 29500177, sha256 = "776ed612efb8617abf0fa73ef1bd097c96eb9d99db50c292e4b12442ee6cc4a8", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-regrefine6-things-776ed612.pth" }]
+
+[[variants]]
+id = "gmflow-scale2-regrefine6-sintelft"  # upstream gmflow-scale2-regrefine6-sintelft-6e39e2b9.pth; upstream's Sintel submission model
+revision = 1
+params = { scales = 2, refine = 6 }
+licence = { training_data = ["flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "FlyingChairs, FlyingThings3D, the 'sintel' stage (Sintel, KITTI 2015, HD1K, FlyingThings3D), then fine-tuned on Sintel" }
+weights = [{ name = "gmflow-scale2-regrefine6-sintelft-6e39e2b9.pth", size = 29500177, sha256 = "6e39e2b9fb0fc0bf12a1c22d0b610540c47defe1a9d6521ef5886a2d2ea75de4", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-regrefine6-sintelft-6e39e2b9.pth" }]
+
+[[variants]]
+id = "gmflow-scale2-regrefine6-kitti"  # upstream gmflow-scale2-regrefine6-kitti15-25b554d7.pth; upstream's KITTI 2015 submission model
+revision = 1
+params = { scales = 2, refine = 6 }
+licence = { training_data = ["flyingchairs", "sceneflow", "unstated"], training_note = "FlyingChairs, FlyingThings3D, Virtual KITTI 2 (no dataset entry here yet, hence 'unstated'), then KITTI 2012 + 2015 (upstream scripts/gmflow_scale2_regrefine6_train.sh, stages vkitti2 and kitti_mix)" }
+weights = [{ name = "gmflow-scale2-regrefine6-kitti15-25b554d7.pth", size = 29500177, sha256 = "25b554d766e91666202eeb936dfe4d3b8f185948ec7cdec4ef21978305a5062e", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-regrefine6-kitti15-25b554d7.pth" }]
+
+[[variants]]
+id = "gmflow-scale2-regrefine6-mixdata"  # upstream gmflow-scale2-regrefine6-mixdata-train320x576-4e7b215d.pth
+revision = 1
+params = { scales = 2, refine = 6 }
+licence = { training_data = ["unstated"], training_note = "MODEL_ZOO.md: \"trained on several mixed public datasets\" (not listed)" }
+weights = [{ name = "gmflow-scale2-regrefine6-mixdata-train320x576-4e7b215d.pth", size = 29500177, sha256 = "4e7b215d5a25dc3b41bd2fb55cbbfe1b715a9c279bdcc8ad30bc31afe69421ca", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-regrefine6-mixdata-train320x576-4e7b215d.pth" }]

@@ -62,6 +62,9 @@ In this order, unless something more useful turns up:
 
 - SHViT S1-S4: portable fp32 MPS goldens and speed at native 224 crops (S4: 256). CUDA portable goldens pass
   with mean/p99 bounds 0.0060/0.023; weights are downloadable from the pinned timm Hugging Face card URLs.
+- GMFlow, all nine variants: MPS float32 goldens and portable speed/memory; CUDA weights are in
+  `~/scratch_tests/port-flow2/weights/` or available through the pinned authors' URLs.
+
 - NeuFlow v2, all three variants: MPS float32 goldens and portable speed/memory rows. CUDA weights are in
   `~/scratch_tests/port-flow2/weights/` (symlinks to its cache), or use the pinned authors' URLs.
 

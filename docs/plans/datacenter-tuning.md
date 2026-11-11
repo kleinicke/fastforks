@@ -397,3 +397,17 @@ TensorRT numerical check on the stored 384x512 golden inputs (all outputs finite
 | neuflow-v2-things | 0.0017063 | 0.0072393 | 0.0194032 |
 
 These are TensorRT measurements; the portable golden bounds remain 0.0014 mean / 0.0067 p99. Re-running portable KITTI2015 after the attention-shape fix reproduces all three pre-fix EPE and Fl-all scores exactly.
+
+## Flow: GMFlow
+
+- Portable CUDA uses autocast for the CNN, Transformer, upsampling and recurrent refinement while matching,
+  propagation, warping and flow stay float32. Global matching and propagation use row chunks to bound attention
+  matrices at 0.5 GiB; original fp32/fp16 rows must retain their actual precision labels.
+- Profile those chunked global attentions before replacing them. An online-softmax implementation that directly
+  reduces weighted coordinates/flow could reduce intermediate memory, but needs measured parity and end-to-end
+  speed before adoption. Local correlation/warping is another candidate for the six-refinement variants.
+- Initial 1080p scale-one measurements show portable about 800 ms, compile about 382 ms and TensorRT about
+  187 ms. Scale-two TensorRT attempts currently fail in the builder's Myelin CHECK(is_const()); preserve
+  actual failure rows and do not substitute another backend.
+- Compilation roughly halves scale-two latency, but peak allocation rises from 6433–6443 MiB to 10865–10875 MiB;
+  compare latency and memory together. No datacenter or custom-kernel measurements have been made for this family.

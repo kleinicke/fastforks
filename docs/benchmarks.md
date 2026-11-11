@@ -872,6 +872,15 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
+| gmflow-scale1-mixdata | 1246 | 750 | 800 | – | – | – | 8360 / 8448 | 5523 / 5660 | – |
+| gmflow-scale1-things | 1245 | 750 | 801 | – | – | – | 8360 / 8468 | 5523 / 5660 | – |
+| gmflow-scale2-mixdata | 2544 | 1608 | 1645 | – | – | – | 8425 / 8572 | 6433 / 7244 | – |
+| gmflow-scale2-regrefine6-kitti | 3255 | 2188 | 2194 | – | – | – | 8537 / 8822 | 6443 / 7250 | – |
+| gmflow-scale2-regrefine6-mixdata | 3254 | 2188 | 2192 | – | – | – | 8537 / 8822 | 6443 / 7250 | – |
+| gmflow-scale2-regrefine6-sintelft | 3255 | 2184 | 2189 | – | – | – | 8537 / 8822 | 6443 / 7250 | – |
+| gmflow-scale2-regrefine6-things | 3230 | 2175 | 2183 | – | – | – | 8537 / 8822 | 6443 / 7250 | – |
+| gmflow-scale2-sintel | 2541 | 1607 | 1644 | – | – | – | 8425 / 8552 | 6433 / 7244 | – |
+| gmflow-scale2-things | 2537 | 1599 | 1636 | – | – | – | 8425 / 8552 | 6433 / 7244 | – |
 | neuflow-v2 | 171 | 75.6 | 103 | – | – | – | 4367 / 4556 | 8392 / 8416 | – |
 | neuflow-v2-sintel | 171 | 75.7 | 102 | – | – | – | 4367 / 4576 | 8392 / 8416 | – |
 | neuflow-v2-things | 172 | 75.8 | 103 | – | – | – | 4374 / 4720 | 8392 / 8416 | – |
@@ -1252,6 +1261,15 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | patchmatchnet | 0.04 (1536x1024) | 0.06 (1536x1024) | 0.05† (1536x1024) | 0.92 (1536x1024) | 0.25 (1536x1024) | 0.04 (1536x1024) |
 | vggt-1b | 19.37 (336x518) | 4.98 (336x518) | 5.99† (336x518) | 1.29 (336x518) | 0.69 (336x518) | 0.46 (336x518) |
 | vggt-omega-1b-512 | 16.31 (336x518) | 3.31 (336x518) | 2.27† (336x518) | 1.10 (336x518) | 0.73 (336x518) | 0.46 (336x518) |
+| gmflow-scale1-mixdata | 0.13 | 0.14 (375x1242) | – | 0.76 | 0.48 (375x1242) | – |
+| gmflow-scale1-things | 0.14 | 0.18 (375x1242) | – | 0.94 | 0.56 (375x1242) | – |
+| gmflow-scale2-mixdata | 0.13 | 0.08 (375x1242) | – | 1.62 | 0.61 (375x1242) | – |
+| gmflow-scale2-regrefine6-kitti | 0.15 | 0.11 (375x1242) | – | 2.20 | 0.75 (375x1242) | – |
+| gmflow-scale2-regrefine6-mixdata | 0.14 | 0.19 (375x1242) | – | 2.20 | 0.72 (375x1242) | – |
+| gmflow-scale2-regrefine6-sintelft | 0.15 | 0.12 (375x1242) | – | 2.37 | 0.76 (375x1242) | – |
+| gmflow-scale2-regrefine6-things | 0.15 | 0.16 (375x1242) | – | 2.19 | 0.75 (375x1242) | – |
+| gmflow-scale2-sintel | 0.13 | 0.09 (375x1242) | – | 1.62 | 0.61 (375x1242) | – |
+| gmflow-scale2-things | 0.14 | 0.11 (375x1242) | – | 1.61 | 0.63 (375x1242) | – |
 | neuflow-v2 | 0.20 | 0.05 (375x1242) | – | 0.22 | 0.30 (375x1242) | – |
 | neuflow-v2-sintel | 0.17 | 0.07 (375x1242) | – | 0.08 | 0.28 (375x1242) | – |
 | neuflow-v2-things | 0.17 | 0.06 (375x1242) | – | 0.08 | 0.30 (375x1242) | – |
@@ -1542,6 +1560,15 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | patchmatchnet | 1536x1024 | 202 ms | 175 ms | 51.0 ms | 29.6 ms | 29.4 s | 82.1 s | 1806 / 2096 | 1798 / 1888 | 740 / 856 | 844 |
 | vggt-1b | 336x518 | 651 ms | 557 ms | 424 ms | 458 ms | 74.3 s | 199 s | 3691 / 4674 | 3611 / 3856 | 3702 / 4654 | 3642 |
 | vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 464 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3422 / 3518 | 2994 |
+| gmflow-scale1-mixdata | 1080x1920 | 800 ms | 382 ms | 187 ms | – | 29.1 s | 67.3 s | 5523 / 5660 | 4293 / 4558 | – | 4172 |
+| gmflow-scale1-things | 1080x1920 | 801 ms | 382 ms | 187 ms | – | 35.3 s | 69.3 s | 5523 / 5660 | 4293 / 4558 | – | 4172 |
+| gmflow-scale2-mixdata | 1080x1920 | 1645 ms | 765 ms | fails: TensorRT bug: Myelin internal error | – | 46.6 s | – | 6433 / 7244 | 10865 / 10904 | – | – |
+| gmflow-scale2-regrefine6-kitti | 1080x1920 | 2194 ms | 1116 ms | fails: TensorRT bug: Myelin internal error | – | 58.4 s | – | 6443 / 7250 | 10875 / 10972 | – | – |
+| gmflow-scale2-regrefine6-mixdata | 1080x1920 | 2192 ms | 1116 ms | fails: TensorRT bug: Myelin internal error | – | 58.9 s | – | 6443 / 7250 | 10875 / 10972 | – | – |
+| gmflow-scale2-regrefine6-sintelft | 1080x1920 | 2189 ms | 1116 ms | fails: TensorRT bug: Myelin internal error | – | 58.5 s | – | 6443 / 7250 | 10875 / 10972 | – | – |
+| gmflow-scale2-regrefine6-things | 1080x1920 | 2183 ms | 1116 ms | fails: TensorRT bug: Myelin internal error | – | 58.2 s | – | 6443 / 7250 | 10875 / 10972 | – | – |
+| gmflow-scale2-sintel | 1080x1920 | 1644 ms | 765 ms | fails: TensorRT bug: Myelin internal error | – | 46.6 s | – | 6433 / 7244 | 10865 / 10904 | – | – |
+| gmflow-scale2-things | 1080x1920 | 1636 ms | 765 ms | fails: TensorRT bug: Myelin internal error | – | 46.7 s | – | 6433 / 7244 | 10865 / 10904 | – | – |
 | neuflow-v2 | 1080x1920 | 103 ms | 91.4 ms | 65.0 ms | – | 28.5 s | 104 s | 8392 / 8416 | 4529 / 4558 | – | 8532 |
 | neuflow-v2-sintel | 1080x1920 | 102 ms | 91.4 ms | 64.9 ms | – | 28.5 s | 102 s | 8392 / 8416 | 4529 / 4558 | – | 8532 |
 | neuflow-v2-things | 1080x1920 | 103 ms | 91.5 ms | 65.0 ms | – | 28.8 s | 104 s | 8392 / 8416 | 4529 / 4558 | – | 8532 |

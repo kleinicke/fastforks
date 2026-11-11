@@ -464,7 +464,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Flow
 
-14 models; size 1080x1920.
+23 models; size 1080x1920.
 
 - Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
 - Most accurate: [`neuflow-v2-things`](models/flow.md#neuflow-v2) (102.6 ms, error 4.095).
@@ -488,5 +488,16 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`neuflow-v2-sintel`](models/flow.md#neuflow-v2) | yes | 1.567 † | 75.7 (1080x1920) | 102.4 | – | – | – |
 | [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.579 † | 75.6 (1080x1920) | 102.5 | – | – | – |
 | [`neuflow-v2-things`](models/flow.md#neuflow-v2) | yes | 4.095 | 75.8 (1080x1920) | 102.6 | – | – | – |
+| [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 800.4 | – | – | – |
+| [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 800.8 | – | – | – |
+| [`gmflow-scale2-things`](models/flow.md#gmflow) | yes | 6.747 | 1598.6 (1080x1920) | 1636.2 | – | – | – |
+| [`gmflow-scale2-sintel`](models/flow.md#gmflow) | yes | 1.975 † | 1606.7 (1080x1920) | 1644.2 | – | – | – |
+| [`gmflow-scale2-mixdata`](models/flow.md#gmflow) | yes | 2.389 ? | 1607.7 (1080x1920) | 1644.9 | – | – | – |
+| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 2183.3 | – | – | – |
+| [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 2189.4 | – | – | – |
+| [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 2191.5 | – | – | – |
+| [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 ? | 2187.8 (1080x1920) | 2194.3 | – | – | – |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
+
+? training data not stated; overlap with this dataset's public images cannot be excluded.
