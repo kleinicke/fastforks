@@ -455,7 +455,7 @@ def gpu_parity(
 @pytest.mark.gpu
 @pytest.mark.parametrize("mode", ["portable", "kernels"])
 @pytest.mark.parametrize("ref", sorted(GOLDEN))
-def test_gpu(ref, mode, request):
+def test_gpu(ref, mode, request, monkeypatch):
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     want = golden(ref)
@@ -463,20 +463,31 @@ def test_gpu(ref, mode, request):
         pytest.skip(f"{ref} has no {mode}")
     kernels.reset_fallbacks()
     launched: set[str] = set()
+    used_libraries: set[str] = set()
     record = mode == "kernels" and request.config.getoption("--record")
-    if record:  # test-only hook: which kernel functions the run really launches
+    if mode == "kernels":  # test-only hooks: actual calls, including model loading and CUDA graph capture
+        from fastforks.kernels.cudnn_hacc import _backend  # noqa: PLC0415 - cuDNN is not a CubinModule
+
         real = kernels.CubinModule.launch
+        execute = _backend.execute
 
         def spy(self, kernel, *a, **kw):
-            launched.add(f"{self.tag.split('@')[0]}:{kernel}")
+            library = self.tag.split("@")[0]
+            launched.add(f"{library}:{kernel}")
+            used_libraries.add(library)
             return real(self, kernel, *a, **kw)
 
-        request.addfinalizer(lambda: setattr(kernels.CubinModule, "launch", real))
-        kernels.CubinModule.launch = spy
+        def spy_cudnn(*a, **kw):
+            used_libraries.add("cudnn_hacc")
+            return execute(*a, **kw)
+
+        monkeypatch.setattr(kernels.CubinModule, "launch", spy)
+        monkeypatch.setattr(_backend, "execute", spy_cudnn)
     calls, backend = run_or_skip(
         ref, mode=mode, device="cuda", opts=options(ref, want), want=want, built=gpu_built(ref, mode)
     )
     err = gpu_parity(ref, mode, want, calls, backend)
+    _declared_launches(ref, set(API[TASK[ref]].model_card(ref).kernel_libs), used_libraries)
     if record:
         symbols = _used_symbols(ref)
         for lib in {x.split(":")[0] for x in launched if x.split(":")[1] not in symbols.get(x.split(":")[0], {})}:
@@ -500,6 +511,11 @@ def test_gpu(ref, mode, request):
             "p99_px": round(float(np.percentile(err, 99)), 5),
         }
         goldens.dump(FAMILY[ref], store, TASK[ref])
+
+
+def _declared_launches(ref: str, declared: set[str], observed: set[str]) -> None:
+    """Reject executed libraries that the card cannot fetch or validate."""
+    assert observed <= declared, f"{ref}: launched undeclared kernel libraries: {sorted(observed - declared)}"
 
 
 @pytest.mark.model
