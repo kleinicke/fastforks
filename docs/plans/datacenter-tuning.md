@@ -357,3 +357,8 @@ Validate the native 224 and 384 crops separately: convolution and attention prop
 timm rw variants. The RTX 5060 Ti portable FP16 goldens have worst mean/p99 absolute errors
 0.00157/0.0068, with bounds 0.0024/0.011. Profile MBConv and relative-position attention on the target
 GPU before adding a dedicated kernels runner; no datacenter performance is inferred here.
+## FocalNet
+
+Profile focal modulation, depthwise convolutions and gated sums separately on the target GPU.
+Compare small and large receptive-field variants at their native 224 crop before choosing fusions;
+no dedicated kernels runner or datacenter measurements exist yet.

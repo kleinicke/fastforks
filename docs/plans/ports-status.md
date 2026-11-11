@@ -50,6 +50,9 @@ In this order, unless something more useful turns up:
 - CoAtNet: validate MPS float32 at native 224/384 crops. CUDA portable FP16 is checked; no custom kernels
   runner exists. Download weights from the pinned card URLs; owned CUDA caches are removed after validation
   to stay within the scratch budget.
+- FocalNet: validate portable MPS float32 and record Mac timings. No custom kernels runner exists.
+  Download weights from the pinned card URLs; owned CUDA caches are removed after validation to stay
+  within the scratch budget.
 
 - EfficientFormer L1/L3/L7: portable fp32 MPS goldens and speed at native 224 crops. CUDA portable passes
   measured mean/p99 bounds 0.0046/0.019; pinned timm Hugging Face weights are downloadable.

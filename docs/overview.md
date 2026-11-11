@@ -142,7 +142,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Classification
 
-85 models; size 224x224.
+91 models; size 224x224.
 
 - Fastest: [`squeezenet1_1`](models/classification.md#squeezenet) (0.4 ms).
 - Fastest commercially usable: [`squeezenet1_1`](models/classification.md#squeezenet) (0.4 ms).
@@ -216,7 +216,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`shvit_s2`](models/classification.md#shvit) | yes | 8.4 (224x224) | 6.8 | – | – | – |
 | [`hgnetv2_b5`](models/classification.md#hgnetv2) | yes | 11.4 (224x224) | 7.0 | – | – | – |
 | [`coatnet_nano_rw_224`](models/classification.md#coatnet) | yes | 7.9 (224x224) | 7.2 | – | – | – |
+| [`focalnet_tiny_srf`](models/classification.md#focalnet) | yes | 8.4 (224x224) | 7.4 | – | – | – |
 | [`efficientformerv2_s0`](models/classification.md#efficientformerv2) | yes | 8.2 (224x224) | 7.6 | – | – | – |
+| [`focalnet_tiny_lrf`](models/classification.md#focalnet) | yes | 8.9 (224x224) | 8.1 | – | – | – |
 | [`coatnet_rmlp_nano_rw_224`](models/classification.md#coatnet) | yes | 8.9 (224x224) | 8.1 | – | – | – |
 | [`shvit_s3`](models/classification.md#shvit) | yes | 9.4 (224x224) | 8.1 | – | – | – |
 | [`efficientformerv2_s1`](models/classification.md#efficientformerv2) | yes | 10.1 (224x224) | 8.9 | – | – | – |
@@ -229,8 +231,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`vit_so400m_patch14_siglip_378`](models/classification.md#siglip-fine-tuned) | yes | 25.8 (224x224) | 13.1 | 12.8 | 2.0x vs original (224x224) | 1216 |
 | [`coatnet_rmlp_2_rw_224`](models/classification.md#coatnet) | yes | 15.3 (224x224) | 12.8 | – | – | – |
 | [`efficientformerv2_s2`](models/classification.md#efficientformerv2) | yes | 15.2 (224x224) | 13.9 | – | – | – |
+| [`focalnet_small_srf`](models/classification.md#focalnet) | yes | 15.9 (224x224) | 14.0 | – | – | – |
 | [`eva02_large_patch14_448`](models/classification.md#eva-02) | yes | 32.1 (224x224) | 18.0 | 14.1 | 2.3x vs original (224x224) | 1236 |
+| [`focalnet_base_srf`](models/classification.md#focalnet) | yes | 17.1 (224x224) | 14.2 | – | – | – |
 | [`coatnet_rmlp_2_rw_224.sw_in1k`](models/classification.md#coatnet) | yes | 15.3 (224x224) | 15.1 | – | – | – |
+| [`focalnet_base_lrf`](models/classification.md#focalnet) | yes | 18.0 (224x224) | 15.5 | – | – | – |
+| [`focalnet_small_lrf`](models/classification.md#focalnet) | yes | 16.8 (224x224) | 15.8 | – | – | – |
 | [`efficientformerv2_l`](models/classification.md#efficientformerv2) | yes | 19.9 (224x224) | 17.1 | – | – | – |
 | [`coatnet_rmlp_2_rw_384`](models/classification.md#coatnet) | yes | – | – | – | – | – |
 | [`shvit_s4`](models/classification.md#shvit) | yes | – | – | – | – | – |

@@ -659,6 +659,7 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
     "efficientformerv2": _Local("classification", _convnext, ((224, 224),)),
     "coatnet": _Local("classification", _convnext, ((224, 224),)),
     "efficientformer": _Local("classification", _convnext, ((224, 224),)),
+    "focalnet": _Local("classification", _convnext, ((224, 224),)),
     "shvit": _Local("classification", _convnext, ((224, 224),)),
     "starnet": _Local("classification", _convnext, ((224, 224),)),
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
