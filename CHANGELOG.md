@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add FlowSeek-T optical flow: mixed-data, FlyingThings and FlyingThings without TartanAir checkpoints.
+
 - Add GMFlow optical flow: nine scale-one, scale-two and recurrent-refinement checkpoints.
 
 - Add NeuFlow v2 optical flow: mixed-data, Sintel and FlyingThings checkpoints with portable inference.

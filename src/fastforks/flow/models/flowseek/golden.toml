@@ -1,0 +1,25 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.001
+gpu_mean = 0.0077
+gpu_p99 = 0.041
+
+[refs."flowseek-t-things-notartan@1"]
+sha256 = "7733df05213d74210d2e0a9958e263e7880cc5ed5e57afbffd522de09d1d2e91"
+upstream = "https://github.com/mattpoggi/flowseek@ba6407370bceeb96244cad4d60d37489f6eb471e"
+settings = "CPU float32 (.cuda() calls made no-ops), upstream FlowSeek (flowseek-T.json) iters=4, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."flowseek-t-things@1"]
+sha256 = "871e066f1620d4ff738f2f386080ea8731f793e9273c377e6048c42d458b00d6"
+upstream = "https://github.com/mattpoggi/flowseek@ba6407370bceeb96244cad4d60d37489f6eb471e"
+settings = "CPU float32 (.cuda() calls made no-ops), upstream FlowSeek (flowseek-T.json) iters=4, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."flowseek-t@1"]
+sha256 = "3284b529ab79a132d42916ed2d993fc45018417843f0b0560366892c3b5e492a"
+upstream = "https://github.com/mattpoggi/flowseek@ba6407370bceeb96244cad4d60d37489f6eb471e"
+settings = "CPU float32 (.cuda() calls made no-ops), upstream FlowSeek (flowseek-T.json) iters=4, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"

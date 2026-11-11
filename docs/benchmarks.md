@@ -872,6 +872,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
+| flowseek-t | – | 457 | 395 | – | – | – | 8693 / 9880 | 8671 / 8712 | – |
+| flowseek-t-things | – | 458 | 395 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
+| flowseek-t-things-notartan | – | 458 | 396 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
 | gmflow-scale1-mixdata | 1246 | 750 | 800 | – | – | – | 8360 / 8448 | 5523 / 5660 | – |
 | gmflow-scale1-things | 1245 | 750 | 801 | – | – | – | 8360 / 8468 | 5523 / 5660 | – |
 | gmflow-scale2-mixdata | 2544 | 1608 | 1645 | – | – | – | 8425 / 8572 | 6433 / 7244 | – |
@@ -1261,6 +1264,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | patchmatchnet | 0.04 (1536x1024) | 0.06 (1536x1024) | 0.05† (1536x1024) | 0.92 (1536x1024) | 0.25 (1536x1024) | 0.04 (1536x1024) |
 | vggt-1b | 19.37 (336x518) | 4.98 (336x518) | 5.99† (336x518) | 1.29 (336x518) | 0.69 (336x518) | 0.46 (336x518) |
 | vggt-omega-1b-512 | 16.31 (336x518) | 3.31 (336x518) | 2.27† (336x518) | 1.10 (336x518) | 0.73 (336x518) | 0.46 (336x518) |
+| flowseek-t | 2.63 | 0.18 (375x1242) | – | 1.03 | 0.46 (375x1242) | – |
+| flowseek-t-things | 0.98 | 0.18 (375x1242) | – | 0.65 | 0.47 (375x1242) | – |
+| flowseek-t-things-notartan | 0.79 | 0.18 (375x1242) | – | 0.65 | 0.46 (375x1242) | – |
 | gmflow-scale1-mixdata | 0.13 | 0.14 (375x1242) | – | 0.76 | 0.48 (375x1242) | – |
 | gmflow-scale1-things | 0.14 | 0.18 (375x1242) | – | 0.94 | 0.56 (375x1242) | – |
 | gmflow-scale2-mixdata | 0.13 | 0.08 (375x1242) | – | 1.62 | 0.61 (375x1242) | – |
@@ -1560,6 +1566,9 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | patchmatchnet | 1536x1024 | 202 ms | 175 ms | 51.0 ms | 29.6 ms | 29.4 s | 82.1 s | 1806 / 2096 | 1798 / 1888 | 740 / 856 | 844 |
 | vggt-1b | 336x518 | 651 ms | 557 ms | 424 ms | 458 ms | 74.3 s | 199 s | 3691 / 4674 | 3611 / 3856 | 3702 / 4654 | 3642 |
 | vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 464 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3422 / 3518 | 2994 |
+| flowseek-t | 1080x1920 | 395 ms | 258 ms | 168 ms | – | 54.2 s | 107 s | 8671 / 8712 | 6126 / 6212 | – | 11022 |
+| flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | – | 54.6 s | 102 s | 8671 / 8712 | 6126 / 6212 | – | 11024 |
+| flowseek-t-things-notartan | 1080x1920 | 396 ms | 258 ms | 168 ms | – | 54.3 s | 97.5 s | 8671 / 8712 | 6126 / 6212 | – | 11022 |
 | gmflow-scale1-mixdata | 1080x1920 | 800 ms | 382 ms | 187 ms | – | 29.1 s | 67.3 s | 5523 / 5660 | 4293 / 4558 | – | 4172 |
 | gmflow-scale1-things | 1080x1920 | 801 ms | 382 ms | 187 ms | – | 35.3 s | 69.3 s | 5523 / 5660 | 4293 / 4558 | – | 4172 |
 | gmflow-scale2-mixdata | 1080x1920 | 1645 ms | 765 ms | fails: TensorRT bug: Myelin internal error | – | 46.6 s | – | 6433 / 7244 | 10865 / 10904 | – | – |

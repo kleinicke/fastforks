@@ -464,13 +464,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Flow
 
-23 models; size 1080x1920.
+26 models; size 1080x1920.
 
 - Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
-- Most accurate: [`neuflow-v2-things`](models/flow.md#neuflow-v2) (102.6 ms, error 4.095).
+- Most accurate: [`flowseek-t-things-notartan`](models/flow.md#flowseek) (395.6 ms, error 3.933).
 - Best trade-off: [`sea-raft-m-things`](models/flow.md#sea-raft) (73.1 ms, error 4.307).
 - Fastest commercially usable: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
-- Most accurate commercially usable: [`neuflow-v2-things`](models/flow.md#neuflow-v2) (102.6 ms, error 4.095).
+- Most accurate commercially usable: [`flowseek-t-things-notartan`](models/flow.md#flowseek) (395.6 ms, error 3.933).
 
 | model | commercial use | KITTI 2015 train EPE (px) | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
@@ -488,6 +488,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`neuflow-v2-sintel`](models/flow.md#neuflow-v2) | yes | 1.567 † | 75.7 (1080x1920) | 102.4 | – | – | – |
 | [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.579 † | 75.6 (1080x1920) | 102.5 | – | – | – |
 | [`neuflow-v2-things`](models/flow.md#neuflow-v2) | yes | 4.095 | 75.8 (1080x1920) | 102.6 | – | – | – |
+| [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | – | – | – |
+| [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 395.3 | – | – | – |
+| [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | – | – | – |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 800.4 | – | – | – |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 800.8 | – | – | – |
 | [`gmflow-scale2-things`](models/flow.md#gmflow) | yes | 6.747 | 1598.6 (1080x1920) | 1636.2 | – | – | – |

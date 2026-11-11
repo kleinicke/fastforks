@@ -411,3 +411,28 @@ These are TensorRT measurements; the portable golden bounds remain 0.0014 mean /
   actual failure rows and do not substitute another backend.
 - Compilation roughly halves scale-two latency, but peak allocation rises from 6433–6443 MiB to 10865–10875 MiB;
   compare latency and memory together. No datacenter or custom-kernel measurements have been made for this family.
+
+### FlowSeek-T
+
+- Three permissive Small-backbone variants; M/L use non-commercial Depth Anything weights and are excluded.
+  Depth Anything runs at 518x518 independently of flow image size. The portable mixed-precision runner retains
+  float32 motion bases, correlation, lookup and flow, and skips intermediate full-resolution predictions.
+- RTX 5060 Ti at 1080p: portable 395 ms, compile 258 ms, TensorRT 168 ms. Original fp32 is about 651 ms;
+  original autocast is about 458 ms. Retain those precision labels in comparisons.
+- Compiled peak allocation is 6126 MiB. TensorRT uses about 11022 MiB total device memory; the 306 MiB
+  PyTorch allocator reading alone excludes engine allocations and must not be presented as total memory.
+- Profile the Depth Anything feature pass and the all-pairs correlation before a custom-kernel implementation.
+  No datacenter or custom-kernel measurements have been made for this family.
+
+The separate 384x512 TensorRT golden measurements below are engine errors against the CPU reference;
+they do not replace or widen the portable GPU tolerances. All outputs were finite.
+
+| Ref | Mean error (px) | p99 (px) | Maximum (px) |
+|---|---:|---:|---:|
+| flowseek-t | 0.0095678 | 0.0563846 | 0.1143160 |
+| flowseek-t-things | 0.0054881 | 0.0248441 | 0.0673809 |
+| flowseek-t-things-notartan | 0.0039970 | 0.0179773 | 0.0415233 |
+
+On KITTI 2015 train, the fine-tuned checkpoint gives EPE 1.2604 in original fp32, 1.3596 in original
+autocast and 1.3479 in portable autocast. The precision-dependent accuracy difference remains visible in
+the comparison; faster mixed precision is not presented as equivalent to original fp32.

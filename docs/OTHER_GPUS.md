@@ -61,7 +61,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 |---|---|---|---|---|
 | c_foundationstereo, convnext, convnext_features, convnextv2, deit, densenet, depth_anything_v2, detr, dfine, dinov2_linear, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, fast_acvnet, fastvit, gwcnet, inception_v3, metric3d, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, patchmatchnet, psmnet, raft, rcnn, repvit, resnet, rt_monster_plusplus, rtdetrv2, sam, sam2, sam_hq, sea_raft, segformer, shufflenetv2, starnet, swin, tinyvit, unidepth_v2, unik3d, vit, waft_stereo | fp16 | fp16 | fp32 | - |
 | alexnet, c_radio, cas_gwcnet, clip, coex, depth_anything_3, depth_pro, dinov2, dinov3, dinov3_convnext, dlnr, eomt, eva02, mapanything, marigold, mask2former, midas, mmseg, oneformer, regnet, rfdetr_keypoint, rtmdet, rtmo, s2m2, sam3, sapiens, siglip, siglip2, squeezenet, tipsv2, vgg, vggt_omega, zoedepth | fp16 | fp16 | fp32/fp16 | - |
-| coatnet, davit, efficientformer, efficientformerv2, focalnet, gmflow, hgnetv2, neuflow_v2, shvit | fp16 | - | fp32 | - |
+| coatnet, davit, efficientformer, efficientformerv2, flowseek, focalnet, gmflow, hgnetv2, neuflow_v2, shvit | fp16 | - | fp32 | - |
 | cfnet, crestereo, foundationstereo, great_igev, hitnet, igev_plusplus, mocha_stereo, monster, monster_plusplus, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 |
 | rtmpose | fp16 | fp16 | fp32/fp16 | pose_metal fp32 |
 | aanet, bridgedepth, igev_stereo, las2, nmrf | fp16 | fp16 | fp32 | stereo_metal fp16 |
