@@ -28,10 +28,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`sapiens-seg-1b-goliath`](#sapiens) | no | 185.2, 1.9x | 3382, 0.57x |
 | [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.479, 5.0x | 238, 0.15x |
 | [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.347, 2.8x | 534, 0.21x |
-| [`segnext-mscan-b-ade20k`](#segnext) | yes | – | – |
-| [`segnext-mscan-l-ade20k`](#segnext) | yes | – | – |
-| [`segnext-mscan-s-ade20k`](#segnext) | yes | – | – |
-| [`segnext-mscan-t-ade20k`](#segnext) | yes | – | – |
+| [`segnext-mscan-b-ade20k`](#segnext) | yes | 12.206, 2.8x | 332, 0.19x |
+| [`segnext-mscan-l-ade20k`](#segnext) | yes | 20.553, 2.5x | 428, 0.24x |
+| [`segnext-mscan-s-ade20k`](#segnext) | yes | 8.043, 2.9x | 290, 0.17x |
+| [`segnext-mscan-t-ade20k`](#segnext) | yes | 8.987, 2.3x | 206, 0.13x |
 
 <a id="mmseg"></a>
 
@@ -440,10 +440,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `segnext-mscan-t-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.1<br>23.8<br>18.5<br>–<br>16.6<br>16.0 | 1585 / 1622<br>1593 / 1648<br>449 / 480<br>–<br>446 / 480<br>788 (engine) |
-| `segnext-mscan-s-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 28.6<br>23.3<br>27.0<br>–<br>24.9<br>18.0 | 1622 / 1672<br>1649 / 1700<br>468 / 502<br>–<br>465 / 482<br>786 (engine) |
-| `segnext-mscan-b-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.8<br>33.9<br>44.3<br>–<br>40.7<br>23.3 | 1674 / 1728<br>1727 / 1838<br>494 / 546<br>–<br>491 / 526<br>820 (engine) |
-| `segnext-mscan-l-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 69.7<br>52.2<br>69.0<br>–<br>63.6<br>32.3 | 1756 / 1810<br>1849 / 1894<br>535 / 558<br>–<br>532 / 578<br>860 (engine) |
+| `segnext-mscan-t-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.1<br>23.8<br>15.9<br>8.99<br>16.6<br>16.0 | 1585 / 1622<br>1593 / 1648<br>332 / 378<br>147 / 206<br>446 / 480<br>788 (engine) |
+| `segnext-mscan-s-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 28.6<br>23.3<br>18.5<br>8.04<br>24.9<br>18.0 | 1622 / 1672<br>1649 / 1700<br>350 / 402<br>202 / 290<br>465 / 482<br>786 (engine) |
+| `segnext-mscan-b-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.8<br>33.9<br>28.3<br>12.2<br>40.7<br>23.3 | 1674 / 1728<br>1727 / 1838<br>376 / 424<br>229 / 332<br>491 / 526<br>820 (engine) |
+| `segnext-mscan-l-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 69.7<br>52.2<br>43.1<br>20.6<br>63.6<br>32.3 | 1756 / 1810<br>1849 / 1894<br>417 / 458<br>314 / 428<br>532 / 578<br>860 (engine) |
 
 <details><summary>Details</summary>
 
@@ -452,7 +452,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/open-mmlab/mmsegmentation/blob/c685fe6767c4cadf6b051983ca6208f1b9d1ccb8/README.md#license>
 - Training data: ImageNet-1k (ILSVRC 2012 classification), ADE20K (SceneParsing, 150 classes)
-- Kernel libraries: none (not implemented: depthwise strip convolutions and a matrix-factorisation head: needs its own runner)
+- Kernel libraries: `seg_conv`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`, `seg_up`
 - Variants: `segnext-mscan-t-ade20k`, `segnext-mscan-s-ade20k`, `segnext-mscan-b-ade20k`, `segnext-mscan-l-ade20k`
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -469,35 +469,35 @@ Commercial use: yes.
 - `segnext-mscan-b-ade20k` original 1024x2048: torch.autocast(float16) around the call; mmsegmentation 1.2.2 encode_decode, NMF start bases seeded (0) on every call
 - `segnext-mscan-l-ade20k` original (fp32) 1024x2048: mmsegmentation 1.2.2 encode_decode, NMF start bases seeded (0) on every call
 - `segnext-mscan-l-ade20k` original 1024x2048: torch.autocast(float16) around the call; mmsegmentation 1.2.2 encode_decode, NMF start bases seeded (0) on every call
-- `segnext-mscan-t-ade20k` load / first call: original 0.19 s / 0.335 s, portable 0.11 s / 0.6 s (512x512)
-- `segnext-mscan-s-ade20k` load / first call: original 0.23 s / 0.316 s, portable 0.11 s / 0.606 s (512x512)
-- `segnext-mscan-b-ade20k` load / first call: original 0.37 s / 0.186 s, portable 0.21 s / 0.642 s (512x512)
-- `segnext-mscan-l-ade20k` load / first call: original 0.57 s / 0.063 s, portable 0.33 s / 0.475 s (512x512)
+- `segnext-mscan-t-ade20k` load / first call: original 0.19 s / 0.335 s, portable 0.13 s / 0.649 s (512x512), kernels 1.26 s / 0.199 s (512x512)
+- `segnext-mscan-s-ade20k` load / first call: original 0.23 s / 0.316 s, portable 0.15 s / 0.722 s (512x512), kernels 1.29 s / 0.187 s (512x512)
+- `segnext-mscan-b-ade20k` load / first call: original 0.37 s / 0.186 s, portable 0.26 s / 0.578 s (512x512), kernels 1.34 s / 0.18 s (512x512)
+- `segnext-mscan-l-ade20k` load / first call: original 0.57 s / 0.063 s, portable 0.57 s / 0.409 s (512x512), kernels 1.51 s / 0.099 s (512x512)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `segnext-mscan-t-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 39.88 / 79.20 | 39.88 / 79.20 | 39.89 / 79.20 |  |
-| `segnext-mscan-s-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 42.81 / 80.65 | 42.81 / 80.65 | 42.81 / 80.65 |  |
-| `segnext-mscan-b-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 46.96 / 82.22 | 46.95 / 82.21 | 46.95 / 82.21 |  |
-| `segnext-mscan-l-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.88 / 83.23 | 48.87 / 83.23 | 48.88 / 83.22 |  |
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `segnext-mscan-t-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 39.88 / 79.20 | 39.88 / 79.20 | 39.86 / 79.18 | 39.86 / 79.18 |  |
+| `segnext-mscan-s-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 42.81 / 80.65 | 42.81 / 80.65 | 42.82 / 80.65 | 42.82 / 80.64 |  |
+| `segnext-mscan-b-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 46.96 / 82.22 | 46.95 / 82.21 | 46.98 / 82.22 | 46.98 / 82.22 |  |
+| `segnext-mscan-l-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.88 / 83.23 | 48.87 / 83.23 | 48.89 / 83.23 | 48.88 / 83.23 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 95e72cc0, 2026-11-11.
 
 ### Parity
 
-CPU, float32: max |diff| <= 0.00011 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.14 and p99 <= 0.47 (absolute error of the output `logits`).
+CPU, float32: max |diff| <= 0.00078 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.14 and p99 <= 0.47 (absolute error of the output `logits`).
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `segnext-mscan-t-ade20k` | no kernels backend | - | - |
-| `segnext-mscan-s-ade20k` | no kernels backend | - | - |
-| `segnext-mscan-b-ade20k` | no kernels backend | - | - |
-| `segnext-mscan-l-ade20k` | no kernels backend | - | - |
+| `segnext-mscan-t-ade20k` | 0.03512 / 0.1318 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `seg_conv@8eec95783e28:sm_120`, `seg_up@3e44e71200cd:sm_120` |
+| `segnext-mscan-s-ade20k` | 0.076 / 0.27469 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `seg_conv@8eec95783e28:sm_120`, `seg_up@3e44e71200cd:sm_120` |
+| `segnext-mscan-b-ade20k` | 0.06862 / 0.23942 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `seg_conv@8eec95783e28:sm_120`, `seg_up@3e44e71200cd:sm_120` |
+| `segnext-mscan-l-ade20k` | 0.04729 / 0.17984 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `seg_conv@8eec95783e28:sm_120`, `seg_up@3e44e71200cd:sm_120` |
 
 </details>
 
@@ -525,10 +525,10 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`sapiens-seg-1b-goliath`](#sapiens) | portable, kernels | CC-BY-NC-4.0 | CC-BY-NC-4.0 | unstated | **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.0) | logits |
 | [`segformer-b0-ade20k`](#segformer) | portable, kernels | Apache-2.0 | LicenseRef-NVIDIA-Source-Code-License-NC | imagenet-1k, ade20k | **no** (weights: LicenseRef-NVIDIA-Source-Code-License-NC) | logits |
 | [`segformer-b5-ade20k`](#segformer) | portable, kernels | Apache-2.0 | LicenseRef-NVIDIA-Source-Code-License-NC | imagenet-1k, ade20k | **no** (weights: LicenseRef-NVIDIA-Source-Code-License-NC) | logits |
-| [`segnext-mscan-b-ade20k`](#segnext) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k, ade20k | yes | logits |
-| [`segnext-mscan-l-ade20k`](#segnext) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k, ade20k | yes | logits |
-| [`segnext-mscan-s-ade20k`](#segnext) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k, ade20k | yes | logits |
-| [`segnext-mscan-t-ade20k`](#segnext) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k, ade20k | yes | logits |
+| [`segnext-mscan-b-ade20k`](#segnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k, ade20k | yes | logits |
+| [`segnext-mscan-l-ade20k`](#segnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k, ade20k | yes | logits |
+| [`segnext-mscan-s-ade20k`](#segnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k, ade20k | yes | logits |
+| [`segnext-mscan-t-ade20k`](#segnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k, ade20k | yes | logits |
 
 </details>
 

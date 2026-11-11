@@ -68,15 +68,20 @@ class MSCAAttention(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """`[B, C, H, W]` -> `[B, C, H, W]`."""
-        a = self.conv0(x)
-        a0 = self.conv0_2(self.conv0_1(a))
+        a = self.conv0(x).contiguous()  # NCHW: PyTorch's native depthwise kernel runs the strip convs; cuDNN's
+        a0 = self.conv0_2(self.conv0_1(a))  # channels-last grouped conv is 2.5x slower (sm_120, CUDA 13)
         a1 = self.conv1_2(self.conv1_1(a))
         a2 = self.conv2_2(self.conv2_1(a))
-        return self.conv3(a + a0 + a1 + a2) * x
+        a = a + a0 + a1 + a2
+        if not x.is_contiguous():
+            a = a.contiguous(memory_format=torch.channels_last)
+        return self.conv3(a) * x
 
 
 class MSCASpatialAttention(nn.Module):
-    """1 x 1 conv, GELU, `MSCAAttention`, 1 x 1 conv, plus the input."""
+    """1 x 1 conv, GELU, `MSCAAttention`, 1 x 1 conv, plus the input (times `res_scale` once folded, see `fold`)."""
+
+    res_scale: torch.Tensor | None
 
     def __init__(self, c: int) -> None:
         """`c` channels."""
@@ -84,10 +89,12 @@ class MSCASpatialAttention(nn.Module):
         self.proj_1 = nn.Conv2d(c, c, 1)
         self.spatial_gating_unit = MSCAAttention(c)
         self.proj_2 = nn.Conv2d(c, c, 1)
+        self.register_buffer("res_scale", None, persistent=False)  # set by `fold`
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """`[B, C, H, W]` -> `[B, C, H, W]`."""
-        return self.proj_2(self.spatial_gating_unit(F.gelu(self.proj_1(x)))) + x
+        y = self.proj_2(self.spatial_gating_unit(F.gelu(self.proj_1(x))))
+        return y + x if self.res_scale is None else torch.addcmul(y, x, self.res_scale)
 
 
 class MSCABlock(nn.Module):
@@ -96,17 +103,19 @@ class MSCABlock(nn.Module):
     def __init__(self, c: int, mlp_ratio: int) -> None:
         """`c` channels, MLP width `c * mlp_ratio`."""
         super().__init__()
-        self.norm1 = nn.BatchNorm2d(c)
+        self.norm1: nn.Module = nn.BatchNorm2d(c)
         self.attn = MSCASpatialAttention(c)
-        self.norm2 = nn.BatchNorm2d(c)
+        self.norm2: nn.Module = nn.BatchNorm2d(c)
         self.mlp = Mlp(c, c * mlp_ratio)
-        self.layer_scale_1 = nn.Parameter(torch.ones(c))
-        self.layer_scale_2 = nn.Parameter(torch.ones(c))
+        self.layer_scale_1: nn.Parameter | None = nn.Parameter(torch.ones(c))
+        self.layer_scale_2: nn.Parameter | None = nn.Parameter(torch.ones(c))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """`[B, C, H, W]` -> `[B, C, H, W]`."""
-        x = x + self.layer_scale_1[:, None, None] * self.attn(self.norm1(x))
-        return x + self.layer_scale_2[:, None, None] * self.mlp(self.norm2(x))
+        a = self.attn(self.norm1(x))
+        x = a if self.layer_scale_1 is None else x + self.layer_scale_1[:, None, None] * a  # folded: `a` is the sum
+        m = self.mlp(self.norm2(x))
+        return x + (m if self.layer_scale_2 is None else self.layer_scale_2[:, None, None] * m)
 
 
 class StemConv(nn.Module):
@@ -135,7 +144,7 @@ class OverlapPatchEmbed(nn.Module):
         """`c_in` -> `c` channels."""
         super().__init__()
         self.proj = nn.Conv2d(c_in, c, 3, 2, 1)
-        self.norm = nn.BatchNorm2d(c)
+        self.norm: nn.Module = nn.BatchNorm2d(c)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """`[B, C_in, H, W]` -> `[B, C, H / 2, W / 2]`."""
@@ -257,6 +266,79 @@ class EncoderDecoder(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Normalised image `[B, 3, H, W]` (sides divisible by 32) -> logits `[B, classes, H / 8, W / 8]`."""
         return self.decode_head(self.backbone(x)[1:])
+
+
+def _bn_affine(bn: nn.BatchNorm2d) -> tuple[torch.Tensor, torch.Tensor]:
+    """The eval BatchNorm as `scale, shift` (float64)."""
+    assert bn.running_var is not None  # noqa: S101 - inference BatchNorm
+    assert bn.running_mean is not None  # noqa: S101
+    scale = bn.weight.double() / torch.sqrt(bn.running_var.double() + bn.eps)
+    return scale, bn.bias.double() - bn.running_mean.double() * scale
+
+
+def _fold_after(conv: nn.Module, bn: nn.Module) -> None:
+    """`bn(conv(x))` -> `conv(x)` (any conv, bias required)."""
+    assert isinstance(conv, nn.Conv2d)  # noqa: S101 - the stem / patch-embedding pairs
+    assert isinstance(bn, nn.BatchNorm2d)  # noqa: S101
+    scale, shift = _bn_affine(bn)
+    assert conv.bias is not None  # noqa: S101 - the checkpoints' convs
+    conv.weight.data = (conv.weight.double() * scale[:, None, None, None]).to(conv.weight.dtype)
+    conv.bias.data = (conv.bias.double() * scale + shift).to(conv.bias.dtype)
+
+
+def _fold_before(bn: nn.Module, conv: nn.Conv2d) -> None:
+    """`conv(bn(x))` -> `conv(x)` (1 x 1 conv, no padding)."""
+    assert isinstance(bn, nn.BatchNorm2d)  # noqa: S101 - the blocks' `norm1` / `norm2`
+    scale, shift = _bn_affine(bn)
+    assert conv.bias is not None  # noqa: S101 - the blocks' `proj_1` / `fc1`
+    assert conv.kernel_size == (1, 1)  # noqa: S101
+    w = conv.weight.double()
+    conv.bias.data = (conv.bias.double() + w[:, :, 0, 0] @ shift).to(conv.bias.dtype)
+    conv.weight.data = (w * scale[None, :, None, None]).to(conv.weight.dtype)
+
+
+def _fold_scale(conv: nn.Conv2d, gamma: torch.Tensor, shift: torch.Tensor | None = None) -> None:
+    """`gamma[:, None, None] * (conv(x) + shift)` -> `conv(x)`."""
+    assert conv.bias is not None  # noqa: S101 - the blocks' `proj_2` / `fc2`
+    gamma = gamma.double()
+    conv.weight.data = (conv.weight.double() * gamma[:, None, None, None]).to(conv.weight.dtype)
+    bias = conv.bias.double() if shift is None else conv.bias.double() + shift
+    conv.bias.data = (bias * gamma).to(conv.bias.dtype)
+
+
+def _fold_block(m: MSCABlock) -> None:
+    """One block: `x + ls1 * (p2(..(p1(n1(x)))) + n1(x))` -> `addcmul(p2'(..(p1'(x))), x, 1 + ls1 * scale1)`."""
+    assert m.layer_scale_1 is not None  # noqa: S101 - not folded yet
+    assert m.layer_scale_2 is not None  # noqa: S101
+    assert isinstance(m.norm1, nn.BatchNorm2d)  # noqa: S101
+    scale, shift = _bn_affine(m.norm1)
+    _fold_before(m.norm1, m.attn.proj_1)
+    _fold_scale(m.attn.proj_2, m.layer_scale_1, shift)
+    m.attn.res_scale = (1 + m.layer_scale_1.double() * scale).to(m.attn.proj_2.weight.dtype)[:, None, None]
+    _fold_before(m.norm2, m.mlp.fc1)
+    _fold_scale(m.mlp.fc2, m.layer_scale_2)
+    m.norm1 = m.norm2 = nn.Identity()
+    m.layer_scale_1 = m.layer_scale_2 = None
+
+
+def fold(model: EncoderDecoder) -> None:
+    """Fold every BatchNorm and layer scale into a neighbouring conv (exact up to rounding; folded in float64).
+
+    Stem / patch embeddings: the BatchNorm into the conv before it. Blocks: `norm1` / `norm2` into `proj_1` / `fc1`,
+    `layer_scale_1` / `layer_scale_2` into `proj_2` / `fc2`; the attention's inner residual (`+ norm1(x)`) and the
+    block's become one `addcmul` with the per-channel `res_scale`. Saves two BatchNorms, two broadcast multiplies and
+    two adds per block; call after loading the state dict.
+    """
+    for m in model.modules():
+        if isinstance(m, StemConv):
+            for i in (0, 3):
+                _fold_after(m.proj[i], m.proj[i + 1])
+                m.proj[i + 1] = nn.Identity()
+        elif isinstance(m, OverlapPatchEmbed):
+            _fold_after(m.proj, m.norm)
+            m.norm = nn.Identity()
+        elif isinstance(m, MSCABlock) and m.layer_scale_1 is not None:
+            _fold_block(m)
 
 
 def build(arch: str, classes: int = 150) -> EncoderDecoder:
