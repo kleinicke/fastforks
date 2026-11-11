@@ -475,7 +475,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 - Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
 - Most accurate: [`flowseek-t-things-notartan`](models/flow.md#flowseek) (395.6 ms, error 3.933).
-- Best trade-off: [`sea-raft-m-things`](models/flow.md#sea-raft) (73.1 ms, error 4.307).
+- Best trade-off: [`neuflow-v2-things`](models/flow.md#neuflow-v2) (58.9 ms, error 4.095).
 - Fastest commercially usable: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
 - Most accurate commercially usable: [`flowseek-t-things-notartan`](models/flow.md#flowseek) (395.6 ms, error 3.933).
 
@@ -486,15 +486,15 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`raft-small`](models/flow.md#raft) | yes | 7.834 | 196.1 (1080x1920) | 143.6 | 36.3 | 5.4x vs original (1080x1920) | 197 |
 | [`sea-raft-s`](models/flow.md#sea-raft) | yes | 1.054 † | 299.6 (1080x1920) | 226.4 | 50.4 | 6.0x vs original (1080x1920) | 415 |
 | [`sea-raft-s-kitti`](models/flow.md#sea-raft) | yes | 0.935 † | 299.0 (1080x1920) | 226.3 | 50.5 | 5.9x vs original (1080x1920) | 415 |
+| [`neuflow-v2-things`](models/flow.md#neuflow-v2) | yes | 4.095 | 75.8 (1080x1920) | 102.6 | 58.9 | 1.3x vs original (1080x1920) | 790 |
+| [`neuflow-v2-sintel`](models/flow.md#neuflow-v2) | yes | 1.566 † | 75.7 (1080x1920) | 102.4 | 58.9 | 1.3x vs original (1080x1920) | 790 |
+| [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.577 † | 75.6 (1080x1920) | 102.5 | 59.0 | 1.3x vs original (1080x1920) | 790 |
 | [`sea-raft-m`](models/flow.md#sea-raft) | yes | 0.880 † | 366.9 (1080x1920) | 299.0 | 73.1 | 5.0x vs original (1080x1920) | 435 |
 | [`sea-raft-m-things`](models/flow.md#sea-raft) | yes | 4.307 | 367.3 (1080x1920) | 299.3 | 73.1 | 5.0x vs original (1080x1920) | 435 |
 | [`sea-raft-m-kitti`](models/flow.md#sea-raft) | yes | 0.808 † | 367.3 (1080x1920) | 298.9 | 73.1 | 5.0x vs original (1080x1920) | 435 |
 | [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 290.2 | 83.1 | 5.8x vs original (1080x1920) | 333 |
 | [`raft-large`](models/flow.md#raft) | yes | 1.526 † | 479.5 (1080x1920) | 290.3 | 83.3 | 5.8x vs original (1080x1920) | 333 |
 | [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 290.2 | 83.6 | 5.7x vs original (1080x1920) | 333 |
-| [`neuflow-v2-sintel`](models/flow.md#neuflow-v2) | yes | 1.567 † | 75.7 (1080x1920) | 102.4 | – | – | – |
-| [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.579 † | 75.6 (1080x1920) | 102.5 | – | – | – |
-| [`neuflow-v2-things`](models/flow.md#neuflow-v2) | yes | 4.095 | 75.8 (1080x1920) | 102.6 | – | – | – |
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | – | – | – |
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 395.3 | – | – | – |
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | – | – | – |

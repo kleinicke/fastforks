@@ -27,9 +27,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`gmflow-scale2-regrefine6-things`](#gmflow) | yes | 4.917 | – | – |
 | [`gmflow-scale2-sintel`](#gmflow) | yes | 1.975 † | – | – |
 | [`gmflow-scale2-things`](#gmflow) | yes | 6.747 | – | – |
-| [`neuflow-v2`](#neuflow_v2) | yes | 1.579 † | – | – |
-| [`neuflow-v2-sintel`](#neuflow_v2) | yes | 1.567 † | – | – |
-| [`neuflow-v2-things`](#neuflow_v2) | yes | 4.095 | – | – |
+| [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.03, 1.3x | 896, 0.2x |
+| [`neuflow-v2-sintel`](#neuflow_v2) | yes | 1.566 † | 58.946, 1.3x | 896, 0.2x |
+| [`neuflow-v2-things`](#neuflow_v2) | yes | 4.095 | 58.879, 1.3x | 896, 0.19x |
 | [`raft-large`](#raft) | yes | 1.526 † | 83.287, 5.8x | 352, 0.032x |
 | [`raft-large-kitti`](#raft) | yes | 0.614 † | 83.63, 5.7x | 352, 0.032x |
 | [`raft-large-things`](#raft) | yes | 4.834 | 83.118, 5.8x | 352, 0.032x |
@@ -316,9 +316,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>103<br>–<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>8392 / 8416<br>–<br>4529 / 4558<br>8532 (engine) |
-| `neuflow-v2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.7<br>102<br>–<br>91.4<br>64.9 | 8694 / 9020<br>4367 / 4576<br>8392 / 8416<br>–<br>4529 / 4558<br>8532 (engine) |
-| `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>103<br>–<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>8392 / 8416<br>–<br>4529 / 4558<br>8532 (engine) |
+| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>103<br>59.0<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8532 (engine) |
+| `neuflow-v2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.7<br>102<br>58.9<br>91.4<br>64.9 | 8694 / 9020<br>4367 / 4576<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8532 (engine) |
+| `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>103<br>58.9<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8532 (engine) |
 
 <details><summary>Details</summary>
 
@@ -344,22 +344,22 @@ Commercial use: yes.
 - `neuflow-v2-sintel` original 1080x1920: the authors' mixed-precision option (float16); upstream NeuFlow, iters_s8=8, infer.py recipe: conv-bn folded, model.half()
 - `neuflow-v2-things` original (fp32) 1080x1920: upstream NeuFlow, iters_s8=8
 - `neuflow-v2-things` original 1080x1920: the authors' mixed-precision option (float16); upstream NeuFlow, iters_s8=8, infer.py recipe: conv-bn folded, model.half()
-- `neuflow-v2` load / first call: original 0.2 s / 0.223 s, portable 0.05 s / 0.303 s (375x1242)
-- `neuflow-v2-sintel` load / first call: original 0.17 s / 0.076 s, portable 0.07 s / 0.283 s (375x1242)
-- `neuflow-v2-things` load / first call: original 0.17 s / 0.076 s, portable 0.06 s / 0.297 s (375x1242)
+- `neuflow-v2` load / first call: original 0.2 s / 0.223 s, portable 0.05 s / 0.303 s (375x1242), kernels 0.96 s / 0.179 s (375x1242)
+- `neuflow-v2-sintel` load / first call: original 0.17 s / 0.076 s, portable 0.07 s / 0.283 s (375x1242), kernels 0.95 s / 0.178 s (375x1242)
+- `neuflow-v2-things` load / first call: original 0.17 s / 0.076 s, portable 0.06 s / 0.297 s (375x1242), kernels 0.92 s / 0.182 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `neuflow-v2` | KITTI 2015 train, EPE / Fl-all % | 1.568 / 5.27 | 1.588 / 5.28 | 1.579 / 5.28 | trained on this dataset's public images; not a zero-shot result |
-| `neuflow-v2-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.566 / 5.61 | 1.573 / 5.61 | 1.567 / 5.61 | trained on this dataset's public images; not a zero-shot result |
-| `neuflow-v2-things` | KITTI 2015 train, EPE / Fl-all % | 4.099 / 15.02 | 4.098 / 15.01 | 4.095 / 15.01 |  |
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `neuflow-v2` | KITTI 2015 train, EPE / Fl-all % | 1.568 / 5.27 | 1.588 / 5.28 | 1.579 / 5.28 | 1.577 / 5.28 | trained on this dataset's public images; not a zero-shot result |
+| `neuflow-v2-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.566 / 5.61 | 1.573 / 5.61 | 1.567 / 5.61 | 1.566 / 5.61 | trained on this dataset's public images; not a zero-shot result |
+| `neuflow-v2-things` | KITTI 2015 train, EPE / Fl-all % | 4.099 / 15.02 | 4.098 / 15.01 | 4.095 / 15.01 | 4.095 / 15.01 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f3875362, 2026-11-11.
 
 ### Parity
 

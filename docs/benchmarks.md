@@ -895,9 +895,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | gmflow-scale2-regrefine6-things | 1080x1920 | 3230 | 2175 | 2183 | – | – | – | 8537 / 8822 | 6443 / 7250 | – |
 | gmflow-scale2-sintel | 1080x1920 | 2541 | 1607 | 1644 | – | – | – | 8425 / 8552 | 6433 / 7244 | – |
 | gmflow-scale2-things | 1080x1920 | 2537 | 1599 | 1636 | – | – | – | 8425 / 8552 | 6433 / 7244 | – |
-| neuflow-v2 | 1080x1920 | 171 | 75.6 | 103 | – | – | – | 4367 / 4556 | 8392 / 8416 | – |
-| neuflow-v2-sintel | 1080x1920 | 171 | 75.7 | 102 | – | – | – | 4367 / 4576 | 8392 / 8416 | – |
-| neuflow-v2-things | 1080x1920 | 172 | 75.8 | 103 | – | – | – | 4374 / 4720 | 8392 / 8416 | – |
+| neuflow-v2 | 1080x1920 | 171 | 75.6 | 103 | 59.0 | 1.3x | 1.7x | 4367 / 4556 | 8392 / 8416 | 790 / 896 |
+| neuflow-v2-sintel | 1080x1920 | 171 | 75.7 | 102 | 58.9 | 1.3x | 1.7x | 4367 / 4576 | 8392 / 8416 | 790 / 896 |
+| neuflow-v2-things | 1080x1920 | 172 | 75.8 | 103 | 58.9 | 1.3x | 1.7x | 4374 / 4720 | 8392 / 8416 | 790 / 896 |
 | raft-large | 1080x1920 | 480 | 567 | 290 | 83.3 | 5.8x | 3.5x | 7164 / 10928 | 8268 / 8298 | 333 / 352 |
 | raft-large-kitti | 1080x1920 | 480 | 567 | 290 | 83.6 | 5.7x | 3.5x | 7164 / 10928 | 8268 / 8298 | 333 / 352 |
 | raft-large-things | 1080x1920 | 481 | 566 | 290 | 83.1 | 5.8x | 3.5x | 7164 / 10928 | 8268 / 8298 | 333 / 352 |
@@ -1297,9 +1297,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | gmflow-scale2-regrefine6-things | 0.15 | 0.16 (375x1242) | – | 2.19 | 0.75 (375x1242) | – |
 | gmflow-scale2-sintel | 0.13 | 0.09 (375x1242) | – | 1.62 | 0.61 (375x1242) | – |
 | gmflow-scale2-things | 0.14 | 0.11 (375x1242) | – | 1.61 | 0.63 (375x1242) | – |
-| neuflow-v2 | 0.20 | 0.05 (375x1242) | – | 0.22 | 0.30 (375x1242) | – |
-| neuflow-v2-sintel | 0.17 | 0.07 (375x1242) | – | 0.08 | 0.28 (375x1242) | – |
-| neuflow-v2-things | 0.17 | 0.06 (375x1242) | – | 0.08 | 0.30 (375x1242) | – |
+| neuflow-v2 | 0.20 | 0.05 (375x1242) | 0.96 (375x1242) | 0.22 | 0.30 (375x1242) | 0.18 (375x1242) |
+| neuflow-v2-sintel | 0.17 | 0.07 (375x1242) | 0.95 (375x1242) | 0.08 | 0.28 (375x1242) | 0.18 (375x1242) |
+| neuflow-v2-things | 0.17 | 0.06 (375x1242) | 0.92 (375x1242) | 0.08 | 0.30 (375x1242) | 0.18 (375x1242) |
 | raft-large | 0.14 | 0.05 | 1.07 | 0.76 | 0.61 | 0.11 |
 | raft-large-kitti | 0.14 | 0.05 | 1.06 | 0.58 | 0.60 | 0.11 |
 | raft-large-things | 0.13 | 0.05 | 1.07 | 0.58 | 0.61 | 0.11 |
@@ -1609,9 +1609,9 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | gmflow-scale2-regrefine6-things | 1080x1920 | 2183 ms | 1116 ms | fails: TensorRT bug: Myelin internal error | – | 58.2 s | – | 6443 / 7250 | 10875 / 10972 | – | – |
 | gmflow-scale2-sintel | 1080x1920 | 1644 ms | 765 ms | fails: TensorRT bug: Myelin internal error | – | 46.6 s | – | 6433 / 7244 | 10865 / 10904 | – | – |
 | gmflow-scale2-things | 1080x1920 | 1636 ms | 765 ms | fails: TensorRT bug: Myelin internal error | – | 46.7 s | – | 6433 / 7244 | 10865 / 10904 | – | – |
-| neuflow-v2 | 1080x1920 | 103 ms | 91.4 ms | 65.0 ms | – | 28.5 s | 104 s | 8392 / 8416 | 4529 / 4558 | – | 8532 |
-| neuflow-v2-sintel | 1080x1920 | 102 ms | 91.4 ms | 64.9 ms | – | 28.5 s | 102 s | 8392 / 8416 | 4529 / 4558 | – | 8532 |
-| neuflow-v2-things | 1080x1920 | 103 ms | 91.5 ms | 65.0 ms | – | 28.8 s | 104 s | 8392 / 8416 | 4529 / 4558 | – | 8532 |
+| neuflow-v2 | 1080x1920 | 103 ms | 91.4 ms | 65.0 ms | 59.0 ms | 28.5 s | 104 s | 8392 / 8416 | 4529 / 4558 | 790 / 896 | 8532 |
+| neuflow-v2-sintel | 1080x1920 | 102 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 8392 / 8416 | 4529 / 4558 | 790 / 896 | 8532 |
+| neuflow-v2-things | 1080x1920 | 103 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 8392 / 8416 | 4529 / 4558 | 790 / 896 | 8532 |
 | raft-large | 1080x1920 | 290 ms | 195 ms | fails: TensorRT engine build failed | 83.3 ms | 41.3 s | – | 8268 / 8298 | 5886 / 5924 | 333 / 352 | – |
 | raft-large-kitti | 1080x1920 | 290 ms | 195 ms | fails: TensorRT engine build failed | 83.6 ms | 39.3 s | – | 8268 / 8298 | 5886 / 5924 | 333 / 352 | – |
 | raft-large-things | 1080x1920 | 290 ms | 195 ms | fails: TensorRT engine build failed | 83.1 ms | 39.4 s | – | 8268 / 8298 | 5886 / 5924 | 333 / 352 | – |
