@@ -28,8 +28,17 @@ OPTIONAL = {
     "onnx": {"_core/export.py"},  # the dynamic-export check reads the written file
     "onnxruntime": {"_core/export.py"},  # ... and runs it in range, when installed
     "timm": {"shared/libnet/__init__.py"},  # the timm / torchvision extras: families built by those libraries
-    "torchvision": {"detection/_ops.py", "shared/libnet/__init__.py"},  # + R-CNN ROIAlign / NMS
-    "transformers": {"shared/seginfer/__init__.py"},  # the transformers extra: families built by transformers
+    "torchvision": {  # R-CNN ops and lazily constructed optional library networks
+        "detection/_ops.py",
+        "shared/libnet/__init__.py",
+        "shared/rfdetr/net/utilities/box_ops.py",
+        "shared/rfdetr/net/utilities/tensors.py",
+    },
+    "transformers": {  # optional libraries imported only when constructing their networks
+        "shared/seginfer/__init__.py",
+        "shared/rfdetr/net/models/backbone/dinov2.py",
+        "shared/rfdetr/net/models/backbone/dinov2_with_windowed_attn.py",
+    },
     "laspy": {"stereo/geometry/ply.py"},  # .las / .laz point clouds (dependencies, imported in this module only)
     "lazrs": {"stereo/geometry/ply.py"},
 }
@@ -190,10 +199,28 @@ def test_families_do_not_import_each_other(task):
             assert not bad, f"{path.relative_to(SRC)} imports another family: {bad} (move shared code to shared/)"
 
 
+def _task_model_imports(modules: set[str]) -> set[str]:
+    """Separate forbidden task-family dependencies from upstream shared net/models packages."""
+    return {
+        m
+        for m in modules
+        if any(m == f"fastforks.{t}.models" or m.startswith(f"fastforks.{t}.models.") for t in registry.TASKS)
+    }
+
+
+def test_task_model_boundary_includes_all_tasks_but_not_shared_vendor_models():
+    forbidden = {f"fastforks.{task}.models.family.model" for task in registry.TASKS}
+    forbidden |= {"fastforks.pose.models"}
+    allowed = {"fastforks.shared.rfdetr.net.models.lwdetr", "fastforks.pose.models_extra", "torchvision.models"}
+    assert _task_model_imports(forbidden | allowed) == forbidden
+
+
 @pytest.mark.parametrize("area", ["_core", "kernels", "shared"])
 def test_core_does_not_import_models(area):
     for path in sorted((SRC / area).rglob("*.py")):
-        bad = {m for m in imported_modules(path) if ".models" in m}
+        # Vendored shared architectures may retain an upstream package named "models".
+        # The boundary forbids dependencies on task-specific model families.
+        bad = _task_model_imports(imported_modules(path))
         assert not bad, f"{path.relative_to(SRC)} imports model code {bad}"
 
 

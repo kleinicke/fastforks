@@ -54,6 +54,9 @@ In this order, unless something more useful turns up:
 - TinyViT, five classifiers: run portable fp32 MPS goldens and speed at native 224/384/512 crops. CUDA GPU goldens
   passed for portable and kernels; weights are downloadable from the pinned timm Hugging Face URLs in the card.
 
+- RF-DETR Keypoint Preview (`rfdetr-keypoint`, new `shared/rfdetr`): MPS golden (CUDA mean/p99 bounds 0.072/0.17 px
+  portable) and portable speed at 576. Weights `~/scratch_tests/codex-pose/rf-reference/` on CUDA, else the pinned URL.
+
 Done on 2026-11-10 for every family on the branch: Mac speed rows (`portable`, and `kernels` where Metal kernels
 exist) and the MPS goldens, all passing. Still open:
 

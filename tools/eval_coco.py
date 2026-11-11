@@ -111,7 +111,10 @@ def _load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401 - a model of e
 
     mode, dtype = ("portable", "float32") if tier == "portable32" else (tier, None)
     if task == "pose":
-        return pos.load(ref, mode=mode, device="cuda", dtype=dtype)
+        # DETR OKS evaluation keeps the top 100 query/class pairs, then only the person class.
+        # Public inference defaults to threshold 0.5.
+        opts = {"score_threshold": 0.0} if ref.startswith("rf-detr-keypoint") else None
+        return pos.load(ref, mode=mode, device="cuda", dtype=dtype, options=opts)
 
     # RT-DETRv2 / D-FINE mAP: the official postprocessor (all 300 queries, no threshold); defaults: 0.05 / 100
     opts = {"score_threshold": 0.0, "max_detections": 300} if ref.startswith(("rtdetrv2", "dfine")) else None
@@ -161,6 +164,11 @@ def _pose(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tupl
     """Evaluate top-down GT-box or bottom-up pose using the 17 COCO body keypoints."""
     dets, ms = [], []
     rec["pose_gt_boxes"] = getattr(model, "needs_boxes", True)
+    if rec.get("model", "").startswith("rf-detr-keypoint"):
+        rec["pose_protocol"] = (
+            "all images; top 100 query/class pairs, person class only; score_threshold=0; no NMS; "
+            "uncertainty-fused person score (trace_alpha=0.2), joint confidence=findability"
+        )
     for f in files:
         iid = int(f.stem)
         anns = [a for a in coco.loadAnns(coco.getAnnIds(imgIds=iid, iscrowd=False)) if a["num_keypoints"] > 0]
@@ -371,6 +379,8 @@ def _summarize(a: argparse.Namespace) -> None:  # noqa: PLR0915 - one branch per
         row: dict[str, Any] = {"ref": ref, "task": task, "tier": tier, "mode": mode,
                                "dtype": last.get("dtype"), "how": last.get("how"),
                                "dataset": f"coco-val2017-every{a.every}" + (("-keypoints-gtbox" if last.get("pose_gt_boxes", True) else "-keypoints") if task == "pose" else "")}  # fmt: skip  # noqa: E501
+        if last.get("pose_protocol"):
+            row["protocol"] = last["pose_protocol"]
         if err := next((r for r in rows if "error" in r or "skipped" in r), None):
             lines.append(f"| {task} | {ref} | {tier} | skipped: {err.get('error') or err['skipped']} | | | |")
             docs.append(row | {"error": err.get("error") or err["skipped"], "date": err.get("date")})

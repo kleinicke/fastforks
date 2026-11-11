@@ -113,9 +113,9 @@ _PROTOCOL = {
     "ground-truth person boxes, no flip test; people ranked by the mean of their first 17 keypoint scores; "
     "pycocotools OKS AP on COCO body joints. ",
     ("pose", "coco-val2017-every1-keypoints"): "Bottom-up on all 5,000 validation images, no ground-truth boxes; "
-    "people ranked by their predicted person score, with the model's own NMS; pycocotools OKS AP. ",
+    "people ranked by their predicted person score, after model-specific decoding; pycocotools OKS AP. ",
     ("pose", "coco-val2017-every10-keypoints"): "Bottom-up on the same every-tenth-image subset for all modes, "
-    "ranked by predicted person score with the model's own NMS; pycocotools OKS AP. ",
+    "ranked by predicted person score after model-specific decoding; pycocotools OKS AP. ",
     ("promptable_segmentation", "coco-val2017-every10"): "One point per ground-truth instance (the interior point "
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "

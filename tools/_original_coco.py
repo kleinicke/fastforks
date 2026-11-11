@@ -238,6 +238,22 @@ class _Pose:
         )
 
 
+class _RFDETRPose:
+    """Original RF-DETR person queries with all scores retained for COCO OKS evaluation."""
+
+    needs_boxes = False
+
+    def __init__(self, ref: str, tier: str) -> None:
+        self.original = _original.load("pose", ref, tier)
+        self.backend = Backend(self.original.how, self.original.dtype, self.original.note)
+
+    def __call__(self, img: np.ndarray) -> Result:
+        import torch  # noqa: PLC0415
+
+        image = torch.from_numpy(np.ascontiguousarray(img)).permute(2, 0, 1).cuda()
+        return Result(**self.original(image, 0.0))
+
+
 class _Points:
     """SAM / SAM 2 / EfficientViT-SAM point-prompt model."""
 
@@ -359,7 +375,7 @@ def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, PLR0911 - one 
     """The original of `ref` (id without `@rev`) in `tier`."""
     ref = ref.split("@", maxsplit=1)[0]
     if task == "pose":
-        return _Pose(ref, tier)
+        return _RFDETRPose(ref, tier) if ref.startswith("rf-detr-keypoint") else _Pose(ref, tier)
     if task == "detection":
         if ref.startswith("rtmdet"):
             return _rtmdet(ref, tier)

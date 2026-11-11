@@ -45,6 +45,8 @@ _ONNX_KNOWN_MISMATCH = {  # open: the export runs, ONNX Runtime disagrees (or re
 
 _NOT_TRACEABLE: dict[str, str] = {}  # module() runs, but neither dynamo nor torch.export captures it: documented
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
+    "rf-detr-keypoint-preview@1": "pinned upstream disables Dynamo for positional interpolation to preserve"
+    " antialiased bicubic gradients; non-strict torch.export still captures this fixed-shape inference",
     "zoedepth-nk@1": "the NK model routes each image to the NYU or KITTI head by the argmax of its domain logits"
     " (.item(); the export runs both heads and selects)",
 }

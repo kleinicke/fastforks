@@ -1,0 +1,76 @@
+schema = 2
+name = "RF-DETR Keypoint"
+summary = "Roboflow RF-DETR Keypoint Preview: a DINOv2-small backbone with windowed attention and a deformable transformer decoder that predicts people and 17 COCO joints directly from the whole image. The 40.7M-parameter Apache-2.0 preview uses 576 x 576 square inputs and conditional keypoint queries. Person confidence includes the upstream localization-uncertainty fusion; joint confidence is findability. No person detector, boxes or NMS are required."
+tier = "stable"
+uses = ["rfdetr", "cuda_graphs"]
+outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
+limitations = ["Requires the optional transformers and torchvision libraries.", "This is the Apache-2.0 Keypoint Preview checkpoint; restricted RF-DETR Plus detection variants are not included.", "module() exports raw boxes, class logits and keypoint predictions; confidence fusion and thresholding remain outside the exported graph.", "Float16 and float32 may retain different people near the score threshold; raw query ordering can differ across export engines.", "torch.compile uses upstream positional-interpolation graph breaks; fullgraph=True is unsupported. Fixed-shape torch.export and ONNX remain supported."]
+
+[upstream]
+repo = "https://github.com/roboflow/rf-detr"
+commit = "5b22dfc0940697ce1abdfa681a5f7392b3eddbfb"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE"]
+training_data = ["coco", "lvd-142m"]
+training_note = "Author README: pretrained on COCO person keypoints; DINOv2-small backbone originates from LVD-142M pretraining. Full intermediate training provenance is not stated."
+evidence = "https://github.com/roboflow/rf-detr/blob/5b22dfc0940697ce1abdfa681a5f7392b3eddbfb/README.md#keypoints"
+
+[io]
+input = "imagenet"
+
+[options]
+score_threshold = { default = 0.5, min = 0.0, max = 1.0 }
+
+[params]
+encoder = "dinov2_windowed_small"
+out_feature_indexes = [3, 6, 9, 12]
+vit_encoder_num_layers = 12
+hidden_dim = 256
+patch_size = 12
+num_windows = 2
+resolution = 576
+positional_encoding_size = 48
+dec_layers = 4
+sa_nheads = 8
+ca_nheads = 16
+dec_n_points = 2
+dim_feedforward = 2048
+num_queries = 100
+num_select = 100
+group_detr = 13
+projector_scale = ["P4"]
+num_classes = 1
+two_stage = true
+bbox_reparam = true
+lite_refpoint_refine = true
+layer_norm = true
+use_grouppose_keypoints = true
+num_keypoints_per_class = [0, 17]
+keypoint_cross_attn = true
+inter_instance_kp_attn = false
+grouppose_keypoint_dim_downscale = 1
+dual_projector = true
+dual_projector_kp_only = true
+num_decoder_registers = 0
+segmentation_head = false
+mask_downsample_ratio = 4
+trace_alpha = 0.2
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["fastbb"]
+
+[output]
+label_set = "coco-keypoints-17"
+
+[[variants]]
+id = "rf-detr-keypoint-preview"
+revision = 1
+params = {}
+weights = [{ name = "rf-detr-keypoint-preview-xlarge.pth", size = 163696618, sha256 = "2b70ddf51d2b9e026b340030c7d9bd2cdca2532d081ec16fce8d1695b0ce6d98", url = "https://repo.roboflow.com/rfdetr/rf-detr-keypoint-preview-xlarge.pth" }]

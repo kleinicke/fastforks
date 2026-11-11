@@ -298,3 +298,34 @@ Only the RTX 5060 Ti has been measured. The portable path folds BatchNorm and us
 convolutions; B0-B6 run at native 224. Measure larger batches on the target GPU before changing precision
 or adding aggregation-block fusions. Compare the existing compile and TensorRT rows as well as originals,
 and preserve the measured mean/p99 bounds 0.0080/0.033. No datacenter speed claim is made here.
+
+## RF-DETR Keypoint Preview (2026-11-11)
+
+Pinned Apache-2.0 preview, 40.7M parameters, 576 x 576 input. The original FP32 / authors native FP16
+(inference with compile=False, dtype=float16, inplace=True) full-call times at the standard 1080p scene are
+29.45 / 19.28 ms; portable 18.278 ms; kernels 9.476 ms. The custom path packs DINOv2 QKV and uses
+fastbb's fp32-accumulating flash attention, then replays the authors' export forward in a fixed-input CUDA graph.
+Resizing/normalization and dynamic person filtering remain outside capture. Graph replay, changed input sizes,
+output lifetime and explicit release are tested. No new binary or reduced-precision accumulation was introduced.
+
+On full COCO val2017 (5000 images), portable scores 71.82 keypoint AP and kernels 71.79.
+On the same every-tenth-image subset (500), original FP32/native FP16 score 72.69/72.89, portable 72.87
+and kernels 72.81. All tiers evaluate top 100 query/class pairs, retain the person class, use threshold zero,
+no NMS or GT boxes, and preserve uncertainty-fused person confidence and per-joint findability.
+
+The original CPU FP32 eval fixture passes at atol 1e-4. Initial mean/p99 keypoint drift is
+0.0479/0.1108 px portable and 0.0792/0.2130 px kernels; per-mode bounds are 1.5x rounded up to two
+significant figures. During initial fixture creation, the reference helper was corrected to call eval():
+the public upstream predictor does this itself; its bare constructor stays in training mode and activates
+13 query groups. Only the new uncommitted reference fixture was corrected, with the first fixture retained
+in scratch for audit. No existing golden or revision changed.
+
+torch.compile measures 7.995 ms for the full portable call; TensorRT measures 4.283 ms for the raw
+576 x 576 module, including resize/normalization but excluding confidence fusion and person filtering.
+TensorRT raw query slots may reorder: compare decoded people rather than equal array indices.
+A decoded single-person fixture gives score 0.77647 vs 0.77667 and at most 0.2813 px drift on confident
+joints at 576 px; full-dataset TensorRT accuracy has not been measured.
+
+Vendored computation stays pinned. Local compatibility edits remove unused training builders and import-time
+JIT aliases, use cycle-free positional/export method overrides, and keep optimized parameter-only paths
+from bypassing fastforks class overrides. Transformers and torchvision remain explicit optional dependencies.

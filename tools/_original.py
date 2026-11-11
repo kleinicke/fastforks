@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BENCH = Path(os.environ.get("FF_BENCH_DIR", ROOT.parent / "bench"))
 TIERS = {"upstream": "fp32", "upstream16": "autocast", "upstreamhalf": "half", "upstreamac": "autocast-plain"}
 BF16 = {"vggt", "vggt_omega", "mapanything", "depth_anything_3"}  # the authors' mixed precision is bfloat16
-NATIVE_HALF = {"depth_pro", "marigold"}  # build(ref, True) is a float16 model, not mixed precision
+NATIVE_HALF = {"depth_pro", "marigold", "rfdetr_keypoint"}  # build(ref, True) is a float16 model, not mixed precision
 _SETUP: set[str] = set()
 _MOBILE_SAM: list[Any] = []  # the golden script of MobileSAM, see `mobile_sam_recipe`
 
@@ -592,6 +592,44 @@ class _Local:
         return out
 
 
+class _RFDETRKeypoint(_Local):
+    """The authors' explicit inference dtype option, without a compiler, on the same CUDA uint8 inputs."""
+
+    flag = True
+
+    def __init__(self) -> None:
+        super().__init__("pose", None, ((1080, 1920),), needs_boxes=False)
+
+    def build(self, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - bench adapter contract
+        import torch  # noqa: PLC0415
+
+        from fastforks._core import registry  # noqa: PLC0415
+
+        checkout = os.environ.get("FF_RFDETR_REPO")
+        if not checkout:
+            msg = "FF_RFDETR_REPO must name a checkout containing the pinned RF-DETR commit"
+            raise RuntimeError(msg)
+        site = os.environ.get("FF_RFDETR_SITE")
+        if site and site not in sys.path:
+            sys.path.append(site)
+        g = _golden("rfdetr_keypoint")
+        card, variant = registry.resolve("pose", full)
+        (checkpoint,) = registry.weights(card, variant)
+        model = g.reference(Path(checkout), checkpoint, "cuda")
+        self.COMMIT = card.upstream_commit
+        self.note = "pinned RF-DETR torchvision resize/normalize, original network and uncertainty-fused PostProcess"
+        if fp16:
+            model.inference(compile=False, dtype=torch.float16, inplace=True)
+            self.note += "; authors inference(compile=False, dtype=float16, inplace=True)"
+
+        def call(image: Any, threshold: float = 0.5) -> Any:  # noqa: ANN401 - uint8 CUDA CHW image
+            x = image.unsqueeze(0) if image.ndim == 3 else image  # noqa: PLR2004 - CHW input
+            x = x.float() / 255 if x.dtype == torch.uint8 else x.float()
+            return g.predict(model, x, threshold)
+
+        return call
+
+
 def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
     return [[x0, y0, x1 - x0, y1 - y0] for x0, y0, x1, y1 in boxes.tolist()]
 
@@ -603,6 +641,7 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
     "rtmpose": _Local(
         "pose", _rtmpose, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
     ),
+    "rfdetr_keypoint": _RFDETRKeypoint(),
     "rtmo": _Local(
         "pose",
         _rtmo,

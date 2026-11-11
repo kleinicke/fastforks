@@ -728,6 +728,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | dwpose-m | 169 | 164 | 7.25 | 4.86 | 33.8x | 1.5x | 756 / 792 | 162 / 196 | 157 / 220 |
 | dwpose-s | 173 | 180 | 5.03 | 3.30 | 52.3x | 1.5x | 806 / 848 | 129 / 174 | 138 / 198 |
 | dwpose-t | 160 | 174 | 4.47 | 3.15 | 50.8x | 1.4x | 832 / 858 | 124 / 152 | 133 / 192 |
+| rf-detr-keypoint-preview | – | 19.3 | 18.3 | 9.48 | 2.0x | 1.9x | 186 / 244 | 179 / 204 | 176 / 224 |
 | rtmo-l | 17.1 | 21.4 | 10.8 | 8.30 | 2.1x | 1.3x | 800 / 824 | 208 / 226 | 208 / 228 |
 | rtmo-m | 14.3 | 17.0 | 8.71 | 6.85 | 2.1x | 1.3x | 422 / 462 | 166 / 190 | 166 / 212 |
 | rtmo-s | 11.4 | 15.5 | 7.48 | 6.27 | 1.8x | 1.2x | 228 / 252 | 142 / 160 | 142 / 180 |
@@ -1085,6 +1086,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | dwpose-m | 0.26 | 0.24 | 1.51 | 0.60 | 1.10 | 0.29 |
 | dwpose-s | 0.19 | 0.12 | 1.48 | 0.47 | 1.02 | 0.29 |
 | dwpose-t | 0.16 | 0.08 | 1.42 | 0.33 | 0.89 | 0.29 |
+| rf-detr-keypoint-preview | 4.72 | 2.66 | 2.70 | 0.66 | 0.39 | 0.38 |
 | rtmo-l | 0.55 | 0.36 | 1.52 | 0.06 | 0.24 | 0.16 |
 | rtmo-m | 0.37 | 0.22 | 1.43 | 0.08 | 0.43 | 0.24 |
 | rtmo-s | 0.27 | 0.12 | 1.37 | 0.08 | 0.41 | 0.26 |
@@ -1353,6 +1355,7 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | dwpose-m | 1080x1920 | 7.25 ms | 3.80 ms | 2.13 ms (network on person crops only) | 4.86 ms | 12.9 s | 18.9 s | 162 / 196 | 156 / 174 | 157 / 220 | 98 |
 | dwpose-s | 1080x1920 | 5.03 ms | 2.27 ms | 1.17 ms (network on person crops only) | 3.30 ms | 11.8 s | 16.7 s | 129 / 174 | 135 / 150 | 138 / 198 | 62 |
 | dwpose-t | 1080x1920 | 4.47 ms | 1.96 ms | 0.940 ms (network on person crops only) | 3.15 ms | 11.2 s | 16.1 s | 124 / 152 | 129 / 148 | 133 / 192 | 54 |
+| rf-detr-keypoint-preview | 1080x1920 | 18.3 ms | 8.00 ms | 4.28 ms (network on person crops only) | 9.48 ms | 47.9 s | 67.2 s | 179 / 204 | 191 / 220 | 176 / 224 | 124 |
 | rtmo-l | 1080x1920 | 10.8 ms | 7.07 ms | 2.90 ms (network on person crops only) | 8.30 ms | 18.9 s | 39.6 s | 208 / 226 | 192 / 224 | 208 / 228 | 126 |
 | rtmo-m | 1080x1920 | 8.71 ms | 4.99 ms | 2.03 ms (network on person crops only) | 6.85 ms | 18.0 s | 39.4 s | 166 / 190 | 146 / 170 | 166 / 212 | 86 |
 | rtmo-s | 1080x1920 | 7.48 ms | 3.35 ms | 1.21 ms (network on person crops only) | 6.27 ms | 14.6 s | 36.7 s | 142 / 160 | 121 / 156 | 142 / 180 | 50 |

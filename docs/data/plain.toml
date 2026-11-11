@@ -122,6 +122,7 @@ vggt = "VGGT (Meta): cameras, depth and 3D points for many images in one pass. N
 vggt_omega = "VGGT-Omega (Meta): the successor of VGGT with a DINOv3 backbone, cameras and depth from many images. Non-commercial licence."
 
 # --- pose
+rfdetr_keypoint = "Roboflow RF-DETR Keypoint Preview: predicts people and their 17 COCO joints from a whole image using a DINOv2 backbone and transformer decoder. Apache-2.0 code and preview weights."
 rtmo = "OpenMMLab's RTMO (t, s, m, l): real-time one-stage multi-person 2D pose; finds people and their 17 COCO keypoints in one pass over the image, no person detector needed. Apache-2.0."
 rtmpose = "OpenMMLab's RTMPose (t, s, m, l; 256x192 and 384x288): real-time top-down 2D human pose, a CSPNeXt CNN with a SimCC head; also the whole-body DWPose and RTMW checkpoints (133 keypoints with feet, face and hands); Halpe (26 keypoints), hand, face and animal checkpoints. Apache-2.0."
 vitpose = "ViTPose and ViTPose++ (base, small, large, huge): top-down 2D human pose with a plain vision transformer, from the weights published by the University of Sydney on Hugging Face. Apache-2.0."

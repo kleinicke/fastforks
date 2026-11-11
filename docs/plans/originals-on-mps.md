@@ -169,3 +169,10 @@ errors (DINOv3's portable has no MPS row: the card does not validate the family 
 | segformer-b5-ade20k | 857.0 | 545.3 | 427.7 | - | 2.00x |
 | mask2former-swinl-ade20k | 907.2 | 899.2 | 909.5 | 964.0 | 1.00x |
 | dinov3-vitb16 | 22.3 | 26.8 | - | - | - |
+
+## RF-DETR Keypoint Preview follow-up (2026-11-11)
+
+The Apache preview has validated CPU/CUDA portable and custom CUDA paths. Portable MPS float32/float16 are
+declared but unmeasured: compare the pinned original at both precisions before publishing Apple speed or accuracy.
+The CUDA fastbb/graph path has no Metal counterpart. The whole-image decoder must preserve the original
+uncertainty-fused person confidence, findability scores and 17-joint person schema.
