@@ -39,6 +39,10 @@ non-commercial weights or code, and priority is
 | line segments, vanishing points | P2–P3, cards in `calibration` | ScaleLSD, DeepLSD; HAWP, NeurVPS |
 | anomaly detection, IQA, ReID, point clouds, mono 3D detection, 3D generation, weather forecasting, shadow / reflection removal | skip | trained per dataset, NC zoos, privacy, other data types, generation, or unlicensed |
 
+Earlier source-level evidence for the 29 handoff candidates is preserved in the
+[2026-11-10 license audit](model-license-audit-2026-11-10.md). Its historical gates are superseded
+by the user-approved weight-license assumption where the only missing evidence is a separate weight statement.
+
 ## ModelsThatRun review (2026-11-11)
 
 Florian requested a review of [the catalog](https://modelsthatrun.dev/models/), excluding chat and text-to-image,
