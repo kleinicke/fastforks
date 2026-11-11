@@ -723,10 +723,22 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | rtmo-t | 11.3 | 13.3 | 7.62 | 6.31 | 1.8x | 1.2x | 118 / 122 | 121 / 136 | 121 / 156 |
 | rtmpose-l | 161 | 176 | 8.94 | 5.63 | 28.6x | 1.6x | 1105 / 1154 | 211 / 236 | 175 / 264 |
 | rtmpose-l-384 | 192 | 171 | 19.3 | 11.2 | 15.3x | 1.7x | 366 / 410 | 340 / 436 | 229 / 406 |
+| rtmpose-l-halpe26 | 180 | 164 | 9.06 | 5.65 | 29.1x | 1.6x | 529 / 572 | 212 / 276 | 176 / 264 |
+| rtmpose-l-halpe26-384 | 206 | 206 | 19.3 | 11.2 | 18.4x | 1.7x | 975 / 1038 | 341 / 436 | 230 / 406 |
 | rtmpose-m | 179 | 180 | 6.28 | 4.42 | 40.4x | 1.4x | 316 / 364 | 153 / 192 | 148 / 200 |
 | rtmpose-m-384 | 174 | 167 | 13.1 | 8.97 | 18.6x | 1.5x | 505 / 582 | 243 / 352 | 202 / 340 |
+| rtmpose-m-ap10k | 196 | 186 | 7.98 | 5.41 | 34.5x | 1.5x | 757 / 814 | 177 / 234 | 163 / 220 |
+| rtmpose-m-face6 | 198 | 207 | 8.69 | 5.78 | 34.3x | 1.5x | 652 / 698 | 184 / 256 | 169 / 242 |
+| rtmpose-m-halpe26 | 179 | 181 | 6.35 | 4.46 | 40.2x | 1.4x | 283 / 318 | 154 / 192 | 149 / 220 |
+| rtmpose-m-halpe26-384 | 192 | 193 | 13.2 | 9.01 | 21.3x | 1.5x | 690 / 764 | 244 / 352 | 203 / 340 |
+| rtmpose-m-hand5 | 192 | 195 | 8.04 | 5.44 | 35.3x | 1.5x | 425 / 472 | 178 / 234 | 163 / 240 |
 | rtmpose-s | 161 | 165 | 4.92 | 3.01 | 53.4x | 1.6x | 449 / 480 | 124 / 172 | 133 / 178 |
+| rtmpose-s-face6 | 258 | 237 | 5.03 | 3.75 | 63.2x | 1.3x | 504 / 540 | 147 / 174 | 151 / 222 |
+| rtmpose-s-halpe26 | 172 | 173 | 4.98 | 3.04 | 56.5x | 1.6x | 162 / 200 | 124 / 172 | 133 / 198 |
 | rtmpose-t | 165 | 151 | 4.49 | 2.90 | 52.0x | 1.5x | 459 / 490 | 120 / 150 | 129 / 176 |
+| rtmpose-t-face6 | 188 | 204 | 4.58 | 3.63 | 51.8x | 1.3x | 424 / 464 | 134 / 152 | 146 / 220 |
+| rtmpose-t-halpe26 | 181 | 172 | 4.48 | 2.90 | 59.1x | 1.5x | 103 / 144 | 120 / 150 | 129 / 196 |
+| rtmpose-x-halpe26-384 | 247 | 217 | 33.5 | 18.7 | 11.6x | 1.8x | 470 / 556 | 401 / 498 | 280 / 470 |
 | rtmw-l | 213 | 203 | 15.1 | 10.2 | 19.8x | 1.5x | 865 / 908 | 267 / 308 | 232 / 336 |
 | rtmw-l-384 | 274 | 275 | 31.5 | 20.2 | 13.6x | 1.6x | 1094 / 1144 | 396 / 508 | 286 / 476 |
 | rtmw-m | 169 | 205 | 11.2 | 7.54 | 22.5x | 1.5x | 379 / 410 | 189 / 224 | 184 / 268 |
@@ -1057,10 +1069,22 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | rtmo-t | 0.26 | 0.11 | 1.38 | 0.32 | 0.41 | 0.28 |
 | rtmpose-l | 0.38 | 0.94 | 1.60 | 0.18 | 0.86 | 0.29 |
 | rtmpose-l-384 | 0.58 | 0.41 | 1.56 | 0.17 | 1.00 | 0.29 |
+| rtmpose-l-halpe26 | 0.37 | 0.25 | 1.55 | 0.45 | 1.13 | 0.29 |
+| rtmpose-l-halpe26-384 | 0.41 | 0.26 | 1.57 | 0.38 | 1.24 | 0.29 |
 | rtmpose-m | 0.23 | 0.22 | 1.50 | 0.16 | 1.10 | 0.29 |
 | rtmpose-m-384 | 0.23 | 0.20 | 1.48 | 0.35 | 1.25 | 0.29 |
+| rtmpose-m-ap10k | 0.23 | 0.13 | 1.48 | 0.19 | 1.14 | 0.29 |
+| rtmpose-m-face6 | 0.29 | 0.15 | 1.49 | 0.20 | 1.15 | 0.29 |
+| rtmpose-m-halpe26 | 0.25 | 0.14 | 1.51 | 0.45 | 1.04 | 0.30 |
+| rtmpose-m-halpe26-384 | 0.26 | 0.13 | 1.48 | 0.34 | 1.15 | 0.29 |
+| rtmpose-m-hand5 | 0.23 | 0.13 | 1.49 | 0.22 | 1.13 | 0.29 |
 | rtmpose-s | 0.16 | 0.10 | 1.40 | 0.16 | 1.03 | 0.29 |
+| rtmpose-s-face6 | 0.31 | 0.08 | 1.43 | 0.35 | 1.18 | 0.29 |
+| rtmpose-s-halpe26 | 0.19 | 0.07 | 1.46 | 0.61 | 0.94 | 0.30 |
 | rtmpose-t | 0.13 | 0.10 | 1.42 | 0.15 | 0.88 | 0.29 |
+| rtmpose-t-face6 | 0.18 | 0.06 | 1.45 | 0.34 | 1.29 | 0.29 |
+| rtmpose-t-halpe26 | 0.18 | 0.05 | 1.48 | 0.71 | 0.81 | 0.29 |
+| rtmpose-x-halpe26-384 | 0.89 | 0.41 | 1.76 | 0.94 | 1.17 | 0.28 |
 | rtmw-l | 0.76 | 0.39 | 1.72 | 0.63 | 1.03 | 0.31 |
 | rtmw-l-384 | 0.75 | 0.34 | 1.69 | 0.56 | 1.20 | 0.28 |
 | rtmw-m | 0.54 | 0.35 | 1.64 | 1.21 | 1.20 | 0.29 |
@@ -1302,10 +1326,22 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | rtmo-t | 1080x1920 | 7.62 ms | 3.30 ms | 0.886 ms (network on person crops only) | 6.31 ms | 15.6 s | 36.8 s | 121 / 136 | 111 / 134 | 121 / 156 | 40 |
 | rtmpose-l | 1080x1920 | 8.94 ms | 5.32 ms | 3.20 ms (network on person crops only) | 5.63 ms | 14.2 s | 19.4 s | 211 / 236 | 185 / 194 | 175 / 264 | 112 |
 | rtmpose-l-384 | 1080x1920 | 19.3 ms | 10.7 ms | 7.08 ms (network on person crops only) | 11.2 ms | 15.0 s | 20.3 s | 340 / 436 | 242 / 274 | 229 / 406 | 168 |
+| rtmpose-l-halpe26 | 1080x1920 | 9.06 ms | 5.34 ms | 3.20 ms (network on person crops only) | 5.65 ms | 14.3 s | 19.6 s | 212 / 276 | 186 / 194 | 176 / 264 | 112 |
+| rtmpose-l-halpe26-384 | 1080x1920 | 19.3 ms | 10.6 ms | 7.08 ms (network on person crops only) | 11.2 ms | 15.1 s | 20.6 s | 341 / 436 | 243 / 276 | 230 / 406 | 168 |
 | rtmpose-m | 1080x1920 | 6.28 ms | 3.42 ms | 2.02 ms (network on person crops only) | 4.42 ms | 12.7 s | 17.8 s | 153 / 192 | 147 / 172 | 148 / 200 | 66 |
 | rtmpose-m-384 | 1080x1920 | 13.1 ms | 7.09 ms | 4.33 ms (network on person crops only) | 8.97 ms | 13.6 s | 18.6 s | 243 / 352 | 190 / 212 | 202 / 340 | 110 |
+| rtmpose-m-ap10k | 1080x1920 | 7.98 ms | 4.54 ms | 2.57 ms (network on person crops only) | 5.41 ms | 13.0 s | 18.2 s | 177 / 234 | 176 / 192 | 163 / 220 | 78 |
+| rtmpose-m-face6 | 1080x1920 | 8.69 ms | 4.79 ms | 2.67 ms (network on person crops only) | 5.78 ms | 12.8 s | 18.4 s | 184 / 256 | 182 / 192 | 169 / 242 | 110 |
+| rtmpose-m-halpe26 | 1080x1920 | 6.35 ms | 3.44 ms | 2.02 ms (network on person crops only) | 4.46 ms | 12.9 s | 18.0 s | 154 / 192 | 148 / 172 | 149 / 220 | 68 |
+| rtmpose-m-halpe26-384 | 1080x1920 | 13.2 ms | 7.12 ms | 4.34 ms (network on person crops only) | 9.01 ms | 13.7 s | 18.9 s | 244 / 352 | 190 / 212 | 203 / 340 | 108 |
+| rtmpose-m-hand5 | 1080x1920 | 8.04 ms | 4.51 ms | 2.58 ms (network on person crops only) | 5.44 ms | 12.9 s | 18.3 s | 178 / 234 | 176 / 192 | 163 / 240 | 80 |
 | rtmpose-s | 1080x1920 | 4.92 ms | 2.07 ms | 1.06 ms (network on person crops only) | 3.01 ms | 11.5 s | 16.5 s | 124 / 172 | 129 / 150 | 133 / 178 | 62 |
+| rtmpose-s-face6 | 1080x1920 | 5.03 ms | 2.69 ms | 1.28 ms (network on person crops only) | 3.75 ms | 11.9 s | 16.9 s | 147 / 174 | 164 / 190 | 151 / 222 | 70 |
+| rtmpose-s-halpe26 | 1080x1920 | 4.98 ms | 2.11 ms | 1.07 ms (network on person crops only) | 3.04 ms | 11.7 s | 16.6 s | 124 / 172 | 130 / 150 | 133 / 198 | 62 |
 | rtmpose-t | 1080x1920 | 4.49 ms | 1.91 ms | 0.866 ms (network on person crops only) | 2.90 ms | 10.8 s | 15.9 s | 120 / 150 | 125 / 128 | 129 / 176 | 56 |
+| rtmpose-t-face6 | 1080x1920 | 4.58 ms | 2.23 ms | 1.00 ms (network on person crops only) | 3.63 ms | 11.5 s | 16.2 s | 134 / 152 | 159 / 168 | 146 / 220 | 62 |
+| rtmpose-t-halpe26 | 1080x1920 | 4.48 ms | 1.94 ms | 0.871 ms (network on person crops only) | 2.90 ms | 13.5 s | 17.2 s | 120 / 150 | 125 / 128 | 129 / 196 | 56 |
+| rtmpose-x-halpe26-384 | 1080x1920 | 33.5 ms | 21.1 ms | 13.3 ms (network on person crops only) | 18.7 ms | 17.4 s | 23.0 s | 401 / 498 | 262 / 298 | 280 / 470 | 258 |
 | rtmw-l | 1080x1920 | 15.1 ms | 9.34 ms | 5.17 ms (network on person crops only) | 10.2 ms | 18.8 s | 24.9 s | 267 / 308 | 242 / 264 | 232 / 336 | 174 |
 | rtmw-l-384 | 1080x1920 | 31.5 ms | 19.5 ms | 11.2 ms (network on person crops only) | 20.2 ms | 19.8 s | 26.8 s | 396 / 508 | 298 / 344 | 286 / 476 | 230 |
 | rtmw-m | 1080x1920 | 11.2 ms | 6.23 ms | 3.34 ms (network on person crops only) | 7.54 ms | 18.7 s | 23.1 s | 189 / 224 | 183 / 202 | 184 / 268 | 98 |

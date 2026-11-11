@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 
+from fastforks._core import registry
 from fastforks._core.errors import InputError
 from fastforks.pose import _api
 from fastforks.pose._runner import BUCKETS, in_buckets
@@ -41,17 +42,20 @@ def test_boxes_whose_size_overflows_float32_are_rejected():
         _api._boxes_tensor([[-3e38, -3e38, 3e38, 3e38]], torch.device("cpu"))
 
 
-@pytest.mark.parametrize(("count", "labels"), [(17, "coco-keypoints-17.txt"), (133, "coco-wholebody-133.txt")])
-def test_flip_table_swaps_left_and_right(count, labels):
-    names = (resources.files("fastforks._core") / "labels" / labels).read_text().split()
-    flip = rtmpose.FLIP[count]
-    assert len(names) == len(flip) == count
-    assert [flip[i] for i in flip] == list(range(count))  # an involution
+@pytest.mark.parametrize("labels", sorted(rtmpose.FLIP))
+def test_flip_table_swaps_left_and_right(labels):
+    names = (resources.files("fastforks._core") / "labels" / f"{labels}.txt").read_text().split()
+    flip = rtmpose.FLIP[labels]
+    assert len(names) == len(flip)
+    assert [flip[i] for i in flip] == list(range(len(names)))  # an involution
     for i, name in enumerate(names):
         if name.startswith("left_"):
             assert names[flip[i]] == "right_" + name[5:], name
         elif name.startswith("right_"):
             assert names[flip[i]] == "left_" + name[6:], name
+
+
+LABELS = {17: "coco-keypoints-17", 133: "coco-wholebody-133"}
 
 
 def _logits(net: RTMPose, params: rtmpose.Params, crops: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -60,7 +64,7 @@ def _logits(net: RTMPose, params: rtmpose.Params, crops: torch.Tensor) -> tuple[
         net=net,
         mean=torch.tensor(rtmpose.MEAN).view(1, 3, 1, 1),
         std=torch.tensor(rtmpose.STD).view(1, 3, 1, 1),
-        flip=torch.tensor(rtmpose.FLIP[params.keypoints]),
+        flip=torch.tensor(rtmpose.FLIP[LABELS[params.keypoints]]),
         ctx=SimpleNamespace(params=params, torch_dtype=torch.float32),
     )
     with torch.inference_mode():
@@ -74,7 +78,7 @@ def test_flip_test_of_the_mirrored_crop_gives_the_mirrored_logits(keypoints, nec
     on, off = (rtmpose.Params(**arch, flip_test=flag) for flag in (True, False))
     net = RTMPose(on).eval()
     crops = (torch.rand(2, 3, 256, 192) * 255).round()
-    flip = torch.tensor(rtmpose.FLIP[keypoints])
+    flip = torch.tensor(rtmpose.FLIP[LABELS[keypoints]])
 
     def mirrored(sx: torch.Tensor, sy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return sx.index_select(1, flip).flip(-1), sy.index_select(1, flip)  # left <-> right, the x bins reversed
@@ -103,6 +107,18 @@ def test_skeleton_joins_named_neighbours(count, labels):
     for a, b in limbs:
         if "hand_root" in names[a] or "finger" in names[a] or "thumb" in names[a]:
             assert names[a].split("_")[0] == names[b].split("_")[0], (names[a], names[b])  # one hand per limb
+
+
+def test_every_pose_label_set_has_limbs_and_a_flip_table():
+    used = {v.output_info["label_set"] for _, v in registry.cards("pose").values()}
+    assert used <= set(_api.SKELETONS)
+    assert {v.output_info["label_set"] for c, v in registry.cards("pose").values() if c.family == "rtmpose"} == set(
+        rtmpose.FLIP
+    )
+    for labels, limbs in _api.SKELETONS.items():
+        count = len((resources.files("fastforks._core") / "labels" / f"{labels}.txt").read_text().split())
+        assert len(set(limbs)) == len(limbs), labels
+        assert all(0 <= a < count and 0 <= b < count and a != b for a, b in limbs), labels
 
 
 @pytest.mark.parametrize("people", [1, 3, 32, 33, 70])

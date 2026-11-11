@@ -3,9 +3,10 @@
 Per person box (`x0, y0, x1, y1`):
 
 - crop (`GetBBoxCenterScale` + `TopdownAffine`): the box centre, its size x 1.25 with the shorter side widened to
-  the network's 3 : 4 aspect; output pixel `(u, v)` samples `centre + ((u, v) - (w, h) / 2) * size / (w, h)`
-  bilinearly, the way OpenCV `warpAffine` does: source coordinates in 1/32 px, pixels outside the image count as 0
-  and blend in at the border, the crop rounded to uint8. Not bit-exact with OpenCV 4.10 (900 random boxes, measured):
+  the network's aspect (3 : 4; hand, face and animal models 1 : 1); output pixel `(u, v)` samples
+  `centre + ((u, v) - (w, h) / 2) * size / (w, h)` bilinearly, the way OpenCV `warpAffine` does: source coordinates
+  in 1/32 px, pixels outside the image count as 0 and blend in at the border, the crop rounded to uint8.
+  Not bit-exact with OpenCV 4.10 (900 random boxes, measured):
   rows and columns whose coordinate sits at a 1/32 rounding tie land one step off (OpenCV rounds a row's offset and
   step together, `_fixed` one by one), 0.4 % of the pixels of a noise image (up to 11 levels) and 0.02 % of a
   smooth one (up to 5); `crop` itself is the exact bilinear blend at its coordinates. RGB normalised with the
@@ -29,7 +30,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 import torch.nn.functional as F
 
-from fastforks._core.checkpoint import NUMPY_ARRAYS, latin1_encode
+from fastforks._core.checkpoint import NUMPY_ARRAYS, empty_bytes, latin1_encode
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._optimize import conv_ops, ops, optimize
@@ -46,17 +47,27 @@ MEAN = (123.675, 116.28, 103.53)  # fixed: reference data_preprocessor mean (RGB
 STD = (58.395, 57.12, 57.375)  # fixed: reference data_preprocessor std (RGB, 0..255)
 WARP_BITS = 5  # fixed: OpenCV INTER_BITS (bilinear source coordinates in 1/32 px)
 AB_BITS = 10  # fixed: OpenCV AB_BITS (warpAffine fixed point before the 1/32 rounding)
-# Left / right partner of each keypoint by keypoint count (`flip_indices` of the reference dataset metas)
+# Left / right partner of each keypoint by label set (`flip_indices` of the reference dataset metas)
 # fmt: off
-FLIP = {  # fixed: label sets coco-keypoints-17 and coco-wholebody-133 (body, feet, face, left hand, right hand)
-    17: (0, 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15),
-    133: (
+FLIP = {  # fixed: the label sets' keypoint order
+    "coco-keypoints-17": (0, 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15),
+    "coco-wholebody-133": (  # body, feet, face, left hand, right hand
         0, 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 20, 21, 22, 17, 18, 19, 39, 38, 37, 36, 35, 34,
         33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 50, 51, 52, 53, 58, 57,
         56, 55, 54, 68, 67, 66, 65, 70, 69, 62, 61, 60, 59, 64, 63, 77, 76, 75, 74, 73, 72, 71, 82, 81, 80, 79, 78,
         87, 86, 85, 84, 83, 90, 89, 88,
         *range(112, 133), *range(91, 112),
     ),
+    "halpe-26": (
+        0, 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 17, 18, 19, 21, 20, 23, 22, 25, 24,
+    ),
+    "coco-wholebody-hand-21": tuple(range(21)),  # one hand: the mirrored crop keeps every keypoint
+    "lapa-106": (
+        *range(32, -1, -1), 46, 45, 44, 43, 42, 50, 49, 48, 47, 37, 36, 35, 34, 33, 41, 40, 39, 38, 51, 52, 53, 54,
+        *range(65, 54, -1), 79, 78, 77, 76, 75, 82, 81, 80, 83, 70, 69, 68, 67, 66, 73, 72, 71, 74,
+        *range(90, 83, -1), *range(95, 90, -1), *range(100, 95, -1), 103, 102, 101, 105, 104,
+    ),
+    "ap10k-17": (1, 0, 2, 3, 4, 8, 9, 10, 5, 6, 7, 14, 15, 16, 11, 12, 13),
 }
 # fmt: on
 
@@ -132,7 +143,7 @@ class Portable(Runner):
         self.net = net.eval().to(ctx.device, ctx.torch_dtype)
         self.mean = torch.tensor(MEAN, device=ctx.device).view(1, 3, 1, 1)
         self.std = torch.tensor(STD, device=ctx.device).view(1, 3, 1, 1)
-        self.flip = torch.tensor(FLIP[a.keypoints], device=ctx.device)
+        self.flip = torch.tensor(FLIP[ctx.variant.output_info["label_set"]], device=ctx.device)
         self.net_size = torch.tensor([a.width, a.height], device=ctx.device, dtype=torch.float32)
         if ctx.device.type == "mps":  # MPS reduces over two axes ~30x slower than over one (same result)
             for m in self.net.modules():
@@ -313,8 +324,8 @@ def _attention_mps(self: Attention, x: torch.Tensor) -> torch.Tensor:
 
 
 def extra() -> dict[tuple[str, str], object]:
-    """What the mmpose checkpoints pickle besides tensors: the meta's numpy arrays and their latin-1 byte strings."""
-    return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode}
+    """What the mmpose checkpoints pickle besides tensors: the meta's numpy arrays and their byte strings."""
+    return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode, ("__builtin__", "bytes"): empty_bytes}
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}

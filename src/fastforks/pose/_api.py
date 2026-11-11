@@ -48,6 +48,16 @@ SKELETONS: dict[str, tuple[tuple[int, int], ...]] = {  # limbs as keypoint index
         " 112-113 113-114 114-115 115-116 112-117 117-118 118-119 119-120 112-121 121-122 122-123 123-124"
         " 112-125 125-126 126-127 127-128 112-129 129-130 130-131 131-132"
     ),
+    # mmpose `halpe26.py`, `coco_wholebody_hand.py`, `ap10k.py` `skeleton_info`; `lapa.py` has none (face landmarks)
+    "halpe-26": _pairs(
+        "15-13 13-11 11-19 16-14 14-12 12-19 17-18 18-19 18-5 5-7 7-9 18-6 6-8 8-10 1-2 0-1 0-2 1-3 2-4 3-5 4-6"
+        " 15-20 15-22 15-24 16-21 16-23 16-25"
+    ),
+    "coco-wholebody-hand-21": _pairs(
+        "0-1 1-2 2-3 3-4 0-5 5-6 6-7 7-8 0-9 9-10 10-11 11-12 0-13 13-14 14-15 15-16 0-17 17-18 18-19 19-20"
+    ),
+    "lapa-106": (),
+    "ap10k-17": _pairs("0-1 0-2 1-2 2-3 3-4 3-5 5-6 6-7 3-8 8-9 9-10 4-11 11-12 12-13 4-14 14-15 15-16"),
 }
 
 BoxesLike = torch.Tensor | np.ndarray | Sequence[Sequence[float]] | Instances

@@ -52,7 +52,7 @@ class Arch:
 
     deepen: float  # CSPNeXt depth factor (blocks per stage)
     widen: float  # CSPNeXt width factor (channels)
-    keypoints: int  # SimCC outputs (17 COCO keypoints)
+    keypoints: int  # SimCC outputs (the variant's label set)
     height: int  # network input height
     width: int  # network input width
     neck: bool  # RTMW: PAFPN neck + the two-scale head

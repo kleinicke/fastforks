@@ -41,6 +41,7 @@ __all__ = [
     "NUMPY_ARRAYS",
     "CheckpointMismatchError",
     "Inert",
+    "empty_bytes",
     "latin1_encode",
     "load_state_dict",
     "load_strict",
@@ -95,6 +96,17 @@ def latin1_encode(obj: str, encoding: str = "latin1") -> bytes:
         )
         raise WeightsError(msg)
     return obj.encode("latin-1")
+
+
+def empty_bytes(*args: object) -> bytes:
+    """The `__builtin__.bytes` of a protocol-2 pickle of `b""` (`_codecs.encode` covers every other `bytes`)."""
+    if args:
+        msg = (
+            "the checkpoint calls bytes with arguments; it is not a plain weights file. Re-save the tensors with "
+            "torch.save(model.state_dict(), path)"
+        )
+        raise WeightsError(msg)
+    return b""
 
 
 def numeric_scalar(dtype: np.dtype, obj: object) -> object:

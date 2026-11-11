@@ -41,6 +41,24 @@ sha256 = "99341f9c99bf72964ad4912c0d461440cdb9d79e88046fc3378694b347255480"
 upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
 settings = "CPU float32, mmpose inference_topdown (body8 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1"
 
+[refs."rtmpose-l-halpe26-384@1"]
+gpu_mean_portable = 0.21
+gpu_p99_portable = 1.2
+gpu_mean_kernels = 0.22
+gpu_p99_kernels = 1.2
+sha256 = "baa006bb124b3ec2852575d398e55859e63f725fa6bd5e33998aa1b1950c78ff"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (halpe26 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
+
+[refs."rtmpose-l-halpe26@1"]
+gpu_mean_portable = 0.16
+gpu_p99_portable = 1.8
+gpu_mean_kernels = 0.31
+gpu_p99_kernels = 1.8
+sha256 = "9121b0b1c4f69d2686f770c0044bebfaac917357999ccd59574761846ee7d0d3"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (halpe26 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
+
 [refs."rtmpose-l@1"]
 sha256 = "506f10b5e02aafb6629d57e6c4be41b85f7a9104cfffb2be92f6cbc2cf21e9f4"
 upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
@@ -51,20 +69,110 @@ sha256 = "b51ac808ba6e16ba15f3eb36fe87f83012cc576f74d5e319243b702e5bf377b1"
 upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
 settings = "CPU float32, mmpose inference_topdown (body8 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1"
 
+[refs."rtmpose-m-ap10k@1"]
+gpu_mean_portable = 0.69
+gpu_p99_portable = 7.8
+gpu_mean_kernels = 0.8
+gpu_p99_kernels = 7.2
+sha256 = "0df253de5a90306b0b8784107362be84292963e4850174b0369cbed0baf5617c"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (ap10k config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
+
+[refs."rtmpose-m-face6@1"]
+gpu_mean_portable = 0.079
+gpu_p99_portable = 1.8
+gpu_mean_kernels = 0.12
+gpu_p99_kernels = 1.8
+sha256 = "982cf6a152a45cb10674ca9111dfbb0aac589d428bd0ae62e69ec58059014cc8"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (face6 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
+
+[refs."rtmpose-m-halpe26-384@1"]
+gpu_mean_portable = 0.16
+gpu_p99_portable = 1.2
+gpu_mean_kernels = 0.25
+gpu_p99_kernels = 2.3
+sha256 = "045a1641b18bb1dec46a85124c918b516055ad5a457df56bf81cb778134c1ab4"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (halpe26 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
+
+[refs."rtmpose-m-halpe26@1"]
+gpu_mean_portable = 0.17
+gpu_p99_portable = 1.8
+gpu_mean_kernels = 0.37
+gpu_p99_kernels = 2.7
+sha256 = "81a02c401bd4dd89b53d65667db0924188d4ed91960eb595820e4c8cec9a33da"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (halpe26 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
+
+[refs."rtmpose-m-hand5@1"]
+gpu_mean_portable = 0.26
+gpu_p99_portable = 1.8
+gpu_mean_kernels = 0.6
+gpu_p99_kernels = 4.0
+sha256 = "f3de3132dde8929c2848ed25b43ae2d5fbd5891259405a9a239d0bf838a9123e"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (hand5 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
+
 [refs."rtmpose-m@1"]
 sha256 = "af7b10e76511ac99e696ebfa4b40b045ecebcf0067803b7081a22f5fd6c77cd5"
 upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
 settings = "CPU float32, mmpose inference_topdown (body8 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1"
+
+[refs."rtmpose-s-face6@1"]
+gpu_mean_portable = 0.061
+gpu_p99_portable = 1.8
+gpu_mean_kernels = 0.17
+gpu_p99_kernels = 1.8
+sha256 = "dc4a5381234f461e3e8c5e4666c8e8df9e8250c065a5144ed2fb7bd8294a7e74"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (face6 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
+
+[refs."rtmpose-s-halpe26@1"]
+gpu_mean_portable = 2.0
+gpu_p99_portable = 39.0
+gpu_mean_kernels = 2.2
+gpu_p99_kernels = 42.0
+sha256 = "daa9f104933ec9637b626c034db3a66f2a05d1e015331481d4891efaa0f4c0fd"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (halpe26 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
 
 [refs."rtmpose-s@1"]
 sha256 = "463d3ebe80b1bcd8539b12e212d49eb2c8dfb0fe00352a88323979fcd663289c"
 upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
 settings = "CPU float32, mmpose inference_topdown (body8 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1"
 
+[refs."rtmpose-t-face6@1"]
+gpu_mean_portable = 0.12
+gpu_p99_portable = 1.8
+gpu_mean_kernels = 0.19
+gpu_p99_kernels = 1.8
+sha256 = "9301e2689ee530f1ebea160b97d40013b9f7053ac74b38bb31ee3f580a559dd3"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (face6 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
+
+[refs."rtmpose-t-halpe26@1"]
+gpu_mean_portable = 0.38
+gpu_p99_portable = 7.2
+gpu_mean_kernels = 0.77
+gpu_p99_kernels = 7.2
+sha256 = "fb6fee12f191a3a1fba693b78fe1e6461c250f6e5fc11f54be346b34095990bd"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (halpe26 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
+
 [refs."rtmpose-t@1"]
 sha256 = "5d46db87aed6de11cfa5de176f780184949e66dfe2e6818656770f85c9a10d7c"
 upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
 settings = "CPU float32, mmpose inference_topdown (body8 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1"
+
+[refs."rtmpose-x-halpe26-384@1"]
+gpu_mean_portable = 0.2
+gpu_p99_portable = 4.1
+gpu_mean_kernels = 0.23
+gpu_p99_kernels = 1.2
+sha256 = "741ec443572b31ac31f6a0161796a6f4f6a8498a41d51e469e0c6b129d5bab66"
+upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
+settings = "CPU float32, mmpose inference_topdown (halpe26 config, flip_test off), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, 2 xyxy boxes, torch 2.14.1+cu130"
 
 [refs."rtmw-l-384@1"]
 gpu_mean_portable = 1.9
@@ -165,6 +273,24 @@ date = "2026-11-09"
 mean_px = 0.2774
 p99_px = 0.79916
 
+[validated."rtmpose-l-halpe26-384@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.14576
+p99_px = 0.79916
+
+[validated."rtmpose-l-halpe26@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.20565
+p99_px = 1.19873
+
 [validated."rtmpose-l@1"]
 kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
 symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
@@ -183,6 +309,51 @@ date = "2026-11-11"
 mean_px = 0.32639
 p99_px = 2.09004
 
+[validated."rtmpose-m-ap10k@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.52728
+p99_px = 4.73499
+
+[validated."rtmpose-m-face6@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.07662
+p99_px = 1.19873
+
+[validated."rtmpose-m-halpe26-384@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.16174
+p99_px = 1.48645
+
+[validated."rtmpose-m-halpe26@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.24452
+p99_px = 1.78611
+
+[validated."rtmpose-m-hand5@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.39958
+p99_px = 2.61323
+
 [validated."rtmpose-m@1"]
 kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
 symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
@@ -191,6 +362,24 @@ torch = "2.14.1+cu130"
 date = "2026-11-11"
 mean_px = 0.14799
 p99_px = 1.19873
+
+[validated."rtmpose-s-face6@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.10929
+p99_px = 1.19873
+
+[validated."rtmpose-s-halpe26@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 1.41323
+p99_px = 27.36431
 
 [validated."rtmpose-s@1"]
 kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
@@ -201,6 +390,24 @@ date = "2026-11-09"
 mean_px = 0.35962
 p99_px = 2.04983
 
+[validated."rtmpose-t-face6@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.12106
+p99_px = 1.19873
+
+[validated."rtmpose-t-halpe26@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.51209
+p99_px = 4.77095
+
 [validated."rtmpose-t@1"]
 kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
 symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
@@ -209,6 +416,15 @@ torch = "2.14.1+cu130"
 date = "2026-11-09"
 mean_px = 0.40835
 p99_px = 2.02585
+
+[validated."rtmpose-x-halpe26-384@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "fvm_extra" = {"fvm_rope_qk" = "4b651277c64b0640", "fvm_swiglu_ln" = "421e3a5ccaa843d8"}, "fvm_mb" = {"fvm_chan_gather" = "89c8e2bad19cad0e", "fvm_dwmult" = "d0c83919bcaa3245", "fvm_gconv" = "06e648dd6b48cabd", "fvm_linattn2" = "3eca1c14bc49fec0", "fvm_mbconv" = "eefb333b1cee1458", "fvm_stem_direct" = "10d03e89ba78c264", "fvm_xdw" = "b376126d55e0a024"}, "fvm_r3" = {"fvm_dwconv2" = "3cab8c9eb3b95455", "fvm_gconv2" = "0227f4ed46cecd96", "fvm_pw" = "9f8b41dcb241d937", "fvm_se_scale" = "c94d2a298f54d2d9", "fvm_stem_pool" = "fe0c11e5be5205a2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-11"
+mean_px = 0.15131
+p99_px = 0.79918
 
 [validated."rtmw-l-384@1"]
 kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120", "fvm_extra@3208ce525a91:sm_120", "fvm_mb@720dd3f29bf7:sm_120", "fvm_r3@f54eb890e23c:sm_120"]

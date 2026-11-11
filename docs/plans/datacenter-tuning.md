@@ -264,3 +264,18 @@ SimCC peak flips on confident joints. Retain this accuracy check when tuning ten
 The current recipe matches portable throughput on the 5060 Ti; larger GPUs may benefit from fused fp32
 accumulation and epilogues. Accuracy rows evaluate the first 17 COCO body joints with GT boxes, without flip test;
 whole-body/face/hand accuracy requires the corresponding datasets and is not claimed by those rows.
+
+## RTMPose model zoo
+
+Halpe, hand, face and animal checkpoints reuse the existing CSPNeXt/SimCC kernels. Batch the appropriate
+object boxes and tune crop buckets for the deployment's distribution; hand/face/animal models use square crops.
+Halpe26's COCO rows score only the first 17 body joints. Hand, face and AP-10K goldens establish upstream
+parity on the fixture, not task accuracy on unstaged datasets. The S-Halpe fixture contains an out-of-frame
+knee with competing edge peaks; preserve real-image accuracy comparisons when changing accumulation precision.
+
+For S-Halpe26, knee 13 in the first (upper-body) golden crop has y-bin 511 at the crop edge, with bin 460
+only 0.51% below it in upstream fp32. Folded fp16 swaps those peaks; the point is outside the observed body.
+Measured portable mean/p99 is 1.322/25.604 px and kernels 1.413/27.364 px. Its initial per-mode bounds are
+1.5 times those measurements rounded up to two significant figures, without changing the family bounds.
+On the same 500 COCO images, original fp32/fp16 score 71.44/71.30 AP and portable/kernels 71.36/71.24.
+No golden hash, input or output was changed for this calibration.
