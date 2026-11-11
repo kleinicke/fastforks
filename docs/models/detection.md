@@ -167,7 +167,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mask-rcnn-r50-fpn-3x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels | 85.4<br>43.5<br>24.6<br>21.0 | 1601 / 1918<br>604 / 650<br>352 / 440<br>353 / 400 |
+| `mask-rcnn-r50-fpn-3x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.4<br>43.5<br>24.6<br>21.0<br>21.5<br>5.34 (backbone + FPN only) | 1601 / 1918<br>604 / 650<br>352 / 440<br>353 / 400<br>333 / 358<br>258 (engine) |
 | `faster-rcnn-r50-fpn-3x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 83.6<br>41.4<br>22.8<br>19.5<br>18.9<br>5.35 (backbone + FPN only) | 1591 / 1898<br>626 / 708<br>390 / 490<br>391 / 450<br>413 / 438<br>258 (engine) |
 
 <details><summary>Details</summary>
@@ -184,6 +184,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels, masks; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mask-rcnn-r50-fpn-3x-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved); `faster-rcnn-r50-fpn-3x-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved)
+- `mask-rcnn-r50-fpn-3x-coco` 800x1344, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 18 s (ONNX + engine).
 - `faster-rcnn-r50-fpn-3x-coco` 800x1344, first call: portable + torch.compile 26 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
 - `mask-rcnn-r50-fpn-3x-coco` original 800x1344: torch.autocast(fp16) around the forward
 - `faster-rcnn-r50-fpn-3x-coco` original 800x1344: torch.autocast(fp16) around the forward

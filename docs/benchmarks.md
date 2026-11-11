@@ -1330,28 +1330,48 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | aanet-sceneflow | 994x1482 | 140 ms | 91.8 ms | 91.2 ms | 101 ms | 79.9 s | 211 s | 845 / 986 | 754 / 928 | 536 / 644 | 482 |
 | bridgedepth-sf | 994x1482 | 437 ms | 325 ms | fails: TensorRT bug: Myelin internal error | 348 ms | 111 s | – | 2916 / 3214 | 2280 / 2308 | 2310 / 2634 | – |
 | c-fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 451 ms | 135 ms | 75.4 s | 240 s | 2109 / 2336 | 1649 / 1792 | 1196 / 1516 | 1252 |
+| c-foundationstereo-s | 994x1482 | 3646 ms | fails: Dynamo guard error (torch bug) | – | 1362 ms | – | – | 6312 / 6590 | – | 3107 / 4376 | – |
 | cas-gwcnet-c-sceneflow | 994x1482 | 327 ms | 295 ms | 220 ms | 225 ms | 61.7 s | 131 s | 2006 / 2474 | 2098 / 2448 | 1725 / 1930 | 1440 |
+| cas-gwcnet-gc-sceneflow | 994x1482 | 472 ms | 383 ms | 307 ms | 358 ms | 63.7 s | 98.6 s | 2338 / 2794 | 6592 / 6670 | 2272 / 2514 | 4046 |
 | cfnet-sceneflow | 994x1482 | 484 ms | 249 ms | 171 ms | 401 ms | 53.0 s | 139 s | 3441 / 4376 | 1026 / 1398 | 3662 / 4718 | 1238 |
 | coex-sceneflow | 994x1482 | 49.9 ms | 29.4 ms | 20.6 ms | 23.5 ms | 22.4 s | 56.6 s | 1136 / 1254 | 351 / 452 | 495 / 886 | 360 |
 | crestereo-eth3d | 994x1482 | 732 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 884 / 1030 | 695 / 748 | 644 / 732 | 584 |
 | defom-stereo-vitl-sceneflow | 994x1482 | 1531 ms | 1002 ms | fails: TensorRT bug: Myelin internal error | 659 ms | 122 s | – | 4362 / 4838 | 3021 / 3292 | 3154 / 3566 | – |
 | dlnr-sceneflow | 994x1482 | 398 ms | 301 ms | 241 ms | 214 ms | 69.0 s | 161 s | 2635 / 3142 | 1343 / 1672 | 1236 / 1606 | 1492 |
+| fast-acvnet-generalization | 994x1482 | 54.7 ms | 36.4 ms | 36.1 ms | 38.2 ms | 41.9 s | 68.4 s | 664 / 736 | 549 / 678 | 739 / 1042 | 492 |
 | fast-acvnet-sceneflow | 994x1482 | 54.7 ms | 36.2 ms | 36.7 ms | 38.2 ms | 41.8 s | 71.3 s | 664 / 736 | 584 / 698 | 739 / 1042 | 484 |
+| fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 156 ms | 135 ms | 78.4 s | 157 s | 2109 / 2256 | 1613 / 1752 | 1196 / 1576 | 1168 |
 | foundationstereo-vit-s | 994x1482 | 2514 ms | 2044 ms | 1196 ms | 1120 ms | 212 s | 545 s | 2493 / 2606 | 2822 / 3646 | 2169 / 2470 | 2570 |
 | great-igev-eth3d | 994x1482 | 1085 ms | 829 ms | 940 ms | 393 ms | 224 s | 685 s | 1402 / 1678 | 2831 / 3362 | 1192 / 1564 | 6018 |
+| great-igev-kitti | 994x1482 | 1085 ms | 830 ms | – | 393 ms | 225 s | – | 1402 / 1678 | 2831 / 3362 | 1192 / 1564 | – |
+| great-igev-sceneflow | 994x1482 | 1085 ms | 830 ms | – | 393 ms | 224 s | – | 1402 / 1678 | 2831 / 3362 | 1192 / 1564 | – |
 | gwcnet-g-sceneflow | 994x1482 | 344 ms | 417 ms | 275 ms | 238 ms | 52.6 s | 66.0 s | 2081 / 2402 | 1527 / 1864 | 1799 / 2102 | 3548 |
 | hitnet-eth3d | 994x1482 | 67.8 ms | 27.7 ms | 31.1 ms | 23.2 ms | 39.1 s | 136 s | 860 / 1090 | 719 / 728 | 647 / 1248 | 836 |
 | igev-plusplus-eth3d | 994x1482 | 1081 ms | 716 ms | 494 ms | 393 ms | 159 s | 425 s | 1594 / 1840 | 952 / 1074 | 1389 / 2302 | 3632 |
+| igev-plusplus-kitti12 | 994x1482 | 1081 ms | 718 ms | – | 393 ms | 158 s | – | 1594 / 1840 | 917 / 1054 | 1389 / 2302 | – |
+| igev-plusplus-kitti15 | 994x1482 | 1081 ms | 718 ms | – | 393 ms | 159 s | – | 1594 / 1840 | 917 / 1052 | 1389 / 2302 | – |
+| igev-plusplus-middlebury | 994x1482 | 1081 ms | 718 ms | – | 393 ms | 157 s | – | 1594 / 1840 | 917 / 1054 | 1389 / 2302 | – |
+| igev-plusplus-sceneflow | 994x1482 | 1081 ms | 718 ms | – | 393 ms | 158 s | – | 1594 / 1840 | 917 / 1054 | 1389 / 2302 | – |
 | igev-stereo-eth3d | 994x1482 | 763 ms | 527 ms | 339 ms | 288 ms | 111 s | 213 s | 1237 / 1492 | 807 / 1052 | 1113 / 1374 | 1220 |
+| igev-stereo-middlebury | 994x1482 | 763 ms | 527 ms | 338 ms | 288 ms | 110 s | 214 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1186 |
+| igev-stereo-sceneflow | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 111 s | 216 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1186 |
+| las2-h | 994x1482 | 123 ms | 75.0 ms | fails: TensorRT bug: Myelin internal error | 53.3 ms | 37.5 s | – | 1050 / 1110 | 579 / 724 | 1021 / 1388 | – |
+| las2-l | 994x1482 | 80.3 ms | 46.6 ms | 23.4 ms | 29.9 ms | 30.5 s | 97.5 s | 1036 / 1098 | 385 / 432 | 397 / 600 | 214 |
+| las2-m | 994x1482 | 54.1 ms | 28.6 ms | 13.2 ms | 18.3 ms | 24.0 s | 98.3 s | 972 / 1026 | 252 / 300 | 329 / 572 | 228 |
 | las2-s | 994x1482 | 46.9 ms | 23.7 ms | 10.3 ms | 14.3 ms | 22.4 s | 86.9 s | 955 / 988 | 238 / 264 | 320 / 558 | 162 |
 | mocha-v2-sceneflow | 994x1482 | 1033 ms | 713 ms | 437 ms | 448 ms | 148 s | 361 s | 1632 / 1770 | 1122 / 1308 | 1587 / 1790 | 1098 |
+| monster-mix-all | 994x1482 | 1585 ms | 1098 ms | – | 668 ms | 105 s | – | 2336 / 2494 | 2081 / 2272 | 2356 / 2714 | – |
 | monster-plusplus-mix-all | 994x1482 | 1633 ms | 1126 ms | 697 ms | 698 ms | 109 s | 416 s | 2583 / 2918 | 2328 / 2532 | 2438 / 2760 | 2642 |
 | monster-sceneflow | 994x1482 | 1585 ms | 1096 ms | 671 ms | 668 ms | 103 s | 384 s | 2336 / 2494 | 2081 / 2272 | 2356 / 2714 | 2018 |
 | nmrf-sceneflow | 994x1482 | 216 ms | 161 ms | 184 ms | 196 ms | 84.8 s | 142 s | 1510 / 1552 | 854 / 1104 | 1022 / 1112 | 826 |
 | psmnet-sceneflow | 994x1482 | 340 ms | 440 ms | 669 ms | 232 ms | 60.0 s | 88.9 s | 2078 / 2442 | 1760 / 2082 | 1786 / 2122 | 1528 |
 | raft-stereo-eth3d | 994x1482 | 746 ms | 506 ms | 333 ms | 273 ms | 99.9 s | 132 s | 1388 / 1492 | 815 / 988 | 765 / 802 | 826 |
+| raft-stereo-middlebury | 994x1482 | 746 ms | 506 ms | 334 ms | 273 ms | 100 s | 132 s | 1388 / 1492 | 780 / 988 | 765 / 802 | 884 |
+| raft-stereo-sceneflow | 994x1482 | 746 ms | 507 ms | 333 ms | 273 ms | 100 s | 132 s | 1388 / 1492 | 780 / 988 | 765 / 802 | 886 |
 | rt-monster-plusplus-mix-all | 994x1482 | 113 ms | 77.0 ms | 44.1 ms | 94.1 ms | 69.4 s | 150 s | 2592 / 2646 | 2750 / 2942 | 2704 / 3976 | 952 |
+| s2m2-l | 994x1482 | 1015 ms | 650 ms | – | 376 ms | 144 s | – | 3245 / 3838 | 3169 / 3514 | 1249 / 1568 | – |
 | s2m2-s | 994x1482 | 348 ms | 186 ms | 137 ms | 113 ms | 95.9 s | 363 s | 1733 / 1930 | 1579 / 1710 | 686 / 820 | 980 |
+| s2m2-xl | 994x1482 | 1815 ms | 1298 ms | – | 682 ms | 153 s | – | 5228 / 6016 | 5594 / 6014 | 2092 / 2274 | – |
 | selective-igev-eth3d-finetune | 994x1482 | 998 ms | 691 ms | 461 ms | 349 ms | 126 s | 256 s | 1238 / 1488 | 919 / 1088 | 1109 / 1390 | 1148 |
 | waft-stereo-s | 994x1482 | 689 ms | 357 ms | 170 ms | 284 ms | 95.1 s | 152 s | 3293 / 3456 | 2024 / 2058 | 1113 / 1286 | 662 |
 | da3-giant-1.1 | 994x1482 | 81.8 ms | 64.3 ms | 37.2 ms | 44.2 ms | 47.2 s | 84.1 s | 2638 / 4608 | 2487 / 2528 | 2628 / 2710 | 2416 |
@@ -1359,6 +1379,7 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | da3metric-large | 994x1482 | 24.1 ms | 21.2 ms | 14.4 ms | 14.7 ms | 26.6 s | 58.2 s | 815 / 1328 | 792 / 828 | 811 / 868 | 756 |
 | da3mono-large | 994x1482 | 23.9 ms | 21.2 ms | 14.4 ms | 14.6 ms | 25.0 s | 52.3 s | 818 / 1328 | 792 / 828 | 814 / 868 | 754 |
 | da3nested-giant-large-1.1 | 994x1482 | 108 ms | 85.4 ms | 51.9 ms | 58.2 ms | 60.0 s | 154 s | 3275 / 5914 | 3124 / 3194 | 3271 / 3378 | 3136 |
+| depth-anything-v2-l | 994x1482 | 55.1 ms | 51.7 ms | 32.4 ms | 31.1 ms | 20.6 s | 43.5 s | 1026 / 1352 | 850 / 952 | 921 / 1034 | 868 |
 | depth-anything-v2-metric-hypersim-b | 994x1482 | 18.6 ms | 17.0 ms | 10.8 ms | 10.8 ms | 16.0 s | 32.0 s | 445 / 514 | 340 / 394 | 349 / 396 | 282 |
 | depth-anything-v2-metric-hypersim-l | 994x1482 | 54.5 ms | 51.3 ms | 32.3 ms | 31.7 ms | 20.2 s | 43.5 s | 1022 / 1092 | 850 / 910 | 917 / 1034 | 868 |
 | depth-anything-v2-metric-hypersim-s | 994x1482 | 7.66 ms | 6.67 ms | 4.47 ms | 4.67 ms | 15.8 s | 29.8 s | 244 / 288 | 201 / 224 | 152 / 208 | 186 |
@@ -1374,6 +1395,7 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | metric3d-vit-large | 994x1482 | 200 ms | 149 ms | 91.4 ms | 158 ms | 54.7 s | 96.6 s | 1484 / 1696 | 1126 / 1148 | 1516 / 1688 | 1010 |
 | midas-dpt-beit-large-512 | 994x1482 | 78.8 ms | 58.8 ms | 52.2 ms | 63.9 ms | 32.6 s | 53.5 s | 992 / 1418 | 1088 / 1116 | 1003 / 1436 | 800 |
 | moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 760 |
+| moge-2-vitl-normal | 994x1482 | 144 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1661 / 1836 | 1411 / 1634 | 1498 / 1610 | 1164 |
 | moge-2-vits-normal | 994x1482 | 64.2 ms | 43.9 ms | 24.5 ms | 29.7 ms | 124 s | 131 s | 1066 / 1336 | 836 / 992 | 884 / 1008 | 620 |
 | unidepth-v2-vitl14 | 994x1482 | 99.8 ms | 96.4 ms | 64.3 ms | 66.4 ms | 31.1 s | 119 s | 1208 / 1472 | 1304 / 1392 | 1211 / 1472 | 1050 |
 | unik3d-vitl | 994x1482 | 108 ms | 94.4 ms | 58.0 ms | 62.9 ms | 32.8 s | 105 s | 1219 / 1492 | 1258 / 1312 | 1166 / 1266 | 846 |
@@ -1416,6 +1438,7 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | efficientformerv2_s1.snap_dist_in1k | 224x224 | 8.91 ms | 3.91 ms | 0.632 ms | – | 12.7 s | 41.2 s | 50 / 88 | 82 / 108 | – | 38 |
 | efficientformerv2_s2.snap_dist_in1k | 224x224 | 13.9 ms | 5.55 ms | 0.919 ms | – | 16.4 s | 38.9 s | 64 / 104 | 96 / 124 | – | 38 |
 | efficientnet_b0.tv_in1k | 224x224 | 4.98 ms | 2.88 ms | 0.536 ms | 0.769 ms | 9.12 s | 25.8 s | 48 / 96 | 80 / 96 | 78 / 118 | 38 |
+| efficientnet_b4.tv_in1k | 224x224 | 10.0 ms | 5.39 ms | 1.63 ms | 2.00 ms | 13.8 s | 34.9 s | 89 / 114 | 124 / 154 | 111 / 180 | 86 |
 | efficientnet_v2_s.tv_in1k | 224x224 | 10.2 ms | 5.39 ms | 1.35 ms | 1.89 ms | 12.1 s | 32.0 s | 81 / 106 | 116 / 146 | 114 / 188 | 74 |
 | efficientvit_b2.r288_in1k | 224x224 | 11.9 ms | 6.91 ms | 0.790 ms | 1.10 ms | 11.0 s | 35.3 s | 85 / 124 | 120 / 164 | 120 / 212 | 74 |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 18.0 ms | 14.9 ms | 12.4 ms | 14.1 ms | 21.0 s | 43.5 s | 648 / 1206 | 674 / 684 | 1236 / 1386 | 642 |
@@ -1451,6 +1474,7 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | repvit_m1_5.dist_450e_in1k | 224x224 | 8.71 ms | 4.93 ms | 0.760 ms | 1.19 ms | 10.1 s | 33.8 s | 62 / 94 | 94 / 114 | 62 / 94 | 34 |
 | repvit_m2_3.dist_300e_in1k | 224x224 | 11.1 ms | 6.51 ms | 1.03 ms | 1.66 ms | 11.9 s | 41.2 s | 80 / 128 | 112 / 148 | 79 / 130 | 72 |
 | repvit_m2_3.dist_450e_in1k | 224x224 | 10.9 ms | 6.49 ms | 1.03 ms | 1.70 ms | 11.8 s | 40.8 s | 80 / 128 | 112 / 148 | 79 / 130 | 72 |
+| resnet152.tv2_in1k | 224x224 | 8.36 ms | 4.55 ms | 1.09 ms | 1.83 ms | 8.82 s | 22.7 s | 155 / 186 | 185 / 240 | 182 / 266 | 134 |
 | resnet18.tv_in1k | 224x224 | 1.48 ms | 1.04 ms | 0.220 ms | 0.459 ms | 4.31 s | 14.0 s | 61 / 90 | 91 / 108 | 90 / 150 | 34 |
 | resnet50.tv2_in1k | 224x224 | 3.15 ms | 2.10 ms | 0.466 ms | 0.826 ms | 8.31 s | 24.0 s | 89 / 142 | 119 / 138 | 116 / 162 | 70 |
 | shufflenet_v2_x1_0.tv_in1k | 224x224 | 3.71 ms | 1.98 ms | 0.329 ms | 0.787 ms | 7.73 s | 16.9 s | 41 / 72 | 71 / 88 | 87 / 116 | 32 |
@@ -1493,11 +1517,14 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | sam-hq-vit-h | 1024x1024 | 217 ms | 187 ms | 125 ms (image encoder only) | 144 ms | 42.3 s | 69.1 s | 1500 / 1566 | 1476 / 1526 | 1541 / 1708 | 1474 |
 | sam-hq-vit-l | 1024x1024 | 118 ms | 97.0 ms | 68.3 ms (image encoder only) | 81.4 ms | 32.9 s | 53.3 s | 846 / 902 | 822 / 902 | 889 / 1046 | 796 |
 | sam-vit-b | 1024x1024 | 48.3 ms | 40.9 ms | 27.3 ms (image encoder only) | 37.0 ms | 14.5 s | 36.4 s | 378 / 420 | 362 / 400 | 377 / 420 | 322 |
+| sam-vit-h | 1024x1024 | 214 ms | 188 ms | fails: OSError: [Errno 122] Disk quota exceeded | 143 ms | 42.6 s | – | 1484 / 2524 | 1436 / 1484 | 1480 / 1524 | – |
+| sam-vit-l | 1024x1024 | 116 ms | 97.2 ms | 67.5 ms (image encoder only) | 81.5 ms | 32.9 s | 53.4 s | 833 / 1262 | 793 / 862 | 831 / 862 | 780 |
 | sam2.1-hiera-tiny | 1024x1024 | 16.6 ms | 14.2 ms | 8.56 ms (image encoder only) | 13.9 ms | 13.4 s | 34.1 s | 304 / 382 | 270 / 322 | 316 / 362 | 266 |
 | sam3 | 1024x1024 | 179 ms | 168 ms | 89.5 ms (image encoder only) | 116 ms | 20.0 s | 54.2 s | 1922 / 2004 | 1910 / 2004 | 2019 / 2264 | 1122 |
 | detr-r50-coco | 800x1344 | 12.4 ms | 9.27 ms | 4.40 ms | 9.93 ms | 21.7 s | 33.4 s | 280 / 332 | 233 / 292 | 218 / 272 | 182 |
 | dfine-n-coco | 800x1344 | 10.3 ms | 5.43 ms | 0.942 ms | 2.72 ms | 26.7 s | 51.5 s | 88 / 116 | 101 / 118 | 124 / 202 | 56 |
 | faster-rcnn-r50-fpn-3x-coco | 800x1344 | 22.8 ms | 18.9 ms | 5.35 ms (backbone + FPN only) | 19.5 ms | 26.0 s | 15.6 s | 390 / 490 | 413 / 438 | 391 / 450 | 258 |
+| mask-rcnn-r50-fpn-3x-coco | 800x1344 | 24.6 ms | 21.5 ms | 5.34 ms (backbone + FPN only) | 21.0 ms | 29.3 s | 18.3 s | 352 / 440 | 333 / 358 | 353 / 400 | 258 |
 | rtdetrv2-s-coco | 800x1344 | 8.04 ms | 4.22 ms | 1.81 ms | 4.19 ms | 37.0 s | 42.2 s | 134 / 166 | 152 / 182 | 155 / 250 | 98 |
 | rtmdet-l-coco | 800x1344 | 9.60 ms | 10.6 ms | 3.59 ms | 5.74 ms | 17.2 s | 25.0 s | 183 / 230 | 178 / 226 | 178 / 284 | 154 |
 | rtmdet-m-coco | 800x1344 | 7.69 ms | 4.78 ms | 2.39 ms | 4.49 ms | 15.7 s | 22.4 s | 114 / 148 | 115 / 130 | 122 / 200 | 84 |

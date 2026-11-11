@@ -233,8 +233,8 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 168<br>98.2<br>48.3<br>37.0<br>40.9<br>27.3 (image encoder only) | 2798 / 2832<br>1769 / 1802<br>378 / 420<br>377 / 420<br>362 / 400<br>322 (engine) |
-| `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 406<br>197<br>116<br>81.5 | 4428 / 4474<br>3411 / 3464<br>833 / 1262<br>831 / 862 |
-| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 734<br>306<br>214<br>143 | 5702 / 5754<br>5295 / 5404<br>1484 / 2524<br>1480 / 1524 |
+| `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 406<br>197<br>116<br>81.5<br>97.2<br>67.5 (image encoder only) | 4428 / 4474<br>3411 / 3464<br>833 / 1262<br>831 / 862<br>793 / 862<br>780 (engine) |
+| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 734<br>306<br>214<br>143<br>188<br>fails: OSError: [Errno 122] Disk quota exceeded | 5702 / 5754<br>5295 / 5404<br>1484 / 2524<br>1480 / 1524<br>1436 / 1484<br>– |
 
 <details><summary>Details</summary>
 
@@ -249,6 +249,8 @@ Commercial use: yes.
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 1024x1024 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam-vit-b` 1080x1920 (0.4 GiB peak allocated, 0.5 reserved); `sam-vit-l` 1080x1920 (0.8 GiB peak allocated, 1.0 reserved); `sam-vit-h` 1080x1920 (1.5 GiB peak allocated, 1.9 reserved)
 - `sam-vit-b` 1024x1024, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
+- `sam-vit-l` 1024x1024, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 53 s (ONNX + engine).
+- `sam-vit-h` 1024x1024, first call: portable + torch.compile 43 s (cold Inductor cache).
 - `sam-vit-b` original 1024x1024: torch.autocast(float16) around the call
 - `sam-vit-l` original 1024x1024: torch.autocast(float16) around the call
 - `sam-vit-h` original 1024x1024: torch.autocast(float16) around the call

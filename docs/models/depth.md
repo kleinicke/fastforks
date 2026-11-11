@@ -148,7 +148,7 @@ Commercial use: `depth-anything-v2-s`, `depth-anything-v2-metric-hypersim-s`, `d
 |---|---|---|---|---|
 | `depth-anything-v2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 53.6<br>41.0<br>7.82<br>4.51<br>6.65<br>4.46 | 407 / 478<br>373 / 418<br>249 / 326<br>190 / 248<br>201 / 224<br>186 (engine) |
 | `depth-anything-v2-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 93.6<br>63.2<br>18.8<br>10.5 | 858 / 940<br>928 / 1026<br>450 / 516<br>387 / 436 |
-| `depth-anything-v2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 245<br>140<br>55.1<br>31.1 | 2109 / 2326<br>2560 / 2654<br>1026 / 1352<br>921 / 1034 |
+| `depth-anything-v2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 245<br>140<br>55.1<br>31.1<br>51.7<br>32.4 | 2109 / 2326<br>2560 / 2654<br>1026 / 1352<br>921 / 1034<br>850 / 952<br>868 (engine) |
 | `depth-anything-v2-metric-hypersim-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 53.0<br>43.6<br>7.66<br>4.67<br>6.67<br>4.47 | 407 / 478<br>373 / 418<br>244 / 288<br>152 / 208<br>201 / 224<br>186 (engine) |
 | `depth-anything-v2-metric-hypersim-b` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 91.4<br>60.7<br>18.6<br>10.8<br>17.0<br>10.8 | 858 / 960<br>928 / 1026<br>445 / 514<br>349 / 396<br>340 / 394<br>282 (engine) |
 | `depth-anything-v2-metric-hypersim-l` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 246<br>141<br>54.5<br>31.7<br>51.3<br>32.3 | 2109 / 2326<br>2560 / 2654<br>1022 / 1092<br>917 / 1034<br>850 / 910<br>868 (engine) |
@@ -189,6 +189,7 @@ Commercial use: `depth-anything-v2-s`, `depth-anything-v2-metric-hypersim-s`, `d
   - `depth-anything-v2-metric-hypersim-s`, `depth-anything-v2-metric-hypersim-b`, `depth-anything-v2-metric-hypersim-l`, `depth-anything-v2-metric-vkitti-s`, `depth-anything-v2-metric-vkitti-b`, `depth-anything-v2-metric-vkitti-l`, `distill-any-depth-s`, `distill-any-depth-b`, `distill-any-depth-l`: any H x W >= 1, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depth-anything-v2-s` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `depth-anything-v2-b` 3000x4000 (0.8 GiB peak allocated, 0.9 reserved); `depth-anything-v2-l` 3000x4000 (1.8 GiB peak allocated, 2.2 reserved); `depth-anything-v2-metric-hypersim-s` not measured yet; `depth-anything-v2-metric-hypersim-b` not measured yet; `depth-anything-v2-metric-hypersim-l` not measured yet; `depth-anything-v2-metric-vkitti-s` not measured yet; `depth-anything-v2-metric-vkitti-b` not measured yet; `depth-anything-v2-metric-vkitti-l` not measured yet; `distill-any-depth-s` not measured yet; `distill-any-depth-b` not measured yet; `distill-any-depth-l` not measured yet
 - `depth-anything-v2-s` 994x1482, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
+- `depth-anything-v2-l` 994x1482, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 44 s (ONNX + engine).
 - `depth-anything-v2-metric-hypersim-s` 994x1482, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
 - `depth-anything-v2-metric-hypersim-b` 994x1482, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 32 s (ONNX + engine).
 - `depth-anything-v2-metric-hypersim-l` 994x1482, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 44 s (ONNX + engine).
@@ -548,7 +549,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>64.2<br>29.7<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1066 / 1336<br>884 / 1008<br>836 / 992<br>620 (engine) |
 | `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>83.9<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>1163 / 1312<br>1093 / 1208<br>972 / 1172<br>760 (engine) |
-| `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 501<br>171<br>144<br>73.4 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610 |
+| `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>144<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610<br>1411 / 1634<br>1164 (engine) |
 | `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 843<br>486<br>514<br>215 | 2812 / 2990<br>2505 / 2630<br>1686 / 1924<br>1673 / 1884 |
 
 <details><summary>Details</summary>
@@ -568,6 +569,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `moge-2-vits-normal` 3000x4000 (1.2 GiB peak allocated, 1.4 reserved); `moge-2-vitb-normal` not measured yet; `moge-2-vitl-normal` 3000x4000 (2.4 GiB peak allocated, 2.5 reserved); `moge-3-vitl` 3000x4000 (2.6 GiB peak allocated, 3.0 reserved)
 - `moge-2-vits-normal` 994x1482, first call: portable + torch.compile 124 s (cold Inductor cache), TensorRT fp16 131 s (ONNX + engine).
 - `moge-2-vitb-normal` 994x1482, first call: portable + torch.compile 133 s (cold Inductor cache), TensorRT fp16 127 s (ONNX + engine).
+- `moge-2-vitl-normal` 994x1482, first call: portable + torch.compile 152 s (cold Inductor cache), TensorRT fp16 173 s (ONNX + engine).
 - `moge-2-vits-normal` load / first call: original 0.88 s / 1.501 s, portable 0.35 s / 0.084 s, kernels 0.11† s / 0.099 s
 - `moge-2-vitb-normal` load / first call: original 1.26 s / 0.239 s, portable 0.49 s / 0.397 s (518x770), kernels 1.24 s / 0.285 s (518x770)
 - `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 1.37 s / 0.144 s, kernels 0.63† s / 0.131 s

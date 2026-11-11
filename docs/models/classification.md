@@ -797,7 +797,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `efficientnet_b0.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.64<br>7.91<br>4.98<br>0.769<br>2.88<br>0.536 | 64 / 78<br>64 / 84<br>48 / 96<br>78 / 118<br>80 / 96<br>38 (engine) |
-| `efficientnet_b4.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 11.1<br>15.7<br>10.0<br>2.00 | 156 / 190<br>147 / 174<br>89 / 114<br>111 / 180 |
+| `efficientnet_b4.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.1<br>15.7<br>10.0<br>2.00<br>5.39<br>1.63 | 156 / 190<br>147 / 174<br>89 / 114<br>111 / 180<br>124 / 154<br>86 (engine) |
 
 <details><summary>Details</summary>
 
@@ -814,6 +814,7 @@ Commercial use: yes.
   - `efficientnet_b4.tv_in1k`: fixed 380x380: the input is resized (short side 384) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientnet_b0.tv_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `efficientnet_b4.tv_in1k` 380x380 (0.1 GiB peak allocated, 0.1 reserved)
 - `efficientnet_b0.tv_in1k` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
+- `efficientnet_b4.tv_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `efficientnet_b0.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `efficientnet_b4.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `efficientnet_b0.tv_in1k` load / first call: original 1.25 s / 2.863 s, portable 0.17 s / 0.378 s, kernels 1.53 s / 0.063 s
@@ -1631,7 +1632,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `resnet18.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.91<br>2.44<br>1.48<br>0.459<br>1.04<br>0.220 | 94 / 130<br>105 / 130<br>61 / 90<br>90 / 150<br>91 / 108<br>34 (engine) |
 | `resnet50.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.74<br>5.84<br>3.15<br>0.826<br>2.10<br>0.466 | 148 / 162<br>180 / 192<br>89 / 142<br>116 / 162<br>119 / 138<br>70 (engine) |
-| `resnet152.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 12.8<br>16.3<br>8.36<br>1.83 | 280 / 288<br>378 / 390<br>155 / 186<br>182 / 266 |
+| `resnet152.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.8<br>16.3<br>8.36<br>1.83<br>4.55<br>1.09 | 280 / 288<br>378 / 390<br>155 / 186<br>182 / 266<br>185 / 240<br>134 (engine) |
 
 <details><summary>Details</summary>
 
@@ -1649,6 +1650,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resnet18.tv_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `resnet50.tv2_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `resnet152.tv2_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved)
 - `resnet18.tv_in1k` 224x224, first call: portable + torch.compile 4 s (cold Inductor cache), TensorRT fp16 14 s (ONNX + engine).
 - `resnet50.tv2_in1k` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 24 s (ONNX + engine).
+- `resnet152.tv2_in1k` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 23 s (ONNX + engine).
 - `resnet18.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `resnet50.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `resnet152.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
