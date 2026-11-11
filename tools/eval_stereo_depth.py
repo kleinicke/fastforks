@@ -257,7 +257,8 @@ def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, P
     out = Path(a.out) / a.task
     out.mkdir(parents=True, exist_ok=True)
     src = stereo_items if a.task == "stereo" else depth_items
-    items = [(ds, k, ld) for ds in DATASETS[a.task] for k, ld in src(ds)[: a.limit or None]]
+    sets = a.datasets.split(",") if a.datasets else DATASETS[a.task]
+    items = [(ds, k, ld) for ds in sets for k, ld in src(ds)[: a.limit or None]]
     again = False
     for tier in a.tiers.split(","):
         if tier == "upstreamhalf":
@@ -385,6 +386,7 @@ def main() -> None:
     ap.add_argument("--max-seconds", type=float, default=150.0)
     ap.add_argument("--build-reserve", type=float, default=60.0, help="no new tier after max-seconds minus this")
     ap.add_argument("--limit", type=int, default=0, help="first N items per dataset (pilot runs)")
+    ap.add_argument("--datasets", default="", help="comma-separated subset of the task's datasets (default: all)")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     if a.cmd == "rows":

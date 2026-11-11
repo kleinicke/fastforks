@@ -402,12 +402,12 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
-| `marigold-depth-v1-1` | NYUv2 test, AbsRel / delta1 | 0.0558 / 0.9693 | 0.0558 / 0.9694 | 0.0561 / 0.9703 | 0.0561 / 0.9703 |  |
-| `marigold-depth-v1-1` | iBims-1, AbsRel / delta1 | 0.0498 / 0.9717 | 0.0498 / 0.9717 | 0.0499 / 0.9722 | 0.0499 / 0.9721 |  |
-| `marigold-depth-v1-1` | ETH3D two-view train left, AbsRel / delta1 | 0.1075 / 0.8741 | 0.1075 / 0.8741 | 0.1141 / 0.8715 | 0.1141 / 0.8715 | possibly in the training data |
-| `marigold-depth-v1-1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0409 / 0.9909 | 0.0409 / 0.9909 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | possibly in the training data |
+| `marigold-depth-v1-1` | NYUv2 test, AbsRel / delta1 | 0.0561 / 0.9703 | 0.0561 / 0.9703 | 0.0561 / 0.9703 | 0.0561 / 0.9703 |  |
+| `marigold-depth-v1-1` | iBims-1, AbsRel / delta1 | 0.0499 / 0.9721 | 0.0499 / 0.9721 | 0.0499 / 0.9722 | 0.0499 / 0.9721 |  |
+| `marigold-depth-v1-1` | ETH3D two-view train left, AbsRel / delta1 | 0.1141 / 0.8715 | 0.1141 / 0.8715 | 0.1141 / 0.8715 | 0.1141 / 0.8716 | possibly in the training data |
+| `marigold-depth-v1-1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 491e248a / 939adfe8, 2026-11-06 to 2026-11-11.
 
 ### Parity
 

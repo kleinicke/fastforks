@@ -161,6 +161,41 @@ def test_beit_index_cache_bounded(monkeypatch):
     torch.testing.assert_close(bias, attn._get_rel_pos_bias((2, 3)), rtol=0, atol=0)
 
 
+SEEDED = sorted(
+    {
+        (task, card.family)
+        for task in registry.TASKS
+        for card, _ in registry.cards(task).values()
+        if "seed" in card.options
+    }
+)
+
+
+@pytest.mark.parametrize(
+    "device",
+    [
+        "cpu",
+        pytest.param(
+            "cuda", marks=[pytest.mark.gpu, pytest.mark.skipif(not torch.cuda.is_available(), reason="no CUDA")]
+        ),
+    ],
+)
+@pytest.mark.parametrize(("task", "family"), SEEDED)
+def test_seeded_noise_is_the_cpu_generator_draw(task, family, device):
+    """A `seed` option means the documented draw: `torch.randn` of a seeded CPU generator, float32, then cast and moved.
+
+    The original-code accuracy rows pass the same CPU-generator noise to the authors' pipeline; a device generator
+    (upstream's CUDA default) is a different sample, which alone moved Marigold's ETH3D AbsRel by 0.007 (2026-11-11).
+    """
+    noise = __import__(f"fastforks.{task}.models.{family}.model", fromlist=["Noise"]).Noise(7)
+    shape = torch.Size((1, 4, 6, 10))
+    want = torch.randn(shape, generator=torch.Generator().manual_seed(7))
+    for dtype in (torch.float32, torch.float16, torch.bfloat16):
+        got = noise(shape, torch.device(device), dtype)
+        assert got.device.type == device
+        torch.testing.assert_close(got.cpu(), want.to(dtype), rtol=0, atol=0)  # also checks the dtype
+
+
 @pytest.mark.slow
 @pytest.mark.model
 def test_marigold_seed():
