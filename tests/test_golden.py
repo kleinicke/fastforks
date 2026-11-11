@@ -101,6 +101,7 @@ CPU_ALSO = {
     "mask-rcnn-r50-fpn-3x-coco@1": "mask head (smallest: Faster R-CNN, boxes only)",
     "mocha-v2-sceneflow@1": "mccv = false (smallest: true)",
     "raft-large@1": "residual blocks, convex upsampling, two GRUs (smallest: bottleneck, bilinear, one)",
+    "rtmo-l@1": "CSPRep blocks without the 1 x 1 output conv (smallest: with it)",
     "moge-3-vitl@1": "MoGe version 3 (smallest: version 2)",
     "resnet50.tv2_in1k@1": "bottleneck blocks (smallest: ResNet-18, basic blocks)",
 }
@@ -274,7 +275,7 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         maps = {k: getattr(r, k) for k in spec("detection").standard}
     elif task == "pose":  # the golden's person boxes; they come back as `boxes`
         assert want is not None, "pose goldens store their input image and person boxes"
-        r = m(img, boxes=want["boxes"])
+        r = m(img, boxes=want["boxes"]) if m.needs_boxes else m(img)
         maps = {k: getattr(r, k) for k in spec("pose").standard}
     elif task == "flow":  # the golden's image pair
         assert want is not None, "flow goldens store their image pair"

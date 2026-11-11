@@ -38,6 +38,9 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- RTMO (4 bottom-up pose variants): MPS goldens, person counts near the score threshold, and portable speed.
+  Weights in `~/scratch_tests/port-rtmo/w/` or its `cache/` on CUDA, otherwise the pinned upstream URLs.
+
 Done on 2026-11-10 for every family on the branch: Mac speed rows (`portable`, and `kernels` where Metal kernels
 exist) and the MPS goldens, all passing. Still open:
 

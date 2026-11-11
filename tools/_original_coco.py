@@ -54,6 +54,8 @@ class Result:
     labels: Any = None
     masks: Any = None
     iou_scores: Any = None
+    keypoints: Any = None
+    keypoint_scores: Any = None
 
 
 class Backend:
@@ -202,6 +204,40 @@ def _rtmdet(ref: str, tier: str) -> _Detector:
     return det
 
 
+class _Pose:
+    """Pinned mmpose top-down or bottom-up inference behind the COCO pose interface."""
+
+    def __init__(self, ref: str, tier: str) -> None:
+        from fastforks._core import registry  # noqa: PLC0415
+
+        card, _ = registry.resolve("pose", ref)
+        if card.family not in {"rtmpose", "rtmo"}:
+            msg = f"no original COCO pose adapter for {card.family}"
+            raise NotImplementedError(msg)
+        self.needs_boxes = card.family == "rtmpose"
+        self.original = _original.load("pose", ref, tier)
+        self.backend = Backend(self.original.how, self.original.dtype, self.original.note)
+
+    def __call__(self, img: np.ndarray, *, boxes: np.ndarray | None = None) -> Result:
+        import torch  # noqa: PLC0415
+
+        args = (np.ascontiguousarray(img[..., ::-1]),)
+        if self.needs_boxes:
+            if boxes is None:
+                msg = "top-down reference requires person boxes"
+                raise ValueError(msg)
+            args = (*args, boxes)
+        parts = [r.pred_instances for r in self.original(*args)]
+        if not parts:
+            return Result(scores=torch.empty(0), keypoints=torch.empty(0, 17, 2), keypoint_scores=torch.empty(0, 17))
+        kp = np.concatenate([p.keypoints for p in parts])
+        ks = np.concatenate([p.keypoint_scores for p in parts])
+        scores = ks.mean(axis=1) if self.needs_boxes else np.concatenate([p.bbox_scores for p in parts])
+        return Result(
+            scores=torch.as_tensor(scores), keypoints=torch.as_tensor(kp), keypoint_scores=torch.as_tensor(ks)
+        )
+
+
 class _Points:
     """SAM / SAM 2 / EfficientViT-SAM point-prompt model."""
 
@@ -322,6 +358,8 @@ class _Concept:
 def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, PLR0911 - one branch per family
     """The original of `ref` (id without `@rev`) in `tier`."""
     ref = ref.split("@", maxsplit=1)[0]
+    if task == "pose":
+        return _Pose(ref, tier)
     if task == "detection":
         if ref.startswith("rtmdet"):
             return _rtmdet(ref, tier)

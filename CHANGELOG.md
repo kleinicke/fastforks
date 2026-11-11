@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- RTMO bottom-up pose (t, s, m, l; Apache-2.0): `model(image)` finds people and their 17 COCO keypoints
+  without person boxes, on `portable` and `kernels`. Includes measured original fp32/fp16, compile and TensorRT
+  timings, GPU goldens, and full COCO val2017 accuracy with a matched original-code subset comparison.
+
 - New task `fastforks.flow`: optical flow. `model(image1, image2)` returns `flow` `[2, H, W]` float32 (dx, dy in
   pixels of the input, from image1 to image2). RAFT (torchvision's weights: `raft-large`, `raft-large-things`,
   `raft-large-kitti`, `raft-small`) on `portable` and `kernels`, with the load option `iters` (refinement steps,

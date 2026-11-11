@@ -712,6 +712,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | dwpose-m | 169 | 164 | 7.25 | 4.86 | 33.8x | 1.5x | 756 / 792 | 162 / 196 | 157 / 220 |
 | dwpose-s | 173 | 180 | 5.03 | 3.30 | 52.3x | 1.5x | 806 / 848 | 129 / 174 | 138 / 198 |
 | dwpose-t | 160 | 174 | 4.47 | 3.15 | 50.8x | 1.4x | 832 / 858 | 124 / 152 | 133 / 192 |
+| rtmo-l | 17.1 | 21.4 | 10.8 | 8.30 | 2.1x | 1.3x | 800 / 824 | 208 / 226 | 208 / 228 |
+| rtmo-m | 14.3 | 17.0 | 8.71 | 6.85 | 2.1x | 1.3x | 422 / 462 | 166 / 190 | 166 / 212 |
+| rtmo-s | 11.4 | 15.5 | 7.48 | 6.27 | 1.8x | 1.2x | 228 / 252 | 142 / 160 | 142 / 180 |
+| rtmo-t | 11.3 | 13.3 | 7.62 | 6.31 | 1.8x | 1.2x | 118 / 122 | 121 / 136 | 121 / 156 |
 | rtmpose-l | 161 | 176 | 8.94 | 5.63 | 28.6x | 1.6x | 1105 / 1154 | 211 / 236 | 175 / 264 |
 | rtmpose-l-384 | 192 | 171 | 19.3 | 11.2 | 15.3x | 1.7x | 366 / 410 | 340 / 436 | 229 / 406 |
 | rtmpose-m | 179 | 180 | 6.28 | 4.42 | 40.4x | 1.4x | 316 / 364 | 153 / 192 | 148 / 200 |
@@ -1032,6 +1036,10 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | dwpose-m | 0.26 | 0.24 | 1.51 | 0.60 | 1.10 | 0.29 |
 | dwpose-s | 0.19 | 0.12 | 1.48 | 0.47 | 1.02 | 0.29 |
 | dwpose-t | 0.16 | 0.08 | 1.42 | 0.33 | 0.89 | 0.29 |
+| rtmo-l | 0.55 | 0.36 | 1.52 | 0.06 | 0.24 | 0.16 |
+| rtmo-m | 0.37 | 0.22 | 1.43 | 0.08 | 0.43 | 0.24 |
+| rtmo-s | 0.27 | 0.12 | 1.37 | 0.08 | 0.41 | 0.26 |
+| rtmo-t | 0.26 | 0.11 | 1.38 | 0.32 | 0.41 | 0.28 |
 | rtmpose-l | 0.38 | 0.94 | 1.60 | 0.18 | 0.86 | 0.29 |
 | rtmpose-l-384 | 0.58 | 0.41 | 1.56 | 0.17 | 1.00 | 0.29 |
 | rtmpose-m | 0.23 | 0.22 | 1.50 | 0.16 | 1.10 | 0.29 |
@@ -1263,6 +1271,10 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | dwpose-m | 1080x1920 | 7.25 ms | 3.80 ms | 2.13 ms (network on person crops only) | 4.86 ms | 12.9 s | 18.9 s | 162 / 196 | 156 / 174 | 157 / 220 | 98 |
 | dwpose-s | 1080x1920 | 5.03 ms | 2.27 ms | 1.17 ms (network on person crops only) | 3.30 ms | 11.8 s | 16.7 s | 129 / 174 | 135 / 150 | 138 / 198 | 62 |
 | dwpose-t | 1080x1920 | 4.47 ms | 1.96 ms | 0.940 ms (network on person crops only) | 3.15 ms | 11.2 s | 16.1 s | 124 / 152 | 129 / 148 | 133 / 192 | 54 |
+| rtmo-l | 1080x1920 | 10.8 ms | 7.07 ms | 2.90 ms (network on person crops only) | 8.30 ms | 18.9 s | 39.6 s | 208 / 226 | 192 / 224 | 208 / 228 | 126 |
+| rtmo-m | 1080x1920 | 8.71 ms | 4.99 ms | 2.03 ms (network on person crops only) | 6.85 ms | 18.0 s | 39.4 s | 166 / 190 | 146 / 170 | 166 / 212 | 86 |
+| rtmo-s | 1080x1920 | 7.48 ms | 3.35 ms | 1.21 ms (network on person crops only) | 6.27 ms | 14.6 s | 36.7 s | 142 / 160 | 121 / 156 | 142 / 180 | 50 |
+| rtmo-t | 1080x1920 | 7.62 ms | 3.30 ms | 0.886 ms (network on person crops only) | 6.31 ms | 15.6 s | 36.8 s | 121 / 136 | 111 / 134 | 121 / 156 | 40 |
 | rtmpose-l | 1080x1920 | 8.94 ms | 5.32 ms | 3.20 ms (network on person crops only) | 5.63 ms | 14.2 s | 19.4 s | 211 / 236 | 185 / 194 | 175 / 264 | 112 |
 | rtmpose-l-384 | 1080x1920 | 19.3 ms | 10.7 ms | 7.08 ms (network on person crops only) | 11.2 ms | 15.0 s | 20.3 s | 340 / 436 | 242 / 274 | 229 / 406 | 168 |
 | rtmpose-m | 1080x1920 | 6.28 ms | 3.42 ms | 2.02 ms (network on person crops only) | 4.42 ms | 12.7 s | 17.8 s | 153 / 192 | 147 / 172 | 148 / 200 | 66 |

@@ -332,11 +332,13 @@ def _rtmpose(a: Any, full: str) -> Any:  # noqa: ANN401
     """
     from fastforks._core import registry  # noqa: PLC0415
 
-    g = _golden("rtmpose")
     site = os.environ.get("FF_MMPOSE_SITE")
     if not site:
         msg = "FF_MMPOSE_SITE: site-packages with mmpose 1.3.2 (+ mmdet, mmcv, mmengine) for the original-code tiers"
         raise RuntimeError(msg)
+    if site not in sys.path:
+        sys.path.append(site)
+    g = _golden("rtmpose")
     card, variant = registry.resolve("pose", full)
     net = g.reference(site, card, variant, flip=False).cuda()
     from mmpose.apis import inference_topdown  # noqa: PLC0415  # ty: ignore[unresolved-import]
@@ -345,6 +347,25 @@ def _rtmpose(a: Any, full: str) -> Any:  # noqa: ANN401
         "mmpose 1.3.2 inference_topdown (CPU cv2 crop, network, SimCC decode; flip_test off), all in the timed call"
     )
     return lambda bgr, boxes: inference_topdown(net, bgr, boxes, bbox_format="xyxy")
+
+
+def _rtmo(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Time the pinned mmpose bottom-up pipeline, including preprocessing and decoding."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    site = os.environ.get("FF_MMPOSE_SITE")
+    if not site:
+        msg = "FF_MMPOSE_SITE: site-packages with mmpose 1.3.2 for the original-code tiers"
+        raise RuntimeError(msg)
+    if site not in sys.path:
+        sys.path.append(site)
+    g = _golden("rtmo")
+    card, variant = registry.resolve("pose", full)
+    net = g.reference(site, card, variant).cuda()
+    from mmpose.apis import inference_bottomup  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    a.note = "mmpose 1.3.2 inference_bottomup (CPU cv2 letterbox, network, NMS, decode), all in the timed call"
+    return lambda bgr: inference_bottomup(net, bgr)
 
 
 def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401
@@ -529,8 +550,17 @@ class _Local:
 
     flag = False  # no mixed-precision option of its own: fp16 = torch.autocast around the call
 
-    def __init__(self, task: str, build: Any, sizes: tuple[tuple[int, int], ...], prep: Any = None) -> None:  # noqa: ANN401
+    def __init__(
+        self,
+        task: str,
+        build: Any,  # noqa: ANN401 - heterogeneous upstream adapter callback
+        sizes: tuple[tuple[int, int], ...],
+        prep: Any = None,  # noqa: ANN401 - heterogeneous upstream input conversion
+        *,
+        needs_boxes: bool = True,
+    ) -> None:
         self.task, self._build, self.sizes, self._prep = task, build, sizes, prep
+        self.needs_boxes = needs_boxes
         self.note = self.COMMIT = ""
 
     def setup(self) -> None:
@@ -552,7 +582,7 @@ class _Local:
         from fastforks._core.bench import BenchSize  # noqa: PLC0415
 
         api = importlib.import_module(f"fastforks.{self.task}._api")
-        like = types.SimpleNamespace(device=torch.device("cuda"), needs_boxes=True, prompts=())
+        like = types.SimpleNamespace(device=torch.device("cuda"), needs_boxes=self.needs_boxes, prompts=())
         out = []
         for h, w in self.sizes:
             args, kw = api.bench_inputs(like, BenchSize(h, w))
@@ -571,6 +601,13 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
     "vitpose": _Local("pose", _vitpose, ((1080, 1920),), lambda a: (a[0].permute(1, 2, 0).cpu().numpy(), _xywh(a[1]))),
     "rtmpose": _Local(
         "pose", _rtmpose, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
+    ),
+    "rtmo": _Local(
+        "pose",
+        _rtmo,
+        ((1080, 1920),),
+        lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),),
+        needs_boxes=False,
     ),
     "rtmdet": _Local(
         "detection", _rtmdet, ((800, 1344),), lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),)

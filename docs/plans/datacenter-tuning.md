@@ -236,3 +236,12 @@ Source: `src/fastforks/promptable_segmentation/models/mobile_sam/` (`model.py`, 
   or TMA. cuBLASLt or CUTLASS 3.x for those cards is the open item in `full-rate-gpus.md`.
 - **Where tuned numbers are stored.** Per-family notes live in card comments (`card.toml`) and in agent reports; this
   file is the collection point.
+
+## Pose: RTMO
+
+Measured on RTX 5060 Ti only; these suggestions are untested on datacenter GPUs. RTMO finds people without
+a separate detector. Full-call timings include letterboxing, person filtering/NMS, and coordinate decoding.
+The kernels backend optimizes the CSPDarknet backbone; neck and head remain torch. Try graph capture for
+neck/head after measuring its share of total time. Check person counts around the 0.1 score threshold as well
+as coordinates: fp16 score changes can change detection membership. Original-code rows include mmpose's CPU
+OpenCV preprocessing and decode; compare full-call time and peak memory, not only backbone throughput.

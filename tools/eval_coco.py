@@ -17,7 +17,9 @@ labelled keypoint) in one call per image; the 17 COCO body keypoints (the first 
 scores as visibility, the mean of the 17 keypoint scores as the person score, to `COCOeval` (keypoints, OKS). Not the
 mmpose `CocoMetric` ranking (box score x mean of the keypoint scores above 0.2, then OKS-NMS at 0.9) and no flip test,
 so the AP is not the papers' number even on the same boxes; GT boxes give higher AP than the detector boxes of the
-papers' headline numbers. Timing is the call per image (all its people).
+papers' headline numbers. Bottom-up models (RTMO) instead run on the image without GT boxes, including images
+without labelled people, and are ranked by their predicted person scores after their own NMS. Timing is the call
+per image (all its people).
 
 Detection: the model's own call on the RGB uint8 image; boxes (and for Mask R-CNN the pasted masks) of the top 100
 detections go to pycocotools `COCOeval` (bbox, and segm for masks); the 80 classes map to the 91 COCO category ids by
@@ -156,25 +158,27 @@ def _detect(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tu
 
 
 def _pose(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tuple[list[dict[str, Any]], list[float]]:  # noqa: ANN401
-    """Top-down pose on the GT person boxes (non-crowd, >= 1 labelled keypoint); the 17 COCO body keypoints."""
+    """Evaluate top-down GT-box or bottom-up pose using the 17 COCO body keypoints."""
     dets, ms = [], []
+    rec["pose_gt_boxes"] = getattr(model, "needs_boxes", True)
     for f in files:
         iid = int(f.stem)
         anns = [a for a in coco.loadAnns(coco.getAnnIds(imgIds=iid, iscrowd=False)) if a["num_keypoints"] > 0]
-        if not anns:
+        if not anns and rec["pose_gt_boxes"]:
             continue
         boxes = np.array([[a["bbox"][0], a["bbox"][1], a["bbox"][0] + a["bbox"][2], a["bbox"][1] + a["bbox"][3]]
                           for a in anns], dtype=np.float32)  # fmt: skip
         img = np.asarray(Image.open(f).convert("RGB"))
         t = _sync()
-        r = model(img, boxes=boxes)
+        r = model(img, boxes=boxes) if rec["pose_gt_boxes"] else model(img)
         ms.append(1e3 * (_sync() - t))
         kp = np.asarray(r.keypoints.float().cpu())[:, :17]  # whole-body models: the body keypoints come first
         ks = np.asarray(r.keypoint_scores.float().cpu())[:, :17]
-        for i in range(len(anns)):
+        scores = ks.mean(axis=1) if rec["pose_gt_boxes"] else np.asarray(r.scores.float().cpu())
+        for i in range(len(kp)):
             k = np.concatenate([kp[i], ks[i, :, None]], 1)
             dets.append({"image_id": iid, "category_id": 1, "keypoints": [float(x) for x in k.ravel()],
-                         "score": float(ks[i].mean())})  # fmt: skip
+                         "score": float(scores[i])})  # fmt: skip
     rec["people"] = len(dets) + rec.get("people", 0)
     return dets, ms
 
@@ -363,9 +367,10 @@ def _summarize(a: argparse.Namespace) -> None:  # noqa: PLR0915 - one branch per
         task, ref, tier = stem.name.split("__")
         coco = cocos.setdefault(task, _gt(task))
         last = rows[-1]
-        row: dict[str, Any] = {"ref": ref, "task": task, "tier": tier, "mode": last.get("mode", tier),
+        mode = "upstream-fp16" if tier.startswith("upstream") and tier != "upstream" else last.get("mode", tier)
+        row: dict[str, Any] = {"ref": ref, "task": task, "tier": tier, "mode": mode,
                                "dtype": last.get("dtype"), "how": last.get("how"),
-                               "dataset": f"coco-val2017-every{a.every}" + ("-keypoints-gtbox" if task == "pose" else "")}  # fmt: skip  # noqa: E501
+                               "dataset": f"coco-val2017-every{a.every}" + (("-keypoints-gtbox" if last.get("pose_gt_boxes", True) else "-keypoints") if task == "pose" else "")}  # fmt: skip  # noqa: E501
         if err := next((r for r in rows if "error" in r or "skipped" in r), None):
             lines.append(f"| {task} | {ref} | {tier} | skipped: {err.get('error') or err['skipped']} | | | |")
             docs.append(row | {"error": err.get("error") or err["skipped"], "date": err.get("date")})
@@ -377,7 +382,8 @@ def _summarize(a: argparse.Namespace) -> None:  # noqa: PLR0915 - one branch per
         if task == "pose":
             dets = json.loads(_f(stem, ".dets.json").read_text())
             met["keypoint_ap"] = _coco_map(coco, dets, "keypoints", ids)
-            metric = f"keypoint AP {met['keypoint_ap']} (GT boxes, {len(dets)} people)"
+            box_source = "GT boxes" if last.get("pose_gt_boxes", True) else "predicted people"
+            metric = f"keypoint AP {met['keypoint_ap']} ({box_source}, {len(dets)} people)"
             t = f"{statistics.median(ms):.1f}"
             tm = {"ms": round(statistics.median(ms), 2)}
         elif task == "detection" or rows[0].get("concept"):
