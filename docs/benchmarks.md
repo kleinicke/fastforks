@@ -1519,6 +1519,9 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | sam-vit-b | 1024x1024 | 48.3 ms | 40.9 ms | 27.3 ms (image encoder only) | 37.0 ms | 14.5 s | 36.4 s | 378 / 420 | 362 / 400 | 377 / 420 | 322 |
 | sam-vit-h | 1024x1024 | 214 ms | 188 ms | fails: OSError: [Errno 122] Disk quota exceeded | 143 ms | 42.6 s | – | 1484 / 2524 | 1436 / 1484 | 1480 / 1524 | – |
 | sam-vit-l | 1024x1024 | 116 ms | 97.2 ms | 67.5 ms (image encoder only) | 81.5 ms | 32.9 s | 53.4 s | 833 / 1262 | 793 / 862 | 831 / 862 | 780 |
+| sam2.1-hiera-base-plus | 1024x1024 | 32.0 ms | 26.4 ms | 16.7 ms (image encoder only) | 25.1 ms | 28.3 s | 43.7 s | 412 / 464 | 365 / 404 | 426 / 524 | 358 |
+| sam2.1-hiera-large | 1024x1024 | 68.0 ms | 59.5 ms | – | 48.8 ms | 38.9 s | – | 742 / 768 | 678 / 748 | 760 / 828 | – |
+| sam2.1-hiera-small | 1024x1024 | 18.8 ms | 14.9 ms | 9.93 ms (image encoder only) | 15.6 ms | 24.5 s | 40.2 s | 318 / 366 | 283 / 326 | 330 / 386 | 268 |
 | sam2.1-hiera-tiny | 1024x1024 | 16.6 ms | 14.2 ms | 8.56 ms (image encoder only) | 13.9 ms | 13.4 s | 34.1 s | 304 / 382 | 270 / 322 | 316 / 362 | 266 |
 | sam3 | 1024x1024 | 179 ms | 168 ms | 89.5 ms (image encoder only) | 116 ms | 20.0 s | 54.2 s | 1922 / 2004 | 1910 / 2004 | 2019 / 2264 | 1122 |
 | detr-r50-coco | 800x1344 | 12.4 ms | 9.27 ms | 4.40 ms | 9.93 ms | 21.7 s | 33.4 s | 280 / 332 | 233 / 292 | 218 / 272 | 182 |
