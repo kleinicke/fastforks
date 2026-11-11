@@ -362,3 +362,8 @@ GPU before adding a dedicated kernels runner; no datacenter performance is infer
 Profile focal modulation, depthwise convolutions and gated sums separately on the target GPU.
 Compare small and large receptive-field variants at their native 224 crop before choosing fusions;
 no dedicated kernels runner or datacenter measurements exist yet.
+## DaViT
+
+Profile spatial window attention and channel attention separately on the target GPU, including
+the depthwise position convolutions. Check batching and layout conversion costs at the native 224 crop
+before choosing fusions; no dedicated kernels runner or datacenter measurements exist yet.

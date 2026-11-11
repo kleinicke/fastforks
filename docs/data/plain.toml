@@ -59,6 +59,7 @@ efficientformerv2 = "EfficientFormerV2 (Li et al. 2022, Snap Research; S0, S1, S
 coatnet = "CoAtNet (Dai et al. 2021; timm's `rw` networks nano to 2, ImageNet-1k, some pretrained on ImageNet-12k): convolution stages followed by attention stages. Apache-2.0."
 efficientformer = "EfficientFormer (Li et al. 2022, Snap Research; L1, L3, L7; distilled on ImageNet-1k): a hybrid of pooling blocks and transformer blocks built for phone latency. Apache-2.0."
 focalnet = "FocalNet (Yang et al. 2022; tiny, small and base with small or large receptive field, ImageNet-1k): a classifier with focal modulation instead of attention. MIT."
+davit = "DaViT (Ding et al. 2022; tiny, small and base, ImageNet-1k): a vision transformer with spatial and channel attention. Apache-2.0."
 shvit = "SHViT (Yun and Ro 2024; S1 to S4, ImageNet-1k): a small, fast classifier with single-head attention. MIT."
 starnet = "StarNet (Ma et al. 2024; S1 to S4, ImageNet-1k): a small convolutional classifier whose blocks multiply two branches element-wise. Apache-2.0."
 deit = "DeiT (Touvron et al. 2021): a vision transformer trained on ImageNet-1k only."

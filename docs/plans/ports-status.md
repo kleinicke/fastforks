@@ -51,6 +51,7 @@ In this order, unless something more useful turns up:
   runner exists. Download weights from the pinned card URLs; owned CUDA caches are removed after validation
   to stay within the scratch budget.
 - FocalNet: validate portable MPS float32 and record Mac timings. No custom kernels runner exists.
+- DaViT: validate portable MPS float32 and record Mac timings. No custom kernels runner exists.
   Download weights from the pinned card URLs; owned CUDA caches are removed after validation to stay
   within the scratch budget.
 

@@ -609,6 +609,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | convnext_tiny.fb_in22k_ft_in1k | 224x224 | 4.11 | 6.13 | 3.21 | 1.15 | 3.6x | 2.8x | 198 / 216 | 119 / 130 | 92 / 110 |
 | convnext_tiny.fb_in22k_ft_in1k_384 | 224x224 | 4.59 | 6.05 | 3.15 | 1.56 | 2.9x | 2.0x | 204 / 216 | 133 / 152 | 96 / 110 |
 | convnextv2_base.fcmae_ft_in22k_in1k | 224x224 | 10.7 | 14.6 | 10.2 | 2.94 | 3.7x | 3.5x | 542 / 566 | 299 / 376 | 318 / 380 |
+| davit_base.msft_in1k | 224x224 | 13.4 | 20.0 | 11.7 | – | – | – | 537 / 548 | 212 / 224 | – |
+| davit_small.msft_in1k | 224x224 | 13.0 | 18.8 | 12.8 | – | – | – | 319 / 324 | 136 / 150 | – |
+| davit_tiny.msft_in1k | 224x224 | 6.93 | 9.88 | 6.33 | – | – | – | 196 / 204 | 96 / 116 | – |
 | deit_base_patch16_224.fb_in1k | 224x224 | 6.39 | 5.46 | 2.98 | 1.64 | 3.3x | 1.8x | 531 / 548 | 203 / 386 | 300 / 370 |
 | densenet121.tv_in1k | 224x224 | 10.7 | 13.6 | 9.41 | 1.28 | 8.4x | 7.4x | 80 / 102 | 53 / 90 | 83 / 132 |
 | dinov2_vitl14_lc | 224x224 | 22.4 | 10.8 | 5.43 | 4.93 | 2.2x | 1.1x | 1782 / 1806 | 623 / 1228 | 890 / 950 |
@@ -1014,6 +1017,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | convnext_tiny.fb_in22k_ft_in1k | 0.35 | 1.49 | 1.45 | 0.01 | 0.24 | 0.24 |
 | convnext_tiny.fb_in22k_ft_in1k_384 | 0.35 | 1.57 | 1.48 | 0.01 | 0.24 | 0.24 |
 | convnextv2_base.fcmae_ft_in22k_in1k | 2.70 | 1.23 | 2.12 | 0.63 | 0.03 | 0.16 |
+| davit_base.msft_in1k | 0.99 | 1.84 | – | 0.56 | 0.27 | – |
+| davit_small.msft_in1k | 0.53 | 1.60 | – | 0.02 | 0.23 | – |
+| davit_tiny.msft_in1k | 0.39 | 1.47 | – | 0.85 | 0.25 | – |
 | deit_base_patch16_224.fb_in1k | 2.52 | 0.72 | 1.96 | 0.31 | 0.00 | 0.07 |
 | densenet121.tv_in1k | 1.22 | 0.41 | 1.89 | 0.56 | 0.09 | 0.04 |
 | dinov2_vitl14_lc | 5.80 | 3.34 | 3.94 | 0.32 | 0.02 | 0.10 |
@@ -1336,6 +1342,9 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | convnext_tiny.fb_in22k_ft_in1k | 224x224 | 3.21 ms | 2.08 ms | 0.687 ms | 1.15 ms | 8.09 s | 28.3 s | 119 / 130 | 150 / 170 | 92 / 110 | 72 |
 | convnext_tiny.fb_in22k_ft_in1k_384 | 224x224 | 3.15 ms | 2.05 ms | 0.970 ms | 1.56 ms | 7.90 s | 28.2 s | 133 / 152 | 162 / 170 | 96 / 110 | 78 |
 | convnextv2_base.fcmae_ft_in22k_in1k | 224x224 | 10.2 ms | 3.85 ms | 2.13 ms | 2.94 ms | 14.4 s | 35.1 s | 299 / 376 | 324 / 356 | 318 / 380 | 204 |
+| davit_base.msft_in1k | 224x224 | 11.7 ms | 5.48 ms | 2.28 ms | – | 21.8 s | 71.1 s | 212 / 224 | 242 / 262 | – | 202 |
+| davit_small.msft_in1k | 224x224 | 12.8 ms | 5.54 ms | 1.92 ms | – | 21.8 s | 66.4 s | 136 / 150 | 166 / 190 | – | 106 |
+| davit_tiny.msft_in1k | 224x224 | 6.33 ms | 3.10 ms | 1.03 ms | – | 15.5 s | 53.8 s | 96 / 116 | 125 / 136 | – | 72 |
 | deit_base_patch16_224.fb_in1k | 224x224 | 2.98 ms | 2.09 ms | 1.12 ms | 1.64 ms | 7.27 s | 28.3 s | 203 / 386 | 238 / 266 | 300 / 370 | 196 |
 | densenet121.tv_in1k | 224x224 | 9.41 ms | 5.49 ms | 0.686 ms | 1.28 ms | 20.4 s | 33.6 s | 53 / 90 | 89 / 112 | 83 / 132 | 36 |
 | dinov2_vitl14_lc | 224x224 | 5.43 ms | 5.09 ms | 4.22 ms | 4.93 ms | 12.1 s | 38.2 s | 623 / 1228 | 660 / 688 | 890 / 950 | 618 |
