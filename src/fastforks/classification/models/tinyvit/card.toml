@@ -44,24 +44,21 @@ kernels = ["fvm_conv"]  # _optimize.conv_ops (fvm_conv): the only library this f
 label_set = "imagenet-1k"
 
 [[variants]]
-id = "tiny_vit_5m_224.dist_in22k_ft_in1k"
-default_tag = true
+id = "tiny_vit_5m_224.dist_in22k_ft_in1k"  # no default tag: timm's default for tiny_vit_5m_224 is .dist_in22k (21841 classes), not ported
 revision = 1
 weights = [{ name = "tiny_vit_5m_224.dist_in22k_ft_in1k.safetensors", size = 21641032, sha256 = "6887cbcb87b340515b477b1582bdada6a7cafff15720dd1a9c102b3aaa579c82", url = "https://huggingface.co/timm/tiny_vit_5m_224.dist_in22k_ft_in1k/resolve/b46989c2a2c95e7612b919a6f5e2cd7dcf4f1271/model.safetensors" }]
 params = { arch = "tiny_vit_5m_224.dist_in22k_ft_in1k" }
 licence = { evidence = "https://huggingface.co/timm/tiny_vit_5m_224.dist_in22k_ft_in1k/blob/b46989c2a2c95e7612b919a6f5e2cd7dcf4f1271/README.md" }
 
 [[variants]]
-id = "tiny_vit_11m_224.dist_in22k_ft_in1k"
-default_tag = true
+id = "tiny_vit_11m_224.dist_in22k_ft_in1k"  # no default tag: timm's default for tiny_vit_11m_224 is .dist_in22k (21841 classes), not ported
 revision = 1
 weights = [{ name = "tiny_vit_11m_224.dist_in22k_ft_in1k.safetensors", size = 44070040, sha256 = "b08354fdef9d217fc07df517162c1ae6f473e091c48b9575dc339e0bd538b1b6", url = "https://huggingface.co/timm/tiny_vit_11m_224.dist_in22k_ft_in1k/resolve/47df2afc2abd1405d5917a6ceabf9b921ca3d5ad/model.safetensors" }]
 params = { arch = "tiny_vit_11m_224.dist_in22k_ft_in1k" }
 licence = { evidence = "https://huggingface.co/timm/tiny_vit_11m_224.dist_in22k_ft_in1k/blob/47df2afc2abd1405d5917a6ceabf9b921ca3d5ad/README.md" }
 
 [[variants]]
-id = "tiny_vit_21m_224.dist_in22k_ft_in1k"
-default_tag = true
+id = "tiny_vit_21m_224.dist_in22k_ft_in1k"  # no default tag: timm's default for tiny_vit_21m_224 is .dist_in22k (21841 classes), not ported
 revision = 1
 weights = [{ name = "tiny_vit_21m_224.dist_in22k_ft_in1k.safetensors", size = 84898376, sha256 = "e223acf2362cd6fc07f796cb54b103334626f3f6c8fe3765f242448b4d4d9301", url = "https://huggingface.co/timm/tiny_vit_21m_224.dist_in22k_ft_in1k/resolve/bcd5d68c5650bf4d65a0a1262f28b699a4d1c35f/model.safetensors" }]
 params = { arch = "tiny_vit_21m_224.dist_in22k_ft_in1k" }
