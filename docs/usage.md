@@ -540,9 +540,10 @@ DINOv3-ConvNeXt, SAM 3, VGGT-Omega). `device="mps"` also runs those, unvalidated
 MonSter, MonSter++), CFNet, LiteAnyStereo V2 (LaS2), HITNet, AANet, CREStereo, NMRF, BridgeDepth, DEFOM-Stereo and
 FoundationStereo: Metal kernels for each family's hot spot (ConvGRUs, correlation and
 geometry lookups, cost volumes, HITNet's warp costs, AANet's deformable sampling), float16, and for MoGe-3 (its
-sparse convolutions) and VGGT (the aggregator's q / k LayerNorm and RoPE) in float32. Pose and features have them
-too: RTMPose (the person crops, float32), ViTPose / ViTPose++ (patch embedding, decoder and keypoint decoding, float16) and
-Perception Encoder (the blocks' RoPE, float16). They compile on the device in under a second on first use;
+sparse convolutions) and VGGT (the aggregator's q / k LayerNorm and RoPE) in float32. Flow, pose and features have
+them too: RAFT and SEA-RAFT (the correlation lookup without the all-pairs volume, float16), RTMPose (the person crops,
+float32), ViTPose / ViTPose++ (patch embedding, decoder and keypoint decoding, float16) and Perception Encoder (the
+blocks' RoPE, float16). They compile on the device in under a second on first use;
 `mode="auto"` picks it. Every other family runs `portable`.
 
 - dtype: float32 by default. `dtype="float16"` works where the card lists it (`fastforks info MODEL`, row

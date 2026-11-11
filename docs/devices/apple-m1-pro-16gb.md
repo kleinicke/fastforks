@@ -22,6 +22,13 @@ Pose and Perception Encoder Metal `kernels` (added 2026-11-09, not yet in the ta
 18.6 / 45.1 / 80.6 (keypoints unchanged); ViTPose-B / ViTPose+-S fp16 with 16 boxes 192 / 79 -> 161 / 58 (one box:
 22.2 / 13.1 -> 16.1 / 8.6); PE-Core-B/16 fp16 batch 8 112 -> 84, PE-Spatial-B/16 at 512 fp16 batch 8 620 -> 467.
 
+Optical flow Metal `kernels` (added 2026-11-11, `flow_metal`): RAFT and SEA-RAFT take their correlation windows on
+the fly from the pooled fmap2 pyramid instead of building the all-pairs volume. At 1080 x 1920, fp16 `kernels` vs fp32
+`portable` (the fastest validated MPS path before): RAFT-large 3992 -> 1348 ms with peak memory 11.6 -> 4.7 GB,
+RAFT-small 4513 -> 386 ms, SEA-RAFT-M 1820 -> 1220 ms, SEA-RAFT-S 2115 -> 833 ms; goldens pass. RAFT's remaining time
+is the update block (about 62 ms per iteration) and the encoders, SEA-RAFT's mostly its encoders (fp16 gains nothing
+there on MPS). The spring variants are faster by design: they halve the input first.
+
 <!-- device:begin (tools/gen_docs.py, from docs/data/devices.toml and docs/data/speed/apple-m1-pro-16gb.jsonl) -->
 
 | | |
@@ -32,7 +39,7 @@ Pose and Perception Encoder Metal `kernels` (added 2026-11-09, not yet in the ta
 | hardware | 16-core GPU |
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-06 to 2026-11-10 |
+| measured | 2026-11-06 to 2026-11-11 |
 | rows | 660 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
@@ -387,20 +394,18 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 ### Flow, synthetic, 1080x1920
 
-| model | time (ms): portable fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
-|---|---|---|---|
-| [`raft-large-kitti`](../models/flow.md#raft) | 10206 | unsupported | 11509 |
-| [`raft-large-things`](../models/flow.md#raft) | 3992 | unsupported | 11624 |
-| [`raft-small`](../models/flow.md#raft) | 4513 | unsupported | 11385 |
-| [`sea-raft-m`](../models/flow.md#sea_raft) | 1820 | unsupported | 12542 |
-| [`sea-raft-m-kitti`](../models/flow.md#sea_raft) | 5026 | unsupported | 12688 |
-| [`sea-raft-m-spring`](../models/flow.md#sea_raft) | 390 | unsupported | 2574 |
-| [`sea-raft-m-things`](../models/flow.md#sea_raft) | 4162 | unsupported | 11697 |
-| [`sea-raft-s`](../models/flow.md#sea_raft) | 2115 | unsupported | 11645 |
-| [`sea-raft-s-kitti`](../models/flow.md#sea_raft) | 2000 | unsupported | 11481 |
-| [`sea-raft-s-spring`](../models/flow.md#sea_raft) | 268 | unsupported | 2483 |
-
-Note: no Metal kernels for this family (card mps_kernels).
+| model | time (ms): portable fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
+|---|---|---|---|---|---|
+| [`raft-large-kitti`](../models/flow.md#raft) | 10206 | 1349 | 7.6x | 11509 | 4671 |
+| [`raft-large-things`](../models/flow.md#raft) | 3992 | 1348 | 3.0x | 11624 | 4670 |
+| [`raft-small`](../models/flow.md#raft) | 4513 | 386 | 11.7x | 11385 | 2482 |
+| [`sea-raft-m`](../models/flow.md#sea_raft) | 1820 | 1220 | 1.5x | 12542 | 4752 |
+| [`sea-raft-m-kitti`](../models/flow.md#sea_raft) | 5026 | 1222 | 4.1x | 12688 | 4754 |
+| [`sea-raft-m-spring`](../models/flow.md#sea_raft) | 390 | 340 | 1.1x | 2574 | 1621 |
+| [`sea-raft-m-things`](../models/flow.md#sea_raft) | 4162 | 1221 | 3.4x | 11697 | 4753 |
+| [`sea-raft-s`](../models/flow.md#sea_raft) | 2115 | 833 | 2.5x | 11645 | 4667 |
+| [`sea-raft-s-kitti`](../models/flow.md#sea_raft) | 2000 | 831 | 2.4x | 11481 | 4664 |
+| [`sea-raft-s-spring`](../models/flow.md#sea_raft) | 268 | 233 | 1.1x | 2483 | 1527 |
 <!-- device:end -->
 
 ## Notes on `kernels`

@@ -110,4 +110,27 @@ class Kernels(_Scaled):
         return {"flow": self.engine(image1, image2)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class MetalKernels(Portable):
+    """Apple MPS: the portable network with the correlation volume replaced by a Metal window lookup (`flow_metal`).
+
+    The pyramid keeps only fmap1 and the halved fmap2 levels (O(HW) memory instead of O((HW)^2)); each lookup takes
+    its dot products on the fly. Encoders and update block as portable.
+    """
+
+    module = Runner.module  # the Metal kernels are not exportable
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network; load the Metal library."""
+        super().__init__(ctx)
+        from fastforks.kernels import flow_metal  # noqa: PLC0415 - needs the kernel library
+
+        self.lib = flow_metal.load(ctx.device)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Flow of a padded batch."""
+        from .kernels.metal import forward  # noqa: PLC0415
+
+        return {"flow": forward(self.net, self.lib, image1, image2, self.ctx.params.iters)}
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}

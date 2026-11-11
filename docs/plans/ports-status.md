@@ -43,9 +43,8 @@ exist) and the MPS goldens, all passing. Still open:
 
 - Perception Encoder `g14`: the peak footprint (about 17.8 GB) is above the 16 GB of the machine, so the times
   include swapping.
-- SEA-RAFT `spring` variants run about ten times faster than the others at the same labelled input; not looked into.
-- Metal kernels for the families that have none (flow, the feature backbones except Perception Encoder, RTMDet,
-  ConvNeXt, the SAM variants): not tried yet.
+- Metal kernels for the families that have none (the feature backbones except Perception Encoder, RTMDet,
+  ConvNeXt, the SAM variants): not tried yet. Flow has them since 2026-11-11 (`flow_metal`, see the device page).
 
 ## Known gaps that wait for a release
 

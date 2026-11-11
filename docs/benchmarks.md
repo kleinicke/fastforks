@@ -43,7 +43,7 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 261 models, 660 rows, measured 2026-11-06 to 2026-11-10.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 261 models, 660 rows, measured 2026-11-06 to 2026-11-11.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -349,16 +349,16 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB |
 |---|---|
-| [`raft-large-kitti`](models/flow.md#raft) | 10206 ms · portable fp32 |
-| [`raft-large-things`](models/flow.md#raft) | 3992 ms · portable fp32 |
-| [`raft-small`](models/flow.md#raft) | 4513 ms · portable fp32 |
-| [`sea-raft-m`](models/flow.md#sea_raft) | 1820 ms · portable fp32 |
-| [`sea-raft-m-kitti`](models/flow.md#sea_raft) | 5026 ms · portable fp32 |
-| [`sea-raft-m-spring`](models/flow.md#sea_raft) | 390 ms · portable fp32 |
-| [`sea-raft-m-things`](models/flow.md#sea_raft) | 4162 ms · portable fp32 |
-| [`sea-raft-s`](models/flow.md#sea_raft) | 2115 ms · portable fp32 |
-| [`sea-raft-s-kitti`](models/flow.md#sea_raft) | 2000 ms · portable fp32 |
-| [`sea-raft-s-spring`](models/flow.md#sea_raft) | 268 ms · portable fp32 |
+| [`raft-large-kitti`](models/flow.md#raft) | 1349 ms · kernels fp16 |
+| [`raft-large-things`](models/flow.md#raft) | 1348 ms · kernels fp16 |
+| [`raft-small`](models/flow.md#raft) | 386 ms · kernels fp16 |
+| [`sea-raft-m`](models/flow.md#sea_raft) | 1220 ms · kernels fp16 |
+| [`sea-raft-m-kitti`](models/flow.md#sea_raft) | 1222 ms · kernels fp16 |
+| [`sea-raft-m-spring`](models/flow.md#sea_raft) | 340 ms · kernels fp16 |
+| [`sea-raft-m-things`](models/flow.md#sea_raft) | 1221 ms · kernels fp16 |
+| [`sea-raft-s`](models/flow.md#sea_raft) | 833 ms · kernels fp16 |
+| [`sea-raft-s-kitti`](models/flow.md#sea_raft) | 831 ms · kernels fp16 |
+| [`sea-raft-s-spring`](models/flow.md#sea_raft) | 233 ms · kernels fp16 |
 <!-- devices:end -->
 
 ## RTX 5060 Ti 16 GB (reference)
