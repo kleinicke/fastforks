@@ -329,3 +329,10 @@ joints at 576 px; full-dataset TensorRT accuracy has not been measured.
 Vendored computation stays pinned. Local compatibility edits remove unused training builders and import-time
 JIT aliases, use cycle-free positional/export method overrides, and keep optimized parameter-only paths
 from bypassing fastforks class overrides. Transformers and torchvision remain explicit optional dependencies.
+## StarNet
+
+StarNet selects CNN optimization explicitly: timm calls its convolutional units `Block`, a name also used by
+transformers. The portable runner folds BatchNorm; kernels reuse the existing convolution fusions and bounded
+small-batch CUDA graph cache. On another GPU, measure batch scaling across the shared HACC pixel threshold,
+convolution epilogues and depthwise kernels before changing dispatch. RTX 5060 Ti measurements do not establish
+datacenter performance.

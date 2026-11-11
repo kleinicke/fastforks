@@ -657,6 +657,7 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
     "tinyvit": _Local("classification", _convnext, ((224, 224),)),
     "hgnetv2": _Local("classification", _convnext, ((224, 224),)),
     "shvit": _Local("classification", _convnext, ((224, 224),)),
+    "starnet": _Local("classification", _convnext, ((224, 224),)),
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),

@@ -142,7 +142,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Classification
 
-64 models; size 224x224.
+68 models; size 224x224.
 
 - Fastest: [`squeezenet1_1`](models/classification.md#squeezenet) (0.4 ms).
 - Fastest commercially usable: [`squeezenet1_1`](models/classification.md#squeezenet) (0.4 ms).
@@ -154,8 +154,11 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`mobilenet_v2`](models/classification.md#mobilenetv2) | yes | 3.6 (224x224) | 3.0 | 0.4 | 8.2x vs original (224x224) | 75 |
 | [`resnet18`](models/classification.md#resnet) | yes | 1.9 (224x224) | 1.5 | 0.5 | 4.2x vs original (224x224) | 90 |
 | [`mobilenet_v3_large`](models/classification.md#mobilenetv3) | yes | 4.3 (224x224) | 3.8 | 0.5 | 7.9x vs original (224x224) | 78 |
+| [`starnet_s2`](models/classification.md#starnet) | yes | 3.6 (224x224) | 3.0 | 0.6 | 6.3x vs original (224x224) | 43 |
 | [`alexnet`](models/classification.md#alexnet) | yes | 1.2 (224x224) | 1.0 | 0.6 | 1.9x vs original (224x224) | 184 |
 | [`mobilenetv4_conv_medium`](models/classification.md#mobilenetv4) | yes | 5.8 (224x224) | 3.9 | 0.6 | 9.0x vs original (224x224) | 87 |
+| [`starnet_s1`](models/classification.md#starnet) | yes | 4.6 (224x224) | 3.9 | 0.7 | 6.7x vs original (224x224) | 41 |
+| [`starnet_s3`](models/classification.md#starnet) | yes | 5.0 (224x224) | 4.2 | 0.7 | 6.9x vs original (224x224) | 47 |
 | [`repvit_m1_1.dist_450e_in1k`](models/classification.md#repvit) | yes | 8.1 (224x224) | 5.0 | 0.8 | 10.6x vs original (224x224) | 51 |
 | [`repvit_m1_1`](models/classification.md#repvit) | yes | 8.1 (224x224) | 5.0 | 0.8 | 10.6x vs original (224x224) | 51 |
 | [`repvit_m0_9.dist_450e_in1k`](models/classification.md#repvit) | yes | 8.6 (224x224) | 5.4 | 0.8 | 11.1x vs original (224x224) | 45 |
@@ -166,6 +169,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`shufflenet_v2_x1_0`](models/classification.md#shufflenetv2) | yes | 4.8 (224x224) | 3.7 | 0.8 | 6.1x vs original (224x224) | 87 |
 | [`resnet50`](models/classification.md#resnet) | yes | 4.7 (224x224) | 3.1 | 0.8 | 5.7x vs original (224x224) | 116 |
 | [`tiny_vit_5m_224`](models/classification.md#tinyvit) | yes | 5.9 (224x224) | 5.2 | 0.8 | 7.0x vs original (224x224) | 48 |
+| [`starnet_s4`](models/classification.md#starnet) | yes | 6.8 (224x224) | 5.6 | 0.9 | 7.5x vs original (224x224) | 51 |
 | [`tiny_vit_11m_224`](models/classification.md#tinyvit) | yes | 6.0 (224x224) | 5.2 | 0.9 | 6.4x vs original (224x224) | 60 |
 | [`efficientvit_b2`](models/classification.md#efficientvit-mit) | yes | 10.7 (224x224) | 11.9 | 1.1 | 9.7x vs original (224x224) | 120 |
 | [`convnext_tiny.fb_in1k`](models/classification.md#convnext) | yes | 4.0 (224x224) | 3.2 | 1.1 | 3.5x vs original (224x224) | 92 |
