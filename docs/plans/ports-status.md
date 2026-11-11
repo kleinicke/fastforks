@@ -58,6 +58,10 @@ In this order, unless something more useful turns up:
 - EfficientFormer L1/L3/L7: portable fp32 MPS goldens and speed at native 224 crops. CUDA portable passes
   measured mean/p99 bounds 0.0046/0.019; pinned timm Hugging Face weights are downloadable.
 
+- SegNeXt: validate portable MPS float32 and record Mac timings. No custom kernels runner exists.
+  Download weights from the pinned card URLs; owned CUDA caches are removed after validation to stay
+  within the scratch budget.
+
 - SHViT S1-S4: portable fp32 MPS goldens and speed at native 224 crops (S4: 256). CUDA portable goldens pass
   with mean/p99 bounds 0.0060/0.023; weights are downloadable from the pinned timm Hugging Face card URLs.
 

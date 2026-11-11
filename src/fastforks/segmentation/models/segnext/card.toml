@@ -1,0 +1,67 @@
+schema = 2
+name = "SegNeXt"
+summary = "SegNeXt (Guo et al. 2022): the mmsegmentation ADE20K checkpoints of the MSCAN convolutional-attention backbones (tiny to large) with the light Hamburger head; network vendored from mmsegmentation (no mmseg / mmcv dependency)."
+tier = "stable"
+outputs = ["logits"]
+uses = ["seginfer"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/open-mmlab/mmsegmentation"
+commit = "c685fe6767c4cadf6b051983ca6208f1b9d1ccb8"  # v1.2.2; net.py condenses its MSCAN backbone and LightHamHead
+
+[licence]
+code = "Apache-2.0"  # open-mmlab/mmsegmentation LICENSE; the authors' repository (Visual-Attention-Network/SegNeXt) is Apache-2.0 too: https://github.com/Visual-Attention-Network/SegNeXt/blob/main/LICENSE
+weights = "Apache-2.0"  # the model zoo checkpoints are released with the repository (README: Apache 2.0)
+files = ["LICENSE"]
+training_data = ["imagenet-1k", "ade20k"]
+evidence = "https://github.com/open-mmlab/mmsegmentation/blob/c685fe6767c4cadf6b051983ca6208f1b9d1ccb8/README.md#license"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU). The image is first resized to the family's test-time scale (`resize`), then padded or window-split by the network, so tiny inputs are upscaled and the result is resampled back.
+input = "imagenet"
+pad = "none"
+
+[params]
+resize = ["mmseg", 2048, 512]  # test_pipeline Resize(scale=(2048, 512), keep_ratio=True), whole inference, padded to multiples of 32
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+status = "none"
+reason = "not implemented: depthwise strip convolutions and a matrix-factorisation head: needs its own runner"
+
+[output]
+label_set = "ade20k-150"
+
+# The head's matrix factorisation starts from fixed bases here; upstream draws random ones on every call (its logits
+# change from run to run by more than rounding), so goldens and accuracy compare against upstream seeded the same way.
+
+[[variants]]
+# MSCAN-T; config segnext_mscan-t_1xb16-adamw-160k_ade20k-512x512
+id = "segnext-mscan-t-ade20k"
+revision = 1
+weights = [{ name = "segnext-mscan-t-ade20k.pth", size = 17299013, sha256 = "226138b438730509f8e1af8df54e2499f53f21cbab0ed2b0098fd1c44dbb347e", url = "https://download.openmmlab.com/mmsegmentation/v0.5/segnext/segnext_mscan-t_1x16_512x512_adamw_160k_ade20k/segnext_mscan-t_1x16_512x512_adamw_160k_ade20k_20230210_140244-05bd8466.pth" }]
+params = { arch = "mscan-t" }
+
+[[variants]]
+# MSCAN-S; config segnext_mscan-s_1xb16-adamw-160k_ade20k-512x512
+id = "segnext-mscan-s-ade20k"
+revision = 1
+weights = [{ name = "segnext-mscan-s-ade20k.pth", size = 55956931, sha256 = "ae9f7baa30817e62e36c9058ea3eeab0952baa3ce7ce52afef01423f68cbe1d8", url = "https://download.openmmlab.com/mmsegmentation/v0.5/segnext/segnext_mscan-s_1x16_512x512_adamw_160k_ade20k/segnext_mscan-s_1x16_512x512_adamw_160k_ade20k_20230214_113014-43013668.pth" }]
+params = { arch = "mscan-s" }
+
+[[variants]]
+# MSCAN-B; config segnext_mscan-b_1xb16-adamw-160k_ade20k-512x512
+id = "segnext-mscan-b-ade20k"
+revision = 1
+weights = [{ name = "segnext-mscan-b-ade20k.pth", size = 110977141, sha256 = "647a0cda7678a35396689a4f8e9fddc33a088d8b539195d0dc97485ab8640ef1", url = "https://download.openmmlab.com/mmsegmentation/v0.5/segnext/segnext_mscan-b_1x16_512x512_adamw_160k_ade20k/segnext_mscan-b_1x16_512x512_adamw_160k_ade20k_20230209_172053-b6f6c70c.pth" }]
+params = { arch = "mscan-b" }
+
+[[variants]]
+# MSCAN-L; config segnext_mscan-l_1xb16-adamw-160k_ade20k-512x512
+id = "segnext-mscan-l-ade20k"
+revision = 1
+weights = [{ name = "segnext-mscan-l-ade20k.pth", size = 196457963, sha256 = "6593bd76d60db407ad5e26633c21d41c5c68f797238c5c1d4e982d4507cd9ef8", url = "https://download.openmmlab.com/mmsegmentation/v0.5/segnext/segnext_mscan-l_1x16_512x512_adamw_160k_ade20k/segnext_mscan-l_1x16_512x512_adamw_160k_ade20k_20230209_172055-19b14b63.pth" }]
+params = { arch = "mscan-l" }

@@ -67,6 +67,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | aanet, bridgedepth, igev_stereo, las2, nmrf | fp16 | fp16 | fp32 | stereo_metal fp16 |
 | perception_encoder | fp16 | fp16 | fp32/fp16 | vit_metal fp16 |
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 |
+| segnext | fp16 | - | fp32/fp16 | - |
 | moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
 | vggt | fp16 | fp16 | fp32 | vggt_metal fp32 |

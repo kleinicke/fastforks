@@ -367,3 +367,13 @@ no dedicated kernels runner or datacenter measurements exist yet.
 Profile spatial window attention and channel attention separately on the target GPU, including
 the depthwise position convolutions. Check batching and layout conversion costs at the native 224 crop
 before choosing fusions; no dedicated kernels runner or datacenter measurements exist yet.
+## SegNeXt
+
+Profile strip convolutions and the matrix-factorisation decoder separately at 512x512 and 1024x2048.
+Keep the documented seeded NMF basis and matching preprocessing when comparing the original and portable
+paths. No dedicated kernels runner or datacenter measurements exist yet.
+
+The large variant has FP16 golden logit mean/p99 error 0.0871/0.312; measured bounds are
+0.14/0.47. Keeping only the NMF bases or decoder in FP32 barely changes this error; full FP32
+reduces it to 0.002718/0.010204. Across 500 ADE20K images per variant, portable FP16 mIoU
+differs from the seeded original FP32 by at most 0.01 percentage points (large: both 48.88).

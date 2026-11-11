@@ -87,6 +87,7 @@ vit = "Vision Transformer (Dosovitskiy et al. 2020): a transformer classifier on
 
 # --- segmentation
 mmseg = "The MMSegmentation authors' ADE20K checkpoints of FCN, PSPNet, DeepLabV3, DeepLabV3+ and HRNet, convolutional scene segmentation."
+segnext = "SegNeXt (Guo et al. 2022; tiny, small, base, large; the MMSegmentation ADE20K checkpoints): convolutional scene segmentation with multi-scale strip-convolution attention. Apache-2.0."
 dinov2_linear = "Meta's DINOv2 features with a linear layer on top for ADE20K scene segmentation."
 eomt = "EoMT: a plain vision transformer that also predicts masks, for ADE20K scene segmentation, with DINOv2 or DINOv3 pre-training."
 mask2former = "Mask2Former with a Swin-L backbone for ADE20K scene segmentation. Non-commercial weights."

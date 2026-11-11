@@ -46,6 +46,9 @@
   `focalnet_base_lrf.ms_in1k` (6 checkpoints), on `portable`.
 - New classifier DaViT (the authors' weights from timm, Apache-2.0): `davit_tiny.msft_in1k`, `davit_small.msft_in1k` and
   `davit_base.msft_in1k`, on `portable`.
+- New segmentation family SegNeXt (the MMSegmentation ADE20K checkpoints, Apache-2.0): `segnext-mscan-t-ade20k`, `-s`,
+  `-b`, `-l`, on `portable`. The head's matrix factorisation starts from fixed bases, so results repeat (upstream
+  draws random ones per call).
 - New feature backbones: SigLIP 2, CLIP / OpenCLIP, Perception Encoder and C-RADIOv3.
 - New feature backbone: TIPSv2 (B/14, L/14 image encoders; the DINOv2 kernel path).
 - New feature backbone ConvNeXt (Meta's V1 ImageNet-22k weights from timm, Apache-2.0): `convnext_tiny.fb_in22k`,

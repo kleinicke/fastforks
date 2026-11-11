@@ -397,6 +397,20 @@ def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda bgr: inference_detector(net, bgr)
 
 
+def _segnext(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Mmsegmentation `init_model` + the configs' test protocol, as `tools/golden/segnext.py` (NMF bases seeded)."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("segnext")
+    site = os.environ.get("FF_MMSEG_SITE")
+    if not site:
+        msg = "FF_MMSEG_SITE: site-packages with mmsegmentation 1.2.2 (+ mmcv, mmengine) for the original-code tiers"
+        raise RuntimeError(msg)
+    model = g.reference(site, *registry.resolve("segmentation", full)).cuda()
+    a.note = f"mmsegmentation 1.2.2 encode_decode, NMF start bases seeded ({g.SEED}) on every call"
+    return lambda x: g.whole(model, x[None].float() / 255)[0]
+
+
 def _convnext(a: Any, full: str) -> Any:  # noqa: ANN401
     """A timm classifier as `tools/golden/libnet_classification.py` builds it, with the card's `[io]` transform on GPU.
 
@@ -661,6 +675,7 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
     "efficientformer": _Local("classification", _convnext, ((224, 224),)),
     "focalnet": _Local("classification", _convnext, ((224, 224),)),
     "davit": _Local("classification", _convnext, ((224, 224),)),
+    "segnext": _Local("segmentation", _segnext, ((512, 512), (1024, 2048))),
     "shvit": _Local("classification", _convnext, ((224, 224),)),
     "starnet": _Local("classification", _convnext, ((224, 224),)),
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),

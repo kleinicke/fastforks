@@ -246,7 +246,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Segmentation
 
-16 models; size 1024x2048.
+20 models; size 1024x2048.
 
 - Fastest: [`segformer-b0-ade20k`](models/segmentation.md#segformer) (3.5 ms).
 - Fastest commercially usable: [`hrnet-w48-fcn-ade20k`](models/segmentation.md#mmseg-cnn-classics) (11.9 ms).
@@ -258,14 +258,18 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`dinov2-s-linear-ade20k`](models/segmentation.md#dinov2-linear) | yes | 24.7 (1024x2048) | 18.3 | 12.4 | 2.0x vs original (1024x2048) | 645 |
 | [`fcn-r101-d8-ade20k`](models/segmentation.md#mmseg-cnn-classics) | yes | 47.0 (1024x2048) | 40.7 | 16.6 | 2.8x vs original (1024x2048) | 294 |
 | [`deeplabv3plus-r101-d8-ade20k`](models/segmentation.md#mmseg-cnn-classics) | yes | 53.4 (1024x2048) | 47.1 | 18.0 | 3.0x vs original (1024x2048) | 365 |
+| [`segnext-mscan-t-ade20k`](models/segmentation.md#segnext) | yes | 21.1 (1024x2048) | 18.5 | – | – | – |
 | [`deeplabv3-r101-d8-ade20k`](models/segmentation.md#mmseg-cnn-classics) | yes | 54.8 (1024x2048) | 47.9 | 20.1 | 2.7x vs original (1024x2048) | 362 |
 | [`dinov2-b-linear-ade20k`](models/segmentation.md#dinov2-linear) | yes | 40.1 (1024x2048) | 33.3 | 22.6 | 1.8x vs original (1024x2048) | 771 |
 | [`pspnet-r101-d8-ade20k`](models/segmentation.md#mmseg-cnn-classics) | yes | 47.2 (1024x2048) | 48.8 | 25.0 | 1.9x vs original (1024x2048) | 341 |
 | [`segformer-b5-ade20k`](models/segmentation.md#segformer) | no | 72.0 (1024x2048) | 38.7 | 25.3 | 2.8x vs original (1024x2048) | 407 |
+| [`segnext-mscan-s-ade20k`](models/segmentation.md#segnext) | yes | 23.3 (1024x2048) | 27.0 | – | – | – |
 | [`eomt-l-dinov2-ade20k`](models/segmentation.md#eomt) | yes | 63.7 (1024x2048) | 50.8 | 35.0 | 1.8x vs original (1024x2048) | 1515 |
 | [`eomt-l-dinov3-ade20k`](models/segmentation.md#eomt) | yes | 72.1 (1024x2048) | 54.6 | 38.8 | 1.9x vs original (1024x2048) | 1514 |
+| [`segnext-mscan-b-ade20k`](models/segmentation.md#segnext) | yes | 33.9 (1024x2048) | 44.3 | – | – | – |
 | [`dinov2-l-linear-ade20k`](models/segmentation.md#dinov2-linear) | yes | 95.7 (1024x2048) | 83.9 | 56.8 | 1.7x vs original (1024x2048) | 1189 |
 | [`mask2former-swinl-ade20k`](models/segmentation.md#mask2former) | no | 144.8 (1024x2048) | 103.2 | 60.4 | 2.4x vs original (1024x2048) | 1164 |
+| [`segnext-mscan-l-ade20k`](models/segmentation.md#segnext) | yes | 52.2 (1024x2048) | 69.0 | – | – | – |
 | [`sapiens-seg-0.3b-goliath`](models/segmentation.md#sapiens-segmentation) | no | 173.2 (1024x2048) | 131.9 | 92.6 | 1.9x vs original (1024x2048) | 1643 |
 | [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | yes | 205.1 (1024x2048) | 139.1 | 100.0 | 2.1x vs original (1024x2048) | 2054 |
 | [`sapiens-seg-1b-goliath`](models/segmentation.md#sapiens-segmentation) | no | 354.4 (1024x2048) | 275.1 | 185.2 | 1.9x vs original (1024x2048) | 3259 |

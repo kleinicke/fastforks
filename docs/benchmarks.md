@@ -700,6 +700,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | sapiens-seg-1b-goliath | 1189 | 354 | 275 | 185 | 1.9x | 1.5x | 5721 / 5906 | 3259 / 3384 | 3259 / 3382 |
 | segformer-b0-ade20k | 17.2 | 17.4 | 11.4 | 3.48 | 5.0x | 3.3x | 1590 / 1766 | 339 / 376 | 148 / 238 |
 | segformer-b5-ade20k | 132 | 72.0 | 38.7 | 25.3 | 2.8x | 1.5x | 2531 / 2620 | 546 / 590 | 407 / 534 |
+| segnext-mscan-b-ade20k | 44.8 | 33.9 | 44.3 | – | – | – | 1727 / 1838 | 494 / 546 | – |
+| segnext-mscan-l-ade20k | 69.7 | 52.2 | 69.0 | – | – | – | 1849 / 1894 | 535 / 558 | – |
+| segnext-mscan-s-ade20k | 28.6 | 23.3 | 27.0 | – | – | – | 1649 / 1700 | 468 / 502 | – |
+| segnext-mscan-t-ade20k | 21.1 | 23.8 | 18.5 | – | – | – | 1593 / 1648 | 449 / 480 | – |
 
 ### Promptable segmentation, synthetic, 1024x1024
 
@@ -1103,6 +1107,10 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | sapiens-seg-1b-goliath | 11.33 (512x512) | 3.54 | 2.27† | 0.57 (512x512) | 0.27† | 0.18† |
 | segformer-b0-ade20k | 4.83 (512x512) | 2.55 | 2.92 | 2.23 (512x512) | 0.08 | 0.01 |
 | segformer-b5-ade20k | 1.24 (512x512) | 3.09 | 3.43 | 0.50 (512x512) | 0.08 | 0.03 |
+| segnext-mscan-b-ade20k | 0.37 | 0.21 (512x512) | – | 0.19 | 0.64 (512x512) | – |
+| segnext-mscan-l-ade20k | 0.57 | 0.33 (512x512) | – | 0.06 | 0.47 (512x512) | – |
+| segnext-mscan-s-ade20k | 0.23 | 0.11 (512x512) | – | 0.32 | 0.61 (512x512) | – |
+| segnext-mscan-t-ade20k | 0.19 | 0.11 (512x512) | – | 0.34 | 0.60 (512x512) | – |
 | efficientvit-sam-l0 | 0.35 | 0.83 | 1.63 | 0.82 | 0.72 | 0.25 |
 | efficientvit-sam-l1 | 0.31 | 0.76 | 1.64 | 0.03 | 0.69 | 0.25 |
 | efficientvit-sam-l2 | 0.39 | 0.93 | 1.78 | 0.04 | 0.66 | 0.25 |
@@ -1417,6 +1425,10 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | oneformer-swinl-ade20k | 1024x2048 | 139 ms | fails: Inductor: Triton kernel does not compile (torch bug) | 83.3 ms | 100.0 ms | – | 140 s | 2054 / 2476 | – | 2054 / 2476 | 3258 |
 | sapiens-seg-0.3b-goliath | 1024x2048 | 132 ms | 118 ms | 156 ms | 92.6 ms | 12.5 s | 52.9 s | 1643 / 1762 | 1373 / 1462 | 1643 / 1762 | 1564 |
 | segformer-b0-ade20k | 1024x2048 | 11.4 ms | 9.27 ms | 5.51 ms | 3.48 ms | 12.3 s | 60.9 s | 339 / 376 | 336 / 356 | 148 / 238 | 792 |
+| segnext-mscan-b-ade20k | 1024x2048 | 44.3 ms | 40.7 ms | 23.3 ms | – | 24.1 s | 66.3 s | 494 / 546 | 491 / 526 | – | 820 |
+| segnext-mscan-l-ade20k | 1024x2048 | 69.0 ms | 63.6 ms | 32.3 ms | – | 34.9 s | 82.2 s | 535 / 558 | 532 / 578 | – | 860 |
+| segnext-mscan-s-ade20k | 1024x2048 | 27.0 ms | 24.9 ms | 18.0 ms | – | 17.2 s | 56.6 s | 468 / 502 | 465 / 482 | – | 786 |
+| segnext-mscan-t-ade20k | 1024x2048 | 18.5 ms | 16.6 ms | 16.0 ms | – | 19.1 s | 59.6 s | 449 / 480 | 446 / 480 | – | 788 |
 | efficientvit-sam-l0 | 1024x1024 | 12.7 ms | 6.44 ms | 5.56 ms, fp32 engine (image encoder only) | 4.45 ms | 25.2 s | 19.9 s | 171 / 210 | 188 / 228 | 176 / 256 | 202 |
 | efficientvit-sam-l1 | 1024x1024 | 14.4 ms | 11.3 ms | 7.30 ms, fp32 engine (image encoder only) | 5.79 ms | 24.8 s | 22.0 s | 195 / 234 | 212 / 252 | 203 / 284 | 266 |
 | efficientvit-sam-l2 | 1024x1024 | 17.8 ms | 10.8 ms | 9.65 ms, fp32 engine (image encoder only) | 6.83 ms | 26.1 s | 24.1 s | 221 / 260 | 238 / 278 | 232 / 312 | 330 |
