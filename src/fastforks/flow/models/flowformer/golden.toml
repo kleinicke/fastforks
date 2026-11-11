@@ -1,0 +1,25 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.0001  # measured 0 for all three checkpoints on x86-64; margin for CPU implementations
+gpu_mean = 0.0021
+gpu_p99 = 0.013
+
+[refs."flowformer-small-chairs@1"]
+sha256 = "094cb41f0e0c5e47a02523d8b9ccd9b8290e70538c0278692493cbe661bc0f11"
+upstream = "https://github.com/drinkingcoder/FlowFormer-Official@6ba7ea82b45394d3a7a25808399695427c9febd8"
+settings = "CPU float32, upstream FlowFormer Small iters=32, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."flowformer-small-sintel@1"]
+sha256 = "40bc02dcc5f052c6cd7e0165fb94f82334594a4a832821c231d1ef6bdb28297c"
+upstream = "https://github.com/drinkingcoder/FlowFormer-Official@6ba7ea82b45394d3a7a25808399695427c9febd8"
+settings = "CPU float32, upstream FlowFormer Small iters=32, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."flowformer-small-things@1"]
+sha256 = "c162f12fc7cbaed6b593639cd1064f201f96ae2e1280114f8f766fbc69272ac8"
+upstream = "https://github.com/drinkingcoder/FlowFormer-Official@6ba7ea82b45394d3a7a25808399695427c9febd8"
+settings = "CPU float32, upstream FlowFormer Small iters=32, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"

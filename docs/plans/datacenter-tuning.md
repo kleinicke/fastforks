@@ -446,3 +446,45 @@ from the portable GPU tolerances, which remain unchanged.
 |---|---:|---:|---:|
 | gmflow-scale1-things | 0.0047006 | 0.0177909 | 0.0307865 |
 | gmflow-scale1-mixdata | 0.0047868 | 0.0169592 | 0.0257974 |
+
+### FlowFormer Small
+
+The final runner preserves the full upstream cost encoder batching. A workspace-chunking prototype matched
+CPU/small-image goldens but changed recurrent GPU results on KITTI and is not shipped. The final float32
+runner exactly reproduces the original fp32 per-pair EPE and outlier counts across all 600 KITTI evaluations
+(three checkpoints, 200 pairs each). Original float16 rows use ordinary autocast, not a native-half checkpoint.
+
+Full-frame 1080p exceeded the RTX 5060 Ti 16GB memory in portable and original fp32/fp16 runs. No tiling,
+resizing or backend substitution is hidden in these measurements. Compiler/export failure rows retain their
+actual reason.
+
+The matched 375x1242 measurements below complement the standard 1080p failure records. Memory is peak
+PyTorch allocation except TensorRT, which uses total device memory because the PyTorch allocator excludes
+engine allocations.
+
+| Ref | Backend / precision | ms | MiB |
+|---|---|---:|---:|
+| flowformer-small-chairs | original fp32 | 351.590 | 3122 |
+| flowformer-small-chairs | original autocast fp16 | 302.650 | 2382 |
+| flowformer-small-chairs | portable fp32 | 351.288 | 3165 |
+| flowformer-small-chairs | compile | 250.251 | 2438 |
+| flowformer-small-chairs | tensorrt | 201.927 | 2006 |
+| flowformer-small-sintel | original fp32 | 352.160 | 3122 |
+| flowformer-small-sintel | original autocast fp16 | 302.970 | 2382 |
+| flowformer-small-sintel | portable fp32 | 350.805 | 3165 |
+| flowformer-small-sintel | compile | 250.379 | 2438 |
+| flowformer-small-sintel | tensorrt | 201.921 | 2006 |
+| flowformer-small-things | original fp32 | 352.130 | 3122 |
+| flowformer-small-things | original autocast fp16 | 303.130 | 2382 |
+| flowformer-small-things | portable fp32 | 350.814 | 3165 |
+| flowformer-small-things | compile | 250.211 | 2438 |
+| flowformer-small-things | tensorrt | 201.968 | 2006 |
+
+Separate 384x512 TensorRT golden measurements against the CPU reference follow. All outputs were finite;
+these engine-specific errors do not replace or widen the portable GPU tolerances.
+
+| Ref | Mean error (px) | p99 (px) | Maximum (px) |
+|---|---:|---:|---:|
+| flowformer-small-chairs | 0.0142278 | 0.1124696 | 0.4211054 |
+| flowformer-small-things | 0.0315576 | 0.1156455 | 0.2334595 |
+| flowformer-small-sintel | 0.0250801 | 0.0983355 | 0.2195258 |

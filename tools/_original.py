@@ -293,6 +293,38 @@ def _sea_raft(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda im1, im2: g.calc_flow(net, im1[None].float(), im2[None].float(), scale)
 
 
+def _flowformer(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Authors' FlowFormer Small, full-frame inference with their centred padding.
+
+    The reference environment supplies timm 0.4.12, yacs, einops and loguru. The fp16 tier is ordinary autocast;
+    upstream has no mixed-precision setting.
+    """
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("flowformer")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_FLOWFORMER_REPO")
+        if not repo:
+            msg = "FF_FLOWFORMER_REPO: a clone of drinkingcoder/FlowFormer-Official for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+    card, variant = registry.resolve("flow", full)
+    net = g.build(a.tree, registry.weights(card, variant, allow_download=False)[0]).cuda()
+    m = variant.io.pad_multiple
+    a.note = f"upstream FlowFormer Small, iters={g.ITERS}, full frame padded to multiples of {m}"
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        h, w = im1.shape[-2:]
+        ph, pw = -h % m, -w % m
+        pad = (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2)
+        x1, x2 = (F.pad(im[None].float(), pad, mode="replicate") for im in (im1, im2))
+        return g.calc_flow(net, x1, x2)[..., pad[2] : pad[2] + h, pad[0] : pad[0] + w]
+
+    return call
+
+
 def _gmflow(a: Any, full: str) -> Any:  # noqa: ANN401
     """Upstream `UniMatch` as `tools/golden/gmflow.py` (`FF_GMFLOW_REPO`), settings of scripts/gmflow_evaluate.sh.
 
@@ -750,6 +782,7 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
     "sea_raft": _Local("flow", _sea_raft, ((1080, 1920), (375, 1242))),
     "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
     "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
+    "flowformer": _Local("flow", _flowformer, ((1080, 1920), (375, 1242))),
     "flowseek": _Local("flow", _flowseek, ((1080, 1920), (375, 1242))),
     "vitpose": _Local("pose", _vitpose, ((1080, 1920),), lambda a: (a[0].permute(1, 2, 0).cpu().numpy(), _xywh(a[1]))),
     "rtmpose": _Local(

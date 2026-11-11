@@ -52,7 +52,7 @@ def test_parses(data):
         (lambda d: d.update(tier="beta"), "'beta' not in"),
         (lambda d: d.update(colour="red"), r"unknown key\(s\) \['colour'\]"),
         (lambda d: d["licence"].update(commercial="no"), r"unknown key\(s\) \['commercial'\]"),
-        (lambda d: d["licence"].update(code="WTFPL"), "unknown licence id"),
+        (lambda d: d["licence"].update(code="Unknown-License-1.0"), "unknown licence id"),
         (lambda d: d["licence"].update(weights="not stated"), "assumed from code"),
         (lambda d: d["licence"].update(training_data=["imagenet"]), "bad: \\['imagenet'\\]"),
         (lambda d: d["variants"][0].update(licence={"weights": "Foo-1.0"}), "unknown licence id"),

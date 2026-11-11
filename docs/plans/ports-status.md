@@ -62,6 +62,9 @@ In this order, unless something more useful turns up:
 
 - SHViT S1-S4: portable fp32 MPS goldens and speed at native 224 crops (S4: 256). CUDA portable goldens pass
   with mean/p99 bounds 0.0060/0.023; weights are downloadable from the pinned timm Hugging Face card URLs.
+- FlowFormer Small, all three variants: MPS float32 goldens and portable timing/memory; weights in
+  `~/scratch_tests/codex-flow-finish/weights/flowformer-small/` or the pinned authors' archive.
+
 - FlowSeek-T, all three variants: MPS float32 goldens and portable speed/memory; pinned weights also in
   `~/scratch_tests/port-flow2/weights/`.
 

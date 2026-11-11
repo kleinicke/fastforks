@@ -1009,6 +1009,7 @@ _STD_SIZE = {
     "features": "224x224",
     "promptable_segmentation": "1024x1024",
     "detection": "800x1344",
+    "flow": "1080x1920",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input

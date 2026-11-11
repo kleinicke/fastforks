@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add FlowFormer Small optical flow: Chairs, Things and Sintel checkpoints with permissive code notices.
+
 - Add FlowSeek-T optical flow: mixed-data, FlyingThings and FlyingThings without TartanAir checkpoints.
 
 - Add GMFlow optical flow: nine scale-one, scale-two and recurrent-refinement checkpoints.
