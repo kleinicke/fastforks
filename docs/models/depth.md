@@ -596,10 +596,10 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `moge-2-vitl-normal` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 |  |
 | `moge-2-vitl-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0518 / 0.9789 | 0.0518 / 0.9789 | 0.0519 / 0.9789 | 0.0518 / 0.9790 | possibly in the training data |
 | `moge-2-vitl-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | possibly in the training data |
-| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 |  |  | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  |
-| `moge-3-vitl` | iBims-1, AbsRel / delta1 |  |  | 0.0261 / 0.9884 | 0.0261 / 0.9883 |  |
-| `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 |  |  | 0.0496 / 0.9847 | 0.0496 / 0.9847 | possibly in the training data |
-| `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 |  |  | 0.0235 / 0.9970 | 0.0235 / 0.9970 | possibly in the training data |
+| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 |  | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  |
+| `moge-3-vitl` | iBims-1, AbsRel / delta1 |  | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9883 |  |
+| `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 |  | 0.0496 / 0.9847 | 0.0496 / 0.9847 | 0.0496 / 0.9847 | possibly in the training data |
+| `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 |  | 0.0235 / 0.9970 | 0.0235 / 0.9970 | 0.0235 / 0.9970 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3d00db1d / 939adfe8, 2026-11-06 to 2026-11-11.
 

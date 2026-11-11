@@ -809,7 +809,7 @@ Commercial use: yes.
 - Variants: `great-igev-sceneflow`, `great-igev-kitti`, `great-igev-eth3d`, `great-igev-middlebury`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `great-igev-sceneflow` not measured yet; `great-igev-kitti` not measured yet; `great-igev-eth3d` not measured yet; `great-igev-middlebury` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `great-igev-sceneflow` 3000x4000 (11.1 GiB peak allocated, 14.8 reserved); `great-igev-kitti` 3000x4000 (11.1 GiB peak allocated, 14.8 reserved); `great-igev-eth3d` 3000x4000 (11.1 GiB peak allocated, 14.8 reserved); `great-igev-middlebury` 1988x2880 (7.1 GiB peak allocated, 11.3 reserved)
 - `great-igev-kitti`, `great-igev-eth3d`: same network and settings as `great-igev-sceneflow`, measured once (rows not repeated).
 - `great-igev-sceneflow` 994x1482, first call: portable + torch.compile 224 s (cold Inductor cache).
 - `great-igev-sceneflow` original (fp32) 994x1482, original 994x1482, portable 994x1482, kernels 994x1482: measured on great-igev-eth3d (same architecture, other checkpoint)
@@ -1009,7 +1009,7 @@ Commercial use: yes.
 - Variants: `igev-plusplus-sceneflow`, `igev-plusplus-kitti12`, `igev-plusplus-kitti15`, `igev-plusplus-middlebury`, `igev-plusplus-eth3d`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `igev-plusplus-sceneflow` not measured yet; `igev-plusplus-kitti12` not measured yet; `igev-plusplus-kitti15` not measured yet; `igev-plusplus-middlebury` not measured yet; `igev-plusplus-eth3d` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `igev-plusplus-sceneflow` 1988x2880 (6.0 GiB peak allocated, 10.2 reserved); `igev-plusplus-kitti12` 1988x2880 (6.0 GiB peak allocated, 10.2 reserved); `igev-plusplus-kitti15` 1988x2880 (6.0 GiB peak allocated, 10.2 reserved); `igev-plusplus-middlebury` 1988x2880 (6.0 GiB peak allocated, 10.2 reserved); `igev-plusplus-eth3d` 1988x2880 (6.0 GiB peak allocated, 10.2 reserved)
 - `igev-plusplus-kitti12`, `igev-plusplus-kitti15`, `igev-plusplus-middlebury`, `igev-plusplus-eth3d`: same network and settings as `igev-plusplus-sceneflow`, measured once (rows not repeated).
 - `igev-plusplus-sceneflow` 994x1482, first call: portable + torch.compile 158 s (cold Inductor cache).
 - `igev-plusplus-sceneflow` original (fp32) 994x1482, original 994x1482, portable 994x1482, kernels 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)

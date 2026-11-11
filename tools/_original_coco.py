@@ -13,9 +13,13 @@ Code paths (each family's venv, `bench/bench_upstream.py list`):
   `SCORE_THRESH_TEST` 0.05 and 100 detections (the config defaults the cards copy). 007 venv.
 - DETR / RT-DETRv2: `bench/detr_original.py build` (official transforms + postprocessor); DETR keeps score >= 0.05
   (card default), RT-DETRv2 all 300 queries (the official postprocessor, as the fastforks tiers of this eval). 007 venv.
+- D-FINE: transformers `DFineForObjectDetection` (the golden's reference) at the card's revision, 640 x 640 PIL
+  bilinear input in [0, 1], the RT-DETR postprocess keeping all 300 (as the fastforks tiers of this eval).
 - RTMDet: mmdet 3.3.0 `inference_detector` on the model of `tools/golden/rtmdet.py` (`FF_MMDET_SITE`: mmdet,
   mmengine, mmcv-lite; NMS through torchvision's operator), the configs' test settings (COCO: score 0.001, 300
   detections; the person detectors: 0.05, 100).
+- Pose: mmpose 1.3.2 `inference_topdown` / `inference_bottomup` (RTMPose, HRNet, RTMO; `tools/_original.py`); ViTPose =
+  transformers `VitPoseImageProcessor` + `VitPoseForPoseEstimation` + `post_process_pose_estimation` (the golden's pin).
 - SAM: `segment_anything.SamPredictor.set_image` + `predict_torch` (point coordinates through its `ResizeLongestSide`).
 - SAM 2: `SAM2ImagePredictor.set_image` + its `_prep_prompts` / `_predict` (the torch path of `predict`, masks stay on
   the GPU); the authors' README runs it under `torch.autocast("cuda", torch.bfloat16)`: that is the `upstream16` tier.
@@ -204,6 +208,42 @@ def _rtmdet(ref: str, tier: str) -> _Detector:
     return det
 
 
+def _dfine(ref: str, tier: str) -> _Detector:
+    """The golden's transformers `DFineForObjectDetection` at the card's revision, with its input and postprocess.
+
+    640 x 640 PIL bilinear, [0, 1]; the RT-DETR postprocess (the 300 best of the 300 x 80 sigmoid scores, all kept).
+    """
+    import re  # noqa: PLC0415
+
+    import torch  # noqa: PLC0415
+    import transformers  # noqa: PLC0415
+    from PIL import Image  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    _, variant = registry.resolve("detection", ref)
+    hub = re.match(r"https://huggingface.co/([^/]+/[^/]+)/resolve/([0-9a-f]+)/", variant.weights[0].url)
+    if hub is None:
+        msg = f"{ref}: unexpected weight url {variant.weights[0].url}"
+        raise RuntimeError(msg)
+    net = transformers.DFineForObjectDetection.from_pretrained(hub[1], revision=hub[2], dtype=torch.float32)
+    net = net.to("cuda").eval()
+    t = _Tier(tier, "dfine", [net])
+
+    def fn(img: np.ndarray) -> tuple[Any, ...]:
+        h, w = img.shape[:2]
+        x = np.asarray(Image.fromarray(img).resize((640, 640), Image.Resampling.BILINEAR))
+        x = torch.from_numpy(x.copy()).cuda().permute(2, 0, 1)[None].float() / 255
+        out = net(pixel_values=x.half() if t.how == "half" else x)
+        scores, idx = out.logits.float().sigmoid()[0].flatten().topk(300)
+        labels, query = idx % 80, idx // 80
+        cx, cy, bw, bh = out.pred_boxes.float()[0][query].unbind(-1)
+        boxes = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1)
+        return boxes * torch.tensor([w, h, w, h], device=boxes.device), scores, labels, None
+
+    return _Detector(t, fn, "rtdetr")
+
+
 class _Pose:
     """Pinned mmpose top-down or bottom-up inference behind the COCO pose interface."""
 
@@ -211,16 +251,27 @@ class _Pose:
         from fastforks._core import registry  # noqa: PLC0415
 
         card, _ = registry.resolve("pose", ref)
-        if card.family not in {"rtmpose", "hrnet", "rtmo"}:
+        if card.family not in {"rtmpose", "hrnet", "rtmo", "vitpose"}:
             msg = f"no original COCO pose adapter for {card.family}"
             raise NotImplementedError(msg)
-        self.needs_boxes = card.family in {"rtmpose", "hrnet"}
+        self.family = card.family
+        self.needs_boxes = card.family in {"rtmpose", "hrnet", "vitpose"}
         self.original = _original.load("pose", ref, tier)
         self.backend = Backend(self.original.how, self.original.dtype, self.original.note)
 
     def __call__(self, img: np.ndarray, *, boxes: np.ndarray | None = None) -> Result:
         import torch  # noqa: PLC0415
 
+        if self.family == "vitpose":  # transformers: RGB, `x, y, w, h` boxes, one dict per box
+            xywh = [[x0, y0, x1 - x0, y1 - y0] for x0, y0, x1, y1 in np.asarray(boxes).tolist()]
+            res = self.original(np.ascontiguousarray(img), xywh) if xywh else []
+            if not res:
+                return Result(
+                    scores=torch.empty(0), keypoints=torch.empty(0, 17, 2), keypoint_scores=torch.empty(0, 17)
+                )
+            kp = torch.stack([r["keypoints"].float().cpu() for r in res])
+            ks = torch.stack([r["scores"].float().cpu() for r in res])
+            return Result(scores=ks.mean(1), keypoints=kp, keypoint_scores=ks)
         args = (np.ascontiguousarray(img[..., ::-1]),)
         if self.needs_boxes:
             if boxes is None:
@@ -379,6 +430,8 @@ def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, PLR0911 - one 
     if task == "detection":
         if ref.startswith("rtmdet"):
             return _rtmdet(ref, tier)
+        if ref.startswith("dfine"):
+            return _dfine(ref, tier)
         return _rcnn(ref, tier) if "rcnn" in ref else _detr(ref, tier)
     if ref.startswith("sam3"):
         return _Concept(tier)

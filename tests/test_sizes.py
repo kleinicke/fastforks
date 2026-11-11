@@ -43,6 +43,72 @@ def test_tested_max_and_not_measured():
     assert measured  # sizes.json is packaged and matches refs
 
 
+# refs without a measured largest size, with the reason (cards never say "not measured" for anything else)
+_NO_DISK = "weights not downloaded: the probe machine had < 6 GB free disk (2026-11-11)"
+UNMEASURED = {
+    "c-radio-v3-g": "weights 4.3 GB: over the probe machine's scratch disk (2026-11-11)",
+    "pe-core-g14-448": "weights 7.0 GB: over the probe machine's scratch disk (2026-11-11)",
+    "pe-spatial-g14-448": "weights 6.9 GB: over the probe machine's scratch disk (2026-11-11)",
+    "siglip2-g16-256": "weights 4.3 GB: over the probe machine's scratch disk (2026-11-11)",
+    "siglip2-g16-384": "weights 4.3 GB: over the probe machine's scratch disk (2026-11-11)",
+} | dict.fromkeys(
+    [
+        "c-radio-v3-b",
+        "c-radio-v3-h",
+        "c-radio-v3-l",
+        "clip-b16-laion2b",
+        "clip-b16-openai",
+        "clip-h14-378-dfn5b",
+        "clip-h14-dfn5b",
+        "clip-h14-laion2b",
+        "clip-l14-336-openai",
+        "clip-l14-datacompxl",
+        "clip-l14-dfn2b",
+        "clip-l14-laion2b",
+        "clip-l14-openai",
+        "depth-anything-v2-metric-hypersim-b",
+        "depth-anything-v2-metric-hypersim-l",
+        "depth-anything-v2-metric-hypersim-s",
+        "depth-anything-v2-metric-vkitti-b",
+        "depth-anything-v2-metric-vkitti-l",
+        "depth-anything-v2-metric-vkitti-s",
+        "distill-any-depth-b",
+        "distill-any-depth-l",
+        "distill-any-depth-s",
+        "moge-2-vitb-normal",
+        "pe-core-b16-224",
+        "pe-core-l14-336",
+        "pe-core-s16-384",
+        "pe-spatial-b16-512",
+        "pe-spatial-l14-448",
+        "pe-spatial-s16-512",
+        "pe-spatial-t16-512",
+        "rtmo-l",
+        "rtmo-m",
+        "rtmo-s",
+        "siglip2-b16-256",
+        "siglip2-b16-512",
+        "siglip2-l16-256",
+        "siglip2-l16-512",
+        "siglip2-so400m14-224",
+        "siglip2-so400m14-378",
+        "siglip2-so400m16-256",
+        "siglip2-so400m16-512",
+        "tipsv2-l14",
+        "vitpose-plus-huge",
+    ],
+    _NO_DISK,
+)
+
+
+def test_every_ref_has_a_tested_size():
+    """A new ref needs its sizes.json entry: tools/bench_sizes.py on a GPU, then tools/extract_sizes.py."""
+    refs = {v.ref.split("@")[0]: size_range(v, card) for t in registry.TASKS for card, v in registry.cards(t).values()}
+    missing = sorted(r for r, s in refs.items() if not s.tested_max and r not in UNMEASURED)
+    assert not missing, f"no tested size (run tools/bench_sizes.py + tools/extract_sizes.py): {missing}"
+    assert not [r for r in UNMEASURED if r in refs and refs[r].tested_max], "measured now: drop it from UNMEASURED"
+
+
 def test_card_lines_cover_every_variant():
     card, _ = registry.resolve_any("s2m2-s")
     lines = card_size_lines(card)

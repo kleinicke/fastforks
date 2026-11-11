@@ -75,7 +75,7 @@ Commercial use: yes.
 - Variants: `flowformer-small-chairs`, `flowformer-small-things`, `flowformer-small-sintel`
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `flowformer-small-chairs` not measured yet; `flowformer-small-things` not measured yet; `flowformer-small-sintel` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `flowformer-small-chairs` 1024x1024 (11.2 GiB peak allocated, 12.3 reserved); `flowformer-small-things` 1024x1024 (11.2 GiB peak allocated, 12.3 reserved); `flowformer-small-sintel` 1024x1024 (11.2 GiB peak allocated, 12.3 reserved)
 - `flowformer-small-chairs` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 118 s (ONNX + engine).
 - `flowformer-small-things` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 118 s (ONNX + engine).
 - `flowformer-small-sintel` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 117 s (ONNX + engine).
@@ -148,7 +148,7 @@ Commercial use: yes.
 - Variants: `flowseek-t`, `flowseek-t-things`, `flowseek-t-things-notartan`
 - Outputs: flow
 - Input size: any H x W >= 128, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `flowseek-t` not measured yet; `flowseek-t-things` not measured yet; `flowseek-t-things-notartan` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `flowseek-t` 1024x2048 (8.6 GiB peak allocated, 10.2 reserved); `flowseek-t-things` 1024x2048 (8.6 GiB peak allocated, 10.2 reserved); `flowseek-t-things-notartan` 1024x2048 (8.6 GiB peak allocated, 10.2 reserved)
 - `flowseek-t` 1080x1920, first call: portable + torch.compile 54 s (cold Inductor cache), TensorRT fp16 107 s (ONNX + engine).
 - `flowseek-t-things` 1080x1920, first call: portable + torch.compile 55 s (cold Inductor cache), TensorRT fp16 102 s (ONNX + engine).
 - `flowseek-t-things-notartan` 1080x1920, first call: portable + torch.compile 54 s (cold Inductor cache), TensorRT fp16 98 s (ONNX + engine).
@@ -226,7 +226,7 @@ Commercial use: yes.
 - Input size:
   - `gmflow-scale1-things`, `gmflow-scale1-mixdata`: any H x W >= 64, padded to a multiple of 16
   - `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata`: any H x W >= 64, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gmflow-scale1-things` not measured yet; `gmflow-scale1-mixdata` not measured yet; `gmflow-scale2-things` not measured yet; `gmflow-scale2-sintel` not measured yet; `gmflow-scale2-mixdata` not measured yet; `gmflow-scale2-regrefine6-things` not measured yet; `gmflow-scale2-regrefine6-sintelft` not measured yet; `gmflow-scale2-regrefine6-kitti` not measured yet; `gmflow-scale2-regrefine6-mixdata` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gmflow-scale1-things` 1024x2048 (5.4 GiB peak allocated, 6.0 reserved); `gmflow-scale1-mixdata` 1024x2048 (5.4 GiB peak allocated, 6.0 reserved); `gmflow-scale2-things` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-sintel` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-mixdata` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-things` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-sintelft` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-kitti` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-mixdata` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved)
 - `gmflow-scale1-things` 1080x1920, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 69 s (ONNX + engine).
 - `gmflow-scale1-mixdata` 1080x1920, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 67 s (ONNX + engine).
 - `gmflow-scale2-things` 1080x1920, first call: portable + torch.compile 47 s (cold Inductor cache).
@@ -334,7 +334,7 @@ Commercial use: yes.
 - Variants: `neuflow-v2`, `neuflow-v2-sintel`, `neuflow-v2-things`
 - Outputs: flow
 - Input size: any H x W >= 32, padded to a multiple of 16
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `neuflow-v2` not measured yet; `neuflow-v2-sintel` not measured yet; `neuflow-v2-things` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `neuflow-v2` 1024x2048 (8.2 GiB peak allocated, 9.0 reserved); `neuflow-v2-sintel` 1024x2048 (8.2 GiB peak allocated, 9.0 reserved); `neuflow-v2-things` 1024x2048 (8.2 GiB peak allocated, 9.0 reserved)
 - `neuflow-v2` 1080x1920, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 104 s (ONNX + engine).
 - `neuflow-v2-sintel` 1080x1920, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 102 s (ONNX + engine).
 - `neuflow-v2-things` 1080x1920, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 104 s (ONNX + engine).
@@ -402,7 +402,7 @@ Commercial use: yes.
 - Variants: `raft-large`, `raft-large-things`, `raft-large-kitti`, `raft-small`
 - Outputs: flow
 - Input size: any H x W >= 128, padded to a multiple of 8
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `raft-large` not measured yet; `raft-large-things` not measured yet; `raft-large-kitti` not measured yet; `raft-small` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `raft-large` 1024x2048 (8.3 GiB peak allocated, 9.0 reserved); `raft-large-things` 1024x2048 (8.3 GiB peak allocated, 9.0 reserved); `raft-large-kitti` 1024x2048 (8.3 GiB peak allocated, 9.0 reserved); `raft-small` 1024x2048 (8.2 GiB peak allocated, 8.7 reserved)
 - `raft-large` 1080x1920, first call: portable + torch.compile 41 s (cold Inductor cache).
 - `raft-large-things` 1080x1920, first call: portable + torch.compile 39 s (cold Inductor cache).
 - `raft-large-kitti` 1080x1920, first call: portable + torch.compile 39 s (cold Inductor cache).
@@ -484,7 +484,7 @@ Commercial use: yes.
 - Input size:
   - `sea-raft-m`, `sea-raft-m-kitti`, `sea-raft-m-things`, `sea-raft-s`, `sea-raft-s-kitti`: any H x W >= 128, padded to a multiple of 8
   - `sea-raft-m-spring`, `sea-raft-s-spring`: any H x W >= 256, padded to a multiple of 8
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sea-raft-m` not measured yet; `sea-raft-m-kitti` not measured yet; `sea-raft-m-spring` not measured yet; `sea-raft-m-things` not measured yet; `sea-raft-s` not measured yet; `sea-raft-s-kitti` not measured yet; `sea-raft-s-spring` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sea-raft-m` 1024x2048 (8.3 GiB peak allocated, 9.4 reserved); `sea-raft-m-kitti` 1024x2048 (8.3 GiB peak allocated, 9.4 reserved); `sea-raft-m-spring` 1988x2880 (4.1 GiB peak allocated, 4.8 reserved); `sea-raft-m-things` 1024x2048 (8.3 GiB peak allocated, 9.4 reserved); `sea-raft-s` 1024x2048 (8.3 GiB peak allocated, 9.3 reserved); `sea-raft-s-kitti` 1024x2048 (8.3 GiB peak allocated, 9.3 reserved); `sea-raft-s-spring` 1988x2880 (4.1 GiB peak allocated, 4.8 reserved)
 - `sea-raft-m` 1080x1920, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 70 s (ONNX + engine).
 - `sea-raft-m-kitti` 1080x1920, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 70 s (ONNX + engine).
 - `sea-raft-m-spring` 1080x1920, first call: portable + torch.compile 23 s (cold Inductor cache), TensorRT fp16 47 s (ONNX + engine).
@@ -523,11 +523,11 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 |---|---|---|---|---|---|---|
 | `sea-raft-m` | KITTI 2015 train, EPE / Fl-all % | 0.880 / 2.51 | 0.880 / 2.51 | 0.880 / 2.51 | 0.880 / 2.50 | trained on this dataset's public images; not a zero-shot result |
 | `sea-raft-m-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.808 / 2.16 | 0.808 / 2.16 | 0.808 / 2.16 | 0.808 / 2.16 | trained on this dataset's public images; not a zero-shot result |
-| `sea-raft-m-spring` | KITTI 2015 train, EPE / Fl-all % |  |  | 6.775 / 23.74 | 6.783 / 23.74 | trained on this dataset's public images; not a zero-shot result |
+| `sea-raft-m-spring` | KITTI 2015 train, EPE / Fl-all % | 6.779 / 23.75 | 6.775 / 23.74 | 6.775 / 23.74 | 6.783 / 23.74 | trained on this dataset's public images; not a zero-shot result |
 | `sea-raft-m-things` | KITTI 2015 train, EPE / Fl-all % | 4.293 / 14.31 | 4.290 / 14.32 | 4.289 / 14.32 | 4.307 / 14.32 |  |
 | `sea-raft-s` | KITTI 2015 train, EPE / Fl-all % | 1.054 / 3.13 | 1.054 / 3.13 | 1.054 / 3.13 | 1.054 / 3.14 | trained on this dataset's public images; not a zero-shot result |
 | `sea-raft-s-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.936 / 2.66 | 0.936 / 2.66 | 0.936 / 2.66 | 0.935 / 2.65 | trained on this dataset's public images; not a zero-shot result |
-| `sea-raft-s-spring` | KITTI 2015 train, EPE / Fl-all % |  |  | 7.758 / 26.52 | 7.757 / 26.51 | trained on this dataset's public images; not a zero-shot result |
+| `sea-raft-s-spring` | KITTI 2015 train, EPE / Fl-all % | 7.758 / 26.52 | 7.758 / 26.52 | 7.758 / 26.52 | 7.757 / 26.51 | trained on this dataset's public images; not a zero-shot result |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f2992269+uncommitted, 2026-11-10.
 

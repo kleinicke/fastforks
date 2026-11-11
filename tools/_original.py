@@ -290,7 +290,18 @@ def _sea_raft(a: Any, full: str) -> Any:  # noqa: ANN401
     net.load_state_dict(sd, strict=True)
     net = net.cuda().eval()
     a.note = f"upstream RAFT ({g.CONFIG[size]} architecture) + evaluate.py calc_flow, iters={g.ITERS}, scale={scale}"
-    return lambda im1, im2: g.calc_flow(net, im1[None].float(), im2[None].float(), scale)
+    if scale == 0:
+        return lambda im1, im2: g.calc_flow(net, im1[None].float(), im2[None].float(), scale)
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    a.note += "; an odd size (calc_flow returns one row / column short) repeats the last row / column, as our port"
+
+    def run(im1: Any, im2: Any) -> Any:  # noqa: ANN401
+        flow = g.calc_flow(net, im1[None].float(), im2[None].float(), scale)
+        h, w = im1.shape[-2:]
+        return F.pad(flow, (0, w - flow.shape[-1], 0, h - flow.shape[-2]), mode="replicate")
+
+    return run
 
 
 def _flowformer(a: Any, full: str) -> Any:  # noqa: ANN401

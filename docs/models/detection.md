@@ -139,6 +139,20 @@ Commercial use: yes.
 - `dfine-x-coco` load / first call: original 3.88 s / 1.452 s, portable 1.39 s / 0.654 s, kernels 1.41 s / 0.449 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `dfine-n-coco` | COCO val2017, every 10th image, box mAP | 42.94 | 42.91 | 42.91 | 42.97 |  |
+| `dfine-s-coco` | COCO val2017, every 10th image, box mAP | 49.84 | 49.83 | 49.88 | 49.89 |  |
+| `dfine-m-coco` | COCO val2017, every 10th image, box mAP | 51.92 | 51.95 | 52.03 | 52.00 |  |
+| `dfine-l-coco` | COCO val2017, every 10th image, box mAP | 54.17 | 54.18 | 54.14 | 54.17 |  |
+| `dfine-x-coco` | COCO val2017, every 10th image, box mAP | 56.40 | 56.38 | 56.30 | 56.32 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 675d6e93, 2026-11-11.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.2 and p99 <= 1.0 (absolute error of the output `boxes`).

@@ -129,7 +129,7 @@ Commercial use: yes.
 - Variants: `rtmpose-t`, `rtmpose-s`, `rtmpose-m`, `rtmpose-l`, `rtmpose-m-384`, `rtmpose-l-384`, `dwpose-t`, `dwpose-s`, `dwpose-m`, `dwpose-l`, `dwpose-l-384`, `rtmw-m`, `rtmw-l`, `rtmw-x`, `rtmw-l-384`, `rtmw-x-384`, `rtmpose-t-halpe26`, `rtmpose-s-halpe26`, `rtmpose-m-halpe26`, `rtmpose-l-halpe26`, `rtmpose-m-halpe26-384`, `rtmpose-l-halpe26-384`, `rtmpose-x-halpe26-384`, `rtmpose-m-hand5`, `rtmpose-t-face6`, `rtmpose-s-face6`, `rtmpose-m-face6`, `rtmpose-m-ap10k`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmpose-t` not measured yet; `rtmpose-s` not measured yet; `rtmpose-m` not measured yet; `rtmpose-l` not measured yet; `rtmpose-m-384` not measured yet; `rtmpose-l-384` not measured yet; `dwpose-t` not measured yet; `dwpose-s` not measured yet; `dwpose-m` not measured yet; `dwpose-l` not measured yet; `dwpose-l-384` not measured yet; `rtmw-m` not measured yet; `rtmw-l` not measured yet; `rtmw-x` not measured yet; `rtmw-l-384` not measured yet; `rtmw-x-384` not measured yet; `rtmpose-t-halpe26` not measured yet; `rtmpose-s-halpe26` not measured yet; `rtmpose-m-halpe26` not measured yet; `rtmpose-l-halpe26` not measured yet; `rtmpose-m-halpe26-384` not measured yet; `rtmpose-l-halpe26-384` not measured yet; `rtmpose-x-halpe26-384` not measured yet; `rtmpose-m-hand5` not measured yet; `rtmpose-t-face6` not measured yet; `rtmpose-s-face6` not measured yet; `rtmpose-m-face6` not measured yet; `rtmpose-m-ap10k` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmpose-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmpose-s` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmpose-m` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-l` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-m-384` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `rtmpose-l-384` 3000x4000 (0.6 GiB peak allocated, 1.0 reserved); `dwpose-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `dwpose-s` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `dwpose-m` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `dwpose-l` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `dwpose-l-384` 3000x4000 (0.6 GiB peak allocated, 1.0 reserved); `rtmw-m` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmw-l` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmw-x` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved); `rtmw-l-384` 3000x4000 (0.7 GiB peak allocated, 1.0 reserved); `rtmw-x-384` 3000x4000 (0.8 GiB peak allocated, 1.0 reserved); `rtmpose-t-halpe26` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmpose-s-halpe26` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmpose-m-halpe26` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-l-halpe26` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-m-halpe26-384` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `rtmpose-l-halpe26-384` 3000x4000 (0.6 GiB peak allocated, 1.0 reserved); `rtmpose-x-halpe26-384` 3000x4000 (0.8 GiB peak allocated, 0.9 reserved); `rtmpose-m-hand5` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-t-face6` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmpose-s-face6` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-m-face6` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-m-ap10k` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved)
 - `rtmpose-t` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
 - `rtmpose-s` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
 - `rtmpose-m` 1080x1920, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 18 s (ONNX + engine).
@@ -343,7 +343,7 @@ Commercial use: yes.
 - Variants: `hrnet-w32`, `hrnet-w32-384`, `hrnet-w48`, `hrnet-w48-384`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hrnet-w32` not measured yet; `hrnet-w32-384` not measured yet; `hrnet-w48` not measured yet; `hrnet-w48-384` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hrnet-w32` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `hrnet-w32-384` 3000x4000 (0.7 GiB peak allocated, 0.8 reserved); `hrnet-w48` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `hrnet-w48-384` 3000x4000 (0.8 GiB peak allocated, 0.9 reserved)
 - `hrnet-w32` 1080x1920, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
 - `hrnet-w32-384` 1080x1920, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
 - `hrnet-w48` 1080x1920, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 27 s (ONNX + engine).
@@ -366,12 +366,12 @@ Commercial use: yes.
 
 Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | portable | kernels | note |
-|---|---|---|---|---|
-| `hrnet-w32` | COCO val2017, ground-truth person boxes, keypoint AP | 76.5 | 76.5 |  |
-| `hrnet-w32-384` | COCO val2017, ground-truth person boxes, keypoint AP | 77.6 | 77.7 |  |
-| `hrnet-w48` | COCO val2017, ground-truth person boxes, keypoint AP | 76.7 | 76.7 |  |
-| `hrnet-w48-384` | COCO val2017, ground-truth person boxes, keypoint AP | 77.7 | 77.6 |  |
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `hrnet-w32` | COCO val2017, ground-truth person boxes, keypoint AP | 75.5 | 75.5 | 76.5 | 76.5 |  |
+| `hrnet-w32-384` | COCO val2017, ground-truth person boxes, keypoint AP | 76.7 | 76.7 | 77.6 | 77.7 |  |
+| `hrnet-w48` | COCO val2017, ground-truth person boxes, keypoint AP | 76.5 | 76.6 | 76.7 | 76.7 |  |
+| `hrnet-w48-384` | COCO val2017, ground-truth person boxes, keypoint AP | 77.0 | 77.0 | 77.7 | 77.6 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 87e1be16, 2026-11-11.
 
@@ -412,7 +412,7 @@ Commercial use: yes.
 - Variants: `rf-detr-keypoint-preview`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rf-detr-keypoint-preview` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rf-detr-keypoint-preview` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
 - `rf-detr-keypoint-preview` 1080x1920, first call: portable + torch.compile 48 s (cold Inductor cache), TensorRT fp16 67 s (ONNX + engine).
 - `rf-detr-keypoint-preview` original (fp32) 1080x1920: pinned RF-DETR torchvision resize/normalize, original network and uncertainty-fused PostProcess
 - `rf-detr-keypoint-preview` original 1080x1920: the authors' float16 model option; pinned RF-DETR torchvision resize/normalize, original network and uncertainty-fused PostProcess; authors inference(compile=False, dtype=float16, inplace=True)
@@ -475,7 +475,7 @@ Commercial use: yes.
 - Variants: `rtmo-t`, `rtmo-s`, `rtmo-m`, `rtmo-l`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmo-t` not measured yet; `rtmo-s` not measured yet; `rtmo-m` not measured yet; `rtmo-l` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmo-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmo-s` not measured yet; `rtmo-m` not measured yet; `rtmo-l` not measured yet
 - `rtmo-t` 1080x1920, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `rtmo-s` 1080x1920, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `rtmo-m` 1080x1920, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
@@ -562,7 +562,7 @@ Commercial use: yes.
 - Variants: `vitpose-base-simple`, `vitpose-base`, `vitpose-plus-small`, `vitpose-plus-base`, `vitpose-plus-large`, `vitpose-plus-huge`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vitpose-base-simple` not measured yet; `vitpose-base` not measured yet; `vitpose-plus-small` not measured yet; `vitpose-plus-base` not measured yet; `vitpose-plus-large` not measured yet; `vitpose-plus-huge` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vitpose-base-simple` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-small` 3000x4000 (4.4 GiB peak allocated, 4.6 reserved); `vitpose-plus-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-large` 3000x4000 (4.9 GiB peak allocated, 5.2 reserved); `vitpose-plus-huge` not measured yet
 - `vitpose-base-simple` 1080x1920, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `vitpose-base` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `vitpose-plus-small` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 38 s (ONNX + engine).

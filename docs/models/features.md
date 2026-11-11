@@ -276,7 +276,7 @@ Commercial use: yes.
 - Variants: `convnext_tiny.fb_in22k`, `convnext_small.fb_in22k`, `convnext_base.fb_in22k`, `convnext_large.fb_in22k`
 - Outputs: last_hidden_state, pooler_output
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `convnext_tiny.fb_in22k` not measured yet; `convnext_small.fb_in22k` not measured yet; `convnext_base.fb_in22k` not measured yet; `convnext_large.fb_in22k` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `convnext_tiny.fb_in22k` 3000x4000 (1.9 GiB peak allocated, 2.4 reserved); `convnext_small.fb_in22k` 3000x4000 (1.9 GiB peak allocated, 2.5 reserved); `convnext_base.fb_in22k` 3000x4000 (2.5 GiB peak allocated, 3.6 reserved); `convnext_large.fb_in22k` 3000x4000 (3.8 GiB peak allocated, 5.2 reserved)
 - `convnext_tiny.fb_in22k` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `convnext_small.fb_in22k` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `convnext_base.fb_in22k` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
@@ -574,7 +574,7 @@ Commercial use: yes.
 - Variants: `pe-core-t16-384`, `pe-core-s16-384`, `pe-core-b16-224`, `pe-core-l14-336`, `pe-core-g14-448`, `pe-spatial-t16-512`, `pe-spatial-s16-512`, `pe-spatial-b16-512`, `pe-spatial-l14-448`, `pe-spatial-g14-448`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pe-core-t16-384` not measured yet; `pe-core-s16-384` not measured yet; `pe-core-b16-224` not measured yet; `pe-core-l14-336` not measured yet; `pe-core-g14-448` not measured yet; `pe-spatial-t16-512` not measured yet; `pe-spatial-s16-512` not measured yet; `pe-spatial-b16-512` not measured yet; `pe-spatial-l14-448` not measured yet; `pe-spatial-g14-448` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pe-core-t16-384` 3000x4000 (0.8 GiB peak allocated, 1.1 reserved); `pe-core-s16-384` not measured yet; `pe-core-b16-224` not measured yet; `pe-core-l14-336` not measured yet; `pe-core-g14-448` not measured yet; `pe-spatial-t16-512` not measured yet; `pe-spatial-s16-512` not measured yet; `pe-spatial-b16-512` not measured yet; `pe-spatial-l14-448` not measured yet; `pe-spatial-g14-448` not measured yet
 - `pe-core-t16-384` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `pe-core-s16-384` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `pe-core-b16-224` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
@@ -768,7 +768,7 @@ Commercial use: yes.
 - Variants: `tipsv2-b14`, `tipsv2-l14`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `tipsv2-b14` not measured yet; `tipsv2-l14` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `tipsv2-b14` 3000x4000 (1.4 GiB peak allocated, 2.2 reserved); `tipsv2-l14` not measured yet
 - `tipsv2-b14` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `tipsv2-l14` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 48 s (ONNX + engine).
 - `tipsv2-b14` original (fp32) 224x224, original 224x224: tips image_encoder first cls token
