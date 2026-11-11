@@ -39,9 +39,10 @@ from fastforks._optimize import optimize
 from fastforks.detection._cv2_resize import cv2_linear
 from fastforks.detection._ops import ops
 from fastforks.detection._runner import Forward, Runner
+from fastforks.shared.cspnext import Attention
 from fastforks.shared.cuda_graphs import GraphCache
 
-from .net import STRIDES, Arch, Attention, RTMDet, convert, decode, points
+from .net import STRIDES, Arch, RTMDet, convert, decode, points
 
 if TYPE_CHECKING:
     from fastforks.detection._runner import Context

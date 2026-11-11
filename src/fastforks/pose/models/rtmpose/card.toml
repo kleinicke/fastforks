@@ -2,7 +2,7 @@ schema = 2
 name = "RTMPose"
 summary = "RTMPose (Jiang et al. 2023): real-time top-down 2D human pose from OpenMMLab: a CSPNeXt CNN backbone and a SimCC head (a gated attention unit over one token per keypoint, then x and y classified as 1D bins at half-pixel resolution, no heatmaps). The body7 checkpoints (trained on seven public pose datasets) return the 17 COCO keypoints; the DWPose ones (Yang et al. 2023, distilled on COCO-WholeBody + UBody, the pose model of ControlNet's openpose preprocessors) the 133 COCO-WholeBody keypoints (body, feet, face, both hands). The RTMW ones (Jiang et al. 2024: a PAFPN neck and a two-scale head on the same backbone, trained on 14 datasets) return the same 133 keypoints more accurately. More model-zoo checkpoints of the same network: `-halpe26` (body + feet, 26 keypoints), `-hand5` (21 keypoints of a hand box), `-face6` (106 face landmarks of a face box) and `-ap10k` (17 keypoints of an animal box). Takes person boxes (e.g. from `fastforks.detection`) and crops each at 256 x 192 (or 384 x 288; hand, face and animal boxes: 256 x 256); vendored from mmpose (no mmpose / mmcv dependency). The portable `module()` maps crops to SimCC logits."
 tier = "stable"
-uses = ["cuda_graphs"]  # shared modules imported directly by this family
+uses = ["cspnext", "cuda_graphs"]  # shared modules imported directly by this family
 outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
 
 [upstream]

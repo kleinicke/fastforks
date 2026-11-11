@@ -35,9 +35,10 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._optimize import conv_ops, ops, optimize
 from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
+from fastforks.shared.cspnext import Attention, fold_bn
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
-from .net import SPLIT, Arch, Attention, RTMPose, Trunk, convert
+from .net import SPLIT, Arch, RTMPose, Trunk
 
 if TYPE_CHECKING:
     from fastforks.pose._runner import Context
@@ -139,7 +140,7 @@ class Portable(Runner):
         super().__init__(ctx)
         a: Params = ctx.params
         net = RTMPose(a)
-        net.load_state_dict(convert(ctx.state_dict(key="state_dict", strip="", extra=extra())))
+        net.load_state_dict(fold_bn(ctx.state_dict(key="state_dict", strip="", extra=extra())))
         self.net = net.eval().to(ctx.device, ctx.torch_dtype)
         self.mean = torch.tensor(MEAN, device=ctx.device).view(1, 3, 1, 1)
         self.std = torch.tensor(STD, device=ctx.device).view(1, 3, 1, 1)
@@ -193,7 +194,7 @@ class Kernels(Portable):
         """The portable network, then the optimized backbone and the fp16 head."""
         super().__init__(ctx)
         net = self.net.float()
-        trunk = net.backbone if net.neck is None else Trunk(net.backbone, net.neck)
+        trunk = Trunk(net.backbone, net.neck)
         self.backbone = optimize(copy.deepcopy(trunk), mode="kernels", device=ctx.device, family="cnn")
         if ctx.params.conv_accumulation_channels:
             _precise_backbone(self.backbone, ctx.params.conv_accumulation_channels)

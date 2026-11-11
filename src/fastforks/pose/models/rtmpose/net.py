@@ -25,16 +25,9 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-# (in, out, blocks, identity shortcut in the blocks); the last stage also has the SPP bottleneck
-STAGES = (
-    (64, 128, 3, True),
-    (128, 256, 6, True),
-    (256, 512, 6, True),
-    (512, 1024, 3, False),
-)  # fixed: CSPNeXt P5 at 1.0
-SPP_POOLS = (5, 9, 13)  # fixed: architecture (SPP bottleneck kernels of the last stage)
-DW_KERNEL = 5  # fixed: architecture (CSPNeXtBlock depthwise kernel)
-BN_EPS = 1e-5  # fixed: architecture (SyncBN default of the configs)
+from fastforks.shared.cspnext import STAGES, ConvAct, CSPLayer, CSPNeXt
+
+# Shared CSPNeXt preserves the upstream module names and returns its three pyramid levels.
 STRIDE = 32  # fixed: architecture (backbone output stride)
 FINAL_KERNEL = 7  # fixed: architecture (head `final_layer_kernel_size`)
 HIDDEN = 256  # fixed: architecture (GAU `hidden_dims`)
@@ -58,135 +51,6 @@ class Arch:
     neck: bool  # RTMW: PAFPN neck + the two-scale head
 
 
-class ConvAct(nn.Module):
-    """mmcv `ConvModule` with its BatchNorm folded: conv (with the folded bias) + SiLU."""
-
-    def __init__(self, cin: int, cout: int, k: int, stride: int = 1, groups: int = 1) -> None:
-        """A `k x k` conv with `k // 2` padding."""
-        super().__init__()
-        self.conv = nn.Conv2d(cin, cout, k, stride, k // 2, groups=groups)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """SiLU(conv(x)) (traced by `fastforks._optimize` as a conv module + SiLU)."""
-        return F.silu(self.conv(x))
-
-
-class DepthwiseSeparable(nn.Module):
-    """5 x 5 depthwise conv + SiLU, then 1 x 1 conv + SiLU."""
-
-    def __init__(self, c: int) -> None:
-        """Both convs on `c` channels."""
-        super().__init__()
-        self.depthwise_conv = ConvAct(c, c, DW_KERNEL, groups=c)
-        self.pointwise_conv = ConvAct(c, c, 1)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Pointwise(depthwise(x))."""
-        return self.pointwise_conv(self.depthwise_conv(x))
-
-
-class Block(nn.Module):
-    """`CSPNeXtBlock` (expansion 1): dwsep(conv3x3(x)), plus x with the identity shortcut."""
-
-    def __init__(self, c: int, *, identity: bool) -> None:
-        """Layers on `c` channels."""
-        super().__init__()
-        self.conv1 = ConvAct(c, c, 3)
-        self.conv2 = DepthwiseSeparable(c)
-        self.identity = identity
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """The block's output."""
-        y = self.conv2(self.conv1(x))
-        return x + y if self.identity else y
-
-
-class Attention(nn.Module):
-    """Channel attention: x * hardsigmoid(conv1x1(mean over HW))."""
-
-    def __init__(self, c: int) -> None:
-        """The 1 x 1 conv with bias."""
-        super().__init__()
-        self.fc = nn.Conv2d(c, c, 1)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Reweighted channels."""
-        return x * F.hardsigmoid(self.fc(x.mean((2, 3), keepdim=True)))
-
-
-class CSPLayer(nn.Module):
-    """`CSPLayer` with CSPNeXt blocks and (in the backbone) channel attention."""
-
-    def __init__(self, cin: int, cout: int, blocks: int, *, identity: bool, attention: bool = True) -> None:
-        """`cin` -> `cout` channels, `blocks` blocks on `cout // 2`."""
-        super().__init__()
-        mid = cout // 2
-        self.main_conv = ConvAct(cin, mid, 1)
-        self.short_conv = ConvAct(cin, mid, 1)
-        self.blocks = nn.Sequential(*(Block(mid, identity=identity) for _ in range(blocks)))
-        self.attention = Attention(2 * mid) if attention else None
-        self.final_conv = ConvAct(2 * mid, cout, 1)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """final(attention(cat(blocks(main(x)), short(x))))."""
-        y = torch.cat([self.blocks(self.main_conv(x)), self.short_conv(x)], 1)
-        return self.final_conv(y if self.attention is None else self.attention(y))
-
-
-class SPP(nn.Module):
-    """SPP bottleneck: 1 x 1 conv to half, cat with max pools (stride 1, same size), 1 x 1 conv."""
-
-    def __init__(self, c: int) -> None:
-        """In and out `c` channels."""
-        super().__init__()
-        self.conv1 = ConvAct(c, c // 2, 1)
-        self.conv2 = ConvAct(c // 2 * (len(SPP_POOLS) + 1), c, 1)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """conv2(cat(x, pools(x)))."""
-        x = self.conv1(x)
-        return self.conv2(torch.cat([x, *(F.max_pool2d(x, k, 1, k // 2) for k in SPP_POOLS)], 1))
-
-
-def blocks_of(n: int, deepen: float) -> int:
-    """Blocks of a stage: `max(round(n * deepen), 1)` (Python's round, as the reference)."""
-    return max(round(n * deepen), 1)
-
-
-class CSPNeXt(nn.Module):
-    """The backbone: stem + 4 stages; the stride-32 map of the last stage."""
-
-    def __init__(self, a: Arch) -> None:
-        """Layers scaled by `a.deepen` / `a.widen`."""
-        super().__init__()
-        w = a.widen
-        c0 = int(STAGES[0][0] * w // 2)
-        self.stem = nn.Sequential(ConvAct(3, c0, 3, 2), ConvAct(c0, c0, 3), ConvAct(c0, int(STAGES[0][0] * w), 3))
-        for i, (cin, cout, n, identity) in enumerate(STAGES):
-            ci, co = int(cin * w), int(cout * w)
-            layers: list[nn.Module] = [ConvAct(ci, co, 3, 2)]
-            if i == len(STAGES) - 1:
-                layers.append(SPP(co))
-            layers.append(CSPLayer(co, co, blocks_of(n, a.deepen), identity=identity))
-            self.add_module(f"stage{i + 1}", nn.Sequential(*layers))
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """`[B, 1024 w, h / 32, w / 32]`."""
-        x = self.stem(x)
-        for i in range(len(STAGES)):
-            x = getattr(self, f"stage{i + 1}")(x)
-        return x
-
-    def pyramid(self, x: torch.Tensor) -> list[torch.Tensor]:
-        """The stride 8, 16 and 32 maps (stages 2 - 4)."""
-        x = self.stem(x)
-        out = []
-        for i in range(len(STAGES)):
-            x = getattr(self, f"stage{i + 1}")(x)
-            out.append(x)
-        return out[1:]
-
-
 class PAFPN(nn.Module):
     """`CSPNeXtPAFPN` without output convs: stride 8 / 16 / 32 maps -> (stride 16 `[512 w]`, stride 32 `[1024 w]`)."""
 
@@ -196,7 +60,7 @@ class PAFPN(nn.Module):
         c3, c4, c5 = (int(s[1] * a.widen) for s in STAGES[1:])
 
         def csp(cin: int, cout: int) -> CSPLayer:
-            return CSPLayer(cin, cout, NECK_BLOCKS, identity=False, attention=False)
+            return CSPLayer(cin, cout, NECK_BLOCKS, identity=False, attention=False, depthwise=False)
 
         self.reduce_layers = nn.ModuleList([ConvAct(c5, c4, 1), ConvAct(c4, c3, 1)])
         self.top_down_blocks = nn.ModuleList([csp(2 * c4, c4), csp(2 * c3, c3)])
@@ -215,17 +79,18 @@ class PAFPN(nn.Module):
 
 
 class Trunk(nn.Module):
-    """RTMW backbone + neck as one module (what `fastforks._optimize` traces)."""
+    """Shared backbone, optionally followed by the RTMW neck, as one optimized module."""
 
-    def __init__(self, backbone: CSPNeXt, neck: PAFPN) -> None:
-        """The two parts."""
+    def __init__(self, backbone: CSPNeXt, neck: PAFPN | None) -> None:
+        """The shared backbone and optional neck."""
         super().__init__()
         self.backbone = backbone
         self.neck = neck
 
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """(stride-16 map, stride-32 map)."""
-        return self.neck(*self.backbone.pyramid(x))
+    def forward(self, x: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        """Last map for RTMPose, or (stride-16, stride-32) neck maps for RTMW."""
+        features = self.backbone(x)
+        return features[-1] if self.neck is None else self.neck(*features)
 
 
 class ScaleNorm(nn.Module):
@@ -341,29 +206,12 @@ class RTMPose(nn.Module):
     def __init__(self, a: Arch) -> None:
         """Backbone and head (RTMW: with the neck between them)."""
         super().__init__()
-        self.backbone = CSPNeXt(a)
+        self.backbone = CSPNeXt(a.deepen, a.widen)
         self.neck = PAFPN(a) if a.neck else None
         self.head = WholeHead(a) if a.neck else Head(a)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """SimCC logits."""
         if self.neck is None:
-            return self.head(self.backbone(x))
-        return self.head(self.neck(*self.backbone.pyramid(x)))
-
-
-def convert(sd: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-    """The mmpose keys as `RTMPose` keys: every `ConvModule`'s BatchNorm folded into its conv (weight and bias)."""
-    out: dict[str, torch.Tensor] = {}
-    for k, v in sd.items():
-        if k.endswith(".bn.num_batches_tracked") or ".bn." in k:
-            continue
-        if k.endswith(".conv.weight"):
-            p = k[: -len(".conv.weight")]
-            std = (sd[f"{p}.bn.running_var"].double() + BN_EPS).sqrt()
-            g = sd[f"{p}.bn.weight"].double() / std
-            out[k] = (v.double() * g.view(-1, 1, 1, 1)).float()
-            out[f"{p}.conv.bias"] = (sd[f"{p}.bn.bias"].double() - sd[f"{p}.bn.running_mean"].double() * g).float()
-        else:
-            out[k] = v
-    return out
+            return self.head(self.backbone(x)[-1])
+        return self.head(self.neck(*self.backbone(x)))

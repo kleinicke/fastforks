@@ -28,11 +28,9 @@ Status (2026-11-10): working notes for the branch `work/ports`, which sits on to
 
 In this order, unless something more useful turns up:
 
-1. RTMDet and RTMPose each carry their own CSPNeXt; move it to `shared/`. ConvNeXt datacenter notes now live
-   in `datacenter-tuning.md`, with measured results distinguished from untested suggestions.
-2. CLIP: `clip-l14-dfn2b`, `clip-h14-dfn5b` and `clip-h14-378-dfn5b` have no `torch.compile` or TensorRT rows in
+1. CLIP: `clip-l14-dfn2b`, `clip-h14-dfn5b` and `clip-h14-378-dfn5b` have no `torch.compile` or TensorRT rows in
    `docs/data/speed_compile.jsonl`.
-3. Next networks, from [model-landscape.md](model-landscape.md): MaxViT, the MoGe-2 extras, and more flow and pose
+2. Next networks, from [model-landscape.md](model-landscape.md): MaxViT, the MoGe-2 extras, and more flow and pose
    models. ConvNeXt features, TIPSv2, RepViT and MobileSAM are already merged.
 
 ## Waiting for the Mac
@@ -75,6 +73,9 @@ In this order, unless something more useful turns up:
 
 - RF-DETR Keypoint Preview (`rfdetr-keypoint`, new `shared/rfdetr`): MPS golden (CUDA mean/p99 bounds 0.072/0.17 px
   portable) and portable speed at 576. Weights `~/scratch_tests/codex-pose/rf-reference/` on CUDA, else the pinned URL.
+
+- CSPNeXt moved to `shared/cspnext` (RTMDet, RTMPose/RTMW/DWPose): rerun the rtmdet and rtmpose MPS goldens and Metal
+  kernels speed rows on the Mac. CUDA: all 35 goldens pass unchanged, speed A/B equal to the previous commit.
 
 Done on 2026-11-10 for every family on the branch: Mac speed rows (`portable`, and `kernels` where Metal kernels
 exist) and the MPS goldens, all passing. Still open:

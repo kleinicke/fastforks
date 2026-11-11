@@ -3,7 +3,7 @@ name = "RTMDet (CSPNeXt, tiny / S / M / L / X; nano and M person detectors)"
 summary = "RTMDet (Lyu et al. 2022, OpenMMLab): real-time one-stage detector, all convolutions: a CSPNeXt backbone (5 x 5 depthwise convs), a CSPNeXt-PAFPN neck and a head that predicts, per cell of the stride 8 / 16 / 32 maps, a score per class and the distances to the four box edges; class-wise NMS. COCO checkpoints (80 classes) from mmdetection and the person-only detectors mmpose ships as the box source of RTMPose (same backbone family as `fastforks.pose`'s RTMPose). The image is fitted into 640 x 640 (nano: 320 x 320); vendored from mmdetection (no mmdet / mmcv dependency). The portable `module()` is the whole network (class logits and decoded boxes per cell, before NMS)."
 tier = "experimental"
 outputs = ["boxes", "scores", "labels"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cspnext", "cuda_graphs"]  # fastforks.shared modules this family imports
 limitations = [
   "The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what mmdetection calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.",
   "Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.",
