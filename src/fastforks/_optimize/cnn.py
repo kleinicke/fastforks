@@ -164,6 +164,8 @@ def fold_layer_scale(gm: fx.GraphModule) -> int:
         g.erase_node(u)
         n += 1
     dce(g)
+    if n:
+        gm.recompile()  # the portable pipeline runs this as its last graph pass
     return n
 
 
@@ -207,8 +209,10 @@ def pad_conv_pairs(gm: fx.GraphModule) -> int:
 
 
 def fuse_graph(gm: fx.GraphModule) -> int:
-    """Conv -> [add(other)] -> [act]  ==>  ops.conv_fused(x, w, b, other, pad, stride, act). Returns the count."""
-    _flag(gm, "nls", fold_layer_scale(gm))
+    """Conv -> [add(other)] -> [act]  ==>  ops.conv_fused(x, w, b, other, pad, stride, act). Returns the count.
+
+    LayerScales are folded before (`fold_layer_scale`, in the portable pipeline), so the residual add follows the conv.
+    """
     _flag(gm, "npad", pad_conv_pairs(gm))
     _flag(gm, "raw_input", direct_stem(gm))
     _flag(gm, "pad8", False if gm.raw_input else pad_stem(gm))

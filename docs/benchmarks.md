@@ -629,9 +629,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | efficientnet_v2_s.tv_in1k | 224x224 | 12.1 | 16.6 | 10.2 | 1.89 | 6.4x | 5.4x | 159 / 176 | 81 / 106 | 114 / 188 |
 | efficientvit_b2.r288_in1k | 224x224 | 10.7 | 14.7 | 11.9 | 1.10 | 9.7x | 10.8x | 173 / 194 | 85 / 124 | 120 / 212 |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 83.7 | 32.1 | 18.0 | 14.1 | 2.3x | 1.3x | 1819 / 1864 | 648 / 1206 | 1236 / 1386 |
-| fastvit_sa24.apple_dist_in1k | 256x256 | 7.10 | 10.9 | 6.93 | 1.40 | 5.1x | 4.9x | 157 / 176 | 81 / 128 | 80 / 150 |
-| fastvit_t12.apple_dist_in1k | 256x256 | 3.61 | 5.66 | 3.74 | 0.781 | 4.6x | 4.8x | 77 / 84 | 54 / 74 | 52 / 76 |
-| fastvit_t8.apple_dist_in1k | 256x256 | 3.07 | 4.91 | 3.67 | 0.703 | 4.4x | 5.2x | 57 / 76 | 45 / 72 | 45 / 76 |
+| fastvit_sa24.apple_dist_in1k | 256x256 | 7.10 | 10.9 | 6.05 | 1.40 | 5.1x | 4.3x | 157 / 176 | 81 / 110 | 80 / 150 |
+| fastvit_t12.apple_dist_in1k | 256x256 | 3.61 | 5.66 | 3.27 | 0.781 | 4.6x | 4.2x | 77 / 84 | 54 / 76 | 52 / 76 |
+| fastvit_t8.apple_dist_in1k | 256x256 | 3.07 | 4.91 | 3.30 | 0.703 | 4.4x | 4.7x | 57 / 76 | 45 / 72 | 45 / 76 |
 | focalnet_base_lrf.ms_in1k | 224x224 | 18.0 | 22.1 | 15.5 | – | – | – | 546 / 560 | 212 / 234 | – |
 | focalnet_base_srf.ms_in1k | 224x224 | 17.1 | 20.0 | 14.2 | – | – | – | 542 / 558 | 211 / 234 | – |
 | focalnet_small_lrf.ms_in1k | 224x224 | 16.8 | 22.0 | 15.8 | – | – | – | 323 / 338 | 136 / 152 | – |
@@ -704,10 +704,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | sapiens-seg-1b-goliath | 1189 | 354 | 275 | 185 | 1.9x | 1.5x | 5721 / 5906 | 3259 / 3384 | 3259 / 3382 |
 | segformer-b0-ade20k | 17.2 | 17.4 | 11.4 | 3.48 | 5.0x | 3.3x | 1590 / 1766 | 339 / 376 | 148 / 238 |
 | segformer-b5-ade20k | 132 | 72.0 | 38.7 | 25.3 | 2.8x | 1.5x | 2531 / 2620 | 546 / 590 | 407 / 534 |
-| segnext-mscan-b-ade20k | 44.8 | 33.9 | 44.3 | – | – | – | 1727 / 1838 | 494 / 546 | – |
-| segnext-mscan-l-ade20k | 69.7 | 52.2 | 69.0 | – | – | – | 1849 / 1894 | 535 / 558 | – |
-| segnext-mscan-s-ade20k | 28.6 | 23.3 | 27.0 | – | – | – | 1649 / 1700 | 468 / 502 | – |
-| segnext-mscan-t-ade20k | 21.1 | 23.8 | 18.5 | – | – | – | 1593 / 1648 | 449 / 480 | – |
+| segnext-mscan-b-ade20k | 44.8 | 33.9 | 28.3 | 12.2 | 2.8x | 2.3x | 1727 / 1838 | 376 / 424 | 229 / 332 |
+| segnext-mscan-l-ade20k | 69.7 | 52.2 | 43.1 | 20.6 | 2.5x | 2.1x | 1849 / 1894 | 417 / 458 | 314 / 428 |
+| segnext-mscan-s-ade20k | 28.6 | 23.3 | 18.5 | 8.04 | 2.9x | 2.3x | 1649 / 1700 | 350 / 402 | 202 / 290 |
+| segnext-mscan-t-ade20k | 21.1 | 23.8 | 15.9 | 8.99 | 2.3x | 1.8x | 1593 / 1648 | 332 / 378 | 147 / 206 |
 
 ### Promptable segmentation, synthetic, 1024x1024
 
@@ -1066,9 +1066,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | efficientnet_v2_s.tv_in1k | 1.48 | 0.35 | 1.90 | 0.97 | 0.04 | 0.05 |
 | efficientvit_b2.r288_in1k | 1.84 | 0.40 | 1.92 | 1.89 | 0.04 | 0.05 |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 6.98 | 2.80 | 3.61 | 0.39 | 0.02 | 0.10 |
-| fastvit_sa24.apple_dist_in1k | 0.31 (256x256) | 2.10 (256x256) | 2.30 (256x256) | 0.03 (256x256) | 0.01 (256x256) | 0.00 (256x256) |
-| fastvit_t12.apple_dist_in1k | 0.14 (256x256) | 1.79 (256x256) | 2.01 (256x256) | 0.71 (256x256) | 0.41 (256x256) | 0.04 (256x256) |
-| fastvit_t8.apple_dist_in1k | 0.21 (256x256) | 1.70 (256x256) | 1.95 (256x256) | 0.98 (256x256) | 0.53 (256x256) | 0.04 (256x256) |
+| fastvit_sa24.apple_dist_in1k | 0.31 (256x256) | 3.40 (256x256) | 2.30 (256x256) | 0.03 (256x256) | 0.58 (256x256) | 0.00 (256x256) |
+| fastvit_t12.apple_dist_in1k | 0.14 (256x256) | 1.81 (256x256) | 2.01 (256x256) | 0.71 (256x256) | 0.41 (256x256) | 0.04 (256x256) |
+| fastvit_t8.apple_dist_in1k | 0.21 (256x256) | 1.76 (256x256) | 1.95 (256x256) | 0.98 (256x256) | 0.55 (256x256) | 0.04 (256x256) |
 | focalnet_base_lrf.ms_in1k | 0.91 | 1.89 | – | 0.03 | 0.62 | – |
 | focalnet_base_srf.ms_in1k | 0.89 | 1.92 | – | 0.05 | 0.49 | – |
 | focalnet_small_lrf.ms_in1k | 0.54 | 1.86 | – | 0.03 | 0.69 | – |
@@ -1136,10 +1136,10 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | sapiens-seg-1b-goliath | 11.33 (512x512) | 3.54 | 2.27† | 0.57 (512x512) | 0.27† | 0.18† |
 | segformer-b0-ade20k | 4.83 (512x512) | 2.55 | 2.92 | 2.23 (512x512) | 0.08 | 0.01 |
 | segformer-b5-ade20k | 1.24 (512x512) | 3.09 | 3.43 | 0.50 (512x512) | 0.08 | 0.03 |
-| segnext-mscan-b-ade20k | 0.37 | 0.21 (512x512) | – | 0.19 | 0.64 (512x512) | – |
-| segnext-mscan-l-ade20k | 0.57 | 0.33 (512x512) | – | 0.06 | 0.47 (512x512) | – |
-| segnext-mscan-s-ade20k | 0.23 | 0.11 (512x512) | – | 0.32 | 0.61 (512x512) | – |
-| segnext-mscan-t-ade20k | 0.19 | 0.11 (512x512) | – | 0.34 | 0.60 (512x512) | – |
+| segnext-mscan-b-ade20k | 0.37 | 0.26 (512x512) | 1.34 (512x512) | 0.19 | 0.58 (512x512) | 0.18 (512x512) |
+| segnext-mscan-l-ade20k | 0.57 | 0.57 (512x512) | 1.51 (512x512) | 0.06 | 0.41 (512x512) | 0.10 (512x512) |
+| segnext-mscan-s-ade20k | 0.23 | 0.15 (512x512) | 1.29 (512x512) | 0.32 | 0.72 (512x512) | 0.19 (512x512) |
+| segnext-mscan-t-ade20k | 0.19 | 0.13 (512x512) | 1.26 (512x512) | 0.34 | 0.65 (512x512) | 0.20 (512x512) |
 | efficientvit-sam-l0 | 0.35 | 0.83 | 1.63 | 0.82 | 0.72 | 0.25 |
 | efficientvit-sam-l1 | 0.31 | 0.76 | 1.64 | 0.03 | 0.69 | 0.25 |
 | efficientvit-sam-l2 | 0.39 | 0.93 | 1.78 | 0.04 | 0.66 | 0.25 |
@@ -1419,9 +1419,9 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | efficientnet_v2_s.tv_in1k | 224x224 | 10.2 ms | 5.39 ms | 1.35 ms | 1.89 ms | 12.1 s | 32.0 s | 81 / 106 | 116 / 146 | 114 / 188 | 74 |
 | efficientvit_b2.r288_in1k | 224x224 | 11.9 ms | 6.91 ms | 0.790 ms | 1.10 ms | 11.0 s | 35.3 s | 85 / 124 | 120 / 164 | 120 / 212 | 74 |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 18.0 ms | 14.9 ms | 12.4 ms | 14.1 ms | 21.0 s | 43.5 s | 648 / 1206 | 674 / 684 | 1236 / 1386 | 642 |
-| fastvit_sa24.apple_dist_in1k | 256x256 | 6.93 ms | 3.97 ms | 0.818 ms | 1.40 ms | 8.44 s | 54.5 s | 81 / 128 | 113 / 148 | 80 / 150 | 72 |
-| fastvit_t12.apple_dist_in1k | 256x256 | 3.74 ms | 2.32 ms | 0.431 ms | 0.781 ms | 7.39 s | 39.7 s | 54 / 74 | 86 / 94 | 52 / 76 | 40 |
-| fastvit_t8.apple_dist_in1k | 256x256 | 3.67 ms | 2.55 ms | 0.368 ms | 0.703 ms | 6.81 s | 30.8 s | 45 / 72 | 77 / 92 | 45 / 76 | 36 |
+| fastvit_sa24.apple_dist_in1k | 256x256 | 6.05 ms | 3.97 ms | 0.818 ms | 1.40 ms | 8.44 s | 54.5 s | 81 / 110 | 113 / 148 | 80 / 150 | 72 |
+| fastvit_t12.apple_dist_in1k | 256x256 | 3.27 ms | 2.32 ms | 0.431 ms | 0.781 ms | 7.39 s | 39.7 s | 54 / 76 | 86 / 94 | 52 / 76 | 40 |
+| fastvit_t8.apple_dist_in1k | 256x256 | 3.30 ms | 2.55 ms | 0.368 ms | 0.703 ms | 6.81 s | 30.8 s | 45 / 72 | 77 / 92 | 45 / 76 | 36 |
 | focalnet_base_lrf.ms_in1k | 224x224 | 15.5 ms | 7.47 ms | 2.08 ms | – | 19.7 s | 63.9 s | 212 / 234 | 235 / 274 | – | 202 |
 | focalnet_base_srf.ms_in1k | 224x224 | 14.2 ms | 6.94 ms | 1.74 ms | – | 17.8 s | 63.8 s | 211 / 234 | 234 / 272 | – | 200 |
 | focalnet_small_lrf.ms_in1k | 224x224 | 15.8 ms | 7.28 ms | 1.70 ms | – | 19.5 s | 62.5 s | 136 / 152 | 162 / 192 | – | 136 |
@@ -1479,10 +1479,10 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | oneformer-swinl-ade20k | 1024x2048 | 139 ms | fails: Inductor: Triton kernel does not compile (torch bug) | 83.3 ms | 100.0 ms | – | 140 s | 2054 / 2476 | – | 2054 / 2476 | 3258 |
 | sapiens-seg-0.3b-goliath | 1024x2048 | 132 ms | 118 ms | 156 ms | 92.6 ms | 12.5 s | 52.9 s | 1643 / 1762 | 1373 / 1462 | 1643 / 1762 | 1564 |
 | segformer-b0-ade20k | 1024x2048 | 11.4 ms | 9.27 ms | 5.51 ms | 3.48 ms | 12.3 s | 60.9 s | 339 / 376 | 336 / 356 | 148 / 238 | 792 |
-| segnext-mscan-b-ade20k | 1024x2048 | 44.3 ms | 40.7 ms | 23.3 ms | – | 24.1 s | 66.3 s | 494 / 546 | 491 / 526 | – | 820 |
-| segnext-mscan-l-ade20k | 1024x2048 | 69.0 ms | 63.6 ms | 32.3 ms | – | 34.9 s | 82.2 s | 535 / 558 | 532 / 578 | – | 860 |
-| segnext-mscan-s-ade20k | 1024x2048 | 27.0 ms | 24.9 ms | 18.0 ms | – | 17.2 s | 56.6 s | 468 / 502 | 465 / 482 | – | 786 |
-| segnext-mscan-t-ade20k | 1024x2048 | 18.5 ms | 16.6 ms | 16.0 ms | – | 19.1 s | 59.6 s | 449 / 480 | 446 / 480 | – | 788 |
+| segnext-mscan-b-ade20k | 1024x2048 | 28.3 ms | 40.7 ms | 23.3 ms | 12.2 ms | 24.1 s | 66.3 s | 376 / 424 | 491 / 526 | 229 / 332 | 820 |
+| segnext-mscan-l-ade20k | 1024x2048 | 43.1 ms | 63.6 ms | 32.3 ms | 20.6 ms | 34.9 s | 82.2 s | 417 / 458 | 532 / 578 | 314 / 428 | 860 |
+| segnext-mscan-s-ade20k | 1024x2048 | 18.5 ms | 24.9 ms | 18.0 ms | 8.04 ms | 17.2 s | 56.6 s | 350 / 402 | 465 / 482 | 202 / 290 | 786 |
+| segnext-mscan-t-ade20k | 1024x2048 | 15.9 ms | 16.6 ms | 16.0 ms | 8.99 ms | 19.1 s | 59.6 s | 332 / 378 | 446 / 480 | 147 / 206 | 788 |
 | efficientvit-sam-l0 | 1024x1024 | 12.7 ms | 6.44 ms | 5.56 ms, fp32 engine (image encoder only) | 4.45 ms | 25.2 s | 19.9 s | 171 / 210 | 188 / 228 | 176 / 256 | 202 |
 | efficientvit-sam-l1 | 1024x1024 | 14.4 ms | 11.3 ms | 7.30 ms, fp32 engine (image encoder only) | 5.79 ms | 24.8 s | 22.0 s | 195 / 234 | 212 / 252 | 203 / 284 | 266 |
 | efficientvit-sam-l2 | 1024x1024 | 17.8 ms | 10.8 ms | 9.65 ms, fp32 engine (image encoder only) | 6.83 ms | 26.1 s | 24.1 s | 221 / 260 | 238 / 278 | 232 / 312 | 330 |

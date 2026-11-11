@@ -999,9 +999,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `fastvit_sa24.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.10<br>10.9<br>6.93<br>1.40<br>3.97<br>0.818 | 129 / 142<br>157 / 176<br>81 / 128<br>80 / 150<br>113 / 148<br>72 (engine) |
-| `fastvit_t8.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.07<br>4.91<br>3.67<br>0.703<br>2.55<br>0.368 | 56 / 72<br>57 / 76<br>45 / 72<br>45 / 76<br>77 / 92<br>36 (engine) |
-| `fastvit_t12.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.61<br>5.66<br>3.74<br>0.781<br>2.32<br>0.431 | 74 / 80<br>77 / 84<br>54 / 74<br>52 / 76<br>86 / 94<br>40 (engine) |
+| `fastvit_sa24.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.10<br>10.9<br>6.05<br>1.40<br>3.97<br>0.818 | 129 / 142<br>157 / 176<br>81 / 110<br>80 / 150<br>113 / 148<br>72 (engine) |
+| `fastvit_t8.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.07<br>4.91<br>3.30<br>0.703<br>2.55<br>0.368 | 56 / 72<br>57 / 76<br>45 / 72<br>45 / 76<br>77 / 92<br>36 (engine) |
+| `fastvit_t12.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.61<br>5.66<br>3.27<br>0.781<br>2.32<br>0.431 | 74 / 80<br>77 / 84<br>54 / 76<br>52 / 76<br>86 / 94<br>40 (engine) |
 
 <details><summary>Details</summary>
 
@@ -1025,9 +1025,9 @@ Commercial use: yes.
 - `fastvit_t8.apple_dist_in1k` original 256x256: torch.autocast(float16) around the call; timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
 - `fastvit_t12.apple_dist_in1k` original (fp32) 256x256: timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
 - `fastvit_t12.apple_dist_in1k` original 256x256: torch.autocast(float16) around the call; timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
-- `fastvit_sa24.apple_dist_in1k` load / first call: original 0.31 s / 0.028 s (256x256), portable 2.1 s / 0.008 s (256x256), kernels 2.3 s / 0.002 s (256x256)
-- `fastvit_t8.apple_dist_in1k` load / first call: original 0.21 s / 0.976 s (256x256), portable 1.7 s / 0.534 s (256x256), kernels 1.95 s / 0.045 s (256x256)
-- `fastvit_t12.apple_dist_in1k` load / first call: original 0.14 s / 0.708 s (256x256), portable 1.79 s / 0.405 s (256x256), kernels 2.01 s / 0.044 s (256x256)
+- `fastvit_sa24.apple_dist_in1k` load / first call: original 0.31 s / 0.028 s (256x256), portable 3.4 s / 0.585 s (256x256), kernels 2.3 s / 0.002 s (256x256)
+- `fastvit_t8.apple_dist_in1k` load / first call: original 0.21 s / 0.976 s (256x256), portable 1.76 s / 0.548 s (256x256), kernels 1.95 s / 0.045 s (256x256)
+- `fastvit_t12.apple_dist_in1k` load / first call: original 0.14 s / 0.708 s (256x256), portable 1.81 s / 0.406 s (256x256), kernels 2.01 s / 0.044 s (256x256)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -1037,10 +1037,10 @@ fastforks: the model's own resize / crop on the GPU; original: the library's pre
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
 | `fastvit_sa24.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.78 / 96.48 | 83.80 / 96.46 | 83.78 / 96.44 | 83.80 / 96.42 |  |
-| `fastvit_t8.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.76 / 93.38 | 78.68 / 93.32 | 78.66 / 93.36 | 78.66 / 93.38 |  |
-| `fastvit_t12.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.12 / 94.98 | 81.08 / 94.92 | 81.06 / 94.96 | 81.08 / 94.96 |  |
+| `fastvit_t8.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.76 / 93.38 | 78.68 / 93.32 | 78.66 / 93.34 | 78.66 / 93.38 |  |
+| `fastvit_t12.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.12 / 94.98 | 81.08 / 94.92 | 81.02 / 94.96 | 81.08 / 94.96 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8 / d4cb0d31, 2026-11-06 to 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 95e72cc0, 2026-11-11; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8 / d4cb0d31, 2026-11-06 to 2026-11-11.
 
 ### Parity
 
