@@ -76,6 +76,9 @@ In this order, unless something more useful turns up:
 
 - RTMO (4 bottom-up pose variants): MPS goldens, person counts near the score threshold, and portable speed.
   Weights in `~/scratch_tests/port-rtmo/w/` or its `cache/` on CUDA, otherwise the pinned upstream URLs.
+- HRNet top-down pose (w32, w32-384, w48, w48-384): MPS goldens and portable speed rows. CUDA bounds
+  mean/p99 0.32/4.8 px; weights in `~/scratch_tests/port-next/w/`, otherwise the pinned card URLs. The
+  top-down crop code moved from rtmpose to `shared/topdown`: recheck the RTMPose MPS goldens once.
 - StarNet S1-S4: portable fp32 MPS goldens and speed at native 224 crops after explicit CNN dispatch. CUDA
   portable/kernels pass measured mean/p99 bounds 0.0035/0.012; pinned timm Hugging Face weights are downloadable.
 

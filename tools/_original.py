@@ -448,10 +448,10 @@ def _vitpose(a: Any, full: str) -> Any:  # noqa: ANN401
     return call
 
 
-def _rtmpose(a: Any, full: str) -> Any:  # noqa: ANN401
-    """`inference_topdown` of mmpose (flip test off) on the `tools/golden/rtmpose.py` model (`FF_MMPOSE_SITE`).
+def _topdown(a: Any, full: str) -> Any:  # noqa: ANN401
+    """`inference_topdown` of mmpose (flip test off) on the `tools/golden/<family>.py` model (`FF_MMPOSE_SITE`).
 
-    The test pipeline (CPU cv2 crop, normalisation) and the SimCC decode are inside the timed call.
+    The test pipeline (CPU cv2 crop, normalisation) and the decode (SimCC / heatmap) are inside the timed call.
     """
     from fastforks._core import registry  # noqa: PLC0415
 
@@ -461,13 +461,13 @@ def _rtmpose(a: Any, full: str) -> Any:  # noqa: ANN401
         raise RuntimeError(msg)
     if site not in sys.path:
         sys.path.append(site)
-    g = _golden("rtmpose")
     card, variant = registry.resolve("pose", full)
-    net = g.reference(site, card, variant, flip=False).cuda()
+    net = _golden(card.family).reference(site, card, variant, flip=False).cuda()
     from mmpose.apis import inference_topdown  # noqa: PLC0415  # ty: ignore[unresolved-import]
 
+    decode = "heatmap" if card.family == "hrnet" else "SimCC"
     a.note = (
-        "mmpose 1.3.2 inference_topdown (CPU cv2 crop, network, SimCC decode; flip_test off), all in the timed call"
+        f"mmpose 1.3.2 inference_topdown (CPU cv2 crop, network, {decode} decode; flip_test off), all in the timed call"
     )
     return lambda bgr, boxes: inference_topdown(net, bgr, boxes, bbox_format="xyxy")
 
@@ -792,7 +792,10 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "flowseek": _Local("flow", _flowseek, ((1080, 1920), (375, 1242))),
     "vitpose": _Local("pose", _vitpose, ((1080, 1920),), lambda a: (a[0].permute(1, 2, 0).cpu().numpy(), _xywh(a[1]))),
     "rtmpose": _Local(
-        "pose", _rtmpose, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
+        "pose", _topdown, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
+    ),
+    "hrnet": _Local(
+        "pose", _topdown, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
     ),
     "rfdetr_keypoint": _RFDETRKeypoint(),
     "rtmo": _Local(

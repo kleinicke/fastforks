@@ -211,10 +211,10 @@ class _Pose:
         from fastforks._core import registry  # noqa: PLC0415
 
         card, _ = registry.resolve("pose", ref)
-        if card.family not in {"rtmpose", "rtmo"}:
+        if card.family not in {"rtmpose", "hrnet", "rtmo"}:
             msg = f"no original COCO pose adapter for {card.family}"
             raise NotImplementedError(msg)
-        self.needs_boxes = card.family == "rtmpose"
+        self.needs_boxes = card.family in {"rtmpose", "hrnet"}
         self.original = _original.load("pose", ref, tier)
         self.backend = Backend(self.original.how, self.original.dtype, self.original.note)
 

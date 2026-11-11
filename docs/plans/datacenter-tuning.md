@@ -498,3 +498,14 @@ datacenter GPUs: CUDA graphs for portable at small batches, and the kernels runn
 
 Source: the FastViT rows in `docs/data/speed.jsonl`, `docs/data/speed_compile.jsonl` and
 `results/raw/2026-11-11_port_fastvit/launch_probe.json`.
+
+## Pose: HRNet W32 / W48
+
+Measured on the RTX 5060 Ti, 1080x1920 frame, one person box, flip test on: kernels 9.8 / 15.5 ms (384:
+19.4 / 33.9), portable fp16 20.3 / 32.0 ms, TensorRT 5.2 / 9.5 ms, original mmpose fp32 176 / 200 ms.
+Portable is launch-bound (four parallel branches of small convs plus the fuse layers), about 2x slower than
+kernels; TensorRT is fastest. Untested for datacenter GPUs: CUDA graphs for the portable crop batch.
+The 384 variants show argmax flips on flat heatmaps under fp16 (p99 up to 3.2 px), which set the golden p99 bound.
+
+Source: the HRNet rows in `docs/data/speed.jsonl`, `docs/data/speed_compile.jsonl` and
+`results/raw/2026-11-11_port_hrnet/`.

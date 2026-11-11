@@ -337,7 +337,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Pose
 
-39 models; size 1080x1920.
+43 models; size 1080x1920.
 
 - Fastest: [`rtmpose-t`](models/pose.md#rtmpose) (2.9 ms).
 - Fastest commercially usable: [`rtmpose-t`](models/pose.md#rtmpose) (2.9 ms).
@@ -370,6 +370,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rtmpose-m-384`](models/pose.md#rtmpose) | yes | 167.2 (1080x1920) | 13.1 | 9.0 | 18.6x vs original (1080x1920) | 202 |
 | [`rtmpose-m-halpe26-384`](models/pose.md#rtmpose) | yes | 192.0 (1080x1920) | 13.2 | 9.0 | 21.3x vs original (1080x1920) | 203 |
 | [`rf-detr-keypoint-preview`](models/pose.md#rf-detr-keypoint) | yes | 19.3 (1080x1920) | 18.3 | 9.5 | 2.0x vs original (1080x1920) | 176 |
+| [`hrnet-w32`](models/pose.md#hrnet) | yes | 176.0 (1080x1920) | 20.3 | 9.8 | 18.0x vs original (1080x1920) | 210 |
 | [`rtmw-l`](models/pose.md#rtmpose) | yes | 202.7 (1080x1920) | 15.1 | 10.2 | 19.8x vs original (1080x1920) | 232 |
 | [`rtmpose-l-384`](models/pose.md#rtmpose) | yes | 171.2 (1080x1920) | 19.3 | 11.2 | 15.3x vs original (1080x1920) | 229 |
 | [`rtmpose-l-halpe26-384`](models/pose.md#rtmpose) | yes | 206.2 (1080x1920) | 19.3 | 11.2 | 18.4x vs original (1080x1920) | 230 |
@@ -378,8 +379,11 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`vitpose-base`](models/pose.md#vitpose--vitpose) | yes | 105.4 (1080x1920) | 19.9 | 14.0 | 7.5x vs original (1080x1920) | 574 |
 | [`vitpose-base-simple`](models/pose.md#vitpose--vitpose) | yes | 109.1 (1080x1920) | 20.1 | 14.1 | 7.7x vs original (1080x1920) | 567 |
 | [`rtmw-x`](models/pose.md#rtmpose) | yes | 207.0 (1080x1920) | 23.9 | 14.3 | 14.5x vs original (1080x1920) | 298 |
+| [`hrnet-w48`](models/pose.md#hrnet) | yes | 199.9 (1080x1920) | 32.0 | 15.5 | 12.9x vs original (1080x1920) | 343 |
 | [`rtmpose-x-halpe26-384`](models/pose.md#rtmpose) | yes | 217.4 (1080x1920) | 33.5 | 18.7 | 11.6x vs original (1080x1920) | 280 |
+| [`hrnet-w32-384`](models/pose.md#hrnet) | yes | 189.8 (1080x1920) | 38.8 | 19.4 | 9.8x vs original (1080x1920) | 305 |
 | [`rtmw-l-384`](models/pose.md#rtmpose) | yes | 274.5 (1080x1920) | 31.5 | 20.2 | 13.6x vs original (1080x1920) | 286 |
+| [`hrnet-w48-384`](models/pose.md#hrnet) | yes | 244.5 (1080x1920) | 70.5 | 33.9 | 7.2x vs original (1080x1920) | 438 |
 | [`vitpose-plus-large`](models/pose.md#vitpose--vitpose) | yes | 165.3 (1080x1920) | 53.7 | 34.9 | 4.7x vs original (1080x1920) | 991 |
 | [`rtmw-x-384`](models/pose.md#rtmpose) | yes | 290.6 (1080x1920) | 50.6 | 50.8 | 5.7x vs original (1080x1920) | 496 |
 | [`vitpose-plus-huge`](models/pose.md#vitpose--vitpose) | yes | 242.4 (1080x1920) | 104.4 | 64.1 | 3.8x vs original (1080x1920) | 1618 |

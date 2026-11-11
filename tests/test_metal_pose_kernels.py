@@ -56,8 +56,8 @@ def _coords(boxes: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tens
     return (
         centre,
         size,
-        rtmpose._fixed(centre[:, 0] - s * (w / 2), s, w),
-        rtmpose._fixed(centre[:, 1] - s * (h / 2), s, h),
+        rtmpose.fixed(centre[:, 0] - s * (w / 2), s, w),
+        rtmpose.fixed(centre[:, 1] - s * (h / 2), s, h),
     )
 
 
