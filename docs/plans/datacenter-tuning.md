@@ -279,3 +279,12 @@ Measured portable mean/p99 is 1.322/25.604 px and kernels 1.413/27.364 px. Its i
 1.5 times those measurements rounded up to two significant figures, without changing the family bounds.
 On the same 500 COCO images, original fp32/fp16 score 71.44/71.30 AP and portable/kernels 71.36/71.24.
 No golden hash, input or output was changed for this calibration.
+
+
+## Classification: SHViT
+
+CUDA measurements cover portable float16 at batch one on the RTX 5060 Ti, with native 224 crops (S4: 256).
+No dedicated kernels runner or datacenter measurements exist yet. Measure throughput at larger batches and profile
+the convolution and single-head attention portions separately before choosing fusions or graph-cache limits.
+
+Source: the SHViT rows in `docs/data/speed.jsonl` and `docs/data/speed_compile.jsonl`.

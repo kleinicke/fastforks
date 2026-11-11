@@ -44,6 +44,8 @@ In this order, unless something more useful turns up:
 
 - RTMW whole-body (5 variants): MPS golden checks, especially the 384-pixel variants, and portable speed rows.
   Weights on CUDA in `~/scratch_tests/port-rtmo/w/` or its `cache/`, otherwise the pinned upstream URLs.
+- SHViT S1-S4: portable fp32 MPS goldens and speed at native 224 crops (S4: 256). CUDA portable goldens pass
+  with mean/p99 bounds 0.0060/0.023; weights are downloadable from the pinned timm Hugging Face card URLs.
 
 - RTMO (4 bottom-up pose variants): MPS goldens, person counts near the score threshold, and portable speed.
   Weights in `~/scratch_tests/port-rtmo/w/` or its `cache/` on CUDA, otherwise the pinned upstream URLs.

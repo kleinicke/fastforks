@@ -30,6 +30,8 @@
   `portable` and `kernels`. The re-parameterisable branches are fused at load.
 - New classifier TinyViT (Microsoft's weights from timm, Apache-2.0): `tiny_vit_5m_224`, `tiny_vit_11m_224` and
   `tiny_vit_21m_224` (`.dist_in22k_ft_in1k`), the 21M one also at 384 and 512, on `portable` and `kernels`.
+- New classifier SHViT (the authors' weights from timm, MIT): `shvit_s1.in1k` to `shvit_s4.in1k` (S4 at 256), on
+  `portable`.
 - New feature backbones: SigLIP 2, CLIP / OpenCLIP, Perception Encoder and C-RADIOv3.
 - New feature backbone: TIPSv2 (B/14, L/14 image encoders; the DINOv2 kernel path).
 - New feature backbone ConvNeXt (Meta's V1 ImageNet-22k weights from timm, Apache-2.0): `convnext_tiny.fb_in22k`,

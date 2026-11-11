@@ -1,0 +1,75 @@
+schema = 2
+name = "SHViT"
+summary = "SHViT (Yun and Ro 2024): a small classifier with a 16x16 convolutional stem and single-head attention on a part of the channels."
+tier = "experimental"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints are the authors' (ysj9909/SHViT, MIT: https://github.com/ysj9909/SHViT/blob/main/LICENSE; GitHub
+# reports NOASSERTION because the file also lists third-party MIT notices), converted to safetensors by timm, whose
+# model cards of all 4 repositories state mit (checked 2026-11-10: https://huggingface.co/api/models/timm/<id>,
+# cardData.license).
+weights = "MIT"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+evidence = "https://huggingface.co/timm/shvit_s1.in1k/blob/d5c0c27b0d05c630284a3946882590e4054f1108/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 256
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not built yet: convolutions with BatchNorm plus single-head attention on feature maps need a dedicated kernels runner"
+
+[output]
+label_set = "imagenet-1k"
+
+[[variants]]
+id = "shvit_s1.in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "shvit_s1.in1k.safetensors", size = 25548128, sha256 = "ba604812c7952d9b9c90fc0790651bfc669df573ca3d3bfdbdaec619a3986fad", url = "https://huggingface.co/timm/shvit_s1.in1k/resolve/d5c0c27b0d05c630284a3946882590e4054f1108/model.safetensors" }]
+params = { arch = "shvit_s1.in1k" }
+licence = { evidence = "https://huggingface.co/timm/shvit_s1.in1k/blob/d5c0c27b0d05c630284a3946882590e4054f1108/README.md" }
+
+[[variants]]
+id = "shvit_s2.in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "shvit_s2.in1k.safetensors", size = 46215656, sha256 = "7a8861fe040a552ce75cf8d2dd7c443a69d51c56e8e5cc5d1219aa50677d0cee", url = "https://huggingface.co/timm/shvit_s2.in1k/resolve/1b0e0f54e61c235a0f28856f272d01849c4dcb8d/model.safetensors" }]
+params = { arch = "shvit_s2.in1k" }
+licence = { evidence = "https://huggingface.co/timm/shvit_s2.in1k/blob/1b0e0f54e61c235a0f28856f272d01849c4dcb8d/README.md" }
+
+[[variants]]
+id = "shvit_s3.in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "shvit_s3.in1k.safetensors", size = 57315548, sha256 = "1d34510f19259c4ea7840e63fa4ed69d0160478c310eeb8bbd092c4e38ca41f1", url = "https://huggingface.co/timm/shvit_s3.in1k/resolve/021d87dd22cca70bd292683940a0d48fea5a732f/model.safetensors" }]
+params = { arch = "shvit_s3.in1k" }
+licence = { evidence = "https://huggingface.co/timm/shvit_s3.in1k/blob/021d87dd22cca70bd292683940a0d48fea5a732f/README.md" }
+
+[[variants]]
+id = "shvit_s4.in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "shvit_s4.in1k.safetensors", size = 66756656, sha256 = "5be4002f0bb6bde3bd57774b91357d5687f43b4dd780c71fd59c1523938f1b47", url = "https://huggingface.co/timm/shvit_s4.in1k/resolve/8b5efda6975183c2f9ec01e6d482d0fb0dcd0998/model.safetensors" }]
+params = { arch = "shvit_s4.in1k" }
+licence = { evidence = "https://huggingface.co/timm/shvit_s4.in1k/blob/8b5efda6975183c2f9ec01e6d482d0fb0dcd0998/README.md" }
+io = { resize = 292, crop = 256 }
