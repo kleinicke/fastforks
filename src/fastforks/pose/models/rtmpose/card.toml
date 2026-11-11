@@ -1,13 +1,13 @@
 schema = 2
 name = "RTMPose"
-summary = "RTMPose (Jiang et al. 2023): real-time top-down 2D human pose from OpenMMLab: a CSPNeXt CNN backbone and a SimCC head (a gated attention unit over one token per keypoint, then x and y classified as 1D bins at half-pixel resolution, no heatmaps). The body7 checkpoints (trained on seven public pose datasets) return the 17 COCO keypoints; the DWPose ones (Yang et al. 2023, distilled on COCO-WholeBody + UBody, the pose model of ControlNet's openpose preprocessors) the 133 COCO-WholeBody keypoints (body, feet, face, both hands). Takes person boxes (e.g. from `fastforks.detection`) and crops each at 256 x 192 (or 384 x 288); vendored from mmpose (no mmpose / mmcv dependency). The portable `module()` maps crops to SimCC logits."
+summary = "RTMPose (Jiang et al. 2023): real-time top-down 2D human pose from OpenMMLab: a CSPNeXt CNN backbone and a SimCC head (a gated attention unit over one token per keypoint, then x and y classified as 1D bins at half-pixel resolution, no heatmaps). The body7 checkpoints (trained on seven public pose datasets) return the 17 COCO keypoints; the DWPose ones (Yang et al. 2023, distilled on COCO-WholeBody + UBody, the pose model of ControlNet's openpose preprocessors) the 133 COCO-WholeBody keypoints (body, feet, face, both hands). The RTMW ones (Jiang et al. 2024: a PAFPN neck and a two-scale head on the same backbone, trained on 14 datasets) return the same 133 keypoints more accurately. Takes person boxes (e.g. from `fastforks.detection`) and crops each at 256 x 192 (or 384 x 288); vendored from mmpose (no mmpose / mmcv dependency). The portable `module()` maps crops to SimCC logits."
 tier = "stable"
 uses = ["cuda_graphs"]  # shared modules imported directly by this family
 outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
 
 [upstream]
 repo = "https://github.com/open-mmlab/mmpose"
-commit = "5408bc76f5b848cf925a0d1857899011d8c5b497"  # v1.3.2; net.py condenses RTMCCHead and mmdet 3.3.0's CSPNeXt (both Apache-2.0, OpenMMLab)
+commit = "5408bc76f5b848cf925a0d1857899011d8c5b497"  # v1.3.2; net.py condenses RTMCCHead, RTMWHead, CSPNeXtPAFPN and mmdet 3.3.0's CSPNeXt (both Apache-2.0, OpenMMLab)
 
 [licence]
 code = "Apache-2.0"  # open-mmlab/mmpose LICENSE (mmdet's CSPNeXt: the same licence and authors)
@@ -29,6 +29,8 @@ widen = 0.75
 keypoints = 17
 height = 256
 width = 192
+conv_accumulation_channels = 0  # kernels: zero keeps the standard fp16 accumulation recipe
+neck = false  # true: RTMW (PAFPN neck + two-scale head)
 
 [modes.portable]
 cuda_dtype = "float16"  # crops, decoding and keypoint mapping stay float32
@@ -117,3 +119,43 @@ params = { deepen = 1.0, widen = 1.0, height = 384, width = 288, keypoints = 133
 output = { label_set = "coco-wholebody-133" }
 licence = { training_data = ["coco-wholebody", "ubody", "coco", "aic", "imagenet-1k"], training_note = "COCO-WholeBody and UBody whole-body keypoints, distilled from a larger RTMPose (DWPose two-stage distillation); the CSPNeXt backbone was pre-trained on ImageNet-1k and on AI Challenger + COCO body keypoints" }
 weights = [{ name = "dwpose-l-ucoco-384x288.pth", size = 134718606, sha256 = "2438fd992e6561cb559defa6448c7464457c3a3ef20e372a524f34a15af40706", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-l_simcc-ucoco_dw-ucoco_270e-384x288-2438fd99_20230728.pth" }]
+
+[[variants]]
+id = "rtmw-m"  # RTMW-m, 256 x 192; COCO-WholeBody val whole-body AP 58.2 (flip test)
+revision = 1
+params = { deepen = 0.67, widen = 0.75, keypoints = 133, neck = true }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "coco", "imagenet-1k"], training_note = "Cocktail14: AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18, COCO-WholeBody, UBody, Human-Art, WFLW, 300W, COFW, LaPa and InterHand2.6M (the last six are not in the dataset list; several are research-only), distilled from RTMW-l; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body / whole-body keypoints" }
+weights = [{ name = "rtmw-m-cocktail14-256x192.pth", size = 129787113, sha256 = "6c481e4f9d3bed228984cf274289378151332ac7932812ad16de77749ae2cfaf", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-dw-l-m_simcc-cocktail14_270e-256x192-20231122.pth" }]
+
+[[variants]]
+id = "rtmw-l"  # RTMW-l, 256 x 192; COCO-WholeBody val whole-body AP 66.0
+revision = 1
+params = { deepen = 1.0, widen = 1.0, keypoints = 133, neck = true }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "coco", "imagenet-1k"], training_note = "Cocktail14: AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18, COCO-WholeBody, UBody, Human-Art, WFLW, 300W, COFW, LaPa and InterHand2.6M (the last six are not in the dataset list; several are research-only), distilled from RTMW-x; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body / whole-body keypoints" }
+weights = [{ name = "rtmw-l-cocktail14-256x192.pth", size = 229686801, sha256 = "ae6459e54e52e7d43d82531728165379cac4d05803944a8af3e69dec0b6af792", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-dw-x-l_simcc-cocktail14_270e-256x192-20231122.pth" }]
+
+[[variants]]
+id = "rtmw-x"  # RTMW-x, 256 x 192; COCO-WholeBody val whole-body AP 67.2
+revision = 1
+params = { deepen = 1.33, widen = 1.25, keypoints = 133, neck = true }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "coco", "imagenet-1k"], training_note = "Cocktail14: AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18, COCO-WholeBody, UBody, Human-Art, WFLW, 300W, COFW, LaPa and InterHand2.6M (the last six are not in the dataset list; several are research-only); the CSPNeXt backbone was pre-trained on ImageNet-1k and on body / whole-body keypoints" }
+weights = [{ name = "rtmw-x-cocktail14-256x192.pth", size = 369106595, sha256 = "13a2546d597895f58f98c77d701af936e0f808593b8f217517faba20abcc945a", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-x_simcc-cocktail14_pt-ucoco_270e-256x192-13a2546d_20231208.pth" }]
+
+[[variants]]
+id = "rtmw-l-384"  # RTMW-l, 384 x 288; COCO-WholeBody val whole-body AP 70.1
+revision = 1
+params = { deepen = 1.0, widen = 1.0, height = 384, width = 288, keypoints = 133, neck = true }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "coco", "imagenet-1k"], training_note = "Cocktail14: AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18, COCO-WholeBody, UBody, Human-Art, WFLW, 300W, COFW, LaPa and InterHand2.6M (the last six are not in the dataset list; several are research-only), distilled from RTMW-x; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body / whole-body keypoints" }
+weights = [{ name = "rtmw-l-cocktail14-384x288.pth", size = 230299153, sha256 = "afa589fa16bf8b9bab0807c806538a43bead39ed0151b79f41adcf551e3bcfb0", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-dw-x-l_simcc-cocktail14_270e-384x288-20231122.pth" }]
+
+[[variants]]
+id = "rtmw-x-384"  # RTMW-x, 384 x 288; COCO-WholeBody val whole-body AP 70.2
+revision = 1
+params = { deepen = 1.33, widen = 1.25, height = 384, width = 288, keypoints = 133, neck = true, conv_accumulation_channels = 64 }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "coco", "imagenet-1k"], training_note = "Cocktail14: AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18, COCO-WholeBody, UBody, Human-Art, WFLW, 300W, COFW, LaPa and InterHand2.6M (the last six are not in the dataset list; several are research-only); the CSPNeXt backbone was pre-trained on ImageNet-1k and on body / whole-body keypoints" }
+weights = [{ name = "rtmw-x-cocktail14-384x288.pth", size = 369720404, sha256 = "f840f2044fe46cb3821b7cea86be83e1f6cba406ccd28f5475ac010412dcda95", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-x_simcc-cocktail14_pt-ucoco_270e-384x288-f840f204_20231122.pth" }]

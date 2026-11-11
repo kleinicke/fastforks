@@ -255,3 +255,12 @@ across batch sizes before changing the threshold. The fixed crop makes a graph k
 cache can retain memory for several batches, so report reserved as well as allocated memory.
 
 Source: `src/fastforks/classification/models/tinyvit/model.py` and the family rows in `docs/data/speed.jsonl`.
+## RTMW whole-body pose
+
+The PAFPN neck and two-scale SimCC head increase memory traffic. Batch detected people into crop buckets,
+then compare CUDA graphs and compiled/exported raw-network paths at the deployment's actual person count.
+RTMW-X384 uses fp32-accumulating wide convolutions and depthwise kernels: half accumulation produced large
+SimCC peak flips on confident joints. Retain this accuracy check when tuning tensor-core recipes on other GPUs.
+The current recipe matches portable throughput on the 5060 Ti; larger GPUs may benefit from fused fp32
+accumulation and epilogues. Accuracy rows evaluate the first 17 COCO body joints with GT boxes, without flip test;
+whole-body/face/hand accuracy requires the corresponding datasets and is not claimed by those rows.

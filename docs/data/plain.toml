@@ -121,5 +121,5 @@ vggt_omega = "VGGT-Omega (Meta): the successor of VGGT with a DINOv3 backbone, c
 
 # --- pose
 rtmo = "OpenMMLab's RTMO (t, s, m, l): real-time one-stage multi-person 2D pose; finds people and their 17 COCO keypoints in one pass over the image, no person detector needed. Apache-2.0."
-rtmpose = "OpenMMLab's RTMPose (t, s, m, l; 256x192 and 384x288): real-time top-down 2D human pose, a CSPNeXt CNN with a SimCC head, trained on seven public pose datasets. Apache-2.0."
+rtmpose = "OpenMMLab's RTMPose (t, s, m, l; 256x192 and 384x288): real-time top-down 2D human pose, a CSPNeXt CNN with a SimCC head, trained on seven public pose datasets; also the whole-body DWPose and RTMW checkpoints (133 keypoints with feet, face and hands). Apache-2.0."
 vitpose = "ViTPose and ViTPose++ (base, small, large, huge): top-down 2D human pose with a plain vision transformer, from the weights published by the University of Sydney on Hugging Face. Apache-2.0."

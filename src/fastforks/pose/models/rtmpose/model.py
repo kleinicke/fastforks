@@ -32,11 +32,11 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import NUMPY_ARRAYS, latin1_encode
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
-from fastforks._optimize import optimize
+from fastforks._optimize import conv_ops, ops, optimize
 from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
-from .net import SPLIT, Arch, Attention, RTMPose, convert
+from .net import SPLIT, Arch, Attention, RTMPose, Trunk, convert
 
 if TYPE_CHECKING:
     from fastforks.pose._runner import Context
@@ -66,6 +66,7 @@ class Params(Arch):
     """Card `[params]` + variant `params` + `[options]`."""
 
     flip_test: bool  # average with the mirrored crop (option; the reference's COCO AP protocol)
+    conv_accumulation_channels: int = 0  # zero keeps the standard kernel recipe
 
 
 def crop_boxes(boxes: torch.Tensor, height: int, width: int) -> tuple[torch.Tensor, torch.Tensor]:
@@ -171,18 +172,23 @@ class Portable(Runner):
 class Kernels(Portable):
     """CUDA: an optimized backbone, an fp16 head and CUDA graphs.
 
-    The CSPNeXt backbone runs through `fastforks._optimize` (fused conv + SiLU / residual / concat kernels, fp16,
-    channels-last), the SimCC head in fp16 with fp16-accumulating GEMMs, and the crops -> logits -> argmax path as one
-    CUDA graph per person bucket (`BUCKETS`, zero crops pad a batch up). Cropping and the mapping back run eagerly.
+    The CSPNeXt backbone (RTMW: with its neck) runs through `fastforks._optimize` (fused conv + SiLU / residual /
+    concat kernels, fp16, channels-last), the SimCC head in fp16 with fp16-accumulating GEMMs, and the crops ->
+    logits -> argmax path as one CUDA graph per person bucket (`BUCKETS`, zero crops pad a batch up). Cropping and the
+    mapping back run eagerly.
     """
 
     def __init__(self, ctx: Context) -> None:
         """The portable network, then the optimized backbone and the fp16 head."""
         super().__init__(ctx)
         net = self.net.float()
-        self.backbone = optimize(copy.deepcopy(net.backbone), mode="kernels", device=ctx.device, family="cnn")
+        trunk = net.backbone if net.neck is None else Trunk(net.backbone, net.neck)
+        self.backbone = optimize(copy.deepcopy(trunk), mode="kernels", device=ctx.device, family="cnn")
+        if ctx.params.conv_accumulation_channels:
+            _precise_backbone(self.backbone, ctx.params.conv_accumulation_channels)
         self.head = net.head.half()
         del net.backbone  # the optimized copy replaces it
+        net.neck = None
         a: Params = ctx.params
         self.graphs = SmallShapeGraphs(self._decoded, pixels=BUCKETS[-1] * a.height * a.width)
 
@@ -192,7 +198,7 @@ class Kernels(Portable):
         if self.ctx.params.flip_test:
             x = torch.cat([x, x.flip(-1)])
         with fp16_accumulate():
-            sx, sy = (t.float() for t in self.head(self.backbone(x).half()))
+            sx, sy = (t.float() for t in self.head(_half(self.backbone(x))))
         if self.ctx.params.flip_test:
             p = crops.shape[0]
             sx = (sx[:p] + sx[p:].index_select(1, self.flip).flip(-1)) * 0.5
@@ -221,7 +227,7 @@ class Kernels(Portable):
         def fn(_net: Any, crops: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - the network
             x = (crops * 255 - self.mean) / self.std
             with fp16_accumulate():
-                sx, sy = self.head(self.backbone(x).half())
+                sx, sy = self.head(_half(self.backbone(x)))
             return sx.float(), sy.float()
 
         return Forward(self.net, fn)
@@ -256,6 +262,49 @@ class MetalKernels(Portable):
         coords, score = decode(*self.logits(pose_metal.warp_crop(self.lib, image, x, y)))
         kp = coords * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
         return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
+
+
+def _precise_conv(  # noqa: PLR0913, PLR0917 - fused kernel signature
+    x: torch.Tensor,
+    w: torch.Tensor,
+    b: torch.Tensor | None,
+    residual: torch.Tensor | None,
+    padding: tuple[int, int] | list[int],
+    stride: tuple[int, int] | list[int],
+    act: int,
+    cfg: int = -1,
+    *,
+    channels: int,
+) -> torch.Tensor:
+    """Wide half-input convolutions with cuDNN accumulation and float32 residual/activation."""
+    if w.shape[1] < channels:
+        return conv_ops.conv_fused(x, w, b, residual, padding, stride, act, cfg)
+    y = F.conv2d(x, w, b, stride, padding).float()
+    if residual is not None:
+        y = y + residual.float()
+    return conv_ops._ACTS[act](y).half().contiguous(memory_format=torch.channels_last)  # noqa: SLF001 - shared fused-op activation codes
+
+
+def _precise_backbone(backbone: torch.nn.Module, channels: int) -> None:
+    """Apply the measured RTMW-X384 recipe before CUDA graph capture.
+
+    Half accumulation moved confident wrist/elbow peaks by >100 px. Wide cuDNN convolutions and the
+    float-accumulating depthwise kernel reduce golden p99 to 2.92 px without changing weights or preprocessing.
+    """
+    for module in backbone.modules():
+        if isinstance(module, torch.fx.GraphModule):
+            for node in module.graph.nodes:
+                if node.op == "call_function" and node.target is ops.conv_fused:
+                    node.target = _precise_conv
+                    node.kwargs = {**node.kwargs, "channels": channels}
+                if node.op == "call_function" and node.target is ops.dwconv2:
+                    node.target = ops.dwconv
+            module.recompile()
+
+
+def _half(y: torch.Tensor | tuple[torch.Tensor, ...]) -> Any:  # noqa: ANN401 - what the head takes
+    """The optimized backbone's map (RTMW: the neck's two maps) as float16."""
+    return y.half() if isinstance(y, torch.Tensor) else tuple(t.half() for t in y)
 
 
 def _attention_mps(self: Attention, x: torch.Tensor) -> torch.Tensor:

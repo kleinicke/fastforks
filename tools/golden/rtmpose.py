@@ -2,8 +2,8 @@
 
 Reference: mmpose 1.3.2 (+ mmdet 3.3.0, mmcv 2.1.0, mmengine 0.10.7) as installed in another environment, appended
 to `sys.path` after this one (same torch; OpenCV `OPENCV_VERSION` here): `mmpose.apis.init_model(<config>)` builds the
-network from the variant's model-zoo config (body8; ubody whole-body for DWPose), the checkpoint's `state_dict` is
-loaded strictly, and
+network from the variant's model-zoo config (body8; ubody whole-body for DWPose, cocktail14 for RTMW), the
+checkpoint's `state_dict` is loaded strictly, and
 `inference_topdown` runs the whole test pipeline (bbox centre / scale, cv2 `warpAffine` crop, normalisation, SimCC
 decode, mapping back) with the configs' `flip_test` turned off (the runner's default; `--flip` writes nothing and
 prints the flip-test keypoints' distance to the runner's `flip_test=True` instead). CPU float32 on scikit-image's
@@ -62,6 +62,13 @@ WHOLEBODY = {  # DWPose variant -> config (mmpose/.mim/configs/wholebody_2d_keyp
     "dwpose-l": "rtmpose-l_8xb64-270e_coco-ubody-wholebody-256x192.py",
     "dwpose-l-384": "rtmpose-l_8xb32-270e_coco-ubody-wholebody-384x288.py",
 }
+RTMW = {  # RTMW variant -> config (mmpose/.mim/configs/wholebody_2d_keypoint/rtmpose/cocktail14)
+    "rtmw-m": "rtmw-m_8xb1024-270e_cocktail14-256x192.py",
+    "rtmw-l": "rtmw-l_8xb1024-270e_cocktail14-256x192.py",
+    "rtmw-x": "rtmw-x_8xb704-270e_cocktail14-256x192.py",
+    "rtmw-l-384": "rtmw-l_8xb320-270e_cocktail14-384x288.py",
+    "rtmw-x-384": "rtmw-x_8xb320-270e_cocktail14-384x288.py",
+}
 
 
 class _Stub(types.ModuleType):
@@ -101,7 +108,9 @@ def reference(site: str, card: Any, variant: Any, *, flip: bool) -> Any:  # noqa
     from mmpose.apis import init_model  # noqa: PLC0415
 
     configs = Path(mmpose.__file__).parent / ".mim/configs"
-    if variant.id in WHOLEBODY:
+    if variant.id in RTMW:
+        config = configs / "wholebody_2d_keypoint/rtmpose/cocktail14" / RTMW[variant.id]
+    elif variant.id in WHOLEBODY:
         config = configs / "wholebody_2d_keypoint/rtmpose/ubody" / WHOLEBODY[variant.id]
     else:
         config = configs / "body_2d_keypoint/rtmpose/body8" / CONFIGS[variant.id]
@@ -137,7 +146,7 @@ def main() -> None:
             d = np.abs(np.asarray(ours.keypoints) - kp)
             print(f"  {variant.id} flip: |dkp| mean {d.mean():.4f} max {d.max():.4f}")
             continue
-        configs = "ubody" if variant.id in WHOLEBODY else "body8"
+        configs = "cocktail14" if variant.id in RTMW else "ubody" if variant.id in WHOLEBODY else "body8"
         maps = {"input": img, "boxes": BOXES, "keypoints": kp, "keypoint_scores": ks, "scores": ks.mean(1)}
         write(
             f"{variant.id}@{variant.revision}",

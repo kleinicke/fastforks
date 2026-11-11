@@ -727,6 +727,11 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | rtmpose-m-384 | 174 | 167 | 13.1 | 8.97 | 18.6x | 1.5x | 505 / 582 | 243 / 352 | 202 / 340 |
 | rtmpose-s | 161 | 165 | 4.92 | 3.01 | 53.4x | 1.6x | 449 / 480 | 124 / 172 | 133 / 178 |
 | rtmpose-t | 165 | 151 | 4.49 | 2.90 | 52.0x | 1.5x | 459 / 490 | 120 / 150 | 129 / 176 |
+| rtmw-l | 213 | 203 | 15.1 | 10.2 | 19.8x | 1.5x | 865 / 908 | 267 / 308 | 232 / 336 |
+| rtmw-l-384 | 274 | 275 | 31.5 | 20.2 | 13.6x | 1.6x | 1094 / 1144 | 396 / 508 | 286 / 476 |
+| rtmw-m | 169 | 205 | 11.2 | 7.54 | 22.5x | 1.5x | 379 / 410 | 189 / 224 | 184 / 268 |
+| rtmw-x | 218 | 207 | 23.9 | 14.3 | 14.5x | 1.7x | 604 / 636 | 342 / 392 | 298 / 394 |
+| rtmw-x-384 | 306 | 291 | 50.6 | 50.8 | 5.7x | 1.0x | 1874 / 1940 | 482 / 592 | 496 / 674 |
 | vitpose-base | 139 | 105 | 19.9 | 14.0 | 7.5x | 1.4x | 713 / 762 | 597 / 642 | 574 / 704 |
 | vitpose-base-simple | 145 | 109 | 20.1 | 14.1 | 7.7x | 1.4x | 828 / 962 | 590 / 642 | 567 / 684 |
 | vitpose-plus-base | 162 | 113 | 19.9 | 13.9 | 8.1x | 1.4x | 918 / 1002 | 597 / 642 | 574 / 704 |
@@ -1056,6 +1061,11 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | rtmpose-m-384 | 0.23 | 0.20 | 1.48 | 0.35 | 1.25 | 0.29 |
 | rtmpose-s | 0.16 | 0.10 | 1.40 | 0.16 | 1.03 | 0.29 |
 | rtmpose-t | 0.13 | 0.10 | 1.42 | 0.15 | 0.88 | 0.29 |
+| rtmw-l | 0.76 | 0.39 | 1.72 | 0.63 | 1.03 | 0.31 |
+| rtmw-l-384 | 0.75 | 0.34 | 1.69 | 0.56 | 1.20 | 0.28 |
+| rtmw-m | 0.54 | 0.35 | 1.64 | 1.21 | 1.20 | 0.29 |
+| rtmw-x | 1.23 | 1.35 | 2.10 | 0.64 | 0.83 | 0.28 |
+| rtmw-x-384 | 1.05 | 0.81 | 2.20 | 0.42 | 0.96 | 0.34 |
 | vitpose-base | 0.16 | 3.48 | 1.06 | 0.33 | 0.40 | 0.34 |
 | vitpose-base-simple | 0.15 | 0.40 | 1.04 | 0.17 | 0.41 | 0.41 |
 | vitpose-plus-base | 0.19 | 0.65 | 1.10 | 0.12 | 0.34 | 0.34 |
@@ -1296,6 +1306,11 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | rtmpose-m-384 | 1080x1920 | 13.1 ms | 7.09 ms | 4.33 ms (network on person crops only) | 8.97 ms | 13.6 s | 18.6 s | 243 / 352 | 190 / 212 | 202 / 340 | 110 |
 | rtmpose-s | 1080x1920 | 4.92 ms | 2.07 ms | 1.06 ms (network on person crops only) | 3.01 ms | 11.5 s | 16.5 s | 124 / 172 | 129 / 150 | 133 / 178 | 62 |
 | rtmpose-t | 1080x1920 | 4.49 ms | 1.91 ms | 0.866 ms (network on person crops only) | 2.90 ms | 10.8 s | 15.9 s | 120 / 150 | 125 / 128 | 129 / 176 | 56 |
+| rtmw-l | 1080x1920 | 15.1 ms | 9.34 ms | 5.17 ms (network on person crops only) | 10.2 ms | 18.8 s | 24.9 s | 267 / 308 | 242 / 264 | 232 / 336 | 174 |
+| rtmw-l-384 | 1080x1920 | 31.5 ms | 19.5 ms | 11.2 ms (network on person crops only) | 20.2 ms | 19.8 s | 26.8 s | 396 / 508 | 298 / 344 | 286 / 476 | 230 |
+| rtmw-m | 1080x1920 | 11.2 ms | 6.23 ms | 3.34 ms (network on person crops only) | 7.54 ms | 18.7 s | 23.1 s | 189 / 224 | 183 / 202 | 184 / 268 | 98 |
+| rtmw-x | 1080x1920 | 23.9 ms | 15.3 ms | 8.47 ms (network on person crops only) | 14.3 ms | 20.4 s | 27.0 s | 342 / 392 | 320 / 328 | 298 / 394 | 250 |
+| rtmw-x-384 | 1080x1920 | 50.6 ms | 34.0 ms | 19.3 ms (network on person crops only) | 50.8 ms | 21.2 s | 29.8 s | 482 / 592 | 361 / 388 | 496 / 674 | 320 |
 | vitpose-base | 1080x1920 | 19.9 ms | 16.4 ms | 8.88 ms (network on person crops only) | 14.0 ms | 10.5 s | 35.8 s | 597 / 642 | 597 / 622 | 574 / 704 | 234 |
 | vitpose-base-simple | 1080x1920 | 20.1 ms | 16.0 ms | 9.36 ms (network on person crops only) | 14.1 ms | 11.8 s | 35.0 s | 590 / 642 | 590 / 622 | 567 / 684 | 268 |
 | vitpose-plus-base | 1080x1920 | 19.9 ms | 16.4 ms | 8.87 ms (network on person crops only) | 13.9 ms | 10.6 s | 35.0 s | 597 / 642 | 597 / 622 | 574 / 704 | 234 |

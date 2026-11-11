@@ -38,6 +38,9 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- RTMW whole-body (5 variants): MPS golden checks, especially the 384-pixel variants, and portable speed rows.
+  Weights on CUDA in `~/scratch_tests/port-rtmo/w/` or its `cache/`, otherwise the pinned upstream URLs.
+
 - RTMO (4 bottom-up pose variants): MPS goldens, person counts near the score threshold, and portable speed.
   Weights in `~/scratch_tests/port-rtmo/w/` or its `cache/` on CUDA, otherwise the pinned upstream URLs.
 - TinyViT, five classifiers: run portable fp32 MPS goldens and speed at native 224/384/512 crops. CUDA GPU goldens

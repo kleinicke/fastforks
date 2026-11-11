@@ -67,10 +67,10 @@ def _logits(net: RTMPose, params: rtmpose.Params, crops: torch.Tensor) -> tuple[
         return rtmpose.Portable.logits(runner, crops)  # `runner`: a stand-in
 
 
-@pytest.mark.parametrize("keypoints", [17, 133])
-def test_flip_test_of_the_mirrored_crop_gives_the_mirrored_logits(keypoints):
+@pytest.mark.parametrize(("keypoints", "neck"), [(17, False), (133, False), (133, True)])  # RTMPose, DWPose, RTMW
+def test_flip_test_of_the_mirrored_crop_gives_the_mirrored_logits(keypoints, neck):
     torch.manual_seed(0)
-    arch = {"deepen": 0.167, "widen": 0.375, "keypoints": keypoints, "height": 256, "width": 192}
+    arch = {"deepen": 0.167, "widen": 0.375, "keypoints": keypoints, "height": 256, "width": 192, "neck": neck}
     on, off = (rtmpose.Params(**arch, flip_test=flag) for flag in (True, False))
     net = RTMPose(on).eval()
     crops = (torch.rand(2, 3, 256, 192) * 255).round()

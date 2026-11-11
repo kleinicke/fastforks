@@ -153,7 +153,7 @@ def test_more_people_than_the_largest_bucket(ref: str) -> None:
     model.release_graphs()
 
 
-@pytest.mark.parametrize("ref", ["rtmpose-t@1", "dwpose-l-384@1"])
+@pytest.mark.parametrize("ref", ["rtmpose-t@1", "dwpose-l-384@1", "rtmw-m@1"])
 def test_flip_test_matches_portable(ref: str) -> None:
     """RTMPose `flip_test=True` (off in the goldens): the Kernels runner against the fp32 portable one."""
     img, boxes = _photo(ref)

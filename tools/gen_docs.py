@@ -65,6 +65,7 @@ _DATASETS = {
     "multiview": {"dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %"},
     "classification": {"imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %"},
     "pose": {
+        "coco-val2017-every10-keypoints-gtbox": "COCO val2017, every 10th image, GT person boxes, keypoint AP",
         "coco-val2017-every1-keypoints-gtbox": "COCO val2017, ground-truth person boxes, keypoint AP",
         "coco-val2017-every1-keypoints": "COCO val2017, predicted people, keypoint AP",
         "coco-val2017-every10-keypoints": "COCO val2017, every 10th image, predicted people, keypoint AP",
@@ -108,6 +109,9 @@ _PROTOCOL = {
     ): "Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; "
     "people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' "
     "AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. ",
+    ("pose", "coco-val2017-every10-keypoints-gtbox"): "Top-down on the same every-tenth-image subset for all modes, "
+    "ground-truth person boxes, no flip test; people ranked by the mean of their first 17 keypoint scores; "
+    "pycocotools OKS AP on COCO body joints. ",
     ("pose", "coco-val2017-every1-keypoints"): "Bottom-up on all 5,000 validation images, no ground-truth boxes; "
     "people ranked by their predicted person score, with the model's own NMS; pycocotools OKS AP. ",
     ("pose", "coco-val2017-every10-keypoints"): "Bottom-up on the same every-tenth-image subset for all modes, "

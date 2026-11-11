@@ -1,6 +1,7 @@
 {
  "min_gain": 1.05,
  "portable": [
+  "rtmw-x-384",
   "segformer-b0-ade20k",
   "vit_so400m_patch14_siglip_378.webli_ft_in1k"
  ]

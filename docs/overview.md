@@ -289,7 +289,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Pose
 
-21 models; size 1080x1920.
+26 models; size 1080x1920.
 
 - Fastest: [`rtmpose-t`](models/pose.md#rtmpose) (2.9 ms).
 - Fastest commercially usable: [`rtmpose-t`](models/pose.md#rtmpose) (2.9 ms).
@@ -307,15 +307,20 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rtmo-s`](models/pose.md#rtmo) | yes | 11.4 (1080x1920) | 7.5 | 6.3 | 1.8x vs original (1080x1920) | 142 |
 | [`rtmo-t`](models/pose.md#rtmo) | yes | 11.3 (1080x1920) | 7.6 | 6.3 | 1.8x vs original (1080x1920) | 121 |
 | [`rtmo-m`](models/pose.md#rtmo) | yes | 14.3 (1080x1920) | 8.7 | 6.8 | 2.1x vs original (1080x1920) | 166 |
+| [`rtmw-m`](models/pose.md#rtmpose) | yes | 169.4 (1080x1920) | 11.2 | 7.5 | 22.5x vs original (1080x1920) | 184 |
 | [`vitpose-plus-small`](models/pose.md#vitpose--vitpose) | yes | 104.1 (1080x1920) | 10.0 | 8.1 | 12.9x vs original (1080x1920) | 449 |
 | [`rtmo-l`](models/pose.md#rtmo) | yes | 17.1 (1080x1920) | 10.8 | 8.3 | 2.1x vs original (1080x1920) | 208 |
 | [`rtmpose-m-384`](models/pose.md#rtmpose) | yes | 167.2 (1080x1920) | 13.1 | 9.0 | 18.6x vs original (1080x1920) | 202 |
+| [`rtmw-l`](models/pose.md#rtmpose) | yes | 202.7 (1080x1920) | 15.1 | 10.2 | 19.8x vs original (1080x1920) | 232 |
 | [`rtmpose-l-384`](models/pose.md#rtmpose) | yes | 171.2 (1080x1920) | 19.3 | 11.2 | 15.3x vs original (1080x1920) | 229 |
 | [`dwpose-l-384`](models/pose.md#rtmpose) | yes | 193.8 (1080x1920) | 21.2 | 12.5 | 15.5x vs original (1080x1920) | 240 |
 | [`vitpose-plus-base`](models/pose.md#vitpose--vitpose) | yes | 113.1 (1080x1920) | 19.9 | 13.9 | 8.1x vs original (1080x1920) | 574 |
 | [`vitpose-base`](models/pose.md#vitpose--vitpose) | yes | 105.4 (1080x1920) | 19.9 | 14.0 | 7.5x vs original (1080x1920) | 574 |
 | [`vitpose-base-simple`](models/pose.md#vitpose--vitpose) | yes | 109.1 (1080x1920) | 20.1 | 14.1 | 7.7x vs original (1080x1920) | 567 |
+| [`rtmw-x`](models/pose.md#rtmpose) | yes | 207.0 (1080x1920) | 23.9 | 14.3 | 14.5x vs original (1080x1920) | 298 |
+| [`rtmw-l-384`](models/pose.md#rtmpose) | yes | 274.5 (1080x1920) | 31.5 | 20.2 | 13.6x vs original (1080x1920) | 286 |
 | [`vitpose-plus-large`](models/pose.md#vitpose--vitpose) | yes | 165.3 (1080x1920) | 53.7 | 34.9 | 4.7x vs original (1080x1920) | 991 |
+| [`rtmw-x-384`](models/pose.md#rtmpose) | yes | 290.6 (1080x1920) | 50.6 | 50.8 | 5.7x vs original (1080x1920) | 496 |
 | [`vitpose-plus-huge`](models/pose.md#vitpose--vitpose) | yes | 242.4 (1080x1920) | 104.4 | 64.1 | 3.8x vs original (1080x1920) | 1618 |
 
 ## Features
