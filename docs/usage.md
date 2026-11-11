@@ -661,10 +661,10 @@ for p in sorted(pathlib.Path("images").glob("*.jpg")):
 import time
 from fastforks import detection
 
-det = detection.load("rtdetrv2-s-coco")  # defaults: score >= 0.05, at most 100 boxes
+det = detection.load("rtdetrv2-s-coco", max_detections=30)  # limit set when loading
 det(first_frame, score_threshold=0.5)  # warm-up at the real size; the first call also captures CUDA graphs (kernels)
 for frame in frames:  # numpy HWC uint8, torch or PIL; keep the size fixed, call from one thread
-    boxes = det(frame, score_threshold=0.5, max_detections=30)  # per-call overrides of the load options
+    boxes = det(frame, score_threshold=0.5)  # score threshold can be overridden per call
 ```
 
 Memory per input size: `kernels` keep a cuDNN plan and a CUDA graph per input size, so a stream of many different

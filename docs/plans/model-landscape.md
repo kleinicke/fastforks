@@ -39,6 +39,46 @@ non-commercial weights or code, and priority is
 | line segments, vanishing points | P2–P3, cards in `calibration` | ScaleLSD, DeepLSD; HAWP, NeurVPS |
 | anomaly detection, IQA, ReID, point clouds, mono 3D detection, 3D generation, weather forecasting, shadow / reflection removal | skip | trained per dataset, NC zoos, privacy, other data types, generation, or unlicensed |
 
+## ModelsThatRun review (2026-11-11)
+
+Florian requested a review of [the catalog](https://modelsthatrun.dev/models/), excluding chat and text-to-image,
+with pose the first priority. The catalog has 36 families; 20 remain after excluding those tasks and the nine
+YOLO detection/segmentation/pose entries. Its "Commercial OK" badge is not a substitute for the checkpoint's terms.
+The sources below were checked directly. This is a port shortlist, not an assertion that training-data rights have
+been cleared for every downstream use.
+
+Licence convention confirmed by Florian on 2026-11-11: if authors provide weights without a separate licence,
+use `weights = "assumed from code"`, as CONTRIBUTING already allows. Prefer an explicit checkpoint declaration
+when one exists. In particular, accept timm's Apache-2.0 declarations for EfficientFormer and EfficientFormerV2;
+the lack of a separate statement on Snap's original Drive downloads does not block those ports.
+
+| candidate | code / checkpoint evidence | decision for fastforks |
+|---|---|---|
+| RF-DETR Keypoint Preview | Apache-2.0; the author's [pinned README](https://github.com/roboflow/rf-detr/blob/5b22dfc0940697ce1abdfa681a5f7392b3eddbfb/README.md#keypoints) explicitly labels the keypoint checkpoint | P1 after finishing RTMO/RTMW/RTMPose; whole-image COCO-person pose, still a preview |
+| RF-DETR N/S/M/L detection; RF-DETR-Seg N/S/M/L/XL/2XL | Apache-2.0, explicit per-size [author tables](https://github.com/roboflow/rf-detr/blob/5b22dfc0940697ce1abdfa681a5f7392b3eddbfb/README.md#license) | P1; share the detector/segmentation/keypoint backbone and decoder where possible; exclude Plus detection Atto/Femto/Pico/XL/2XL (PML 1.0) |
+| EoMT COCO instance L-640/L-1280 | MIT [code](https://github.com/tue-mps/eomt/blob/aa017c34afbe023de9462b17ae6067b52fef9867/LICENSE), [640 weights](https://huggingface.co/tue-mps/coco_instance_eomt_large_640/blob/a43666870d47a7010bfea2c4554f7ca829714558/README.md), [1280 weights](https://huggingface.co/tue-mps/coco_instance_eomt_large_1280) | P1/P2; semantic EoMT already exists, but instance decoding and result contract are additional work |
+| BiRefNet; BEN2 Base | MIT code and weights: [BiRefNet](https://huggingface.co/ZhengPeng7/BiRefNet/blob/e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4/README.md), [BEN2](https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md) | P1 for background removal after the pose work; BEN2's full commercial service is not the downloadable Base checkpoint |
+| Grounding DINO; MM-Grounding-DINO; LLMDet | Apache-2.0 code/checkpoint declarations: [Grounding DINO tiny](https://huggingface.co/IDEA-Research/grounding-dino-tiny), [MM tiny](https://huggingface.co/openmmlab-community/mm_grounding_dino_tiny_o365v1_goldg_v3det/blob/ef2053aa1e0cc9d9cee1df31ca919ee9aae4fc8e/README.md), [LLMDet tiny](https://huggingface.co/iSEE-Laboratory/llmdet_tiny/blob/d05199165a19320a9236396e20fca0a5e065189c/README.md) | P2; open-vocabulary detection needs text-query handling, not a chat task. Pin/check every additional checkpoint; Objects365-containing training provenance stays visible |
+| D-FINE COCO-only | Apache-2.0 [code and model-zoo note](https://github.com/Peterande/D-FINE/blob/956d1709314c2c6a4df6f34de232054578a7449f/README.md); [weight-host licence](https://github.com/Peterande/storage/blob/master/LICENSE) | Already present. Do not silently substitute Objects365-pretrained checkpoints: upstream explicitly flags their dataset terms |
+| Depth Anything 3 Mono/Metric Large; MoGe-2 | Apache-2.0 [DA3 Mono](https://huggingface.co/depth-anything/DA3MONO-LARGE) / [Metric](https://huggingface.co/depth-anything/DA3METRIC-LARGE); MIT [MoGe-2 ViT-S normals](https://huggingface.co/Ruicheng/moge-2-vits-normal) | Existing families; prioritize missing variants or measured optimizations rather than duplicate ports |
+| Depth Anything V2 | [Author licence section](https://github.com/DepthAnything/Depth-Anything-V2#license): Small Apache-2.0, Base/Large/Giant CC-BY-NC-4.0 | Small only for this permissive shortlist; existing non-commercial variants stay outside it |
+| GTR / GTR-Seg / GTR-Pose | MIT [code](https://github.com/Intellindust-AI-Lab/GTR/blob/f8ffd2444bfc2c1adfa70933e28afa37a0377830/LICENSE) and [weights](https://huggingface.co/Phoenix8125/GTR/blob/9fc62c8c2b2c976835d0f1c1ffc544dbc0f9e29f/README.md) | Interesting, especially pose, but inspect DINOv3 distillation and Objects365 pretraining obligations before porting; do not infer their legal effect merely from the MIT badge |
+| RT-DETRv4 | Apache-2.0 [repository](https://github.com/RT-DETRs/RT-DETRv4/blob/df4412261c6162f62aa4fb84e90b2df3c1b5f223/README.md); weights assumed from code under the agreed convention | P2 pending review of the DINOv3-teacher terms; no separate weight statement is itself not a blocker |
+| LT-DETR | AGPL code and weights according to [the author's licensing page](https://github.com/lightly-ai/lightly-train/blob/0d0ec65bea3ef952ae51f93440d9986333dc5b79/docs/source/licensing.md) | Skip, like the listed Ultralytics YOLO families; paying for a separate licence is not this project's scope |
+| DEIMv2 | [Custom author licence](https://github.com/Intellindust-AI-Lab/DEIMv2/blob/main/LICENSE.md), commercial licensing offered separately | Skip the non-commercial release |
+
+The site's pose list is RF-DETR Keypoint, GTR-Pose and three YOLO families. It does not list RTMO/RTMW/RTMPose.
+Its RF-DETR Keypoint accuracy is an author-reported number, not a measured catalog score; do not compare it to
+fastforks' COCO results without matching image subset, person detection, flip/NMS and scoring protocols.
+
+
+### Additional requests and API comparison
+
+- **FastViT:** SA24 is already implemented with portable and CUDA kernel backends. Research additional T8/T12/S12/SA12/SA36 variants, starting with small models. The timm implementation is Apache-2.0; original weights use Apple sample-code terms, which allow use/modification/redistribution but grant no patent rights. Preserve that distinction rather than label all components Apache. [Apple license](https://github.com/apple/ml-fastvit/blob/main/LICENSE).
+- **LT-DETR / LTDETRv2:** retain as excluded under the requested license policy. Lightly explicitly describes its default training code and resulting weights as AGPL-3.0. [Official licensing](https://docs.lightly.ai/train/stable/licensing.html).
+- **RF-DETR:** detection XL/2XL versus segmentation XL/2XL licensing differs intentionally: detection Plus variants are PML-1.0; all segmentation sizes are Apache-2.0. Prioritize Apache detection, segmentation, and keypoints only.
+- **Prediction ergonomics:** existing `detection.load("rtdetrv2-s-coco")("dog.jpg", score_threshold=0.5)` provides boxes, labels, scores and `to_list()`. Inputs include local paths, encoded bytes, PIL, NumPy and tensors. Direct HTTP(S) URL inputs are not supported; RF-DETR is more convenient there. Research a common explicit URL-reading convenience and document the existing equivalent; do not claim complete API parity or rename established keywords just to match upstream.
+
 ## Medical imaging: decision
 
 **Yes for 2D medical models as ordinary model cards; no new library; 3D volumes later and only on demand.**
