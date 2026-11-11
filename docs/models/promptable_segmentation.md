@@ -234,7 +234,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 168<br>98.2<br>48.3<br>37.0<br>40.9<br>27.3 (image encoder only) | 2798 / 2832<br>1769 / 1802<br>378 / 420<br>377 / 420<br>362 / 400<br>322 (engine) |
 | `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 406<br>197<br>116<br>81.5<br>97.2<br>67.5 (image encoder only) | 4428 / 4474<br>3411 / 3464<br>833 / 1262<br>831 / 862<br>793 / 862<br>780 (engine) |
-| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 734<br>306<br>214<br>143<br>188<br>fails: OSError: [Errno 122] Disk quota exceeded | 5702 / 5754<br>5295 / 5404<br>1484 / 2524<br>1480 / 1524<br>1436 / 1484<br>– |
+| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 734<br>306<br>214<br>143<br>188<br>124 (image encoder only) | 5702 / 5754<br>5295 / 5404<br>1484 / 2524<br>1480 / 1524<br>1436 / 1484<br>1442 (engine) |
 
 <details><summary>Details</summary>
 
@@ -250,7 +250,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam-vit-b` 1080x1920 (0.4 GiB peak allocated, 0.5 reserved); `sam-vit-l` 1080x1920 (0.8 GiB peak allocated, 1.0 reserved); `sam-vit-h` 1080x1920 (1.5 GiB peak allocated, 1.9 reserved)
 - `sam-vit-b` 1024x1024, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `sam-vit-l` 1024x1024, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 53 s (ONNX + engine).
-- `sam-vit-h` 1024x1024, first call: portable + torch.compile 43 s (cold Inductor cache).
+- `sam-vit-h` 1024x1024, first call: portable + torch.compile 43 s (cold Inductor cache), TensorRT fp16 70 s (ONNX + engine).
 - `sam-vit-b` original 1024x1024: torch.autocast(float16) around the call
 - `sam-vit-l` original 1024x1024: torch.autocast(float16) around the call
 - `sam-vit-h` original 1024x1024: torch.autocast(float16) around the call
@@ -297,7 +297,7 @@ Commercial use: yes.
 | `sam2.1-hiera-tiny` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 66.3<br>38.0<br>16.6<br>13.9<br>14.2<br>8.56 (image encoder only) | 622 / 676<br>577 / 636<br>304 / 382<br>316 / 362<br>270 / 322<br>266 (engine) |
 | `sam2.1-hiera-small` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 74.8<br>41.8<br>18.8<br>15.6<br>14.9<br>9.93 (image encoder only) | 649 / 698<br>618 / 662<br>318 / 366<br>330 / 386<br>283 / 326<br>268 (engine) |
 | `sam2.1-hiera-base-plus` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 107<br>47.2<br>32.0<br>25.1<br>26.4<br>16.7 (image encoder only) | 830 / 868<br>823 / 870<br>412 / 464<br>426 / 524<br>365 / 404<br>358 (engine) |
-| `sam2.1-hiera-large` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 242<br>86.4<br>68.0<br>48.8<br>59.5 | 1474 / 1518<br>1656 / 1724<br>742 / 768<br>760 / 828<br>678 / 748 |
+| `sam2.1-hiera-large` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>86.4<br>68.0<br>48.8<br>59.5<br>38.1 (image encoder only) | 1474 / 1518<br>1656 / 1724<br>742 / 768<br>760 / 828<br>678 / 748<br>704 (engine) |
 
 <details><summary>Details</summary>
 
@@ -314,7 +314,7 @@ Commercial use: yes.
 - `sam2.1-hiera-tiny` 1024x1024, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `sam2.1-hiera-small` 1024x1024, first call: portable + torch.compile 24 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `sam2.1-hiera-base-plus` 1024x1024, first call: portable + torch.compile 28 s (cold Inductor cache), TensorRT fp16 44 s (ONNX + engine).
-- `sam2.1-hiera-large` 1024x1024, first call: portable + torch.compile 39 s (cold Inductor cache).
+- `sam2.1-hiera-large` 1024x1024, first call: portable + torch.compile 39 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `sam2.1-hiera-tiny` original 1024x1024: torch.autocast(float16) around the call
 - `sam2.1-hiera-small` original 1024x1024: torch.autocast(float16) around the call
 - `sam2.1-hiera-base-plus` original 1024x1024: torch.autocast(float16) around the call

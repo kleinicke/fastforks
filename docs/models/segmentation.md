@@ -339,7 +339,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `sapiens-seg-0.3b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 466<br>173<br>132<br>92.6<br>118<br>156 | 3673 / 4104<br>2520 / 2724<br>1643 / 1762<br>1643 / 1762<br>1373 / 1462<br>1564 (engine) |
-| `sapiens-seg-1b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 1189<br>354<br>275<br>185<br>263 | 6874 / 7284<br>5721 / 5906<br>3259 / 3384<br>3259 / 3382<br>2986 / 3084 |
+| `sapiens-seg-1b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1189<br>354<br>275<br>185<br>263<br>244 | 6874 / 7284<br>5721 / 5906<br>3259 / 3384<br>3259 / 3382<br>2986 / 3084<br>3180 (engine) |
 
 <details><summary>Details</summary>
 
@@ -354,7 +354,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sapiens-seg-0.3b-goliath` 3000x4000 (2.2 GiB peak allocated, 3.2 reserved); `sapiens-seg-1b-goliath` 3000x4000 (3.8 GiB peak allocated, 5.0 reserved)
 - `sapiens-seg-0.3b-goliath` 1024x2048, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 53 s (ONNX + engine).
-- `sapiens-seg-1b-goliath` 1024x2048, first call: portable + torch.compile 19 s (cold Inductor cache).
+- `sapiens-seg-1b-goliath` 1024x2048, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 85 s (ONNX + engine).
 - `sapiens-seg-0.3b-goliath` original 1024x2048: torch.autocast(fp16) around the forward
 - `sapiens-seg-1b-goliath` original 1024x2048: torch.autocast(fp16) around the forward
 - `sapiens-seg-0.3b-goliath` load / first call: original 4.92 s / 1.024 s (512x512), portable 1.22 s / 0.132† s, kernels 0.96† s / 0.092† s
