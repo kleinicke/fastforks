@@ -586,6 +586,16 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
 | alexnet.tv_in1k | 224x224 | 1.17 | 1.82 | 0.970 | 0.604 | 1.9x | 1.6x | 383 / 404 | 151 / 224 | 184 / 228 |
+| coatnet_0_rw_224.sw_in1k | 224x224 | 7.64 | 9.59 | 6.49 | – | – | – | 194 / 210 | 102 / 124 | – |
+| coatnet_1_rw_224.sw_in1k | 224x224 | 12.3 | 15.7 | 10.7 | – | – | – | 277 / 294 | 132 / 158 | – |
+| coatnet_2_rw_224.sw_in12k_ft_in1k | 224x224 | 14.6 | 15.7 | 11.9 | – | – | – | 466 / 470 | 207 / 240 | – |
+| coatnet_nano_rw_224.sw_in1k | 224x224 | 7.88 | 10.6 | 7.23 | – | – | – | 124 / 146 | 74 / 86 | – |
+| coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k | 224x224 | 13.9 | 18.3 | 12.3 | – | – | – | 278 / 296 | 132 / 158 | – |
+| coatnet_rmlp_1_rw_224.sw_in1k | 224x224 | 14.0 | 18.4 | 12.4 | – | – | – | 278 / 296 | 131 / 156 | – |
+| coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k | 224x224 | 15.3 | 18.6 | 12.8 | – | – | – | 466 / 470 | 207 / 240 | – |
+| coatnet_rmlp_2_rw_224.sw_in1k | 224x224 | 15.3 | 18.6 | 15.1 | – | – | – | 466 / 472 | 207 / 240 | – |
+| coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k | 384x384 | 27.9 | 17.9 | 13.9 | – | – | – | 516 / 528 | 296 / 330 | – |
+| coatnet_rmlp_nano_rw_224.sw_in1k | 224x224 | 8.95 | 12.1 | 8.09 | – | – | – | 124 / 146 | 78 / 106 | – |
 | convnext_base.fb_in1k | 224x224 | 7.77 | 11.2 | 5.57 | 2.01 | 3.9x | 2.8x | 541 / 566 | 291 / 296 | 208 / 236 |
 | convnext_base.fb_in22k_ft_in1k | 224x224 | 7.78 | 11.3 | 5.66 | 2.00 | 3.9x | 2.8x | 541 / 566 | 291 / 296 | 208 / 236 |
 | convnext_base.fb_in22k_ft_in1k_384 | 224x224 | 11.6 | 11.2 | 5.48 | 3.00 | 3.7x | 1.8x | 549 / 562 | 309 / 334 | 213 / 232 |
@@ -975,6 +985,16 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | unik3d-vitl | 7.28 | 4.16 | 0.84† | 0.57 | 0.14 | 0.07 |
 | zoedepth-nk | 8.35 | 1.92 | 0.33† | 1.53 | 0.28 | 0.12 |
 | alexnet.tv_in1k | 2.51 | 1.30 | 1.40 | 0.81 | 0.02 | 0.06 |
+| coatnet_0_rw_224.sw_in1k | 0.38 | 1.37 | – | 0.31 | 0.38 | – |
+| coatnet_1_rw_224.sw_in1k | 0.47 | 1.44 | – | 0.15 | 0.37 | – |
+| coatnet_2_rw_224.sw_in12k_ft_in1k | 0.74 | 1.52 | – | 0.31 | 0.51 | – |
+| coatnet_nano_rw_224.sw_in1k | 0.28 | 1.37 | – | 0.54 | 0.42 | – |
+| coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k | 0.47 | 1.49 | – | 0.02 | 0.37 | – |
+| coatnet_rmlp_1_rw_224.sw_in1k | 0.47 | 1.47 | – | 0.02 | 0.37 | – |
+| coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k | 0.71 | 1.80 | – | 0.02 | 0.50 | – |
+| coatnet_rmlp_2_rw_224.sw_in1k | 0.71 | 1.54 | – | 0.02 | 0.51 | – |
+| coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k | 0.74 (384x384) | 1.52 (384x384) | – | 0.05 (384x384) | 0.43 (384x384) | – |
+| coatnet_rmlp_nano_rw_224.sw_in1k | 0.26 | 1.36 | – | 0.19 | 0.39 | – |
 | convnext_base.fb_in1k | 0.95 | 1.91 | 1.99 | 0.01 | 0.25 | 0.27 |
 | convnext_base.fb_in22k_ft_in1k | 0.89 | 2.07 | 1.97 | 0.01 | 0.25 | 0.26 |
 | convnext_base.fb_in22k_ft_in1k_384 | 0.87 | 2.54 | 1.91 | 0.01 | 0.25 | 0.26 |
@@ -1281,6 +1301,16 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | unik3d-vitl | 994x1482 | 108 ms | 94.4 ms | 58.0 ms | 62.9 ms | 32.8 s | 105 s | 1219 / 1492 | 1258 / 1312 | 1166 / 1266 | 846 |
 | zoedepth-nk | 994x1482 | 124 ms | 71.7 ms | 73.3 ms | 88.9 ms | 93.8 s | 138 s | 2037 / 2124 | 1813 / 1880 | 1771 / 1960 | 852 |
 | alexnet.tv_in1k | 224x224 | 0.970 ms | 0.824 ms | 0.401 ms | 0.604 ms | 4.33 s | 13.4 s | 151 / 224 | 183 / 204 | 184 / 228 | 128 |
+| coatnet_0_rw_224.sw_in1k | 224x224 | 6.49 ms | 3.59 ms | 0.849 ms | – | 12.1 s | 38.2 s | 102 / 124 | 120 / 142 | – | 70 |
+| coatnet_1_rw_224.sw_in1k | 224x224 | 10.7 ms | 5.58 ms | 1.38 ms | – | 16.2 s | 42.0 s | 132 / 158 | 149 / 176 | – | 114 |
+| coatnet_2_rw_224.sw_in12k_ft_in1k | 224x224 | 11.9 ms | 5.53 ms | 1.73 ms | – | 16.2 s | 36.0 s | 207 / 240 | 211 / 240 | – | 196 |
+| coatnet_nano_rw_224.sw_in1k | 224x224 | 7.23 ms | 4.71 ms | 0.709 ms | – | 13.9 s | 31.8 s | 74 / 86 | 96 / 126 | – | 38 |
+| coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k | 224x224 | 12.3 ms | 6.63 ms | 1.55 ms | – | 17.9 s | 42.6 s | 132 / 158 | 162 / 176 | – | 140 |
+| coatnet_rmlp_1_rw_224.sw_in1k | 224x224 | 12.4 ms | 6.54 ms | 1.47 ms | – | 18.6 s | 43.8 s | 131 / 156 | 155 / 176 | – | 126 |
+| coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k | 224x224 | 12.8 ms | 6.52 ms | 1.87 ms | – | 18.4 s | 41.0 s | 207 / 240 | 238 / 260 | – | 224 |
+| coatnet_rmlp_2_rw_224.sw_in1k | 224x224 | 15.1 ms | 6.34 ms | 1.92 ms | – | 18.4 s | 45.9 s | 207 / 240 | 238 / 260 | – | 226 |
+| coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k | 384x384 | 13.9 ms | 6.92 ms | 3.69 ms | – | 18.6 s | 42.3 s | 296 / 330 | 326 / 370 | – | 252 |
+| coatnet_rmlp_nano_rw_224.sw_in1k | 224x224 | 8.09 ms | 9.89 ms | 0.868 ms | – | 13.9 s | 37.1 s | 78 / 106 | 110 / 126 | – | 58 |
 | convnext_base.fb_in1k | 224x224 | 5.57 ms | 3.37 ms | 1.45 ms | 2.01 ms | 10.9 s | 32.5 s | 291 / 296 | 323 / 334 | 208 / 236 | 200 |
 | convnext_base.fb_in22k_ft_in1k | 224x224 | 5.66 ms | 3.37 ms | 1.45 ms | 2.00 ms | 11.4 s | 31.3 s | 291 / 296 | 323 / 334 | 208 / 236 | 200 |
 | convnext_base.fb_in22k_ft_in1k_384 | 224x224 | 5.48 ms | 3.41 ms | 2.31 ms | 3.00 ms | 10.8 s | 31.2 s | 309 / 334 | 336 / 354 | 213 / 232 | 210 |

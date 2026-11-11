@@ -142,7 +142,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Classification
 
-75 models; size 224x224.
+85 models; size 224x224.
 
 - Fastest: [`squeezenet1_1`](models/classification.md#squeezenet) (0.4 ms).
 - Fastest commercially usable: [`squeezenet1_1`](models/classification.md#squeezenet) (0.4 ms).
@@ -211,18 +211,28 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`convnext_large.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 11.5 (224x224) | 6.0 | 5.2 | 2.2x vs original (224x224) | 426 |
 | [`hgnetv2_b3`](models/classification.md#hgnetv2) | yes | 7.2 (224x224) | 5.2 | – | – | – |
 | [`efficientformer_l3`](models/classification.md#efficientformer) | yes | 8.4 (224x224) | 6.4 | – | – | – |
+| [`coatnet_0_rw_224`](models/classification.md#coatnet) | yes | 7.6 (224x224) | 6.5 | – | – | – |
 | [`shvit_s1`](models/classification.md#shvit) | yes | 8.4 (224x224) | 6.7 | – | – | – |
 | [`shvit_s2`](models/classification.md#shvit) | yes | 8.4 (224x224) | 6.8 | – | – | – |
 | [`hgnetv2_b5`](models/classification.md#hgnetv2) | yes | 11.4 (224x224) | 7.0 | – | – | – |
+| [`coatnet_nano_rw_224`](models/classification.md#coatnet) | yes | 7.9 (224x224) | 7.2 | – | – | – |
 | [`efficientformerv2_s0`](models/classification.md#efficientformerv2) | yes | 8.2 (224x224) | 7.6 | – | – | – |
+| [`coatnet_rmlp_nano_rw_224`](models/classification.md#coatnet) | yes | 8.9 (224x224) | 8.1 | – | – | – |
 | [`shvit_s3`](models/classification.md#shvit) | yes | 9.4 (224x224) | 8.1 | – | – | – |
 | [`efficientformerv2_s1`](models/classification.md#efficientformerv2) | yes | 10.1 (224x224) | 8.9 | – | – | – |
 | [`hgnetv2_b6`](models/classification.md#hgnetv2) | yes | 16.5 (224x224) | 9.4 | – | – | – |
 | [`efficientformer_l7`](models/classification.md#efficientformer) | yes | 12.3 (224x224) | 9.6 | – | – | – |
+| [`coatnet_1_rw_224`](models/classification.md#coatnet) | yes | 12.3 (224x224) | 10.7 | – | – | – |
+| [`coatnet_2_rw_224`](models/classification.md#coatnet) | yes | 14.6 (224x224) | 11.9 | – | – | – |
+| [`coatnet_rmlp_1_rw2_224`](models/classification.md#coatnet) | yes | 13.9 (224x224) | 12.3 | – | – | – |
+| [`coatnet_rmlp_1_rw_224`](models/classification.md#coatnet) | yes | 14.0 (224x224) | 12.4 | – | – | – |
 | [`vit_so400m_patch14_siglip_378`](models/classification.md#siglip-fine-tuned) | yes | 25.8 (224x224) | 13.1 | 12.8 | 2.0x vs original (224x224) | 1216 |
+| [`coatnet_rmlp_2_rw_224`](models/classification.md#coatnet) | yes | 15.3 (224x224) | 12.8 | – | – | – |
 | [`efficientformerv2_s2`](models/classification.md#efficientformerv2) | yes | 15.2 (224x224) | 13.9 | – | – | – |
 | [`eva02_large_patch14_448`](models/classification.md#eva-02) | yes | 32.1 (224x224) | 18.0 | 14.1 | 2.3x vs original (224x224) | 1236 |
+| [`coatnet_rmlp_2_rw_224.sw_in1k`](models/classification.md#coatnet) | yes | 15.3 (224x224) | 15.1 | – | – | – |
 | [`efficientformerv2_l`](models/classification.md#efficientformerv2) | yes | 19.9 (224x224) | 17.1 | – | – | – |
+| [`coatnet_rmlp_2_rw_384`](models/classification.md#coatnet) | yes | – | – | – | – | – |
 | [`shvit_s4`](models/classification.md#shvit) | yes | – | – | – | – | – |
 
 ## Segmentation

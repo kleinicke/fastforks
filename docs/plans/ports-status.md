@@ -47,6 +47,10 @@ In this order, unless something more useful turns up:
   measured mean/p99 bounds 0.0080/0.033; weights are downloadable from the pinned timm Hugging Face card URLs.
 - EfficientFormerV2 S0/S1/S2/L: portable fp32 MPS goldens and speed at native 224 crops. CUDA portable
   mean/p99 bounds are 0.12/0.42 from measured fp16 errors; pinned timm Hugging Face weights are downloadable.
+- CoAtNet: validate MPS float32 at native 224/384 crops. CUDA portable FP16 is checked; no custom kernels
+  runner exists. Download weights from the pinned card URLs; owned CUDA caches are removed after validation
+  to stay within the scratch budget.
+
 - EfficientFormer L1/L3/L7: portable fp32 MPS goldens and speed at native 224 crops. CUDA portable passes
   measured mean/p99 bounds 0.0046/0.019; pinned timm Hugging Face weights are downloadable.
 

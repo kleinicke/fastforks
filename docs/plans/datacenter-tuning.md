@@ -350,3 +350,10 @@ forward attention-bias caches so later traces cannot reuse nodes from a differen
 cache entries remain intact. Profile pooling/MLP blocks and the final attention blocks on the target GPU
 before adding kernels. Compare original FP32/autocast FP16, portable, compile and TensorRT rows without
 inferring datacenter performance from this consumer GPU.
+
+## CoAtNet
+
+Validate the native 224 and 384 crops separately: convolution and attention proportions vary across
+timm rw variants. The RTX 5060 Ti portable FP16 goldens have worst mean/p99 absolute errors
+0.00157/0.0068, with bounds 0.0024/0.011. Profile MBConv and relative-position attention on the target
+GPU before adding a dedicated kernels runner; no datacenter performance is inferred here.

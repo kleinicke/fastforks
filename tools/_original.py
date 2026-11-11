@@ -657,6 +657,7 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
     "tinyvit": _Local("classification", _convnext, ((224, 224),)),
     "hgnetv2": _Local("classification", _convnext, ((224, 224),)),
     "efficientformerv2": _Local("classification", _convnext, ((224, 224),)),
+    "coatnet": _Local("classification", _convnext, ((224, 224),)),
     "efficientformer": _Local("classification", _convnext, ((224, 224),)),
     "shvit": _Local("classification", _convnext, ((224, 224),)),
     "starnet": _Local("classification", _convnext, ((224, 224),)),

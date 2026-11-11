@@ -56,6 +56,7 @@ convnextv2 = "ConvNeXt V2 (Woo et al. 2023): a convolutional classifier with glo
 tinyvit = "Microsoft's TinyViT (Wu et al. 2022; 5M, 11M and 21M parameters at 224, 21M also at 384 and 512; ImageNet-22k distilled, fine-tuned on ImageNet-1k): a small hybrid classifier of MBConv blocks and window attention. Apache-2.0."
 hgnetv2 = "HGNetV2 (PaddlePaddle's PP-HGNetV2; B0 to B6, SSLD-distilled, fine-tuned on ImageNet-1k): a convolutional classifier built for GPU speed. Apache-2.0."
 efficientformerv2 = "EfficientFormerV2 (Li et al. 2022, Snap Research; S0, S1, S2, L; distilled on ImageNet-1k): a mobile hybrid of convolutions and attention. Apache-2.0."
+coatnet = "CoAtNet (Dai et al. 2021; timm's `rw` networks nano to 2, ImageNet-1k, some pretrained on ImageNet-12k): convolution stages followed by attention stages. Apache-2.0."
 efficientformer = "EfficientFormer (Li et al. 2022, Snap Research; L1, L3, L7; distilled on ImageNet-1k): a hybrid of pooling blocks and transformer blocks built for phone latency. Apache-2.0."
 shvit = "SHViT (Yun and Ro 2024; S1 to S4, ImageNet-1k): a small, fast classifier with single-head attention. MIT."
 starnet = "StarNet (Ma et al. 2024; S1 to S4, ImageNet-1k): a small convolutional classifier whose blocks multiply two branches element-wise. Apache-2.0."
