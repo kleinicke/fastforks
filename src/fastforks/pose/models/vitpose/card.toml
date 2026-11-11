@@ -2,6 +2,7 @@ schema = 2
 name = "ViTPose / ViTPose++"
 summary = "ViTPose (Xu et al. 2022): top-down 2D human pose with a plain ViT encoder and a light deconvolution (or bilinear) decoder; ViTPose++ trains one backbone on six pose datasets with per-dataset MLP experts. Takes person boxes (e.g. from `fastforks.detection`), crops each at 256 x 192 and returns the 17 COCO keypoints with DARK sub-pixel decoding. The portable `module()` maps crops to heatmaps."
 tier = "stable"
+uses = ["cuda_graphs"]  # shared modules imported directly by this family
 outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
 
 [upstream]

@@ -3,7 +3,7 @@ name = "CLIP"
 summary = "CLIP image towers (Radford et al. 2021): OpenAI, OpenCLIP (LAION-2B, DataComp-1B) and Apple DFN weights in timm's format; cls + patch tokens at any size, pooler_output = the post-LayerNorm cls token before the projection (QuickGELU for the OpenAI and DFN weights)."
 tier = "experimental"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports (CUDA graphs, the timm network builder)
+uses = ["libnet"]  # shared modules imported directly by this family
 limitations = [
   "kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",
   "Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.",

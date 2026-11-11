@@ -3,7 +3,7 @@ name = "C-RADIOv3"
 summary = "C-RADIOv3 (NVIDIA 2025), the commercially licensed agglomerative ViT distilled from CLIP, SigLIP 2, DINOv2 and SAM: ViT-B / L / H / g at patch 16, dense patch tokens and a 3-teacher summary embedding at any size up to 2048 px."
 tier = "experimental"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports (CUDA graphs, the timm feature walk)
+uses = ["libnet"]  # shared modules imported directly by this family
 limitations = [
   "last_hidden_state holds 8 prefix tokens (4 summary, 4 registers), then the patches (upstream's `features` are `[:, 8:]`); pooler_output is upstream's `summary`: the clip, siglip2 and dino_v2 summary tokens concatenated (3 x hidden size).",
   "The teacher adaptors (the heads mapping the summary to CLIP / SigLIP 2 text space) are not included.",
