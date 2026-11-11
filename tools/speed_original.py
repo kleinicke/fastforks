@@ -93,7 +93,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
     torch.zeros(1, device="cuda").sum().item()
     for ref in a.refs.split(","):
         full, card, _ = _original.full_ref(a.task, ref)
-        adapter = bu.FAM.get(card.family) or _original.LOCAL.get(card.family)
+        adapter = _original.LOCAL.get(card.family) or bu.FAM.get(card.family)
         for tier in a.tiers.split(","):
             own = a.task != "features" and _original.own_option(a.task, ref)
             if (tier == "upstreamhalf" and own) or (tier == "upstreamac" and not own):

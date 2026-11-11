@@ -488,3 +488,13 @@ these engine-specific errors do not replace or widen the portable GPU tolerances
 | flowformer-small-chairs | 0.0142278 | 0.1124696 | 0.4211054 |
 | flowformer-small-things | 0.0315576 | 0.1156455 | 0.2334595 |
 | flowformer-small-sintel | 0.0250801 | 0.0983355 | 0.2195258 |
+
+## Classification: FastViT T8 / T12
+
+Measured on the RTX 5060 Ti at batch one, native 256 crops: kernels 0.70 / 0.78 ms, portable fp16 3.67 / 3.74 ms.
+Portable is launch-bound (about 1 ms of CUDA time per call, 241-297 launches) and slightly slower than the
+reparameterized fp32 original (3.07 / 3.61 ms); the gap is in `speed_allowlist.json` as open. Untested for
+datacenter GPUs: CUDA graphs for portable at small batches, and the kernels runner at batch > 1.
+
+Source: the FastViT rows in `docs/data/speed.jsonl`, `docs/data/speed_compile.jsonl` and
+`results/raw/2026-11-11_port_fastvit/launch_probe.json`.

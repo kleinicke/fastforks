@@ -48,3 +48,17 @@ default_tag = true
 revision = 1
 weights = [{ name = "fastvit_sa24.apple_dist_in1k.safetensors", size = 86553584, sha256 = "c38594c380a5542da9e6ac3c36af95ab180d54e8982c822c677e452e03217a10", url = "https://huggingface.co/timm/fastvit_sa24.apple_dist_in1k/resolve/0b86f2b98f83274e9f03b6ddbcb3942b84efb839/model.safetensors" }]
 params = { arch = "fastvit_sa24.apple_dist_in1k" }
+
+[[variants]]
+id = "fastvit_t8.apple_dist_in1k"
+revision = 1
+# Source license/preprocessing: https://huggingface.co/timm/fastvit_t8.apple_dist_in1k/blob/09215e34b4f178654bf6efc44131c50aa865779a/README.md
+weights = [{ name = "fastvit_t8.apple_dist_in1k.safetensors", size = 16266976, sha256 = "9e31da81a225d20bc9e326baf1cc88ccc0e68fe2c43ea0154a870c409747f6aa", url = "https://huggingface.co/timm/fastvit_t8.apple_dist_in1k/resolve/09215e34b4f178654bf6efc44131c50aa865779a/model.safetensors" }]
+params = { arch = "fastvit_t8.apple_dist_in1k" }
+
+[[variants]]
+id = "fastvit_t12.apple_dist_in1k"
+revision = 1
+# Source license/preprocessing: https://huggingface.co/timm/fastvit_t12.apple_dist_in1k/blob/f86f95563a64ff98ba143e10164d7b05b9cb4084/README.md
+weights = [{ name = "fastvit_t12.apple_dist_in1k.safetensors", size = 30442024, sha256 = "eadebc66215173c3892da3bcb09b504c488aa242208cec16083d8d2b2c344fb0", url = "https://huggingface.co/timm/fastvit_t12.apple_dist_in1k/resolve/f86f95563a64ff98ba143e10164d7b05b9cb4084/model.safetensors" }]
+params = { arch = "fastvit_t12.apple_dist_in1k" }

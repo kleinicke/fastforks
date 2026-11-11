@@ -87,7 +87,7 @@ def load(task: str, ref: str, tier: str) -> Original:
     """Build `ref`'s original in `tier` (`upstream`, `upstream16`, `upstreamhalf`)."""
     bu = bench()
     full, card, _ = full_ref(task, ref)
-    adapter = bu.FAM.get(card.family) or LOCAL.get(card.family)
+    adapter = LOCAL.get(card.family) or bu.FAM.get(card.family)
     if adapter is None:
         msg = f"no original-code adapter for family {card.family}"
         raise NotImplementedError(msg)
@@ -546,7 +546,13 @@ def _convnext(a: Any, full: str) -> Any:  # noqa: ANN401
     card, variant = registry.resolve("classification", full)
     io = variant.io
     a.sizes = ((io.crop, io.crop),)  # Benchmark each classifier at its native crop, including 384/512 variants.
-    net = g._timm({**card.params, **variant.params}["arch"]).cuda().eval()  # noqa: SLF001 - the golden's builder
+    net = g._timm({**card.params, **variant.params}["arch"]).eval()  # noqa: SLF001 - the golden's builder
+    if card.family == "fastvit":
+        from timm.utils import reparameterize_model  # noqa: PLC0415 - authors' inference recipe
+
+        net = reparameterize_model(net, inplace=True)
+        a.note = "timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call"
+    net = net.cuda()
     tf = g.TF
     a.COMMIT = f"{card.upstream}@{card.upstream_commit}"  # as the bench's classification rows
 
@@ -777,7 +783,7 @@ def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
     return [[x0, y0, x1 - x0, y1 - y0] for x0, y0, x1, y1 in boxes.tolist()]
 
 
-LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, ConvNeXt, TinyViT)
+LOCAL = {  # family -> adapter where the bench has none or a local one wins (flow, pose, RTMDet, timm classifiers)
     "raft": _Local("flow", _raft, ((1080, 1920), (375, 1242))),
     "sea_raft": _Local("flow", _sea_raft, ((1080, 1920), (375, 1242))),
     "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
@@ -811,6 +817,7 @@ LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, Co
     "segnext": _Local("segmentation", _segnext, ((512, 512), (1024, 2048))),
     "shvit": _Local("classification", _convnext, ((224, 224),)),
     "starnet": _Local("classification", _convnext, ((224, 224),)),
+    "fastvit": _Local("classification", _convnext, ((224, 224),)),  # the authors' reparameterized inference
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),
@@ -821,7 +828,7 @@ def own_option(task: str, ref: str) -> bool:
     """Whether the authors' code has its own fp16 / mixed-precision option (then `upstreamhalf` is not run)."""
     bu = bench()
     _, card, _ = full_ref(task, ref)
-    a = bu.FAM.get(card.family) or LOCAL.get(card.family)
+    a = LOCAL.get(card.family) or bu.FAM.get(card.family)
     return card.family in NATIVE_HALF or bool(a is not None and a.flag)
 
 

@@ -88,6 +88,9 @@ In this order, unless something more useful turns up:
 - CSPNeXt moved to `shared/cspnext` (RTMDet, RTMPose/RTMW/DWPose): rerun the rtmdet and rtmpose MPS goldens and Metal
   kernels speed rows on the Mac. CUDA: all 35 goldens pass unchanged, speed A/B equal to the previous commit.
 
+- FastViT T8 / T12 (`fastvit_t8.apple_dist_in1k`, `fastvit_t12.apple_dist_in1k`): portable fp32 MPS goldens and speed at
+  the native 256 crop. CUDA bounds mean/p99 T8 0.023/0.069, T12 0.032/0.055; pinned timm Hugging Face weights.
+
 Done on 2026-11-10 for every family on the branch: Mac speed rows (`portable`, and `kernels` where Metal kernels
 exist) and the MPS goldens, all passing. Still open:
 
