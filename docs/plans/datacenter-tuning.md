@@ -377,3 +377,23 @@ The large variant has FP16 golden logit mean/p99 error 0.0871/0.312; measured bo
 0.14/0.47. Keeping only the NMF bases or decoder in FP32 barely changes this error; full FP32
 reduces it to 0.002718/0.010204. Across 500 ADE20K images per variant, portable FP16 mIoU
 differs from the seeded original FP32 by at most 0.01 percentage points (large: both 48.88).
+## Flow: NeuFlow v2
+
+- The portable implementation uses autocast convolutions and cross-attention with float32 matching, correlation
+  and upsampling. There is no custom-kernel path: the existing kernels do not implement its LeakyReLU(0.1)
+  convolutions and single-level radius-four lookup with 128 channels.
+- For datacenter GPUs, measure batching before adding launch optimizations. A fused correlation lookup and
+  convolution epilogues with the correct LeakyReLU slope are candidates, requiring fresh golden and accuracy
+  checks. No datacenter measurements or custom-kernel speed claims are made here.
+
+NeuFlow v2's explicit singleton-head SDPA fixes the ONNX translator's 3D-query rejection. CPU and GPU A/B outputs are identical on the measured inputs; warm portable speed does not improve. All three 1080p TensorRT engines now build and run (about 65 ms, 8532 MiB total device memory); numerical engine parity is checked separately. The torch allocator alone excludes TensorRT's memory, so use the rows' device_mb.
+
+TensorRT numerical check on the stored 384x512 golden inputs (all outputs finite):
+
+| checkpoint | mean error vs CPU (px) | p99 (px) | max (px) |
+|---|---:|---:|---:|
+| neuflow-v2 | 0.0018181 | 0.0078912 | 0.0347252 |
+| neuflow-v2-sintel | 0.0016701 | 0.0075026 | 0.0180321 |
+| neuflow-v2-things | 0.0017063 | 0.0072393 | 0.0194032 |
+
+These are TensorRT measurements; the portable golden bounds remain 0.0014 mean / 0.0067 p99. Re-running portable KITTI2015 after the attention-shape fix reproduces all three pre-fix EPE and Fl-all scores exactly.

@@ -872,6 +872,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
+| neuflow-v2 | 171 | 75.6 | 103 | – | – | – | 4367 / 4556 | 8392 / 8416 | – |
+| neuflow-v2-sintel | 171 | 75.7 | 102 | – | – | – | 4367 / 4576 | 8392 / 8416 | – |
+| neuflow-v2-things | 172 | 75.8 | 103 | – | – | – | 4374 / 4720 | 8392 / 8416 | – |
 | raft-large | 480 | 567 | 290 | 83.3 | 5.8x | 3.5x | 7164 / 10928 | 8268 / 8298 | 333 / 352 |
 | raft-large-kitti | 480 | 567 | 290 | 83.6 | 5.7x | 3.5x | 7164 / 10928 | 8268 / 8298 | 333 / 352 |
 | raft-large-things | 481 | 566 | 290 | 83.1 | 5.8x | 3.5x | 7164 / 10928 | 8268 / 8298 | 333 / 352 |
@@ -1249,6 +1252,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | patchmatchnet | 0.04 (1536x1024) | 0.06 (1536x1024) | 0.05† (1536x1024) | 0.92 (1536x1024) | 0.25 (1536x1024) | 0.04 (1536x1024) |
 | vggt-1b | 19.37 (336x518) | 4.98 (336x518) | 5.99† (336x518) | 1.29 (336x518) | 0.69 (336x518) | 0.46 (336x518) |
 | vggt-omega-1b-512 | 16.31 (336x518) | 3.31 (336x518) | 2.27† (336x518) | 1.10 (336x518) | 0.73 (336x518) | 0.46 (336x518) |
+| neuflow-v2 | 0.20 | 0.05 (375x1242) | – | 0.22 | 0.30 (375x1242) | – |
+| neuflow-v2-sintel | 0.17 | 0.07 (375x1242) | – | 0.08 | 0.28 (375x1242) | – |
+| neuflow-v2-things | 0.17 | 0.06 (375x1242) | – | 0.08 | 0.30 (375x1242) | – |
 | raft-large | 0.14 | 0.05 | 1.07 | 0.76 | 0.61 | 0.11 |
 | raft-large-kitti | 0.14 | 0.05 | 1.06 | 0.58 | 0.60 | 0.11 |
 | raft-large-things | 0.13 | 0.05 | 1.07 | 0.58 | 0.61 | 0.11 |
@@ -1536,6 +1542,9 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | patchmatchnet | 1536x1024 | 202 ms | 175 ms | 51.0 ms | 29.6 ms | 29.4 s | 82.1 s | 1806 / 2096 | 1798 / 1888 | 740 / 856 | 844 |
 | vggt-1b | 336x518 | 651 ms | 557 ms | 424 ms | 458 ms | 74.3 s | 199 s | 3691 / 4674 | 3611 / 3856 | 3702 / 4654 | 3642 |
 | vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 464 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3422 / 3518 | 2994 |
+| neuflow-v2 | 1080x1920 | 103 ms | 91.4 ms | 65.0 ms | – | 28.5 s | 104 s | 8392 / 8416 | 4529 / 4558 | – | 8532 |
+| neuflow-v2-sintel | 1080x1920 | 102 ms | 91.4 ms | 64.9 ms | – | 28.5 s | 102 s | 8392 / 8416 | 4529 / 4558 | – | 8532 |
+| neuflow-v2-things | 1080x1920 | 103 ms | 91.5 ms | 65.0 ms | – | 28.8 s | 104 s | 8392 / 8416 | 4529 / 4558 | – | 8532 |
 | raft-large | 1080x1920 | 290 ms | 195 ms | fails: TensorRT engine build failed | 83.3 ms | 41.3 s | – | 8268 / 8298 | 5886 / 5924 | 333 / 352 | – |
 | raft-large-kitti | 1080x1920 | 290 ms | 195 ms | fails: TensorRT engine build failed | 83.6 ms | 39.3 s | – | 8268 / 8298 | 5886 / 5924 | 333 / 352 | – |
 | raft-large-things | 1080x1920 | 290 ms | 195 ms | fails: TensorRT engine build failed | 83.1 ms | 39.4 s | – | 8268 / 8298 | 5886 / 5924 | 333 / 352 | – |

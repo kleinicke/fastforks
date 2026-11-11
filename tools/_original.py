@@ -293,6 +293,44 @@ def _sea_raft(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda im1, im2: g.calc_flow(net, im1[None].float(), im2[None].float(), scale)
 
 
+def _neuflow_v2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001
+    """Upstream `NeuFlow` as `tools/golden/neuflow_v2.py` (`FF_NEUFLOW_V2_REPO`); fp16 = upstream infer.py's recipe.
+
+    infer.py folds the batch norms of the conv blocks into their convs, calls `model.half()` and feeds half images;
+    the fp32 tier is the plain model. The call replicate-pads the pair to multiples of 16 (centred) and crops the flow.
+    """
+    import torch.nn.functional as F  # noqa: PLC0415
+    from torch.nn.utils.fusion import fuse_conv_bn_eval  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("neuflow_v2")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_NEUFLOW_V2_REPO")
+        if not repo:
+            msg = "FF_NEUFLOW_V2_REPO: a clone of neufieldrobotics/NeuFlow_v2 for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+    card, variant = registry.resolve("flow", full)
+    net = g.build(a.tree, registry.weights(card, variant, allow_download=False)[0]).cuda()
+    if fp16:
+        for m in net.modules():
+            if type(m).__name__ == "ConvBlock" and hasattr(m, "norm1"):
+                m.conv1, m.conv2 = fuse_conv_bn_eval(m.conv1, m.norm1), fuse_conv_bn_eval(m.conv2, m.norm2)
+                m.forward = m.forward_fuse
+        net.half()
+    a.note = f"upstream NeuFlow, iters_s8={g.ITERS}" + (", infer.py recipe: conv-bn folded, model.half()" * fp16)
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        h, w = im1.shape[-2:]
+        ph, pw = -h % 16, -w % 16
+        pad = (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2)
+        x1, x2 = (F.pad(im[None].half() if fp16 else im[None].float(), pad, mode="replicate") for im in (im1, im2))
+        return g.calc_flow(net, x1, x2, amp=fp16)[..., pad[2] : pad[2] + h, pad[0] : pad[0] + w]
+
+    return call
+
+
 def _vitpose(a: Any, full: str) -> Any:  # noqa: ANN401
     """HF transformers `VitPoseImageProcessor` + `VitPoseForPoseEstimation` at the pin of `tools/golden/vitpose.py`.
 
@@ -581,10 +619,10 @@ class _Local:
     def setup(self) -> None:
         """Nothing to prepare: the reference checkouts and site-packages come from the environment."""
 
-    def build(self, full: str, fp16: bool) -> Any:  # noqa: ANN401, ARG002, FBT001 - the adapter signature
+    def build(self, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter signature
         """The family's builder; `COMMIT` = the card's upstream pin."""
         self.COMMIT = full_ref(self.task, full)[1].upstream_commit
-        return self._build(self, full)
+        return self._build(self, full, fp16) if self.flag else self._build(self, full)
 
     def prep(self, args: tuple[Any, ...]) -> tuple[Any, ...]:
         """The untimed conversion of the uint8 CUDA inputs to what the original's entry point takes."""
@@ -644,6 +682,12 @@ class _RFDETRKeypoint(_Local):
         return call
 
 
+class _LocalFp16(_Local):
+    """An original with an fp16 option of its own: its builder takes `(adapter, ref, fp16)`."""
+
+    flag = True
+
+
 def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
     return [[x0, y0, x1 - x0, y1 - y0] for x0, y0, x1, y1 in boxes.tolist()]
 
@@ -651,6 +695,7 @@ def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
 LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, ConvNeXt, TinyViT)
     "raft": _Local("flow", _raft, ((1080, 1920), (375, 1242))),
     "sea_raft": _Local("flow", _sea_raft, ((1080, 1920), (375, 1242))),
+    "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
     "vitpose": _Local("pose", _vitpose, ((1080, 1920),), lambda a: (a[0].permute(1, 2, 0).cpu().numpy(), _xywh(a[1]))),
     "rtmpose": _Local(
         "pose", _rtmpose, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add NeuFlow v2 optical flow: mixed-data, Sintel and FlyingThings checkpoints with portable inference.
+
 - RTMO bottom-up pose (t, s, m, l; Apache-2.0): `model(image)` finds people and their 17 COCO keypoints
   without person boxes, on `portable` and `kernels`. Includes measured original fp32/fp16, compile and TensorRT
   timings, GPU goldens, and full COCO val2017 accuracy with a matched original-code subset comparison.

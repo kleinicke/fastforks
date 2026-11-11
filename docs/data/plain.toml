@@ -36,6 +36,7 @@ waft_stereo = "A stereo network from the Princeton Vision & Learning Lab that wa
 # --- flow
 raft = "RAFT (Teed and Deng, Princeton) with torchvision's weights: dense optical flow refined step by step over an all-pairs correlation volume. BSD-3-Clause code; some training sets (FlyingChairs, Sintel) are research-only."
 sea_raft = "SEA-RAFT (Princeton, 2024): a faster and more accurate successor of RAFT for dense optical flow, needing only 4 refinement steps. BSD-3-Clause code and weights; some training sets are research-only."
+neuflow_v2 = "NeuFlow v2 (Northeastern University, 2024): a small and fast optical-flow network built for edge devices: a light CNN backbone, global matching at 1/16 and a few cheap refinements at 1/8. Apache-2.0 code and weights."
 
 # --- depth
 depth_anything_3 = "ByteDance's Depth Anything 3: depth from one image, with relative, metric and multi-view versions. The licence differs by variant, see the table."

@@ -8,7 +8,8 @@ the third channel is > 0. EPE = mean over pairs of the per-pair mean end-point e
 share of all valid pixels of all pairs (pooled) whose error is > 3 px and > 5 % of the GT magnitude, as in the RAFT and
 SEA-RAFT evaluation code. ms is the median over the pairs after one untimed warm-up call (upload and download
 included); MiB is the peak allocated / reserved memory of the calls (model load excluded). One row per (ref, mode),
-in the format of the other docs/data/*_eval.jsonl files.
+in the format of the other docs/data/*_eval.jsonl files. The modes `upstream` / `upstream16` run the original code
+(`tools/_original.py`: fp32 / its fp16 tier) on the same pairs.
 """
 
 from __future__ import annotations
@@ -54,42 +55,66 @@ def load_pairs(root: Path, stop: int | None) -> list[tuple[str, np.ndarray, np.n
     return out
 
 
+ORIGINAL = {"upstream": ("upstream", "original fp32"), "upstream16": ("upstream-fp16", "original fp16")}
+
+
+def _original(ref: str, tier: str):  # noqa: ANN202 - (call(a, b) -> flow [2, H, W], dtype, how, note)
+    import _original as og  # noqa: PLC0415 - needs the reference checkout (FF_*_REPO)
+
+    o = og.load("flow", ref, tier)
+
+    def call(a: np.ndarray, b: np.ndarray) -> torch.Tensor:
+        return o(*o.prep(tuple(torch.from_numpy(x).cuda().permute(2, 0, 1) for x in (a, b))))[0]
+
+    return call, o.dtype, o.how, o.note
+
+
 def evaluate(ref: str, mode: str, pairs: list, base: dict) -> dict:
     import fastforks.flow as ff  # noqa: PLC0415 - after argparse, so --help is fast
 
-    model = ff.load(ref, mode=mode)
-    model(pairs[0][1], pairs[0][2])  # warm-up (untimed)
+    if mode in ORIGINAL:
+        call, dtype, how, note = _original(ref, mode)
+        extra = {"note": note}
+    else:
+        model = ff.load(ref, mode=mode)
+        dtype, how, call = str(model.backend.dtype), None, lambda a, b, m=model: m(a, b).flow
+        extra = {"backend": {"mode": mode, "dtype": dtype, "kernels": list(model.backend.kernels)}}
+        del model
+    call(pairs[0][1], pairs[0][2])  # warm-up (untimed)
     torch.cuda.synchronize()
     torch.cuda.reset_peak_memory_stats()
     epes, ms, n_out, n_val = [], [], 0, 0
     for _, a, b, gt, valid in pairs:
         torch.cuda.synchronize()
         t = time.perf_counter()
-        res = model(a, b)
+        res = call(a, b)
         torch.cuda.synchronize()
         ms.append((time.perf_counter() - t) * 1000)
-        f = res.flow.float().cpu().numpy().transpose(1, 2, 0)
+        f = res.float().cpu().numpy().transpose(1, 2, 0)
         err = np.linalg.norm(f[valid] - gt[valid], axis=-1)
         mag = np.linalg.norm(gt[valid], axis=-1)
         epes.append(float(err.mean()))
         n_out += int(((err > OUTLIER_PX) & (err > OUTLIER_REL * mag)).sum())
         n_val += int(valid.sum())
     metrics = {"epe": round(float(np.mean(epes)), 4), "fl_all": round(100 * n_out / n_val, 3)}
-    dtype = str(model.backend.dtype)
-    row = {"ref": ref, "task": "flow", "tier": mode, "mode": mode, "dtype": dtype, "how": None, "dataset": DATASET}
+    docs_mode, column = ORIGINAL.get(mode, (mode, mode))
+    row = {"ref": ref, "task": "flow", "tier": mode, "mode": docs_mode, "dtype": dtype, "how": how, "dataset": DATASET}
     row |= {"n": len(pairs), **metrics, "metrics": metrics, "ms_per_img": round(statistics.median(ms), 2)}
     row |= {"peak_alloc_mb": torch.cuda.max_memory_allocated() >> 20}
-    backend = {"mode": mode, "dtype": dtype, "kernels": list(model.backend.kernels)}
-    row |= {"peak_reserved_mb": torch.cuda.max_memory_reserved() >> 20, "backend": backend}
-    del model
+    row |= {"peak_reserved_mb": torch.cuda.max_memory_reserved() >> 20}
+    del call
     torch.cuda.empty_cache()
-    return {**row, **base, "column": mode}
+    return {**row, **extra, **base, "column": column}
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--refs", required=True, help="comma-separated model ids")
-    ap.add_argument("--modes", default="portable,kernels", help="comma-separated: portable, kernels")
+    ap.add_argument(
+        "--modes",
+        default="portable,kernels",
+        help="comma-separated: portable, kernels, upstream, upstream16 (the original code, tools/_original.py)",
+    )
     ap.add_argument("--root", type=Path, default=DATA / "stereo/KITTI/training", help="KITTI 2015 training dir")
     ap.add_argument("--stop", type=int, default=None, help="first N pairs only (smoke runs)")
     ap.add_argument("--commit", required=True, help="git commit of the measured src (the run dir may lack .git)")

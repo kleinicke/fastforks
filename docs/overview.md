@@ -464,12 +464,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Flow
 
-11 models; size 1080x1920.
+14 models; size 1080x1920.
 
 - Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
-- Most accurate: [`sea-raft-m-things`](models/flow.md#sea-raft) (73.1 ms, error 4.307).
+- Most accurate: [`neuflow-v2-things`](models/flow.md#neuflow-v2) (102.6 ms, error 4.095).
+- Best trade-off: [`sea-raft-m-things`](models/flow.md#sea-raft) (73.1 ms, error 4.307).
 - Fastest commercially usable: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
-- Most accurate commercially usable: [`sea-raft-m-things`](models/flow.md#sea-raft) (73.1 ms, error 4.307).
+- Most accurate commercially usable: [`neuflow-v2-things`](models/flow.md#neuflow-v2) (102.6 ms, error 4.095).
 
 | model | commercial use | KITTI 2015 train EPE (px) | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
@@ -484,5 +485,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 290.2 | 83.1 | 5.8x vs original (1080x1920) | 333 |
 | [`raft-large`](models/flow.md#raft) | yes | 1.526 † | 479.5 (1080x1920) | 290.3 | 83.3 | 5.8x vs original (1080x1920) | 333 |
 | [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 290.2 | 83.6 | 5.7x vs original (1080x1920) | 333 |
+| [`neuflow-v2-sintel`](models/flow.md#neuflow-v2) | yes | 1.567 † | 75.7 (1080x1920) | 102.4 | – | – | – |
+| [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.579 † | 75.6 (1080x1920) | 102.5 | – | – | – |
+| [`neuflow-v2-things`](models/flow.md#neuflow-v2) | yes | 4.095 | 75.8 (1080x1920) | 102.6 | – | – | – |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.

@@ -1,0 +1,51 @@
+schema = 2
+name = "NeuFlow v2"
+summary = "NeuFlow v2 (Zhang, Gupta, Singh & Jiang 2024): a light optical-flow network for robots and edge devices. A plain convolutional backbone on the image averaged down by 2, 4 and 8, cross-attention and global matching at 1/16 resolution for the initial flow (large motions), then one refinement at 1/16 and 8 at 1/8 with a 9 x 9 correlation lookup and plain 3 x 3 convs (no GRU), convex upsampling. The authors' released weights; the network is ported from neufieldrobotics/NeuFlow_v2. `neuflow-v2` is the authors' mixed-dataset checkpoint (their default), `-things` the FlyingThings3D one (zero-shot elsewhere), `-sintel` the Sintel fine-tune stage."
+tier = "experimental"
+outputs = ["flow"]
+uses = []  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/neufieldrobotics/NeuFlow_v2"
+commit = "204b5e3744461d90303b9ff82caa7a1bb56a2ca2"  # net.py ports NeuFlow/neuflow.py, backbone_v7.py, transformer.py, matching.py, corr.py, refine.py, upsample.py
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # the checkpoints are files of the Apache-2.0 repository; Hugging Face card Study-is-happy/neuflow-v2: "license: apache-2.0"
+files = ["LICENSE"]
+training_data = ["sceneflow", "sintel-flow", "kitti", "hd1k"]
+training_note = "README: \"trained with multiple datasets\" (not listed); the mixed stages of upstream's data_utils/datasets.py use FlyingThings3D (part of SceneFlow), Sintel, KITTI 2015, HD1K and, in one stage, VIPER"
+evidence = "https://huggingface.co/Study-is-happy/neuflow-v2/blob/79ae2f4589456d4d369aaef4955c7db5918c3436/README.md"  # weights licence; code: https://github.com/neufieldrobotics/NeuFlow_v2/blob/204b5e3744461d90303b9ff82caa7a1bb56a2ca2/LICENSE
+
+[io]
+input = "0-1"  # upstream divides its [0, 255] input by 255
+min_size = 32  # two cells per axis at 1/16: the lookup's coordinate normalisation divides by size - 1
+pad = { multiple = 16, mode = "centre", fill = "replicate" }  # upstream InputPadder ('sintel' mode, padding_factor=16)
+
+[options]
+iters = { default = 8, min = 1 }  # refinements at 1/8 resolution (upstream iters_s8; one refinement at 1/16 before them)
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast for the convolutions and the cross-attention; matching, correlation, lookup and upsampling in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "none of the existing kernels fits (LeakyReLU(0.1) convolutions, one correlation level with 128 channels at radius 4), and no new kernel was written for it"
+
+[[variants]]
+id = "neuflow-v2"  # upstream neuflow_mixed.pth (the default of its infer.py)
+revision = 1
+weights = [{ name = "neuflow_mixed.pth", size = 36195519, sha256 = "76152c8068f247a7d073aa13e61da8cb4c3c6a798076d4dc8e20f7995fcc019f", url = "https://github.com/neufieldrobotics/NeuFlow_v2/raw/204b5e3744461d90303b9ff82caa7a1bb56a2ca2/neuflow_mixed.pth" }]
+
+[[variants]]
+id = "neuflow-v2-sintel"  # upstream neuflow_sintel.pth
+revision = 1
+licence = { training_data = ["sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "FlyingThings3D (part of SceneFlow), then upstream's 'sintel' stage: Sintel, KITTI 2015, HD1K and FlyingThings3D" }
+weights = [{ name = "neuflow_sintel.pth", size = 36195519, sha256 = "9bc12c9ef8298e3cca08a33a04bf99b63dc989e16808daca0c10ac5be4291eb1", url = "https://github.com/neufieldrobotics/NeuFlow_v2/raw/204b5e3744461d90303b9ff82caa7a1bb56a2ca2/neuflow_sintel.pth" }]
+
+[[variants]]
+id = "neuflow-v2-things"  # upstream neuflow_things.pth (zero-shot on Sintel / KITTI)
+revision = 1
+licence = { training_data = ["sceneflow"], training_note = "FlyingThings3D (part of SceneFlow), upstream's 'things' stage" }
+weights = [{ name = "neuflow_things.pth", size = 36195519, sha256 = "733d13b1b2202adefcc99bd1f0fceb89fc90da5479f9826fa3f17ff42c4bdbe0", url = "https://github.com/neufieldrobotics/NeuFlow_v2/raw/204b5e3744461d90303b9ff82caa7a1bb56a2ca2/neuflow_things.pth" }]

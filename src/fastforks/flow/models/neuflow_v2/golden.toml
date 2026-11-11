@@ -1,0 +1,25 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.0001  # measured 0 on x86-64 (same operations in the same order as upstream); room for other CPUs
+gpu_mean = 0.0014  # RTX 5060 Ti fp16: worst mean 0.0009174316 px, 1.5x rounded up to 2 significant digits
+gpu_p99 = 0.0067  # worst p99 0.0044460297 px, same measured rule (2026-11-11)
+
+[refs."neuflow-v2-sintel@1"]
+sha256 = "46d1ca0c5657c327f9800273d4bc87a6152d00110ae11bd4c64153bece6ba4f7"
+upstream = "https://github.com/neufieldrobotics/NeuFlow_v2@204b5e3744461d90303b9ff82caa7a1bb56a2ca2"
+settings = "CPU float32, upstream NeuFlow iters_s16=1 iters_s8=8, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."neuflow-v2-things@1"]
+sha256 = "dc131443bf4b6f43c3765a426890e0aa1fcb645f277979e309190d8f6e9689dc"
+upstream = "https://github.com/neufieldrobotics/NeuFlow_v2@204b5e3744461d90303b9ff82caa7a1bb56a2ca2"
+settings = "CPU float32, upstream NeuFlow iters_s16=1 iters_s8=8, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."neuflow-v2@1"]
+sha256 = "2a7c1d688521aeb057dff990d7485a9b4f601446f30631285eb8cdec4332ec2a"
+upstream = "https://github.com/neufieldrobotics/NeuFlow_v2@204b5e3744461d90303b9ff82caa7a1bb56a2ca2"
+settings = "CPU float32, upstream NeuFlow iters_s16=1 iters_s8=8, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
