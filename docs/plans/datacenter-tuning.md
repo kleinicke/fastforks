@@ -436,3 +436,13 @@ they do not replace or widen the portable GPU tolerances. All outputs were finit
 On KITTI 2015 train, the fine-tuned checkpoint gives EPE 1.2604 in original fp32, 1.3596 in original
 autocast and 1.3479 in portable autocast. The precision-dependent accuracy difference remains visible in
 the comparison; faster mixed precision is not presented as equivalent to original fp32.
+
+### GMFlow scale-one TensorRT numerical measurements
+
+Both 384x512 TensorRT golden outputs were finite. These engine errors against the CPU reference are separate
+from the portable GPU tolerances, which remain unchanged.
+
+| Ref | Mean error (px) | p99 (px) | Maximum (px) |
+|---|---:|---:|---:|
+| gmflow-scale1-things | 0.0047006 | 0.0177909 | 0.0307865 |
+| gmflow-scale1-mixdata | 0.0047868 | 0.0169592 | 0.0257974 |
