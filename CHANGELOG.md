@@ -32,6 +32,8 @@
   `tiny_vit_21m_224` (`.dist_in22k_ft_in1k`), the 21M one also at 384 and 512, on `portable` and `kernels`.
 - New classifier SHViT (the authors' weights from timm, MIT): `shvit_s1.in1k` to `shvit_s4.in1k` (S4 at 256), on
   `portable`.
+- New classifier HGNetV2 (PaddleClas' SSLD weights from timm, Apache-2.0): `hgnetv2_b0.ssld_stage2_ft_in1k` to
+  `hgnetv2_b6.ssld_stage2_ft_in1k`, on `portable`.
 - New feature backbones: SigLIP 2, CLIP / OpenCLIP, Perception Encoder and C-RADIOv3.
 - New feature backbone: TIPSv2 (B/14, L/14 image encoders; the DINOv2 kernel path).
 - New feature backbone ConvNeXt (Meta's V1 ImageNet-22k weights from timm, Apache-2.0): `convnext_tiny.fb_in22k`,

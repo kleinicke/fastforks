@@ -142,7 +142,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Classification
 
-57 models; size 224x224.
+64 models; size 224x224.
 
 - Fastest: [`squeezenet1_1`](models/classification.md#squeezenet) (0.4 ms).
 - Fastest commercially usable: [`squeezenet1_1`](models/classification.md#squeezenet) (0.4 ms).
@@ -198,11 +198,18 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`tiny_vit_21m_512`](models/classification.md#tinyvit) | yes | – | 4.9 | 3.1 (512x512) | 1.6x vs portable | 237 |
 | [`convnext_large`](models/classification.md#convnext) | yes | 10.7 (224x224) | 5.6 | 3.3 | 3.2x vs original (224x224) | 419 |
 | [`convnext_large.fb_in1k`](models/classification.md#convnext) | yes | 10.7 (224x224) | 5.6 | 3.3 | 3.2x vs original (224x224) | 419 |
+| [`hgnetv2_b0`](models/classification.md#hgnetv2) | yes | 4.5 (224x224) | 3.5 | – | – | – |
+| [`hgnetv2_b1`](models/classification.md#hgnetv2) | yes | 4.6 (224x224) | 3.5 | – | – | – |
+| [`hgnetv2_b4`](models/classification.md#hgnetv2) | yes | 7.1 (224x224) | 4.5 | – | – | – |
+| [`hgnetv2_b2`](models/classification.md#hgnetv2) | yes | 6.2 (224x224) | 4.6 | – | – | – |
 | [`dinov2_vitl14_lc`](models/classification.md#dinov2-linear) | yes | 10.8 (224x224) | 5.4 | 4.9 | 2.2x vs original (224x224) | 890 |
 | [`convnext_large.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 11.5 (224x224) | 6.0 | 5.2 | 2.2x vs original (224x224) | 426 |
+| [`hgnetv2_b3`](models/classification.md#hgnetv2) | yes | 7.2 (224x224) | 5.2 | – | – | – |
 | [`shvit_s1`](models/classification.md#shvit) | yes | 8.4 (224x224) | 6.7 | – | – | – |
 | [`shvit_s2`](models/classification.md#shvit) | yes | 8.4 (224x224) | 6.8 | – | – | – |
+| [`hgnetv2_b5`](models/classification.md#hgnetv2) | yes | 11.4 (224x224) | 7.0 | – | – | – |
 | [`shvit_s3`](models/classification.md#shvit) | yes | 9.4 (224x224) | 8.1 | – | – | – |
+| [`hgnetv2_b6`](models/classification.md#hgnetv2) | yes | 16.5 (224x224) | 9.4 | – | – | – |
 | [`vit_so400m_patch14_siglip_378`](models/classification.md#siglip-fine-tuned) | yes | 25.8 (224x224) | 13.1 | 12.8 | 2.0x vs original (224x224) | 1216 |
 | [`eva02_large_patch14_448`](models/classification.md#eva-02) | yes | 32.1 (224x224) | 18.0 | 14.1 | 2.3x vs original (224x224) | 1236 |
 | [`shvit_s4`](models/classification.md#shvit) | yes | – | – | – | – | – |

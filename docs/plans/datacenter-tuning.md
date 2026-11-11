@@ -291,3 +291,10 @@ No dedicated kernels runner or datacenter measurements exist yet. Measure throug
 the convolution and single-head attention portions separately before choosing fusions or graph-cache limits.
 
 Source: the SHViT rows in `docs/data/speed.jsonl` and `docs/data/speed_compile.jsonl`.
+
+## HGNetV2
+
+Only the RTX 5060 Ti has been measured. The portable path folds BatchNorm and uses channels-last fp16
+convolutions; B0-B6 run at native 224. Measure larger batches on the target GPU before changing precision
+or adding aggregation-block fusions. Compare the existing compile and TensorRT rows as well as originals,
+and preserve the measured mean/p99 bounds 0.0080/0.033. No datacenter speed claim is made here.

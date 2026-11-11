@@ -608,6 +608,13 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | efficientvit_b2.r288_in1k | 224x224 | 10.7 | 14.7 | 11.9 | 1.10 | 9.7x | 10.8x | 173 / 194 | 85 / 124 | 120 / 212 |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 83.7 | 32.1 | 18.0 | 14.1 | 2.3x | 1.3x | 1819 / 1864 | 648 / 1206 | 1236 / 1386 |
 | fastvit_sa24.apple_dist_in1k | 224x224 | 11.9 | 16.5 | 6.88 | 1.39 | 8.6x | 4.9x | 157 / 176 | 81 / 108 | 112 / 190 |
+| hgnetv2_b0.ssld_stage2_ft_in1k | 224x224 | 4.45 | 5.89 | 3.46 | – | – | – | 68 / 72 | 48 / 70 | – |
+| hgnetv2_b1.ssld_stage2_ft_in1k | 224x224 | 4.57 | 6.17 | 3.47 | – | – | – | 70 / 92 | 50 / 68 | – |
+| hgnetv2_b2.ssld_stage2_ft_in1k | 224x224 | 6.25 | 7.98 | 4.55 | – | – | – | 98 / 118 | 59 / 94 | – |
+| hgnetv2_b3.ssld_stage2_ft_in1k | 224x224 | 7.16 | 9.30 | 5.22 | – | – | – | 127 / 140 | 76 / 114 | – |
+| hgnetv2_b4.ssld_stage2_ft_in1k | 224x224 | 7.06 | 8.41 | 4.53 | – | – | – | 147 / 166 | 82 / 116 | – |
+| hgnetv2_b5.ssld_stage2_ft_in1k | 224x224 | 11.4 | 13.8 | 7.04 | – | – | – | 260 / 280 | 114 / 150 | – |
+| hgnetv2_b6.ssld_stage2_ft_in1k | 224x224 | 16.5 | 17.9 | 9.44 | – | – | – | 465 / 490 | 198 / 224 | – |
 | inception_v3.tv_in1k | 224x224 | 7.88 | 10.3 | 5.21 | 1.30 | 6.1x | 4.0x | 185 / 206 | 120 / 166 | 150 / 228 |
 | mobilenet_v2.tv2_in1k | 224x224 | 3.60 | 5.14 | 2.95 | 0.439 | 8.2x | 6.7x | 54 / 72 | 43 / 70 | 75 / 92 |
 | mobilenet_v3_large.tv2_in1k | 224x224 | 4.33 | 6.20 | 3.80 | 0.545 | 7.9x | 7.0x | 65 / 80 | 46 / 76 | 78 / 114 |
@@ -978,6 +985,13 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | efficientvit_b2.r288_in1k | 1.84 | 0.40 | 1.92 | 1.89 | 0.04 | 0.05 |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 6.98 | 2.80 | 3.61 | 0.39 | 0.02 | 0.10 |
 | fastvit_sa24.apple_dist_in1k | 2.49 | 0.62 | 2.42 | 1.67 | 0.17 | 0.05 |
+| hgnetv2_b0.ssld_stage2_ft_in1k | 0.19 | 1.67 | – | 1.36 | 0.73 | – |
+| hgnetv2_b1.ssld_stage2_ft_in1k | 0.31 | 1.87 | – | 0.31 | 0.40 | – |
+| hgnetv2_b2.ssld_stage2_ft_in1k | 0.23 | 1.79 | – | 0.59 | 0.39 | – |
+| hgnetv2_b3.ssld_stage2_ft_in1k | 0.27 | 1.81 | – | 0.17 | 0.40 | – |
+| hgnetv2_b4.ssld_stage2_ft_in1k | 0.32 | 1.74 | – | 0.30 | 0.39 | – |
+| hgnetv2_b5.ssld_stage2_ft_in1k | 0.49 | 1.95 | – | 0.30 | 0.40 | – |
+| hgnetv2_b6.ssld_stage2_ft_in1k | 0.86 | 2.21 | – | 0.45 | 0.46 | – |
 | inception_v3.tv_in1k | 1.62 | 0.28 | 1.86 | 0.40 | 0.04 | 0.05 |
 | mobilenet_v2.tv2_in1k | 1.23 | 0.11 | 1.51 | 1.65 | 0.03 | 0.05 |
 | mobilenet_v3_large.tv2_in1k | 1.25 | 0.34 | 1.46 | 1.97 | 0.03 | 0.05 |
@@ -1264,6 +1278,13 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | efficientvit_b2.r288_in1k | 224x224 | 11.9 ms | 6.91 ms | 0.790 ms | 1.10 ms | 11.0 s | 35.3 s | 85 / 124 | 120 / 164 | 120 / 212 | 74 |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 18.0 ms | 14.9 ms | 12.4 ms | 14.1 ms | 21.0 s | 43.5 s | 648 / 1206 | 674 / 684 | 1236 / 1386 | 642 |
 | fastvit_sa24.apple_dist_in1k | 224x224 | 6.88 ms | 3.87 ms | 0.808 ms | 1.39 ms | 9.39 s | 44.9 s | 81 / 108 | 113 / 148 | 112 / 190 | 72 |
+| hgnetv2_b0.ssld_stage2_ft_in1k | 224x224 | 3.46 ms | 1.78 ms | 0.334 ms | – | 6.74 s | 21.2 s | 48 / 70 | 78 / 110 | – | 32 |
+| hgnetv2_b1.ssld_stage2_ft_in1k | 224x224 | 3.47 ms | 1.84 ms | 0.307 ms | – | 7.07 s | 20.1 s | 50 / 68 | 80 / 108 | – | 36 |
+| hgnetv2_b2.ssld_stage2_ft_in1k | 224x224 | 4.55 ms | 2.33 ms | 0.383 ms | – | 7.65 s | 23.4 s | 59 / 94 | 89 / 134 | – | 36 |
+| hgnetv2_b3.ssld_stage2_ft_in1k | 224x224 | 5.22 ms | 2.55 ms | 0.436 ms | – | 7.99 s | 24.6 s | 76 / 114 | 99 / 152 | – | 36 |
+| hgnetv2_b4.ssld_stage2_ft_in1k | 224x224 | 4.53 ms | 2.66 ms | 0.463 ms | – | 7.84 s | 19.8 s | 82 / 116 | 107 / 134 | – | 68 |
+| hgnetv2_b5.ssld_stage2_ft_in1k | 224x224 | 7.04 ms | 4.13 ms | 0.758 ms | – | 9.97 s | 23.8 s | 114 / 150 | 146 / 190 | – | 100 |
+| hgnetv2_b6.ssld_stage2_ft_in1k | 224x224 | 9.44 ms | 5.44 ms | 1.42 ms | – | 11.2 s | 26.9 s | 198 / 224 | 217 / 264 | – | 170 |
 | inception_v3.tv_in1k | 224x224 | 5.21 ms | 3.03 ms | 0.685 ms | 1.30 ms | 8.61 s | 22.4 s | 120 / 166 | 152 / 184 | 150 / 228 | 70 |
 | mobilenet_v2.tv2_in1k | 224x224 | 2.95 ms | 1.82 ms | 0.261 ms | 0.439 ms | 6.56 s | 16.3 s | 43 / 70 | 77 / 92 | 75 / 92 | 36 |
 | mobilenet_v3_large.tv2_in1k | 224x224 | 3.80 ms | 2.19 ms | 0.393 ms | 0.545 ms | 10.2 s | 36.5 s | 46 / 76 | 79 / 90 | 78 / 114 | 36 |
