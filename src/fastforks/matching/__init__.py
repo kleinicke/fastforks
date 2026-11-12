@@ -15,6 +15,7 @@ from fastforks._core.export import TensorRTEngine
 from fastforks._core.image import ImageLike
 from fastforks._core.sizes import SizeRange
 from fastforks.matching._api import Backend, MatchingModel, MatchingResult, list_models, load, model_card
+from fastforks.matching.relative_pose import RelativePose, estimate_pose
 
 __all__ = [
     "Backend",
@@ -22,8 +23,10 @@ __all__ = [
     "MatchingModel",
     "MatchingResult",
     "ModelCard",
+    "RelativePose",
     "SizeRange",
     "TensorRTEngine",
+    "estimate_pose",
     "list_models",
     "load",
     "model_card",

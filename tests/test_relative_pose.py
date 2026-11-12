@@ -1,0 +1,126 @@
+"""`fastforks.matching.estimate_pose`: synthetic scenes with known R, t and outliers; portable vs kernels on the GPU."""
+
+from __future__ import annotations
+
+import pytest
+import torch
+
+from fastforks._core.errors import InputError
+from fastforks._core.kernels import KernelUnavailableError
+from fastforks.matching import RelativePose, estimate_pose
+from fastforks.matching import relative_pose as rp
+
+F = 800.0
+
+
+def scene(  # noqa: PLR0913, PLR0917 - one scene per case
+    p: int, n: int, outliers: float, noise: float = 0.3, seed: int = 0, device: str = "cpu"
+) -> tuple:
+    """`p` random pairs of `n` matches: pixels, K, true R, t (camera 1 to 2) and the inlier mask."""
+    gen = torch.Generator(device).manual_seed(seed)
+    dev = torch.device(device)
+    k = torch.tensor([[F, 0, 400.0], [0, F, 300.0], [0, 0, 1]], device=dev).expand(p, 3, 3)
+    aa = torch.randn(p, 3, device=dev, generator=gen) * 0.3
+    z = torch.zeros_like(aa[:, 0])
+    skew = torch.stack([z, -aa[:, 2], aa[:, 1], aa[:, 2], z, -aa[:, 0], -aa[:, 1], aa[:, 0], z], 1).view(p, 3, 3)
+    r = torch.linalg.matrix_exp(skew)
+    t = torch.randn(p, 3, device=dev, generator=gen)
+    t = t / t.norm(dim=1, keepdim=True)
+    x = torch.randn(p, n, 3, device=dev, generator=gen) * torch.tensor([2.0, 2.0, 1.0], device=dev)
+    x = x + torch.tensor([0.0, 0.0, 6.0], device=dev)
+    x2 = torch.einsum("pij,pnj->pni", r, x) + t[:, None]
+    c = torch.tensor([400.0, 300.0], device=dev)
+    p1 = x[..., :2] / x[..., 2:] * F + c + torch.randn(p, n, 2, device=dev, generator=gen) * noise
+    p2 = x2[..., :2] / x2[..., 2:] * F + c + torch.randn(p, n, 2, device=dev, generator=gen) * noise
+    bad = torch.rand(p, n, device=dev, generator=gen) < outliers
+    wild = torch.rand(p, n, 2, device=dev, generator=gen) * torch.tensor([800.0, 600.0], device=dev)
+    return p1, p2 * ~bad[..., None] + wild * bad[..., None], k, r, t, ~bad
+
+
+def pose_error(pose: RelativePose, r: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    """max(rotation, translation-direction angle) in degrees per pair."""
+    e_t = torch.rad2deg(torch.arccos((pose.t * t).sum(-1).abs().clamp(max=1)))
+    e_r = torch.rad2deg(torch.arccos(((torch.einsum("pji,pji->p", pose.R, r) - 1) / 2).clamp(-1, 1)))
+    return torch.maximum(e_t, e_r)
+
+
+def test_five_point_exact():
+    """Exact 5-point data: the true E is among the real solutions, all solutions satisfy the constraints."""
+    p1, p2, k, r, t, _ = scene(32, 5, outliers=0.0, noise=0.0)
+    x1, x2 = rp._normalise(p1, k), rp._normalise(p2, k)
+    e, ok = rp._five_point(x1.double(), x2.double())
+    kron = rp._kron(x1, x2).double()
+    assert ok.any(dim=1).all()
+    assert torch.einsum("bni,bci->bcn", kron, e)[ok].abs().max() < 1e-6
+    tx = torch.zeros(32, 3, 3)
+    tx[:, 0, 1], tx[:, 0, 2], tx[:, 1, 0] = -t[:, 2], t[:, 1], t[:, 2]
+    tx[:, 1, 2], tx[:, 2, 0], tx[:, 2, 1] = -t[:, 0], -t[:, 1], t[:, 0]
+    true = (tx @ r).reshape(32, 9)
+    true = true / true.norm(dim=1, keepdim=True)
+    d = torch.minimum((e.float() - true[:, None]).norm(dim=-1), (e.float() + true[:, None]).norm(dim=-1))
+    assert torch.where(ok, d, 9.0).amin(1).max() < 1e-3
+
+
+@pytest.mark.parametrize(("n", "outliers"), [(300, 0.0), (1000, 0.5)])
+def test_estimate_pose(n, outliers):
+    p1, p2, k, r, t, inlier = scene(4, n, outliers)
+    pose = estimate_pose(p1, p2, k, k)
+    assert pose.ok.all()
+    assert pose_error(pose, r, t).max() < 1.0
+    assert pose.inliers.shape == (4, n)
+    precision = (pose.inliers & inlier).sum(1) / pose.inliers.sum(1)
+    assert precision.min() > 0.98
+    assert ((pose.inliers & inlier).sum(1) / inlier.sum(1)).min() > 0.7
+
+
+def test_unbatched_and_mask():
+    p1, p2, k, r, t, inlier = scene(1, 400, outliers=0.3)
+    pose = estimate_pose(p1[0], p2[0], k[0], k[0])
+    assert pose.R.shape == (3, 3)
+    assert pose.t.shape == (3,)
+    assert pose.inliers.shape == (400,)
+    assert (
+        pose_error(RelativePose(pose.R[None], pose.t[None], pose.E[None], pose.inliers[None], pose.ok[None]), r, t)
+        < 1.0
+    )
+    # masked-out matches are never inliers; the result still holds with the outliers masked away
+    masked = estimate_pose(p1[0], p2[0], k[0], k[0], mask=inlier[0])
+    assert masked.ok
+    assert not masked.inliers[~inlier[0]].any()
+
+
+def test_degenerate_inputs():
+    p1, p2, k, *_ = scene(2, 50, outliers=0.0)
+    with pytest.raises(InputError):
+        estimate_pose(p1[:, :4], p2[:, :4], k, k)
+    with pytest.raises(InputError):
+        estimate_pose(p1, p2[:, :40], k, k)
+    with pytest.raises(InputError):
+        estimate_pose(p1, p2, k, k, threshold=0.0)
+    with pytest.raises(InputError):
+        estimate_pose(p1, p2, k, k, mask=torch.zeros(2, 50, dtype=torch.bool))
+    # all outliers: no pose, flagged, identity returned
+    bad = torch.rand(2, 50, 2) * 500
+    pose = estimate_pose(p1, bad, k, k)
+    assert pose.R.shape == (2, 3, 3)
+    assert pose.inliers.sum() <= 2 * 10
+    if not pose.ok.all():
+        assert torch.allclose(pose.R[~pose.ok], torch.eye(3).expand(int((~pose.ok).sum()), 3, 3))
+    if not torch.cuda.is_available():
+        with pytest.raises(KernelUnavailableError):
+            estimate_pose(p1, p2, k, k, mode="kernels")
+
+
+@pytest.mark.gpu
+def test_kernels_match_portable():
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    p1, p2, k, r, t, _ = scene(6, 2000, outliers=0.5, device="cuda")
+    portable = estimate_pose(p1, p2, k, k, mode="portable")
+    kernels = estimate_pose(p1, p2, k, k, mode="kernels")
+    assert portable.ok.all()
+    assert kernels.ok.all()
+    assert pose_error(kernels, r, t).max() < 1.0
+    assert (pose_error(kernels, r, t) - pose_error(portable, r, t)).abs().max() < 0.5
+    agree = (portable.inliers == kernels.inliers).float().mean()
+    assert agree > 0.98

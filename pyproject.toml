@@ -186,6 +186,7 @@ runtime-evaluated-base-classes = []
   "S607",   # `git` from PATH in developer tools
 ]
 # One-off measurement scripts (not part of the package, not type-checked).
+"src/fastforks/matching/relative_pose.py" = ["N806"]  # tensor shape names (P, N, A, C)
 "runs/**" = ["ANN", "D", "E501", "FURB", "INP001", "PLC3002", "PLR2004", "PTH", "S607", "SLF001", "T201"]
 # Model packages import their own modules relatively, so a model directory is self-contained.
 "src/fastforks/*/models/**" = ["TID252"]
