@@ -405,11 +405,11 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `lotus-normal-g-v1-1` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 16.61 / 8.98 / 59.73 / 83.32 |  |
-| `lotus-normal-g-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.73 / 7.10 / 67.51 / 83.28 | 16.73 / 7.10 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.27 |  |
-| `lotus-normal-d-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.70 / 7.28 / 67.22 / 83.52 | 16.70 / 7.28 / 67.21 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 |  |
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `lotus-normal-g-v1-1` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  |  | 16.61 / 8.98 / 59.73 / 83.32 |  |
+| `lotus-normal-g-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.73 / 7.10 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.28 | 16.73 / 7.11 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.27 |  |
+| `lotus-normal-d-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.70 / 7.28 / 67.21 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 11209576, 2026-11-12.
 
