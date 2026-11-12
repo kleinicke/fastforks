@@ -971,7 +971,7 @@ extern "C" __global__ void polish(const float* __restrict__ pts, const int* __re
   block_sum(acc, 2, red);
   if (threadIdx.x == 0) {
     const int count = (int)red[0][1];
-    const bool good = sFront > 0 && count >= minimum && !fundamental || fundamental && count >= minimum;
+    const bool good = count >= minimum && (fundamental || sFront > 0);
     cnt[pair] = count;
     ok[pair] = good;
     for (int k = 0; k < 9; ++k) {

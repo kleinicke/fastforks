@@ -1,6 +1,11 @@
 """Relative-pose estimation from saved matches: `fastforks.matching.estimate_pose` against OpenCV, USAC and PoseLib.
 
     python tools/eval_pose.py --matches DIR --method opencv|usac|poselib|portable|kernels [--jobs N] [--stop N] --out F
+        [--problem essential|fundamental] [--threshold PX]
+
+`--problem fundamental` estimates the fundamental matrix without the intrinsics (7-point RANSAC, pixel threshold,
+default 1 px), then converts it with the intrinsics (`E = K2^T F K1`) and recovers the pose from it, so the same
+pose AUC measures it.
 
 `DIR` holds the `*.npz` of `tools/eval_matching.py match` (`N_RUNS` samplings of `N_MATCHES` matches per
 MegaDepth-1500 pair). Protocol as `eval_matching.py score`: threshold 0.5 px over the mean focal length, confidence
@@ -19,6 +24,7 @@ import statistics
 import subprocess
 import sys
 import time
+from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 
@@ -40,8 +46,8 @@ def angle_error(r: np.ndarray, t: np.ndarray, gt_r: np.ndarray, gt_t: np.ndarray
     return float(max(min(e_t, 180 - e_t), e_r))
 
 
-def normalise(x: np.ndarray, k1: np.ndarray, k2: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
-    thr = 0.5 / (np.mean(np.abs(k1[:2, :2])) + np.mean(np.abs(k2[:2, :2])))
+def normalise(x: np.ndarray, k1: np.ndarray, k2: np.ndarray, thr: float) -> tuple[np.ndarray, np.ndarray, float]:
+    thr = thr / (np.mean(np.abs(k1[:2, :2])) + np.mean(np.abs(k2[:2, :2])))
     p1 = (np.linalg.inv(k1[:2, :2]) @ (x[:, :2] - k1[None, :2, 2]).T).T
     p2 = (np.linalg.inv(k2[:2, :2]) @ (x[:, 2:] - k2[None, :2, 2]).T).T
     return p1, p2, thr
@@ -62,31 +68,37 @@ def cv_pose(
     return ret
 
 
-def run_opencv(item: Item, *, usac: bool = False) -> tuple[float, float]:
+def run_opencv(item: Item, *, usac: bool = False, fundamental: bool = False, thr: float = 0.5) -> tuple[float, float]:
     import cv2  # noqa: PLC0415
 
     cv2.setNumThreads(1)
     x, k1, k2, r, t, seed = item
-    p1, p2, thr = normalise(x, k1, k2)
+    p1, p2, thr_n = normalise(x, k1, k2, thr)
     cv2.setRNGSeed(seed)
+    method = cv2.USAC_MAGSAC if usac else cv2.RANSAC
     t0 = time.perf_counter()
-    if usac:
-        e, mask = cv2.findEssentialMat(p1, p2, np.eye(3), method=cv2.USAC_MAGSAC, threshold=thr, prob=0.99999)
+    if fundamental:
+        f, mask = cv2.findFundamentalMat(x[:, :2], x[:, 2:], method, thr, 0.99999)
+        e = None if f is None else np.concatenate([k2.T @ fi @ k1 for fi in np.split(f, len(f) // 3)])
     else:
-        e, mask = cv2.findEssentialMat(p1, p2, np.eye(3), threshold=thr, prob=0.99999)
+        e, mask = cv2.findEssentialMat(p1, p2, np.eye(3), method=method, threshold=thr_n, prob=0.99999)
     ret = cv_pose(e, mask, p1, p2)
     dt = time.perf_counter() - t0
     return (90.0 if ret is None else angle_error(*ret, r, t)), dt * 1e3
 
 
-def run_usac(item: Item) -> tuple[float, float]:
-    return run_opencv(item, usac=True)
-
-
-def run_poselib(item: Item) -> tuple[float, float]:
+def run_poselib(item: Item, *, fundamental: bool = False, thr: float = 0.5) -> tuple[float, float]:
     import poselib  # noqa: PLC0415
 
     x, k1, k2, r, t, seed = item
+    if fundamental:
+        opt = {"max_epipolar_error": thr, "success_prob": 0.99999, "max_iterations": 1000, "min_iterations": 10}
+        t0 = time.perf_counter()
+        f, info = poselib.estimate_fundamental(x[:, :2].copy(), x[:, 2:].copy(), {**opt, "seed": seed}, {})
+        p1, p2, _ = normalise(x, k1, k2, thr)
+        ret = cv_pose(k2.T @ f @ k1, np.array(info["inliers"], dtype=np.uint8), p1, p2)
+        dt = time.perf_counter() - t0
+        return (90.0 if ret is None else angle_error(*ret, r, t)), dt * 1e3
     cams = [
         {
             "model": "PINHOLE",
@@ -97,7 +109,7 @@ def run_poselib(item: Item) -> tuple[float, float]:
         for k in (k1, k2)
     ]
     opt = {
-        "max_epipolar_error": 0.5,
+        "max_epipolar_error": thr,
         "success_prob": 0.99999,
         "max_iterations": 1000,
         "min_iterations": 10,
@@ -109,10 +121,24 @@ def run_poselib(item: Item) -> tuple[float, float]:
     return angle_error(pose.R, pose.t, r, t), dt * 1e3
 
 
-def gpu(items: list[Item], mode: str, batch: int, latency_pairs: int) -> tuple[list[float], dict]:
+def gpu(  # noqa: PLR0913 - the options
+    items: list[Item], mode: str, batch: int, latency_pairs: int, *, fundamental: bool = False, thr: float = 0.5
+) -> tuple[list[float], dict]:
     import torch  # noqa: PLC0415
 
-    from fastforks.matching import estimate_pose  # noqa: PLC0415
+    from fastforks.matching import estimate_fundamental, relative_pose  # noqa: PLC0415
+
+    def estimate_pose(p1, p2, k1, k2, *, mode):  # noqa: ANN001, ANN202 - the pose, through F when `fundamental`
+        if not fundamental:
+            return relative_pose.estimate_pose(p1, p2, k1, k2, threshold=thr, mode=mode)
+        fund = estimate_fundamental(p1, p2, threshold=thr, mode=mode)
+        if p1.ndim == 2:  # noqa: PLR2004 - the private helpers take batches
+            p1, p2, k1, k2 = p1[None], p2[None], k1[None], k2[None]
+            fund = relative_pose.FundamentalMatrix(fund.F[None], fund.inliers[None], fund.ok[None])
+        e = k2.transpose(-1, -2) @ fund.F @ k1
+        x1, x2 = relative_pose._normalise(p1, k1), relative_pose._normalise(p2, k2)  # noqa: SLF001
+        r, t, _ = relative_pose._recover_pose(e, x1, x2, fund.inliers)  # noqa: SLF001
+        return relative_pose.RelativePose(r, t, e, fund.inliers, fund.ok)
 
     dev = torch.device("cuda")
     x = torch.from_numpy(np.stack([it[0] for it in items])).float()
@@ -175,6 +201,8 @@ def main() -> None:
     ap.add_argument("--stop", type=int, default=None, help="only the first pairs")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--errors", type=Path, default=None, help="save the per-pair errors (npy)")
+    ap.add_argument("--problem", default="essential", choices=("essential", "fundamental"))
+    ap.add_argument("--threshold", type=float, default=None, help="pixels; default 0.5 (essential), 1.0 (fundamental)")
     a = ap.parse_args()
     from PIL import Image  # noqa: PLC0415
 
@@ -191,11 +219,17 @@ def main() -> None:
         rng = np.random.default_rng(i)
         for run, x in enumerate(kpts[str(i)]):
             items.append((x[rng.permutation(len(x))].astype(np.float64), k1s, k2s, r, t, i * N_RUNS + run))
+    fundamental = a.problem == "fundamental"
+    thr = a.threshold if a.threshold is not None else (1.0 if fundamental else 0.5)
     t0 = time.perf_counter()
     if a.method in {"portable", "kernels"}:
-        errors, info = gpu(items, a.method, a.batch, a.latency_pairs)
+        errors, info = gpu(items, a.method, a.batch, a.latency_pairs, fundamental=fundamental, thr=thr)
     else:
-        fn = {"opencv": run_opencv, "usac": run_usac, "poselib": run_poselib}[a.method]
+        fn = {
+            "opencv": partial(run_opencv, fundamental=fundamental, thr=thr),
+            "usac": partial(run_opencv, usac=True, fundamental=fundamental, thr=thr),
+            "poselib": partial(run_poselib, fundamental=fundamental, thr=thr),
+        }[a.method]
         if a.jobs > 1:
             with Pool(a.jobs) as pool:
                 res = pool.map(fn, items, chunksize=8)
@@ -215,6 +249,8 @@ def main() -> None:
     ).stdout.strip()
     row = {
         "method": a.method,
+        "problem": a.problem,
+        "threshold": thr,
         "n_pairs": len(pairs),
         "n": len(items),
         "auc5": auc[0],

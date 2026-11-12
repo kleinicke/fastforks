@@ -1,4 +1,4 @@
-"""`fastforks.matching.estimate_pose`: synthetic scenes with known R, t and outliers; portable vs kernels on the GPU."""
+"""`estimate_pose` and `estimate_fundamental`: synthetic scenes with known R, t and outliers; portable vs kernels."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import torch
 
 from fastforks._core.errors import InputError
 from fastforks._core.kernels import KernelUnavailableError
-from fastforks.matching import MatchingResult, RelativePose, estimate_pose
+from fastforks.matching import MatchingResult, RelativePose, estimate_fundamental, estimate_pose
 from fastforks.matching import relative_pose as rp
 
 F = 800.0
@@ -42,6 +42,52 @@ def pose_error(pose: RelativePose, r: torch.Tensor, t: torch.Tensor) -> torch.Te
     e_t = torch.rad2deg(torch.arccos((pose.t * t).sum(-1).abs().clamp(max=1)))
     e_r = torch.rad2deg(torch.arccos(((torch.einsum("pji,pji->p", pose.R, r) - 1) / 2).clamp(-1, 1)))
     return torch.maximum(e_t, e_r)
+
+
+def true_fundamental(k: torch.Tensor, r: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    """`F = K^-T [t]_x R K^-1` `[P, 3, 3]`, unit norm."""
+    ki = torch.linalg.inv(k)
+    f = ki.transpose(1, 2) @ rp._cross(t) @ r @ ki
+    return f / f.flatten(1).norm(dim=1)[:, None, None]
+
+
+def f_error(f: torch.Tensor, f_true: torch.Tensor) -> torch.Tensor:
+    """Distance of unit-norm `[P, 3, 3]` matrices up to sign."""
+    a, b = f.flatten(1), f_true.flatten(1)
+    return torch.minimum((a - b).norm(dim=1), (a + b).norm(dim=1))
+
+
+def test_seven_point_exact():
+    """Noise-free seven-point samples: one of the solutions is the true F (in Hartley-normalised coordinates)."""
+    p1, p2, k, r, t, _ = scene(64, 7, outliers=0.0, noise=0.0)
+    x1, x2 = rp._normalise(p1, k).double(), rp._normalise(p2, k).double()
+    f, ok = rp._seven_point(x1, x2)
+    f_true = (rp._cross(t) @ r).double().reshape(64, 1, 9)
+    f_true = f_true / f_true.norm(dim=-1, keepdim=True)
+    dist = torch.minimum((f - f_true).norm(dim=-1), (f + f_true).norm(dim=-1))
+    assert ok.any(1).all()
+    assert torch.where(ok, dist, 9.0).amin(1).max() < 1e-3  # the scene is float32
+    # Every solution satisfies the seven constraints and is singular.
+    res = torch.einsum("bni,bsi->bsn", rp._kron(x1, x2), f).abs()
+    assert torch.where(ok[..., None], res, 0.0).max() < 1e-9
+    assert torch.where(ok, torch.linalg.det(f.view(64, 3, 3, 3)).abs(), 0.0).max() < 1e-9
+
+
+@pytest.mark.parametrize(("n", "outliers"), [(300, 0.0), (1000, 0.5)])
+def test_estimate_fundamental(n, outliers):
+    p1, p2, k, r, t, inlier = scene(3, n, outliers=outliers)
+    fund = estimate_fundamental(p1, p2, threshold=1.0)
+    assert fund.F.shape == (3, 3, 3)
+    assert fund.ok.all()
+    assert f_error(fund.F, true_fundamental(k, r, t)).max() < 2e-3
+    assert (fund.inliers & inlier).sum(1).min() > 0.9 * inlier.sum(1).min()
+    assert (fund.inliers & ~inlier).sum(1).max() < 0.05 * n
+    one = estimate_fundamental(p1[0], p2[0], mask=inlier[0])
+    assert one.F.shape == (3, 3)
+    assert one.ok
+    assert not (one.inliers & ~inlier[0]).any()
+    with pytest.raises(InputError):
+        estimate_fundamental(p1[:, :6], p2[:, :6])
 
 
 def test_five_point_exact():
@@ -109,6 +155,20 @@ def test_degenerate_inputs():
     if not torch.cuda.is_available():
         with pytest.raises(KernelUnavailableError):
             estimate_pose(p1, p2, k, k, mode="kernels")
+
+
+@pytest.mark.gpu
+def test_kernels_match_portable_fundamental():
+    p1, p2, k, r, t, _ = scene(6, 1500, outliers=0.5, device="cuda")
+    f_true = true_fundamental(k, r, t)
+    portable = estimate_fundamental(p1, p2, mode="portable")
+    kernels = estimate_fundamental(p1, p2, mode="kernels")
+    assert portable.ok.all()
+    assert kernels.ok.all()
+    assert f_error(portable.F, f_true).max() < 1e-2
+    assert f_error(kernels.F, f_true).max() < 1e-2
+    # Different random hypotheses: one rank-2 refit from the best of them leaves the two backends a few 1e-3 apart.
+    assert (portable.inliers == kernels.inliers).float().mean() > 0.9
 
 
 @pytest.mark.gpu

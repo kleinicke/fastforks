@@ -11,6 +11,7 @@ result.certainty  # [H1, W1] float32 in [0, 1]: how likely the pixel is visible 
 points1, points2 = result.matches(5000)  # [N, 2] pixel keypoints in each image, sampled where certain
 pose = matching.estimate_pose(points1, points2, K1, K2)  # relative pose on the GPU: RANSAC on the essential matrix
 pose.R, pose.t, pose.inliers  # camera 1 -> camera 2, unit translation, [N] inlier mask
+fund = matching.estimate_fundamental(points1, points2)  # unknown intrinsics: 7-point RANSAC, fund.F, fund.inliers
 ```
 
 `estimate_pose` is batched (`[P, N, 2]` points, `[P, 3, 3]` intrinsics: all pairs in one call) and has a `portable`
@@ -22,10 +23,11 @@ from fastforks._core.export import TensorRTEngine
 from fastforks._core.image import ImageLike
 from fastforks._core.sizes import SizeRange
 from fastforks.matching._api import Backend, MatchingModel, MatchingResult, list_models, load, model_card
-from fastforks.matching.relative_pose import RelativePose, estimate_pose
+from fastforks.matching.relative_pose import FundamentalMatrix, RelativePose, estimate_fundamental, estimate_pose
 
 __all__ = [
     "Backend",
+    "FundamentalMatrix",
     "ImageLike",
     "MatchingModel",
     "MatchingResult",
@@ -33,6 +35,7 @@ __all__ = [
     "RelativePose",
     "SizeRange",
     "TensorRTEngine",
+    "estimate_fundamental",
     "estimate_pose",
     "list_models",
     "load",
