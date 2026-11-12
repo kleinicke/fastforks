@@ -1,8 +1,11 @@
 # GPU pose solver (idea, after the quality/speed audit)
 
-Status: started 2026-11-12 (user: build it now, in parallel with the ports; a Fable agent develops it). Mostly
-coding and tuning; GPU use is short micro-benchmarks under gpulock. The roadmap line "GPU RANSAC only if a profile
-shows it dominates" is superseded by this decision.
+Status: done 2026-11-12 for the essential matrix: `fastforks.matching.estimate_pose` (portable PyTorch + CUDA
+kernels `fastforks.kernels.ransac`) and `MatchingResult.matches(n)`; MegaDepth-1500 x5: kernels AUC@5/10/20
+67.79/80.25/88.59 at 0.118 ms/pair batched (OpenCV RANSAC 62.87/76.90/86.42, PoseLib 68.85/80.89/88.97; 28x PoseLib's
+16-core throughput), see `results/2026-11-12_gpu_ransac.md` (experiment level). Open: fundamental matrix (7/8-point),
+a non-linear (R, t) refinement to close the 1.1 AUC@5 gap to PoseLib, CUDA-graph single-pair latency. The roadmap line
+"GPU RANSAC only if a profile shows it dominates" is superseded.
 
 ## Why
 Users of a dense matcher (RoMa v2, later others) almost always run RANSAC on the matches. Today that is OpenCV on the
