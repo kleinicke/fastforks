@@ -3,6 +3,7 @@ name = "Marigold normals LCM"
 summary = "Marigold normals (Ke et al. 2023/2025): surface normals by diffusion; a Stable Diffusion 2 UNet fine-tuned to denoise a normals latent conditioned on the image latent, distilled to one LCM step (v0.1)."
 tier = "experimental"
 outputs = ["normals"]
+uses = ["sd2"]  # fastforks.shared modules this family imports
 limitations = [
   "Normals only: no depth.",
   "Diffusion model: the seeded noise comes from a CPU generator and differs from a CUDA generator's for the same seed.",
