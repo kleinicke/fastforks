@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- MEMFOF optical flow (`memfof`, `memfof-kitti`, `memfof-sintel`, `memfof-spring`; BSD-3-Clause): portable and kernels (a 1024-channel
+  `raft_flow` correlation lookup). 1080p: 427 ms kernels vs 1035 ms original fp32 (531 ms fp16); KITTI 2015 train
+  EPE 10.89 / Fl 27.07 %. Two-frame API: the first frame is repeated as MEMFOF's previous frame.
+
 - RF-DETR detection (N, S, M, L) and RF-DETR Seg (N, S, M, L, XL, 2XL; Apache-2.0 code and weights): boxes,
   labels, scores and instance masks without NMS, on `portable` and `kernels` (fastbb backbone). M at 800x1344:
   4.4 ms kernels vs 13.5 ms original fp32; COCO val2017 box mAP 54.51 kernels vs 54.53 original.

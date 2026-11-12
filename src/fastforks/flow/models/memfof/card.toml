@@ -1,0 +1,66 @@
+schema = 2
+name = "MEMFOF"
+summary = "MEMFOF (Bargatin et al. 2025): memory-efficient multi-frame optical flow. A RAFT-style network at 1/16 resolution on three frames: a ResNet34 context encoder on all three, a GMA attention over the context, 1024-channel features with an all-pairs correlation pyramid toward the previous and the next frame, a ConvNeXt update block and convex 16x upsampling; it predicts the backward and the forward flow of the middle frame at once. The authors' released weights; the network is ported from msu-video-group/memfof. A pair (image1, image2) runs as upstream's first frame of a clip, the frames (image1, image1, image2), and returns its forward flow. Paper (three frames per prediction, the fine-tuned checkpoints): Spring test 1px 3.289 %, Sintel test EPE 0.963 (clean), KITTI 2015 test Fl-all 2.94 %."
+tier = "experimental"
+outputs = ["flow"]
+uses = []  # fastforks.shared modules this family imports
+limitations = ["Pairs only: the multi-frame input (a previous frame and the feature cache of upstream's video demo) is not exposed; each pair runs as the first frame of a clip."]
+
+[upstream]
+repo = "https://github.com/msu-video-group/memfof"
+commit = "a51de9fc59c6fe20ba08e079372c7b583d58a712"  # net/ vendors memfof/{model,corr,extractor,gma,layer,update}.py and utils/utils.py
+
+[licence]
+code = "BSD-3-Clause"  # LICENSE: Copyright (c) 2024 Princeton Vision & Learning Lab, (c) 2025 MSU Graphics & Media Lab; net/resnet.py: torchvision (BSD-3-Clause)
+weights = "BSD-3-Clause"  # Hugging Face model cards egorchistov/optical-flow-MEMFOF-*: "license: bsd-3-clause"
+files = ["LICENSE", "LICENSE-torchvision"]
+training_data = ["tartanair", "sceneflow", "sintel-flow", "kitti", "hd1k"]
+training_note = "TartanAir, FlyingThings3D (part of SceneFlow), then a mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH), as upstream's config/train/*.json"
+evidence = "https://huggingface.co/egorchistov/optical-flow-MEMFOF-Tartan-T-TSKH/blob/6c6c9aa3ad64f93aee8efbc2f7a6e4535814ee96/README.md"  # weights licence; code: https://github.com/msu-video-group/memfof/blob/a51de9fc59c6fe20ba08e079372c7b583d58a712/LICENSE
+
+[io]
+input = "mean_std"  # upstream: 2 * (x / 255) - 1, i.e. [0, 1] -> [-1, 1]
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+min_size = 256  # 1/16 features with a 4-level pyramid: the coarsest level needs 2 px (the lookup normalises by size - 1)
+pad = { multiple = 16, mode = "centre", fill = "replicate" }  # upstream InputPadder ('sintel' mode)
+
+[options]
+iters = { default = 8, min = 1 }  # flow updates after the initial regression (upstream demo and config/eval: 8; its Sintel evaluation: 16)
+
+[params]
+scale = 0  # upstream get_val_scale: the frames are resized by 2^scale (bilinear) and the flow is resized back and divided by 2^scale; 1 for its KITTI and Sintel evaluation, 0 for Spring and the demo
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast for the encoders and the update block; correlation, lookup and upsampling in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["raft_flow"]  # the correlation windows on the fly (four levels, 1024 channels, radius 4) instead of the all-pairs volumes; the network stays the portable fp16 one
+
+[[variants]]
+id = "memfof"  # upstream MEMFOF-Tartan-T-TSKH (the general checkpoint of its demo)
+revision = 1
+weights = [{ name = "MEMFOF-Tartan-T-TSKH.safetensors", size = 303172564, sha256 = "5e1388c0d6de309855959cc4d449dbfc57d6cd6e3a8af440365ab30e34367b78", url = "https://huggingface.co/egorchistov/optical-flow-MEMFOF-Tartan-T-TSKH/resolve/6c6c9aa3ad64f93aee8efbc2f7a6e4535814ee96/model.safetensors" }]
+
+[[variants]]
+id = "memfof-kitti"  # upstream MEMFOF-Tartan-T-TSKH-kitti (its KITTI submission, frames upsampled 2x); KITTI 2015 test Fl-all 2.94 %
+revision = 1
+params = { scale = 1 }
+io = { min_size = 128 }  # 256 px after the doubling
+licence = { training_data = ["tartanair", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "TartanAir, FlyingThings3D, the TSKH mix, then fine-tuned on KITTI 2015", evidence = "https://huggingface.co/egorchistov/optical-flow-MEMFOF-Tartan-T-TSKH-kitti/blob/c5df484ef137ca2ab9759f3458474a525747ef4d/README.md" }
+weights = [{ name = "MEMFOF-Tartan-T-TSKH-kitti.safetensors", size = 303172564, sha256 = "747da9a7919da57c57862e56237ac149ad9995dfabe440055f14eb526d9918cd", url = "https://huggingface.co/egorchistov/optical-flow-MEMFOF-Tartan-T-TSKH-kitti/resolve/c5df484ef137ca2ab9759f3458474a525747ef4d/model.safetensors" }]
+
+[[variants]]
+id = "memfof-sintel"  # upstream MEMFOF-Tartan-T-TSKH-sintel (its Sintel submission, frames upsampled 2x, iters=16); Sintel test EPE 0.963 (clean)
+revision = 1
+params = { scale = 1 }
+io = { min_size = 128 }  # 256 px after the doubling
+licence = { training_data = ["tartanair", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "TartanAir, FlyingThings3D, the TSKH mix, then fine-tuned on Sintel", evidence = "https://huggingface.co/egorchistov/optical-flow-MEMFOF-Tartan-T-TSKH-sintel/blob/53575708ab235a6f75fdfe3c9d85218da4a6eaa4/README.md" }
+weights = [{ name = "MEMFOF-Tartan-T-TSKH-sintel.safetensors", size = 303172564, sha256 = "5f5dfcb7f66d222c06723ccee0148a3ffaa575d3901c8cb5065c2d239d03762e", url = "https://huggingface.co/egorchistov/optical-flow-MEMFOF-Tartan-T-TSKH-sintel/resolve/53575708ab235a6f75fdfe3c9d85218da4a6eaa4/model.safetensors" }]
+
+[[variants]]
+id = "memfof-spring"  # upstream MEMFOF-Tartan-T-TSKH-spring (its Spring submission, input resolution); Spring test 1px 3.289 %
+revision = 1
+licence = { training_data = ["tartanair", "sceneflow", "sintel-flow", "kitti", "hd1k", "spring"], training_note = "TartanAir, FlyingThings3D, the TSKH mix, then fine-tuned on Spring", evidence = "https://huggingface.co/egorchistov/optical-flow-MEMFOF-Tartan-T-TSKH-spring/blob/bd8e677a6bafce8872494bc880abc0a38b515657/README.md" }
+weights = [{ name = "MEMFOF-Tartan-T-TSKH-spring.safetensors", size = 303172564, sha256 = "8ed2112222944e7eda3325b226dbc351a3a1c8a0453a982949bdc782de641419", url = "https://huggingface.co/egorchistov/optical-flow-MEMFOF-Tartan-T-TSKH-spring/resolve/bd8e677a6bafce8872494bc880abc0a38b515657/model.safetensors" }]

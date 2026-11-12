@@ -323,6 +323,42 @@ def _sea_raft(a: Any, full: str) -> Any:  # noqa: ANN401
     return run
 
 
+def _memfof(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Upstream `MEMFOF` and `scale_and_forward_flow` as `tools/golden/memfof.py` (`FF_MEMFOF_REPO`).
+
+    Frames (image1, image1, image2) in [0, 255], the forward flow of the last update. The reference environment
+    supplies einops and huggingface_hub (upstream imports them).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+    from fastforks._core.checkpoint import load_state_dict  # noqa: PLC0415
+
+    g = _golden("memfof")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_MEMFOF_REPO")
+        if not repo:
+            msg = "FF_MEMFOF_REPO: a clone of msu-video-group/memfof for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+        sys.path[:0] = [str(a.tree)]
+    import torch  # noqa: PLC0415
+    from memfof.model import MEMFOF  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    card, variant = registry.resolve("flow", full)
+    scale = variant.params.get("scale", card.params["scale"])
+    net = MEMFOF(backbone_weights=None)
+    net.load_state_dict(load_state_dict(registry.weights(card, variant, allow_download=False)[0]), strict=True)
+    net = net.cuda().eval()
+    a.note = (
+        f"upstream MEMFOF + scale_and_forward_flow, iters={g.ITERS}, scale={scale}, frames (image1, image1, image2)"
+    )
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        t1, t2 = im1[None].float(), im2[None].float()
+        return g.scale_and_forward_flow(net, torch.stack([t1, t1, t2], dim=1), scale)
+
+    return call
+
+
 def _flowformer(a: Any, full: str) -> Any:  # noqa: ANN401
     """Authors' FlowFormer Small, full-frame inference with their centred padding.
 
@@ -855,6 +891,7 @@ def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
 LOCAL = {  # family -> adapter where the bench has none or a local one wins (flow, pose, RTMDet, timm classifiers)
     "raft": _Local("flow", _raft, ((1080, 1920), (375, 1242))),
     "sea_raft": _Local("flow", _sea_raft, ((1080, 1920), (375, 1242))),
+    "memfof": _Local("flow", _memfof, ((1080, 1920), (375, 1242))),
     "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
     "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
     "flowformer": _Local("flow", _flowformer, ((1080, 1920), (375, 1242))),

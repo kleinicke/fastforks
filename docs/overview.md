@@ -481,7 +481,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Flow
 
-29 models; size 1080x1920.
+33 models; size 1080x1920.
 
 - Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
 - Most accurate: [`flowseek-t-things-notartan`](models/flow.md#flowseek) (395.6 ms, error 3.933).
@@ -498,16 +498,18 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`sea-raft-s-kitti`](models/flow.md#sea-raft) | yes | 0.935 † | 299.0 (1080x1920) | 226.3 | 50.5 | 5.9x vs original (1080x1920) | 415 |
 | [`neuflow-v2-things`](models/flow.md#neuflow-v2) | yes | 4.095 | 75.8 (1080x1920) | 102.6 | 58.9 | 1.3x vs original (1080x1920) | 790 |
 | [`neuflow-v2-sintel`](models/flow.md#neuflow-v2) | yes | 1.566 † | 75.7 (1080x1920) | 102.4 | 58.9 | 1.3x vs original (1080x1920) | 790 |
-| [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.577 † | 75.6 (1080x1920) | 102.5 | 59.0 | 1.3x vs original (1080x1920) | 790 |
-| [`sea-raft-m`](models/flow.md#sea-raft) | yes | 0.880 † | 366.9 (1080x1920) | 299.0 | 73.1 | 5.0x vs original (1080x1920) | 435 |
+| [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.577 † | 75.6 (1080x1920) | 102.5 | 59.1 | 1.3x vs original (1080x1920) | 790 |
 | [`sea-raft-m-things`](models/flow.md#sea-raft) | yes | 4.307 | 367.3 (1080x1920) | 299.3 | 73.1 | 5.0x vs original (1080x1920) | 435 |
 | [`sea-raft-m-kitti`](models/flow.md#sea-raft) | yes | 0.808 † | 367.3 (1080x1920) | 298.9 | 73.1 | 5.0x vs original (1080x1920) | 435 |
+| [`sea-raft-m`](models/flow.md#sea-raft) | yes | 0.880 † | 366.9 (1080x1920) | 299.0 | 73.1 | 5.0x vs original (1080x1920) | 435 |
 | [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 290.2 | 83.1 | 5.8x vs original (1080x1920) | 333 |
-| [`raft-large`](models/flow.md#raft) | yes | 1.526 † | 479.5 (1080x1920) | 290.3 | 83.3 | 5.8x vs original (1080x1920) | 333 |
+| [`raft-large`](models/flow.md#raft) | yes | 1.526 † | 479.5 (1080x1920) | 290.3 | 83.5 | 5.7x vs original (1080x1920) | 342 |
 | [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 290.2 | 83.6 | 5.7x vs original (1080x1920) | 333 |
+| [`memfof-kitti`](models/flow.md#memfof) | yes | – | – | 385.6 | 380.0 (375x1242) | 1.0x vs portable | 1137 |
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | – | – | – |
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 395.3 | – | – | – |
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | – | – | – |
+| [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 427.4 | 1.2x vs original (1080x1920) | 1301 |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 800.4 | – | – | – |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 800.8 | – | – | – |
 | [`gmflow-scale2-things`](models/flow.md#gmflow) | yes | 6.747 | 1598.6 (1080x1920) | 1636.2 | – | – | – |
@@ -520,6 +522,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | – | – | – | – |
 | [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | – | – | – | – |
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | – | – | – | – |
+| [`memfof-sintel`](models/flow.md#memfof) | yes | – | – | – | – | – | – |
+| [`memfof-spring`](models/flow.md#memfof) | yes | – | – | – | – | – | – |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
