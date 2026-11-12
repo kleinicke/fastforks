@@ -1,7 +1,7 @@
 schema = 2
 name = "HQ-SAM"
 summary = "Segment Anything in High Quality (Ke et al. 2023): SAM with one more output token and a small head that fuses the final embedding with an early ViT feature, for sharper mask borders and thin structures; SAM's weights are frozen, so prompts work the same. Each prompt gives one mask (SAM's mask plus the HQ mask, upstream's default); `multimask_output` picks the best-scored of SAM's three candidates as the SAM part. The portable `module()` is the image side only (embedding and HQ feature)."
-tier = "experimental"
+tier = "stable"
 outputs = ["pred_masks", "iou_scores"]
 uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 
@@ -31,6 +31,12 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["dpt_fused"]  # fused fp16 image encoder; the prompt decode of up to 4 prompts replays a CUDA graph (float32; `release_graphs()` frees them)
+
+[[papers]]
+title = "Segment Anything in High Quality"
+url = "https://arxiv.org/abs/2306.01567"
+date = "2023-06-02"
+venue = "NeurIPS 2023"
 
 [[variants]]
 id = "sam-hq-vit-b"

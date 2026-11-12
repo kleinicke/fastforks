@@ -46,6 +46,12 @@ kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-R
 [output]
 label_set = "coco-80"
 
+[[papers]]
+title = "RT-DETRv2: Improved Baseline with Bag-of-Freebies for Real-Time Detection Transformer"
+url = "https://arxiv.org/abs/2407.17140"
+date = "2024-07-24"
+venue = "arXiv"
+
 [[variants]]
 id = "rtdetrv2-s-coco"
 revision = 1

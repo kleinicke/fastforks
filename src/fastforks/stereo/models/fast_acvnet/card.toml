@@ -1,7 +1,7 @@
 schema = 2
 name = "Fast-ACVNet"
 summary = "Fast-ACVNet (Xu et al. 2022): MobileNetV2 features; attention weights from a correlation volume (1/8 group-wise, propagated to 1/4; Fast-ACVNet+: 1/4) select the top-24 disparities of a concatenation volume, then a 3-D hourglass, top-2 soft-argmax and superpixel upsampling (max disparity 192)."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "mobilenetv2"]  # fastforks.shared modules this family imports
 
@@ -47,6 +47,12 @@ kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 # call at ETH3D sizes), so a stream of new sizes pays no builds: Midd-H evaluation 38.3 vs 59.1 ms portable mean per
 # pair (Fast-ACVNet+ 45.7 vs 67.9; before 139 / 152). ETH3D, where 2 padded sizes
 # repeat 16 and 8 times: 18.9 vs 18.8 ms (Fast-ACVNet+ 19.8 vs 20.5; before the cheaper plan builds 25.0 / 26.0)
+
+[[papers]]
+title = "Accurate and Efficient Stereo Matching via Attention Concatenation Volume"
+url = "https://arxiv.org/abs/2209.12699"
+date = "2022-09-23"
+venue = "TPAMI 2023"
 
 [[variants]]
 id = "fast-acvnet-generalization"

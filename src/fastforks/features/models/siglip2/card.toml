@@ -1,7 +1,7 @@
 schema = 2
 name = "SigLIP 2"
 summary = "SigLIP 2 (Tschannen et al. 2025, Google) image towers: ViT-B / L / So400m / g (fixed-resolution checkpoints), patch tokens + attention-pool embedding at any size; the native resolution is in the id."
-tier = "experimental"
+tier = "stable"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
 uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports (CUDA graphs, the timm network builder)
 limitations = [
@@ -13,6 +13,11 @@ limitations = [
 [upstream]
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/google-research/big_vision"
+framework = "JAX"
+reason = "The authors' code and checkpoints are JAX (big_vision); timm's PyTorch port carries the same weights."
 
 [licence]
 code = "Apache-2.0"  # timm
@@ -43,6 +48,12 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+
+[[papers]]
+title = "SigLIP 2: Multilingual Vision-Language Encoders with Improved Semantic Understanding, Localization, and Dense Features"
+url = "https://arxiv.org/abs/2502.14786"
+date = "2025-02-20"
+venue = "arXiv"
 
 [[variants]]
 id = "siglip2-b16-256"

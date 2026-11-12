@@ -44,6 +44,12 @@ kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
 # Upstream also publishes DAv2L-5 (SynLarge) and the Real/ KITTI and Middlebury fine-tunes; only the two SynLarge
 # checkpoints below are available locally and added so far.
 
+[[papers]]
+title = "WAFT-Stereo: Warping-Alone Field Transforms for Stereo Matching"
+url = "https://arxiv.org/abs/2603.24836"
+date = "2026-03-25"
+venue = "arXiv"
+
 [[variants]]
 id = "waft-stereo-s"
 revision = 1

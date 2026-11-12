@@ -61,6 +61,12 @@ mps_kernels = ["stereo_metal"]
 # 2026-10-26) is downloaded once and hash-checked before it is opened; only the members are kept. Read without TensorFlow (`net/pb.py`). Upstream also releases FlyingThings (finalpass /
 # cleanpass) and Middlebury d160 / d288 graphs: not added.
 
+[[papers]]
+title = "HITNet: Hierarchical Iterative Tile Refinement Network for Real-time Stereo Matching"
+url = "https://arxiv.org/abs/2007.12140"
+date = "2020-07-23"
+venue = "CVPR 2021"
+
 [[variants]]
 id = "hitnet-eth3d"
 revision = 1

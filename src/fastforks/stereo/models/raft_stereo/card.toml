@@ -36,6 +36,12 @@ mps_kernels = ["stereo_metal"]
 # The upstream zip also holds raftstereo-realtime.pth (other architecture) and iraftstereo_rvc.pth (instance-norm
 # context): not supported by the kernels engine yet.
 
+[[papers]]
+title = "RAFT-Stereo: Multilevel Recurrent Field Transforms for Stereo Matching"
+url = "https://arxiv.org/abs/2109.07547"
+date = "2021-09-15"
+venue = "3DV 2021"
+
 [[variants]]
 id = "raft-stereo-middlebury"
 revision = 1

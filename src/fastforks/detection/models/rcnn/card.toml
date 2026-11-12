@@ -11,6 +11,12 @@ licence_notes = [
 repo = "https://github.com/facebookresearch/detectron2"
 commit = "1e3e13b"
 
+[[upstream.official]]
+repo = "https://github.com/ShaoqingRen/faster_rcnn"
+framework = "MATLAB / Caffe"
+reason = "The authors' Faster R-CNN code is MATLAB with Caffe; detectron2 is FAIR's PyTorch re-implementation and ships the FPN 3x COCO weights used here."
+variants = ["faster-rcnn-r50-fpn-3x-coco"]
+
 [licence]
 code = "Apache-2.0"
 weights = "CC-BY-SA-3.0"  # detectron2 MODEL_ZOO.md: "All models available for download through this document are licensed under the Creative Commons Attribution-ShareAlike 3.0 license"
@@ -55,6 +61,20 @@ kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-R
 
 [output]
 label_set = "coco-80"
+
+[[papers]]
+title = "Mask R-CNN"
+url = "https://arxiv.org/abs/1703.06870"
+date = "2017-03-20"
+venue = "ICCV 2017"
+variants = ["mask-rcnn-r50-fpn-3x-coco"]
+
+[[papers]]
+title = "Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks"
+url = "https://arxiv.org/abs/1506.01497"
+date = "2015-06-04"
+venue = "NeurIPS 2015"
+variants = ["faster-rcnn-r50-fpn-3x-coco"]
 
 [[variants]]
 id = "mask-rcnn-r50-fpn-3x-coco"

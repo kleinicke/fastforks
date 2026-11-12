@@ -1,7 +1,7 @@
 schema = 2
 name = "MonSter"
 summary = "MonSter (Cheng et al. 2025): Depth Anything V2 (ViT-L) monocular branch + IGEV-style geometry volume, with stereo and mono ConvGRUs that refine each other, 32 iterations. The original README flags its monster-sceneflow checkpoint as buggy."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "depth_anything_v2", "monster_fit"]  # fastforks.shared modules this family imports
 
@@ -36,6 +36,12 @@ kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
 mps_kernels = ["stereo_metal"]
 
 # Upstream also publishes KITTI / Middlebury / ETH3D fine-tunes (same Hugging Face repo); not added yet (not local).
+
+[[papers]]
+title = "MonSter: Marry Monodepth to Stereo Unleashes Power"
+url = "https://arxiv.org/abs/2501.08643"
+date = "2025-01-15"
+venue = "CVPR 2025"
 
 [[variants]]
 id = "monster-sceneflow"

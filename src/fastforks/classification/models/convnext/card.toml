@@ -1,13 +1,18 @@
 schema = 2
 name = "ConvNeXt"
 summary = "ConvNeXt (Liu et al. 2022): a pure convolutional network of 7x7 depthwise conv + LayerNorm + MLP blocks, Meta's ImageNet-1k and ImageNet-22k checkpoints."
-tier = "experimental"
+tier = "stable"
 outputs = ["logits"]
 uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/facebookresearch/ConvNeXt"
+framework = "PyTorch"
+reason = "timm ships a maintained re-implementation with the same Meta ImageNet-1k/22k weights and a uniform API."
 
 [licence]
 code = "Apache-2.0"  # timm
@@ -51,6 +56,12 @@ kernels = ["fvm_conv", "fvm_seg"]  # _optimize.conv_ops (fvm_conv) + fvm_seg: th
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "A ConvNet for the 2020s"
+url = "https://arxiv.org/abs/2201.03545"
+date = "2022-01-10"
+venue = "CVPR 2022"
 
 [[variants]]
 id = "convnext_tiny.fb_in1k"

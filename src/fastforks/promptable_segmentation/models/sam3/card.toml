@@ -12,6 +12,11 @@ licence_notes = [
 repo = "https://github.com/facebookresearch/sam3"
 commit = "0570b3a"
 
+[[upstream.official]]
+repo = "https://github.com/facebookresearch/sam3"
+framework = "PyTorch"
+reason = "The benchmarked original is the Hugging Face transformers Sam3Model, which loads the same checkpoint without the repo's training dependencies."
+
 [licence]
 code = "LicenseRef-SAM-License AND Apache-2.0"  # LICENSE = SAM License (the sam3 repo code); LICENSE-transformers = Apache-2.0 (the transformers models/sam3 port this code follows)
 weights = "LicenseRef-SAM-License"
@@ -31,6 +36,12 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc"]
+
+[[papers]]
+title = "SAM 3: Segment Anything with Concepts"
+url = "https://arxiv.org/abs/2511.16719"
+date = "2025-11-20"
+venue = "arXiv"
 
 [[variants]]
 id = "sam3"

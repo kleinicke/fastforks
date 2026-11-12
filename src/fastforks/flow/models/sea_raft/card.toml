@@ -1,7 +1,7 @@
 schema = 2
 name = "SEA-RAFT"
 summary = "SEA-RAFT (Wang, Lipson & Deng 2024): RAFT with ResNet encoders, an initial flow regressed from the context features and a ConvNeXt update block, so 4 iterations suffice; correlation pyramid at 1/8 resolution, convex upsampling. The authors' released weights (pretrained on TartanAir); the network is ported from princeton-vl/SEA-RAFT. `sea-raft-m` / `sea-raft-s` are the general checkpoints (trained on the FlyingThings3D, Sintel, KITTI and HD1K mix); the `-spring` variants are made for 1080p footage and work at half resolution, as upstream evaluates them: the pair is halved (bilinear), the flow is upsampled and doubled. Paper (zero-shot after FlyingChairs + FlyingThings, the C-T weights): KITTI 2015 train EPE 4.29 / Fl-all 14.2 % (M), Sintel train EPE 1.21 clean / 4.04 final (M); M with 12 iterations (`iters=12`) is the paper's SEA-RAFT (L)."
-tier = "experimental"
+tier = "stable"
 outputs = ["flow"]
 uses = []  # fastforks.shared modules this family imports
 
@@ -38,6 +38,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["raft_flow", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["flow_metal"]  # correlation window lookup without the volume
+
+[[papers]]
+title = "SEA-RAFT: Simple, Efficient, Accurate RAFT for Optical Flow"
+url = "https://arxiv.org/abs/2405.14793"
+date = "2024-05-23"
+venue = "ECCV 2024"
 
 [[variants]]
 id = "sea-raft-m"  # upstream Tartan-C-T-TSKH432x960-M (its Sintel submission); Sintel test EPE 1.44 clean / 2.86 final (M)

@@ -16,6 +16,7 @@ subset (`*` in `list`: one variant per family, the card's first variant the floo
 - rocm: as cuda for portable (torch.cuda over HIP); kernels `unsupported` (the kernel libraries are CUDA builds).
 - mps: portable in every dtype of `portable_mps_dtypes` (none: one `unsupported` row); kernels in the card's MPS
   kernels dtype if it has Metal kernel libraries.
+- cpu (Apple silicon's CPU cores): portable in float32; kernels `unsupported` (they need CUDA or Metal).
 
 A mode or dtype the card does not offer becomes an `unsupported` row, never a measurement. Each (ref, mode, dtype) runs
 in a fresh process; a crash or timeout becomes a `failed` row, out of memory an `oom` row.
@@ -29,6 +30,8 @@ in a fresh process; a crash or timeout becomes a `failed` row, out of memory an 
   (PYTORCH_MPS_HIGH_WATERMARK_RATIO=1.0, its default 1.7 lets a model allocate past physical memory into swap): a model
   that needs more is an `oom` row. Before each job a run waits (up to SWAP_WAIT_S) for MIN_FREE_GB free on the system
   disk (swap space), else stops.
+- cpu: as mps (the same worker, footprint and disk wait), with CPU_WARMUP warm-up calls and CPU_RUNS timed calls
+  (CPU_RUNS_SLOW when the first call takes over SLOW_S), PyTorch's default thread count (recorded as `threads`).
 
 After the timing, the same loaded model runs its golden check (tests/test_golden.py::test_gpu): `golden` = `pass`,
 `fail` or `skip` (needs FASTFORKS_GOLDEN_PATH), so a row says whether the mode computes the right result on this
@@ -70,6 +73,12 @@ TOOLS = Path(__file__).resolve().parent
 MODES = ("portable", "kernels")
 MPS_WARMUP, MPS_RUNS = 4, 5  # 4: kernels builds plans on the 1st call of a size and graphs on the 4th (bench.WARMUP)
 MPS_PROTOCOL = f"first call, {MPS_WARMUP} warm-up, median of {MPS_RUNS} synchronised calls (tools/speed_survey.py)"
+CPU_WARMUP, CPU_RUNS, CPU_RUNS_SLOW, SLOW_S = 1, 5, 2, 2.0  # minutes per call on big models: the protocol's minimum
+CPU_PROTOCOL = (
+    f"first call, {CPU_WARMUP} warm-up, median of {CPU_RUNS} calls ({CPU_RUNS_SLOW} when the first takes over"
+    f" {SLOW_S:g} s; tools/speed_survey.py)"
+)
+LOCAL = ("mps", "cpu")  # backends measured on this Mac by worker_local (unified memory, swap on the system disk)
 SWAP_WAIT_S = 1800
 # free system disk (GiB) before an MPS run: macOS swaps there; with ~5 GB free a big model froze the Mac
 MIN_FREE_GB = float(os.environ.get("FASTFORKS_MIN_FREE_GB", "15"))
@@ -142,11 +151,15 @@ def _dtypes(card: Any, mode: str, backend: str) -> list[tuple[str, str]]:  # noq
     if mode not in card.modes:
         return [("float32", f"the card has no {mode} mode")]
     if mode == "portable":
+        if backend == "cpu":
+            return [("float32", "")]
         if backend != "mps":
             return [(card.portable_cuda_dtype, "")]
         if not card.portable_mps_dtypes:
             return [("float32", "the family is not validated on MPS (card mps_dtypes)")]
         return [(d, "") for d in card.portable_mps_dtypes]
+    if backend == "cpu":
+        return [(card.kernels_dtype, "the kernel libraries need CUDA or Metal")]
     if backend == "mps":
         why = "" if card.mps_kernel_libs else "no Metal kernels for this family (card mps_kernels)"
         return [(card.mps_kernels_dtype or card.kernels_dtype, why)]
@@ -155,7 +168,7 @@ def _dtypes(card: Any, mode: str, backend: str) -> list[tuple[str, str]]:  # noq
     return [(card.kernels_dtype, "" if card.kernel_libs else "the card has no CUDA kernel libraries")]
 
 
-# MPS worker: imports torch lazily. (cuda / rocm run tools/merge_check.py's worker.)
+# MPS / CPU worker: imports torch lazily. (cuda / rocm run tools/merge_check.py's worker.)
 def _footprint_peak() -> int:
     """Lifetime peak physical footprint of this process in bytes (macOS `proc_pid_rusage`, RUSAGE_INFO_V4)."""
     buf = (ctypes.c_uint64 * 64)()  # rusage_info_v4: 16-byte uuid, then uint64 fields
@@ -166,12 +179,12 @@ def _footprint_peak() -> int:
     return int(buf[2 + 28])  # ri_lifetime_max_phys_footprint: the 29th uint64 after the uuid (two uint64 words)
 
 
-def _image(path: Path) -> Any:  # noqa: ANN401 - torch tensor
+def _image(path: Path, device: str) -> Any:  # noqa: ANN401 - torch tensor
     import numpy as np  # noqa: PLC0415
     import torch  # noqa: PLC0415
     from PIL import Image  # noqa: PLC0415
 
-    return torch.from_numpy(np.asarray(Image.open(path).convert("RGB")).copy()).permute(2, 0, 1).to("mps")
+    return torch.from_numpy(np.asarray(Image.open(path).convert("RGB")).copy()).permute(2, 0, 1).to(device)
 
 
 def _inputs(model: Any, job: dict[str, Any]) -> tuple[tuple[Any, ...], dict[str, Any], str]:  # noqa: ANN401
@@ -186,32 +199,38 @@ def _inputs(model: Any, job: dict[str, Any]) -> tuple[tuple[Any, ...], dict[str,
     if scene is None or not scene.exists():
         return args, kw, "synthetic"
     right = Path(str(scene).replace("image_2", "image_3").replace("im0", "im1"))
-    return ((_image(scene), _image(right)) if job["task"] == "stereo" else (_image(scene),)), kw, job["scene"]
+    d = job["device"]
+    return ((_image(scene, d), _image(right, d)) if job["task"] == "stereo" else (_image(scene),)), kw, job["scene"]
 
 
-def _time_mps(call: Callable[[], Any]) -> dict[str, Any]:
+def _time_local(call: Callable[[], Any], device: str) -> dict[str, Any]:
+    """First call, warm-up, median of the timed calls: MPS_* on mps, CPU_* on cpu."""
     import torch  # noqa: PLC0415
 
-    torch.mps.synchronize()
+    sync = torch.mps.synchronize if device == "mps" else (lambda: None)
+    sync()
     t0 = time.perf_counter()
     call()
-    torch.mps.synchronize()
+    sync()
     first = time.perf_counter() - t0
-    for _ in range(MPS_WARMUP):
+    warmup, runs = (
+        (MPS_WARMUP, MPS_RUNS) if device == "mps" else (CPU_WARMUP, CPU_RUNS if first <= SLOW_S else CPU_RUNS_SLOW)
+    )
+    for _ in range(warmup):
         call()
     ts = []
-    for _ in range(MPS_RUNS):
-        torch.mps.synchronize()
+    for _ in range(runs):
+        sync()
         t0 = time.perf_counter()
         call()
-        torch.mps.synchronize()
+        sync()
         ts.append(1e3 * (time.perf_counter() - t0))
     ms = statistics.median(ts)
-    return {"ms": round(ms, 3), "ms_min": round(min(ts), 3), "runs": MPS_RUNS, "first_call_s": round(first, 3)}
+    return {"ms": round(ms, 3), "ms_min": round(min(ts), 3), "runs": runs, "first_call_s": round(first, 3)}
 
 
-def worker_mps(spec: dict[str, Any]) -> int:
-    """One (ref, mode, dtype) on MPS: a speed row, then a golden row, appended to spec["out"] (merge_check's rows)."""
+def worker_local(spec: dict[str, Any]) -> int:
+    """One (ref, mode, dtype) on spec["device"] (mps or cpu): a speed row, then a golden row, into spec["out"]."""
     os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "1.0")  # before torch: no allocation past the working set
     os.environ.setdefault("PYTORCH_MPS_LOW_WATERMARK_RATIO", "1.0")  # must not exceed the high ratio (default 1.4)
     import torch  # noqa: PLC0415
@@ -225,8 +244,9 @@ def worker_mps(spec: dict[str, Any]) -> int:
     try:
         task = __import__(f"fastforks.{spec['task']}", fromlist=["load"])
         t0 = time.perf_counter()
-        m = model = task.load(spec["ref"], mode=spec["mode"], device="mps", dtype=spec["dtype"])
-        torch.mps.synchronize()
+        m = model = task.load(spec["ref"], mode=spec["mode"], device=spec["device"], dtype=spec["dtype"])
+        if spec["device"] == "mps":
+            torch.mps.synchronize()
         common["load_s"] = round(time.perf_counter() - t0, 2)
         common["backend"] = {"mode": m.backend.mode, "dtype": str(m.backend.dtype), "kernels": list(m.backend.kernels)}
         args, kw, scene = _inputs(m, spec)
@@ -235,12 +255,15 @@ def worker_mps(spec: dict[str, Any]) -> int:
             with torch.inference_mode():
                 return model(*args, **kw)
 
-        row = {**common, "scene": scene, **_time_mps(call), "peak_footprint_mb": round(_footprint_peak() / 2**20)}
+        row = {**common, "scene": scene, **_time_local(call, spec["device"])}
+        row["peak_footprint_mb"] = round(_footprint_peak() / 2**20)
+        if spec["device"] == "cpu":
+            row["threads"] = torch.get_num_threads()
     except Exception as e:  # noqa: BLE001 - recorded as a failed / oom row
         row = {**common, "error": " ".join(f"{type(e).__name__}: {e}".split())[:600]}
     merge_check.speed_check()._append(out, row)  # noqa: SLF001 - the row writer of the floor's worker
     if m is not None and "ms" in row:
-        merge_check.golden_step(m, {**spec, "device": "mps"}, common, [], out)
+        merge_check.golden_step(m, spec, common, [], out)
     m = None  # the golden step dropped its own reference
     gc.collect()
     return 0
@@ -266,7 +289,7 @@ def _nvidia_smi() -> dict[str, str]:
 
 def _probe(backend: str) -> dict[str, Any]:
     """Name, memory and software of this machine's GPU: what rows record and `match` is checked against."""
-    if backend == "mps":
+    if backend in LOCAL:
         r = subprocess.run(
             ["sysctl", "-n", "machdep.cpu.brand_string", "hw.memsize"], capture_output=True, text=True, check=False
         )
@@ -346,7 +369,7 @@ def _row(
     if job["skip"]:
         row |= {"status": "unsupported", "note": job["skip"]}
     elif isinstance(speed.get("ms"), int | float) and not speed.get("error"):
-        row |= {"status": "ok", "memory_kind": "process-footprint" if dev.backend == "mps" else "torch-peak"}
+        row |= {"status": "ok", "memory_kind": "process-footprint" if dev.backend in LOCAL else "torch-peak"}
     else:
         error = str(speed.get("error") or speed.get("fails") or "no row from the worker")
         row = {k: v for k, v in row.items() if k != "ms"} | {"status": _status(error), "error": error[:600]}
@@ -370,8 +393,9 @@ def _merge(dev: _devices.Device, new: dict[str, Any]) -> None:
 
 
 def _worker_cmd(dev: _devices.Device, job: dict[str, Any], out: Path, commit: str) -> list[str]:
-    if dev.backend == "mps":
-        return [sys.executable, str(TOOLS / "speed_survey.py"), "worker", json.dumps({**job, "out": str(out)})]
+    if dev.backend in LOCAL:
+        spec = {**job, "out": str(out), "device": dev.backend}
+        return [sys.executable, str(TOOLS / "speed_survey.py"), "worker", json.dumps(spec)]
     spec = {  # tools/speed_check.py's worker spec with one input; merge_check's worker adds the golden step
         "ref": job["ref"],
         "task": job["task"],
@@ -401,11 +425,11 @@ def _env(*, online: bool) -> dict[str, str]:
 def _check_machine(dev: _devices.Device) -> dict[str, Any]:
     info = _probe(dev.backend)
     gpu = info.get("gpu", "")
-    if (gpu != dev.match) if dev.backend == "mps" else (dev.match not in gpu):  # "Apple M1" must not match an M1 Pro
+    if (gpu != dev.match) if dev.backend in LOCAL else (dev.match not in gpu):  # "Apple M1" must not match an M1 Pro
         msg = f"this machine's GPU is {info.get('gpu')!r}, not {dev.match!r} ({dev.slug}); nothing measured"
         raise SystemExit(msg)
     free = shutil.disk_usage("/").free / 2**30
-    if dev.backend == "mps" and free < MIN_FREE_GB:
+    if dev.backend in LOCAL and free < MIN_FREE_GB:
         msg = f"{free:.0f} GB free on the system disk, {MIN_FREE_GB:g} needed (FASTFORKS_MIN_FREE_GB)"
         raise SystemExit(msg)
     return info
@@ -454,14 +478,14 @@ def run(a: argparse.Namespace) -> int:
     env, commit = _env(online=a.online), os.environ.get("FASTFORKS_COMMIT") or _commit()  # no .git: modal_survey
     common = {k: info[k] for k in _ENV_KEYS if k in info}
     common |= {"date": time.strftime("%F"), "commit": commit, "protocol_id": "warm-median"}
-    common["protocol"] = (
-        MPS_PROTOCOL if dev.backend == "mps" else "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5"
-    )
+    common["protocol"] = {"mps": MPS_PROTOCOL, "cpu": CPU_PROTOCOL}.get(
+        dev.backend
+    ) or "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5"
     todo = plan(dev, a.only, a.modes, subset=a.subset)
     for n, job in enumerate(todo, 1):
         if not a.force and (job["ref"], job["mode"], job["dtype"], job["input"]) in done:
             continue
-        if dev.backend == "mps" and not _disk_ok():
+        if dev.backend in LOCAL and not _disk_ok():
             return 1
         print(
             f"== [{n}/{len(todo)}] {job['ref']} {job['mode']} {job['dtype']} {job['input']} {time.strftime('%T')}",
@@ -515,7 +539,7 @@ def main() -> int:
     sub.add_parser("worker").add_argument("spec")
     a = ap.parse_args()
     if a.cmd == "worker":
-        return worker_mps(json.loads(a.spec))
+        return worker_local(json.loads(a.spec))
     with contextlib.suppress(BrokenPipeError):
         return {"detect": detect, "list": list_jobs, "prepare": prepare, "run": run}[a.cmd](a)
     return 0

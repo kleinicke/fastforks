@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/baaivision/EVA"
+framework = "PyTorch"
+reason = "timm re-implements the model with the released weights in a uniform API."
+
 [licence]
 code = "Apache-2.0"  # timm
 weights = "MIT"  # the timm Hugging Face model card
@@ -41,6 +46,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "EVA-02: A Visual Representation for Neon Genesis"
+url = "https://arxiv.org/abs/2303.11331"
+date = "2023-03-20"
+venue = "Image and Vision Computing 2024 (vol. 149, 105171)"
 
 [[variants]]
 # timm resizes to a square (crop_mode squash); fastforks resizes the shorter side and centre-crops

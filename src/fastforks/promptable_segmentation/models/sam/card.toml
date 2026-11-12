@@ -31,6 +31,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["dpt_fused"]
 
+[[papers]]
+title = "Segment Anything"
+url = "https://arxiv.org/abs/2304.02643"
+date = "2023-04-05"
+venue = "ICCV 2023"
+
 [[variants]]
 id = "sam-vit-b"
 revision = 1

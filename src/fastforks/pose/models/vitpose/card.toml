@@ -8,6 +8,11 @@ outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
 repo = "https://github.com/huggingface/transformers"  # VitPoseForPoseEstimation + VitPoseImageProcessor (port of ViTAE-Transformer/ViTPose)
 commit = "v4.57.1"
 
+[[upstream.official]]
+repo = "https://github.com/ViTAE-Transformer/ViTPose"
+framework = "PyTorch"
+reason = "The authors' code is built on mmpose; the Hugging Face transformers port is dependency-light and ships the converted weights."
+
 [licence]
 code = "Apache-2.0"
 weights = "Apache-2.0"  # HF model cards of usyd-community/vitpose-*: "license: apache-2.0"; ViTPose repo: Apache-2.0
@@ -44,6 +49,20 @@ mps_kernels = ["pose_metal"]  # patch embedding and decoder as GEMMs + Metal ove
 
 [output]
 label_set = "coco-keypoints-17"
+
+[[papers]]
+title = "ViTPose: Simple Vision Transformer Baselines for Human Pose Estimation"
+url = "https://arxiv.org/abs/2204.12484"
+date = "2022-04-26"
+venue = "NeurIPS 2022"
+variants = ["vitpose-base-simple", "vitpose-base"]
+
+[[papers]]
+title = "ViTPose++: Vision Transformer for Generic Body Pose Estimation"
+url = "https://arxiv.org/abs/2212.04246"
+date = "2022-12-07"
+venue = "TPAMI 2023"
+variants = ["vitpose-plus-small", "vitpose-plus-base", "vitpose-plus-large", "vitpose-plus-huge"]
 
 [[variants]]
 id = "vitpose-base-simple"  # ViT-B, simple decoder, COCO

@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/tensorflow/models/tree/master/research/slim/nets/mobilenet"
+framework = "TensorFlow"
+reason = "The authors' code is TensorFlow; torchvision's PyTorch module is used, and the tv2 weights are torchvision's own retraining recipe, not the paper's checkpoint."
+
 [licence]
 code = "BSD-3-Clause"  # torchvision
 weights = "assumed from code"  # torchvision states no separate weights licence
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "MobileNetV2: Inverted Residuals and Linear Bottlenecks"
+url = "https://arxiv.org/abs/1801.04381"
+date = "2018-01-13"
+venue = "CVPR 2018"
 
 [[variants]]
 id = "mobilenet_v2.tv2_in1k"

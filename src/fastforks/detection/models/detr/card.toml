@@ -46,6 +46,12 @@ kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-R
 [output]
 label_set = "coco-80"
 
+[[papers]]
+title = "End-to-End Object Detection with Transformers"
+url = "https://arxiv.org/abs/2005.12872"
+date = "2020-05-26"
+venue = "ECCV 2020"
+
 [[variants]]
 id = "detr-r50-coco"
 revision = 1

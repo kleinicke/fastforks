@@ -1,7 +1,7 @@
 schema = 2
 name = "UniK3D"
 summary = "UniK3D (Piccinelli et al. 2025): monocular metric 3-D for any camera model; a DINOv2 ViT-L encoder and a camera-prompted decoder predict a spherical-harmonic ray model and per-pixel radii (depth, 3-D points, confidence), or use given pinhole intrinsics."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth", "points", "confidence"]
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 layers and the fast ViT)
 
@@ -34,6 +34,12 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]
+
+[[papers]]
+title = "UniK3D: Universal Camera Monocular 3D Estimation"
+url = "https://arxiv.org/abs/2503.16591"
+date = "2025-03-20"
+venue = "CVPR 2025"
 
 [[variants]]
 id = "unik3d-vitl"

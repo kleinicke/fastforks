@@ -71,8 +71,9 @@ class Original:
     keep: list[Any] = field(default_factory=list)
 
     def prep(self, args: tuple[Any, ...]) -> tuple[Any, ...]:
-        """The adapter's conversion of uint8 CUDA CHW inputs to what its code takes."""
-        return self.adapter.prep(args) if hasattr(self.adapter, "prep") else args
+        """The adapter's conversion of uint8 CUDA CHW inputs to what its code takes (then the part's own, if any)."""
+        args = self.adapter.prep(args) if hasattr(self.adapter, "prep") else args
+        return self.fn.prep(args) if hasattr(self.fn, "prep") else args
 
     def __call__(self, *args: Any) -> Any:  # noqa: ANN401
         """The original call under `no_grad` (and autocast for the autocast tier)."""
@@ -82,8 +83,11 @@ class Original:
             return self.fn(*args)
 
 
-def load(task: str, ref: str, tier: str) -> Original:
-    """Build `ref`'s original in `tier` (`upstream`, `upstream16`, `upstreamhalf`)."""
+def load(task: str, ref: str, tier: str, part: str = "call") -> Original:
+    """Build `ref`'s original in `tier` (`upstream`, `upstream16`, `upstreamhalf`).
+
+    `part` "network" (pose only): the crops / batch are made in the untimed `prep`, the call is the network alone.
+    """
     bu = bench()
     full, card, _ = full_ref(task, ref)
     adapter = bu.FAM.get(card.family) or LOCAL.get(card.family)
@@ -97,6 +101,12 @@ def load(task: str, ref: str, tier: str) -> Original:
     fam = card.family
     adapter.note = ""
     build = _SPECIAL.get(full.split("@")[0], adapter.build)
+    if part == "network":
+        if fam not in NETWORK:
+            msg = f"no network-only original for family {fam}"
+            raise NotImplementedError(msg)
+        adapter.COMMIT = card.upstream_commit
+        build = lambda full, _fp16, _b=NETWORK[fam]: _b(adapter, full)  # noqa: E731
     if how == "fp32":
         o = Original(adapter, build(full, False), outer=False, dtype="float32", how="fp32")  # noqa: FBT003
     elif how == "autocast" and fam in NATIVE_HALF:
@@ -344,6 +354,67 @@ def _rtmpose(a: Any, full: str) -> Any:  # noqa: ANN401
         "mmpose 1.3.2 inference_topdown (CPU cv2 crop, network, SimCC decode; flip_test off), all in the timed call"
     )
     return lambda bgr, boxes: inference_topdown(net, bgr, boxes, bbox_format="xyxy")
+
+
+class _PoseNet:
+    """The pose network alone: `prep` runs the original's own crop / normalisation (untimed), the call the network."""
+
+    def __init__(self, prep: Any, net: Any) -> None:  # noqa: ANN401
+        self.prep, self.net = prep, net
+
+    def __call__(self, *x: Any) -> Any:  # noqa: ANN401
+        return self.net(*x)
+
+
+def _vitpose_net(a: Any, full: str) -> Any:  # noqa: ANN401
+    """`VitPoseForPoseEstimation` on the processor's crops of all boxes as one batch (crop and decode untimed)."""
+    import torch  # noqa: PLC0415
+
+    g = _golden("vitpose")
+    repo, rev = g.REFS[full.split("@", maxsplit=1)[0]]
+    proc = g.VitPoseImageProcessor.from_pretrained(repo, revision=rev)
+    net = g.VitPoseForPoseEstimation.from_pretrained(repo, revision=rev).cuda().eval()
+    experts = net.config.backbone_config.num_experts
+    a.note = f"network only: transformers {g.REF_VERSION} VitPoseForPoseEstimation on the processor's crops, one batch"
+
+    def prep(args: tuple[Any, ...]) -> tuple[Any, ...]:
+        img, boxes = args
+        x = proc(img, boxes=[boxes], return_tensors="pt")["pixel_values"].cuda()
+        return (x, torch.zeros(len(boxes), dtype=torch.long, device="cuda") if experts > 1 else None)
+
+    return _PoseNet(prep, lambda x, idx: net(x, **({"dataset_index": idx} if idx is not None else {})).heatmaps)
+
+
+def _rtmpose_net(a: Any, full: str) -> Any:  # noqa: ANN401
+    """The mmpose model's `_forward` (backbone + SimCC head) on `inference_topdown`'s own batch (pipeline untimed)."""
+    import numpy as np  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("rtmpose")
+    card, variant = registry.resolve("pose", full)
+    net = g.reference(os.environ["FF_MMPOSE_SITE"], card, variant, flip=False).cuda()
+    from mmengine.dataset import Compose, pseudo_collate  # noqa: PLC0415  # ty: ignore[unresolved-import]
+    from mmengine.registry import init_default_scope  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    init_default_scope(net.cfg.get("default_scope", "mmpose"))
+    pipeline = Compose(net.cfg.test_dataloader.dataset.pipeline)
+    a.note = (
+        "network only: mmpose 1.3.2 backbone + SimCC head on inference_topdown's batch (pipeline and decode untimed)"
+    )
+
+    def prep(args: tuple[Any, ...]) -> tuple[Any, ...]:
+        bgr, boxes = args
+        items = [
+            pipeline({"img": bgr, "bbox": b[None], "bbox_score": np.ones(1, np.float32), **net.dataset_meta})
+            for b in boxes
+        ]
+        return (net.data_preprocessor(pseudo_collate(items), False)["inputs"],)  # noqa: FBT003
+
+    return _PoseNet(prep, net._forward)  # noqa: SLF001
+
+
+NETWORK = {"vitpose": _vitpose_net, "rtmpose": _rtmpose_net}  # family -> network-only builder (`load(part=...)`)
 
 
 def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401

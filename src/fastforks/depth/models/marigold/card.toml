@@ -1,7 +1,7 @@
 schema = 2
 name = "Marigold"
 summary = "Marigold (Ke et al. 2023): affine-invariant monocular depth by diffusion; a Stable Diffusion 2 UNet fine-tuned to denoise a depth latent conditioned on the image latent (depth v1-1, few DDIM steps)."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth"]
 limitations = [
   "Diffusion model: the seeded noise comes from a CPU generator and differs from the original code's CUDA generator for the same seed.",
@@ -43,6 +43,12 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]
+
+[[papers]]
+title = "Repurposing Diffusion-Based Image Generators for Monocular Depth Estimation"
+url = "https://arxiv.org/abs/2312.02145"
+date = "2023-12-04"
+venue = "CVPR 2024"
 
 [[variants]]
 id = "marigold-depth-v1-1"

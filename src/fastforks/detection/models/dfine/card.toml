@@ -12,6 +12,11 @@ limitations = [
 repo = "https://github.com/Peterande/D-FINE"
 commit = "956d1709314c2c6a4df6f34de232054578a7449f"
 
+[[upstream.official]]
+repo = "https://github.com/Peterande/D-FINE"
+framework = "PyTorch"
+reason = "The benchmarked original is the Hugging Face transformers port (DFineForObjectDetection), which loads the same weights; the repo itself was not run."
+
 [licence]
 code = "Apache-2.0"
 weights = "Apache-2.0"  # the Hugging Face conversions (ustc-community) state apache-2.0
@@ -51,6 +56,12 @@ kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-R
 
 [output]
 label_set = "coco-80"
+
+[[papers]]
+title = "D-FINE: Redefine Regression Task in DETRs as Fine-grained Distribution Refinement"
+url = "https://arxiv.org/abs/2410.13842"
+date = "2024-10-17"
+venue = "ICLR 2025"
 
 [[variants]]
 id = "dfine-n-coco"

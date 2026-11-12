@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://www.robots.ox.ac.uk/~vgg/research/very_deep/"
+framework = "Caffe"
+reason = "The authors released Caffe models only; torchvision's PyTorch port carries the ImageNet weights."
+
 [licence]
 code = "BSD-3-Clause"  # torchvision
 weights = "assumed from code"  # torchvision states no separate weights licence
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "Very Deep Convolutional Networks for Large-Scale Image Recognition"
+url = "https://arxiv.org/abs/1409.1556"
+date = "2014-09-04"
+venue = "ICLR 2015"
 
 [[variants]]
 id = "vgg16.tv_in1k"

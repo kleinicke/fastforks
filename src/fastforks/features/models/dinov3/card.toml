@@ -16,6 +16,11 @@ licence_notes = [
 repo = "https://github.com/huggingface/transformers"  # `DINOv3ViTModel` (models/dinov3_vit), the reference of these checkpoints
 commit = "v5.19.0"  # release tag; net.py re-implements its eval maths with the checkpoint's parameter names
 
+[[upstream.official]]
+repo = "https://github.com/facebookresearch/dinov3"
+framework = "PyTorch"
+reason = "The checkpoints are used in Hugging Face transformers format, so the transformers implementation is vendored."
+
 [licence]
 code = "LicenseRef-DINOv3-License"
 weights = "LicenseRef-DINOv3-License"
@@ -38,6 +43,12 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb"]
+
+[[papers]]
+title = "DINOv3"
+url = "https://arxiv.org/abs/2508.10104"
+date = "2025-08-13"
+venue = "arXiv"
 
 [[variants]]
 id = "dinov3-vits16"

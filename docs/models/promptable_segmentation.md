@@ -47,6 +47,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [EfficientViT-SAM: Accelerated Segment Anything Model Without Accuracy Loss](https://arxiv.org/abs/2402.05008), CVPR 2024 Workshop (Efficient Large Vision Models), 2024-02-07
 - Original code: <https://github.com/mit-han-lab/efficientvit> at `de7d7733cc03`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`, `LICENSE-segment-anything`
 - Weights licence: Apache-2.0
@@ -123,6 +124,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Segment Anything in High Quality](https://arxiv.org/abs/2306.01567), NeurIPS 2023, 2023-06-02
 - Original code: <https://github.com/SysCV/sam-hq> at `e696978d6035`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -187,6 +189,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Segment Anything](https://arxiv.org/abs/2304.02643), ICCV 2023, 2023-04-05
 - Original code: <https://github.com/facebookresearch/segment-anything> at `dca509f`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -248,6 +251,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [SAM 2: Segment Anything in Images and Videos](https://arxiv.org/abs/2408.00714), ICLR 2025 (oral), 2024-08-01
 - Original code: <https://github.com/facebookresearch/sam2> at `2b90b9f`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -310,7 +314,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [SAM 3: Segment Anything with Concepts](https://arxiv.org/abs/2511.16719), arXiv, 2025-11-20
 - Original code: <https://github.com/facebookresearch/sam3> at `0570b3a`
+- Authors' code, not used: <https://github.com/facebookresearch/sam3> (PyTorch): The benchmarked original is the Hugging Face transformers Sam3Model, which loads the same checkpoint without the repo's training dependencies.
 - Code licence: LicenseRef-SAM-License AND Apache-2.0 (permissive); files: `LICENSE`, `LICENSE-transformers`
 - Weights licence: LicenseRef-SAM-License
 - Licence evidence: https://huggingface.co/facebook/sam3/blob/main/LICENSE (SAM License, Nov 19 2025); the weights are gated: download them from Meta's Hugging Face repo after accepting the licence and point FASTFORKS_WEIGHTS_PATH at the local copy; fastforks never mirrors them

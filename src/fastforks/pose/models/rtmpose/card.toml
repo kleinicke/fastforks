@@ -41,6 +41,20 @@ mps_dtype = "float32"  # fp16 is not faster on MPS and moves unsure keypoints mo
 [output]
 label_set = "coco-keypoints-17"
 
+[[papers]]
+title = "RTMPose: Real-Time Multi-Person Pose Estimation based on MMPose"
+url = "https://arxiv.org/abs/2303.07399"
+date = "2023-03-13"
+venue = "arXiv"
+variants = ["rtmpose-t", "rtmpose-s", "rtmpose-m", "rtmpose-l", "rtmpose-m-384", "rtmpose-l-384"]
+
+[[papers]]
+title = "Effective Whole-body Pose Estimation with Two-stages Distillation"
+url = "https://arxiv.org/abs/2307.15880"
+date = "2023-07-29"
+venue = "ICCV 2023 CV4Metaverse Workshop"
+variants = ["dwpose-t", "dwpose-s", "dwpose-m", "dwpose-l", "dwpose-l-384"]
+
 [[variants]]
 id = "rtmpose-t"  # RTMPose-t, 256 x 192; body7 COCO val AP 65.9 (flip test)
 revision = 1

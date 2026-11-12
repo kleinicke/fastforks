@@ -1,7 +1,7 @@
 schema = 2
 name = "CLIP"
 summary = "CLIP image towers (Radford et al. 2021): OpenAI, OpenCLIP (LAION-2B, DataComp-1B) and Apple DFN weights in timm's format; cls + patch tokens at any size, pooler_output = the post-LayerNorm cls token before the projection (QuickGELU for the OpenAI and DFN weights)."
-tier = "experimental"
+tier = "stable"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
 uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports (CUDA graphs, the timm network builder)
 limitations = [
@@ -15,6 +15,18 @@ limitations = [
 [upstream]
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library; OpenAI / DFN weights use its `_quickgelu` architectures
+
+[[upstream.official]]
+repo = "https://github.com/openai/CLIP"
+framework = "PyTorch"
+reason = "timm re-implements the CLIP image towers and hosts the OpenAI, OpenCLIP and DFN weights in one format; the authors' packages carry the text towers and their own APIs."
+variants = ["clip-b16-openai", "clip-l14-openai", "clip-l14-336-openai"]
+
+[[upstream.official]]
+repo = "https://github.com/mlfoundations/open_clip"
+framework = "PyTorch"
+reason = "timm re-implements the CLIP image towers and hosts the OpenAI, OpenCLIP and DFN weights in one format; the authors' packages carry the text towers and their own APIs."
+variants = ["clip-b16-laion2b", "clip-l14-laion2b", "clip-h14-laion2b", "clip-l14-datacompxl", "clip-l14-dfn2b", "clip-h14-dfn5b", "clip-h14-378-dfn5b"]
 
 [licence]
 code = "Apache-2.0"  # timm
@@ -44,6 +56,34 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+
+[[papers]]
+title = "Learning Transferable Visual Models From Natural Language Supervision"
+url = "https://arxiv.org/abs/2103.00020"
+date = "2021-02-26"
+venue = "ICML 2021"
+variants = ["clip-b16-openai", "clip-l14-openai", "clip-l14-336-openai"]
+
+[[papers]]
+title = "Reproducible scaling laws for contrastive language-image learning"
+url = "https://arxiv.org/abs/2212.07143"
+date = "2022-12-14"
+venue = "CVPR 2023"
+variants = ["clip-b16-laion2b", "clip-l14-laion2b", "clip-h14-laion2b"]
+
+[[papers]]
+title = "DataComp: In search of the next generation of multimodal datasets"
+url = "https://arxiv.org/abs/2304.14108"
+date = "2023-04-27"
+venue = "NeurIPS 2023"
+variants = ["clip-l14-datacompxl"]
+
+[[papers]]
+title = "Data Filtering Networks"
+url = "https://arxiv.org/abs/2309.17425"
+date = "2023-09-29"
+venue = "ICLR 2024"
+variants = ["clip-l14-dfn2b", "clip-h14-dfn5b", "clip-h14-378-dfn5b"]
 
 [[variants]]
 id = "clip-b16-openai"

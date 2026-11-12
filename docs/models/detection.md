@@ -49,6 +49,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [End-to-End Object Detection with Transformers](https://arxiv.org/abs/2005.12872), ECCV 2020, 2020-05-26
 - Original code: <https://github.com/facebookresearch/detr> at `29901c51d7fe`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -110,7 +111,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [D-FINE: Redefine Regression Task in DETRs as Fine-grained Distribution Refinement](https://arxiv.org/abs/2410.13842), ICLR 2025, 2024-10-17
 - Original code: <https://github.com/Peterande/D-FINE> at `956d1709314c`
+- Authors' code, not used: <https://github.com/Peterande/D-FINE> (PyTorch): The benchmarked original is the Hugging Face transformers port (DFineForObjectDetection), which loads the same weights; the repo itself was not run.
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/Peterande/D-FINE/blob/956d1709314c2c6a4df6f34de232054578a7449f/LICENSE>
@@ -172,7 +175,10 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Mask R-CNN](https://arxiv.org/abs/1703.06870), ICCV 2017, 2017-03-20 (for `mask-rcnn-r50-fpn-3x-coco`)
+- Paper: [Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks](https://arxiv.org/abs/1506.01497), NeurIPS 2015, 2015-06-04 (for `faster-rcnn-r50-fpn-3x-coco`)
 - Original code: <https://github.com/facebookresearch/detectron2> at `1e3e13b`
+- Authors' code, not used: <https://github.com/ShaoqingRen/faster_rcnn> (MATLAB / Caffe) (for `faster-rcnn-r50-fpn-3x-coco`): The authors' Faster R-CNN code is MATLAB with Caffe; detectron2 is FAIR's PyTorch re-implementation and ships the FPN 3x COCO weights used here.
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: CC-BY-SA-3.0
 - Licence evidence: https://github.com/facebookresearch/detectron2/blob/1e3e13bbf607b54f62205c4c33922521822fb298/MODEL_ZOO.md (License section)
@@ -232,6 +238,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [RT-DETRv2: Improved Baseline with Bag-of-Freebies for Real-Time Detection Transformer](https://arxiv.org/abs/2407.17140), arXiv, 2024-07-24
 - Original code: <https://github.com/lyuwenyu/RT-DETR> at `df2a96c8c3a0`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0 (assumed from code)
@@ -310,6 +317,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [RTMDet: An Empirical Study of Designing Real-Time Object Detectors](https://arxiv.org/abs/2212.07784), arXiv, 2022-12-14
 - Original code: <https://github.com/open-mmlab/mmdetection> at `44ebd17b145c`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0

@@ -1,7 +1,7 @@
 schema = 2
 name = "RTMDet (CSPNeXt, tiny / S / M / L / X; nano and M person detectors)"
 summary = "RTMDet (Lyu et al. 2022, OpenMMLab): real-time one-stage detector, all convolutions: a CSPNeXt backbone (5 x 5 depthwise convs), a CSPNeXt-PAFPN neck and a head that predicts, per cell of the stride 8 / 16 / 32 maps, a score per class and the distances to the four box edges; class-wise NMS. COCO checkpoints (80 classes) from mmdetection and the person-only detectors mmpose ships as the box source of RTMPose (same backbone family as `fastforks.pose`'s RTMPose). The image is fitted into 640 x 640 (nano: 320 x 320); vendored from mmdetection (no mmdet / mmcv dependency). The portable `module()` is the whole network (class logits and decoded boxes per cell, before NMS)."
-tier = "experimental"
+tier = "stable"
 outputs = ["boxes", "scores", "labels"]
 uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 limitations = [
@@ -58,6 +58,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the who
 
 [output]
 label_set = "coco-80"
+
+[[papers]]
+title = "RTMDet: An Empirical Study of Designing Real-Time Object Detectors"
+url = "https://arxiv.org/abs/2212.07784"
+date = "2022-12-14"
+venue = "arXiv"
 
 [[variants]]
 id = "rtmdet-tiny-coco"  # RTMDet-tiny; COCO val box AP 41.1 (README)

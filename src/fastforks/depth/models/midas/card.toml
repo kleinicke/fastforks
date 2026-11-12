@@ -1,7 +1,7 @@
 schema = 2
 name = "MiDaS v3.1"
 summary = "MiDaS v3.1 (Birkl et al. 2023): relative monocular depth from a BEiT-L/16 encoder and a DPT decoder, trained on a mix of 12 depth datasets."
-tier = "experimental"
+tier = "stable"
 outputs = ["inverse_depth"]
 uses = ["midas_beit"]  # fastforks.shared modules this family imports
 
@@ -35,6 +35,12 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]
+
+[[papers]]
+title = "MiDaS v3.1 -- A Model Zoo for Robust Monocular Relative Depth Estimation"
+url = "https://arxiv.org/abs/2307.14460"
+date = "2023-07-26"
+venue = "arXiv"
 
 [[variants]]
 id = "midas-dpt-beit-large-512"

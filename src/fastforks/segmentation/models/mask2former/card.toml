@@ -9,6 +9,11 @@ uses = ["maskformer", "seginfer"]  # fastforks.shared modules this family import
 repo = "https://github.com/huggingface/transformers"
 commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/facebookresearch/Mask2Former"
+framework = "PyTorch"
+reason = "The authors' code needs detectron2; the transformers port is self-contained."
+
 [licence]
 code = "Apache-2.0"  # huggingface/transformers builds the network; nothing is vendored
 weights = "CC-BY-NC-4.0"  # original MODEL_ZOO.md (License section): all downloadable models are CC-BY-NC-4.0; the HF card only says `other`
@@ -39,6 +44,12 @@ kernels = ["fvm_seg", "seg_up"]
 
 [output]
 label_set = "ade20k-150"
+
+[[papers]]
+title = "Masked-attention Mask Transformer for Universal Image Segmentation"
+url = "https://arxiv.org/abs/2112.01527"
+date = "2021-12-02"
+venue = "CVPR 2022"
 
 [[variants]]
 id = "mask2former-swinl-ade20k"

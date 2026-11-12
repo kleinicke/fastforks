@@ -29,6 +29,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["dpt_fused"]
 
+[[papers]]
+title = "SAM 2: Segment Anything in Images and Videos"
+url = "https://arxiv.org/abs/2408.00714"
+date = "2024-08-01"
+venue = "ICLR 2025 (oral)"
+
 [[variants]]
 id = "sam2.1-hiera-tiny"
 revision = 1

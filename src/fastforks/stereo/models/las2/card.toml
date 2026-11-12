@@ -1,7 +1,7 @@
 schema = 2
 name = "LiteAnyStereo V2"
 summary = "LiteAnyStereo V2: efficient zero-shot stereo with FasterNet-T0 features, a correlation volume and FasterNet 2-D cost aggregation (sizes S / M / L), or a group-wise volume with a selective-GRU update (H)."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "fasternet"]  # fastforks.shared modules this family imports
 limitations = [
@@ -56,6 +56,12 @@ mps_kernels = ["stereo_metal"]
 # repeat 16 and 8 times: LAS2-S 16.6 vs 20.3, LAS2-H 33.8 vs 36.0 (before the cheaper plan builds 20.6 / 37.7)
 
 # Upstream also publishes LAS1 (LiteAnyStereo.pth, a different architecture): not part of this family.
+
+[[papers]]
+title = "Lite Any Stereo V2: Faster and Stronger Efficient Zero-Shot Stereo Matching"
+url = "https://arxiv.org/abs/2606.24457"
+date = "2026-06-23"
+venue = "arXiv"
 
 [[variants]]
 id = "las2-s"

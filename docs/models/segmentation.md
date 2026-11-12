@@ -47,7 +47,16 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Fully Convolutional Networks for Semantic Segmentation](https://arxiv.org/abs/1411.4038), CVPR 2015, 2014-11-14 (for `fcn-r101-d8-ade20k`)
+- Paper: [Pyramid Scene Parsing Network](https://arxiv.org/abs/1612.01105), CVPR 2017, 2016-12-04 (for `pspnet-r101-d8-ade20k`)
+- Paper: [Rethinking Atrous Convolution for Semantic Image Segmentation](https://arxiv.org/abs/1706.05587), arXiv, 2017-06-17 (for `deeplabv3-r101-d8-ade20k`)
+- Paper: [Encoder-Decoder with Atrous Separable Convolution for Semantic Image Segmentation](https://arxiv.org/abs/1802.02611), ECCV 2018, 2018-02-07 (for `deeplabv3plus-r101-d8-ade20k`)
+- Paper: [Deep High-Resolution Representation Learning for Visual Recognition](https://arxiv.org/abs/1908.07919), TPAMI 2020, 2019-08-20 (for `hrnet-w48-fcn-ade20k`)
 - Original code: <https://github.com/open-mmlab/mmsegmentation> at `c685fe6767c4`
+- Authors' code, not used: <https://github.com/shelhamer/fcn.berkeleyvision.org> (Caffe) (for `fcn-r101-d8-ade20k`): The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights.
+- Authors' code, not used: <https://github.com/hszhao/PSPNet> (Caffe) (for `pspnet-r101-d8-ade20k`): The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights.
+- Authors' code, not used: <https://github.com/tensorflow/models/tree/master/research/deeplab> (TensorFlow) (for `deeplabv3-r101-d8-ade20k`, `deeplabv3plus-r101-d8-ade20k`): The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights.
+- Authors' code, not used: <https://github.com/HRNet/HRNet-Semantic-Segmentation> (PyTorch) (for `hrnet-w48-fcn-ade20k`): The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights.
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/open-mmlab/mmsegmentation/blob/c685fe6767c4cadf6b051983ca6208f1b9d1ccb8/README.md#license>
@@ -115,6 +124,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/abs/2304.07193), TMLR 2024, 2023-04-14
 - Original code: <https://github.com/facebookresearch/dinov2> at `7764ea0f912e`
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
@@ -174,7 +184,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Your ViT is Secretly an Image Segmentation Model](https://arxiv.org/abs/2503.19108), CVPR 2025, 2025-03-24
 - Original code: <https://github.com/huggingface/transformers> at `c4c4605f9618`
+- Authors' code, not used: <https://github.com/tue-mps/eomt> (PyTorch): Hugging Face transformers ships an EoMT port that loads the authors' checkpoints (incl. DINOv3) without the authors' Lightning/detectron2 stack.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: MIT
   - `eomt-l-dinov3-ade20k`: MIT AND LicenseRef-DINOv3-License
@@ -231,7 +243,9 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 <details><summary>Details</summary>
 
+- Paper: [Masked-attention Mask Transformer for Universal Image Segmentation](https://arxiv.org/abs/2112.01527), CVPR 2022, 2021-12-02
 - Original code: <https://github.com/huggingface/transformers> at `c4c4605f9618`
+- Authors' code, not used: <https://github.com/facebookresearch/Mask2Former> (PyTorch): The authors' code needs detectron2; the transformers port is self-contained.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: CC-BY-NC-4.0
 - Licence evidence: <https://github.com/facebookresearch/Mask2Former/blob/9b0651c6c1d5b3af2e6da0589b719c514ec0d69a/MODEL_ZOO.md#license>
@@ -281,7 +295,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [OneFormer: One Transformer to Rule Universal Image Segmentation](https://arxiv.org/abs/2211.06220), CVPR 2023, 2022-11-10
 - Original code: <https://github.com/huggingface/transformers> at `c4c4605f9618`
+- Authors' code, not used: <https://github.com/SHI-Labs/OneFormer> (PyTorch): The Hugging Face transformers port loads the authors' ADE20K Swin-L checkpoint without detectron2 or custom CUDA ops.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/shi-labs/oneformer_ade20k_swin_large/blob/4a5bac8e64f82681a12db2e151a4c2f4ce6092b2/README.md>
@@ -332,6 +348,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 <details><summary>Details</summary>
 
+- Paper: [Sapiens: Foundation for Human Vision Models](https://arxiv.org/abs/2408.12569), ECCV 2024 (oral), 2024-08-22
 - Original code: <https://github.com/facebookresearch/sapiens> at `2cb07227a740`
 - Code licence: CC-BY-NC-4.0 (noncommercial); files: `LICENSE`
 - Weights licence: CC-BY-NC-4.0
@@ -387,7 +404,9 @@ Commercial use: **no** (weights: LicenseRef-NVIDIA-Source-Code-License-NC).
 
 <details><summary>Details</summary>
 
+- Paper: [SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers](https://arxiv.org/abs/2105.15203), NeurIPS 2021, 2021-05-31
 - Original code: <https://github.com/huggingface/transformers> at `c4c4605f9618`
+- Authors' code, not used: <https://github.com/NVlabs/SegFormer> (PyTorch): The authors' code needs mmsegmentation; the transformers port is self-contained.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: LicenseRef-NVIDIA-Source-Code-License-NC
 - Licence evidence: <https://huggingface.co/nvidia/segformer-b0-finetuned-ade-512-512/blob/489d5cd81a0b59fab9b7ea758d3548ebe99677da/README.md>

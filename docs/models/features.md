@@ -80,6 +80,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [RADIOv2.5: Improved Baselines for Agglomerative Vision Foundation Models](https://arxiv.org/abs/2412.07679), CVPR 2025, 2024-12-10
+- Paper: [AM-RADIO: Agglomerative Vision Foundation Model -- Reduce All Domains Into One](https://arxiv.org/abs/2312.06709), CVPR 2024, 2023-12-10
+- Paper: [PHI-S: Distribution Balancing for Label-Free Multi-Teacher Distillation](https://arxiv.org/abs/2410.01680), arXiv, 2024-10-02
 - Original code: <https://huggingface.co/nvidia/C-RADIOv3-B> at `44653a0482cf`
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: LicenseRef-NVIDIA-Open-Model-License
@@ -154,7 +157,13 @@ Commercial use: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `cl
 
 <details><summary>Details</summary>
 
+- Paper: [Learning Transferable Visual Models From Natural Language Supervision](https://arxiv.org/abs/2103.00020), ICML 2021, 2021-02-26 (for `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`)
+- Paper: [Reproducible scaling laws for contrastive language-image learning](https://arxiv.org/abs/2212.07143), CVPR 2023, 2022-12-14 (for `clip-b16-laion2b`, `clip-l14-laion2b`, `clip-h14-laion2b`)
+- Paper: [DataComp: In search of the next generation of multimodal datasets](https://arxiv.org/abs/2304.14108), NeurIPS 2023, 2023-04-27 (for `clip-l14-datacompxl`)
+- Paper: [Data Filtering Networks](https://arxiv.org/abs/2309.17425), ICLR 2024, 2023-09-29 (for `clip-l14-dfn2b`, `clip-h14-dfn5b`, `clip-h14-378-dfn5b`)
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/openai/CLIP> (PyTorch) (for `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`): timm re-implements the CLIP image towers and hosts the OpenAI, OpenCLIP and DFN weights in one format; the authors' packages carry the text towers and their own APIs.
+- Authors' code, not used: <https://github.com/mlfoundations/open_clip> (PyTorch) (for `clip-b16-laion2b`, `clip-l14-laion2b`, `clip-h14-laion2b`, `clip-l14-datacompxl`, `clip-l14-dfn2b`, `clip-h14-dfn5b`, `clip-h14-378-dfn5b`): timm re-implements the CLIP image towers and hosts the OpenAI, OpenCLIP and DFN weights in one format; the authors' packages carry the text towers and their own APIs.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: MIT
   - `clip-l14-dfn2b`: LicenseRef-Apple-AMLR
@@ -265,6 +274,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/abs/2304.07193), TMLR 2024, 2023-04-14
 - Original code: <https://github.com/facebookresearch/dinov2> at `7764ea0`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -348,7 +358,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [DINOv3](https://arxiv.org/abs/2508.10104), arXiv, 2025-08-13
 - Original code: <https://github.com/huggingface/transformers> at `v5.19.0`
+- Authors' code, not used: <https://github.com/facebookresearch/dinov3> (PyTorch): The weights are Meta's, but we load the Hugging Face transformers format and port its model code rather than Meta's repo.
 - Code licence: LicenseRef-DINOv3-License (permissive); files: `LICENSE.md`
 - Weights licence: LicenseRef-DINOv3-License
 - Licence evidence: https://huggingface.co/facebook/dinov3-convnext-tiny-pretrain-lvd1689m/blob/10d30274b4d445111e2d5bf75ac93bbd94db274b/LICENSE.md (DINOv3 License; gated: accept on Hugging Face to download)
@@ -409,7 +421,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [DINOv3](https://arxiv.org/abs/2508.10104), arXiv, 2025-08-13
 - Original code: <https://github.com/huggingface/transformers> at `v5.19.0`
+- Authors' code, not used: <https://github.com/facebookresearch/dinov3> (PyTorch): The checkpoints are used in Hugging Face transformers format, so the transformers implementation is vendored.
 - Code licence: LicenseRef-DINOv3-License (permissive); files: `LICENSE.md`
 - Weights licence: LicenseRef-DINOv3-License
 - Licence evidence: https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m/blob/114c1379950215c8b35dfcd4e90a5c251dde0d32/LICENSE.md (DINOv3 License, the same file in every model repo; gated: accept on Hugging Face to download)
@@ -486,7 +500,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Perception Encoder: The best visual embeddings are not at the output of the network](https://arxiv.org/abs/2504.13181), NeurIPS 2025, 2025-04-17
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/facebookresearch/perception_models> (PyTorch): timm ports the PE image towers to its common ViT code; the authors' perception_models repo is a full training and eval stack.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_pe_core_small_patch16_384.fb/blob/255fa76e26fdf8daa47e0d607da46b7051879045/README.md>
@@ -587,7 +603,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [SigLIP 2: Multilingual Vision-Language Encoders with Improved Semantic Understanding, Localization, and Dense Features](https://arxiv.org/abs/2502.14786), arXiv, 2025-02-20
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/google-research/big_vision> (JAX): The authors' code and checkpoints are JAX (big_vision); timm's PyTorch port carries the same weights.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_base_patch16_siglip_256.v2_webli/blob/ac4cc431026674dcac29e34a00d3bd2048390eb3/README.md>

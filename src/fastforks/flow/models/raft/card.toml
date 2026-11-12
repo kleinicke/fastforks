@@ -1,13 +1,18 @@
 schema = 2
 name = "RAFT"
 summary = "RAFT (Teed & Deng 2020): all-pairs correlation pyramid at 1/8 resolution and a ConvGRU that refines the flow in 12 iterations, upsampled with a learned convex mask (raft-small: bilinear). torchvision's V2 weights (trained from scratch with its optical-flow reference recipe); the network is ported from torchvision (no torchvision dependency)."
-tier = "experimental"
+tier = "stable"
 outputs = ["flow"]
 uses = []  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1; net.py ports torchvision/models/optical_flow/raft.py
+
+[[upstream.official]]
+repo = "https://github.com/princeton-vl/RAFT"
+framework = "PyTorch"
+reason = "torchvision's port ships newer V2 weights trained from scratch, which are the ones used."
 
 [licence]
 code = "BSD-3-Clause"  # torchvision
@@ -37,6 +42,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["raft_flow", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["flow_metal"]  # correlation window lookup without the volume
+
+[[papers]]
+title = "RAFT: Recurrent All-Pairs Field Transforms for Optical Flow"
+url = "https://arxiv.org/abs/2003.12039"
+date = "2020-03-26"
+venue = "ECCV 2020"
 
 [[variants]]
 id = "raft-large"  # torchvision Raft_Large_Weights.C_T_SKHT_V2 (its default); Sintel test EPE 1.819 clean / 3.067 final

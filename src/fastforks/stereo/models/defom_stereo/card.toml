@@ -45,6 +45,12 @@ mps_kernels = ["stereo_metal"]
 # Upstream also publishes ViT-S / ViT-B SceneFlow checkpoints and Middlebury / ETH3D / KITTI fine-tunes; only the
 # ViT-L SceneFlow checkpoint is added so far (the only one we have locally).
 
+[[papers]]
+title = "DEFOM-Stereo: Depth Foundation Model Based Stereo Matching"
+url = "https://arxiv.org/abs/2501.09466"
+date = "2025-01-16"
+venue = "CVPR 2025"
+
 [[variants]]
 id = "defom-stereo-vitl-sceneflow"
 revision = 1

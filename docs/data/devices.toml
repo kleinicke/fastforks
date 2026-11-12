@@ -7,8 +7,8 @@
 # the backend go in the fields, not the slug. Order = the column order of the cross-device table.
 #
 #   name      the device as the docs name it
-#   backend   cuda (NVIDIA), rocm (AMD, torch.cuda over HIP) or mps (Apple silicon)
-#   match     the `gpu` value the measuring tools record for it (torch.cuda.get_device_name(); MPS: the chip name)
+#   backend   cuda (NVIDIA), rocm (AMD, torch.cuda over HIP), mps (Apple silicon GPU) or cpu (its CPU cores)
+#   match     the `gpu` value the measuring tools record for it (torch.cuda.get_device_name(); MPS, CPU: the chip name)
 #   memory    memory as sold (unified on Apple silicon)
 #   details   further hardware facts (cores, power limit, host)
 #   software  OS / driver / torch / toolkit of the shown measurements
@@ -30,6 +30,15 @@ match = "Apple M1 Pro"
 memory = "16 GB unified"
 details = "16-core GPU"
 software = "macOS 27, torch 2.14"
+
+[apple-m1-pro-cpu-16gb]
+name = "Apple M1 Pro 16 GB (CPU)"
+backend = "cpu"
+match = "Apple M1 Pro"
+memory = "16 GB unified"
+details = "10-core CPU (8 performance, 2 efficiency), PyTorch's default threads"
+software = "macOS 27, torch 2.14"
+hidden = true
 
 [l4-22gb]
 name = "NVIDIA L4"

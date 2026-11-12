@@ -275,3 +275,24 @@ def test_option_aliases_parse_and_must_be_unique(data):
         d["options"]["b"] = {"default": 2, "aliases": [clash]}
         with pytest.raises(CardError, match="alias"):
             parse(d)
+
+
+def test_papers_and_official(data):
+    card = parse(data)
+    assert card.papers
+    assert all(len(p.date) == 10 for p in card.papers)
+    d = copy.deepcopy(data)
+    d["upstream"]["official"] = [
+        {"repo": "https://x.org/r", "framework": "JAX", "reason": "why", "variants": ["s2m2-s"]}
+    ]
+    assert parse(d).official[0].variants == ("s2m2-s",)
+    for bad, match in [
+        ({"papers": []}, "papers"),
+        ({"papers": [{**data["papers"][0], "date": "2024"}]}, "date"),
+        ({"papers": [{**data["papers"][0], "variants": ["nope"]}]}, "nope"),
+    ]:
+        with pytest.raises(CardError, match=match):
+            parse({**data, **bad})
+    d["upstream"]["official"][0]["reason"] = ""
+    with pytest.raises(CardError, match="reason"):
+        parse(d)

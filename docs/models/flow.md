@@ -43,7 +43,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [RAFT: Recurrent All-Pairs Field Transforms for Optical Flow](https://arxiv.org/abs/2003.12039), ECCV 2020, 2020-03-26
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/princeton-vl/RAFT> (PyTorch): torchvision's port ships newer V2 weights trained from scratch, which are the ones used.
 - Code licence: BSD-3-Clause (permissive); files: `LICENSE`
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/torchvision/models/optical_flow/raft.py#L576>
@@ -120,6 +122,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [SEA-RAFT: Simple, Efficient, Accurate RAFT for Optical Flow](https://arxiv.org/abs/2405.14793), ECCV 2024, 2024-05-23
 - Original code: <https://github.com/princeton-vl/SEA-RAFT> at `9137517ba24e`
 - Code licence: BSD-3-Clause (permissive); files: `LICENSE`
 - Weights licence: BSD-3-Clause

@@ -1,7 +1,7 @@
 schema = 2
 name = "RT-MonSter++"
 summary = "RT-MonSter++ (Cheng et al. 2025), the real-time MonSter++: Depth Anything V2 (ViT-S) monocular branch + coarse-to-fine (1/16, 1/8, 1/4) local geometry volumes, stereo and mono ConvGRUs, 4 updates."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "depth_anything_v2", "monster_fit"]  # fastforks.shared modules this family imports
 
@@ -55,6 +55,12 @@ kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
 # Upstream's test-mode schedule is fixed (1 / 1 / 2 updates at 1/16 /
 # 1/8 / 1/4), so there is no iteration option. Upstream also publishes KITTI 2012 / 2015 fine-tunes (same Hugging Face
 # repo); not added yet.
+
+[[papers]]
+title = "MonSter++: Unified Stereo Matching, Multi-view Stereo, and Real-time Stereo with Monodepth Priors"
+url = "https://arxiv.org/abs/2501.08643"
+date = "2025-01-15"
+venue = "arXiv"
 
 [[variants]]
 id = "rt-monster-plusplus-mix-all"

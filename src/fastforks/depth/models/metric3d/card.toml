@@ -1,7 +1,7 @@
 schema = 2
 name = "Metric3D v2"
 summary = "Metric3D v2 (Hu et al. 2024): metric depth and surface normals from one image; a DINOv2-reg ViT-L encoder and a RAFT-style iterative depth / normal decoder in a canonical camera space (focal 1000 px), rescaled by the given focal length."
-tier = "experimental"
+tier = "stable"
 licence_notes = [
   "The upstream README says 'for further commercial inquiries, please contact' the authors; no weights licence is stated, so the BSD-2-Clause code licence is assumed.",
 ]
@@ -36,6 +36,12 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["fastbb"]
+
+[[papers]]
+title = "Metric3Dv2: A Versatile Monocular Geometric Foundation Model for Zero-shot Metric Depth and Surface Normal Estimation"
+url = "https://arxiv.org/abs/2404.15506"
+date = "2024-03-22"
+venue = "TPAMI 2024"
 
 [[variants]]
 id = "metric3d-vit-large"

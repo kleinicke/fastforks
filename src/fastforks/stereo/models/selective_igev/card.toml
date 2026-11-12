@@ -1,7 +1,7 @@
 schema = 2
 name = "Selective-IGEV"
 summary = "Selective-IGEV (Wang et al. 2024, Selective-Stereo): IGEV-Stereo with selective recurrent units, attention-blended small (1x1) and large (3x3) ConvGRUs on a channel- and spatially re-weighted context, 32 iterations."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "igev_blocks", "mobilenetv2"]  # fastforks.shared modules this family imports
 limitations = [
@@ -39,6 +39,12 @@ mps_kernels = ["stereo_metal"]
 # Upstream also publishes Selective-RAFT weights (another architecture): not part of this family.
 # All variants run with max_disp 192 (the cost-volume depth); the upstream Middlebury demo uses 768. It stays a
 # [params] entry: the kernels path has not been run at other values.
+
+[[papers]]
+title = "Selective-Stereo: Adaptive Frequency Information Selection for Stereo Matching"
+url = "https://arxiv.org/abs/2403.00486"
+date = "2024-03-01"
+venue = "CVPR 2024"
 
 [[variants]]
 id = "selective-igev-sceneflow"

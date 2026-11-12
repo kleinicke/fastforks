@@ -1,7 +1,7 @@
 schema = 2
 name = "DINOv3 ConvNeXt"
 summary = "DINOv3 ConvNeXt T/S/B/L (Meta, 2025), distilled from the DINOv3 ViT-7B: stride-32 grid features + pooled token (Hugging Face format checkpoints). Gated weights: accept the DINOv3 licence on each model's Hugging Face page, download model.safetensors yourself and put it under FASTFORKS_WEIGHTS_PATH (path and SHA-256 in the load error); fastforks does not send HF_TOKEN there."
-tier = "experimental"
+tier = "stable"
 outputs = ["last_hidden_state", "pooler_output"]
 uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 licence_notes = [
@@ -11,6 +11,11 @@ licence_notes = [
 [upstream]
 repo = "https://github.com/huggingface/transformers"  # `DINOv3ConvNextModel` (models/dinov3_convnext), the reference of these checkpoints
 commit = "v5.19.0"  # release tag; model.py re-implements its eval maths with the checkpoint's parameter names
+
+[[upstream.official]]
+repo = "https://github.com/facebookresearch/dinov3"
+framework = "PyTorch"
+reason = "The weights are Meta's, but we load the Hugging Face transformers format and port its model code rather than Meta's repo."
 
 [licence]
 code = "LicenseRef-DINOv3-License"
@@ -31,6 +36,12 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fvm_conv", "fvm_seg"]  # _optimize.conv_ops (fvm_conv) + fvm_seg: the only libraries this family imports
+
+[[papers]]
+title = "DINOv3"
+url = "https://arxiv.org/abs/2508.10104"
+date = "2025-08-13"
+venue = "arXiv"
 
 [[variants]]
 id = "dinov3-convnext-tiny"

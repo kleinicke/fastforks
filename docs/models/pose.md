@@ -54,6 +54,8 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [RTMPose: Real-Time Multi-Person Pose Estimation based on MMPose](https://arxiv.org/abs/2303.07399), arXiv, 2023-03-13 (for `rtmpose-t`, `rtmpose-s`, `rtmpose-m`, `rtmpose-l`, `rtmpose-m-384`, `rtmpose-l-384`)
+- Paper: [Effective Whole-body Pose Estimation with Two-stages Distillation](https://arxiv.org/abs/2307.15880), ICCV 2023 CV4Metaverse Workshop, 2023-07-29 (for `dwpose-t`, `dwpose-s`, `dwpose-m`, `dwpose-l`, `dwpose-l-384`)
 - Original code: <https://github.com/open-mmlab/mmpose> at `5408bc76f5b8`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -175,7 +177,10 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [ViTPose: Simple Vision Transformer Baselines for Human Pose Estimation](https://arxiv.org/abs/2204.12484), NeurIPS 2022, 2022-04-26 (for `vitpose-base-simple`, `vitpose-base`)
+- Paper: [ViTPose++: Vision Transformer for Generic Body Pose Estimation](https://arxiv.org/abs/2212.04246), TPAMI 2023, 2022-12-07 (for `vitpose-plus-small`, `vitpose-plus-base`, `vitpose-plus-large`, `vitpose-plus-huge`)
 - Original code: <https://github.com/huggingface/transformers> at `v4.57.1`
+- Authors' code, not used: <https://github.com/ViTAE-Transformer/ViTPose> (PyTorch): The authors' code is built on mmpose; the Hugging Face transformers port is dependency-light and ships the converted weights.
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
 - Licence evidence: https://huggingface.co/usyd-community/vitpose-base-simple (model card licence)

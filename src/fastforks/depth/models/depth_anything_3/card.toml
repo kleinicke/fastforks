@@ -1,7 +1,7 @@
 schema = 2
 name = "Depth Anything 3"
 summary = "Depth Anything 3 (Lin et al. 2025, ByteDance): monocular depth from a DINOv2 ViT with DPT heads; relative (Mono), metric (Metric), any-view depth with camera (Large, Giant) and Giant aligned to Metric (Nested)."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth", "confidence", "intrinsics", "mask", "sky"]  # union; each variant lists its own
 uses = ["depth_anything_v2", "quantile"]  # fastforks.shared modules this family imports
 
@@ -37,6 +37,12 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]
+
+[[papers]]
+title = "Depth Anything 3: Recovering the Visual Space from Any Views"
+url = "https://arxiv.org/abs/2511.10647"
+date = "2025-11-13"
+venue = "arXiv"
 
 [[variants]]
 id = "da3mono-large"

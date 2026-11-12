@@ -1,7 +1,7 @@
 schema = 2
 name = "Perception Encoder"
 summary = "Perception Encoder (Bolya et al. 2025, Meta) image towers with 2D RoPE: PE core (contrastive, attention-pool embedding) and PE spatial (dense features for detection / segmentation; no learned pool: pooler_output is the mean of the patch tokens, as timm); tokens at any size."
-tier = "experimental"
+tier = "stable"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
 uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports (CUDA graphs, the timm network builder)
 limitations = [
@@ -13,6 +13,11 @@ limitations = [
 [upstream]
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/facebookresearch/perception_models"
+framework = "PyTorch"
+reason = "timm ports the PE image towers to its common ViT code; the authors' perception_models repo is a full training and eval stack."
 
 [licence]
 code = "Apache-2.0"  # timm
@@ -45,6 +50,12 @@ mps_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 mps_kernels = ["vit_metal"]  # the blocks' interleaved q / k RoPE in one pass (the rest: the portable network)
 # no mps_dtype: float16 stays; M1 Pro at the native size: 10-12 % faster than float32 (t16 16.0 vs 18.2 ms, s16 32.2 vs 35.9 ms), inside the golden tolerances
+
+[[papers]]
+title = "Perception Encoder: The best visual embeddings are not at the output of the network"
+url = "https://arxiv.org/abs/2504.13181"
+date = "2025-04-17"
+venue = "NeurIPS 2025"
 
 [[variants]]
 id = "pe-core-t16-384"

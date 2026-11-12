@@ -1,7 +1,7 @@
 schema = 2
 name = "MVSAnywhere"
 summary = "MVSAnywhere (Izquierdo et al. 2025): zero-shot multi-view stereo, the depth of a reference view from posed, calibrated source views. A view-agnostic MLP cost volume (warped matching features + camera metadata, softmax over the views) is encoded by a DINOv2 ViT-B fused with a second DINOv2's image features and decoded by a DPT head; the depth range comes from the camera baselines and is refined once."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth", "mask", "sky", "depth_range"]  # mask: not sky; extras: sky probability [1, H, W], depth range used [1, 2]
 uses = ["depth_anything_v2", "cnn_kernels", "quantile"]  # fastforks.shared modules this family imports (DINOv2, DPT fusion blocks)
 
@@ -38,6 +38,12 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["fastbb", "igev", "cutlass_conv", "cudnn_hacc", "mvsanywhere"]
+
+[[papers]]
+title = "MVSAnywhere: Zero-Shot Multi-View Stereo"
+url = "https://arxiv.org/abs/2503.22430"
+date = "2025-03-28"
+venue = "CVPR 2025"
 
 [[variants]]
 id = "mvsanywhere"

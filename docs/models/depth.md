@@ -58,6 +58,7 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 
 <details><summary>Details</summary>
 
+- Paper: [Depth Anything 3: Recovering the Visual Space from Any Views](https://arxiv.org/abs/2511.10647), arXiv, 2025-11-13
 - Original code: <https://github.com/ByteDance-Seed/Depth-Anything-3> at `3d835ec`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -160,6 +161,8 @@ Commercial use: `depth-anything-v2-s`, `depth-anything-v2-metric-hypersim-s`, `d
 
 <details><summary>Details</summary>
 
+- Paper: [Depth Anything V2](https://arxiv.org/abs/2406.09414), NeurIPS 2024, 2024-06-13 (for `depth-anything-v2-s`, `depth-anything-v2-b`, `depth-anything-v2-l`, `depth-anything-v2-metric-hypersim-s`, `depth-anything-v2-metric-hypersim-b`, `depth-anything-v2-metric-hypersim-l`, `depth-anything-v2-metric-vkitti-s`, `depth-anything-v2-metric-vkitti-b`, `depth-anything-v2-metric-vkitti-l`)
+- Paper: [Distill Any Depth: Distillation Creates a Stronger Monocular Depth Estimator](https://arxiv.org/abs/2502.19204), arXiv, 2025-02-26 (for `distill-any-depth-s`, `distill-any-depth-b`, `distill-any-depth-l`)
 - Original code: <https://github.com/DepthAnything/Depth-Anything-V2> at `a561b84`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -322,6 +325,7 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 
 <details><summary>Details</summary>
 
+- Paper: [Depth Pro: Sharp Monocular Metric Depth in Less Than a Second](https://arxiv.org/abs/2410.02073), ICLR 2025, 2024-10-02
 - Original code: <https://github.com/apple/ml-depth-pro> at `9e65e4d`
 - Code licence: LicenseRef-Apple-Sample-Code (permissive); files: `LICENSE`
 - Weights licence: LicenseRef-research-only
@@ -376,6 +380,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Repurposing Diffusion-Based Image Generators for Monocular Depth Estimation](https://arxiv.org/abs/2312.02145), CVPR 2024, 2023-12-04
 - Original code: <https://github.com/prs-eth/Marigold> at `2bfbdea`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`, `LICENSE-MODEL`, `LICENSE-huggingface`
 - Weights licence: LicenseRef-CreativeML-OpenRAIL-PlusPlus-M
@@ -437,6 +442,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Metric3Dv2: A Versatile Monocular Geometric Foundation Model for Zero-shot Metric Depth and Surface Normal Estimation](https://arxiv.org/abs/2404.15506), TPAMI 2024, 2024-03-22
 - Original code: <https://github.com/YvanYin/Metric3D> at `eb5b6fa`
 - Code licence: BSD-2-Clause (permissive); files: `LICENSE`
 - Weights licence: BSD-2-Clause (assumed from code)
@@ -495,6 +501,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [MiDaS v3.1 -- A Model Zoo for Robust Monocular Relative Depth Estimation](https://arxiv.org/abs/2307.14460), arXiv, 2023-07-26
 - Original code: <https://github.com/isl-org/MiDaS> at `4545977`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -551,6 +558,8 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [MoGe-2: Accurate Monocular Geometry with Metric Scale and Sharp Details](https://arxiv.org/abs/2507.02546), arXiv, 2025-07-03 (for `moge-2-vits-normal`, `moge-2-vitl-normal`)
+- Paper: [MoGe-3: Fine-Detail Monocular Geometry Estimation with Self-Guided Sparse Volumetric Refinement](https://arxiv.org/abs/2607.17967), arXiv, 2026-07-20 (for `moge-3-vitl`)
 - Original code: <https://github.com/microsoft/MoGe> at `74fbce0`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT
@@ -617,6 +626,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 <details><summary>Details</summary>
 
+- Paper: [UniDepthV2: Universal Monocular Metric Depth Estimation Made Simpler](https://arxiv.org/abs/2502.20110), arXiv, 2025-02-27
 - Original code: <https://github.com/lpiccinelli-eth/UniDepth> at `8d8cfe4`
 - Code licence: CC-BY-NC-4.0 (noncommercial); files: `LICENSE`
 - Weights licence: CC-BY-NC-4.0 (assumed from code)
@@ -675,6 +685,7 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 
 <details><summary>Details</summary>
 
+- Paper: [UniK3D: Universal Camera Monocular 3D Estimation](https://arxiv.org/abs/2503.16591), CVPR 2025, 2025-03-20
 - Original code: <https://github.com/lpiccinelli-eth/UniK3D> at `29f7862`
 - Code licence: CC-BY-NC-SA-4.0 (noncommercial); files: `LICENSE`
 - Weights licence: CC-BY-NC-SA-4.0 (assumed from code)
@@ -729,6 +740,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [ZoeDepth: Zero-shot Transfer by Combining Relative and Metric Depth](https://arxiv.org/abs/2302.12288), arXiv, 2023-02-23
 - Original code: <https://github.com/isl-org/ZoeDepth> at `d87f17b`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)

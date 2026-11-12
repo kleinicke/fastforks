@@ -43,6 +43,12 @@ label_set = "goliath-28"
 
 # Not added: 0.6b (not downloaded here) and 2b (head_dim 64 too, ~8 GB fp32 file; not measured).
 
+[[papers]]
+title = "Sapiens: Foundation for Human Vision Models"
+url = "https://arxiv.org/abs/2408.12569"
+date = "2024-08-22"
+venue = "ECCV 2024 (oral)"
+
 [[variants]]
 id = "sapiens-seg-0.3b-goliath"
 revision = 1

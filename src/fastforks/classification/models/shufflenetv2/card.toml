@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/megvii-model/ShuffleNet-Series"
+framework = "PyTorch"
+reason = "The authors' (Megvii) repo is not the maintained source of the ImageNet weights; torchvision's port is."
+
 [licence]
 code = "BSD-3-Clause"  # torchvision
 weights = "assumed from code"  # torchvision states no separate weights licence
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design"
+url = "https://arxiv.org/abs/1807.11164"
+date = "2018-07-30"
+venue = "ECCV 2018"
 
 [[variants]]
 id = "shufflenet_v2_x1_0.tv_in1k"

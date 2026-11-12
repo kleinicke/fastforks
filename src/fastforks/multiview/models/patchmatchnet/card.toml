@@ -1,7 +1,7 @@
 schema = 2
 name = "PatchmatchNet"
 summary = "PatchmatchNet (Wang et al. 2021): learned PatchMatch multi-view stereo, the depth of a reference view from posed, calibrated source views and a depth search range. Three coarse-to-fine PatchMatch stages (random initialisation, adaptive propagation, group-wise correlation with pixel-wise view weights, adaptive spatial cost aggregation) on FPN features, then a depth refinement net at full resolution."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth", "confidence"]  # confidence: original photometric confidence (probability mass around the regressed depth)
 
 licence_notes = [
@@ -33,6 +33,12 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["patchmatchnet"]
+
+[[papers]]
+title = "PatchmatchNet: Learned Multi-View Patchmatch Stereo"
+url = "https://arxiv.org/abs/2012.01411"
+date = "2020-12-02"
+venue = "CVPR 2021"
 
 [[variants]]
 id = "patchmatchnet"

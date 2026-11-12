@@ -56,6 +56,12 @@ kernels = ["igev", "cutlass_conv", "cudnn_hacc", "stereo_ops"]
 # SceneFlow-only weights: zero-shot output on real images is poor, so this is mainly a latency reference.
 # Upstream also ships KITTI weights inside its git repository (logs/): not added.
 
+[[papers]]
+title = "Correlate-and-Excite: Real-Time Stereo Matching via Guided Cost Volume Excitation"
+url = "https://arxiv.org/abs/2108.05773"
+date = "2021-08-12"
+venue = "IROS 2021"
+
 [[variants]]
 id = "coex-sceneflow"
 revision = 1

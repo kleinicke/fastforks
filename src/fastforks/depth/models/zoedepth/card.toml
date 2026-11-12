@@ -1,7 +1,7 @@
 schema = 2
 name = "ZoeDepth"
 summary = "ZoeDepth (Bhat et al. 2023): metric monocular depth from a MiDaS v3.1 BEiT-L/16 core with metric-bins heads (NYU indoor, KITTI outdoor) chosen by a learned domain router (ZoeD_M12_NK)."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth"]
 uses = ["midas_beit"]  # fastforks.shared modules this family imports
 limitations = [
@@ -41,6 +41,12 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]
+
+[[papers]]
+title = "ZoeDepth: Zero-shot Transfer by Combining Relative and Metric Depth"
+url = "https://arxiv.org/abs/2302.12288"
+date = "2023-02-23"
+venue = "arXiv"
 
 [[variants]]
 id = "zoedepth-nk"

@@ -1,7 +1,7 @@
 schema = 2
 name = "VGGT-Omega"
 summary = "VGGT-Omega (Meta), the successor of VGGT: cameras and depth maps of every view from unposed images in one forward pass. A DINOv3 ViT-L/16 patch embedding feeds 24 frame and 24 inter-frame (global or register-only) attention blocks with q/k norm and 2-D RoPE; a camera head and a DPT dense head decode the tokens. The checkpoint is gated on Hugging Face (accept the FAIR licence there, then put the file on FASTFORKS_WEIGHTS_PATH); there is no mirror."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth", "confidence", "intrinsics", "cam_to_world"]  # world points: multiview.unproject(depth, intrinsics, cam_to_world)
 
 licence_notes = [
@@ -36,6 +36,12 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "vggt_omega"]
+
+[[papers]]
+title = "VGGT-Ω"
+url = "https://arxiv.org/abs/2605.15195"
+date = "2026-05-14"
+venue = "CVPR 2026"
 
 [[variants]]
 id = "vggt-omega-1b-512"

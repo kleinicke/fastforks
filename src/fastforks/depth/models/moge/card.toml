@@ -1,7 +1,7 @@
 schema = 2
 name = "MoGe"
 summary = "MoGe-2 / MoGe-3 (Wang et al., Microsoft): monocular metric geometry; a DINOv2 ViT with conv heads predicts an affine point map, a validity mask, normals and a metric scale, and the focal length and shift are recovered from the points (MoGe-3 adds a sparse 3-D refiner)."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth", "points", "intrinsics", "mask", "normals"]  # intrinsics: the camera of the points (given ones: only fx is used; fy != fx or an off-centre principal point raise); normals: option `normals`
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
 
@@ -39,6 +39,20 @@ mps_dtypes = ["float32"]
 kernels = ["fastbb", "dpt_fused", "sparse_conv"]  # sparse_conv: the MoGe-3 refiner
 mps_kernels = ["sparse_metal"]  # the MoGe-3 refiner's sparse convs (MoGe-2: the portable network as is)
 mps_dtype = "float32"  # the portable network's float16 misses the metric scale (no float32 class-token residual)
+
+[[papers]]
+title = "MoGe-2: Accurate Monocular Geometry with Metric Scale and Sharp Details"
+url = "https://arxiv.org/abs/2507.02546"
+date = "2025-07-03"
+venue = "arXiv"
+variants = ["moge-2-vits-normal", "moge-2-vitl-normal"]
+
+[[papers]]
+title = "MoGe-3: Fine-Detail Monocular Geometry Estimation with Self-Guided Sparse Volumetric Refinement"
+url = "https://arxiv.org/abs/2607.17967"
+date = "2026-07-20"
+venue = "arXiv"
+variants = ["moge-3-vitl"]
 
 [[variants]]
 id = "moge-2-vits-normal"

@@ -1,7 +1,7 @@
 schema = 2
 name = "C-RADIOv3"
 summary = "C-RADIOv3 (NVIDIA 2025), the commercially licensed agglomerative ViT distilled from CLIP, SigLIP 2, DINOv2 and SAM: ViT-B / L / H / g at patch 16, dense patch tokens and a 3-teacher summary embedding at any size up to 2048 px."
-tier = "experimental"
+tier = "stable"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
 uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports (CUDA graphs, the timm feature walk)
 limitations = [
@@ -49,6 +49,24 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+
+[[papers]]
+title = "RADIOv2.5: Improved Baselines for Agglomerative Vision Foundation Models"
+url = "https://arxiv.org/abs/2412.07679"
+date = "2024-12-10"
+venue = "CVPR 2025"
+
+[[papers]]
+title = "AM-RADIO: Agglomerative Vision Foundation Model -- Reduce All Domains Into One"
+url = "https://arxiv.org/abs/2312.06709"
+date = "2023-12-10"
+venue = "CVPR 2024"
+
+[[papers]]
+title = "PHI-S: Distribution Balancing for Label-Free Multi-Teacher Distillation"
+url = "https://arxiv.org/abs/2410.01680"
+date = "2024-10-02"
+venue = "arXiv"
 
 [[variants]]
 id = "c-radio-v3-b"

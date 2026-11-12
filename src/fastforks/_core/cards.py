@@ -9,6 +9,7 @@ CONTRIBUTING.md ("Model cards").
 from __future__ import annotations
 
 import dataclasses
+import re
 import tomllib
 from dataclasses import dataclass, field
 from types import MappingProxyType
@@ -158,6 +159,42 @@ class Io:
 
 
 @dataclass(frozen=True)
+class Paper:
+    """A publication the family's models come from (card `[[papers]]`).
+
+    Attributes:
+        title: Exact title.
+        url: Abstract page (arXiv `abs/` where there is one).
+        date: First public release, `YYYY-MM-DD` (the arXiv v1 date where there is one).
+        venue: Where it was published, e.g. `"CVPR 2024"`, or `"arXiv"`.
+        variants: Ids of the variants it covers; empty: all of the family's.
+    """
+
+    title: str
+    url: str
+    date: str
+    venue: str
+    variants: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Official:
+    """The authors' own implementation, where `upstream` is not it (card `[[upstream.official]]`).
+
+    Attributes:
+        repo: URL of the authors' code; empty if they released none.
+        framework: Its framework, e.g. `"TensorFlow"`, `"JAX"`, `"PyTorch"`.
+        reason: Why fastforks follows `upstream` instead, one sentence.
+        variants: Ids of the variants it covers (a family of models from several authors); empty: all.
+    """
+
+    repo: str
+    framework: str
+    reason: str
+    variants: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Variant:
     """One loadable model, e.g. `s2m2-s` revision 1.
 
@@ -242,6 +279,9 @@ class ModelCard:
         licence_notes: Short factual licence notes (1-3 sentences each) on why a variant's commercial status is not a
             plain `yes`/`no` from its licence strings (inherited non-commercial terms, custom licence terms, unclear
             training-data terms); empty if there is nothing to add.
+        papers: The publications the variants come from (card `[[papers]]`).
+        official: The authors' own implementations where `upstream` is a port of them (e.g. timm, transformers, a
+            PyTorch port of TensorFlow code); empty if `upstream` is the authors' code.
     """
 
     family: str
@@ -273,6 +313,8 @@ class ModelCard:
     option_max: Mapping[str, float] = field(default_factory=lambda: MappingProxyType({}))
     option_choices: Mapping[str, tuple[Any, ...]] = field(default_factory=lambda: MappingProxyType({}))
     option_effect: Mapping[str, OptionEffect] = field(default_factory=lambda: MappingProxyType({}))
+    papers: tuple[Paper, ...] = ()
+    official: tuple[Official, ...] = ()
     option_aliases: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
     variant_ref: str | None = None
 
@@ -593,10 +635,11 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
     _unknown_keys(
         data,
         {"schema", "name", "summary", "tier", "outputs", "uses", "upstream", "licence", "io", "params", "options"}
-        | {"modes", "variants", "output", "limitations", "licence_notes"},
+        | {"modes", "variants", "output", "limitations", "licence_notes", "papers"},
         where,
     )
     up = _get(data, "upstream", dict, where)
+    _unknown_keys(up, {"repo", "commit", "official"}, f"{where} [upstream]")
     outputs = _str_tuple(_get(data, "outputs", list, where), f"{where} outputs")
     output_t = _get(data, "output", dict, where) if "output" in data else {}
     output_info = _output(task, outputs, output_t, where)
@@ -647,6 +690,15 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
     if not variants:
         msg = f"{where}: no variants"
         raise CardError(msg)
+    ids = {v.id for v in variants}
+    papers = tuple(_paper(p, ids, f"{where} [[papers]] #{i}") for i, p in enumerate(_get(data, "papers", list, where)))
+    if not papers:
+        msg = f"{where}: no [[papers]] (the publication of the models; a tech report or model card if there is none)"
+        raise CardError(msg)
+    official = tuple(
+        _official(o, ids, f"{where} [[upstream.official]] #{i}")
+        for i, o in enumerate(_get(up, "official", list, where) if "official" in up else [])
+    )
     options = (
         {k: _option(v, f"{where} [options] {k}") for k, v in _get(data, "options", dict, where).items()}
         if "options" in data
@@ -685,7 +737,40 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
         mps_kernels_dtype=_literal(max_t["mps_dtype"], Dtype, f"{where} [modes.kernels]")
         if "mps_dtype" in max_t
         else None,
+        papers=papers,
+        official=official,
     )
+
+
+def _paper(t: dict[str, Any], ids: set[str], where: str) -> Paper:
+    _unknown_keys(t, {"title", "url", "date", "venue", "variants"}, where)
+    date = _get(t, "date", str, where)
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        msg = f"{where}: date must be YYYY-MM-DD, got {date!r}"
+        raise CardError(msg)
+    url = _get(t, "url", str, where)
+    if not url.startswith("https://"):
+        msg = f"{where}: url must be https, got {url!r}"
+        raise CardError(msg)
+    variants = _str_tuple(t.get("variants", []), f"{where} variants")
+    if unknown := set(variants) - ids:
+        msg = f"{where}: variants {sorted(unknown)} are not in this card"
+        raise CardError(msg)
+    return Paper(_get(t, "title", str, where), url, date, _get(t, "venue", str, where), variants)
+
+
+def _official(t: dict[str, Any], ids: set[str], where: str) -> Official:
+    _unknown_keys(t, {"repo", "framework", "reason", "variants"}, where)
+    variants = _str_tuple(t.get("variants", []), f"{where} variants")
+    if unknown := set(variants) - ids:
+        msg = f"{where}: variants {sorted(unknown)} are not in this card"
+        raise CardError(msg)
+    reason = _get(t, "reason", str, where).strip()
+    if not reason:
+        msg = f"{where}: empty reason (why fastforks follows upstream instead of the authors' code)"
+        raise CardError(msg)
+    repo = _get(t, "repo", str, where) if "repo" in t else ""
+    return Official(repo, _get(t, "framework", str, where), reason, variants)
 
 
 def _no_kernels_reason(max_t: dict[str, Any], where: str) -> str:

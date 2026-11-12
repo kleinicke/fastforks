@@ -9,6 +9,30 @@ uses = ["cnn_kernels", "cuda_graphs", "seginfer"]  # fastforks.shared modules th
 repo = "https://github.com/open-mmlab/mmsegmentation"
 commit = "c685fe6767c4cadf6b051983ca6208f1b9d1ccb8"  # v1.2.2; net.py condenses its backbones / heads (and mmcv's ConvModule)
 
+[[upstream.official]]
+repo = "https://github.com/shelhamer/fcn.berkeleyvision.org"
+framework = "Caffe"
+reason = "The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights."
+variants = ["fcn-r101-d8-ade20k"]
+
+[[upstream.official]]
+repo = "https://github.com/hszhao/PSPNet"
+framework = "Caffe"
+reason = "The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights."
+variants = ["pspnet-r101-d8-ade20k"]
+
+[[upstream.official]]
+repo = "https://github.com/tensorflow/models/tree/master/research/deeplab"
+framework = "TensorFlow"
+reason = "The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights."
+variants = ["deeplabv3-r101-d8-ade20k", "deeplabv3plus-r101-d8-ade20k"]
+
+[[upstream.official]]
+repo = "https://github.com/HRNet/HRNet-Semantic-Segmentation"
+framework = "PyTorch"
+reason = "The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights."
+variants = ["hrnet-w48-fcn-ade20k"]
+
 [licence]
 code = "Apache-2.0"  # open-mmlab/mmsegmentation LICENSE
 weights = "Apache-2.0"  # the model zoo checkpoints are released with the repository (README: Apache 2.0)
@@ -41,6 +65,41 @@ kernels = ["igev", "cutlass_conv", "cudnn_hacc", "seg_conv", "seg_up"]  # fastfo
 label_set = "ade20k-150"
 
 # Not added (yet): SegNeXt (MSCAN + Hamburger NMF head, random NMF init at test time) and the Cityscapes-only nets.
+
+[[papers]]
+title = "Fully Convolutional Networks for Semantic Segmentation"
+url = "https://arxiv.org/abs/1411.4038"
+date = "2014-11-14"
+venue = "CVPR 2015"
+variants = ["fcn-r101-d8-ade20k"]
+
+[[papers]]
+title = "Pyramid Scene Parsing Network"
+url = "https://arxiv.org/abs/1612.01105"
+date = "2016-12-04"
+venue = "CVPR 2017"
+variants = ["pspnet-r101-d8-ade20k"]
+
+[[papers]]
+title = "Rethinking Atrous Convolution for Semantic Image Segmentation"
+url = "https://arxiv.org/abs/1706.05587"
+date = "2017-06-17"
+venue = "arXiv"
+variants = ["deeplabv3-r101-d8-ade20k"]
+
+[[papers]]
+title = "Encoder-Decoder with Atrous Separable Convolution for Semantic Image Segmentation"
+url = "https://arxiv.org/abs/1802.02611"
+date = "2018-02-07"
+venue = "ECCV 2018"
+variants = ["deeplabv3plus-r101-d8-ade20k"]
+
+[[papers]]
+title = "Deep High-Resolution Representation Learning for Visual Recognition"
+url = "https://arxiv.org/abs/1908.07919"
+date = "2019-08-20"
+venue = "TPAMI 2020"
+variants = ["hrnet-w48-fcn-ade20k"]
 
 [[variants]]
 # FCN (Long et al. 2015) on a dilated ResNet-101-V1c (output stride 8); config fcn_r101-d8_512x512_160k_ade20k

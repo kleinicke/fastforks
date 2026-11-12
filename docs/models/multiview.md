@@ -32,6 +32,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [MapAnything: Universal Feed-Forward Metric 3D Reconstruction](https://arxiv.org/abs/2509.13414), 3DV 2026, 2025-09-16
 - Original code: <https://github.com/facebookresearch/map-anything> at `3d10cf7`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -86,6 +87,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 
 <details><summary>Details</summary>
 
+- Paper: [MVSAnywhere: Zero-Shot Multi-View Stereo](https://arxiv.org/abs/2503.22430), CVPR 2025, 2025-03-28
 - Original code: <https://github.com/nianticlabs/mvsanywhere> at `5bd49bb`
 - Code licence: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (noncommercial); files: `LICENSE`, `LICENSE-antialiased-cnns.md`
 - Weights licence: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (assumed from code)
@@ -138,6 +140,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [PatchmatchNet: Learned Multi-View Patchmatch Stereo](https://arxiv.org/abs/2012.01411), CVPR 2021, 2020-12-02
 - Original code: <https://github.com/FangjinhuaWang/PatchmatchNet> at `8dc6cb4`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -189,6 +192,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 <details><summary>Details</summary>
 
+- Paper: [VGGT: Visual Geometry Grounded Transformer](https://arxiv.org/abs/2503.11651), CVPR 2025, 2025-03-14
 - Original code: <https://github.com/facebookresearch/vggt> at `a288dd0`
 - Code licence: LicenseRef-VGGT (permissive); files: `LICENSE`
 - Weights licence: CC-BY-NC-4.0
@@ -242,6 +246,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 
 <details><summary>Details</summary>
 
+- Paper: [VGGT-Ω](https://arxiv.org/abs/2605.15195), CVPR 2026, 2026-05-14
 - Original code: <https://github.com/facebookresearch/vggt-omega> at `48b23c8`
 - Code licence: LicenseRef-FAIR-Noncommercial-Research (noncommercial); files: `LICENSE`
 - Weights licence: LicenseRef-FAIR-Noncommercial-Research

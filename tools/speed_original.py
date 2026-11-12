@@ -72,6 +72,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
     ap.add_argument("--runs", type=int, default=5)
     ap.add_argument("--max-seconds", type=float, default=200.0)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--part", default="call", choices=("call", "network"), help="network: pose network alone")
     a = ap.parse_args()
     t0 = time.perf_counter()
     bu = _original.bench()
@@ -84,7 +85,8 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
     out.parent.mkdir(parents=True, exist_ok=True)
     have = set()
     if out.exists():
-        have = {(r["ref"], r["tier"], r.get("input")) for r in map(json.loads, out.read_text().splitlines())}
+        rows = [r for r in map(json.loads, out.read_text().splitlines()) if r.get("part", "call") == a.part]
+        have = {(r["ref"], r["tier"], r.get("input")) for r in rows}
     torch.zeros(1, device="cuda").sum().item()
     for ref in a.refs.split(","):
         full, card, _ = _original.full_ref(a.task, ref)
@@ -98,6 +100,8 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
             if time.perf_counter() - t0 > a.max_seconds:
                 return 3
             base: dict[str, Any] = {"ref": ref, "task": a.task, "mode": "upstream", "tier": tier}
+            if a.part != "call":
+                base["part"] = a.part
             torch.cuda.empty_cache()
             try:
                 torch.cuda.synchronize()
@@ -106,7 +110,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
                     o = _Features(ref, tier)
                     ins = [("224x224", "synthetic (fastforks bench)", (bu.synth_u8(224, 224)[None],))]
                 else:
-                    o = _original.load(a.task, ref, tier)
+                    o = _original.load(a.task, ref, tier, a.part)
                     ins = adapter.inputs(full) if hasattr(adapter, "inputs") else bu.inputs_for(a.task)
                 torch.cuda.synchronize()
                 load_s = time.perf_counter() - tb

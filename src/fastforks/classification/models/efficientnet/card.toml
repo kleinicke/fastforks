@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet"
+framework = "TensorFlow"
+reason = "The authors' code is TensorFlow; torchvision's PyTorch port provides the tv_in1k weights."
+
 [licence]
 code = "BSD-3-Clause"  # torchvision
 weights = "assumed from code"  # torchvision states no separate weights licence
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks"
+url = "https://arxiv.org/abs/1905.11946"
+date = "2019-05-28"
+venue = "ICML 2019"
 
 [[variants]]
 id = "efficientnet_b0.tv_in1k"

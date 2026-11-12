@@ -103,6 +103,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [AANet: Adaptive Aggregation Network for Efficient Stereo Matching](https://arxiv.org/abs/2004.09548), CVPR 2020, 2020-04-20
 - Original code: <https://github.com/haofeixu/aanet> at `8d0d747e69bb`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0 (assumed from code)
@@ -169,6 +170,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 <details><summary>Details</summary>
 
+- Paper: [BridgeDepth: Bridging Monocular and Stereo Reasoning with Latent Alignment](https://arxiv.org/abs/2508.04611), ICCV 2025, 2025-08-06
 - Original code: <https://github.com/aeolusguan/BridgeDepth> at `9a231601e698`
 - Code licence: MIT (permissive); files: `LICENSE`, `LICENSE-torchvision`
 - Weights licence: CC-BY-NC-4.0
@@ -231,7 +233,10 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 
 <details><summary>Details</summary>
 
+- Paper: [FoundationStereo: Zero-Shot Stereo Matching](https://arxiv.org/abs/2501.09898), CVPR 2025, 2025-01-17 (for `c-foundationstereo-s`)
+- Paper: [Fast-FoundationStereo: Real-Time Zero-Shot Stereo Matching](https://arxiv.org/abs/2512.11130), CVPR 2026, 2025-12-11 (for `c-fast-foundationstereo`, `fast-foundationstereo`)
 - Original code: <https://github.com/NVIDIA/tao_pytorch_backend> at `77fb1a4bca02`
+- Authors' code, not used: <https://github.com/NVlabs/FoundationStereo> (PyTorch): The research repos (NVlabs/FoundationStereo, NVlabs/Fast-FoundationStereo) have non-commercial licences; NVIDIA's TAO code is Apache-2.0 and its commercial checkpoints load there.
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`, `NOTICE`
 - Weights licence: LicenseRef-NVIDIA-Open-Model-License
   - `c-fast-foundationstereo`: LicenseRef-NVIDIA-Open-Model-Agreement
@@ -303,6 +308,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Cascade Cost Volume for High-Resolution Multi-View Stereo and Stereo Matching](https://arxiv.org/abs/1912.06378), CVPR 2020, 2019-12-13
 - Original code: <https://github.com/alibaba/cascade-stereo> at `2ae7da65515c`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -361,6 +367,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [CFNet: Cascade and Fused Cost Volume for Robust Stereo Matching](https://arxiv.org/abs/2104.04314), CVPR 2021, 2021-04-09
 - Original code: <https://github.com/gallenszl/CFNet> at `982230dd3605`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -412,6 +419,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Correlate-and-Excite: Real-Time Stereo Matching via Guided Cost Volume Excitation](https://arxiv.org/abs/2108.05773), IROS 2021, 2021-08-12
 - Original code: <https://github.com/antabangun/coex> at `a98b37d33f37`
 - Code licence: GPL-3.0-only (copyleft); files: `LICENSE`
 - Weights licence: GPL-3.0-only (assumed from code)
@@ -470,7 +478,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Practical Stereo Matching via Cascaded Recurrent Network with Adaptive Correlation](https://arxiv.org/abs/2203.11483), CVPR 2022, 2022-03-22
 - Original code: <https://github.com/megvii-research/CREStereo> at `ad3a1613bded`
+- Authors' code, not used: <https://github.com/megvii-research/CREStereo> (MegEngine): MegEngine has no build for current GPUs (sm_120); the benchmarked original is a community PyTorch translation that loads the authors' weights.
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0 (assumed from code)
 - Licence evidence: <https://github.com/megvii-research/CREStereo/blob/ad3a1613bdedd88b93247e5f002cb7c80799762d/README.md#L82>
@@ -527,6 +537,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 <details><summary>Details</summary>
 
+- Paper: [DEFOM-Stereo: Depth Foundation Model Based Stereo Matching](https://arxiv.org/abs/2501.09466), CVPR 2025, 2025-01-16
 - Original code: <https://github.com/Insta360-Research-Team/DEFOM-Stereo> at `5b27591d8395`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: CC-BY-NC-4.0
@@ -585,6 +596,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [High-Frequency Stereo Matching Network](https://openaccess.thecvf.com/content/CVPR2023/html/Zhao_High-Frequency_Stereo_Matching_Network_CVPR_2023_paper.html), CVPR 2023, 2023-06-18
 - Original code: <https://github.com/David-Zhao-1997/High-frequency-Stereo-Matching-Network> at `c10475fe30ff`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -643,6 +655,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Accurate and Efficient Stereo Matching via Attention Concatenation Volume](https://arxiv.org/abs/2209.12699), TPAMI 2023, 2022-09-23
 - Original code: <https://github.com/gangweix/Fast-ACVNet> at `61d5375e1816`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -732,6 +745,7 @@ Commercial use: **no** (code: LicenseRef-NVIDIA-Source-Code-License-NC AND Apach
 
 <details><summary>Details</summary>
 
+- Paper: [FoundationStereo: Zero-Shot Stereo Matching](https://arxiv.org/abs/2501.09898), CVPR 2025, 2025-01-17
 - Original code: <https://github.com/NVlabs/FoundationStereo> at `6e8806816b53`
 - Code licence: LicenseRef-NVIDIA-Source-Code-License-NC AND Apache-2.0 (noncommercial); files: `LICENSE`
 - Weights licence: LicenseRef-NVIDIA-Source-Code-License-NC
@@ -793,6 +807,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Global Regulation and Excitation via Attention Tuning for Stereo Matching](https://arxiv.org/abs/2509.15891), ICCV 2025, 2025-09-19
 - Original code: <https://github.com/JarvisLee0423/GREAT-Stereo> at `2a6b1efede8c`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0 (assumed from code)
@@ -861,6 +876,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Group-wise Correlation Stereo Network](https://arxiv.org/abs/1903.04025), CVPR 2019, 2019-03-10
 - Original code: <https://github.com/xy-guo/GwcNet> at `0987074f48b0`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -923,6 +939,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [HITNet: Hierarchical Iterative Tile Refinement Network for Real-time Stereo Matching](https://arxiv.org/abs/2007.12140), CVPR 2021, 2020-07-23
 - Original code: <https://github.com/google-research/google-research> at `f200f2b89d29`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0 (assumed from code)
@@ -991,6 +1008,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [IGEV++: Iterative Multi-range Geometry Encoding Volumes for Stereo Matching](https://arxiv.org/abs/2409.00638), IEEE TPAMI 2025, 2024-09-01
 - Original code: <https://github.com/gangweix/IGEV-plusplus> at `099dec979897`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -1067,6 +1085,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Iterative Geometry Encoding Volume for Stereo Matching](https://arxiv.org/abs/2303.06615), CVPR 2023, 2023-03-12
 - Original code: <https://github.com/gangweix/IGEV> at `4a3d937aab78`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -1147,6 +1166,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Lite Any Stereo V2: Faster and Stronger Efficient Zero-Shot Stereo Matching](https://arxiv.org/abs/2606.24457), arXiv, 2026-06-23
 - Original code: <https://github.com/TomTomTommi/LiteAnyStereo> at `8c97bd4c4da3`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT
@@ -1222,6 +1242,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [MoCha-Stereo: Motif Channel Attention Network for Stereo Matching](https://arxiv.org/abs/2404.06842), CVPR 2024, 2024-04-10 (for `mocha-v1-sceneflow`)
 - Original code: <https://github.com/ZYangChen/MoCha-Stereo> at `78c5889c467f`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -1277,6 +1298,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 <details><summary>Details</summary>
 
+- Paper: [MonSter: Marry Monodepth to Stereo Unleashes Power](https://arxiv.org/abs/2501.08643), CVPR 2025, 2025-01-15
 - Original code: <https://github.com/Junda24/MonSter> at `49016c9a72b4`
 - Code licence: LicenseRef-noncommercial (noncommercial); files: `LICENSE`
 - Weights licence: LicenseRef-noncommercial AND CC-BY-NC-4.0
@@ -1334,6 +1356,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 <details><summary>Details</summary>
 
+- Paper: [MonSter++: Unified Stereo Matching, Multi-view Stereo, and Real-time Stereo with Monodepth Priors](https://arxiv.org/abs/2501.08643), arXiv, 2025-01-15
 - Original code: <https://github.com/Junda24/MonSter-plusplus> at `9167101af8fb`
 - Code licence: LicenseRef-noncommercial (noncommercial); files: `LICENSE`
 - Weights licence: LicenseRef-noncommercial AND CC-BY-NC-4.0
@@ -1385,6 +1408,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Neural Markov Random Field for Stereo Matching](https://arxiv.org/abs/2403.11193), CVPR 2024, 2024-03-17
 - Original code: <https://github.com/aeolusguan/NMRF> at `a50bd8f407ae`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -1436,6 +1460,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Pyramid Stereo Matching Network](https://arxiv.org/abs/1803.08669), CVPR 2018, 2018-03-23
 - Original code: <https://github.com/JiaRenChang/PSMNet> at `87ac9093afbf`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -1487,6 +1512,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [RAFT-Stereo: Multilevel Recurrent Field Transforms for Stereo Matching](https://arxiv.org/abs/2109.07547), 3DV 2021, 2021-09-15
 - Original code: <https://github.com/princeton-vl/RAFT-Stereo> at `6e93ed2169bd`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -1554,6 +1580,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 <details><summary>Details</summary>
 
+- Paper: [MonSter++: Unified Stereo Matching, Multi-view Stereo, and Real-time Stereo with Monodepth Priors](https://arxiv.org/abs/2501.08643), arXiv, 2025-01-15
 - Original code: <https://github.com/Junda24/MonSter-plusplus> at `9167101af8fb`
 - Code licence: LicenseRef-noncommercial (noncommercial); files: `LICENSE`
 - Weights licence: LicenseRef-noncommercial
@@ -1608,6 +1635,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 <details><summary>Details</summary>
 
+- Paper: [S2M2: Scalable Stereo Matching Model for Reliable Depth Estimation](https://arxiv.org/abs/2507.13229), ICCV 2025, 2025-07-17
 - Original code: <https://github.com/junhong-3dv/s2m2> at `8f3bd785df59`
 - Code licence: CC-BY-NC-4.0 (noncommercial); files: `LICENSE.md`
 - Weights licence: CC-BY-NC-4.0
@@ -1678,6 +1706,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Selective-Stereo: Adaptive Frequency Information Selection for Stereo Matching](https://arxiv.org/abs/2403.00486), CVPR 2024, 2024-03-01
 - Original code: <https://github.com/Windsrain/Selective-Stereo> at `c39acbfef9fb`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
@@ -1766,6 +1795,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 
 <details><summary>Details</summary>
 
+- Paper: [WAFT-Stereo: Warping-Alone Field Transforms for Stereo Matching](https://arxiv.org/abs/2603.24836), arXiv, 2026-03-25
 - Original code: <https://github.com/princeton-vl/WAFT-Stereo> at `c534320860f4`
 - Code licence: BSD-3-Clause (permissive); files: `LICENSE`
 - Weights licence: BSD-3-Clause

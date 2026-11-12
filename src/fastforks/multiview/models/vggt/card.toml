@@ -1,7 +1,7 @@
 schema = 2
 name = "VGGT"
 summary = "VGGT, Visual Geometry Grounded Transformer (Wang et al. 2025): cameras, depth maps and point maps of every view from unposed images in one forward pass. A DINOv2 ViT-L patch embedding feeds 24 alternating frame / global attention blocks; a camera head and two DPT heads decode the tokens."
-tier = "experimental"
+tier = "stable"
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (DINOv2 ViT-L for the kernels patch embed)
 outputs = ["depth", "confidence", "world_points", "intrinsics", "cam_to_world", "points_confidence"]  # extra: confidence of world_points [V, H, W]
 
@@ -39,6 +39,12 @@ mps_dtypes = ["float32"]
 kernels = ["fastbb", "cudnn_hacc"]
 mps_kernels = ["vggt_metal"]  # the aggregator's q / k LayerNorm + RoPE
 mps_dtype = "float32"  # MPS runs VGGT in float32 only (mps_dtypes)
+
+[[papers]]
+title = "VGGT: Visual Geometry Grounded Transformer"
+url = "https://arxiv.org/abs/2503.11651"
+date = "2025-03-14"
+venue = "CVPR 2025"
 
 [[variants]]
 id = "vggt-1b"

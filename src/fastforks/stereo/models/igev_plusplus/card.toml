@@ -1,7 +1,7 @@
 schema = 2
 name = "IGEV++"
 summary = "IGEV++ (Xu et al. 2025): IGEV-Stereo with geometry encoding volumes for small, medium and large disparity ranges (48 bins each at 1/4 resolution, up to 768 px), aggregated separately and blended per pixel in the ConvGRU update, 32 iterations."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "igev_blocks", "mobilenetv2"]  # fastforks.shared modules this family imports
 limitations = [
@@ -44,6 +44,12 @@ mps_kernels = ["stereo_metal"]
 
 # Upstream also publishes RT-IGEV++ weights (another architecture): not part of this family. All variants run with
 # upstream's evaluation settings (max_disp 768, 32 iterations).
+
+[[papers]]
+title = "IGEV++: Iterative Multi-range Geometry Encoding Volumes for Stereo Matching"
+url = "https://arxiv.org/abs/2409.00638"
+date = "2024-09-01"
+venue = "IEEE TPAMI 2025"
 
 [[variants]]
 id = "igev-plusplus-sceneflow"

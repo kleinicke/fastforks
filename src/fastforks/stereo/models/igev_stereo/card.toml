@@ -38,6 +38,12 @@ mps_kernels = ["stereo_metal"]
 
 # Upstream also publishes dtu.ckpt (IGEV-MVS, another architecture): not part of this family.
 
+[[papers]]
+title = "Iterative Geometry Encoding Volume for Stereo Matching"
+url = "https://arxiv.org/abs/2303.06615"
+date = "2023-03-12"
+venue = "CVPR 2023"
+
 [[variants]]
 id = "igev-stereo-sceneflow"
 revision = 1

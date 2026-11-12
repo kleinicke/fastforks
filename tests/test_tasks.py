@@ -58,6 +58,7 @@ def card_data(outputs, output, io=None):
         "outputs": outputs,
         "output": output,
         "upstream": {"repo": "https://example.com/fake", "commit": "0" * 40},
+        "papers": [{"title": "Fake", "url": "https://example.com/paper", "date": "2020-01-01", "venue": "arXiv"}],
         "licence": {"code": "MIT", "weights": "MIT", "files": [], "training_data": ["unstated"]},
         "io": io or {"input": "0-1"},
         "modes": {"portable": {"cuda_dtype": "float32"}},

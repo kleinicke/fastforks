@@ -1,7 +1,7 @@
 schema = 2
 name = "BridgeDepth"
 summary = "BridgeDepth (Guan et al. 2025): Depth Anything V2 (ViT-L) features combined with NMRF stereo hypotheses; window-attention message passing between mono and stereo embeddings, inference at 1/8 resolution plus a 1/4 refinement."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
 licence_notes = [
@@ -43,6 +43,12 @@ mps_kernels = ["stereo_metal"]
 # Upstream also publishes l_sf (a
 # Scene Flow pretraining checkpoint for fine-tuning; fails on real images: not added), rvc and the KITTI / ETH3D /
 # Middlebury fine-tunes (not added yet).
+
+[[papers]]
+title = "BridgeDepth: Bridging Monocular and Stereo Reasoning with Latent Alignment"
+url = "https://arxiv.org/abs/2508.04611"
+date = "2025-08-06"
+venue = "ICCV 2025"
 
 [[variants]]
 id = "bridgedepth-sf"

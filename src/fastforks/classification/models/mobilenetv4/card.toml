@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/tensorflow/models/blob/master/official/vision/modeling/backbones/mobilenet.py"
+framework = "TensorFlow"
+reason = "The authors' code is TensorFlow; timm's PyTorch implementation carries its own ImageNet-1k weights (e500_r256_in1k)."
+
 [licence]
 code = "Apache-2.0"  # timm
 weights = "Apache-2.0"  # the timm Hugging Face model card
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "MobileNetV4 -- Universal Models for the Mobile Ecosystem"
+url = "https://arxiv.org/abs/2404.10518"
+date = "2024-04-16"
+venue = "ECCV 2024"
 
 [[variants]]
 id = "mobilenetv4_conv_medium.e500_r256_in1k"

@@ -1,7 +1,7 @@
 schema = 2
 name = "AANet"
 summary = "AANet (Xu and Zhang 2020): sparse deformable-sampling cost aggregation within and across scales on a 2-D correlation pyramid, without 3-D convolutions."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
 limitations = [
@@ -44,6 +44,12 @@ mps_kernels = ["stereo_metal"]
 
 # Upstream also links KITTI 2012 / 2015 fine-tuned weights of both networks and the StereoNet / GC-Net / PSMNet / GA-Net
 # variants with adaptive aggregation (MODEL_ZOO.md): not added (not available locally). The network code supports them.
+
+[[papers]]
+title = "AANet: Adaptive Aggregation Network for Efficient Stereo Matching"
+url = "https://arxiv.org/abs/2004.09548"
+date = "2020-04-20"
+venue = "CVPR 2020"
 
 [[variants]]
 id = "aanet-sceneflow"

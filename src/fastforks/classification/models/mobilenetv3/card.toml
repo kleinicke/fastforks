@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/tensorflow/models/tree/master/research/slim/nets/mobilenet"
+framework = "TensorFlow"
+reason = "The authors' code is TensorFlow; torchvision's PyTorch port provides the tv2 re-trained weights."
+
 [licence]
 code = "BSD-3-Clause"  # torchvision
 weights = "assumed from code"  # torchvision states no separate weights licence
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "Searching for MobileNetV3"
+url = "https://arxiv.org/abs/1905.02244"
+date = "2019-05-06"
+venue = "ICCV 2019"
 
 [[variants]]
 id = "mobilenet_v3_large.tv2_in1k"

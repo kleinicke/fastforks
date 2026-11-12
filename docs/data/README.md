@@ -100,6 +100,19 @@ Rows with `side` = `upstream` and `mode` = `upstream-tensorrt` are a like-for-li
 show: a TensorRT fp16 engine built from the original network (`da3mono-large`). `timed` says what one call covers,
 `net_input` the resolution the original runs its network at, and `note` the ONNX export route.
 
+Rows with `side` = `upstream` and `mode` = `upstream-network-default` (fp32) / `upstream-network` (the authors'
+autocast) time the pose originals' network alone (`tools/speed_original.py --part network`): the crops of all person
+boxes are made by the original's own pipeline before the timing and passed as one batch; the decode is not timed.
+`timed` says what one call covers. The `speed.jsonl` original rows of the same models include crop and decode, as the
+library's call does; these rows separate the two. The website shows them, the docs tables do not.
+
+Rows with `mode` = `portable-sections` / `kernels-sections` split one fastforks pose call (bench input, 15 people) into
+its steps, each timed on its own with the device synchronised before and after: `crop_ms` (the GPU crops of all boxes),
+`network_ms` (the network on the crops; with `network_has_decode` the kernels' CUDA graph of network + decode) and
+`rest_ms` = `ms` − crop − network (decode, the mapping back to the image, input conversion). The website shows them
+as notes under the speed rows and adds crop + rest to the TensorRT engine time (which covers the network only) as an
+estimated full call; the docs tables do not show them.
+
 ## Non-default options: `speed_options.jsonl`
 
 Speed and peak memory of a model loaded with a non-default option (`options`, e.g. `{"long_side": 1008}` of Depth

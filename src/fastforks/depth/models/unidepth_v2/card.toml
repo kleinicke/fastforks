@@ -1,7 +1,7 @@
 schema = 2
 name = "UniDepth V2"
 summary = "UniDepth V2 (Piccinelli et al. 2025): universal metric depth from a DINOv2 ViT-L encoder and a camera-prompted decoder; predicts depth, 3-D points, a confidence map and the pinhole intrinsics, or uses given intrinsics."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth", "points", "intrinsics", "confidence"]
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 layers and the fast ViT)
 limitations = [
@@ -36,6 +36,12 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc", "dpt_fused"]
+
+[[papers]]
+title = "UniDepthV2: Universal Monocular Metric Depth Estimation Made Simpler"
+url = "https://arxiv.org/abs/2502.20110"
+date = "2025-02-27"
+venue = "arXiv"
 
 [[variants]]
 id = "unidepth-v2-vitl14"

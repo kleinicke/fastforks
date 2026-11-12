@@ -29,7 +29,7 @@ from fastforks._core.sizes import card_size_lines
 from fastforks._core.tasks import spec
 
 if TYPE_CHECKING:
-    from fastforks._core.cards import ModelCard, Variant
+    from fastforks._core.cards import ModelCard, Official, Paper, Variant
 
 ROOT = Path(__file__).resolve().parents[1]
 _COMMERCIAL = {"yes": "yes", "no": "**no**", "unclear": "unclear (treat as no)"}
@@ -682,6 +682,19 @@ def _name(v: Variant) -> str:
     return v.id.split(".", 1)[0] if v.default_tag else v.id
 
 
+def _for(variants: tuple[str, ...]) -> str:
+    return f" (for {', '.join(f'`{v}`' for v in variants)})" if variants else ""
+
+
+def _paper(p: Paper) -> str:
+    return f"[{p.title}]({p.url}), {p.venue}, {p.date}{_for(p.variants)}"
+
+
+def _official(o: Official) -> str:
+    where = f"<{o.repo}> ({o.framework})" if o.repo else o.framework
+    return f"{where}{_for(o.variants)}: {o.reason}"
+
+
 def _option(card: ModelCard, name: str) -> str:
     """`name` = default with its bounds and what it changes if not the outputs (`ModelCard.option_bounds`)."""
     notes = [b for b in (card.option_bounds(name), card.option_effect.get(name, "")) if b]
@@ -888,7 +901,9 @@ def render(task: str) -> str:
             "",
             "<details><summary>Details</summary>",
             "",
+            *(f"- Paper: {_paper(x)}" for x in card.papers),
             f"- Original code: <{card.upstream}> at `{card.upstream_commit[:12]}`",
+            *(f"- Authors' code, not used: {_official(x)}" for x in card.official),
             f"- Code licence: {lic.code} ({lic.code_class}); files: {', '.join(f'`{f}`' for f in lic.files)}",
             f"- Weights licence: {licences.describe_weights(lic.weights, lic.code)}",
             *(

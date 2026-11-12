@@ -1,7 +1,7 @@
 schema = 2
 name = "GREAT-IGEV"
 summary = "GREAT-IGEV (Li et al. 2025): IGEV-Stereo with global attention (spatial, epipolar-row matching and volume attention) that builds an excitation-weighted cost volume, then IGEV's ConvGRU updates, 32 iterations."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "igev_blocks", "mobilenetv2"]  # fastforks.shared modules this family imports
 
@@ -42,6 +42,12 @@ mps_kernels = ["stereo_metal"]
 # Upstream also publishes GREAT-RAFT, GREAT-Selective, the "solid" GREAT-IGEV variants and GREAT-IGEV-DepthAny (other
 # architectures): not part of this family. Variants run with upstream's evaluation settings (32 iterations, max_disp
 # 768 for Middlebury, 192 for the others).
+
+[[papers]]
+title = "Global Regulation and Excitation via Attention Tuning for Stereo Matching"
+url = "https://arxiv.org/abs/2509.15891"
+date = "2025-09-19"
+venue = "ICCV 2025"
 
 [[variants]]
 id = "great-igev-sceneflow"

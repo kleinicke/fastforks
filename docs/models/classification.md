@@ -65,7 +65,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [ImageNet Classification with Deep Convolutional Neural Networks](https://papers.nips.cc/paper_files/paper/2012/hash/c399862d3b9d6b76c8436e924a68c45b-Abstract.html), NeurIPS 2012, 2012-12-03
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://code.google.com/archive/p/cuda-convnet/> (cuda-convnet (C++/CUDA)): The authors' cuda-convnet code is obsolete; torchvision's PyTorch AlexNet carries usable ImageNet weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -125,7 +127,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [A ConvNet for the 2020s](https://arxiv.org/abs/2201.03545), CVPR 2022, 2022-01-10
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/facebookresearch/ConvNeXt> (PyTorch): timm ships a maintained re-implementation with the same Meta ImageNet-1k/22k weights and a uniform API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/convnext_base.fb_in22k_ft_in1k/blob/67758fcbcf9f007ec7630bf8636b74a8f24e52a0/README.md>
@@ -247,7 +251,9 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 <details><summary>Details</summary>
 
+- Paper: [ConvNeXt V2: Co-designing and Scaling ConvNets with Masked Autoencoders](https://arxiv.org/abs/2301.00808), CVPR 2023, 2023-01-02
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/facebookresearch/ConvNeXt-V2> (PyTorch): timm re-implements the architecture and hosts the converted FCMAE fine-tuned weights.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: CC-BY-NC-4.0
 - Licence evidence: <https://huggingface.co/timm/convnextv2_base.fcmae_ft_in22k_in1k/blob/9e250ed8f88b436472d2b24af26f82a8aa8c719d/README.md>
@@ -296,7 +302,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Training data-efficient image transformers & distillation through attention](https://arxiv.org/abs/2012.12877), ICML 2021, 2020-12-23
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/facebookresearch/deit> (PyTorch): The authors' code is PyTorch, but timm's re-implementation is the maintained one and hosts the fb_in1k weights.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/deit_base_patch16_224.fb_in1k/blob/b78cc5532a69df6bcad9c3a8d76653fd20b31ac6/README.md>
@@ -345,7 +353,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Densely Connected Convolutional Networks](https://arxiv.org/abs/1608.06993), CVPR 2017, 2016-08-25
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/liuzhuang13/DenseNet> (Lua Torch (the same repo also lists Caffe/PyTorch ports by the authors)): The authors' code is Lua Torch; torchvision's PyTorch port carries ImageNet weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -394,7 +404,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/abs/2304.07193), TMLR 2024, 2023-04-14
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/facebookresearch/dinov2> (PyTorch): timm's port carries the same backbone weights and the linear head in a standard model interface.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_large_patch14_dinov2.lvd142m/blob/4741e1cafbf45415e77074bb0cb42dba76c8684a/README.md>
@@ -444,7 +456,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks](https://arxiv.org/abs/1905.11946), ICML 2019, 2019-05-28
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet> (TensorFlow): The authors' code is TensorFlow; torchvision's PyTorch port provides the tv_in1k weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -499,7 +513,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298), ICML 2021, 2021-04-01
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/google/automl/tree/master/efficientnetv2> (TensorFlow): The authors' code is TensorFlow; torchvision's PyTorch implementation carries its own ImageNet weights (tv_in1k, not Google's).
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -548,7 +564,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [EfficientViT: Multi-Scale Linear Attention for High-Resolution Dense Prediction](https://arxiv.org/abs/2205.14756), ICCV 2023, 2022-05-29
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/mit-han-lab/efficientvit> (PyTorch): timm ships a PyTorch port of the model with the released ImageNet weights, which fits the shared classification interface.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/efficientvit_b2.r288_in1k/blob/891530d0c5a400dd2d4549c81d433661b192abe1/README.md>
@@ -597,7 +615,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [EVA-02: A Visual Representation for Neon Genesis](https://arxiv.org/abs/2303.11331), Image and Vision Computing 2024 (vol. 149, 105171), 2023-03-20
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/baaivision/EVA> (PyTorch): timm re-implements the model with the released weights in a uniform API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/timm/eva02_large_patch14_448.mim_m38m_ft_in22k_in1k/blob/fae13da496eea422cb162dfdb693dc125b68f04d/README.md>
@@ -646,7 +666,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [FastViT: A Fast Hybrid Vision Transformer using Structural Reparameterization](https://arxiv.org/abs/2303.14189), ICCV 2023, 2023-03-24
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/apple/ml-fastvit> (PyTorch): timm carries the architecture and the apple_dist_in1k weights in its own, simpler API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: LicenseRef-Apple-Sample-Code
 - Licence evidence: <https://huggingface.co/timm/fastvit_sa24.apple_dist_in1k/blob/0b86f2b98f83274e9f03b6ddbcb3942b84efb839/README.md>
@@ -696,7 +718,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/abs/1512.00567), CVPR 2016, 2015-12-02
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/tensorflow/models/tree/master/research/slim> (TensorFlow): The authors' code is TensorFlow (TF-Slim); torchvision's PyTorch port carries the converted ImageNet weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -745,7 +769,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/abs/1801.04381), CVPR 2018, 2018-01-13
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/tensorflow/models/tree/master/research/slim/nets/mobilenet> (TensorFlow): The authors' code is TensorFlow; torchvision's PyTorch module is used, and the tv2 weights are torchvision's own retraining recipe, not the paper's checkpoint.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -794,7 +820,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Searching for MobileNetV3](https://arxiv.org/abs/1905.02244), ICCV 2019, 2019-05-06
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/tensorflow/models/tree/master/research/slim/nets/mobilenet> (TensorFlow): The authors' code is TensorFlow; torchvision's PyTorch port provides the tv2 re-trained weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -843,7 +871,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications](https://arxiv.org/abs/1704.04861), arXiv, 2017-04-17
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet_v1.md> (TensorFlow): The authors' code is TensorFlow; timm's PyTorch implementation provides the weights used here (timm-trained ra4 recipe, not Google's checkpoint).
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/mobilenetv1_100.ra4_e3600_r224_in1k/blob/6e88b523abded44469eafcd52f7832d5e0300b1b/README.md>
@@ -892,7 +922,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [MobileNetV4 -- Universal Models for the Mobile Ecosystem](https://arxiv.org/abs/2404.10518), ECCV 2024, 2024-04-16
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/tensorflow/models/blob/master/official/vision/modeling/backbones/mobilenet.py> (TensorFlow): The authors' code is TensorFlow; timm's PyTorch implementation carries its own ImageNet-1k weights (e500_r256_in1k).
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/mobilenetv4_conv_medium.e500_r256_in1k/blob/ad66898c045c1b5223ea3f2c0830b74cf2e75bac/README.md>
@@ -941,7 +973,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678), CVPR 2020, 2020-03-30
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/facebookresearch/pycls> (PyTorch): torchvision re-implements RegNet and provides its own retrained tv2 weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -992,7 +1026,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385), CVPR 2016, 2015-12-10
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/KaimingHe/deep-residual-networks> (Caffe): The authors' code and weights are Caffe; torchvision's PyTorch implementation is used, and the tv/tv2 weights are torchvision's own trainings.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -1052,7 +1088,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design](https://arxiv.org/abs/1807.11164), ECCV 2018, 2018-07-30
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/megvii-model/ShuffleNet-Series> (PyTorch): The authors' (Megvii) repo is not the maintained source of the ImageNet weights; torchvision's port is.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -1101,7 +1139,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [SqueezeNet: AlexNet-level accuracy with 50x fewer parameters and <0.5MB model size](https://arxiv.org/abs/1602.07360), arXiv, 2016-02-24
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/forresti/SqueezeNet> (Caffe): The authors' code is Caffe; torchvision's PyTorch port carries ported ImageNet weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -1150,7 +1190,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Swin Transformer: Hierarchical Vision Transformer using Shifted Windows](https://arxiv.org/abs/2103.14030), ICCV 2021, 2021-03-25
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/microsoft/Swin-Transformer> (PyTorch): timm re-implements the model and hosts the released weights in a uniform API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/timm/swin_base_patch4_window7_224.ms_in22k_ft_in1k/blob/a6a1eb2321b4f556fa0fa243fb777d47679f13c9/README.md>
@@ -1199,7 +1241,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Very Deep Convolutional Networks for Large-Scale Image Recognition](https://arxiv.org/abs/1409.1556), ICLR 2015, 2014-09-04
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://www.robots.ox.ac.uk/~vgg/research/very_deep/> (Caffe): The authors released Caffe models only; torchvision's PyTorch port carries the ImageNet weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -1248,7 +1292,10 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale](https://arxiv.org/abs/2010.11929), ICLR 2021, 2020-10-22
+- Paper: [How to train your ViT? Data, Augmentation, and Regularization in Vision Transformers](https://arxiv.org/abs/2106.10270), TMLR 2022, 2021-06-18
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/google-research/vision_transformer> (JAX): The authors' code is JAX; timm's PyTorch port carries the converted AugReg weights (further fine-tuned by timm).
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_base_patch16_224.augreg2_in21k_ft_in1k/blob/063c6c38a5d8510b2e57df480445e94b231dad2c/README.md>
@@ -1297,7 +1344,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Sigmoid Loss for Language Image Pre-Training](https://arxiv.org/abs/2303.15343), ICCV 2023, 2023-03-27
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/google-research/big_vision> (JAX): The authors' code is JAX (big_vision); timm's PyTorch port carries the converted weights, fine-tuned on ImageNet-1k.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_so400m_patch14_siglip_378.webli_ft_in1k/blob/efb07b5711bda4e3eb24630db9879e0832615ad4/README.md>
