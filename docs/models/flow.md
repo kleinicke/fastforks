@@ -386,9 +386,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>103<br>59.1<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
-| `neuflow-v2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.7<br>102<br>58.9<br>91.4<br>64.9 | 8694 / 9020<br>4367 / 4576<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
-| `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>103<br>58.9<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
+| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>71.3<br>59.1<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>2435 / 2478<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
+| `neuflow-v2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.7<br>71.2<br>58.9<br>91.4<br>64.9 | 8694 / 9020<br>4367 / 4576<br>2435 / 2478<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
+| `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>71.2<br>58.9<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>2435 / 2478<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
 
 <details><summary>Details</summary>
 

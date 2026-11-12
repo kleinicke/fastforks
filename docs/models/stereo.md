@@ -265,7 +265,7 @@ Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
-| `c-foundationstereo-s` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.202 | 1.25 / 0.202 | 1.25 / 0.201 | 1.24 / 0.202 |  |
+| `c-foundationstereo-s` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.202 | 1.25 / 0.201 | 1.25 / 0.201 | 1.24 / 0.202 |  |
 | `c-foundationstereo-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | out of memory | out of memory | 3.87 / 0.747 | 3.87 / 0.748 |  |
 | `c-fast-foundationstereo` | ETH3D two-view train, bad > 1 px % / EPE | 2.20 / 0.255 | 2.21 / 0.254 | 2.20 / 0.254 | 2.20 / 0.256 |  |
 | `c-fast-foundationstereo` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.82 / 1.861 | 7.82 / 1.858 | 7.81 / 1.853 | 7.82 / 1.856 |  |
@@ -1149,10 +1149,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `las2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 62.0<br>43.5<br>46.9<br>14.3<br>23.7<br>10.3 | 1676 / 1746<br>933 / 978<br>955 / 988<br>320 / 558<br>238 / 264<br>258 / 304 |
-| `las2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 79.1<br>52.4<br>54.1<br>18.3<br>28.6<br>13.2 | 1691 / 1762<br>948 / 1000<br>972 / 1026<br>329 / 572<br>252 / 300<br>343 / 386 |
-| `las2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 154<br>90.8<br>80.3<br>29.9<br>46.6<br>23.4 | 1753 / 1812<br>1010 / 1082<br>1036 / 1098<br>397 / 600<br>385 / 432<br>393 / 424 |
-| `las2-h` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>135<br>123<br>53.3<br>75.0<br>fails: TensorRT bug: Myelin internal error | 1839 / 1884<br>1022 / 1084<br>1050 / 1110<br>1021 / 1388<br>579 / 724<br>– |
+| `las2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 62.0<br>43.5<br>27.8<br>14.3<br>23.7<br>10.3 | 1676 / 1746<br>933 / 978<br>568 / 648<br>320 / 558<br>238 / 264<br>258 / 304 |
+| `las2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 79.1<br>52.4<br>37.1<br>18.3<br>28.6<br>13.2 | 1691 / 1762<br>948 / 1000<br>584 / 664<br>329 / 572<br>252 / 300<br>343 / 386 |
+| `las2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 154<br>90.8<br>75.7<br>29.9<br>46.6<br>23.4 | 1753 / 1812<br>1010 / 1082<br>648 / 716<br>397 / 600<br>385 / 432<br>393 / 424 |
+| `las2-h` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>135<br>113<br>53.3<br>75.0<br>fails: TensorRT bug: Myelin internal error | 1839 / 1884<br>1022 / 1084<br>1013 / 1066<br>1021 / 1388<br>579 / 724<br>– |
 
 <details><summary>Details</summary>
 
@@ -1176,10 +1176,10 @@ Commercial use: yes.
 - `las2-m` original 994x1482: torch.autocast(fp16) around the forward
 - `las2-l` original 994x1482: torch.autocast(fp16) around the forward
 - `las2-h` original 994x1482: torch.autocast(fp16) around the forward
-- `las2-s` load / first call: original 0.11 s / 0.019 s (375x1242), portable 0.09 s / 0.047† s, kernels 0.07† s / 0.015† s
-- `las2-m` load / first call: original 0.17 s / 0.023 s (375x1242), portable 0.12 s / 0.054† s, kernels 0.1† s / 0.02† s
-- `las2-l` load / first call: original 0.39 s / 0.044 s (375x1242), portable 0.23 s / 0.081† s, kernels 0.18† s / 0.031† s
-- `las2-h` load / first call: original 0.26 s / 1.212 s (375x1242), portable 0.18 s / 0.136† s, kernels 0.13† s / 0.062† s
+- `las2-s` load / first call: original 0.11 s / 0.019 s (375x1242), portable 0.27 s / 0.465 s (375x1242), kernels 0.07† s / 0.015† s
+- `las2-m` load / first call: original 0.17 s / 0.023 s (375x1242), portable 0.25 s / 0.402 s (375x1242), kernels 0.1† s / 0.02† s
+- `las2-l` load / first call: original 0.39 s / 0.044 s (375x1242), portable 0.53 s / 0.329 s (375x1242), kernels 0.18† s / 0.031† s
+- `las2-h` load / first call: original 0.26 s / 1.212 s (375x1242), portable 0.31 s / 0.553 s (375x1242), kernels 0.13† s / 0.062† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, `las2-s`, `las2-m`, `las2-l`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 - Protocol, `las2-h`: median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
