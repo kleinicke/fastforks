@@ -97,7 +97,7 @@ Commercial use: yes.
 - Variants: `c-radio-v3-b`, `c-radio-v3-l`, `c-radio-v3-h`, `c-radio-v3-g`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `c-radio-v3-b` not measured yet; `c-radio-v3-l` not measured yet; `c-radio-v3-h` not measured yet; `c-radio-v3-g` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `c-radio-v3-b` 3000x4000 (1.7 GiB peak allocated, 2.0 reserved); `c-radio-v3-l` 3000x4000 (2.5 GiB peak allocated, 2.8 reserved); `c-radio-v3-h` 3000x4000 (3.5 GiB peak allocated, 3.9 reserved); `c-radio-v3-g` 3000x4000 (4.8 GiB peak allocated, 5.4 reserved)
 - `c-radio-v3-b` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `c-radio-v3-l` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `c-radio-v3-h` 224x224, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 45 s (ONNX + engine).
@@ -115,6 +115,19 @@ Commercial use: yes.
 - `c-radio-v3-h` load / first call: original – s / 0.164 s, portable – s / 0.07 s, kernels – s / 0.071 s
 - `c-radio-v3-g` load / first call: original – s / 0.171 s, portable – s / 0.079 s, kernels – s / 0.075 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | portable | kernels | note |
+|---|---|---|---|---|
+| `c-radio-v3-b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 57.60 | 57.66 |  |
+| `c-radio-v3-l` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.08 | 67.08 |  |
+| `c-radio-v3-h` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.54 | 69.58 |  |
+| `c-radio-v3-g` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.92 | 70.98 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316, 2026-11-11 to 2026-11-12.
 
 ### Parity
 
@@ -183,7 +196,7 @@ Commercial use: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `cl
 - Variants: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `clip-b16-laion2b`, `clip-l14-laion2b`, `clip-h14-laion2b`, `clip-l14-datacompxl`, `clip-l14-dfn2b`, `clip-h14-dfn5b`, `clip-h14-378-dfn5b`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `clip-b16-openai` not measured yet; `clip-l14-openai` not measured yet; `clip-l14-336-openai` not measured yet; `clip-b16-laion2b` not measured yet; `clip-l14-laion2b` not measured yet; `clip-h14-laion2b` not measured yet; `clip-l14-datacompxl` not measured yet; `clip-l14-dfn2b` not measured yet; `clip-h14-dfn5b` not measured yet; `clip-h14-378-dfn5b` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `clip-b16-openai` 3000x4000 (1.9 GiB peak allocated, 2.2 reserved); `clip-l14-openai` 3000x4000 (3.4 GiB peak allocated, 3.7 reserved); `clip-l14-336-openai` 3000x4000 (3.4 GiB peak allocated, 3.6 reserved); `clip-b16-laion2b` 3000x4000 (1.7 GiB peak allocated, 1.9 reserved); `clip-l14-laion2b` 3000x4000 (2.9 GiB peak allocated, 3.2 reserved); `clip-h14-laion2b` 3000x4000 (3.9 GiB peak allocated, 4.4 reserved); `clip-l14-datacompxl` 3000x4000 (2.9 GiB peak allocated, 3.2 reserved); `clip-l14-dfn2b` 3000x4000 (3.4 GiB peak allocated, 3.7 reserved); `clip-h14-dfn5b` 3000x4000 (4.5 GiB peak allocated, 5.0 reserved); `clip-h14-378-dfn5b` 3000x4000 (4.5 GiB peak allocated, 5.0 reserved)
 - `clip-b16-openai` 224x224, first call: portable + torch.compile 6 s (cold Inductor cache), TensorRT fp16 15 s (ONNX + engine).
 - `clip-l14-openai` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 23 s (ONNX + engine).
 - `clip-l14-336-openai` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 33 s (ONNX + engine).
@@ -222,6 +235,23 @@ Commercial use: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `cl
 - `clip-h14-dfn5b` load / first call: original 79.37 s / 0.177 s, portable – s / 0.088 s, kernels – s / 0.062 s
 - `clip-h14-378-dfn5b` load / first call: original 78.39 s / 0.178 s, portable – s / 0.081 s, kernels – s / 0.06 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `clip-b16-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 51.98 | 52.00 | 52.00 | 52.00 |  |
+| `clip-l14-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.70 | 58.64 | 58.56 | 58.58 |  |
+| `clip-l14-336-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.82 | 58.72 | 58.80 | 58.86 |  |
+| `clip-b16-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 54.14 | 54.24 | 54.22 | 54.16 |  |
+| `clip-l14-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.30 | 59.30 | 59.36 | 59.32 |  |
+| `clip-l14-datacompxl` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.50 | 62.44 | 62.44 | 62.38 |  |
+| `clip-l14-dfn2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.86 | 66.74 | 66.76 | 66.78 |  |
+| `clip-h14-378-dfn5b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 64.84 | 65.10 | 65.10 | 65.00 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316, 2026-11-11 to 2026-11-12.
 
 ### Parity
 
@@ -577,7 +607,7 @@ Commercial use: yes.
 - Variants: `pe-core-t16-384`, `pe-core-s16-384`, `pe-core-b16-224`, `pe-core-l14-336`, `pe-core-g14-448`, `pe-spatial-t16-512`, `pe-spatial-s16-512`, `pe-spatial-b16-512`, `pe-spatial-l14-448`, `pe-spatial-g14-448`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pe-core-t16-384` 3000x4000 (0.8 GiB peak allocated, 1.1 reserved); `pe-core-s16-384` not measured yet; `pe-core-b16-224` not measured yet; `pe-core-l14-336` not measured yet; `pe-core-g14-448` not measured yet; `pe-spatial-t16-512` not measured yet; `pe-spatial-s16-512` not measured yet; `pe-spatial-b16-512` not measured yet; `pe-spatial-l14-448` not measured yet; `pe-spatial-g14-448` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pe-core-t16-384` 3000x4000 (0.8 GiB peak allocated, 1.1 reserved); `pe-core-s16-384` 3000x4000 (1.2 GiB peak allocated, 1.3 reserved); `pe-core-b16-224` 3000x4000 (2.0 GiB peak allocated, 2.3 reserved); `pe-core-l14-336` 3000x4000 (3.5 GiB peak allocated, 3.8 reserved); `pe-core-g14-448` not measured yet; `pe-spatial-t16-512` 3000x4000 (0.8 GiB peak allocated, 1.0 reserved); `pe-spatial-s16-512` 3000x4000 (1.2 GiB peak allocated, 1.3 reserved); `pe-spatial-b16-512` 3000x4000 (2.0 GiB peak allocated, 2.3 reserved); `pe-spatial-l14-448` 3000x4000 (3.4 GiB peak allocated, 3.7 reserved); `pe-spatial-g14-448` 1988x2880 (5.6 GiB peak allocated, 5.8 reserved)
 - `pe-core-t16-384` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `pe-core-s16-384` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `pe-core-b16-224` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
@@ -619,6 +649,21 @@ Commercial use: yes.
 - `pe-spatial-l14-448` load / first call: original 44.48 s / 0.17 s, portable – s / 0.089 s, kernels – s / 0.06 s
 - `pe-spatial-g14-448` load / first call: original 227.9 s / 0.358 s, portable – s / 0.219 s, kernels – s / 0.32 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `pe-core-s16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 45.56 | 45.54 | 45.48 | 45.38 |  |
+| `pe-core-b16-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.54 | 58.56 | 58.54 | 58.50 |  |
+| `pe-spatial-t16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 5.52 | 5.54 | 5.50 | 5.46 |  |
+| `pe-spatial-s16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 8.02 | 8.06 | 8.02 | 7.98 |  |
+| `pe-spatial-b16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 13.58 | 13.64 | 13.56 | 13.58 |  |
+| `pe-spatial-l14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 17.10 |  |  |  |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316, 2026-11-11.
 
 ### Parity
 
@@ -678,7 +723,7 @@ Commercial use: yes.
 - Variants: `siglip2-b16-256`, `siglip2-b16-512`, `siglip2-l16-256`, `siglip2-l16-512`, `siglip2-so400m14-224`, `siglip2-so400m14-378`, `siglip2-so400m16-256`, `siglip2-so400m16-512`, `siglip2-g16-256`, `siglip2-g16-384`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `siglip2-b16-256` not measured yet; `siglip2-b16-512` not measured yet; `siglip2-l16-256` not measured yet; `siglip2-l16-512` not measured yet; `siglip2-so400m14-224` not measured yet; `siglip2-so400m14-378` not measured yet; `siglip2-so400m16-256` not measured yet; `siglip2-so400m16-512` not measured yet; `siglip2-g16-256` not measured yet; `siglip2-g16-384` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `siglip2-b16-256` 3000x4000 (1.7 GiB peak allocated, 1.9 reserved); `siglip2-b16-512` 3000x4000 (1.7 GiB peak allocated, 1.8 reserved); `siglip2-l16-256` 3000x4000 (2.5 GiB peak allocated, 2.8 reserved); `siglip2-l16-512` 3000x4000 (2.5 GiB peak allocated, 2.7 reserved); `siglip2-so400m14-224` 3000x4000 (3.2 GiB peak allocated, 3.4 reserved); `siglip2-so400m14-378` 3000x4000 (3.2 GiB peak allocated, 3.4 reserved); `siglip2-so400m16-256` 3000x4000 (2.8 GiB peak allocated, 3.1 reserved); `siglip2-so400m16-512` 3000x4000 (2.8 GiB peak allocated, 3.1 reserved); `siglip2-g16-256` 3000x4000 (4.7 GiB peak allocated, 4.9 reserved); `siglip2-g16-384` 3000x4000 (4.7 GiB peak allocated, 4.9 reserved)
 - `siglip2-b16-256` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 24 s (ONNX + engine).
 - `siglip2-b16-512` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 24 s (ONNX + engine).
 - `siglip2-l16-256` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 32 s (ONNX + engine).
@@ -720,6 +765,25 @@ Commercial use: yes.
 - `siglip2-g16-256` load / first call: original 140.56 s / 0.218 s, portable – s / 0.103 s, kernels – s / 0.078 s
 - `siglip2-g16-384` load / first call: original 139.99 s / 0.217 s, portable – s / 0.083 s, kernels – s / 0.071 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `siglip2-b16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 53.84 | 53.78 | 53.80 | 53.86 |  |
+| `siglip2-b16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 26.24 | 26.06 | 26.28 | 26.52 |  |
+| `siglip2-l16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 64.74 | 64.84 | 64.68 | 64.62 |  |
+| `siglip2-l16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.18 | 65.12 | 65.14 | 65.10 |  |
+| `siglip2-so400m14-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.18 | 66.12 | 66.10 | 66.10 |  |
+| `siglip2-so400m14-378` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.90 | 59.94 | 60.00 | 59.92 |  |
+| `siglip2-so400m16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.52 | 59.46 | 59.34 | 59.50 |  |
+| `siglip2-so400m16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.04 | 67.20 |  |
+| `siglip2-g16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.92 | 67.84 | 67.80 | 68.00 |  |
+| `siglip2-g16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.02 | 69.06 | 69.12 | 69.10 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316, 2026-11-11 to 2026-11-12.
 
 ### Parity
 
@@ -771,7 +835,7 @@ Commercial use: yes.
 - Variants: `tipsv2-b14`, `tipsv2-l14`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `tipsv2-b14` 3000x4000 (1.4 GiB peak allocated, 2.2 reserved); `tipsv2-l14` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `tipsv2-b14` 3000x4000 (1.4 GiB peak allocated, 2.2 reserved); `tipsv2-l14` 3000x4000 (2.2 GiB peak allocated, 2.2 reserved)
 - `tipsv2-b14` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `tipsv2-l14` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 48 s (ONNX + engine).
 - `tipsv2-b14` original (fp32) 224x224, original 224x224: tips image_encoder first cls token
