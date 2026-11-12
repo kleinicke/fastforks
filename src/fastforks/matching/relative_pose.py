@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Protocol
 
 import torch
 
@@ -269,18 +269,47 @@ def _estimate(  # noqa: PLR0913, PLR0917 - the RANSAC state
     thr2 = (threshold / focal) ** 2  # [P]
     scorer = _KernelScorer(solver, x1, x2, valid, thr2) if solver is not None else _TorchScorer(x1, x2, valid, thr2)
 
+    rounds = _ROUND if solver is not None else _ROUND_PORTABLE
+    best_e, best_score, best_count = _ransac(scorer, counts, sample, rounds, gen)
+    R, t, best_e, inliers, ok = scorer.finish(best_e, best_score, best_count, sample)
+    # Back to the caller's match order.
+    inliers_out = torch.zeros(P, N, dtype=torch.bool, device=dev).scatter_(1, order, inliers)
+    return RelativePose(R, t, best_e.view(P, 3, 3), inliers_out, ok)
+
+
+class _Scorer(Protocol):
+    """What `_ransac` needs from a scorer: minimal-sample hypotheses and their MSAC scores on `n` matches."""
+
+    width: int
+    valid: torch.Tensor
+
+    def hypotheses(self, pairs: torch.Tensor, idx: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]: ...
+
+    def score(self, pairs: torch.Tensor, m: torch.Tensor, n: int, /) -> tuple[torch.Tensor, torch.Tensor]: ...
+
+
+def _ransac(
+    scorer: _Scorer, counts: torch.Tensor, sample: int, rounds: int, gen: torch.Generator
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """The RANSAC rounds over all pairs: the best model `[P, M]`, its MSAC score and inlier count `[P]`.
+
+    A round draws `rounds` samples of `sample` matches of every unfinished pair, pre-scores all their hypotheses on
+    `_SUBSET` matches, the `_TOP` of them on all, and keeps the best; a pair is done when OpenCV's iteration count
+    for its inlier ratio is reached.
+    """
+    P, N = scorer.valid.shape
+    dev = counts.device
     best_score = torch.zeros(P, dtype=torch.float32, device=dev)
     best_count = torch.zeros(P, dtype=torch.int32, device=dev)
-    best_e = torch.zeros(P, 9, dtype=torch.float32, device=dev)
-    rounds = _ROUND if solver is not None else _ROUND_PORTABLE
+    best_e = torch.zeros(P, scorer.width, dtype=torch.float32, device=dev)
     used = 0
     active = torch.arange(P, device=dev)
     while active.numel():
         idx = (torch.rand(active.numel(), rounds, sample, device=dev, generator=gen) * counts[active, None, None]).int()
-        cand, cand_valid = scorer.hypotheses(active, idx)  # [A, C, 9], [A, C]
+        cand, cand_valid = scorer.hypotheses(active, idx)  # [A, C, M], [A, C]
         sub = torch.where(cand_valid, scorer.score(active, cand, _SUBSET)[0], -1.0)
         top = sub.topk(_TOP, dim=1).indices
-        cand = torch.gather(cand, 1, top[..., None].expand(-1, -1, 9))
+        cand = torch.gather(cand, 1, top[..., None].expand(-1, -1, scorer.width))
         score, count = scorer.score(active, cand, N)
         which = (score if _MSAC else count.float()).argmax(1)
         cand = cand[torch.arange(active.numel(), device=dev), which]
@@ -294,10 +323,7 @@ def _estimate(  # noqa: PLR0913, PLR0917 - the RANSAC state
         used += rounds
         need = _iterations(best_count[active].float() / counts[active].float(), sample)
         active = active[need > used]
-    R, t, best_e, inliers, ok = scorer.finish(best_e, best_score, best_count, sample)
-    # Back to the caller's match order.
-    inliers_out = torch.zeros(P, N, dtype=torch.bool, device=dev).scatter_(1, order, inliers)
-    return RelativePose(R, t, best_e.view(P, 3, 3), inliers_out, ok)
+    return best_e, best_score, best_count
 
 
 def _normalise(p: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
@@ -322,6 +348,8 @@ def _kron(x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
 
 class _TorchScorer:
     """Hypotheses and Sampson inlier counts in plain PyTorch."""
+
+    width = 9  # floats per model
 
     def __init__(self, x1: torch.Tensor, x2: torch.Tensor, valid: torch.Tensor, thr2: torch.Tensor) -> None:
         self.x1, self.x2, self.valid, self.thr2 = x1, x2, valid, thr2
@@ -367,20 +395,23 @@ class _TorchScorer:
         score = self.score(pairs, e[:, None], self.valid.shape[1])[0][:, 0]
         return self.thr2[pairs] * (self.valid[pairs].sum(1) - score)
 
-    def refine(self, pairs: torch.Tensor, e: torch.Tensor, iterations: int) -> torch.Tensor:
+    def refine(
+        self, pairs: torch.Tensor, e: torch.Tensor, iterations: int, *, fundamental: bool = False
+    ) -> torch.Tensor:
         """Levenberg-Marquardt of `R`, `t` (`E = [t]_x R`) on the Sampson error of the inliers of `e` `[A, 9]`.
 
         Truncated quadratic loss (PoseLib's LO-RANSAC refinement): the cost is the MSAC cost, inliers are refreshed
         every iteration, a step counts when it lowers the cost. Returns the refined `E` `[A, 9]` (unit norm).
+        `fundamental`: the rank-2 parametrisation `U diag(cos, sin, 0) V^T` (two rotations and an angle) instead.
         """
-        return _refine(self, pairs, e, iterations)
+        return _refine_f(self, pairs, e, iterations) if fundamental else _refine(self, pairs, e, iterations)
 
     def lm_terms(
         self, pairs: torch.Tensor, e: torch.Tensor, de: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """`J^T J` `[A, 5, 5]`, `J^T r` `[A, 5]` and the truncated cost `[A]` of the models `e` `[A, 9]`.
+        """`J^T J` `[A, D, D]`, `J^T r` `[A, D]` and the truncated cost `[A]` of the models `e` `[A, 9]`.
 
-        `de` `[A, 9, 5]` are the derivatives of `e` by the pose parameters; the Jacobian runs over the inliers.
+        `de` `[A, 9, D]` are the derivatives of `e` by the D model parameters; the Jacobian runs over the inliers.
         """
         res, dres = _sampson(e.view(-1, 3, 3), self.x1[pairs], self.x2[pairs])
         thr2 = self.thr2[pairs, None]
@@ -480,13 +511,17 @@ class _KernelScorer(_TorchScorer):
             self.thr2,
             best_e,
             _REFITS,
-            0 if fundamental else _LM_FINAL,
+            _LM_FINAL,
             fundamental=fundamental,
             minimum=sample,
         )
         return R, t, e, inliers, ok
 
-    def refine(self, pairs: torch.Tensor, e: torch.Tensor, iterations: int) -> torch.Tensor:
+    def refine(
+        self, pairs: torch.Tensor, e: torch.Tensor, iterations: int, *, fundamental: bool = False
+    ) -> torch.Tensor:
+        if fundamental:  # only the final refinement runs for F, inside `polish`
+            return super().refine(pairs, e, iterations, fundamental=True)
         A = e.shape[0]
         r, t, _ = _recover_pose(e.view(A, 3, 3), self.x1[pairs], self.x2[pairs], self.inliers(e, pairs))
         rt = torch.cat((r.reshape(A, 9), t), 1).float()
@@ -688,7 +723,7 @@ def _polish(
     """Local optimisation of the final models `[P, 9]`: refits on the inliers, then non-linear refinement.
 
     A step is kept while the score rises. Returns the models and their inlier counts. Fundamental matrices get
-    rank-2 refits and no pose refinement.
+    rank-2 refits and a rank-2 parametrised refinement.
     """
     everyone = torch.arange(best_e.shape[0], device=best_e.device)
     n = scorer.valid.shape[1]
@@ -698,8 +733,10 @@ def _polish(
         better = _key(score, count) > _key(best_score, best_count)
         best_score, best_count = torch.where(better, score, best_score), torch.where(better, count, best_count)
         best_e = torch.where(better[:, None], refit, best_e)
-    if _LM_FINAL and not fundamental:
-        best_e, _, best_count = _improve(scorer, everyone, best_e, best_score, best_count, _LM_FINAL)
+    if _LM_FINAL:
+        best_e, _, best_count = _improve(
+            scorer, everyone, best_e, best_score, best_count, _LM_FINAL, fundamental=fundamental
+        )
     return best_e, best_count
 
 
@@ -715,9 +752,11 @@ def _improve(  # noqa: PLR0913, PLR0917 - the RANSAC state
     score: torch.Tensor,
     count: torch.Tensor,
     iterations: int,
+    *,
+    fundamental: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Non-linear refinement of the models `e` `[A, 9]` of `pairs`, kept where the MSAC score rises."""
-    refined = scorer.refine(pairs, e, iterations)
+    refined = scorer.refine(pairs, e, iterations, fundamental=fundamental)
     new_score, new_count = (v[:, 0] for v in scorer.score(pairs, refined[:, None], scorer.valid.shape[1]))
     better = _key(new_score, new_count) > _key(score, count)
     return (
@@ -778,6 +817,46 @@ def _refine(scorer: _TorchScorer, pairs: torch.Tensor, e: torch.Tensor, iteratio
         lam = torch.where(accept, lam * 0.1, lam * 10).clamp(1e-6, 1e6)
     out = (_cross(t) @ r).reshape(A, 9)
     return out / out.norm(dim=1, keepdim=True).clamp_min(1e-12)
+
+
+def _refine_f(scorer: _TorchScorer, pairs: torch.Tensor, f: torch.Tensor, iterations: int) -> torch.Tensor:
+    """The portable Levenberg-Marquardt of a fundamental matrix `F = U diag(cos p, sin p, 0) V^T`.
+
+    Seven parameters: rotations of `U` and `V` (right multiplied by `exp([w]_x)`) and the angle `p`; the rank
+    stays 2 and the norm 1 by construction. Same loss and acceptance rule as `_refine`.
+    """
+    A = f.shape[0]
+    u, sig, vh = torch.linalg.svd(f.view(A, 3, 3).to(_LO_DTYPE))
+    v = vh.transpose(1, 2)
+    phi = torch.atan2(sig[:, 1], sig[:, 0])
+    basis = torch.eye(3, device=f.device)
+    gens = torch.stack([_cross(basis[k]) for k in range(3)])  # [3, 3, 3]
+    lam = torch.full((A,), 1e-3, device=f.device)
+
+    def compose(u: torch.Tensor, v: torch.Tensor, phi: torch.Tensor) -> torch.Tensor:
+        return (u * torch.stack((phi.cos(), phi.sin(), torch.zeros_like(phi)), 1)[:, None]) @ v.transpose(1, 2)
+
+    best = scorer.cost(pairs, compose(u, v, phi).reshape(A, 9).float())
+    for _ in range(iterations):
+        s = torch.stack((phi.cos(), phi.sin(), torch.zeros_like(phi)), 1)
+        us, vt = u * s[:, None], v.transpose(1, 2)
+        d_u = torch.stack([(u @ gens[k] * s[:, None] @ vt).reshape(A, 9) for k in range(3)], -1)  # [A, 9, 3]
+        d_v = torch.stack([(-us @ gens[k] @ vt).reshape(A, 9) for k in range(3)], -1)
+        ds = torch.stack((-phi.sin(), phi.cos(), torch.zeros_like(phi)), 1)
+        d_phi = ((u * ds[:, None]) @ vt).reshape(A, 9, 1)
+        jtj, jtr, _ = scorer.lm_terms(pairs, (us @ vt).reshape(A, 9).float(), torch.cat((d_u, d_v, d_phi), -1))
+        damped = jtj + lam[:, None, None] * torch.diagonal(jtj, dim1=1, dim2=2).clamp_min(1e-12).diag_embed()
+        step = -torch.linalg.solve(damped, jtr[..., None])[..., 0]
+        step = torch.where(torch.isfinite(step).all(1, keepdim=True), step, torch.zeros_like(step))
+        u_new, v_new, phi_new = u @ _rodrigues(step[:, :3]), v @ _rodrigues(step[:, 3:6]), phi + step[:, 6]
+        new = scorer.cost(pairs, compose(u_new, v_new, phi_new).reshape(A, 9).float())
+        accept = new < best
+        u = torch.where(accept[:, None, None], u_new, u)
+        v = torch.where(accept[:, None, None], v_new, v)
+        phi = torch.where(accept, phi_new, phi)
+        best = torch.where(accept, new, best)
+        lam = torch.where(accept, lam * 0.1, lam * 10).clamp(1e-6, 1e6)
+    return compose(u, v, phi).reshape(A, 9).float()
 
 
 def _rodrigues(w: torch.Tensor) -> torch.Tensor:

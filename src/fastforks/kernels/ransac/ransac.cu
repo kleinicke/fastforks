@@ -1,5 +1,6 @@
 // Essential-matrix RANSAC for `fastforks.matching.estimate_pose`: Nister's 5-point solver, one hypothesis per thread,
-// and fused Sampson scoring of many candidates against the matches of a pair. Launched on torch's current stream.
+// and fused Sampson scoring of many candidates against the matches of a pair (the 7-point solver and the absolute
+// pose, P3P, below share the scoring and refinement). Launched on torch's current stream.
 //
 // Matches: pts [P, N, 4] fp32 (u1, v1, u2, v2) in normalised image coordinates, the valid ones first; a launch works on
 // a subset `pairs` [A] of the pairs (the unfinished ones of a RANSAC round).
@@ -429,33 +430,55 @@ __device__ __forceinline__ float gain(const float4 m, const float* E, float t2) 
   return (den > 0.f && num * num < den) ? 1.f - num * num / den : 0.f;
 }
 
+// Model types of the scoring kernels: the essential / fundamental matrix (9 floats, matches of one float4: u1, v1,
+// u2, v2 normalised) and the absolute pose [R | t] (12 floats, matches of two float4: u, v, X, Y | Z, 0, 0, 0;
+// reprojection error of X in normalised coordinates, points behind the camera are outliers).
+struct Epipolar {
+  static constexpr int NM = 9, NF = 1;
+  __device__ static __forceinline__ float gain(const float4* m, const float* E, float t2) { return ::gain(m[0], E, t2); }
+};
+struct Absolute {
+  static constexpr int NM = 12, NF = 2;
+  __device__ static __forceinline__ float gain(const float4* m, const float* M, float t2) {
+    const float X = m[0].z, Y = m[0].w, Z = m[1].x;
+    float z = M[6] * X + M[7] * Y + M[8] * Z + M[11];
+    if (!(z > 0.f)) return 0.f;
+    float dx = (M[0] * X + M[1] * Y + M[2] * Z + M[9]) / z - m[0].x;
+    float dy = (M[3] * X + M[4] * Y + M[5] * Z + M[10]) / z - m[0].y;
+    float e = (dx * dx + dy * dy) / t2;
+    return e < 1.f ? 1.f - e : 0.f;
+  }
+};
+
 // MSAC scores and inlier counts of many candidates per pair: one thread per candidate, the pair's matches through
-// shared memory in chunks. e [A, C, 9]; counts [P] valid matches per pair; thr2 [P]; out [A, C] float32 scores,
+// shared memory in chunks. e [A, C, NM]; counts [P] valid matches per pair; thr2 [P]; out [A, C] float32 scores,
 // cnt [A, C] int32 inlier counts; scores the first min(n, counts[pair]) matches. grid (ceil(C / 256), A), block 256.
 #define CHUNK 1024
-extern "C" __global__ void score_many(const float* __restrict__ pts, const int* __restrict__ counts,
-                                      const float* __restrict__ thr2, const int* __restrict__ pairs,
-                                      const float* __restrict__ e, float* __restrict__ out, int* __restrict__ cnt,
-                                      int N, int C, int n) {
+template <class Model>
+__device__ __forceinline__ void score_many_t(const float* __restrict__ pts, const int* __restrict__ counts,
+                                             const float* __restrict__ thr2, const int* __restrict__ pairs,
+                                             const float* __restrict__ e, float* __restrict__ out,
+                                             int* __restrict__ cnt, int N, int C, int n) {
+  constexpr int NF = Model::NF, NM = Model::NM, PER = CHUNK / NF;
   __shared__ float4 sm[CHUNK];
   const int a = blockIdx.y, pair = pairs[a];
   const int c = blockIdx.x * blockDim.x + threadIdx.x;
   const int tot = min(n, counts[pair]);
-  const float4* p = (const float4*)(pts + (long long)pair * N * 4);
-  float E[9];
+  const float4* p = (const float4*)(pts + (long long)pair * N * 4 * NF);
+  float E[NM];
   if (c < C)
-    for (int k = 0; k < 9; ++k) E[k] = e[((long long)a * C + c) * 9 + k];
+    for (int k = 0; k < NM; ++k) E[k] = e[((long long)a * C + c) * NM + k];
   const float t2 = thr2[pair];
   float sc = 0.f;
   int in = 0;
-  for (int base = 0; base < tot; base += CHUNK) {
-    const int len = min(CHUNK, tot - base);
+  for (int base = 0; base < tot; base += PER) {
+    const int len = min(PER, tot - base);
     __syncthreads();
-    for (int i = threadIdx.x; i < len; i += blockDim.x) sm[i] = p[base + i];
+    for (int i = threadIdx.x; i < len * NF; i += blockDim.x) sm[i] = p[base * NF + i];
     __syncthreads();
     if (c < C) {
       for (int i = 0; i < len; ++i) {
-        float g = gain(sm[i], E, t2);
+        float g = Model::gain(sm + i * NF, E, t2);
         sc += g;
         in += g > 0.f;
       }
@@ -466,27 +489,41 @@ extern "C" __global__ void score_many(const float* __restrict__ pts, const int* 
     cnt[(long long)a * C + c] = in;
   }
 }
+extern "C" __global__ void score_many(const float* __restrict__ pts, const int* __restrict__ counts,
+                                      const float* __restrict__ thr2, const int* __restrict__ pairs,
+                                      const float* __restrict__ e, float* __restrict__ out, int* __restrict__ cnt,
+                                      int N, int C, int n) {
+  score_many_t<Epipolar>(pts, counts, thr2, pairs, e, out, cnt, N, C, n);
+}
+extern "C" __global__ void score_many_abs(const float* __restrict__ pts, const int* __restrict__ counts,
+                                          const float* __restrict__ thr2, const int* __restrict__ pairs,
+                                          const float* __restrict__ e, float* __restrict__ out,
+                                          int* __restrict__ cnt, int N, int C, int n) {
+  score_many_t<Absolute>(pts, counts, thr2, pairs, e, out, cnt, N, C, n);
+}
 
 // MSAC scores and inlier counts of few candidates per pair: one block per (a, c), threads over the matches. Writes
 // the inlier mask [A, C, N] (uint8) when `mask` is not null. grid (C, A), block 256.
-extern "C" __global__ void score_few(const float* __restrict__ pts, const int* __restrict__ counts,
-                                     const float* __restrict__ thr2, const int* __restrict__ pairs,
-                                     const float* __restrict__ e, float* __restrict__ out, int* __restrict__ cnt,
-                                     unsigned char* mask, int N, int C, int n) {
+template <class Model>
+__device__ __forceinline__ void score_few_t(const float* __restrict__ pts, const int* __restrict__ counts,
+                                            const float* __restrict__ thr2, const int* __restrict__ pairs,
+                                            const float* __restrict__ e, float* __restrict__ out,
+                                            int* __restrict__ cnt, unsigned char* mask, int N, int C, int n) {
+  constexpr int NF = Model::NF, NM = Model::NM;
   __shared__ float red[256];
   __shared__ int redi[256];
   const int c = blockIdx.x, a = blockIdx.y, pair = pairs[a];
   const int tot = min(n, counts[pair]);
-  const float4* p = (const float4*)(pts + (long long)pair * N * 4);
-  const float* eg = e + ((long long)a * C + c) * 9;
-  float E[9];
-  for (int k = 0; k < 9; ++k) E[k] = eg[k];
+  const float4* p = (const float4*)(pts + (long long)pair * N * 4 * NF);
+  const float* eg = e + ((long long)a * C + c) * NM;
+  float E[NM];
+  for (int k = 0; k < NM; ++k) E[k] = eg[k];
   const float t2 = thr2[pair];
   unsigned char* mk = mask ? mask + ((long long)a * C + c) * N : nullptr;
   float sc = 0.f;
   int in = 0;
   for (int i = threadIdx.x; i < (mk ? N : tot); i += blockDim.x) {
-    float g = i < tot ? gain(p[i], E, t2) : 0.f;
+    float g = i < tot ? Model::gain(p + i * NF, E, t2) : 0.f;
     sc += g;
     in += g > 0.f;
     if (mk) mk[i] = (unsigned char)(g > 0.f);
@@ -506,12 +543,25 @@ extern "C" __global__ void score_few(const float* __restrict__ pts, const int* _
     cnt[(long long)a * C + c] = redi[0];
   }
 }
+extern "C" __global__ void score_few(const float* __restrict__ pts, const int* __restrict__ counts,
+                                     const float* __restrict__ thr2, const int* __restrict__ pairs,
+                                     const float* __restrict__ e, float* __restrict__ out, int* __restrict__ cnt,
+                                     unsigned char* mask, int N, int C, int n) {
+  score_few_t<Epipolar>(pts, counts, thr2, pairs, e, out, cnt, mask, N, C, n);
+}
+extern "C" __global__ void score_few_abs(const float* __restrict__ pts, const int* __restrict__ counts,
+                                         const float* __restrict__ thr2, const int* __restrict__ pairs,
+                                         const float* __restrict__ e, float* __restrict__ out,
+                                         int* __restrict__ cnt, unsigned char* mask, int N, int C, int n) {
+  score_few_t<Absolute>(pts, counts, thr2, pairs, e, out, cnt, mask, N, C, n);
+}
 
 // Levenberg-Marquardt of (R, t), E = [t]_x R, on the truncated Sampson cost (PoseLib's refinement): one block per
 // model, every iteration inside the kernel. rt [A, 12]: R (row-major) then t (unit), updated in place. The cost is
 // sum(min(sampson^2, thr2)) over the first min(n, counts[pair]) matches; J runs over the inliers. grid A, block 256.
 #define NT 46  // block_sum width: 45 + 1 terms of the 8-point normal matrix (LM uses 21)
-#define NLM 21
+#define NLM 21  // 5 pose parameters: 15 + 5 + 1 terms
+#define NLMF 36  // 7 fundamental-matrix parameters: 28 + 7 + 1
 __device__ __forceinline__ void cross_mat(const float* v, float* m) {
   m[0] = 0.f; m[1] = -v[2]; m[2] = v[1]; m[3] = v[2]; m[4] = 0.f; m[5] = -v[0]; m[6] = -v[1]; m[7] = v[0]; m[8] = 0.f;
 }
@@ -535,9 +585,11 @@ __device__ void block_sum(float* acc, int k, float (*red)[NT]) {
   }
   __syncthreads();
 }
-// Per-thread J^T J (upper triangle, 15), J^T r (5) and cost (1) of this thread's matches.
+// Per-thread J^T J (upper triangle), J^T r (NP) and cost (1) of this thread's matches; D [9, NP] = dE / dparams.
+template <int NP>
 __device__ void lm_accumulate(const float4* p, int tot, const float* E, const float* D, float t2, float* acc) {
-  for (int k = 0; k < NLM; ++k) acc[k] = 0.f;
+  constexpr int NU = NP * (NP + 1) / 2;
+  for (int k = 0; k < NU + NP + 1; ++k) acc[k] = 0.f;
   for (int i = threadIdx.x; i < tot; i += blockDim.x) {
     const float4 m = p[i];
     const float x1[3] = {m.x, m.y, 1.f}, x2[3] = {m.z, m.w, 1.f};
@@ -545,22 +597,23 @@ __device__ void lm_accumulate(const float4* p, int tot, const float* E, const fl
     float r0 = E[0] * m.z + E[3] * m.w + E[6], r1 = E[1] * m.z + E[4] * m.w + E[7];
     float num = m.z * l0 + m.w * l1 + l2;
     float den = l0 * l0 + l1 * l1 + r0 * r0 + r1 * r1;
-    if (!(den > 0.f)) { acc[20] += t2; continue; }
+    if (!(den > 0.f)) { acc[NU + NP] += t2; continue; }
     float inv = rsqrtf(den), res = num * inv;
-    if (res * res >= t2) { acc[20] += t2; continue; }
-    acc[20] += res * res;
-    float s3 = num * inv * inv * inv, J[5] = {0.f, 0.f, 0.f, 0.f, 0.f};
+    if (res * res >= t2) { acc[NU + NP] += t2; continue; }
+    acc[NU + NP] += res * res;
+    float s3 = num * inv * inv * inv, J[NP];
+    for (int k = 0; k < NP; ++k) J[k] = 0.f;
     for (int i3 = 0; i3 < 3; ++i3)
       for (int j3 = 0; j3 < 3; ++j3) {
         float dd = (i3 == 0 ? l0 * x1[j3] : i3 == 1 ? l1 * x1[j3] : 0.f) + (j3 == 0 ? r0 * x2[i3] : j3 == 1 ? r1 * x2[i3] : 0.f);
         float g = x2[i3] * x1[j3] * inv - s3 * dd;
-        const float* d = D + (i3 * 3 + j3) * 5;
-        for (int k = 0; k < 5; ++k) J[k] += g * d[k];
+        const float* d = D + (i3 * 3 + j3) * NP;
+        for (int k = 0; k < NP; ++k) J[k] += g * d[k];
       }
     int q = 0;
-    for (int u = 0; u < 5; ++u)
-      for (int v = u; v < 5; ++v) acc[q++] += J[u] * J[v];
-    for (int k = 0; k < 5; ++k) acc[15 + k] += J[k] * res;
+    for (int u = 0; u < NP; ++u)
+      for (int v = u; v < NP; ++v) acc[q++] += J[u] * J[v];
+    for (int k = 0; k < NP; ++k) acc[NU + k] += J[k] * res;
   }
 }
 __device__ float thread_cost(const float4* p, int tot, const float* E, float t2) {
@@ -602,56 +655,63 @@ __device__ void lm_linearise(const float* R, const float* t, float* E, float* D,
   mat_mul(gen, R, tmp);
   for (int i = 0; i < 9; ++i) D[i * 5 + 4] = tmp[i];
 }
-// Thread 0: the damped normal equations from the 20 terms; the step (omega, alpha) or zero when singular.
+// Thread 0: the damped normal equations from the accumulated terms; the NP-parameter step, or zero when singular.
+template <int NP>
 __device__ void lm_step(const float* terms, float lam, float* step) {
-  float M[5][6];
+  constexpr int NU = NP * (NP + 1) / 2;
+  float M[NP][NP + 1];
   int q = 0;
-  for (int u = 0; u < 5; ++u)
-    for (int v = u; v < 5; ++v) {
+  for (int u = 0; u < NP; ++u)
+    for (int v = u; v < NP; ++v) {
       M[u][v] = M[v][u] = terms[q++];
     }
-  for (int u = 0; u < 5; ++u) {
+  for (int u = 0; u < NP; ++u) {
     M[u][u] += lam * fmaxf(M[u][u], 1e-12f);
-    M[u][5] = -terms[15 + u];
+    M[u][NP] = -terms[NU + u];
   }
-  for (int c = 0; c < 5; ++c) {  // Gaussian elimination with partial pivoting
+  for (int c = 0; c < NP; ++c) {  // Gaussian elimination with partial pivoting
     int piv = c;
-    for (int r = c + 1; r < 5; ++r)
+    for (int r = c + 1; r < NP; ++r)
       if (fabsf(M[r][c]) > fabsf(M[piv][c])) piv = r;
     if (piv != c)
-      for (int j = 0; j < 6; ++j) { float x = M[c][j]; M[c][j] = M[piv][j]; M[piv][j] = x; }
+      for (int j = 0; j < NP + 1; ++j) { float x = M[c][j]; M[c][j] = M[piv][j]; M[piv][j] = x; }
     if (!(fabsf(M[c][c]) > 1e-30f)) {
-      for (int k = 0; k < 5; ++k) step[k] = 0.f;
+      for (int k = 0; k < NP; ++k) step[k] = 0.f;
       return;
     }
-    for (int r = c + 1; r < 5; ++r) {
+    for (int r = c + 1; r < NP; ++r) {
       float f = M[r][c] / M[c][c];
-      for (int j = c; j < 6; ++j) M[r][j] -= f * M[c][j];
+      for (int j = c; j < NP + 1; ++j) M[r][j] -= f * M[c][j];
     }
   }
-  for (int r = 4; r >= 0; --r) {
-    float x = M[r][5];
-    for (int j = r + 1; j < 5; ++j) x -= M[r][j] * step[j];
+  for (int r = NP - 1; r >= 0; --r) {
+    float x = M[r][NP];
+    for (int j = r + 1; j < NP; ++j) x -= M[r][j] * step[j];
     step[r] = x / M[r][r];
   }
-  for (int k = 0; k < 5; ++k)
+  for (int k = 0; k < NP; ++k)
     if (!isfinite(step[k])) {
-      for (int j = 0; j < 5; ++j) step[j] = 0.f;
+      for (int j = 0; j < NP; ++j) step[j] = 0.f;
       return;
     }
 }
-// Thread 0: apply the step: R_new = R exp([omega]_x), t_new = normalise(t + a1 b1 + a2 b2).
-__device__ void lm_apply(const float* R, const float* t, const float* step, const float* b1, const float* b2,
-                         float* Rn, float* tn) {
-  float th = sqrtf(step[0] * step[0] + step[1] * step[1] + step[2] * step[2]);
-  float Rw[9] = {1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f};
+// exp([w]_x) of the axis-angle vector w.
+__device__ void exp_so3(const float* w, float* Rw) {
+  float th = sqrtf(w[0] * w[0] + w[1] * w[1] + w[2] * w[2]);
+  for (int i = 0; i < 9; ++i) Rw[i] = i % 4 == 0 ? 1.f : 0.f;
   if (th > 1e-12f) {
-    float k[3] = {step[0] / th, step[1] / th, step[2] / th}, K[9], K2[9];
+    float k[3] = {w[0] / th, w[1] / th, w[2] / th}, K[9], K2[9];
     cross_mat(k, K);
     mat_mul(K, K, K2);
     float s = sinf(th), c = 1.f - cosf(th);
     for (int i = 0; i < 9; ++i) Rw[i] += s * K[i] + c * K2[i];
   }
+}
+// Thread 0: apply the step: R_new = R exp([omega]_x), t_new = normalise(t + a1 b1 + a2 b2).
+__device__ void lm_apply(const float* R, const float* t, const float* step, const float* b1, const float* b2,
+                         float* Rn, float* tn) {
+  float Rw[9];
+  exp_so3(step, Rw);
   mat_mul(R, Rw, Rn);
   for (int i = 0; i < 3; ++i) tn[i] = t[i] + step[3] * b1[i] + step[4] * b2[i];
   float inv = rsqrtf(fmaxf(tn[0] * tn[0] + tn[1] * tn[1] + tn[2] * tn[2], 1e-24f));
@@ -672,10 +732,10 @@ __device__ void lm_run(const float4* p, int tot, float t2, int iterations, float
   block_sum(acc, 1, red);
   if (threadIdx.x == 0) sBest = red[0][0];
   for (int it = 0; it < iterations; ++it) {
-    lm_accumulate(p, tot, sE, sD, t2, acc);
+    lm_accumulate<5>(p, tot, sE, sD, t2, acc);
     block_sum(acc, NLM, red);
     if (threadIdx.x == 0) {
-      lm_step(red[0], sLam, sStep);
+      lm_step<5>(red[0], sLam, sStep);
       lm_apply(sR, st, sStep, sb1, sb2, sRn, stn);
       float tx[9];
       cross_mat(stn, tx);
@@ -691,6 +751,77 @@ __device__ void lm_run(const float4* p, int tot, float t2, int iterations, float
         for (int i = 0; i < 3; ++i) st[i] = stn[i];
         sLam = fmaxf(sLam * 0.1f, 1e-6f);
         lm_linearise(sR, st, sE, sD, sb1, sb2);
+      } else {
+        sLam = fminf(sLam * 10.f, 1e6f);
+      }
+    }
+    __syncthreads();
+  }
+}
+// Thread 0: F = U diag(cos p, sin p, 0) V^T and its derivatives D [9, 7] by the rotations of U, V (right
+// multiplied by exp([w]_x)) and the angle p.
+__device__ void lm_linearise_f(const float* U, const float* V, float phi, float* F, float* D) {
+  const float s[3] = {cosf(phi), sinf(phi), 0.f}, ds[3] = {-sinf(phi), cosf(phi), 0.f};
+  float US[9], gen[9], tmp[9], tmp2[9], Vt[9];
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j) { US[i * 3 + j] = U[i * 3 + j] * s[j]; Vt[i * 3 + j] = V[j * 3 + i]; }
+  mat_mul(US, Vt, F);
+  for (int k = 0; k < 3; ++k) {
+    float e3[3] = {0.f, 0.f, 0.f};
+    e3[k] = 1.f;
+    cross_mat(e3, gen);
+    mat_mul(U, gen, tmp);  // U [e_k]_x S V^T
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j) tmp2[i * 3 + j] = tmp[i * 3 + j] * s[j];
+    mat_mul(tmp2, Vt, tmp);
+    for (int i = 0; i < 9; ++i) D[i * 7 + k] = tmp[i];
+    mat_mul(US, gen, tmp);  // -U S [e_k]_x V^T
+    mat_mul(tmp, Vt, tmp2);
+    for (int i = 0; i < 9; ++i) D[i * 7 + 3 + k] = -tmp2[i];
+  }
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j) tmp[i * 3 + j] = U[i * 3 + j] * ds[j];
+  mat_mul(tmp, Vt, tmp2);
+  for (int i = 0; i < 9; ++i) D[i * 7 + 6] = tmp2[i];
+}
+// The LM iterations of a fundamental matrix in shared memory (sU, sV, *sPhi; sF receives the result); all
+// threads call it.
+__device__ void lm_run_f(const float4* p, int tot, float t2, int iterations, float* sU, float* sV, float* sPhi,
+                         float* sF, float* acc, float (*red)[NT]) {
+  __shared__ float sUn[9], sVn[9], sPhin, sFn[9], sD[63], sStep[7];
+  __shared__ float sLam, sBest;
+  if (threadIdx.x == 0) {
+    sLam = 1e-3f;
+    lm_linearise_f(sU, sV, *sPhi, sF, sD);
+  }
+  __syncthreads();
+  acc[0] = thread_cost(p, tot, sF, t2);
+  block_sum(acc, 1, red);
+  if (threadIdx.x == 0) sBest = red[0][0];
+  for (int it = 0; it < iterations; ++it) {
+    lm_accumulate<7>(p, tot, sF, sD, t2, acc);
+    block_sum(acc, NLMF, red);
+    if (threadIdx.x == 0) {
+      lm_step<7>(red[0], sLam, sStep);
+      float Rw[9];
+      exp_so3(sStep, Rw);
+      mat_mul(sU, Rw, sUn);
+      exp_so3(sStep + 3, Rw);
+      mat_mul(sV, Rw, sVn);
+      sPhin = *sPhi + sStep[6];
+      float dummy[63];
+      lm_linearise_f(sUn, sVn, sPhin, sFn, dummy);
+    }
+    __syncthreads();
+    acc[0] = thread_cost(p, tot, sFn, t2);
+    block_sum(acc, 1, red);
+    if (threadIdx.x == 0) {
+      if (red[0][0] < sBest) {
+        sBest = red[0][0];
+        for (int i = 0; i < 9; ++i) { sU[i] = sUn[i]; sV[i] = sVn[i]; }
+        *sPhi = sPhin;
+        sLam = fmaxf(sLam * 0.1f, 1e-6f);
+        lm_linearise_f(sU, sV, *sPhi, sF, sD);
       } else {
         sLam = fminf(sLam * 10.f, 1e6f);
       }
@@ -937,8 +1068,26 @@ extern "C" __global__ void polish(const float* __restrict__ pts, const int* __re
     }
     __syncthreads();
   }
-  // Non-linear refinement of (R, t) from the decomposition, kept when the score rises.
-  if (lm_iterations > 0 && !fundamental) {
+  // Non-linear refinement, kept when the score rises: of (R, t) from the decomposition, or of the rank-2
+  // parametrisation U diag(cos p, sin p, 0) V^T of a fundamental matrix.
+  if (lm_iterations > 0 && fundamental) {
+    if (threadIdx.x == 0) {
+      float sig[3];
+      sTry = svd3(sE, sR1, sR2, sig);
+      sT[0] = atan2f(sig[1], sig[0]);
+    }
+    __syncthreads();
+    if (sTry) {
+      lm_run_f(p, tot, t2, lm_iterations, sR1, sR2, sT, sEn, acc, red);
+      score_pass(p, tot, N, sEn, t2, acc, nullptr);
+      block_sum(acc, 2, red);
+      if (threadIdx.x == 0 && red[0][0] > sBest) {
+        sBest = red[0][0];
+        for (int k = 0; k < 9; ++k) sE[k] = sEn[k];
+      }
+      __syncthreads();
+    }
+  } else if (lm_iterations > 0) {
     recover(p, tot, t2, sE, sR, st, sR1, sR2, sT, &sFront, acc, red);
     if (sFront > 0) {
       lm_run(p, tot, t2, lm_iterations, sR, st, acc, red);
@@ -979,5 +1128,321 @@ extern "C" __global__ void polish(const float* __restrict__ pts, const int* __re
       r[pair * 9 + k] = good ? sR[k] : (k % 4 == 0 ? 1.f : 0.f);
     }
     for (int k = 0; k < 3; ++k) t[pair * 3 + k] = good ? st[k] : (k == 2 ? 1.f : 0.f);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Absolute pose for `fastforks.matching.estimate_absolute_pose`: P3P hypotheses (Lambda Twist), reprojection
+// scoring (the Absolute model above) and the final Levenberg-Marquardt of [R | t]. Matches: pts [P, N, 8] fp32
+// (u, v, X, Y, Z, 0, 0, 0), u, v normalised image coordinates of the 3D point (X, Y, Z); a model [R | t] (12 floats,
+// R row-major) maps world points to the camera: x_cam = R X + t.
+
+__device__ __forceinline__ double det3s(const double* s) {  // symmetric (xx, xy, xz, yy, yz, zz)
+  return s[0] * (s[3] * s[5] - s[4] * s[4]) - s[1] * (s[1] * s[5] - s[4] * s[2]) + s[2] * (s[1] * s[4] - s[3] * s[2]);
+}
+__device__ __forceinline__ double tr_adj(const double* s, const double* t) {  // tr(adj(S) T), both symmetric
+  double a00 = s[3] * s[5] - s[4] * s[4], a11 = s[0] * s[5] - s[2] * s[2], a22 = s[0] * s[3] - s[1] * s[1];
+  double a01 = s[2] * s[4] - s[1] * s[5], a02 = s[1] * s[4] - s[3] * s[2], a12 = s[1] * s[2] - s[0] * s[4];
+  return a00 * t[0] + a11 * t[3] + a22 * t[5] + 2.0 * (a01 * t[1] + a02 * t[2] + a12 * t[4]);
+}
+__device__ __forceinline__ double quad_form(const double* s, const double* u, const double* v) {  // u^T S v
+  return u[0] * (s[0] * v[0] + s[1] * v[1] + s[2] * v[2]) + u[1] * (s[1] * v[0] + s[3] * v[1] + s[4] * v[2]) +
+         u[2] * (s[2] * v[0] + s[4] * v[1] + s[5] * v[2]);
+}
+__device__ __forceinline__ void cross3d(const double* a, const double* b, double* c) {
+  c[0] = a[1] * b[2] - a[2] * b[1];
+  c[1] = a[2] * b[0] - a[0] * b[2];
+  c[2] = a[0] * b[1] - a[1] * b[0];
+}
+// The real roots of c3 g^3 + c2 g^2 + c1 g + c0 (Cardano / trigonometric, then Newton polish), their count.
+__device__ int cubic_roots(double c3, double c2, double c1, double c0, double* r) {
+  const double scale = fmax(fmax(fabs(c3), fabs(c2)), fmax(fabs(c1), fabs(c0)));
+  if (!(scale > 0.0)) return 0;
+  int n = 0;
+  if (fabs(c3) < 1e-12 * scale) {
+    if (fabs(c2) < 1e-12 * scale) {
+      if (fabs(c1) < 1e-12 * scale) return 0;
+      r[0] = -c0 / c1;
+      return 1;
+    }
+    double d = c1 * c1 - 4.0 * c2 * c0;
+    if (d < 0.0) return 0;
+    d = sqrt(d);
+    r[0] = (-c1 + d) / (2.0 * c2);
+    r[1] = (-c1 - d) / (2.0 * c2);
+    return 2;
+  }
+  const double a = c2 / c3, b = c1 / c3, c = c0 / c3;
+  const double p = b - a * a / 3.0, q = 2.0 * a * a * a / 27.0 - a * b / 3.0 + c, sh = -a / 3.0;
+  const double disc = q * q / 4.0 + p * p * p / 27.0;
+  if (disc >= 0.0) {
+    const double sq = sqrt(disc);
+    r[0] = cbrt(-q / 2.0 + sq) + cbrt(-q / 2.0 - sq) + sh;
+    n = 1;
+  } else {
+    const double m = 2.0 * sqrt(-p / 3.0), th = acos(fmax(-1.0, fmin(1.0, 3.0 * q / (p * m)))) / 3.0;
+    for (int k = 0; k < 3; ++k) r[k] = m * cos(th - 2.0943951023931953 * k) + sh;
+    n = 3;
+  }
+  for (int k = 0; k < n; ++k)
+    for (int it = 0; it < 3; ++it) {
+      double x = r[k], f = ((c3 * x + c2) * x + c1) * x + c0, df = (3.0 * c3 * x + 2.0 * c2) * x + c1;
+      if (fabs(df) > 1e-300) r[k] = x - f / df;
+    }
+  return n;
+}
+// Lambda Twist P3P: the up to four poses [R | t] (row-major R, then t) of the unit bearings y[3] and world points
+// X[3]. The distances l_i (x_cam_i = l_i y_i) satisfy three ellipses l^T M_k l = a_k; two homogeneous differences
+// D1, D2 (l^T D l = 0) are combined into a rank-2 cone D1 + g D2 (det = 0, a cubic in g) that factors into two
+// planes; each plane cuts the cone D1 (or D2) in two rays, scaled by the first ellipse; two Gauss-Newton steps on
+// the three ellipses polish the distances. R from the frames of the three points in both coordinate systems.
+__device__ int p3p_solve(const double y[3][3], const double X[3][3], double sol[4][12]) {
+  const double* X0 = X[0]; const double* X1 = X[1]; const double* X2 = X[2];
+  double d01[3], d02[3], d12[3];
+  for (int k = 0; k < 3; ++k) { d01[k] = X0[k] - X1[k]; d02[k] = X0[k] - X2[k]; d12[k] = X1[k] - X2[k]; }
+  const double a12 = d01[0] * d01[0] + d01[1] * d01[1] + d01[2] * d01[2];
+  const double a13 = d02[0] * d02[0] + d02[1] * d02[1] + d02[2] * d02[2];
+  const double a23 = d12[0] * d12[0] + d12[1] * d12[1] + d12[2] * d12[2];
+  if (!(a12 > 0.0) || !(a13 > 0.0) || !(a23 > 0.0)) return 0;
+  const double b12 = y[0][0] * y[1][0] + y[0][1] * y[1][1] + y[0][2] * y[1][2];
+  const double b13 = y[0][0] * y[2][0] + y[0][1] * y[2][1] + y[0][2] * y[2][2];
+  const double b23 = y[1][0] * y[2][0] + y[1][1] * y[2][1] + y[1][2] * y[2][2];
+  // Ellipses (xx, xy, xz, yy, yz, zz) and the cones.
+  const double M12[6] = {1.0, -b12, 0.0, 1.0, 0.0, 0.0}, M13[6] = {1.0, 0.0, -b13, 0.0, 0.0, 1.0};
+  const double M23[6] = {0.0, 0.0, 0.0, 1.0, -b23, 1.0};
+  double D1[6], D2[6];
+  for (int k = 0; k < 6; ++k) { D1[k] = a23 * M12[k] - a12 * M23[k]; D2[k] = a23 * M13[k] - a13 * M23[k]; }
+  double g[3];
+  const int ng = cubic_roots(det3s(D2), tr_adj(D2, D1), tr_adj(D1, D2), det3s(D1), g);
+  // The frame of the world points (its inverse by the adjugate).
+  double n01[3], Fw[9], Fwi[9];
+  cross3d(d01, d02, n01);
+  for (int k = 0; k < 3; ++k) { Fw[k * 3] = d01[k]; Fw[k * 3 + 1] = d02[k]; Fw[k * 3 + 2] = n01[k]; }
+  {
+    double det = Fw[0] * (Fw[4] * Fw[8] - Fw[5] * Fw[7]) - Fw[1] * (Fw[3] * Fw[8] - Fw[5] * Fw[6]) + Fw[2] * (Fw[3] * Fw[7] - Fw[4] * Fw[6]);
+    if (!(fabs(det) > 1e-300)) return 0;
+    Fwi[0] = (Fw[4] * Fw[8] - Fw[5] * Fw[7]) / det; Fwi[1] = (Fw[2] * Fw[7] - Fw[1] * Fw[8]) / det; Fwi[2] = (Fw[1] * Fw[5] - Fw[2] * Fw[4]) / det;
+    Fwi[3] = (Fw[5] * Fw[6] - Fw[3] * Fw[8]) / det; Fwi[4] = (Fw[0] * Fw[8] - Fw[2] * Fw[6]) / det; Fwi[5] = (Fw[2] * Fw[3] - Fw[0] * Fw[5]) / det;
+    Fwi[6] = (Fw[3] * Fw[7] - Fw[4] * Fw[6]) / det; Fwi[7] = (Fw[1] * Fw[6] - Fw[0] * Fw[7]) / det; Fwi[8] = (Fw[0] * Fw[4] - Fw[1] * Fw[3]) / det;
+  }
+  int count = 0;
+  for (int ig = 0; ig < ng && count == 0; ++ig) {
+    double D0[6];
+    for (int k = 0; k < 6; ++k) D0[k] = D1[k] + g[ig] * D2[k];
+    // Eigenvalues of the rank-2 cone (one is zero): e1 > 0 > e2 for a real factorisation.
+    const double tr = D0[0] + D0[3] + D0[5];
+    const double mn = D0[0] * D0[3] - D0[1] * D0[1] + D0[0] * D0[5] - D0[2] * D0[2] + D0[3] * D0[5] - D0[4] * D0[4];
+    double disc = tr * tr - 4.0 * mn;
+    if (!(disc > 0.0)) continue;
+    disc = sqrt(disc);
+    const double e1 = (tr + disc) / 2.0, e2 = (tr - disc) / 2.0;
+    if (!(e1 > 0.0) || !(e2 < 0.0)) continue;
+    double v1[3], v2[3];
+    for (int w = 0; w < 2; ++w) {
+      const double ev = w == 0 ? e1 : e2;
+      double A[3][3] = {{D0[0] - ev, D0[1], D0[2]}, {D0[1], D0[3] - ev, D0[4]}, {D0[2], D0[4], D0[5] - ev}};
+      double c[3][3], best = -1.0;
+      double* v = w == 0 ? v1 : v2;
+      cross3d(A[0], A[1], c[0]);
+      cross3d(A[0], A[2], c[1]);
+      cross3d(A[1], A[2], c[2]);
+      for (int k = 0; k < 3; ++k) {
+        double nn = c[k][0] * c[k][0] + c[k][1] * c[k][1] + c[k][2] * c[k][2];
+        if (nn > best) { best = nn; for (int j = 0; j < 3; ++j) v[j] = c[k][j]; }
+      }
+      if (!(best > 0.0)) { best = -1.0; break; }
+      const double inv = 1.0 / sqrt(best);
+      for (int j = 0; j < 3; ++j) v[j] *= inv;
+    }
+    const double s1 = sqrt(e1), s2 = sqrt(-e2);
+    const double* Q = fabs(g[ig]) >= 1.0 ? D1 : D2;  // the better-conditioned cone to cut with the planes
+    for (int pl = 0; pl < 2 && count < 4; ++pl) {
+      double w[3];
+      for (int j = 0; j < 3; ++j) w[j] = s1 * v1[j] + (pl == 0 ? s2 : -s2) * v2[j];
+      int kp = 0;
+      for (int j = 1; j < 3; ++j) kp = fabs(w[j]) > fabs(w[kp]) ? j : kp;
+      const int i1 = (kp + 1) % 3, i2 = (kp + 2) % 3;
+      double r1[3] = {0.0, 0.0, 0.0}, r2[3] = {0.0, 0.0, 0.0};
+      r1[i1] = 1.0; r1[kp] = -w[i1] / w[kp];
+      r2[i2] = 1.0; r2[kp] = -w[i2] / w[kp];
+      const double al = quad_form(Q, r1, r1), be = quad_form(Q, r1, r2), de = quad_form(Q, r2, r2);
+      double dq = be * be - al * de;
+      if (dq < 0.0) {
+        if (dq < -1e-9 * (be * be + fabs(al * de))) continue;
+        dq = 0.0;
+      }
+      dq = sqrt(dq);
+      for (int sg = 0; sg < 2 && count < 4; ++sg) {
+        double l1, l2;
+        const double rt = sg == 0 ? dq : -dq;
+        if (fabs(al) >= fabs(de)) { l1 = (-be + rt) / al; l2 = 1.0; }
+        else { l1 = 1.0; l2 = (-be + rt) / de; }
+        double l[3];
+        for (int j = 0; j < 3; ++j) l[j] = l1 * r1[j] + l2 * r2[j];
+        const double q12 = quad_form(M12, l, l);
+        if (!(q12 > 0.0)) continue;
+        double sc = sqrt(a12 / q12);
+        if (l[0] + l[1] + l[2] < 0.0) sc = -sc;
+        for (int j = 0; j < 3; ++j) l[j] *= sc;
+        if (!(l[0] > 0.0) || !(l[1] > 0.0) || !(l[2] > 0.0)) continue;
+        // Gauss-Newton on the three ellipses.
+        for (int it = 0; it < 2; ++it) {
+          const double f0 = quad_form(M12, l, l) - a12, f1 = quad_form(M13, l, l) - a13, f2 = quad_form(M23, l, l) - a23;
+          double J[3][3] = {{2.0 * (l[0] - b12 * l[1]), 2.0 * (l[1] - b12 * l[0]), 0.0},
+                            {2.0 * (l[0] - b13 * l[2]), 0.0, 2.0 * (l[2] - b13 * l[0])},
+                            {0.0, 2.0 * (l[1] - b23 * l[2]), 2.0 * (l[2] - b23 * l[1])}};
+          const double det = J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1]) - J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0]) + J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
+          if (!(fabs(det) > 1e-300)) break;
+          const double dx = (f0 * (J[1][1] * J[2][2] - J[1][2] * J[2][1]) - J[0][1] * (f1 * J[2][2] - J[1][2] * f2) + J[0][2] * (f1 * J[2][1] - J[1][1] * f2)) / det;
+          const double dy = (J[0][0] * (f1 * J[2][2] - J[1][2] * f2) - f0 * (J[1][0] * J[2][2] - J[1][2] * J[2][0]) + J[0][2] * (J[1][0] * f2 - f1 * J[2][0])) / det;
+          const double dz = (J[0][0] * (J[1][1] * f2 - f1 * J[2][1]) - J[0][1] * (J[1][0] * f2 - f1 * J[2][0]) + f0 * (J[1][0] * J[2][1] - J[1][1] * J[2][0])) / det;
+          l[0] -= dx; l[1] -= dy; l[2] -= dz;
+        }
+        if (!(l[0] > 0.0) || !(l[1] > 0.0) || !(l[2] > 0.0)) continue;
+        // Camera points, their frame, R = Fc Fw^-1, t = x_cam_0 - R X0.
+        double c0[3], c1[3], c2[3], e01[3], e02[3], nc[3], Fc[9], R[9];
+        for (int j = 0; j < 3; ++j) { c0[j] = l[0] * y[0][j]; c1[j] = l[1] * y[1][j]; c2[j] = l[2] * y[2][j]; e01[j] = c0[j] - c1[j]; e02[j] = c0[j] - c2[j]; }
+        cross3d(e01, e02, nc);
+        for (int j = 0; j < 3; ++j) { Fc[j * 3] = e01[j]; Fc[j * 3 + 1] = e02[j]; Fc[j * 3 + 2] = nc[j]; }
+        bool fin = true;
+        for (int i = 0; i < 3; ++i)
+          for (int j = 0; j < 3; ++j) {
+            R[i * 3 + j] = Fc[i * 3] * Fwi[j] + Fc[i * 3 + 1] * Fwi[3 + j] + Fc[i * 3 + 2] * Fwi[6 + j];
+            fin = fin && isfinite(R[i * 3 + j]);
+          }
+        if (!fin) continue;
+        for (int k = 0; k < 9; ++k) sol[count][k] = R[k];
+        for (int i = 0; i < 3; ++i) sol[count][9 + i] = c0[i] - (R[i * 3] * X0[0] + R[i * 3 + 1] * X0[1] + R[i * 3 + 2] * X0[2]);
+        ++count;
+      }
+    }
+  }
+  return count;
+}
+// One thread per hypothesis (a, h): the up to four poses of its three matches. pts [P, N, 8]; pairs [A]; idx
+// [A, H, 3]; out [A, H, 4, 12]; valid [A, H, 4] int32.
+extern "C" __global__ void p3p_hypotheses(const float* __restrict__ pts, const int* __restrict__ pairs,
+                                          const int* __restrict__ idx, float* __restrict__ out,
+                                          int* __restrict__ valid, int N, int H, int A) {
+  const int g = blockIdx.x * blockDim.x + threadIdx.x;
+  if (g >= A * H) return;
+  const int a = g / H, h = g % H, pair = pairs[a];
+  double y[3][3], X[3][3], sol[4][12];
+  for (int i = 0; i < 3; ++i) {
+    const float* m = pts + ((long long)pair * N + idx[(long long)g * 3 + i]) * 8;
+    const double inv = 1.0 / sqrt(1.0 + (double)m[0] * m[0] + (double)m[1] * m[1]);
+    y[i][0] = m[0] * inv; y[i][1] = m[1] * inv; y[i][2] = inv;
+    X[i][0] = m[2]; X[i][1] = m[3]; X[i][2] = m[4];
+  }
+  const int n = p3p_solve(y, X, sol);
+  for (int s = 0; s < 4; ++s) {
+    valid[(long long)g * 4 + s] = s < n;
+    for (int k = 0; k < 12; ++k) out[((long long)g * 4 + s) * 12 + k] = s < n ? (float)sol[s][k] : 0.f;
+  }
+}
+
+// Absolute-pose LM: per-thread J^T J (21), J^T r (6) and cost (1) of the truncated reprojection error of [R | t]
+// by (omega, tau): R exp([omega]_x), t + tau. Points behind the camera cost thr2 and give no Jacobian.
+#define NLMA 28
+__device__ void lm_accumulate_abs(const float4* p, int tot, const float* M, float t2, float* acc) {
+  for (int k = 0; k < NLMA; ++k) acc[k] = 0.f;
+  for (int i = threadIdx.x; i < tot; i += blockDim.x) {
+    const float4 m0 = p[2 * i], m1 = p[2 * i + 1];
+    const float X[3] = {m0.z, m0.w, m1.x};
+    float c[3];
+    for (int r = 0; r < 3; ++r) c[r] = M[r * 3] * X[0] + M[r * 3 + 1] * X[1] + M[r * 3 + 2] * X[2] + M[9 + r];
+    if (!(c[2] > 0.f)) { acc[27] += t2; continue; }
+    const float iz = 1.f / c[2];
+    const float res[2] = {c[0] * iz - m0.x, c[1] * iz - m0.y};
+    const float e2 = res[0] * res[0] + res[1] * res[1];
+    if (e2 >= t2) { acc[27] += t2; continue; }
+    acc[27] += e2;
+    // dc/d(omega) = -R [X]_x, dc/d(tau) = I; d(res)/dc = [[iz, 0, -c0 iz^2], [0, iz, -c1 iz^2]].
+    float dc[3][6];
+    for (int r = 0; r < 3; ++r) {
+      const float* Rr = M + r * 3;
+      dc[r][0] = -(Rr[1] * X[2] - Rr[2] * X[1]);
+      dc[r][1] = -(Rr[2] * X[0] - Rr[0] * X[2]);
+      dc[r][2] = -(Rr[0] * X[1] - Rr[1] * X[0]);
+      for (int k = 0; k < 3; ++k) dc[r][3 + k] = r == k ? 1.f : 0.f;
+    }
+    float J[2][6];
+    for (int k = 0; k < 6; ++k) {
+      J[0][k] = (dc[0][k] - c[0] * iz * dc[2][k]) * iz;
+      J[1][k] = (dc[1][k] - c[1] * iz * dc[2][k]) * iz;
+    }
+    int q = 0;
+    for (int u = 0; u < 6; ++u)
+      for (int v = u; v < 6; ++v) acc[q++] += J[0][u] * J[0][v] + J[1][u] * J[1][v];
+    for (int k = 0; k < 6; ++k) acc[21 + k] += J[0][k] * res[0] + J[1][k] * res[1];
+  }
+}
+// Per-thread MSAC score (acc[0]) and inlier count (acc[1]) of [R | t]; writes the mask when given.
+__device__ void score_pass_abs(const float4* p, int tot, int N, const float* M, float t2, float* acc,
+                               unsigned char* mk) {
+  acc[0] = acc[1] = 0.f;
+  for (int i = threadIdx.x; i < (mk ? N : tot); i += blockDim.x) {
+    float g = i < tot ? Absolute::gain(p + 2 * i, M, t2) : 0.f;
+    acc[0] += g;
+    acc[1] += g > 0.f;
+    if (mk) mk[i] = (unsigned char)(g > 0.f);
+  }
+}
+// The final stage of one pose per pair: LM on the truncated reprojection cost (kept when the MSAC score rises),
+// the inlier mask and count. m [P, 12] in / out; cnt [P]; ok [P] int32 (at least `minimum` inliers); mask [P, N]
+// uint8. One block per pair, block 256.
+extern "C" __global__ void polish_abs(const float* __restrict__ pts, const int* __restrict__ counts,
+                                      const float* __restrict__ thr2, float* __restrict__ m, int* __restrict__ cnt,
+                                      int* __restrict__ ok, unsigned char* __restrict__ mask, int lm_iterations,
+                                      int N, int minimum) {
+  __shared__ float sM[12], sMn[12], sStep[6], sLam, sBest, sCost;
+  __shared__ float red[8][NT];
+  const int pair = blockIdx.x;
+  const int tot = counts[pair];
+  const float4* p = (const float4*)(pts + (long long)pair * N * 8);
+  const float t2 = thr2[pair];
+  if (threadIdx.x < 12) sM[threadIdx.x] = m[pair * 12 + threadIdx.x];
+  if (threadIdx.x == 0) sLam = 1e-3f;
+  __syncthreads();
+  float acc[NT];
+  score_pass_abs(p, tot, N, sM, t2, acc, nullptr);
+  block_sum(acc, 2, red);
+  if (threadIdx.x == 0) {
+    sBest = red[0][0];
+    sCost = t2 * (tot - red[0][0]);
+  }
+  for (int it = 0; it < lm_iterations; ++it) {
+    lm_accumulate_abs(p, tot, sM, t2, acc);
+    block_sum(acc, NLMA, red);
+    if (threadIdx.x == 0) {
+      lm_step<6>(red[0], sLam, sStep);
+      float Rw[9];
+      exp_so3(sStep, Rw);
+      mat_mul(sM, Rw, sMn);
+      for (int k = 0; k < 3; ++k) sMn[9 + k] = sM[9 + k] + sStep[3 + k];
+    }
+    __syncthreads();
+    score_pass_abs(p, tot, N, sMn, t2, acc, nullptr);
+    block_sum(acc, 2, red);
+    if (threadIdx.x == 0) {
+      const float cost = t2 * (tot - red[0][0]);
+      if (cost < sCost) {
+        sCost = cost;
+        sBest = red[0][0];
+        for (int k = 0; k < 12; ++k) sM[k] = sMn[k];
+        sLam = fmaxf(sLam * 0.1f, 1e-6f);
+      } else {
+        sLam = fminf(sLam * 10.f, 1e6f);
+      }
+    }
+    __syncthreads();
+  }
+  score_pass_abs(p, tot, N, sM, t2, acc, mask + (long long)pair * N);
+  block_sum(acc, 2, red);
+  if (threadIdx.x == 0) {
+    const int count = (int)red[0][1];
+    cnt[pair] = count;
+    ok[pair] = count >= minimum;
+    for (int k = 0; k < 12; ++k) m[pair * 12 + k] = sM[k];
   }
 }
