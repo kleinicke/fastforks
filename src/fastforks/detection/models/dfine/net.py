@@ -64,6 +64,7 @@ class Arch:
     num_queries: int
     num_classes: int
     reg_scale: float  # curvature of the bin positions and the edge distance unit (checkpoint's `reg_scale`)
+    act: str  # decoder feed-forward and head MLP activation: "relu" (D-FINE) or "silu" (DEIM)
 
 
 class Lab(nn.Module):
@@ -308,7 +309,7 @@ class Gate(nn.Module):
 
 
 class DecoderLayer(nn.Module):
-    """Self-attention, deformable cross-attention with a gate, ReLU feed-forward (all post-norm)."""
+    """Self-attention, deformable cross-attention with a gate, ReLU / SiLU feed-forward (all post-norm)."""
 
     def __init__(self, a: Arch) -> None:
         """Create the layer."""
@@ -320,13 +321,14 @@ class DecoderLayer(nn.Module):
         self.gateway = Gate(d)
         self.fc1, self.fc2 = nn.Linear(d, a.dec_ffn), nn.Linear(a.dec_ffn, d)
         self.final_layer_norm = nn.LayerNorm(d, LN_EPS)
+        self.act = F.silu if a.act == "silu" else F.relu
 
     def forward(self, x: torch.Tensor, ref: torch.Tensor, maps: list[torch.Tensor], qpos: torch.Tensor) -> torch.Tensor:
         """`[B, Q, d]` -> `[B, Q, d]`."""
         qk = x + qpos
         x = self.self_attn_layer_norm(x + self.self_attn(qk, qk, x))
         x = self.gateway(x, self.encoder_attn(x + qpos, ref, maps))
-        return self.final_layer_norm((x + self.fc2(F.relu(self.fc1(x)))).clamp(-CLAMP, CLAMP))
+        return self.final_layer_norm((x + self.fc2(self.act(self.fc1(x)))).clamp(-CLAMP, CLAMP))
 
 
 def weighting_function(reg_scale: float) -> torch.Tensor:
@@ -353,11 +355,11 @@ class Decoder(nn.Module):
         super().__init__()
         d = a.dec_dim
         self.layers = nn.ModuleList(DecoderLayer(a) for _ in range(a.dec_layers))
-        self.query_pos_head = Mlp(4, 2 * d, d, 2)
-        self.pre_bbox_head = Mlp(d, d, 4, 3)
-        self.bbox_embed = nn.ModuleList(Mlp(d, d, 4 * (BINS + 1), 3) for _ in range(a.dec_layers))
+        self.query_pos_head = Mlp(4, 2 * d, d, 2, a.act)
+        self.pre_bbox_head = Mlp(d, d, 4, 3, a.act)
+        self.bbox_embed = nn.ModuleList(Mlp(d, d, 4 * (BINS + 1), 3, a.act) for _ in range(a.dec_layers))
         self.class_embed = nn.Linear(d, a.num_classes)
-        self.lqe = Mlp(4 * (TOP_PROBS + 1), LQE_HIDDEN, 1, 2)
+        self.lqe = Mlp(4 * (TOP_PROBS + 1), LQE_HIDDEN, 1, 2, a.act)
         self.reg_scale = a.reg_scale
         self.project: torch.Tensor  # float32 in use: the module may be half
         self.register_buffer("project", weighting_function(a.reg_scale), persistent=False)
@@ -397,7 +399,7 @@ class DFine(nn.Module):
         self.decoder_input_proj = nn.ModuleList(ConvBn(a.enc_dim, d, 1) for _ in range(a.levels) if a.enc_dim != d)
         self.enc_output = nn.Sequential(nn.Linear(d, d), nn.LayerNorm(d, LN_EPS))
         self.enc_score_head = nn.Linear(d, a.num_classes)
-        self.enc_bbox_head = Mlp(d, d, 4, 3)
+        self.enc_bbox_head = Mlp(d, d, 4, 3, a.act)
         self.decoder = Decoder(a)
         self.queries, self.dim = a.num_queries, d
 
@@ -422,6 +424,30 @@ class DFine(nn.Module):
         return self.decoder(tgt, ref, maps)
 
 
+_ORIGINAL = (  # the authors' checkpoint names (D-FINE / DEIM `model` or `ema.module`) -> the Hugging Face ones
+    (r"^backbone\.stem\.", "backbone.embedder."),
+    (r"^backbone\.stages\.", "backbone.encoder.stages."),
+    (r"^(backbone\..*)\.bn\.", r"\1.norm."),
+    (r"^encoder\.input_proj\.", "encoder_input_proj."),
+    (r"^decoder\.input_proj\.", "decoder_input_proj."),
+    (r"^(encoder\.(?:fpn|pan)_blocks\.\d+)\.cv1\.", r"\1.conv1."),
+    (r"^(encoder\.(?:fpn|pan)_blocks\.\d+)\.cv2\.0\.", r"\1.csp_rep1."),
+    (r"^(encoder\.(?:fpn|pan)_blocks\.\d+)\.cv2\.1\.", r"\1.conv2."),
+    (r"^(encoder\.(?:fpn|pan)_blocks\.\d+)\.cv3\.0\.", r"\1.csp_rep2."),
+    (r"^(encoder\.(?:fpn|pan)_blocks\.\d+)\.cv3\.1\.", r"\1.conv3."),
+    (r"^(encoder\.(?:fpn|pan)_blocks\.\d+)\.cv4\.", r"\1.conv4."),
+    (r"^(encoder\.downsample_convs\.\d+)\.0\.cv([12])\.", r"\1.conv\2."),
+    (r"^decoder\.decoder\.layers\.(\d+)\.norm1\.", r"decoder.layers.\1.self_attn_layer_norm."),
+    (r"^decoder\.decoder\.layers\.(\d+)\.cross_attn\.", r"decoder.layers.\1.encoder_attn."),
+    (r"^decoder\.decoder\.layers\.(\d+)\.linear([12])\.", r"decoder.layers.\1.fc\2."),
+    (r"^decoder\.decoder\.layers\.(\d+)\.norm3\.", r"decoder.layers.\1.final_layer_norm."),
+    (r"^decoder\.decoder\.", "decoder."),
+    (r"^decoder\.dec_score_head\.", "decoder.class_embed."),
+    (r"^decoder\.dec_bbox_head\.", "decoder.bbox_embed."),
+    (r"^decoder\.enc_output\.proj\.", "enc_output.0."),
+    (r"^decoder\.enc_output\.norm\.", "enc_output.1."),
+    (r"^decoder\.(enc_score_head|enc_bbox_head|denoising_class_embed)\.", r"\1."),
+)
 _RENAME = (
     (r"^model\.", ""),
     (r"^backbone\.model\.", "backbone."),
@@ -438,7 +464,11 @@ _RENAME = (
 
 
 def _rename(key: str, last: int) -> str | None:
-    """Checkpoint key -> `DFine` key (None: not used at inference)."""
+    """Checkpoint key (Hugging Face or the authors' names) -> `DFine` key (None: not used at inference)."""
+    if key in {"decoder.anchors", "decoder.valid_mask"}:
+        return None  # the authors' precomputed anchors (computed from the feature sizes here)
+    for pat, rep in _ORIGINAL if not key.startswith("model.") else ():
+        key = re.sub(pat, rep, key)
     for pat, rep in _RENAME:
         key = re.sub(pat, rep, key)
     if m := re.match(r"^decoder\.(class_embed|lqe_layers)\.(\d+)\.(.*)$", key):

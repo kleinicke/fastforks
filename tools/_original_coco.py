@@ -15,6 +15,9 @@ Code paths (each family's venv, `bench/bench_upstream.py list`):
   (card default), RT-DETRv2 all 300 queries (the official postprocessor, as the fastforks tiers of this eval). 007 venv.
 - D-FINE: transformers `DFineForObjectDetection` (the golden's reference) at the card's revision, 640 x 640 PIL
   bilinear input in [0, 1], the RT-DETR postprocess keeping all 300 (as the fastforks tiers of this eval).
+- DEIM: the official DEIM code (`FF_DEIM_REPO`: a checkout at `DEIM_COMMIT`) built from
+  `configs/deim_dfine/deim_hgnetv2_<size>_coco.yml`, the authors' checkpoint, `deploy()`; input and postprocess as
+  D-FINE. Its training-only imports (tensorboard, faster-coco-eval, calflops) are stubbed. One DEIM model per process.
 - RTMDet: mmdet 3.3.0 `inference_detector` on the model of `tools/golden/rtmdet.py` (`FF_MMDET_SITE`: mmdet,
   mmengine, mmcv-lite; NMS through torchvision's operator), the configs' test settings (COCO: score 0.001, 300
   detections; the person detectors: 0.05, 100).
@@ -47,6 +50,8 @@ from _data import DATA
 
 AUTHORS_BF16 = {"sam2"}  # families whose authors run inference under bfloat16 autocast
 DETR_THRESHOLD = 0.05
+_DEIM: list[str] = []  # the DEIM original built in this process
+DEIM_COMMIT = "09d35d53d39ee3145a1e61e3a989b28b9468d1dd"  # the deim-* variants' code and weights
 
 
 @dataclass
@@ -244,6 +249,57 @@ def _dfine(ref: str, tier: str) -> _Detector:
     return _Detector(t, fn, "rtdetr")
 
 
+def _deim(ref: str, tier: str) -> _Detector:
+    """The official DEIM model (`FF_DEIM_REPO` at `DEIM_COMMIT`), deploy mode, with D-FINE's input and postprocess."""
+    import os  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    import torch  # noqa: PLC0415
+    from PIL import Image  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    if _DEIM and _DEIM[0] != ref:  # the config registry keeps the first model's settings
+        msg = f"one DEIM original per process ({_DEIM[0]} was built)"
+        raise RuntimeError(msg)
+    card, variant = registry.resolve("detection", ref)
+    repo = Path(os.environ.get("FF_DEIM_REPO", ""))
+    head = subprocess.run(["git", "-C", repo, "rev-parse", "HEAD"], capture_output=True, text=True, check=False).stdout
+    if head.strip() != DEIM_COMMIT:
+        msg = f"FF_DEIM_REPO must be a DEIM checkout at {DEIM_COMMIT}"
+        raise RuntimeError(msg)
+    for name in ("torch.utils.tensorboard", "calflops", "faster_coco_eval", "faster_coco_eval.utils",
+                 "faster_coco_eval.utils.pytorch", "faster_coco_eval.core", "faster_coco_eval.core.mask"):  # fmt: skip
+        sys.modules.setdefault(name, MagicMock())
+    for base in ("FasterCocoDetection", "FasterCocoEvaluator"):
+        setattr(sys.modules["faster_coco_eval.utils.pytorch"], base, type(base, (), {}))
+    _DEIM.append(ref)
+    sys.path.insert(0, str(repo))
+    from engine.core import YAMLConfig  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    size = ref.split("-")[1]
+    cfg = YAMLConfig(str(repo / f"configs/deim_dfine/deim_hgnetv2_{size}_coco.yml"))
+    cfg.yaml_cfg["HGNetv2"]["pretrained"] = False
+    (weights,) = registry.weights(card, variant, allow_download=False)
+    cfg.model.load_state_dict(torch.load(weights, map_location="cpu", weights_only=True)["model"])
+    net = cfg.model.deploy().cuda().eval()
+    t = _Tier(tier, "dfine", [net])
+
+    def fn(img: np.ndarray) -> tuple[Any, ...]:
+        h, w = img.shape[:2]
+        x = np.asarray(Image.fromarray(img).resize((640, 640), Image.Resampling.BILINEAR))
+        x = torch.from_numpy(x.copy()).cuda().permute(2, 0, 1)[None].float() / 255
+        out = net(x.half() if t.how == "half" else x)
+        scores, idx = out["pred_logits"].float().sigmoid()[0].flatten().topk(300)
+        labels, query = idx % 80, idx // 80
+        cx, cy, bw, bh = out["pred_boxes"].float()[0][query].unbind(-1)
+        boxes = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1)
+        return boxes * torch.tensor([w, h, w, h], device=boxes.device), scores, labels, None
+
+    return _Detector(t, fn, "rtdetr")
+
+
 class _Pose:
     """Pinned mmpose top-down or bottom-up inference behind the COCO pose interface."""
 
@@ -433,7 +489,7 @@ class _Concept:
         )
 
 
-def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, PLR0911 - one branch per family
+def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, C901, PLR0911 - one branch per family
     """The original of `ref` (id without `@rev`) in `tier`."""
     ref = ref.split("@", maxsplit=1)[0]
     if task == "pose":
@@ -443,6 +499,8 @@ def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, PLR0911 - one 
             return _rtmdet(ref, tier)
         if ref.startswith("dfine"):
             return _dfine(ref, tier)
+        if ref.startswith("deim"):
+            return _deim(ref, tier)
         if ref.startswith("rf-detr"):
             return _RFDETR(ref, tier)
         return _rcnn(ref, tier) if "rcnn" in ref else _detr(ref, tier)

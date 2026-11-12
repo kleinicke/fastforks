@@ -829,6 +829,21 @@ def _lightglue(a: Any, full: str, fp16: bool, options: dict[str, Any] | None = N
     return call
 
 
+def _dfine(a: Any, full: str) -> Any:  # noqa: ANN401
+    """D-FINE, DEIM as the COCO eval runs them (`tools/_original_coco.py`): numpy RGB in."""
+    import _original_coco  # noqa: PLC0415
+
+    ref = full.split("@", maxsplit=1)[0]
+    det = _original_coco.load("detection", ref, "upstream")
+    if ref.startswith("deim"):
+        a.COMMIT = _original_coco.DEIM_COMMIT
+        a.note = "official DEIM deploy model; incl. CPU PIL resize + host-to-device copy, RT-DETR postprocess (all 300)"
+    else:
+        a.COMMIT = "transformers-" + importlib.import_module("transformers").__version__
+        a.note = "transformers DFineForObjectDetection; incl. CPU PIL resize + host-to-device copy, all 300"
+    return det
+
+
 def _hwc_point(a: tuple[Any, ...]) -> tuple[Any, ...]:
     """(uint8 CUDA CHW, points, labels) of the bench call -> (uint8 HWC array, [1, 2] float array, [1] int array)."""
     import numpy as np  # noqa: PLC0415
@@ -1012,6 +1027,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "hrnet": _Local(
         "pose", _topdown, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
     ),
+    "dfine": _Local("detection", _dfine, ((800, 1344),), lambda a: (a[0].permute(1, 2, 0).contiguous().cpu().numpy(),)),
     "rfdetr_keypoint": _RFDETRKeypoint(),
     "rfdetr": _RFDETR("detection", ((800, 1344),)),
     "rtmo": _Local(

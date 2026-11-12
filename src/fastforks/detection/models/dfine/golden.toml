@@ -9,6 +9,36 @@ cpu_atol = 0.002
 gpu_mean = 0.2
 gpu_p99 = 1.0
 
+[refs."deim-l-coco@1"]
+sha256 = "9b0a1787c7d3e8e5fb406fa39cbc732f5180472a74c4a957ca1f0e6064d007b4"
+upstream = "https://github.com/Intellindust-AI-Lab/DEIM@09d35d53d39ee3145a1e61e3a989b28b9468d1dd"
+settings = "CPU float32, DEIM deploy model + RT-DETR postprocess, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.5, torch 2.14.1+cu130"
+options = [["score_threshold", 0.5]]
+
+[refs."deim-m-coco@1"]
+sha256 = "62dee8f373238d9c69ddf85330a726f7eeb3d4ad0e7dbb287431aaeceb226ab6"
+upstream = "https://github.com/Intellindust-AI-Lab/DEIM@09d35d53d39ee3145a1e61e3a989b28b9468d1dd"
+settings = "CPU float32, DEIM deploy model + RT-DETR postprocess, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.58, torch 2.14.1+cu130"
+options = [["score_threshold", 0.58]]
+
+[refs."deim-n-coco@1"]
+sha256 = "01a8b7c32ff72d78118c3cd1c1fd2cb2172b8091934c09da88f0d9ddf465d238"
+upstream = "https://github.com/Intellindust-AI-Lab/DEIM@09d35d53d39ee3145a1e61e3a989b28b9468d1dd"
+settings = "CPU float32, DEIM deploy model + RT-DETR postprocess, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.5, torch 2.14.1+cu130"
+options = [["score_threshold", 0.5]]
+
+[refs."deim-s-coco@1"]
+sha256 = "43a051466d9f02c25ee100bed79a3a84e5dffb8f80aeeafe8478a6659748f77a"
+upstream = "https://github.com/Intellindust-AI-Lab/DEIM@09d35d53d39ee3145a1e61e3a989b28b9468d1dd"
+settings = "CPU float32, DEIM deploy model + RT-DETR postprocess, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.44, torch 2.14.1+cu130"
+options = [["score_threshold", 0.44]]
+
+[refs."deim-x-coco@1"]
+sha256 = "3c2c8ef5b587e9a6b62d988967a2bc992b0594b2699f7dc572ecf97409b40518"
+upstream = "https://github.com/Intellindust-AI-Lab/DEIM@09d35d53d39ee3145a1e61e3a989b28b9468d1dd"
+settings = "CPU float32, DEIM deploy model + RT-DETR postprocess, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.55, torch 2.14.1+cu130"
+options = [["score_threshold", 0.55]]
+
 [refs."dfine-l-coco@1"]
 sha256 = "5c9942859ecbf9abd41b3c8c9a8e1c2ae4ffd8b70fd8e82c84df726e83c484eb"
 upstream = "https://github.com/huggingface/transformers@v5.19.0"
@@ -38,6 +68,51 @@ sha256 = "641fb08db6f6769161971fec12277d9c28d7579da5b58fe85fee635af58c08b3"
 upstream = "https://github.com/huggingface/transformers@v5.19.0"
 settings = "CPU float32, transformers DFineForObjectDetection + RT-DETR postprocess, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.5, torch 2.14.1+cu130"
 options = [["score_threshold", 0.5]]
+
+[validated."deim-l-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.03761
+p99_px = 0.10972
+
+[validated."deim-m-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.04456
+p99_px = 0.17115
+
+[validated."deim-n-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.08563
+p99_px = 0.18446
+
+[validated."deim-s-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.08062
+p99_px = 0.34456
+
+[validated."deim-x-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.05234
+p99_px = 0.11446
 
 [validated."dfine-l-coco@1"]
 kernels = ["cudnn_hacc@cudnn92400"]

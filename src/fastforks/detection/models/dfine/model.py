@@ -44,7 +44,8 @@ class Portable(base.Portable):
     def build(self, ctx: Context) -> torch.nn.Module:
         """The network with the checkpoint loaded (BatchNorm folded, RepVGG merged), in eval mode."""
         net = DFine(ctx.params)
-        net.load_state_dict(convert(ctx.state_dict(), ctx.params.dec_layers))
+        key = "model" if ctx.weights()[0].suffix == ".pth" else None  # the authors' (DEIM) training checkpoints
+        net.load_state_dict(convert(ctx.state_dict(key=key), ctx.params.dec_layers))
         return net.eval()
 
     def float_heads(self) -> None:

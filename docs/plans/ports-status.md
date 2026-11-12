@@ -35,6 +35,8 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- DEIM (`deim-{n,s,m,l,x}-coco`, in the dfine family): portable float32 MPS goldens and Mac speed rows at 800x1344.
+  No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in `data/ff-weights/dfine/`).
 - Lotus normals (`lotus-normal-g-v1-1`, `lotus-normal-d-v1-1`): portable float32 MPS goldens and Mac speed rows
   (994x1482). No Metal kernels runner. Weights: the pinned HF URLs of the card (also in
   `~/scratch_tests/port-p1/w/lotus/`).

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- DEIM detection (`deim-{n,s,m,l,x}-coco`, in the `dfine` family; Apache-2.0 code and weights): the D-FINE
+  network with SiLU decoder MLPs and the authors' checkpoints, on `portable` and `kernels`. L at 800x1344: 8.7 ms
+  kernels vs 30.5 ms original fp32; COCO val2017 (every 10th) box mAP 54.67 kernels and original.
+
 - Lotus normals (`lotus-normal-g-v1-1`, `lotus-normal-d-v1-1`, depth task, `normals` output; Apache-2.0): one step
   on the shared Stable Diffusion 2 UNet / VAE. 994x1482: 164 ms kernels vs 552 ms original fp32 (344 ms fp16);
   NYUv2 normals mean angular error 16.61 deg (Lotus-G kernels), first 100 images 16.815 kernels vs 16.815 original.

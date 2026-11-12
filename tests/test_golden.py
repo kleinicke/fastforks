@@ -92,6 +92,7 @@ CPU_ALSO = {
     "cas-gwcnet-gc-sceneflow@1": "arch gc (smallest: arch c)",
     "da3-large-1.1@1": "arch large (smallest: metric)",
     "da3mono-large@1": "arch mono (smallest: metric)",
+    "deim-n-coco@1": "DEIM: SiLU decoder MLPs, the authors' checkpoint keys (smallest: ReLU, transformers keys)",
     "depth-anything-v2-metric-hypersim-s@1": "metric head: sigmoid * max_depth (smallest: relative, ReLU)",
     "dinov2-vits14@1": "no register tokens (smallest: registers)",
     "dinov2-vitg14-reg@1": "fused SwiGLU FFN (ViT-g only)",
@@ -464,8 +465,24 @@ def sure_mask(score: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
     return np.broadcast_to(np.expand_dims(score, axis), shape)
 
 
+def paired_detections(want: dict[str, np.ndarray], got: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    """`got`'s instances in the golden's order: near-equal scores swap places between backends (fp16), so each golden
+    box in turn takes the closest (L1) box not yet taken. Other counts are left to the shape check."""
+    n = want["boxes"].shape[0]
+    if n == 0 or tuple(got["boxes"].shape) != want["boxes"].shape:
+        return got
+    dist = torch.cdist(torch.from_numpy(want["boxes"]).double(), got["boxes"].double(), p=1)
+    order: list[int] = []
+    for row in dist:
+        row[order] = float("inf")
+        order.append(int(row.argmin()))
+    return {k: v[order] if v.ndim and v.shape[0] == n else v for k, v in got.items()}
+
+
 def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torch.Tensor], what: str) -> np.ndarray:
     """Assert `got` within the GPU tolerances of the golden; the error map of the primary output."""
+    if TASK[ref] == "detection":
+        got = paired_detections(want, got)
     for k in want.keys() & got.keys() if "pairs" not in want else ():  # e.g. the same detections (not sparse counts)
         assert tuple(got[k].shape) == want[k].shape, f"{what}{k}: shape {tuple(got[k].shape)}, golden {want[k].shape}"
     if TASK[ref] == "features":  # hidden states are not compared below: at least no fp16 overflow
