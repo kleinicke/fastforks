@@ -275,3 +275,9 @@ name = "P3M-10k (privacy-preserving portrait matting)"
 licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
 commercial = "unclear"
 url = "https://github.com/JizhiziLi/P3M"
+
+[prama-internal]
+name = "Prama LLC proprietary segmentation data"
+licence = "not stated"  # BEN2 card: "our 22K proprietary segmentation dataset"
+commercial = "unclear"
+url = "https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md"

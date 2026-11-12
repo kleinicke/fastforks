@@ -7,6 +7,10 @@
   Tiny on DAVIS 2017 val (480p): 59 ms/frame portable, 63 ms kernels vs 282 ms original fp32 (90 ms fp16), peak
   1.3 GB vs 2.1 GB; J&F 87.53 portable, 87.54 kernels and original.
 
+- BEN2 matting / background removal (`ben2`; MIT code and weights): Swin v1 Base on the whole image plus four
+  full-resolution patches, merged by multi-view cross-attention. 1080x1920: 173 ms kernels, 184 ms portable (58 ms
+  TensorRT, 103 ms compile) vs 318 ms original fp32 (201 ms fp16). DIS-VD MAE 0.0403 / max F-beta 0.900 (kernels,
+  470 images), every 2nd image equal to the original for all tiers.
 - BiRefNet matting / background removal (`birefnet`, `birefnet-lite`, new `fastforks.matting` task; MIT code and
   weights): alpha `[H, W]` in [0, 1] at the input size; shared Swin v1 encoder (`fastforks.shared.swin_v1`). 1080x1920:
   `birefnet` 214 ms kernels (88 ms TensorRT) vs 382 ms original fp32 (234 ms fp16); `birefnet-lite` 59 ms vs 123 ms

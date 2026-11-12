@@ -37,6 +37,8 @@ In this order, unless something more useful turns up:
 
 - SAM 2 video (`track` of `sam2.1-hiera-*`): portable float32 MPS video goldens (`video_*` keys of
   `tests/test_golden.py`); the memory features are stored in bfloat16 as upstream.
+- BEN2 (`ben2`, matting): portable float32 MPS goldens and Mac speed rows at 1080x1920. No Metal kernels runner.
+  Weights: the pinned HF URL of the card (also in `~/scratch_tests/port-p1/w/ben2/`).
 - BiRefNet (`birefnet`, `birefnet-lite`, new matting task; new `shared/swin_v1`): portable float32 MPS goldens and
   Mac speed rows at 1080x1920. No Metal kernels runner (CUDA kernels: `deform_conv` in the ASPP branches). Weights: the
   pinned HF URLs of the card (also in `~/scratch_tests/port-p1/w/birefnet/`).

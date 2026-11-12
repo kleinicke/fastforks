@@ -922,6 +922,21 @@ def _birefnet(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - a
     return lambda image: g.predict(net, image[None].float() / 255)
 
 
+def _ben2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """The authors' `BEN2.py` with float pre- and post-processing, as `tools/golden/ben2.py`.
+
+    `FF_BEN2_REPO`: a PramaLLC/BEN2 checkout; fp16 = the forward's own CUDA fp16 autocast (fp32: without it).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("ben2")
+    card, variant = registry.resolve("matting", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_BEN2_REPO"]), Path(weights)).cuda()
+    a.note = f"PramaLLC/BEN2@{g.COMMIT[:12]} BEN2.py, bicubic resize / normalisation / bilinear back / min-max"
+    return lambda image: g.predict(net, image[None].float() / 255, autocast=fp16)
+
+
 class _Local:
     """An original the bench has no adapter for, on the library's own bench inputs as uint8 CUDA tensors.
 
@@ -1095,6 +1110,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "lightglue": _LocalFp16("matching", _lightglue, ((768, 1024),)),
     "xfeat": _Local("matching", _xfeat, ((768, 1024),)),
     "birefnet": _LocalFp16("matting", _birefnet, ((1080, 1920),)),
+    "ben2": _LocalFp16("matting", _ben2, ((1080, 1920),)),
 }
 
 

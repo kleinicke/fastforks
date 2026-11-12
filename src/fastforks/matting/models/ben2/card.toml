@@ -1,0 +1,37 @@
+schema = 2
+name = "BEN2"
+summary = "BEN2 (Prama LLC, 2025): background erase network for dichotomous image segmentation and background removal. A Swin Transformer v1 Base encoder sees the image at half resolution and as four full-resolution quarter patches; multi-view cross-attention (MVANet-style) merges them, a convolutional head upsamples to one foreground mask per image."
+tier = "experimental"
+outputs = ["alpha"]
+uses = ["swin_v1", "cnn_kernels"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/PramaLLC/BEN2"
+commit = "2c99a5da477b5523585bfa5c893888a6e818a8f6"  # net/ben2.py = BEN2.py (BEN_Base, MCLM, MCRM; the HF repo's BEN2.py is the same code); Swin: shared/swin_v1
+
+[licence]
+code = "MIT"  # LICENSE
+weights = "MIT"  # the HF model card: "license: mit"
+files = ["LICENSE"]
+training_data = ["dis5k", "prama-internal"]
+training_note = 'BEN2 card: "BEN2 was trained on the DIS5k and our 22K proprietary segmentation dataset"; it implies DIS-VD stayed out of training ("RMBG 2.0 did not preserve the DIS 5k validation dataset"). Only the weights licence (MIT) counts for the commercial flag.'
+evidence = "https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md ; https://github.com/PramaLLC/BEN2/blob/2c99a5da477b5523585bfa5c893888a6e818a8f6/LICENSE"
+
+[io]
+input = "imagenet"  # the runner resizes to `size` x `size` first (bicubic, antialiased; upstream: PIL Lanczos)
+
+[params]
+size = 1024  # network input side (upstream inference); the mask is resized back (bilinear) and min-max normalised
+
+[modes.portable]
+cuda_dtype = "float16"  # the authors' forward runs fp16 autocast on CUDA
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "igev", "cutlass_conv"]
+
+[[variants]]
+id = "ben2"  # BEN2 base (PramaLLC/BEN2)
+revision = 1
+params = {}
+weights = [{ name = "ben2.safetensors", size = 380577976, sha256 = "ea8b7907176a09667c86343dc7d00de6a6d871076cb90bb5f753618fd6fb3ebb", url = "https://huggingface.co/PramaLLC/BEN2/resolve/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/model.safetensors" }]

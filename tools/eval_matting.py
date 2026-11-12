@@ -77,6 +77,17 @@ def predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
 
         card, variant = registry.resolve("matting", ref)
         (weights,) = registry.weights(card, variant)
+        if ref == "ben2":  # the authors' forward: fp16 = its own CUDA autocast
+            import ben2  # noqa: PLC0415 - tools/golden/ben2.py
+
+            net = ben2.network(Path(os.environ["FF_BEN2_REPO"]), Path(weights)).cuda()
+            fp16 = tier == "upstream16"
+
+            def call(x: torch.Tensor) -> torch.Tensor:
+                with torch.inference_mode():
+                    return ben2.predict(net, x, autocast=fp16)[0]
+
+            return call
         from birefnet import network, predict  # noqa: PLC0415 - tools/golden/birefnet.py
 
         net = network(Path(os.environ["FF_BIREFNET_HF"]) / ref, Path(weights)).cuda()

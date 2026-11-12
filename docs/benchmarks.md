@@ -732,6 +732,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
+| ben2 | 201 | 184 | 173 | 1.2x | 1.1x | 2466 / 2772 | 1681 / 1976 | 1946 / 2238 |
 | birefnet | 234 | 225 | 214 | 1.1x | 1.0x | 1666 / 1930 | 1660 / 1888 | 1674 / 1916 |
 | birefnet-lite | 75.1 | 67.3 | 59.3 | 1.3x | 1.1x | 913 / 974 | 810 / 932 | 754 / 960 |
 
@@ -1201,6 +1202,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | segnext-mscan-l-ade20k | 0.57 | 0.57 (512x512) | 1.51 (512x512) | 0.06 | 0.41 (512x512) | 0.10 (512x512) |
 | segnext-mscan-s-ade20k | 0.23 | 0.15 (512x512) | 1.29 (512x512) | 0.32 | 0.72 (512x512) | 0.19 (512x512) |
 | segnext-mscan-t-ade20k | 0.19 | 0.13 (512x512) | 1.26 (512x512) | 0.34 | 0.65 (512x512) | 0.20 (512x512) |
+| ben2 | 2.29 | 0.30 | 1.40 | 0.93 | 0.66 | 0.42 |
 | birefnet | 3.60 | 0.75 | 1.61 | 0.39 | 0.56 | 0.44 |
 | birefnet-lite | 8.04 | 0.26 | 1.03 | 1.10 | 0.63 | 0.32 |
 | efficientvit-sam-l0 | 0.35 | 0.83 | 1.63 | 0.82 | 0.72 | 0.25 |
@@ -1611,6 +1613,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | segnext-mscan-l-ade20k | 1024x2048 | 43.1 ms | 63.6 ms | 32.3 ms | 20.6 ms | 34.9 s | 82.2 s | 417 / 458 | 532 / 578 | 314 / 428 | 1634 / 1694 |
 | segnext-mscan-s-ade20k | 1024x2048 | 18.5 ms | 24.9 ms | 18.0 ms | 8.04 ms | 17.2 s | 56.6 s | 350 / 402 | 465 / 482 | 202 / 290 | 1493 / 1544 |
 | segnext-mscan-t-ade20k | 1024x2048 | 15.9 ms | 16.6 ms | 16.0 ms | 8.99 ms | 19.1 s | 59.6 s | 332 / 378 | 446 / 480 | 147 / 206 | 1476 / 1498 |
+| ben2 | 1080x1920 | 184 ms | 103 ms | 58.2 ms | 173 ms | 70.8 s | 140 s | 1681 / 1976 | 813 / 916 | 1946 / 2238 | 1280 / 1326 |
 | birefnet | 1080x1920 | 225 ms | 138 ms | 87.8 ms | 214 ms | 93.8 s | 201 s | 1660 / 1888 | 1874 / 1932 | 1674 / 1916 | 1753 / 1814 |
 | birefnet-lite | 1080x1920 | 67.3 ms | 50.2 ms | 49.0 ms | 59.3 ms | 75.1 s | 156 s | 810 / 932 | 1469 / 1552 | 754 / 960 | 874 / 934 |
 | efficientvit-sam-l0 | 1024x1024 | 12.7 ms | 6.44 ms | 5.56 ms, fp32 engine (image encoder only) | 4.45 ms | 25.2 s | 19.9 s | 171 / 210 | 188 / 228 | 176 / 256 | 404 / 428 |
