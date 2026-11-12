@@ -642,6 +642,7 @@ BatchNorm: fine-tune the timm / torchvision model and pass its `state_dict` file
 - Map errors to HTTP: `InputError` / `ArgumentError` (bad image, bad keyword) to 4xx, other `FastforksError`
   subclasses (`WeightsError`, `BackendUnavailableError`, ...) to 5xx; one `except fastforks.FastforksError` covers all.
 - Images as uploaded bytes: pass `bytes`, `bytearray` or `io.BytesIO` of the encoded file; corrupt data raises `InputError`.
+- Image inputs also take an `http://` or `https://` URL (`model("https://example.com/cat.jpg")`; downloaded, 30 s timeout, 100 MB cap).
 
 ## Notes for deployments
 

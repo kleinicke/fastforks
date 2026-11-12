@@ -20,9 +20,11 @@ import contextlib
 import io
 import logging
 import os
+import urllib.error
+import urllib.request
 from contextvars import ContextVar
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, TypeAlias, TypeGuard
 
 import numpy as np
 import torch
@@ -57,6 +59,7 @@ _LOSSLESS_FIX = (
 )
 _RGB, _RGBA = 3, 4
 _BATCH_DIMS = 4
+_URL_TIMEOUT_S, _URL_MAX_BYTES = 30, 100 * 2**20
 
 
 def _as_tensor(img: ImageLike) -> torch.Tensor:
@@ -107,16 +110,37 @@ def _check_channels(t: torch.Tensor, img: object, shape: tuple[int, ...]) -> Non
     raise InputError(msg)
 
 
-def decode_image(source: str | os.PathLike[str] | bytes | bytearray | io.BytesIO) -> np.ndarray:
-    """Read an image file (or its encoded bytes) as the channel-last numpy array the model calls use (`HW` / `HWC`).
+def is_url(source: object) -> TypeGuard[str]:
+    """Whether `source` is a `str` with an `http://` or `https://` URL (local paths are never URLs)."""
+    return isinstance(source, str) and source.startswith(("http://", "https://"))
 
-    The decode of every path / bytes input (Pillow, same checks); thread-safe, so pipelines call it from reader threads.
-    The array is uint8 / uint16.
+
+def _download(url: str) -> bytes:
+    """The body of `url` (30 s timeout, at most 100 MB); `InputError` naming the URL on any HTTP / network error."""
+    try:
+        with urllib.request.urlopen(url, timeout=_URL_TIMEOUT_S) as r:  # noqa: S310 - http(s) only, checked by is_url
+            data = r.read(_URL_MAX_BYTES + 1)
+    except (OSError, ValueError, urllib.error.URLError) as e:  # HTTPError is a URLError; timeouts are OSError
+        msg = f"cannot download image {url!r}: {e}"
+        raise InputError(msg) from e
+    if len(data) > _URL_MAX_BYTES:
+        msg = f"cannot download image {url!r}: larger than {_URL_MAX_BYTES >> 20} MB"
+        raise InputError(msg)
+    return data
+
+
+def decode_image(source: str | os.PathLike[str] | bytes | bytearray | io.BytesIO) -> np.ndarray:
+    """Read an image file, an `http(s)://` URL (downloaded) or encoded bytes as the numpy array the model calls use.
+
+    The array is channel-last (`HW` / `HWC`), uint8 / uint16. The decode of every path / URL / bytes input (Pillow, same
+    checks); thread-safe, so pipelines call it from reader threads.
 
     Raises:
-        InputError: The file is missing or unreadable, the bytes are not an image, or Pillow would read it lossily
-            (see the module docstring).
+        InputError: The file is missing or unreadable, the URL cannot be downloaded, the bytes are not an image, or
+            Pillow would read it lossily (see the module docstring).
     """
+    if is_url(source):
+        source = _download(str(source))
     if isinstance(source, (bytes, bytearray, io.BytesIO)):
         data = source.getvalue() if isinstance(source, io.BytesIO) else bytes(source)
         name, head, fp = f"<{type(source).__name__}>", data[:_HEAD], io.BytesIO(data)

@@ -11,13 +11,14 @@ from concurrent.futures import ThreadPoolExecutor
 from itertools import zip_longest
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
+from urllib.parse import urlparse
 
 import numpy as np
 import torch
 from PIL import Image
 
 from fastforks._core.errors import InputError
-from fastforks._core.image import _as_tensor, is_batch
+from fastforks._core.image import _as_tensor, is_batch, is_url
 from fastforks._core.io import atomic_write, write_map
 from fastforks._core.pipeline import Done, OnError, Pipeline, default_prefetch, default_workers
 from fastforks.stereo.calibrated import (
@@ -97,6 +98,11 @@ def natural_key(text: str) -> tuple[list[int | str], str]:
     return [int(t) if t.isdigit() else t.casefold() for t in _DIGITS.split(text)], text
 
 
+def _stem(img: str | os.PathLike[str]) -> str:
+    """Output name of an image: the file stem (of the URL path for a URL)."""
+    return Path(urlparse(img).path).stem or "image" if is_url(img) else Path(img).stem
+
+
 def _glob_root(pattern: str) -> Path:
     """The directory part of `pattern` before its first wildcard."""
     parts = Path(pattern).parts
@@ -153,6 +159,8 @@ def _files(spec: str | os.PathLike[str], what: str) -> list[tuple[Path, str]]:
 
 def _side(spec: Images, what: str) -> tuple[Iterable[tuple[ImageLike, str | None]], int | None, ImageLike | None]:
     """The images of one side with their output names, their count if known up front, and the first image if cheap."""
+    if is_url(spec):  # one image given by URL (is_url narrows to str)
+        return [(spec, _stem(spec))], 1, None
     if isinstance(spec, (str, os.PathLike)):
         files = _files(spec, what)
         return files, len(files), files[0][0]
@@ -171,7 +179,7 @@ def _side(spec: Images, what: str) -> tuple[Iterable[tuple[ImageLike, str | None
         raise InputError(msg) from None
     count = len(spec) if hasattr(spec, "__len__") else None  # ty: ignore[invalid-argument-type]
     first = spec[0] if count and isinstance(spec, (list, tuple)) else None
-    named = ((img, Path(img).stem if isinstance(img, (str, os.PathLike)) else None) for img in it)
+    named = ((img, _stem(img) if isinstance(img, (str, os.PathLike)) else None) for img in it)
     return (list(named) if isinstance(spec, (list, tuple)) else named), count, first
 
 
@@ -267,7 +275,7 @@ def _pairs(
 def _peek(first: ImageLike | None) -> tuple[int, int, int] | None:
     """`(height, width, bytes of a pair in flight)` of the first image, from the file header if it is a path."""
     try:
-        if isinstance(first, (str, os.PathLike)):
+        if isinstance(first, (str, os.PathLike)) and not is_url(first):  # a URL is not downloaded twice
             with Image.open(first) as im:
                 (w, h), c = im.size, len(im.getbands())
             return h, w, h * w * (2 * c + 4)  # two decoded images and a float32 map
@@ -289,7 +297,7 @@ def _name(img: ImageLike) -> str:
 
 
 def _path(img: ImageLike) -> Path | None:
-    return Path(img) if isinstance(img, (str, os.PathLike)) else None
+    return Path(img) if isinstance(img, (str, os.PathLike)) and not is_url(img) else None
 
 
 def _host(img: ImageLike, what: str, index: int) -> torch.Tensor:

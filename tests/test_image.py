@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import functools
+import http.server
 import struct
+import threading
 import zlib
 
 import numpy as np
@@ -11,6 +14,7 @@ from PIL import Image
 from fastforks import InputError
 from fastforks._core import image as image_mod
 from fastforks._core.image import to_rgb_batch
+from fastforks.stereo import pipeline
 
 CPU = torch.device("cpu")
 RGB = np.arange(2 * 3 * 3, dtype=np.uint8).reshape(2, 3, 3)  # H=2, W=3, C=3
@@ -184,3 +188,50 @@ def test_mode_i_needs_a_16bit_gray_header():
         image_mod._pil_array(im, "x: ")
     with pytest.raises(InputError, match="outside"):
         image_mod._pil_array(Image.fromarray(np.full((2, 2), 70000, np.int32)), "x: ", gray16=True)
+
+
+@pytest.fixture
+def served(tmp_path):
+    """A local http server (thread) serving `x.png` from tmp_path; yields its base URL."""
+    Image.fromarray(RGB).save(tmp_path / "x.png")
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(tmp_path))
+    handler.log_message = lambda *_: None  # type: ignore[attr-defined]
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{srv.server_port}", tmp_path / "x.png"
+    srv.shutdown()
+    srv.server_close()
+
+
+def test_url_decodes_like_bytes(served):
+    url, path = served
+    np.testing.assert_array_equal(image_mod.decode_image(f"{url}/x.png"), image_mod.decode_image(path.read_bytes()))
+    torch.testing.assert_close(to_rgb_batch(f"{url}/x.png", CPU), to_rgb_batch(path, CPU))
+
+
+def test_url_errors_are_input_errors(served):
+    url, _ = served
+    with pytest.raises(InputError, match=r"missing\.png"):
+        image_mod.decode_image(f"{url}/missing.png")
+    with pytest.raises(InputError, match="cannot download"):
+        image_mod.decode_image("http://127.0.0.1:9/x.png")
+
+
+def test_url_size_cap(served, monkeypatch):
+    url, _ = served
+    monkeypatch.setattr(image_mod, "_URL_MAX_BYTES", 10)
+    with pytest.raises(InputError, match="larger than"):
+        image_mod.decode_image(f"{url}/x.png")
+
+
+def test_url_in_stereo_pipeline(served):
+
+    url, path = served
+    names = [f"{url}/x.png?v=1"]
+    left, right, n, _ = pipeline.check_inputs(names, f"{url}/x.png")
+    assert n == 1
+    assert [nm for _, nm in left] == ["x"]
+    assert [nm for _, nm in right] == ["x"]
+    assert pipeline._path(names[0]) is None
+    assert pipeline._peek(names[0]) is None
+    assert pipeline._peek(str(path)) is not None
