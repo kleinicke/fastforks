@@ -17,7 +17,11 @@ def test_card() -> None:
     cards = {v.id: (c, v) for c, v in registry.cards("matching").values() if c.family == "romav2"}
     assert sorted(cards) == ["romav2"]
     card, _ = cards["romav2"]
-    assert dict(card.options) == {"coarse_size": 800, "fine_size": 1280}  # upstream's default setting "precise"
+    assert dict(card.options) == {
+        "coarse_size": 800,
+        "fine_size": 1280,
+        "keep_descriptors": False,
+    }  # upstream "precise"
     assert "romav2" in matching.list_models()
 
 
@@ -39,6 +43,33 @@ def test_warp_in_image2_pixels(coarse: int, fine: int) -> None:
     ys, xs = torch.meshgrid(torch.arange(32.0), torch.arange(32.0), indexing="ij")
     want = torch.stack(((xs + 0.5) * 64 / 32 - 0.5, (ys + 0.5) * 48 / 32 - 0.5))
     torch.testing.assert_close(out["warp"][0], want, rtol=0, atol=1e-4)
+
+
+def test_keep_descriptors_reuses_the_last_two_images() -> None:
+    """`Descriptors`: an image of the last pair is not described again, in either role; a third one drops the oldest."""
+
+    class Net(_Identity):
+        def __init__(self) -> None:
+            super().__init__()
+            self.described: list[float] = []
+
+        def describe(self, img: torch.Tensor) -> list[torch.Tensor]:
+            self.described.append(float(img.flatten()[0]))
+            return [img + 1]
+
+        def forward(self, a_lr, b_lr, *hr, f_A, f_B):  # noqa: N803 - upstream's names
+            assert torch.equal(f_A[0], a_lr + 1)
+            assert torch.equal(f_B[0], b_lr + 1)
+            f_A[-1] = f_A[-1] * 0  # upstream's matcher replaces the last entry of its list
+            return super().forward(a_lr, b_lr, *hr)
+
+    net, params = Net(), family.Params(16, 0, keep_descriptors=True)
+    describe = family.Descriptors(net)
+    a, b, c = (torch.full((1, 3, 16, 16), v) for v in (0.1, 0.2, 0.3))
+    for x, y in ((a, b), (b, c), (b, a), (a.clone(), a)):
+        family.forward(net, x, y, params, describe)
+    assert net.described == pytest.approx([0.1, 0.2, 0.3, 0.1])
+    assert len(describe.kept) == 2
 
 
 def test_sizes_must_be_multiples() -> None:

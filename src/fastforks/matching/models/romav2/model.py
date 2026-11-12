@@ -47,18 +47,41 @@ class Params:
 
     coarse_size: int  # side of the square the descriptor, matcher and first refinement see (upstream H_lr = W_lr)
     fine_size: int  # side of the square of the second refinement (upstream H_hr = W_hr); 0 = no second refinement
+    keep_descriptors: bool = False  # reuse the DINOv3 descriptors of the last two images (sequences, one-to-many)
 
 
-def forward(net: RoMaV2, image1: torch.Tensor, image2: torch.Tensor, params: Params) -> dict[str, torch.Tensor]:
+class Descriptors:
+    """`net.describe` that keeps the descriptors of the last two coarse images (`keep_descriptors`).
+
+    An image that returns in the next pair (a sequence A-B, B-C; one image against many) skips the DINOv3 pass. The
+    key is the resized image itself (compared on the GPU), so files, arrays and tensors all match.
+    """
+
+    def __init__(self, net: RoMaV2) -> None:
+        """Nothing kept yet."""
+        self.net = net
+        self.kept: list[tuple[torch.Tensor, list[torch.Tensor]]] = []
+
+    def __call__(self, img: torch.Tensor) -> list[torch.Tensor]:
+        """`net.describe(img)`, from the kept ones if `img` is one of the last two images."""
+        for i, (key, f) in enumerate(self.kept):
+            if key.shape == img.shape and torch.equal(key, img):
+                self.kept.append(self.kept.pop(i))
+                return list(f)  # a copy: the matcher replaces the last entry of its list
+        f = self.net.describe(img)
+        self.kept = [*self.kept[-1:], (img, f)]
+        return list(f)
+
+
+def forward(
+    net: RoMaV2, image1: torch.Tensor, image2: torch.Tensor, params: Params, describe: Descriptors | None = None
+) -> dict[str, torch.Tensor]:
     """`{"warp": [B, 2, H1, W1], "certainty": [B, H1, W1]}` of `[0, 1]` RGB `[B, 3, H1, W1]`, `[B, 3, H2, W2]`."""
     lr, hr = (params.coarse_size, params.coarse_size), (params.fine_size, params.fine_size)
     fine = params.fine_size > 0
-    out = net(
-        resize(image1, lr),
-        resize(image2, lr),
-        resize(image1, hr) if fine else None,
-        resize(image2, hr) if fine else None,
-    )
+    lr1, lr2 = resize(image1, lr), resize(image2, lr)
+    kept = {"f_A": describe(lr1), "f_B": describe(lr2)} if describe else {}
+    out = net(lr1, lr2, resize(image1, hr) if fine else None, resize(image2, hr) if fine else None, **kept)
     warp = out["warp_AB"].float().permute(0, 3, 1, 2)  # [B, 2, h, w], normalised (-1 and 1: the image borders)
     overlap = out["confidence_AB"][..., 0].float().sigmoid()  # [B, h, w]
     (h1, w1), (h2, w2) = image1.shape[-2:], image2.shape[-2:]
@@ -137,10 +160,11 @@ class Portable(Runner):
             if ctx.dtype == "bfloat16":
                 cast_autocast_weights(net, torch.bfloat16)
         self.net = net
+        self.describe = Descriptors(net) if p.keep_descriptors else None
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Warp and certainty of a batch."""
-        return forward(self.net, image1, image2, self.ctx.params)
+        return forward(self.net, image1, image2, self.ctx.params, self.describe)
 
     def module(self) -> torch.nn.Module:
         """The network with the resizing; returns `{"warp", "certainty"}`."""

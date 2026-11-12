@@ -101,7 +101,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/Parskatt/romav2/blob/95c9968145c8906b7b59383258e9f73b02853d89/README.md#license>
 - Training data: Upstream README: a mix of wide-baseline matching datasets following UFM and MapAnything (MegaDepth and others; see the paper); none has a dataset entry here yet. The frozen DINOv3 descriptor was pretrained on LVD-1689M (not released).
 - Licence note: The checkpoint includes the DINOv3 ViT-L/16 weights, and net/dinov3.py and net/vit/ come from DINOv3: the DINOv3 License (Meta: attribution and conditions apply) covers those parts; read it before commercial use.
-- Options: `coarse_size` = 800 (>= 16), `fine_size` = 1280 (>= 0)
+- Options: `coarse_size` = 800 (>= 16), `fine_size` = 1280 (>= 0), `keep_descriptors` = False (speed only)
 - Kernel libraries: `romav2`
 - Variants: `romav2`
 - Outputs: warp, certainty
