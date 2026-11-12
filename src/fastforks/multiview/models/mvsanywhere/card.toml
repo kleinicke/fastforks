@@ -37,7 +37,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["fastbb", "igev", "cutlass_conv", "cudnn_hacc", "mvsanywhere"]
+kernels = ["fastbb", "igev", "cutlass_conv", "cudnn_hacc", "mvsanywhere", "dpt_fused"]
 
 [[variants]]
 id = "mvsanywhere"

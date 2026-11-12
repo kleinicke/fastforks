@@ -30,7 +30,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb"]
+kernels = ["fastbb", "dpt_fused"]
 
 [[variants]]
 id = "dinov2-vits14"

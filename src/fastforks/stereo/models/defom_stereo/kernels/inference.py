@@ -26,6 +26,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.kernels import linear
+from fastforks.kernels import dpt_fused
 from fastforks.kernels.cutlass_conv import ConvEpiArgs
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep, conv_fused, cutlass, fuse_ok, fused_cfg
@@ -195,7 +196,9 @@ def prepare_kernels(model: nn.Module, device: torch.device) -> None:
         msg = "DEFOM kernels path: 3 GRU levels, n_downsample 2, 2 correlation levels, hidden dims 128 only"
         raise ValueError(msg)
     pretrained = model.defomencoder.depth_anything.pretrained
-    use_fast_vit(pretrained, out_dtype=torch.bfloat16)  # fp16 ViT, bf16 tokens for the bf16 DPT heads
+    use_fast_vit(
+        pretrained, out_dtype=torch.bfloat16, fused=dpt_fused.load(device)
+    )  # fp16 ViT, bf16 tokens for the bf16 DPT heads
     prepare_encoders(model)  # fnet / cnet: fp16 NHWC, folded BN, fastbb instance norm, hacc convs (convs on DPT: bf16)
     nch = (2 * (2 * a.corr_radius + 1), len(a.scale_list) * (2 * a.scale_corr_radius + 1))
     cpad = tuple((c + 7) // 8 * 8 for c in nch)

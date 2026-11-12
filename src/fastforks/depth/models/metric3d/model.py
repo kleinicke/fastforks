@@ -21,6 +21,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.half import fp16_accumulate, half_weights, pure_half
 from fastforks._core.patch import override
 from fastforks.depth._runner import Forward, NoParams, Runner, scale
+from fastforks.kernels import dpt_fused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.shared.depth_anything_v2.fast_vit import FastViT
 
@@ -161,7 +162,7 @@ _fp16_accumulate = fp16_accumulate
 class _ViT(FastViT):
     """The shared fast ViT on Metric3D's vendored DINOv2-reg (its own `Mlp` / `Attention` classes, same maths)."""
 
-    def __init__(self, vit: Any, attn: str) -> None:  # noqa: ANN401 - the vendored ViT
+    def __init__(self, vit: Any, attn: str, fused: dpt_fused.DptFused) -> None:  # noqa: ANN401 - the vendored ViT
         """As `FastViT.__init__`, with the structure check against the vendored classes."""
         blocks = [b for chunk in vit.blocks for b in chunk if not isinstance(b, nn.Identity)]
         for b in blocks:
@@ -176,6 +177,7 @@ class _ViT(FastViT):
         self.vit = vit.half().eval()
         self.attn, self.out_dtype = Flash64(attn), None
         self._pos = {}
+        self.fused, self._scales = fused, {}
 
     def features(self, x: torch.Tensor) -> torch.Tensor:
         """Normed final tokens (cls, registers, patches), fp16: upstream `forward_features` (`multi_output` off)."""
@@ -234,7 +236,7 @@ class Kernels(Runner):
         """Build the network and convert it."""
         super().__init__(ctx)
         self.net = _net(ctx)
-        self.vit = _ViT(self.net.encoder, "hh")
+        self.vit = _ViT(self.net.encoder, "hh", dpt_fused.load(ctx.device))
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
         """Metric depth, normals and confidence of a batch."""

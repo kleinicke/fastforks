@@ -23,7 +23,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`cfnet-sceneflow`](#cfnet) | yes | 5.60 | 401, 1.4x | 4718, 0.6x |
 | [`coex-sceneflow`](#coex) | yes | 33.46 | 23.5, 2.6x | 886, 0.41x |
 | [`crestereo-eth3d`](#crestereo) | yes | 1.39 † | 229, 7.0x | 732, 0.42x |
-| [`defom-stereo-vitl-sceneflow`](#defom_stereo) | no | 2.44 | 659, 4.3x | 3566, 0.41x |
+| [`defom-stereo-vitl-sceneflow`](#defom_stereo) | no | 2.44 | 642, 4.4x | 3522, 0.4x |
 | [`dlnr-middlebury`](#dlnr) | yes | 34.38 | 214, 2.8x | 1606, 0.45x |
 | [`dlnr-sceneflow`](#dlnr) | yes | 30.27 | 214, 2.8x | 1606, 0.45x |
 | [`fast-acvnet-generalization`](#fast_acvnet) | yes | 6.51 | 38.2, 1.6x | 1042, 0.69x |
@@ -61,9 +61,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`las2-s`](#las2) | yes | 4.10 ? | 14.3, 3.0x | 558, 0.57x |
 | [`mocha-v1-sceneflow`](#mocha_stereo) | yes | 4.35 | 455, 3.2x | 1730, 0.43x |
 | [`mocha-v2-sceneflow`](#mocha_stereo) | yes | 3.82 | 448, 2.9x | 1790, 0.45x |
-| [`monster-mix-all`](#monster) | no | 1.25 † | 668, 6.4x | 2714, 0.42x |
-| [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 698, 6.2x | 2760, 0.43x |
-| [`monster-sceneflow`](#monster) | no | 1.34 | 668, 6.4x | 2714, 0.42x |
+| [`monster-mix-all`](#monster) | no | 1.25 † | 653, 6.5x | 2734, 0.43x |
+| [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 657, 6.6x | 2754, 0.43x |
+| [`monster-sceneflow`](#monster) | no | 1.34 | 653, 6.5x | 2734, 0.43x |
 | [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 196, 1.6x | 1112, 0.54x |
 | [`psmnet-sceneflow`](#psmnet) | yes | 15.13 | 232, 2.6x | 2122, 0.35x |
 | [`raft-stereo-eth3d`](#raft_stereo) | yes | 2.61 ? | 273, 3.8x | 802, 0.31x |
@@ -81,8 +81,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`selective-igev-middlebury-finetune`](#selective_igev) | yes | 24.24 | 349, 4.2x | 1390, 0.65x |
 | [`selective-igev-middlebury-train`](#selective_igev) | yes | 10.25 | 349, 4.2x | 1390, 0.65x |
 | [`selective-igev-sceneflow`](#selective_igev) | yes | 6.06 | 349, 4.2x | 1390, 0.65x |
-| [`waft-stereo-b`](#waft_stereo) | no | 0.74 ? | 393, 2.9x | 2316, 0.39x |
-| [`waft-stereo-s`](#waft_stereo) | yes | 0.95 ? | 284, 2.4x | 1286, 0.38x |
+| [`waft-stereo-b`](#waft_stereo) | no | 0.74 ? | 385, 3.0x | 2152, 0.37x |
+| [`waft-stereo-s`](#waft_stereo) | yes | 0.95 ? | 281, 2.5x | 1282, 0.38x |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
@@ -526,7 +526,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1531<br>659<br>1002<br>fails: TensorRT bug: Myelin internal error | 10896 / 11072<br>8639 / 8766<br>4362 / 4838<br>3154 / 3566<br>3021 / 3292<br>– |
+| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1531<br>642<br>1002<br>fails: TensorRT bug: Myelin internal error | 10896 / 11072<br>8639 / 8766<br>4362 / 4838<br>3154 / 3522<br>3021 / 3292<br>– |
 
 <details><summary>Details</summary>
 
@@ -537,14 +537,14 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
 - Licence note: The weights embed Depth Anything V2 ViT-L weights released under CC-BY-NC-4.0, so they are non-commercial even though the code is MIT.
 - Options: `iters` = 32 (>= 1), `scale_iters` = 8 (>= 0)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `defom-stereo-vitl-sceneflow`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `defom-stereo-vitl-sceneflow` 1988x2880 (12.0 GiB peak allocated, 14.5 reserved)
 - `defom-stereo-vitl-sceneflow` 994x1482, first call: portable + torch.compile 122 s (cold Inductor cache).
 - `defom-stereo-vitl-sceneflow` original 994x1482: the authors' mixed-precision option (float16)
-- `defom-stereo-vitl-sceneflow` load / first call: original 4.24 s / 2.83 s, portable 2.31 s / 1.534† s, kernels 1.18† s / 0.663† s
+- `defom-stereo-vitl-sceneflow` load / first call: original 4.24 s / 2.83 s, portable 2.31 s / 1.534† s, kernels 2.74 s / 0.305 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -565,7 +565,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, portable bfloat16 and ke
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `defom-stereo-vitl-sceneflow` | 0.00143 / 0.00808 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `defom-stereo-vitl-sceneflow` | 0.00143 / 0.00808 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 
@@ -1285,7 +1285,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `monster-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4275<br>4277<br>1585<br>668<br>1096<br>671 | 6382 / 6430<br>6382 / 6430<br>2336 / 2494<br>2356 / 2714<br>2081 / 2272<br>2865 / 2928 |
+| `monster-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4275<br>4277<br>1585<br>653<br>1096<br>671 | 6382 / 6430<br>6382 / 6430<br>2336 / 2494<br>2356 / 2734<br>2081 / 2272<br>2865 / 2928 |
+| `monster-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4275<br>4277<br>1585<br>653<br>1098<br>674 | 6382 / 6430<br>6382 / 6430<br>2336 / 2494<br>2356 / 2734<br>2081 / 2272<br>2898 / 2960 |
 
 <details><summary>Details</summary>
 
@@ -1296,15 +1297,17 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
   - `monster-mix-all`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015, ETH3D two-view stereo, Middlebury stereo (2014), TartanAir, CREStereo synthetic stereo dataset (Megvii), NVIDIA Falling Things (FAT), InStereo2K, MPI Sintel stereo, HR-VS (high-resolution virtual stereo, Yang et al. CVPR 2019) (mix of all the datasets the README lists; the README recommends it for zero-shot use)
 - Options: `iters` = 32 (>= 1)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `monster-sceneflow`, `monster-mix-all`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `monster-sceneflow` 1988x2880 (6.8 GiB peak allocated, 9.0 reserved); `monster-mix-all` 1988x2880 (6.8 GiB peak allocated, 9.0 reserved)
-- `monster-mix-all`: same network and settings as `monster-sceneflow`, measured once (rows not repeated).
 - `monster-sceneflow` 994x1482, first call: portable + torch.compile 103 s (cold Inductor cache), TensorRT fp16 384 s (ONNX + engine).
-- `monster-sceneflow` load / first call: original 5.85 s / 1.256 s (375x1242), portable 4.83 s / 1.595† s, kernels 0.95† s / 0.669† s
-- `monster-mix-all` load / first call: original 5.85 s / 1.256 s (375x1242), portable 4.83 s / 1.595† s, kernels 0.95† s / 0.669† s
+- `monster-mix-all` 994x1482, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp16 391 s (ONNX + engine).
+- `monster-mix-all` original (fp32) 994x1482, original 994x1482: timed with monster-sceneflow (same network, other weights)
+- `monster-mix-all` portable 994x1482: measured on monster-sceneflow (same architecture, other checkpoint)
+- `monster-sceneflow` load / first call: original 5.85 s / 1.256 s (375x1242), portable 4.83 s / 1.595† s, kernels 4.01 s / 0.428 s (375x1242)
+- `monster-mix-all` load / first call: original 5.85 s / 1.256 s (375x1242), portable 4.83 s / 1.595† s, kernels 3.79 s / 0.422 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -1327,8 +1330,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `monster-sceneflow` | 0.00079 / 0.00303 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
-| `monster-mix-all` | 0.00095 / 0.00547 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `monster-sceneflow` | 0.00079 / 0.00303 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `monster-mix-all` | 0.00095 / 0.00547 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
 
 </details>
 
@@ -1342,7 +1345,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4339<br>4334<br>1633<br>698<br>1126<br>697 | 6382 / 6430<br>6382 / 6430<br>2583 / 2918<br>2438 / 2760<br>2328 / 2532<br>3489 / 3552 |
+| `monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4339<br>4334<br>1633<br>657<br>1126<br>697 | 6382 / 6430<br>6382 / 6430<br>2583 / 2918<br>2438 / 2754<br>2328 / 2532<br>3489 / 3552 |
 
 <details><summary>Details</summary>
 
@@ -1352,13 +1355,13 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: <https://github.com/Junda24/MonSter-plusplus/blob/9167101af8fbe93c706707daa7a8181089c8b1b4/LICENSE#L34>
 - Training data: mix_all: 'all the datasets we collect over 2M image pairs' (README), not listed
 - Options: `iters` = 32 (>= 1)
-- Kernel libraries: `igev`, `igevpp`, `cutlass_conv`, `cudnn_hacc`, `fastbb`
+- Kernel libraries: `igev`, `igevpp`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `monster-plusplus-mix-all`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `monster-plusplus-mix-all` 1988x2880 (7.7 GiB peak allocated, 9.6 reserved)
 - `monster-plusplus-mix-all` 994x1482, first call: portable + torch.compile 109 s (cold Inductor cache), TensorRT fp16 416 s (ONNX + engine).
-- `monster-plusplus-mix-all` load / first call: original 8.37 s / 1.233 s (375x1242), portable 2.45 s / 1.633† s, kernels 0.79† s / 0.698† s
+- `monster-plusplus-mix-all` load / first call: original 8.37 s / 1.233 s (375x1242), portable 2.45 s / 1.633† s, kernels 3.12 s / 0.421 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -1379,7 +1382,7 @@ CPU, float32: max |diff| <= 0.2 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `monster-plusplus-mix-all` | 0.02547 / 0.13171 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `igevpp@df1bb4dbe09a:sm_120` |
+| `monster-plusplus-mix-all` | 0.02547 / 0.13171 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `igevpp@df1bb4dbe09a:sm_120` |
 
 </details>
 
@@ -1776,8 +1779,8 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>689<br>284<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>1113 / 1286<br>2024 / 2058<br>1061 / 1114 |
-| `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 1898<br>1140<br>1137<br>393 | 7348 / 7528<br>5743 / 5876<br>5775 / 5852<br>1907 / 2316 |
+| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>689<br>281<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>1113 / 1282<br>2024 / 2058<br>1061 / 1114 |
+| `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 1898<br>1140<br>1137<br>385 | 7348 / 7528<br>5743 / 5876<br>5775 / 5852<br>1906 / 2152 |
 
 <details><summary>Details</summary>
 
@@ -1789,7 +1792,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), not stated by the authors (SceneFlow, TartanAir, CREStereo, Falling Things, Sintel, Virtual KITTI 2, UnrealStereo4K, WMGStereo, CARLA, Spring, TartanGround, FSD (configs/SynLarge/*.yaml); only SceneFlow is in datasets.toml)
 - Licence note: WAFT-Stereo-B is labelled CC-BY-NC-4.0 conservatively although the Hugging Face card says BSD-3-Clause: the checkpoint embeds a fine-tuned Depth Anything V2 ViT-B whose original weights are CC-BY-NC-4.0.
 - Licence note: Both checkpoints were trained on data that includes NVIDIA's FSD dataset, whose terms for commercial use of trained models are unclear; the status does not depend on the training data.
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `waft-stereo-s`, `waft-stereo-b`
 - Outputs: disparity
 - Input size: any H x W >= 17, resized or padded inside the model
@@ -1797,8 +1800,8 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 - `waft-stereo-s` 994x1482, first call: portable + torch.compile 95 s (cold Inductor cache), TensorRT fp16 152 s (ONNX + engine).
 - `waft-stereo-s` original 994x1482: torch.autocast(fp16) around the forward
 - `waft-stereo-b` original 994x1482: torch.autocast(fp16) around the forward
-- `waft-stereo-s` load / first call: original 1.6 s / 0.14 s (375x1242), portable 0.58 s / 0.691† s, kernels 0.3† s / 0.284† s
-- `waft-stereo-b` load / first call: original 3.07 s / 0.444 s (375x1242), portable 1.65 s / 1.148† s, kernels 0.42† s / 0.393† s
+- `waft-stereo-s` load / first call: original 1.6 s / 0.14 s (375x1242), portable 0.58 s / 0.691† s, kernels 1.47 s / 0.32 s (375x1242)
+- `waft-stereo-b` load / first call: original 3.07 s / 0.444 s (375x1242), portable 1.65 s / 1.148† s, kernels 1.77 s / 0.459 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -1821,8 +1824,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `waft-stereo-s` | 0.0013 / 0.00398 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
-| `waft-stereo-b` | 0.0013 / 0.00417 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `waft-stereo-s` | 0.0013 / 0.00398 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `waft-stereo-b` | 0.0013 / 0.00417 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 

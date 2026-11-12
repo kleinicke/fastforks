@@ -29,6 +29,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.half import fp16_accumulate as _fp16_accumulate  # re-exported for the ViT families
+from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
 
 from .net.dinov2_layers.mlp import Mlp
@@ -42,6 +43,10 @@ if TYPE_CHECKING:
 
 HEAD_DIM = 64
 POS_SIZES = 8  # position tables kept (one per patch grid; video at one size always hits)
+FUSED_ROWS = 512
+"""`FastViT(fused=...)` runs calls of at least this many tokens (B * N) on the fused-epilogue GEMMs. Measured on DINOv2
+(RTX 5060 Ti): 82 / 257 / 362 tokens are up to 13 % slower fused (ViT-S / B; ViT-L even), 577 and more are 0-7 %
+(ViT-S at 1370: ~20 %) faster; splitting single GEMMs between the two paths did not move the crossover."""
 
 
 def _flash(qkv: torch.Tensor, scale: float, attn: Flash64) -> torch.Tensor:
@@ -53,7 +58,7 @@ def _flash(qkv: torch.Tensor, scale: float, attn: Flash64) -> torch.Tensor:
 class FastViT:
     """The fast `get_intermediate_layers` of one ViT (see `use_fast_vit`)."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - the switches of the ViT families
         self,
         vit: Any,  # noqa: ANN401 - duck-typed DINOv2 module
         attn: str,
@@ -61,12 +66,15 @@ class FastViT:
         *,
         swiglu: bool = False,
         cache_pos: bool = True,
+        fused: DptFused | None = None,
     ) -> None:
         """Check the structure, keep the fp32 position table, convert the ViT to fp16 in place.
 
         `swiglu`: also accept the SwiGLU FFN (DINOv2 ViT-g; `block` runs it, subclasses with their own blocks may not).
         `cache_pos`: keep the fp32 table and the interpolated tables (False: no persistent memory, the fp16 model's
         table is interpolated in fp32 on each call, as upstream on an fp16 model).
+        `fused`: run the block GEMMs of large calls (`FUSED_ROWS`) with the `dpt_fused` epilogues (bias, GELU,
+        LayerScale in fp32 + residual, in place): fewer launches, no FFN-output temporaries.
         """
         if vit.embed_dim % vit.num_heads or vit.embed_dim // vit.num_heads != HEAD_DIM:
             msg = f"fast ViT needs head_dim {HEAD_DIM}, got {vit.embed_dim}/{vit.num_heads}"
@@ -89,6 +97,8 @@ class FastViT:
         self.vit = vit.half().eval()
         self.attn, self.out_dtype = Flash64(attn), out_dtype  # ValueError on an unknown variant
         self._pos: dict[tuple[int, int], torch.Tensor] = {}
+        self.fused = fused
+        self._scales: dict[int, torch.Tensor] = {}  # fp32 LayerScale of the fused epilogues, per LayerScale module
 
     @property
     def vit(self) -> Any:  # noqa: ANN401 - duck-typed DINOv2 module
@@ -155,6 +165,8 @@ class FastViT:
         a, m = blk.attn, blk.mlp
         b, n, c = x.shape
         h = a.num_heads
+        if self.fused is not None and b * n >= FUSED_ROWS:
+            return self._fused(self.fused, blk, x)
         qkv = F.linear(blk.norm1(x), a.qkv.weight, a.qkv.bias).view(b, n, 3, h, c // h)
         o = F.linear(self.attend(qkv, (c // h) ** -0.5), a.proj.weight, a.proj.bias)
         g1 = getattr(blk.ls1, "gamma", None)
@@ -166,6 +178,34 @@ class FastViT:
             o = F.linear(F.gelu(F.linear(blk.norm2(x), m.fc1.weight, m.fc1.bias)), m.fc2.weight, m.fc2.bias)
         g2 = getattr(blk.ls2, "gamma", None)
         return x.addcmul_(o, g2) if g2 is not None else x.add_(o)
+
+    def _scale(self, ls: Any) -> torch.Tensor | None:  # noqa: ANN401 - duck-typed LayerScale / Identity
+        """The LayerScale `gamma` in fp32 on its device (the fused epilogue scales in fp32), None without LayerScale."""
+        g = getattr(ls, "gamma", None)
+        if g is None:
+            return None
+        s = self._scales.get(id(ls))
+        if s is None or s.device != g.device:
+            s = self._scales[id(ls)] = g.detach().float()
+        return s
+
+    def _fused(self, k: DptFused, blk: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - duck-typed DINOv2 block
+        """`block` on the fused-epilogue GEMMs; FFN outputs with `DEEP_K` inputs and LayerScale stay in cuBLAS."""
+        a, m = blk.attn, blk.mlp
+        b, n, c = x.shape
+        h = a.num_heads
+        qkv = k.gemm(blk.norm1(x), a.qkv.weight, a.qkv.bias).view(b, n, 3, h, c // h)
+        x = k.gemm(self.attend(qkv, (c // h) ** -0.5), a.proj.weight, a.proj.bias, scale=self._scale(blk.ls1), res=x)
+        y = blk.norm2(x)
+        if isinstance(m, SwiGLUFFN):
+            x1, x2 = k.gemm(y, m.w12.weight, m.w12.bias).chunk(2, dim=-1)
+            hid, out = F.silu(x1).mul_(x2), m.w3
+        else:
+            hid, out = k.gemm(y, m.fc1.weight, m.fc1.bias, act=k.gelu), m.fc2
+        g2 = self._scale(blk.ls2)
+        if out.in_features >= DEEP_K and g2 is not None:
+            return x.addcmul_(F.linear(hid, out.weight, out.bias), blk.ls2.gamma)
+        return k.gemm(hid, out.weight, out.bias, scale=g2, res=x, out=x)
 
     def get_intermediate_layers(
         self,
@@ -205,7 +245,12 @@ class FastViT:
 
 
 def use_fast_vit(
-    vit: DinoVisionTransformer, *, attn: str = "hh", out_dtype: torch.dtype | None = None, cache_pos: bool = True
+    vit: DinoVisionTransformer,
+    *,
+    attn: str = "hh",
+    out_dtype: torch.dtype | None = None,
+    cache_pos: bool = True,
+    fused: DptFused | None = None,
 ) -> FastViT:
     """Route `vit.get_intermediate_layers` through the fast fp16 path (the ViT is converted to fp16 in place).
 
@@ -214,8 +259,9 @@ def use_fast_vit(
         attn: Attention precision, `"hh"` (fastest), `"fh"` or `"ff"`.
         out_dtype: Dtype of the returned tokens (default fp16; DEFOM's bf16 DPT heads want bf16).
         cache_pos: Keep the fp32 position table and the interpolated tables on the device (see `FastViT`).
+        fused: The `dpt_fused` library: fused-epilogue block GEMMs in large calls (see `FastViT`).
     """
-    fast = FastViT(vit, attn, out_dtype, cache_pos=cache_pos)
+    fast = FastViT(vit, attn, out_dtype, cache_pos=cache_pos, fused=fused)
     # the ViT holds `fast` through its `get_intermediate_layers`: a strong reference back would be a cycle
     fast._vit = weakref.ref(vit)  # noqa: SLF001
     vit.get_intermediate_layers = fast.get_intermediate_layers  # ty: ignore[invalid-assignment]  # per-instance override

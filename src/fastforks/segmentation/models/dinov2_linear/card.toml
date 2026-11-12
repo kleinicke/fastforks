@@ -31,7 +31,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["fastbb", "seg_up"]
+kernels = ["fastbb", "seg_up", "dpt_fused"]
 
 [output]
 label_set = "ade20k-150"

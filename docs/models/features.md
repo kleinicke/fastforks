@@ -32,11 +32,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`convnext_tiny.fb_in22k`](#convnext_features) | yes | 1.09, 3.6x | 110, 0.65x |
 | [`dinov2-vitb14`](#dinov2) | yes | 1.48, 3.0x | 290, 0.75x |
 | [`dinov2-vitb14-reg`](#dinov2) | yes | 1.50, 2.9x | 288, 0.75x |
-| [`dinov2-vitg14`](#dinov2) | yes | 13.2, 2.6x | 2318, 0.53x |
-| [`dinov2-vitg14-reg`](#dinov2) | yes | 13.0, 2.6x | 4430, 1.0x |
+| [`dinov2-vitg14`](#dinov2) | yes | 12.8, 2.7x | 2250, 0.51x |
+| [`dinov2-vitg14-reg`](#dinov2) | yes | 12.7, 2.7x | 2250, 0.51x |
 | [`dinov2-vitl14`](#dinov2) | yes | 4.59, 2.1x | 714, 0.58x |
 | [`dinov2-vitl14-reg`](#dinov2) | yes | 4.60, 2.3x | 714, 0.58x |
-| [`dinov2-vits14`](#dinov2) | yes | 0.848, 3.9x | 148, 1.1x |
+| [`dinov2-vits14`](#dinov2) | yes | 0.827, 4.0x | 122, 0.92x |
 | [`dinov2-vits14-reg`](#dinov2) | yes | 0.814, 5.0x | 142, 1.1x |
 | [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.18, 3.4x | 214, 0.54x |
 | [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.59, 2.7x | 494, 0.55x |
@@ -362,14 +362,14 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov2-vits14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.30<br>4.40<br>2.95<br>0.848<br>2.02<br>0.601 | 121 / 132<br>160 / 166<br>79 / 98<br>112 / 148<br>111 / 140<br>141 / 160 |
+| `dinov2-vits14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.30<br>4.40<br>2.95<br>0.827<br>2.02<br>0.601 | 121 / 132<br>160 / 166<br>79 / 98<br>80 / 122<br>111 / 140<br>141 / 160 |
 | `dinov2-vits14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 4.11<br>5.59<br>2.98<br>0.814 | 121 / 132<br>160 / 168<br>80 / 98<br>112 / 142 |
 | `dinov2-vitb14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.90<br>4.50<br>2.92<br>1.48<br>2.20<br>1.30 | 371 / 386<br>530 / 548<br>205 / 226<br>237 / 290<br>240 / 266<br>367 / 384 |
 | `dinov2-vitb14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 7.00<br>4.30<br>2.94<br>1.50 | 371 / 386<br>530 / 548<br>207 / 226<br>237 / 288 |
 | `dinov2-vitl14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.8<br>9.80<br>6.12<br>4.59<br>6.03<br>4.25 | 1205 / 1224<br>1777 / 1784<br>622 / 646<br>655 / 714<br>661 / 666<br>1235 / 1262 |
 | `dinov2-vitl14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 22.5<br>10.7<br>6.17<br>4.60 | 1205 / 1226<br>1777 / 1786<br>625 / 646<br>655 / 714 |
-| `dinov2-vitg14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 86.4<br>33.9<br>18.9<br>13.2 | 4389 / 4406<br>6542 / 6548<br>2216 / 2230<br>2246 / 2318 |
-| `dinov2-vitg14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 86.6<br>34.2<br>18.7<br>13.0 | 4389 / 4406<br>6542 / 6568<br>2217 / 2228<br>2222 / 4430 |
+| `dinov2-vitg14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 86.4<br>33.9<br>18.9<br>12.8 | 4389 / 4406<br>6542 / 6548<br>2216 / 2230<br>2222 / 2250 |
+| `dinov2-vitg14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 86.6<br>34.2<br>18.7<br>12.7 | 4389 / 4406<br>6542 / 6568<br>2217 / 2228<br>2222 / 2250 |
 
 <details><summary>Details</summary>
 
@@ -379,7 +379,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/facebookresearch/dinov2/blob/7764ea0/README.md (License section: code and model weights under Apache 2.0)
 - Training data: LVD-142M: 142M images retrieved from web crawls by similarity to curated datasets (ImageNet-22k/1k train, Google Landmarks, fine-grained sets), self-supervised (no labels), per the paper; not released
 - Options: `fp16_accumulate` = False (precision only)
-- Kernel libraries: `fastbb`
+- Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `dinov2-vits14`, `dinov2-vits14-reg`, `dinov2-vitb14`, `dinov2-vitb14-reg`, `dinov2-vitl14`, `dinov2-vitl14-reg`, `dinov2-vitg14`, `dinov2-vitg14-reg`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -402,8 +402,7 @@ Commercial use: yes.
 - `dinov2-vitl14` load / first call: original 7.06 s / 0.013 s, portable 0.57 s / 0.148 s, kernels 0.57 s / 0.179 s
 - `dinov2-vitl14-reg` load / first call: original 4.6 s / 0.068 s, portable 0.66 s / 0.113 s, kernels 0.56 s / 0.205 s
 - `dinov2-vitg14` load / first call: original 19.29 s / 0.046 s, portable 4.37 s / 0.104 s, kernels 2.22 s / 0.162 s
-- `dinov2-vitg14-reg` load / first call: original 14.67 s / 0.089 s, portable 4.32 s / 0.033 s, kernels 2.91† s / 0.017 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `dinov2-vitg14-reg` load / first call: original 14.67 s / 0.089 s, portable 4.32 s / 0.033 s, kernels 15.39 s / 0.149 s
 - Protocol, `dinov2-vits14`, `dinov2-vits14-reg`, `dinov2-vitb14`, `dinov2-vitb14-reg`, `dinov2-vitl14`, `dinov2-vitl14-reg`, `dinov2-vitg14`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 - Protocol, `dinov2-vitg14-reg`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -430,14 +429,14 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `dinov2-vits14` | 0.01036 / 0.03758 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov2-vits14-reg` | 0.00541 / 0.0198 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov2-vitb14` | 0.01295 / 0.05042 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov2-vitb14-reg` | 0.01032 / 0.03738 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov2-vitl14` | 0.01558 / 0.08667 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov2-vitl14-reg` | 0.01356 / 0.05036 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov2-vitg14` | 0.00785 / 0.0449 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov2-vitg14-reg` | 0.00779 / 0.04094 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `dinov2-vits14` | 0.01036 / 0.03758 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov2-vits14-reg` | 0.00541 / 0.0198 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov2-vitb14` | 0.01295 / 0.05042 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov2-vitb14-reg` | 0.01032 / 0.03738 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov2-vitl14` | 0.01558 / 0.08667 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov2-vitl14-reg` | 0.01356 / 0.05036 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov2-vitg14` | 0.00785 / 0.0449 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov2-vitg14-reg` | 0.00779 / 0.04094 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 </details>
 
@@ -831,7 +830,7 @@ Commercial use: yes.
 - Licence evidence: https://huggingface.co/google/tipsv2-b14/blob/ed1e4dc6b74bf3935ae099e9d5eb30fa96528454/README.md (license: apache-2.0); code: https://github.com/google-deepmind/tips/blob/bf10a73765b048edfbfcdf1f7e6ca8292542baae/LICENSE
 - Training data: image-text pairs; the dataset is not named in the repository README or on the model cards at the pinned revisions
 - Options: `fp16_accumulate` = False (precision only)
-- Kernel libraries: `fastbb`
+- Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `tipsv2-b14`, `tipsv2-l14`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -861,8 +860,8 @@ CPU, float32: max |diff| <= 6.9e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `tipsv2-b14` | 0.01252 / 0.046 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `tipsv2-l14` | 0.00988 / 0.03882 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `tipsv2-b14` | 0.01252 / 0.046 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `tipsv2-l14` | 0.00988 / 0.03882 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 

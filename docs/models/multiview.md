@@ -13,7 +13,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`mapanything-apache`](#mapanything) | yes | 544, 3.6x | 4072, 0.47x |
-| [`mvsanywhere`](#mvsanywhere) | no | 35.6, 6.1x | 884, 0.59x |
+| [`mvsanywhere`](#mvsanywhere) | no | 35.2, 6.2x | 760, 0.51x |
 | [`patchmatchnet`](#patchmatchnet) | yes | 29.6, 7.4x | 856, 0.67x |
 | [`vggt-1b`](#vggt) | no | 458, 2.1x | 4654, 0.63x |
 | [`vggt-omega-1b-512`](#vggt_omega) | no | 464, 2.0x | 3518, 0.6x |
@@ -82,7 +82,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 273<br>219<br>93.2<br>35.6<br>70.8<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 1441 / 1500<br>1504 / 1576<br>931 / 1226<br>761 / 884<br>818 / 860<br>– |
+| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 273<br>219<br>93.2<br>35.2<br>70.8<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 1441 / 1500<br>1504 / 1576<br>931 / 1226<br>702 / 760<br>818 / 860<br>– |
 
 <details><summary>Details</summary>
 
@@ -93,15 +93,14 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 - Training data: Synthetic data per the paper (arXiv 2411.14390): Hypersim, TartanAir, BlendedMVG, MatrixCity, VKITTI2, Dynamic Replica, MVS-Synth, SAIL-VOS 3D; DINOv2 / Depth Anything V2 initialisation
 - Licence note: Niantic's non-commercial licence covers the code and the checkpoint; the BlurPool stem comes from Adobe's antialiased-cnns (CC-BY-NC-SA-4.0).
 - Options: `long_side` = 640 (>= 64), `refinement_steps` = 1 (>= 0)
-- Kernel libraries: `fastbb`, `igev`, `cutlass_conv`, `cudnn_hacc`, `mvsanywhere`
+- Kernel libraries: `fastbb`, `igev`, `cutlass_conv`, `cudnn_hacc`, `mvsanywhere`, `dpt_fused`
 - Variants: `mvsanywhere`
 - Outputs: depth, mask, sky (in `extras`), depth_range (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsanywhere` 3000x4000 (3.0 GiB peak allocated, 4.2 reserved)
 - `mvsanywhere` 448x672, first call: portable + torch.compile 153 s (cold Inductor cache).
 - `mvsanywhere` original 448x672: torch.autocast(float16) around the call
-- `mvsanywhere` load / first call: original 3.21 s / 1.037 s (448x672), portable 1.88 s / 0.221 s (448x672), kernels 0.52† s / 0.049 s (448x672)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `mvsanywhere` load / first call: original 3.21 s / 1.037 s (448x672), portable 1.88 s / 0.221 s (448x672), kernels 1.76 s / 0.48 s (448x672)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -120,7 +119,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `mvsanywhere` | 6e-05 / 0.00025 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `mvsanywhere@7fdcb3aafdd8:sm_120` |
+| `mvsanywhere` | 5e-05 / 0.00023 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `mvsanywhere@7fdcb3aafdd8:sm_120` |
 
 </details>
 

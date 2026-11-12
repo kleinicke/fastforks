@@ -35,7 +35,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["fastbb"]
+kernels = ["fastbb", "dpt_fused"]
 
 [[variants]]
 id = "metric3d-vit-large"

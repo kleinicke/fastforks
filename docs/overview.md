@@ -55,7 +55,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`raft-stereo-eth3d`](models/stereo.md#raft-stereo) | yes | 2.61 ? | 1036.7 (994x1482) | 745.6 | 272.8 | 3.8x vs original (994x1482) | 765 |
 | [`raft-stereo-middlebury`](models/stereo.md#raft-stereo) | yes | 2.79 | 1036.7 (994x1482) | 745.6 | 272.8 | 3.8x vs original (994x1482) | 765 |
 | [`raft-stereo-sceneflow`](models/stereo.md#raft-stereo) | yes | 2.60 | 1036.7 (994x1482) | 745.6 | 272.8 | 3.8x vs original (994x1482) | 765 |
-| [`waft-stereo-s`](models/stereo.md#waft-stereo) | yes | 0.95 ? | 689.3 (994x1482) | 689.0 | 283.8 | 2.4x vs original (994x1482) | 1113 |
+| [`waft-stereo-s`](models/stereo.md#waft-stereo) | yes | 0.95 ? | 689.3 (994x1482) | 689.0 | 281.2 | 2.5x vs original (994x1482) | 1113 |
 | [`igev-stereo-eth3d`](models/stereo.md#igev-stereo) | yes | 0.56 ? | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
 | [`igev-stereo-kitti12`](models/stereo.md#igev-stereo) | yes | 26.02 | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
 | [`igev-stereo-kitti15`](models/stereo.md#igev-stereo) | yes | 24.63 | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
@@ -72,7 +72,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | no | 1.22 ? | 470.1 (994x1482) | 441.6 | 353.6 | 1.3x vs original (994x1482) | 2361 |
 | [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 8.09 | 566.7 (994x1482) | 471.6 | 357.5 | 1.6x vs original (994x1482) | 2272 |
 | [`s2m2-l`](models/stereo.md#s2m2) | no | 0.82 ? | 1004.7 (994x1482) | 1015.3 | 375.8 | 2.7x vs original (994x1482) | 1249 |
-| [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1137.2 | 392.9 | 2.9x vs original (994x1482) | 1907 |
+| [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1137.2 | 384.9 | 3.0x vs original (994x1482) | 1906 |
 | [`igev-plusplus-eth3d`](models/stereo.md#igev) | yes | 0.50 † | 1277.9 (994x1482) | 1080.6 | 393.0 | 3.3x vs original (994x1482) | 1389 |
 | [`igev-plusplus-kitti12`](models/stereo.md#igev) | yes | 26.78 | 1277.9 (994x1482) | 1080.6 | 393.0 | 3.3x vs original (994x1482) | 1389 |
 | [`igev-plusplus-kitti15`](models/stereo.md#igev) | yes | 25.50 | 1277.9 (994x1482) | 1080.6 | 393.0 | 3.3x vs original (994x1482) | 1389 |
@@ -85,11 +85,11 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`mocha-v2-sceneflow`](models/stereo.md#mocha-stereo) | yes | 3.82 | 1295.1 (994x1482) | 1033.5 | 448.1 | 2.9x vs original (994x1482) | 1587 |
 | [`mocha-v1-sceneflow`](models/stereo.md#mocha-stereo) | yes | 4.35 | 1456.2 (994x1482) | 1057.2 | 455.5 | 3.2x vs original (994x1482) | 1588 |
 | [`great-igev-middlebury`](models/stereo.md#great-igev) | yes | 27.53 ? | OOM (994x1482) | 1785.3 | 578.8 | 3.1x vs portable | 1553 |
-| [`defom-stereo-vitl-sceneflow`](models/stereo.md#defom-stereo) | no | 2.44 | 2815.8 (994x1482) | 1530.9 | 658.7 | 4.3x vs original (994x1482) | 3154 |
-| [`monster-mix-all`](models/stereo.md#monster) | no | 1.25 † | 4275.0 (994x1482) | 1585.2 | 667.6 | 6.4x vs original (994x1482) | 2356 |
-| [`monster-sceneflow`](models/stereo.md#monster) | no | 1.34 | 4275.0 (994x1482) | 1585.2 | 667.6 | 6.4x vs original (994x1482) | 2356 |
+| [`defom-stereo-vitl-sceneflow`](models/stereo.md#defom-stereo) | no | 2.44 | 2815.8 (994x1482) | 1530.9 | 642.2 | 4.4x vs original (994x1482) | 3154 |
+| [`monster-mix-all`](models/stereo.md#monster) | no | 1.25 † | 4275.0 (994x1482) | 1585.2 | 653.2 | 6.5x vs original (994x1482) | 2356 |
+| [`monster-sceneflow`](models/stereo.md#monster) | no | 1.34 | 4275.0 (994x1482) | 1585.2 | 653.3 | 6.5x vs original (994x1482) | 2356 |
+| [`monster-plusplus-mix-all`](models/stereo.md#monster) | no | 1.08 ? | 4334.5 (994x1482) | 1632.6 | 657.2 | 6.6x vs original (994x1482) | 2438 |
 | [`s2m2-xl`](models/stereo.md#s2m2) | no | 0.52 ? | 1796.1 (994x1482) | 1814.7 | 681.9 | 2.6x vs original (994x1482) | 2092 |
-| [`monster-plusplus-mix-all`](models/stereo.md#monster) | no | 1.08 ? | 4334.5 (994x1482) | 1632.6 | 697.9 | 6.2x vs original (994x1482) | 2438 |
 | [`foundationstereo-vit-s`](models/stereo.md#foundationstereo) | no | 1.10 ? | 3608.6 (994x1482) | 2513.8 | 1120.2 | 3.2x vs original (994x1482) | 2169 |
 | [`c-foundationstereo-s`](models/stereo.md#c-foundationstereo) | yes | 1.24 | 3873.9 (994x1482) | 3646.4 | 1362.1 | 2.8x vs original (994x1482) | 3107 |
 | [`foundationstereo-vit-l`](models/stereo.md#foundationstereo) | no | 0.65 ? | 4237.0 (994x1482) | 2989.8 | 1513.1 | 2.8x vs original (994x1482) | 2818 |
@@ -132,11 +132,11 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`da3-giant-1.1`](models/depth.md#depth-anything-3) | no | 0.0397 | 227.1 (994x1482) | 81.8 | 44.2 | 5.1x vs original (994x1482) | 2628 |
 | [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0387 | 308.2 (994x1482) | 108.0 | 58.2 | 5.3x vs original (994x1482) | 3271 |
 | [`unik3d-vitl`](models/depth.md#unik3d) | no | 0.0346 | 133.7 (994x1482) | 107.8 | 62.9 | 2.1x vs original (994x1482) | 1166 |
+| [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 63.0 | 2.1x vs original (994x1482) | 1166 |
 | [`midas-dpt-beit-large-512`](models/depth.md#midas-v31) | yes | 0.0487 | 333.2 (994x1482) | 78.8 | 63.9 | 5.2x vs original (994x1482) | 1003 |
-| [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 66.4 | 2.0x vs original (994x1482) | 1211 |
 | [`moge-2-vitl-normal`](models/depth.md#moge) | yes | 0.0357 | 170.7 (994x1482) | 144.5 | 73.4 | 2.3x vs original (994x1482) | 1498 |
 | [`zoedepth-nk`](models/depth.md#zoedepth) | yes | 0.0532 | 271.2 (994x1482) | 124.0 | 88.9 | 3.1x vs original (994x1482) | 1771 |
-| [`metric3d-vit-large`](models/depth.md#metric3d-v2) | yes | 0.0546 | 438.5 (994x1482) | 200.3 | 158.5 | 2.8x vs original (994x1482) | 1516 |
+| [`metric3d-vit-large`](models/depth.md#metric3d-v2) | yes | 0.0546 | 438.5 (994x1482) | 200.3 | 155.2 | 2.8x vs original (994x1482) | 1480 |
 | [`lotus-normal-d-v1-1`](models/depth.md#lotus-normals) | yes | – | 344.3 (994x1482) | 267.6 | 164.1 | 2.1x vs original (994x1482) | 2351 |
 | [`lotus-normal-g-v1-1`](models/depth.md#lotus-normals) | yes | – | 344.1 (994x1482) | 267.5 | 164.1 | 2.1x vs original (994x1482) | 2351 |
 | [`marigold-normals-lcm-v0-1`](models/depth.md#marigold-normals-lcm) | yes | – | 279.5 (994x1482) | 272.0 | 167.1 | 1.7x vs original (994x1482) | 2361 |
@@ -264,19 +264,19 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`segformer-b0-ade20k`](models/segmentation.md#segformer) | no | 17.2 (1024x2048) | 11.4 | 3.5 | 5.0x vs original (1024x2048) | 148 |
 | [`segnext-mscan-s-ade20k`](models/segmentation.md#segnext) | yes | 23.3 (1024x2048) | 18.5 | 8.0 | 2.9x vs original (1024x2048) | 202 |
 | [`segnext-mscan-t-ade20k`](models/segmentation.md#segnext) | yes | 21.1 (1024x2048) | 15.9 | 9.0 | 2.3x vs original (1024x2048) | 147 |
+| [`dinov2-s-linear-ade20k`](models/segmentation.md#dinov2-linear) | yes | 24.7 (1024x2048) | 18.3 | 11.8 | 2.1x vs original (1024x2048) | 645 |
 | [`hrnet-w48-fcn-ade20k`](models/segmentation.md#mmseg-cnn-classics) | yes | 48.1 (1024x2048) | 26.9 | 11.9 | 4.1x vs original (1024x2048) | 274 |
 | [`segnext-mscan-b-ade20k`](models/segmentation.md#segnext) | yes | 33.9 (1024x2048) | 28.3 | 12.2 | 2.8x vs original (1024x2048) | 229 |
-| [`dinov2-s-linear-ade20k`](models/segmentation.md#dinov2-linear) | yes | 24.7 (1024x2048) | 18.3 | 12.4 | 2.0x vs original (1024x2048) | 645 |
 | [`fcn-r101-d8-ade20k`](models/segmentation.md#mmseg-cnn-classics) | yes | 47.0 (1024x2048) | 40.7 | 16.6 | 2.8x vs original (1024x2048) | 294 |
 | [`deeplabv3plus-r101-d8-ade20k`](models/segmentation.md#mmseg-cnn-classics) | yes | 53.4 (1024x2048) | 47.1 | 18.0 | 3.0x vs original (1024x2048) | 365 |
 | [`deeplabv3-r101-d8-ade20k`](models/segmentation.md#mmseg-cnn-classics) | yes | 54.8 (1024x2048) | 47.9 | 20.1 | 2.7x vs original (1024x2048) | 362 |
+| [`dinov2-b-linear-ade20k`](models/segmentation.md#dinov2-linear) | yes | 40.1 (1024x2048) | 33.3 | 20.1 | 2.0x vs original (1024x2048) | 771 |
 | [`segnext-mscan-l-ade20k`](models/segmentation.md#segnext) | yes | 52.2 (1024x2048) | 43.1 | 20.6 | 2.5x vs original (1024x2048) | 314 |
-| [`dinov2-b-linear-ade20k`](models/segmentation.md#dinov2-linear) | yes | 40.1 (1024x2048) | 33.3 | 22.6 | 1.8x vs original (1024x2048) | 771 |
 | [`pspnet-r101-d8-ade20k`](models/segmentation.md#mmseg-cnn-classics) | yes | 47.2 (1024x2048) | 48.8 | 25.0 | 1.9x vs original (1024x2048) | 341 |
 | [`segformer-b5-ade20k`](models/segmentation.md#segformer) | no | 72.0 (1024x2048) | 38.7 | 25.3 | 2.8x vs original (1024x2048) | 407 |
 | [`eomt-l-dinov2-ade20k`](models/segmentation.md#eomt) | yes | 63.7 (1024x2048) | 50.8 | 35.0 | 1.8x vs original (1024x2048) | 1515 |
 | [`eomt-l-dinov3-ade20k`](models/segmentation.md#eomt) | yes | 72.1 (1024x2048) | 54.6 | 38.8 | 1.9x vs original (1024x2048) | 1514 |
-| [`dinov2-l-linear-ade20k`](models/segmentation.md#dinov2-linear) | yes | 95.7 (1024x2048) | 83.9 | 56.8 | 1.7x vs original (1024x2048) | 1189 |
+| [`dinov2-l-linear-ade20k`](models/segmentation.md#dinov2-linear) | yes | 95.7 (1024x2048) | 83.9 | 52.8 | 1.8x vs original (1024x2048) | 1189 |
 | [`mask2former-swinl-ade20k`](models/segmentation.md#mask2former) | no | 144.8 (1024x2048) | 103.2 | 60.4 | 2.4x vs original (1024x2048) | 1164 |
 | [`sapiens-seg-0.3b-goliath`](models/segmentation.md#sapiens-segmentation) | no | 173.2 (1024x2048) | 131.9 | 92.6 | 1.9x vs original (1024x2048) | 1643 |
 | [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | yes | 205.1 (1024x2048) | 139.1 | 100.0 | 2.1x vs original (1024x2048) | 2054 |
@@ -443,7 +443,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`pe-core-t16-384`](models/features.md#perception-encoder) | yes | 6.7 (224x224) | 4.7 | 0.7 | 9.9x vs original (224x224) | 53 |
 | [`dinov3-vits16`](models/features.md#dinov3-vit) | yes | 6.5 (224x224) | 3.5 | 0.8 | 8.2x vs original (224x224) | 44 |
 | [`dinov2-vits14-reg`](models/features.md#dinov2) | yes | 4.1 (224x224) | 3.0 | 0.8 | 5.0x vs original (224x224) | 112 |
-| [`dinov2-vits14`](models/features.md#dinov2) | yes | 3.3 (224x224) | 3.0 | 0.8 | 3.9x vs original (224x224) | 112 |
+| [`dinov2-vits14`](models/features.md#dinov2) | yes | 3.3 (224x224) | 3.0 | 0.8 | 4.0x vs original (224x224) | 80 |
 | [`pe-spatial-s16-512`](models/features.md#perception-encoder) | yes | 6.7 (224x224) | 4.5 | 0.9 | 7.3x vs original (224x224) | 98 |
 | [`pe-core-s16-384`](models/features.md#perception-encoder) | yes | 7.0 (224x224) | 4.8 | 1.0 | 7.4x vs original (224x224) | 100 |
 | [`convnext_tiny.fb_in22k`](models/features.md#convnext) | yes | 3.9 (224x224) | 3.2 | 1.1 | 3.6x vs original (224x224) | 88 |
@@ -491,8 +491,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`c-radio-v3-g`](models/features.md#c-radiov3) | yes | 29.5 (224x224) | 14.6 | 10.6 | 2.8x vs original (224x224) | 3166 |
 | [`siglip2-g16-256`](models/features.md#siglip-2) | yes | 30.9 (224x224) | 14.7 | 10.6 | 2.9x vs original (224x224) | 3163 |
 | [`siglip2-g16-384`](models/features.md#siglip-2) | yes | 31.0 (224x224) | 14.7 | 10.6 | 2.9x vs original (224x224) | 3165 |
-| [`dinov2-vitg14-reg`](models/features.md#dinov2) | yes | 34.2 (224x224) | 18.7 | 13.0 | 2.6x vs original (224x224) | 2222 |
-| [`dinov2-vitg14`](models/features.md#dinov2) | yes | 33.9 (224x224) | 18.9 | 13.2 | 2.6x vs original (224x224) | 2246 |
+| [`dinov2-vitg14-reg`](models/features.md#dinov2) | yes | 34.2 (224x224) | 18.7 | 12.7 | 2.7x vs original (224x224) | 2222 |
+| [`dinov2-vitg14`](models/features.md#dinov2) | yes | 33.9 (224x224) | 18.9 | 12.8 | 2.7x vs original (224x224) | 2222 |
 | [`pe-spatial-g14-448`](models/features.md#perception-encoder) | yes | 52.7 (224x224) | 25.5 | 16.9 | 3.1x vs original (224x224) | 5123 |
 | [`pe-core-g14-448`](models/features.md#perception-encoder) | yes | 52.4 (224x224) | 25.4 | 17.0 | 3.1x vs original (224x224) | 5180 |
 
@@ -506,7 +506,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
 | [`patchmatchnet`](models/multiview.md#patchmatchnet) | yes | 219.7 (1536x1024) | 201.7 | 29.6 | 7.4x vs original (1536x1024) | 740 |
-| [`mvsanywhere`](models/multiview.md#mvsanywhere) | no | 218.7 (448x672) | 93.2 | 35.6 | 6.1x vs original (448x672) | 761 |
+| [`mvsanywhere`](models/multiview.md#mvsanywhere) | no | 218.7 (448x672) | 93.2 | 35.2 | 6.2x vs original (448x672) | 702 |
 | [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 651.2 | 458.4 | 2.1x vs original (336x518) | 3702 |
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 464.4 | 2.0x vs original (336x518) | 3422 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |

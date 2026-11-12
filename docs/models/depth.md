@@ -34,13 +34,13 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`lotus-normal-g-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
 | [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 383, 1.1x | 3762, 1.1x |
 | [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167, 1.7x | 2500, 0.69x |
-| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 158, 2.8x | 1688, 0.54x |
+| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 155, 2.8x | 1608, 0.52x |
 | [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.9, 5.2x | 1436, 0.5x |
 | [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7, 2.5x | 1208, 0.76x |
 | [`moge-2-vitl-normal`](#moge) | yes | 0.0357 | 73.4, 2.3x | 1610, 0.66x |
 | [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 29.7, 2.8x | 1008, 0.79x |
 | [`moge-3-vitl`](#moge) | yes | 0.0356 | 215, 2.3x | 1884, 0.72x |
-| [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 66.4, 2.0x | 1472, 0.42x |
+| [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 63.0, 2.1x | 1252, 0.36x |
 | [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.9, 2.1x | 1266, 0.35x |
 | [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | – | – |
 | [`video-depth-anything-s`](#video_depth_anything) | yes | – | 1284, 9.1x (1080x1920) | 8782, 0.74x |
@@ -560,7 +560,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>200<br>158<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1484 / 1696<br>1516 / 1688<br>1126 / 1148<br>1867 / 1952 |
+| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>200<br>155<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1484 / 1696<br>1480 / 1608<br>1126 / 1148<br>1867 / 1952 |
 
 <details><summary>Details</summary>
 
@@ -570,15 +570,14 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/YvanYin/Metric3D/blob/eb5b6fac0dc155e4e52f576e304fbf11655ff339/README.md#license-and-contact>
 - Training data: 16M images from 18 public metric-depth datasets (indoor, outdoor, driving) per the Metric3D v2 paper (arXiv 2404.15506); original asks commercial users to contact the authors
 - Licence note: The upstream README says 'for further commercial inquiries, please contact' the authors; no weights licence is stated, so the BSD-2-Clause code licence is assumed.
-- Kernel libraries: `fastbb`
+- Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `metric3d-vit-large`
 - Outputs: depth, normals, confidence; kind: `metric`
 - Input size: any H x W >= 8, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `metric3d-vit-large` 3000x4000 (2.3 GiB peak allocated, 2.9 reserved)
 - `metric3d-vit-large` 994x1482, first call: portable + torch.compile 55 s (cold Inductor cache), TensorRT fp16 97 s (ONNX + engine).
 - `metric3d-vit-large` original 994x1482: torch.autocast(fp16) around the forward
-- `metric3d-vit-large` load / first call: original 9.96 s / 0.876 s, portable 3.45 s / 0.233 s, kernels 0.31† s / 0.159 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `metric3d-vit-large` load / first call: original 9.96 s / 0.876 s, portable 3.45 s / 0.233 s, kernels 2.5 s / 0.472 s (518x770)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -600,7 +599,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `metric3d-vit-large` | 0.00028 / 0.00075 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `metric3d-vit-large` | 0.00139 / 0.00198 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 
@@ -751,7 +750,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `unidepth-v2-vitl14` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>132<br>99.8<br>66.4<br>96.4<br>64.3 | 3230 / 3508<br>3230 / 3508<br>1208 / 1472<br>1211 / 1472<br>1304 / 1392<br>1815 / 1842 |
+| `unidepth-v2-vitl14` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>132<br>99.8<br>63.0<br>96.4<br>64.3 | 3230 / 3508<br>3230 / 3508<br>1208 / 1472<br>1166 / 1252<br>1304 / 1392<br>1815 / 1842 |
 
 <details><summary>Details</summary>
 
@@ -768,8 +767,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `unidepth-v2-vitl14` 3000x4000 (2.6 GiB peak allocated, 3.2 reserved)
 - `unidepth-v2-vitl14` 994x1482, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp16 119 s (ONNX + engine).
 - `unidepth-v2-vitl14` original 994x1482: torch.autocast(fp16) around the forward
-- `unidepth-v2-vitl14` load / first call: original 3.8 s / 0.383 s, portable 4.16 s / 0.147 s, kernels 0.9† s / 0.069 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `unidepth-v2-vitl14` load / first call: original 3.8 s / 0.383 s, portable 4.16 s / 0.147 s, kernels 1.9 s / 0.296 s (518x770)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -791,7 +789,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `unidepth-v2-vitl14` | 0.004 / 0.00526 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `unidepth-v2-vitl14` | 0.0039 / 0.00516 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 
