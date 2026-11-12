@@ -54,6 +54,7 @@ _LO_DTYPE = torch.float32
 _LM_FINAL = 10
 _MSAC = True
 _LM_ROUND = 0
+_SCORE_ELEMENTS = 2**26  # portable scoring chunk: elements of the [A, C, 5, n] Sampson intermediate (256 MB fp32)
 
 
 @dataclass(frozen=True)
@@ -207,13 +208,7 @@ def _estimate(  # noqa: PLR0913, PLR0917 - the RANSAC state
         used += rounds
         need = _iterations(best_count[active].float() / counts[active].float())
         active = active[need > used]
-    best_e, best_count = _polish(scorer, best_e, best_score, best_count)
-    inliers = scorer.inliers(best_e)
-    R, t, ok = _recover_pose(best_e.view(P, 3, 3), x1, x2, inliers)
-    ok &= best_count >= MIN_MATCHES
-    eye = torch.eye(3, device=dev).expand(P, 3, 3)
-    R = torch.where(ok[:, None, None], R, eye)
-    t = torch.where(ok[:, None], t, torch.tensor([0.0, 0.0, 1.0], device=dev).expand(P, 3))
+    R, t, best_e, inliers, ok = scorer.finish(best_e, best_score, best_count)
     # Back to the caller's match order.
     inliers_out = torch.zeros(P, N, dtype=torch.bool, device=dev).scatter_(1, order, inliers)
     return RelativePose(R, t, best_e.view(P, 3, 3), inliers_out, ok)
@@ -264,11 +259,18 @@ class _TorchScorer:
         """
         A, C = e.shape[:2]
         n = min(n, self.feat.shape[-1])
-        v = torch.matmul(_coef(e).reshape(A, C * 5, 15), self.feat[pairs, :, :n]).view(A, C, 5, n)
-        den = (v[:, :, 1:] ** 2).sum(2)
-        err = v[:, :, 0] ** 2 / den.clamp_min(1e-30)
-        gain = (1 - err / self.thr2[pairs, None, None]).clamp_min(0) * (self.valid[pairs, None, :n] & (den > 0))
-        return gain.sum(2), (gain > 0).sum(2, dtype=torch.int32)
+        step = max(1, _SCORE_ELEMENTS // (C * 5 * n))  # pairs per chunk: bounds the [A, C, 5, n] intermediate
+        coef = _coef(e).reshape(A, C * 5, 15)
+        scores, counts = [], []
+        for a in range(0, A, step):
+            v = torch.matmul(coef[a : a + step], self.feat[pairs[a : a + step], :, :n]).view(-1, C, 5, n)
+            den = (v[:, :, 1:] ** 2).sum(2)
+            err = v[:, :, 0] ** 2 / den.clamp_min(1e-30)
+            inlier = self.valid[pairs[a : a + step], None, :n] & (den > 0)
+            gain = (1 - err / self.thr2[pairs[a : a + step], None, None]).clamp_min(0) * inlier
+            scores.append(gain.sum(2))
+            counts.append((gain > 0).sum(2, dtype=torch.int32))
+        return torch.cat(scores), torch.cat(counts)
 
     def cost(self, pairs: torch.Tensor, e: torch.Tensor) -> torch.Tensor:
         """Truncated Sampson cost `[A]` of one model per pair `[A, 9]`: `sum(min(error, threshold^2))`."""
@@ -296,6 +298,24 @@ class _TorchScorer:
         jac = (dres * w[..., None]) @ de  # [A, N, 5]
         cost = (torch.where(w > 0, res**2, thr2) * self.valid[pairs]).sum(1)
         return jac.transpose(1, 2) @ jac, (jac * res[..., None]).sum(1), cost
+
+    def finish(
+        self, best_e: torch.Tensor, best_score: torch.Tensor, best_count: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """The final stage of the RANSAC models `[P, 9]`: polish, `recoverPose`, inlier mask.
+
+        Returns `R` `[P, 3, 3]`, `t` `[P, 3]`, `E` `[P, 9]`, inliers `[P, N]` and `ok` `[P]` (identity and
+        `(0, 0, 1)` where not ok).
+        """
+        P, dev = best_e.shape[0], best_e.device
+        best_e, best_count = _polish(self, best_e, best_score, best_count)
+        inliers = self.inliers(best_e)
+        R, t, ok = _recover_pose(best_e.view(P, 3, 3), self.x1, self.x2, inliers)
+        ok &= best_count >= MIN_MATCHES
+        eye = torch.eye(3, device=dev).expand(P, 3, 3)
+        R = torch.where(ok[:, None, None], R, eye)
+        t = torch.where(ok[:, None], t, torch.tensor([0.0, 0.0, 1.0], device=dev).expand(P, 3))
+        return R, t, best_e, inliers, ok
 
     def inliers(self, e: torch.Tensor, pairs: torch.Tensor | None = None) -> torch.Tensor:
         """Inlier mask `[A, N]` of one model per pair `[A, 9]` (all pairs when `pairs` is None)."""
@@ -350,6 +370,15 @@ class _KernelScorer(_TorchScorer):
         if pairs is None:
             return self.lib.inlier_masks(self.k, self.pts, self.counts, self.thr2, e)
         return super().inliers(e, pairs)
+
+    def finish(
+        self,
+        best_e: torch.Tensor,
+        best_score: torch.Tensor,  # noqa: ARG002 - the kernel rescores
+        best_count: torch.Tensor,  # noqa: ARG002
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        R, t, e, _, ok, inliers = self.lib.polish(self.k, self.pts, self.counts, self.thr2, best_e, _REFITS, _LM_FINAL)
+        return R, t, e, inliers, ok
 
     def refine(self, pairs: torch.Tensor, e: torch.Tensor, iterations: int) -> torch.Tensor:
         A = e.shape[0]

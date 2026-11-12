@@ -4,6 +4,7 @@
 `score_many` / `score_few`: MSAC scores (truncated quadratic Sampson loss) and inlier counts of many (one thread
 each) or few (one block each) candidate E against a pair's matches; `score_few` also writes the inlier mask.
 `lm_refine`: Levenberg-Marquardt of (R, t) per pair on the truncated Sampson cost, all iterations in one launch.
+`polish`: the whole final stage per pair in one launch: 8-point refits on the inliers, recoverPose, LM, inlier mask.
 """
 
 from __future__ import annotations
@@ -20,8 +21,10 @@ SIGNATURES = {
     "score_many": "pppppppiii",
     "score_few": "ppppppppiii",
     "lm_refine": "pppppiii",
+    "polish": "pppppppppiii",
 }
 THREADS = 256
+SMALL_THREADS, SMALL = 32, 4096  # the hypotheses kernel's block for launches of at most SMALL samples
 MANY = 64  # candidates per pair from which the one-thread-per-candidate kernel wins
 
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
@@ -35,7 +38,9 @@ def hypotheses(
     n = pts.shape[1]
     out = torch.empty(a, h, 10, 9, device=pts.device, dtype=torch.float32)
     valid = torch.empty(a, h, 10, device=pts.device, dtype=torch.int32)
-    grid, block = linear(a * h, THREADS)
+    # Small launches (one pair): one warp per block spreads the samples over the SMs, whose few fp64 units the
+    # solver's Gauss-Jordan elimination otherwise shares between the warps of a block.
+    grid, block = linear(a * h, SMALL_THREADS if a * h <= SMALL else THREADS)
     lib.launch("e5pt_hypotheses", grid, block, pts, pairs, idx.contiguous(), out, valid, n, h, a)
     return out.view(a, h * 10, 9), valid.view(a, h * 10).bool()
 
@@ -98,3 +103,29 @@ def lm_refine(  # noqa: PLR0913, PLR0917 - the kernel's arguments
     n = pts.shape[1]
     lib.launch("lm_refine", (out.shape[0], 1, 1), (THREADS, 1, 1), pts, counts, thr2, pairs, out, iterations, n, n)
     return out
+
+
+def polish(  # noqa: PLR0913, PLR0917 - the kernel's arguments
+    lib: CubinModule,
+    pts: torch.Tensor,
+    counts: torch.Tensor,
+    thr2: torch.Tensor,
+    e: torch.Tensor,
+    refits: int,
+    lm_iterations: int,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """The final stage of one model per pair `e` `[P, 9]`: refits, `recoverPose`, LM refinement, inlier mask.
+
+    Returns `R` `[P, 3, 3]`, `t` `[P, 3]`, the polished `E` `[P, 9]`, inlier counts `[P]` int32, `ok` `[P]` bool and
+    the inlier mask `[P, N]` bool; `R`, `t` are the identity and `(0, 0, 1)` where not `ok`.
+    """
+    p, n = pts.shape[:2]
+    e = e.contiguous().clone()
+    r = torch.empty(p, 3, 3, device=pts.device, dtype=torch.float32)
+    t = torch.empty(p, 3, device=pts.device, dtype=torch.float32)
+    cnt = torch.empty(p, device=pts.device, dtype=torch.int32)
+    ok = torch.empty(p, device=pts.device, dtype=torch.int32)
+    mask = torch.empty(p, n, device=pts.device, dtype=torch.uint8)
+    args = (pts, counts, thr2, e, r, t, cnt, ok, mask, refits, lm_iterations, n)
+    lib.launch("polish", (p, 1, 1), (THREADS, 1, 1), *args)
+    return r, t, e, cnt, ok.bool(), mask.bool()

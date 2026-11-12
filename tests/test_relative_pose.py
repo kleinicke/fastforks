@@ -193,3 +193,28 @@ def test_kernel_refine_matches_portable():
     a, b = torch_scorer.refine(pairs, e, 10), kernel_scorer.refine(pairs, e, 10)
     assert torch.allclose(torch_scorer.cost(pairs, a), kernel_scorer.cost(pairs, b), rtol=1e-3)
     assert torch.minimum((a - b).norm(dim=1), (a + b).norm(dim=1)).max() < 1e-3
+
+
+@pytest.mark.gpu
+def test_kernel_finish_matches_portable():
+    """The fused polish kernel (refits, recoverPose, LM, mask) agrees with the torch chain."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    from fastforks.kernels import ransac  # noqa: PLC0415 - optional at import time
+
+    x1, x2, valid, thr2, e, e_true = _scorer_inputs("cuda", n=2000)
+    pairs = torch.arange(4, device="cuda")
+    torch_scorer = rp._TorchScorer(x1, x2, valid, thr2)
+    kernel_scorer = rp._KernelScorer(ransac.load(x1.device), x1, x2, valid, thr2)
+    score, count = (v[:, 0] for v in torch_scorer.score(pairs, e[:, None], 2000))
+    ra, ta, ea, ia, oka = torch_scorer.finish(e, score, count)
+    rb, tb, eb, ib, okb = kernel_scorer.finish(e, score, count)
+    assert oka.all()
+    assert okb.all()
+    assert torch.minimum((ea - eb).norm(dim=1), (ea + eb).norm(dim=1)).max() < 1e-3
+    assert (ra - rb).abs().max() < 1e-3
+    assert (ta - tb).abs().max() < 1e-3
+    assert (ia == ib).float().mean() > 0.99
+    # both close to the true pose
+    e_true = e_true / e_true.norm(dim=1, keepdim=True)
+    assert torch.minimum((eb - e_true).norm(dim=1), (eb + e_true).norm(dim=1)).max() < 2e-2
