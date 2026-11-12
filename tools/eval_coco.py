@@ -117,7 +117,7 @@ def _load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401 - a model of e
         return pos.load(ref, mode=mode, device="cuda", dtype=dtype, options=opts)
 
     # RT-DETRv2 / D-FINE mAP: the official postprocessor (all 300 queries, no threshold); defaults: 0.05 / 100
-    opts = {"score_threshold": 0.0, "max_detections": 300} if ref.startswith(("rtdetrv2", "dfine")) else None
+    opts = {"score_threshold": 0.0, "max_detections": 300} if ref.startswith(("rtdetrv2", "dfine", "rf-detr")) else None
     if ref.startswith("rtmdet") and ref.endswith("-coco"):  # the reference configs' COCO test settings
         opts = {"score_threshold": 0.001, "max_detections": 300}
     return (det if task == "detection" else seg).load(ref, mode=mode, device="cuda", options=opts, dtype=dtype)

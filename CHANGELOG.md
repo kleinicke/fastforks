@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- RF-DETR detection (N, S, M, L) and RF-DETR Seg (N, S, M, L, XL, 2XL; Apache-2.0 code and weights): boxes,
+  labels, scores and instance masks without NMS, on `portable` and `kernels` (fastbb backbone). M at 800x1344:
+  4.4 ms kernels vs 13.5 ms original fp32; COCO val2017 box mAP 54.51 kernels vs 54.53 original.
+
 - New task `fastforks.matching`: dense matching. `model(image1, image2)` returns `warp` `[B, 2, H1, W1]` (each
   pixel of image1 in pixels of image2) and `certainty` `[B, H1, W1]`. RoMa v2 (`romav2`) on `portable` (bf16 on
   CUDA, as upstream) and `kernels` (one-pass local correlation): 412 ms kernels, 552 ms portable vs 741 ms original

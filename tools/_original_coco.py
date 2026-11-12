@@ -293,9 +293,10 @@ class _RFDETRPose:
     """Original RF-DETR person queries with all scores retained for COCO OKS evaluation."""
 
     needs_boxes = False
+    task = "pose"
 
     def __init__(self, ref: str, tier: str) -> None:
-        self.original = _original.load("pose", ref, tier)
+        self.original = _original.load(self.task, ref, tier)
         self.backend = Backend(self.original.how, self.original.dtype, self.original.note)
 
     def __call__(self, img: np.ndarray) -> Result:
@@ -303,6 +304,16 @@ class _RFDETRPose:
 
         image = torch.from_numpy(np.ascontiguousarray(img)).permute(2, 0, 1).cuda()
         return Result(**self.original(image, 0.0))
+
+
+class _RFDETR(_RFDETRPose):
+    """Original RF-DETR detection / Seg: the `num_select` best (query, class) pairs, `coco-80` labels, no threshold."""
+
+    task = "detection"
+
+    def __init__(self, ref: str, tier: str) -> None:
+        super().__init__(ref, tier)
+        self.class_names = coco_names()
 
 
 class _Points:
@@ -432,6 +443,8 @@ def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, PLR0911 - one 
             return _rtmdet(ref, tier)
         if ref.startswith("dfine"):
             return _dfine(ref, tier)
+        if ref.startswith("rf-detr"):
+            return _RFDETR(ref, tier)
         return _rcnn(ref, tier) if "rcnn" in ref else _detr(ref, tier)
     if ref.startswith("sam3"):
         return _Concept(tier)

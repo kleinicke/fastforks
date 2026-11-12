@@ -37,7 +37,12 @@ ROOT = Path(__file__).resolve().parents[1]
 BENCH = Path(os.environ.get("FF_BENCH_DIR", ROOT.parent / "bench"))
 TIERS = {"upstream": "fp32", "upstream16": "autocast", "upstreamhalf": "half", "upstreamac": "autocast-plain"}
 BF16 = {"vggt", "vggt_omega", "mapanything", "depth_anything_3", "romav2"}  # the authors' mixed precision is bfloat16
-NATIVE_HALF = {"depth_pro", "marigold", "rfdetr_keypoint"}  # build(ref, True) is a float16 model, not mixed precision
+NATIVE_HALF = {
+    "depth_pro",
+    "marigold",
+    "rfdetr_keypoint",
+    "rfdetr",
+}  # build(ref, True) is a float16 model, not mixed precision
 _SETUP: set[str] = set()
 _MOBILE_SAM: list[Any] = []  # the golden script of MobileSAM, see `mobile_sam_recipe`
 
@@ -787,9 +792,15 @@ class _RFDETRKeypoint(_Local):
     """The authors' explicit inference dtype option, without a compiler, on the same CUDA uint8 inputs."""
 
     flag = True
+    family = "rfdetr_keypoint"
+    postprocess = "uncertainty-fused PostProcess"
 
-    def __init__(self) -> None:
-        super().__init__("pose", None, ((1080, 1920),), needs_boxes=False)
+    def __init__(self, task: str = "pose", sizes: tuple[tuple[int, int], ...] = ((1080, 1920),)) -> None:
+        super().__init__(task, None, sizes, needs_boxes=False)
+
+    def reference(self, g: Any, checkout: Path, full: str, checkpoint: Path) -> Any:  # noqa: ANN401 - upstream wrapper
+        _ = full
+        return g.reference(checkout, checkpoint, "cuda")
 
     def build(self, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - bench adapter contract
         import torch  # noqa: PLC0415
@@ -803,12 +814,12 @@ class _RFDETRKeypoint(_Local):
         site = os.environ.get("FF_RFDETR_SITE")
         if site and site not in sys.path:
             sys.path.append(site)
-        g = _golden("rfdetr_keypoint")
-        card, variant = registry.resolve("pose", full)
+        g = _golden(self.family)
+        card, variant = registry.resolve(self.task, full)
         (checkpoint,) = registry.weights(card, variant)
-        model = g.reference(Path(checkout), checkpoint, "cuda")
+        model = self.reference(g, Path(checkout), full, checkpoint)
         self.COMMIT = card.upstream_commit
-        self.note = "pinned RF-DETR torchvision resize/normalize, original network and uncertainty-fused PostProcess"
+        self.note = f"pinned RF-DETR torchvision resize/normalize, original network and {self.postprocess}"
         if fp16:
             model.inference(compile=False, dtype=torch.float16, inplace=True)
             self.note += "; authors inference(compile=False, dtype=float16, inplace=True)"
@@ -819,6 +830,16 @@ class _RFDETRKeypoint(_Local):
             return g.predict(model, x, threshold)
 
         return call
+
+
+class _RFDETR(_RFDETRKeypoint):
+    """RF-DETR detection / Seg: the golden's upstream class per variant id."""
+
+    family = "rfdetr"
+    postprocess = "PostProcess"
+
+    def reference(self, g: Any, checkout: Path, full: str, checkpoint: Path) -> Any:  # noqa: ANN401 - upstream wrapper
+        return g.reference(checkout, g.CLASSES[full.split("@", maxsplit=1)[0]], checkpoint, "cuda")
 
 
 class _LocalFp16(_Local):
@@ -846,6 +867,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
         "pose", _topdown, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
     ),
     "rfdetr_keypoint": _RFDETRKeypoint(),
+    "rfdetr": _RFDETR("detection", ((800, 1344),)),
     "rtmo": _Local(
         "pose",
         _rtmo,
