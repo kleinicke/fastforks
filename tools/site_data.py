@@ -275,6 +275,7 @@ def _quality(card: ModelCard, v: Variant, rows: dict[str, list[dict]]) -> list[d
                 "date": (r.get("date") or "")[:10],
                 "how": r.get("how"),
                 "note": r.get("note"),
+                "version": eval_version(task, r),
             }
         mark = g._overlap(card, v, d)  # noqa: SLF001
         out.append(
@@ -328,20 +329,64 @@ def _parity(card: ModelCard) -> dict[str, Any]:
     }
 
 
+def _git(*a: str) -> str:
+    return subprocess.run(["git", *a], cwd=_ROOT, capture_output=True, text=True, check=True).stdout
+
+
+# The version the models and results not in any release yet will ship in.
+UNRELEASED = "0.2.0"
+
+
+@functools.cache
+def _tags() -> tuple[str, ...]:
+    """Release tags, oldest first."""
+    return tuple(_git("tag", "--list", "v*", "--sort=v:refname").split())
+
+
+@functools.cache
+def _tag_ids(tag: str) -> frozenset[str]:
+    """The variant ids the cards of one release list."""
+    ids: set[str] = set()
+    for path in _git("ls-tree", "-r", "--name-only", tag).split():
+        if path.endswith("/card.toml"):
+            ids |= {v["id"] for v in tomllib.loads(_git("show", f"{tag}:{path}")).get("variants", [])}
+    return frozenset(ids)
+
+
 def released_ids() -> tuple[str | None, set[str]]:
     """The latest release tag and the variant ids its cards list (all ids empty without a tag)."""
-
-    def git(*a: str) -> str:
-        return subprocess.run(["git", *a], cwd=_ROOT, capture_output=True, text=True, check=True).stdout
-
-    tags = git("tag", "--list", "v*", "--sort=-v:refname").split()
-    if not tags:
+    if not _tags():
         return None, set()
-    ids: set[str] = set()
-    for path in git("ls-tree", "-r", "--name-only", tags[0]).split():
-        if path.endswith("/card.toml"):
-            ids |= {v["id"] for v in tomllib.loads(git("show", f"{tags[0]}:{path}")).get("variants", [])}
-    return tags[0].removeprefix("v"), ids
+    return _tags()[-1].removeprefix("v"), set(_tag_ids(_tags()[-1]))
+
+
+def added_in(variant_id: str) -> str:
+    """The first release whose cards list the variant, else the coming one."""
+    tag = next((t for t in _tags() if variant_id in _tag_ids(t)), None)
+    return tag.removeprefix("v") if tag else UNRELEASED
+
+
+def _row_key(r: dict[str, Any]) -> str:
+    return json.dumps(r, sort_keys=True)
+
+
+@functools.cache
+def _eval_since(task: str) -> dict[str, str]:
+    """Each accuracy row of a task (by its full content) -> the first release whose eval file holds it."""
+    out: dict[str, str] = {}
+    for t in _tags():
+        try:
+            text = _git("show", f"{t}:docs/data/{task}_eval.jsonl")
+        except subprocess.CalledProcessError:  # the task had no eval file in that release
+            continue
+        for line in text.splitlines():
+            out.setdefault(_row_key(json.loads(line)), t.removeprefix("v"))
+    return out
+
+
+def eval_version(task: str, row: dict[str, Any]) -> str:
+    """The release an accuracy row first shipped in: rows measured since the last release count as the coming one."""
+    return _eval_since(task).get(_row_key(row), UNRELEASED)
 
 
 _EXAMPLE_KEEP = ("top", "classes", "objects", "prompt", "certain", "mode", "dtype", "device", "date")
@@ -378,6 +423,7 @@ def _variant(
     return {
         "id": v.id,
         "released": released[0] if v.id in released[1] else None,
+        "added_in": added_in(v.id),
         "ref": v.ref,
         "name": g._name(v),  # noqa: SLF001
         "setting": g.setting(list(card.variants), v),
@@ -473,7 +519,7 @@ def main() -> int:
                     "family": card.family,
                     "task": task,
                     "name": card.name,
-                    "variants": [{k: v[k] for k in ("id", "name", "released")} for v in data["variants"]],
+                    "variants": [{k: v[k] for k in ("id", "name", "released", "added_in")} for v in data["variants"]],
                 }
             )
     meta = {
