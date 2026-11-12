@@ -36,6 +36,7 @@ from fastforks import (
     features,
     flow,
     matching,
+    matting,
     multiview,
     pose,
     promptable_segmentation,
@@ -71,6 +72,7 @@ API: dict[str, Any] = {
     "pose": pose,
     "flow": flow,
     "matching": matching,
+    "matting": matting,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
 HEAVY_CPU = "FASTFORKS_HEAVY_CPU_TESTS"  # 1: every CPU case, also those left out of the release suite for time / RAM
@@ -298,6 +300,9 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         assert want is not None, f"{task} goldens store their image pair"
         r = m(img, want["input2"].round().astype(np.uint8))
         maps = {k: getattr(r, k, None) for k in spec(task).standard}  # sparse matchers: no warp / certainty
+    elif task == "matting":
+        r = m(img)
+        maps = {"alpha": r.alpha}
     else:
         r = m(img, logits=True)
         assert r.logits is not None

@@ -728,6 +728,13 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | segnext-mscan-s-ade20k | 28.6 | 23.3 | 18.5 | 8.04 | 2.9x | 2.3x | 1649 / 1700 | 350 / 402 | 202 / 290 |
 | segnext-mscan-t-ade20k | 21.1 | 23.8 | 15.9 | 8.99 | 2.3x | 1.8x | 1593 / 1648 | 332 / 378 | 147 / 206 |
 
+### Matting, synthetic, 1080x1920
+
+| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|
+| birefnet | 234 | 225 | 214 | 1.1x | 1.0x | 1666 / 1930 | 1660 / 1888 | 1674 / 1916 |
+| birefnet-lite | 75.1 | 67.3 | 59.3 | 1.3x | 1.1x | 913 / 974 | 810 / 932 | 754 / 960 |
+
 ### Promptable segmentation, synthetic, 1024x1024
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
@@ -1194,6 +1201,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | segnext-mscan-l-ade20k | 0.57 | 0.57 (512x512) | 1.51 (512x512) | 0.06 | 0.41 (512x512) | 0.10 (512x512) |
 | segnext-mscan-s-ade20k | 0.23 | 0.15 (512x512) | 1.29 (512x512) | 0.32 | 0.72 (512x512) | 0.19 (512x512) |
 | segnext-mscan-t-ade20k | 0.19 | 0.13 (512x512) | 1.26 (512x512) | 0.34 | 0.65 (512x512) | 0.20 (512x512) |
+| birefnet | 3.60 | 0.75 | 1.61 | 0.39 | 0.56 | 0.44 |
+| birefnet-lite | 8.04 | 0.26 | 1.03 | 1.10 | 0.63 | 0.32 |
 | efficientvit-sam-l0 | 0.35 | 0.83 | 1.63 | 0.82 | 0.72 | 0.25 |
 | efficientvit-sam-l1 | 0.31 | 0.76 | 1.64 | 0.03 | 0.69 | 0.25 |
 | efficientvit-sam-l2 | 0.39 | 0.93 | 1.78 | 0.04 | 0.66 | 0.25 |
@@ -1602,6 +1611,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | segnext-mscan-l-ade20k | 1024x2048 | 43.1 ms | 63.6 ms | 32.3 ms | 20.6 ms | 34.9 s | 82.2 s | 417 / 458 | 532 / 578 | 314 / 428 | 1634 / 1694 |
 | segnext-mscan-s-ade20k | 1024x2048 | 18.5 ms | 24.9 ms | 18.0 ms | 8.04 ms | 17.2 s | 56.6 s | 350 / 402 | 465 / 482 | 202 / 290 | 1493 / 1544 |
 | segnext-mscan-t-ade20k | 1024x2048 | 15.9 ms | 16.6 ms | 16.0 ms | 8.99 ms | 19.1 s | 59.6 s | 332 / 378 | 446 / 480 | 147 / 206 | 1476 / 1498 |
+| birefnet | 1080x1920 | 225 ms | 138 ms | 87.8 ms | 214 ms | 93.8 s | 201 s | 1660 / 1888 | 1874 / 1932 | 1674 / 1916 | 1753 / 1814 |
+| birefnet-lite | 1080x1920 | 67.3 ms | 50.2 ms | 49.0 ms | 59.3 ms | 75.1 s | 156 s | 810 / 932 | 1469 / 1552 | 754 / 960 | 874 / 934 |
 | efficientvit-sam-l0 | 1024x1024 | 12.7 ms | 6.44 ms | 5.56 ms, fp32 engine (image encoder only) | 4.45 ms | 25.2 s | 19.9 s | 171 / 210 | 188 / 228 | 176 / 256 | 404 / 428 |
 | efficientvit-sam-l1 | 1024x1024 | 14.4 ms | 11.3 ms | 7.30 ms, fp32 engine (image encoder only) | 5.79 ms | 24.8 s | 22.0 s | 195 / 234 | 212 / 252 | 203 / 284 | 517 / 578 |
 | efficientvit-sam-l2 | 1024x1024 | 17.8 ms | 10.8 ms | 9.65 ms, fp32 engine (image encoder only) | 6.83 ms | 26.1 s | 24.1 s | 221 / 260 | 238 / 278 | 232 / 312 | 633 / 690 |

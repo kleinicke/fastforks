@@ -23,6 +23,7 @@ from fastforks import (
     features,
     flow,
     matching,
+    matting,
     multiview,
     pose,
     promptable_segmentation,
@@ -48,6 +49,7 @@ API: dict[str, Any] = {
     "pose": pose,
     "flow": flow,
     "matching": matching,
+    "matting": matting,
 }
 OUTPUTS = (  # the outputs checked, where a result has them
     "disparity",
@@ -65,6 +67,7 @@ OUTPUTS = (  # the outputs checked, where a result has them
     "boxes",
     "keypoints",
     "keypoint_scores",
+    "alpha",
 )
 A, B, C = (243, 333), (307, 451), (259, 397)  # odd sizes off every tile; B > A, both small enough for graphs
 LARGE = (1001, 1497)

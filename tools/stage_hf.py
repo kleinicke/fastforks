@@ -222,6 +222,7 @@ _PIPELINE = {
     "multiview": "image-to-3d",
     "pose": "keypoint-detection",
     "matching": "image-to-image",
+    "matting": "image-segmentation",
 }
 _TASK_TAGS = {
     "stereo": ["stereo", "stereo-matching", "disparity"],
@@ -235,6 +236,7 @@ _TASK_TAGS = {
     "multiview": ["multi-view-stereo", "3d-reconstruction", "camera-pose-estimation"],
     "pose": ["pose-estimation", "human-pose-estimation", "keypoint-detection"],
     "matching": ["dense-matching", "image-matching", "feature-matching"],
+    "matting": ["background-removal", "dichotomous-image-segmentation", "matting"],
 }
 _SNIPPET = {
     "stereo": 'result = model("left.png", "right.png")\nresult.{out}  # [H, W] float32 tensor, input resolution',
@@ -258,6 +260,7 @@ _SNIPPET = {
         "result.{out}  # [V, H, W] float32 tensor; result.kind says what the maps mean"
     ),
     "matching": ('result = model("view1.jpg", "view2.jpg")\nresult.{out}  # [2, H1, W1] float32: x, y in view2 pixels'),
+    "matting": 'result = model("photo.jpg")\nresult.{out}  # [H, W] float32 in [0, 1], input resolution',
     "pose": (
         'result = model("photo.jpg", boxes=[[x0, y0, x1, y1]])  # one box per person, or a fastforks.detection result\n'
         "result.{out}, result.keypoint_scores  # [P, K, 2] input pixels, [P, K]"

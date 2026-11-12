@@ -293,6 +293,7 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
         "pairs": ("[K, 2]", "int64", "indices into keypoints1, keypoints2", "one row per match"),
         "scores": ("[K]", "float32", "[0, 1] match confidence", ""),
     },
+    "matting": {"alpha": ("[B, H, W]", "float32", "[0, 1], 1 = foreground", "input pixels")},
     "features": {
         "last_hidden_state": ("[B, N, C]", "float32", "tokens after the final norm", "prefix tokens, then patches"),
         "pooler_output": ("[B, C]", "float32", "image embedding", ""),
@@ -377,6 +378,7 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     ),
     "classification": (("network",), ("image conversion", "resize", "crop", "normalise (model.data_config)", "top-k")),
     "segmentation": (("input handling", "network", "logits at the input size"), ("image conversion", "argmax")),
+    "matting": (("resize to the network size", "normalise", "network", "resize to the input"), ("image conversion",)),
     "features": (("resize to the patch stride", "network"), ("image conversion", "pooler_output", "hidden_states")),
     "promptable_segmentation": (
         ("resize to the encoder input", "image encoder"),

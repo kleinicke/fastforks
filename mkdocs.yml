@@ -43,6 +43,7 @@ nav:
       - Promptable segmentation: api/promptable_segmentation.md
       - Detection: api/detection.md
       - Multi-view: api/multiview.md
+      - Matting: api/matting.md
       - Errors: api/errors.md
   - Models:
       - Stereo: models/stereo.md
@@ -56,6 +57,7 @@ nav:
       - Promptable segmentation: models/promptable_segmentation.md
       - Detection: models/detection.md
       - Multi-view: models/multiview.md
+      - Matting: models/matting.md
   - Contributing: contributing.md
 markdown_extensions:
   - admonition

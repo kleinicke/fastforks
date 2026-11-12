@@ -21,6 +21,7 @@ from fastforks.detection import DetectionResult
 from fastforks.features import FeaturesResult
 from fastforks.flow import FlowResult
 from fastforks.matching import MatchingResult, SparseMatchingResult
+from fastforks.matting import MattingResult
 from fastforks.multiview import MultiViewResult
 from fastforks.pose import PoseResult
 from fastforks.promptable_segmentation._api import ConceptSegmentationResult, PromptableSegmentationResult
@@ -37,6 +38,7 @@ RESULTS = {
     "pose": (PoseResult,),
     "flow": (FlowResult,),
     "matching": (MatchingResult, SparseMatchingResult),
+    "matting": (MattingResult,),
     "features": (FeaturesResult,),
     "classification": (ClassificationResult,),
     "promptable_segmentation": (PromptableSegmentationResult, ConceptSegmentationResult),

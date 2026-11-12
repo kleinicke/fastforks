@@ -82,6 +82,10 @@ _DATASETS = {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
     },
+    "matting": {
+        "dis-vd": "DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta",
+        "dis-vd-every2": "DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta",
+    },
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
 # task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
@@ -172,6 +176,8 @@ _PROTOCOL = {
     "rotation and translation-direction errors. ",
     ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
     "pair. ",
+    "matting": "Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over "
+    "256 thresholds (BiRefNet's evaluation). ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
@@ -905,6 +911,10 @@ TASK_IO = {
         "(x, y in pixels) and a certainty that the pixel is visible in both. Sparse matchers (LightGlue) return "
         "the keypoints of both images and the index pairs of the matched ones instead."
     ),
+    "matting": (
+        "Input: one RGB image. Output: an alpha matte `[H, W]` in [0, 1] at the input size: 1 = foreground "
+        "(background removal, dichotomous / salient object segmentation)."
+    ),
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",
     "multiview": (
@@ -1083,6 +1093,7 @@ _STD_SIZE = {
     "detection": "800x1344",
     "flow": "1080x1920",
     "matching": "768x1024",
+    "matting": "1080x1920",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input
@@ -1091,6 +1102,7 @@ _OVERVIEW_ACC = {
     "stereo": ("eth3d", "bad", "ETH3D bad > 1 px (%)", "{:.2f}"),
     "depth": ("nyu", "rel_absrel", "NYUv2 AbsRel (scale+shift aligned)", "{:.4f}"),
     "flow": ("kitti2015-train", "epe", "KITTI 2015 train EPE (px)", "{:.3f}"),
+    "matting": ("dis-vd", "mae", "DIS-VD MAE", "{:.4f}"),
 }
 _PICK_NOTES = {
     "depth": (

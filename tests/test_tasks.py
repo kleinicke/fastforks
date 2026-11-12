@@ -38,6 +38,7 @@ from fastforks.features._runner import Forward
 from fastforks.features._runner import Runner as FeatRunner
 from fastforks.flow._runner import Runner as FlowRunner
 from fastforks.matching._runner import Runner as MatchingRunner
+from fastforks.matting._runner import Runner as MattingRunner
 from fastforks.multiview._runner import Runner as MultiViewRunner
 from fastforks.pose._runner import Runner as PoseRunner
 from fastforks.promptable_segmentation._api import MAX_EXEMPLARS, ConceptModelId, _model_class
@@ -549,6 +550,7 @@ def test_resize_crop_bicubic_stays_in_range():
         "pose",
         "flow",
         "matching",
+        "matting",
     ],
 )
 def test_runner_without_call_cannot_be_built(task):
@@ -559,6 +561,7 @@ def test_runner_without_call_cannot_be_built(task):
     base["pose"] = PoseRunner
     base["flow"] = FlowRunner
     base["matching"] = MatchingRunner
+    base["matting"] = MattingRunner
 
     class NoCall(base[task]):
         pass

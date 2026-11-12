@@ -42,6 +42,7 @@ NATIVE_HALF = {
     "marigold",
     "marigold_normals",
     "lotus",
+    "birefnet",
     "rfdetr_keypoint",
     "rfdetr",
 }  # build(ref, True) is a float16 model, not mixed precision
@@ -901,6 +902,26 @@ def _marigold_normals(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, AR
     return lambda image: g.predict(pipe, image[None].float() / 255)
 
 
+def _birefnet(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """The HF repo's `birefnet.py` with the card's pre- and post-processing, as `tools/golden/birefnet.py`.
+
+    `FF_BIREFNET_HF`: a directory with the HF snapshots as `<ref>/birefnet.py` (+ `BiRefNet_config.py`); fp16 = the
+    model card's `half()` (fp16 weights and input).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("birefnet")
+    ref = full.split("@", maxsplit=1)[0]
+    card, variant = registry.resolve("matting", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_BIREFNET_HF"]) / ref, Path(weights)).cuda()
+    if fp16:
+        net = net.half()
+    repo, rev = g.HF_REVISION[ref]
+    a.note = f"HF ZhengPeng7/{repo}@{rev[:12]} birefnet.py, the card's resize / normalisation / sigmoid / resize back"
+    return lambda image: g.predict(net, image[None].float() / 255)
+
+
 class _Local:
     """An original the bench has no adapter for, on the library's own bench inputs as uint8 CUDA tensors.
 
@@ -1073,6 +1094,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "lotus": _LocalFp16("depth", _lotus, ((994, 1482),)),
     "lightglue": _LocalFp16("matching", _lightglue, ((768, 1024),)),
     "xfeat": _Local("matching", _xfeat, ((768, 1024),)),
+    "birefnet": _LocalFp16("matting", _birefnet, ((1080, 1920),)),
 }
 
 
