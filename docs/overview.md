@@ -580,12 +580,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Tracking
 
-2 models; size 480x854.
+4 models; size 480x854.
 
-- Fastest: [`tapnext`](models/tracking.md#tapnext) (382.2 ms).
-- Fastest commercially usable: [`tapnext`](models/tracking.md#tapnext) (382.2 ms).
+- Fastest: [`tapir`](models/tracking.md#tapir) (138.3 ms).
+- Fastest commercially usable: [`tapir`](models/tracking.md#tapir) (138.3 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
+| [`tapir`](models/tracking.md#tapir) | yes | 186.9 (480x854) | 185.6 | 138.3 | 1.4x vs original (480x854) | 678 |
+| [`bootstapir`](models/tracking.md#tapir) | yes | 242.5 (480x854) | 239.5 | 191.3 | 1.3x vs original (480x854) | 769 |
 | [`tapnext`](models/tracking.md#tapnext) | yes | 908.8 (480x854) | 529.5 | 382.2 | 2.4x vs original (480x854) | 1313 |
 | [`tapnext-pp`](models/tracking.md#tapnext) | yes | – | – | – | – | – |

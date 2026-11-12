@@ -15,9 +15,11 @@ thresholds (AJ); a point counts as visible when its visibility is > 0.5 (TAPNext
 mean over videos (the benchmark's averaging).
 
 Tiers: fastforks `portable`, `kernels` (card default dtype) on the 256 x 256 frames, queries in their pixel
-coordinates (normalised x 256 - 0.5). The authors' PyTorch TAPNext (`$TAPNET_SRC`, a tapnet checkout with einops on
-the path): `upstream` (fp32) and `upstream16` (float16 autocast), online as their evaluation (the first frame with the
-queries, then one frame at a time with the state), queries `(t, y, x)` continuous.
+coordinates (normalised x 256 - 0.5). The authors' PyTorch models (`$TAPNET_SRC`, a tapnet checkout with einops,
+einshape and dm-tree on the path): `upstream` (fp32) and `upstream16` (float16 autocast), queries `(t, y, x)`
+continuous. TAPNext online as their evaluation (the first frame with the queries, then one frame at a time with the
+state); TAPIR / BootsTAPIR offline (the whole video at once; visible where `(1 - sigmoid(occlusion)) * (1 -
+sigmoid(expected_dist)) > 0.5`).
 
 Timing: one sequence per call, synchronised, per frame; after one untimed warm-up sequence. Each sequence appends one
 record to `<out>/<model>__<tier>.jsonl`; a run resumes after the last finished sequence and stops after `--budget`
@@ -45,7 +47,13 @@ from _data import DATA
 ROOT = DATA / "tapvid/tapvid_davis/npz"
 SIZE = 256
 THRESHOLDS = (1, 2, 4, 8, 16)
-WEIGHT = {"tapnext": "bootstapnext_ckpt.npz", "tapnext-pp": "tapnextpp_ckpt.pt"}
+WEIGHT = {
+    "tapnext": "bootstapnext_ckpt.npz",
+    "tapnext-pp": "tapnextpp_ckpt.pt",
+    "bootstapir": "bootstapir_checkpoint_v2.pt",
+    "tapir": "tapir_checkpoint_panning.pt",
+}
+TAPIR_REFS = ("bootstapir", "tapir")
 
 
 def sequences(every: int) -> list[str]:
@@ -102,9 +110,37 @@ class Ours:
 class _Upstream:
     def __init__(self, tier: str) -> None:
         self.mode, self.dtype, self.how = "upstream", torch.float16 if tier == "upstream16" else torch.float32, None
+        self.name = "TAPNext"
 
     def __str__(self) -> str:
-        return f"upstream TAPNext (PyTorch, {'float16 autocast' if self.dtype == torch.float16 else 'float32'})"
+        return f"upstream {self.name} (PyTorch, {'float16 autocast' if self.dtype == torch.float16 else 'float32'})"
+
+
+class OriginalTapir:
+    """The authors' PyTorch TAPIR / BootsTAPIR, offline (see the module docstring)."""
+
+    def __init__(self, ref: str, tier: str) -> None:  # noqa: D107
+        sys.path.insert(0, os.environ["TAPNET_SRC"])
+        from tapnet.torch.tapir_model import TAPIR  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+        kwargs = {"pyramid_level": 1} if ref == "bootstapir" else {"pyramid_level": 0, "extra_convs": False}
+        model = TAPIR(**kwargs)
+        file = Path(os.environ["FASTFORKS_WEIGHTS_PATH"]) / "tapir" / WEIGHT[ref]
+        model.load_state_dict(torch.load(file, map_location="cpu", weights_only=True))
+        self.model = model.eval().cuda()
+        self.backend = _Upstream(tier)
+        self.backend.name = "BootsTAPIR" if ref == "bootstapir" else "TAPIR"
+
+    def __call__(self, frames: np.ndarray, queries: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Tracks `[Q, T, 2]` in continuous coordinates and the predicted occlusion `[Q, T]`."""
+        video = torch.from_numpy(frames).cuda().float()[None] / 255 * 2 - 1  # [1, T, 256, 256, 3]
+        q = torch.from_numpy(queries).cuda()
+        qp = torch.cat([q[:, :1], (q[:, 1:] + 0.5).flip(-1)], 1)[None]  # (t, y, x) continuous
+        amp = self.backend.dtype == torch.float16
+        with torch.inference_mode(), torch.autocast("cuda", torch.float16, enabled=amp):
+            out = self.model(video, qp)
+        vis = (1 - out["occlusion"].float().sigmoid()) * (1 - out["expected_dist"].float().sigmoid())
+        return out["tracks"][0].float().cpu().numpy(), (vis[0] <= 0.5).cpu().numpy()  # noqa: PLR2004
 
 
 class Original:
@@ -166,7 +202,8 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:
     torch.cuda.empty_cache()
     torch.cuda.reset_peak_memory_stats()
     t0 = time.perf_counter()
-    model = (Original if tier.startswith("upstream") else Ours)(ref, tier)
+    orig = OriginalTapir if ref in TAPIR_REFS else Original
+    model = (orig if tier.startswith("upstream") else Ours)(ref, tier)
     build_s = round(time.perf_counter() - t0, 1)
     be = model.backend
     common = {

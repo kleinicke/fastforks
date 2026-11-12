@@ -13,6 +13,12 @@
   82 ms compile, 86 ms TensorRT vs 177 ms original fp32 (127 ms fp16), peak 5.7 GB vs 5.8 GB. DTU (5 scans,
   calibrated) AbsRel 0.0974 kernels vs 0.0992 original fp32 (0.0974 fp16).
 
+- TAPIR and BootsTAPIR point tracking (`bootstapir`, `tapir`, tracking task; Apache-2.0 code and weights): offline,
+  the whole video per call (256 x 256 internally, as upstream). 24-frame 480x854 video, 256 queries: `bootstapir`
+  191 ms kernels, 240 ms portable (float16) vs 396 ms original fp32 (243 ms fp16), peak 0.77 GB vs 0.83 GB;
+  TAP-Vid DAVIS (first) AJ 62.27 kernels, 62.29 portable vs 62.27 original. Shared fused-conv ops now reject
+  non-float16 operands instead of reading them as float16.
+
 - TAPNext point tracking (`tapnext`, `tapnext-pp`, new `tracking` task; Apache-2.0 code and weights): `model(video,
   queries)` returns `tracks` `[T, Q, 2]` and `visible` `[T, Q]` for `(t, x, y)` queries, online one frame at a time
   as upstream. 24-frame 480x854 video, 256 queries: 382 ms kernels, 529 ms portable vs 1541 ms original fp32;

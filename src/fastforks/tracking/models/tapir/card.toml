@@ -1,0 +1,44 @@
+schema = 2
+name = "TAPIR"
+summary = "TAPIR (Doersch, Yang, Vecerik et al., Google DeepMind 2023) and BootsTAPIR (Doersch et al. 2024, the same network trained further with BootsTAP self-training on unlabelled real videos): tracking any point offline over a whole video. A ResNet encodes every 256 x 256 frame; per frame, a cost volume against the query's features gives the initial position, visibility and uncertainty, then four PIPs-style refinements (local correlations, a depthwise-conv MLP mixer over the frames of each track) correct the whole track at once."
+tier = "experimental"
+outputs = ["tracks", "visibility"]
+uses = []  # fastforks.shared modules this family imports
+limitations = [
+  "Offline: the whole video is encoded before tracking (features of every frame in memory, about 3 MB per frame); for live video use an online tracker (TAPNext).",
+  "Frames are resized to 256 x 256 (the training size and that of upstream's TAP-Vid numbers), whatever their size and aspect ratio. Upstream's higher-resolution refinement (best at 512 x 512 for BootsTAPIR) is not ported.",
+  "One video per call; all queries of a call share the video.",
+]
+
+[upstream]
+repo = "https://github.com/google-deepmind/tapnet"
+commit = "ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b"  # net/tapir.py = tapnet/torch/{tapir_model,nets,utils}.py at 256 x 256, offline, einshape / dm-tree removed
+
+[licence]
+code = "Apache-2.0"  # LICENSE; README "License and Disclaimer"
+weights = "Apache-2.0"  # README: "All pre-trained model checkpoints released in this repository and linked from this README (including TAP-Net, TAPIR, BootsTAPIR, ...) are also licensed under Apache 2.0."
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Upstream: TAPIR is trained on synthetic Kubric MOVi-E sequences (the panning variant); BootsTAPIR is further trained with BootsTAP self-training on about 15 million unlabelled real video clips (not released). None has a dataset entry here yet."
+evidence = "https://github.com/google-deepmind/tapnet/blob/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/README.md#license-and-disclaimer"
+
+[io]
+input = "0-1"  # the runner resizes the frames to 256 x 256 (bilinear, antialiased) and scales them to [-1, 1] itself
+min_size = 16
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast; TAP-Vid DAVIS every3 AJ 65.56 vs 65.49 float32 (OA 92.44 vs 92.58)
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fvm_conv"]  # the PIPs mixer: depthwise temporal convs (GELU-tanh epilogue) and GEMMs with fused GELU-tanh / residual epilogues, fp16 accumulation
+
+[[variants]]
+id = "bootstapir"  # upstream BootsTAPIR (bootstapir_checkpoint_v2.pt); TAP-Vid DAVIS first AJ 62.4 at 256 x 256 (upstream README)
+revision = 1
+weights = [{ name = "bootstapir_checkpoint_v2.pt", size = 218886140, sha256 = "8493c7a69e02c85b9382fbb3c7b8b539b36bc08ede744b9e99feb739a0129f4b", url = "https://storage.googleapis.com/dm-tapnet/bootstap/bootstapir_checkpoint_v2.pt" }]
+
+[[variants]]
+id = "tapir"  # upstream TAPIR (tapir_checkpoint_panning.pt, Kubric only); TAP-Vid DAVIS first AJ 58.5 at 256 x 256 (upstream README)
+revision = 1
+weights = [{ name = "tapir_checkpoint_panning.pt", size = 124348474, sha256 = "628611c656b3bd65d4a70fbf5526b62afe82d1b085ce6044685287fb78509daa", url = "https://storage.googleapis.com/dm-tapnet/tapir_checkpoint_panning.pt" }]

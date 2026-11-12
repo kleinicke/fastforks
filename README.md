@@ -30,7 +30,7 @@ By default (`mode="auto"`) fastforks uses kernels where they can run and the rec
 | promptable segmentation: SAM 3 concepts | `fastforks.promptable_segmentation` | `model(image, text="cat")` and / or exemplar boxes `input_boxes=` → every instance of the concept | `sam3` |
 | [object detection](https://fastforks.dev/tasks/detection) | `fastforks.detection` | `model(image)` → boxes, labels, scores | `faster-rcnn-r50-fpn-3x-coco`, `mask-rcnn-r50-fpn-3x-coco` |
 | [matting / background removal](https://fastforks.dev/tasks/matting) | `fastforks.matting` | `model(image)` → alpha `[H, W]` in [0, 1] (1 = foreground) | `birefnet`, `birefnet-lite`, `ben2` |
-| [point tracking](https://fastforks.dev/tasks/tracking) | `fastforks.tracking` | `model(frames, queries)` with queries `[Q, 3]` `(t, x, y)` → `tracks [T, Q, 2]` (pixels) + `visibility [T, Q]` | `tapnext`, `tapnext-pp` |
+| [point tracking](https://fastforks.dev/tasks/tracking) | `fastforks.tracking` | `model(frames, queries)` with queries `[Q, 3]` `(t, x, y)` → `tracks [T, Q, 2]` (pixels) + `visibility [T, Q]` | `tapnext`, `tapnext-pp`, `bootstapir`, `tapir` |
 | [human pose](https://fastforks.dev/tasks/pose) | `fastforks.pose` | `model(image, boxes=person_boxes)` → 17 COCO keypoints (133 whole-body for DWPose) with scores per person | `rtmpose-m`, `vitpose-plus-base`, `rtmpose-l-384` |
 | [feature backbones](https://fastforks.dev/tasks/features) | `fastforks.features` | `model(image)` → token features, image embedding | `dinov2-vitb14`, `dinov3-vitl16`, `dinov3-convnext-small` |
 

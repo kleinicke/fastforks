@@ -112,6 +112,14 @@ def _stem_c8_weight(w: torch.Tensor) -> torch.Tensor:
     return wt
 
 
+def _need_half(op: str, **ts: torch.Tensor | None) -> None:
+    """Raise unless every given tensor is fp16: the kernels read raw fp16 pointers, another dtype would be garbage."""
+    bad = [k for k, t in ts.items() if t is not None and t.dtype != _HALF]
+    if bad:
+        msg = f"{op}: {', '.join(bad)} must be float16"
+        raise ValueError(msg)
+
+
 def _conv_impl(
     x: torch.Tensor,
     w: torch.Tensor,
@@ -130,6 +138,7 @@ def _conv_impl(
     if not w.is_contiguous(memory_format=_CL):
         msg = "conv_fused: weight must be channels-last"
         raise ValueError(msg)
+    _need_half("conv_fused", x=x, weight=w, bias=bias, residual=res)
     if res is not None:
         res = res.contiguous(memory_format=_CL)
     n, c, h, wd = x.shape
@@ -292,6 +301,7 @@ def dwconv(
 ) -> torch.Tensor:
     """Depthwise conv, fp32 accumulation; w_rsc `[R, S, C]` contiguous."""
     x = x.contiguous(memory_format=_CL)
+    _need_half("dwconv", weight=w_rsc, bias=bias)
     if x.dtype != _HALF or x.shape[1] % 8 or not w_rsc.is_contiguous():
         msg = "dwconv: fp16 x with C % 8 == 0 and a contiguous [R, S, C] weight"
         raise ValueError(msg)

@@ -517,3 +517,33 @@ def test_torch_return_types_survive_patch():  # OPT-5
     m = M().eval()
     y = patch(m, mode="portable")(torch.randn(1, 3, 4, 4))
     assert type(y) is type(m(torch.randn(1, 3, 4, 4)))
+
+
+H = torch.float16
+
+
+@pytest.mark.parametrize(
+    ("op", "bad"),
+    [
+        ("lin_res", "residual"),
+        ("lin_bias", "bias"),
+        ("conv_x", "x"),
+        ("dw_bias", "bias"),
+        ("dw_weight", "weight"),
+    ],
+)
+def test_fp16_kernels_reject_other_dtypes(op, bad):
+    """The fvm_conv ops read raw fp16 pointers: an fp32 operand must raise, not run on reinterpreted bits (a float32
+    residual into `lin` gave NaN tracks in the TAPIR kernels runner)."""
+    x, f = torch.zeros(1, 8, 4, 1, dtype=H), torch.float32
+    w4, b, res = torch.zeros(16, 8, 1, 1, dtype=H), torch.zeros(16, dtype=H), torch.zeros(4, 16, dtype=H)
+    wd, bd = torch.zeros(3, 1, 8, dtype=H), torch.zeros(8, dtype=H)
+    calls = {
+        "lin_res": lambda: conv_ops.lin(x[0, :, :, 0].T, w4, b, res=res.to(f)),
+        "lin_bias": lambda: conv_ops.lin(x[0, :, :, 0].T, w4, b.to(f)),
+        "conv_x": lambda: conv_ops.conv_fused(x.to(f), w4, b, None, [0, 0], [1, 1], 0),
+        "dw_bias": lambda: conv_ops.dwconv(x, wd, bd.to(f), [1, 1], [1, 0], 0),
+        "dw_weight": lambda: conv_ops.dwconv(x, wd.to(f), bd, [1, 1], [1, 0], 0),
+    }
+    with pytest.raises(ValueError, match=f"{bad} must be float16"):
+        calls[op]()

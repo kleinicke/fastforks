@@ -1121,6 +1121,40 @@ def _tapnext(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - th
     return call
 
 
+def _tapir(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream `TAPIR` offline (the whole video in one call, as the authors' offline demo), resized to 256 x 256.
+
+    fp16: `torch.autocast("cuda", torch.float16)`. Needs `TAPNET_SRC`, a tapnet checkout with the pinned commit (with
+    einshape and dm-tree). The call returns upstream's output dict (tracks `[1, Q, T, 2]`, occlusion and
+    expected-distance logits).
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    sys.path.insert(0, os.environ["TAPNET_SRC"])
+    from tapnet.torch.tapir_model import TAPIR  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    card, variant = registry.resolve("tracking", full)
+    file = registry.weights(card, variant, allow_download=False)[0]
+    boots = variant.id == "bootstapir"
+    model = TAPIR(pyramid_level=1) if boots else TAPIR(pyramid_level=0, extra_convs=False)
+    model.load_state_dict(torch.load(file, map_location="cpu", weights_only=True))
+    model = model.eval().cuda()
+    a.note = f"upstream {'BootsTAPIR' if boots else 'TAPIR'}, offline (whole video); frames resized to 256 x 256"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        h, w = video.shape[-2:]
+        scale = torch.tensor((256 / w, 256 / h), device=queries.device)
+        qp = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]
+        with torch.autocast("cuda", torch.float16, enabled=fp16):
+            x = F.interpolate(video.float() / 255, (256, 256), mode="bilinear", antialias=True)
+            return model((x * 2 - 1).permute(0, 2, 3, 1)[None], qp)
+
+    return call
+
+
 class _Tracking(_LocalFp16):
     """The tracking bench call: the uint8 video `[T, 3, H, W]` and the float32 query grid (not scaled to uint8)."""
 
@@ -1274,6 +1308,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),
     "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),
+    "tapir": _Tracking("tracking", _tapir, ((480, 854),)),
 }
 
 
