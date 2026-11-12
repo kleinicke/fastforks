@@ -19,7 +19,8 @@ from fastforks import WeightsError, detection
 from fastforks._core import registry
 from fastforks.detection._cv2_resize import cv2_linear
 from fastforks.detection.models.rtmdet.model import SPLIT, classwise_nms, fit
-from fastforks.detection.models.rtmdet.net import BN_EPS, STRIDES, Arch, RTMDet, convert, decode, points
+from fastforks.detection.models.rtmdet.net import STRIDES, Arch, RTMDet, convert, decode, points
+from fastforks.shared.cspnext import BN_EPS
 from synth import image
 
 if TYPE_CHECKING:

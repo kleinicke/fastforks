@@ -1,0 +1,83 @@
+schema = 2
+name = "StarNet"
+summary = "StarNet (Ma et al. 2024, Rewrite the Stars): a small convolutional classifier whose blocks multiply two branches element-wise (the star operation)."
+tier = "experimental"
+outputs = ["logits"]
+uses = ["libnet", "cuda_graphs"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/ma-xu/Rewrite-the-Stars"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints are the authors' (ma-xu/Rewrite-the-Stars, Apache-2.0:
+# https://github.com/ma-xu/Rewrite-the-Stars/blob/main/LICENSE), converted to safetensors by timm, whose model cards of
+# all 4 repositories state apache-2.0 (checked 2026-11-10: https://huggingface.co/api/models/timm/<id>, cardData.license).
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+evidence = "https://huggingface.co/timm/starnet_s1.in1k/blob/e3fbe6d1e24b6293fa6e7b897f380bd62f77e01f/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 256
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+
+[output]
+label_set = "imagenet-1k"
+
+[[papers]]
+title = "Rewrite the Stars"
+url = "https://arxiv.org/abs/2403.19967"
+date = "2024-03-29"
+venue = "CVPR 2024"
+
+[[variants]]
+id = "starnet_s1.in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "starnet_s1.in1k.safetensors", size = 11536912, sha256 = "314e10df155cf83fc10ba60a936139c99dd21398a3ac44ab9d80933c402aaccd", url = "https://huggingface.co/timm/starnet_s1.in1k/resolve/e3fbe6d1e24b6293fa6e7b897f380bd62f77e01f/model.safetensors" }]
+params = { arch = "starnet_s1.in1k" }
+licence = { evidence = "https://huggingface.co/timm/starnet_s1.in1k/blob/e3fbe6d1e24b6293fa6e7b897f380bd62f77e01f/README.md" }
+
+[[variants]]
+id = "starnet_s2.in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "starnet_s2.in1k.safetensors", size = 14781792, sha256 = "dc73c27d1b714e2642fa78343a31f1d98e2013bd26d598b916394bfc0ea15999", url = "https://huggingface.co/timm/starnet_s2.in1k/resolve/7d4c84c067b9fea3fb81df22ea2cbb929dda37a0/model.safetensors" }]
+params = { arch = "starnet_s2.in1k" }
+licence = { evidence = "https://huggingface.co/timm/starnet_s2.in1k/blob/7d4c84c067b9fea3fb81df22ea2cbb929dda37a0/README.md" }
+
+[[variants]]
+id = "starnet_s3.in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "starnet_s3.in1k.safetensors", size = 23079216, sha256 = "7fbdee07ac6b324626b0998361fc194b565529beec8fe61bc0b1039954af0cec", url = "https://huggingface.co/timm/starnet_s3.in1k/resolve/07426414963bc86c5df39e253c3bbcb7935168cf/model.safetensors" }]
+params = { arch = "starnet_s3.in1k" }
+licence = { evidence = "https://huggingface.co/timm/starnet_s3.in1k/blob/07426414963bc86c5df39e253c3bbcb7935168cf/README.md" }
+
+[[variants]]
+id = "starnet_s4.in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "starnet_s4.in1k.safetensors", size = 30034224, sha256 = "6d75002d5e77457c6a2fb5cbfe6d32f3504fbe8085792e8b701448a246b65911", url = "https://huggingface.co/timm/starnet_s4.in1k/resolve/58d1fd51e6737653446cef5ac3bc75328a88ef65/model.safetensors" }]
+params = { arch = "starnet_s4.in1k" }
+licence = { evidence = "https://huggingface.co/timm/starnet_s4.in1k/blob/58d1fd51e6737653446cef5ac3bc75328a88ef65/README.md" }

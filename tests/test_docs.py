@@ -277,6 +277,29 @@ def test_one_speed_table_per_task_and_scene():
     assert "| patchmatchnet | 1536x1024 |" in multiview
 
 
+def test_flow_benchmark_keeps_standard_size_when_one_model_ooms(monkeypatch):
+    """An OOM model's smaller timed input must not shrink the other models' comparison size."""
+
+    def row(ref, size):
+        return {"ref": ref, "input": size, "mode": "portable", "ms": 1.0, "scene": "synthetic"}
+
+    monkeypatch.setattr(
+        gen_docs,
+        "_speed_rows",
+        lambda: {
+            "gmflow-scale1-things": [
+                row("gmflow-scale1-things", "1080x1920"),
+                row("gmflow-scale1-things", "375x1242"),
+            ],
+            "flowformer-small-chairs": [row("flowformer-small-chairs", "375x1242")],
+        },
+    )
+    block = gen_docs._bench_block()
+    flow = block.split("### Flow, synthetic\n", 1)[1].split("\n### ", 1)[0]
+    assert "| gmflow-scale1-things | 1080x1920 |" in flow
+    assert "| flowformer-small-chairs | 375x1242 |" in flow
+
+
 def test_summary_memory_ratio_uses_the_smaller_original():
     """Kernels peak reserved over the smaller original peak; nothing without a measured original."""
     fp32, fp16 = {"peak_reserved_mb": 624}, {"peak_reserved_mb": 846}

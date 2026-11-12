@@ -1,0 +1,85 @@
+schema = 2
+name = "EfficientFormerV2"
+summary = "EfficientFormerV2 (Li et al. 2022, Snap Research): a mobile hybrid classifier, convolutional stages with attention in the last two."
+tier = "experimental"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/snap-research/EfficientFormer"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints are Snap Research's (snap-research/EfficientFormer; its LICENSE is an MIT-style grant by Snap Inc.
+# plus LeViT's Apache-2.0: https://github.com/snap-research/EfficientFormer/blob/main/LICENSE; the official files are
+# on Google Drive without a separate statement), re-hosted by timm, whose model cards of all 4 repositories state
+# apache-2.0 (checked 2026-11-10: https://huggingface.co/api/models/timm/<id>, cardData.license).
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+evidence = "https://huggingface.co/timm/efficientformerv2_s0.snap_dist_in1k/blob/aa226e91a076e760bc7957e5990f19f6ae322c5f/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 235
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not built yet: Conv-BN blocks with depthwise 3x3, feature-map attention with learned bias tables and strided depthwise convolutions need a dedicated kernels runner"
+
+[output]
+label_set = "imagenet-1k"
+
+[[papers]]
+title = "Rethinking Vision Transformers for MobileNet Size and Speed"
+url = "https://arxiv.org/abs/2212.08059"
+date = "2022-12-15"
+venue = "ICCV 2023"
+
+[[variants]]
+id = "efficientformerv2_s0.snap_dist_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "efficientformerv2_s0.snap_dist_in1k.safetensors", size = 14659080, sha256 = "ad4ce93472a2589572d46370ea214937a10bd522e35da9ccb7b10fd7eeb68f0c", url = "https://huggingface.co/timm/efficientformerv2_s0.snap_dist_in1k/resolve/aa226e91a076e760bc7957e5990f19f6ae322c5f/model.safetensors" }]
+params = { arch = "efficientformerv2_s0.snap_dist_in1k" }
+licence = { evidence = "https://huggingface.co/timm/efficientformerv2_s0.snap_dist_in1k/blob/aa226e91a076e760bc7957e5990f19f6ae322c5f/README.md" }
+
+[[variants]]
+id = "efficientformerv2_s1.snap_dist_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "efficientformerv2_s1.snap_dist_in1k.safetensors", size = 25103088, sha256 = "3ef67aa25321c2a3d145e12ef4823e5f7da4356ed1656f9f1bd6b9af339e5655", url = "https://huggingface.co/timm/efficientformerv2_s1.snap_dist_in1k/resolve/0c1fc60a0e89b6309d9de451cdacc11ac0a8b987/model.safetensors" }]
+params = { arch = "efficientformerv2_s1.snap_dist_in1k" }
+licence = { evidence = "https://huggingface.co/timm/efficientformerv2_s1.snap_dist_in1k/blob/0c1fc60a0e89b6309d9de451cdacc11ac0a8b987/README.md" }
+
+[[variants]]
+id = "efficientformerv2_s2.snap_dist_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "efficientformerv2_s2.snap_dist_in1k.safetensors", size = 51442016, sha256 = "c46c28768173ee0e518b7cd94af1e832cb88d2115068a81386c08650cc22a24f", url = "https://huggingface.co/timm/efficientformerv2_s2.snap_dist_in1k/resolve/1c56a76355000c79568559d34ba3fa24416b5107/model.safetensors" }]
+params = { arch = "efficientformerv2_s2.snap_dist_in1k" }
+licence = { evidence = "https://huggingface.co/timm/efficientformerv2_s2.snap_dist_in1k/blob/1c56a76355000c79568559d34ba3fa24416b5107/README.md" }
+
+[[variants]]
+id = "efficientformerv2_l.snap_dist_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "efficientformerv2_l.snap_dist_in1k.safetensors", size = 106226760, sha256 = "a92de90055b116562f85322e596494829e54d86c56471652e3c07ed39957c92a", url = "https://huggingface.co/timm/efficientformerv2_l.snap_dist_in1k/resolve/092a1c107ec0fdc2207a470f81c696022f17a42e/model.safetensors" }]
+params = { arch = "efficientformerv2_l.snap_dist_in1k" }
+licence = { evidence = "https://huggingface.co/timm/efficientformerv2_l.snap_dist_in1k/blob/092a1c107ec0fdc2207a470f81c696022f17a42e/README.md" }

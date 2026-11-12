@@ -116,8 +116,8 @@ runner (portable or kernels backend) with its weights; the task API (`<task>.loa
 tensors; calling it returns the typed result, whose `.backend` records what ran. The exceptions follow.
 
 Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
-`fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation` and
-`fastforks.multiview`.
+`fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation`,
+`fastforks.multiview` and `fastforks.matching`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
 PatchmatchNet return the reference view only. See the [API pages](api/index.md) for every result's fields.
 
@@ -643,6 +643,7 @@ BatchNorm: fine-tune the timm / torchvision model and pass its `state_dict` file
 - Map errors to HTTP: `InputError` / `ArgumentError` (bad image, bad keyword) to 4xx, other `FastforksError`
   subclasses (`WeightsError`, `BackendUnavailableError`, ...) to 5xx; one `except fastforks.FastforksError` covers all.
 - Images as uploaded bytes: pass `bytes`, `bytearray` or `io.BytesIO` of the encoded file; corrupt data raises `InputError`.
+- Image inputs also take an `http://` or `https://` URL (`model("https://example.com/cat.jpg")`; downloaded, 30 s timeout, 100 MB cap).
 
 ## Notes for deployments
 
@@ -662,10 +663,10 @@ for p in sorted(pathlib.Path("images").glob("*.jpg")):
 import time
 from fastforks import detection
 
-det = detection.load("rtdetrv2-s-coco")  # defaults: score >= 0.05, at most 100 boxes
+det = detection.load("rtdetrv2-s-coco", max_detections=30)  # limit set when loading
 det(first_frame, score_threshold=0.5)  # warm-up at the real size; the first call also captures CUDA graphs (kernels)
 for frame in frames:  # numpy HWC uint8, torch or PIL; keep the size fixed, call from one thread
-    boxes = det(frame, score_threshold=0.5, max_detections=30)  # per-call overrides of the load options
+    boxes = det(frame, score_threshold=0.5)  # score threshold can be overridden per call
 ```
 
 Memory per input size: `kernels` keep a cuDNN plan and a CUDA graph per input size, so a stream of many different

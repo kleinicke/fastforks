@@ -1,0 +1,108 @@
+schema = 2
+name = "HGNetV2"
+summary = "HGNetV2 (PaddlePaddle, PP-HGNetV2): a convolutional classifier of aggregation blocks with light 5x5 convolutions, SSLD-distilled and fine-tuned on ImageNet-1k."
+tier = "experimental"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/PaddlePaddle/PaddleClas"
+framework = "PaddlePaddle"
+reason = "timm carries the architecture and the converted PaddleClas checkpoints in its own PyTorch API; the original is PaddlePaddle."
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints are PaddleClas' (PP-HGNetV2 SSLD stage 2, Apache-2.0:
+# https://github.com/PaddlePaddle/PaddleClas/blob/release/2.6/LICENSE), converted by timm, whose model cards of all 7
+# repositories state apache-2.0 (checked 2026-11-10: https://huggingface.co/api/models/timm/<id>, cardData.license).
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-21k", "imagenet-1k"]
+evidence = "https://huggingface.co/timm/hgnetv2_b0.ssld_stage2_ft_in1k/blob/9e0a904b210d65e4fcd6582f8ca6e0921fac2650/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 232
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not built yet: the portable CNN path is validated; HGNetV2 aggregation blocks need a dedicated kernels runner"
+
+[output]
+label_set = "imagenet-1k"
+
+[[papers]]
+title = "PP-HGNetV2"
+url = "https://github.com/PaddlePaddle/PaddleClas/blob/develop/docs/zh_CN/models/ImageNet1k/PP-HGNetV2.md"
+date = "2023-09-26"
+venue = "PaddleClas docs"
+
+[[variants]]
+id = "hgnetv2_b0.ssld_stage2_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "hgnetv2_b0.ssld_stage2_ft_in1k.safetensors", size = 24069368, sha256 = "a84094d2a9edc77106d797ee48ed41a806123f5ca786b32388f344577da0d150", url = "https://huggingface.co/timm/hgnetv2_b0.ssld_stage2_ft_in1k/resolve/9e0a904b210d65e4fcd6582f8ca6e0921fac2650/model.safetensors" }]
+params = { arch = "hgnetv2_b0.ssld_stage2_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/hgnetv2_b0.ssld_stage2_ft_in1k/blob/9e0a904b210d65e4fcd6582f8ca6e0921fac2650/README.md" }
+
+[[variants]]
+id = "hgnetv2_b1.ssld_stage2_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "hgnetv2_b1.ssld_stage2_ft_in1k.safetensors", size = 25463072, sha256 = "4a9d49b24bcab4d76136c5468ba9c982962cad85dda3efae4484446592331957", url = "https://huggingface.co/timm/hgnetv2_b1.ssld_stage2_ft_in1k/resolve/ec7014d7f1d0dd1ea2bf3012bc51dc95c5919fd2/model.safetensors" }]
+params = { arch = "hgnetv2_b1.ssld_stage2_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/hgnetv2_b1.ssld_stage2_ft_in1k/blob/ec7014d7f1d0dd1ea2bf3012bc51dc95c5919fd2/README.md" }
+
+[[variants]]
+id = "hgnetv2_b2.ssld_stage2_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "hgnetv2_b2.ssld_stage2_ft_in1k.safetensors", size = 45040952, sha256 = "184700043cfb108f74b88537344f37ab97060d2e47afe1485c823e551b85655a", url = "https://huggingface.co/timm/hgnetv2_b2.ssld_stage2_ft_in1k/resolve/7a3092bc87118c7974bb9000b1eb6d9c560f8f75/model.safetensors" }]
+params = { arch = "hgnetv2_b2.ssld_stage2_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/hgnetv2_b2.ssld_stage2_ft_in1k/blob/7a3092bc87118c7974bb9000b1eb6d9c560f8f75/README.md" }
+
+[[variants]]
+id = "hgnetv2_b3.ssld_stage2_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "hgnetv2_b3.ssld_stage2_ft_in1k.safetensors", size = 65364096, sha256 = "f9769b32ab1f6a4f127821f5776f6a19b736149af4f3ec22bab339748bf2dac7", url = "https://huggingface.co/timm/hgnetv2_b3.ssld_stage2_ft_in1k/resolve/1aac877b3ea55ab0f06d57cad9889d1e601bd472/model.safetensors" }]
+params = { arch = "hgnetv2_b3.ssld_stage2_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/hgnetv2_b3.ssld_stage2_ft_in1k/blob/1aac877b3ea55ab0f06d57cad9889d1e601bd472/README.md" }
+
+[[variants]]
+id = "hgnetv2_b4.ssld_stage2_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "hgnetv2_b4.ssld_stage2_ft_in1k.safetensors", size = 79423192, sha256 = "8d05f750c5301cd5c7d5139ae2417d13711da2c6ab067653579848bf31dcbeba", url = "https://huggingface.co/timm/hgnetv2_b4.ssld_stage2_ft_in1k/resolve/3c808d9d9d9873ed5e37b00509ba2a4882e816e8/model.safetensors" }]
+params = { arch = "hgnetv2_b4.ssld_stage2_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/hgnetv2_b4.ssld_stage2_ft_in1k/blob/3c808d9d9d9873ed5e37b00509ba2a4882e816e8/README.md" }
+
+[[variants]]
+id = "hgnetv2_b5.ssld_stage2_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "hgnetv2_b5.ssld_stage2_ft_in1k.safetensors", size = 158740080, sha256 = "839782a6a43c68f93821ebed03795fb3d38989a208acd1011e7e61dceb9d2693", url = "https://huggingface.co/timm/hgnetv2_b5.ssld_stage2_ft_in1k/resolve/1321384995445be1032080fb612996dcf7c5fc81/model.safetensors" }]
+params = { arch = "hgnetv2_b5.ssld_stage2_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/hgnetv2_b5.ssld_stage2_ft_in1k/blob/1321384995445be1032080fb612996dcf7c5fc81/README.md" }
+
+[[variants]]
+id = "hgnetv2_b6.ssld_stage2_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "hgnetv2_b6.ssld_stage2_ft_in1k.safetensors", size = 301811400, sha256 = "4febffb69be0dfa0773d15f1c800bdb51d220b9b6d1271ffe7567f815e68a745", url = "https://huggingface.co/timm/hgnetv2_b6.ssld_stage2_ft_in1k/resolve/d394602b2adabf26b3067ca070478686684e898f/model.safetensors" }]
+params = { arch = "hgnetv2_b6.ssld_stage2_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/hgnetv2_b6.ssld_stage2_ft_in1k/blob/d394602b2adabf26b3067ca070478686684e898f/README.md" }

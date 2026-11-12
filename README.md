@@ -21,6 +21,7 @@ By default (`mode="auto"`) fastforks uses kernels where they can run and the rec
 |---|---|---|---|
 | [stereo matching](https://fastforks.dev/tasks/stereo) | `fastforks.stereo` | `model(left, right)` → disparity | `igev-stereo-sceneflow`, `raft-stereo-middlebury`, `las2-s` |
 | [optical flow](https://fastforks.dev/tasks/flow) | `fastforks.flow` | `model(image1, image2)` → per-pixel motion `[2, H, W]` (dx, dy in pixels) | `raft-large`, `raft-small` |
+| [dense matching](https://fastforks.dev/tasks/matching) | `fastforks.matching` | `model(image1, image2)` → for every pixel of image1 its position in image2 `[2, H1, W1]` (pixels) and a certainty `[H1, W1]` | `romav2` |
 | [monocular depth](https://fastforks.dev/tasks/depth) | `fastforks.depth` | `model(image)` → depth or inverse depth | `depth-anything-v2-s`, `moge-2-vitl-normal`, `depth-pro` |
 | [multi-view depth](https://fastforks.dev/tasks/multiview) | `fastforks.multiview` | `model(images)` → depth, points, cameras per view; calibrated MVS (mvsanywhere, patchmatchnet) also take `intrinsics=`, `cam_to_world=` (patchmatchnet also needs `depth_range=(near, far)` and returns the reference view only); VGGT / MapAnything: images only | `mvsanywhere`, `vggt-1b`, `mapanything-apache` |
 | [image classification](https://fastforks.dev/tasks/classification) | `fastforks.classification` | `model(image)` → logits, `top(k)` | `resnet50.tv2_in1k`, `efficientnet_b0.tv_in1k`, `vit_base_patch16_224.augreg2_in21k_ft_in1k` |

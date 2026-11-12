@@ -2,14 +2,9 @@
 
 Per person box (`x0, y0, x1, y1`):
 
-- crop (`GetBBoxCenterScale` + `TopdownAffine`): the box centre, its size x 1.25 with the shorter side widened to
-  the network's 3 : 4 aspect; output pixel `(u, v)` samples `centre + ((u, v) - (w, h) / 2) * size / (w, h)`
-  bilinearly, the way OpenCV `warpAffine` does: source coordinates in 1/32 px, pixels outside the image count as 0
-  and blend in at the border, the crop rounded to uint8. Not bit-exact with OpenCV 4.10 (900 random boxes, measured):
-  rows and columns whose coordinate sits at a 1/32 rounding tie land one step off (OpenCV rounds a row's offset and
-  step together, `_fixed` one by one), 0.4 % of the pixels of a noise image (up to 11 levels) and 0.02 % of a
-  smooth one (up to 5); `crop` itself is the exact bilinear blend at its coordinates. RGB normalised with the
-  mmpose means / stds in 0..255
+- crop (`fastforks.shared.topdown`, `GetBBoxCenterScale` + `TopdownAffine`): the box centre, its size x 1.25 with
+  the shorter side widened to the network's aspect (3 : 4; hand, face and animal models 1 : 1), sampled bilinearly
+  the way OpenCV `warpAffine` does and rounded to uint8; RGB normalised with the mmpose means / stds in 0..255
 - decode (`SimCCLabel.decode`, no softmax): argmax of each x / y logit vector, divided by the 2 bins per pixel;
   keypoint score = the smaller of the two maxima; mapped back with `p / (w, h) * size + centre - size / 2`
 - `flip_test` (option, off by default as in rtmlib; mmpose's COCO AP protocol turns it on): the logits of the
@@ -29,36 +24,19 @@ from typing import TYPE_CHECKING, Any
 import torch
 import torch.nn.functional as F
 
-from fastforks._core.checkpoint import NUMPY_ARRAYS, latin1_encode
+from fastforks._core.checkpoint import NUMPY_ARRAYS, empty_bytes, latin1_encode
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
-from fastforks._optimize import optimize
+from fastforks._optimize import conv_ops, ops, optimize
 from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
+from fastforks.shared.cspnext import Attention, fold_bn
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
+from fastforks.shared.topdown import FLIP, MEAN, STD, crop, crop_boxes, fixed
 
-from .net import SPLIT, Arch, Attention, RTMPose, convert
+from .net import SPLIT, Arch, RTMPose, Trunk
 
 if TYPE_CHECKING:
     from fastforks.pose._runner import Context
-
-PADDING = 1.25  # fixed: reference crop padding (GetBBoxCenterScale)
-MEAN = (123.675, 116.28, 103.53)  # fixed: reference data_preprocessor mean (RGB, 0..255)
-STD = (58.395, 57.12, 57.375)  # fixed: reference data_preprocessor std (RGB, 0..255)
-WARP_BITS = 5  # fixed: OpenCV INTER_BITS (bilinear source coordinates in 1/32 px)
-AB_BITS = 10  # fixed: OpenCV AB_BITS (warpAffine fixed point before the 1/32 rounding)
-# Left / right partner of each keypoint by keypoint count (`flip_indices` of the reference dataset metas)
-# fmt: off
-FLIP = {  # fixed: label sets coco-keypoints-17 and coco-wholebody-133 (body, feet, face, left hand, right hand)
-    17: (0, 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15),
-    133: (
-        0, 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 20, 21, 22, 17, 18, 19, 39, 38, 37, 36, 35, 34,
-        33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 50, 51, 52, 53, 58, 57,
-        56, 55, 54, 68, 67, 66, 65, 70, 69, 62, 61, 60, 59, 64, 63, 77, 76, 75, 74, 73, 72, 71, 82, 81, 80, 79, 78,
-        87, 86, 85, 84, 83, 90, 89, 88,
-        *range(112, 133), *range(91, 112),
-    ),
-}
-# fmt: on
 
 
 @dataclass(frozen=True)
@@ -66,47 +44,7 @@ class Params(Arch):
     """Card `[params]` + variant `params` + `[options]`."""
 
     flip_test: bool  # average with the mirrored crop (option; the reference's COCO AP protocol)
-
-
-def crop_boxes(boxes: torch.Tensor, height: int, width: int) -> tuple[torch.Tensor, torch.Tensor]:
-    """(centres `[P, 2]`, crop sizes `[P, 2]` w, h in pixels) of `x0, y0, x1, y1` boxes for a `height x width` net."""
-    wh = (boxes[:, 2:] - boxes[:, :2]) * PADDING
-    centre = (boxes[:, :2] + boxes[:, 2:]) * 0.5
-    aspect = width / height
-    w, h = wh.unbind(1)
-    wide = w > h * aspect
-    return centre, torch.stack([torch.where(wide, w, h * aspect), torch.where(wide, w / aspect, h)], 1)
-
-
-def _fixed(offset: torch.Tensor, step: torch.Tensor, n: int) -> torch.Tensor:
-    """Source coordinates `offset + step * i` (i < n) as OpenCV `warpAffine` rounds a column: 1/1024, then 1/32."""
-    i = torch.arange(n, device=offset.device, dtype=torch.float32)  # float32: exact integers here (< 2^24)
-    one = float(1 << AB_BITS)
-    q = (offset[:, None] * one).round() + (step[:, None] * i * one).round()
-    shift = 1 << (AB_BITS - WARP_BITS)
-    return torch.floor((q + shift // 2) / shift) / (1 << WARP_BITS)
-
-
-def crop(image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor, height: int, width: int) -> torch.Tensor:
-    """Crops `[P, 3, height, width]` in 0..255 (integers) of `image` `[1, 3, H, W]` in [0, 1] (module docstring)."""
-    ih, iw = image.shape[-2:]
-    s = size[:, 0] / width  # source pixels per crop pixel (the same along y: the aspect is the network's)
-    x = _fixed(centre[:, 0] - s * (width / 2), s, width)  # [P, w]
-    y = _fixed(centre[:, 1] - s * (height / 2), s, height)  # [P, h]
-    x0, y0 = x.floor(), y.floor()
-    fx, fy = x - x0, y - y0  # multiples of 1/32: the tap weights below are exact in float32, as OpenCV's integers
-    pixels = (image[0].float() * 255).round().flatten(1)  # [3, H * W] uint8 levels
-    out = torch.zeros(3, centre.shape[0], height, width, device=image.device)
-    for dy, ty in ((0, 1 - fy), (1, fy)):
-        yy = y0 + dy
-        wy = (ty * ((yy >= 0) & (yy < ih)))[:, :, None]  # pixels outside the image count as 0
-        row = yy.clamp(0, ih - 1).long()[:, :, None] * iw  # int64: a float32 index is inexact above 2^24 pixels
-        for dx, tx in ((0, 1 - fx), (1, fx)):
-            xx = x0 + dx
-            wx = (tx * ((xx >= 0) & (xx < iw)))[:, None, :]
-            idx = row + xx.clamp(0, iw - 1).long()[:, None, :]  # [P, h, w]
-            out += pixels[:, idx] * (wy * wx)
-    return torch.floor(out.transpose(0, 1) + 0.5)  # OpenCV rounds half up to uint8
+    conv_accumulation_channels: int = 0  # zero keeps the standard kernel recipe
 
 
 def decode(sx: torch.Tensor, sy: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -127,11 +65,11 @@ class Portable(Runner):
         super().__init__(ctx)
         a: Params = ctx.params
         net = RTMPose(a)
-        net.load_state_dict(convert(ctx.state_dict(key="state_dict", strip="", extra=extra())))
+        net.load_state_dict(fold_bn(ctx.state_dict(key="state_dict", strip="", extra=extra())))
         self.net = net.eval().to(ctx.device, ctx.torch_dtype)
         self.mean = torch.tensor(MEAN, device=ctx.device).view(1, 3, 1, 1)
         self.std = torch.tensor(STD, device=ctx.device).view(1, 3, 1, 1)
-        self.flip = torch.tensor(FLIP[a.keypoints], device=ctx.device)
+        self.flip = torch.tensor(FLIP[ctx.variant.output_info["label_set"]], device=ctx.device)
         self.net_size = torch.tensor([a.width, a.height], device=ctx.device, dtype=torch.float32)
         if ctx.device.type == "mps":  # MPS reduces over two axes ~30x slower than over one (same result)
             for m in self.net.modules():
@@ -171,18 +109,23 @@ class Portable(Runner):
 class Kernels(Portable):
     """CUDA: an optimized backbone, an fp16 head and CUDA graphs.
 
-    The CSPNeXt backbone runs through `fastforks._optimize` (fused conv + SiLU / residual / concat kernels, fp16,
-    channels-last), the SimCC head in fp16 with fp16-accumulating GEMMs, and the crops -> logits -> argmax path as one
-    CUDA graph per person bucket (`BUCKETS`, zero crops pad a batch up). Cropping and the mapping back run eagerly.
+    The CSPNeXt backbone (RTMW: with its neck) runs through `fastforks._optimize` (fused conv + SiLU / residual /
+    concat kernels, fp16, channels-last), the SimCC head in fp16 with fp16-accumulating GEMMs, and the crops ->
+    logits -> argmax path as one CUDA graph per person bucket (`BUCKETS`, zero crops pad a batch up). Cropping and the
+    mapping back run eagerly.
     """
 
     def __init__(self, ctx: Context) -> None:
         """The portable network, then the optimized backbone and the fp16 head."""
         super().__init__(ctx)
         net = self.net.float()
-        self.backbone = optimize(copy.deepcopy(net.backbone), mode="kernels", device=ctx.device, family="cnn")
+        trunk = Trunk(net.backbone, net.neck)
+        self.backbone = optimize(copy.deepcopy(trunk), mode="kernels", device=ctx.device, family="cnn")
+        if ctx.params.conv_accumulation_channels:
+            _precise_backbone(self.backbone, ctx.params.conv_accumulation_channels)
         self.head = net.head.half()
         del net.backbone  # the optimized copy replaces it
+        net.neck = None
         a: Params = ctx.params
         self.graphs = SmallShapeGraphs(self._decoded, pixels=BUCKETS[-1] * a.height * a.width)
 
@@ -192,7 +135,7 @@ class Kernels(Portable):
         if self.ctx.params.flip_test:
             x = torch.cat([x, x.flip(-1)])
         with fp16_accumulate():
-            sx, sy = (t.float() for t in self.head(self.backbone(x).half()))
+            sx, sy = (t.float() for t in self.head(_half(self.backbone(x))))
         if self.ctx.params.flip_test:
             p = crops.shape[0]
             sx = (sx[:p] + sx[p:].index_select(1, self.flip).flip(-1)) * 0.5
@@ -221,7 +164,7 @@ class Kernels(Portable):
         def fn(_net: Any, crops: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - the network
             x = (crops * 255 - self.mean) / self.std
             with fp16_accumulate():
-                sx, sy = self.head(self.backbone(x).half())
+                sx, sy = self.head(_half(self.backbone(x)))
             return sx.float(), sy.float()
 
         return Forward(self.net, fn)
@@ -251,11 +194,54 @@ class MetalKernels(Portable):
         a: Params = self.ctx.params
         centre, size = crop_boxes(boxes.float(), a.height, a.width)
         s = size[:, 0] / a.width  # as `crop`
-        x = _fixed(centre[:, 0] - s * (a.width / 2), s, a.width)
-        y = _fixed(centre[:, 1] - s * (a.height / 2), s, a.height)
+        x = fixed(centre[:, 0] - s * (a.width / 2), s, a.width)
+        y = fixed(centre[:, 1] - s * (a.height / 2), s, a.height)
         coords, score = decode(*self.logits(pose_metal.warp_crop(self.lib, image, x, y)))
         kp = coords * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
         return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
+
+
+def _precise_conv(  # noqa: PLR0913, PLR0917 - fused kernel signature
+    x: torch.Tensor,
+    w: torch.Tensor,
+    b: torch.Tensor | None,
+    residual: torch.Tensor | None,
+    padding: tuple[int, int] | list[int],
+    stride: tuple[int, int] | list[int],
+    act: int,
+    cfg: int = -1,
+    *,
+    channels: int,
+) -> torch.Tensor:
+    """Wide half-input convolutions with cuDNN accumulation and float32 residual/activation."""
+    if w.shape[1] < channels:
+        return conv_ops.conv_fused(x, w, b, residual, padding, stride, act, cfg)
+    y = F.conv2d(x, w, b, stride, padding).float()
+    if residual is not None:
+        y = y + residual.float()
+    return conv_ops._ACTS[act](y).half().contiguous(memory_format=torch.channels_last)  # noqa: SLF001 - shared fused-op activation codes
+
+
+def _precise_backbone(backbone: torch.nn.Module, channels: int) -> None:
+    """Apply the measured RTMW-X384 recipe before CUDA graph capture.
+
+    Half accumulation moved confident wrist/elbow peaks by >100 px. Wide cuDNN convolutions and the
+    float-accumulating depthwise kernel reduce golden p99 to 2.92 px without changing weights or preprocessing.
+    """
+    for module in backbone.modules():
+        if isinstance(module, torch.fx.GraphModule):
+            for node in module.graph.nodes:
+                if node.op == "call_function" and node.target is ops.conv_fused:
+                    node.target = _precise_conv
+                    node.kwargs = {**node.kwargs, "channels": channels}
+                if node.op == "call_function" and node.target is ops.dwconv2:
+                    node.target = ops.dwconv
+            module.recompile()
+
+
+def _half(y: torch.Tensor | tuple[torch.Tensor, ...]) -> Any:  # noqa: ANN401 - what the head takes
+    """The optimized backbone's map (RTMW: the neck's two maps) as float16."""
+    return y.half() if isinstance(y, torch.Tensor) else tuple(t.half() for t in y)
 
 
 def _attention_mps(self: Attention, x: torch.Tensor) -> torch.Tensor:
@@ -264,8 +250,8 @@ def _attention_mps(self: Attention, x: torch.Tensor) -> torch.Tensor:
 
 
 def extra() -> dict[tuple[str, str], object]:
-    """What the mmpose checkpoints pickle besides tensors: the meta's numpy arrays and their latin-1 byte strings."""
-    return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode}
+    """What the mmpose checkpoints pickle besides tensors: the meta's numpy arrays and their byte strings."""
+    return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode, ("__builtin__", "bytes"): empty_bytes}
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}

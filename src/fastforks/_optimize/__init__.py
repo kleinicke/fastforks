@@ -19,7 +19,7 @@ Covered architectures (kernels; validated on the fast-vision-models zoo checkpoi
     torchvision: AlexNet, VGG, Inception3, ResNet, DenseNet, SqueezeNet, MobileNetV2 / V3, ShuffleNetV2, EfficientNet
         (V1 / V2), RegNet.
     timm: ResNet, EfficientNet / MobileNetV3-class nets (MobileNet V1 / V4, EfficientNet), FastVit, EfficientVit (MIT),
-        ConvNeXt (V1 / V2), Swin, VisionTransformer-style `Block`s (ViT, DeiT, DINOv2, SigLIP), Eva (EVA-02).
+        RepVit, ConvNeXt (V1 / V2), Swin, VisionTransformer-style `Block`s (ViT, DeiT, DINOv2, SigLIP), Eva (EVA-02).
     transformers: SigLIP / SigLIP 2 vision towers (`SiglipEncoderLayer`).
 """
 
@@ -56,7 +56,7 @@ _CNN = frozenset({
     "AlexNet", "VGG", "Inception3", "ResNet", "DenseNet", "SqueezeNet", "MobileNetV2", "MobileNetV3", "ShuffleNetV2",
     "EfficientNet", "RegNet",
     # timm (ResNet / EfficientNet / MobileNetV3 shared above)
-    "FastVit", "EfficientVit", "MobileNetV4",
+    "FastVit", "EfficientVit", "MobileNetV4", "RepVit",
 })  # fmt: skip
 COVERED: dict[str, tuple[str, ...]] = {
     "cnn": tuple(sorted(_CNN)),
@@ -438,6 +438,10 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
     if conv_like:
         net, rep = fold.fold_bn(model)
         report.update(rep)
+        if isinstance(net, fx.GraphModule):  # before `.half()`: the LayerScale gammas fold into float32 weights
+            from . import cnn  # noqa: PLC0415
+
+            report["nls"] = cnn.fold_layer_scale(net)  # portable too: one broadcast multiply fewer per block
     if half:
         net = net.half()
     cpu_cl = dev.type == "cpu" and conv_like  # oneDNN: channels_last convolutions run 12-30 % faster (cpu_speed.md)
@@ -516,7 +520,7 @@ def _fuse_cnn(gm: fx.GraphModule, names: set[str], report: dict[str, Any]) -> in
     from . import blocks, cnn  # noqa: PLC0415
 
     n = cnn.fuse_all(gm)
-    for k in ("nls", "npad", "raw_input", "pad8", "nbnact", "ninto", "nmergecat", "ncatinto", "npool", "nstempool"):
+    for k in ("npad", "raw_input", "pad8", "nbnact", "ninto", "nmergecat", "ncatinto", "npool", "nstempool"):
         report[k] = int(getattr(gm, k, 0))
     report["xdw"] = cnn.fuse_xdw(gm)
     if "LiteMLA" in names:

@@ -41,7 +41,12 @@ class _Features:
 
         self.fn, meta = eval_features._original(ref, tier)  # noqa: SLF001
         self.dtype, self.how = meta["dtype"], meta["how"]
-        self.note = "transformers pooler_output" if ref.startswith("dinov3") else "dinov2 forward_features CLS"
+        notes = {
+            "dinov3": "transformers pooler_output",
+            "convnext": "timm num_classes=0 (pooled, head norm)",
+            "tipsv2": "tips image_encoder first cls token",
+        }
+        self.note = notes.get(ref.replace("_", "-").split("-", maxsplit=1)[0], "dinov2 forward_features CLS")
 
     def prep(self, args: tuple[Any, ...]) -> tuple[Any, ...]:
         return args
@@ -90,7 +95,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
     torch.zeros(1, device="cuda").sum().item()
     for ref in a.refs.split(","):
         full, card, _ = _original.full_ref(a.task, ref)
-        adapter = bu.FAM.get(card.family) or _original.LOCAL.get(card.family)
+        adapter = _original.LOCAL.get(card.family) or bu.FAM.get(card.family)
         for tier in a.tiers.split(","):
             own = a.task != "features" and _original.own_option(a.task, ref)
             if (tier == "upstreamhalf" and own) or (tier == "upstreamac" and not own):

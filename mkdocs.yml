@@ -34,6 +34,7 @@ nav:
       - Stereo: api/stereo.md
       - Stereo geometry: api/geometry.md
       - Optical flow: api/flow.md
+      - Dense matching: api/matching.md
       - Depth: api/depth.md
       - Classification: api/classification.md
       - Segmentation: api/segmentation.md
@@ -46,6 +47,7 @@ nav:
   - Models:
       - Stereo: models/stereo.md
       - Optical flow: models/flow.md
+      - Dense matching: models/matching.md
       - Depth: models/depth.md
       - Classification: models/classification.md
       - Segmentation: models/segmentation.md

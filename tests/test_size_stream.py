@@ -22,6 +22,7 @@ from fastforks import (
     detection,
     features,
     flow,
+    matching,
     multiview,
     pose,
     promptable_segmentation,
@@ -46,10 +47,13 @@ API: dict[str, Any] = {
     "multiview": multiview,
     "pose": pose,
     "flow": flow,
+    "matching": matching,
 }
 OUTPUTS = (  # the outputs checked, where a result has them
     "disparity",
     "flow",
+    "warp",
+    "certainty",
     "depth",
     "inverse_depth",
     "points",
@@ -85,7 +89,7 @@ REFS = _smallest()
 
 def _call(m: Any, task: str, hw: tuple[int, int]) -> dict[str, torch.Tensor]:
     """One call at `hw`: the checked outputs (float tensors)."""
-    if task in ("stereo", "flow"):
+    if task in ("stereo", "flow", "matching"):
         r = m(*pair(*size(m.variant.io.min_size, *hw)))
     elif task == "multiview":
         s = scene(h=VIEWS[hw][0], w=VIEWS[hw][1])

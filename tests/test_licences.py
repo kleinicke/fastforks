@@ -13,6 +13,8 @@ from fastforks._core import licences
     [
         ("MIT", "permissive"),
         ("MIT AND Apache-2.0", "permissive"),
+        ("Apache-2.0 AND BSD-3-Clause AND WTFPL", "permissive"),
+        ("WTFPL AND GPL-3.0-only", "copyleft"),
         ("MIT AND GPL-3.0-only", "copyleft"),
         ("MIT AND CC-BY-NC-4.0", "noncommercial"),
         ("GPL-3.0-only OR MIT", "permissive"),

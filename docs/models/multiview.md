@@ -6,7 +6,7 @@
 
 Input: several images of one scene (posed and calibrated for multi-view stereo, unposed otherwise). Output: depth maps and, where the model predicts them, cameras and 3-D points.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses each model's own benchmark input (see Benchmarks): kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses each model's own benchmark input (see Benchmarks): kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -28,7 +28,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mapanything-apache` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2875<br>1967<br>636<br>544<br>596<br>367 | 8064 / 8672<br>10227 / 10952<br>3697 / 4092<br>3697 / 4072<br>3347 / 3792<br>3880 (engine) |
+| `mapanything-apache` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2875<br>1967<br>636<br>544<br>596<br>367 | 8064 / 8672<br>10227 / 10952<br>3697 / 4092<br>3697 / 4072<br>3347 / 3792<br>6220 / 6248 |
 
 <details><summary>Details</summary>
 
@@ -136,7 +136,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `patchmatchnet` | synthetic (1536x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 248<br>220<br>202<br>29.6<br>175<br>51.0 | 1330 / 1412<br>1228 / 1272<br>1806 / 2096<br>740 / 856<br>1798 / 1888<br>844 (engine) |
+| `patchmatchnet` | synthetic (1536x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 248<br>220<br>202<br>29.6<br>175<br>51.0 | 1330 / 1412<br>1228 / 1272<br>1806 / 2096<br>740 / 856<br>1798 / 1888<br>1073 / 1106 |
 
 <details><summary>Details</summary>
 
@@ -188,7 +188,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vggt-1b` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2502<br>965<br>651<br>458<br>557<br>424 | 6958 / 7358<br>8688 / 9158<br>3691 / 4674<br>3702 / 4654<br>3611 / 3856<br>3642 (engine) |
+| `vggt-1b` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2502<br>965<br>651<br>458<br>557<br>424 | 6958 / 7358<br>8688 / 9158<br>3691 / 4674<br>3702 / 4654<br>3611 / 3856<br>6421 / 6472 |
 
 <details><summary>Details</summary>
 
@@ -242,7 +242,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2650<br>906<br>726<br>464<br>589<br>377 | 5765 / 5912<br>7495 / 7654<br>3421 / 3518<br>3422 / 3518<br>3082 / 3154<br>2994 (engine) |
+| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2650<br>906<br>726<br>464<br>589<br>377 | 5765 / 5912<br>7495 / 7654<br>3421 / 3518<br>3422 / 3518<br>3082 / 3154<br>5657 / 5766 |
 
 <details><summary>Details</summary>
 

@@ -183,8 +183,8 @@ extern "C" __global__ void avgpool2(const __half* __restrict__ src, int Hs, int 
 // One warp per pixel: lane k holds channels [k*V, k*V+V) of f1; 32 window positions at a time are reduced with a
 // butterfly reduce-scatter (31 shuffles), after which lane k holds the dot product of position k.
 // Output channel l*(2R+1)^2 + i*(2R+1) + j samples x offset i - R and y offset j - R (torchvision's order); channels
-// up to ostride are zero padding. Level l of the pyramid is [h0 >> l, w0 >> l, C].
-template <int C, int R>
+// up to ostride are zero padding. Level l of the L-level pyramid is [h0 >> l, w0 >> l, C].
+template <int C, int R, int L>
 __device__ __forceinline__ void corr_lookup_body(const __half* __restrict__ f1, const __half* __restrict__ l0,
                                                  const __half* __restrict__ l1, const __half* __restrict__ l2,
                                                  const __half* __restrict__ l3, int h0, int w0,
@@ -209,7 +209,7 @@ __device__ __forceinline__ void corr_lookup_body(const __half* __restrict__ f1, 
     const __half* lv[4] = {l0, l1, l2, l3};
     float* d = sd[wid];
 #pragma unroll 1
-    for (int l = 0; l < 4; ++l) {
+    for (int l = 0; l < L; ++l) {
         const int hl = h0 >> l, wl = w0 >> l;
         const float inv = 1.f / (float)(1 << l);
         const float cx = cx0 * inv, cy = cy0 * inv;
@@ -260,7 +260,7 @@ __device__ __forceinline__ void corr_lookup_body(const __half* __restrict__ f1, 
         }
         __syncwarp();
     }
-    for (int c = 4 * SIDE * SIDE + lane; c < ostride; c += 32) out[p * ostride + c] = __float2half(0.f);
+    for (int c = L * SIDE * SIDE + lane; c < ostride; c += 32) out[p * ostride + c] = __float2half(0.f);
 }
 
 // raft-large: C = 256, radius 4 (324 channels); raft-small: C = 128, radius 3 (196 channels). blockDim = 256.
@@ -268,13 +268,19 @@ extern "C" __global__ void __launch_bounds__(256) corr_lookup_c256_r4(const __ha
                                                                       const __half* l2, const __half* l3, int h0, int w0,
                                                                       const float* coords, __half* out, int ostride,
                                                                       float scale) {
-    corr_lookup_body<256, 4>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
+    corr_lookup_body<256, 4, 4>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
 }
 extern "C" __global__ void __launch_bounds__(256) corr_lookup_c128_r3(const __half* f1, const __half* l0, const __half* l1,
                                                                       const __half* l2, const __half* l3, int h0, int w0,
                                                                       const float* coords, __half* out, int ostride,
                                                                       float scale) {
-    corr_lookup_body<128, 3>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
+    corr_lookup_body<128, 3, 4>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
+}
+// NeuFlow v2: one level, C = 128, radius 4 (81 channels); f1 is the query image's features, l0 the other image's.
+extern "C" __global__ void __launch_bounds__(256) corr_lookup_c128_r4_l1(const __half* f1, const __half* l0, int h0, int w0,
+                                                                         const float* coords, __half* out, int ostride,
+                                                                         float scale) {
+    corr_lookup_body<128, 4, 1>(f1, l0, l0, l0, l0, h0, w0, coords, out, ostride, scale);
 }
 
 // ---------------------------------------------------------------------------------------------------------------

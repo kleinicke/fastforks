@@ -1,0 +1,4 @@
+summary = "CSPNeXt backbone and its layers (RTMDet, RTMPose) with mmdet's module names, BatchNorm folded."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/open-mmlab/mmdetection/tree/44ebd17b145c2372c4b700bfb9cb20dbd28ab64a (v3.3.0 `CSPNeXt`, `CSPLayer`; condensed, inference only)"

@@ -1,0 +1,42 @@
+schema = 2
+name = "MobileSAM"
+summary = "MobileSAM (Zhang et al. 2023, Kyung Hee University): Segment Anything with the ViT-H image encoder replaced by a TinyViT-5M (an MBConv stage, then window attention with depthwise convs) distilled from it; SAM's own prompt encoder and mask decoder, so points, boxes and mask logits work the same. The portable `module()` is the image encoder only."
+tier = "experimental"
+outputs = ["pred_masks", "iou_scores"]
+uses = ["cuda_graphs", "sam_prompt"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/ChaoningZhang/MobileSAM"
+commit = "f706ad9c4eb7f219c00d9050e46328518ffb65d2"
+
+[licence]
+code = "Apache-2.0 AND MIT"  # LICENSE = ChaoningZhang/MobileSAM (a segment-anything fork); LICENSE-TinyViT = microsoft/Cream (the TinyViT encoder file, MIT)
+weights = "Apache-2.0"  # mobile_sam.pt is a file of the Apache-2.0 repository, committed by the authors (5d5ae67, a509aac); no separate weights terms
+files = ["LICENSE", "LICENSE-TinyViT"]
+training_data = ["unstated"]
+training_note = "image encoder distilled from SAM ViT-H on 1 % of SA-1B (about 100k images) per the README and paper; prompt encoder and mask decoder are SAM's (trained on SA-1B: 11M licensed images, 1.1B automatically generated masks); the dataset itself is under the SA-1B research licence"
+evidence = "https://github.com/ChaoningZhang/MobileSAM/blob/f706ad9c4eb7f219c00d9050e46328518ffb65d2/LICENSE (Apache-2.0; weights/mobile_sam.pt is in the same tree and the README names no other terms); the same file from a co-author: https://huggingface.co/dhkim2810/MobileSAM/blob/4e2e5245fe9dc63096d575d36e70eb39b03b3aba/README.md (license: mit); TinyViT: https://github.com/microsoft/Cream/blob/4a13c4091e78f9abd2160e7e01c02e48c1cf8fb9/LICENSE"
+
+[io]
+input = "imagenet"  # upstream mean / std (123.675, 116.28, 103.53) / (58.395, 57.12, 57.375) on 0..255; the runner resizes (longest side 1024, PIL bilinear) and pads itself
+
+[params]
+image_size = 1024
+
+[modes.portable]
+cuda_dtype = "float16"  # image encoder; prompt encoder / mask decoder stay float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # fused fp16 convolutions of the image encoder; the prompt decode of up to 4 prompts replays a CUDA graph (float32, bit-identical; `release_graphs()` frees them)
+
+[[papers]]
+title = "Faster Segment Anything: Towards Lightweight SAM for Mobile Applications"
+url = "https://arxiv.org/abs/2306.14289"
+date = "2023-06-25"
+venue = "arXiv"
+
+[[variants]]
+id = "mobile-sam"
+revision = 1
+weights = [{ name = "mobile_sam.pt", size = 40728226, sha256 = "6dbb90523a35330fedd7f1d3dfc66f995213d81b29a5ca8108dbcdd4e37d6c2f", url = "https://github.com/ChaoningZhang/MobileSAM/raw/f706ad9c4eb7f219c00d9050e46328518ffb65d2/weights/mobile_sam.pt" }]

@@ -1,0 +1,136 @@
+schema = 2
+name = "CoAtNet"
+summary = "CoAtNet (Dai et al. 2021) in timm's `rw` configurations: MBConv stages followed by transformer stages with relative position bias."
+tier = "experimental"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints were trained in timm by its author (not converted from the paper's unreleased weights); timm's code
+# is Apache-2.0 (https://github.com/huggingface/pytorch-image-models/blob/main/LICENSE) and the model cards of all 10
+# repositories state apache-2.0 (checked 2026-11-10: https://huggingface.co/api/models/timm/<id>, cardData.license).
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+evidence = "https://huggingface.co/timm/coatnet_nano_rw_224.sw_in1k/blob/89fb9ccadc876a973c6ff954b089eb6723174c7a/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "mean_std"
+resize = 235
+crop = 224
+interpolation = "bicubic"
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not implemented: MBConv stages plus attention with a relative position bias: needs its own runner"
+
+[output]
+label_set = "imagenet-1k"
+
+[[papers]]
+title = "CoAtNet: Marrying Convolution and Attention for All Data Sizes"
+url = "https://arxiv.org/abs/2106.04803"
+date = "2021-06-09"
+venue = "NeurIPS 2021"
+
+[[variants]]
+id = "coatnet_nano_rw_224.sw_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "coatnet_nano_rw_224.sw_in1k.safetensors", size = 60641304, sha256 = "555f9ea6286c8c2aed425a96fd6f2b00308e3974e318b6daf3918e81c1838a6e", url = "https://huggingface.co/timm/coatnet_nano_rw_224.sw_in1k/resolve/89fb9ccadc876a973c6ff954b089eb6723174c7a/model.safetensors" }]
+params = { arch = "coatnet_nano_rw_224.sw_in1k" }
+licence = { evidence = "https://huggingface.co/timm/coatnet_nano_rw_224.sw_in1k/blob/89fb9ccadc876a973c6ff954b089eb6723174c7a/README.md" }
+io = { resize = 248 }
+
+[[variants]]
+id = "coatnet_rmlp_nano_rw_224.sw_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "coatnet_rmlp_nano_rw_224.sw_in1k.safetensors", size = 60659682, sha256 = "2cabe244f5200a5149d0b486bdd44ea7a512d874f0bec9c73c01e2866e156cac", url = "https://huggingface.co/timm/coatnet_rmlp_nano_rw_224.sw_in1k/resolve/6cee1f47b202092f2e1f0d6e00be060a2ef83375/model.safetensors" }]
+params = { arch = "coatnet_rmlp_nano_rw_224.sw_in1k" }
+licence = { evidence = "https://huggingface.co/timm/coatnet_rmlp_nano_rw_224.sw_in1k/blob/6cee1f47b202092f2e1f0d6e00be060a2ef83375/README.md" }
+io = { resize = 248 }
+
+[[variants]]
+id = "coatnet_0_rw_224.sw_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "coatnet_0_rw_224.sw_in1k.safetensors", size = 109813430, sha256 = "efe01c8c139a4b0c360f508d10ae1217f7e3f3431fd85824438ed1110773366c", url = "https://huggingface.co/timm/coatnet_0_rw_224.sw_in1k/resolve/6686c5427a459d5591f4c3bc72c22b2037cad39d/model.safetensors" }]
+params = { arch = "coatnet_0_rw_224.sw_in1k" }
+licence = { evidence = "https://huggingface.co/timm/coatnet_0_rw_224.sw_in1k/blob/6686c5427a459d5591f4c3bc72c22b2037cad39d/README.md" }
+
+[[variants]]
+id = "coatnet_1_rw_224.sw_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "coatnet_1_rw_224.sw_in1k.safetensors", size = 167015180, sha256 = "ef617b9c8bfdb3e054e42f9681ccb4023b7be33fb76e69e6388a4ae22b135fbc", url = "https://huggingface.co/timm/coatnet_1_rw_224.sw_in1k/resolve/39eb489f432a7e7a09b96ba1a28d8a68a2747bce/model.safetensors" }]
+params = { arch = "coatnet_1_rw_224.sw_in1k" }
+licence = { evidence = "https://huggingface.co/timm/coatnet_1_rw_224.sw_in1k/blob/39eb489f432a7e7a09b96ba1a28d8a68a2747bce/README.md" }
+
+[[variants]]
+id = "coatnet_rmlp_1_rw_224.sw_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "coatnet_rmlp_1_rw_224.sw_in1k.safetensors", size = 166902282, sha256 = "22cca9389ecf8b34b9200ef924eb9d69aa3056b67b29d7aaa565da2f8fe94456", url = "https://huggingface.co/timm/coatnet_rmlp_1_rw_224.sw_in1k/resolve/9e4f35a894dfe30d1081408813f40be658e986e8/model.safetensors" }]
+params = { arch = "coatnet_rmlp_1_rw_224.sw_in1k" }
+licence = { evidence = "https://huggingface.co/timm/coatnet_rmlp_1_rw_224.sw_in1k/blob/9e4f35a894dfe30d1081408813f40be658e986e8/README.md" }
+
+[[variants]]
+# pretrained on ImageNet-12k (timm's 11821-class subset of the full ImageNet release), fine-tuned on ImageNet-1k
+id = "coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k.safetensors", size = 167032870, sha256 = "12e9f7a9707028b2125f03c389f80d8d3202dd830b381f309a9f28c7a3eeb59f", url = "https://huggingface.co/timm/coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k/resolve/d65969f6b8a7f779c76343b251b4decefff1973b/model.safetensors" }]
+params = { arch = "coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k" }
+licence = { training_data = ["imagenet-21k", "imagenet-1k"], evidence = "https://huggingface.co/timm/coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k/blob/d65969f6b8a7f779c76343b251b4decefff1973b/README.md" }
+
+[[variants]]
+# pretrained on ImageNet-12k (timm's 11821-class subset of the full ImageNet release), fine-tuned on ImageNet-1k
+id = "coatnet_2_rw_224.sw_in12k_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "coatnet_2_rw_224.sw_in12k_ft_in1k.safetensors", size = 295635514, sha256 = "0a7274e508fc2f2a778ca7abfeadc31544b61424dd1c02624406747ce6caca15", url = "https://huggingface.co/timm/coatnet_2_rw_224.sw_in12k_ft_in1k/resolve/635559bfd187c0883a50ec4e76adeb8fbf8fe614/model.safetensors" }]
+params = { arch = "coatnet_2_rw_224.sw_in12k_ft_in1k" }
+licence = { training_data = ["imagenet-21k", "imagenet-1k"], evidence = "https://huggingface.co/timm/coatnet_2_rw_224.sw_in12k_ft_in1k/blob/635559bfd187c0883a50ec4e76adeb8fbf8fe614/README.md" }
+
+[[variants]]
+id = "coatnet_rmlp_2_rw_224.sw_in1k"
+revision = 1
+weights = [{ name = "coatnet_rmlp_2_rw_224.sw_in1k.safetensors", size = 295695280, sha256 = "8509ce832ab69f94347fcf5ae641313d153ea3bd3ff039f51aaee9cb55c95941", url = "https://huggingface.co/timm/coatnet_rmlp_2_rw_224.sw_in1k/resolve/f8c6fa9ae8964b55d23eb4fa2bb20d7a5c34fcff/model.safetensors" }]
+params = { arch = "coatnet_rmlp_2_rw_224.sw_in1k" }
+licence = { evidence = "https://huggingface.co/timm/coatnet_rmlp_2_rw_224.sw_in1k/blob/f8c6fa9ae8964b55d23eb4fa2bb20d7a5c34fcff/README.md" }
+
+[[variants]]
+# pretrained on ImageNet-12k (timm's 11821-class subset of the full ImageNet release), fine-tuned on ImageNet-1k
+id = "coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k.safetensors", size = 295695280, sha256 = "8558fd38c0c67be0425f3ca19752a7baa4356314940fa4954633a6395a97d973", url = "https://huggingface.co/timm/coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k/resolve/50b0fc810164980f0e494198ed3da32f5abf6dbe/model.safetensors" }]
+params = { arch = "coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k" }
+licence = { training_data = ["imagenet-21k", "imagenet-1k"], evidence = "https://huggingface.co/timm/coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k/blob/50b0fc810164980f0e494198ed3da32f5abf6dbe/README.md" }
+
+[[variants]]
+# pretrained on ImageNet-12k (timm's 11821-class subset of the full ImageNet release), fine-tuned on ImageNet-1k
+# timm resizes to a square (crop_mode squash); fastforks resizes the shorter side and centre-crops
+id = "coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k.safetensors", size = 295695280, sha256 = "91570c7af10fea0af03c1b0a49be3e4775596239890eb4193c75129b3045623e", url = "https://huggingface.co/timm/coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k/resolve/2c31d82376cc244c907c064332941e6c65be81f1/model.safetensors" }]
+params = { arch = "coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k" }
+licence = { training_data = ["imagenet-21k", "imagenet-1k"], evidence = "https://huggingface.co/timm/coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k/blob/2c31d82376cc244c907c064332941e6c65be81f1/README.md" }
+io = { resize = 384, crop = 384 }

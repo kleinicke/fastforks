@@ -1,12 +1,13 @@
 schema = 2
 name = "RTMPose"
-summary = "RTMPose (Jiang et al. 2023): real-time top-down 2D human pose from OpenMMLab: a CSPNeXt CNN backbone and a SimCC head (a gated attention unit over one token per keypoint, then x and y classified as 1D bins at half-pixel resolution, no heatmaps). The body7 checkpoints (trained on seven public pose datasets) return the 17 COCO keypoints; the DWPose ones (Yang et al. 2023, distilled on COCO-WholeBody + UBody, the pose model of ControlNet's openpose preprocessors) the 133 COCO-WholeBody keypoints (body, feet, face, both hands). Takes person boxes (e.g. from `fastforks.detection`) and crops each at 256 x 192 (or 384 x 288); vendored from mmpose (no mmpose / mmcv dependency). The portable `module()` maps crops to SimCC logits."
+summary = "RTMPose (Jiang et al. 2023): real-time top-down 2D human pose from OpenMMLab: a CSPNeXt CNN backbone and a SimCC head (a gated attention unit over one token per keypoint, then x and y classified as 1D bins at half-pixel resolution, no heatmaps). The body7 checkpoints (trained on seven public pose datasets) return the 17 COCO keypoints; the DWPose ones (Yang et al. 2023, distilled on COCO-WholeBody + UBody, the pose model of ControlNet's openpose preprocessors) the 133 COCO-WholeBody keypoints (body, feet, face, both hands). The RTMW ones (Jiang et al. 2024: a PAFPN neck and a two-scale head on the same backbone, trained on 14 datasets) return the same 133 keypoints more accurately. More model-zoo checkpoints of the same network: `-halpe26` (body + feet, 26 keypoints), `-hand5` (21 keypoints of a hand box), `-face6` (106 face landmarks of a face box) and `-ap10k` (17 keypoints of an animal box). Takes person boxes (e.g. from `fastforks.detection`) and crops each at 256 x 192 (or 384 x 288; hand, face and animal boxes: 256 x 256); vendored from mmpose (no mmpose / mmcv dependency). The portable `module()` maps crops to SimCC logits."
 tier = "stable"
+uses = ["cspnext", "cuda_graphs", "topdown"]  # shared modules imported directly by this family
 outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
 
 [upstream]
 repo = "https://github.com/open-mmlab/mmpose"
-commit = "5408bc76f5b848cf925a0d1857899011d8c5b497"  # v1.3.2; net.py condenses RTMCCHead and mmdet 3.3.0's CSPNeXt (both Apache-2.0, OpenMMLab)
+commit = "5408bc76f5b848cf925a0d1857899011d8c5b497"  # v1.3.2; net.py condenses RTMCCHead, RTMWHead, CSPNeXtPAFPN and mmdet 3.3.0's CSPNeXt (both Apache-2.0, OpenMMLab)
 
 [licence]
 code = "Apache-2.0"  # open-mmlab/mmpose LICENSE (mmdet's CSPNeXt: the same licence and authors)
@@ -28,6 +29,8 @@ widen = 0.75
 keypoints = 17
 height = 256
 width = 192
+conv_accumulation_channels = 0  # kernels: zero keeps the standard fp16 accumulation recipe
+neck = false  # true: RTMW (PAFPN neck + two-scale head)
 
 [modes.portable]
 cuda_dtype = "float16"  # crops, decoding and keypoint mapping stay float32
@@ -130,3 +133,139 @@ params = { deepen = 1.0, widen = 1.0, height = 384, width = 288, keypoints = 133
 output = { label_set = "coco-wholebody-133" }
 licence = { training_data = ["coco-wholebody", "ubody", "coco", "aic", "imagenet-1k"], training_note = "COCO-WholeBody and UBody whole-body keypoints, distilled from a larger RTMPose (DWPose two-stage distillation); the CSPNeXt backbone was pre-trained on ImageNet-1k and on AI Challenger + COCO body keypoints" }
 weights = [{ name = "dwpose-l-ucoco-384x288.pth", size = 134718606, sha256 = "2438fd992e6561cb559defa6448c7464457c3a3ef20e372a524f34a15af40706", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-l_simcc-ucoco_dw-ucoco_270e-384x288-2438fd99_20230728.pth" }]
+
+[[variants]]
+id = "rtmw-m"  # RTMW-m, 256 x 192; COCO-WholeBody val whole-body AP 58.2 (flip test)
+revision = 1
+params = { deepen = 0.67, widen = 0.75, keypoints = 133, neck = true }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "coco", "imagenet-1k"], training_note = "Cocktail14: AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18, COCO-WholeBody, UBody, Human-Art, WFLW, 300W, COFW, LaPa and InterHand2.6M (the last six are not in the dataset list; several are research-only), distilled from RTMW-l; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body / whole-body keypoints" }
+weights = [{ name = "rtmw-m-cocktail14-256x192.pth", size = 129787113, sha256 = "6c481e4f9d3bed228984cf274289378151332ac7932812ad16de77749ae2cfaf", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-dw-l-m_simcc-cocktail14_270e-256x192-20231122.pth" }]
+
+[[variants]]
+id = "rtmw-l"  # RTMW-l, 256 x 192; COCO-WholeBody val whole-body AP 66.0
+revision = 1
+params = { deepen = 1.0, widen = 1.0, keypoints = 133, neck = true }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "coco", "imagenet-1k"], training_note = "Cocktail14: AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18, COCO-WholeBody, UBody, Human-Art, WFLW, 300W, COFW, LaPa and InterHand2.6M (the last six are not in the dataset list; several are research-only), distilled from RTMW-x; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body / whole-body keypoints" }
+weights = [{ name = "rtmw-l-cocktail14-256x192.pth", size = 229686801, sha256 = "ae6459e54e52e7d43d82531728165379cac4d05803944a8af3e69dec0b6af792", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-dw-x-l_simcc-cocktail14_270e-256x192-20231122.pth" }]
+
+[[variants]]
+id = "rtmw-x"  # RTMW-x, 256 x 192; COCO-WholeBody val whole-body AP 67.2
+revision = 1
+params = { deepen = 1.33, widen = 1.25, keypoints = 133, neck = true }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "coco", "imagenet-1k"], training_note = "Cocktail14: AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18, COCO-WholeBody, UBody, Human-Art, WFLW, 300W, COFW, LaPa and InterHand2.6M (the last six are not in the dataset list; several are research-only); the CSPNeXt backbone was pre-trained on ImageNet-1k and on body / whole-body keypoints" }
+weights = [{ name = "rtmw-x-cocktail14-256x192.pth", size = 369106595, sha256 = "13a2546d597895f58f98c77d701af936e0f808593b8f217517faba20abcc945a", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-x_simcc-cocktail14_pt-ucoco_270e-256x192-13a2546d_20231208.pth" }]
+
+[[variants]]
+id = "rtmw-l-384"  # RTMW-l, 384 x 288; COCO-WholeBody val whole-body AP 70.1
+revision = 1
+params = { deepen = 1.0, widen = 1.0, height = 384, width = 288, keypoints = 133, neck = true }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "coco", "imagenet-1k"], training_note = "Cocktail14: AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18, COCO-WholeBody, UBody, Human-Art, WFLW, 300W, COFW, LaPa and InterHand2.6M (the last six are not in the dataset list; several are research-only), distilled from RTMW-x; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body / whole-body keypoints" }
+weights = [{ name = "rtmw-l-cocktail14-384x288.pth", size = 230299153, sha256 = "afa589fa16bf8b9bab0807c806538a43bead39ed0151b79f41adcf551e3bcfb0", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-dw-x-l_simcc-cocktail14_270e-384x288-20231122.pth" }]
+
+[[variants]]
+id = "rtmw-x-384"  # RTMW-x, 384 x 288; COCO-WholeBody val whole-body AP 70.2
+revision = 1
+params = { deepen = 1.33, widen = 1.25, height = 384, width = 288, keypoints = 133, neck = true, conv_accumulation_channels = 64 }
+output = { label_set = "coco-wholebody-133" }
+licence = { training_data = ["coco-wholebody", "ubody", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "coco", "imagenet-1k"], training_note = "Cocktail14: AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe, PoseTrack18, COCO-WholeBody, UBody, Human-Art, WFLW, 300W, COFW, LaPa and InterHand2.6M (the last six are not in the dataset list; several are research-only); the CSPNeXt backbone was pre-trained on ImageNet-1k and on body / whole-body keypoints" }
+weights = [{ name = "rtmw-x-cocktail14-384x288.pth", size = 369720404, sha256 = "f840f2044fe46cb3821b7cea86be83e1f6cba406ccd28f5475ac010412dcda95", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmw/rtmw-x_simcc-cocktail14_pt-ucoco_270e-384x288-f840f204_20231122.pth" }]
+
+[[variants]]
+id = "rtmpose-t-halpe26"  # RTMPose-t, 26 Halpe keypoints (body + feet), 256 x 192; body8-Halpe26 AUC 66.4
+revision = 1
+params = { deepen = 0.167, widen = 0.375, keypoints = 26 }
+output = { label_set = "halpe-26" }
+licence = { training_data = ["coco", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "imagenet-1k"], training_note = "body7 with the 26 Halpe keypoints (COCO-WholeBody feet annotations for COCO): COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body7" }
+weights = [{ name = "rtmpose-t-halpe26-256x192.pth", size = 14130769, sha256 = "6020f8a6746639c0144eb979df0be0baa707af428d0e20a2db8991cf7452e5d6", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-t_simcc-body7_pt-body7-halpe26_700e-256x192-6020f8a6_20230605.pth" }]
+
+[[variants]]
+id = "rtmpose-s-halpe26"  # RTMPose-s, 26 Halpe keypoints, 256 x 192; body8-Halpe26 AUC 68.2
+revision = 1
+params = { deepen = 0.33, widen = 0.5, keypoints = 26 }
+output = { label_set = "halpe-26" }
+licence = { training_data = ["coco", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "imagenet-1k"], training_note = "body7 with the 26 Halpe keypoints (COCO-WholeBody feet annotations for COCO): COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body7" }
+weights = [{ name = "rtmpose-s-halpe26-256x192.pth", size = 22922769, sha256 = "7f1341650e9360d737dc7cb29193296625f2e93f9fba40850b13407b0d1e817c", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-body7_pt-body7-halpe26_700e-256x192-7f134165_20230605.pth" }]
+
+[[variants]]
+id = "rtmpose-m-halpe26"  # RTMPose-m, 26 Halpe keypoints, 256 x 192; body8-Halpe26 AUC 71.9
+revision = 1
+params = { keypoints = 26 }
+output = { label_set = "halpe-26" }
+licence = { training_data = ["coco", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "imagenet-1k"], training_note = "body7 with the 26 Halpe keypoints (COCO-WholeBody feet annotations for COCO): COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body7" }
+weights = [{ name = "rtmpose-m-halpe26-256x192.pth", size = 55897557, sha256 = "4d3e73ddd31222b7b0db36caeda396af1d7630c3b5a60451bdfa99a79e8dbb90", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-body7_pt-body7-halpe26_700e-256x192-4d3e73dd_20230605.pth" }]
+
+[[variants]]
+id = "rtmpose-l-halpe26"  # RTMPose-l, 26 Halpe keypoints, 256 x 192; body8-Halpe26 AUC 73.2
+revision = 1
+params = { deepen = 1.0, widen = 1.0, keypoints = 26 }
+output = { label_set = "halpe-26" }
+licence = { training_data = ["coco", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "imagenet-1k"], training_note = "body7 with the 26 Halpe keypoints (COCO-WholeBody feet annotations for COCO): COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body7" }
+weights = [{ name = "rtmpose-l-halpe26-256x192.pth", size = 112746948, sha256 = "2abb7558f5bf2e7684f8d1a44bc3a515af52bd60e3b91410aa9684947b5c2a80", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-l_simcc-body7_pt-body7-halpe26_700e-256x192-2abb7558_20230605.pth" }]
+
+[[variants]]
+id = "rtmpose-m-halpe26-384"  # RTMPose-m, 26 Halpe keypoints, 384 x 288; body8-Halpe26 AUC 73.6
+revision = 1
+params = { height = 384, width = 288, keypoints = 26 }
+output = { label_set = "halpe-26" }
+licence = { training_data = ["coco", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "imagenet-1k"], training_note = "body7 with the 26 Halpe keypoints (COCO-WholeBody feet annotations for COCO): COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body7" }
+weights = [{ name = "rtmpose-m-halpe26-384x288.pth", size = 56436913, sha256 = "89e6428b38901b5003d0f753619e94d269999e1f5a922349f9068430387863f2", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-body7_pt-body7-halpe26_700e-384x288-89e6428b_20230605.pth" }]
+
+[[variants]]
+id = "rtmpose-l-halpe26-384"  # RTMPose-l, 26 Halpe keypoints, 384 x 288; body8-Halpe26 AUC 74.4
+revision = 1
+params = { deepen = 1.0, widen = 1.0, height = 384, width = 288, keypoints = 26 }
+output = { label_set = "halpe-26" }
+licence = { training_data = ["coco", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "imagenet-1k"], training_note = "body7 with the 26 Halpe keypoints (COCO-WholeBody feet annotations for COCO): COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body7" }
+weights = [{ name = "rtmpose-l-halpe26-384x288.pth", size = 113267415, sha256 = "734182ce2409ba84e96ea2a6361aedb0eb40722f7ab52bb69331c73477d6a650", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-l_simcc-body7_pt-body7-halpe26_700e-384x288-734182ce_20230605.pth" }]
+
+[[variants]]
+id = "rtmpose-x-halpe26-384"  # RTMPose-x, 26 Halpe keypoints, 384 x 288; body8-Halpe26 AUC 74.8
+revision = 1
+params = { deepen = 1.33, widen = 1.25, height = 384, width = 288, keypoints = 26 }
+output = { label_set = "halpe-26" }
+licence = { training_data = ["coco", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18", "imagenet-1k"], training_note = "body7 with the 26 Halpe keypoints (COCO-WholeBody feet annotations for COCO): COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18; the CSPNeXt backbone was pre-trained on ImageNet-1k and on body7" }
+weights = [{ name = "rtmpose-x-halpe26-384x288.pth", size = 200397852, sha256 = "7fb6e239601082a06ca8442feb7a9774b8d77a1c37911b2ad0f27c1e84be4d21", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-x_simcc-body7_pt-body7-halpe26_700e-384x288-7fb6e239_20230606.pth" }]
+
+[[variants]]
+id = "rtmpose-m-hand5"  # RTMPose-m hand, 21 keypoints of one hand box, 256 x 256; hand5 PCK@0.2 96.4, AUC 83.9
+revision = 1
+params = { width = 256, keypoints = 21 }
+output = { label_set = "coco-wholebody-hand-21" }
+licence = { training_data = ["coco-wholebody", "halpe", "coco", "aic", "imagenet-1k"], training_note = "hand5: COCO-WholeBody-Hand, OneHand10K, FreiHAND, RHD and Halpe hands (OneHand10K, FreiHAND and RHD are not in the dataset list; research-only terms); the CSPNeXt backbone was pre-trained on ImageNet-1k and on AI Challenger + COCO body keypoints" }
+weights = [{ name = "rtmpose-m-hand5-256x256.pth", size = 55287475, sha256 = "b74fb5941684fe13c337b8d4fce644293e12903fed5407f8b27921f107dc6003", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-hand5_pt-aic-coco_210e-256x256-74fb594_20230320.pth" }]
+
+[[variants]]
+id = "rtmpose-t-face6"  # RTMPose-t face, 106 landmarks of one face box, 256 x 256; face6 NME 1.67
+revision = 1
+params = { deepen = 0.167, widen = 0.375, width = 256, keypoints = 106 }
+output = { label_set = "lapa-106" }
+licence = { training_data = ["coco-wholebody", "halpe", "imagenet-1k"], training_note = "face6: COCO-WholeBody-Face, WFLW, 300W, COFW, Halpe faces and LaPa, converted to the 106 LaPa landmarks (WFLW, 300W, COFW and LaPa are not in the dataset list; research-only terms); the CSPNeXt backbone was pre-trained on ImageNet-1k" }
+weights = [{ name = "rtmpose-t-face6-256x256.pth", size = 20310524, sha256 = "df79d9a59eeec3583350bea89d4b59667ed4445d9eb6586344b143ab26f02147", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-t_simcc-face6_pt-in1k_120e-256x256-df79d9a5_20230529.pth" }]
+
+[[variants]]
+id = "rtmpose-s-face6"  # RTMPose-s face, 106 landmarks, 256 x 256; face6 NME 1.59
+revision = 1
+params = { deepen = 0.33, widen = 0.5, width = 256, keypoints = 106 }
+output = { label_set = "lapa-106" }
+licence = { training_data = ["coco-wholebody", "halpe", "imagenet-1k"], training_note = "face6: COCO-WholeBody-Face, WFLW, 300W, COFW, Halpe faces and LaPa, converted to the 106 LaPa landmarks (WFLW, 300W, COFW and LaPa are not in the dataset list; research-only terms); the CSPNeXt backbone was pre-trained on ImageNet-1k" }
+weights = [{ name = "rtmpose-s-face6-256x256.pth", size = 31110435, sha256 = "d779fdefe9e74ce87aa0bccbc57954067cb789ef591c956a15d630a7887774c8", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-face6_pt-in1k_120e-256x256-d779fdef_20230529.pth" }]
+
+[[variants]]
+id = "rtmpose-m-face6"  # RTMPose-m face, 106 landmarks, 256 x 256; face6 NME 1.44
+revision = 1
+params = { width = 256, keypoints = 106 }
+output = { label_set = "lapa-106" }
+licence = { training_data = ["coco-wholebody", "halpe", "imagenet-1k"], training_note = "face6: COCO-WholeBody-Face, WFLW, 300W, COFW, Halpe faces and LaPa, converted to the 106 LaPa landmarks (WFLW, 300W, COFW and LaPa are not in the dataset list; research-only terms); the CSPNeXt backbone was pre-trained on ImageNet-1k" }
+weights = [{ name = "rtmpose-m-face6-256x256.pth", size = 68100697, sha256 = "72a37400a40946db314ec8287e2e77cddc0b1f4a9e1bced3af633355cb72bd03", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-face6_pt-in1k_120e-256x256-72a37400_20230529.pth" }]
+
+[[variants]]
+id = "rtmpose-m-ap10k"  # RTMPose-m animal, 17 AP-10K keypoints of one animal box, 256 x 256; AP-10K val AP 72.2
+revision = 1
+params = { width = 256, keypoints = 17 }
+output = { label_set = "ap10k-17" }
+licence = { training_data = ["ap-10k", "coco", "aic", "imagenet-1k"], training_note = "AP-10K (animal keypoints, 54 species); the CSPNeXt backbone was pre-trained on ImageNet-1k and on AI Challenger + COCO body keypoints" }
+weights = [{ name = "rtmpose-m-ap10k-256x256.pth", size = 54721413, sha256 = "896e3665d849ef7eb9b6ec0995955796cc9810f024fa0aa0bdc18acb0d68bf52", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-m_simcc-ap10k_pt-aic-coco_210e-256x256-7a041aa1_20230206.pth" }]

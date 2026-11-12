@@ -85,8 +85,8 @@ def warp_crop(lib: MetalLibrary, image: torch.Tensor, xs: torch.Tensor, ys: torc
     """OpenCV-exact bilinear crops `[P, 3, h, w]` in 0..255 (integers, float32) of `image` `[1, 3, H, W]` in [0, 1].
 
     `xs` `[P, w]`, `ys` `[P, h]`: the source coordinates of the crop columns and rows (multiples of 1/32, OpenCV's
-    fixed point: `pose.models.rtmpose.model._fixed`); pixels outside the image count as 0, a NaN or infinite
-    coordinate gives NaN (as `pose.models.rtmpose.model.crop`).
+    fixed point: `shared.topdown.fixed`); pixels outside the image count as 0, a NaN or infinite
+    coordinate gives NaN (as `shared.topdown.crop`).
     """
     ih, iw = image.shape[-2:]
     (p, w), h = xs.shape, ys.shape[1]

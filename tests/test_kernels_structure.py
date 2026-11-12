@@ -398,7 +398,7 @@ def load_and_call(ref: str) -> Any:
     task = TASK[ref]
     m = API[task].load(ref, mode="kernels", device="cuda")
     hw = size(m.variant.io.min_size)
-    m(*pair(*hw)) if task in {"stereo", "flow"} else m(image(*hw))
+    m(*pair(*hw)) if task in {"stereo", "flow", "matching"} else m(image(*hw))
     return m
 
 

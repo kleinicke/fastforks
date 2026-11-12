@@ -1,0 +1,71 @@
+schema = 2
+name = "RTMO"
+summary = "RTMO (Lu et al. 2024): real-time one-stage multi-person 2D pose from OpenMMLab. A YOLOX-style CSPDarknet backbone, a hybrid encoder neck (one transformer layer on the coarsest map) and a head that predicts, per grid cell, a person score, a box and a pose vector; a dynamic coordinate classifier turns each kept pose vector into the 17 COCO keypoints over 1D bins that span the person's box. Takes the whole image without person boxes or a separate detector: the backbone runs once per image, while decoding and NMS depend on the detections. The image is letterboxed to 640 x 640 (416 x 416 for `rtmo-t`); vendored from mmpose (no mmpose / mmcv dependency). The portable `module()` maps the letterboxed image to the head's per-cell outputs (decoding and NMS stay outside)."
+tier = "stable"
+limitations = ["module() exports the letterboxed-image network and raw per-cell head outputs; coordinate decoding and NMS remain outside the exported graph.", "Float16 and float32 can retain different people near the score threshold."]
+outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
+
+[upstream]
+repo = "https://github.com/open-mmlab/mmpose"
+commit = "5408bc76f5b848cf925a0d1857899011d8c5b497"  # v1.3.2; net.py condenses RTMOHead, HybridEncoder and mmdet 3.3.0's CSPDarknet (both Apache-2.0, OpenMMLab)
+
+[licence]
+code = "Apache-2.0"  # open-mmlab/mmpose LICENSE (mmdet's CSPDarknet: the same licence and authors)
+weights = "Apache-2.0"  # the model zoo checkpoints are released with the repository (README: Apache 2.0)
+files = ["LICENSE"]
+training_data = ["coco", "aic", "crowdpose", "mpii", "jhmdb", "halpe", "posetrack18"]
+training_note = "body7: COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18 keypoints; the CSPDarknet backbone starts from a YOLOX COCO detection checkpoint"
+evidence = "https://github.com/open-mmlab/mmpose/blob/5408bc76f5b848cf925a0d1857899011d8c5b497/README.md#license"
+
+[io]
+input = "imagenet"  # the runner letterboxes the image to the network size itself; the network reads 0..255 unnormalised
+
+[options]
+score_threshold = { default = 0.1, min = 0.0, max = 1.0 }  # minimum person score (the reference's test_cfg)
+
+[params]
+deepen = 0.67
+widen = 0.75
+keypoints = 17
+size = 640
+nms_iou = 0.65  # reference test_cfg
+
+[modes.portable]
+cuda_dtype = "float16"  # letterbox, the coordinate classifier, decoding and NMS stay float32
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the CSPDarknet backbone through fastforks._optimize (fused conv + SiLU, residual, concat); fp16 neck and head
+
+[output]
+label_set = "coco-keypoints-17"
+
+[[papers]]
+title = "RTMO: Towards High-Performance One-Stage Real-Time Multi-Person Pose Estimation"
+url = "https://arxiv.org/abs/2312.07526"
+date = "2023-12-12"
+venue = "CVPR 2024"
+
+[[variants]]
+id = "rtmo-t"  # RTMO-t, 416 x 416; body7 COCO val AP 57.4
+revision = 1
+params = { deepen = 0.33, widen = 0.375, size = 416 }
+weights = [{ name = "rtmo-t-body7-416x416.pth", size = 27596218, sha256 = "f48f75cbd59d7026b1d18378ef3e408c80f25b50144ba07deeebc4dc5e54714c", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmo/rtmo-t_8xb32-600e_body7-416x416-f48f75cb_20231219.pth" }]
+
+[[variants]]
+id = "rtmo-s"  # RTMO-s, 640 x 640; body7 COCO val AP 68.6
+revision = 1
+params = { deepen = 0.33, widen = 0.5 }
+weights = [{ name = "rtmo-s-body7-640x640.pth", size = 39766454, sha256 = "dac2bf749bbfb51e69ca577ca0327dff4433e3be9a56b782f0b7ef94fb45247e", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmo/rtmo-s_8xb32-600e_body7-640x640-dac2bf74_20231211.pth" }]
+
+[[variants]]
+id = "rtmo-m"  # RTMO-m, 640 x 640; body7 COCO val AP 72.6
+revision = 1
+params = {}
+weights = [{ name = "rtmo-m-body7-640x640.pth", size = 90497813, sha256 = "39e78cc4afed7d1dd31ea73ee04842f7d8f8e695d900d41b90746e94728a01c3", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmo/rtmo-m_16xb16-600e_body7-640x640-39e78cc4_20231211.pth" }]
+
+[[variants]]
+id = "rtmo-l"  # RTMO-l, 640 x 640; body7 COCO val AP 74.8
+revision = 1
+params = { deepen = 1.0, widen = 1.0 }
+weights = [{ name = "rtmo-l-body7-640x640.pth", size = 179277852, sha256 = "b37118cee39b43531c23d9e443fbb4f0b8987f590d9c6ed61978d12ecfce84df", url = "https://download.openmmlab.com/mmpose/v1/projects/rtmo/rtmo-l_16xb16-600e_body7-640x640-b37118ce_20231211.pth" }]

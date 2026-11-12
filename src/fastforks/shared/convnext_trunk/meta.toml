@@ -1,0 +1,4 @@
+summary = "timm's ConvNeXt (V1) trunk as fvm_conv / fvm_seg kernel calls on fp16 channels-last activations."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "our classification ConvNeXt kernels runner (classification/models/convnext/model.py); the architecture stays in timm"

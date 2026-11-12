@@ -8,7 +8,7 @@ transformed as the card's `[io]` says with torchvision's tensor ops (antialiased
 float image, clamped to [0, 1] after bicubic, centre crop, normalisation): the network is what the golden checks;
 PIL vs tensor resizing is measured by the ImageNet accuracy runs instead.
 
-    FASTFORKS_GOLDEN_PATH=... python tools/golden/libnet_classification.py [FAMILY ...]
+    FASTFORKS_GOLDEN_PATH=... python tools/golden/libnet_classification.py [FAMILY | REF ...]
 
 One file for all these families: their reference code is the same library call.
 """
@@ -77,10 +77,10 @@ def _dinov2(name: str, crop: int) -> torch.nn.Module:
 
 
 def main() -> None:
-    families = set(sys.argv[1:])
+    want = set(sys.argv[1:])
     torch.manual_seed(0)
     for card, variant in registry.cards(TASK).values():
-        if "libnet" not in card.uses or (families and card.family not in families):
+        if "libnet" not in card.uses or (want and not want & {card.family, variant.id, variant.ref}):
             continue
         params = {**card.params, **variant.params}
         lib, arch, io = params["library"], params["arch"], variant.io

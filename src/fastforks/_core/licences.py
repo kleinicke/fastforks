@@ -22,7 +22,18 @@ Commercial = Literal["yes", "no", "unclear"]
 # SPDX ids (and our `LicenseRef-*` ids) by class. Unknown ids are a card error: add them here with a reason.
 CLASSES: dict[str, CodeClass] = {
     **dict.fromkeys(
-        ("MIT", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "ISC", "Zlib", "CC0-1.0", "CC-BY-4.0", "Unlicense"),
+        (
+            "MIT",
+            "BSD-2-Clause",
+            "BSD-3-Clause",
+            "Apache-2.0",
+            "ISC",
+            "Zlib",
+            "CC0-1.0",
+            "CC-BY-4.0",
+            "Unlicense",
+            "WTFPL",
+        ),
         "permissive",
     ),
     # NVIDIA model licences: commercial use allowed. Redistributing the weights needs a NOTICE text file with

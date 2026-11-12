@@ -5,11 +5,12 @@ also holds the family's tolerances and the kernel builds a GPU run validated (`-
 without them. `FASTFORKS_REQUIRE_GOLDENS` turns a missing golden into a failure: `1` for all, or the path of a file
 listing the required refs (CI: the goldens `tools/fetch_goldens.py --required` selected). CPU: portable float32 must
 match the reference closely. GPU: every backend must stay within the fp16 tolerance of the float32 reference (the main
-output; a family's `gpu_extra` tolerances cover all its other stored outputs; `gpu_min_score` (pose): keypoints whose
-reference score is below it are not position-compared, as the argmax decoders pick between near-equal peaks of unsure
-keypoints), and `kernels` must not hand any work to PyTorch (`fastforks._core.kernels.fallbacks()`). Kernels families
-on `cudnn_hacc` are checked on two calls: the first call of a new size (torch convolutions until a geometry's plan is
-built) and one with every plan built. A boolean option named like a stored output (MoGe `normals`) is on.
+output; a family's `gpu_extra` tolerances cover all its other stored outputs; `gpu_min_score` (pose, matching): the
+points whose reference confidence is below it are not position-compared, as the pose argmax decoders pick between
+near-equal peaks of unsure keypoints and a matching warp is undefined outside the overlap), and `kernels` must not hand
+any work to PyTorch (`fastforks._core.kernels.fallbacks()`). Kernels families on `cudnn_hacc` are checked on two calls:
+the first call of a new size (torch convolutions until a geometry's plan is built) and one with every plan built. A
+boolean option named like a stored output (MoGe `normals`) is on.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from fastforks import (
     detection,
     features,
     flow,
+    matching,
     multiview,
     pose,
     promptable_segmentation,
@@ -68,6 +70,7 @@ API: dict[str, Any] = {
     "multiview": multiview,
     "pose": pose,
     "flow": flow,
+    "matching": matching,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
 HEAVY_CPU = "FASTFORKS_HEAVY_CPU_TESTS"  # 1: every CPU case, also those left out of the release suite for time / RAM
@@ -101,6 +104,9 @@ CPU_ALSO = {
     "mask-rcnn-r50-fpn-3x-coco@1": "mask head (smallest: Faster R-CNN, boxes only)",
     "mocha-v2-sceneflow@1": "mccv = false (smallest: true)",
     "raft-large@1": "residual blocks, convex upsampling, two GRUs (smallest: bottleneck, bilinear, one)",
+    "rtmo-l@1": "CSPRep blocks without the 1 x 1 output conv (smallest: with it)",
+    "rtmpose-t-face6@1": "1 : 1 crop, 106 keypoints (smallest: 3 : 4 crop, 17)",
+    "rtmw-m@1": "RTMW: PAFPN neck and two-scale head (smallest: backbone and SimCC head only)",
     "moge-3-vitl@1": "MoGe version 3 (smallest: version 2)",
     "resnet50.tv2_in1k@1": "bottleneck blocks (smallest: ResNet-18, basic blocks)",
 }
@@ -113,6 +119,7 @@ CPU_HEAVY = {
     "mvsanywhere@1": "4 views at 480 x 640 (CPU ~75 s)",
     "vit_so400m_patch14_siglip_378.webli_ft_in1k@1": "SigLIP So400m at 378 px (CPU ~55 s)",
     "marigold-depth-v1-1@1": "Stable Diffusion UNet, 4 steps at 768 px (CPU ~40 s)",
+    "romav2@1": "DINOv3 ViT-L at 800 px + two-view ViT + refiners at 1280 px (CPU ~60 s)",
 }
 CPU_REFS = set(SMALLEST) - set(CPU_HEAVY) | set(CPU_ALSO)
 # The CPU sweeps outside the goldens run with fewer iterations and smaller network inputs: the same code, less work
@@ -130,6 +137,7 @@ _SWEEP_OPTIONS: dict[str, dict[str, Any]] = {
     "depth_anything_v2": {"short_side": 252},
     "depth_anything_3": {"long_side": 252},
     "defom_stereo": {"iters": 2, "scale_iters": 1},
+    "romav2": {"coarse_size": 256, "fine_size": 384},
 }
 # Refs left out of the CPU sweeps (batch, sizes, export, ...) for time: a fixed large network input, so the sweep
 # options cannot shrink the work; only with FASTFORKS_HEAVY_CPU_TESTS=1. test_cpu_portable still runs.
@@ -274,12 +282,12 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         maps = {k: getattr(r, k) for k in spec("detection").standard}
     elif task == "pose":  # the golden's person boxes; they come back as `boxes`
         assert want is not None, "pose goldens store their input image and person boxes"
-        r = m(img, boxes=want["boxes"])
+        r = m(img, boxes=want["boxes"]) if m.needs_boxes else m(img)
         maps = {k: getattr(r, k) for k in spec("pose").standard}
-    elif task == "flow":  # the golden's image pair
-        assert want is not None, "flow goldens store their image pair"
+    elif task in {"flow", "matching"}:  # the golden's image pair
+        assert want is not None, f"{task} goldens store their image pair"
         r = m(img, want["input2"].round().astype(np.uint8))
-        maps = {"flow": r.flow}
+        maps = {k: getattr(r, k) for k in spec(task).standard}
     else:
         r = m(img, logits=True)
         assert r.logits is not None
@@ -396,7 +404,14 @@ def test_cpu_portable(ref, record_property):
     assert not any(line.startswith("FAIL") for line in lines), f"{ref} vs golden:\n" + "\n".join(lines)
 
 
-MIN_SURE = 1 / 3  # share of a pose golden's keypoints `gpu_min_score` must keep (the goldens: 42% .. 85%)
+MIN_SURE = 1 / 3  # share of a golden's points `gpu_min_score` must keep (pose goldens: 42% .. 85% of the keypoints)
+SCORE = {"pose": "keypoint_scores", "matching": "certainty"}  # the confidence `gpu_min_score` applies to
+
+
+def sure_mask(score: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
+    """The mask `score` broadcast to an output with one more axis (pose `[P, K, 2]`, matching `[B, 2, H, W]`)."""
+    axis = next(i for i in reversed(range(len(shape))) if shape[:i] + shape[i + 1 :] == score.shape)
+    return np.broadcast_to(np.expand_dims(score, axis), shape)
 
 
 def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torch.Tensor], what: str) -> np.ndarray:
@@ -409,9 +424,9 @@ def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torc
     tol = tolerance(ref, mode)
     unit = np.median(np.abs(want[key])) if tol.get("relative") else 1.0  # scale-free outputs (relative depth)
     err = np.abs(got[key].numpy() - want[key]) / unit
-    if "gpu_min_score" in tol:  # pose: argmax decoders flip between near-equal peaks of unsure keypoints
-        sure = want["keypoint_scores"] >= tol["gpu_min_score"]
-        assert sure.mean() >= MIN_SURE, f"{what}{key}: the score mask keeps {sure.mean():.0%} of the keypoints"
+    if "gpu_min_score" in tol:  # unsure points: pose argmax ties, matching pixels outside the overlap
+        sure = sure_mask(want[SCORE[TASK[ref]]] >= tol["gpu_min_score"], err.shape)
+        assert sure.mean() >= MIN_SURE, f"{what}{key}: the score mask keeps {sure.mean():.0%} of the points"
         err = err[sure]
     assert err.mean() < tol["gpu_mean"], f"{what}{key}: mean |diff| {err.mean():.4f}"
     assert np.percentile(err, 99) < tol["gpu_p99"], f"{what}{key}: p99 |diff| {np.percentile(err, 99):.4f}"
@@ -453,7 +468,7 @@ def gpu_parity(
 @pytest.mark.gpu
 @pytest.mark.parametrize("mode", ["portable", "kernels"])
 @pytest.mark.parametrize("ref", sorted(GOLDEN))
-def test_gpu(ref, mode, request):
+def test_gpu(ref, mode, request, monkeypatch):
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     want = golden(ref)
@@ -461,20 +476,31 @@ def test_gpu(ref, mode, request):
         pytest.skip(f"{ref} has no {mode}")
     kernels.reset_fallbacks()
     launched: set[str] = set()
+    used_libraries: set[str] = set()
     record = mode == "kernels" and request.config.getoption("--record")
-    if record:  # test-only hook: which kernel functions the run really launches
+    if mode == "kernels":  # test-only hooks: actual calls, including model loading and CUDA graph capture
+        from fastforks.kernels.cudnn_hacc import _backend  # noqa: PLC0415 - cuDNN is not a CubinModule
+
         real = kernels.CubinModule.launch
+        execute = _backend.execute
 
         def spy(self, kernel, *a, **kw):
-            launched.add(f"{self.tag.split('@')[0]}:{kernel}")
+            library = self.tag.split("@")[0]
+            launched.add(f"{library}:{kernel}")
+            used_libraries.add(library)
             return real(self, kernel, *a, **kw)
 
-        request.addfinalizer(lambda: setattr(kernels.CubinModule, "launch", real))
-        kernels.CubinModule.launch = spy
+        def spy_cudnn(*a, **kw):
+            used_libraries.add("cudnn_hacc")
+            return execute(*a, **kw)
+
+        monkeypatch.setattr(kernels.CubinModule, "launch", spy)
+        monkeypatch.setattr(_backend, "execute", spy_cudnn)
     calls, backend = run_or_skip(
         ref, mode=mode, device="cuda", opts=options(ref, want), want=want, built=gpu_built(ref, mode)
     )
     err = gpu_parity(ref, mode, want, calls, backend)
+    _declared_launches(ref, set(API[TASK[ref]].model_card(ref).kernel_libs), used_libraries)
     if record:
         symbols = _used_symbols(ref)
         for lib in {x.split(":")[0] for x in launched if x.split(":")[1] not in symbols.get(x.split(":")[0], {})}:
@@ -498,6 +524,11 @@ def test_gpu(ref, mode, request):
             "p99_px": round(float(np.percentile(err, 99)), 5),
         }
         goldens.dump(FAMILY[ref], store, TASK[ref])
+
+
+def _declared_launches(ref: str, declared: set[str], observed: set[str]) -> None:
+    """Reject executed libraries that the card cannot fetch or validate."""
+    assert observed <= declared, f"{ref}: launched undeclared kernel libraries: {sorted(observed - declared)}"
 
 
 @pytest.mark.model
@@ -615,3 +646,15 @@ def test_dump_writes_valid_toml(tmp_path, monkeypatch):
     store = {"tolerance": dict(goldens.DEFAULT_TOLERANCE), "refs": {}, "validated": {"fam-a@1": entry}}
     goldens.dump("fam", store)
     assert goldens.load("fam") == store
+
+
+def test_min_score_tasks():
+    """`gpu_min_score` only in tasks with a confidence output, which masks both output layouts along the right axis."""
+    for ref in GOLDEN:
+        if "gpu_min_score" in tolerance(ref):
+            assert TASK[ref] in SCORE, f"{ref}: gpu_min_score, but {TASK[ref]} has no confidence output in SCORE"
+            assert SCORE[TASK[ref]] in spec(TASK[ref]).standard, f"{ref}: {SCORE[TASK[ref]]} is no {TASK[ref]} output"
+    pose = sure_mask(np.array([[True, False, True]]), (1, 3, 2))  # keypoint scores [P, K] -> keypoints [P, K, 2]
+    assert pose[0, :, 0].tolist() == pose[0, :, 1].tolist() == [True, False, True]
+    match = sure_mask(np.array([[[True, False]]]), (1, 2, 1, 2))  # certainty [B, H, W] -> warp [B, 2, H, W]
+    assert match[0, :, 0].tolist() == [[True, False], [True, False]]

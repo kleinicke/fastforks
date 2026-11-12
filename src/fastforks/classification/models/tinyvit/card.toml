@@ -1,0 +1,95 @@
+schema = 2
+name = "TinyViT"
+summary = "TinyViT (Wu et al. 2022, Microsoft): a small hybrid classifier, an MBConv stage followed by window-attention stages, distilled on ImageNet-22k and fine-tuned on ImageNet-1k."
+tier = "experimental"
+outputs = ["logits"]
+uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/microsoft/Cream/tree/main/TinyViT"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints are Microsoft's (microsoft/Cream, TinyViT, MIT:
+# https://github.com/microsoft/Cream/blob/main/LICENSE), converted to safetensors by timm, whose model cards of all 5
+# repositories state apache-2.0 (checked 2026-11-10: https://huggingface.co/api/models/timm/<id>, cardData.license).
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-21k", "imagenet-1k"]
+evidence = "https://huggingface.co/timm/tiny_vit_21m_224.dist_in22k_ft_in1k/blob/bcd5d68c5650bf4d65a0a1262f28b699a4d1c35f/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 235
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+# Own runner (model.py) from existing kernels only: fused convolutions and GEMMs (bias, GELU, residual in the
+# epilogue), fvm depthwise convolutions, one CUDA graph per batch size.
+# Not built: the window partition + LayerNorm + qkv GEMM of the windowed stage as one gather kernel (two layout copies
+# per block today), and the local depthwise 3x3 fused with the following LayerNorm.
+kernels = ["fvm_conv"]  # _optimize.conv_ops (fvm_conv): the only library this family imports
+
+[output]
+label_set = "imagenet-1k"
+
+[[papers]]
+title = "TinyViT: Fast Pretraining Distillation for Small Vision Transformers"
+url = "https://arxiv.org/abs/2207.10666"
+date = "2022-07-21"
+venue = "ECCV 2022"
+
+[[variants]]
+id = "tiny_vit_5m_224.dist_in22k_ft_in1k"  # no default tag: timm's default for tiny_vit_5m_224 is .dist_in22k (21841 classes), not ported
+revision = 1
+weights = [{ name = "tiny_vit_5m_224.dist_in22k_ft_in1k.safetensors", size = 21641032, sha256 = "6887cbcb87b340515b477b1582bdada6a7cafff15720dd1a9c102b3aaa579c82", url = "https://huggingface.co/timm/tiny_vit_5m_224.dist_in22k_ft_in1k/resolve/b46989c2a2c95e7612b919a6f5e2cd7dcf4f1271/model.safetensors" }]
+params = { arch = "tiny_vit_5m_224.dist_in22k_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/tiny_vit_5m_224.dist_in22k_ft_in1k/blob/b46989c2a2c95e7612b919a6f5e2cd7dcf4f1271/README.md" }
+
+[[variants]]
+id = "tiny_vit_11m_224.dist_in22k_ft_in1k"  # no default tag: timm's default for tiny_vit_11m_224 is .dist_in22k (21841 classes), not ported
+revision = 1
+weights = [{ name = "tiny_vit_11m_224.dist_in22k_ft_in1k.safetensors", size = 44070040, sha256 = "b08354fdef9d217fc07df517162c1ae6f473e091c48b9575dc339e0bd538b1b6", url = "https://huggingface.co/timm/tiny_vit_11m_224.dist_in22k_ft_in1k/resolve/47df2afc2abd1405d5917a6ceabf9b921ca3d5ad/model.safetensors" }]
+params = { arch = "tiny_vit_11m_224.dist_in22k_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/tiny_vit_11m_224.dist_in22k_ft_in1k/blob/47df2afc2abd1405d5917a6ceabf9b921ca3d5ad/README.md" }
+
+[[variants]]
+id = "tiny_vit_21m_224.dist_in22k_ft_in1k"  # no default tag: timm's default for tiny_vit_21m_224 is .dist_in22k (21841 classes), not ported
+revision = 1
+weights = [{ name = "tiny_vit_21m_224.dist_in22k_ft_in1k.safetensors", size = 84898376, sha256 = "e223acf2362cd6fc07f796cb54b103334626f3f6c8fe3765f242448b4d4d9301", url = "https://huggingface.co/timm/tiny_vit_21m_224.dist_in22k_ft_in1k/resolve/bcd5d68c5650bf4d65a0a1262f28b699a4d1c35f/model.safetensors" }]
+params = { arch = "tiny_vit_21m_224.dist_in22k_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/tiny_vit_21m_224.dist_in22k_ft_in1k/blob/bcd5d68c5650bf4d65a0a1262f28b699a4d1c35f/README.md" }
+
+[[variants]]
+id = "tiny_vit_21m_384.dist_in22k_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "tiny_vit_21m_384.dist_in22k_ft_in1k.safetensors", size = 85026056, sha256 = "db553e0da53f9d97d1415b0d541cee1057954d4e17f279357d5e695ef55c2ed9", url = "https://huggingface.co/timm/tiny_vit_21m_384.dist_in22k_ft_in1k/resolve/6f3a59b706039335753f2277300be9f7d376fb11/model.safetensors" }]
+params = { arch = "tiny_vit_21m_384.dist_in22k_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/tiny_vit_21m_384.dist_in22k_ft_in1k/blob/6f3a59b706039335753f2277300be9f7d376fb11/README.md" }
+io = { resize = 384, crop = 384 }
+
+[[variants]]
+# timm resizes to a square (crop_mode squash); fastforks resizes the shorter side and centre-crops
+id = "tiny_vit_21m_512.dist_in22k_ft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "tiny_vit_21m_512.dist_in22k_ft_in1k.safetensors", size = 85176592, sha256 = "7cf0657df37b013217c5966d71d896ec256c3cb0786a72056fd0e041ace70f40", url = "https://huggingface.co/timm/tiny_vit_21m_512.dist_in22k_ft_in1k/resolve/b6c3eef72d538073842c74813600f4816f1c9915/model.safetensors" }]
+params = { arch = "tiny_vit_21m_512.dist_in22k_ft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/tiny_vit_21m_512.dist_in22k_ft_in1k/blob/b6c3eef72d538073842c74813600f4816f1c9915/README.md" }
+io = { resize = 512, crop = 512 }

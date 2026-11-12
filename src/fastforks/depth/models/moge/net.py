@@ -113,7 +113,7 @@ class Encoder(nn.Module):
     """Upstream `DINOv2Encoder`: DINOv2 tokens of some blocks, each projected by a 1x1 conv, summed."""
 
     def __init__(self, arch: str, layers: list[int], dim_out: int) -> None:
-        """`arch`: `"vits"` or `"vitl"`."""
+        """`arch`: `"vits"`, `"vitb"` or `"vitl"`."""
         super().__init__()
         self.layers = layers
         self.backbone = DINOv2(arch)
@@ -142,10 +142,10 @@ class MoGeNet(nn.Module):
     """MoGe-2 / MoGe-3 network (upstream `MoGeModel` modules); the runners drive the forward pass."""
 
     def __init__(self, arch: str, version: int) -> None:
-        """`arch`: `"vits"` (MoGe-2 ViT-S) or `"vitl"`; `version` 3 adds the sparse refiner."""
+        """`arch`: `"vits"` / `"vitb"` (MoGe-2 ViT-S / ViT-B, same layout) or `"vitl"`; `version` 3 adds the refiner."""
         super().__init__()
-        small = arch == "vits"
-        width = 384 if small else 1024
+        small = arch != "vitl"
+        width = {"vits": 384, "vitb": 768, "vitl": 1024}[arch]
         layers = [5, 11] if small else [5, 11, 17, 23]
         dims = [width, 256, 128, 64, 32]
         self.encoder = Encoder(arch, layers, width)

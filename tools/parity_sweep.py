@@ -58,10 +58,12 @@ TASKS = (
     "promptable_segmentation",
     "detection",
     "pose",
+    "matching",
 )
 STANDARD = {  # the task's output order: the first one present is the primary map (tolerances apply to it)
     "stereo": ("disparity", "confidence"),
     "flow": ("flow",),
+    "matching": ("warp", "certainty"),
     "depth": ("depth", "inverse_depth", "points", "intrinsics", "confidence", "mask", "normals"),
     "multiview": ("depth", "world_points", "confidence", "mask", "intrinsics", "cam_to_world"),
     "classification": ("logits",),
@@ -151,7 +153,7 @@ def pick_sizes(task: str, m: Any) -> list[Case]:
 
 def make_call(task: str, m: Any, case: Case) -> Callable[[], Any]:  # noqa: PLR0911 - one branch per task
     _, arg = case
-    if task in {"stereo", "flow"}:  # flow: the shifted pair as two frames
+    if task in {"stereo", "flow", "matching"}:  # flow: the shifted pair as two frames
         left, right = stereo_pair(*arg)
         return lambda: m(left, right)
     if task == "multiview":

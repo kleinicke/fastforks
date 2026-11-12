@@ -3,7 +3,7 @@ name = "Depth Anything 3"
 summary = "Depth Anything 3 (Lin et al. 2025, ByteDance): monocular depth from a DINOv2 ViT with DPT heads; relative (Mono), metric (Metric), any-view depth with camera (Large, Giant) and Giant aligned to Metric (Nested)."
 tier = "stable"
 outputs = ["depth", "confidence", "intrinsics", "mask", "sky"]  # union; each variant lists its own
-uses = ["depth_anything_v2", "quantile"]  # fastforks.shared modules this family imports
+uses = ["depth_anything_v2", "quantile", "rope2d"]  # shared modules imported directly by this family
 
 licence_notes = [
   "The Mono and Metric weights are Apache-2.0 but their training data terms are unchecked (a note only); the other variants' weights are CC-BY-NC-4.0 (`no`).",

@@ -200,7 +200,7 @@ def _inputs(model: Any, job: dict[str, Any]) -> tuple[tuple[Any, ...], dict[str,
         return args, kw, "synthetic"
     right = Path(str(scene).replace("image_2", "image_3").replace("im0", "im1"))
     d = job["device"]
-    return ((_image(scene, d), _image(right, d)) if job["task"] == "stereo" else (_image(scene),)), kw, job["scene"]
+    return ((_image(scene, d), _image(right, d)) if job["task"] == "stereo" else (_image(scene, d),)), kw, job["scene"]
 
 
 def _time_local(call: Callable[[], Any], device: str) -> dict[str, Any]:

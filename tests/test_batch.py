@@ -34,15 +34,15 @@ def test_batch_equals_singles(ref):
         pytest.skip("multiview: the leading dim holds the views of one scene (they attend to each other), not a batch")
     model = sweep_model(ref)
     hw = size(model.variant.io.min_size, *SIZE)
-    inputs = [pair(*hw, seed=s) if task in ("stereo", "flow") else (image(*hw, seed=s),) for s in (0, 1)]
+    inputs = [pair(*hw, seed=s) if task in ("stereo", "flow", "matching") else (image(*hw, seed=s),) for s in (0, 1)]
     boxes = [[0.1 * hw[1], 0.1 * hw[0], 0.9 * hw[1], 0.9 * hw[0]]]  # one person box per image
-    extra = {"boxes": [boxes, boxes]} if task == "pose" else {}
+    extra = {"boxes": [boxes, boxes]} if task == "pose" and model.needs_boxes else {}
     batch = model(*(np.stack(xs) for xs in zip(*inputs, strict=True)), **extra)
     if task in ("detection", "pose"):  # a list of per-image results (instance counts differ)
         assert isinstance(batch, list)
         assert len(batch) == len(inputs)
         for got, x in zip(batch, inputs, strict=True):
-            single = _maps(model(*x, **({"boxes": boxes} if task == "pose" else {})))
+            single = _maps(model(*x, **({"boxes": boxes} if task == "pose" and model.needs_boxes else {})))
             assert set(single) == set(_maps(got))
             for k, v in single.items():
                 torch.testing.assert_close(_maps(got)[k], v, rtol=1e-4, atol=1e-3)

@@ -1,0 +1,100 @@
+schema = 2
+name = "FocalNet"
+summary = "FocalNet (Yang et al. 2022): a hierarchical classifier that replaces self-attention by focal modulation (stacked depthwise convolutions with gated aggregation)."
+tier = "experimental"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/microsoft/FocalNet"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints are the authors' (microsoft/FocalNet, MIT: https://github.com/microsoft/FocalNet/blob/main/LICENSE),
+# converted to safetensors by timm, whose model cards of all 6 repositories state mit (checked 2026-11-10:
+# https://huggingface.co/api/models/timm/<id>, cardData.license).
+weights = "MIT"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+evidence = "https://huggingface.co/timm/focalnet_tiny_srf.ms_in1k/blob/de75c3a73e9ed84fee554a7138d4bac119751645/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 248
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not implemented: LayerNorm blocks with depthwise convolutions and gated sums: needs its own runner"
+
+[output]
+label_set = "imagenet-1k"
+
+[[papers]]
+title = "Focal Modulation Networks"
+url = "https://arxiv.org/abs/2203.11926"
+date = "2022-03-22"
+venue = "NeurIPS 2022"
+
+[[variants]]
+id = "focalnet_tiny_srf.ms_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "focalnet_tiny_srf.ms_in1k.safetensors", size = 113730688, sha256 = "fc5ae22ca9759f171412c54b6a866c0ca704946c5a92a011638fa6d2a052ce62", url = "https://huggingface.co/timm/focalnet_tiny_srf.ms_in1k/resolve/de75c3a73e9ed84fee554a7138d4bac119751645/model.safetensors" }]
+params = { arch = "focalnet_tiny_srf.ms_in1k" }
+licence = { evidence = "https://huggingface.co/timm/focalnet_tiny_srf.ms_in1k/blob/de75c3a73e9ed84fee554a7138d4bac119751645/README.md" }
+
+[[variants]]
+id = "focalnet_small_srf.ms_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "focalnet_small_srf.ms_in1k.safetensors", size = 199607944, sha256 = "2590faabe2cd764757c514e1624ec0db271e2faec3f07f5210a07e696032ad6b", url = "https://huggingface.co/timm/focalnet_small_srf.ms_in1k/resolve/b28c810d193a2aabc3deeaa32a8376f2f407aed7/model.safetensors" }]
+params = { arch = "focalnet_small_srf.ms_in1k" }
+licence = { evidence = "https://huggingface.co/timm/focalnet_small_srf.ms_in1k/blob/b28c810d193a2aabc3deeaa32a8376f2f407aed7/README.md" }
+
+[[variants]]
+id = "focalnet_base_srf.ms_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "focalnet_base_srf.ms_in1k.safetensors", size = 352636004, sha256 = "05a7ff7cda7eeb0e9d37f4949fea9dbda64f754ed55bb7465b929c49b32fb155", url = "https://huggingface.co/timm/focalnet_base_srf.ms_in1k/resolve/87411d9055c700232cad58ced841b2fa9f1314b9/model.safetensors" }]
+params = { arch = "focalnet_base_srf.ms_in1k" }
+licence = { evidence = "https://huggingface.co/timm/focalnet_base_srf.ms_in1k/blob/87411d9055c700232cad58ced841b2fa9f1314b9/README.md" }
+
+[[variants]]
+id = "focalnet_tiny_lrf.ms_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "focalnet_tiny_lrf.ms_in1k.safetensors", size = 114615440, sha256 = "f5f73a0b0430482a825f5b035925eef88df92f3ffe6ae4a0e81e71cf504c0a53", url = "https://huggingface.co/timm/focalnet_tiny_lrf.ms_in1k/resolve/aaf172fa2a82e03b7eda120dd1050448e87a67f1/model.safetensors" }]
+params = { arch = "focalnet_tiny_lrf.ms_in1k" }
+licence = { evidence = "https://huggingface.co/timm/focalnet_tiny_lrf.ms_in1k/blob/aaf172fa2a82e03b7eda120dd1050448e87a67f1/README.md" }
+
+[[variants]]
+id = "focalnet_small_lrf.ms_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "focalnet_small_lrf.ms_in1k.safetensors", size = 201415892, sha256 = "c7d963802b47606d77fd3bc197e15192d98329c838d3ec967ad455baa56e7058", url = "https://huggingface.co/timm/focalnet_small_lrf.ms_in1k/resolve/a9af55956d663231100b8c94f706bc4aff5cc6a6/model.safetensors" }]
+params = { arch = "focalnet_small_lrf.ms_in1k" }
+licence = { evidence = "https://huggingface.co/timm/focalnet_small_lrf.ms_in1k/blob/a9af55956d663231100b8c94f706bc4aff5cc6a6/README.md" }
+
+[[variants]]
+id = "focalnet_base_lrf.ms_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "focalnet_base_lrf.ms_in1k.safetensors", size = 355045572, sha256 = "e1c36016eaef14dc7e4eca4bdb1b23720c56278e593cbdb4e2a34a1b23915962", url = "https://huggingface.co/timm/focalnet_base_lrf.ms_in1k/resolve/b79d61c9cae408c1435b5e78f5e4820faa89fc4e/model.safetensors" }]
+params = { arch = "focalnet_base_lrf.ms_in1k" }
+licence = { evidence = "https://huggingface.co/timm/focalnet_base_lrf.ms_in1k/blob/b79d61c9cae408c1435b5e78f5e4820faa89fc4e/README.md" }

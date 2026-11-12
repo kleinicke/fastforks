@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- New task `fastforks.matching`: dense matching. `model(image1, image2)` returns `warp` `[B, 2, H1, W1]` (each
+  pixel of image1 in pixels of image2) and `certainty` `[B, H1, W1]`. RoMa v2 (`romav2`) on `portable` (bf16 on
+  CUDA, as upstream) and `kernels` (one-pass local correlation): 412 ms kernels, 552 ms portable vs 741 ms original
+  bf16 at 768x1024, with 2.9 instead of 10.1 GiB reserved.
+
+- TensorRT export: bf16 transposed convolutions with stride == kernel (TensorRT has no bf16 deconvolution tactic)
+  are rewritten as a 1x1 convolution plus DepthToSpace.
+
+- Add FlowFormer Small optical flow: Chairs, Things and Sintel checkpoints with permissive code notices.
+
+- Add FlowSeek-T optical flow: mixed-data, FlyingThings and FlyingThings without TartanAir checkpoints.
+
+- Add GMFlow optical flow: nine scale-one, scale-two and recurrent-refinement checkpoints.
+
+- Add NeuFlow v2 optical flow: mixed-data, Sintel and FlyingThings checkpoints with portable inference.
+
+- RTMO bottom-up pose (t, s, m, l; Apache-2.0): `model(image)` finds people and their 17 COCO keypoints
+  without person boxes, on `portable` and `kernels`. Includes measured original fp32/fp16, compile and TensorRT
+  timings, GPU goldens, and full COCO val2017 accuracy with a matched original-code subset comparison.
+
 - New task `fastforks.flow`: optical flow. `model(image1, image2)` returns `flow` `[2, H, W]` float32 (dx, dy in
   pixels of the input, from image1 to image2). RAFT (torchvision's weights: `raft-large`, `raft-large-things`,
   `raft-large-kitti`, `raft-small`) on `portable` and `kernels`, with the load option `iters` (refinement steps,
@@ -21,7 +41,36 @@
 - New classifier ConvNeXt (Meta's V1 weights from timm, Apache-2.0): tiny, small, base and large, each trained on
   ImageNet-1k (`convnext_base.fb_in1k`) and on ImageNet-22k fine-tuned on ImageNet-1k at 224
   (`convnext_base.fb_in22k_ft_in1k`) and 384 (`..._384`), on `portable` and `kernels`.
+- New classifier RepViT (the authors' distilled ImageNet-1k weights from timm, Apache-2.0): `repvit_m0_9`, `m1_0`,
+  `m1_1`, `m1_5` and `m2_3`, each with the 300- and the 450-epoch weights (`repvit_m1_1.dist_450e_in1k`), on
+  `portable` and `kernels`. The re-parameterisable branches are fused at load.
+- New classifier TinyViT (Microsoft's weights from timm, Apache-2.0): `tiny_vit_5m_224`, `tiny_vit_11m_224` and
+  `tiny_vit_21m_224` (`.dist_in22k_ft_in1k`), the 21M one also at 384 and 512, on `portable` and `kernels`.
+- New classifier SHViT (the authors' weights from timm, MIT): `shvit_s1.in1k` to `shvit_s4.in1k` (S4 at 256), on
+  `portable`.
+- New classifier HGNetV2 (PaddleClas' SSLD weights from timm, Apache-2.0): `hgnetv2_b0.ssld_stage2_ft_in1k` to
+  `hgnetv2_b6.ssld_stage2_ft_in1k`, on `portable`.
+- New classifier StarNet (the authors' weights from timm, Apache-2.0): `starnet_s1.in1k` to `starnet_s4.in1k`, on
+  `portable` and `kernels`; explicit CNN dispatch folds BatchNorm despite timm naming its blocks `Block`.
+- New classifier EfficientFormerV2 (Snap Research's weights from timm, Apache-2.0): `efficientformerv2_s0`, `_s1`,
+  `_s2` and `_l` (`.snap_dist_in1k`), on `portable`.
+- New classifier EfficientFormer (Snap Research's weights from timm, Apache-2.0): `efficientformer_l1`, `_l3` and
+  `_l7` (`.snap_dist_in1k`), on `portable`.
+- New classifier CoAtNet (timm's own `rw` weights, Apache-2.0): `coatnet_nano_rw_224.sw_in1k` to
+  `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` (10 checkpoints), on `portable`.
+- New classifier FocalNet (the authors' weights from timm, MIT): `focalnet_tiny_srf.ms_in1k` to
+  `focalnet_base_lrf.ms_in1k` (6 checkpoints), on `portable`.
+- New classifier DaViT (the authors' weights from timm, Apache-2.0): `davit_tiny.msft_in1k`, `davit_small.msft_in1k` and
+  `davit_base.msft_in1k`, on `portable`.
+- New segmentation family SegNeXt (the MMSegmentation ADE20K checkpoints, Apache-2.0): `segnext-mscan-t-ade20k`, `-s`,
+  `-b`, `-l`, on `portable`. The head's matrix factorisation starts from fixed bases, so results repeat (upstream
+  draws random ones per call).
 - New feature backbones: SigLIP 2, CLIP / OpenCLIP, Perception Encoder and C-RADIOv3.
+- New feature backbone: TIPSv2 (B/14, L/14 image encoders; the DINOv2 kernel path).
+- New feature backbone ConvNeXt (Meta's V1 ImageNet-22k weights from timm, Apache-2.0): `convnext_tiny.fb_in22k`,
+  `convnext_small.fb_in22k`, `convnext_base.fb_in22k`, `convnext_large.fb_in22k`, on `portable` and `kernels`.
+  `last_hidden_state` is the stride-32 map of the last stage as tokens (no prefix token), `pooler_output` the
+  normalised mean. The maps of the earlier stages are not returned.
 - New depth models: Depth Anything V2 Metric (Hypersim indoor, max 20 m; Virtual KITTI outdoor, max 80 m; each S, B,
   L), which return metric `depth` in metres, and Distill-Any-Depth (S, B, L; relative `inverse_depth`, Apache-2.0
   weights), on `portable` and `kernels`.
@@ -36,6 +85,10 @@
   prompt (SAM's best mask plus the HQ mask, as upstream's default). Same call and prompts as SAM. On the RTX 5060 Ti
   the full call with one point takes 36.8 ms (B) to 143.5 ms (H) on `kernels`, against 172 and 738 ms for the
   original in float32.
+- New promptable-segmentation family MobileSAM (Kyung Hee University, Apache-2.0 code and weights): `mobile-sam`, on
+  `portable` and `kernels`. SAM's prompt encoder and mask decoder with a small TinyViT image encoder (1024 input).
+  Same call and prompts as SAM. On the RTX 5060 Ti the full call with one point takes 6.9 ms on `kernels`, against
+  30.3 ms for the original in float32; COCO mIoU is the original's (51.53 best of 3).
 - Fix: the ONNX export of EfficientViT-SAM no longer produces NaN. The exporter dropped the `+ 1e-15` of the linear
   attention's division as a no-op, so zero sums gave 0 / 0 in ONNX Runtime and TensorRT; the epsilon is now a tensor
   the exporter keeps. Torch results are unchanged. The fp16 TensorRT engine is finite but misses the golden

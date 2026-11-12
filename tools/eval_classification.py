@@ -92,6 +92,11 @@ def _upstream(ref: str) -> tuple[torch.nn.Module, Any]:
     else:
         net = timm.create_model(params["arch"], pretrained=True)
         tf = timm.data.create_transform(**timm.data.resolve_data_config({}, model=net))
+        if card.family == "fastvit":
+            from timm.utils import reparameterize_model  # noqa: PLC0415 - authors' inference recipe
+
+            # Match the authors' inference recipe and the original-code speed adapter.
+            net = reparameterize_model(net.eval(), inplace=True)
     return net.eval().cuda(), tf
 
 
@@ -104,6 +109,8 @@ def _run(ref: str, tier: str, files: list[tuple[Path, int]], batch: int) -> dict
         how = {"upstream": "fp32", "upstream16": "autocast", "upstreamac": "autocast", "upstreamhalf": "half"}[tier]
         rec: dict[str, Any] = {"backend": f"upstream {how} (library PIL transform)", "how": how,
                                "dtype": "float32" if how == "fp32" else "float16"}  # fmt: skip
+        if ref.startswith("fastvit_"):
+            rec["note"] = "authors' reparameterized FastViT inference recipe"
         if how == "half":
             net = net.half()
 

@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 from torch import fx, nn
 
+from fastforks._core.deferred_init import deferred_init
 from fastforks._core.errors import BackendUnavailableError, OptionsError
 from fastforks._optimize import COVERED, FastModel, _family, cnn, fold, optimize, patch
 
@@ -153,6 +154,31 @@ def test_timm_vit_portable_cpu():
     fast = optimize(m, mode="portable")
     assert fast.report["family"] == "vit"
     assert fast.report["vit_blocks"] == len(m.blocks)
+    with torch.no_grad():
+        torch.testing.assert_close(fast(x), ref(x), rtol=1e-3, atol=1e-4)
+
+
+@pytest.mark.slow  # ~1.5 s (timm build + fx trace)
+def test_timm_repvit_fused_inside_deferred_init():
+    timm = pytest.importorskip("timm")
+
+    def build() -> torch.nn.Module:
+        return timm.models.repvit.RepVit(embed_dim=(8, 16), depth=(1, 1), num_classes=10).eval()
+
+    ref = build()
+    for m in ref.modules():
+        if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
+            m.weight.data.uniform_(0.5, 2)  # timm starts some at 0; trained ones are not
+            m.running_mean.normal_()
+            m.running_var.uniform_(0.5, 2)
+    with deferred_init():  # as `load` builds a network; timm's `fuse()` writes the fused weights through `.data`
+        net = build()
+        net.load_state_dict(ref.state_dict())
+        fast = optimize(net, mode="portable")
+    assert fast.report["family"] == "cnn"
+    assert fast.report["reparam"] == 1
+    assert not any(isinstance(m, torch.nn.modules.batchnorm._BatchNorm) for m in fast.modules())
+    x = torch.randn(2, 3, 32, 32)
     with torch.no_grad():
         torch.testing.assert_close(fast(x), ref(x), rtol=1e-3, atol=1e-4)
 
@@ -364,3 +390,31 @@ def test_kernel_passes_leave_a_conv_with_a_second_use_alone(second_use):
     gm = fx.symbolic_trace(_Stem(second_use=second_use))
     assert cnn.pad_stem(gm) is not second_use
     assert gm.stem.weight.shape[1] == (3 if second_use else 8)
+
+
+class _DeviceCache(nn.Module):
+    """Conv + BN whose forward caches a derived tensor per device, as timm's attention bias tables do."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.conv, self.bn = nn.Conv2d(3, 4, 1), nn.BatchNorm2d(4)
+        self.bias = nn.Parameter(torch.randn(4, 1, 1))
+        self.cache: dict[str, torch.Tensor] = {}
+
+    def forward(self, x):
+        key = str(x.device)
+        if key not in self.cache:
+            self.cache[key] = self.bias * 2
+        return self.bn(self.conv(x)) + self.cache[key]
+
+
+def test_fold_leaves_no_proxy_in_a_forward_cache():
+    """Each fold pass traces the model; a Proxy cached by one trace must not reach the next one (EfficientFormer)."""
+    torch.manual_seed(0)
+    m = _DeviceCache().eval()
+    x = torch.randn(1, 3, 4, 4)
+    with torch.inference_mode():
+        want = copy.deepcopy(m)(x)
+        net, _ = fold.fold_bn(m)
+        assert (net(x) - want).abs().max() < 1e-5
+    assert not any(isinstance(v, fx.Proxy) for mod in m.modules() for v in getattr(mod, "cache", {}).values())

@@ -1,0 +1,76 @@
+schema = 2
+name = "DaViT"
+summary = "DaViT (Ding et al. 2022): a hierarchical vision transformer that alternates window (spatial) attention and channel-group attention."
+tier = "experimental"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/dingmyu/davit"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints are the authors' (dingmyu/davit, MIT: https://github.com/dingmyu/davit/blob/main/LICENSE), converted to
+# safetensors by timm, whose model cards of all 3 repositories state apache-2.0 (checked 2026-11-10:
+# https://huggingface.co/api/models/timm/<id>, cardData.license). Both are permissive; the card follows timm's.
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+evidence = "https://huggingface.co/timm/davit_tiny.msft_in1k/blob/982f32c73d98f9966df4a7178b32b820bed3c1b1/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 235
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not implemented: window attention and channel attention with depthwise position convolutions: needs its own runner"
+
+[output]
+label_set = "imagenet-1k"
+
+[[papers]]
+title = "DaViT: Dual Attention Vision Transformers"
+url = "https://arxiv.org/abs/2204.03645"
+date = "2022-04-07"
+venue = "ECCV 2022"
+
+[[variants]]
+id = "davit_tiny.msft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "davit_tiny.msft_in1k.safetensors", size = 113462256, sha256 = "085937207d2e51c1d1e0a3ee5f3156994cce718dc02aef7fa8cec502784adda8", url = "https://huggingface.co/timm/davit_tiny.msft_in1k/resolve/982f32c73d98f9966df4a7178b32b820bed3c1b1/model.safetensors" }]
+params = { arch = "davit_tiny.msft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/davit_tiny.msft_in1k/blob/982f32c73d98f9966df4a7178b32b820bed3c1b1/README.md" }
+
+[[variants]]
+id = "davit_small.msft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "davit_small.msft_in1k.safetensors", size = 199025256, sha256 = "cef0f04c734989efdb4a76aef07a4cea8a968cdf74059d8bc15f38b74df25e8f", url = "https://huggingface.co/timm/davit_small.msft_in1k/resolve/34eef293500352e8dbf7eee82b1c55cb146bfd6e/model.safetensors" }]
+params = { arch = "davit_small.msft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/davit_small.msft_in1k/blob/34eef293500352e8dbf7eee82b1c55cb146bfd6e/README.md" }
+
+[[variants]]
+id = "davit_base.msft_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "davit_base.msft_in1k.safetensors", size = 351859600, sha256 = "cd12f8bd194e17d9e7faa4d34a7634a185b2f2d20f8cdf543a2b83831a43ed84", url = "https://huggingface.co/timm/davit_base.msft_in1k/resolve/67a8d7bc5f9c24978590dffab45c4bec6bcacef9/model.safetensors" }]
+params = { arch = "davit_base.msft_in1k" }
+licence = { evidence = "https://huggingface.co/timm/davit_base.msft_in1k/blob/67a8d7bc5f9c24978590dffab45c4bec6bcacef9/README.md" }

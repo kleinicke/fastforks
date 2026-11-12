@@ -178,6 +178,9 @@ def test_codecs_wrapper_is_latin1_only():
             checkpoint.latin1_encode("a", bad)
     with pytest.raises(WeightsError):
         checkpoint.latin1_encode(b"a", "latin1")  # type: ignore[arg-type]
+    assert checkpoint.empty_bytes() == b""
+    with pytest.raises(WeightsError, match="bytes with arguments"):
+        checkpoint.empty_bytes(1 << 40)
 
 
 def test_numeric_scalar_only():

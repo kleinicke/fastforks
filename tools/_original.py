@@ -25,6 +25,7 @@ reference venvs after `bench()`.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import os
 import sys
 import types
@@ -35,9 +36,10 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 BENCH = Path(os.environ.get("FF_BENCH_DIR", ROOT.parent / "bench"))
 TIERS = {"upstream": "fp32", "upstream16": "autocast", "upstreamhalf": "half", "upstreamac": "autocast-plain"}
-BF16 = {"vggt", "vggt_omega", "mapanything", "depth_anything_3"}  # the authors' mixed precision is bfloat16
-NATIVE_HALF = {"depth_pro", "marigold"}  # build(ref, True) is a float16 model, not mixed precision
+BF16 = {"vggt", "vggt_omega", "mapanything", "depth_anything_3", "romav2"}  # the authors' mixed precision is bfloat16
+NATIVE_HALF = {"depth_pro", "marigold", "rfdetr_keypoint"}  # build(ref, True) is a float16 model, not mixed precision
 _SETUP: set[str] = set()
+_MOBILE_SAM: list[Any] = []  # the golden script of MobileSAM, see `mobile_sam_recipe`
 
 
 def bench() -> Any:  # noqa: ANN401 - the bench_upstream module
@@ -90,7 +92,7 @@ def load(task: str, ref: str, tier: str, part: str = "call") -> Original:
     """
     bu = bench()
     full, card, _ = full_ref(task, ref)
-    adapter = bu.FAM.get(card.family) or LOCAL.get(card.family)
+    adapter = LOCAL.get(card.family) or bu.FAM.get(card.family)
     if adapter is None:
         msg = f"no original-code adapter for family {card.family}"
         raise NotImplementedError(msg)
@@ -232,13 +234,26 @@ _SPECIAL = {  # ref -> build(ref, fp16) where the bench adapter has none
 
 
 def _golden(name: str) -> Any:  # noqa: ANN401 - a tools/golden module
-    """`tools/golden/<name>.py` as a module: the family's reference recipe (pins, configs, builders)."""
-    golden = str(Path(__file__).resolve().parent / "golden")
-    sys.path.insert(0, golden)
+    """`tools/golden/<name>.py` as a module: the family's reference recipe (pins, configs, builders).
+
+    Registered as `golden_<name>`: a recipe named like its upstream package (`romav2`) must not shadow it.
+    """
+    golden = Path(__file__).resolve().parent / "golden"
+    key = f"golden_{name}"
+    if key in sys.modules:
+        return sys.modules[key]
+    spec = importlib.util.spec_from_file_location(key, golden / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)  # ty: ignore[invalid-argument-type]
+    sys.path.insert(0, str(golden))  # the recipe's own imports (_common, raft_flow)
+    sys.modules[key] = module
     try:
-        return importlib.import_module(name)
+        spec.loader.exec_module(module)  # ty: ignore[possibly-missing-attribute]
+    except BaseException:
+        del sys.modules[key]
+        raise
     finally:
-        sys.path.remove(golden)
+        sys.path.remove(str(golden))
+    return module
 
 
 def _raft(a: Any, full: str) -> Any:  # noqa: ANN401
@@ -299,7 +314,141 @@ def _sea_raft(a: Any, full: str) -> Any:  # noqa: ANN401
     net.load_state_dict(sd, strict=True)
     net = net.cuda().eval()
     a.note = f"upstream RAFT ({g.CONFIG[size]} architecture) + evaluate.py calc_flow, iters={g.ITERS}, scale={scale}"
-    return lambda im1, im2: g.calc_flow(net, im1[None].float(), im2[None].float(), scale)
+    if scale == 0:
+        return lambda im1, im2: g.calc_flow(net, im1[None].float(), im2[None].float(), scale)
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    a.note += "; an odd size (calc_flow returns one row / column short) repeats the last row / column, as our port"
+
+    def run(im1: Any, im2: Any) -> Any:  # noqa: ANN401
+        flow = g.calc_flow(net, im1[None].float(), im2[None].float(), scale)
+        h, w = im1.shape[-2:]
+        return F.pad(flow, (0, w - flow.shape[-1], 0, h - flow.shape[-2]), mode="replicate")
+
+    return run
+
+
+def _flowformer(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Authors' FlowFormer Small, full-frame inference with their centred padding.
+
+    The reference environment supplies timm 0.4.12, yacs, einops and loguru. The fp16 tier is ordinary autocast;
+    upstream has no mixed-precision setting.
+    """
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("flowformer")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_FLOWFORMER_REPO")
+        if not repo:
+            msg = "FF_FLOWFORMER_REPO: a clone of drinkingcoder/FlowFormer-Official for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+    card, variant = registry.resolve("flow", full)
+    net = g.build(a.tree, registry.weights(card, variant, allow_download=False)[0]).cuda()
+    m = variant.io.pad_multiple
+    a.note = f"upstream FlowFormer Small, iters={g.ITERS}, full frame padded to multiples of {m}"
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        h, w = im1.shape[-2:]
+        ph, pw = -h % m, -w % m
+        pad = (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2)
+        x1, x2 = (F.pad(im[None].float(), pad, mode="replicate") for im in (im1, im2))
+        return g.calc_flow(net, x1, x2)[..., pad[2] : pad[2] + h, pad[0] : pad[0] + w]
+
+    return call
+
+
+def _gmflow(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Upstream `UniMatch` as `tools/golden/gmflow.py` (`FF_GMFLOW_REPO`), settings of scripts/gmflow_evaluate.sh.
+
+    Upstream has no mixed-precision option. The call replicate-pads the pair to the card's multiple (centred, as
+    upstream's InputPadder) and crops the flow.
+    """
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("gmflow")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_GMFLOW_REPO")
+        if not repo:
+            msg = "FF_GMFLOW_REPO: a clone of autonomousvision/unimatch for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+    card, variant = registry.resolve("flow", full)
+    params = dict(card.params | variant.params)
+    net = g.build(a.tree, registry.weights(card, variant, allow_download=False)[0], params).cuda()
+    m = variant.io.pad_multiple
+    a.note = f"upstream UniMatch {g.settings(params)}, padded to multiples of {m}"
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        h, w = im1.shape[-2:]
+        ph, pw = -h % m, -w % m
+        pad = (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2)
+        x1, x2 = (F.pad(im[None].float(), pad, mode="replicate") for im in (im1, im2))
+        return g.calc_flow(net, x1, x2, params)[..., pad[2] : pad[2] + h, pad[0] : pad[0] + w]
+
+    return call
+
+
+def _flowseek(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Upstream `FlowSeek` (size T) as `tools/golden/flowseek.py` builds it (`FF_FLOWSEEK_REPO`), on CUDA.
+
+    Upstream has no mixed-precision option; it scales and pads the pair itself. `iters` is its config's 4.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("flowseek")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_FLOWSEEK_REPO")
+        if not repo:
+            msg = "FF_FLOWSEEK_REPO: a clone of mattpoggi/flowseek for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+    card, variant = registry.resolve("flow", full)
+    net = g.build(a.tree, registry.weights(card, variant, allow_download=False)[0]).cuda()
+    a.note = f"upstream FlowSeek ({g.CONFIG}), iters={g.ITERS}"
+    return lambda im1, im2: g.calc_flow(net, im1[None].float(), im2[None].float())
+
+
+def _neuflow_v2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001
+    """Upstream `NeuFlow` as `tools/golden/neuflow_v2.py` (`FF_NEUFLOW_V2_REPO`); fp16 = upstream infer.py's recipe.
+
+    infer.py folds the batch norms of the conv blocks into their convs, calls `model.half()` and feeds half images;
+    the fp32 tier is the plain model. The call replicate-pads the pair to multiples of 16 (centred) and crops the flow.
+    """
+    import torch.nn.functional as F  # noqa: PLC0415
+    from torch.nn.utils.fusion import fuse_conv_bn_eval  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("neuflow_v2")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_NEUFLOW_V2_REPO")
+        if not repo:
+            msg = "FF_NEUFLOW_V2_REPO: a clone of neufieldrobotics/NeuFlow_v2 for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+    card, variant = registry.resolve("flow", full)
+    net = g.build(a.tree, registry.weights(card, variant, allow_download=False)[0]).cuda()
+    if fp16:
+        for m in net.modules():
+            if type(m).__name__ == "ConvBlock" and hasattr(m, "norm1"):
+                m.conv1, m.conv2 = fuse_conv_bn_eval(m.conv1, m.norm1), fuse_conv_bn_eval(m.conv2, m.norm2)
+                m.forward = m.forward_fuse
+        net.half()
+    a.note = f"upstream NeuFlow, iters_s8={g.ITERS}" + (", infer.py recipe: conv-bn folded, model.half()" * fp16)
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        h, w = im1.shape[-2:]
+        ph, pw = -h % 16, -w % 16
+        pad = (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2)
+        x1, x2 = (F.pad(im[None].half() if fp16 else im[None].float(), pad, mode="replicate") for im in (im1, im2))
+        return g.calc_flow(net, x1, x2, amp=fp16)[..., pad[2] : pad[2] + h, pad[0] : pad[0] + w]
+
+    return call
 
 
 def _vitpose(a: Any, full: str) -> Any:  # noqa: ANN401
@@ -334,24 +483,26 @@ def _vitpose(a: Any, full: str) -> Any:  # noqa: ANN401
     return call
 
 
-def _rtmpose(a: Any, full: str) -> Any:  # noqa: ANN401
-    """`inference_topdown` of mmpose (flip test off) on the `tools/golden/rtmpose.py` model (`FF_MMPOSE_SITE`).
+def _topdown(a: Any, full: str) -> Any:  # noqa: ANN401
+    """`inference_topdown` of mmpose (flip test off) on the `tools/golden/<family>.py` model (`FF_MMPOSE_SITE`).
 
-    The test pipeline (CPU cv2 crop, normalisation) and the SimCC decode are inside the timed call.
+    The test pipeline (CPU cv2 crop, normalisation) and the decode (SimCC / heatmap) are inside the timed call.
     """
     from fastforks._core import registry  # noqa: PLC0415
 
-    g = _golden("rtmpose")
     site = os.environ.get("FF_MMPOSE_SITE")
     if not site:
         msg = "FF_MMPOSE_SITE: site-packages with mmpose 1.3.2 (+ mmdet, mmcv, mmengine) for the original-code tiers"
         raise RuntimeError(msg)
+    if site not in sys.path:
+        sys.path.append(site)
     card, variant = registry.resolve("pose", full)
-    net = g.reference(site, card, variant, flip=False).cuda()
+    net = _golden(card.family).reference(site, card, variant, flip=False).cuda()
     from mmpose.apis import inference_topdown  # noqa: PLC0415  # ty: ignore[unresolved-import]
 
+    decode = "heatmap" if card.family == "hrnet" else "SimCC"
     a.note = (
-        "mmpose 1.3.2 inference_topdown (CPU cv2 crop, network, SimCC decode; flip_test off), all in the timed call"
+        f"mmpose 1.3.2 inference_topdown (CPU cv2 crop, network, {decode} decode; flip_test off), all in the timed call"
     )
     return lambda bgr, boxes: inference_topdown(net, bgr, boxes, bbox_format="xyxy")
 
@@ -417,6 +568,25 @@ def _rtmpose_net(a: Any, full: str) -> Any:  # noqa: ANN401
 NETWORK = {"vitpose": _vitpose_net, "rtmpose": _rtmpose_net}  # family -> network-only builder (`load(part=...)`)
 
 
+def _rtmo(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Time the pinned mmpose bottom-up pipeline, including preprocessing and decoding."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    site = os.environ.get("FF_MMPOSE_SITE")
+    if not site:
+        msg = "FF_MMPOSE_SITE: site-packages with mmpose 1.3.2 for the original-code tiers"
+        raise RuntimeError(msg)
+    if site not in sys.path:
+        sys.path.append(site)
+    g = _golden("rtmo")
+    card, variant = registry.resolve("pose", full)
+    net = g.reference(site, card, variant).cuda()
+    from mmpose.apis import inference_bottomup  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    a.note = "mmpose 1.3.2 inference_bottomup (CPU cv2 letterbox, network, NMS, decode), all in the timed call"
+    return lambda bgr: inference_bottomup(net, bgr)
+
+
 def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401
     """`inference_detector` of mmdet on the `tools/golden/rtmdet.py` model (`FF_MMDET_SITE`), card thresholds.
 
@@ -446,8 +616,22 @@ def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda bgr: inference_detector(net, bgr)
 
 
+def _segnext(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Mmsegmentation `init_model` + the configs' test protocol, as `tools/golden/segnext.py` (NMF bases seeded)."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("segnext")
+    site = os.environ.get("FF_MMSEG_SITE")
+    if not site:
+        msg = "FF_MMSEG_SITE: site-packages with mmsegmentation 1.2.2 (+ mmcv, mmengine) for the original-code tiers"
+        raise RuntimeError(msg)
+    model = g.reference(site, *registry.resolve("segmentation", full)).cuda()
+    a.note = f"mmsegmentation 1.2.2 encode_decode, NMF start bases seeded ({g.SEED}) on every call"
+    return lambda x: g.whole(model, x[None].float() / 255)[0]
+
+
 def _convnext(a: Any, full: str) -> Any:  # noqa: ANN401
-    """ConvNeXt from timm as `tools/golden/libnet_classification.py` builds it, with the card's `[io]` transform on GPU.
+    """A timm classifier as `tools/golden/libnet_classification.py` builds it, with the card's `[io]` transform on GPU.
 
     The bench's classification adapter for a family it does not list: antialiased resize of the shorter side, clamp
     after bicubic, centre crop, normalisation, network, all in the timed call.
@@ -457,7 +641,14 @@ def _convnext(a: Any, full: str) -> Any:  # noqa: ANN401
     g = _golden("libnet_classification")
     card, variant = registry.resolve("classification", full)
     io = variant.io
-    net = g._timm({**card.params, **variant.params}["arch"]).cuda().eval()  # noqa: SLF001 - the golden's builder
+    a.sizes = ((io.crop, io.crop),)  # Benchmark each classifier at its native crop, including 384/512 variants.
+    net = g._timm({**card.params, **variant.params}["arch"]).eval()  # noqa: SLF001 - the golden's builder
+    if card.family == "fastvit":
+        from timm.utils import reparameterize_model  # noqa: PLC0415 - authors' inference recipe
+
+        net = reparameterize_model(net, inplace=True)
+        a.note = "timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call"
+    net = net.cuda()
     tf = g.TF
     a.COMMIT = f"{card.upstream}@{card.upstream_commit}"  # as the bench's classification rows
 
@@ -544,6 +735,68 @@ def _sam_hq(a: Any, full: str) -> Any:  # noqa: ANN401
     return call
 
 
+def mobile_sam_recipe() -> Any:  # noqa: ANN401 - tools/golden/mobile_sam.py with upstream importable
+    """The golden script of MobileSAM, with upstream's package imported from its pinned tree (once).
+
+    The checkout is `FF_MOBILE_SAM_REPO` (ChaoningZhang/MobileSAM; it imports timm). The script and upstream's package
+    are both called `mobile_sam`: the script is taken out of `sys.modules`, so its imports find the package.
+    """
+    if not _MOBILE_SAM:
+        repo = os.environ.get("FF_MOBILE_SAM_REPO")
+        if not repo:
+            msg = "FF_MOBILE_SAM_REPO: a clone of ChaoningZhang/MobileSAM for the original-code tiers"
+            raise RuntimeError(msg)
+        g = _golden("mobile_sam")
+        del sys.modules["mobile_sam"]
+        g.tree(Path(repo))
+        importlib.import_module("mobile_sam")
+        _MOBILE_SAM.append(g)
+    return _MOBILE_SAM[0]
+
+
+def _mobile_sam(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Upstream `SamPredictor` of MobileSAM as `tools/golden/mobile_sam.py`: `set_image`, then one point prompt.
+
+    Returns the three low-resolution mask logits, as the bench's SAM call.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = mobile_sam_recipe()
+    card, variant = registry.resolve("promptable_segmentation", full)
+    pred = g.predictor(registry.weights(card, variant, allow_download=False)[0])
+    pred.model.cuda()
+    a.note = "upstream SamPredictor.set_image + predict (centre point, multimask_output=True)"
+
+    def call(img: Any, points: Any, labels: Any) -> Any:  # noqa: ANN401 - uint8 HWC array, [1, 2] and [1] arrays
+        pred.set_image(img)
+        return pred.predict(point_coords=points, point_labels=labels, multimask_output=True)[2]
+
+    return call
+
+
+def _romav2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream `RoMaV2.match` as `tools/golden/romav2.py` (card sizes, one direction), outputs as the API returns them.
+
+    fp16: the authors' `enable_amp` (bfloat16 autocast); fp32 replaces `torch.autocast` by a no-op for the whole
+    process (one tier per process). Needs `FF_ROMAV2_REPO` / `FF_DINOV3_REPO` checkouts with the pinned commits.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("romav2")
+    card, variant = registry.resolve("matching", full)
+    tree = g.reference_tree(Path(os.environ["FF_ROMAV2_REPO"]), g.REF_COMMIT)
+    dino = g.reference_tree(Path(os.environ["FF_DINOV3_REPO"]), g.DINOV3_COMMIT)
+    model = g.build(tree, dino, registry.weights(card, variant, allow_download=False)[0], amp=fp16).cuda()
+    g.configure(model, card.options["coarse_size"], card.options["fine_size"])
+    a.note = "upstream RoMaV2.match; local correlation: upstream's plain-torch path (no fused-local-corr)"
+
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        preds = model.match(img1[None].float() / 255, img2[None].float() / 255)
+        return g.to_api(preds, tuple(img1.shape[-2:]), tuple(img2.shape[-2:]))
+
+    return call
+
+
 def _hwc_point(a: tuple[Any, ...]) -> tuple[Any, ...]:
     """(uint8 CUDA CHW, points, labels) of the bench call -> (uint8 HWC array, [1, 2] float array, [1] int array)."""
     import numpy as np  # noqa: PLC0415
@@ -560,17 +813,26 @@ class _Local:
 
     flag = False  # no mixed-precision option of its own: fp16 = torch.autocast around the call
 
-    def __init__(self, task: str, build: Any, sizes: tuple[tuple[int, int], ...], prep: Any = None) -> None:  # noqa: ANN401
+    def __init__(
+        self,
+        task: str,
+        build: Any,  # noqa: ANN401 - heterogeneous upstream adapter callback
+        sizes: tuple[tuple[int, int], ...],
+        prep: Any = None,  # noqa: ANN401 - heterogeneous upstream input conversion
+        *,
+        needs_boxes: bool = True,
+    ) -> None:
         self.task, self._build, self.sizes, self._prep = task, build, sizes, prep
+        self.needs_boxes = needs_boxes
         self.note = self.COMMIT = ""
 
     def setup(self) -> None:
         """Nothing to prepare: the reference checkouts and site-packages come from the environment."""
 
-    def build(self, full: str, fp16: bool) -> Any:  # noqa: ANN401, ARG002, FBT001 - the adapter signature
+    def build(self, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter signature
         """The family's builder; `COMMIT` = the card's upstream pin."""
         self.COMMIT = full_ref(self.task, full)[1].upstream_commit
-        return self._build(self, full)
+        return self._build(self, full, fp16) if self.flag else self._build(self, full)
 
     def prep(self, args: tuple[Any, ...]) -> tuple[Any, ...]:
         """The untimed conversion of the uint8 CUDA inputs to what the original's entry point takes."""
@@ -583,7 +845,7 @@ class _Local:
         from fastforks._core.bench import BenchSize  # noqa: PLC0415
 
         api = importlib.import_module(f"fastforks.{self.task}._api")
-        like = types.SimpleNamespace(device=torch.device("cuda"), needs_boxes=True, prompts=())
+        like = types.SimpleNamespace(device=torch.device("cuda"), needs_boxes=self.needs_boxes, prompts=())
         out = []
         for h, w in self.sizes:
             args, kw = api.bench_inputs(like, BenchSize(h, w))
@@ -592,23 +854,96 @@ class _Local:
         return out
 
 
+class _RFDETRKeypoint(_Local):
+    """The authors' explicit inference dtype option, without a compiler, on the same CUDA uint8 inputs."""
+
+    flag = True
+
+    def __init__(self) -> None:
+        super().__init__("pose", None, ((1080, 1920),), needs_boxes=False)
+
+    def build(self, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - bench adapter contract
+        import torch  # noqa: PLC0415
+
+        from fastforks._core import registry  # noqa: PLC0415
+
+        checkout = os.environ.get("FF_RFDETR_REPO")
+        if not checkout:
+            msg = "FF_RFDETR_REPO must name a checkout containing the pinned RF-DETR commit"
+            raise RuntimeError(msg)
+        site = os.environ.get("FF_RFDETR_SITE")
+        if site and site not in sys.path:
+            sys.path.append(site)
+        g = _golden("rfdetr_keypoint")
+        card, variant = registry.resolve("pose", full)
+        (checkpoint,) = registry.weights(card, variant)
+        model = g.reference(Path(checkout), checkpoint, "cuda")
+        self.COMMIT = card.upstream_commit
+        self.note = "pinned RF-DETR torchvision resize/normalize, original network and uncertainty-fused PostProcess"
+        if fp16:
+            model.inference(compile=False, dtype=torch.float16, inplace=True)
+            self.note += "; authors inference(compile=False, dtype=float16, inplace=True)"
+
+        def call(image: Any, threshold: float = 0.5) -> Any:  # noqa: ANN401 - uint8 CUDA CHW image
+            x = image.unsqueeze(0) if image.ndim == 3 else image  # noqa: PLR2004 - CHW input
+            x = x.float() / 255 if x.dtype == torch.uint8 else x.float()
+            return g.predict(model, x, threshold)
+
+        return call
+
+
+class _LocalFp16(_Local):
+    """An original with an fp16 option of its own: its builder takes `(adapter, ref, fp16)`."""
+
+    flag = True
+
+
 def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
     return [[x0, y0, x1 - x0, y1 - y0] for x0, y0, x1, y1 in boxes.tolist()]
 
 
-LOCAL = {  # family -> adapter, where the bench has none (flow, pose, RTMDet, ConvNeXt)
+LOCAL = {  # family -> adapter where the bench has none or a local one wins (flow, pose, RTMDet, timm classifiers)
     "raft": _Local("flow", _raft, ((1080, 1920), (375, 1242))),
     "sea_raft": _Local("flow", _sea_raft, ((1080, 1920), (375, 1242))),
+    "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
+    "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
+    "flowformer": _Local("flow", _flowformer, ((1080, 1920), (375, 1242))),
+    "flowseek": _Local("flow", _flowseek, ((1080, 1920), (375, 1242))),
     "vitpose": _Local("pose", _vitpose, ((1080, 1920),), lambda a: (a[0].permute(1, 2, 0).cpu().numpy(), _xywh(a[1]))),
     "rtmpose": _Local(
-        "pose", _rtmpose, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
+        "pose", _topdown, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
+    ),
+    "hrnet": _Local(
+        "pose", _topdown, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
+    ),
+    "rfdetr_keypoint": _RFDETRKeypoint(),
+    "rtmo": _Local(
+        "pose",
+        _rtmo,
+        ((1080, 1920),),
+        lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),),
+        needs_boxes=False,
     ),
     "rtmdet": _Local(
         "detection", _rtmdet, ((800, 1344),), lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),)
     ),
     "convnext": _Local("classification", _convnext, ((224, 224),)),
+    "repvit": _Local("classification", _convnext, ((224, 224),)),
+    "tinyvit": _Local("classification", _convnext, ((224, 224),)),
+    "hgnetv2": _Local("classification", _convnext, ((224, 224),)),
+    "efficientformerv2": _Local("classification", _convnext, ((224, 224),)),
+    "coatnet": _Local("classification", _convnext, ((224, 224),)),
+    "efficientformer": _Local("classification", _convnext, ((224, 224),)),
+    "focalnet": _Local("classification", _convnext, ((224, 224),)),
+    "davit": _Local("classification", _convnext, ((224, 224),)),
+    "segnext": _Local("segmentation", _segnext, ((512, 512), (1024, 2048))),
+    "shvit": _Local("classification", _convnext, ((224, 224),)),
+    "starnet": _Local("classification", _convnext, ((224, 224),)),
+    "fastvit": _Local("classification", _convnext, ((224, 224),)),  # the authors' reparameterized inference
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
+    "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),
+    "romav2": _LocalFp16("matching", _romav2, ((768, 1024),)),
 }
 
 
@@ -616,7 +951,7 @@ def own_option(task: str, ref: str) -> bool:
     """Whether the authors' code has its own fp16 / mixed-precision option (then `upstreamhalf` is not run)."""
     bu = bench()
     _, card, _ = full_ref(task, ref)
-    a = bu.FAM.get(card.family) or LOCAL.get(card.family)
+    a = LOCAL.get(card.family) or bu.FAM.get(card.family)
     return card.family in NATIVE_HALF or bool(a is not None and a.flag)
 
 

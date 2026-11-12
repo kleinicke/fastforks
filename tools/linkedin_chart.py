@@ -59,7 +59,15 @@ def main() -> None:
             end = f"{v:.1f} ms" if v < 100 else f"{v:.0f} ms"  # noqa: PLR2004
             ax.text(v / o + 0.02, y, end, ha="left", va="center", fontsize=16)
             if mode != "original":
-                ax.text(1.45, y, f"{o / v:.1f}× faster", ha="right", va="center", fontsize=16, weight="bold")
+                ax.text(
+                    1.45,
+                    y,
+                    f"{o / v:.1f}\N{MULTIPLICATION SIGN} faster",
+                    ha="right",
+                    va="center",
+                    fontsize=16,
+                    weight="bold",
+                )
             y -= 0.9
         y -= 0.55
     ax.set_xlim(-0.5, 1.45)

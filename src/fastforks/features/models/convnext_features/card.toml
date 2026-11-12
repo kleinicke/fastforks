@@ -1,0 +1,78 @@
+schema = 2
+name = "ConvNeXt"
+summary = "ConvNeXt (Liu et al. 2022) as a feature backbone: Meta's ImageNet-22k checkpoints in timm's format (tiny, small, base, large). last_hidden_state = the stride-32 stage-4 map as tokens (no prefix token, un-normalised, as timm's forward_features / features_only and HF ConvNextModel); pooler_output = the head LayerNorm of their mean (timm's pre-logits embedding)."
+tier = "experimental"
+outputs = ["last_hidden_state", "pooler_output"]
+uses = ["convnext_trunk", "cuda_graphs", "libnet"]  # fastforks.shared modules this family imports
+limitations = [
+  "Only the last stage's map is returned: the maps of stages 1-3 (strides 4, 8, 16; timm `features_only=True`) have other sizes than the token grid of this task's outputs.",
+  "kernels replays a CUDA graph per small input shape (up to 2^20 input pixels per call), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",
+]
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/facebookresearch/ConvNeXt"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints are Meta's (facebookresearch/ConvNeXt, MIT:
+# https://github.com/facebookresearch/ConvNeXt/blob/048efcea897d999aed302f2639b6270aedf8d4c8/LICENSE), converted to
+# safetensors by timm, whose model cards of all 4 repositories state apache-2.0.
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-21k"]
+evidence = "https://huggingface.co/timm/convnext_base.fb_in22k/blob/9afd4146adabf1b6e861d0f1ac2e7baa7c8dd1b7/README.md"
+
+[io]
+input = "imagenet"
+interpolation = "bicubic"  # as timm's config of these weights; the core resizes (never pads / crops) to multiples of 32, antialiased
+pad = { multiple = 32, mode = "none" }
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fvm_conv", "fvm_seg"]  # shared.convnext_trunk: _optimize.conv_ops (fvm_conv) + fvm_seg
+
+[[papers]]
+title = "A ConvNet for the 2020s"
+url = "https://arxiv.org/abs/2201.03545"
+date = "2022-01-10"
+venue = "CVPR 2022"
+
+[[variants]]
+id = "convnext_tiny.fb_in22k"
+revision = 1
+weights = [{ name = "convnext_tiny.fb_in22k.safetensors", size = 178481432, sha256 = "2b40f8d53b566a8c08c0c75f93ff5ac6fa33bd213afb27ee40766af7ffe5943b", url = "https://huggingface.co/timm/convnext_tiny.fb_in22k/resolve/342f2588bb2ea79d793d0712c9be16ec6ae0149a/model.safetensors" }]
+params = { arch = "convnext_tiny.fb_in22k" }
+licence = { evidence = "https://huggingface.co/timm/convnext_tiny.fb_in22k/blob/342f2588bb2ea79d793d0712c9be16ec6ae0149a/README.md" }
+
+[[variants]]
+id = "convnext_small.fb_in22k"
+revision = 1
+weights = [{ name = "convnext_small.fb_in22k.safetensors", size = 265036242, sha256 = "73a192db2a11f1afd86556fcbcdf589dab94af7d4e5a0fe3d57f492bca5159e1", url = "https://huggingface.co/timm/convnext_small.fb_in22k/resolve/4cde7ae59c8f7fcff3f9547de274819f54863dfd/model.safetensors" }]
+params = { arch = "convnext_small.fb_in22k" }
+licence = { evidence = "https://huggingface.co/timm/convnext_small.fb_in22k/blob/4cde7ae59c8f7fcff3f9547de274819f54863dfd/README.md" }
+
+[[variants]]
+id = "convnext_base.fb_in22k"
+revision = 1
+weights = [{ name = "convnext_base.fb_in22k.safetensors", size = 439848696, sha256 = "0f09df05894c7fd1e78569daaae9e839a7b3bc5666587a08ba1d8e8cea63a8a4", url = "https://huggingface.co/timm/convnext_base.fb_in22k/resolve/9afd4146adabf1b6e861d0f1ac2e7baa7c8dd1b7/model.safetensors" }]
+params = { arch = "convnext_base.fb_in22k" }
+licence = { evidence = "https://huggingface.co/timm/convnext_base.fb_in22k/blob/9afd4146adabf1b6e861d0f1ac2e7baa7c8dd1b7/README.md" }
+
+[[variants]]
+id = "convnext_large.fb_in22k"
+revision = 1
+weights = [{ name = "convnext_large.fb_in22k.safetensors", size = 919234676, sha256 = "7e02ea57d6024d94f5523e9b58cdddd81a1fb4f2e5128b4a879b76f9847058bf", url = "https://huggingface.co/timm/convnext_large.fb_in22k/resolve/be6de86d9928c6cc2a8986963243142f403f382d/model.safetensors" }]
+params = { arch = "convnext_large.fb_in22k" }
+licence = { evidence = "https://huggingface.co/timm/convnext_large.fb_in22k/blob/be6de86d9928c6cc2a8986963243142f403f382d/README.md" }

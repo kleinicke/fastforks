@@ -1,0 +1,57 @@
+schema = 2
+name = "FlowSeek"
+summary = "FlowSeek (Poggi & Tosi 2025), size T: SEA-RAFT (ResNet18 encoders, initial flow regression, ConvNeXt update block, 4 iterations) helped by a frozen Depth Anything V2 Small. Its features join the matching features, and its relative depth gives 8 motion bases (the flow fields that camera translations and rotations would cause), which a third encoder turns into extra context. Each image is resized to 518 x 518 for Depth Anything, whatever the input size. The authors' released weights; the network is ported from mattpoggi/flowseek. `iters=12` is the paper's FlowSeek (S). The larger M and L sizes use Depth Anything V2 Base, whose weights are non-commercial, and are not included."
+tier = "experimental"
+outputs = ["flow"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 ViT-S and the DPT head)
+
+[upstream]
+repo = "https://github.com/mattpoggi/flowseek"
+commit = "ba6407370bceeb96244cad4d60d37489f6eb471e"  # net.py ports core/flowseek.py, extractor.py, layer.py, update.py, corr.py
+
+[licence]
+code = "Apache-2.0 AND BSD-3-Clause"  # LICENSE.md (Apache-2.0); NOTICE.md: the SEA-RAFT parts are BSD-3-Clause, Depth Anything V2 Apache-2.0
+weights = "assumed from code"  # scripts/get_weights.sh links the authors' Google Drive files without a separate licence; the Depth Anything V2 Small inside is Apache-2.0
+files = ["LICENSE", "LICENSE-BSD-3-Clause"]
+training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"]
+training_note = "TartanAir pretraining, FlyingChairs, FlyingThings3D (part of SceneFlow), then a mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH); the Depth Anything V2 Small inside was trained by its authors on synthetic and pseudo-labelled real images"
+evidence = "https://github.com/mattpoggi/flowseek/blob/ba6407370bceeb96244cad4d60d37489f6eb471e/scripts/get_weights.sh"  # the weights' source; code: https://github.com/mattpoggi/flowseek/blob/ba6407370bceeb96244cad4d60d37489f6eb471e/LICENSE.md and NOTICE.md; Depth Anything V2 Small: https://huggingface.co/depth-anything/Depth-Anything-V2-Small/blob/03876f8651c73a60fe4c2c48294e09fcb6838fcf/README.md (license: apache-2.0)
+
+[io]
+input = "0-1"  # the network scales itself: x / mean - std (upstream's own normalisation) for Depth Anything, [-1, 1] for the encoders
+min_size = 128  # the 4-level correlation pyramid needs 1/8 feature maps of at least 16 px (as RAFT)
+pad = "none"  # the network pads itself (centred, replicate, multiples of 8: upstream InputPadder 'sintel'), after Depth Anything has seen the unpadded images
+
+[options]
+iters = { default = 4, min = 1 }  # flow updates after the initial regression (upstream config/eval/flowseek-T.json: 4; its "S" uses 12)
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast for Depth Anything, the encoders and the update block; motion bases, correlation, lookup and upsampling in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "no kernels mode was built for it; SEA-RAFT's engine and the Depth Anything kernels would fit and could be combined"
+
+[[papers]]
+title = "FlowSeek: Optical Flow Made Easier with Depth Foundation Models and Motion Bases"
+url = "https://arxiv.org/abs/2509.05297"
+date = "2025-09-05"
+venue = "ICCV 2025"
+
+[[variants]]
+id = "flowseek-t"  # upstream flowseek_T_TartanCT_TSKH.pth (the fine-tuned checkpoint; scripts/eval.sh uses it for Spring and LayeredFlow)
+revision = 1
+weights = [{ name = "flowseek_T_TartanCT_TSKH.pth", size = 171034606, sha256 = "7913a91747a5aff06897214a5d0ca769d39f1682a32b74c9114ae0011443312f", url = "https://drive.usercontent.google.com/download?id=1IQoyY5PpKSadtiGuhWwVCqvgD3y8CyFd&export=download&confirm=t" }]
+
+[[variants]]
+id = "flowseek-t-things"  # upstream flowseek_T_TartanCT.pth (zero-shot on Sintel / KITTI)
+revision = 1
+licence = { training_data = ["tartanair", "flyingchairs", "sceneflow"], training_note = "TartanAir, FlyingChairs, then FlyingThings3D (part of SceneFlow)" }
+weights = [{ name = "flowseek_T_TartanCT.pth", size = 171031546, sha256 = "d11f1969f93344ac688048e5eb2a768b230bb010918e1e6ddec2f7eda6e8c3bc", url = "https://drive.usercontent.google.com/download?id=1dnMzlRqX7wziynQvZjafsXjgbfibNAKG&export=download&confirm=t" }]
+
+[[variants]]
+id = "flowseek-t-things-notartan"  # upstream flowseek_T_CT.pth (FlyingChairs + FlyingThings3D only, the classic zero-shot protocol)
+revision = 1
+licence = { training_data = ["flyingchairs", "sceneflow"], training_note = "FlyingChairs, then FlyingThings3D (part of SceneFlow)" }
+weights = [{ name = "flowseek_T_CT.pth", size = 171031546, sha256 = "d4bdd10dc5ad9bce403c4b50715935cc1a25aee67d8a9fb1b03d6705b7857933", url = "https://drive.usercontent.google.com/download?id=1COOQFkMulzpBm4zMoWsaRGk7E3YcVr2I&export=download&confirm=t" }]

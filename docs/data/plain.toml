@@ -36,6 +36,12 @@ waft_stereo = "A stereo network from the Princeton Vision & Learning Lab that wa
 # --- flow
 raft = "RAFT (Teed and Deng, Princeton) with torchvision's weights: dense optical flow refined step by step over an all-pairs correlation volume. BSD-3-Clause code; some training sets (FlyingChairs, Sintel) are research-only."
 sea_raft = "SEA-RAFT (Princeton, 2024): a faster and more accurate successor of RAFT for dense optical flow, needing only 4 refinement steps. BSD-3-Clause code and weights; some training sets are research-only."
+neuflow_v2 = "NeuFlow v2 (Northeastern University, 2024): a small and fast optical-flow network built for edge devices: a light CNN backbone, global matching at 1/16 and a few cheap refinements at 1/8. Apache-2.0 code and weights."
+gmflow = "GMFlow (2022; the flow models of UniMatch, 2023): optical flow as one global matching step between Transformer-enhanced features of both images; variants add a second matching scale and refinement steps. MIT code; the authors' weights carry no separate licence."
+romav2 = "RoMa v2 (2025): dense matching between two photos of one scene from any viewpoints: where each pixel of the first image is in the second, and how sure the model is that it is visible there. Built on Meta's DINOv3. MIT code; the DINOv3 parts of the code and weights are under the DINOv3 licence."
+flowseek = "FlowSeek (University of Bologna, 2025), size T: SEA-RAFT optical flow that also uses a frozen Depth Anything V2 Small: its features help the matching and its depth tells which flow a camera motion would cause. Apache-2.0 code; the authors' weights carry no separate licence."
+
+flowformer = "FlowFormer Small (ECCV 2022): convolutional features and a latent cost-memory transformer for optical flow. Apache-2.0 code; the authors provide no separate checkpoint licence."
 
 # --- depth
 depth_anything_3 = "ByteDance's Depth Anything 3: depth from one image, with relative, metric and multi-view versions. The licence differs by variant, see the table."
@@ -53,6 +59,15 @@ zoedepth = "ZoeDepth from the Intelligent Systems Lab: metric depth from one ima
 alexnet = "AlexNet (Krizhevsky et al. 2012): five convolutions and three fully connected layers; an early deep convolutional classifier."
 convnext = "Meta's ConvNeXt (Liu et al. 2022; tiny, small, base, large; ImageNet-1k, and ImageNet-22k fine-tuned at 224 and 384): a convolutional classifier of 7x7 depthwise convolutions, LayerNorm and MLP blocks. Apache-2.0."
 convnextv2 = "ConvNeXt V2 (Woo et al. 2023): a convolutional classifier with global response normalisation. Non-commercial weights."
+tinyvit = "Microsoft's TinyViT (Wu et al. 2022; 5M, 11M and 21M parameters at 224, 21M also at 384 and 512; ImageNet-22k distilled, fine-tuned on ImageNet-1k): a small hybrid classifier of MBConv blocks and window attention. Apache-2.0."
+hgnetv2 = "HGNetV2 (PaddlePaddle's PP-HGNetV2; B0 to B6, SSLD-distilled, fine-tuned on ImageNet-1k): a convolutional classifier built for GPU speed. Apache-2.0."
+efficientformerv2 = "EfficientFormerV2 (Li et al. 2022, Snap Research; S0, S1, S2, L; distilled on ImageNet-1k): a mobile hybrid of convolutions and attention. Apache-2.0."
+coatnet = "CoAtNet (Dai et al. 2021; timm's `rw` networks nano to 2, ImageNet-1k, some pretrained on ImageNet-12k): convolution stages followed by attention stages. Apache-2.0."
+efficientformer = "EfficientFormer (Li et al. 2022, Snap Research; L1, L3, L7; distilled on ImageNet-1k): a hybrid of pooling blocks and transformer blocks built for phone latency. Apache-2.0."
+focalnet = "FocalNet (Yang et al. 2022; tiny, small and base with small or large receptive field, ImageNet-1k): a classifier with focal modulation instead of attention. MIT."
+davit = "DaViT (Ding et al. 2022; tiny, small and base, ImageNet-1k): a vision transformer with spatial and channel attention. Apache-2.0."
+shvit = "SHViT (Yun and Ro 2024; S1 to S4, ImageNet-1k): a small, fast classifier with single-head attention. MIT."
+starnet = "StarNet (Ma et al. 2024; S1 to S4, ImageNet-1k): a small convolutional classifier whose blocks multiply two branches element-wise. Apache-2.0."
 deit = "DeiT (Touvron et al. 2021): a vision transformer trained on ImageNet-1k only."
 densenet = "DenseNet (Huang et al. 2016): a classifier with densely connected convolution blocks."
 dinov2_linear_cls = "DINOv2 ViT-L/14 (Oquab et al. 2023) with its official linear ImageNet head."
@@ -67,6 +82,7 @@ mobilenetv2 = "MobileNetV2 (Sandler et al. 2018): a classifier built on inverted
 mobilenetv3 = "MobileNetV3 (Howard et al. 2019): a classifier found by architecture search, with squeeze-excite and hard-swish."
 mobilenetv4 = "MobileNetV4 (Qin et al. 2024): a classifier built on universal inverted bottlenecks."
 regnet = "RegNetY (Radosavovic et al. 2020): classifiers from a designed family of residual stages."
+repvit = "RepViT (Wang et al. 2024): a mobile CNN classifier laid out like a ViT, re-parameterised to plain convolutions."
 resnet = "ResNet (He et al. 2015): the standard residual classifier."
 shufflenetv2 = "ShuffleNet V2 (Ma et al. 2018): a classifier built on channel split and shuffle units."
 siglip = "SigLIP So400m/14 (Zhai et al. 2023) fine-tuned on ImageNet-1k."
@@ -77,6 +93,7 @@ vit = "Vision Transformer (Dosovitskiy et al. 2020): a transformer classifier on
 
 # --- segmentation
 mmseg = "The MMSegmentation authors' ADE20K checkpoints of FCN, PSPNet, DeepLabV3, DeepLabV3+ and HRNet, convolutional scene segmentation."
+segnext = "SegNeXt (Guo et al. 2022; tiny, small, base, large; the MMSegmentation ADE20K checkpoints): convolutional scene segmentation with multi-scale strip-convolution attention. Apache-2.0."
 dinov2_linear = "Meta's DINOv2 features with a linear layer on top for ADE20K scene segmentation."
 eomt = "EoMT: a plain vision transformer that also predicts masks, for ADE20K scene segmentation, with DINOv2 or DINOv3 pre-training."
 mask2former = "Mask2Former with a Swin-L backbone for ADE20K scene segmentation. Non-commercial weights."
@@ -86,6 +103,7 @@ segformer = "NVIDIA's SegFormer: a transformer for ADE20K scene segmentation, si
 
 # --- promptable segmentation
 efficientvit_sam = "EfficientViT-SAM (MIT Han lab): Segment Anything with a fast convolutional image encoder, in five sizes."
+mobile_sam = "MobileSAM: Segment Anything with a small TinyViT image encoder distilled from the largest SAM."
 sam = "Segment Anything: masks from clicks, boxes or mask prompts, in sizes B, L and H."
 sam_hq = "HQ-SAM (ETH Zurich): Segment Anything with an added head for sharper mask borders and thin structures, in sizes B, L and H."
 sam2 = "Segment Anything 2.1 in image mode: masks from clicks, boxes or mask prompts, in four sizes."
@@ -99,6 +117,7 @@ rtmdet = "OpenMMLab's RTMDet (tiny, s, m, l, x on COCO; nano and m person detect
 dfine = "D-FINE (N, S, M, L, X; HGNetV2, COCO) from USTC: real-time end-to-end detector in the RT-DETR style, 300 queries, deformable attention and box edges refined as distributions, no NMS."
 
 # --- features
+convnext_features = "Meta's ConvNeXt (tiny, small, base, large) trained on ImageNet-22k, without the classifier: the last stage's feature map as tokens and a pooled image embedding. Apache-2.0 weights."
 dinov2 = "Meta's DINOv2: self-supervised image features (patch and class tokens) in four sizes, with and without register tokens."
 dinov3_convnext = "Meta's DINOv3 distilled into ConvNeXt backbones (T, S, B, L): image features. Needs the gated DINOv3 licence."
 dinov3 = "Meta's DINOv3 vision transformers: self-supervised image features with register tokens and RoPE. Needs the gated DINOv3 licence."
@@ -106,6 +125,7 @@ c_radio = "NVIDIA's C-RADIOv3 (B, L, H, g): one backbone distilled from several 
 clip = "CLIP image encoders from OpenAI and OpenCLIP (LAION-2B, DataComp-XL, DFN; B, L, H): image features aligned with text."
 perception_encoder = "Meta's Perception Encoder (T, S, B, L, G): PE-Core image features aligned with text, and PE-Spatial for dense tasks."
 siglip2 = "Google's SigLIP 2 image encoders (B, L, So400m, g): image features aligned with text, at several resolutions."
+tipsv2 = "Google DeepMind's TIPSv2 image encoders (B, L): image features aligned with text, with patch features meant for dense tasks. Apache-2.0."
 
 # --- multiview
 mapanything = "MapAnything (Meta): metric 3D reconstruction (cameras and depth) from several unposed images in one pass. Commercially usable (Apache variant)."
@@ -115,5 +135,8 @@ vggt = "VGGT (Meta): cameras, depth and 3D points for many images in one pass. N
 vggt_omega = "VGGT-Omega (Meta): the successor of VGGT with a DINOv3 backbone, cameras and depth from many images. Non-commercial licence."
 
 # --- pose
-rtmpose = "OpenMMLab's RTMPose (t, s, m, l; 256x192 and 384x288): real-time top-down 2D human pose, a CSPNeXt CNN with a SimCC head, trained on seven public pose datasets. Apache-2.0."
+rfdetr_keypoint = "Roboflow RF-DETR Keypoint Preview: predicts people and their 17 COCO joints from a whole image using a DINOv2 backbone and transformer decoder. Apache-2.0 code and preview weights."
+hrnet = "HRNet (w32, w48; 256x192 and 384x288): top-down 2D human pose with a high-resolution CNN and heatmap decoding, the COCO checkpoints of OpenMMLab's mmpose. Apache-2.0."
+rtmo = "OpenMMLab's RTMO (t, s, m, l): real-time one-stage multi-person 2D pose; finds people and their 17 COCO keypoints in one pass over the image, no person detector needed. Apache-2.0."
+rtmpose = "OpenMMLab's RTMPose (t, s, m, l; 256x192 and 384x288): real-time top-down 2D human pose, a CSPNeXt CNN with a SimCC head; also the whole-body DWPose and RTMW checkpoints (133 keypoints with feet, face and hands); Halpe (26 keypoints), hand, face and animal checkpoints. Apache-2.0."
 vitpose = "ViTPose and ViTPose++ (base, small, large, huge): top-down 2D human pose with a plain vision transformer, from the weights published by the University of Sydney on Hugging Face. Apache-2.0."

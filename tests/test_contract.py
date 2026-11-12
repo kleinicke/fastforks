@@ -234,6 +234,7 @@ _RESULTS = {
     "detection": "DetectionResult",
     "pose": "PoseResult",
     "flow": "FlowResult",
+    "matching": "MatchingResult",
     "depth": "DepthResult",
     "features": "FeaturesResult",
     "multiview": "MultiViewResult",

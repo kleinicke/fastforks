@@ -1,0 +1,133 @@
+schema = 2
+name = "RepViT"
+summary = "RepViT (Wang et al. 2024): a mobile CNN with the block layout of a ViT (3x3 depthwise token mixer, 1x1 channel mixer), re-parameterised to plain convolutions at load."
+tier = "experimental"
+limitations = [
+  "The older aliases `repvit_m1` / `repvit_m2` / `repvit_m3` (`.dist_in1k`) that timm also lists are not shipped.",
+]
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/THU-MIG/RepViT"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
+[licence]
+code = "Apache-2.0"  # timm
+# The checkpoints are the authors' (THU-MIG/RepViT, Apache-2.0:
+# https://github.com/THU-MIG/RepViT/blob/298f42075eda5d2e6102559fad260c970769d34e/LICENSE), converted to safetensors
+# by timm, whose model cards of all 10 repositories state apache-2.0.
+weights = "Apache-2.0"  # the timm Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-1k"]
+training_note = "ImageNet-1k with distillation from a RegNetY-16GF teacher (RepViT paper), 300 or 450 epochs"
+evidence = "https://huggingface.co/timm/repvit_m1_1.dist_450e_in1k/blob/ff441038a42982fff1c8c75be7c794f9ba76db72/README.md"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1; 1x1 and 7x9 inputs run on CPU): the image is resized (shorter side) and centre-cropped to the fixed native crop, so the network always sees the same size.
+input = "imagenet"
+resize = 235
+crop = 224
+interpolation = "bicubic"
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+# Per-shape dispatch (kernels, `_optimize.HACC_PIX`; CNNs on `cudnn_hacc`): inputs of at least 8 x 224 x 224 pixels (batch
+# * H * W) run the fp16-accumulate cuDNN convs (`cudnn_hacc`, plans built on the first call of a size); smaller, launch-bound inputs run the
+# same optimized network on plain fp16 cuDNN convs, which are faster there. This is not a fallback to the portable model.
+
+[output]
+label_set = "imagenet-1k"
+
+[[papers]]
+title = "RepViT: Revisiting Mobile CNN From ViT Perspective"
+url = "https://arxiv.org/abs/2307.09283"
+date = "2023-07-18"
+venue = "CVPR 2024"
+
+[[variants]]
+id = "repvit_m0_9.dist_300e_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "repvit_m0_9.dist_300e_in1k.safetensors", size = 22232904, sha256 = "89440fd4da9cadffbf80c36b7aef1c3e4aefa133348e3d93f348112f8eff75f9", url = "https://huggingface.co/timm/repvit_m0_9.dist_300e_in1k/resolve/4985922f3d3ed4f3ad803a5f3c20701012da6904/model.safetensors" }]
+params = { arch = "repvit_m0_9.dist_300e_in1k" }
+licence = { evidence = "https://huggingface.co/timm/repvit_m0_9.dist_300e_in1k/blob/4985922f3d3ed4f3ad803a5f3c20701012da6904/README.md" }
+
+[[variants]]
+id = "repvit_m0_9.dist_450e_in1k"
+revision = 1
+weights = [{ name = "repvit_m0_9.dist_450e_in1k.safetensors", size = 22232904, sha256 = "c2dd32622df856ea7a68d6b241c1623f0e6fbec8acde381a3519cb5a5463e9cf", url = "https://huggingface.co/timm/repvit_m0_9.dist_450e_in1k/resolve/c073717dd84b5af671dd51b187b99ac55b2af4f0/model.safetensors" }]
+params = { arch = "repvit_m0_9.dist_450e_in1k" }
+licence = { evidence = "https://huggingface.co/timm/repvit_m0_9.dist_450e_in1k/blob/c073717dd84b5af671dd51b187b99ac55b2af4f0/README.md" }
+
+[[variants]]
+id = "repvit_m1_0.dist_300e_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "repvit_m1_0.dist_300e_in1k.safetensors", size = 29519376, sha256 = "792cf8a2e2651a1584bb5f23b9e38c3bfdf38da0dd2ecc6f0bdffa858356daa0", url = "https://huggingface.co/timm/repvit_m1_0.dist_300e_in1k/resolve/94445f5481b027599200e61ed5e108dbaedc0139/model.safetensors" }]
+params = { arch = "repvit_m1_0.dist_300e_in1k" }
+licence = { evidence = "https://huggingface.co/timm/repvit_m1_0.dist_300e_in1k/blob/94445f5481b027599200e61ed5e108dbaedc0139/README.md" }
+
+[[variants]]
+id = "repvit_m1_0.dist_450e_in1k"
+revision = 1
+weights = [{ name = "repvit_m1_0.dist_450e_in1k.safetensors", size = 29519376, sha256 = "9350ed15b205ec9d4ebcde95333e8a9ad2ddda26510a358b57b81fd8a8fde055", url = "https://huggingface.co/timm/repvit_m1_0.dist_450e_in1k/resolve/0e20f9f1bfa9772e63b813835bab2d6f0d168f89/model.safetensors" }]
+params = { arch = "repvit_m1_0.dist_450e_in1k" }
+licence = { evidence = "https://huggingface.co/timm/repvit_m1_0.dist_450e_in1k/blob/0e20f9f1bfa9772e63b813835bab2d6f0d168f89/README.md" }
+
+[[variants]]
+id = "repvit_m1_1.dist_300e_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "repvit_m1_1.dist_300e_in1k.safetensors", size = 35525560, sha256 = "0c1a155cef8febda765b17e27a6a8d5c201281bf8247700f9aa311cbaa5f47fb", url = "https://huggingface.co/timm/repvit_m1_1.dist_300e_in1k/resolve/425555381cd50f8def98edea8161378390389cb0/model.safetensors" }]
+params = { arch = "repvit_m1_1.dist_300e_in1k" }
+licence = { evidence = "https://huggingface.co/timm/repvit_m1_1.dist_300e_in1k/blob/425555381cd50f8def98edea8161378390389cb0/README.md" }
+
+[[variants]]
+id = "repvit_m1_1.dist_450e_in1k"
+revision = 1
+weights = [{ name = "repvit_m1_1.dist_450e_in1k.safetensors", size = 35525560, sha256 = "071d227f69657c02d1bee8ae3317772ce7f9540af6f7865bf27e3f051e2cd160", url = "https://huggingface.co/timm/repvit_m1_1.dist_450e_in1k/resolve/ff441038a42982fff1c8c75be7c794f9ba76db72/model.safetensors" }]
+params = { arch = "repvit_m1_1.dist_450e_in1k" }
+licence = { evidence = "https://huggingface.co/timm/repvit_m1_1.dist_450e_in1k/blob/ff441038a42982fff1c8c75be7c794f9ba76db72/README.md" }
+
+[[variants]]
+id = "repvit_m1_5.dist_300e_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "repvit_m1_5.dist_300e_in1k.safetensors", size = 59126912, sha256 = "1df0cc52b089c5e3c2d6566eadcba0f508328a683f54b9170a55560f5ebe8ff0", url = "https://huggingface.co/timm/repvit_m1_5.dist_300e_in1k/resolve/2b353c1e2d02fc2e7b7eec025ab631aaa2e6132a/model.safetensors" }]
+params = { arch = "repvit_m1_5.dist_300e_in1k" }
+licence = { evidence = "https://huggingface.co/timm/repvit_m1_5.dist_300e_in1k/blob/2b353c1e2d02fc2e7b7eec025ab631aaa2e6132a/README.md" }
+
+[[variants]]
+id = "repvit_m1_5.dist_450e_in1k"
+revision = 1
+weights = [{ name = "repvit_m1_5.dist_450e_in1k.safetensors", size = 59126912, sha256 = "222d8399b87bc23e6b57557284d9660e09ca9ec950b840a3147f865b6175838f", url = "https://huggingface.co/timm/repvit_m1_5.dist_450e_in1k/resolve/0b7e7367d18cc662e09be43e41479067b226cb4b/model.safetensors" }]
+params = { arch = "repvit_m1_5.dist_450e_in1k" }
+licence = { evidence = "https://huggingface.co/timm/repvit_m1_5.dist_450e_in1k/blob/0b7e7367d18cc662e09be43e41479067b226cb4b/README.md" }
+
+[[variants]]
+id = "repvit_m2_3.dist_300e_in1k"
+default_tag = true
+revision = 1
+weights = [{ name = "repvit_m2_3.dist_300e_in1k.safetensors", size = 95542216, sha256 = "6fb7b94f16070547b1c6941873530093858edeef72cde0ce91f26e523501eff0", url = "https://huggingface.co/timm/repvit_m2_3.dist_300e_in1k/resolve/e240f615d1bf7e53a85663f50120811cdcd75502/model.safetensors" }]
+params = { arch = "repvit_m2_3.dist_300e_in1k" }
+licence = { evidence = "https://huggingface.co/timm/repvit_m2_3.dist_300e_in1k/blob/e240f615d1bf7e53a85663f50120811cdcd75502/README.md" }
+
+[[variants]]
+id = "repvit_m2_3.dist_450e_in1k"
+revision = 1
+weights = [{ name = "repvit_m2_3.dist_450e_in1k.safetensors", size = 95542216, sha256 = "14ae2ea276682bb33dfa8313abdca16ac8f8ee7cb76e95f938c431f39afd8d6f", url = "https://huggingface.co/timm/repvit_m2_3.dist_450e_in1k/resolve/4849e0914b6d4e692a558a51fe4c09698685d4cc/model.safetensors" }]
+params = { arch = "repvit_m2_3.dist_450e_in1k" }
+licence = { evidence = "https://huggingface.co/timm/repvit_m2_3.dist_450e_in1k/blob/4849e0914b6d4e692a558a51fe4c09698685d4cc/README.md" }

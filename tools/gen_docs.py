@@ -64,8 +64,17 @@ _DATASETS = {
     },
     "multiview": {"dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %"},
     "classification": {"imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %"},
-    "pose": {"coco-val2017-every1-keypoints-gtbox": "COCO val2017, ground-truth person boxes, keypoint AP"},
+    "pose": {
+        "coco-val2017-every10-keypoints-gtbox": "COCO val2017, every 10th image, GT person boxes, keypoint AP",
+        "coco-val2017-every1-keypoints-gtbox": "COCO val2017, ground-truth person boxes, keypoint AP",
+        "coco-val2017-every1-keypoints": "COCO val2017, predicted people, keypoint AP",
+        "coco-val2017-every10-keypoints": "COCO val2017, every 10th image, predicted people, keypoint AP",
+    },
     "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
+    "matching": {
+        "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
+        "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
+    },
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
 # task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
@@ -89,6 +98,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
     "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
+    "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
@@ -98,9 +108,19 @@ _PROTOCOL = {
     ("segmentation", "coco-val2017-persons-every10"): "Any body part counts as person; ground truth = the COCO person "
     "masks. ",
     "detection": "pycocotools COCOeval of the top 100 detections per image. ",
-    "pose": "Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; "
+    (
+        "pose",
+        "coco-val2017-every1-keypoints-gtbox",
+    ): "Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; "
     "people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' "
     "AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. ",
+    ("pose", "coco-val2017-every10-keypoints-gtbox"): "Top-down on the same every-tenth-image subset for all modes, "
+    "ground-truth person boxes, no flip test; people ranked by the mean of their first 17 keypoint scores; "
+    "pycocotools OKS AP on COCO body joints. ",
+    ("pose", "coco-val2017-every1-keypoints"): "Bottom-up on all 5,000 validation images, no ground-truth boxes; "
+    "people ranked by their predicted person score, after model-specific decoding; pycocotools OKS AP. ",
+    ("pose", "coco-val2017-every10-keypoints"): "Bottom-up on the same every-tenth-image subset for all modes, "
+    "ranked by predicted person score after model-specific decoding; pycocotools OKS AP. ",
     ("promptable_segmentation", "coco-val2017-every10"): "One point per ground-truth instance (the interior point "
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
@@ -113,6 +133,11 @@ _PROTOCOL = {
     "from the camera baselines). ",
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
+    "matching": "5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling), "
+    "OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the "
+    "rotation and translation-direction errors. ",
+    ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
+    "pair. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
@@ -198,6 +223,29 @@ def _peak(row: dict | None) -> str:
     return f"{row['peak_alloc_mb']} / " + (DASH if res is None else str(res))
 
 
+def _trt_peaks(row: dict | None) -> tuple[int, int] | None:
+    """A TensorRT row's peak (allocated, reserved) MiB = engine device memory + torch-side peak; None if unknown.
+
+    Rows from `tools/speed_check.py` since 2026-11-12 carry the sum in `peak_*_mb` (torch side in `torch_peak_*_mb`);
+    older rows have the torch-side peak there and the engine's memory in `device_mb` (no `device_mb`: unknown).
+    """
+    if row is None or "peak_alloc_mb" not in row:
+        return None
+    if "torch_peak_alloc_mb" in row:
+        return row["peak_alloc_mb"], row["peak_reserved_mb"]
+    if "device_mb" not in row:
+        return None
+    return row["device_mb"] + row["peak_alloc_mb"], row["device_mb"] + row["peak_reserved_mb"]
+
+
+def _trt_peak(row: dict | None) -> str:
+    """`alloc / reserved` of `_trt_peaks`: `unknown` where the engine's memory was not recorded, dash if no row."""
+    if row is None or "fails" in row:
+        return DASH
+    peaks = _trt_peaks(row)
+    return "unknown" if peaks is None else f"{peaks[0]} / {peaks[1]}"
+
+
 def _ms_str(ms: object) -> str:
     """A time in ms to 3 significant digits (all digits from 1000 ms): `3.48`, `20.1`, `214`."""
     if not isinstance(ms, int | float) or isinstance(ms, bool) or not math.isfinite(ms) or ms == 0:
@@ -258,10 +306,9 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
         if "fails" in r:
             lines.append((label, f"fails: {_fail_reason(r['fails'])}", DASH))
             continue
-        engine = mode == "tensorrt" and "device_mb" in r
         name = "TensorRT fp32" if r.get("engine_dtype") == "float32" else label
         ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
-        lines.append((name, ms, f"{r['device_mb']} (engine)" if engine else _peak(r)))
+        lines.append((name, ms, _trt_peak(r) if mode == "tensorrt" else _peak(r)))
         first = r["compile_s"] if mode == "compile" else r["onnx_export_s"] + r["engine_build_s"]
         setup.append(f"{name} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
     return lines, setup
@@ -831,6 +878,10 @@ TASK_IO = {
     ),
     "classification": "Input: one RGB image. Output: ImageNet-1k class logits.",
     "detection": "Input: one RGB image. Output: boxes, class labels, scores and instance masks.",
+    "matching": (
+        "Input: two RGB images of one scene. Output: for every pixel of the first image its position in the second "
+        "(x, y in pixels) and a certainty that the pixel is visible in both."
+    ),
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",
     "multiview": (
@@ -873,7 +924,8 @@ def render(task: str) -> str:
             f"The summary uses {basis}: kernels time with its speed-up over the faster original run, and kernels "
             "peak reserved memory with its ratio to the smaller original one. "
             "Where measured (one variant per family), a variant's table also lists portable under `torch.compile` "
-            "and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). "
+            "and the fp16 TensorRT engine of portable ([export](../export.md); "
+            "memory: the engine's device memory + torch's peak). "
             f"{_DASH} = not measured."
             + (f" The accuracy column is lower-is-better ({_OVERVIEW_ACC[task][2]})." if task in _OVERVIEW_ACC else "")
         ),
@@ -1009,6 +1061,8 @@ _STD_SIZE = {
     "features": "224x224",
     "promptable_segmentation": "1024x1024",
     "detection": "800x1344",
+    "flow": "1080x1920",
+    "matching": "768x1024",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input
@@ -1390,7 +1444,7 @@ def _compile_block() -> str:
     head = (
         "| model | input | time: portable | compile | TensorRT fp16 | kernels"
         " | preparation: compile (cold first call) | ONNX + engine build"
-        " | peak MiB (alloc / reserved): portable | compile | kernels | TensorRT (device) |"
+        " | peak MiB (alloc / reserved): portable | compile | kernels | TensorRT (engine + torch) |"
     )
     out = [f"{_COMPILE_BEGIN} (tools/gen_docs.py, from docs/data/speed_compile.jsonl) -->"]
     if not latest:
@@ -1414,7 +1468,7 @@ def _compile_block() -> str:
             _peak(at.get("portable")),
             _peak(comp) if comp and "fails" not in comp else DASH,
             _peak(at.get("kernels")),
-            str(trt["device_mb"]) if built and "device_mb" in trt else DASH,
+            _trt_peak(trt),
         ]
         out.append("| " + " | ".join(cells) + " |")
     return "\n".join([*out, _COMPILE_END])

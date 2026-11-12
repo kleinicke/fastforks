@@ -6,11 +6,12 @@ Needs scikit-image (its sample images are the inputs). Writes `DIR/<ref>.webp` (
 has none, its top five are the example) and `DIR/inputs/<input>.webp`, and appends one row per ref to
 `docs/data/examples.jsonl` (latest row per ref wins): `ref`, `task`, `input`, `mode`, `dtype`, `device`, `date`, plus
 per task `top` (classification: five `[class, probability]`), `classes` (segmentation: the largest classes and their
-share of the image), `objects` (detection: `[class, score]` above `SCORE`) or `prompt` (promptable segmentation).
+share of the image), `certain` (matching: share of pixels of the first view with
+certainty above 0.5), `objects` (detection: `[class, score]` above `SCORE`) or `prompt` (promptable segmentation).
 Failures are rows with `error`. Refs that already have an image and a row are skipped unless `--force`.
 
 Inputs (see `INPUTS`): scikit-image's public-domain / CC0 photos, and its downscaled Middlebury 2014 motorcycle pair
-for stereo, flow and multi-view (calibrated multi-view models get the pair's published calibration).
+for stereo, flow, matching and multi-view (calibrated multi-view models get the pair's published calibration).
 """
 
 from __future__ import annotations
@@ -73,6 +74,7 @@ TASK_INPUT = {
     "stereo": "motorcycle",
     "flow": "motorcycle",
     "multiview": "motorcycle",
+    "matching": "motorcycle",
 }
 PERSON = (15.0, 10.0, 370.0, 511.0)  # the astronaut's box (x0, y0, x1, y1), the pose models' person box
 POINT = (290.0, 235.0)  # a foreground point on the coffee cup
@@ -210,6 +212,30 @@ def _multiview(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str
     return out, {"cameras": sorted(kw)}
 
 
+LINES = 100  # matching: matches drawn
+
+
+def _matching(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401
+    """The first view above the second, `LINES` of the most certain-weighted sampled matches joined by lines."""
+    r = model(imgs[0], imgs[1])
+    p1, p2 = (_np(p) for p in r.matches(LINES))
+    a, b = imgs
+    w = max(a.shape[1], b.shape[1])
+    canvas = np.zeros((a.shape[0] + b.shape[0], w, 3), np.uint8)
+    canvas[: a.shape[0], : a.shape[1]] = a
+    canvas[a.shape[0] :, : b.shape[1]] = b
+    pil = Image.fromarray(canvas)
+    draw = ImageDraw.Draw(pil)
+    colours = turbo(_normalise(p1[:, 0])[None])[0]
+    for (x1, y1), (x2, y2), c in zip(p1, p2, colours, strict=True):
+        col = tuple(int(v) for v in c)
+        draw.line([(x1, y1), (x2, y2 + a.shape[0])], fill=col, width=2)
+        for x, y in ((x1, y1), (x2, y2 + a.shape[0])):
+            draw.ellipse([x - 3, y - 3, x + 3, y + 3], fill=col)
+    certain = float((_np(r.certainty) > 0.5).mean()) if r.certainty is not None else None  # noqa: PLR2004
+    return np.asarray(pil), {} if certain is None else {"certain": round(certain, 4)}
+
+
 def _classification(model: Any, imgs: list[np.ndarray]) -> tuple[None, dict[str, Any]]:  # noqa: ANN401
     return None, {"top": [[n, round(float(p), 4)] for n, p in model(imgs[0]).top(5)]}
 
@@ -304,6 +330,7 @@ RENDER: dict[str, Callable[[Any, list[np.ndarray]], tuple[np.ndarray | None, dic
     "stereo": _stereo,
     "flow": _flow,
     "multiview": _multiview,
+    "matching": _matching,
     "classification": _classification,
     "features": _features,
     "segmentation": _segmentation,

@@ -149,7 +149,10 @@ Checklist:
    `pytest -m gpu --record` on a GPU: it writes the validated kernel builds per variant into `[validated]` of the
    family's golden.toml, and the CPU suite fails for any kernels variant whose current builds were not validated.
 7. **Revision.** Bump a variant's `revision` whenever weights or numerics change, and regenerate its golden.
-8. **Docs.** `uv run python tools/gen_docs.py` (the docs test fails if the model pages are stale).
+8. **Docs.** Measure the largest size that runs (`tools/bench_sizes.py run --out sizes.jsonl --modes portable --
+   <id>@<revision>` on a GPU, then `tools/extract_sizes.py sizes.jsonl`, which merges it into
+   `src/fastforks/_core/sizes.json`; `tests/test_sizes.py` fails for a ref without it), then `uv run python
+   tools/gen_docs.py` (the docs test fails if the model pages are stale).
 9. **Tier.** New models start as `experimental`; `stable` once goldens, GPU parity and a benchmark entry exist.
 
 ## Speed check

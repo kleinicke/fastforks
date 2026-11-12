@@ -28,8 +28,17 @@ OPTIONAL = {
     "onnx": {"_core/export.py"},  # the dynamic-export check reads the written file
     "onnxruntime": {"_core/export.py"},  # ... and runs it in range, when installed
     "timm": {"shared/libnet/__init__.py"},  # the timm / torchvision extras: families built by those libraries
-    "torchvision": {"detection/_ops.py", "shared/libnet/__init__.py"},  # + R-CNN ROIAlign / NMS
-    "transformers": {"shared/seginfer/__init__.py"},  # the transformers extra: families built by transformers
+    "torchvision": {  # R-CNN ops and lazily constructed optional library networks
+        "detection/_ops.py",
+        "shared/libnet/__init__.py",
+        "shared/rfdetr/net/utilities/box_ops.py",
+        "shared/rfdetr/net/utilities/tensors.py",
+    },
+    "transformers": {  # optional libraries imported only when constructing their networks
+        "shared/seginfer/__init__.py",
+        "shared/rfdetr/net/models/backbone/dinov2.py",
+        "shared/rfdetr/net/models/backbone/dinov2_with_windowed_attn.py",
+    },
     "laspy": {"stereo/geometry/ply.py"},  # .las / .laz point clouds (dependencies, imported in this module only)
     "lazrs": {"stereo/geometry/ply.py"},
 }
@@ -190,10 +199,28 @@ def test_families_do_not_import_each_other(task):
             assert not bad, f"{path.relative_to(SRC)} imports another family: {bad} (move shared code to shared/)"
 
 
+def _task_model_imports(modules: set[str]) -> set[str]:
+    """Separate forbidden task-family dependencies from upstream shared net/models packages."""
+    return {
+        m
+        for m in modules
+        if any(m == f"fastforks.{t}.models" or m.startswith(f"fastforks.{t}.models.") for t in registry.TASKS)
+    }
+
+
+def test_task_model_boundary_includes_all_tasks_but_not_shared_vendor_models():
+    forbidden = {f"fastforks.{task}.models.family.model" for task in registry.TASKS}
+    forbidden |= {"fastforks.pose.models"}
+    allowed = {"fastforks.shared.rfdetr.net.models.lwdetr", "fastforks.pose.models_extra", "torchvision.models"}
+    assert _task_model_imports(forbidden | allowed) == forbidden
+
+
 @pytest.mark.parametrize("area", ["_core", "kernels", "shared"])
 def test_core_does_not_import_models(area):
     for path in sorted((SRC / area).rglob("*.py")):
-        bad = {m for m in imported_modules(path) if ".models" in m}
+        # Vendored shared architectures may retain an upstream package named "models".
+        # The boundary forbids dependencies on task-specific model families.
+        bad = _task_model_imports(imported_modules(path))
         assert not bad, f"{path.relative_to(SRC)} imports model code {bad}"
 
 
@@ -220,7 +247,8 @@ def test_shared_directories_have_meta():
 @pytest.mark.slow
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_card_uses_matches_imports(task):
-    for card, _ in registry.cards(task).values():
+    cards = {card.family: card for card, _ in registry.cards(task).values()}
+    for card in cards.values():
         used = {
             m.split(".")[2]
             for p in _family_files(task, card.family)
@@ -311,21 +339,38 @@ def _optimize_imports(files: list[Path]) -> set[str]:
 @pytest.mark.slow
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_card_kernels_match_imports(task):
+    """Declare direct dependencies; shared modules may contain alternative backends.
+
+    Static imports give bounds, not the exact executed set: for example libnet also defines a Perception Encoder
+    Metal runner that AlexNet never calls. GPU parity tests separately check the libraries actually launched for
+    each exercised input, including CUDA graph capture and cuDNN half-accumulate calls.
+    """
     libs = {p.name for p in (SRC / "kernels").iterdir() if (p / "__init__.py").is_file()}
-    for card, _ in registry.cards(task).values():
+    cards = {card.family: card for card, _ in registry.cards(task).values()}
+    for card in cards.values():
         # Shared modules count for families with a kernels backend (a portable-only family's `uses` is checked against
         # its imports in test_card_uses_matches_imports).
-        files = _family_files(task, card.family) + [
+        family = _family_files(task, card.family)
+        files = family + [
             p for u in card.uses if "kernels" in card.modes for p in sorted((SRC / "shared" / u).rglob("*.py"))
         ]
         mods = {m for p in files for m in imported_modules(p)} | _optimize_imports(files)
         used = {m.split(".")[2] for m in mods if m.startswith("fastforks.kernels.") and m.split(".")[2] in libs}
+        direct = {
+            m.split(".")[2]
+            for p in family
+            for m in imported_modules(p)
+            if m.startswith("fastforks.kernels.") and m.split(".")[2] in libs
+        }
         # The Metal libraries (`*_metal`) are the MPS runner's, the others the CUDA one's: check each list on its own.
         cuda, metal = {u for u in used if not u.endswith("_metal")}, {u for u in used if u.endswith("_metal")}
-        assert cuda == set(card.kernel_libs), f"{card.family}: [modes.kernels] kernels {card.kernel_libs}, code {cuda}"
-        assert metal == set(card.mps_kernel_libs), (
-            f"{card.family}: [modes.kernels] mps_kernels {card.mps_kernel_libs}, code {metal}"
-        )
+        _kernel_import_bounds(card.family, set(card.kernel_libs), direct & cuda, cuda)
+        _kernel_import_bounds(card.family, set(card.mps_kernel_libs), direct & metal, metal)
+
+
+def _kernel_import_bounds(family: str, declared: set[str], direct: set[str], possible: set[str]) -> None:
+    assert direct <= declared, f"{family}: direct kernel imports missing from card: {sorted(direct - declared)}"
+    assert declared <= possible, f"{family}: declared kernels absent from import closure: {sorted(declared - possible)}"
 
 
 def _calls(path: Path):

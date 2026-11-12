@@ -1,0 +1,92 @@
+schema = 2
+name = "FlowFormer Small"
+summary = "FlowFormer Small (ECCV 2022): convolutional features, a latent cost-memory transformer and recurrent flow decoding. The authors' Small checkpoints, with plain float32 inference."
+tier = "experimental"
+outputs = ["flow"]
+uses = ["libnet"]
+limitations = ["Only the Small architecture is included.", "No custom kernels backend is implemented.", "Full-frame cost memory grows quadratically with input area; upstream tiled evaluation is not included. Full-frame 1080p exceeded the RTX 5060 Ti 16GB memory in portable and original fp32/fp16 runs."]
+
+[upstream]
+repo = "https://github.com/drinkingcoder/FlowFormer-Official"
+commit = "6ba7ea82b45394d3a7a25808399695427c9febd8"
+
+[licence]
+code = "Apache-2.0 AND BSD-3-Clause AND WTFPL"
+weights = "assumed from code"
+files = ["LICENSE", "LICENSE-RAFT", "LICENSE-GMA"]
+# RAFT utilities/CNN/update: https://github.com/princeton-vl/RAFT/blob/2888e15a51fa41140771d3f498ed8023cff098d1/LICENSE
+# GMA attention/update: https://github.com/zacjiang/GMA/blob/2f1fd29468a86a354d44dd25d107930b3f175043/LICENSE
+training_data = ["flyingchairs", "sceneflow"]
+training_note = "The authors' Small checkpoints follow the chairs, things and sintel training stages; per-variant training data follows configs/small_*.py."
+evidence = "https://github.com/drinkingcoder/FlowFormer-Official/blob/6ba7ea82b45394d3a7a25808399695427c9febd8/README.md#license"
+
+[io]
+input = "0-255"
+min_size = 64
+pad = { multiple = 8, mode = "centre", fill = "replicate" }
+
+[params]
+library = "timm"
+pe = "linear"
+dropout = 0.0
+encoder_latent_dim = 256
+query_latent_dim = 64
+cost_latent_input_dim = 64
+cost_latent_token_num = 4
+cost_latent_dim = 32
+arc_type = "transformer"
+cost_heads_num = 1
+pretrain = false
+context_concat = false
+encoder_depth = 1
+feat_cross_attn = false
+patch_size = 8
+patch_embed = "single"
+no_pe = false
+gma = "GMA"
+kernel_size = 9
+rm_res = true
+vert_c_dim = 0
+cost_encoder_res = true
+cnet = "basicencoder"
+fnet = "basicencoder"
+no_sc = false
+only_global = false
+add_flow_token = true
+use_mlp = false
+vertical_conv = false
+
+[options]
+iters = { default = 32, min = 1 }
+
+[modes.portable]
+cuda_dtype = "float32"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "Latent cost memory and recurrent attention need a dedicated kernel implementation."
+
+[[papers]]
+title = "FlowFormer: A Transformer Architecture for Optical Flow"
+url = "https://arxiv.org/abs/2203.16194"
+date = "2022-03-30"
+venue = "ECCV 2022"
+
+[[variants]]
+id = "flowformer-small-chairs"
+revision = 1
+licence = { training_data = ["flyingchairs"] }
+weights = [{ name = "flowformer-small-chairs.pth", size = 25038043, sha256 = "353914dcbf903f14d6dd518c95a0318098b40f932b672d4a8a0a269e73cd5eb2", url = "https://drive.google.com/uc?export=download&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/chairs.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
+
+[[variants]]
+id = "flowformer-small-things"
+revision = 1
+licence = { training_data = ["flyingchairs", "sceneflow"] }
+weights = [{ name = "flowformer-small-things.pth", size = 25038043, sha256 = "6bd2b44f31700c88196aecbdda70456f75491f8056503d27f349d3905c61b109", url = "https://drive.google.com/uc?export=download&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/things.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
+
+[[variants]]
+id = "flowformer-small-sintel"
+revision = 1
+licence = { training_data = ["flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"] }
+weights = [{ name = "flowformer-small-sintel.pth", size = 25038043, sha256 = "0ed780e005042ce406a3178330d071cd67a8337738d909a4b61fc18e7e9feeff", url = "https://drive.google.com/uc?export=download&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/sintel.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]

@@ -2,7 +2,7 @@ schema = 2
 name = "VGGT"
 summary = "VGGT, Visual Geometry Grounded Transformer (Wang et al. 2025): cameras, depth maps and point maps of every view from unposed images in one forward pass. A DINOv2 ViT-L patch embedding feeds 24 alternating frame / global attention blocks; a camera head and two DPT heads decode the tokens."
 tier = "stable"
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (DINOv2 ViT-L for the kernels patch embed)
+uses = ["depth_anything_v2", "rope2d"]  # shared modules imported directly by this family
 outputs = ["depth", "confidence", "world_points", "intrinsics", "cam_to_world", "points_confidence"]  # extra: confidence of world_points [V, H, W]
 
 licence_notes = [
