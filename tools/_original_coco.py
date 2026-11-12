@@ -406,9 +406,13 @@ class _Pose:
             msg = f"no original COCO pose adapter for {card.family}"
             raise NotImplementedError(msg)
         self.family = card.family
-        self.needs_boxes = card.family in {"rtmpose", "hrnet", "vitpose"}
         self.original = _original.load("pose", ref, tier)
         self.backend = Backend(self.original.how, self.original.dtype, self.original.note)
+
+    @property
+    def needs_boxes(self) -> bool:
+        """Top-down families take person boxes; bottom-up (RTMO) detects the people itself."""
+        return self.family in {"rtmpose", "hrnet", "vitpose"}
 
     def __call__(self, img: np.ndarray, *, boxes: np.ndarray | None = None) -> Result:
         import torch  # noqa: PLC0415
