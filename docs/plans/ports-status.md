@@ -35,6 +35,8 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- AnySplat (`anysplat`, multiview with `result.gaussians`): portable float32 MPS goldens and Mac speed rows (8 views
+  336x518). No Metal kernels runner. Weights: the pinned HF URL of the card.
 - TAPNext (`tapnext`, `tapnext-pp`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854 video, 256
   queries). No Metal kernels runner. Weights: the pinned URLs of the card (also in `data/ff-weights/tapnext/`).
 - SAM 2 video (`track` of `sam2.1-hiera-*`): portable float32 MPS video goldens (`video_*` keys of

@@ -202,8 +202,9 @@ runtime-evaluated-base-classes = []
   "EXE", "RUF046", "PTH120", "T100", "A001", "PLW2901", "TD", "FIX", "RUF013", "FLY002", "B008", "RUF007", "PGH003",  # FoundationStereo / DEFOM: pdb imports, loop vars, FIXME notes
   "PGH004", "RUF100",  # upstream blanket `# noqa` (SAM)
 ]
-# VGGT: upstream sets XFORMERS_AVAILABLE = False, so its xformers-only branches name undefined functions (dead code).
-"src/fastforks/multiview/models/vggt/net/layers/{attention,block}.py" = ["F821"]
+# VGGT (and AnySplat's copy): upstream sets XFORMERS_AVAILABLE = False, so its xformers-only branches name undefined
+# functions (dead code).
+"src/fastforks/multiview/models/{vggt,anysplat}/net/layers/{attention,block}.py" = ["F821"]
 # EfficientViT-SAM: upstream's `EfficientViTBlock` names a `GLUMBConv` it never defines (branch unused by the SAM
 # encoders); `build_kwargs_from_config` loops over dict keys.
 "src/fastforks/promptable_segmentation/models/efficientvit_sam/net/{ops,utils}.py" = ["F821", "PLC0206"]
@@ -304,6 +305,7 @@ markers = [
 [[tool.ty.overrides]]
 include = [
   "src/fastforks/multiview/models/vggt/net/utils/pose_enc.py",
+  "src/fastforks/multiview/models/anysplat/net/utils/pose_enc.py",
   "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py",  # `for block in layer.blocks`
 ]
 

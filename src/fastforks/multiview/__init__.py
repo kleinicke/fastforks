@@ -14,6 +14,8 @@ result = model(images, intrinsics=k, cam_to_world=c2w, reference=0)
 Cameras: `intrinsics` are OpenCV pixel matrices (pixel centres at integer coordinates), `cam_to_world` camera-to-world
 matrices with OpenCV axes (x right, y down, z forward); `MultiViewResult.extrinsics` gives world-to-camera `[R | t]`
 (the VGGT / COLMAP convention).
+
+Feed-forward splatting models (e.g. `anysplat`) also return `result.gaussians` (`Gaussians`; `.save("scene.ply")`).
 """
 
 from fastforks._core.cards import ModelCard
@@ -30,9 +32,11 @@ from fastforks.multiview._api import (
     model_card,
     unproject,
 )
+from fastforks.multiview._gaussians import Gaussians
 
 __all__ = [
     "Backend",
+    "Gaussians",
     "ImageLike",
     "ModelCard",
     "MultiViewKind",

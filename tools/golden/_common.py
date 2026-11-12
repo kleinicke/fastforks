@@ -74,7 +74,7 @@ def write(  # noqa: PLR0913 - one record, keyword-only fields
         entry |= {"patch": patch, "patch_sha256": hashlib.sha256((PATCHES / patch).read_bytes()).hexdigest()}
     store = goldens.load(family, task)
     old = store["refs"].get(ref, {})
-    keep = {k: v for k, v in old.items() if k.startswith("gpu_") or k == "gated"}  # per-ref tolerances, gated flag
+    keep = {k: v for k, v in old.items() if k.startswith("gpu_") or k in {"gated", "options"}}  # tolerances, flags
     store["refs"][ref] = entry | {"settings": settings} | keep
     store["validated"].pop(ref, None)  # new numerics: the kernel builds must be validated again
     goldens.dump(family, store, task)

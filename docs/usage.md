@@ -120,7 +120,8 @@ Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.d
 `fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation`,
 `fastforks.multiview`, `fastforks.matching`, `fastforks.matting` and `fastforks.tracking`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
-PatchmatchNet return the reference view only. See the [API pages](api/index.md) for every result's fields.
+PatchmatchNet return the reference view only. AnySplat also returns 3D Gaussians: `result.gaussians.save("scene.ply")`
+writes a standard 3DGS PLY. See the [API pages](api/index.md) for every result's fields.
 
 Every result has `.to(device)` and `.cpu()` (same type, so `save`, `top`, ... keep working; tensors already there are not copied), and `.numpy()` for a dict of arrays.
 

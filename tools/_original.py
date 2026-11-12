@@ -36,7 +36,14 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 BENCH = Path(os.environ.get("FF_BENCH_DIR", ROOT.parent / "bench"))
 TIERS = {"upstream": "fp32", "upstream16": "autocast", "upstreamhalf": "half", "upstreamac": "autocast-plain"}
-BF16 = {"vggt", "vggt_omega", "mapanything", "depth_anything_3", "romav2"}  # the authors' mixed precision is bfloat16
+BF16 = {
+    "vggt",
+    "vggt_omega",
+    "mapanything",
+    "depth_anything_3",
+    "romav2",
+    "anysplat",
+}  # the authors' mixed precision is bfloat16
 NATIVE_HALF = {
     "depth_pro",
     "marigold",
@@ -1129,6 +1136,33 @@ class _Tracking(_LocalFp16):
         return out
 
 
+def _anysplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream AnySplat's inference modules as `tools/golden/anysplat.py` (long side 448, voxel 0.002 as released).
+
+    `FF_ANYSPLAT_REPO`: a checkout with the pinned commit; `FF_ANYSPLAT_SITE`: `einops` + `jaxtyping` (upstream
+    imports them). fp16 = upstream's own bf16 autocast around the aggregator (heads in float32).
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    site = os.environ.get("FF_ANYSPLAT_SITE")
+    if site and site not in sys.path:
+        sys.path.append(site)
+    g = _golden("anysplat")
+    card, variant = registry.resolve("multiview", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_ANYSPLAT_REPO"]), Path(weights))
+    net.enc, net.adapter = net.enc.cuda(), net.adapter.cuda()
+    a.note = f"InternRobotics/AnySplat@{g.REF_COMMIT[:12]} EncoderAnySplat inference, long side 448, voxel_size 0.002"
+
+    def call(images: Any, *_: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 (bench) or float 0-1 (eval); no cameras
+        x = images.float() / 255 if images.dtype == torch.uint8 else images.float()
+        return g.predict(net, x, 448, 0.002, bf16=fp16)["depth"]
+
+    return call
+
+
 class _LocalTrimap(_LocalFp16):
     """A trimap-guided matting original: called with the image and the bench's synthetic trimap."""
 
@@ -1196,6 +1230,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "ben2": _LocalFp16("matting", _ben2, ((1080, 1920),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
+    "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),
 }
 
 

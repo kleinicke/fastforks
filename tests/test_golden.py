@@ -233,7 +233,9 @@ def _scene(m: Any) -> tuple[Any, dict[str, torch.Tensor]]:
     s = scene()
     given = {k: s[k] for k in SCENE_INPUTS if getattr(m._runner, k) == "required"}
     r = m(list(s["images"]), **given)
-    return r, {k: getattr(r, k) for k in spec("multiview").standard if k not in given} | dict(r.extras)
+    maps = {k: getattr(r, k) for k in spec("multiview").standard if k not in {*given, "gaussians"}} | dict(r.extras)
+    g = r.gaussians  # feed-forward splatting: the per-pixel Gaussians (golden option voxel_size = 0)
+    return r, maps | ({f"gaussians.{k}": getattr(g, k) for k in multiview.Gaussians.__dataclass_fields__} if g else {})
 
 
 @contextlib.contextmanager

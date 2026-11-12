@@ -52,8 +52,9 @@ class NumpyOutputs:
     def to(self, device: str | torch.device) -> Self:
         """The result on another device (same type, so `save`, `top`, ... keep working).
 
-        Every tensor field moves, including tuples of tensors (entries may be `None`) and tensors in `extras`; other
-        fields are unchanged. Like `torch.Tensor.to`, tensors already on `device` are not copied.
+        Every tensor field moves, including tuples of tensors (entries may be `None`), tensors in `extras` and the
+        tensors of dataclass fields (`MultiViewResult.gaussians`); other fields are unchanged. Like `torch.Tensor.to`,
+        tensors already on `device` are not copied.
 
         Args:
             device: Target, e.g. `"cpu"`, `"cuda:0"` or a `torch.device`.
@@ -68,11 +69,15 @@ class NumpyOutputs:
         return self._moved(lambda t: t.cpu())
 
     def _moved(self, move: Callable[[torch.Tensor], torch.Tensor]) -> Self:
-        def one(v: object) -> object:  # tensor, tuple of tensors/None, or anything else (unchanged)
+        def one(v: object) -> object:  # tensor, tuple of tensors/None, dataclass of tensors, else unchanged
             if isinstance(v, torch.Tensor):
                 return move(v)
             if isinstance(v, tuple) and v and all(isinstance(x, torch.Tensor | None) for x in v):
                 return tuple(None if x is None else move(x) for x in v)
+            if dataclasses.is_dataclass(v) and not isinstance(v, type):  # e.g. `MultiViewResult.gaussians`
+                sub = {f.name: getattr(v, f.name) for f in dataclasses.fields(v)}
+                if any(isinstance(x, torch.Tensor) for x in sub.values()):
+                    return dataclasses.replace(v, **{k: one(x) for k, x in sub.items()})
             return v
 
         changes = {}

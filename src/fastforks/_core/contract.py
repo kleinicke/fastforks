@@ -355,6 +355,7 @@ def _output(card: ModelCard, v: Variant, name: str, uses: Mapping[str, Any]) -> 
             "mask": ("[V, H, W]", "bool", "valid pixels", "input pixels"),
             "intrinsics": ("[V, 3, 3]", "float32", "pixels of the input", f"{OPENCV_PIXELS} pixels"),
             "cam_to_world": ("[V, 4, 4]", "float32 (float64 if given as float64)", unit, world),
+            "gaussians": ("Gaussians, G entries", "float32", unit, world),
         }
     elif task in _FIXED_TABLES:
         table = _FIXED_TABLES[task]
