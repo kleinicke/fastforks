@@ -1,4 +1,5 @@
 import inspect
+import json
 import re
 import subprocess
 import sys
@@ -364,3 +365,17 @@ def test_a_failing_original_is_a_cell_and_a_failing_fastforks_tier_is_not():
     )
     with pytest.raises(ValueError, match="no cell"):
         gen_docs._accuracy("multiview", {("portable", d): err}, "portable", d)
+
+
+def test_original_eval_cells_come_from_their_tier():
+    """The row a docs cell shows (the last per model, mode and dataset): original fp32 from the fp32 tier, original
+    fp16 from an fp16 tier (an fp16 row labelled `upstream` overwrote the fp32 cell of moge-2-vitb-normal)."""
+    want = {"upstream": ("upstream",), "upstream-fp16": ("upstream16", "upstreamac")}
+    for path in (ROOT / "docs" / "data").glob("*_eval.jsonl"):
+        last = {}
+        for line in path.read_text().splitlines():
+            r = json.loads(line)
+            if r.get("mode") in want:
+                last[r["ref"], r["mode"], r.get("dataset")] = r
+        bad = [(*k, r.get("tier")) for k, r in last.items() if "tier" in r and r["tier"] not in want[k[1]]]
+        assert not bad, f"{path.name}: {bad}"

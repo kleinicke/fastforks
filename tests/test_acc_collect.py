@@ -6,6 +6,8 @@ import pytest
 
 import acc_collect
 
+FP16 = ("upstream16", "upstreamac")
+
 
 def _row(ref: str, tier: str) -> dict:
     return {"ref": ref, "tier": tier, "metrics": {"bad": 1.0}}
@@ -32,6 +34,19 @@ def test_port_fills_the_original_columns(tmp_path):
         ("crestereo-eth3d", "upstream", "upstream-default"),
         ("crestereo-eth3d", "upstream16", "upstream"),
     ]
+
+
+@pytest.mark.parametrize("own_fails", ["middH", None])
+def test_fp16_original_is_chosen_per_dataset(own_fails):
+    """Autocast replaces the authors' fp16 option only on the datasets where that option fails."""
+    rows = [{"ref": "m", "tier": t, "dataset": d, "metrics": {"bad": 1.0}} for t in FP16 for d in ("eth3d", "middH")]
+    for r in rows:
+        if (r["tier"], r["dataset"]) == ("upstream16", own_fails):
+            r["error"] = "call: CUDA error: invalid argument"
+    picked = acc_collect.choose(rows)
+    fp16 = {r["dataset"]: r["tier"] for r in rows if r["mode"] == "upstream-fp16"}
+    assert fp16 == {"eth3d": "upstream16", "middH": "upstreamac" if own_fails else "upstream16"}
+    assert picked == {"m": "upstreamac" if own_fails else "upstream16"}
 
 
 def test_text_prompt_rows_are_their_own_dataset(tmp_path):

@@ -433,7 +433,11 @@ def main() -> None:
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     if a.cmd == "rows":
-        for r in summary_rows(Path(a.out)):
+        from acc_collect import choose  # noqa: PLC0415 - acc_collect imports this module
+
+        rows = summary_rows(Path(a.out))
+        choose(rows)  # docs modes: `upstream16` (or `upstreamac`) is `upstream-fp16`, not the original's `upstream`
+        for r in rows:
             print(json.dumps(r))
         return
     sys.exit(run(a))
