@@ -27,24 +27,24 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`gmflow-scale2-regrefine6-things`](#gmflow) | yes | 4.917 | – | – |
 | [`gmflow-scale2-sintel`](#gmflow) | yes | 1.975 † | – | – |
 | [`gmflow-scale2-things`](#gmflow) | yes | 6.747 | – | – |
-| [`memfof`](#memfof) | yes | 10.891 † | 427.441, 1.2x | 1418, 0.66x |
-| [`memfof-kitti`](#memfof) | yes | – | 380.029 (375x1242) | 1218 |
+| [`memfof`](#memfof) | yes | 10.891 † | 427, 1.2x | 1418, 0.66x |
+| [`memfof-kitti`](#memfof) | yes | – | 380 (375x1242) | 1218 |
 | [`memfof-sintel`](#memfof) | yes | – | – | – |
 | [`memfof-spring`](#memfof) | yes | – | – | – |
-| [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.081, 1.3x | 896, 0.2x |
-| [`neuflow-v2-sintel`](#neuflow_v2) | yes | 1.566 † | 58.946, 1.3x | 896, 0.2x |
-| [`neuflow-v2-things`](#neuflow_v2) | yes | 4.095 | 58.879, 1.3x | 896, 0.19x |
-| [`raft-large`](#raft) | yes | 1.526 † | 83.537, 5.7x | 372, 0.034x |
-| [`raft-large-kitti`](#raft) | yes | 0.614 † | 83.63, 5.7x | 352, 0.032x |
-| [`raft-large-things`](#raft) | yes | 4.834 | 83.118, 5.8x | 352, 0.032x |
-| [`raft-small`](#raft) | yes | 7.834 | 36.262, 5.4x | 224, 0.021x |
-| [`sea-raft-m`](#sea_raft) | yes | 0.880 † | 73.124, 5.0x | 514, 0.06x |
-| [`sea-raft-m-kitti`](#sea_raft) | yes | 0.808 † | 73.113, 5.0x | 514, 0.06x |
-| [`sea-raft-m-spring`](#sea_raft) | yes | 6.783 † | 23.223, 2.4x | 214, 0.26x |
-| [`sea-raft-m-things`](#sea_raft) | yes | 4.307 | 73.087, 5.0x | 514, 0.06x |
-| [`sea-raft-s`](#sea_raft) | yes | 1.054 † | 50.356, 6.0x | 492, 0.058x |
-| [`sea-raft-s-kitti`](#sea_raft) | yes | 0.935 † | 50.473, 5.9x | 492, 0.058x |
-| [`sea-raft-s-spring`](#sea_raft) | yes | 7.757 † | 16.044, 2.6x | 192, 0.25x |
+| [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.1, 1.3x | 896, 0.2x |
+| [`neuflow-v2-sintel`](#neuflow_v2) | yes | 1.566 † | 58.9, 1.3x | 896, 0.2x |
+| [`neuflow-v2-things`](#neuflow_v2) | yes | 4.095 | 58.9, 1.3x | 896, 0.19x |
+| [`raft-large`](#raft) | yes | 1.526 † | 83.5, 5.7x | 372, 0.034x |
+| [`raft-large-kitti`](#raft) | yes | 0.614 † | 83.6, 5.7x | 352, 0.032x |
+| [`raft-large-things`](#raft) | yes | 4.834 | 83.1, 5.8x | 352, 0.032x |
+| [`raft-small`](#raft) | yes | 7.834 | 36.3, 5.4x | 224, 0.021x |
+| [`sea-raft-m`](#sea_raft) | yes | 0.880 † | 73.1, 5.0x | 514, 0.06x |
+| [`sea-raft-m-kitti`](#sea_raft) | yes | 0.808 † | 73.1, 5.0x | 514, 0.06x |
+| [`sea-raft-m-spring`](#sea_raft) | yes | 6.783 † | 23.2, 2.4x | 214, 0.26x |
+| [`sea-raft-m-things`](#sea_raft) | yes | 4.307 | 73.1, 5.0x | 514, 0.06x |
+| [`sea-raft-s`](#sea_raft) | yes | 1.054 † | 50.4, 6.0x | 492, 0.058x |
+| [`sea-raft-s-kitti`](#sea_raft) | yes | 0.935 † | 50.5, 5.9x | 492, 0.058x |
+| [`sea-raft-s-spring`](#sea_raft) | yes | 7.757 † | 16.0, 2.6x | 192, 0.25x |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 

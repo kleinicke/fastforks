@@ -116,7 +116,7 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
     if TASK[ref] == "classification":  # the module takes transformed images (the model call's [io] transform)
         io = model.variant.io
         return (scale(resize_crop(pair[0], io), io),)
-    if TASK[ref] == "multiview":  # one scene: views + the cameras the runner requires
+    if TASK[ref] in {"multiview", "tracking"}:  # one scene / video: views or frames (+ cameras / queries)
         return model.example_inputs(*_shape(model)[2:], batch=2)
     return pair if TASK[ref] in {"stereo", "flow", "matching"} else pair[:1]
 
@@ -171,7 +171,7 @@ def _check_export_names(ref: str, model: Any, module: torch.nn.Module, out: Any)
 @pytest.mark.model
 @pytest.mark.filterwarnings("ignore:The .grad attribute of a Tensor that is not a leaf")  # dynamo reads .grad
 @pytest.mark.parametrize("ref", SMALLEST)
-def test_module_compile_export(ref):
+def test_module_compile_export(ref):  # noqa: C901 - one branch per task
     if ref in _NOT_TRACEABLE:
         pytest.xfail(_NOT_TRACEABLE[ref])
     if ref in _CPU_RAM_HEAVY and not os.environ.get("FASTFORKS_HEAVY_CPU_TESTS"):
@@ -196,6 +196,8 @@ def test_module_compile_export(ref):
         assert torch.equal(want[0].float(), model(_pair(_shape(model))[0][0]).logits)
     elif TASK[ref] == "multiview":  # one scene -> a dict of maps, as the model call
         assert torch.equal(want["depth"].float(), _multiview_call(model, inputs).depth)
+    elif TASK[ref] == "tracking":  # one video + queries -> {"tracks", "visibility"}, as the model call
+        assert torch.equal(want["tracks"], model(inputs[0], inputs[1]).tracks)
 
     if ref not in _GRAPH_BREAKS:
         explain = torch._dynamo.explain(module)(*inputs)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import torch
 
@@ -14,16 +14,70 @@ from fastforks._core.errors import CardError, InputError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batches, unbatch
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs
+from fastforks.matching._pairs import PairCache
 from fastforks.matching._runner import scale
+from fastforks.matching.relative_pose import FundamentalMatrix, RelativePose, estimate_fundamental, estimate_pose
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Iterator, Mapping, Sequence
 
     from fastforks.matching._runner import Runner
 
-__all__ = ["Backend", "MatchingModel", "MatchingResult", "SparseMatchingResult", "list_models", "load", "model_card"]
+__all__ = [
+    "Backend",
+    "MatchingModel",
+    "MatchingResult",
+    "SparseMatchingResult",
+    "VerifiedMatches",
+    "list_models",
+    "load",
+    "model_card",
+]
 
 TASK = "matching"
+Mode = Literal["auto", "portable", "kernels"]
+CACHE_MB = 512.0  # `match_pairs`: 26 RoMa v2 descriptors (19.5 MB each at coarse_size 800)
+
+
+@dataclass(frozen=True)
+class VerifiedMatches:
+    """Matches of an image pair with their geometric verification (`verify` of a matching result).
+
+    Attributes:
+        points1: `[N, 2]` float32 `(x, y)` pixels in the first image at its input resolution.
+        points2: `[N, 2]` the matching points in the second image.
+        scores: `[N]` float32 confidence in `[0, 1]`: the certainty at the pixel (dense), the match score (sparse).
+        inliers: `[N]` bool: the matches that agree with `geometry`.
+        geometry: The `RelativePose` (`R`, `t`, `E`, `ok`) if intrinsics were given, else the `FundamentalMatrix`
+            (`F`, `ok`).
+    """
+
+    points1: torch.Tensor
+    points2: torch.Tensor
+    scores: torch.Tensor
+    inliers: torch.Tensor
+    geometry: RelativePose | FundamentalMatrix
+
+
+def _verify(  # noqa: PLR0913, PLR0917 - the matches and the estimators' arguments
+    points1: torch.Tensor,
+    points2: torch.Tensor,
+    scores: torch.Tensor,
+    k1: torch.Tensor | None,
+    k2: torch.Tensor | None,
+    threshold: float | None,
+    mode: Mode,
+) -> VerifiedMatches:
+    """`estimate_pose` (with intrinsics) or `estimate_fundamental` of the matches."""
+    if (k1 is None) != (k2 is None):
+        msg = "give both intrinsics k1 and k2 (relative pose) or neither (fundamental matrix)"
+        raise InputError(msg)
+    options: dict[str, Any] = {"mode": mode} | ({} if threshold is None else {"threshold": threshold})
+    if k1 is None or k2 is None:
+        geometry = estimate_fundamental(points1, points2, **options)
+    else:
+        geometry = estimate_pose(points1, points2, k1, k2, **options)
+    return VerifiedMatches(points1, points2, scores, geometry.inliers, geometry)
 
 
 @dataclass(frozen=True)
@@ -47,16 +101,22 @@ class MatchingResult(NumpyOutputs):
     backend: Backend
     options: Mapping[str, Any] = field(default_factory=dict)
 
-    def matches(self, n: int = 5000, *, threshold: float = 0.05, seed: int = 0) -> tuple[torch.Tensor, torch.Tensor]:
+    def matches(
+        self, n: int = 5000, *, threshold: float = 0.05, seed: int = 0, balanced: bool = True
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Sample `n` keypoint matches from the warp, for `estimate_pose`.
 
         Pixels are drawn without replacement with a probability proportional to their certainty, clipped to 1 above
-        `threshold` (upstream RoMa's sampling without its density balancing); without a certainty map, uniformly.
+        `threshold`; without a certainty map, uniformly. `balanced` (upstream RoMa's sampling) draws `4 n` candidates
+        this way and `n` of them with a probability inverse to their density (a Gaussian kernel of 0.1 of the image
+        size over the match coordinates, candidates with fewer than about 10 close neighbours excluded), which
+        spreads the matches over the image.
 
         Args:
             n: Matches per pair (fewer if fewer pixels have a non-zero certainty).
             threshold: Certainty from which pixels are drawn with equal probability.
             seed: Of the sampling.
+            balanced: Density balancing of the candidates (see above).
 
         Returns:
             Points in the first and in the second image, `[n, 2]` float32 `(x, y)` pixels (`[B, n, 2]` for batches),
@@ -74,12 +134,89 @@ class MatchingResult(NumpyOutputs):
             msg = "no pixel of the first image has a certainty above zero"
             raise InputError(msg)
         gen = torch.Generator(warp.device).manual_seed(seed)
-        ind = torch.multinomial(weight, n, replacement=False, generator=gen)  # [B, n]
+        if balanced:
+            m = min(4 * n, int((weight > 0).sum(1).min()))
+            cand = _draw(weight, m, gen)  # [B, 4 n]
+            xy = torch.cat((torch.stack((cand % w, cand // w), -1).float(), _at(warp, cand)), -1)
+            density = _density(xy / torch.tensor([w, h, w, h], device=warp.device) * 2 - 1)
+            p = torch.where(density < _MIN_DENSITY, 1e-7, 1 / (density + 1))
+            ind = torch.gather(cand, 1, _draw(p, n, gen))
+        else:
+            ind = _draw(weight, n, gen)  # [B, n]
         xy1 = torch.stack((ind % w, ind // w), -1).float()
-        xy2 = torch.gather(warp.flatten(2), 2, ind[:, None].expand(b, 2, n)).transpose(1, 2)
+        xy2 = _at(warp, ind)
         if self.warp.dim() == 3:  # noqa: PLR2004
             return xy1[0], xy2[0]
         return xy1, xy2
+
+    def verify(  # noqa: PLR0913 - the intrinsics and the options of `matches` and the estimator
+        self,
+        k1: torch.Tensor | None = None,
+        k2: torch.Tensor | None = None,
+        *,
+        n: int = 5000,
+        seed: int = 0,
+        threshold: float | None = None,
+        mode: Mode = "auto",
+    ) -> VerifiedMatches:
+        """Sampled matches and their geometric verification in one call: `matches` + `estimate_pose` / `_fundamental`.
+
+        ```python
+        v = model(image_a, image_b).verify()  # or verify(K1, K2): relative pose instead of a fundamental matrix
+        keep = v.inliers & (v.scores > 0.5)
+        v.points1[keep], v.points2[keep], v.geometry.F  # verified matches in pixels of the two input images
+        ```
+
+        Args:
+            k1: Intrinsics `[3, 3]` of the first image (pixels); with both, the relative pose is estimated
+                (`estimate_pose`), without, the fundamental matrix (`estimate_fundamental`).
+            k2: Intrinsics of the second image.
+            n: Matches to sample (`matches`).
+            seed: Of the sampling.
+            threshold: Inlier threshold of the estimator in pixels; `None` is its default.
+            mode: Backend of the estimator.
+
+        Returns:
+            The matches, their certainty, the inlier mask and the geometry (batched like the result).
+        """
+        points1, points2 = self.matches(n, seed=seed)
+        if self.certainty is None:
+            scores = torch.ones(points1.shape[:-1], device=points1.device)
+        else:
+            flat = (points1[..., 1] * self.warp.shape[-1] + points1[..., 0]).long()
+            scores = self.certainty.flatten(-2).gather(-1, flat)
+        return _verify(points1, points2, scores, k1, k2, threshold, mode)
+
+
+_MIN_DENSITY = 10.0  # upstream RoMa: candidates with fewer close neighbours are (nearly) never drawn
+_DENSITY_REFERENCES = 2048  # points the density is estimated from
+
+
+def _draw(weight: torch.Tensor, n: int, gen: torch.Generator) -> torch.Tensor:
+    """`n` indices per row of `weight` `[B, K]` without replacement, with a probability proportional to the weight.
+
+    Gumbel top-k: the same distribution as `torch.multinomial`, whose first CUDA call costs 40-130 ms.
+    """
+    u = torch.rand(weight.shape, device=weight.device, generator=gen).clamp_min(1e-20)
+    return (weight.log() - (-u.log()).log()).topk(n, dim=1).indices
+
+
+def _at(warp: torch.Tensor, ind: torch.Tensor) -> torch.Tensor:
+    """The warp `[B, 2, H, W]` at the flat pixel indices `ind` `[B, n]`: `[B, n, 2]`."""
+    b, n = ind.shape
+    return torch.gather(warp.flatten(2), 2, ind[:, None].expand(b, 2, n)).transpose(1, 2)
+
+
+def _density(x: torch.Tensor, std: float = 0.1) -> torch.Tensor:
+    """Upstream RoMa's `kde`: Gaussian kernel density `[B, n]` of `x` `[B, n, 4]`, from `_DENSITY_REFERENCES` of them.
+
+    The kernel sum runs over every `n / _DENSITY_REFERENCES`-th point (the points come in random order) and is scaled
+    back: linear in `n` instead of upstream's `n^2` (4 ms and 175 MB instead of 29 ms and 320 MB for 20 000 points on
+    an RTX 5060 Ti, the same pose accuracy).
+    """
+    x = x.half() if x.is_cuda else x.float()
+    step = max(1, x.shape[1] // _DENSITY_REFERENCES)
+    return (-(torch.cdist(x, x[:, ::step]) ** 2) / (2 * std**2)).exp().sum(-1) * step
 
 
 @dataclass(frozen=True)
@@ -118,6 +255,17 @@ class SparseMatchingResult(NumpyOutputs):
         """
         keep = self.pairs[self.scores > threshold]
         return self.keypoints1[keep[:, 0]], self.keypoints2[keep[:, 1]]
+
+    def verify(
+        self,
+        k1: torch.Tensor | None = None,
+        k2: torch.Tensor | None = None,
+        *,
+        threshold: float | None = None,
+        mode: Mode = "auto",
+    ) -> VerifiedMatches:
+        """All matches and their geometric verification; see `MatchingResult.verify` (`threshold`: the estimator's)."""
+        return _verify(*self.matches(), self.scores, k1, k2, threshold, mode)
 
 
 class MatchingModel(core.Model):
@@ -189,17 +337,75 @@ class MatchingModel(core.Model):
         maps = unbatch(self._batched(self._run, t1, t2), image1)
         return MatchingResult(maps["warp"], maps.get("certainty"), self.variant.ref, self.backend, self.options)
 
-    def _run(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
-        """Scale, run and check one chunk."""
+    def match_pairs(
+        self, images: Sequence[ImageLike], pairs: Iterable[tuple[int, int]], *, cache_mb: float = CACHE_MB
+    ) -> Iterator[MatchingResult | SparseMatchingResult]:
+        """Match many pairs of an image set, computing each image's own part once (RoMa v2: its DINOv3 descriptor).
+
+        ```python
+        for (i, j), result in zip(pairs, model.match_pairs(paths, pairs)):
+            v = result.verify()  # points, scores, RANSAC inliers, fundamental matrix
+        ```
+
+        The results equal `model(images[i], images[j])` bit for bit and come in the order of `pairs`. The per-image
+        parts are kept on the device while later pairs need them, within `cache_mb`: over it, the image whose next
+        pair is furthest away is dropped and computed again when that pair comes (list each image's pairs close
+        together to avoid it). Families without a per-image part just run the pairs.
+
+        Args:
+            images: The image set (paths are read when their pair comes; any `ImageLike`, single images).
+            pairs: `(i, j)` indices into `images`: match image `i` into image `j`.
+            cache_mb: Device memory for the kept per-image parts, in MB (RoMa v2: 19.5 MB per image; the two images
+                of the running pair come on top).
+
+        Yields:
+            The result of each pair, as a call returns it.
+
+        Raises:
+            InputError: Unsupported or too small images.
+        """
+        pairs = [(int(i), int(j)) for i, j in pairs]
+        cache = PairCache(pairs, int(cache_mb * 2**20))
+        for pair in pairs:
+            image1 = images[pair[0]]
+            t1, t2 = to_rgb_batches((image1, images[pair[1]]), self.device)
+            self._check_size(t1)
+            self._check_size(t2)
+            with self._session():
+                result = self._run_sparse(t1, t2, cache, pair) if self.sparse else self._run(t1, t2, cache, pair)
+                cache.done(pair)
+            if isinstance(result, dict):
+                maps = unbatch(result, image1)
+                result = MatchingResult(
+                    maps["warp"], maps.get("certainty"), self.variant.ref, self.backend, self.options
+                )
+            yield result
+
+    def _matched(
+        self, image1: torch.Tensor, image2: torch.Tensor, cache: PairCache | None, pair: tuple[int, int]
+    ) -> dict[str, torch.Tensor]:
+        """Scale and run one chunk; `cache` (`match_pairs`) holds the runner's per-image parts of the images `pair`."""
         io = self.variant.io
-        out = self._runner(scale(image1, io), scale(image2, io))
+        image1, image2 = scale(image1, io), scale(image2, io)
+        if cache is None:
+            return self._runner(image1, image2)
+        d1 = cache.get(pair[0], lambda: self._runner.describe(image1))
+        d2 = cache.get(pair[1], lambda: self._runner.describe(image2))
+        return self._runner(image1, image2) if d1 is None else self._runner.match(image1, image2, (d1, d2))
+
+    def _run(
+        self, image1: torch.Tensor, image2: torch.Tensor, cache: PairCache | None = None, pair: tuple[int, int] = (0, 0)
+    ) -> dict[str, torch.Tensor]:
+        """Scale, run and check one chunk."""
+        out = self._matched(image1, image2, cache, pair)
         b, (h, w) = image1.shape[0], image1.shape[-2:]
         return self._check_outputs(out, {"warp": (b, 2, h, w), "certainty": (b, h, w)})
 
-    def _run_sparse(self, image1: torch.Tensor, image2: torch.Tensor) -> SparseMatchingResult:
+    def _run_sparse(
+        self, image1: torch.Tensor, image2: torch.Tensor, cache: PairCache | None = None, pair: tuple[int, int] = (0, 0)
+    ) -> SparseMatchingResult:
         """Scale, run and check one pair `[1, 3, H, W]`."""
-        io = self.variant.io
-        out = self._runner(scale(image1, io), scale(image2, io))
+        out = self._matched(image1, image2, cache, pair)
         n, m, k = (len(out[key]) for key in ("keypoints1", "keypoints2", "pairs"))
         shapes = {"keypoints1": (n, 2), "keypoints2": (m, 2), "pairs": (k, 2), "scores": (k,)}
         maps = self._check_outputs(out, shapes)

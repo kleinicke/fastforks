@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- TAPNext point tracking (`tapnext`, `tapnext-pp`, new `tracking` task; Apache-2.0 code and weights): `model(video,
+  queries)` returns `tracks` `[T, Q, 2]` and `visible` `[T, Q]` for `(t, x, y)` queries, online one frame at a time
+  as upstream. 24-frame 480x854 video, 256 queries: 382 ms kernels, 529 ms portable vs 1541 ms original fp32;
+  TAP-Vid DAVIS (first) AJ 66.56 kernels vs 66.55 original.
+
+- SAM 2.1 video (`track` of `sam2.1-hiera-*`; Apache-2.0 code and weights): objects prompted on the first frame
+  (points, boxes or masks) are followed through a video with the original memory attention / memory encoder.
+  Tiny on DAVIS 2017 val (480p): 59 ms/frame portable, 63 ms kernels vs 282 ms original fp32 (90 ms fp16), peak
+  1.3 GB vs 2.1 GB; J&F 87.53 portable, 87.54 kernels and original.
+
+- ViTMatte trimap matting (`vitmatte-s`, `vitmatte-b`; Apache-2.0 code and weights): `model(image, trimap=...)`
+  returns the alpha; ViTDet backbone on image + trimap, conv detail-capture decoder. 1080x1920: `vitmatte-s` 84 ms
+  kernels, 102 ms portable (55 ms TensorRT) vs 274 ms original fp32 (140 ms fp16), peak 1.4 GB vs 5.0 GB; `vitmatte-b`
+  147 ms kernels (108 ms TensorRT) vs 552 ms (257 ms). AIM-500 SAD 13.72 / MSE 12.18 (`vitmatte-b` kernels, 500
+  images), every 5th image equal to the original for all tiers.
+- BEN2 matting / background removal (`ben2`; MIT code and weights): Swin v1 Base on the whole image plus four
+  full-resolution patches, merged by multi-view cross-attention. 1080x1920: 173 ms kernels, 184 ms portable (58 ms
+  TensorRT, 103 ms compile) vs 318 ms original fp32 (201 ms fp16). DIS-VD MAE 0.0403 / max F-beta 0.900 (kernels,
+  470 images), every 2nd image equal to the original for all tiers.
+- BiRefNet matting / background removal (`birefnet`, `birefnet-lite`, new `fastforks.matting` task; MIT code and
+  weights): alpha `[H, W]` in [0, 1] at the input size; shared Swin v1 encoder (`fastforks.shared.swin_v1`). 1080x1920:
+  `birefnet` 214 ms kernels (88 ms TensorRT) vs 382 ms original fp32 (234 ms fp16); `birefnet-lite` 59 ms vs 123 ms
+  (75 ms). DIS-VD MAE 0.0325 / max F-beta 0.9074 (`birefnet` kernels, 470 images), every 2nd image equal to the
+  original for all tiers.
+- Video Depth Anything (`video-depth-anything-s`, `video-depth-anything-metric-s`, depth task; Apache-2.0 code and
+  weights, Small only): a whole video per call (`[L, 3, H, W]`), windows of 32 frames with the upstream keyframe
+  alignment. 88-frame 480x640 video: 9.9 ms per frame kernels vs 57.5 ms original fp32 (43.0 ms fp16); TUM RGB-D
+  (3 sequences, first 110 frames) AbsRel 0.0549 kernels and original.
+
 - Grounding DINO open-vocabulary detection (`grounding-dino-tiny`, `grounding-dino-base`; Apache-2.0 code and
   weights): class names as `text`, shared BERT tokenizer. Portable only. Tiny at 800x1344: 138 ms vs 274 ms original
   fp32 (199 ms fp16); COCO val2017 (every 10th) box mAP 51.14 vs 51.08 original.

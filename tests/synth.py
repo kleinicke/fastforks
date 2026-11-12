@@ -43,6 +43,36 @@ def prompts() -> dict[str, dict[str, object]]:
     }
 
 
+def clip(n: int = 6, h: int = 100, w: int = 150) -> list[np.ndarray]:
+    """Frames of a video-tracking golden: an orange disk (radius 18 px) moving right / down over `image()` darkened.
+
+    uint8 `[H, W, 3]` each; the disk centre is at `(50 + 5 t, 45 + 2 t)` in frame `t`.
+    """
+    bg = (image(h, w).astype(np.float64) * 0.5).round()
+    yy, xx = np.mgrid[:h, :w]
+    frames = []
+    for t in range(n):
+        f = bg.copy()
+        f[(xx - 50 - 5 * t) ** 2 + (yy - 45 - 2 * t) ** 2 <= 18**2] = (230, 160, 40)
+        frames.append(f.astype(np.uint8))
+    return frames
+
+
+def track_queries() -> list[list[float]]:
+    """`(t, x, y)` queries on `clip()` for point tracking: the disk centre in frames 0 and 2, a background point."""
+    return [[0, 50.0, 45.0], [2, 60.0, 49.0], [0, 110.0, 70.0]]
+
+
+def clip_prompts() -> dict[str, dict[str, Any]]:
+    """Frame-0 prompts of `clip()` for `track`, by golden key prefix: a point, a box, the disk's mask."""
+    yy, xx = np.mgrid[:100, :150]
+    return {
+        "video_": {"input_points": [[50, 45]], "input_labels": [1]},
+        "video_box_": {"input_boxes": [30, 25, 70, 65]},
+        "video_mask_": {"input_masks": ((xx - 50) ** 2 + (yy - 45) ** 2 <= 18**2).astype(np.uint8)},
+    }
+
+
 def concept() -> str:
     """Text prompt of the concept-segmentation goldens (SAM 3 on scikit-image's `coins.png`, stored as `input`)."""
     return "coin"

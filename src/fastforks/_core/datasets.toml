@@ -239,3 +239,51 @@ name = "MegaDepth (Internet photo collections with SfM / MVS depth)"
 licence = "CC-BY-4.0"  # "is licensed under a Creative Commons Attribution 4.0 International License"; "The original images come with their own licenses" (read 2026-11-12)
 commercial = "unclear"
 url = "https://www.cs.cornell.edu/projects/megadepth/"
+
+[dis5k]
+name = "DIS5K (dichotomous image segmentation)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "https://github.com/xuebinqin/DIS"
+
+[duts]
+name = "DUTS (salient object detection)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "http://saliencydetection.net/duts/"
+
+[hrsod]
+name = "HRSOD (high-resolution salient object detection)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "https://github.com/yi94code/HRSOD"
+
+[uhrsd]
+name = "UHRSD (ultra-high-resolution salient object detection)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "https://github.com/iCVTEAM/PGNet"
+
+[hrs10k]
+name = "HRS10K (high-resolution salient object detection)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "https://github.com/DrowsyMon/HRS10K"
+
+[p3m-10k]
+name = "P3M-10k (privacy-preserving portrait matting)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "https://github.com/JizhiziLi/P3M"
+
+[prama-internal]
+name = "Prama LLC proprietary segmentation data"
+licence = "not stated"  # BEN2 card: "our 22K proprietary segmentation dataset"
+commercial = "unclear"
+url = "https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md"
+
+[composition-1k]
+name = "Composition-1k (Adobe Deep Image Matting)"
+licence = "Adobe research licence on request"  # the DIM dataset is shared by Adobe on request for non-commercial research
+commercial = "no"
+url = "https://sites.google.com/view/deepimagematting"

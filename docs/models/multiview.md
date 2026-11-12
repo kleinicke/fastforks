@@ -12,11 +12,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`mapanything-apache`](#mapanything) | yes | 543.98, 3.6x | 4072, 0.47x |
-| [`mvsanywhere`](#mvsanywhere) | no | 35.63, 6.1x | 884, 0.59x |
-| [`patchmatchnet`](#patchmatchnet) | yes | 29.57, 7.4x | 856, 0.67x |
-| [`vggt-1b`](#vggt) | no | 458.37, 2.1x | 4654, 0.63x |
-| [`vggt-omega-1b-512`](#vggt_omega) | no | 464.37, 2.0x | 3518, 0.6x |
+| [`mapanything-apache`](#mapanything) | yes | 544, 3.6x | 4072, 0.47x |
+| [`mvsanywhere`](#mvsanywhere) | no | 35.6, 6.1x | 884, 0.59x |
+| [`patchmatchnet`](#patchmatchnet) | yes | 29.6, 7.4x | 856, 0.67x |
+| [`vggt-1b`](#vggt) | no | 458, 2.1x | 4654, 0.63x |
+| [`vggt-omega-1b-512`](#vggt_omega) | no | 464, 2.0x | 3518, 0.6x |
 
 <a id="mapanything"></a>
 

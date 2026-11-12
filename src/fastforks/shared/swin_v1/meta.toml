@@ -1,0 +1,4 @@
+summary = "Swin Transformer v1 backbone (Liu et al. 2021) in BiRefNet's version: four normalised stage outputs, SDPA window attention with relative position bias and the shifted-window mask."
+licence = "MIT"
+files = ["LICENSE"]
+derived_from = "https://github.com/ZhengPeng7/BiRefNet (f7079632d681ecf12161fcea8905682934e59e51), models/backbones/swin_v1.py (itself from microsoft/Swin-Transformer, MIT); timm helpers replaced by torch equivalents"

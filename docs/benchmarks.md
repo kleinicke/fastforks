@@ -596,6 +596,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | unik3d-vitl | 134 | 134 | 108 | 62.9 | 2.1x | 1.7x | 3307 / 3570 | 1219 / 1492 | 1166 / 1266 |
 | zoedepth-nk | 408 | 271 | 124 | 88.9 | 3.1x | 1.4x | 2040 / 2146 | 2037 / 2124 | 1771 / 1960 |
 
+### Depth, TUM RGB-D fr1_room, 1080x1920
+
+| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|
+| video-depth-anything-s | 11626 | 1434 | 1284 | 9.1x | 1.1x | 8263 / 11890 | 8201 / 8652 | 8204 / 8782 |
+
 ### Classification, synthetic
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
@@ -711,7 +717,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | fcn-r101-d8-ade20k | 94.2 | 47.0 | 40.7 | 16.6 | 2.8x | 2.4x | 1925 / 2102 | 417 / 492 | 294 / 478 |
 | hrnet-w48-fcn-ade20k | 48.1 | 54.8 | 26.9 | 11.9 | 4.1x | 2.3x | 1915 / 2010 | 424 / 490 | 274 / 430 |
 | mask2former-swinl-ade20k | 244 | 145 | 103 | 60.4 | 2.4x | 1.7x | 3572 / 3878 | 1164 / 1400 | 1164 / 1400 |
-| oneformer-swinl-ade20k | 307 | 205 | 139 | 100.0 | 2.1x | 1.4x | 7395 / 7792 | 2054 / 2476 | 2054 / 2476 |
+| oneformer-swinl-ade20k | 307 | 205 | 139 | 100 | 2.1x | 1.4x | 7395 / 7792 | 2054 / 2476 | 2054 / 2476 |
 | pspnet-r101-d8-ade20k | 92.5 | 47.2 | 48.8 | 25.0 | 1.9x | 2.0x | 1922 / 2222 | 417 / 492 | 341 / 494 |
 | sapiens-seg-0.3b-goliath | 466 | 173 | 132 | 92.6 | 1.9x | 1.4x | 2520 / 2724 | 1643 / 1762 | 1643 / 1762 |
 | sapiens-seg-1b-goliath | 1189 | 354 | 275 | 185 | 1.9x | 1.5x | 5721 / 5906 | 3259 / 3384 | 3259 / 3382 |
@@ -721,6 +727,16 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | segnext-mscan-l-ade20k | 69.7 | 52.2 | 43.1 | 20.6 | 2.5x | 2.1x | 1849 / 1894 | 417 / 458 | 314 / 428 |
 | segnext-mscan-s-ade20k | 28.6 | 23.3 | 18.5 | 8.04 | 2.9x | 2.3x | 1649 / 1700 | 350 / 402 | 202 / 290 |
 | segnext-mscan-t-ade20k | 21.1 | 23.8 | 15.9 | 8.99 | 2.3x | 1.8x | 1593 / 1648 | 332 / 378 | 147 / 206 |
+
+### Matting, synthetic, 1080x1920
+
+| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|
+| ben2 | 201 | 184 | 173 | 1.2x | 1.1x | 2466 / 2772 | 1681 / 1976 | 1946 / 2238 |
+| birefnet | 234 | 225 | 214 | 1.1x | 1.0x | 1666 / 1930 | 1660 / 1888 | 1674 / 1916 |
+| birefnet-lite | 75.1 | 67.3 | 59.3 | 1.3x | 1.1x | 913 / 974 | 810 / 932 | 754 / 960 |
+| vitmatte-b | 257 | 182 | 147 | 1.7x | 1.2x | 5070 / 5128 | 1548 / 1692 | 1484 / 1710 |
+| vitmatte-s | 140 | 102 | 83.8 | 1.7x | 1.2x | 2536 / 2582 | 1401 / 1524 | 1337 / 1444 |
 
 ### Promptable segmentation, synthetic, 1024x1024
 
@@ -871,10 +887,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | dinov3-convnext-large | 10.5 | 9.59 | 5.45 | 3.59 | 2.7x | 1.5x | 1163 / 1252 | 419 / 430 | 441 / 494 |
 | dinov3-convnext-small | 5.97 | 8.09 | 5.42 | 1.99 | 3.0x | 2.7x | 328 / 348 | 134 / 150 | 127 / 152 |
 | dinov3-convnext-tiny | 2.96 | 4.47 | 3.04 | 1.18 | 2.5x | 2.6x | 198 / 206 | 93 / 108 | 86 / 112 |
-| dinov3-vitb16 | 6.95 | 9.33 | 4.86 | 1.40 | 5.0x | 3.5x | 527 / 550 | 201 / 206 | 201 / 252 |
-| dinov3-vith16plus | 48.0 | 25.9 | 13.3 | 9.30 | 2.8x | 1.4x | 4849 / 4876 | 1645 / 1668 | 1644 / 1694 |
-| dinov3-vitl16 | 19.2 | 17.7 | 9.13 | 3.28 | 5.4x | 2.8x | 1772 / 1812 | 617 / 646 | 617 / 674 |
-| dinov3-vits16 | 6.47 | 9.16 | 4.67 | 0.903 | 7.2x | 5.2x | 158 / 166 | 77 / 80 | 77 / 106 |
+| dinov3-vitb16 | 6.95 | 9.33 | 3.68 | 1.26 | 5.5x | 2.9x | 527 / 550 | 200 / 206 | 168 / 210 |
+| dinov3-vith16plus | 48.0 | 25.9 | 12.5 | 8.45 | 3.1x | 1.5x | 4849 / 4876 | 1646 / 1668 | 1645 / 1672 |
+| dinov3-vitl16 | 19.2 | 17.7 | 6.69 | 3.03 | 5.8x | 2.2x | 1772 / 1812 | 616 / 626 | 616 / 652 |
+| dinov3-vits16 | 6.47 | 9.16 | 3.54 | 0.792 | 8.2x | 4.5x | 158 / 166 | 76 / 78 | 44 / 62 |
 | pe-core-b16-224 | 7.14 | 9.35 | 4.97 | 1.47 | 4.9x | 3.4x | 584 / 620 | 218 / 266 | 285 / 348 |
 | pe-core-g14-448 | 97.7 | 52.4 | 25.4 | 17.0 | 3.1x | 1.5x | 10848 / 11330 | 3642 / 3670 | 5180 / 5256 |
 | pe-core-l14-336 | 23.3 | 17.7 | 9.09 | 4.96 | 3.6x | 1.8x | 1848 / 1888 | 650 / 668 | 889 / 932 |
@@ -962,6 +978,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | romav2 | 1412 | 741 | 546 | 406 | 1.8x | 1.3x | 9881 / 10124 | 1989 / 2596 | 1909 / 2580 |
 | xfeat | – | 8.89 | 8.35 | – | – | – | 128 / 174 | 186 / 214 | – |
 | xfeat-lighterglue | – | 23.6 | 22.5 | – | – | – | 448 / 478 | 444 / 476 | – |
+
+### Tracking, synthetic, 480x854
+
+| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|
+| tapnext | 909 | 529 | 382 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1313 / 1374 |
 
 ### Startup and first call
 
@@ -1070,6 +1092,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | moge-3-vitl | 10.60 | 1.02 | 1.66 | 2.92 | 0.56 | 0.30 |
 | unidepth-v2-vitl14 | 3.80 | 4.16 | 0.90† | 0.38 | 0.15 | 0.07 |
 | unik3d-vitl | 7.28 | 4.16 | 0.84† | 0.57 | 0.14 | 0.07 |
+| video-depth-anything-s | 0.26 (1080x1920) | 0.18 (1080x1920) | 0.12† (1080x1920) | 14.04 (1080x1920) | 1.46 (1080x1920) | 1.30 (1080x1920) |
 | zoedepth-nk | 8.35 | 1.92 | 0.33† | 1.53 | 0.28 | 0.12 |
 | alexnet.tv_in1k | 2.51 | 1.30 | 1.40 | 0.81 | 0.02 | 0.06 |
 | coatnet_0_rw_224.sw_in1k | 0.38 | 1.37 | – | 0.31 | 0.38 | – |
@@ -1187,6 +1210,11 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | segnext-mscan-l-ade20k | 0.57 | 0.57 (512x512) | 1.51 (512x512) | 0.06 | 0.41 (512x512) | 0.10 (512x512) |
 | segnext-mscan-s-ade20k | 0.23 | 0.15 (512x512) | 1.29 (512x512) | 0.32 | 0.72 (512x512) | 0.19 (512x512) |
 | segnext-mscan-t-ade20k | 0.19 | 0.13 (512x512) | 1.26 (512x512) | 0.34 | 0.65 (512x512) | 0.20 (512x512) |
+| ben2 | 2.29 | 0.30 | 1.40 | 0.93 | 0.66 | 0.42 |
+| birefnet | 3.60 | 0.75 | 1.61 | 0.39 | 0.56 | 0.44 |
+| birefnet-lite | 8.04 | 0.26 | 1.03 | 1.10 | 0.63 | 0.32 |
+| vitmatte-b | 0.21 | 0.52 | 1.32 | 0.56 | 0.35 | 0.25 |
+| vitmatte-s | 2.85 | 0.16 | 1.30 | 0.72 | 0.41 | 0.20 |
 | efficientvit-sam-l0 | 0.35 | 0.83 | 1.63 | 0.82 | 0.72 | 0.25 |
 | efficientvit-sam-l1 | 0.31 | 0.76 | 1.64 | 0.03 | 0.69 | 0.25 |
 | efficientvit-sam-l2 | 0.39 | 0.93 | 1.78 | 0.04 | 0.66 | 0.25 |
@@ -1384,6 +1412,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | romav2 | 5.45 | 0.85 | 1.50 | 2.09 | 0.91 | 0.81 |
 | xfeat | 1.51 | 0.04 | – | 0.63 | 0.56 | – |
 | xfeat-lighterglue | 1.46 | 0.07 | – | 0.69 | 0.64 | – |
+| tapnext | 16.92 | 2.72 | 2.63 | 2.17 | 0.69 | 0.56 |
 
 † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 <!-- tables:end -->
@@ -1477,6 +1506,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | moge-2-vits-normal | 994x1482 | 64.2 ms | 43.9 ms | 24.5 ms | 29.7 ms | 124 s | 131 s | 1066 / 1336 | 836 / 992 | 884 / 1008 | 768 / 852 |
 | unidepth-v2-vitl14 | 994x1482 | 99.8 ms | 96.4 ms | 64.3 ms | 66.4 ms | 31.1 s | 119 s | 1208 / 1472 | 1304 / 1392 | 1211 / 1472 | 1815 / 1842 |
 | unik3d-vitl | 994x1482 | 108 ms | 94.4 ms | 58.0 ms | 62.9 ms | 32.8 s | 105 s | 1219 / 1492 | 1258 / 1312 | 1166 / 1266 | 1609 / 1678 |
+| video-depth-anything-s | 1080x1920 | 1434 ms | 1314 ms | 524 ms | 1284 ms | 82.7 s | 181 s | 8201 / 8652 | 7762 / 8530 | 8204 / 8782 | 2753 / 3148 |
 | zoedepth-nk | 994x1482 | 124 ms | 71.7 ms | 73.3 ms | 88.9 ms | 93.8 s | 138 s | 2037 / 2124 | 1813 / 1880 | 1771 / 1960 | 2246 / 2306 |
 | alexnet.tv_in1k | 224x224 | 0.970 ms | 0.824 ms | 0.401 ms | 0.604 ms | 4.33 s | 13.4 s | 151 / 224 | 183 / 204 | 184 / 228 | 278 / 312 |
 | coatnet_0_rw_224.sw_in1k | 224x224 | 6.49 ms | 3.59 ms | 0.849 ms | – | 12.1 s | 38.2 s | 102 / 124 | 120 / 142 | – | 158 / 170 |
@@ -1584,7 +1614,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | fcn-r101-d8-ade20k | 1024x2048 | 40.7 ms | 35.6 ms | 27.4 ms | 16.6 ms | 8.53 s | 22.2 s | 417 / 492 | 414 / 472 | 294 / 478 | 1656 / 1734 |
 | hrnet-w48-fcn-ade20k | 1024x2048 | 26.9 ms | 23.9 ms | 20.9 ms | 11.9 ms | 35.7 s | 29.6 s | 424 / 490 | 421 / 448 | 274 / 430 | 1662 / 1712 |
 | mask2former-swinl-ade20k | 1024x2048 | 103 ms | fails: Inductor: Triton kernel does not compile (torch bug) | 55.6 ms | 60.4 ms | – | 129 s | 1164 / 1400 | – | 1164 / 1400 | 3051 / 3090 |
-| oneformer-swinl-ade20k | 1024x2048 | 139 ms | fails: Inductor: Triton kernel does not compile (torch bug) | 83.3 ms | 100.0 ms | – | 140 s | 2054 / 2476 | – | 2054 / 2476 | 4524 / 4576 |
+| oneformer-swinl-ade20k | 1024x2048 | 139 ms | fails: Inductor: Triton kernel does not compile (torch bug) | 83.3 ms | 100 ms | – | 140 s | 2054 / 2476 | – | 2054 / 2476 | 4524 / 4576 |
 | pspnet-r101-d8-ade20k | 1024x2048 | 48.8 ms | 41.3 ms | 29.8 ms | 25.0 ms | 11.0 s | 44.1 s | 417 / 492 | 414 / 472 | 341 / 494 | 1859 / 1898 |
 | sapiens-seg-0.3b-goliath | 1024x2048 | 132 ms | 118 ms | 156 ms | 92.6 ms | 12.5 s | 52.9 s | 1643 / 1762 | 1373 / 1462 | 1643 / 1762 | 2465 / 2526 |
 | sapiens-seg-1b-goliath | 1024x2048 | 275 ms | 263 ms | 244 ms | 185 ms | 18.8 s | 84.9 s | 3259 / 3384 | 2986 / 3084 | 3259 / 3382 | 5694 / 5742 |
@@ -1594,6 +1624,11 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | segnext-mscan-l-ade20k | 1024x2048 | 43.1 ms | 63.6 ms | 32.3 ms | 20.6 ms | 34.9 s | 82.2 s | 417 / 458 | 532 / 578 | 314 / 428 | 1634 / 1694 |
 | segnext-mscan-s-ade20k | 1024x2048 | 18.5 ms | 24.9 ms | 18.0 ms | 8.04 ms | 17.2 s | 56.6 s | 350 / 402 | 465 / 482 | 202 / 290 | 1493 / 1544 |
 | segnext-mscan-t-ade20k | 1024x2048 | 15.9 ms | 16.6 ms | 16.0 ms | 8.99 ms | 19.1 s | 59.6 s | 332 / 378 | 446 / 480 | 147 / 206 | 1476 / 1498 |
+| ben2 | 1080x1920 | 184 ms | 103 ms | 58.2 ms | 173 ms | 70.8 s | 140 s | 1681 / 1976 | 813 / 916 | 1946 / 2238 | 1280 / 1326 |
+| birefnet | 1080x1920 | 225 ms | 138 ms | 87.8 ms | 214 ms | 93.8 s | 201 s | 1660 / 1888 | 1874 / 1932 | 1674 / 1916 | 1753 / 1814 |
+| birefnet-lite | 1080x1920 | 67.3 ms | 50.2 ms | 49.0 ms | 59.3 ms | 75.1 s | 156 s | 810 / 932 | 1469 / 1552 | 754 / 960 | 874 / 934 |
+| vitmatte-b | 1080x1920 | 182 ms | 157 ms | 108 ms | 147 ms | 32.6 s | 48.8 s | 1548 / 1692 | 1166 / 1472 | 1484 / 1710 | 1233 / 1262 |
+| vitmatte-s | 1080x1920 | 102 ms | 81.9 ms | 54.6 ms | 83.8 ms | 31.5 s | 51.3 s | 1401 / 1524 | 1025 / 1284 | 1337 / 1444 | 876 / 920 |
 | efficientvit-sam-l0 | 1024x1024 | 12.7 ms | 6.44 ms | 5.56 ms, fp32 engine (image encoder only) | 4.45 ms | 25.2 s | 19.9 s | 171 / 210 | 188 / 228 | 176 / 256 | 404 / 428 |
 | efficientvit-sam-l1 | 1024x1024 | 14.4 ms | 11.3 ms | 7.30 ms, fp32 engine (image encoder only) | 5.79 ms | 24.8 s | 22.0 s | 195 / 234 | 212 / 252 | 203 / 284 | 517 / 578 |
 | efficientvit-sam-l2 | 1024x1024 | 17.8 ms | 10.8 ms | 9.65 ms, fp32 engine (image encoder only) | 6.83 ms | 26.1 s | 24.1 s | 221 / 260 | 238 / 278 | 232 / 312 | 633 / 690 |
@@ -1709,7 +1744,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | dinov2-vits14 | 224x224 | 2.95 ms | 2.02 ms | 0.601 ms | 0.848 ms | 9.99 s | 22.9 s | 79 / 98 | 111 / 140 | 112 / 148 | 141 / 160 |
 | dinov3-convnext-large | 224x224 | 5.45 ms | 4.30 ms | 2.50 ms | 3.59 ms | 11.3 s | 30.0 s | 419 / 430 | 459 / 470 | 441 / 494 | 804 / 824 |
 | dinov3-convnext-tiny | 224x224 | 3.04 ms | 1.96 ms | 0.681 ms | 1.18 ms | 7.76 s | 22.8 s | 93 / 108 | 123 / 148 | 86 / 112 | 126 / 158 |
-| dinov3-vits16 | 224x224 | 4.67 ms | 2.18 ms | 0.564 ms | 0.903 ms | 8.81 s | 25.0 s | 77 / 80 | 109 / 138 | 77 / 106 | 107 / 120 |
+| dinov3-vits16 | 224x224 | 3.54 ms | 2.18 ms | 0.564 ms | 0.792 ms | 8.81 s | 25.0 s | 76 / 78 | 109 / 138 | 44 / 62 | 107 / 120 |
 | pe-core-b16-224 | 224x224 | 4.97 ms | 2.50 ms | 1.17 ms | 1.47 ms | 8.71 s | 25.8 s | 218 / 266 | 251 / 286 | 285 / 348 | 409 / 460 |
 | pe-core-g14-448 | 224x224 | 25.4 ms | 24.5 ms | 15.0 ms | 17.0 ms | 29.9 s | 106 s | 3642 / 3670 | 3667 / 3690 | 5180 / 5256 | 7189 / 7230 |
 | pe-core-l14-336 | 224x224 | 9.09 ms | 6.53 ms | 4.34 ms | 4.96 ms | 13.9 s | 50.1 s | 650 / 668 | 683 / 706 | 889 / 932 | 1260 / 1286 |
@@ -1773,6 +1808,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 406 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2580 | 6694 / 6740 |
 | xfeat | 768x1024 | 8.35 ms | 5.65 ms | fails: ONNX export: conversion failed | – | 30.8 s | – | 186 / 214 | 186 / 212 | – | – |
 | xfeat-lighterglue | 768x1024 | 22.5 ms | 16.2 ms | fails: ONNX export: torch.export failed | – | 39.7 s | – | 444 / 476 | 262 / 278 | – | – |
+| tapnext | 480x854 | 529 ms | 398 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 382 ms | 40.5 s | – | 1220 / 1294 | 1164 / 1272 | 1313 / 1374 | – |
 <!-- compile:end -->
 
 ## Original code

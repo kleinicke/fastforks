@@ -21,6 +21,7 @@ from fastforks.detection import DetectionResult
 from fastforks.features import FeaturesResult
 from fastforks.flow import FlowResult
 from fastforks.matching import MatchingResult, SparseMatchingResult
+from fastforks.matting import MattingResult
 from fastforks.multiview import MultiViewResult
 from fastforks.pose import PoseResult
 from fastforks.promptable_segmentation._api import ConceptSegmentationResult, PromptableSegmentationResult
@@ -28,6 +29,7 @@ from fastforks.segmentation import SegmentationResult
 from fastforks.stereo import StereoResult
 from fastforks.stereo.calibrated import PairViews, StereoPairResult, StereoView
 from fastforks.stereo.pipeline import PairResult
+from fastforks.tracking import TrackingResult
 
 RESULTS = {
     "stereo": (StereoResult, StereoView, PairViews, StereoPairResult, PairResult),
@@ -37,10 +39,12 @@ RESULTS = {
     "pose": (PoseResult,),
     "flow": (FlowResult,),
     "matching": (MatchingResult, SparseMatchingResult),
+    "matting": (MattingResult,),
     "features": (FeaturesResult,),
     "classification": (ClassificationResult,),
     "promptable_segmentation": (PromptableSegmentationResult, ConceptSegmentationResult),
     "segmentation": (SegmentationResult,),
+    "tracking": (TrackingResult,),
 }
 
 

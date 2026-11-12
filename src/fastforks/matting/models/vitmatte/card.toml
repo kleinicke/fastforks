@@ -1,0 +1,46 @@
+schema = 2
+name = "ViTMatte"
+summary = "ViTMatte (Yao et al., HUST, Information Fusion 2024): trimap-based natural image matting. A plain ViT (ViTDet: windowed attention with relative positions plus four global blocks with convolutional residual blocks) sees the image and its trimap as one 4-channel input; a light convolutional detail-capture decoder fuses the ViT features with a full-resolution conv stream into the alpha. Needs a trimap (0 background, 128 unknown, 255 foreground)."
+tier = "experimental"
+outputs = ["alpha"]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/hustvl/ViTMatte"
+commit = "8cd7ef068380977c3962c4cb733cb1fe7f2241a5"  # the authors' detectron2 code (MIT); net/vitmatte.py = the transformers port (modeling_vitdet.py + modeling_vitmatte.py, v5.19.0), which the HF weights are converted for
+
+[licence]
+code = "Apache-2.0"  # net/vitmatte.py from transformers (LICENSE); the authors' repo is MIT
+weights = "Apache-2.0"  # the HF model cards: "license: apache-2.0"
+files = ["LICENSE"]
+training_data = ["composition-1k"]
+training_note = 'The HF cards: "ViTMatte model trained on Composition-1k". Adobe Deep Image Matting (Composition-1k) is released for non-commercial research on request; only the weights licence (Apache-2.0) counts for the commercial flag.'
+evidence = "https://huggingface.co/hustvl/vitmatte-small-composition-1k/blob/6a58ad7646403c1df626fbd746900aec7361ea1d/README.md ; https://huggingface.co/hustvl/vitmatte-base-composition-1k/blob/bf486d01a7d9e3dbcc8400f7942835caf0eaf76e/README.md ; https://github.com/hustvl/ViTMatte/blob/8cd7ef068380977c3962c4cb733cb1fe7f2241a5/LICENSE"
+
+[io]
+input = "mean_std"  # the trimap goes in unnormalised (0..1) as the 4th channel; zero padding bottom-right to a multiple of 32, the alpha is cropped back
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+
+[params]
+hidden_size = 384
+num_heads = 6
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["dpt_fused", "cudnn_hacc", "igev", "cutlass_conv"]
+
+[[variants]]
+id = "vitmatte-s"  # ViTMatte-S, Composition-1k (hustvl/vitmatte-small-composition-1k)
+revision = 1
+params = {}
+weights = [{ name = "vitmatte-s-composition-1k.safetensors", size = 103294572, sha256 = "bda9289db1bb6762d978b42d1c62ae3f34daf7497171a347a1d09657efd788cb", url = "https://huggingface.co/hustvl/vitmatte-small-composition-1k/resolve/6a58ad7646403c1df626fbd746900aec7361ea1d/model.safetensors" }]
+
+[[variants]]
+id = "vitmatte-b"  # ViTMatte-B, Composition-1k (hustvl/vitmatte-base-composition-1k)
+revision = 1
+params = { hidden_size = 768, num_heads = 12 }
+weights = [{ name = "vitmatte-b-composition-1k.bin", size = 386836309, sha256 = "b2521bcc4b719fb24611c39605b6642162fd7502e69b3cc846506ca921757b41", url = "https://huggingface.co/hustvl/vitmatte-base-composition-1k/resolve/bf486d01a7d9e3dbcc8400f7942835caf0eaf76e/pytorch_model.bin" }]

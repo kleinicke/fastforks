@@ -1,0 +1,44 @@
+schema = 2
+name = "TAPNext"
+summary = "TAPNext (Zholus, Doersch, Yang, Koppula et al., Google DeepMind 2025): tracking any point as next-token prediction. A TRecViT-B (12 blocks, each a gated linear recurrence over time per token and a ViT layer over the tokens of a frame) reads 8 x 8 patches of 256 x 256 frames plus one token per query point and predicts, frame by frame, the point's position (512-bin classification, windowed soft-argmax) and whether it is visible. Online: each frame only sees the past."
+tier = "experimental"
+outputs = ["tracks", "visibility"]
+uses = []  # fastforks.shared modules this family imports
+limitations = [
+  "Online, causal: a point is tracked from its query frame on; in frames before it the model has no information (the tracks there are its guess, with a low visibility). Query on the first frame, or run the reversed video for the backward part.",
+  "Frames are resized to 256 x 256 (the training size), whatever their size and aspect ratio.",
+  "One video per call; all queries of a call share the video.",
+]
+
+[upstream]
+repo = "https://github.com/google-deepmind/tapnet"
+commit = "ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b"  # net/tapnext.py = tapnet/tapnext/tapnext_torch.py (+ the JAX checkpoint mapping of tapnext_torch_utils.py), time-major, einops removed
+
+[licence]
+code = "Apache-2.0"  # LICENSE; README "License and Disclaimer"
+weights = "Apache-2.0"  # README: "All pre-trained model checkpoints released in this repository and linked from this README (including ... TAPNext, TAPNext++ ...) are also licensed under Apache 2.0."
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Upstream: TAPNext is trained on synthetic Kubric MOVi-F sequences and fine-tuned with BootsTAP self-training on unlabelled real videos (not released); TAPNext++ is further fine-tuned on PointOdyssey and Kubric-1024 (1024-frame synthetic sequences). None has a dataset entry here yet."
+evidence = "https://github.com/google-deepmind/tapnet/blob/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/README.md#license-and-disclaimer"
+
+[io]
+input = "0-1"  # the runner resizes the frames to 256 x 256 (bilinear, antialiased) and scales them to [-1, 1] itself
+min_size = 16
+
+[modes.portable]
+cuda_dtype = "float16"  # as upstream's evaluation: fp16 autocast GEMMs; residual stream, norms, temporal conv and RG-LRU scan float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fvm_conv"]  # GEMMs with fused bias / GELU-tanh gate / residual epilogues, fp16 accumulation
+
+[[variants]]
+id = "tapnext"  # upstream BootsTAPNext-B (bootstapnext_ckpt.npz, JAX); TAP-Vid DAVIS first AJ 65.25 (upstream README)
+revision = 1
+weights = [{ name = "bootstapnext_ckpt.npz", size = 776980182, sha256 = "19de6b1495555c2afb4b56e823a3f3c2fd7236eea05c53d98feab3cccd1b4a28", url = "https://storage.googleapis.com/dm-tapnet/tapnext/bootstapnext_ckpt.npz" }]
+
+[[variants]]
+id = "tapnext-pp"  # upstream TAPNext++ 256 (tapnextpp_ckpt.pt, a Lightning checkpoint with optimizer state); TAP-Vid DAVIS first AJ 65.6 (upstream README); long videos, re-detection after occlusion
+revision = 1
+weights = [{ name = "tapnextpp_ckpt.pt", size = 2532282370, sha256 = "cb96a43444ccb4fbdb25d800b88c7ba196179a526e78f01b021a16b1c1eff6da", url = "https://storage.googleapis.com/dm-tapnet/tapnextpp/tapnextpp_ckpt.pt" }]

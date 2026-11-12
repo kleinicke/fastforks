@@ -12,46 +12,46 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`deim-l-coco`](#dfine) | yes | 8.692, 4.2x | 220, 0.68x |
-| [`deim-m-coco`](#dfine) | yes | 6.016, 5.2x | 192, 0.77x |
-| [`deim-n-coco`](#dfine) | yes | 2.729, 9.0x | 122, 0.98x |
-| [`deim-s-coco`](#dfine) | yes | 4.031, 6.6x | 172, 0.96x |
-| [`deim-x-coco`](#dfine) | yes | 14.111, 2.9x | 304, 0.61x |
-| [`detr-r101-coco`](#detr) | yes | 13.69, 5.8x | 328, 0.52x |
+| [`deim-l-coco`](#dfine) | yes | 8.69, 4.2x | 220, 0.68x |
+| [`deim-m-coco`](#dfine) | yes | 6.02, 5.2x | 192, 0.77x |
+| [`deim-n-coco`](#dfine) | yes | 2.73, 9.0x | 122, 0.98x |
+| [`deim-s-coco`](#dfine) | yes | 4.03, 6.6x | 172, 0.96x |
+| [`deim-x-coco`](#dfine) | yes | 14.1, 2.9x | 304, 0.61x |
+| [`detr-r101-coco`](#detr) | yes | 13.7, 5.8x | 328, 0.52x |
 | [`detr-r50-coco`](#detr) | yes | 9.93, 5.6x | 272, 0.5x |
-| [`dfine-l-coco`](#dfine) | yes | 8.695, 4.3x | 300, 0.91x |
-| [`dfine-m-coco`](#dfine) | yes | 5.966, 5.2x | 252, 0.98x |
-| [`dfine-n-coco`](#dfine) | yes | 2.723, 8.9x | 202, 1.7x |
-| [`dfine-s-coco`](#dfine) | yes | 4.037, 6.4x | 212, 1.2x |
-| [`dfine-x-coco`](#dfine) | yes | 14.086, 3.2x | 364, 0.75x |
-| [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.47, 2.1x | 450, 0.64x |
+| [`dfine-l-coco`](#dfine) | yes | 8.70, 4.3x | 300, 0.91x |
+| [`dfine-m-coco`](#dfine) | yes | 5.97, 5.2x | 252, 0.98x |
+| [`dfine-n-coco`](#dfine) | yes | 2.72, 8.9x | 202, 1.7x |
+| [`dfine-s-coco`](#dfine) | yes | 4.04, 6.4x | 212, 1.2x |
+| [`dfine-x-coco`](#dfine) | yes | 14.1, 3.2x | 364, 0.75x |
+| [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.5, 2.1x | 450, 0.64x |
 | [`grounding-dino-base`](#grounding_dino) | yes | – | – |
 | [`grounding-dino-tiny`](#grounding_dino) | yes | – | – |
-| [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 20.98, 2.1x | 400, 0.62x |
-| [`owlv2-b16`](#owlv2) | yes | 23.79, 3.9x | 732, 0.76x |
-| [`owlv2-l14`](#owlv2) | yes | 109.819, 1.9x | 1726, 0.66x |
+| [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 21.0, 2.1x | 400, 0.62x |
+| [`owlv2-b16`](#owlv2) | yes | 23.8, 3.9x | 732, 0.76x |
+| [`owlv2-l14`](#owlv2) | yes | 110, 1.9x | 1726, 0.66x |
 | [`rf-detr-l-coco`](#rfdetr) | yes | 5.84, 2.0x | 206, 0.86x |
-| [`rf-detr-m-coco`](#rfdetr) | yes | 4.362, 2.7x | 180, 1.0x |
-| [`rf-detr-n-coco`](#rfdetr) | yes | 2.818, 3.7x | 142, 0.89x |
-| [`rf-detr-s-coco`](#rfdetr) | yes | 3.661, 3.0x | 170, 0.71x |
-| [`rf-detr-seg-2xl-coco`](#rfdetr) | yes | 20.31, 1.3x | 332, 0.94x |
-| [`rf-detr-seg-l-coco`](#rfdetr) | yes | 8.275, 1.8x | 208, 0.42x |
-| [`rf-detr-seg-m-coco`](#rfdetr) | yes | 6.459, 2.2x | 204, 0.48x |
-| [`rf-detr-seg-n-coco`](#rfdetr) | yes | 4.176, 3.1x | 170, 0.57x |
-| [`rf-detr-seg-s-coco`](#rfdetr) | yes | 5.0, 2.6x | 176, 0.46x |
-| [`rf-detr-seg-xl-coco`](#rfdetr) | yes | 13.24, 1.4x | 268, 1.1x |
+| [`rf-detr-m-coco`](#rfdetr) | yes | 4.36, 2.7x | 180, 1.0x |
+| [`rf-detr-n-coco`](#rfdetr) | yes | 2.82, 3.7x | 142, 0.89x |
+| [`rf-detr-s-coco`](#rfdetr) | yes | 3.66, 3.0x | 170, 0.71x |
+| [`rf-detr-seg-2xl-coco`](#rfdetr) | yes | 20.3, 1.3x | 332, 0.94x |
+| [`rf-detr-seg-l-coco`](#rfdetr) | yes | 8.28, 1.8x | 208, 0.42x |
+| [`rf-detr-seg-m-coco`](#rfdetr) | yes | 6.46, 2.2x | 204, 0.48x |
+| [`rf-detr-seg-n-coco`](#rfdetr) | yes | 4.18, 3.1x | 170, 0.57x |
+| [`rf-detr-seg-s-coco`](#rfdetr) | yes | 5.00, 2.6x | 176, 0.46x |
+| [`rf-detr-seg-xl-coco`](#rfdetr) | yes | 13.2, 1.4x | 268, 1.1x |
 | [`rtdetrv2-l-coco`](#rtdetrv2) | yes | 6.61, 4.6x | 306, 0.74x |
 | [`rtdetrv2-m-coco`](#rtdetrv2) | yes | 5.27, 3.2x | 274, 1.1x |
 | [`rtdetrv2-ms-coco`](#rtdetrv2) | yes | 5.46, 4.1x | 306, 0.85x |
 | [`rtdetrv2-s-coco`](#rtdetrv2) | yes | 4.19, 3.4x | 250, 1.1x |
 | [`rtdetrv2-x-coco`](#rtdetrv2) | yes | 9.24, 3.9x | 384, 0.64x |
-| [`rtmdet-l-coco`](#rtmdet) | yes | 5.742, 3.4x | 284, 0.9x |
-| [`rtmdet-m-coco`](#rtmdet) | yes | 4.487, 3.3x | 200, 1.0x |
-| [`rtmdet-m-person`](#rtmdet) | yes | 4.115, 3.4x | 202, 1.0x |
-| [`rtmdet-nano-person`](#rtmdet) | yes | 2.105, 6.1x | 92, 3.1x |
-| [`rtmdet-s-coco`](#rtmdet) | yes | 2.976, 4.1x | 136, 1.5x |
-| [`rtmdet-tiny-coco`](#rtmdet) | yes | 2.694, 4.0x | 124, 1.9x |
-| [`rtmdet-x-coco`](#rtmdet) | yes | 8.546, 2.8x | 378, 0.73x |
+| [`rtmdet-l-coco`](#rtmdet) | yes | 5.74, 3.4x | 284, 0.9x |
+| [`rtmdet-m-coco`](#rtmdet) | yes | 4.49, 3.3x | 200, 1.0x |
+| [`rtmdet-m-person`](#rtmdet) | yes | 4.12, 3.4x | 202, 1.0x |
+| [`rtmdet-nano-person`](#rtmdet) | yes | 2.10, 6.1x | 92, 3.1x |
+| [`rtmdet-s-coco`](#rtmdet) | yes | 2.98, 4.1x | 136, 1.5x |
+| [`rtmdet-tiny-coco`](#rtmdet) | yes | 2.69, 4.0x | 124, 1.9x |
+| [`rtmdet-x-coco`](#rtmdet) | yes | 8.55, 2.8x | 378, 0.73x |
 
 <a id="dfine"></a>
 
@@ -330,9 +330,10 @@ pycocotools COCOeval of the top 100 detections per image. Original = the origina
 | variant | dataset | original fp32 | original fp16 | portable | note |
 |---|---|---|---|---|---|
 | `grounding-dino-tiny` | COCO val2017, every 10th image, box mAP | 51.08 | 51.16 | 51.14 |  |
+| `grounding-dino-tiny` | COCO val2017, all 5000 images, box mAP | 48.25 |  | 48.25 |  |
 | `grounding-dino-base` | COCO val2017, every 10th image, box mAP | 55.67 | 55.73 | 55.72 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a981ff86, 2026-11-12.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / a981ff86, 2026-11-12.
 
 ### Parity
 

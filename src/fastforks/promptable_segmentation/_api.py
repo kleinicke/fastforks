@@ -17,11 +17,11 @@ from fastforks._core.errors import InputError, ModelNotFoundError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
 from fastforks._core.instances import Instances
 from fastforks._core.model import Backend, Dtype, ModeArg
-from fastforks._core.outputs import MapOutputs
+from fastforks._core.outputs import MapOutputs, NumpyOutputs
 
 if TYPE_CHECKING:
     import os
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
     from fastforks.promptable_segmentation._runner import Runner
 
@@ -34,6 +34,7 @@ __all__ = [
     "PromptLike",
     "PromptableSegmentationModel",
     "PromptableSegmentationResult",
+    "VideoSegmentationResult",
     "list_models",
     "load",
     "model_card",
@@ -151,6 +152,30 @@ class PromptableSegmentationResult(MapOutputs):
     options: Mapping[str, Any] = field(default_factory=dict)
 
     _save_fields = ("masks",)
+
+
+@dataclass(frozen=True)
+class VideoSegmentationResult(NumpyOutputs):
+    """Masks of the objects prompted on frame 0, for every frame of a video (`track`), on the model's device.
+
+    `P` (objects) is present if the prompts had it (`input_points [P, N, 2]`, `input_boxes [P, 4]`,
+    `input_masks [P, H, W]`).
+
+    Attributes:
+        masks: `[T, P, H, W]` bool masks at the video size (the original `propagate_in_video` masks `> 0`).
+        pred_masks: `[T, P, h, w]` float32 low-resolution mask logits (after the original small-hole filling).
+        object_score_logits: `[T, P]` float32 object presence logits (`> 0`: the object is visible).
+        model: Versioned model id.
+        backend: The backend that produced the result.
+        options: Load options that differ from the validated defaults.
+    """
+
+    masks: torch.Tensor
+    pred_masks: torch.Tensor
+    object_score_logits: torch.Tensor
+    model: str
+    backend: Backend
+    options: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -329,6 +354,96 @@ class PromptableSegmentationModel(core.Model):
         return PromptableSegmentationResult(
             maps["masks"], maps["iou_scores"], maps["pred_masks"], self.variant.ref, self.backend, self.options
         )
+
+    def track(  # noqa: C901 - input checks per prompt kind
+        self,
+        video: Sequence[ImageLike] | np.ndarray | torch.Tensor,
+        *,
+        input_points: PromptLike | None = None,
+        input_labels: PromptLike | None = None,
+        input_boxes: PromptLike | None = None,
+        input_masks: PromptLike | None = None,
+    ) -> VideoSegmentationResult:
+        """Track objects prompted on the first frame through a video (models with `video`, SAM 2).
+
+        The original `SAM2VideoPredictor`: the prompts go to frame 0 (`add_new_points_or_box` / `add_new_mask`,
+        one object per prompt), then `propagate_in_video` forward. Frames are encoded one at a time.
+
+        Args:
+            video: The frames in order: a sequence of images (paths, PIL, numpy HWC, torch CHW; one size), or a
+                `[T, H, W, 3]` numpy / `[T, 3, H, W]` torch batch.
+            input_points: `[P, N, 2]` (or `[N, 2]`) point `(x, y)` in pixels of frame 0.
+            input_labels: `[P, N]` (or `[N]`) point labels: 1 foreground, 0 background, -1 padding.
+            input_boxes: `[P, 4]` (or `[4]`) box `(x0, y0, x1, y1)` in pixels of frame 0.
+            input_masks: `[P, H, W]` (or `[H, W]`) binary masks of frame 0 (nonzero = object), instead of points /
+                boxes.
+
+        Returns:
+            The masks per frame and object; `P` is dropped if no prompt had it.
+
+        Raises:
+            InputError: The model does not track video, an empty or mixed-size video, or missing / inconsistent
+                prompts.
+        """
+        if not self._runner.video:
+            msg = f"{self.variant.ref} does not track video"
+            raise InputError(msg)
+        if isinstance(video, str | bytes) or not hasattr(video, "__len__") or not hasattr(video, "__getitem__"):
+            msg = f"video must be a sequence of frames or a [T, ...] frame batch, got {type(video).__name__}"
+            raise InputError(msg)
+        n = len(video)
+        if n == 0:
+            msg = "video has no frames"
+            raise InputError(msg)
+        first = self._frame(video, 0)
+        size = (int(first.shape[-2]), int(first.shape[-1]))
+
+        def frame(t: int) -> torch.Tensor:
+            x = first if t == 0 else self._frame(video, t)
+            if tuple(x.shape[-2:]) != size:
+                msg = f"video frames must have one size: frame 0 is {size}, frame {t} is {tuple(x.shape[-2:])}"
+                raise InputError(msg)
+            return x
+
+        if input_masks is not None:
+            if any(v is not None for v in (input_points, input_labels, input_boxes)):
+                msg = "track takes input_masks or input_points / input_boxes, not both"
+                raise InputError(msg)
+            m = _numeric("input_masks", input_masks, torch.float32)
+            batched = m.ndim == 3  # noqa: PLR2004 - [P, H, W]
+            if m.ndim not in {2, 3} or tuple(m.shape[-2:]) != size:
+                msg = f"input_masks must be [P, H, W] (or [H, W]) at the frame size {size}, got {tuple(m.shape)}"
+                raise InputError(msg)
+            prompts = {"input_masks": (m if batched else m[None]).ne(0).float().to(self.device)}
+        else:
+            given = {"input_points": input_points, "input_labels": input_labels, "input_boxes": input_boxes}
+            prompts, batched = self._prompts({k: v for k, v in given.items() if v is not None})
+        if next(iter(prompts.values())).shape[0] == 0:
+            msg = "track needs at least one object prompt"
+            raise InputError(msg)
+        with self._session():
+            out = self._runner.track(
+                frame,
+                n,
+                size,
+                points=prompts.get("input_points"),
+                labels=prompts.get("input_labels"),
+                boxes=prompts.get("input_boxes"),
+                masks=prompts.get("input_masks"),
+            )
+        if not batched:
+            out = {k: v[:, 0] for k, v in out.items()}
+        return VideoSegmentationResult(
+            out["masks"], out["pred_masks"], out["object_score_logits"], self.variant.ref, self.backend, self.options
+        )
+
+    def _frame(self, video: Sequence[ImageLike] | np.ndarray | torch.Tensor, t: int) -> torch.Tensor:
+        """Frame `t` as a checked `[1, 3, H, W]` batch on the device."""
+        x = self._to_batch(cast("ImageLike", video[t]))
+        if x.shape[0] != 1:
+            msg = f"video frame {t} is a batch of {x.shape[0]} images; pass one image per frame"
+            raise InputError(msg)
+        return x
 
     def _concept(
         self,

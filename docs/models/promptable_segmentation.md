@@ -12,23 +12,23 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`efficientvit-sam-l0`](#efficientvit_sam) | yes | 4.446, 5.9x | 256, 1.1x |
+| [`efficientvit-sam-l0`](#efficientvit_sam) | yes | 4.45, 5.9x | 256, 1.1x |
 | [`efficientvit-sam-l1`](#efficientvit_sam) | yes | 5.79, 5.2x | 284, 1.0x |
-| [`efficientvit-sam-l2`](#efficientvit_sam) | yes | 6.829, 5.0x | 312, 0.91x |
-| [`efficientvit-sam-xl0`](#efficientvit_sam) | yes | 9.747, 2.9x | 492, 0.73x |
-| [`efficientvit-sam-xl1`](#efficientvit_sam) | yes | 15.275, 2.7x | 728, 0.71x |
-| [`mobile-sam`](#mobile_sam) | yes | 6.859, 3.4x | 296, 1.0x |
-| [`sam-hq-vit-b`](#sam_hq) | yes | 36.808, 2.8x | 564, 0.32x |
-| [`sam-hq-vit-h`](#sam_hq) | yes | 143.527, 2.2x | 1708, 0.4x |
-| [`sam-hq-vit-l`](#sam_hq) | yes | 81.377, 2.5x | 1046, 0.35x |
-| [`sam-vit-b`](#sam) | yes | 36.95, 2.7x | 420, 0.23x |
-| [`sam-vit-h`](#sam) | yes | 143.13, 2.1x | 1524, 0.28x |
-| [`sam-vit-l`](#sam) | yes | 81.53, 2.4x | 862, 0.25x |
-| [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.09, 1.9x | 524, 0.6x |
-| [`sam2.1-hiera-large`](#sam2) | yes | 48.81, 1.8x | 828, 0.55x |
-| [`sam2.1-hiera-small`](#sam2) | yes | 15.56, 2.7x | 386, 0.58x |
-| [`sam2.1-hiera-tiny`](#sam2) | yes | 13.91, 2.7x | 362, 0.57x |
-| [`sam3`](#sam3) | yes | 116.47, 2.4x | 2264, 0.58x |
+| [`efficientvit-sam-l2`](#efficientvit_sam) | yes | 6.83, 5.0x | 312, 0.91x |
+| [`efficientvit-sam-xl0`](#efficientvit_sam) | yes | 9.75, 2.9x | 492, 0.73x |
+| [`efficientvit-sam-xl1`](#efficientvit_sam) | yes | 15.3, 2.7x | 728, 0.71x |
+| [`mobile-sam`](#mobile_sam) | yes | 6.86, 3.4x | 296, 1.0x |
+| [`sam-hq-vit-b`](#sam_hq) | yes | 36.8, 2.8x | 564, 0.32x |
+| [`sam-hq-vit-h`](#sam_hq) | yes | 144, 2.2x | 1708, 0.4x |
+| [`sam-hq-vit-l`](#sam_hq) | yes | 81.4, 2.5x | 1046, 0.35x |
+| [`sam-vit-b`](#sam) | yes | 37.0, 2.7x | 420, 0.23x |
+| [`sam-vit-h`](#sam) | yes | 143, 2.1x | 1524, 0.28x |
+| [`sam-vit-l`](#sam) | yes | 81.5, 2.4x | 862, 0.25x |
+| [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.1, 1.9x | 524, 0.6x |
+| [`sam2.1-hiera-large`](#sam2) | yes | 48.8, 1.8x | 828, 0.55x |
+| [`sam2.1-hiera-small`](#sam2) | yes | 15.6, 2.7x | 386, 0.58x |
+| [`sam2.1-hiera-tiny`](#sam2) | yes | 13.9, 2.7x | 362, 0.57x |
+| [`sam3`](#sam3) | yes | 116, 2.4x | 2264, 0.58x |
 
 <a id="efficientvit_sam"></a>
 
@@ -286,7 +286,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 <a id="sam2"></a>
 
-## Segment Anything 2.1 (SAM 2.1), image
+## Segment Anything 2.1 (SAM 2.1)
 
 Segment Anything 2.1 in image mode: masks from clicks, boxes or mask prompts, in four sizes.
 
@@ -328,16 +328,21 @@ Commercial use: yes.
 
 ### Measured
 
-One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Original = the original code named under Details, same checkpoint and protocol.
+One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Semi-supervised: every object's first-frame mask as `input_masks`, `track` forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as davis2017-evaluation, mean over objects. Semi-supervised: every object's first-frame mask as `input_masks`, `track` forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as davis2017-evaluation, mean over objects. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
 | `sam2.1-hiera-tiny` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 57.63 / 57.69 | 57.56 / 57.64 | 57.62 / 57.72 | 57.61 / 57.77 |  |
+| `sam2.1-hiera-tiny` | DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F % | 83.80 / 79.70 / 87.90 | 83.86 / 79.50 / 88.22 | 83.76 / 79.68 / 87.84 | 83.77 / 79.68 / 87.85 |  |
+| `sam2.1-hiera-tiny` | DAVIS 2017 val, video tracking, J&F / J / F % | 87.54 / 84.83 / 90.26 | 87.65 / 84.86 / 90.45 | 87.53 / 84.84 / 90.23 | 87.54 / 84.84 / 90.24 |  |
 | `sam2.1-hiera-small` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 59.39 / 58.46 | 59.34 / 58.42 | 59.38 / 58.49 | 59.38 / 58.47 |  |
+| `sam2.1-hiera-small` | DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F % | 84.08 / 80.26 / 87.90 | 84.11 / 80.28 / 87.93 | 84.13 / 80.31 / 87.94 | 84.13 / 80.31 / 87.95 |  |
 | `sam2.1-hiera-base-plus` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 58.79 / 58.67 | 58.73 / 58.57 | 58.81 / 58.71 | 58.82 / 58.73 |  |
+| `sam2.1-hiera-base-plus` | DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F % | 83.88 / 80.62 / 87.14 | 83.88 / 80.61 / 87.16 | 83.87 / 80.61 / 87.13 | 83.86 / 80.60 / 87.12 |  |
 | `sam2.1-hiera-large` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 64.88 / 64.71 | 64.77 / 64.73 | 64.86 / 64.68 | 64.87 / 64.70 |  |
+| `sam2.1-hiera-large` | DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F % | 85.91 / 82.21 / 89.62 | 85.98 / 82.25 / 89.71 | 85.92 / 82.22 / 89.63 | 85.92 / 82.22 / 89.63 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / 939adfe8, 2026-11-06 to 2026-11-12.
 
 ### Parity
 

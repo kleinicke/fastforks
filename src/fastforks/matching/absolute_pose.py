@@ -118,7 +118,7 @@ def _estimate(  # noqa: PLR0913, PLR0917 - the RANSAC state
     thr2 = (threshold / focal) ** 2
     scorer = _KernelScorer(solver, x, X, valid, thr2) if solver is not None else _TorchScorer(x, X, valid, thr2)
     rounds = rp._ROUND if solver is not None else rp._ROUND_PORTABLE  # noqa: SLF001
-    best, best_score, best_count = rp._ransac(scorer, counts, SAMPLE, rounds, gen)  # noqa: SLF001
+    best, best_score, best_count = rp._ransac(scorer, counts, SAMPLE, rounds, rp._TOP, gen)  # noqa: SLF001
     best, inliers, ok = scorer.finish(best, best_score, best_count)
     inliers_out = torch.zeros(P, N, dtype=torch.bool, device=dev).scatter_(1, order, inliers)
     R = torch.where(ok[:, None, None], best[:, :9].view(P, 3, 3), torch.eye(3, device=dev))

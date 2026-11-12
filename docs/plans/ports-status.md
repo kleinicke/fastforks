@@ -35,6 +35,20 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- TAPNext (`tapnext`, `tapnext-pp`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854 video, 256
+  queries). No Metal kernels runner. Weights: the pinned URLs of the card (also in `data/ff-weights/tapnext/`).
+- SAM 2 video (`track` of `sam2.1-hiera-*`): portable float32 MPS video goldens (`video_*` keys of
+  `tests/test_golden.py`); the memory features are stored in bfloat16 as upstream.
+- ViTMatte (`vitmatte-s`, `vitmatte-b`, matting with a trimap input): portable float32 MPS goldens and Mac speed
+  rows at 1080x1920. No Metal kernels runner. Weights: the pinned HF URLs of the card.
+- BEN2 (`ben2`, matting): portable float32 MPS goldens and Mac speed rows at 1080x1920. No Metal kernels runner.
+  Weights: the pinned HF URL of the card (also in `~/scratch_tests/port-p1/w/ben2/`).
+- BiRefNet (`birefnet`, `birefnet-lite`, new matting task; new `shared/swin_v1`): portable float32 MPS goldens and
+  Mac speed rows at 1080x1920. No Metal kernels runner (CUDA kernels: `deform_conv` in the ASPP branches). Weights: the
+  pinned HF URLs of the card (also in `~/scratch_tests/port-p1/w/birefnet/`).
+- Video Depth Anything (`video-depth-anything-s`, `video-depth-anything-metric-s`): portable float32 MPS goldens and
+  Mac speed rows (an 88-frame 480x640 video). No Metal kernels runner. Weights: the pinned HF URLs of the card (also in
+  `~/scratch_tests/port-p1/w/video_depth_anything/`).
 - Grounding DINO (`grounding-dino-tiny`, `grounding-dino-base`): portable float32 MPS goldens and Mac speed rows at
   800x1344; needs transformers. No Metal kernels runner. Weights: the pinned HF URLs of the card (also in
   `data/ff-weights/grounding_dino/`).

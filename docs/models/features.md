@@ -12,62 +12,62 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`c-radio-v3-b`](#c_radio) | yes | 1.355, 4.2x | 326, 0.7x |
+| [`c-radio-v3-b`](#c_radio) | yes | 1.35, 4.2x | 326, 0.7x |
 | [`c-radio-v3-g`](#c_radio) | yes | 10.6, 2.8x | 3230, 0.71x |
-| [`c-radio-v3-h`](#c_radio) | yes | 7.419, 2.3x | 1828, 0.69x |
-| [`c-radio-v3-l`](#c_radio) | yes | 3.261, 3.3x | 946, 0.74x |
-| [`clip-b16-laion2b`](#clip) | yes | 1.358, 3.9x | 310, 0.74x |
-| [`clip-b16-openai`](#clip) | yes | 1.352, 4.2x | 370, 0.89x |
-| [`clip-h14-378-dfn5b`](#clip) | no | 8.218, 2.4x | 2212, 0.85x |
+| [`c-radio-v3-h`](#c_radio) | yes | 7.42, 2.3x | 1828, 0.69x |
+| [`c-radio-v3-l`](#c_radio) | yes | 3.26, 3.3x | 946, 0.74x |
+| [`clip-b16-laion2b`](#clip) | yes | 1.36, 3.9x | 310, 0.74x |
+| [`clip-b16-openai`](#clip) | yes | 1.35, 4.2x | 370, 0.89x |
+| [`clip-h14-378-dfn5b`](#clip) | no | 8.22, 2.4x | 2212, 0.85x |
 | [`clip-h14-dfn5b`](#clip) | no | 8.22, 2.4x | 2192, 0.84x |
-| [`clip-h14-laion2b`](#clip) | yes | 8.255, 2.3x | 1792, 0.69x |
+| [`clip-h14-laion2b`](#clip) | yes | 8.26, 2.3x | 1792, 0.69x |
 | [`clip-l14-336-openai`](#clip) | yes | 4.75, 2.3x | 1090, 0.88x |
-| [`clip-l14-datacompxl`](#clip) | yes | 4.771, 2.1x | 930, 0.77x |
+| [`clip-l14-datacompxl`](#clip) | yes | 4.77, 2.1x | 930, 0.77x |
 | [`clip-l14-dfn2b`](#clip) | no | 4.75, 2.2x | 1110, 0.91x |
-| [`clip-l14-laion2b`](#clip) | yes | 4.767, 2.1x | 930, 0.77x |
-| [`clip-l14-openai`](#clip) | yes | 4.744, 2.3x | 1110, 0.91x |
-| [`convnext_base.fb_in22k`](#convnext_features) | yes | 1.961, 3.9x | 216, 0.54x |
-| [`convnext_large.fb_in22k`](#convnext_features) | yes | 3.231, 3.3x | 434, 0.52x |
-| [`convnext_small.fb_in22k`](#convnext_features) | yes | 1.789, 4.2x | 150, 0.6x |
-| [`convnext_tiny.fb_in22k`](#convnext_features) | yes | 1.094, 3.6x | 110, 0.65x |
-| [`dinov2-vitb14`](#dinov2) | yes | 1.478, 3.0x | 290, 0.75x |
-| [`dinov2-vitb14-reg`](#dinov2) | yes | 1.501, 2.9x | 288, 0.75x |
-| [`dinov2-vitg14`](#dinov2) | yes | 13.156, 2.6x | 2318, 0.53x |
-| [`dinov2-vitg14-reg`](#dinov2) | yes | 12.98, 2.6x | 4430, 1.0x |
-| [`dinov2-vitl14`](#dinov2) | yes | 4.593, 2.1x | 714, 0.58x |
-| [`dinov2-vitl14-reg`](#dinov2) | yes | 4.6, 2.3x | 714, 0.58x |
+| [`clip-l14-laion2b`](#clip) | yes | 4.77, 2.1x | 930, 0.77x |
+| [`clip-l14-openai`](#clip) | yes | 4.74, 2.3x | 1110, 0.91x |
+| [`convnext_base.fb_in22k`](#convnext_features) | yes | 1.96, 3.9x | 216, 0.54x |
+| [`convnext_large.fb_in22k`](#convnext_features) | yes | 3.23, 3.3x | 434, 0.52x |
+| [`convnext_small.fb_in22k`](#convnext_features) | yes | 1.79, 4.2x | 150, 0.6x |
+| [`convnext_tiny.fb_in22k`](#convnext_features) | yes | 1.09, 3.6x | 110, 0.65x |
+| [`dinov2-vitb14`](#dinov2) | yes | 1.48, 3.0x | 290, 0.75x |
+| [`dinov2-vitb14-reg`](#dinov2) | yes | 1.50, 2.9x | 288, 0.75x |
+| [`dinov2-vitg14`](#dinov2) | yes | 13.2, 2.6x | 2318, 0.53x |
+| [`dinov2-vitg14-reg`](#dinov2) | yes | 13.0, 2.6x | 4430, 1.0x |
+| [`dinov2-vitl14`](#dinov2) | yes | 4.59, 2.1x | 714, 0.58x |
+| [`dinov2-vitl14-reg`](#dinov2) | yes | 4.60, 2.3x | 714, 0.58x |
 | [`dinov2-vits14`](#dinov2) | yes | 0.848, 3.9x | 148, 1.1x |
 | [`dinov2-vits14-reg`](#dinov2) | yes | 0.814, 5.0x | 142, 1.1x |
-| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.179, 3.4x | 214, 0.54x |
-| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.593, 2.7x | 494, 0.55x |
+| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.18, 3.4x | 214, 0.54x |
+| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.59, 2.7x | 494, 0.55x |
 | [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.99, 3.0x | 152, 0.55x |
 | [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.18, 2.5x | 112, 0.69x |
-| [`dinov3-vitb16`](#dinov3) | yes | 1.404, 5.0x | 252, 0.65x |
-| [`dinov3-vith16plus`](#dinov3) | yes | 9.301, 2.8x | 1694, 0.52x |
-| [`dinov3-vitl16`](#dinov3) | yes | 3.279, 5.4x | 674, 0.56x |
-| [`dinov3-vits16`](#dinov3) | yes | 0.903, 7.2x | 106, 0.8x |
-| [`pe-core-b16-224`](#perception_encoder) | yes | 1.466, 4.9x | 348, 0.79x |
-| [`pe-core-g14-448`](#perception_encoder) | yes | 17.025, 3.1x | 5256, 0.7x |
-| [`pe-core-l14-336`](#perception_encoder) | yes | 4.958, 3.6x | 932, 0.74x |
+| [`dinov3-vitb16`](#dinov3) | yes | 1.26, 5.5x | 210, 0.54x |
+| [`dinov3-vith16plus`](#dinov3) | yes | 8.45, 3.1x | 1672, 0.51x |
+| [`dinov3-vitl16`](#dinov3) | yes | 3.03, 5.8x | 652, 0.54x |
+| [`dinov3-vits16`](#dinov3) | yes | 0.792, 8.2x | 62, 0.47x |
+| [`pe-core-b16-224`](#perception_encoder) | yes | 1.47, 4.9x | 348, 0.79x |
+| [`pe-core-g14-448`](#perception_encoder) | yes | 17.0, 3.1x | 5256, 0.7x |
+| [`pe-core-l14-336`](#perception_encoder) | yes | 4.96, 3.6x | 932, 0.74x |
 | [`pe-core-s16-384`](#perception_encoder) | yes | 0.951, 7.4x | 128, 0.88x |
 | [`pe-core-t16-384`](#perception_encoder) | yes | 0.683, 9.9x | 82, 1.2x |
-| [`pe-spatial-b16-512`](#perception_encoder) | yes | 1.387, 5.1x | 328, 0.78x |
-| [`pe-spatial-g14-448`](#perception_encoder) | yes | 16.853, 3.1x | 5156, 0.7x |
+| [`pe-spatial-b16-512`](#perception_encoder) | yes | 1.39, 5.1x | 328, 0.78x |
+| [`pe-spatial-g14-448`](#perception_encoder) | yes | 16.9, 3.1x | 5156, 0.7x |
 | [`pe-spatial-l14-448`](#perception_encoder) | yes | 4.86, 3.5x | 932, 0.77x |
 | [`pe-spatial-s16-512`](#perception_encoder) | yes | 0.916, 7.3x | 126, 0.88x |
 | [`pe-spatial-t16-512`](#perception_encoder) | yes | 0.666, 9.8x | 82, 1.2x |
 | [`siglip2-b16-256`](#siglip2) | yes | 1.43, 4.3x | 350, 0.8x |
-| [`siglip2-b16-512`](#siglip2) | yes | 1.431, 4.2x | 368, 0.84x |
-| [`siglip2-g16-256`](#siglip2) | yes | 10.617, 2.9x | 3232, 0.71x |
-| [`siglip2-g16-384`](#siglip2) | yes | 10.619, 2.9x | 3230, 0.71x |
-| [`siglip2-l16-256`](#siglip2) | yes | 3.311, 3.3x | 930, 0.73x |
-| [`siglip2-l16-512`](#siglip2) | yes | 3.305, 3.4x | 930, 0.73x |
-| [`siglip2-so400m14-224`](#siglip2) | yes | 4.298, 2.9x | 1230, 0.68x |
-| [`siglip2-so400m14-378`](#siglip2) | yes | 4.291, 2.9x | 1250, 0.69x |
-| [`siglip2-so400m16-256`](#siglip2) | yes | 4.186, 3.0x | 1232, 0.68x |
-| [`siglip2-so400m16-512`](#siglip2) | yes | 4.185, 3.0x | 1250, 0.69x |
-| [`tipsv2-b14`](#tipsv2) | yes | 1.487, 4.7x | 226, 0.59x |
-| [`tipsv2-l14`](#tipsv2) | yes | 4.585, 3.1x | 648, 0.53x |
+| [`siglip2-b16-512`](#siglip2) | yes | 1.43, 4.2x | 368, 0.84x |
+| [`siglip2-g16-256`](#siglip2) | yes | 10.6, 2.9x | 3232, 0.71x |
+| [`siglip2-g16-384`](#siglip2) | yes | 10.6, 2.9x | 3230, 0.71x |
+| [`siglip2-l16-256`](#siglip2) | yes | 3.31, 3.3x | 930, 0.73x |
+| [`siglip2-l16-512`](#siglip2) | yes | 3.31, 3.4x | 930, 0.73x |
+| [`siglip2-so400m14-224`](#siglip2) | yes | 4.30, 2.9x | 1230, 0.68x |
+| [`siglip2-so400m14-378`](#siglip2) | yes | 4.29, 2.9x | 1250, 0.69x |
+| [`siglip2-so400m16-256`](#siglip2) | yes | 4.19, 3.0x | 1232, 0.68x |
+| [`siglip2-so400m16-512`](#siglip2) | yes | 4.18, 3.0x | 1250, 0.69x |
+| [`tipsv2-b14`](#tipsv2) | yes | 1.49, 4.7x | 226, 0.59x |
+| [`tipsv2-l14`](#tipsv2) | yes | 4.58, 3.1x | 648, 0.53x |
 
 <a id="c_radio"></a>
 
@@ -513,10 +513,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov3-vits16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.47<br>9.16<br>4.67<br>0.903<br>2.18<br>0.564 | 119 / 132<br>158 / 166<br>77 / 80<br>77 / 106<br>109 / 138<br>107 / 120 |
-| `dinov3-vitb16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 6.95<br>9.33<br>4.86<br>1.40 | 367 / 390<br>527 / 550<br>201 / 206<br>201 / 252 |
-| `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 19.2<br>17.7<br>9.13<br>3.28 | 1199 / 1212<br>1772 / 1812<br>617 / 646<br>617 / 674 |
-| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 48.0<br>25.9<br>13.3<br>9.30 | 3255 / 3276<br>4849 / 4876<br>1645 / 1668<br>1644 / 1694 |
+| `dinov3-vits16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.47<br>9.16<br>3.54<br>0.792<br>2.18<br>0.564 | 119 / 132<br>158 / 166<br>76 / 78<br>44 / 62<br>109 / 138<br>107 / 120 |
+| `dinov3-vitb16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 6.95<br>9.33<br>3.68<br>1.26 | 367 / 390<br>527 / 550<br>200 / 206<br>168 / 210 |
+| `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 19.2<br>17.7<br>6.69<br>3.03 | 1199 / 1212<br>1772 / 1812<br>616 / 626<br>616 / 652 |
+| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 48.0<br>25.9<br>12.5<br>8.45 | 3255 / 3276<br>4849 / 4876<br>1646 / 1668<br>1645 / 1672 |
 
 <details><summary>Details</summary>
 
@@ -527,7 +527,7 @@ Commercial use: yes.
 - Training data: LVD-1689M: 1.689B images curated from 17B public Instagram images by retrieval / clustering, self-supervised (no labels), per the paper; not released
 - Licence note: Code and weights use the DINOv3 License (Meta: attribution and conditions apply); read it before commercial use.
 - Options: `fp16_accumulate` = False (precision only)
-- Kernel libraries: `fastbb`
+- Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `dinov3-vits16`, `dinov3-vitb16`, `dinov3-vitl16`, `dinov3-vith16plus`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -562,10 +562,10 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `dinov3-vits16` | 0.00418 / 0.01399 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov3-vitb16` | 0.00562 / 0.01956 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov3-vitl16` | 0.00773 / 0.02994 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov3-vith16plus` | 0.00567 / 0.0234 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `dinov3-vits16` | 0.00573 / 0.01974 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov3-vitb16` | 0.00548 / 0.01964 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov3-vitl16` | 0.00794 / 0.03182 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov3-vith16plus` | 0.00635 / 0.03203 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 

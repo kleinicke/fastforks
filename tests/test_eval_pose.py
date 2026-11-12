@@ -63,7 +63,7 @@ def test_bottomup_empty_reference_result(tmp_path, monkeypatch):
     monkeypatch.setattr(eval_coco, "_sync", lambda: 0.0)
     coco = SimpleNamespace(getAnnIds=lambda **_kw: [], loadAnns=lambda _ids: [])
     model = object.__new__(_original_coco._Pose)
-    model.needs_boxes = False
+    model.family = "rtmo"  # bottom-up
     model.original = lambda _img: []
     rec = {}
     rows, ms = eval_coco._pose(model, coco, [path], rec)
@@ -74,7 +74,7 @@ def test_bottomup_empty_reference_result(tmp_path, monkeypatch):
 
 def test_bottomup_reference_uses_person_scores():
     model = object.__new__(_original_coco._Pose)
-    model.needs_boxes = False
+    model.family = "rtmo"  # bottom-up
     pred = SimpleNamespace(
         keypoints=np.zeros((2, 17, 2), dtype=np.float32),
         keypoint_scores=np.ones((2, 17), dtype=np.float32),

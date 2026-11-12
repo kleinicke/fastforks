@@ -1,6 +1,6 @@
 schema = 2
-name = "Segment Anything 2.1 (SAM 2.1), image"
-summary = "Segment Anything 2.1 (Ravi et al. 2024), image mode: promptable segmentation with a hierarchical Hiera image encoder, an FPN neck and the SAM prompt encoder / mask decoder with high-resolution skip features; masks from points, boxes and mask logits (no video memory). The portable `module()` is the image encoder only."
+name = "Segment Anything 2.1 (SAM 2.1)"
+summary = "Segment Anything 2.1 (Ravi et al. 2024), image mode: promptable segmentation with a hierarchical Hiera image encoder, an FPN neck and the SAM prompt encoder / mask decoder with high-resolution skip features; masks from points, boxes and mask logits. `track` follows objects prompted on the first frame through a video with the original memory attention / memory encoder (`SAM2VideoPredictor`, forward, memory features in bfloat16 as upstream); the memory side has no fused kernels yet. The portable `module()` is the image encoder only."
 tier = "stable"
 outputs = ["pred_masks", "iou_scores"]
 

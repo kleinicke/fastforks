@@ -42,6 +42,7 @@ NATIVE_HALF = {
     "marigold",
     "marigold_normals",
     "lotus",
+    "birefnet",
     "rfdetr_keypoint",
     "rfdetr",
 }  # build(ref, True) is a float16 model, not mixed precision
@@ -901,6 +902,54 @@ def _marigold_normals(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, AR
     return lambda image: g.predict(pipe, image[None].float() / 255)
 
 
+def _birefnet(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """The HF repo's `birefnet.py` with the card's pre- and post-processing, as `tools/golden/birefnet.py`.
+
+    `FF_BIREFNET_HF`: a directory with the HF snapshots as `<ref>/birefnet.py` (+ `BiRefNet_config.py`); fp16 = the
+    model card's `half()` (fp16 weights and input).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("birefnet")
+    ref = full.split("@", maxsplit=1)[0]
+    card, variant = registry.resolve("matting", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_BIREFNET_HF"]) / ref, Path(weights)).cuda()
+    if fp16:
+        net = net.half()
+    repo, rev = g.HF_REVISION[ref]
+    a.note = f"HF ZhengPeng7/{repo}@{rev[:12]} birefnet.py, the card's resize / normalisation / sigmoid / resize back"
+    return lambda image: g.predict(net, image[None].float() / 255)
+
+
+def _ben2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """The authors' `BEN2.py` with float pre- and post-processing, as `tools/golden/ben2.py`.
+
+    `FF_BEN2_REPO`: a PramaLLC/BEN2 checkout; fp16 = the forward's own CUDA fp16 autocast (fp32: without it).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("ben2")
+    card, variant = registry.resolve("matting", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_BEN2_REPO"]), Path(weights)).cuda()
+    a.note = f"PramaLLC/BEN2@{g.COMMIT[:12]} BEN2.py, bicubic resize / normalisation / bilinear back / min-max"
+    return lambda image: g.predict(net, image[None].float() / 255, autocast=fp16)
+
+
+def _vitmatte(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """The transformers `VitMatteForImageMatting` with the processor's maths on tensors, as `tools/golden/vitmatte.py`.
+
+    `FF_VITMATTE_HF`: a directory with the HF snapshots as `<ref>/` (config + weights); fp16 = `torch_dtype=float16`.
+    """
+    import transformers  # noqa: PLC0415
+
+    g = _golden("vitmatte")
+    net = g.network(Path(os.environ["FF_VITMATTE_HF"]) / full.split("@", maxsplit=1)[0], fp16=fp16).cuda()
+    a.note = f"transformers {transformers.__version__} VitMatteForImageMatting, normalise / trimap / pad 32 / crop"
+    return lambda image, trimap: g.predict(net, image[None].float() / 255, trimap)
+
+
 class _Local:
     """An original the bench has no adapter for, on the library's own bench inputs as uint8 CUDA tensors.
 
@@ -909,6 +958,7 @@ class _Local:
     """
 
     flag = False  # no mixed-precision option of its own: fp16 = torch.autocast around the call
+    trimap = "unused"  # matting: "required" adds the bench's synthetic trimap to the call
 
     def __init__(
         self,
@@ -946,7 +996,7 @@ class _Local:
             device=torch.device("cuda"),
             needs_boxes=self.needs_boxes,
             prompts=(),
-            _runner=types.SimpleNamespace(intrinsics="unused"),
+            _runner=types.SimpleNamespace(intrinsics="unused", trimap=self.trimap),
         )
         out = []
         for h, w in self.sizes:
@@ -1016,6 +1066,75 @@ class _LocalFp16(_Local):
     flag = True
 
 
+def _tapnext(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream `TAPNext` online (one frame per call, as the authors' online demo), the eval's resizing to 256 x 256.
+
+    fp16: `torch.autocast("cuda", torch.float16)` as upstream's evaluation. Needs `TAPNET_SRC`, a tapnet checkout with
+    the pinned commit. The call returns tracks `[1, T, Q, 2]` and the visible logits `[1, T, Q, 1]` (upstream's).
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    sys.path.insert(0, os.environ["TAPNET_SRC"])
+    from tapnet.tapnext.tapnext_torch import TAPNext  # noqa: PLC0415  # ty: ignore[unresolved-import]
+    from tapnet.tapnext.tapnext_torch_utils import (  # noqa: PLC0415  # ty: ignore[unresolved-import]
+        restore_model_from_jax_checkpoint,
+    )
+
+    card, variant = registry.resolve("tracking", full)
+    file = registry.weights(card, variant, allow_download=False)[0]
+    model = TAPNext(image_size=(256, 256))
+    if variant.weights[0].name.endswith(".npz"):
+        model = restore_model_from_jax_checkpoint(model, str(file))
+    else:
+        sd = torch.load(file, map_location="cpu", weights_only=True)["state_dict"]
+        model.load_state_dict({k.removeprefix("tapnext."): v for k, v in sd.items()})
+    model = model.eval().cuda()
+    a.note = "upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        h, w = video.shape[-2:]
+        scale = torch.tensor((256 / w, 256 / h), device=queries.device)
+        qp = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]
+        tracks, vis, state = [], [], None
+        with torch.autocast("cuda", torch.float16, enabled=fp16):
+            for t in range(video.shape[0]):
+                x = F.interpolate(video[t : t + 1].float() / 255, (256, 256), mode="bilinear", antialias=True)
+                x = (x * 2 - 1).permute(0, 2, 3, 1)[:, None]  # [1, 1, 256, 256, 3]
+                kw = {"query_points": qp} if state is None else {"state": state}
+                tr, _, vl, state = model(video=x, **kw)
+                tracks.append(tr), vis.append(vl)
+        return torch.cat(tracks, 1), torch.cat(vis, 1)
+
+    return call
+
+
+class _Tracking(_LocalFp16):
+    """The tracking bench call: the uint8 video `[T, 3, H, W]` and the float32 query grid (not scaled to uint8)."""
+
+    def inputs(self, full: str) -> list[tuple[str, str, tuple[Any, ...]]]:  # noqa: ARG002 - the adapter signature
+        """(label, scene, (video, queries)) per size, from `fastforks.tracking` `bench_inputs`."""
+        import torch  # noqa: PLC0415
+
+        from fastforks._core.bench import BenchSize  # noqa: PLC0415
+        from fastforks.tracking._api import bench_inputs  # noqa: PLC0415
+
+        like = types.SimpleNamespace(device=torch.device("cuda"))
+        out = []
+        for h, w in self.sizes:
+            (video, queries), _ = bench_inputs(like, BenchSize(h, w))
+            out.append((f"{h}x{w}", "synthetic (fastforks bench)", ((video * 255).round().byte(), queries)))
+        return out
+
+
+class _LocalTrimap(_LocalFp16):
+    """A trimap-guided matting original: called with the image and the bench's synthetic trimap."""
+
+    trimap = "required"
+
+
 def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
     return [[x0, y0, x1 - x0, y1 - y0] for x0, y0, x1, y1 in boxes.tolist()]
 
@@ -1073,6 +1192,10 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "lotus": _LocalFp16("depth", _lotus, ((994, 1482),)),
     "lightglue": _LocalFp16("matching", _lightglue, ((768, 1024),)),
     "xfeat": _Local("matching", _xfeat, ((768, 1024),)),
+    "birefnet": _LocalFp16("matting", _birefnet, ((1080, 1920),)),
+    "ben2": _LocalFp16("matting", _ben2, ((1080, 1920),)),
+    "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
+    "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
 }
 
 

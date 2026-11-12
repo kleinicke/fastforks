@@ -14,6 +14,8 @@ Top-level functions and classes (the exceptions are on the [errors](errors.md) p
 
 ::: fastforks.patch
 
+::: fastforks.read_images
+
 ::: fastforks.FastModel
 
 ::: fastforks.base_type

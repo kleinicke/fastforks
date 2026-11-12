@@ -23,25 +23,25 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | – | – |
 | [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | – | – |
 | [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | – | – |
-| [`convnext_base.fb_in1k`](#convnext) | yes | 2.009, 3.9x | 236, 0.59x |
-| [`convnext_base`](#convnext) | yes | 2.001, 3.9x | 236, 0.59x |
-| [`convnext_base.fb_in22k_ft_in1k_384`](#convnext) | yes | 3.003, 3.7x | 232, 0.53x |
+| [`convnext_base.fb_in1k`](#convnext) | yes | 2.01, 3.9x | 236, 0.59x |
+| [`convnext_base`](#convnext) | yes | 2.00, 3.9x | 236, 0.59x |
+| [`convnext_base.fb_in22k_ft_in1k_384`](#convnext) | yes | 3.00, 3.7x | 232, 0.53x |
 | [`convnext_large.fb_in1k`](#convnext) | yes | 3.29, 3.2x | 434, 0.51x |
-| [`convnext_large`](#convnext) | yes | 3.284, 3.2x | 434, 0.51x |
-| [`convnext_large.fb_in22k_ft_in1k_384`](#convnext) | yes | 5.203, 2.2x | 454, 0.51x |
-| [`convnext_small.fb_in1k`](#convnext) | yes | 1.839, 4.0x | 152, 0.6x |
+| [`convnext_large`](#convnext) | yes | 3.28, 3.2x | 434, 0.51x |
+| [`convnext_large.fb_in22k_ft_in1k_384`](#convnext) | yes | 5.20, 2.2x | 454, 0.51x |
+| [`convnext_small.fb_in1k`](#convnext) | yes | 1.84, 4.0x | 152, 0.6x |
 | [`convnext_small.fb_in22k_ft_in1k`](#convnext) | yes | 1.84, 4.1x | 152, 0.6x |
-| [`convnext_small.fb_in22k_ft_in1k_384`](#convnext) | yes | 2.518, 3.2x | 152, 0.52x |
-| [`convnext_tiny.fb_in1k`](#convnext) | yes | 1.145, 3.5x | 110, 0.65x |
-| [`convnext_tiny.fb_in22k_ft_in1k`](#convnext) | yes | 1.148, 3.6x | 110, 0.64x |
-| [`convnext_tiny.fb_in22k_ft_in1k_384`](#convnext) | yes | 1.557, 2.9x | 110, 0.52x |
-| [`convnextv2_base`](#convnextv2) | no | 2.936, 3.7x | 380, 0.91x |
+| [`convnext_small.fb_in22k_ft_in1k_384`](#convnext) | yes | 2.52, 3.2x | 152, 0.52x |
+| [`convnext_tiny.fb_in1k`](#convnext) | yes | 1.15, 3.5x | 110, 0.65x |
+| [`convnext_tiny.fb_in22k_ft_in1k`](#convnext) | yes | 1.15, 3.6x | 110, 0.64x |
+| [`convnext_tiny.fb_in22k_ft_in1k_384`](#convnext) | yes | 1.56, 2.9x | 110, 0.52x |
+| [`convnextv2_base`](#convnextv2) | no | 2.94, 3.7x | 380, 0.91x |
 | [`davit_base`](#davit) | yes | – | – |
 | [`davit_small`](#davit) | yes | – | – |
 | [`davit_tiny`](#davit) | yes | – | – |
 | [`deit_base_patch16_224`](#deit) | yes | 1.64, 3.3x | 370, 0.96x |
-| [`densenet121`](#densenet) | yes | 1.279, 8.4x | 132, 1.4x |
-| [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.929, 2.2x | 950, 0.78x |
+| [`densenet121`](#densenet) | yes | 1.28, 8.4x | 132, 1.4x |
+| [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.93, 2.2x | 950, 0.78x |
 | [`efficientformer_l1`](#efficientformer) | yes | – | – |
 | [`efficientformer_l3`](#efficientformer) | yes | – | – |
 | [`efficientformer_l7`](#efficientformer) | yes | – | – |
@@ -50,11 +50,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`efficientformerv2_s1`](#efficientformerv2) | yes | – | – |
 | [`efficientformerv2_s2`](#efficientformerv2) | yes | – | – |
 | [`efficientnet_b0`](#efficientnet) | yes | 0.769, 7.3x | 118, 1.5x |
-| [`efficientnet_b4`](#efficientnet) | yes | 1.999, 5.5x | 180, 1.0x |
-| [`efficientnet_v2_s`](#efficientnetv2) | yes | 1.893, 6.4x | 188, 1.2x |
-| [`efficientvit_b2`](#efficientvit) | yes | 1.105, 9.7x | 212, 1.3x |
-| [`eva02_large_patch14_448`](#eva02) | yes | 14.06, 2.3x | 1386, 1.1x |
-| [`fastvit_sa24`](#fastvit) | yes | 1.4, 5.1x (256x256) | 150, 1.1x |
+| [`efficientnet_b4`](#efficientnet) | yes | 2.00, 5.5x | 180, 1.0x |
+| [`efficientnet_v2_s`](#efficientnetv2) | yes | 1.89, 6.4x | 188, 1.2x |
+| [`efficientvit_b2`](#efficientvit) | yes | 1.10, 9.7x | 212, 1.3x |
+| [`eva02_large_patch14_448`](#eva02) | yes | 14.1, 2.3x | 1386, 1.1x |
+| [`fastvit_sa24`](#fastvit) | yes | 1.40, 5.1x (256x256) | 150, 1.1x |
 | [`fastvit_t12.apple_dist_in1k`](#fastvit) | yes | 0.781, 4.6x (256x256) | 76, 0.95x |
 | [`fastvit_t8.apple_dist_in1k`](#fastvit) | yes | 0.703, 4.4x (256x256) | 76, 1.1x |
 | [`focalnet_base_lrf`](#focalnet) | yes | – | – |
@@ -70,23 +70,23 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`hgnetv2_b4`](#hgnetv2) | yes | – | – |
 | [`hgnetv2_b5`](#hgnetv2) | yes | – | – |
 | [`hgnetv2_b6`](#hgnetv2) | yes | – | – |
-| [`inception_v3`](#inception_v3) | yes | 1.3, 6.1x | 228, 1.3x |
+| [`inception_v3`](#inception_v3) | yes | 1.30, 6.1x | 228, 1.3x |
 | [`mobilenet_v2`](#mobilenetv2) | yes | 0.439, 8.2x | 92, 1.3x |
 | [`mobilenet_v3_large`](#mobilenetv3) | yes | 0.545, 7.9x | 114, 1.5x |
-| [`mobilenetv1_100`](#mobilenetv1) | yes | 0.37, 5.9x | 114, 1.6x |
+| [`mobilenetv1_100`](#mobilenetv1) | yes | 0.370, 5.9x | 114, 1.6x |
 | [`mobilenetv4_conv_medium`](#mobilenetv4) | yes | 0.641, 9.0x | 124, 1.3x |
-| [`regnety_160`](#regnet) | yes | 1.865, 6.5x | 316, 0.76x |
+| [`regnety_160`](#regnet) | yes | 1.86, 6.5x | 316, 0.76x |
 | [`repvit_m0_9`](#repvit) | yes | 0.776, 10.9x | 76, 0.97x |
 | [`repvit_m0_9.dist_450e_in1k`](#repvit) | yes | 0.767, 11.1x | 76, 0.97x |
 | [`repvit_m1_0`](#repvit) | yes | 0.786, 11.2x | 78, 0.95x |
 | [`repvit_m1_0.dist_450e_in1k`](#repvit) | yes | 0.785, 11.2x | 78, 0.95x |
 | [`repvit_m1_1`](#repvit) | yes | 0.765, 10.6x | 64, 0.74x |
 | [`repvit_m1_1.dist_450e_in1k`](#repvit) | yes | 0.758, 10.6x | 64, 0.74x |
-| [`repvit_m1_5`](#repvit) | yes | 1.187, 11.8x | 94, 0.94x |
+| [`repvit_m1_5`](#repvit) | yes | 1.19, 11.8x | 94, 0.94x |
 | [`repvit_m1_5.dist_450e_in1k`](#repvit) | yes | 1.19, 11.7x | 94, 0.94x |
-| [`repvit_m2_3`](#repvit) | yes | 1.655, 10.8x | 130, 0.83x |
-| [`repvit_m2_3.dist_450e_in1k`](#repvit) | yes | 1.695, 10.8x | 130, 0.83x |
-| [`resnet152`](#resnet) | yes | 1.831, 7.0x | 266, 0.92x |
+| [`repvit_m2_3`](#repvit) | yes | 1.66, 10.8x | 130, 0.83x |
+| [`repvit_m2_3.dist_450e_in1k`](#repvit) | yes | 1.70, 10.8x | 130, 0.83x |
+| [`resnet152`](#resnet) | yes | 1.83, 7.0x | 266, 0.92x |
 | [`resnet18`](#resnet) | yes | 0.459, 4.2x | 150, 1.2x |
 | [`resnet50`](#resnet) | yes | 0.826, 5.7x | 162, 1.0x |
 | [`shufflenet_v2_x1_0`](#shufflenetv2) | yes | 0.787, 6.1x | 116, 2.4x |
@@ -99,15 +99,15 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`starnet_s2`](#starnet) | yes | 0.578, 6.3x | 58, 0.91x |
 | [`starnet_s3`](#starnet) | yes | 0.715, 6.9x | 64, 0.84x |
 | [`starnet_s4`](#starnet) | yes | 0.912, 7.5x | 72, 0.84x |
-| [`swin_base_patch4_window7_224`](#swin) | yes | 2.149, 7.0x | 300, 0.72x |
-| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.93, 6.4x | 84, 0.75x |
-| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 1.184, 5.1x | 106, 0.67x |
-| [`tiny_vit_21m_384`](#tinyvit) | yes | 1.795, 3.3x (384x384) | 178, 0.61x |
-| [`tiny_vit_21m_512`](#tinyvit) | yes | 3.132, 2.6x (512x512) | 258, 0.45x |
+| [`swin_base_patch4_window7_224`](#swin) | yes | 2.15, 7.0x | 300, 0.72x |
+| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.930, 6.4x | 84, 0.75x |
+| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 1.18, 5.1x | 106, 0.67x |
+| [`tiny_vit_21m_384`](#tinyvit) | yes | 1.79, 3.3x (384x384) | 178, 0.61x |
+| [`tiny_vit_21m_512`](#tinyvit) | yes | 3.13, 2.6x (512x512) | 258, 0.45x |
 | [`tiny_vit_5m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.846, 7.0x | 78, 0.93x |
-| [`vgg16`](#vgg) | yes | 1.5, 2.4x | 388, 0.62x |
-| [`vit_base_patch16_224`](#vit) | yes | 1.647, 3.3x | 370, 0.96x |
-| [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.755, 2.0x | 1346, 0.77x |
+| [`vgg16`](#vgg) | yes | 1.50, 2.4x | 388, 0.62x |
+| [`vit_base_patch16_224`](#vit) | yes | 1.65, 3.3x | 370, 0.96x |
+| [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.8, 2.0x | 1346, 0.77x |
 
 <a id="alexnet"></a>
 

@@ -17,7 +17,7 @@ import pytest
 import torch
 from torch import nn
 
-from synth import image, pair, size
+from synth import clip, image, pair, size, track_queries
 from test_golden import API, GOLDEN, SMALLEST, TASK
 
 # ref -> (modules, nn.Identity modules, overridden methods as "BaseClass.method": count); recorded on main f5927bc, the
@@ -400,7 +400,10 @@ def load_and_call(ref: str) -> Any:
     task = TASK[ref]
     m = API[task].load(ref, mode="kernels", device="cuda")
     hw = size(m.variant.io.min_size)
-    m(*pair(*hw)) if task in {"stereo", "flow", "matching"} else m(image(*hw))
+    if task == "tracking":
+        m(clip(4, *hw), track_queries())
+    else:
+        m(*pair(*hw)) if task in {"stereo", "flow", "matching"} else m(image(*hw))
     return m
 
 

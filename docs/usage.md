@@ -90,7 +90,7 @@ features.load("dinov2-vitb14")("cat.jpg").pooler_output  # image embedding; .las
 ```python
 # needs: pip install "fastforks-core[torchvision]" "fastforks-core[nc]"
 # MVSAnywhere's code and weights are non-commercial: its weights download only with FASTFORKS_NONCOMMERCIAL=1
-from fastforks import detection, flow, multiview, pose, promptable_segmentation
+from fastforks import detection, flow, matting, multiview, pose, promptable_segmentation
 
 det = detection.load("faster-rcnn-r50-fpn-3x-coco")
 det("street.jpg", score_threshold=0.5).to_list()  # dicts: box, class_name, score
@@ -109,6 +109,7 @@ people = pose.load("rtmpose-m")(  # top-down: one box (x0, y0, x1, y1 in pixels)
 )  # e.g. the person boxes of a detector
 people.keypoints, people.keypoint_scores  # [P, 17, 2] pixels of the input, [P, 17]; names: people.keypoint_names
 flow.load("raft-large")("frame1.png", "frame2.png").flow  # [2, H, W]: dx, dy in pixels, frame 1 -> frame 2
+matting.load("birefnet-lite")("photo.jpg").alpha  # [H, W] in [0, 1]: 1 = foreground (background removal)
 ```
 
 How a call runs: the model card (`card.toml`) is resolved to a variant (the id and revision); the variant and `mode` select a
@@ -117,7 +118,7 @@ tensors; calling it returns the typed result, whose `.backend` records what ran.
 
 Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
 `fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation`,
-`fastforks.multiview` and `fastforks.matching`.
+`fastforks.multiview`, `fastforks.matching`, `fastforks.matting` and `fastforks.tracking`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
 PatchmatchNet return the reference view only. See the [API pages](api/index.md) for every result's fields.
 
@@ -657,6 +658,19 @@ model = depth.load("depth-anything-v2-s")
 for p in sorted(pathlib.Path("images").glob("*.jpg")):
     model(p).save(f"out/{p.stem}.tif")
 ```
+
+With a small model the JPEG decode (about 10 ms for 2 MP on one core) costs more than the network. `read_images`
+decodes the next files in background threads while the model runs; same pixels, same results:
+
+```python
+import fastforks
+
+paths = sorted(pathlib.Path("images").glob("*.jpg"))
+for p, image in zip(paths, fastforks.read_images(paths)):
+    model(image).save(f"out/{p.stem}.tif")
+```
+
+A pair or view list given as files in one call (matching, stereo, flow, multiview) is decoded in parallel.
 
 ```python
 import time

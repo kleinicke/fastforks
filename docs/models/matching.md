@@ -14,7 +14,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 |---|---|---|---|
 | [`aliked-lightglue`](#lightglue) | yes | – | – |
 | [`disk-lightglue`](#lightglue) | yes | – | – |
-| [`romav2`](#romav2) | yes | 405.85, 1.8x | 2580, 0.25x |
+| [`romav2`](#romav2) | yes | 406, 1.8x | 2580, 0.25x |
 | [`xfeat`](#xfeat) | yes | – | – |
 | [`xfeat-lighterglue`](#xfeat) | yes | – | – |
 
@@ -101,7 +101,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/Parskatt/romav2/blob/95c9968145c8906b7b59383258e9f73b02853d89/README.md#license>
 - Training data: Upstream README: a mix of wide-baseline matching datasets following UFM and MapAnything (MegaDepth and others; see the paper); none has a dataset entry here yet. The frozen DINOv3 descriptor was pretrained on LVD-1689M (not released).
 - Licence note: The checkpoint includes the DINOv3 ViT-L/16 weights, and net/dinov3.py and net/vit/ come from DINOv3: the DINOv3 License (Meta: attribution and conditions apply) covers those parts; read it before commercial use.
-- Options: `coarse_size` = 800 (>= 16), `fine_size` = 1280 (>= 0)
+- Options: `coarse_size` = 800 (>= 16), `fine_size` = 1280 (>= 0), `keep_descriptors` = 0 (>= 0; speed only)
 - Kernel libraries: `romav2`
 - Variants: `romav2`
 - Outputs: warp, certainty

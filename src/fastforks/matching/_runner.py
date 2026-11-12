@@ -21,7 +21,7 @@ float32, batching, locking and the device guard.
 from __future__ import annotations
 
 import abc
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastforks._core import runner as core
 from fastforks._core.preprocess import scale
@@ -50,6 +50,18 @@ class Runner(core.Runner):
             families (card outputs `pairs`) get `B = 1` and return `{"keypoints1": [N, 2], "keypoints2": [M, 2],
             "pairs": [K, 2] (integer indices into the two keypoint sets), "scores": [K]}`, keypoints in input pixels.
         """
+
+    def describe(self, image: torch.Tensor) -> object:  # noqa: ARG002 - the default: no per-image stage
+        """The part of a call that depends on one image only (`[1, 3, H, W]`, scaled), or `None` if there is none.
+
+        `MatchingModel.match_pairs` computes it once per image and passes the two results to `match`. Whatever it
+        returns (tensors, lists / tuples of them) must not be modified by `match`.
+        """
+        return None
+
+    def match(self, image1: torch.Tensor, image2: torch.Tensor, described: tuple[Any, Any]) -> dict[str, torch.Tensor]:
+        """`__call__(image1, image2)`, bit-identical, from the two images' `describe` results."""
+        raise NotImplementedError
 
     def module(self) -> torch.nn.Module:
         """The plain-PyTorch network as an `nn.Module`, as `torch.export` / ONNX export see it.

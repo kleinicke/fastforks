@@ -10,7 +10,7 @@ from __future__ import annotations
 import contextlib
 import threading
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -18,12 +18,13 @@ import torch.nn.functional as F
 from fastforks._core import kernels
 from fastforks._core.errors import BackendUnavailableError, InputError
 from fastforks.features._runner import Forward, Runner
+from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.kernels.fastbb import load as load_kernels
 from fastforks.shared.cuda_graphs import CAPTURE_LOCK, GraphCache, capture_stream
 from fastforks.shared.depth_anything_v2.fast_vit import HEAD_DIM, _flash, _fp16_accumulate
 
-from .net import CONFIGS, PATCH, REGISTERS, DINOv3ViT, _Mlp, rope_table
+from .net import CONFIGS, PATCH, REGISTERS, DINOv3ViT, rope_table
 
 if TYPE_CHECKING:
     from fastforks.features._runner import Context
@@ -78,7 +79,7 @@ class Portable(Runner):
         self.acc = self.half and ctx.params.fp16_accumulate
         net = _network(ctx, _stream_scale(ctx.params.arch) if self.half else 1.0)
         # fp16 weights (no per-call autocast casts), converted on the CPU; packed qkv
-        self.net = (net.half() if self.half else net).pack_qkv().to(ctx.device)
+        self.net = (net.half() if self.half else net).pack().to(ctx.device)
         _init(self, ctx.params.arch)
 
     def _run(self, x: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
@@ -118,11 +119,14 @@ _INT32 = 2**31 - 1  # fixed: `rope_qk_h` indexes in int32
 
 
 class Kernels(Runner):
-    """fastbb: fp16 weights / activations, fp16-accumulate cuBLAS GEMMs, packed qkv, fused RoPE, flash attention.
+    """fastbb + dpt_fused: fp16 weights / activations, fused-epilogue GEMMs, packed qkv, fused RoPE, flash attention.
 
+    The block GEMMs are `dpt_fused` fp16-accumulate GEMMs with their epilogues fused: qkv + bias, projection + bias
+    with LayerScale and the residual, up + bias + GELU, down + bias with LayerScale and the residual added in place
+    (ViT-H+: one gate / up GEMM, the SiLU gate in place; `DEEP_K` down GEMMs: cuBLAS + `addcmul_`); the patch
+    embedding is a GEMM on the unfolded patches.
     RoPE is one fastbb kernel in place on the packed q / k (patch tokens; q also takes the softmax scale 2^-3, so the
-    attention runs with scale 1); LayerNorm, GELU / SiLU gate and the residual + LayerScale run in PyTorch fp16;
-    stream scale 8 for ViT-B / L / H+. Outputs float32.
+    attention runs with scale 1); LayerNorm runs in PyTorch fp16; stream scale 8 for ViT-B / L / H+. Outputs float32.
 
     Small calls (`_GRAPH_WORK`) replay a CUDA graph per input shape and layer set, captured on the shape's second
     call (outputs up to `_GRAPH_BYTES / _GRAPHS`); the model keeps up to `_GRAPHS` of them (see `_GRAPH_STALE`) until
@@ -141,18 +145,19 @@ class Kernels(Runner):
         if cfg.hidden_size // cfg.num_heads != HEAD_DIM:
             msg = f"fastbb flash attention needs head_dim {HEAD_DIM}"
             raise BackendUnavailableError(msg)  # mode="auto" falls back to portable
-        net = _network(ctx, _stream_scale(arch))
-        self.qkv = []
-        for blk in net.blocks():
-            a = blk.attention
-            w = torch.cat([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight])
-            b = torch.cat([a.q_proj.bias, torch.zeros_like(a.q_proj.bias), a.v_proj.bias])
-            self.qkv.append((w.half().to(ctx.device), b.half().to(ctx.device)))
-            del a.q_proj, a.k_proj, a.v_proj
+        net = _network(ctx, _stream_scale(arch)).pack()
+        self.scales = [  # LayerScale in fp32 (the GEMM epilogue's scale)
+            (
+                b.layer_scale1.lambda1.detach().float().to(ctx.device),
+                b.layer_scale2.lambda1.detach().float().to(ctx.device),
+            )
+            for b in net.blocks()
+        ]
         self.net = net.half().to(ctx.device)
-        self.blocks = net.blocks()
+        self.blocks = self.net.blocks()
         self.cfg, self.attn = cfg, Flash64(_KERNELS_ATTN[arch])
         self.kernels = load_kernels(ctx.device)
+        self.k = DptFused(ctx.device)
         self._rope: dict[tuple[int, int], torch.Tensor] = {}
         self._layers: tuple[int, ...] = ()  # the layer set of the call in flight (set under `_lock`)
         self._cache = GraphCache(self._graph_forward, graphs=_GRAPHS, stale=_GRAPH_STALE, seen=_SEEN)
@@ -169,28 +174,45 @@ class Kernels(Runner):
         return self._rope[h, w]
 
     def _block(self, i: int, x: torch.Tensor, cs: torch.Tensor, rope: tuple) -> torch.Tensor:
+        """`x` is read, not written (a kept hidden state); the MLP residual is added in place on the new stream."""
         blk = self.blocks[i]
         b, n, _ = x.shape
         h = self.cfg.num_heads
-        w, bias = self.qkv[i]
-        qkv = F.linear(blk.norm1(x), w, bias).view(b, n, 3, h, HEAD_DIM)
+        k, a, m = self.k, blk.attention, blk.mlp
+        s1, s2 = self.scales[i]
+        w, bias = cast("torch.Tensor", a.qkv_weight), cast("torch.Tensor", a.qkv_bias)
+        qkv = k.gemm(blk.norm1(x), w, bias).view(b, n, 3, h, HEAD_DIM)
         self.kernels.launch("rope_qk_h", *rope[0], qkv, cs, n, n - cs.shape[0], h, rope[1], HEAD_DIM**-0.5)
-        o = blk.attention.o_proj(_flash(qkv, 1.0, self.attn))
-        x = torch.addcmul(x, o, blk.layer_scale1.lambda1)
-        return x.addcmul_(self._mlp(blk.mlp, blk.norm2(x)), blk.layer_scale2.lambda1)
+        o = _flash(qkv, 1.0, self.attn)
+        x = k.gemm(o, a.o_proj.weight, a.o_proj.bias, scale=s1, res=x)
+        y = blk.norm2(x)
+        if hasattr(m, "gate_up_weight"):  # SwiGLU (ViT-H+): the gate in place, the down GEMM reads the strided half
+            w, bias = cast("torch.Tensor", m.gate_up_weight), cast("torch.Tensor", m.gate_up_bias)
+            g, u = k.gemm(y, w, bias).chunk(2, -1)
+            hid = F.silu(g, inplace=True).mul_(u)
+        else:
+            hid = k.gemm(y, m.up_proj.weight, m.up_proj.bias, act=k.gelu)
+        if m.down_proj.in_features >= DEEP_K:
+            return x.addcmul_(m.down_proj(hid), blk.layer_scale2.lambda1)
+        return k.gemm(hid, m.down_proj.weight, m.down_proj.bias, scale=s2, res=x, out=x)
 
-    @staticmethod
-    def _mlp(mlp: _Mlp, y: torch.Tensor) -> torch.Tensor:
-        """The block MLP; SwiGLU (ViT-H+) in place: two hidden-size tensors live at the peak instead of three."""
-        if mlp.gate_proj is None:
-            return mlp(y)
-        return mlp.down_proj(F.silu(mlp.gate_proj(y), inplace=True).mul_(mlp.up_proj(y)))
+    def _tokens(self, image: torch.Tensor) -> torch.Tensor:
+        """`net.tokens` with the patch convolution (kernel == stride) as one GEMM on the unfolded fp16 patches."""
+        e = self.net.embeddings
+        b, c, hh, ww = image.shape
+        gh, gw = hh // PATCH, ww // PATCH
+        src = image.reshape(b, c, gh, PATCH, gw, PATCH).permute(0, 2, 4, 1, 3, 5)
+        cols = torch.empty(src.shape, dtype=torch.float16, device=image.device).copy_(src)  # unfold + cast: one copy
+        conv = e.patch_embeddings
+        w = conv.weight.view(conv.weight.shape[0], -1)
+        p = self.k.gemm(cols.view(b, gh * gw, -1), w, conv.bias, acc32=True)  # fp32 sums: the stream starts exact
+        return torch.cat([e.cls_token.expand(b, -1, -1), e.register_tokens.expand(b, -1, -1), p], 1)
 
     def _forward(self, image: torch.Tensor, layers: tuple[int, ...]) -> list[torch.Tensor]:
         """fp16 `[last_hidden_state, *hidden states at layers]` (hidden states still divided by the stream scale)."""
         net = self.net
         cs = self._rope_table(image.shape[-2] // PATCH, image.shape[-1] // PATCH, image.device)
-        t = net.tokens(image.half())
+        t = self._tokens(image)
         total = t.shape[0] * t.shape[1] * 2 * self.cfg.num_heads * (HEAD_DIM // 4)  # q / k half2 pairs per half head
         grid = kernels.linear(total)
         if total + grid[0][0] * grid[1][0] > _INT32:  # the grid-stride index must not overflow

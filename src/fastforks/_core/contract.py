@@ -131,7 +131,9 @@ def resolve(card: ModelCard) -> Contract:
 
 
 def _task_inputs(task: str) -> dict[str, str]:
-    main = spec(task).inputs[:1] if task == "multiview" else spec(task).inputs  # multi-view cameras: `input_use`
+    main = (
+        spec(task).inputs[:1] if task in {"multiview", "matting"} else spec(task).inputs
+    )  # cameras, trimap: `input_use`
     return dict.fromkeys(main, "required")
 
 
@@ -239,6 +241,19 @@ _DERIVED: dict[str, dict[str, tuple[str, str, str, str, str]]] = {  # result fie
             "(x, y), pixel centres at integer coordinates",
             "always",
         ),
+        "verify": (
+            "VerifiedMatches",
+            "float32",
+            (
+                "the matches with their scores, the RANSAC inlier mask and the fundamental matrix or (with intrinsics)"
+                " the relative pose (method `verify`, computed when called)"
+            ),
+            "(x, y), pixel centres at integer coordinates",
+            "always",
+        ),
+    },
+    "tracking": {
+        "visible": ("[T, Q]", "bool", "visibility > 0.5", "", "when visibility is"),
     },
     "multiview": {
         "extrinsics": (
@@ -292,6 +307,11 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
         "keypoints2": ("[M, 2]", "float32", "pixels of image2, (x, y)", "detected keypoints"),
         "pairs": ("[K, 2]", "int64", "indices into keypoints1, keypoints2", "one row per match"),
         "scores": ("[K]", "float32", "[0, 1] match confidence", ""),
+    },
+    "matting": {"alpha": ("[B, H, W]", "float32", "[0, 1], 1 = foreground", "input pixels")},
+    "tracking": {
+        "tracks": ("[T, Q, 2]", "float32", "pixels of the input, (x, y)", "every frame, one row per query"),
+        "visibility": ("[T, Q]", "float32", "[0, 1] probability that the point is visible", "every frame"),
     },
     "features": {
         "last_hidden_state": ("[B, N, C]", "float32", "tokens after the final norm", "prefix tokens, then patches"),
@@ -371,12 +391,17 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "stereo": (("scale", "pad", "network", "crop"), ("image conversion", "rig= rectification", "depth / points")),
     "flow": (("scale", "pad", "network", "crop"), ("image conversion",)),
     "matching": (("scale", "resize to the network squares", "network", "resize to image1"), ("image conversion",)),
+    "tracking": (
+        ("resize to the network size", "network (frame by frame)", "scale to the input"),
+        ("image conversion",),
+    ),
     "depth": (
         ("resize to the processing size", "pad", "network", "crop / resize to the input"),
         ("image conversion", "other maps than the main one", "intrinsics="),
     ),
     "classification": (("network",), ("image conversion", "resize", "crop", "normalise (model.data_config)", "top-k")),
     "segmentation": (("input handling", "network", "logits at the input size"), ("image conversion", "argmax")),
+    "matting": (("resize to the network size", "normalise", "network", "resize to the input"), ("image conversion",)),
     "features": (("resize to the patch stride", "network"), ("image conversion", "pooler_output", "hidden_states")),
     "promptable_segmentation": (
         ("resize to the encoder input", "image encoder"),
@@ -399,8 +424,8 @@ def _export(card: ModelCard, v: Variant, uses: Mapping[str, Any]) -> dict[str, A
 
     inside, outside = _STAGES[card.task]
     inputs: tuple[str, ...] = spec(card.task).inputs
-    if card.task == "multiview":  # the views, then the cameras the model requires (`example_inputs`)
-        inputs = ("images", *(k for k in inputs[1:] if uses.get(k) == "required"))
+    if card.task in {"multiview", "matting"}:  # the image(s), then the cameras / trimap the model requires
+        inputs = (inputs[0], *(k for k in inputs[1:] if uses.get(k) == "required"))
     side = 0  # as `Model.export_size()`: the classification crop, the promptable encoder side, else the task's
     if card.task == "classification":
         side = v.io.crop or v.io.resize

@@ -100,7 +100,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 
 ## Monocular depth
 
-31 models; size 994x1482.
+33 models; size 994x1482.
 
 - Fastest: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
 - Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.9 ms, error 0.0346).
@@ -143,6 +143,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`moge-3-vitl`](models/depth.md#moge) | yes | 0.0356 | 485.6 (994x1482) | 513.7 | 214.7 | 2.3x vs original (994x1482) | 1673 |
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 518.4 | 270.9 | 2.1x vs original (994x1482) | 3667 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 408.1 | 383.2 | 1.1x vs original (994x1482) | 2583 |
+| [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | – | 1434.3 | 1284.0 (1080x1920) | 1.1x vs portable | 8204 |
+| [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | – | – | – | – |
 
 ## Classification
 
@@ -280,6 +282,24 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | yes | 205.1 (1024x2048) | 139.1 | 100.0 | 2.1x vs original (1024x2048) | 2054 |
 | [`sapiens-seg-1b-goliath`](models/segmentation.md#sapiens-segmentation) | no | 354.4 (1024x2048) | 275.1 | 185.2 | 1.9x vs original (1024x2048) | 3259 |
 
+## Matting
+
+5 models; size 1080x1920.
+
+- Fastest: [`birefnet-lite`](models/matting.md#birefnet) (59.3 ms).
+- Most accurate: [`birefnet`](models/matting.md#birefnet) (214.3 ms, error 0.0325).
+- Best trade-off: [`ben2`](models/matting.md#ben2) (172.6 ms, error 0.0403).
+- Fastest commercially usable: [`birefnet-lite`](models/matting.md#birefnet) (59.3 ms).
+- Most accurate commercially usable: [`birefnet`](models/matting.md#birefnet) (214.3 ms, error 0.0325).
+
+| model | commercial use | DIS-VD MAE | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
+|---|---|---|---|---|---|---|---|
+| [`birefnet-lite`](models/matting.md#birefnet) | yes | – | 75.1 (1080x1920) | 67.3 | 59.3 | 1.3x vs original (1080x1920) | 754 |
+| [`vitmatte-s`](models/matting.md#vitmatte) | yes | – | 140.2 (1080x1920) | 101.9 | 83.8 | 1.7x vs original (1080x1920) | 1337 |
+| [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 181.7 | 147.4 | 1.7x vs original (1080x1920) | 1484 |
+| [`ben2`](models/matting.md#ben2) | yes | 0.0403 | 200.6 (1080x1920) | 184.4 | 172.6 | 1.2x vs original (1080x1920) | 1946 |
+| [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 224.5 | 214.3 | 1.1x vs original (1080x1920) | 1674 |
+
 ## Promptable segmentation
 
 17 models; size 1024x1024.
@@ -294,13 +314,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`efficientvit-sam-l2`](models/promptable_segmentation.md#efficientvit-sam) | yes | 34.4 (1024x1024) | 17.8 | 6.8 | 5.0x vs original (1024x1024) | 232 |
 | [`mobile-sam`](models/promptable_segmentation.md#mobilesam) | yes | 23.5 (1024x1024) | 10.5 | 6.9 | 3.4x vs original (1024x1024) | 215 |
 | [`efficientvit-sam-xl0`](models/promptable_segmentation.md#efficientvit-sam) | yes | 28.2 (1024x1024) | 19.0 | 9.7 | 2.9x vs original (1024x1024) | 401 |
-| [`sam2.1-hiera-tiny`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 38.0 (1024x1024) | 16.6 | 13.9 | 2.7x vs original (1024x1024) | 316 |
+| [`sam2.1-hiera-tiny`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 38.0 (1024x1024) | 16.6 | 13.9 | 2.7x vs original (1024x1024) | 316 |
 | [`efficientvit-sam-xl1`](models/promptable_segmentation.md#efficientvit-sam) | yes | 40.9 (1024x1024) | 28.9 | 15.3 | 2.7x vs original (1024x1024) | 582 |
-| [`sam2.1-hiera-small`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 41.8 (1024x1024) | 18.8 | 15.6 | 2.7x vs original (1024x1024) | 330 |
-| [`sam2.1-hiera-base-plus`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 47.2 (1024x1024) | 32.0 | 25.1 | 1.9x vs original (1024x1024) | 426 |
+| [`sam2.1-hiera-small`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 41.8 (1024x1024) | 18.8 | 15.6 | 2.7x vs original (1024x1024) | 330 |
+| [`sam2.1-hiera-base-plus`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 47.2 (1024x1024) | 32.0 | 25.1 | 1.9x vs original (1024x1024) | 426 |
 | [`sam-hq-vit-b`](models/promptable_segmentation.md#hq-sam) | yes | 102.9 (1024x1024) | 49.7 | 36.8 | 2.8x vs original (1024x1024) | 433 |
 | [`sam-vit-b`](models/promptable_segmentation.md#segment-anything-sam) | yes | 98.2 (1024x1024) | 48.3 | 37.0 | 2.7x vs original (1024x1024) | 377 |
-| [`sam2.1-hiera-large`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 86.4 (1024x1024) | 68.0 | 48.8 | 1.8x vs original (1024x1024) | 760 |
+| [`sam2.1-hiera-large`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 86.4 (1024x1024) | 68.0 | 48.8 | 1.8x vs original (1024x1024) | 760 |
 | [`sam-hq-vit-l`](models/promptable_segmentation.md#hq-sam) | yes | 201.9 (1024x1024) | 117.5 | 81.4 | 2.5x vs original (1024x1024) | 889 |
 | [`sam-vit-l`](models/promptable_segmentation.md#segment-anything-sam) | yes | 197.2 (1024x1024) | 115.7 | 81.5 | 2.4x vs original (1024x1024) | 831 |
 | [`sam3`](models/promptable_segmentation.md#segment-anything-3-sam-3-image) | yes | 281.0 (1024x1024) | 179.4 | 116.5 | 2.4x vs original (1024x1024) | 2019 |
@@ -421,18 +441,18 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 |---|---|---|---|---|---|---|
 | [`pe-spatial-t16-512`](models/features.md#perception-encoder) | yes | 6.6 (224x224) | 4.5 | 0.7 | 9.8x vs original (224x224) | 53 |
 | [`pe-core-t16-384`](models/features.md#perception-encoder) | yes | 6.7 (224x224) | 4.7 | 0.7 | 9.9x vs original (224x224) | 53 |
+| [`dinov3-vits16`](models/features.md#dinov3-vit) | yes | 6.5 (224x224) | 3.5 | 0.8 | 8.2x vs original (224x224) | 44 |
 | [`dinov2-vits14-reg`](models/features.md#dinov2) | yes | 4.1 (224x224) | 3.0 | 0.8 | 5.0x vs original (224x224) | 112 |
 | [`dinov2-vits14`](models/features.md#dinov2) | yes | 3.3 (224x224) | 3.0 | 0.8 | 3.9x vs original (224x224) | 112 |
-| [`dinov3-vits16`](models/features.md#dinov3-vit) | yes | 6.5 (224x224) | 4.7 | 0.9 | 7.2x vs original (224x224) | 77 |
 | [`pe-spatial-s16-512`](models/features.md#perception-encoder) | yes | 6.7 (224x224) | 4.5 | 0.9 | 7.3x vs original (224x224) | 98 |
 | [`pe-core-s16-384`](models/features.md#perception-encoder) | yes | 7.0 (224x224) | 4.8 | 1.0 | 7.4x vs original (224x224) | 100 |
 | [`convnext_tiny.fb_in22k`](models/features.md#convnext) | yes | 3.9 (224x224) | 3.2 | 1.1 | 3.6x vs original (224x224) | 88 |
 | [`dinov3-convnext-tiny`](models/features.md#dinov3-convnext) | yes | 3.0 (224x224) | 3.0 | 1.2 | 2.5x vs original (224x224) | 86 |
+| [`dinov3-vitb16`](models/features.md#dinov3-vit) | yes | 7.0 (224x224) | 3.7 | 1.3 | 5.5x vs original (224x224) | 168 |
 | [`clip-b16-openai`](models/features.md#clip) | yes | 5.7 (224x224) | 3.4 | 1.4 | 4.2x vs original (224x224) | 324 |
 | [`c-radio-v3-b`](models/features.md#c-radiov3) | yes | 5.8 (224x224) | 3.0 | 1.4 | 4.2x vs original (224x224) | 284 |
 | [`clip-b16-laion2b`](models/features.md#clip) | yes | 5.3 (224x224) | 3.1 | 1.4 | 3.9x vs original (224x224) | 270 |
 | [`pe-spatial-b16-512`](models/features.md#perception-encoder) | yes | 7.0 (224x224) | 4.7 | 1.4 | 5.1x vs original (224x224) | 274 |
-| [`dinov3-vitb16`](models/features.md#dinov3-vit) | yes | 7.0 (224x224) | 4.9 | 1.4 | 5.0x vs original (224x224) | 201 |
 | [`siglip2-b16-256`](models/features.md#siglip-2) | yes | 6.1 (224x224) | 3.3 | 1.4 | 4.3x vs original (224x224) | 284 |
 | [`siglip2-b16-512`](models/features.md#siglip-2) | yes | 6.0 (224x224) | 3.3 | 1.4 | 4.2x vs original (224x224) | 287 |
 | [`pe-core-b16-224`](models/features.md#perception-encoder) | yes | 7.1 (224x224) | 5.0 | 1.5 | 4.9x vs original (224x224) | 285 |
@@ -443,9 +463,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`convnext_base.fb_in22k`](models/features.md#convnext) | yes | 7.7 (224x224) | 5.6 | 2.0 | 3.9x vs original (224x224) | 204 |
 | [`dinov3-convnext-small`](models/features.md#dinov3-convnext) | yes | 6.0 (224x224) | 5.4 | 2.0 | 3.0x vs original (224x224) | 127 |
 | [`dinov3-convnext-base`](models/features.md#dinov3-convnext) | yes | 7.4 (224x224) | 5.7 | 2.2 | 3.4x vs original (224x224) | 200 |
+| [`dinov3-vitl16`](models/features.md#dinov3-vit) | yes | 17.7 (224x224) | 6.7 | 3.0 | 5.8x vs original (224x224) | 616 |
 | [`convnext_large.fb_in22k`](models/features.md#convnext) | yes | 10.5 (224x224) | 5.5 | 3.2 | 3.3x vs original (224x224) | 413 |
 | [`c-radio-v3-l`](models/features.md#c-radiov3) | yes | 10.7 (224x224) | 5.5 | 3.3 | 3.3x vs original (224x224) | 888 |
-| [`dinov3-vitl16`](models/features.md#dinov3-vit) | yes | 17.7 (224x224) | 9.1 | 3.3 | 5.4x vs original (224x224) | 617 |
 | [`siglip2-l16-512`](models/features.md#siglip-2) | yes | 11.1 (224x224) | 5.7 | 3.3 | 3.4x vs original (224x224) | 887 |
 | [`siglip2-l16-256`](models/features.md#siglip-2) | yes | 11.1 (224x224) | 5.7 | 3.3 | 3.3x vs original (224x224) | 883 |
 | [`dinov3-convnext-large`](models/features.md#dinov3-convnext) | yes | 9.6 (224x224) | 5.4 | 3.6 | 2.7x vs original (224x224) | 441 |
@@ -467,7 +487,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`clip-h14-378-dfn5b`](models/features.md#clip) | no | 19.5 (224x224) | 11.4 | 8.2 | 2.4x vs original (224x224) | 2153 |
 | [`clip-h14-dfn5b`](models/features.md#clip) | no | 19.4 (224x224) | 11.4 | 8.2 | 2.4x vs original (224x224) | 2150 |
 | [`clip-h14-laion2b`](models/features.md#clip) | yes | 19.3 (224x224) | 11.2 | 8.3 | 2.3x vs original (224x224) | 1750 |
-| [`dinov3-vith16plus`](models/features.md#dinov3-vit) | yes | 25.9 (224x224) | 13.3 | 9.3 | 2.8x vs original (224x224) | 1644 |
+| [`dinov3-vith16plus`](models/features.md#dinov3-vit) | yes | 25.9 (224x224) | 12.5 | 8.5 | 3.1x vs original (224x224) | 1645 |
 | [`c-radio-v3-g`](models/features.md#c-radiov3) | yes | 29.5 (224x224) | 14.6 | 10.6 | 2.8x vs original (224x224) | 3166 |
 | [`siglip2-g16-256`](models/features.md#siglip-2) | yes | 30.9 (224x224) | 14.7 | 10.6 | 2.9x vs original (224x224) | 3163 |
 | [`siglip2-g16-384`](models/features.md#siglip-2) | yes | 31.0 (224x224) | 14.7 | 10.6 | 2.9x vs original (224x224) | 3165 |
@@ -555,3 +575,15 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`aliked-lightglue`](models/matching.md#lightglue) | yes | 41.8 (768x1024) | 48.4 | – | – | – |
 | [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.4 | – | – | – |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 405.9 | 1.8x vs original (768x1024) | 1909 |
+
+## Tracking
+
+2 models; size 480x854.
+
+- Fastest: [`tapnext`](models/tracking.md#tapnext) (382.2 ms).
+- Fastest commercially usable: [`tapnext`](models/tracking.md#tapnext) (382.2 ms).
+
+| model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
+|---|---|---|---|---|---|---|
+| [`tapnext`](models/tracking.md#tapnext) | yes | 908.8 (480x854) | 529.5 | 382.2 | 2.4x vs original (480x854) | 1313 |
+| [`tapnext-pp`](models/tracking.md#tapnext) | yes | – | – | – | – | – |

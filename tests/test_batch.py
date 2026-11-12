@@ -9,7 +9,7 @@ import pytest
 import torch
 
 from synth import image, pair, size
-from test_golden import SMALLEST, TASK, sweep_model
+from test_golden import FAMILY, SMALLEST, TASK, sweep_model
 
 LOAD_ONCE = True  # conftest runs the tests of one ref together: `sweep_model` loads it once
 
@@ -30,8 +30,12 @@ def test_batch_equals_singles(ref):
     task = TASK[ref]
     if task == "promptable_segmentation":
         pytest.skip("one image per call with prompts (batched prompts: tests/test_tasks.py)")
+    if task == "tracking":
+        pytest.skip("tracking: one video per call (its frames are the leading dim)")
     if task == "multiview":
         pytest.skip("multiview: the leading dim holds the views of one scene (they attend to each other), not a batch")
+    if FAMILY[ref] == "video_depth_anything":
+        pytest.skip("video depth: the batch is one video in time order (tests/test_depth_video_depth_anything.py)")
     model = sweep_model(ref)
     hw = size(model.variant.io.min_size, *SIZE)
     inputs = [pair(*hw, seed=s) if task in ("stereo", "flow", "matching") else (image(*hw, seed=s),) for s in (0, 1)]

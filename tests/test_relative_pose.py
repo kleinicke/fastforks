@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 import torch
 
 from fastforks._core.errors import InputError
 from fastforks._core.kernels import KernelUnavailableError
-from fastforks.matching import MatchingResult, RelativePose, estimate_fundamental, estimate_pose
+from fastforks.matching import (
+    FundamentalMatrix,
+    MatchingResult,
+    RelativePose,
+    SparseMatchingResult,
+    estimate_fundamental,
+    estimate_pose,
+)
 from fastforks.matching import relative_pose as rp
 
 F = 800.0
@@ -176,8 +185,8 @@ def test_kernels_match_portable():
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     p1, p2, k, r, t, _ = scene(6, 2000, outliers=0.5, device="cuda")
-    portable = estimate_pose(p1, p2, k, k, mode="portable")
-    kernels = estimate_pose(p1, p2, k, k, mode="kernels")
+    portable = estimate_pose(p1, p2, k, k, threshold=0.5, mode="portable")
+    kernels = estimate_pose(p1, p2, k, k, threshold=0.5, mode="kernels")
     assert portable.ok.all()
     assert kernels.ok.all()
     assert pose_error(kernels, r, t).max() < 1.0
@@ -205,11 +214,46 @@ def test_matches_from_result():
         warp[None].expand(2, 2, h, w), certainty[None].expand(2, h, w), "test@1", "portable"
     ).matches(10)
     assert b1.shape == b2.shape == (2, 10, 2)
-    assert torch.equal(b1[0], result.matches(10)[0])
+    assert len(torch.unique(b1[1], dim=0)) == 10
+    plain = MatchingResult(warp[None].expand(2, 2, h, w), certainty[None].expand(2, h, w), "test@1", "portable")
+    assert torch.equal(plain.matches(10, balanced=False)[0][0], result.matches(10, balanced=False)[0])
     none = MatchingResult(warp, None, "test@1", "portable").matches(5)[0]
     assert none.shape == (5, 2)
     with pytest.raises(InputError):
         MatchingResult(warp, torch.zeros(h, w), "test@1", "portable").matches(5)
+
+
+def test_verify():
+    """`verify` = the result's matches + `estimate_pose` (intrinsics) or `estimate_fundamental`, with the scores."""
+    p1, p2, k, r, t, good = scene(1, 300, outliers=0.3)
+    ind = torch.arange(300)
+    scores = torch.linspace(0.1, 1, 300)
+    pairs = torch.stack((ind, ind.flip(0)), 1)  # the second keypoint set in reverse order
+    sparse = SparseMatchingResult(p1[0], p2[0].flip(0), pairs, scores, "test@1", "portable")  # type: ignore[arg-type]
+    v = sparse.verify(k[0], k[0], mode="portable")
+    assert isinstance(v.geometry, RelativePose)
+    assert pose_error(dataclasses.replace(v.geometry, R=v.geometry.R[None], t=v.geometry.t[None]), r, t) < 1
+    assert torch.equal(v.points2, p2[0])
+    assert torch.equal(v.scores, scores)
+    assert (v.inliers == good[0]).float().mean() > 0.95
+    v = sparse.verify(threshold=1.0, mode="portable")
+    assert isinstance(v.geometry, FundamentalMatrix)
+    assert (v.inliers == good[0]).float().mean() > 0.9
+    with pytest.raises(InputError, match="both intrinsics"):
+        sparse.verify(k[0])
+
+    h, w = 40, 60
+    y, x = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
+    certainty = torch.rand(h, w, generator=torch.Generator().manual_seed(0))
+    dense = MatchingResult(torch.stack((x + 3.0, y - 2.0)), certainty, "test@1", "portable")  # type: ignore[arg-type]
+    v = dense.verify(n=200, seed=3, mode="portable")
+    q1, q2 = dense.matches(200, seed=3)
+    assert torch.equal(v.points1, q1)
+    assert torch.equal(v.points2, q2)
+    assert torch.equal(v.scores, certainty[q1[:, 1].long(), q1[:, 0].long()])
+    assert v.inliers.shape == (200,)
+    batch = MatchingResult(dense.warp[None].expand(2, 2, h, w), certainty.expand(2, h, w), "test@1", "portable")  # type: ignore[arg-type]
+    assert batch.verify(k[0].expand(2, 3, 3), k[0].expand(2, 3, 3), n=50, mode="portable").scores.shape == (2, 50)
 
 
 def _scorer_inputs(device: str, p: int = 4, n: int = 600) -> tuple:

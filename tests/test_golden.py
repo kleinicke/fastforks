@@ -36,11 +36,13 @@ from fastforks import (
     features,
     flow,
     matching,
+    matting,
     multiview,
     pose,
     promptable_segmentation,
     segmentation,
     stereo,
+    tracking,
 )
 from fastforks._core import kernels, registry
 from fastforks._core.errors import BackendUnavailableError, WeightsDownloadError, WeightsError
@@ -49,7 +51,7 @@ from fastforks._core.preprocess import resize_crop, scale
 from fastforks._core.tasks import spec
 from fastforks.kernels import cudnn_hacc
 from fastforks.promptable_segmentation._api import _normalised
-from synth import concepts, image, pair, prompts, scene, size
+from synth import clip, clip_prompts, concepts, image, pair, prompts, scene, size
 
 FAMILIES = goldens.load_all(registry.TASKS)
 GOLDEN = {ref: e for fam in FAMILIES.values() for ref, e in fam["refs"].items()}
@@ -71,6 +73,8 @@ API: dict[str, Any] = {
     "pose": pose,
     "flow": flow,
     "matching": matching,
+    "matting": matting,
+    "tracking": tracking,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
 HEAVY_CPU = "FASTFORKS_HEAVY_CPU_TESTS"  # 1: every CPU case, also those left out of the release suite for time / RAM
@@ -140,6 +144,7 @@ _SWEEP_OPTIONS: dict[str, dict[str, Any]] = {
     "mvsanywhere": {"long_side": 320},
     "midas": {"input_size": 256},
     "depth_anything_v2": {"short_side": 252},
+    "video_depth_anything": {"short_side": 252},
     "depth_anything_3": {"long_side": 252},
     "defom_stereo": {"iters": 2, "scale_iters": 1},
     "romav2": {"coarse_size": 256, "fine_size": 384},
@@ -240,7 +245,7 @@ def _plans_at_once() -> Any:
         cudnn_hacc.BUILD_AFTER = old
 
 
-def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901, PLR0912 - one branch per task
+def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901, PLR0912, PLR0915 - one branch per task
     """One call of `m` on the golden's input: its output maps and backend."""
     task = TASK[ref]
     img = want["input"].round().astype(np.uint8) if want and "input" in want else image()
@@ -280,6 +285,10 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         for prefix, p in prompts().items():
             pr = m(emb, **p)
             maps |= {f"{prefix}pred_masks": pr.pred_masks, f"{prefix}iou_scores": pr.iou_scores}
+        if want is not None and "video_pred_masks" in want:  # video goldens: `track` on the synth clip per prompt
+            for prefix, p in clip_prompts().items():
+                tr = m.track(clip(), **p)
+                maps |= {f"{prefix}pred_masks": tr.pred_masks, f"{prefix}object_score_logits": tr.object_score_logits}
         return {k: v.float().cpu() for k, v in maps.items()}, m.backend
     elif task == "detection":  # instances in score order; labels and masks stored as float
         r = m(img)
@@ -289,10 +298,17 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         assert want is not None, "pose goldens store their input image and person boxes"
         r = m(img, boxes=want["boxes"]) if m.needs_boxes else m(img)
         maps = {k: getattr(r, k) for k in spec("pose").standard}
+    elif task == "tracking":  # tests/synth.py clip() and the golden's queries
+        assert want is not None, "tracking goldens store their queries"
+        r = m(clip(), want["queries"])
+        maps = {k: getattr(r, k) for k in spec(task).standard}
     elif task in {"flow", "matching"}:  # the golden's image pair
         assert want is not None, f"{task} goldens store their image pair"
         r = m(img, want["input2"].round().astype(np.uint8))
         maps = {k: getattr(r, k, None) for k in spec(task).standard}  # sparse matchers: no warp / certainty
+    elif task == "matting":  # trimap-guided models: the golden's trimap
+        r = m(img, trimap=want["trimap"].round().astype(np.uint8)) if want and "trimap" in want else m(img)
+        maps = {"alpha": r.alpha}
     else:
         r = m(img, logits=True)
         assert r.logits is not None
@@ -301,8 +317,9 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     return {k: v.float().cpu() for k, v in maps.items() if v is not None}, r.backend
 
 
-# stored inputs of a golden (the image(s); per concept prompt, the queries whose masks are kept)
-INPUTS = ("input", "input2", *(f"{prefix}mask_query" for prefix in concepts()))
+# stored inputs of a golden (the image(s); tracking queries; a matting trimap; per concept prompt, the queries
+# whose masks are kept)
+INPUTS = ("input", "input2", "queries", "trimap", *(f"{prefix}mask_query" for prefix in concepts()))
 
 
 def primary(ref: str, maps: dict[str, np.ndarray]) -> str:
