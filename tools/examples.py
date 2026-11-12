@@ -308,9 +308,16 @@ def _promptable(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[st
     return np.asarray(pil), {"prompt": "one foreground point", "iou": round(float(r.iou_scores[best]), 3)}
 
 
+PEOPLE = 0.5  # pose: person score a bottom-up model's detection needs to be drawn
+
+
 def _pose(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401
-    r = model(imgs[0], boxes=torch.tensor([PERSON]))
+    # Top-down models get the fixed person box; bottom-up ones (RTMO, RF-DETR keypoint) find the people themselves.
+    r = model(imgs[0], boxes=torch.tensor([PERSON])) if model.needs_boxes else model(imgs[0])
     kp, sc = _np(r.keypoints), _np(r.keypoint_scores)
+    if not model.needs_boxes:  # their own detections: only the people they are confident about
+        keep = _np(r.scores) > PEOPLE
+        kp, sc = kp[keep], sc[keep]
     pil = Image.fromarray(imgs[0])
     draw = ImageDraw.Draw(pil)
     small = kp.shape[1] > BODY
@@ -322,7 +329,7 @@ def _pose(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, Any
         for (x, y), s in zip(kp[p], sc[p], strict=True):
             if s > KEYPOINT:
                 draw.ellipse((x - rad, y - rad, x + rad, y + rad), fill=(255, 255, 255), outline=(0, 0, 0))
-    return np.asarray(pil), {"keypoints": int(kp.shape[1]), "shown": int((sc > KEYPOINT).sum())}
+    return np.asarray(pil), {"keypoints": int(kp.shape[1]), "shown": int((sc > KEYPOINT).sum()), "people": len(kp)}
 
 
 RENDER: dict[str, Callable[[Any, list[np.ndarray]], tuple[np.ndarray | None, dict[str, Any]]]] = {
