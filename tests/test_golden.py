@@ -49,7 +49,7 @@ from fastforks._core.preprocess import resize_crop, scale
 from fastforks._core.tasks import spec
 from fastforks.kernels import cudnn_hacc
 from fastforks.promptable_segmentation._api import _normalised
-from synth import concepts, image, pair, prompts, scene, size
+from synth import clip, clip_prompts, concepts, image, pair, prompts, scene, size
 
 FAMILIES = goldens.load_all(registry.TASKS)
 GOLDEN = {ref: e for fam in FAMILIES.values() for ref, e in fam["refs"].items()}
@@ -241,7 +241,7 @@ def _plans_at_once() -> Any:
         cudnn_hacc.BUILD_AFTER = old
 
 
-def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901, PLR0912 - one branch per task
+def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901, PLR0912, PLR0915 - one branch per task
     """One call of `m` on the golden's input: its output maps and backend."""
     task = TASK[ref]
     img = want["input"].round().astype(np.uint8) if want and "input" in want else image()
@@ -281,6 +281,10 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         for prefix, p in prompts().items():
             pr = m(emb, **p)
             maps |= {f"{prefix}pred_masks": pr.pred_masks, f"{prefix}iou_scores": pr.iou_scores}
+        if want is not None and "video_pred_masks" in want:  # video goldens: `track` on the synth clip per prompt
+            for prefix, p in clip_prompts().items():
+                tr = m.track(clip(), **p)
+                maps |= {f"{prefix}pred_masks": tr.pred_masks, f"{prefix}object_score_logits": tr.object_score_logits}
         return {k: v.float().cpu() for k, v in maps.items()}, m.backend
     elif task == "detection":  # instances in score order; labels and masks stored as float
         r = m(img)

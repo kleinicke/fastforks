@@ -1,14 +1,44 @@
-# fastforks: vendored from facebookresearch/sam2@2b90b9f sam2/modeling/sam2_utils.py (only DropPath, MLP, LayerNorm2d)
+# fastforks: vendored from facebookresearch/sam2@2b90b9f sam2/modeling/sam2_utils.py (only get_1d_sine_pe, get_activation_fn, get_clones, DropPath,
+# MLP, LayerNorm2d)
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
+import copy
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+
+def get_1d_sine_pe(pos_inds, dim, temperature=10000):
+    """
+    Get 1D sine positional embedding as in the original Transformer paper.
+    """
+    pe_dim = dim // 2
+    dim_t = torch.arange(pe_dim, dtype=torch.float32, device=pos_inds.device)
+    dim_t = temperature ** (2 * (dim_t // 2) / pe_dim)
+
+    pos_embed = pos_inds.unsqueeze(-1) / dim_t
+    pos_embed = torch.cat([pos_embed.sin(), pos_embed.cos()], dim=-1)
+    return pos_embed
+
+
+def get_activation_fn(activation):
+    """Return an activation function given a string"""
+    if activation == "relu":
+        return F.relu
+    if activation == "gelu":
+        return F.gelu
+    if activation == "glu":
+        return F.glu
+    raise RuntimeError(f"activation should be relu/gelu, not {activation}.")
+
+
+def get_clones(module, N):
+    return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
 
 
 class DropPath(nn.Module):

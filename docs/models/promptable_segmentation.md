@@ -286,7 +286,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 <a id="sam2"></a>
 
-## Segment Anything 2.1 (SAM 2.1), image
+## Segment Anything 2.1 (SAM 2.1)
 
 Segment Anything 2.1 in image mode: masks from clicks, boxes or mask prompts, in four sizes.
 
@@ -328,16 +328,21 @@ Commercial use: yes.
 
 ### Measured
 
-One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Original = the original code named under Details, same checkpoint and protocol.
+One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Semi-supervised: every object's first-frame mask as `input_masks`, `track` forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as davis2017-evaluation, mean over objects. Semi-supervised: every object's first-frame mask as `input_masks`, `track` forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as davis2017-evaluation, mean over objects. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
 | `sam2.1-hiera-tiny` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 57.63 / 57.69 | 57.56 / 57.64 | 57.62 / 57.72 | 57.61 / 57.77 |  |
+| `sam2.1-hiera-tiny` | DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F % | 83.80 / 79.70 / 87.90 | 83.86 / 79.50 / 88.22 | 83.76 / 79.68 / 87.84 | 83.77 / 79.68 / 87.85 |  |
+| `sam2.1-hiera-tiny` | DAVIS 2017 val, video tracking, J&F / J / F % | 87.54 / 84.83 / 90.26 | 87.65 / 84.86 / 90.45 | 87.53 / 84.84 / 90.23 | 87.54 / 84.84 / 90.24 |  |
 | `sam2.1-hiera-small` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 59.39 / 58.46 | 59.34 / 58.42 | 59.38 / 58.49 | 59.38 / 58.47 |  |
+| `sam2.1-hiera-small` | DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F % | 84.08 / 80.26 / 87.90 | 84.11 / 80.28 / 87.93 | 84.13 / 80.31 / 87.94 | 84.13 / 80.31 / 87.95 |  |
 | `sam2.1-hiera-base-plus` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 58.79 / 58.67 | 58.73 / 58.57 | 58.81 / 58.71 | 58.82 / 58.73 |  |
+| `sam2.1-hiera-base-plus` | DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F % | 83.88 / 80.62 / 87.14 | 83.88 / 80.61 / 87.16 | 83.87 / 80.61 / 87.13 | 83.86 / 80.60 / 87.12 |  |
 | `sam2.1-hiera-large` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 64.88 / 64.71 | 64.77 / 64.73 | 64.86 / 64.68 | 64.87 / 64.70 |  |
+| `sam2.1-hiera-large` | DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F % | 85.91 / 82.21 / 89.62 | 85.98 / 82.25 / 89.71 | 85.92 / 82.22 / 89.63 | 85.92 / 82.22 / 89.63 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / 939adfe8, 2026-11-06 to 2026-11-12.
 
 ### Parity
 

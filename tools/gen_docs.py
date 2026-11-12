@@ -62,6 +62,8 @@ _DATASETS = {
     "promptable_segmentation": {
         "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
         "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
+        "davis2017-val-every3": "DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F %",
+        "davis2017-val-every1": "DAVIS 2017 val, video tracking, J&F / J / F %",
     },
     "features": {
         "imagenet-val-knn-train10000-test5000-seed0-k20": "ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / "
@@ -106,6 +108,14 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         "n",
         "images",
     ),
+    **{
+        ("promptable_segmentation", d): (
+            (("jf", "{:.2f}", ""), ("j", "{:.2f}", ""), ("f", "{:.2f}", "")),
+            "n",
+            "objects",
+        )
+        for d in ("davis2017-val-every3", "davis2017-val-every1")
+    },
     "features": ((("top1", "{:.2f}", ""),), "n", "images"),
     "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
@@ -143,6 +153,12 @@ _PROTOCOL = {
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
     "image; the top 100 instances go to pycocotools COCOeval. ",
+    **{
+        ("promptable_segmentation", d): "Semi-supervised: every object's first-frame mask as `input_masks`, `track` "
+        "forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as "
+        "davis2017-evaluation, mean over objects. "
+        for d in ("davis2017-val-every3", "davis2017-val-every1")
+    },
     "features": "Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop "
     "224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. ",
     "multiview": "640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light "

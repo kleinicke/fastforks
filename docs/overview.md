@@ -296,13 +296,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`efficientvit-sam-l2`](models/promptable_segmentation.md#efficientvit-sam) | yes | 34.4 (1024x1024) | 17.8 | 6.8 | 5.0x vs original (1024x1024) | 232 |
 | [`mobile-sam`](models/promptable_segmentation.md#mobilesam) | yes | 23.5 (1024x1024) | 10.5 | 6.9 | 3.4x vs original (1024x1024) | 215 |
 | [`efficientvit-sam-xl0`](models/promptable_segmentation.md#efficientvit-sam) | yes | 28.2 (1024x1024) | 19.0 | 9.7 | 2.9x vs original (1024x1024) | 401 |
-| [`sam2.1-hiera-tiny`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 38.0 (1024x1024) | 16.6 | 13.9 | 2.7x vs original (1024x1024) | 316 |
+| [`sam2.1-hiera-tiny`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 38.0 (1024x1024) | 16.6 | 13.9 | 2.7x vs original (1024x1024) | 316 |
 | [`efficientvit-sam-xl1`](models/promptable_segmentation.md#efficientvit-sam) | yes | 40.9 (1024x1024) | 28.9 | 15.3 | 2.7x vs original (1024x1024) | 582 |
-| [`sam2.1-hiera-small`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 41.8 (1024x1024) | 18.8 | 15.6 | 2.7x vs original (1024x1024) | 330 |
-| [`sam2.1-hiera-base-plus`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 47.2 (1024x1024) | 32.0 | 25.1 | 1.9x vs original (1024x1024) | 426 |
+| [`sam2.1-hiera-small`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 41.8 (1024x1024) | 18.8 | 15.6 | 2.7x vs original (1024x1024) | 330 |
+| [`sam2.1-hiera-base-plus`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 47.2 (1024x1024) | 32.0 | 25.1 | 1.9x vs original (1024x1024) | 426 |
 | [`sam-hq-vit-b`](models/promptable_segmentation.md#hq-sam) | yes | 102.9 (1024x1024) | 49.7 | 36.8 | 2.8x vs original (1024x1024) | 433 |
 | [`sam-vit-b`](models/promptable_segmentation.md#segment-anything-sam) | yes | 98.2 (1024x1024) | 48.3 | 37.0 | 2.7x vs original (1024x1024) | 377 |
-| [`sam2.1-hiera-large`](models/promptable_segmentation.md#segment-anything-21-sam-21-image) | yes | 86.4 (1024x1024) | 68.0 | 48.8 | 1.8x vs original (1024x1024) | 760 |
+| [`sam2.1-hiera-large`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 86.4 (1024x1024) | 68.0 | 48.8 | 1.8x vs original (1024x1024) | 760 |
 | [`sam-hq-vit-l`](models/promptable_segmentation.md#hq-sam) | yes | 201.9 (1024x1024) | 117.5 | 81.4 | 2.5x vs original (1024x1024) | 889 |
 | [`sam-vit-l`](models/promptable_segmentation.md#segment-anything-sam) | yes | 197.2 (1024x1024) | 115.7 | 81.5 | 2.4x vs original (1024x1024) | 831 |
 | [`sam3`](models/promptable_segmentation.md#segment-anything-3-sam-3-image) | yes | 281.0 (1024x1024) | 179.4 | 116.5 | 2.4x vs original (1024x1024) | 2019 |

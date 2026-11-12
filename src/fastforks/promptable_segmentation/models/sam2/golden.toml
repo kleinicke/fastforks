@@ -11,47 +11,48 @@ gpu_p99 = 0.15
 relative = true
 
 [refs."sam2.1-hiera-base-plus@1"]
-sha256 = "e0a67e5a4929b808f5e49361155774e80c8d1cb4cb82ba52489c085e429b75ca"
+sha256 = "9200c91451459389d9d5e5f9bfcc056af3bd28f8d307214dc87c4aa4cf173353"
 upstream = "https://github.com/facebookresearch/sam2@2b90b9f5ceec907a1c18123530e92e794ad901a4"
-settings = "CPU float32, build_sam2 + SAM2ImagePredictor set_image + predict (point; box + point), torch 2.14.1+cu130"
+settings = "CPU float32, build_sam2 + SAM2ImagePredictor set_image + predict (point; box + point); SAM2VideoPredictor on the synth clip (point; box; mask), scipy connected components, torch 2.14.1+cu130"
 gpu_mean = 0.0074
 gpu_p99 = 0.026
 gpu_mean_portable = 0.0026
 gpu_p99_portable = 0.009
-gpu_extra = [["box_iou_scores", 0.0041, 0.0041], ["box_pred_masks", 0.0061, 0.027], ["iou_scores", 0.16, 0.44]]
+gpu_extra = [["box_iou_scores", 0.0041, 0.0041], ["box_pred_masks", 0.0061, 0.027], ["iou_scores", 0.16, 0.44], ["video_box_object_score_logits", 0.0052, 0.015], ["video_box_pred_masks", 0.014, 0.04], ["video_mask_object_score_logits", 0.0049, 0.008], ["video_mask_pred_masks", 0.0075, 0.027], ["video_object_score_logits", 0.0063, 0.015], ["video_pred_masks", 0.0099, 0.031]]
 
 [refs."sam2.1-hiera-large@1"]
-sha256 = "503e900516a4a5833675ae11414b3e3aed3ca78f6cf9aa2c9cff1ceb0d910468"
+sha256 = "362d98d48f3552c2cedcfeb6845cb468190cb6ce595ea00905c233a801b588b3"
 upstream = "https://github.com/facebookresearch/sam2@2b90b9f5ceec907a1c18123530e92e794ad901a4"
-settings = "CPU float32, build_sam2 + SAM2ImagePredictor set_image + predict (point; box + point), torch 2.14.1+cu130"
+settings = "CPU float32, build_sam2 + SAM2ImagePredictor set_image + predict (point; box + point); SAM2VideoPredictor on the synth clip (point; box; mask), scipy connected components, torch 2.14.1+cu130"
 gpu_mean = 0.057
 gpu_p99 = 0.27
 gpu_mean_portable = 0.023
 gpu_p99_portable = 0.1
-gpu_extra = [["box_iou_scores", 0.017, 0.017], ["box_pred_masks", 0.014, 0.037], ["iou_scores", 0.12, 0.27]]
+gpu_extra = [["box_iou_scores", 0.017, 0.017], ["box_pred_masks", 0.014, 0.037], ["iou_scores", 0.12, 0.27], ["video_box_object_score_logits", 0.0076, 0.016], ["video_box_pred_masks", 0.036, 0.083], ["video_mask_object_score_logits", 0.0048, 0.0085], ["video_mask_pred_masks", 0.067, 0.39], ["video_object_score_logits", 0.0077, 0.018], ["video_pred_masks", 0.03, 0.088]]
 
 [refs."sam2.1-hiera-small@1"]
-sha256 = "54bd72e8a48f029fe46adcb0f54a564bfd2d4562b995a90ef668e032c2059320"
+sha256 = "0fc6deeb29326a8bbc3dbef49ab6c31d9cee4744848aeb4ec9638af0c75fa5d0"
 upstream = "https://github.com/facebookresearch/sam2@2b90b9f5ceec907a1c18123530e92e794ad901a4"
-settings = "CPU float32, build_sam2 + SAM2ImagePredictor set_image + predict (point; box + point), torch 2.14.1+cu130"
+settings = "CPU float32, build_sam2 + SAM2ImagePredictor set_image + predict (point; box + point); SAM2VideoPredictor on the synth clip (point; box; mask), scipy connected components, torch 2.14.1+cu130"
 gpu_mean = 0.017
 gpu_p99 = 0.051
-gpu_extra = [["box_iou_scores", 0.0083, 0.0083], ["box_pred_masks", 0.0039, 0.013], ["iou_scores", 0.038, 0.083]]
+gpu_extra = [["box_iou_scores", 0.0083, 0.0083], ["box_pred_masks", 0.0039, 0.013], ["iou_scores", 0.038, 0.083], ["video_box_object_score_logits", 0.0032, 0.0059], ["video_box_pred_masks", 0.018, 0.046], ["video_mask_object_score_logits", 0.0025, 0.004], ["video_mask_pred_masks", 0.012, 0.037], ["video_object_score_logits", 0.013, 0.029], ["video_pred_masks", 0.028, 0.15]]
 
 [refs."sam2.1-hiera-tiny@1"]
-sha256 = "e285ffe09a37cf22d4973dff90dc8dff53c57b36009ea11c215c63c01c9c2985"
+sha256 = "5f6326fb81d22a5196facac109addf1778a089c8fab860fa03212ed27a2f1819"
 upstream = "https://github.com/facebookresearch/sam2@2b90b9f5ceec907a1c18123530e92e794ad901a4"
-settings = "CPU float32, build_sam2 + SAM2ImagePredictor set_image + predict (point; box + point), torch 2.14.1+cu130"
+settings = "CPU float32, build_sam2 + SAM2ImagePredictor set_image + predict (point; box + point); SAM2VideoPredictor on the synth clip (point; box; mask), scipy connected components, torch 2.14.1+cu130"
 gpu_mean = 0.0037
 gpu_p99 = 0.015
-gpu_extra = [["box_iou_scores", 0.0036, 0.0036], ["box_pred_masks", 0.0035, 0.012], ["iou_scores", 0.0081, 0.013]]
+gpu_extra = [["box_iou_scores", 0.0036, 0.0036], ["box_pred_masks", 0.0035, 0.012], ["iou_scores", 0.0081, 0.013], ["video_box_object_score_logits", 0.026, 0.066], ["video_box_pred_masks", 0.23, 0.66], ["video_mask_object_score_logits", 0.0016, 0.0029], ["video_mask_pred_masks", 0.0081, 0.034], ["video_object_score_logits", 0.0023, 0.0038], ["video_pred_masks", 0.0071, 0.03]]
+cpu_extra = [["video_pred_masks", 0.0081], ["video_box_pred_masks", 0.0083], ["video_mask_pred_masks", 0.018]]
 
 [validated."sam2.1-hiera-base-plus@1"]
 kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
 symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-07"
+date = "2026-11-12"
 mean_px = 0.00245
 p99_px = 0.00842
 
@@ -60,7 +61,7 @@ kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
 symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-07"
+date = "2026-11-12"
 mean_px = 0.01872
 p99_px = 0.08865
 
@@ -69,7 +70,7 @@ kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
 symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-07"
+date = "2026-11-12"
 mean_px = 0.00539
 p99_px = 0.01677
 
@@ -78,6 +79,6 @@ kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
 symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-07"
+date = "2026-11-12"
 mean_px = 0.00122
 p99_px = 0.00428
