@@ -131,7 +131,9 @@ def resolve(card: ModelCard) -> Contract:
 
 
 def _task_inputs(task: str) -> dict[str, str]:
-    main = spec(task).inputs[:1] if task == "multiview" else spec(task).inputs  # multi-view cameras: `input_use`
+    main = (
+        spec(task).inputs[:1] if task in {"multiview", "matting"} else spec(task).inputs
+    )  # cameras, trimap: `input_use`
     return dict.fromkeys(main, "required")
 
 
@@ -422,8 +424,8 @@ def _export(card: ModelCard, v: Variant, uses: Mapping[str, Any]) -> dict[str, A
 
     inside, outside = _STAGES[card.task]
     inputs: tuple[str, ...] = spec(card.task).inputs
-    if card.task == "multiview":  # the views, then the cameras the model requires (`example_inputs`)
-        inputs = ("images", *(k for k in inputs[1:] if uses.get(k) == "required"))
+    if card.task in {"multiview", "matting"}:  # the image(s), then the cameras / trimap the model requires
+        inputs = (inputs[0], *(k for k in inputs[1:] if uses.get(k) == "required"))
     side = 0  # as `Model.export_size()`: the classification crop, the promptable encoder side, else the task's
     if card.task == "classification":
         side = v.io.crop or v.io.resize

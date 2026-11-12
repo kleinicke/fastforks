@@ -735,6 +735,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | ben2 | 201 | 184 | 173 | 1.2x | 1.1x | 2466 / 2772 | 1681 / 1976 | 1946 / 2238 |
 | birefnet | 234 | 225 | 214 | 1.1x | 1.0x | 1666 / 1930 | 1660 / 1888 | 1674 / 1916 |
 | birefnet-lite | 75.1 | 67.3 | 59.3 | 1.3x | 1.1x | 913 / 974 | 810 / 932 | 754 / 960 |
+| vitmatte-b | 257 | 182 | 147 | 1.7x | 1.2x | 5070 / 5128 | 1548 / 1692 | 1484 / 1710 |
+| vitmatte-s | 140 | 102 | 83.8 | 1.7x | 1.2x | 2536 / 2582 | 1401 / 1524 | 1337 / 1444 |
 
 ### Promptable segmentation, synthetic, 1024x1024
 
@@ -1211,6 +1213,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | ben2 | 2.29 | 0.30 | 1.40 | 0.93 | 0.66 | 0.42 |
 | birefnet | 3.60 | 0.75 | 1.61 | 0.39 | 0.56 | 0.44 |
 | birefnet-lite | 8.04 | 0.26 | 1.03 | 1.10 | 0.63 | 0.32 |
+| vitmatte-b | 0.21 | 0.52 | 1.32 | 0.56 | 0.35 | 0.25 |
+| vitmatte-s | 2.85 | 0.16 | 1.30 | 0.72 | 0.41 | 0.20 |
 | efficientvit-sam-l0 | 0.35 | 0.83 | 1.63 | 0.82 | 0.72 | 0.25 |
 | efficientvit-sam-l1 | 0.31 | 0.76 | 1.64 | 0.03 | 0.69 | 0.25 |
 | efficientvit-sam-l2 | 0.39 | 0.93 | 1.78 | 0.04 | 0.66 | 0.25 |
@@ -1623,6 +1627,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | ben2 | 1080x1920 | 184 ms | 103 ms | 58.2 ms | 173 ms | 70.8 s | 140 s | 1681 / 1976 | 813 / 916 | 1946 / 2238 | 1280 / 1326 |
 | birefnet | 1080x1920 | 225 ms | 138 ms | 87.8 ms | 214 ms | 93.8 s | 201 s | 1660 / 1888 | 1874 / 1932 | 1674 / 1916 | 1753 / 1814 |
 | birefnet-lite | 1080x1920 | 67.3 ms | 50.2 ms | 49.0 ms | 59.3 ms | 75.1 s | 156 s | 810 / 932 | 1469 / 1552 | 754 / 960 | 874 / 934 |
+| vitmatte-b | 1080x1920 | 182 ms | 157 ms | 108 ms | 147 ms | 32.6 s | 48.8 s | 1548 / 1692 | 1166 / 1472 | 1484 / 1710 | 1233 / 1262 |
+| vitmatte-s | 1080x1920 | 102 ms | 81.9 ms | 54.6 ms | 83.8 ms | 31.5 s | 51.3 s | 1401 / 1524 | 1025 / 1284 | 1337 / 1444 | 876 / 920 |
 | efficientvit-sam-l0 | 1024x1024 | 12.7 ms | 6.44 ms | 5.56 ms, fp32 engine (image encoder only) | 4.45 ms | 25.2 s | 19.9 s | 171 / 210 | 188 / 228 | 176 / 256 | 404 / 428 |
 | efficientvit-sam-l1 | 1024x1024 | 14.4 ms | 11.3 ms | 7.30 ms, fp32 engine (image encoder only) | 5.79 ms | 24.8 s | 22.0 s | 195 / 234 | 212 / 252 | 203 / 284 | 517 / 578 |
 | efficientvit-sam-l2 | 1024x1024 | 17.8 ms | 10.8 ms | 9.65 ms, fp32 engine (image encoder only) | 6.83 ms | 26.1 s | 24.1 s | 221 / 260 | 238 / 278 | 232 / 312 | 633 / 690 |

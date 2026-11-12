@@ -1,9 +1,16 @@
-"""Matting accuracy on DIS5K's validation split (DIS-VD): MAE and max F-beta of the alpha against the binary masks.
+"""Matting accuracy: DIS5K validation (DIS-VD) for automatic models, AIM-500 with trimaps for trimap-guided ones.
 
-Data: `FASTFORKS_DATA`/matting/DIS5K/DIS-VD/{im,gt} (470 images, sorted by name; `--every 2`: every 2nd, dataset
-`dis-vd-every2`). Each image at its own size, one call each. Scoring as BiRefNet's evaluation (py_sod_metrics): the
-alpha saved as 8-bit (`round(255 * alpha)`), min-max normalised per image, the mask = gt > 128; MAE = mean |pred - gt|;
-F-beta (beta^2 = 0.3) at the 256 thresholds of the 8-bit prediction, averaged over images per threshold, the maximum.
+DIS-VD (`--dataset dis-vd`): `FASTFORKS_DATA`/matting/DIS5K/DIS-VD/{im,gt} (470 images, sorted by name; `--every 2`:
+every 2nd, dataset `dis-vd-every2`). Each image at its own size, one call each. Scoring as BiRefNet's evaluation
+(py_sod_metrics): the alpha saved as 8-bit (`round(255 * alpha)`), min-max normalised per image, the mask = gt > 128;
+MAE = mean |pred - gt|; F-beta (beta^2 = 0.3) at the 256 thresholds of the 8-bit prediction, averaged over images per
+threshold, the maximum.
+
+AIM-500 (`--dataset aim500`): `FASTFORKS_DATA`/matting/AIM-500/{im,alpha} (500 natural images with soft alpha mattes,
+the authors' MIT release; `--every 5`: dataset `aim500-every5`). The release's trimaps are not in the mirror, so each
+trimap is made from the alpha (`trimap_of`: foreground = alpha 255 eroded, background = alpha 0 eroded, the rest
+unknown; 21 px elliptic kernel). Scoring as ViTMatte's evaluation, in the unknown region of the 8-bit alpha: SAD =
+sum |pred - gt| / 1000, MSE = mean (pred - gt)^2 (reported x 1000), with alpha in [0, 1].
 
 Tiers: `upstream` / `upstream16` (the HF `birefnet.py` of the weights, fp32 / the authors' `half()`, with the card's
 pre- and post-processing, `tools/golden/birefnet.py`; `FF_BIREFNET_HF` = a directory with the HF snapshots
@@ -38,13 +45,32 @@ TIERS = {  # tier -> (mode, dtype, how, column)
     "portable": ("portable", "float16", None, "portable"),
     "kernels": ("kernels", "float16", None, "kernels"),
 }
+KERNEL = 21  # AIM-500 trimaps: erosion kernel (px)
 
 
-def items(every: int) -> list[tuple[Path, Path]]:
-    """(image, mask) paths of DIS-VD, sorted by name, every `every`-th."""
-    root = Path(os.environ["FASTFORKS_DATA"]) / "matting" / "DIS5K" / "DIS-VD"
+def items(dataset: str, every: int) -> list[tuple[Path, Path]]:
+    """(image, mask / alpha) paths of `dataset`, sorted by name, every `every`-th."""
+    data = Path(os.environ["FASTFORKS_DATA"]) / "matting"
+    root, gt = (data / "AIM-500", "alpha") if dataset == "aim500" else (data / "DIS5K" / "DIS-VD", "gt")
     ims = sorted((root / "im").iterdir())[::every]
-    return [(p, root / "gt" / f"{p.stem}.png") for p in ims]
+    return [(p, root / gt / f"{p.stem}.png") for p in ims]
+
+
+def trimap_of(alpha: np.ndarray) -> np.ndarray:
+    """uint8 trimap of an 8-bit alpha: 255 = alpha 255 eroded, 0 = alpha 0 eroded, 128 = the rest (unknown)."""
+    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (KERNEL, KERNEL))
+    tri = np.full_like(alpha, 128)
+    tri[cv2.erode((alpha == 255).astype(np.uint8), k) > 0] = 255  # noqa: PLR2004 - 8-bit foreground
+    tri[cv2.erode((alpha == 0).astype(np.uint8), k) > 0] = 0
+    return tri
+
+
+def score_trimap(alpha: torch.Tensor, gt: torch.Tensor, tri: torch.Tensor) -> tuple[float, float]:
+    """SAD / 1000 and MSE in the unknown region of one image (ViTMatte's `evaluation.py`, 8-bit prediction)."""
+    pred = (alpha.double() * 255).round() / 255
+    unknown = tri == 128  # noqa: PLR2004 - the trimap's unknown value
+    d = (pred - gt.double() / 255)[unknown]
+    return float(d.abs().sum()) / 1000, float(d.square().sum()) / max(int(unknown.sum()), 1)
 
 
 def score(alpha: torch.Tensor, gt: torch.Tensor) -> tuple[float, torch.Tensor]:
@@ -70,7 +96,7 @@ def read(item: tuple[Path, Path]) -> tuple[np.ndarray, np.ndarray]:
 
 
 def predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
-    """`[1, 3, H, W]` float CUDA in [0, 1] -> alpha `[H, W]` of `tier`."""
+    """`([1, 3, H, W], [1, 1, H, W] trimap or None)` float CUDA in [0, 1] -> alpha `[H, W]` of `tier`."""
     if tier.startswith("upstream"):
         sys.path.insert(0, str(ROOT / "tools" / "golden"))
         from fastforks._core import registry  # noqa: PLC0415
@@ -83,18 +109,25 @@ def predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
             net = ben2.network(Path(os.environ["FF_BEN2_REPO"]), Path(weights)).cuda()
             fp16 = tier == "upstream16"
 
-            def call(x: torch.Tensor) -> torch.Tensor:
+            def call(x: torch.Tensor, _: None) -> torch.Tensor:
                 with torch.inference_mode():
                     return ben2.predict(net, x, autocast=fp16)[0]
 
             return call
+        if card.family == "vitmatte":  # transformers' port, fp16 = its float16 weights
+            import vitmatte  # noqa: PLC0415 - tools/golden/vitmatte.py
+
+            snap = Path(os.environ["FF_VITMATTE_HF"]) / ref.split("@", maxsplit=1)[0]
+            vm: Any = vitmatte.network(snap, fp16=tier == "upstream16")  # transformers types `.cuda` oddly
+            vm = vm.cuda()
+            return lambda x, t: vitmatte.predict(vm, x, t)[0]
         from birefnet import network, predict  # noqa: PLC0415 - tools/golden/birefnet.py
 
         net = network(Path(os.environ["FF_BIREFNET_HF"]) / ref, Path(weights)).cuda()
         if tier == "upstream16":
             net = net.half()
 
-        def call(x: torch.Tensor) -> torch.Tensor:
+        def call(x: torch.Tensor, _: None) -> torch.Tensor:
             with torch.inference_mode():
                 return predict(net, x)[0]
 
@@ -103,44 +136,59 @@ def predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
 
     mode = "kernels" if tier == "kernels" else "portable"
     m = matting.load(ref, mode=mode, device="cuda", **({"dtype": "float32"} if tier == "portable32" else {}))
-    return lambda x: m(x).alpha[0]
+    return lambda x, t: (m(x) if t is None else m(x, trimap=t)).alpha[0]
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("refs", nargs="+")
     ap.add_argument("--tiers", default="portable,kernels")
+    ap.add_argument("--dataset", choices=("dis-vd", "aim500"), default="dis-vd")
     ap.add_argument("--every", type=int, default=1)
     ap.add_argument("--out", type=Path, required=True)
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
-    data = items(a.every)
+    data = items(a.dataset, a.every)
+    aim = a.dataset == "aim500"
     commit = subprocess.run(
         ["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True
     )
-    dataset = f"dis-vd-every{a.every}" if a.every > 1 else "dis-vd"
+    dataset = f"{a.dataset}-every{a.every}" if a.every > 1 else a.dataset
     for ref in a.refs:
         for tier in a.tiers.split(","):
             mode, dtype, how, column = TIERS[tier]
             fn = predictor(ref, tier)
-            fn(torch.rand(1, 3, 512, 768, device="cuda"))  # warm-up
+            fn(
+                torch.rand(1, 3, 512, 768, device="cuda"),
+                torch.full((1, 1, 512, 768), 0.5, device="cuda") if aim else None,
+            )
             torch.cuda.reset_peak_memory_stats()
             maes, curves, times = [], [], []
             with ThreadPoolExecutor(4) as pool:  # decode the next images while the GPU runs
                 for img, gt in pool.map(read, data):
                     x = torch.from_numpy(img).cuda().permute(2, 0, 1)[None].float() / 255
+                    g = torch.from_numpy(gt).cuda()
+                    tri = torch.from_numpy(trimap_of(gt)).cuda() if aim else None
+                    t01 = None if tri is None else tri[None, None].float() / 255
                     torch.cuda.synchronize()
                     t = time.perf_counter()
-                    alpha = fn(x)
+                    alpha = fn(x, t01)
                     torch.cuda.synchronize()
                     times.append(time.perf_counter() - t)
-                    mae, f = score(alpha.float(), torch.from_numpy(gt).cuda())
-                    maes.append(mae)
-                    curves.append(f)
-            metrics = {
-                "mae": round(float(np.mean(maes)), 4),
-                "max_fbeta": round(float(torch.stack(curves).mean(0).max()), 4),
-            }
+                    if tri is not None:
+                        maes.append(score_trimap(alpha.float(), g, tri))
+                    else:
+                        mae, f = score(alpha.float(), g)
+                        maes.append(mae)
+                        curves.append(f)
+            if aim:
+                sad, mse = np.mean(maes, 0)
+                metrics = {"sad": round(float(sad), 2), "mse": round(float(mse) * 1000, 3)}
+            else:
+                metrics = {
+                    "mae": round(float(np.mean(maes)), 4),
+                    "max_fbeta": round(float(torch.stack(curves).mean(0).max()), 4),
+                }
             row = {
                 "ref": ref, "task": "matting", "tier": tier, "mode": mode, "dtype": dtype, "how": how,
                 "commit": commit.stdout.strip(), "gpu": torch.cuda.get_device_name(), "torch": torch.__version__,

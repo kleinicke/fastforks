@@ -85,6 +85,8 @@ _DATASETS = {
     "matting": {
         "dis-vd": "DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta",
         "dis-vd-every2": "DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta",
+        "aim500": "AIM-500, all 500 images, generated trimaps, SAD / MSE x 1000 (unknown region)",
+        "aim500-every5": "AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region)",
     },
     "tracking": {
         "tapvid-davis-first-every3": "TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA %",
@@ -132,6 +134,10 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
+    **{
+        ("matting", d): ((("sad", "{:.2f}", ""), ("mse", "{:.3f}", "")), "n", "images")
+        for d in ("aim500", "aim500-every5")
+    },
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
@@ -181,11 +187,14 @@ _PROTOCOL = {
     "rotation and translation-direction errors. ",
     ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
     "pair. ",
-    "matting": "Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over "
-    "256 thresholds (BiRefNet's evaluation). ",
     "tracking": "TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model, one query per track at "
     "its first visible point, tracked online; AJ, delta_avg (< 1, 2, 4, 8, 16 px at 256 x 256) and occlusion accuracy "
     "averaged over the videos. ",
+    ("matting", "dis-vd-every2"): "Each image at its own size against its binary mask: MAE of the alpha, max F-beta "
+    "(beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). ",
+    ("matting", "aim500-every5"): "Trimap-guided models, AIM-500: each image at its own size with a trimap made from "
+    "its alpha (alpha 255 / 0 eroded by a 21 px ellipse = foreground / background, the rest unknown); SAD / 1000 and "
+    "MSE of the 8-bit alpha in the unknown region (ViTMatte's evaluation). ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
@@ -920,8 +929,9 @@ TASK_IO = {
         "the keypoints of both images and the index pairs of the matched ones instead."
     ),
     "matting": (
-        "Input: one RGB image. Output: an alpha matte `[H, W]` in [0, 1] at the input size: 1 = foreground "
-        "(background removal, dichotomous / salient object segmentation)."
+        "Input: one RGB image (trimap-guided models also a trimap: background / unknown / foreground). Output: an "
+        "alpha matte `[H, W]` in [0, 1] at the input size: 1 = foreground (background removal, dichotomous / salient "
+        "object segmentation)."
     ),
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",

@@ -937,6 +937,19 @@ def _ben2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapt
     return lambda image: g.predict(net, image[None].float() / 255, autocast=fp16)
 
 
+def _vitmatte(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """The transformers `VitMatteForImageMatting` with the processor's maths on tensors, as `tools/golden/vitmatte.py`.
+
+    `FF_VITMATTE_HF`: a directory with the HF snapshots as `<ref>/` (config + weights); fp16 = `torch_dtype=float16`.
+    """
+    import transformers  # noqa: PLC0415
+
+    g = _golden("vitmatte")
+    net = g.network(Path(os.environ["FF_VITMATTE_HF"]) / full.split("@", maxsplit=1)[0], fp16=fp16).cuda()
+    a.note = f"transformers {transformers.__version__} VitMatteForImageMatting, normalise / trimap / pad 32 / crop"
+    return lambda image, trimap: g.predict(net, image[None].float() / 255, trimap)
+
+
 class _Local:
     """An original the bench has no adapter for, on the library's own bench inputs as uint8 CUDA tensors.
 
@@ -945,6 +958,7 @@ class _Local:
     """
 
     flag = False  # no mixed-precision option of its own: fp16 = torch.autocast around the call
+    trimap = "unused"  # matting: "required" adds the bench's synthetic trimap to the call
 
     def __init__(
         self,
@@ -982,7 +996,7 @@ class _Local:
             device=torch.device("cuda"),
             needs_boxes=self.needs_boxes,
             prompts=(),
-            _runner=types.SimpleNamespace(intrinsics="unused"),
+            _runner=types.SimpleNamespace(intrinsics="unused", trimap=self.trimap),
         )
         out = []
         for h, w in self.sizes:
@@ -1115,6 +1129,12 @@ class _Tracking(_LocalFp16):
         return out
 
 
+class _LocalTrimap(_LocalFp16):
+    """A trimap-guided matting original: called with the image and the bench's synthetic trimap."""
+
+    trimap = "required"
+
+
 def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
     return [[x0, y0, x1 - x0, y1 - y0] for x0, y0, x1, y1 in boxes.tolist()]
 
@@ -1175,6 +1195,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "birefnet": _LocalFp16("matting", _birefnet, ((1080, 1920),)),
     "ben2": _LocalFp16("matting", _ben2, ((1080, 1920),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
+    "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
 }
 
 

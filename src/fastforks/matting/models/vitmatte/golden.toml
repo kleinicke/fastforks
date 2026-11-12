@@ -1,0 +1,39 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+# measured: CPU float32 max 3.9e-6 (vitmatte-s); GPU portable mean 2.4e-5 / p99 4.7e-4, kernels mean 3e-5 / p99 7e-4
+cpu_atol = 5.8e-06
+gpu_mean = 5.3e-05
+gpu_p99 = 0.0012
+
+[refs."vitmatte-b@1"]
+sha256 = "0c8298ecba071295c133aacae84557202049a793c222e1fafc19f24ef92e0101"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, transformers 5.19.0 VitMatteImageProcessor + VitMatteForImageMatting, weights hustvl/vitmatte-base-composition-1k@bf486d01a7d9e3dbcc8400f7942835caf0eaf76e, demo retriever_rgb.png + retriever_trimap.png (hustvl/ViTMatte@8cd7ef068380977c3962c4cb733cb1fe7f2241a5), pad to 32, crop, torch 2.14.1+cu130"
+
+[refs."vitmatte-s@1"]
+sha256 = "ac64e29306d606ff3ec93091ec0da90da681364ceffb298f3aadff45833db718"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, transformers 5.19.0 VitMatteImageProcessor + VitMatteForImageMatting, weights hustvl/vitmatte-small-composition-1k@6a58ad7646403c1df626fbd746900aec7361ea1d, demo retriever_rgb.png + retriever_trimap.png (hustvl/ViTMatte@8cd7ef068380977c3962c4cb733cb1fe7f2241a5), pad to 32, crop, torch 2.14.1+cu130"
+
+[validated."vitmatte-b@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "dpt_fused@48e0065bb7cf:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 3e-05
+p99_px = 0.00064
+
+[validated."vitmatte-s@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "dpt_fused@48e0065bb7cf:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 3e-05
+p99_px = 0.0007

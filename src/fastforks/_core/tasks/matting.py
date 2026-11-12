@@ -9,5 +9,5 @@ SPEC = TaskSpec(
     output_keys={},
     io_keys=VALUE_KEYS,
     order=35,
-    inputs=("image",),
+    inputs=("image", "trimap"),  # trimap: only where the runner requires it (`input_use`)
 )

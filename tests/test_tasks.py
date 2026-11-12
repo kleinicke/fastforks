@@ -20,6 +20,7 @@ from fastforks import (
     classification,
     depth,
     features,
+    matting,
     multiview,
     promptable_segmentation,
     segmentation,
@@ -131,6 +132,52 @@ def test_depth_intrinsics_policy(fake):
         depth.load("fake", device="cpu")(np.zeros((4, 4, 3), np.uint8))
     with pytest.raises(TypeError, match="positional"):
         depth.load("fake", device="cpu")(np.zeros((4, 4, 3), np.uint8), torch.eye(3))  # ty: ignore[too-many-positional-arguments]
+
+
+class Matte(MattingRunner):
+    batch = 1
+    trimap = "required"
+
+    def __call__(self, image, trimap):
+        return {"alpha": trimap[:, 0] * image[:, 0]}
+
+
+def test_matting_trimap(fake):
+    """Trimap-guided matting: required, converted to [B, 1, H, W] in [0, 1], one for a batch, size checked."""
+    fake("matting", Matte, ["alpha"], {})
+    m = matting.load("fake", device="cpu")
+    img = np.full((2, 4, 5, 3), 255, np.uint8)
+    tri = np.full((4, 5), 128, np.uint8)
+    r = m(img, trimap=tri)  # one trimap for both images, chunked one image per call
+    torch.testing.assert_close(r.alpha, torch.full((2, 4, 5), 128 / 255))
+    with pytest.raises(InputError, match="needs a trimap"):
+        m(img)
+    with pytest.raises(InputError, match="do not match"):
+        m(img, trimap=np.zeros((4, 6), np.uint8))
+    with pytest.raises(InputError, match="do not match"):
+        m(img, trimap=np.zeros((3, 4, 5, 1), np.uint8))
+    assert matting.model_card("fake").contract().inputs == {"image": "required", "trimap": "required"}
+    assert matting.model_card("fake").contract().export["inputs"] == ("image", "trimap")
+    image, trimap = m.example_inputs(32, 48, batch=2)
+    assert image.shape == (2, 3, 32, 48)
+    assert trimap.shape == (2, 1, 32, 48)
+    assert set(trimap.unique().tolist()) == {0.0, 0.5, 1.0}
+    args, kwargs = bench_inputs(m, BenchSize(32, 48))
+    assert len(args) == 1
+    assert kwargs["trimap"].shape == (1, 1, 32, 48)
+
+    class Plain(MattingRunner):
+        def __call__(self, image, trimap):
+            assert trimap is None
+            return {"alpha": image[:, 0]}
+
+    fake("matting", Plain, ["alpha"], {})
+    plain = matting.load("fake", device="cpu")
+    with pytest.raises(InputError, match="does not use a trimap"):
+        plain(img, trimap=tri)
+    assert matting.model_card("fake").contract().inputs == {"image": "required", "trimap": "unused"}
+    assert matting.model_card("fake").contract().export["inputs"] == ("image",)
+    assert len(plain.example_inputs(32, 48)) == 1
 
 
 def test_depth_card_rules():

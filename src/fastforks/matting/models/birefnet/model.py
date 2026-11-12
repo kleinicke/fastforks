@@ -61,7 +61,7 @@ class _Matting(Runner):
     def _net(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)[-1]
 
-    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+    def __call__(self, image: torch.Tensor, trimap: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
         """Alpha `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
         s = self.ctx.params.size
         x = F.interpolate(image, (s, s), mode="bilinear", align_corners=False, antialias=True)
@@ -71,7 +71,7 @@ class _Matting(Runner):
 
     def module(self) -> torch.nn.Module:
         """The network with its pre- and post-processing: `[B, 3, H, W]` in `[0, 1]` -> alpha `[B, H, W]`."""
-        return Forward(self.net, lambda _net, image: self(image)["alpha"])
+        return Forward(self.net, lambda _net, image: self(image, None)["alpha"])
 
 
 class Portable(_Matting):

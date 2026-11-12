@@ -306,8 +306,8 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         assert want is not None, f"{task} goldens store their image pair"
         r = m(img, want["input2"].round().astype(np.uint8))
         maps = {k: getattr(r, k, None) for k in spec(task).standard}  # sparse matchers: no warp / certainty
-    elif task == "matting":
-        r = m(img)
+    elif task == "matting":  # trimap-guided models: the golden's trimap
+        r = m(img, trimap=want["trimap"].round().astype(np.uint8)) if want and "trimap" in want else m(img)
         maps = {"alpha": r.alpha}
     else:
         r = m(img, logits=True)
@@ -317,8 +317,9 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     return {k: v.float().cpu() for k, v in maps.items() if v is not None}, r.backend
 
 
-# stored inputs of a golden (the image(s); tracking queries; per concept prompt, the queries whose masks are kept)
-INPUTS = ("input", "input2", "queries", *(f"{prefix}mask_query" for prefix in concepts()))
+# stored inputs of a golden (the image(s); tracking queries; a matting trimap; per concept prompt, the queries
+# whose masks are kept)
+INPUTS = ("input", "input2", "queries", "trimap", *(f"{prefix}mask_query" for prefix in concepts()))
 
 
 def primary(ref: str, maps: dict[str, np.ndarray]) -> str:

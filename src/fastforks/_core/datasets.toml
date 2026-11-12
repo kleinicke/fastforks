@@ -281,3 +281,9 @@ name = "Prama LLC proprietary segmentation data"
 licence = "not stated"  # BEN2 card: "our 22K proprietary segmentation dataset"
 commercial = "unclear"
 url = "https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md"
+
+[composition-1k]
+name = "Composition-1k (Adobe Deep Image Matting)"
+licence = "Adobe research licence on request"  # the DIM dataset is shared by Adobe on request for non-commercial research
+commercial = "no"
+url = "https://sites.google.com/view/deepimagematting"

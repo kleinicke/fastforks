@@ -12,6 +12,11 @@
   Tiny on DAVIS 2017 val (480p): 59 ms/frame portable, 63 ms kernels vs 282 ms original fp32 (90 ms fp16), peak
   1.3 GB vs 2.1 GB; J&F 87.53 portable, 87.54 kernels and original.
 
+- ViTMatte trimap matting (`vitmatte-s`, `vitmatte-b`; Apache-2.0 code and weights): `model(image, trimap=...)`
+  returns the alpha; ViTDet backbone on image + trimap, conv detail-capture decoder. 1080x1920: `vitmatte-s` 84 ms
+  kernels, 102 ms portable (55 ms TensorRT) vs 274 ms original fp32 (140 ms fp16), peak 1.4 GB vs 5.0 GB; `vitmatte-b`
+  147 ms kernels (108 ms TensorRT) vs 552 ms (257 ms). AIM-500 SAD 13.72 / MSE 12.18 (`vitmatte-b` kernels, 500
+  images), every 5th image equal to the original for all tiers.
 - BEN2 matting / background removal (`ben2`; MIT code and weights): Swin v1 Base on the whole image plus four
   full-resolution patches, merged by multi-view cross-attention. 1080x1920: 173 ms kernels, 184 ms portable (58 ms
   TensorRT, 103 ms compile) vs 318 ms original fp32 (201 ms fp16). DIS-VD MAE 0.0403 / max F-beta 0.900 (kernels,
