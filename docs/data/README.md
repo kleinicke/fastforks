@@ -138,6 +138,27 @@ model, dataset and `setting`:
 the `dpt_fused` kernel binary came from a local build (build id `48e0065bb7cf`). The DA3 script changes `long_side` on
 one loaded model and first checks that this is bit-equal to loading with that `long_side`.
 
+## Relative pose: `relative_pose_eval.jsonl`
+
+`fastforks.matching.estimate_pose` against the usual CPU solvers on the same matches (the table on the RoMa v2 model
+page). Written by `tools/eval_pose.py --matches DIR --method opencv|usac|poselib|portable|kernels [--jobs N] [--stop N]`,
+one row per run; every row says where its numbers came from.
+
+- Matches: RoMa v2 (`romav2`, kernels mode, bfloat16, kernel build `romav2@1c8e19405d40`) on MegaDepth-1500, 5000
+  matches per pair sampled 5 times (`tools/eval_matching.py match`), saved once and read by every solver.
+  `matches_sha256` (SHA-256 over the sorted `.npz` files, first 16 hex digits) pins the exact matches; `matches` is the
+  directory's name. Pose AUC@5/10/20 (`auc5`, `auc10`, `auc20`) over all `n` = 5 x `n_pairs` poses, threshold 0.5 px.
+- Throughput rows (no `--stop`, 1500 pairs): `pairs_per_s` is wall-clock over all poses. CPU solvers run one pair per
+  call in `jobs` single-threaded processes; the GPU solver takes `batch` pairs per call. `ms_per_pair_single` (CPU) and
+  `ms_single_pair_median` (GPU) are the median time of one pair alone.
+- Single-core rows (`jobs` 1, `--stop 300`): the first 300 pairs only, for the per-pair time; their AUC is over that
+  subset.
+- Trust fields: `commit` (the checkout that ran, `src_dirty` true if `src` or `tools` had uncommitted changes),
+  `versions` (torch, OpenCV, NumPy, PoseLib), `cpu_model`, `gpu`, `loadavg_1min` (1-minute load average when the run
+  started: CPU throughput depends on other work on the machine; the rows here are from runs started below 2), `kernel`
+  (kernels rows: the RANSAC binary loaded, by file name = build, SHA-256 prefix, and `local build` = not yet published,
+  read from `FASTFORKS_KERNEL_PATH` and checked against the manifest), `command` (paths reduced to file names), `date`.
+
 ## Devices: `devices.toml`, `speed/<slug>.jsonl`
 
 `devices.toml` lists the measured devices (slug = vendor + model + memory, e.g. `rx-7900-xtx-24gb`; fields described
