@@ -223,6 +223,29 @@ def _peak(row: dict | None) -> str:
     return f"{row['peak_alloc_mb']} / " + (DASH if res is None else str(res))
 
 
+def _trt_peaks(row: dict | None) -> tuple[int, int] | None:
+    """A TensorRT row's peak (allocated, reserved) MiB = engine device memory + torch-side peak; None if unknown.
+
+    Rows from `tools/speed_check.py` since 2026-11-12 carry the sum in `peak_*_mb` (torch side in `torch_peak_*_mb`);
+    older rows have the torch-side peak there and the engine's memory in `device_mb` (no `device_mb`: unknown).
+    """
+    if row is None or "peak_alloc_mb" not in row:
+        return None
+    if "torch_peak_alloc_mb" in row:
+        return row["peak_alloc_mb"], row["peak_reserved_mb"]
+    if "device_mb" not in row:
+        return None
+    return row["device_mb"] + row["peak_alloc_mb"], row["device_mb"] + row["peak_reserved_mb"]
+
+
+def _trt_peak(row: dict | None) -> str:
+    """`alloc / reserved` of `_trt_peaks`, `unknown` where the engine's memory was not recorded, a dash without a row."""
+    if row is None or "fails" in row:
+        return DASH
+    peaks = _trt_peaks(row)
+    return "unknown" if peaks is None else f"{peaks[0]} / {peaks[1]}"
+
+
 def _ms_str(ms: object) -> str:
     """A time in ms to 3 significant digits (all digits from 1000 ms): `3.48`, `20.1`, `214`."""
     if not isinstance(ms, int | float) or isinstance(ms, bool) or not math.isfinite(ms) or ms == 0:
@@ -283,10 +306,9 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
         if "fails" in r:
             lines.append((label, f"fails: {_fail_reason(r['fails'])}", DASH))
             continue
-        engine = mode == "tensorrt" and "device_mb" in r
         name = "TensorRT fp32" if r.get("engine_dtype") == "float32" else label
         ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
-        lines.append((name, ms, f"{r['device_mb']} (engine)" if engine else _peak(r)))
+        lines.append((name, ms, _trt_peak(r) if mode == "tensorrt" else _peak(r)))
         first = r["compile_s"] if mode == "compile" else r["onnx_export_s"] + r["engine_build_s"]
         setup.append(f"{name} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
     return lines, setup
@@ -889,7 +911,7 @@ def render(task: str) -> str:
             f"The summary uses {basis}: kernels time with its speed-up over the faster original run, and kernels "
             "peak reserved memory with its ratio to the smaller original one. "
             "Where measured (one variant per family), a variant's table also lists portable under `torch.compile` "
-            "and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). "
+            "and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). "
             f"{_DASH} = not measured."
             + (f" The accuracy column is lower-is-better ({_OVERVIEW_ACC[task][2]})." if task in _OVERVIEW_ACC else "")
         ),
@@ -1406,7 +1428,7 @@ def _compile_block() -> str:
     head = (
         "| model | input | time: portable | compile | TensorRT fp16 | kernels"
         " | preparation: compile (cold first call) | ONNX + engine build"
-        " | peak MiB (alloc / reserved): portable | compile | kernels | TensorRT (device) |"
+        " | peak MiB (alloc / reserved): portable | compile | kernels | TensorRT (engine + torch) |"
     )
     out = [f"{_COMPILE_BEGIN} (tools/gen_docs.py, from docs/data/speed_compile.jsonl) -->"]
     if not latest:
@@ -1430,7 +1452,7 @@ def _compile_block() -> str:
             _peak(at.get("portable")),
             _peak(comp) if comp and "fails" not in comp else DASH,
             _peak(at.get("kernels")),
-            str(trt["device_mb"]) if built and "device_mb" in trt else DASH,
+            _trt_peak(trt),
         ]
         out.append("| " + " | ".join(cells) + " |")
     return "\n".join([*out, _COMPILE_END])

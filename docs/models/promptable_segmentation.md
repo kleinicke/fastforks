@@ -6,7 +6,7 @@
 
 Input: one image plus a point, box or text prompt. Output: masks with quality scores.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -40,11 +40,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientvit-sam-l0` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 26.9<br>26.3<br>12.7<br>4.45<br>6.44<br>5.56 (image encoder only) | 251 / 290<br>211 / 232<br>171 / 210<br>176 / 256<br>188 / 228<br>202 (engine) |
-| `efficientvit-sam-l1` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 30.1<br>29.9<br>14.4<br>5.79<br>11.3<br>7.30 (image encoder only) | 300 / 316<br>260 / 278<br>195 / 234<br>203 / 284<br>212 / 252<br>266 (engine) |
-| `efficientvit-sam-l2` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 34.4<br>34.4<br>17.8<br>6.83<br>10.8<br>9.65 (image encoder only) | 352 / 382<br>313 / 344<br>221 / 260<br>232 / 312<br>238 / 278<br>330 (engine) |
-| `efficientvit-sam-xl0` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 46.9<br>28.2<br>19.0<br>9.75<br>14.2<br>22.7 (image encoder only) | 814 / 828<br>654 / 670<br>433 / 506<br>401 / 492<br>397 / 424<br>782 (engine) |
-| `efficientvit-sam-xl1` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 72.6<br>40.9<br>28.9<br>15.3<br>22.9<br>38.4 (image encoder only) | 1143 / 1182<br>984 / 1022<br>598 / 676<br>582 / 728<br>562 / 616<br>1058 (engine) |
+| `efficientvit-sam-l0` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 26.9<br>26.3<br>12.7<br>4.45<br>6.44<br>5.56 (image encoder only) | 251 / 290<br>211 / 232<br>171 / 210<br>176 / 256<br>188 / 228<br>404 / 428 |
+| `efficientvit-sam-l1` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 30.1<br>29.9<br>14.4<br>5.79<br>11.3<br>7.30 (image encoder only) | 300 / 316<br>260 / 278<br>195 / 234<br>203 / 284<br>212 / 252<br>517 / 578 |
+| `efficientvit-sam-l2` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 34.4<br>34.4<br>17.8<br>6.83<br>10.8<br>9.65 (image encoder only) | 352 / 382<br>313 / 344<br>221 / 260<br>232 / 312<br>238 / 278<br>633 / 690 |
+| `efficientvit-sam-xl0` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 46.9<br>28.2<br>19.0<br>9.75<br>14.2<br>22.7 (image encoder only) | 814 / 828<br>654 / 670<br>433 / 506<br>401 / 492<br>397 / 424<br>1288 / 1328 |
+| `efficientvit-sam-xl1` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 72.6<br>40.9<br>28.9<br>15.3<br>22.9<br>38.4 (image encoder only) | 1143 / 1182<br>984 / 1022<br>598 / 676<br>582 / 728<br>562 / 616<br>1894 / 1960 |
 
 <details><summary>Details</summary>
 
@@ -118,7 +118,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mobile-sam` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 30.3<br>23.5<br>10.5<br>6.86<br>6.22<br>4.99 (image encoder only) | 319 / 368<br>207 / 286<br>183 / 210<br>215 / 296<br>203 / 232<br>122 (engine) |
+| `mobile-sam` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 30.3<br>23.5<br>10.5<br>6.86<br>6.22<br>4.99 (image encoder only) | 319 / 368<br>207 / 286<br>183 / 210<br>215 / 296<br>203 / 232<br>219 / 252 |
 
 <details><summary>Details</summary>
 
@@ -168,9 +168,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam-hq-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>103<br>49.7<br>36.8<br>39.4<br>28.0 (image encoder only) | 2886 / 2934<br>1704 / 1756<br>388 / 422<br>433 / 564<br>372 / 422<br>342 (engine) |
-| `sam-hq-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 412<br>202<br>118<br>81.4<br>97.0<br>68.3 (image encoder only) | 4545 / 4576<br>2969 / 3018<br>846 / 902<br>889 / 1046<br>822 / 902<br>796 (engine) |
-| `sam-hq-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 738<br>311<br>217<br>144<br>187<br>125 (image encoder only) | 5848 / 5896<br>4266 / 4318<br>1500 / 1566<br>1541 / 1708<br>1476 / 1526<br>1474 (engine) |
+| `sam-hq-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>103<br>49.7<br>36.8<br>39.4<br>28.0 (image encoder only) | 2886 / 2934<br>1704 / 1756<br>388 / 422<br>433 / 564<br>372 / 422<br>609 / 642 |
+| `sam-hq-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 412<br>202<br>118<br>81.4<br>97.0<br>68.3 (image encoder only) | 4545 / 4576<br>2969 / 3018<br>846 / 902<br>889 / 1046<br>822 / 902<br>1482 / 1538 |
+| `sam-hq-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 738<br>311<br>217<br>144<br>187<br>125 (image encoder only) | 5848 / 5896<br>4266 / 4318<br>1500 / 1566<br>1541 / 1708<br>1476 / 1526<br>2790 / 2818 |
 
 <details><summary>Details</summary>
 
@@ -232,9 +232,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 168<br>98.2<br>48.3<br>37.0<br>40.9<br>27.3 (image encoder only) | 2798 / 2832<br>1769 / 1802<br>378 / 420<br>377 / 420<br>362 / 400<br>322 (engine) |
-| `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 406<br>197<br>116<br>81.5<br>97.2<br>67.5 (image encoder only) | 4428 / 4474<br>3411 / 3464<br>833 / 1262<br>831 / 862<br>793 / 862<br>780 (engine) |
-| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 734<br>306<br>214<br>143<br>188<br>124 (image encoder only) | 5702 / 5754<br>5295 / 5404<br>1484 / 2524<br>1480 / 1524<br>1436 / 1484<br>1442 (engine) |
+| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 168<br>98.2<br>48.3<br>37.0<br>40.9<br>27.3 (image encoder only) | 2798 / 2832<br>1769 / 1802<br>378 / 420<br>377 / 420<br>362 / 400<br>545 / 582 |
+| `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 406<br>197<br>116<br>81.5<br>97.2<br>67.5 (image encoder only) | 4428 / 4474<br>3411 / 3464<br>833 / 1262<br>831 / 862<br>793 / 862<br>1453 / 1520 |
+| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 734<br>306<br>214<br>143<br>188<br>124 (image encoder only) | 5702 / 5754<br>5295 / 5404<br>1484 / 2524<br>1480 / 1524<br>1436 / 1484<br>2744 / 2784 |
 
 <details><summary>Details</summary>
 
@@ -294,10 +294,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam2.1-hiera-tiny` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 66.3<br>38.0<br>16.6<br>13.9<br>14.2<br>8.56 (image encoder only) | 622 / 676<br>577 / 636<br>304 / 382<br>316 / 362<br>270 / 322<br>266 (engine) |
-| `sam2.1-hiera-small` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 74.8<br>41.8<br>18.8<br>15.6<br>14.9<br>9.93 (image encoder only) | 649 / 698<br>618 / 662<br>318 / 366<br>330 / 386<br>283 / 326<br>268 (engine) |
-| `sam2.1-hiera-base-plus` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 107<br>47.2<br>32.0<br>25.1<br>26.4<br>16.7 (image encoder only) | 830 / 868<br>823 / 870<br>412 / 464<br>426 / 524<br>365 / 404<br>358 (engine) |
-| `sam2.1-hiera-large` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>86.4<br>68.0<br>48.8<br>59.5<br>38.1 (image encoder only) | 1474 / 1518<br>1656 / 1724<br>742 / 768<br>760 / 828<br>678 / 748<br>704 (engine) |
+| `sam2.1-hiera-tiny` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 66.3<br>38.0<br>16.6<br>13.9<br>14.2<br>8.56 (image encoder only) | 622 / 676<br>577 / 636<br>304 / 382<br>316 / 362<br>270 / 322<br>414 / 446 |
+| `sam2.1-hiera-small` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 74.8<br>41.8<br>18.8<br>15.6<br>14.9<br>9.93 (image encoder only) | 649 / 698<br>618 / 662<br>318 / 366<br>330 / 386<br>283 / 326<br>429 / 452 |
+| `sam2.1-hiera-base-plus` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 107<br>47.2<br>32.0<br>25.1<br>26.4<br>16.7 (image encoder only) | 830 / 868<br>823 / 870<br>412 / 464<br>426 / 524<br>365 / 404<br>588 / 620 |
+| `sam2.1-hiera-large` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>86.4<br>68.0<br>48.8<br>59.5<br>38.1 (image encoder only) | 1474 / 1518<br>1656 / 1724<br>742 / 768<br>760 / 828<br>678 / 748<br>1212 / 1232 |
 
 <details><summary>Details</summary>
 
@@ -362,7 +362,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>281<br>179<br>116<br>168<br>89.5 (image encoder only) | 3865 / 3934<br>5255 / 5334<br>1922 / 2004<br>2019 / 2264<br>1910 / 2004<br>1122 (engine) |
+| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>281<br>179<br>116<br>168<br>89.5 (image encoder only) | 3865 / 3934<br>5255 / 5334<br>1922 / 2004<br>2019 / 2264<br>1910 / 2004<br>2926 / 2944 |
 
 <details><summary>Details</summary>
 

@@ -452,7 +452,7 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
 
     The engine runs `module()` on synthetic inputs (`example_inputs`) of the shape the timed call gives the network
     (`_net_input`: the classifier crop, the scene's views). `device_mb` = device memory taken by loading the engine and
-    running it (TensorRT allocates outside torch).
+    running it (TensorRT allocates outside torch); `peak_*_mb` = `device_mb` + the torch-side peak (kept in `torch_peak_*_mb`).
     """
     import tempfile  # noqa: PLC0415
 
@@ -483,6 +483,10 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
             engine = TensorRTEngine(engine_path)
             row |= measure(lambda: engine(*inputs))
             row["device_mb"] = round((free0 - torch.cuda.mem_get_info()[0]) / 2**20)
+            # peak = engine memory + torch-side peak (the allocator does not see the engine's memory)
+            for k in ("alloc", "reserved"):
+                row[f"torch_peak_{k}_mb"] = row[f"peak_{k}_mb"]
+                row[f"peak_{k}_mb"] += row["device_mb"]
             if all_nan(engine.run(*inputs)) is not None:
                 _fail(row, spec, "wrong output: an engine output is all NaN")
     except Exception as e:  # noqa: BLE001 - recorded as a failed row

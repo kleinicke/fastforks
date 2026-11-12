@@ -6,7 +6,7 @@
 
 Input: two RGB images (consecutive frames). Output: per-pixel motion from the first to the second (dx, dy in pixels).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured. The accuracy column is lower-is-better (KITTI 2015 train EPE (px)).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured. The accuracy column is lower-is-better (KITTI 2015 train EPE (px)).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -56,9 +56,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>351<br>–<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>3165 / 3638<br>–<br>2438 / 3196<br>2006 (engine) |
-| `flowformer-small-things` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>351<br>–<br>250<br>202 | 3122 / 3678<br>2382 / 3010<br>3165 / 3638<br>–<br>2438 / 3196<br>2006 (engine) |
-| `flowformer-small-sintel` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>351<br>–<br>250<br>202 | 3122 / 3718<br>2382 / 2990<br>3165 / 3638<br>–<br>2438 / 3196<br>2006 (engine) |
+| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>351<br>–<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>3165 / 3638<br>–<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-things` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>351<br>–<br>250<br>202 | 3122 / 3678<br>2382 / 3010<br>3165 / 3638<br>–<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-sintel` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>351<br>–<br>250<br>202 | 3122 / 3718<br>2382 / 2990<br>3165 / 3638<br>–<br>2438 / 3196<br>2087 / 2138 |
 
 <details><summary>Details</summary>
 
@@ -130,9 +130,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `flowseek-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>457<br>395<br>–<br>258<br>168 | 9902 / 10052<br>8693 / 9880<br>8671 / 8712<br>–<br>6126 / 6212<br>11022 (engine) |
-| `flowseek-t-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>458<br>395<br>–<br>258<br>168 | 9902 / 10012<br>8693 / 9820<br>8671 / 8712<br>–<br>6126 / 6212<br>11024 (engine) |
-| `flowseek-t-things-notartan` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 651<br>458<br>396<br>–<br>258<br>168 | 9902 / 10052<br>8693 / 9820<br>8671 / 8712<br>–<br>6126 / 6212<br>11022 (engine) |
+| `flowseek-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>457<br>395<br>–<br>258<br>168 | 9902 / 10052<br>8693 / 9880<br>8671 / 8712<br>–<br>6126 / 6212<br>11328 / 11350 |
+| `flowseek-t-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>458<br>395<br>–<br>258<br>168 | 9902 / 10012<br>8693 / 9820<br>8671 / 8712<br>–<br>6126 / 6212<br>11330 / 11352 |
+| `flowseek-t-things-notartan` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 651<br>458<br>396<br>–<br>258<br>168 | 9902 / 10052<br>8693 / 9820<br>8671 / 8712<br>–<br>6126 / 6212<br>11328 / 11350 |
 
 <details><summary>Details</summary>
 
@@ -197,8 +197,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>801<br>–<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>5523 / 5660<br>–<br>4293 / 4558<br>4172 (engine) |
-| `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>800<br>–<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>5523 / 5660<br>–<br>4293 / 4558<br>4172 (engine) |
+| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>801<br>–<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>5523 / 5660<br>–<br>4293 / 4558<br>4333 / 4390 |
+| `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>800<br>–<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>5523 / 5660<br>–<br>4293 / 4558<br>4333 / 4390 |
 | `gmflow-scale2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2537<br>1599<br>1636<br>–<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8742<br>8425 / 8552<br>6433 / 7244<br>–<br>10865 / 10904<br>– |
 | `gmflow-scale2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2541<br>1607<br>1644<br>–<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8742<br>8425 / 8552<br>6433 / 7244<br>–<br>10865 / 10904<br>– |
 | `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>1645<br>–<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8722<br>8425 / 8572<br>6433 / 7244<br>–<br>10865 / 10904<br>– |
@@ -316,9 +316,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>103<br>59.0<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8532 (engine) |
-| `neuflow-v2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.7<br>102<br>58.9<br>91.4<br>64.9 | 8694 / 9020<br>4367 / 4576<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8532 (engine) |
-| `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>103<br>58.9<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8532 (engine) |
+| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>103<br>59.0<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
+| `neuflow-v2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.7<br>102<br>58.9<br>91.4<br>64.9 | 8694 / 9020<br>4367 / 4576<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
+| `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>103<br>58.9<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>8392 / 8416<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
 
 <details><summary>Details</summary>
 
@@ -457,13 +457,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sea-raft-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>299<br>73.1<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>8333 / 8420<br>435 / 514<br>5869 / 5920<br>10892 (engine) |
-| `sea-raft-m-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>299<br>73.1<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>8333 / 8420<br>435 / 514<br>5869 / 5920<br>10892 (engine) |
-| `sea-raft-m-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 96.1<br>56.7<br>52.3<br>23.2<br>34.6<br>4.43 | 759 / 858<br>761 / 812<br>713 / 740<br>181 / 214<br>624 / 640<br>120 (engine) |
-| `sea-raft-m-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>299<br>73.1<br>192<br>132 | 8503 / 8580<br>7385 / 8570<br>8333 / 8420<br>435 / 514<br>5869 / 5920<br>10892 (engine) |
-| `sea-raft-s` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>300<br>226<br>50.4<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>8292 / 8354<br>415 / 492<br>5828 / 5876<br>10866 (engine) |
-| `sea-raft-s-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>299<br>226<br>50.5<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>8292 / 8354<br>415 / 492<br>5828 / 5876<br>10866 (engine) |
-| `sea-raft-s-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 67.1<br>42.4<br>37.1<br>16.0<br>23.8<br>3.01 | 718 / 814<br>699 / 764<br>672 / 714<br>160 / 192<br>582 / 596<br>86 (engine) |
+| `sea-raft-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>299<br>73.1<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>8333 / 8420<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
+| `sea-raft-m-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>299<br>73.1<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>8333 / 8420<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
+| `sea-raft-m-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 96.1<br>56.7<br>52.3<br>23.2<br>34.6<br>4.43 | 759 / 858<br>761 / 812<br>713 / 740<br>181 / 214<br>624 / 640<br>291 / 318 |
+| `sea-raft-m-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>299<br>73.1<br>192<br>132 | 8503 / 8580<br>7385 / 8570<br>8333 / 8420<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
+| `sea-raft-s` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>300<br>226<br>50.4<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>8292 / 8354<br>415 / 492<br>5828 / 5876<br>11043 / 11078 |
+| `sea-raft-s-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>299<br>226<br>50.5<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>8292 / 8354<br>415 / 492<br>5828 / 5876<br>11043 / 11078 |
+| `sea-raft-s-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 67.1<br>42.4<br>37.1<br>16.0<br>23.8<br>3.01 | 718 / 814<br>699 / 764<br>672 / 714<br>160 / 192<br>582 / 596<br>215 / 278 |
 
 <details><summary>Details</summary>
 

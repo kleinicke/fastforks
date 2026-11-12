@@ -6,7 +6,7 @@
 
 Input: two RGB images of one scene. Output: for every pixel of the first image its position in the second (x, y in pixels) and a certainty that the pixel is visible in both.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 768x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 768x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -24,7 +24,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `romav2` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1412<br>741<br>546<br>406<br>576<br>353 | 11159 / 11606<br>9881 / 10124<br>1989 / 2596<br>1909 / 2580<br>3150 / 3386<br>5702 (engine) |
+| `romav2` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1412<br>741<br>546<br>406<br>576<br>353 | 11159 / 11606<br>9881 / 10124<br>1989 / 2596<br>1909 / 2580<br>3150 / 3386<br>6694 / 6740 |
 
 <details><summary>Details</summary>
 

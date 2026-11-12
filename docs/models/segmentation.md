@@ -6,7 +6,7 @@
 
 Input: one RGB image. Output: per-pixel class labels (logits with `logits=True`).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x2048: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x2048: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -43,11 +43,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `fcn-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 94.2<br>47.0<br>40.7<br>16.6<br>35.6<br>27.4 | 1799 / 2074<br>1925 / 2102<br>417 / 492<br>294 / 478<br>414 / 472<br>882 (engine) |
-| `pspnet-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 92.5<br>47.2<br>48.8<br>25.0<br>41.3<br>29.8 | 1797 / 2074<br>1922 / 2222<br>417 / 492<br>341 / 494<br>414 / 472<br>1086 (engine) |
-| `deeplabv3-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 108<br>54.8<br>47.9<br>20.1<br>42.1<br>30.6 | 1870 / 2134<br>2031 / 2162<br>453 / 532<br>362 / 518<br>450 / 512<br>954 (engine) |
-| `deeplabv3plus-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 104<br>53.4<br>47.1<br>18.0<br>44.6<br>30.9 | 1776 / 2036<br>1891 / 2024<br>413 / 492<br>365 / 560<br>410 / 432<br>920 (engine) |
-| `hrnet-w48-fcn-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.1<br>54.8<br>26.9<br>11.9<br>23.9<br>20.9 | 1789 / 1870<br>1915 / 2010<br>424 / 490<br>274 / 430<br>421 / 448<br>888 (engine) |
+| `fcn-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 94.2<br>47.0<br>40.7<br>16.6<br>35.6<br>27.4 | 1799 / 2074<br>1925 / 2102<br>417 / 492<br>294 / 478<br>414 / 472<br>1656 / 1734 |
+| `pspnet-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 92.5<br>47.2<br>48.8<br>25.0<br>41.3<br>29.8 | 1797 / 2074<br>1922 / 2222<br>417 / 492<br>341 / 494<br>414 / 472<br>1859 / 1898 |
+| `deeplabv3-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 108<br>54.8<br>47.9<br>20.1<br>42.1<br>30.6 | 1870 / 2134<br>2031 / 2162<br>453 / 532<br>362 / 518<br>450 / 512<br>1764 / 1826 |
+| `deeplabv3plus-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 104<br>53.4<br>47.1<br>18.0<br>44.6<br>30.9 | 1776 / 2036<br>1891 / 2024<br>413 / 492<br>365 / 560<br>410 / 432<br>1683 / 1732 |
+| `hrnet-w48-fcn-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.1<br>54.8<br>26.9<br>11.9<br>23.9<br>20.9 | 1789 / 1870<br>1915 / 2010<br>424 / 490<br>274 / 430<br>421 / 448<br>1662 / 1712 |
 
 <details><summary>Details</summary>
 
@@ -117,9 +117,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov2-s-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 55.8<br>24.7<br>18.3<br>12.4<br>20.7<br>40.3 | 1653 / 2010<br>1694 / 2046<br>642 / 696<br>645 / 676<br>1331 / 1376<br>1794 (engine) |
-| `dinov2-b-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 115<br>40.1<br>33.3<br>22.6<br>35.8<br>49.5 | 1899 / 2224<br>2063 / 2426<br>765 / 884<br>771 / 904<br>1455 / 1504<br>1922 (engine) |
-| `dinov2-l-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 332<br>95.7<br>83.9<br>56.8<br>84.5<br>82.1 | 2730 / 3124<br>3308 / 3726<br>1181 / 1244<br>1189 / 1244<br>1870 / 1904<br>2396 (engine) |
+| `dinov2-s-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 55.8<br>24.7<br>18.3<br>12.4<br>20.7<br>40.3 | 1653 / 2010<br>1694 / 2046<br>642 / 696<br>645 / 676<br>1331 / 1376<br>3084 / 3130 |
+| `dinov2-b-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 115<br>40.1<br>33.3<br>22.6<br>35.8<br>49.5 | 1899 / 2224<br>2063 / 2426<br>765 / 884<br>771 / 904<br>1455 / 1504<br>3367 / 3424 |
+| `dinov2-l-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 332<br>95.7<br>83.9<br>56.8<br>84.5<br>82.1 | 2730 / 3124<br>3308 / 3726<br>1181 / 1244<br>1189 / 1244<br>1870 / 1904<br>4257 / 4318 |
 
 <details><summary>Details</summary>
 
@@ -179,8 +179,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `eomt-l-dinov2-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 178<br>63.7<br>50.8<br>35.0<br>49.4<br>54.3 | 3376 / 3526<br>3827 / 4086<br>1515 / 1584<br>1515 / 1584<br>1585 / 1624<br>1798 (engine) |
-| `eomt-l-dinov3-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 186<br>72.1<br>54.6<br>38.8<br>50.0<br>61.9 | 3372 / 3528<br>3822 / 4086<br>1514 / 1584<br>1514 / 1584<br>1584 / 1624<br>1800 (engine) |
+| `eomt-l-dinov2-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 178<br>63.7<br>50.8<br>35.0<br>49.4<br>54.3 | 3376 / 3526<br>3827 / 4086<br>1515 / 1584<br>1515 / 1584<br>1585 / 1624<br>3475 / 3500 |
+| `eomt-l-dinov3-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 186<br>72.1<br>54.6<br>38.8<br>50.0<br>61.9 | 3372 / 3528<br>3822 / 4086<br>1514 / 1584<br>1514 / 1584<br>1584 / 1624<br>3475 / 3522 |
 
 <details><summary>Details</summary>
 
@@ -238,7 +238,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mask2former-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>145<br>103<br>60.4<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>55.6 | 2966 / 3660<br>3572 / 3878<br>1164 / 1400<br>1164 / 1400<br>–<br>1816 (engine) |
+| `mask2former-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>145<br>103<br>60.4<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>55.6 | 2966 / 3660<br>3572 / 3878<br>1164 / 1400<br>1164 / 1400<br>–<br>3051 / 3090 |
 
 <details><summary>Details</summary>
 
@@ -288,7 +288,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>139<br>100.0<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>83.3 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476<br>–<br>3258 (engine) |
+| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>139<br>100.0<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>83.3 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476<br>–<br>4524 / 4576 |
 
 <details><summary>Details</summary>
 
@@ -338,8 +338,8 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sapiens-seg-0.3b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 466<br>173<br>132<br>92.6<br>118<br>156 | 3673 / 4104<br>2520 / 2724<br>1643 / 1762<br>1643 / 1762<br>1373 / 1462<br>1564 (engine) |
-| `sapiens-seg-1b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1189<br>354<br>275<br>185<br>263<br>244 | 6874 / 7284<br>5721 / 5906<br>3259 / 3384<br>3259 / 3382<br>2986 / 3084<br>3180 (engine) |
+| `sapiens-seg-0.3b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 466<br>173<br>132<br>92.6<br>118<br>156 | 3673 / 4104<br>2520 / 2724<br>1643 / 1762<br>1643 / 1762<br>1373 / 1462<br>2465 / 2526 |
+| `sapiens-seg-1b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1189<br>354<br>275<br>185<br>263<br>244 | 6874 / 7284<br>5721 / 5906<br>3259 / 3384<br>3259 / 3382<br>2986 / 3084<br>5694 / 5742 |
 
 <details><summary>Details</summary>
 
@@ -394,8 +394,8 @@ Commercial use: **no** (weights: LicenseRef-NVIDIA-Source-Code-License-NC).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `segformer-b0-ade20k` (resize 2048x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.2<br>17.4<br>11.4<br>3.48<br>9.27<br>5.51 | 1583 / 1638<br>1590 / 1766<br>339 / 376<br>148 / 238<br>336 / 356<br>792 (engine) |
-| `segformer-b5-ade20k` (resize 2048x640) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>72.0<br>38.7<br>25.3<br>31.4<br>22.8 | 2529 / 2538<br>2531 / 2620<br>546 / 590<br>407 / 534<br>543 / 630<br>1206 (engine) |
+| `segformer-b0-ade20k` (resize 2048x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.2<br>17.4<br>11.4<br>3.48<br>9.27<br>5.51 | 1583 / 1638<br>1590 / 1766<br>339 / 376<br>148 / 238<br>336 / 356<br>1480 / 1522 |
+| `segformer-b5-ade20k` (resize 2048x640) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>72.0<br>38.7<br>25.3<br>31.4<br>22.8 | 2529 / 2538<br>2531 / 2620<br>546 / 590<br>407 / 534<br>543 / 630<br>2069 / 2110 |
 
 <details><summary>Details</summary>
 
@@ -449,10 +449,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `segnext-mscan-t-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.1<br>23.8<br>15.9<br>8.99<br>16.6<br>16.0 | 1585 / 1622<br>1593 / 1648<br>332 / 378<br>147 / 206<br>446 / 480<br>788 (engine) |
-| `segnext-mscan-s-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 28.6<br>23.3<br>18.5<br>8.04<br>24.9<br>18.0 | 1622 / 1672<br>1649 / 1700<br>350 / 402<br>202 / 290<br>465 / 482<br>786 (engine) |
-| `segnext-mscan-b-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.8<br>33.9<br>28.3<br>12.2<br>40.7<br>23.3 | 1674 / 1728<br>1727 / 1838<br>376 / 424<br>229 / 332<br>491 / 526<br>820 (engine) |
-| `segnext-mscan-l-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 69.7<br>52.2<br>43.1<br>20.6<br>63.6<br>32.3 | 1756 / 1810<br>1849 / 1894<br>417 / 458<br>314 / 428<br>532 / 578<br>860 (engine) |
+| `segnext-mscan-t-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.1<br>23.8<br>15.9<br>8.99<br>16.6<br>16.0 | 1585 / 1622<br>1593 / 1648<br>332 / 378<br>147 / 206<br>446 / 480<br>1476 / 1498 |
+| `segnext-mscan-s-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 28.6<br>23.3<br>18.5<br>8.04<br>24.9<br>18.0 | 1622 / 1672<br>1649 / 1700<br>350 / 402<br>202 / 290<br>465 / 482<br>1493 / 1544 |
+| `segnext-mscan-b-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.8<br>33.9<br>28.3<br>12.2<br>40.7<br>23.3 | 1674 / 1728<br>1727 / 1838<br>376 / 424<br>229 / 332<br>491 / 526<br>1553 / 1622 |
+| `segnext-mscan-l-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 69.7<br>52.2<br>43.1<br>20.6<br>63.6<br>32.3 | 1756 / 1810<br>1849 / 1894<br>417 / 458<br>314 / 428<br>532 / 578<br>1634 / 1694 |
 
 <details><summary>Details</summary>
 

@@ -98,7 +98,7 @@ timed calls, `peak_first_*` of the first call alone.
 
 Rows of `tools/speed_check.py run --modes compile tensorrt` (`side` = `lib`): `mode` `compile` (portable +
 `torch.compile`, `compile_s` = cold first call) or `tensorrt` (fp16 engine: `onnx_export_s`, `engine_build_s`,
-`engine_mb`, `device_mb` = engine device memory, `net_input` where the engine input differs from `input`). A row with
+`engine_mb`, `device_mb` = engine device memory, `torch_peak_alloc_mb` / `torch_peak_reserved_mb` = torch-side peaks (`peak_alloc_mb` / `peak_reserved_mb` = device_mb + these; rows before 2026-11-12 hold the torch-side peak in `peak_*` and have no `torch_peak_*`), `net_input` where the engine input differs from `input`). A row with
 `fails` records why the mode does not build. The latest row per model id and mode counts. `engine_dtype` =
 `float32` marks an fp32 engine (the portable model loaded with `dtype="float32"`), recorded where the fp16 engine
 misses the golden tolerance (`golden_fp16` / `golden_fp32`: mask-logit error against the golden, relative mean / p99).

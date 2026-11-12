@@ -6,7 +6,7 @@
 
 Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field, `result.kind`) says what the numbers mean: `metric` = metres; `scale_invariant`, `affine_invariant` and `affine_invariant_inverse` are relative (unknown scale or shift, not metres). Metric models that use the focal length take `model(image, intrinsics=K)` (K `[3, 3]`, pixels of the input): `metric3d-vit-large` and `da3metric-large` need it for correct metres (`da3metric-large`: metres = output x focal / 300; without `intrinsics=` a 300 px focal length is assumed, wrong for a real camera). `unidepth-v2-vitl14`, `unik3d-vitl`, `depth-pro` and MoGe estimate the camera themselves (given `intrinsics=` replace `fx`); `zoedepth-nk` and the relative models (`da3mono-large` too) take none.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). – = not measured. The accuracy column is lower-is-better (NYUv2 AbsRel (scale+shift aligned)).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured. The accuracy column is lower-is-better (NYUv2 AbsRel (scale+shift aligned)).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -51,11 +51,11 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `da3mono-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 127<br>85.2<br>23.9<br>14.6<br>21.2<br>14.4 | 2419 / 2450<br>2997 / 3052<br>818 / 1328<br>814 / 868<br>792 / 828<br>754 (engine) |
-| `da3metric-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>85.1<br>24.1<br>14.7<br>21.2<br>14.4 | 2418 / 2450<br>2996 / 3050<br>815 / 1328<br>811 / 868<br>792 / 828<br>756 (engine) |
-| `da3-large-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 208<br>166<br>37.4<br>17.1<br>26.5<br>13.8 | 2797 / 2872<br>3374 / 3472<br>992 / 1350<br>985 / 1090<br>841 / 868<br>816 (engine) |
-| `da3-giant-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 410<br>227<br>81.8<br>44.2<br>64.3<br>37.2 | 6428 / 6496<br>8590 / 8718<br>2638 / 4608<br>2628 / 2710<br>2487 / 2528<br>2416 (engine) |
-| `da3nested-giant-large-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 533<br>308<br>108<br>58.2<br>85.4<br>51.9 | 7702 / 7760<br>10332 / 10402<br>3275 / 5914<br>3271 / 3378<br>3124 / 3194<br>3136 (engine) |
+| `da3mono-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 127<br>85.2<br>23.9<br>14.6<br>21.2<br>14.4 | 2419 / 2450<br>2997 / 3052<br>818 / 1328<br>814 / 868<br>792 / 828<br>1463 / 1520 |
+| `da3metric-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>85.1<br>24.1<br>14.7<br>21.2<br>14.4 | 2418 / 2450<br>2996 / 3050<br>815 / 1328<br>811 / 868<br>792 / 828<br>1465 / 1502 |
+| `da3-large-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 208<br>166<br>37.4<br>17.1<br>26.5<br>13.8 | 2797 / 2872<br>3374 / 3472<br>992 / 1350<br>985 / 1090<br>841 / 868<br>1562 / 1622 |
+| `da3-giant-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 410<br>227<br>81.8<br>44.2<br>64.3<br>37.2 | 6428 / 6496<br>8590 / 8718<br>2638 / 4608<br>2628 / 2710<br>2487 / 2528<br>4795 / 4842 |
+| `da3nested-giant-large-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 533<br>308<br>108<br>58.2<br>85.4<br>51.9 | 7702 / 7760<br>10332 / 10402<br>3275 / 5914<br>3271 / 3378<br>3124 / 3194<br>6152 / 6226 |
 
 <details><summary>Details</summary>
 
@@ -146,18 +146,18 @@ Commercial use: `depth-anything-v2-s`, `depth-anything-v2-metric-hypersim-s`, `d
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depth-anything-v2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 53.6<br>41.0<br>7.82<br>4.51<br>6.65<br>4.46 | 407 / 478<br>373 / 418<br>249 / 326<br>190 / 248<br>201 / 224<br>186 (engine) |
+| `depth-anything-v2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 53.6<br>41.0<br>7.82<br>4.51<br>6.65<br>4.46 | 407 / 478<br>373 / 418<br>249 / 326<br>190 / 248<br>201 / 224<br>273 / 308 |
 | `depth-anything-v2-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 93.6<br>63.2<br>18.8<br>10.5 | 858 / 940<br>928 / 1026<br>450 / 516<br>387 / 436 |
-| `depth-anything-v2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 245<br>140<br>55.1<br>31.1<br>51.7<br>32.4 | 2109 / 2326<br>2560 / 2654<br>1026 / 1352<br>921 / 1034<br>850 / 952<br>868 (engine) |
-| `depth-anything-v2-metric-hypersim-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 53.0<br>43.6<br>7.66<br>4.67<br>6.67<br>4.47 | 407 / 478<br>373 / 418<br>244 / 288<br>152 / 208<br>201 / 224<br>186 (engine) |
-| `depth-anything-v2-metric-hypersim-b` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 91.4<br>60.7<br>18.6<br>10.8<br>17.0<br>10.8 | 858 / 960<br>928 / 1026<br>445 / 514<br>349 / 396<br>340 / 394<br>282 (engine) |
-| `depth-anything-v2-metric-hypersim-l` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 246<br>141<br>54.5<br>31.7<br>51.3<br>32.3 | 2109 / 2326<br>2560 / 2654<br>1022 / 1092<br>917 / 1034<br>850 / 910<br>868 (engine) |
-| `depth-anything-v2-metric-vkitti-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 46.1<br>36.0<br>7.66<br>4.67<br>6.68<br>4.47 | 407 / 498<br>373 / 418<br>244 / 288<br>152 / 208<br>201 / 224<br>186 (engine) |
-| `depth-anything-v2-metric-vkitti-b` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 90.8<br>60.6<br>18.6<br>10.8<br>17.0<br>10.9 | 858 / 960<br>928 / 1026<br>445 / 514<br>349 / 396<br>340 / 394<br>282 (engine) |
-| `depth-anything-v2-metric-vkitti-l` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 245<br>141<br>54.5<br>31.9<br>51.3<br>32.4 | 2109 / 2326<br>2560 / 2654<br>1022 / 1092<br>917 / 1034<br>850 / 910<br>868 (engine) |
-| `distill-any-depth-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 45.3<br>35.2<br>7.65<br>4.63<br>6.67<br>4.46 | 407 / 498<br>373 / 418<br>244 / 288<br>152 / 208<br>201 / 224<br>186 (engine) |
-| `distill-any-depth-b` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 90.5<br>59.8<br>18.6<br>10.8<br>17.0<br>10.8 | 858 / 960<br>928 / 1026<br>445 / 514<br>349 / 396<br>340 / 394<br>282 (engine) |
-| `distill-any-depth-l` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>139<br>54.4<br>31.8<br>51.6<br>32.4 | 2109 / 2326<br>2560 / 2654<br>1022 / 1092<br>917 / 1034<br>850 / 910<br>868 (engine) |
+| `depth-anything-v2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 245<br>140<br>55.1<br>31.1<br>51.7<br>32.4 | 2109 / 2326<br>2560 / 2654<br>1026 / 1352<br>921 / 1034<br>850 / 952<br>1579 / 1634 |
+| `depth-anything-v2-metric-hypersim-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 53.0<br>43.6<br>7.66<br>4.67<br>6.67<br>4.47 | 407 / 478<br>373 / 418<br>244 / 288<br>152 / 208<br>201 / 224<br>305 / 348 |
+| `depth-anything-v2-metric-hypersim-b` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 91.4<br>60.7<br>18.6<br>10.8<br>17.0<br>10.8 | 858 / 960<br>928 / 1026<br>445 / 514<br>349 / 396<br>340 / 394<br>539 / 614 |
+| `depth-anything-v2-metric-hypersim-l` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 246<br>141<br>54.5<br>31.7<br>51.3<br>32.3 | 2109 / 2326<br>2560 / 2654<br>1022 / 1092<br>917 / 1034<br>850 / 910<br>1579 / 1634 |
+| `depth-anything-v2-metric-vkitti-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 46.1<br>36.0<br>7.66<br>4.67<br>6.68<br>4.47 | 407 / 498<br>373 / 418<br>244 / 288<br>152 / 208<br>201 / 224<br>305 / 348 |
+| `depth-anything-v2-metric-vkitti-b` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 90.8<br>60.6<br>18.6<br>10.8<br>17.0<br>10.9 | 858 / 960<br>928 / 1026<br>445 / 514<br>349 / 396<br>340 / 394<br>539 / 614 |
+| `depth-anything-v2-metric-vkitti-l` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 245<br>141<br>54.5<br>31.9<br>51.3<br>32.4 | 2109 / 2326<br>2560 / 2654<br>1022 / 1092<br>917 / 1034<br>850 / 910<br>1579 / 1634 |
+| `distill-any-depth-s` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 45.3<br>35.2<br>7.65<br>4.63<br>6.67<br>4.46 | 407 / 498<br>373 / 418<br>244 / 288<br>152 / 208<br>201 / 224<br>305 / 348 |
+| `distill-any-depth-b` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 90.5<br>59.8<br>18.6<br>10.8<br>17.0<br>10.8 | 858 / 960<br>928 / 1026<br>445 / 514<br>349 / 396<br>340 / 394<br>539 / 614 |
+| `distill-any-depth-l` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>139<br>54.4<br>31.8<br>51.6<br>32.4 | 2109 / 2326<br>2560 / 2654<br>1022 / 1092<br>917 / 1034<br>850 / 910<br>1579 / 1634 |
 
 <details><summary>Details</summary>
 
@@ -320,7 +320,7 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depth-pro` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1776<br>569<br>518<br>271<br>488<br>299 | 8170 / 9020<br>3828 / 4294<br>3306 / 3498<br>3667 / 3778<br>3053 / 3198<br>2926 (engine) |
+| `depth-pro` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1776<br>569<br>518<br>271<br>488<br>299 | 8170 / 9020<br>3828 / 4294<br>3306 / 3498<br>3667 / 3778<br>3053 / 3198<br>4816 / 4882 |
 
 <details><summary>Details</summary>
 
@@ -374,7 +374,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `marigold-depth-v1-1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 963<br>439<br>408<br>383<br>342<br>172 | 6406 / 6804<br>3414 / 3580<br>2817 / 3760<br>2583 / 3762<br>2341 / 2418<br>2368 (engine) |
+| `marigold-depth-v1-1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 963<br>439<br>408<br>383<br>342<br>172 | 6406 / 6804<br>3414 / 3580<br>2817 / 3760<br>2583 / 3762<br>2341 / 2418<br>4263 / 4318 |
 
 <details><summary>Details</summary>
 
@@ -435,7 +435,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>200<br>158<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1484 / 1696<br>1516 / 1688<br>1126 / 1148<br>1010 (engine) |
+| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>200<br>158<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1484 / 1696<br>1516 / 1688<br>1126 / 1148<br>1867 / 1952 |
 
 <details><summary>Details</summary>
 
@@ -493,7 +493,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `midas-dpt-beit-large-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>333<br>78.8<br>63.9<br>58.8<br>52.2 | 3616 / 3778<br>2759 / 2898<br>992 / 1418<br>1003 / 1436<br>1088 / 1116<br>800 (engine) |
+| `midas-dpt-beit-large-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>333<br>78.8<br>63.9<br>58.8<br>52.2 | 3616 / 3778<br>2759 / 2898<br>992 / 1418<br>1003 / 1436<br>1088 / 1116<br>1514 / 1592 |
 
 <details><summary>Details</summary>
 
@@ -547,9 +547,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>64.2<br>29.7<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1066 / 1336<br>884 / 1008<br>836 / 992<br>620 (engine) |
-| `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>83.9<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>1163 / 1312<br>1093 / 1208<br>972 / 1172<br>760 (engine) |
-| `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>144<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610<br>1411 / 1634<br>1164 (engine) |
+| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>64.2<br>29.7<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1066 / 1336<br>884 / 1008<br>836 / 992<br>768 / 852 |
+| `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>83.9<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>1163 / 1312<br>1093 / 1208<br>972 / 1172<br>1044 / 1092 |
+| `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>144<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610<br>1411 / 1634<br>1882 / 1936 |
 | `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 843<br>486<br>514<br>215 | 2812 / 2990<br>2505 / 2630<br>1686 / 1924<br>1673 / 1884 |
 
 <details><summary>Details</summary>
@@ -626,7 +626,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `unidepth-v2-vitl14` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>132<br>99.8<br>66.4<br>96.4<br>64.3 | 3230 / 3508<br>3230 / 3508<br>1208 / 1472<br>1211 / 1472<br>1304 / 1392<br>1050 (engine) |
+| `unidepth-v2-vitl14` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>132<br>99.8<br>66.4<br>96.4<br>64.3 | 3230 / 3508<br>3230 / 3508<br>1208 / 1472<br>1211 / 1472<br>1304 / 1392<br>1815 / 1842 |
 
 <details><summary>Details</summary>
 
@@ -684,7 +684,7 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `unik3d-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 134<br>134<br>108<br>62.9<br>94.4<br>58.0 | 3307 / 3570<br>3307 / 3570<br>1219 / 1492<br>1166 / 1266<br>1258 / 1312<br>846 (engine) |
+| `unik3d-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 134<br>134<br>108<br>62.9<br>94.4<br>58.0 | 3307 / 3570<br>3307 / 3570<br>1219 / 1492<br>1166 / 1266<br>1258 / 1312<br>1609 / 1678 |
 
 <details><summary>Details</summary>
 
@@ -738,7 +738,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `zoedepth-nk` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 408<br>271<br>124<br>88.9<br>71.7<br>73.3 | 3897 / 3948<br>2040 / 2146<br>2037 / 2124<br>1771 / 1960<br>1813 / 1880<br>852 (engine) |
+| `zoedepth-nk` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 408<br>271<br>124<br>88.9<br>71.7<br>73.3 | 3897 / 3948<br>2040 / 2146<br>2037 / 2124<br>1771 / 1960<br>1813 / 1880<br>2246 / 2306 |
 
 <details><summary>Details</summary>
 
