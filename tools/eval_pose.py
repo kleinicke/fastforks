@@ -18,8 +18,10 @@ Appends one JSON line per run to `--out`.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import platform
 import statistics
 import subprocess
 import sys
@@ -190,6 +192,43 @@ def gpu(  # noqa: PLR0913 - the options
     return errors, info
 
 
+def provenance(method: str, matches: Path) -> dict:
+    """What a row needs to be trusted later: code state, library versions, machine, load, the exact matches."""
+    import cv2  # noqa: PLC0415
+    import torch  # noqa: PLC0415
+
+    git = partial(subprocess.run, cwd=ROOT, capture_output=True, text=True, check=False)
+    versions = {"torch": torch.__version__, "opencv": cv2.__version__, "numpy": np.__version__}
+    if method == "poselib":
+        import poselib  # noqa: PLC0415
+
+        versions["poselib"] = poselib.__version__
+    cpu = platform.processor()
+    if Path("/proc/cpuinfo").exists():
+        cpu = next(
+            (
+                ln.split(":", 1)[1].strip()
+                for ln in Path("/proc/cpuinfo").read_text().splitlines()
+                if ln.startswith("model name")
+            ),
+            cpu,
+        )
+    sha = hashlib.sha256()
+    for f in sorted(matches.glob("*.npz")):
+        sha.update(f.read_bytes())
+    return {
+        "src_dirty": bool(git(["git", "status", "--porcelain", "--", "src", "tools"]).stdout.strip()),
+        "versions": versions,
+        "cpu_model": cpu,
+        "gpu": torch.cuda.get_device_name() if torch.cuda.is_available() else None,
+        "loadavg_1min": round(os.getloadavg()[0], 2),
+        "matches": matches.name,
+        "matches_sha256": sha.hexdigest()[:16],
+        # Paths reduced to their last component: the row says which files, not where they lived on the machine.
+        "command": " ".join(["python", *(Path(x).name if x.startswith("/") else x for x in sys.argv)]),
+    }
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", type=Path, default=Path("/home/florian/projects/data/matching/megadepth1500"))
@@ -221,6 +260,7 @@ def main() -> None:
             items.append((x[rng.permutation(len(x))].astype(np.float64), k1s, k2s, r, t, i * N_RUNS + run))
     fundamental = a.problem == "fundamental"
     thr = a.threshold if a.threshold is not None else (1.0 if fundamental else 0.5)
+    prov = provenance(a.method, a.matches)
     t0 = time.perf_counter()
     if a.method in {"portable", "kernels"}:
         errors, info = gpu(items, a.method, a.batch, a.latency_pairs, fundamental=fundamental, thr=thr)
@@ -258,7 +298,10 @@ def main() -> None:
         "auc20": auc[2],
         **info,
     }
-    row |= {"commit": commit, "date": time.strftime("%Y-%m-%d %H:%M"), "command": " ".join(["python", *sys.argv])}
+    row |= {k: v for k, v in prov.items() if k not in row or v is not None} | {
+        "commit": commit,
+        "date": time.strftime("%Y-%m-%d %H:%M"),
+    }
     with a.out.open("a") as f:
         f.write(json.dumps(row) + "\n")
     if a.errors:
