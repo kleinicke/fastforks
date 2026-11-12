@@ -35,6 +35,9 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- Grounding DINO (`grounding-dino-tiny`, `grounding-dino-base`): portable float32 MPS goldens and Mac speed rows at
+  800x1344; needs transformers. No Metal kernels runner. Weights: the pinned HF URLs of the card (also in
+  `data/ff-weights/grounding_dino/`).
 - OWLv2 (`owlv2-b16`, `owlv2-l14`): portable float32 MPS goldens and Mac speed rows at 800x1344; needs transformers.
   No Metal kernels runner. Weights: the pinned HF URLs of the card (also in `data/ff-weights/owlv2/`).
 - DEIM (`deim-{n,s,m,l,x}-coco`, in the dfine family): portable float32 MPS goldens and Mac speed rows at 800x1344.

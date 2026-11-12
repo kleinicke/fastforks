@@ -20,6 +20,8 @@ Code paths (each family's venv, `bench/bench_upstream.py list`):
   D-FINE. Its training-only imports (tensorboard, faster-coco-eval, calflops) are stubbed. One DEIM model per process.
 - OWLv2: transformers `Owlv2ForObjectDetection` (the golden's reference) with the card's weights, the processor's
   steps on the CPU and the 80 COCO class names as the queries; the 300 best boxes (as the fastforks tiers).
+- Grounding DINO: transformers `GroundingDinoForObjectDetection` (the golden's reference) with the card's weights, the
+  processor on the CPU, the coco-80 names as one caption; the authors' COCO postprocess (300 best query / class pairs).
 - RTMDet: mmdet 3.3.0 `inference_detector` on the model of `tools/golden/rtmdet.py` (`FF_MMDET_SITE`: mmdet,
   mmengine, mmcv-lite; NMS through torchvision's operator), the configs' test settings (COCO: score 0.001, 300
   detections; the person detectors: 0.05, 100).
@@ -302,6 +304,56 @@ def _deim(ref: str, tier: str) -> _Detector:
     return _Detector(t, fn, "rtdetr")
 
 
+def _grounding_dino(ref: str, tier: str) -> _Detector:
+    """The golden's transformers `GroundingDinoForObjectDetection` with the card's weights and the coco-80 caption.
+
+    `GroundingDinoImageProcessor` on the CPU, `BertTokenizer` on `" . ".join(names) + " ."` and the text tower on every
+    call; the authors' `PostProcessCocoGrounding`: mean sigmoid token score per class name, the 300 best (query, class)
+    pairs (as the fastforks tiers of this eval: threshold 0, 300 detections).
+    """
+    import torch  # noqa: PLC0415
+    from safetensors.torch import load_file  # noqa: PLC0415
+    from transformers import (  # noqa: PLC0415
+        BertTokenizer,
+        GroundingDinoConfig,
+        GroundingDinoForObjectDetection,
+        GroundingDinoImageProcessor,
+    )
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    card, variant = registry.resolve("detection", ref)
+    config_json, weights, vocab = registry.weights(card, variant, allow_download=False)
+    config = GroundingDinoConfig.from_json_file(str(config_json))
+    sd = load_file(str(weights))
+    net = GroundingDinoForObjectDetection.from_pretrained(None, config=config, state_dict=sd).eval().to("cuda")
+    proc = GroundingDinoImageProcessor()
+    tok = BertTokenizer(str(vocab))
+    names = coco_names()
+    text = tok(" . ".join(names) + " .", return_tensors="pt").to("cuda")
+    n_ids = text["input_ids"].shape[1]
+    classes = torch.zeros(len(names), n_ids, device="cuda")
+    at = 1
+    for c, n in enumerate(names):
+        k = len(tok(n, add_special_tokens=False)["input_ids"])
+        classes[c, at : at + k] = 1 / k
+        at += k + 1
+    t = _Tier(tier, "grounding_dino", [net])
+
+    def fn(img: np.ndarray) -> tuple[Any, ...]:
+        h, w = img.shape[:2]
+        pv = proc(images=img, return_tensors="pt")
+        x = pv["pixel_values"].cuda()
+        out = net(**text, pixel_values=x.half() if t.how == "half" else x, pixel_mask=pv["pixel_mask"].cuda())
+        prob = out.logits.float()[0, :, :n_ids].sigmoid() @ classes.T
+        scores, flat = prob.flatten().topk(300)
+        cx, cy, bw, bh = out.pred_boxes.float()[0][flat // len(names)].unbind(-1)
+        boxes = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1)
+        return boxes * torch.tensor([w, h, w, h], device=boxes.device), scores, flat % len(names), None
+
+    return _Detector(t, fn, "rtdetr")
+
+
 def _owlv2(ref: str, tier: str) -> _Detector:
     """The golden's transformers `Owlv2ForObjectDetection` with the card's weights, processor and the coco-80 names.
 
@@ -546,6 +598,8 @@ def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, C901, PLR0911 
             return _deim(ref, tier)
         if ref.startswith("owlv2"):
             return _owlv2(ref, tier)
+        if ref.startswith("grounding-dino"):
+            return _grounding_dino(ref, tier)
         if ref.startswith("rf-detr"):
             return _RFDETR(ref, tier)
         return _rcnn(ref, tier) if "rcnn" in ref else _detr(ref, tier)

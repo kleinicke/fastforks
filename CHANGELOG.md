@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Grounding DINO open-vocabulary detection (`grounding-dino-tiny`, `grounding-dino-base`; Apache-2.0 code and
+  weights): class names as `text`, shared BERT tokenizer. Portable only. Tiny at 800x1344: 138 ms vs 274 ms original
+  fp32 (199 ms fp16); COCO val2017 (every 10th) box mAP 51.14 vs 51.08 original.
+
 - OWLv2 open-vocabulary detection (`owlv2-b16`, `owlv2-l14`; Apache-2.0 code and weights): `model(image,
   text=[...])` detects the given class names (default: the 80 COCO names; `model.open_vocabulary`); shared CLIP
   tokenizer. B/16 at 800x1344: 23.8 ms kernels vs 190 ms original fp32 (92 ms fp16); COCO val2017 (every 10th) box

@@ -761,6 +761,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | dfine-s-coco | 25.7 | 31.9 | 11.1 | 4.04 | 6.4x | 2.7x | 152 / 184 | 105 / 128 | 138 / 212 |
 | dfine-x-coco | 44.9 | 54.6 | 18.5 | 14.1 | 3.2x | 1.3x | 476 / 536 | 227 / 258 | 237 / 364 |
 | faster-rcnn-r50-fpn-3x-coco | 83.6 | 41.4 | 22.8 | 19.5 | 2.1x | 1.2x | 626 / 708 | 390 / 490 | 391 / 450 |
+| grounding-dino-base | – | 230 | 160 | – | – | – | 2895 / 3094 | 1525 / 1624 | – |
+| grounding-dino-tiny | – | 199 | 138 | – | – | – | 2541 / 2716 | 1404 / 1468 | – |
 | mask-rcnn-r50-fpn-3x-coco | 85.4 | 43.5 | 24.6 | 21.0 | 2.1x | 1.2x | 604 / 650 | 352 / 440 | 353 / 400 |
 | owlv2-b16 | – | 92.3 | 31.8 | 23.8 | 3.9x | 1.3x | 921 / 960 | 497 / 570 | 607 / 732 |
 | owlv2-l14 | – | 212 | 155 | 110 | 1.9x | 1.4x | 2550 / 2606 | 1239 / 1282 | 1552 / 1726 |
@@ -1215,6 +1217,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | dfine-s-coco | 2.99 | 1.05 | 1.16 | 1.44 | 0.71 | 0.52 |
 | dfine-x-coco | 3.88 | 1.39 | 1.41 | 1.45 | 0.65 | 0.45 |
 | faster-rcnn-r50-fpn-3x-coco | 0.73 | 0.53 | 0.14† | 0.04 | 0.25 | 0.04 |
+| grounding-dino-base | 4.16 | 3.29 | – | 0.99 | 0.53 | – |
+| grounding-dino-tiny | 4.06 | 3.01 | – | 1.18 | 0.51 | – |
 | mask-rcnn-r50-fpn-3x-coco | 0.97 | 1.50 | 0.22† | 0.84 | 0.42 | 0.04 |
 | owlv2-b16 | 8.22 | 2.81 | 3.00 | 0.74 | 0.32 | 0.27 |
 | owlv2-l14 | 9.55 | 3.18 | 3.16 | 1.18 | 0.42 | 0.36 |
@@ -1619,6 +1623,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | dfine-s-coco | 800x1344 | 11.1 ms | 5.63 ms | 1.65 ms | 4.04 ms | 31.2 s | 51.4 s | 105 / 128 | 131 / 152 | 138 / 212 | 147 / 160 |
 | dfine-x-coco | 800x1344 | 18.5 ms | 11.0 ms | fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 14.1 ms | 47.7 s | – | 227 / 258 | 245 / 284 | 237 / 364 | – |
 | faster-rcnn-r50-fpn-3x-coco | 800x1344 | 22.8 ms | 18.9 ms | 5.35 ms (backbone + FPN only) | 19.5 ms | 26.0 s | 15.6 s | 390 / 490 | 413 / 438 | 391 / 450 | 439 / 494 |
+| grounding-dino-base | 800x1344 | 160 ms | 131 ms | fails: ONNX export: conversion failed | – | 98.4 s | – | 1525 / 1624 | 2669 / 2800 | – | – |
+| grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | fails: ONNX export: conversion failed | – | 72.5 s | – | 1404 / 1468 | 2550 / 2664 | – | – |
 | mask-rcnn-r50-fpn-3x-coco | 800x1344 | 24.6 ms | 21.5 ms | 5.34 ms (backbone + FPN only) | 21.0 ms | 29.3 s | 18.3 s | 352 / 440 | 333 / 358 | 353 / 400 | 444 / 496 |
 | owlv2-b16 | 800x1344 | 31.8 ms | 28.5 ms | 18.4 ms | 23.8 ms | 10.6 s | 25.9 s | 497 / 570 | 487 / 530 | 607 / 732 | 655 / 726 |
 | owlv2-l14 | 800x1344 | 155 ms | 141 ms | 95.9 ms | 110 ms | 12.4 s | 33.8 s | 1239 / 1282 | 1190 / 1242 | 1552 / 1726 | 1786 / 1820 |
