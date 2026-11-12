@@ -14,7 +14,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 |---|---|---|---|
 | [`aliked-lightglue`](#lightglue) | yes | – | – |
 | [`disk-lightglue`](#lightglue) | yes | – | – |
-| [`romav2`](#romav2) | yes | 405.85, 1.8x | 2580, 0.25x |
+| [`romav2`](#romav2) | yes | 406, 1.8x | 2580, 0.25x |
 | [`xfeat`](#xfeat) | yes | – | – |
 | [`xfeat-lighterglue`](#xfeat) | yes | – | – |
 

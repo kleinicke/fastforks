@@ -12,9 +12,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | DIS-VD MAE ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`ben2`](#ben2) | yes | 0.0403 | 172.628, 1.2x | 2238, 0.81x |
-| [`birefnet`](#birefnet) | yes | 0.0325 | 214.332, 1.1x | 1916, 0.99x |
-| [`birefnet-lite`](#birefnet) | yes | – | 59.332, 1.3x | 960, 0.99x |
+| [`ben2`](#ben2) | yes | 0.0403 | 173, 1.2x | 2238, 0.81x |
+| [`birefnet`](#birefnet) | yes | 0.0325 | 214, 1.1x | 1916, 0.99x |
+| [`birefnet-lite`](#birefnet) | yes | – | 59.3, 1.3x | 960, 0.99x |
 
 <a id="ben2"></a>
 

@@ -279,7 +279,7 @@ def _trt_peaks(row: dict | None) -> tuple[int, int] | None:
 
 
 def _trt_peak(row: dict | None) -> str:
-    """`alloc / reserved` of `_trt_peaks`, `unknown` where the engine's memory was not recorded, a dash without a row."""
+    """`alloc / reserved` of `_trt_peaks`; `unknown` where the engine memory was not recorded; a dash without a row."""
     if row is None or "fails" in row:
         return DASH
     peaks = _trt_peaks(row)
@@ -290,7 +290,7 @@ def _ms_str(ms: object) -> str:
     """A time in ms to 3 significant digits (all digits from 1000 ms): `3.48`, `20.1`, `214`."""
     if not isinstance(ms, int | float) or isinstance(ms, bool) or not math.isfinite(ms) or ms == 0:
         return str(ms)
-    return f"{ms:.{max(0, 2 - math.floor(math.log10(abs(ms))))}f}"
+    return f"{ms:.{max(0, 2 - math.floor(math.log10(abs(float(f'{ms:.3g}')))))}f}"  # 99.96 -> 100, not 100.0
 
 
 def _ms_cell(row: dict | None, *, oom: bool = False) -> str:
@@ -880,7 +880,7 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
             err = _DASH if r["error"] is None else r["fmt"].format(r["error"]) + (f" {r['mark']}" if r["mark"] else "")
             marks.add(r["mark"])
             cells.append(err)
-        body.append([*cells, str(ms) + speedup + (f" ({at})" if size not in {at, _OWN} else ""), mem])
+        body.append([*cells, _ms_str(ms) + speedup + (f" ({at})" if size not in {at, _OWN} else ""), mem])
     lines = _md_table(head, body)
     for m in (_DAGGER, "?"):
         lines += ["", _LEGEND[m]] if m in marks else []
@@ -957,7 +957,8 @@ def render(task: str) -> str:
             f"The summary uses {basis}: kernels time with its speed-up over the faster original run, and kernels "
             "peak reserved memory with its ratio to the smaller original one. "
             "Where measured (one variant per family), a variant's table also lists portable under `torch.compile` "
-            "and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). "
+            "and the fp16 TensorRT engine of portable ([export](../export.md); "
+            "memory: the engine's device memory + torch's peak). "
             f"{_DASH} = not measured."
             + (f" The accuracy column is lower-is-better ({_OVERVIEW_ACC[task][2]})." if task in _OVERVIEW_ACC else "")
         ),

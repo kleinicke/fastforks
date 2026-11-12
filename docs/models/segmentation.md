@@ -12,26 +12,26 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.06, 2.7x | 518, 0.24x |
-| [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 18.02, 3.0x | 560, 0.28x |
-| [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 22.63, 1.8x | 904, 0.41x |
-| [`dinov2-l-linear-ade20k`](#dinov2_linear) | yes | 56.78, 1.7x | 1244, 0.4x |
-| [`dinov2-s-linear-ade20k`](#dinov2_linear) | yes | 12.44, 2.0x | 676, 0.34x |
-| [`eomt-l-dinov2-ade20k`](#eomt) | yes | 34.99, 1.8x | 1584, 0.45x |
+| [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.1, 2.7x | 518, 0.24x |
+| [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 18.0, 3.0x | 560, 0.28x |
+| [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 22.6, 1.8x | 904, 0.41x |
+| [`dinov2-l-linear-ade20k`](#dinov2_linear) | yes | 56.8, 1.7x | 1244, 0.4x |
+| [`dinov2-s-linear-ade20k`](#dinov2_linear) | yes | 12.4, 2.0x | 676, 0.34x |
+| [`eomt-l-dinov2-ade20k`](#eomt) | yes | 35.0, 1.8x | 1584, 0.45x |
 | [`eomt-l-dinov3-ade20k`](#eomt) | yes | 38.8, 1.9x | 1584, 0.45x |
-| [`fcn-r101-d8-ade20k`](#mmseg) | yes | 16.65, 2.8x | 478, 0.23x |
-| [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.86, 4.1x | 430, 0.23x |
-| [`mask2former-swinl-ade20k`](#mask2former) | no | 60.44, 2.4x | 1400, 0.38x |
-| [`oneformer-swinl-ade20k`](#oneformer) | yes | 99.95, 2.1x | 2476, 0.32x |
-| [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.96, 1.9x | 494, 0.24x |
-| [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.56, 1.9x | 1762, 0.65x |
-| [`sapiens-seg-1b-goliath`](#sapiens) | no | 185.2, 1.9x | 3382, 0.57x |
-| [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.479, 5.0x | 238, 0.15x |
-| [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.347, 2.8x | 534, 0.21x |
-| [`segnext-mscan-b-ade20k`](#segnext) | yes | 12.206, 2.8x | 332, 0.19x |
-| [`segnext-mscan-l-ade20k`](#segnext) | yes | 20.553, 2.5x | 428, 0.24x |
-| [`segnext-mscan-s-ade20k`](#segnext) | yes | 8.043, 2.9x | 290, 0.17x |
-| [`segnext-mscan-t-ade20k`](#segnext) | yes | 8.987, 2.3x | 206, 0.13x |
+| [`fcn-r101-d8-ade20k`](#mmseg) | yes | 16.6, 2.8x | 478, 0.23x |
+| [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.9, 4.1x | 430, 0.23x |
+| [`mask2former-swinl-ade20k`](#mask2former) | no | 60.4, 2.4x | 1400, 0.38x |
+| [`oneformer-swinl-ade20k`](#oneformer) | yes | 100, 2.1x | 2476, 0.32x |
+| [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 25.0, 1.9x | 494, 0.24x |
+| [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.6, 1.9x | 1762, 0.65x |
+| [`sapiens-seg-1b-goliath`](#sapiens) | no | 185, 1.9x | 3382, 0.57x |
+| [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.48, 5.0x | 238, 0.15x |
+| [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.3, 2.8x | 534, 0.21x |
+| [`segnext-mscan-b-ade20k`](#segnext) | yes | 12.2, 2.8x | 332, 0.19x |
+| [`segnext-mscan-l-ade20k`](#segnext) | yes | 20.6, 2.5x | 428, 0.24x |
+| [`segnext-mscan-s-ade20k`](#segnext) | yes | 8.04, 2.9x | 290, 0.17x |
+| [`segnext-mscan-t-ade20k`](#segnext) | yes | 8.99, 2.3x | 206, 0.13x |
 
 <a id="mmseg"></a>
 
@@ -288,7 +288,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>139<br>100.0<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>83.3 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476<br>–<br>4524 / 4576 |
+| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>139<br>100<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>83.3 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476<br>–<br>4524 / 4576 |
 
 <details><summary>Details</summary>
 

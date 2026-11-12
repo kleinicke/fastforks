@@ -453,7 +453,8 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
 
     The engine runs `module()` on synthetic inputs (`example_inputs`) of the shape the timed call gives the network
     (`_net_input`: the classifier crop, the scene's views). `device_mb` = device memory taken by loading the engine and
-    running it (TensorRT allocates outside torch); `peak_*_mb` = `device_mb` + the torch-side peak (kept in `torch_peak_*_mb`).
+    running it (TensorRT allocates outside torch); `peak_*_mb` = `device_mb` + the torch-side peak (kept in
+    `torch_peak_*_mb`).
     """
     import tempfile  # noqa: PLC0415
 

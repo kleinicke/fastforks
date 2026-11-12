@@ -12,23 +12,23 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`efficientvit-sam-l0`](#efficientvit_sam) | yes | 4.446, 5.9x | 256, 1.1x |
+| [`efficientvit-sam-l0`](#efficientvit_sam) | yes | 4.45, 5.9x | 256, 1.1x |
 | [`efficientvit-sam-l1`](#efficientvit_sam) | yes | 5.79, 5.2x | 284, 1.0x |
-| [`efficientvit-sam-l2`](#efficientvit_sam) | yes | 6.829, 5.0x | 312, 0.91x |
-| [`efficientvit-sam-xl0`](#efficientvit_sam) | yes | 9.747, 2.9x | 492, 0.73x |
-| [`efficientvit-sam-xl1`](#efficientvit_sam) | yes | 15.275, 2.7x | 728, 0.71x |
-| [`mobile-sam`](#mobile_sam) | yes | 6.859, 3.4x | 296, 1.0x |
-| [`sam-hq-vit-b`](#sam_hq) | yes | 36.808, 2.8x | 564, 0.32x |
-| [`sam-hq-vit-h`](#sam_hq) | yes | 143.527, 2.2x | 1708, 0.4x |
-| [`sam-hq-vit-l`](#sam_hq) | yes | 81.377, 2.5x | 1046, 0.35x |
-| [`sam-vit-b`](#sam) | yes | 36.95, 2.7x | 420, 0.23x |
-| [`sam-vit-h`](#sam) | yes | 143.13, 2.1x | 1524, 0.28x |
-| [`sam-vit-l`](#sam) | yes | 81.53, 2.4x | 862, 0.25x |
-| [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.09, 1.9x | 524, 0.6x |
-| [`sam2.1-hiera-large`](#sam2) | yes | 48.81, 1.8x | 828, 0.55x |
-| [`sam2.1-hiera-small`](#sam2) | yes | 15.56, 2.7x | 386, 0.58x |
-| [`sam2.1-hiera-tiny`](#sam2) | yes | 13.91, 2.7x | 362, 0.57x |
-| [`sam3`](#sam3) | yes | 116.47, 2.4x | 2264, 0.58x |
+| [`efficientvit-sam-l2`](#efficientvit_sam) | yes | 6.83, 5.0x | 312, 0.91x |
+| [`efficientvit-sam-xl0`](#efficientvit_sam) | yes | 9.75, 2.9x | 492, 0.73x |
+| [`efficientvit-sam-xl1`](#efficientvit_sam) | yes | 15.3, 2.7x | 728, 0.71x |
+| [`mobile-sam`](#mobile_sam) | yes | 6.86, 3.4x | 296, 1.0x |
+| [`sam-hq-vit-b`](#sam_hq) | yes | 36.8, 2.8x | 564, 0.32x |
+| [`sam-hq-vit-h`](#sam_hq) | yes | 144, 2.2x | 1708, 0.4x |
+| [`sam-hq-vit-l`](#sam_hq) | yes | 81.4, 2.5x | 1046, 0.35x |
+| [`sam-vit-b`](#sam) | yes | 37.0, 2.7x | 420, 0.23x |
+| [`sam-vit-h`](#sam) | yes | 143, 2.1x | 1524, 0.28x |
+| [`sam-vit-l`](#sam) | yes | 81.5, 2.4x | 862, 0.25x |
+| [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.1, 1.9x | 524, 0.6x |
+| [`sam2.1-hiera-large`](#sam2) | yes | 48.8, 1.8x | 828, 0.55x |
+| [`sam2.1-hiera-small`](#sam2) | yes | 15.6, 2.7x | 386, 0.58x |
+| [`sam2.1-hiera-tiny`](#sam2) | yes | 13.9, 2.7x | 362, 0.57x |
+| [`sam3`](#sam3) | yes | 116, 2.4x | 2264, 0.58x |
 
 <a id="efficientvit_sam"></a>
 

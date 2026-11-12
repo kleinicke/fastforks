@@ -717,7 +717,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | fcn-r101-d8-ade20k | 94.2 | 47.0 | 40.7 | 16.6 | 2.8x | 2.4x | 1925 / 2102 | 417 / 492 | 294 / 478 |
 | hrnet-w48-fcn-ade20k | 48.1 | 54.8 | 26.9 | 11.9 | 4.1x | 2.3x | 1915 / 2010 | 424 / 490 | 274 / 430 |
 | mask2former-swinl-ade20k | 244 | 145 | 103 | 60.4 | 2.4x | 1.7x | 3572 / 3878 | 1164 / 1400 | 1164 / 1400 |
-| oneformer-swinl-ade20k | 307 | 205 | 139 | 100.0 | 2.1x | 1.4x | 7395 / 7792 | 2054 / 2476 | 2054 / 2476 |
+| oneformer-swinl-ade20k | 307 | 205 | 139 | 100 | 2.1x | 1.4x | 7395 / 7792 | 2054 / 2476 | 2054 / 2476 |
 | pspnet-r101-d8-ade20k | 92.5 | 47.2 | 48.8 | 25.0 | 1.9x | 2.0x | 1922 / 2222 | 417 / 492 | 341 / 494 |
 | sapiens-seg-0.3b-goliath | 466 | 173 | 132 | 92.6 | 1.9x | 1.4x | 2520 / 2724 | 1643 / 1762 | 1643 / 1762 |
 | sapiens-seg-1b-goliath | 1189 | 354 | 275 | 185 | 1.9x | 1.5x | 5721 / 5906 | 3259 / 3384 | 3259 / 3382 |
@@ -1603,7 +1603,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | fcn-r101-d8-ade20k | 1024x2048 | 40.7 ms | 35.6 ms | 27.4 ms | 16.6 ms | 8.53 s | 22.2 s | 417 / 492 | 414 / 472 | 294 / 478 | 1656 / 1734 |
 | hrnet-w48-fcn-ade20k | 1024x2048 | 26.9 ms | 23.9 ms | 20.9 ms | 11.9 ms | 35.7 s | 29.6 s | 424 / 490 | 421 / 448 | 274 / 430 | 1662 / 1712 |
 | mask2former-swinl-ade20k | 1024x2048 | 103 ms | fails: Inductor: Triton kernel does not compile (torch bug) | 55.6 ms | 60.4 ms | – | 129 s | 1164 / 1400 | – | 1164 / 1400 | 3051 / 3090 |
-| oneformer-swinl-ade20k | 1024x2048 | 139 ms | fails: Inductor: Triton kernel does not compile (torch bug) | 83.3 ms | 100.0 ms | – | 140 s | 2054 / 2476 | – | 2054 / 2476 | 4524 / 4576 |
+| oneformer-swinl-ade20k | 1024x2048 | 139 ms | fails: Inductor: Triton kernel does not compile (torch bug) | 83.3 ms | 100 ms | – | 140 s | 2054 / 2476 | – | 2054 / 2476 | 4524 / 4576 |
 | pspnet-r101-d8-ade20k | 1024x2048 | 48.8 ms | 41.3 ms | 29.8 ms | 25.0 ms | 11.0 s | 44.1 s | 417 / 492 | 414 / 472 | 341 / 494 | 1859 / 1898 |
 | sapiens-seg-0.3b-goliath | 1024x2048 | 132 ms | 118 ms | 156 ms | 92.6 ms | 12.5 s | 52.9 s | 1643 / 1762 | 1373 / 1462 | 1643 / 1762 | 2465 / 2526 |
 | sapiens-seg-1b-goliath | 1024x2048 | 275 ms | 263 ms | 244 ms | 185 ms | 18.8 s | 84.9 s | 3259 / 3384 | 2986 / 3084 | 3259 / 3382 | 5694 / 5742 |

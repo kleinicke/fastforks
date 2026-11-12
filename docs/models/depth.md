@@ -12,39 +12,39 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | NYUv2 AbsRel (scale+shift aligned) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`da3-giant-1.1`](#depth_anything_3) | no | 0.0397 | 44.19, 5.1x | 2710, 0.42x |
-| [`da3-large-1.1`](#depth_anything_3) | no | 0.0468 | 17.13, 9.7x | 1090, 0.38x |
-| [`da3metric-large`](#depth_anything_3) | yes | 0.0398 | 14.71, 5.8x | 868, 0.35x |
-| [`da3mono-large`](#depth_anything_3) | yes | 0.0402 | 14.56, 5.8x | 868, 0.35x |
-| [`da3nested-giant-large-1.1`](#depth_anything_3) | no | 0.0387 | 58.23, 5.3x | 3378, 0.44x |
-| [`depth-anything-v2-b`](#depth_anything_v2) | no | 0.0462 | 10.51, 6.0x | 436, 0.46x |
-| [`depth-anything-v2-l`](#depth_anything_v2) | no | 0.0439 | 31.12, 4.5x | 1034, 0.44x |
-| [`depth-anything-v2-metric-hypersim-b`](#depth_anything_v2) | yes | 0.0549 | 10.803, 5.6x | 396, 0.41x |
-| [`depth-anything-v2-metric-hypersim-l`](#depth_anything_v2) | yes | 0.0491 | 31.705, 4.4x | 1034, 0.44x |
-| [`depth-anything-v2-metric-hypersim-s`](#depth_anything_v2) | yes | 0.0643 | 4.669, 9.3x | 208, 0.5x |
-| [`depth-anything-v2-metric-vkitti-b`](#depth_anything_v2) | yes | 0.1089 | 10.81, 5.6x | 396, 0.41x |
-| [`depth-anything-v2-metric-vkitti-l`](#depth_anything_v2) | yes | 0.0968 | 31.866, 4.4x | 1034, 0.44x |
-| [`depth-anything-v2-metric-vkitti-s`](#depth_anything_v2) | yes | 0.1225 | 4.665, 7.7x | 208, 0.5x |
+| [`da3-giant-1.1`](#depth_anything_3) | no | 0.0397 | 44.2, 5.1x | 2710, 0.42x |
+| [`da3-large-1.1`](#depth_anything_3) | no | 0.0468 | 17.1, 9.7x | 1090, 0.38x |
+| [`da3metric-large`](#depth_anything_3) | yes | 0.0398 | 14.7, 5.8x | 868, 0.35x |
+| [`da3mono-large`](#depth_anything_3) | yes | 0.0402 | 14.6, 5.8x | 868, 0.35x |
+| [`da3nested-giant-large-1.1`](#depth_anything_3) | no | 0.0387 | 58.2, 5.3x | 3378, 0.44x |
+| [`depth-anything-v2-b`](#depth_anything_v2) | no | 0.0462 | 10.5, 6.0x | 436, 0.46x |
+| [`depth-anything-v2-l`](#depth_anything_v2) | no | 0.0439 | 31.1, 4.5x | 1034, 0.44x |
+| [`depth-anything-v2-metric-hypersim-b`](#depth_anything_v2) | yes | 0.0549 | 10.8, 5.6x | 396, 0.41x |
+| [`depth-anything-v2-metric-hypersim-l`](#depth_anything_v2) | yes | 0.0491 | 31.7, 4.4x | 1034, 0.44x |
+| [`depth-anything-v2-metric-hypersim-s`](#depth_anything_v2) | yes | 0.0643 | 4.67, 9.3x | 208, 0.5x |
+| [`depth-anything-v2-metric-vkitti-b`](#depth_anything_v2) | yes | 0.1089 | 10.8, 5.6x | 396, 0.41x |
+| [`depth-anything-v2-metric-vkitti-l`](#depth_anything_v2) | yes | 0.0968 | 31.9, 4.4x | 1034, 0.44x |
+| [`depth-anything-v2-metric-vkitti-s`](#depth_anything_v2) | yes | 0.1225 | 4.67, 7.7x | 208, 0.5x |
 | [`depth-anything-v2-s`](#depth_anything_v2) | yes | 0.0509 | 4.51, 9.1x | 248, 0.59x |
-| [`depth-pro`](#depth_pro) | no | 0.0425 | 270.93, 2.1x | 3778, 0.88x |
-| [`distill-any-depth-b`](#depth_anything_v2) | yes | 0.0470 | 10.774, 5.5x | 396, 0.41x |
-| [`distill-any-depth-l`](#depth_anything_v2) | yes | 0.0444 | 31.802, 4.4x | 1034, 0.44x |
-| [`distill-any-depth-s`](#depth_anything_v2) | yes | 0.0529 | 4.634, 7.6x | 208, 0.5x |
-| [`lotus-normal-d-v1-1`](#lotus) | yes | – | 164.101, 2.1x | 2500, 0.64x |
-| [`lotus-normal-g-v1-1`](#lotus) | yes | – | 164.145, 2.1x | 2500, 0.64x |
-| [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 383.17, 1.1x | 3762, 1.1x |
-| [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167.137, 1.7x | 2500, 0.69x |
-| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 158.46, 2.8x | 1688, 0.54x |
-| [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.89, 5.2x | 1436, 0.5x |
-| [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.698, 2.5x | 1208, 0.76x |
-| [`moge-2-vitl-normal`](#moge) | yes | 0.0357 | 73.43, 2.3x | 1610, 0.66x |
-| [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 29.73, 2.8x | 1008, 0.79x |
-| [`moge-3-vitl`](#moge) | yes | 0.0356 | 214.71, 2.3x | 1884, 0.72x |
-| [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 66.37, 2.0x | 1472, 0.42x |
-| [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.92, 2.1x | 1266, 0.35x |
+| [`depth-pro`](#depth_pro) | no | 0.0425 | 271, 2.1x | 3778, 0.88x |
+| [`distill-any-depth-b`](#depth_anything_v2) | yes | 0.0470 | 10.8, 5.5x | 396, 0.41x |
+| [`distill-any-depth-l`](#depth_anything_v2) | yes | 0.0444 | 31.8, 4.4x | 1034, 0.44x |
+| [`distill-any-depth-s`](#depth_anything_v2) | yes | 0.0529 | 4.63, 7.6x | 208, 0.5x |
+| [`lotus-normal-d-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
+| [`lotus-normal-g-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
+| [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 383, 1.1x | 3762, 1.1x |
+| [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167, 1.7x | 2500, 0.69x |
+| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 158, 2.8x | 1688, 0.54x |
+| [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.9, 5.2x | 1436, 0.5x |
+| [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7, 2.5x | 1208, 0.76x |
+| [`moge-2-vitl-normal`](#moge) | yes | 0.0357 | 73.4, 2.3x | 1610, 0.66x |
+| [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 29.7, 2.8x | 1008, 0.79x |
+| [`moge-3-vitl`](#moge) | yes | 0.0356 | 215, 2.3x | 1884, 0.72x |
+| [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 66.4, 2.0x | 1472, 0.42x |
+| [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.9, 2.1x | 1266, 0.35x |
 | [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | – | – |
-| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 1284.0, 9.1x (1080x1920) | 8782, 0.74x |
-| [`zoedepth-nk`](#zoedepth) | yes | 0.0532 | 88.87, 3.1x | 1960, 0.91x |
+| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 1284, 9.1x (1080x1920) | 8782, 0.74x |
+| [`zoedepth-nk`](#zoedepth) | yes | 0.0532 | 88.9, 3.1x | 1960, 0.91x |
 
 <a id="depth_anything_3"></a>
 

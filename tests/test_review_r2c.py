@@ -235,12 +235,13 @@ def test_load_return_annotation(task: str, cls: str) -> None:
 
 
 def test_ms_rounding() -> None:
-    assert [_ms_str(x) for x in (3.4812, 20.14, 214.4, 1234.6, 0.04567)] == [
+    assert [_ms_str(x) for x in (3.4812, 20.14, 214.4, 1234.6, 0.04567, 99.96)] == [
         "3.48",
         "20.1",
         "214",
         "1235",
         "0.0457",
+        "100",
     ]
     assert _ms_str("n/a") == "n/a"
 
