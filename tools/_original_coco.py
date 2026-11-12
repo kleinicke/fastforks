@@ -18,6 +18,8 @@ Code paths (each family's venv, `bench/bench_upstream.py list`):
 - DEIM: the official DEIM code (`FF_DEIM_REPO`: a checkout at `DEIM_COMMIT`) built from
   `configs/deim_dfine/deim_hgnetv2_<size>_coco.yml`, the authors' checkpoint, `deploy()`; input and postprocess as
   D-FINE. Its training-only imports (tensorboard, faster-coco-eval, calflops) are stubbed. One DEIM model per process.
+- OWLv2: transformers `Owlv2ForObjectDetection` (the golden's reference) with the card's weights, the processor's
+  steps on the CPU and the 80 COCO class names as the queries; the 300 best boxes (as the fastforks tiers).
 - RTMDet: mmdet 3.3.0 `inference_detector` on the model of `tools/golden/rtmdet.py` (`FF_MMDET_SITE`: mmdet,
   mmengine, mmcv-lite; NMS through torchvision's operator), the configs' test settings (COCO: score 0.001, 300
   detections; the person detectors: 0.05, 100).
@@ -300,6 +302,47 @@ def _deim(ref: str, tier: str) -> _Detector:
     return _Detector(t, fn, "rtdetr")
 
 
+def _owlv2(ref: str, tier: str) -> _Detector:
+    """The golden's transformers `Owlv2ForObjectDetection` with the card's weights, processor and the coco-80 names.
+
+    `Owlv2Processor` steps (CLIP tokenizer padded to 16; image processor: pad, blur, resize, normalise) on the CPU, the
+    text tower on every call; `post_process_object_detection`'s scores and boxes, the 300 best kept (as the fastforks
+    tiers of this eval: threshold 0, 300 detections).
+    """
+    import json  # noqa: PLC0415
+
+    import torch  # noqa: PLC0415
+    from safetensors.torch import load_file  # noqa: PLC0415
+    from transformers import CLIPTokenizer, Owlv2Config, Owlv2ForObjectDetection, Owlv2ImageProcessor  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    card, variant = registry.resolve("detection", ref)
+    config_json, weights, vocab, merges = registry.weights(card, variant, allow_download=False)
+    config = Owlv2Config(**json.loads(Path(config_json).read_text()))
+    net = Owlv2ForObjectDetection(config).eval()
+    net.load_state_dict(load_file(str(weights)))
+    net = net.to("cuda")
+    size = config.vision_config.image_size
+    proc = Owlv2ImageProcessor(size={"height": size, "width": size})
+    text = CLIPTokenizer(str(vocab), str(merges))(
+        coco_names(), padding="max_length", max_length=16, truncation=True, return_tensors="pt"
+    ).to("cuda")
+    t = _Tier(tier, "owlv2", [net])
+
+    def fn(img: np.ndarray) -> tuple[Any, ...]:
+        side = max(img.shape[:2])
+        x = proc(images=img, return_tensors="pt")["pixel_values"].cuda()
+        out = net(**text, pixel_values=x.half() if t.how == "half" else x)
+        best, labels = out.logits.float()[0].max(-1)
+        scores, keep = best.sigmoid().topk(300)
+        cx, cy, bw, bh = out.pred_boxes.float()[0][keep].unbind(-1)
+        boxes = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * side
+        return boxes, scores, labels[keep], None
+
+    return _Detector(t, fn, "rtdetr")
+
+
 class _Pose:
     """Pinned mmpose top-down or bottom-up inference behind the COCO pose interface."""
 
@@ -501,6 +544,8 @@ def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, C901, PLR0911 
             return _dfine(ref, tier)
         if ref.startswith("deim"):
             return _deim(ref, tier)
+        if ref.startswith("owlv2"):
+            return _owlv2(ref, tier)
         if ref.startswith("rf-detr"):
             return _RFDETR(ref, tier)
         return _rcnn(ref, tier) if "rcnn" in ref else _detr(ref, tier)

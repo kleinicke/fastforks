@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- OWLv2 open-vocabulary detection (`owlv2-b16`, `owlv2-l14`; Apache-2.0 code and weights): `model(image,
+  text=[...])` detects the given class names (default: the 80 COCO names; `model.open_vocabulary`); shared CLIP
+  tokenizer. B/16 at 800x1344: 23.8 ms kernels vs 190 ms original fp32 (92 ms fp16); COCO val2017 (every 10th) box
+  mAP 46.14 kernels and original.
+
 - DEIM detection (`deim-{n,s,m,l,x}-coco`, in the `dfine` family; Apache-2.0 code and weights): the D-FINE
   network with SiLU decoder MLPs and the authors' checkpoints, on `portable` and `kernels`. L at 800x1344: 8.7 ms
   kernels vs 30.5 ms original fp32; COCO val2017 (every 10th) box mAP 54.67 kernels and original.

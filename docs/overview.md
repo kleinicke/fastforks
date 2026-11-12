@@ -309,7 +309,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Detection
 
-36 models; size 800x1344.
+38 models; size 800x1344.
 
 - Fastest: [`rtmdet-nano-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) (2.1 ms).
 - Fastest commercially usable: [`rtmdet-nano-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) (2.1 ms).
@@ -352,6 +352,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`faster-rcnn-r50-fpn-3x-coco`](models/detection.md#detectron2-mask--faster-r-cnn-r50-fpn) | yes | 41.4 (800x1344) | 22.8 | 19.5 | 2.1x vs original (800x1344) | 391 |
 | [`rf-detr-seg-2xl-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 25.6 (800x1344) | 25.5 | 20.3 | 1.3x vs original (800x1344) | 206 |
 | [`mask-rcnn-r50-fpn-3x-coco`](models/detection.md#detectron2-mask--faster-r-cnn-r50-fpn) | yes | 43.5 (800x1344) | 24.6 | 21.0 | 2.1x vs original (800x1344) | 353 |
+| [`owlv2-b16`](models/detection.md#owlv2-open-vocabulary-clip-b16-and-l14) | yes | 92.3 (800x1344) | 31.8 | 23.8 | 3.9x vs original (800x1344) | 607 |
+| [`owlv2-l14`](models/detection.md#owlv2-open-vocabulary-clip-b16-and-l14) | yes | 211.7 (800x1344) | 154.8 | 109.8 | 1.9x vs original (800x1344) | 1552 |
 
 ## Pose
 
