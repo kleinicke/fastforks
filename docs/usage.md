@@ -658,6 +658,19 @@ for p in sorted(pathlib.Path("images").glob("*.jpg")):
     model(p).save(f"out/{p.stem}.tif")
 ```
 
+With a small model the JPEG decode (about 10 ms for 2 MP on one core) costs more than the network. `read_images`
+decodes the next files in background threads while the model runs; same pixels, same results:
+
+```python
+import fastforks
+
+paths = sorted(pathlib.Path("images").glob("*.jpg"))
+for p, image in zip(paths, fastforks.read_images(paths)):
+    model(image).save(f"out/{p.stem}.tif")
+```
+
+A pair or view list given as files in one call (matching, stereo, flow, multiview) is decoded in parallel.
+
 ```python
 import time
 from fastforks import detection

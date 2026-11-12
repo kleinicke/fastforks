@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
     from fastforks._core.cards import Commercial, Dtype, ModelCard, Tier
     from fastforks._core.export import TensorRTEngine
-    from fastforks._core.image import ImageLike
+    from fastforks._core.image import ImageLike, read_images
     from fastforks._core.model import Backend, ModeArg, Model
     from fastforks._core.sizes import SizeRange
     from fastforks._optimize import FastModel, patch
@@ -78,6 +78,7 @@ __all__ = [
     "load",
     "model_card",
     "patch",
+    "read_images",
     "save",
 ]
 
@@ -251,6 +252,7 @@ _LAZY = {  # public name -> module that defines it; these import torch
     "SizeRange": "fastforks._core.sizes",
     "TensorRTEngine": "fastforks._core.export",
     "patch": "fastforks._optimize",
+    "read_images": "fastforks._core.image",
 }
 
 
