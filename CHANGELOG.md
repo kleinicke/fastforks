@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Video Depth Anything (`video-depth-anything-s`, `video-depth-anything-metric-s`, depth task; Apache-2.0 code and
+  weights, Small only): a whole video per call (`[L, 3, H, W]`), windows of 32 frames with the upstream keyframe
+  alignment. 88-frame 480x640 video: 9.9 ms per frame kernels vs 57.5 ms original fp32 (43.0 ms fp16); TUM RGB-D
+  (3 sequences, first 110 frames) AbsRel 0.0549 kernels and original.
 - Grounding DINO open-vocabulary detection (`grounding-dino-tiny`, `grounding-dino-base`; Apache-2.0 code and
   weights): class names as `text`, shared BERT tokenizer. Portable only. Tiny at 800x1344: 138 ms vs 274 ms original
   fp32 (199 ms fp16); COCO val2017 (every 10th) box mAP 51.14 vs 51.08 original.

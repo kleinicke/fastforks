@@ -140,6 +140,7 @@ _SWEEP_OPTIONS: dict[str, dict[str, Any]] = {
     "mvsanywhere": {"long_side": 320},
     "midas": {"input_size": 256},
     "depth_anything_v2": {"short_side": 252},
+    "video_depth_anything": {"short_side": 252},
     "depth_anything_3": {"long_side": 252},
     "defom_stereo": {"iters": 2, "scale_iters": 1},
     "romav2": {"coarse_size": 256, "fine_size": 384},

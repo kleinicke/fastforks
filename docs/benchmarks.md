@@ -596,6 +596,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | unik3d-vitl | 134 | 134 | 108 | 62.9 | 2.1x | 1.7x | 3307 / 3570 | 1219 / 1492 | 1166 / 1266 |
 | zoedepth-nk | 408 | 271 | 124 | 88.9 | 3.1x | 1.4x | 2040 / 2146 | 2037 / 2124 | 1771 / 1960 |
 
+### Depth, TUM RGB-D fr1_room, 1080x1920
+
+| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|
+| video-depth-anything-s | 11626 | 1434 | 1284 | 9.1x | 1.1x | 8263 / 11890 | 8201 / 8652 | 8204 / 8782 |
+
 ### Classification, synthetic
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
@@ -1070,6 +1076,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | moge-3-vitl | 10.60 | 1.02 | 1.66 | 2.92 | 0.56 | 0.30 |
 | unidepth-v2-vitl14 | 3.80 | 4.16 | 0.90† | 0.38 | 0.15 | 0.07 |
 | unik3d-vitl | 7.28 | 4.16 | 0.84† | 0.57 | 0.14 | 0.07 |
+| video-depth-anything-s | 0.26 (1080x1920) | 0.18 (1080x1920) | 0.12† (1080x1920) | 14.04 (1080x1920) | 1.46 (1080x1920) | 1.30 (1080x1920) |
 | zoedepth-nk | 8.35 | 1.92 | 0.33† | 1.53 | 0.28 | 0.12 |
 | alexnet.tv_in1k | 2.51 | 1.30 | 1.40 | 0.81 | 0.02 | 0.06 |
 | coatnet_0_rw_224.sw_in1k | 0.38 | 1.37 | – | 0.31 | 0.38 | – |
@@ -1477,6 +1484,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | moge-2-vits-normal | 994x1482 | 64.2 ms | 43.9 ms | 24.5 ms | 29.7 ms | 124 s | 131 s | 1066 / 1336 | 836 / 992 | 884 / 1008 | 768 / 852 |
 | unidepth-v2-vitl14 | 994x1482 | 99.8 ms | 96.4 ms | 64.3 ms | 66.4 ms | 31.1 s | 119 s | 1208 / 1472 | 1304 / 1392 | 1211 / 1472 | 1815 / 1842 |
 | unik3d-vitl | 994x1482 | 108 ms | 94.4 ms | 58.0 ms | 62.9 ms | 32.8 s | 105 s | 1219 / 1492 | 1258 / 1312 | 1166 / 1266 | 1609 / 1678 |
+| video-depth-anything-s | 1080x1920 | 1434 ms | 1314 ms | 524 ms | 1284 ms | 82.7 s | 181 s | 8201 / 8652 | 7762 / 8530 | 8204 / 8782 | 2753 / 3148 |
 | zoedepth-nk | 994x1482 | 124 ms | 71.7 ms | 73.3 ms | 88.9 ms | 93.8 s | 138 s | 2037 / 2124 | 1813 / 1880 | 1771 / 1960 | 2246 / 2306 |
 | alexnet.tv_in1k | 224x224 | 0.970 ms | 0.824 ms | 0.401 ms | 0.604 ms | 4.33 s | 13.4 s | 151 / 224 | 183 / 204 | 184 / 228 | 278 / 312 |
 | coatnet_0_rw_224.sw_in1k | 224x224 | 6.49 ms | 3.59 ms | 0.849 ms | – | 12.1 s | 38.2 s | 102 / 124 | 120 / 142 | – | 158 / 170 |

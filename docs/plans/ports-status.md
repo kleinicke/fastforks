@@ -35,6 +35,9 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- Video Depth Anything (`video-depth-anything-s`, `video-depth-anything-metric-s`): portable float32 MPS goldens and
+  Mac speed rows (an 88-frame 480x640 video). No Metal kernels runner. Weights: the pinned HF URLs of the card (also in
+  `~/scratch_tests/port-p1/w/video_depth_anything/`).
 - Grounding DINO (`grounding-dino-tiny`, `grounding-dino-base`): portable float32 MPS goldens and Mac speed rows at
   800x1344; needs transformers. No Metal kernels runner. Weights: the pinned HF URLs of the card (also in
   `data/ff-weights/grounding_dino/`).

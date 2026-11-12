@@ -47,6 +47,8 @@ _DATASETS = {
         "middH": "Middlebury 2014 trainingH left, AbsRel / delta1",
         "nyu-normals": "NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg",
         "ibims-normals": "iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg",
+        "tum-video-110": "TUM RGB-D video (3 sequences, first 110 frames each), AbsRel / delta1",
+        "tum-video-1000": "TUM RGB-D video (3 sequences, first 1000 frames each), AbsRel / delta1",
     },
     "segmentation": {
         "ade20k-val": "ADE20K val, every 4th image, mIoU / aAcc %",
@@ -110,11 +112,14 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
+    "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
     "depth": "AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), "
     "mean over images. ",
+    ("depth", "tum-video-110"): "Video: one call per sequence, one scale + shift per sequence, AbsRel / delta1 over "
+    "all its pixels with Kinect depth, mean over sequences. ",
     ("depth", "nyu-normals"): "Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's "
     "evaluation sets), mean over images. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",

@@ -49,6 +49,7 @@ flowformer = "FlowFormer Small (ECCV 2022): convolutional features and a latent 
 # --- depth
 depth_anything_3 = "ByteDance's Depth Anything 3: depth from one image, with relative, metric and multi-view versions. The licence differs by variant, see the table."
 depth_anything_v2 = "Depth Anything V2: relative depth from one image, in small, base and large. The licence differs by size, see the table."
+video_depth_anything = "Video Depth Anything (ByteDance): depth of a whole video, consistent from frame to frame, in windows of 32 frames on the Depth Anything V2 Small encoder; relative and metric. Apache-2.0 code and weights (Small only)."
 depth_pro = "Apple's single-image model for metric depth and the camera focal length, at 1536x1536 internal resolution. Research-only licence."
 lotus = "Lotus from HKUST (Guangzhou): surface normals from one image in one step on a Stable Diffusion UNet, generative (G) or direct (D). Apache-2.0 code and weights."
 marigold = "Marigold from ETH Zurich (PRS): depth from one image by diffusion on a Stable Diffusion UNet. Commercially usable under an OpenRAIL licence."

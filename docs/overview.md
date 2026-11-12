@@ -100,7 +100,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 
 ## Monocular depth
 
-31 models; size 994x1482.
+33 models; size 994x1482.
 
 - Fastest: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
 - Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.9 ms, error 0.0346).
@@ -143,6 +143,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`moge-3-vitl`](models/depth.md#moge) | yes | 0.0356 | 485.6 (994x1482) | 513.7 | 214.7 | 2.3x vs original (994x1482) | 1673 |
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 518.4 | 270.9 | 2.1x vs original (994x1482) | 3667 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 408.1 | 383.2 | 1.1x vs original (994x1482) | 2583 |
+| [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | – | 1434.3 | 1284.0 (1080x1920) | 1.1x vs portable | 8204 |
+| [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | – | – | – | – |
 
 ## Classification
 
