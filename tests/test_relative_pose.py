@@ -267,8 +267,8 @@ def test_kernel_finish_matches_portable():
     torch_scorer = rp._TorchScorer(x1, x2, valid, thr2)
     kernel_scorer = rp._KernelScorer(ransac.load(x1.device), x1, x2, valid, thr2)
     score, count = (v[:, 0] for v in torch_scorer.score(pairs, e[:, None], 2000))
-    ra, ta, ea, ia, oka = torch_scorer.finish(e, score, count)
-    rb, tb, eb, ib, okb = kernel_scorer.finish(e, score, count)
+    ra, ta, ea, ia, oka = torch_scorer.finish(e, score, count, rp.MIN_MATCHES)
+    rb, tb, eb, ib, okb = kernel_scorer.finish(e, score, count, rp.MIN_MATCHES)
     assert oka.all()
     assert okb.all()
     assert torch.minimum((ea - eb).norm(dim=1), (ea + eb).norm(dim=1)).max() < 1e-3
