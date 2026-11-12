@@ -7,6 +7,9 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import torch
+import torch.nn.functional as F
+from torch import nn
+from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks.kernels import cudnn_hacc, stereo_ops
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
@@ -15,6 +18,7 @@ from fastforks.stereo._runner import Crop, Forward, Runner, crop, pad_widths
 from . import kernels as las2_kernels
 from .net.liteanystereov2 import LiteAnyStereoV2
 from .net.liteanystereov2_H import CombinedGeoEncodingVolume, LiteAnyStereoH, _sample_1d
+from .net.submodule import BasicConv
 
 if TYPE_CHECKING:
     from fastforks._core.kernels import CubinModule
@@ -145,8 +149,53 @@ def forward_fast_h(net: LiteAnyStereoH, pair: torch.Tensor, iters: int, k: Cubin
     return stereo_ops.spx_upsample(k, disp, xspx, 4.0)
 
 
+def gwc_volume_einsum(left: torch.Tensor, right: torch.Tensor, depth: int, groups: int) -> torch.Tensor:
+    """`build_gwc_volume_fast` as one batched product: no `[B, C, D, H, W]` temporary and no channel-mean reduction.
+
+    `[B, G, D, H, W]`; plain PyTorch (pad / unfold / einsum), exportable.
+    """
+    b, c, h, w = left.shape
+    right = F.pad(right, (depth - 1, 0, 0, 0)).unfold(3, w, 1).flip(3)  # [B, C, H, D, W]
+    vol = torch.einsum(
+        "bgchw,bgchdw->bgdhw", left.view(b, groups, c // groups, h, w), right.view(b, groups, c // groups, h, depth, w)
+    )
+    return vol / (c // groups)
+
+
+def corr_volume_einsum(left: torch.Tensor, right: torch.Tensor, depth: int) -> torch.Tensor:
+    """`build_correlation_volume` (the channel-mean correlation, `[B, D, H, W]`) via `gwc_volume_einsum`."""
+    return gwc_volume_einsum(left, right, depth, 1)[:, 0]
+
+
+def fold_batchnorms(net: torch.nn.Module) -> int:
+    """Fold every BatchNorm that follows a convolution (in an `nn.Sequential` or a `BasicConv`) into its weights.
+
+    Plain PyTorch, exportable; returns the number of folded layers.
+    """
+    n = 0
+    for m in net.modules():
+        if isinstance(m, nn.Sequential):
+            for i in range(len(m) - 1):
+                conv, bn = m[i], m[i + 1]
+                if isinstance(conv, nn.modules.conv._ConvNd) and isinstance(bn, nn.modules.batchnorm._BatchNorm):  # noqa: SLF001
+                    m[i], m[i + 1] = fuse_conv_bn_eval(conv, bn, transpose=conv.transposed), nn.Identity()
+                    n += 1
+        elif isinstance(m, BasicConv) and m.use_bn:
+            m.conv = fuse_conv_bn_eval(m.conv, m.bn, transpose=m.conv.transposed)
+            m.use_bn = False
+            del m.bn
+            n += 1
+    return n
+
+
 class Portable(Runner):
-    """Plain PyTorch: float32, or fp16 autocast with channels-last weights (norms and softmax stay float32)."""
+    """Plain PyTorch: float32, or fp16 autocast (norms and softmax stay float32).
+
+    BatchNorms are folded into the convolutions and the correlation volumes are one batched product
+    (`corr_volume_einsum`, `gwc_volume_einsum`): upstream's broadcast product + channel mean was a quarter of the
+    fp16 pass. Layout per network (measured): channels-last for the H network, NCHW for s / m / l, where channels-last
+    ran the depthwise convolutions and the norms slower.
+    """
 
     deterministic_cudnn = True
 
@@ -158,20 +207,19 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.half = ctx.dtype == "float16"
-        if self.half:
+        self.channels_last = self.half and isinstance(self.net, LiteAnyStereoH)
+        fold_batchnorms(self.net)
+        if self.channels_last:
             self.net.to(memory_format=torch.channels_last)
+        object.__setattr__(self.net, "correlation_volume", corr_volume_einsum)  # plain attributes, read by the forward
+        object.__setattr__(self.net, "gwc_volume", gwc_volume_einsum)
 
     def _run(self, net: LiteAnyStereoV2 | LiteAnyStereoH, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
         max_disp = self.ctx.params.max_disp
         if not self.half:
             return _forward(net, left, right, max_disp)
         with torch.autocast(left.device.type, dtype=torch.float16):
-            return _forward(
-                net,
-                left.contiguous(memory_format=torch.channels_last),
-                right.contiguous(memory_format=torch.channels_last),
-                max_disp,
-            )
+            return _forward(net, left, right, max_disp)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded batch."""
