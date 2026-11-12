@@ -7,7 +7,7 @@ import torch
 
 from fastforks._core.errors import InputError
 from fastforks._core.kernels import KernelUnavailableError
-from fastforks.matching import RelativePose, estimate_pose
+from fastforks.matching import MatchingResult, RelativePose, estimate_pose
 from fastforks.matching import relative_pose as rp
 
 F = 800.0
@@ -123,4 +123,30 @@ def test_kernels_match_portable():
     assert pose_error(kernels, r, t).max() < 1.0
     assert (pose_error(kernels, r, t) - pose_error(portable, r, t)).abs().max() < 0.5
     agree = (portable.inliers == kernels.inliers).float().mean()
-    assert agree > 0.98
+    assert agree > 0.9  # different random hypotheses: the inlier sets differ at the threshold margin
+
+
+def test_matches_from_result():
+    """`MatchingResult.matches` draws certain pixels and their warped positions, in the form `estimate_pose` takes."""
+    h, w = 20, 30
+    y, x = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
+    warp = torch.stack((x + 3.0, y - 2.0))  # a pure shift
+    certainty = torch.zeros(h, w)
+    certainty[5:15, 10:25] = 0.9
+    result = MatchingResult(warp, certainty, "test@1", "portable")
+    p1, p2 = result.matches(100)
+    assert p1.shape == p2.shape == (100, 2)
+    assert (certainty[p1[:, 1].long(), p1[:, 0].long()] > 0).all()
+    assert torch.equal(p2, p1 + torch.tensor([3.0, -2.0]))
+    assert len(torch.unique(p1, dim=0)) == 100
+    p1, p2 = result.matches(1000)  # capped at the 150 certain pixels
+    assert p1.shape == (150, 2)
+    b1, b2 = MatchingResult(
+        warp[None].expand(2, 2, h, w), certainty[None].expand(2, h, w), "test@1", "portable"
+    ).matches(10)
+    assert b1.shape == b2.shape == (2, 10, 2)
+    assert torch.equal(b1[0], result.matches(10)[0])
+    none = MatchingResult(warp, None, "test@1", "portable").matches(5)[0]
+    assert none.shape == (5, 2)
+    with pytest.raises(InputError):
+        MatchingResult(warp, torch.zeros(h, w), "test@1", "portable").matches(5)

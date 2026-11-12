@@ -10,7 +10,7 @@ pose.R, pose.t, pose.inliers  # [3, 3], [3] (unit, camera 1 -> camera 2), [N] bo
 The protocol is OpenCV's `findEssentialMat` (RANSAC, Nister's 5-point solver, Sampson error below `threshold` px
 divided by the mean focal length, confidence 0.99999, at most 1000 iterations) and `recoverPose` (cheirality over the
 inliers), with a local optimisation (inlier refits) that OpenCV's RANSAC has not. All pairs of a batch run in
-parallel: a round solves and scores `_ROUND` hypotheses of every unfinished pair at once (no loop over hypotheses),
+parallel: a round solves and scores a few hundred hypotheses of every unfinished pair at once (no loop over hypotheses),
 every candidate is scored on a subset of the matches, the best of them on all. The 5-point solver is batched plain
 PyTorch (`_five_point`); `mode="kernels"` runs it and the scoring in one CUDA kernel library
 (`fastforks.kernels.ransac`).
@@ -38,13 +38,17 @@ log = logging.getLogger(__name__)
 CONFIDENCE = 0.99999
 MAX_ITERATIONS = 1000
 MIN_MATCHES = 5
-# Per round (all unfinished pairs at once): hypotheses, matches each candidate is pre-scored on, candidates per pair
-# scored on all matches (the best of the pre-score), inlier refits of the local optimisation.
-_ROUND = 128
+# Per round (all unfinished pairs at once): hypotheses (kernels; portable: fewer, its solver is slower and needs
+# more memory), matches each candidate is pre-scored on, candidates per pair scored on all matches (the best of the
+# pre-score), inlier refits of the local optimisation (in `_LO_DTYPE`: float32 matched float64 on MegaDepth-1500 at
+# half the time). Tuned on MegaDepth-1500 (results/2026-11-12_gpu_ransac.md).
+_ROUND = 512
+_ROUND_PORTABLE = 128
 _SUBSET = 256
 _TOP = 8
-_REFITS = 3
+_REFITS = 1
 _SEED = 0
+_LO_DTYPE = torch.float32
 
 
 @dataclass(frozen=True)
@@ -175,10 +179,11 @@ def _estimate(  # noqa: PLR0913, PLR0917 - the RANSAC state
 
     best_count = torch.zeros(P, dtype=torch.int32, device=dev)
     best_e = torch.zeros(P, 9, dtype=torch.float32, device=dev)
+    rounds = _ROUND if solver is not None else _ROUND_PORTABLE
     used = 0
     active = torch.arange(P, device=dev)
     while active.numel():
-        idx = (torch.rand(active.numel(), _ROUND, 5, device=dev, generator=gen) * counts[active, None, None]).int()
+        idx = (torch.rand(active.numel(), rounds, 5, device=dev, generator=gen) * counts[active, None, None]).int()
         cand, cand_valid = scorer.hypotheses(active, idx)  # [A, C, 9], [A, C]
         sub = torch.where(cand_valid, scorer.score(active, cand, _SUBSET), -1)
         top = sub.topk(_TOP, dim=1).indices
@@ -190,7 +195,7 @@ def _estimate(  # noqa: PLR0913, PLR0917 - the RANSAC state
         best_e[active] = torch.where(
             better[:, None], cand[torch.arange(active.numel(), device=dev), which], best_e[active]
         )
-        used += _ROUND
+        used += rounds
         need = _iterations(best_count[active].float() / counts[active].float())
         active = active[need > used]
     # Local optimisation: refit on the inliers, keep a refit while it has more inliers.
@@ -457,7 +462,8 @@ def _refit(kron: torch.Tensor, w: torch.Tensor, e: torch.Tensor) -> torch.Tensor
 
     Projected to an essential matrix; `e` where fewer than 8 points weigh.
     """
-    ata = torch.einsum("pni,pn,pnj->pij", kron.double(), w.double(), kron.double())
+    kron, w = kron.to(_LO_DTYPE), w.to(_LO_DTYPE)
+    ata = torch.einsum("pni,pn,pnj->pij", kron, w, kron)
     vec = torch.linalg.eigh(ata).eigenvectors[..., 0]  # smallest eigenvalue
     u, _, vh = torch.linalg.svd(vec.view(-1, 3, 3))
     proj = (u * torch.tensor([1.0, 1.0, 0.0], device=e.device, dtype=u.dtype)[None, None]) @ vh
@@ -471,7 +477,7 @@ def _recover_pose(
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """OpenCV `recoverPose`: the decomposition of `E` `[P, 3, 3]` with most inliers in front of both cameras."""
     P = e.shape[0]
-    u, _, vh = torch.linalg.svd(e.double())
+    u, _, vh = torch.linalg.svd(e.to(_LO_DTYPE))
     u = u * torch.where(torch.linalg.det(u) < 0, -1.0, 1.0)[:, None, None]
     vh = vh * torch.where(torch.linalg.det(vh) < 0, -1.0, 1.0)[:, None, None]
     w = torch.tensor([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]], device=e.device, dtype=u.dtype)

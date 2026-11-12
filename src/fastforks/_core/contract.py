@@ -227,6 +227,15 @@ _DERIVED: dict[str, dict[str, tuple[str, str, str, str, str]]] = {  # result fie
             "always",
         ),
     },
+    "matching": {
+        "matches": (
+            "([n, 2], [n, 2])",
+            "float32",
+            "n keypoint matches in pixels of image1 and image2, drawn by certainty (method `matches(n)`)",
+            "(x, y), pixel centres at integer coordinates",
+            "always",
+        ),
+    },
     "multiview": {
         "extrinsics": (
             "[V, 3, 4]",

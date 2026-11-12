@@ -47,6 +47,40 @@ class MatchingResult(NumpyOutputs):
     backend: Backend
     options: Mapping[str, Any] = field(default_factory=dict)
 
+    def matches(self, n: int = 5000, *, threshold: float = 0.05, seed: int = 0) -> tuple[torch.Tensor, torch.Tensor]:
+        """Sample `n` keypoint matches from the warp, for `estimate_pose`.
+
+        Pixels are drawn without replacement with a probability proportional to their certainty, clipped to 1 above
+        `threshold` (upstream RoMa's sampling without its density balancing); without a certainty map, uniformly.
+
+        Args:
+            n: Matches per pair (fewer if fewer pixels have a non-zero certainty).
+            threshold: Certainty from which pixels are drawn with equal probability.
+            seed: Of the sampling.
+
+        Returns:
+            Points in the first and in the second image, `[n, 2]` float32 `(x, y)` pixels (`[B, n, 2]` for batches),
+            on the warp's device.
+        """
+        warp = self.warp.unsqueeze(0) if self.warp.dim() == 3 else self.warp  # noqa: PLR2004 - [2, H, W]
+        b, _, h, w = warp.shape
+        if self.certainty is None:
+            weight = torch.ones(b, h * w, device=warp.device)
+        else:
+            c = self.certainty.reshape(b, h * w)
+            weight = torch.where(c > threshold, 1.0, c)
+        n = min(n, int((weight > 0).sum(1).min()))
+        if n < 1:
+            msg = "no pixel of the first image has a certainty above zero"
+            raise InputError(msg)
+        gen = torch.Generator(warp.device).manual_seed(seed)
+        ind = torch.multinomial(weight, n, replacement=False, generator=gen)  # [B, n]
+        xy1 = torch.stack((ind % w, ind // w), -1).float()
+        xy2 = torch.gather(warp.flatten(2), 2, ind[:, None].expand(b, 2, n)).transpose(1, 2)
+        if self.warp.dim() == 3:  # noqa: PLR2004
+            return xy1[0], xy2[0]
+        return xy1, xy2
+
 
 class MatchingModel(core.Model):
     """A loaded dense-matching model. Call it with two images (or two batches of the same length) of any sizes.
