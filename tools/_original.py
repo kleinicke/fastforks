@@ -768,6 +768,39 @@ def _romav2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the
     return call
 
 
+def _lightglue(a: Any, full: str, fp16: bool, options: dict[str, Any] | None = None) -> Any:  # noqa: ANN401, FBT001
+    """Upstream `match_pair` with the extractor and `LightGlue` as `tools/golden/lightglue.py` (card `options`).
+
+    `options` override the card's. fp16: the authors' `mp` option (LightGlue's mixed precision; the extractor stays
+    float32). Upstream's attention runs in float16 on CUDA either way. Needs a `FF_LIGHTGLUE_REPO` checkout with the
+    pinned commit and kornia.
+    """
+    import functools  # noqa: PLC0415
+
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("lightglue")
+    card, variant = registry.resolve("matching", full)
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_LIGHTGLUE_REPO"]), g.REF_COMMIT)))
+    from lightglue import ALIKED, DISK, LightGlue  # noqa: PLC0415  # reference checkout  # ty: ignore[unresolved-import]
+    from lightglue.utils import match_pair  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    files = {f.name: f for f in registry.weights(card, variant, allow_download=False)}
+    torch.hub.load_state_dict_from_url = functools.partial(g.from_files, files)
+    params, opts = dict(variant.params), dict(card.options) | (options or {})
+    extractor = {"aliked": ALIKED, "disk": DISK}[params["extractor"]]
+    ex = extractor(max_num_keypoints=opts["max_keypoints"]).eval().cuda()
+    lg = LightGlue(features=params["extractor"], mp=fp16).eval().cuda()
+    a.note = f"upstream match_pair {params['extractor']} + LightGlue, resize {opts['long_side']}"
+
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        return match_pair(ex, lg, img1.float() / 255, img2.float() / 255, device="cuda", resize=opts["long_side"])
+
+    return call
+
+
 def _hwc_point(a: tuple[Any, ...]) -> tuple[Any, ...]:
     """(uint8 CUDA CHW, points, labels) of the bench call -> (uint8 HWC array, [1, 2] float array, [1] int array)."""
     import numpy as np  # noqa: PLC0415
@@ -954,6 +987,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),
     "romav2": _LocalFp16("matching", _romav2, ((768, 1024),)),
     "marigold_normals": _LocalFp16("depth", _marigold_normals, ((994, 1482),)),
+    "lightglue": _LocalFp16("matching", _lightglue, ((768, 1024),)),
 }
 
 

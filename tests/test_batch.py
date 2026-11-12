@@ -38,7 +38,7 @@ def test_batch_equals_singles(ref):
     boxes = [[0.1 * hw[1], 0.1 * hw[0], 0.9 * hw[1], 0.9 * hw[0]]]  # one person box per image
     extra = {"boxes": [boxes, boxes]} if task == "pose" and model.needs_boxes else {}
     batch = model(*(np.stack(xs) for xs in zip(*inputs, strict=True)), **extra)
-    if task in ("detection", "pose"):  # a list of per-image results (instance counts differ)
+    if isinstance(batch, list):  # per-image results (detection, pose, sparse matching: their counts differ)
         assert isinstance(batch, list)
         assert len(batch) == len(inputs)
         for got, x in zip(batch, inputs, strict=True):

@@ -5,6 +5,10 @@
 - Marigold normals LCM (`marigold-normals-lcm-v0-1`, depth task, `normals` output; Apache-2.0): one LCM step on the
   shared Stable Diffusion 2 UNet / VAE (`fastforks.shared.sd2`, also used by Marigold depth). 994x1482: 167 ms kernels vs
   557 ms original fp32 (280 ms fp16); NYUv2 normals mean angular error 18.46 deg kernels vs 18.45 original fp32.
+- LightGlue sparse matching (`aliked-lightglue`, `disk-lightglue`; Apache-2.0, ALIKED BSD-3-Clause):
+  `model(image1, image2)` returns `keypoints1`, `keypoints2`, index `pairs` and `scores` (the form
+  `pycolmap.match_from_pairs` takes). Portable only (data-dependent keypoint counts). 768x1024: ALIKED 48.4 ms
+  (29.5 ms with torch.compile) vs 41.2 ms original; DISK 116 vs 117 ms. MegaDepth-1500 AUC@5 50.7 (ALIKED).
 
 - MEMFOF optical flow (`memfof`, `memfof-kitti`, `memfof-sintel`, `memfof-spring`; BSD-3-Clause): portable and kernels (a 1024-channel
   `raft_flow` correlation lookup). 1080p: 427 ms kernels vs 1035 ms original fp32 (531 ms fp16); KITTI 2015 train

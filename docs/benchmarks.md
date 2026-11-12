@@ -937,6 +937,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
+| aliked-lightglue | – | 41.8 | 48.4 | – | – | – | 1305 / 1364 | 1300 / 1406 | – |
+| disk-lightglue | – | 117 | 116 | – | – | – | 1955 / 2412 | 1950 / 2398 | – |
 | romav2 | 1412 | 741 | 546 | 406 | 1.8x | 1.3x | 9881 / 10124 | 1989 / 2596 | 1909 / 2580 |
 
 ### Startup and first call
@@ -1344,6 +1346,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | sea-raft-s | 0.30 | 0.05 | 1.10 | 0.30 | 0.23 | 0.05 |
 | sea-raft-s-kitti | 0.30 | 0.05 | 1.10 | 0.30 | 0.23 | 0.05 |
 | sea-raft-s-spring | 0.31 | 0.05 | 1.11 | 0.04 | 0.04 | 0.02 |
+| aliked-lightglue | 1.49 | 0.20 | – | 0.73 | 0.75 | – |
+| disk-lightglue | 1.43 | 0.20 | – | 0.64 | 0.63 | – |
 | romav2 | 5.45 | 0.85 | 1.50 | 2.09 | 0.91 | 0.81 |
 
 † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -1718,6 +1722,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | sea-raft-s | 1080x1920 | 226 ms | 150 ms | 108 ms | 50.4 ms | 35.4 s | 68.0 s | 8292 / 8354 | 5828 / 5876 | 415 / 492 | 11043 / 11078 |
 | sea-raft-s-kitti | 1080x1920 | 226 ms | 150 ms | 108 ms | 50.5 ms | 31.8 s | 67.3 s | 8292 / 8354 | 5828 / 5876 | 415 / 492 | 11043 / 11078 |
 | sea-raft-s-spring | 1080x1920 | 37.1 ms | 23.8 ms | 3.01 ms | 16.0 ms | 21.9 s | 38.8 s | 672 / 714 | 582 / 596 | 160 / 192 | 215 / 278 |
+| aliked-lightglue | 768x1024 | 48.4 ms | 29.5 ms | fails: ONNX export: torch.export failed | – | 30.8 s | – | 1300 / 1406 | 1653 / 1680 | – | – |
+| disk-lightglue | 768x1024 | 116 ms | 113 ms | fails: ONNX export: torch.export failed | – | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | – | – |
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 406 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2580 | 6694 / 6740 |
 <!-- compile:end -->
 

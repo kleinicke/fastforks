@@ -289,7 +289,7 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     elif task in {"flow", "matching"}:  # the golden's image pair
         assert want is not None, f"{task} goldens store their image pair"
         r = m(img, want["input2"].round().astype(np.uint8))
-        maps = {k: getattr(r, k) for k in spec(task).standard}
+        maps = {k: getattr(r, k, None) for k in spec(task).standard}  # sparse matchers: no warp / certainty
     else:
         r = m(img, logits=True)
         assert r.logits is not None
@@ -355,6 +355,43 @@ def run_or_skip(ref: str, **kw: Any) -> tuple[list[dict[str, torch.Tensor]], Any
         pytest.skip(f"{ref}: gated weights, not in FASTFORKS_WEIGHTS_PATH")
 
 
+NEAR = 1.0  # px: a golden keypoint is recalled by an output keypoint this close (sparse matchers)
+
+
+def sparse_parity(want: dict[str, np.ndarray], got: dict[str, torch.Tensor]) -> tuple[float, float, np.ndarray, float]:
+    """Sparse matchers (`pairs`): the keypoint order (score ties) and the float noise differ between backends, so each
+    golden keypoint is paired with its nearest output keypoint and vice versa. The recall (share of the golden
+    keypoints of both images within `NEAR` px), the match agreement (the smaller of the shares of golden and output
+    matches whose two keypoints pair up with a match of the other side), the distances of the recalled keypoints and
+    the max |score diff| of the agreeing matches."""
+    near, dist = [], []
+    for k in ("keypoints1", "keypoints2"):
+        d = torch.cdist(torch.from_numpy(want[k]).double(), got[k].double())
+        if d.numel() == 0:
+            return 0.0, 0.0, np.zeros(1), 0.0
+        to_got, to_want = d.min(1), d.min(0)
+        dist.append(to_got.values.numpy())
+        near.append(
+            (
+                to_got.indices.numpy(),
+                to_got.values.numpy() <= NEAR,
+                to_want.indices.numpy(),
+                to_want.values.numpy() <= NEAR,
+            )
+        )
+    pw, pg = want["pairs"].astype(np.int64), got["pairs"].numpy().astype(np.int64)
+    index_g = {(int(i), int(j)): n for n, (i, j) in enumerate(pg)}
+    index_w = {(int(i), int(j)) for i, j in pw}
+    (g1, ok1, w1, okw1), (g2, ok2, w2, okw2) = near
+    hits = [index_g.get((int(g1[i]), int(g2[j]))) if ok1[i] and ok2[j] else None for i, j in pw]
+    back = [okw1[i] and okw2[j] and (int(w1[i]), int(w2[j])) in index_w for i, j in pg]
+    agree = min(np.mean([h is not None for h in hits]) if len(pw) else 1.0, np.mean(back) if len(pg) else 1.0)
+    scores = got["scores"].numpy()
+    ds = [abs(float(scores[h]) - float(want["scores"][n])) for n, h in enumerate(hits) if h is not None]
+    d = np.concatenate(dist)
+    return float((d <= NEAR).mean()), float(agree), d[d <= NEAR], max(ds, default=0.0)
+
+
 def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tensor]) -> list[str]:
     """Per output: shape, max / mean |diff| against the golden and the bound (masks: the fraction of differing pixels);
     the rows of the outputs out of bounds come first, marked `FAIL`."""
@@ -362,6 +399,15 @@ def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tenso
     rows = tol.get("cpu_extra", [])  # optional [key, atol] rows: one output bound looser than cpu_atol
     assert isinstance(rows, list)
     atol, rtol = dict(rows), tol.get("cpu_rtol", 0)
+    if "pairs" in want:  # sparse matchers: keypoint and match sets, not element-wise
+        recall, agree, d, ds = sparse_parity(want, got)
+        bad = recall < tol["cpu_min_recall"] or agree < tol["cpu_min_match"] or ds > tol["cpu_atol"]
+        line = (
+            f"{'FAIL ' * bad}keypoints recall {recall:.4f} (min {tol['cpu_min_recall']}), matches {agree:.4f} (min"
+            f" {tol['cpu_min_match']}), max |keypoint diff| {d.max(initial=0):.3g}, max |score diff| {ds:.3g} (atol"
+            f" {tol['cpu_atol']})"
+        )
+        return [line]
     lines = []
     for k, v in sorted(want.items()):
         g = got[k].numpy()
@@ -418,12 +464,19 @@ def sure_mask(score: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
 
 def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torch.Tensor], what: str) -> np.ndarray:
     """Assert `got` within the GPU tolerances of the golden; the error map of the primary output."""
-    for k in want.keys() & got.keys():  # e.g. the same detections
+    for k in want.keys() & got.keys() if "pairs" not in want else ():  # e.g. the same detections (not sparse counts)
         assert tuple(got[k].shape) == want[k].shape, f"{what}{k}: shape {tuple(got[k].shape)}, golden {want[k].shape}"
     if TASK[ref] == "features":  # hidden states are not compared below: at least no fp16 overflow
         assert all(bool(torch.isfinite(v).all()) for v in got.values()), f"{what}non-finite features"
     key = primary(ref, want)
     tol = tolerance(ref, mode)
+    if "pairs" in want:  # sparse matchers: the distances of the recalled keypoints
+        recall, agree, err, _ = sparse_parity(want, got)
+        assert recall >= tol["gpu_min_recall"], f"{what}keypoints: recall {recall:.4f}"
+        assert agree >= tol["gpu_min_match"], f"{what}matches: agreement {agree:.4f}"
+        assert err.mean() < tol["gpu_mean"], f"{what}keypoints: mean |diff| {err.mean():.4f}"
+        assert np.percentile(err, 99) < tol["gpu_p99"], f"{what}keypoints: p99 |diff| {np.percentile(err, 99):.4f}"
+        return err
     unit = np.median(np.abs(want[key])) if tol.get("relative") else 1.0  # scale-free outputs (relative depth)
     err = np.abs(got[key].numpy() - want[key]) / unit
     if "gpu_min_score" in tol:  # unsure points: pose argmax ties, matching pixels outside the overlap

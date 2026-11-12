@@ -1,0 +1,4 @@
+summary = "Deformable convolution v1 / modulated v2 (mmdet / torchvision semantics) in plain PyTorch: grid_sample sampling and a matmul per row chunk."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "our AANet port (stereo/models/aanet/net/deform_conv.py, Apache-2.0), which re-implements the mmdetection-v1 deform_conv CUDA extension's math"

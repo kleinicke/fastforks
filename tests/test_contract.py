@@ -234,7 +234,7 @@ _RESULTS = {
     "detection": "DetectionResult",
     "pose": "PoseResult",
     "flow": "FlowResult",
-    "matching": "MatchingResult",
+    "matching": "MatchingResult SparseMatchingResult",
     "depth": "DepthResult",
     "features": "FeaturesResult",
     "multiview": "MultiViewResult",
@@ -249,7 +249,7 @@ def test_contract_lists_every_result_field():
     """Every output field (and derived property / method) of each task's result is in some contract of the task."""
     import importlib  # noqa: PLC0415
 
-    for task, name in _RESULTS.items():
+    for task, name in ((t, n) for t, names in _RESULTS.items() for n in names.split()):
         cls = getattr(importlib.import_module(f"fastforks.{task}._api"), name)
         names = {f.name for f in dataclasses.fields(cls)} | {
             n for n, v in vars(cls).items() if not n.startswith("_") and (isinstance(v, property) or callable(v))

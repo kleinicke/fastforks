@@ -532,11 +532,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Matching
 
-1 models; size 768x1024.
+3 models; size 768x1024.
 
-- Fastest: [`romav2`](models/matching.md#roma-v2) (405.9 ms).
-- Fastest commercially usable: [`romav2`](models/matching.md#roma-v2) (405.9 ms).
+- Fastest: [`aliked-lightglue`](models/matching.md#lightglue) (48.4 ms).
+- Fastest commercially usable: [`aliked-lightglue`](models/matching.md#lightglue) (48.4 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
+| [`aliked-lightglue`](models/matching.md#lightglue) | yes | 41.8 (768x1024) | 48.4 | – | – | – |
+| [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.4 | – | – | – |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 405.9 | 1.8x vs original (768x1024) | 1909 |

@@ -3,7 +3,7 @@ name = "AANet"
 summary = "AANet (Xu and Zhang 2020): sparse deformable-sampling cost aggregation within and across scales on a 2-D correlation pyramid, without 3-D convolutions."
 tier = "experimental"
 outputs = ["disparity"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "deform_conv"]  # fastforks.shared modules this family imports
 limitations = [
   "Only the SceneFlow checkpoints of AANet and AANet+ are included; the original code's KITTI fine-tunes are not.",
   "At 375x1242 AANet is launch-bound: portable is about as fast as the original code. At 994x1482 portable is faster but allocates more memory.",

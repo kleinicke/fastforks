@@ -1,4 +1,4 @@
-"""The interface a dense-matching model family implements: one `Runner` per backend, listed in `model.py` as `RUNNERS`.
+"""The interface a matching model family implements: one `Runner` per backend, listed in `model.py` as `RUNNERS`.
 
 ```python
 # matching/models/<family>/model.py
@@ -34,7 +34,7 @@ __all__ = ["Context", "Forward", "NoParams", "Runner", "scale"]
 
 
 class Runner(core.Runner):
-    """One backend of a dense-matching model family."""
+    """One backend of a matching model family (dense or sparse)."""
 
     @abc.abstractmethod
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -46,7 +46,9 @@ class Runner(core.Runner):
 
         Returns:
             `{"warp": [B, 2, H1, W1]}` (any float dtype): `(x, y)` in pixels of `image2` (pixel centres at integers) for
-            every pixel of `image1`, plus `"certainty"` `[B, H1, W1]` in `[0, 1]` if the card lists it.
+            every pixel of `image1`, plus `"certainty"` `[B, H1, W1]` in `[0, 1]` if the card lists it. Sparse
+            families (card outputs `pairs`) get `B = 1` and return `{"keypoints1": [N, 2], "keypoints2": [M, 2],
+            "pairs": [K, 2] (integer indices into the two keypoint sets), "scores": [K]}`, keypoints in input pixels.
         """
 
     def module(self) -> torch.nn.Module:

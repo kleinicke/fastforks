@@ -881,7 +881,8 @@ TASK_IO = {
     "detection": "Input: one RGB image. Output: boxes, class labels, scores and instance masks.",
     "matching": (
         "Input: two RGB images of one scene. Output: for every pixel of the first image its position in the second "
-        "(x, y in pixels) and a certainty that the pixel is visible in both."
+        "(x, y in pixels) and a certainty that the pixel is visible in both. Sparse matchers (LightGlue) return "
+        "the keypoints of both images and the index pairs of the matched ones instead."
     ),
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",

@@ -233,3 +233,9 @@ name = "Spring (scene flow / optical flow / stereo, University of Stuttgart)"
 licence = "CC-BY-4.0"  # DaRUS record doi:10.18419/darus-3376 (version 2): licence "CC BY 4.0" (read 2026-11-09)
 commercial = "yes"
 url = "https://spring-benchmark.org/"
+
+[megadepth]
+name = "MegaDepth (Internet photo collections with SfM / MVS depth)"
+licence = "CC-BY-4.0"  # "is licensed under a Creative Commons Attribution 4.0 International License"; "The original images come with their own licenses" (read 2026-11-12)
+commercial = "unclear"
+url = "https://www.cs.cornell.edu/projects/megadepth/"

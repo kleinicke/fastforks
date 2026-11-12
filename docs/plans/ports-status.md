@@ -37,6 +37,9 @@ In this order, unless something more useful turns up:
 
 - Marigold normals LCM (`marigold-normals-lcm-v0-1`): portable float32 MPS golden and Mac speed rows (994x1482). No
   Metal kernels runner. Weights: the pinned HF URLs of the card (also in `~/scratch_tests/port-p1/w/marigold_normals/`).
+- LightGlue (`aliked-lightglue`, `disk-lightglue`): portable float32 MPS goldens (sparse: keypoint recall and match
+  agreement) and Mac speed rows at 768x1024. No Metal kernels runner. Weights: the pinned GitHub release URLs of the
+  card (also in `~/scratch_tests/port-p1/w/lightglue/`).
 - MEMFOF (`memfof`, `memfof-kitti`): portable float32 MPS goldens and Mac speed rows (375x1242, 1080p). No Metal
   kernels runner. Weights: the pinned HF URLs of the card (also in `~/scratch_tests/port-p1/w/memfof/`).
 - RF-DETR detection / Seg (10 variants): portable float32 MPS goldens and Mac speed rows at 800x1344. No Metal

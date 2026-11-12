@@ -269,6 +269,10 @@ _SNIPPET_FAMILY = {
         'result = model("photo.jpg", text="coin")  # a concept: every instance of it; or input_boxes= exemplar boxes\n'
         "result.boxes, result.scores, result.masks  # [N, 4], [N], [N, H, W] bool"
     ),
+    "lightglue": (
+        'result = model("view1.jpg", "view2.jpg")\n'
+        "result.keypoints1, result.keypoints2, result.pairs  # [N, 2], [M, 2] pixels; [K, 2] int64 index pairs"
+    ),
     "mvsanywhere": (
         'result = model(["ref.jpg", "src1.jpg", "src2.jpg"], intrinsics=K, cam_to_world=c2w)  # views[0] = reference\n'
         "result.{out}  # [1, H, W] float32 tensor; K [N, 3, 3] pixels, c2w [N, 4, 4] OpenCV camera-to-world"

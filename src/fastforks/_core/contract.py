@@ -232,7 +232,10 @@ _DERIVED: dict[str, dict[str, tuple[str, str, str, str, str]]] = {  # result fie
         "matches": (
             "([n, 2], [n, 2])",
             "float32",
-            "n keypoint matches in pixels of image1 and image2, drawn by certainty (method `matches(n)`)",
+            (
+                "keypoint matches in pixels of image1 and image2 (method `matches`): dense models draw n by certainty,"
+                " sparse ones return their matched keypoints"
+            ),
             "(x, y), pixel centres at integer coordinates",
             "always",
         ),
@@ -285,6 +288,10 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
     "matching": {
         "warp": ("[B, 2, H1, W1]", "float32", "pixels of image2, (x, y)", "image1 pixels"),
         "certainty": ("[B, H1, W1]", "float32", "[0, 1]", "image1 pixels"),
+        "keypoints1": ("[N, 2]", "float32", "pixels of image1, (x, y)", "detected keypoints, one pair per call"),
+        "keypoints2": ("[M, 2]", "float32", "pixels of image2, (x, y)", "detected keypoints"),
+        "pairs": ("[K, 2]", "int64", "indices into keypoints1, keypoints2", "one row per match"),
+        "scores": ("[K]", "float32", "[0, 1] match confidence", ""),
     },
     "features": {
         "last_hidden_state": ("[B, N, C]", "float32", "tokens after the final norm", "prefix tokens, then patches"),
