@@ -151,3 +151,6 @@ hrnet = "HRNet (w32, w48; 256x192 and 384x288): top-down 2D human pose with a hi
 rtmo = "OpenMMLab's RTMO (t, s, m, l): real-time one-stage multi-person 2D pose; finds people and their 17 COCO keypoints in one pass over the image, no person detector needed. Apache-2.0."
 rtmpose = "OpenMMLab's RTMPose (t, s, m, l; 256x192 and 384x288): real-time top-down 2D human pose, a CSPNeXt CNN with a SimCC head; also the whole-body DWPose and RTMW checkpoints (133 keypoints with feet, face and hands); Halpe (26 keypoints), hand, face and animal checkpoints. Apache-2.0."
 vitpose = "ViTPose and ViTPose++ (base, small, large, huge): top-down 2D human pose with a plain vision transformer, from the weights published by the University of Sydney on Hugging Face. Apache-2.0."
+
+# --- tracking
+tapnext = "TAPNext (Google DeepMind, 2025): tracks any point through a video, online one frame at a time, as next-token prediction with a ViT + linear-recurrence (RG-LRU) backbone; BootsTAPNext-B and the long-video TAPNext++. Apache-2.0 code and weights."

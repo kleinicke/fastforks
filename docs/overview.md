@@ -573,3 +573,15 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`aliked-lightglue`](models/matching.md#lightglue) | yes | 41.8 (768x1024) | 48.4 | – | – | – |
 | [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.4 | – | – | – |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 405.9 | 1.8x vs original (768x1024) | 1909 |
+
+## Tracking
+
+2 models; size 480x854.
+
+- Fastest: [`tapnext`](models/tracking.md#tapnext) (382.2 ms).
+- Fastest commercially usable: [`tapnext`](models/tracking.md#tapnext) (382.2 ms).
+
+| model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
+|---|---|---|---|---|---|---|
+| [`tapnext`](models/tracking.md#tapnext) | yes | 908.8 (480x854) | 529.5 | 382.2 | 2.4x vs original (480x854) | 1313 |
+| [`tapnext-pp`](models/tracking.md#tapnext) | yes | – | – | – | – | – |

@@ -60,6 +60,7 @@ TASKS = (
     "pose",
     "matching",
     "matting",
+    "tracking",
 )
 STANDARD = {  # the task's output order: the first one present is the primary map (tolerances apply to it)
     "stereo": ("disparity", "confidence"),
@@ -73,6 +74,7 @@ STANDARD = {  # the task's output order: the first one present is the primary ma
     "features": ("last_hidden_state", "pooler_output", "hidden_states"),
     "promptable_segmentation": ("pred_masks", "iou_scores", "boxes", "scores", "masks"),
     "pose": ("keypoints", "keypoint_scores", "boxes", "scores"),
+    "tracking": ("tracks", "visibility"),
 }
 MASK_CLASSIFICATION = {"eomt", "mask2former", "oneformer"}
 INSTANCE_TASKS = {"detection"}
@@ -153,11 +155,18 @@ def pick_sizes(task: str, m: Any) -> list[Case]:
     return [(n, hw) for n, hw in cases if min(hw) >= lo]
 
 
-def make_call(task: str, m: Any, case: Case) -> Callable[[], Any]:  # noqa: PLR0911 - one branch per task
+def make_call(task: str, m: Any, case: Case) -> Callable[[], Any]:  # noqa: C901, PLR0911 - one branch per task
     _, arg = case
     if task in {"stereo", "flow", "matching"}:  # flow: the shifted pair as two frames
         left, right = stereo_pair(*arg)
         return lambda: m(left, right)
+    if task == "tracking":  # 8 frames of the photo moving 3 px per frame, a 4 x 4 query grid on frame 0
+        from fastforks.tracking._api import grid_queries  # noqa: PLC0415 - tracking only
+
+        wide = photo(0, arg[0], arg[1] + 24)
+        frames = [wide[:, 3 * t : 3 * t + arg[1]] for t in range(8)]
+        queries = grid_queries(*arg, 4, torch.device("cpu"))
+        return lambda: m(frames, queries)
     if task == "multiview":
         imgs, kw = views(*arg)
         calibrated = m.card.family in {"mvsanywhere", "patchmatchnet"}

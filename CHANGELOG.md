@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- TAPNext point tracking (`tapnext`, `tapnext-pp`, new `tracking` task; Apache-2.0 code and weights): `model(video,
+  queries)` returns `tracks` `[T, Q, 2]` and `visible` `[T, Q]` for `(t, x, y)` queries, online one frame at a time
+  as upstream. 24-frame 480x854 video, 256 queries: 382 ms kernels, 529 ms portable vs 1541 ms original fp32;
+  TAP-Vid DAVIS (first) AJ 66.56 kernels vs 66.55 original.
+
 - SAM 2.1 video (`track` of `sam2.1-hiera-*`; Apache-2.0 code and weights): objects prompted on the first frame
   (points, boxes or masks) are followed through a video with the original memory attention / memory encoder.
   Tiny on DAVIS 2017 val (480p): 59 ms/frame portable, 63 ms kernels vs 282 ms original fp32 (90 ms fp16), peak

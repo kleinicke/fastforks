@@ -97,6 +97,7 @@ STANDARD = {  # the task's standard input of docs/benchmarks.md (tools/gen_docs.
     "flow": "1080x1920",
     "matching": "768x1024",
     "matting": "1080x1920",
+    "tracking": "480x854",
 }
 PROFILE_INPUT = {
     "stereo": "994x1482",

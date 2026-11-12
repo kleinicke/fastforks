@@ -30,6 +30,8 @@ def test_batch_equals_singles(ref):
     task = TASK[ref]
     if task == "promptable_segmentation":
         pytest.skip("one image per call with prompts (batched prompts: tests/test_tasks.py)")
+    if task == "tracking":
+        pytest.skip("tracking: one video per call (its frames are the leading dim)")
     if task == "multiview":
         pytest.skip("multiview: the leading dim holds the views of one scene (they attend to each other), not a batch")
     if FAMILY[ref] == "video_depth_anything":

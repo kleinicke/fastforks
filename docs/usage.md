@@ -118,7 +118,7 @@ tensors; calling it returns the typed result, whose `.backend` records what ran.
 
 Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
 `fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation`,
-`fastforks.multiview`, `fastforks.matching` and `fastforks.matting`.
+`fastforks.multiview`, `fastforks.matching`, `fastforks.matting` and `fastforks.tracking`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
 PatchmatchNet return the reference view only. See the [API pages](api/index.md) for every result's fields.
 

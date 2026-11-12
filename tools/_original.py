@@ -1052,6 +1052,69 @@ class _LocalFp16(_Local):
     flag = True
 
 
+def _tapnext(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream `TAPNext` online (one frame per call, as the authors' online demo), the eval's resizing to 256 x 256.
+
+    fp16: `torch.autocast("cuda", torch.float16)` as upstream's evaluation. Needs `TAPNET_SRC`, a tapnet checkout with
+    the pinned commit. The call returns tracks `[1, T, Q, 2]` and the visible logits `[1, T, Q, 1]` (upstream's).
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    sys.path.insert(0, os.environ["TAPNET_SRC"])
+    from tapnet.tapnext.tapnext_torch import TAPNext  # noqa: PLC0415  # ty: ignore[unresolved-import]
+    from tapnet.tapnext.tapnext_torch_utils import (  # noqa: PLC0415  # ty: ignore[unresolved-import]
+        restore_model_from_jax_checkpoint,
+    )
+
+    card, variant = registry.resolve("tracking", full)
+    file = registry.weights(card, variant, allow_download=False)[0]
+    model = TAPNext(image_size=(256, 256))
+    if variant.weights[0].name.endswith(".npz"):
+        model = restore_model_from_jax_checkpoint(model, str(file))
+    else:
+        sd = torch.load(file, map_location="cpu", weights_only=True)["state_dict"]
+        model.load_state_dict({k.removeprefix("tapnext."): v for k, v in sd.items()})
+    model = model.eval().cuda()
+    a.note = "upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        h, w = video.shape[-2:]
+        scale = torch.tensor((256 / w, 256 / h), device=queries.device)
+        qp = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]
+        tracks, vis, state = [], [], None
+        with torch.autocast("cuda", torch.float16, enabled=fp16):
+            for t in range(video.shape[0]):
+                x = F.interpolate(video[t : t + 1].float() / 255, (256, 256), mode="bilinear", antialias=True)
+                x = (x * 2 - 1).permute(0, 2, 3, 1)[:, None]  # [1, 1, 256, 256, 3]
+                kw = {"query_points": qp} if state is None else {"state": state}
+                tr, _, vl, state = model(video=x, **kw)
+                tracks.append(tr), vis.append(vl)
+        return torch.cat(tracks, 1), torch.cat(vis, 1)
+
+    return call
+
+
+class _Tracking(_LocalFp16):
+    """The tracking bench call: the uint8 video `[T, 3, H, W]` and the float32 query grid (not scaled to uint8)."""
+
+    def inputs(self, full: str) -> list[tuple[str, str, tuple[Any, ...]]]:  # noqa: ARG002 - the adapter signature
+        """(label, scene, (video, queries)) per size, from `fastforks.tracking` `bench_inputs`."""
+        import torch  # noqa: PLC0415
+
+        from fastforks._core.bench import BenchSize  # noqa: PLC0415
+        from fastforks.tracking._api import bench_inputs  # noqa: PLC0415
+
+        like = types.SimpleNamespace(device=torch.device("cuda"))
+        out = []
+        for h, w in self.sizes:
+            (video, queries), _ = bench_inputs(like, BenchSize(h, w))
+            out.append((f"{h}x{w}", "synthetic (fastforks bench)", ((video * 255).round().byte(), queries)))
+        return out
+
+
 def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
     return [[x0, y0, x1 - x0, y1 - y0] for x0, y0, x1, y1 in boxes.tolist()]
 
@@ -1111,6 +1174,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "xfeat": _Local("matching", _xfeat, ((768, 1024),)),
     "birefnet": _LocalFp16("matting", _birefnet, ((1080, 1920),)),
     "ben2": _LocalFp16("matting", _ben2, ((1080, 1920),)),
+    "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
 }
 
 

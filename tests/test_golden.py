@@ -42,6 +42,7 @@ from fastforks import (
     promptable_segmentation,
     segmentation,
     stereo,
+    tracking,
 )
 from fastforks._core import kernels, registry
 from fastforks._core.errors import BackendUnavailableError, WeightsDownloadError, WeightsError
@@ -73,6 +74,7 @@ API: dict[str, Any] = {
     "flow": flow,
     "matching": matching,
     "matting": matting,
+    "tracking": tracking,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
 HEAVY_CPU = "FASTFORKS_HEAVY_CPU_TESTS"  # 1: every CPU case, also those left out of the release suite for time / RAM
@@ -296,6 +298,10 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         assert want is not None, "pose goldens store their input image and person boxes"
         r = m(img, boxes=want["boxes"]) if m.needs_boxes else m(img)
         maps = {k: getattr(r, k) for k in spec("pose").standard}
+    elif task == "tracking":  # tests/synth.py clip() and the golden's queries
+        assert want is not None, "tracking goldens store their queries"
+        r = m(clip(), want["queries"])
+        maps = {k: getattr(r, k) for k in spec(task).standard}
     elif task in {"flow", "matching"}:  # the golden's image pair
         assert want is not None, f"{task} goldens store their image pair"
         r = m(img, want["input2"].round().astype(np.uint8))
@@ -311,8 +317,8 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     return {k: v.float().cpu() for k, v in maps.items() if v is not None}, r.backend
 
 
-# stored inputs of a golden (the image(s); per concept prompt, the queries whose masks are kept)
-INPUTS = ("input", "input2", *(f"{prefix}mask_query" for prefix in concepts()))
+# stored inputs of a golden (the image(s); tracking queries; per concept prompt, the queries whose masks are kept)
+INPUTS = ("input", "input2", "queries", *(f"{prefix}mask_query" for prefix in concepts()))
 
 
 def primary(ref: str, maps: dict[str, np.ndarray]) -> str:

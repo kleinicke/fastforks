@@ -86,6 +86,10 @@ _DATASETS = {
         "dis-vd": "DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta",
         "dis-vd-every2": "DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta",
     },
+    "tracking": {
+        "tapvid-davis-first-every3": "TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA %",
+        "tapvid-davis-first": "TAP-Vid DAVIS (query first), AJ / delta_avg / OA %",
+    },
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
 # task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
@@ -126,6 +130,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
+    "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
@@ -178,6 +183,9 @@ _PROTOCOL = {
     "pair. ",
     "matting": "Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over "
     "256 thresholds (BiRefNet's evaluation). ",
+    "tracking": "TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model, one query per track at "
+    "its first visible point, tracked online; AJ, delta_avg (< 1, 2, 4, 8, 16 px at 256 x 256) and occlusion accuracy "
+    "averaged over the videos. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
@@ -923,6 +931,10 @@ TASK_IO = {
     ),
     "segmentation": "Input: one RGB image. Output: per-pixel class labels (logits with `logits=True`).",
     "promptable_segmentation": "Input: one image plus a point, box or text prompt. Output: masks with quality scores.",
+    "tracking": (
+        "Input: a video (its frames in order) and query points `(t, x, y)`. Output: the position of every query in "
+        "every frame and the probability that it is visible there."
+    ),
 }
 
 
@@ -1095,6 +1107,7 @@ _STD_SIZE = {
     "flow": "1080x1920",
     "matching": "768x1024",
     "matting": "1080x1920",
+    "tracking": "480x854",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input

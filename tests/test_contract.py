@@ -243,6 +243,7 @@ _RESULTS = {
     "stereo": "StereoResult",
     "segmentation": "SegmentationResult",
     "promptable_segmentation": "PromptableSegmentationResult",
+    "tracking": "TrackingResult",
 }
 
 

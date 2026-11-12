@@ -1,0 +1,44 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 4.6e-05
+gpu_mean = 0.0063
+gpu_p99 = 0.036
+
+[refs."tapnext-pp@1"]
+sha256 = "4976e540984d93a88df5fc92b7001bcd58033b1de365b396fe868e700d54186c"
+upstream = "https://github.com/google-deepmind/tapnet@ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b"
+settings = "CPU float32, upstream TAPNext online (first frame with the queries, then frame by frame), tests/synth.py clip() 6 x 100 x 150 bilinear-antialiased to 256 x 256, torch 2.14.1+cu130"
+gpu_mean = 0.0063
+gpu_p99 = 0.036
+gpu_extra = [["visibility", 0.00054, 0.0032]]
+
+[refs."tapnext@1"]
+sha256 = "42d817b3c7a0b282e0ce1d73672ce7c3d91e311cbecca8dee826a4b8ae05b145"
+upstream = "https://github.com/google-deepmind/tapnet@ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b"
+settings = "CPU float32, upstream TAPNext online (first frame with the queries, then frame by frame), tests/synth.py clip() 6 x 100 x 150 bilinear-antialiased to 256 x 256, torch 2.14.1+cu130"
+gpu_mean = 0.0056
+gpu_p99 = 0.032
+gpu_extra = [["visibility", 0.0003, 0.0025]]
+
+[validated."tapnext-pp@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.00415
+p99_px = 0.02383
+
+[validated."tapnext@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.00369
+p99_px = 0.02116

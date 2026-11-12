@@ -58,6 +58,11 @@ def clip(n: int = 6, h: int = 100, w: int = 150) -> list[np.ndarray]:
     return frames
 
 
+def track_queries() -> list[list[float]]:
+    """`(t, x, y)` queries on `clip()` for point tracking: the disk centre in frames 0 and 2, a background point."""
+    return [[0, 50.0, 45.0], [2, 60.0, 49.0], [0, 110.0, 70.0]]
+
+
 def clip_prompts() -> dict[str, dict[str, Any]]:
     """Frame-0 prompts of `clip()` for `track`, by golden key prefix: a point, a box, the disk's mask."""
     yy, xx = np.mgrid[:100, :150]

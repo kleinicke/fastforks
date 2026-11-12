@@ -240,6 +240,9 @@ _DERIVED: dict[str, dict[str, tuple[str, str, str, str, str]]] = {  # result fie
             "always",
         ),
     },
+    "tracking": {
+        "visible": ("[T, Q]", "bool", "visibility > 0.5", "", "when visibility is"),
+    },
     "multiview": {
         "extrinsics": (
             "[V, 3, 4]",
@@ -294,6 +297,10 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
         "scores": ("[K]", "float32", "[0, 1] match confidence", ""),
     },
     "matting": {"alpha": ("[B, H, W]", "float32", "[0, 1], 1 = foreground", "input pixels")},
+    "tracking": {
+        "tracks": ("[T, Q, 2]", "float32", "pixels of the input, (x, y)", "every frame, one row per query"),
+        "visibility": ("[T, Q]", "float32", "[0, 1] probability that the point is visible", "every frame"),
+    },
     "features": {
         "last_hidden_state": ("[B, N, C]", "float32", "tokens after the final norm", "prefix tokens, then patches"),
         "pooler_output": ("[B, C]", "float32", "image embedding", ""),
@@ -372,6 +379,10 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "stereo": (("scale", "pad", "network", "crop"), ("image conversion", "rig= rectification", "depth / points")),
     "flow": (("scale", "pad", "network", "crop"), ("image conversion",)),
     "matching": (("scale", "resize to the network squares", "network", "resize to image1"), ("image conversion",)),
+    "tracking": (
+        ("resize to the network size", "network (frame by frame)", "scale to the input"),
+        ("image conversion",),
+    ),
     "depth": (
         ("resize to the processing size", "pad", "network", "crop / resize to the input"),
         ("image conversion", "other maps than the main one", "intrinsics="),

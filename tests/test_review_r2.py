@@ -29,6 +29,7 @@ from fastforks.segmentation import SegmentationResult
 from fastforks.stereo import StereoResult
 from fastforks.stereo.calibrated import PairViews, StereoPairResult, StereoView
 from fastforks.stereo.pipeline import PairResult
+from fastforks.tracking import TrackingResult
 
 RESULTS = {
     "stereo": (StereoResult, StereoView, PairViews, StereoPairResult, PairResult),
@@ -43,6 +44,7 @@ RESULTS = {
     "classification": (ClassificationResult,),
     "promptable_segmentation": (PromptableSegmentationResult, ConceptSegmentationResult),
     "segmentation": (SegmentationResult,),
+    "tracking": (TrackingResult,),
 }
 
 

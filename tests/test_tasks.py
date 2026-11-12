@@ -44,6 +44,7 @@ from fastforks.pose._runner import Runner as PoseRunner
 from fastforks.promptable_segmentation._api import MAX_EXEMPLARS, ConceptModelId, _model_class
 from fastforks.promptable_segmentation._runner import Runner as PromptRunner
 from fastforks.segmentation._runner import Runner as SegRunner
+from fastforks.tracking._runner import Runner as TrackingRunner
 
 W0 = {"name": "w.pth", "size": 1, "sha256": "0" * 64, "url": "https://example.com/w.pth"}
 
@@ -551,6 +552,7 @@ def test_resize_crop_bicubic_stays_in_range():
         "flow",
         "matching",
         "matting",
+        "tracking",
     ],
 )
 def test_runner_without_call_cannot_be_built(task):
@@ -562,6 +564,7 @@ def test_runner_without_call_cannot_be_built(task):
     base["flow"] = FlowRunner
     base["matching"] = MatchingRunner
     base["matting"] = MattingRunner
+    base["tracking"] = TrackingRunner
 
     class NoCall(base[task]):
         pass

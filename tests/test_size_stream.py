@@ -33,7 +33,7 @@ from fastforks import (
 from fastforks._core import registry
 from fastforks._core.errors import WeightsError
 from fastforks.kernels import cudnn_hacc
-from synth import image, pair, prompts, scene, size
+from synth import clip, image, pair, prompts, scene, size, track_queries
 
 pytestmark = [pytest.mark.model, pytest.mark.gpu]
 
@@ -94,6 +94,8 @@ def _call(m: Any, task: str, hw: tuple[int, int]) -> dict[str, torch.Tensor]:
     """One call at `hw`: the checked outputs (float tensors)."""
     if task in ("stereo", "flow", "matching"):
         r = m(*pair(*size(m.variant.io.min_size, *hw)))
+    elif task == "tracking":
+        r = m(clip(4, *hw), track_queries())
     elif task == "multiview":
         s = scene(h=VIEWS[hw][0], w=VIEWS[hw][1])
         r = m(list(s["images"]), **{k: s[k] for k in ("intrinsics", "cam_to_world", "depth_range")

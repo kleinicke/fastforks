@@ -159,6 +159,18 @@ def test_safetensors_detected_by_content(tmp_path, name):
     assert torch.equal(load_state_dict(path)["a"], torch.arange(4.0))
 
 
+def test_npz_detected_by_content_without_pickles(tmp_path):
+    """JAX checkpoints come as `.npz` (TAPNext): arrays become tensors; object arrays (pickles) are refused."""
+    path = tmp_path / "ba73d3de"  # the download cache's name
+    with path.open("wb") as f:
+        np.savez(f, **{"a/kernel": np.arange(6, dtype=np.float32).reshape(2, 3)})
+    assert torch.equal(load_state_dict(path, strip="")["a/kernel"], torch.arange(6.0).reshape(2, 3))
+    with path.open("wb") as f:
+        np.savez(f, a=np.array([1, "x"], dtype=object))
+    with pytest.raises(WeightsError, match="ba73d3de: Object arrays cannot be loaded"):
+        load_state_dict(path)
+
+
 class _Scripted(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
