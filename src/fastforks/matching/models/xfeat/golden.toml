@@ -1,0 +1,27 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+# sparse: share of golden keypoints with a fastforks keypoint within 1 px (recall), share of matches found in both
+# (match), max |score diff| over those (cpu_atol), GPU mean / p99 keypoint distance (px)
+# CPU measured exact (1.0, 0); GPU worst recall, match: 1.0, 0.9953 (x1.5); keypoints measured identical (floors)
+cpu_atol = 3.0e-5
+cpu_min_recall = 0.99
+cpu_min_match = 0.99
+gpu_mean = 1.0e-4
+gpu_p99 = 1.0e-3
+gpu_min_recall = 0.999
+gpu_min_match = 0.993
+
+[refs."xfeat-lighterglue@1"]
+sha256 = "4ca18d6e860fc9fa6225cc8894855cc8794ca18f344d43ae863dbc7e974b8ccf"
+upstream = "https://github.com/verlab/accelerated_features@e92685f57f8318b18725c5c8c0bd28c7fe188d9a"
+settings = "CPU float32, upstream XFeat.detectAndCompute top_k 4096 + kornia LighterGlue min_conf 0.1, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."xfeat@1"]
+sha256 = "93fc5c7bd03bf71df085f372a9d882c3243bbe5aa8dd87134f4667042464f39e"
+upstream = "https://github.com/verlab/accelerated_features@e92685f57f8318b18725c5c8c0bd28c7fe188d9a"
+settings = "CPU float32, upstream XFeat.detectAndCompute top_k 4096 + match(min_cossim=-1), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"

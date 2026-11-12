@@ -269,6 +269,10 @@ _SNIPPET_FAMILY = {
         'result = model("photo.jpg", text="coin")  # a concept: every instance of it; or input_boxes= exemplar boxes\n'
         "result.boxes, result.scores, result.masks  # [N, 4], [N], [N, H, W] bool"
     ),
+    "xfeat": (
+        'result = model("view1.jpg", "view2.jpg")\n'
+        "result.keypoints1, result.keypoints2, result.pairs  # [N, 2], [M, 2] pixels; [K, 2] int64 index pairs"
+    ),
     "lightglue": (
         'result = model("view1.jpg", "view2.jpg")\n'
         "result.keypoints1, result.keypoints2, result.pairs  # [N, 2], [M, 2] pixels; [K, 2] int64 index pairs"

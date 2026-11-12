@@ -1,0 +1,52 @@
+schema = 2
+name = "XFeat"
+summary = "XFeat (Potje et al., CVPR 2024): lightweight sparse feature matching. A small CNN finds up to 4096 keypoints per image with 64-dimensional descriptors; they are matched as mutual nearest neighbours or with LighterGlue, a smaller LightGlue trained for XFeat. Returns both keypoint sets, the index pairs of the matches and their confidence."
+tier = "experimental"
+outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
+uses = ["lightglue"]  # fastforks.shared modules this family imports
+limitations = [
+  "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
+  "One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.",
+  "No exportable module: the keypoint counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
+  "`xfeat` (mutual nearest neighbours) has no learned confidence: its scores are the descriptors' cosine similarities.",
+]
+
+[upstream]
+repo = "https://github.com/verlab/accelerated_features"
+commit = "e92685f57f8318b18725c5c8c0bd28c7fe188d9a"  # net/ = its modules/{model,interpolator,xfeat}.py (weights loading and the kornia LighterGlue moved to model.py); LighterGlue = shared/lightglue (cvg LightGlue, the network kornia's LightGlue ports) with upstream's default_conf_xfeat
+
+[licence]
+code = "Apache-2.0"  # LICENSE (XFeat); LighterGlue: shared/lightglue (Apache-2.0)
+weights = "Apache-2.0"  # README "License: Apache 2.0"; weights/xfeat.pt and weights/xfeat-lighterglue.pt are in the repository under its LICENSE
+files = ["LICENSE"]
+training_data = ["megadepth", "coco"]
+training_note = "XFeat: MegaDepth and synthetic warps of a 20k-image COCO 2017 subset (README training section). LighterGlue: trained with GlueFactory (README; MegaDepth, data not otherwise stated)."
+evidence = "https://github.com/verlab/accelerated_features/blob/e92685f57f8318b18725c5c8c0bd28c7fe188d9a/LICENSE ; https://github.com/verlab/accelerated_features/blob/e92685f57f8318b18725c5c8c0bd28c7fe188d9a/README.md#license"
+
+[io]
+input = "0-1"  # upstream converts to grayscale (channel mean) and instance-normalises
+min_size = 32
+
+[options]
+max_keypoints = { default = 4096, min = 1 }  # per image (upstream top_k default)
+long_side = { default = 0, min = 0 }  # longest side the features are detected at (0 = the input size, as upstream)
+
+[modes.portable]
+cuda_dtype = "float32"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not implemented: data-dependent keypoint counts (NMS, top-k, match filtering); the extractor is a small CNN"
+
+[[variants]]
+id = "xfeat"  # XFeat + mutual nearest neighbours (upstream match_xfeat, min_cossim -1)
+revision = 1
+params = { matcher = "mnn", detection_threshold = 0.05 }
+weights = [{ name = "xfeat.pt", size = 6247949, sha256 = "0f5187fd7bedd26c7fe6acc9685444493a165a35ecc087b33c2db3627f3ea10b", url = "https://github.com/verlab/accelerated_features/raw/e92685f57f8318b18725c5c8c0bd28c7fe188d9a/weights/xfeat.pt" }]
+
+[[variants]]
+id = "xfeat-lighterglue"  # XFeat + LighterGlue (upstream match_lighterglue, min_conf 0.1)
+revision = 1
+params = { matcher = "lighterglue", detection_threshold = 0.05 }
+weights = [{ name = "xfeat.pt", size = 6247949, sha256 = "0f5187fd7bedd26c7fe6acc9685444493a165a35ecc087b33c2db3627f3ea10b", url = "https://github.com/verlab/accelerated_features/raw/e92685f57f8318b18725c5c8c0bd28c7fe188d9a/weights/xfeat.pt" }, { name = "xfeat-lighterglue.pt", size = 10820795, sha256 = "766102df37f11189efe5b0811d1f47c72b22629b79bfabfcfff9d2a2f84654b8", url = "https://github.com/verlab/accelerated_features/raw/e92685f57f8318b18725c5c8c0bd28c7fe188d9a/weights/xfeat-lighterglue.pt" }]

@@ -133,9 +133,19 @@ def _original(ref: str, mode: str) -> tuple[Any, str, dict]:
     if sparse(ref):
         import types  # noqa: PLC0415
 
-        from _original import _lightglue  # noqa: PLC0415  # tools/
+        from _original import _lightglue, _xfeat  # noqa: PLC0415  # tools/
 
         fp16 = mode == "upstream16"
+        if registry.resolve("matching", ref)[0].family == "xfeat":  # no fp16 option of its own: autocast
+            run = _xfeat(types.SimpleNamespace(), ref, options=SPARSE_OPTIONS)
+
+            def matched(a: torch.Tensor, b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+                with torch.autocast("cuda", torch.float16, enabled=fp16):
+                    r = run(a, b)
+                return r["keypoints1"][r["pairs"][:, 0]].float(), r["keypoints2"][r["pairs"][:, 1]].float()
+
+            note = "upstream XFeat" + (", torch.autocast float16" if fp16 else "")
+            return matched, "float16" if fp16 else "float32", {"note": note}
         match_pair = _lightglue(types.SimpleNamespace(), ref, fp16, options=SPARSE_OPTIONS)
 
         def matched(a: torch.Tensor, b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:

@@ -768,6 +768,33 @@ def _romav2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the
     return call
 
 
+def _xfeat(a: Any, full: str, options: dict[str, Any] | None = None) -> Any:  # noqa: ANN401
+    """Upstream `XFeat.detectAndCompute` + `match` / kornia `LighterGlue` as `tools/golden/xfeat.py` (card `options`).
+
+    `options` override the card's. Upstream has no fp16 option (fp16 = autocast around the call). Needs a
+    `FF_XFEAT_REPO` checkout with the pinned commit and kornia. The call returns keypoints1, keypoints2, pairs, scores.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("xfeat")
+    card, variant = registry.resolve("matching", full)
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_XFEAT_REPO"]), g.REF_COMMIT)))
+    files = {f.name: f for f in registry.weights(card, variant, allow_download=False)}
+    opts = dict(card.options) | (options or {})
+    if not torch.cuda.is_available():
+        msg = "the XFeat original runs on CUDA (upstream picks its device itself)"
+        raise RuntimeError(msg)
+    run = g.build(files, variant.params["matcher"], opts["max_keypoints"], opts["long_side"])
+    a.note = f"upstream XFeat.detectAndCompute + {variant.params['matcher']}, top_k {opts['max_keypoints']}"
+
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        return run(img1.float() / 255, img2.float() / 255)
+
+    return call
+
+
 def _lightglue(a: Any, full: str, fp16: bool, options: dict[str, Any] | None = None) -> Any:  # noqa: ANN401, FBT001
     """Upstream `match_pair` with the extractor and `LightGlue` as `tools/golden/lightglue.py` (card `options`).
 
@@ -988,6 +1015,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "romav2": _LocalFp16("matching", _romav2, ((768, 1024),)),
     "marigold_normals": _LocalFp16("depth", _marigold_normals, ((994, 1482),)),
     "lightglue": _LocalFp16("matching", _lightglue, ((768, 1024),)),
+    "xfeat": _Local("matching", _xfeat, ((768, 1024),)),
 }
 
 

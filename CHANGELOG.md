@@ -9,6 +9,9 @@
   `model(image1, image2)` returns `keypoints1`, `keypoints2`, index `pairs` and `scores` (the form
   `pycolmap.match_from_pairs` takes). Portable only (data-dependent keypoint counts). 768x1024: ALIKED 48.4 ms
   (29.5 ms with torch.compile) vs 41.2 ms original; DISK 116 vs 117 ms. MegaDepth-1500 AUC@5 50.7 (ALIKED).
+- XFeat sparse matching (`xfeat`, `xfeat-lighterglue`; Apache-2.0): mutual nearest neighbours or LighterGlue
+  (shared LightGlue). Portable only. 768x1024: 8.4 ms (5.7 ms compiled) vs 8.2 ms original; LighterGlue 22.5 vs
+  22.4 ms. MegaDepth-1500 AUC@5 26.2 (`xfeat`), 39.7 (`xfeat-lighterglue`).
 
 - MEMFOF optical flow (`memfof`, `memfof-kitti`, `memfof-sintel`, `memfof-spring`; BSD-3-Clause): portable and kernels (a 1024-channel
   `raft_flow` correlation lookup). 1080p: 427 ms kernels vs 1035 ms original fp32 (531 ms fp16); KITTI 2015 train
