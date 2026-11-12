@@ -20,7 +20,7 @@ from __future__ import annotations
 import functools
 import itertools
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -87,9 +87,10 @@ def cast_autocast_weights(net: RoMaV2, dtype: torch.dtype) -> None:
     these weights to `dtype` on every call anyway, so the outputs are the same, without the float32 copies (-220 MB of
     weights, no cast per call).
     """
-    regions = [net.matcher.mv_vit, net.matcher.head, net.refiner_features]
+    regions: list[nn.Module] = [net.matcher.mv_vit, net.matcher.head, net.refiner_features]
     regions += [m for m in net.modules() if isinstance(m, Block)]
-    skip = set(net.matcher.head.scratch.output_conv2.modules())  # after upstream's `out.float()`
+    out_conv = cast("nn.Module", net.matcher.head.scratch.output_conv2)
+    skip = set(out_conv.modules())  # after upstream's `out.float()`
     for region in regions:
         for m in region.modules():
             if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)) and m not in skip:
