@@ -1,6 +1,8 @@
 # GPU pose solver (idea, after the quality/speed audit)
 
-Status: planned, not started (user, 2026-11-12). Worker: a Fable agent (user asked for Fable 5.2).
+Status: started 2026-11-12 (user: build it now, in parallel with the ports; a Fable agent develops it). Mostly
+coding and tuning; GPU use is short micro-benchmarks under gpulock. The roadmap line "GPU RANSAC only if a profile
+shows it dominates" is superseded by this decision.
 
 ## Why
 Users of a dense matcher (RoMa v2, later others) almost always run RANSAC on the matches. Today that is OpenCV on the
