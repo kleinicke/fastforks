@@ -475,7 +475,7 @@ Commercial use: yes.
 - Variants: `rtmo-t`, `rtmo-s`, `rtmo-m`, `rtmo-l`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmo-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmo-s` not measured yet; `rtmo-m` not measured yet; `rtmo-l` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmo-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmo-s` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmo-m` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmo-l` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
 - `rtmo-t` 1080x1920, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `rtmo-s` 1080x1920, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `rtmo-m` 1080x1920, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).

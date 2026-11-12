@@ -49,15 +49,6 @@ UNMEASURED = {
     "pe-core-g14-448": "weights 7.0 GB: over the probe machine's free-disk floor (2026-11-12)",
 } | dict.fromkeys(
     [
-        "depth-anything-v2-metric-vkitti-l",
-        "depth-anything-v2-metric-vkitti-s",
-        "distill-any-depth-b",
-        "distill-any-depth-l",
-        "distill-any-depth-s",
-        "moge-2-vitb-normal",
-        "rtmo-l",
-        "rtmo-m",
-        "rtmo-s",
         "vitpose-plus-huge",
     ],
     _NO_DISK,
