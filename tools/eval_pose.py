@@ -192,6 +192,21 @@ def gpu(  # noqa: PLR0913 - the options
     return errors, info
 
 
+def kernel_build() -> dict:
+    """The RANSAC kernel binary loaded here: its file (named by the build), SHA-256 prefix, and where it came from."""
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import kernels  # noqa: PLC0415
+    from fastforks.kernels import ransac  # noqa: PLC0415
+
+    manifest = kernels.read_manifest(Path(ransac.__file__).with_name("manifest.toml"))
+    path, target = kernels.binary(manifest, torch.device("cuda"))  # checked against the manifest's SHA-256
+    spec = manifest.files[target]
+    env = [Path(d).resolve() for d in os.environ.get(kernels.KERNEL_PATH_ENV, "").split(os.pathsep) if d]
+    local = any(path.resolve().is_relative_to(d) for d in env)
+    return {"file": spec.name, "sha256": spec.sha256[:16], "source": "local build" if local else "published"}
+
+
 def provenance(method: str, matches: Path) -> dict:
     """What a row needs to be trusted later: code state, library versions, machine, load, the exact matches."""
     import cv2  # noqa: PLC0415
@@ -224,6 +239,7 @@ def provenance(method: str, matches: Path) -> dict:
         "loadavg_1min": round(os.getloadavg()[0], 2),
         "matches": matches.name,
         "matches_sha256": sha.hexdigest()[:16],
+        "kernel": kernel_build() if method == "kernels" else None,
         # Paths reduced to their last component: the row says which files, not where they lived on the machine.
         "command": " ".join(["python", *(Path(x).name if x.startswith("/") else x for x in sys.argv)]),
     }
