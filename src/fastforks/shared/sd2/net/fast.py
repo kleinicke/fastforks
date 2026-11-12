@@ -1,5 +1,5 @@
 # fastforks: written for fastforks (not vendored).
-"""Max-mode forward passes of the Marigold UNet and VAE (fp16, channels-last).
+"""Max-mode forward passes of the SD2 UNet and VAE (fp16, channels-last).
 
 Same modules and weights as `unet.py` / `vae.py`, run functionally: convolutions as cuDNN fp16-accumulate graphs
 (`cudnn_hacc`), GroupNorm (+ SiLU) on the channels-last map (`group_norm`), no layout copies around the

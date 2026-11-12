@@ -58,7 +58,6 @@ UNDOCUMENTED_CONSTANTS = {
     ("depth/models/depth_anything_3/model.py", "HEAD_DIM"),
     ("depth/models/depth_anything_3/model.py", "_FEATURES"),
     ("depth/models/depth_anything_v2/model.py", "PATCH"),
-    ("depth/models/marigold/model.py", "LATENT_SCALE"),
     ("depth/models/midas/model.py", "MULTIPLE"),
     ("depth/models/moge/model.py", "_REFINE_STEPS"),
     ("depth/models/moge/model.py", "_DEPTH_RES"),

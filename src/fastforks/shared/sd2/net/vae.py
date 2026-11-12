@@ -1,5 +1,5 @@
 # fastforks: the Stable Diffusion 2 VAE of `diffusers.AutoencoderKL` (huggingface/diffusers, Apache-2.0, see
-# LICENSE-huggingface), re-implemented without diffusers for Marigold's vae/config.json (channels 128 / 256 / 512 /
+# ../LICENSE), re-implemented without diffusers for Marigold's vae/config.json (channels 128 / 256 / 512 /
 # 512, two resnets per encoder block, three per decoder block, one single-head attention in each mid block). Module and
 # parameter names are those of the checkpoint (diffusers 0.8 layout: the mid-block attention is `query` / `key` /
 # `value` / `proj_attn`), so it loads unchanged. Only what Marigold calls: `encoder` + `quant_conv` (the posterior

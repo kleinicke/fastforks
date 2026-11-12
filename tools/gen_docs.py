@@ -45,6 +45,8 @@ _DATASETS = {
         "ibims": "iBims-1, AbsRel / delta1",
         "eth3d": "ETH3D two-view train left, AbsRel / delta1",
         "middH": "Middlebury 2014 trainingH left, AbsRel / delta1",
+        "nyu-normals": "NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg",
+        "ibims-normals": "iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg",
     },
     "segmentation": {
         "ade20k-val": "ADE20K val, every 4th image, mIoU / aAcc %",
@@ -84,6 +86,14 @@ _Metric = tuple[str, str, str]
 _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "stereo": ((("bad", "{:.2f}", ""), ("epe", "{:.3f}", "")), "n_pairs", "pairs"),
     "depth": ((("rel_absrel", "{:.4f}", ""), ("rel_d1", "{:.4f}", "")), "n_images", "images"),
+    **{
+        ("depth", d): (
+            (("ang_mean", "{:.2f}", ""), ("ang_median", "{:.2f}", ""), ("a11.25", "{:.2f}", ""), ("a30", "{:.2f}", "")),
+            "n_images",
+            "images",
+        )
+        for d in ("nyu-normals", "ibims-normals")
+    },
     "segmentation": ((("miou", "{:.2f}", ""), ("aacc", "{:.2f}", "")), "n", "images"),
     ("segmentation", "coco-val2017-persons-every10"): ((("person_iou", "{:.2f}", ""),), "n", "images"),
     "detection": ((("box_map", "{:.2f}", ""), ("mask_map", "{:.2f}", " / mask mAP")), "n", "images"),
@@ -105,6 +115,8 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
 _PROTOCOL = {
     "depth": "AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), "
     "mean over images. ",
+    ("depth", "nyu-normals"): "Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's "
+    "evaluation sets), mean over images. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
     ("segmentation", "coco-val2017-persons-every10"): "Any body part counts as person; ground truth = the COCO person "
     "masks. ",
@@ -862,7 +874,8 @@ TASK_IO = {
         "need it for correct metres (`da3metric-large`: metres = output x focal / 300; without `intrinsics=` a 300 px "
         "focal length is assumed, wrong for a real camera). `unidepth-v2-vitl14`, `unik3d-vitl`, `depth-pro` and "
         "MoGe estimate the camera themselves (given `intrinsics=` replace `fx`); `zoedepth-nk` and the relative "
-        "models (`da3mono-large` too) take none."
+        "models (`da3mono-large` too) take none. Normals-only models (`kind` `none`) return `result.normals` "
+        "`[B, H, W, 3]` (unit vectors, camera frame: x right, y down, z forward)."
     ),
     "classification": "Input: one RGB image. Output: ImageNet-1k class logits.",
     "detection": "Input: one RGB image. Output: boxes, class labels, scores and instance masks.",

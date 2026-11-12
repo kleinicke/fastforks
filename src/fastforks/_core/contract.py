@@ -35,6 +35,7 @@ _DEPTH_UNIT = {
     "scale_invariant": "unknown scale",
     "affine_invariant": "unknown scale and shift",
     "affine_invariant_inverse": "unknown scale and shift (inverse depth; depth and points are not defined)",
+    "none": "no depth (normals only)",
 }
 _MULTIVIEW_UNIT = {
     "metric": "metres (estimated cameras) or the units of the given cam_to_world",

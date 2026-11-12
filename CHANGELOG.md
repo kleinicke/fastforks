@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Marigold normals LCM (`marigold-normals-lcm-v0-1`, depth task, `normals` output; Apache-2.0): one LCM step on the
+  shared Stable Diffusion 2 UNet / VAE (`fastforks.shared.sd2`, also used by Marigold depth). 994x1482: 167 ms kernels vs
+  557 ms original fp32 (280 ms fp16); NYUv2 normals mean angular error 18.46 deg kernels vs 18.45 original fp32.
+
 - MEMFOF optical flow (`memfof`, `memfof-kitti`, `memfof-sintel`, `memfof-spring`; BSD-3-Clause): portable and kernels (a 1024-channel
   `raft_flow` correlation lookup). 1080p: 427 ms kernels vs 1035 ms original fp32 (531 ms fp16); KITTI 2015 train
   EPE 10.89 / Fl 27.07 %. Two-frame API: the first frame is repeated as MEMFOF's previous frame.

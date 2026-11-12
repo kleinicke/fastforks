@@ -60,6 +60,8 @@ _CAMERAS = ("intrinsics", "cam_to_world", "depth_range")  # the multiview inputs
 _CPU_RAM_HEAVY = {  # compile + torch.export on the CPU need more RAM than the suite's 20 GB cgroup
     "marigold-depth-v1-1@1": "CPU torch.export of the Stable Diffusion UNet + VAE is OOM-killed at 20 GB RAM (also"
     " before export-all); run it alone in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
+    "marigold-normals-lcm-v0-1@1": "the same Stable Diffusion UNet + VAE as Marigold depth; run it alone in a larger"
+    " cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
     "depth-pro@1": "CPU dynamo explain + torch.export of the two DINOv2-L encoders at 1536 px is OOM-killed at 20 GB"
     " RAM (after a 7.5 GB load); run it alone in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
     "sam3@1": "CPU dynamo explain + torch.export peak at 13.2 GB RSS, above the suite's 13 GB cap; run it alone in a"
@@ -68,6 +70,7 @@ _CPU_RAM_HEAVY = {  # compile + torch.export on the CPU need more RAM than the s
 _ONNX_SKIP_MULTIVIEW: dict[str, str] = {}
 _ONNX_SKIP_DEPTH = {  # exports, but too big for the CPU suite
     "marigold-depth-v1-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
+    "marigold-normals-lcm-v0-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
 }
 _HAS_ONNX = bool(importlib.util.find_spec("onnxscript") and importlib.util.find_spec("onnxruntime"))
 ONNX_TESTS = "FASTFORKS_ONNX_TESTS"  # 1: the ONNX export + ONNX Runtime checks (release only: ~27 min of the CPU suite)
@@ -172,7 +175,8 @@ def test_module_compile_export(ref):
         want = module(*inputs)
     _check_export_names(ref, model, module, want)
     if TASK[ref] in {"stereo", "depth"}:  # [B, 3, H, W] in [0, 1] -> the main map, as the model call
-        assert want.shape == (1, *inputs[0].shape[2:])
+        channels = (3,) if _main_map_name(ref) == "normals" else ()  # normals-only models: [B, H, W, 3]
+        assert want.shape == (1, *inputs[0].shape[2:], *channels)
         assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs))))
     elif TASK[ref] == "flow":  # two [B, 3, H, W] in [0, 1] -> [B, 2, H, W], as the model call
         assert want.shape == (1, 2, *inputs[0].shape[2:])

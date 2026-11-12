@@ -35,6 +35,8 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- Marigold normals LCM (`marigold-normals-lcm-v0-1`): portable float32 MPS golden and Mac speed rows (994x1482). No
+  Metal kernels runner. Weights: the pinned HF URLs of the card (also in `~/scratch_tests/port-p1/w/marigold_normals/`).
 - MEMFOF (`memfof`, `memfof-kitti`): portable float32 MPS goldens and Mac speed rows (375x1242, 1080p). No Metal
   kernels runner. Weights: the pinned HF URLs of the card (also in `~/scratch_tests/port-p1/w/memfof/`).
 - RF-DETR detection / Seg (10 variants): portable float32 MPS goldens and Mac speed rows at 800x1344. No Metal

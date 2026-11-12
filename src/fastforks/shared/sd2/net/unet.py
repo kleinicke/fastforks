@@ -1,5 +1,5 @@
 # fastforks: the Stable Diffusion 2 UNet of `diffusers.UNet2DConditionModel` (huggingface/diffusers, Apache-2.0, see
-# LICENSE-huggingface), re-implemented without diffusers for the configuration Marigold ships (unet/config.json:
+# ../LICENSE), re-implemented without diffusers for the configuration Marigold ships (unet/config.json:
 # CrossAttnDownBlock2D x 3 + DownBlock2D, UNetMidBlock2DCrossAttn, UpBlock2D + CrossAttnUpBlock2D x 3, linear
 # projections, GEGLU feed-forward, flip_sin_to_cos timestep embedding). Module and parameter names are diffusers', so
 # the checkpoint loads unchanged. Inference only: no dropout (identity in eval), no gradient checkpointing, no LoRA /

@@ -1,5 +1,5 @@
 # fastforks: the CLIP text transformer of `transformers.CLIPTextModel` (huggingface/transformers, Apache-2.0, see
-# LICENSE-huggingface), re-implemented without transformers for the SD2 text encoder (OpenCLIP ViT-H/14 text tower cut
+# ../LICENSE), re-implemented without transformers for the SD2 text encoder (OpenCLIP ViT-H/14 text tower cut
 # to 23 layers: width 1024, 16 heads, exact GELU, causal mask). Module and parameter names are transformers' below
 # `text_model.`. Marigold only ever encodes the empty prompt, once; the output is `last_hidden_state`.
 from __future__ import annotations

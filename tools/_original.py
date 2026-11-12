@@ -40,6 +40,7 @@ BF16 = {"vggt", "vggt_omega", "mapanything", "depth_anything_3", "romav2"}  # th
 NATIVE_HALF = {
     "depth_pro",
     "marigold",
+    "marigold_normals",
     "rfdetr_keypoint",
     "rfdetr",
 }  # build(ref, True) is a float16 model, not mixed precision
@@ -774,6 +775,21 @@ def _hwc_point(a: tuple[Any, ...]) -> tuple[Any, ...]:
     return a[0].permute(1, 2, 0).cpu().numpy(), np.array(a[1], np.float64), np.array(a[2])
 
 
+def _marigold_normals(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, ARG001, FBT001 - adapter signature
+    """The diffusers `MarigoldNormalsPipeline` as `tools/golden/marigold_normals.py` (card defaults, CPU generator).
+
+    `FF_MARIGOLD_NORMALS_SNAPSHOT`: the weights snapshot directory (configs + safetensors); fp16 = the diffusers
+    `torch_dtype=float16` load (the authors' float16 option). Output: unit normals `[H, W, 3]`, camera frame.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("marigold_normals")
+    pipe = g.pipeline(os.environ["FF_MARIGOLD_NORMALS_SNAPSHOT"], torch.float16 if fp16 else torch.float32).to("cuda")
+    pipe.set_progress_bar_config(disable=True)
+    a.note = f"diffusers {g.DIFFUSERS} MarigoldNormalsPipeline, {g.STEPS} LCM step, CPU generator seed {g.SEED}"
+    return lambda image: g.predict(pipe, image[None].float() / 255)
+
+
 class _Local:
     """An original the bench has no adapter for, on the library's own bench inputs as uint8 CUDA tensors.
 
@@ -815,7 +831,12 @@ class _Local:
         from fastforks._core.bench import BenchSize  # noqa: PLC0415
 
         api = importlib.import_module(f"fastforks.{self.task}._api")
-        like = types.SimpleNamespace(device=torch.device("cuda"), needs_boxes=self.needs_boxes, prompts=())
+        like = types.SimpleNamespace(
+            device=torch.device("cuda"),
+            needs_boxes=self.needs_boxes,
+            prompts=(),
+            _runner=types.SimpleNamespace(intrinsics="unused"),
+        )
         out = []
         for h, w in self.sizes:
             args, kw = api.bench_inputs(like, BenchSize(h, w))
@@ -932,6 +953,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),
     "romav2": _LocalFp16("matching", _romav2, ((768, 1024),)),
+    "marigold_normals": _LocalFp16("depth", _marigold_normals, ((994, 1482),)),
 }
 
 

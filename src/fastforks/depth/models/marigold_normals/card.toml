@@ -1,0 +1,50 @@
+schema = 2
+name = "Marigold normals LCM"
+summary = "Marigold normals (Ke et al. 2023/2025): surface normals by diffusion; a Stable Diffusion 2 UNet fine-tuned to denoise a normals latent conditioned on the image latent, distilled to one LCM step (v0.1)."
+tier = "experimental"
+outputs = ["normals"]
+limitations = [
+  "Normals only: no depth.",
+  "Diffusion model: the seeded noise comes from a CPU generator and differs from a CUDA generator's for the same seed.",
+  "A traced or exported module reuses the noise of its traced shape.",
+]
+
+[output]
+kind = "none"  # normals only
+
+[upstream]
+repo = "https://github.com/huggingface/diffusers"
+commit = "086bf95"  # v0.41.0
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE", "LICENSE-huggingface"]
+training_data = ["unstated"]
+training_note = "Stable Diffusion 2 (LAION-5B subsets) fine-tuned on the synthetic Hypersim, Virtual KITTI 2 and other synthetic datasets per the Marigold paper (arXiv 2505.09358), then LCM-distilled"
+evidence = "https://huggingface.co/prs-eth/marigold-normals-lcm-v0-1/blob/28214f06633a6a73088b569d1d068c3e48ea7902/README.md (license: apache-2.0)"
+
+[io]
+input = "0-1"  # the runner maps to [-1, 1], resizes (longest side to long_side, bilinear, antialiased) and pads itself
+pad = "none"
+
+[options]
+steps = { default = 1, min = 1, max = 50 }  # LCM denoising steps (original default: 1)
+long_side = { default = 768, min = 0, aliases = ["processing_res"] }  # longest side of the network input (original default); 0 = the input size
+seed = 2024  # seed of the noise (CPU generator); the output depends on it
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]
+
+[[variants]]
+id = "marigold-normals-lcm-v0-1"
+revision = 1
+weights = [
+  { name = "unet/diffusion_pytorch_model.safetensors", size = 3463772592, sha256 = "cce4441193eb12accce6995f6954a282a721d44091390e913852c2d83970e6ee", url = "https://huggingface.co/prs-eth/marigold-normals-lcm-v0-1/resolve/28214f06633a6a73088b569d1d068c3e48ea7902/unet/diffusion_pytorch_model.safetensors" },
+  { name = "vae/diffusion_pytorch_model.safetensors", size = 334643276, sha256 = "a1d993488569e928462932c8c38a0760b874d166399b14414135bd9c42df5815", url = "https://huggingface.co/prs-eth/marigold-normals-lcm-v0-1/resolve/28214f06633a6a73088b569d1d068c3e48ea7902/vae/diffusion_pytorch_model.safetensors" },
+  { name = "text_encoder/model.safetensors", size = 1361597016, sha256 = "1e4aa519f64dc6386f88221a66c106a09fa027b47a20cc0e126687695f2a6669", url = "https://huggingface.co/prs-eth/marigold-normals-lcm-v0-1/resolve/28214f06633a6a73088b569d1d068c3e48ea7902/text_encoder/model.safetensors" },
+]

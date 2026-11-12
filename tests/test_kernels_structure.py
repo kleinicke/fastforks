@@ -211,6 +211,7 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
         },
     ),
     "marigold-depth-v1-1@1": (852, 48, {}),
+    "marigold-normals-lcm-v0-1@1": (852, 48, {}),
     "metric3d-vit-large@1": (
         581,
         52,
