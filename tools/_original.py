@@ -41,6 +41,7 @@ NATIVE_HALF = {
     "depth_pro",
     "marigold",
     "marigold_normals",
+    "lotus",
     "rfdetr_keypoint",
     "rfdetr",
 }  # build(ref, True) is a float16 model, not mixed precision
@@ -835,6 +836,33 @@ def _hwc_point(a: tuple[Any, ...]) -> tuple[Any, ...]:
     return a[0].permute(1, 2, 0).cpu().numpy(), np.array(a[1], np.float64), np.array(a[2])
 
 
+def _lotus(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `LotusGPipeline` / `LotusDPipeline` as `tools/golden/lotus.py` (one step, seed 42, camera frame).
+
+    `FF_LOTUS_REPO`: a clone of EnVision-Research/Lotus; `FF_LOTUS_SNAPSHOT_G` / `FF_LOTUS_SNAPSHOT_D`: the weights
+    snapshot directories. fp16 = the diffusers `torch_dtype=float16` load under CUDA autocast (upstream's
+    `--half_precision`; infer.py always runs under autocast, the fp32 tier here does not).
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("lotus")
+    if not hasattr(a, "tree"):
+        a.tree = g.reference_tree(Path(os.environ["FF_LOTUS_REPO"]), g.REF_COMMIT)
+    kind = "G" if full.startswith("lotus-normal-g") else "D"
+    pipe = g.pipeline(a.tree, os.environ[f"FF_LOTUS_SNAPSHOT_{kind}"], full, torch.float16 if fp16 else torch.float32)
+    pipe = pipe.to("cuda")
+    pipe.set_progress_bar_config(disable=True)
+    a.note = f"upstream Lotus-{kind} pipeline, diffusers {g.DIFFUSERS}, timestep {g.TIMESTEP}, seed {g.SEED}"
+    if not fp16:
+        return lambda image: g.predict(pipe, image[None].float() / 255)
+
+    def run(image: Any) -> Any:  # noqa: ANN401 - torch tensors
+        with torch.autocast("cuda"):
+            return g.predict(pipe, image[None].float() / 255)
+
+    return run
+
+
 def _marigold_normals(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, ARG001, FBT001 - adapter signature
     """The diffusers `MarigoldNormalsPipeline` as `tools/golden/marigold_normals.py` (card defaults, CPU generator).
 
@@ -1014,6 +1042,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),
     "romav2": _LocalFp16("matching", _romav2, ((768, 1024),)),
     "marigold_normals": _LocalFp16("depth", _marigold_normals, ((994, 1482),)),
+    "lotus": _LocalFp16("depth", _lotus, ((994, 1482),)),
     "lightglue": _LocalFp16("matching", _lightglue, ((768, 1024),)),
     "xfeat": _Local("matching", _xfeat, ((768, 1024),)),
 }

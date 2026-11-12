@@ -210,6 +210,7 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
             "InstanceNorm2d.forward": 3,
         },
     ),
+    "lotus-normal-d-v1-1@1": (855, 48, {}),
     "marigold-depth-v1-1@1": (852, 48, {}),
     "marigold-normals-lcm-v0-1@1": (852, 48, {}),
     "metric3d-vit-large@1": (

@@ -20,6 +20,15 @@ if TYPE_CHECKING:
 
 LATENT_SCALE = 0.18215  # fixed: the Stable Diffusion VAE latent scale, hard-coded upstream
 EMPTY_PROMPT = [49406, 49407]  # CLIPTokenizer("", padding="do_not_pad").input_ids: <|startoftext|>, <|endoftext|>
+# fixed: the VAE mid-block attention of checkpoints saved by diffusers >= 0.14 (Lotus) -> the 0.8 names of `vae.py`
+_VAE_ATTENTION = {".to_q.": ".query.", ".to_k.": ".key.", ".to_v.": ".value.", ".to_out.0.": ".proj_attn."}
+
+
+def _old_attention_names(key: str) -> str:
+    for new, old in _VAE_ATTENTION.items():
+        if ".attentions." in key and new in key:
+            return key.replace(new, old)
+    return key
 
 
 class SD2Net(torch.nn.Module):
@@ -47,7 +56,7 @@ def load_net(ctx: Context, **unet: Any) -> SD2Net:  # noqa: ANN401 - UNet2DCondi
     with torch.device(ctx.device):
         net = SD2Net(**unet)
     net.unet.load_state_dict(ctx.state_dict(0, strip=""))
-    net.vae.load_state_dict(ctx.state_dict(1, strip=""))
+    net.vae.load_state_dict({_old_attention_names(k): v for k, v in ctx.state_dict(1, strip="").items()})
     net.empty_text.copy_(embed)
     return net.eval()
 

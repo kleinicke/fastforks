@@ -100,7 +100,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 
 ## Monocular depth
 
-29 models; size 994x1482.
+31 models; size 994x1482.
 
 - Fastest: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
 - Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.9 ms, error 0.0346).
@@ -137,6 +137,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`moge-2-vitl-normal`](models/depth.md#moge) | yes | 0.0357 | 170.7 (994x1482) | 144.5 | 73.4 | 2.3x vs original (994x1482) | 1498 |
 | [`zoedepth-nk`](models/depth.md#zoedepth) | yes | 0.0532 | 271.2 (994x1482) | 124.0 | 88.9 | 3.1x vs original (994x1482) | 1771 |
 | [`metric3d-vit-large`](models/depth.md#metric3d-v2) | yes | 0.0546 | 438.5 (994x1482) | 200.3 | 158.5 | 2.8x vs original (994x1482) | 1516 |
+| [`lotus-normal-d-v1-1`](models/depth.md#lotus-normals) | yes | – | 344.3 (994x1482) | 267.6 | 164.1 | 2.1x vs original (994x1482) | 2351 |
+| [`lotus-normal-g-v1-1`](models/depth.md#lotus-normals) | yes | – | 344.1 (994x1482) | 267.5 | 164.1 | 2.1x vs original (994x1482) | 2351 |
 | [`marigold-normals-lcm-v0-1`](models/depth.md#marigold-normals-lcm) | yes | – | 279.5 (994x1482) | 272.0 | 167.1 | 1.7x vs original (994x1482) | 2361 |
 | [`moge-3-vitl`](models/depth.md#moge) | yes | 0.0356 | 485.6 (994x1482) | 513.7 | 214.7 | 2.3x vs original (994x1482) | 1673 |
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 518.4 | 270.9 | 2.1x vs original (994x1482) | 3667 |

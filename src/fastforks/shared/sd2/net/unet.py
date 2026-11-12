@@ -234,7 +234,11 @@ def timestep_features(t: torch.Tensor, dim: int) -> torch.Tensor:
 
 
 class UNet2DConditionModel(nn.Module):
-    """The SD2 UNet (Marigold: 8 input channels = image latent + depth latent, 4 output channels, v-prediction)."""
+    """The SD2 UNet (Marigold: 8 input channels = image latent + depth latent, 4 output channels, v-prediction).
+
+    `class_embed` > 0: diffusers' `class_embed_type="projection"` (Lotus' task switcher), a `TimestepEmbedding` of the
+    `[B, class_embed]` class labels added to the time embedding.
+    """
 
     def __init__(
         self,
@@ -243,11 +247,13 @@ class UNet2DConditionModel(nn.Module):
         channels: tuple[int, ...] = (320, 640, 1280, 1280),
         heads: tuple[int, ...] = (5, 10, 20, 20),
         cross: int = 1024,
+        class_embed: int = 0,
     ) -> None:
         super().__init__()
         temb = channels[0] * 4
         self.conv_in = nn.Conv2d(cin, channels[0], 3, padding=1)
         self.time_embedding = TimestepEmbedding(channels[0], temb)
+        self.class_embedding = TimestepEmbedding(class_embed, temb) if class_embed else None
         last = len(channels) - 1
         self.down_blocks = nn.ModuleList(
             [
@@ -270,11 +276,18 @@ class UNet2DConditionModel(nn.Module):
         self.conv_norm_out = nn.GroupNorm(32, channels[0], eps=1e-5)
         self.conv_out = nn.Conv2d(channels[0], cout, 3, padding=1)
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor, ctx: torch.Tensor) -> torch.Tensor:
-        """`x` `[B, 8, h, w]`, integer timestep `t` (0-dim), text states `ctx` `[B, n, 1024]` -> `[B, 4, h, w]`."""
+    def forward(
+        self, x: torch.Tensor, t: torch.Tensor, ctx: torch.Tensor, labels: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        """`x` `[B, 8, h, w]`, integer timestep `t` (0-dim), text states `ctx` `[B, n, 1024]` -> `[B, 4, h, w]`.
+
+        `labels`: the `[B, class_embed]` class labels of a UNet with a class embedding (required there).
+        """
         odd = any(s % 2 ** (len(self.up_blocks) - 1) for s in x.shape[-2:])  # forward_upsample_size
         tf = timestep_features(t.reshape(1).expand(x.shape[0]), self.conv_in.out_channels).to(x.dtype)
         temb = self.time_embedding(tf)
+        if self.class_embedding is not None:
+            temb = temb + self.class_embedding(labels.to(x.dtype))
         x = self.conv_in(x)
         skips = [x]
         for blk in self.down_blocks:

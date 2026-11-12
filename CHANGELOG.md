@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Lotus normals (`lotus-normal-g-v1-1`, `lotus-normal-d-v1-1`, depth task, `normals` output; Apache-2.0): one step
+  on the shared Stable Diffusion 2 UNet / VAE. 994x1482: 164 ms kernels vs 552 ms original fp32 (344 ms fp16);
+  NYUv2 normals mean angular error 16.61 deg (Lotus-G kernels), first 100 images 16.815 kernels vs 16.815 original.
 - Marigold normals LCM (`marigold-normals-lcm-v0-1`, depth task, `normals` output; Apache-2.0): one LCM step on the
   shared Stable Diffusion 2 UNet / VAE (`fastforks.shared.sd2`, also used by Marigold depth). 994x1482: 167 ms kernels vs
   557 ms original fp32 (280 ms fp16); NYUv2 normals mean angular error 18.46 deg kernels vs 18.45 original fp32.

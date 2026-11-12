@@ -120,6 +120,7 @@ CPU_HEAVY = {
     "vit_so400m_patch14_siglip_378.webli_ft_in1k@1": "SigLIP So400m at 378 px (CPU ~55 s)",
     "marigold-depth-v1-1@1": "Stable Diffusion UNet, 4 steps at 768 px (CPU ~40 s)",
     "marigold-normals-lcm-v0-1@1": "Stable Diffusion UNet, 1 step at 768 px (CPU ~20 s)",
+    "lotus-normal-d-v1-1@1": "Stable Diffusion UNet, 1 step at 768 px (CPU ~20 s)",
     "romav2@1": "DINOv3 ViT-L at 800 px + two-view ViT + refiners at 1280 px (CPU ~60 s)",
 }
 CPU_REFS = set(SMALLEST) - set(CPU_HEAVY) | set(CPU_ALSO)
@@ -128,6 +129,7 @@ CPU_REFS = set(SMALLEST) - set(CPU_HEAVY) | set(CPU_ALSO)
 _SWEEP_OPTIONS: dict[str, dict[str, Any]] = {
     "marigold": {"steps": 1, "long_side": 256},
     "marigold_normals": {"long_side": 256},
+    "lotus": {"long_side": 256},
     "moge": {"resolution_level": 0},
     "unik3d": {"resolution_level": 0},
     "zoedepth": {"flip": False},

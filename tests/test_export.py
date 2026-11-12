@@ -67,6 +67,8 @@ _CPU_RAM_HEAVY = {  # compile + torch.export on the CPU need more RAM than the s
     " before export-all); run it alone in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
     "marigold-normals-lcm-v0-1@1": "the same Stable Diffusion UNet + VAE as Marigold depth; run it alone in a larger"
     " cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
+    "lotus-normal-d-v1-1@1": "the same Stable Diffusion UNet + VAE as Marigold depth; run it alone in a larger cgroup"
+    " with FASTFORKS_HEAVY_CPU_TESTS=1",
     "depth-pro@1": "CPU dynamo explain + torch.export of the two DINOv2-L encoders at 1536 px is OOM-killed at 20 GB"
     " RAM (after a 7.5 GB load); run it alone in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
     "sam3@1": "CPU dynamo explain + torch.export peak at 13.2 GB RSS, above the suite's 13 GB cap; run it alone in a"
@@ -76,6 +78,7 @@ _ONNX_SKIP_MULTIVIEW: dict[str, str] = {}
 _ONNX_SKIP_DEPTH = {  # exports, but too big for the CPU suite
     "marigold-depth-v1-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
     "marigold-normals-lcm-v0-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
+    "lotus-normal-d-v1-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
 }
 _HAS_ONNX = bool(importlib.util.find_spec("onnxscript") and importlib.util.find_spec("onnxruntime"))
 ONNX_TESTS = "FASTFORKS_ONNX_TESTS"  # 1: the ONNX export + ONNX Runtime checks (release only: ~27 min of the CPU suite)

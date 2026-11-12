@@ -51,7 +51,10 @@ def group_norm(x: torch.Tensor, m: torch.nn.GroupNorm, *, silu: bool = False) ->
 class Fast:
     """The fp16 channels-last network plus the per-timestep and per-prompt constants."""
 
-    def __init__(self, unet: UNet2DConditionModel, text: torch.Tensor, timesteps: list[int]) -> None:
+    def __init__(
+        self, unet: UNet2DConditionModel, text: torch.Tensor, timesteps: list[int], labels: torch.Tensor | None = None
+    ) -> None:
+        """`labels`: the `[1, class_embed]` class labels of a UNet with a class embedding (constant)."""
         self.unet = unet
         self.kv: dict[BasicTransformerBlock, tuple[torch.Tensor, torch.Tensor]] = {}
         for m in unet.modules():
@@ -64,7 +67,10 @@ class Fast:
         self.temb: dict[int, dict[ResnetBlock2D, torch.Tensor]] = {}
         for t in timesteps:
             tf = timestep_features(torch.tensor([t], device=text.device), unet.conv_in.out_channels).to(text.dtype)
-            e = F.silu(unet.time_embedding(tf))
+            e = unet.time_embedding(tf)
+            if unet.class_embedding is not None:
+                e = e + unet.class_embedding(labels.to(text.dtype))
+            e = F.silu(e)
             self.temb[t] = {r: r.time_emb_proj(e)[:, :, None, None] for r in resnets}
 
     def conv(self, x: torch.Tensor, c: torch.nn.Conv2d) -> torch.Tensor:
@@ -165,6 +171,10 @@ class Fast:
 
     def encode_mean(self, vae: AutoencoderKL, x: torch.Tensor) -> torch.Tensor:
         """`AutoencoderKL.encode_mean`."""
+        return self.encode_moments(vae, x).chunk(2, dim=1)[0]
+
+    def encode_moments(self, vae: AutoencoderKL, x: torch.Tensor) -> torch.Tensor:
+        """`AutoencoderKL.encode_moments`."""
         e = vae.encoder
         x = self.conv(x.contiguous(memory_format=torch.channels_last), e.conv_in)
         for blk in e.down_blocks:
@@ -174,7 +184,7 @@ class Fast:
                 x = self.conv(F.pad(x, (0, 1, 0, 1)), blk.downsamplers[0].conv)
         x = self.vae_mid(e.mid_block, x)
         x = self.conv(group_norm(x, e.conv_norm_out, silu=True), e.conv_out)
-        return self.conv(x, vae.quant_conv).chunk(2, dim=1)[0]
+        return self.conv(x, vae.quant_conv)
 
     def decode(self, vae: AutoencoderKL, z: torch.Tensor) -> torch.Tensor:
         """`AutoencoderKL.decode`."""

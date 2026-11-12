@@ -2,8 +2,8 @@
 # ../LICENSE), re-implemented without diffusers for Marigold's vae/config.json (channels 128 / 256 / 512 /
 # 512, two resnets per encoder block, three per decoder block, one single-head attention in each mid block). Module and
 # parameter names are those of the checkpoint (diffusers 0.8 layout: the mid-block attention is `query` / `key` /
-# `value` / `proj_attn`), so it loads unchanged. Only what Marigold calls: `encoder` + `quant_conv` (the posterior
-# mean) and `post_quant_conv` + `decoder`.
+# `value` / `proj_attn`; newer checkpoints' `to_q` ... `to_out.0` are renamed on load). Only what Marigold and Lotus
+# call: `encoder` + `quant_conv` (the posterior) and `post_quant_conv` + `decoder`.
 from __future__ import annotations
 
 import torch
@@ -110,6 +110,12 @@ class Decoder(nn.Module):
         return self.conv_out(F.silu(self.conv_norm_out(x)))
 
 
+def sample(moments: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
+    """diffusers `DiagonalGaussianDistribution(moments).sample()` with the standard normal `noise` given."""
+    mean, logvar = moments.chunk(2, dim=1)
+    return mean + torch.exp(0.5 * logvar.clamp(-30.0, 20.0)) * noise
+
+
 class AutoencoderKL(nn.Module):
     """SD2 VAE: image `[-1, 1]` <-> 4-channel latent at 1/8 resolution (unscaled; Marigold scales by 0.18215)."""
 
@@ -123,6 +129,10 @@ class AutoencoderKL(nn.Module):
     def encode_mean(self, x: torch.Tensor) -> torch.Tensor:
         """Mean of the latent posterior (Marigold `encode_rgb` before scaling)."""
         return self.quant_conv(self.encoder(x)).chunk(2, dim=1)[0]
+
+    def encode_moments(self, x: torch.Tensor) -> torch.Tensor:
+        """The latent posterior's mean and log-variance, concatenated `[B, 2 * latent, h, w]` (see `sample`)."""
+        return self.quant_conv(self.encoder(x))
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         """Latent -> 3-channel output."""

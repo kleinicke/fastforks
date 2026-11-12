@@ -1,0 +1,38 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1e-05
+gpu_mean = 0.00053
+gpu_p99 = 0.0022
+
+[refs."lotus-normal-d-v1-1@1"]
+sha256 = "9f2502317e38cb8e79d53b33a53f47b90eb22c1ac1c5e694131f73dbe19db863"
+upstream = "https://github.com/EnVision-Research/Lotus@b737e12238d2a41fc582ee8c6c6b1104d318d799"
+settings = "CPU float32, weights jingheya/lotus-normal-d-v1-1@1d4d52149432060efabb0827e0a9fe4a0b63e817, diffusers 0.41.0, timestep 999, processing resolution 768, seed 42 (global RNG and CPU generator), camera frame, torch 2.14.1+cu130"
+
+[refs."lotus-normal-g-v1-1@1"]
+sha256 = "737097c957a8f508b3a31a236792a14aa7ea1e281f66fd9dee7c64e82621c7a0"
+upstream = "https://github.com/EnVision-Research/Lotus@b737e12238d2a41fc582ee8c6c6b1104d318d799"
+settings = "CPU float32, weights jingheya/lotus-normal-g-v1-1@92b42fd7f5c3f97f09a2af8e96263d87ea899bf1, diffusers 0.41.0, timestep 999, processing resolution 768, seed 42 (global RNG and CPU generator), camera frame, torch 2.14.1+cu130"
+
+[validated."lotus-normal-d-v1-1@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.00035
+p99_px = 0.00144
+
+[validated."lotus-normal-g-v1-1@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.0003
+p99_px = 0.00125
