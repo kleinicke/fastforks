@@ -582,7 +582,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -590,8 +590,10 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `metric3d-vit-large` | iBims-1, AbsRel / delta1 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 |  |
 | `metric3d-vit-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0740 / 0.9411 | 0.0740 / 0.9411 | 0.0740 / 0.9411 | 0.0741 / 0.9410 | possibly in the training data |
 | `metric3d-vit-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | possibly in the training data |
+| `metric3d-vit-large` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 13.72 / 7.27 / 65.43 / 87.44 | 13.71 / 7.27 / 65.44 / 87.45 |  |
+| `metric3d-vit-large` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.47 / 5.84 / 71.33 / 85.85 | 14.47 / 5.84 / 71.33 / 85.85 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12.
 
 ### Parity
 
@@ -600,10 +602,6 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `metric3d-vit-large` | 0.00139 / 0.00198 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-
-### Limitations
-
-- The normals convention (camera axes / sign) is not checked against a dataset; it is passed through as original returns it.
 
 </details>
 
@@ -704,7 +702,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
@@ -712,20 +710,26 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `moge-2-vits-normal` | iBims-1, AbsRel / delta1 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 |  |
 | `moge-2-vits-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0700 / 0.9412 | 0.0700 / 0.9411 | 0.0700 / 0.9411 | 0.0701 / 0.9412 | possibly in the training data |
 | `moge-2-vits-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | possibly in the training data |
+| `moge-2-vits-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.87 / 9.25 / 58.32 / 83.97 | 15.87 / 9.25 / 58.32 / 83.97 |  |
+| `moge-2-vits-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.95 / 7.19 / 66.56 / 83.74 | 15.95 / 7.19 / 66.56 / 83.74 |  |
 | `moge-2-vitb-normal` | NYUv2 test, AbsRel / delta1 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 |  |
 | `moge-2-vitb-normal` | iBims-1, AbsRel / delta1 | 0.0337 / 0.9855 | 0.0337 / 0.9854 | 0.0337 / 0.9854 | 0.0337 / 0.9854 |  |
 | `moge-2-vitb-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0667 / 0.9492 | 0.0667 / 0.9492 | 0.0667 / 0.9492 | 0.0663 / 0.9496 | possibly in the training data |
 | `moge-2-vitb-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0260 / 0.9962 | 0.0260 / 0.9962 | 0.0260 / 0.9962 | 0.0261 / 0.9962 | possibly in the training data |
+| `moge-2-vitb-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.25 / 8.61 / 60.32 / 84.90 | 15.25 / 8.61 / 60.33 / 84.90 |  |
+| `moge-2-vitb-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.28 / 6.98 / 68.57 / 85.01 | 15.28 / 6.98 / 68.56 / 85.01 |  |
 | `moge-2-vitl-normal` | NYUv2 test, AbsRel / delta1 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 |  |
 | `moge-2-vitl-normal` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 |  |
 | `moge-2-vitl-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0518 / 0.9789 | 0.0518 / 0.9789 | 0.0519 / 0.9789 | 0.0518 / 0.9790 | possibly in the training data |
 | `moge-2-vitl-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | possibly in the training data |
+| `moge-2-vitl-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.55 |  |
+| `moge-2-vitl-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.70 / 6.49 / 70.49 / 85.80 | 14.69 / 6.49 / 70.49 / 85.80 |  |
 | `moge-3-vitl` | NYUv2 test, AbsRel / delta1 |  | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  |
 | `moge-3-vitl` | iBims-1, AbsRel / delta1 |  | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9883 |  |
 | `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 |  | 0.0496 / 0.9847 | 0.0496 / 0.9847 | 0.0496 / 0.9847 | possibly in the training data |
 | `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 |  | 0.0235 / 0.9970 | 0.0235 / 0.9970 | 0.0235 / 0.9970 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3d00db1d / 939adfe8, 2026-11-06 to 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 3d00db1d / 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3d00db1d / 4e890760 / 939adfe8 / f3195fb2, 2026-11-06 to 2026-11-12.
 
 ### Parity
 

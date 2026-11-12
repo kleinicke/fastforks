@@ -182,7 +182,7 @@ def _align(pred: Any, gt: Any, m: Any, space: str) -> Any:  # noqa: ANN401
 class Predictor:
     """One tier of one model: `call(uint8 HWC images...) -> (map, space)`; prep untimed, the call timed."""
 
-    def __init__(self, task: str, ref: str, tier: str) -> None:  # noqa: D107
+    def __init__(self, task: str, ref: str, tier: str, *, normals: bool = False) -> None:  # noqa: D107
         import torch  # noqa: PLC0415
 
         self.task, self.tier, self.note = task, tier, ""
@@ -201,7 +201,12 @@ class Predictor:
         self.orig = None
         mod = __import__(f"fastforks.{task}", fromlist=["load"])
         mode = "portable" if tier == "portable32" else tier
-        kw = {"dtype": "float32"} if tier == "portable32" else {}
+        kw: dict[str, Any] = {"dtype": "float32"} if tier == "portable32" else {}
+        if normals:  # a model with an optional normal head (MoGe): run it
+            from fastforks._core.registry import cards  # noqa: PLC0415
+
+            if "normals" in cards(task)[ref][0].options:
+                kw["options"] = {"normals": True}
         self.model = mod.load(ref, mode=mode, device="cuda", **kw)
         self.mode, self.how = mode, None
         self.dtype = str(self.model.backend.dtype).removeprefix("torch.")
@@ -216,13 +221,17 @@ class Predictor:
         xs = tuple(torch.from_numpy(i).permute(2, 0, 1).contiguous().cuda() for i in ims)
         return self.orig.prep(xs) if self.orig is not None else xs
 
-    def call(self, args: tuple[Any, ...]) -> tuple[Any, str]:  # noqa: D102
+    def call(self, args: tuple[Any, ...], ds: str = "") -> tuple[Any, str]:  # noqa: D102
         if self.orig is not None:
+            if ds in NORMALS_SETS and self.space != "normals":
+                raise RuntimeError("the original adapter returns no normals")  # noqa: TRY003, EM101
             return self.orig(*args), self.space
         r = self.model(*args)
         if self.task == "stereo":
             return r.disparity, "disparity"
-        if r.normals is not None and self.model.variant.outputs == ("normals",):
+        if ds in NORMALS_SETS:
+            if r.normals is None:
+                raise RuntimeError("the model returns no normals")  # noqa: TRY003, EM101
             return r.normals, "normals"
         if r.inverse_depth is not None:
             return r.inverse_depth, "disparity"
@@ -324,7 +333,7 @@ def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, P
                                 "command": " ".join(["python", "tools/eval_stereo_depth.py", *sys.argv[1:]])}  # fmt: skip  # noqa: E501
         try:
             tb = time.perf_counter()
-            pr = Predictor(a.task, ref, tier)
+            pr = Predictor(a.task, ref, tier, normals=any(ds in NORMALS_SETS for ds in sets))
             meta |= {"mode": pr.mode, "dtype": pr.dtype, "how": pr.how, "note": pr.note, "backend": pr.backend,
                      "kind": pr.kind, "build_s": round(time.perf_counter() - tb, 1)}  # fmt: skip
         except Exception as e:  # noqa: BLE001 - recorded; the queue goes on
@@ -345,7 +354,7 @@ def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, P
             torch.cuda.reset_peak_memory_stats()
             tc = time.perf_counter()
             try:
-                pred, space = pr.call(args)
+                pred, space = pr.call(args, ds)
                 torch.cuda.synchronize()
             except Exception as e:  # noqa: BLE001
                 f.write(json.dumps({"ds": ds, "key": key, "error": f"call: {type(e).__name__}: {e}"[:400]}) + "\n")
