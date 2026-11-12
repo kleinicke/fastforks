@@ -90,15 +90,29 @@ def normalised(warp: torch.Tensor, h2: int, w2: int) -> torch.Tensor:
     return torch.cat((grid, to), dim=-1).reshape(-1, 4)
 
 
-def sample(matches: torch.Tensor, certainty: torch.Tensor, limit: float, gen: torch.Generator) -> torch.Tensor:
-    """Upstream `RoMaV2.sample` (balanced) of `[N, 4]` normalised matches with their `[N]` certainties."""
+def sample(  # noqa: PLR0913, PLR0917 - the sampling options
+    matches: torch.Tensor,
+    certainty: torch.Tensor,
+    limit: float,
+    gen: torch.Generator,
+    n: int = N_MATCHES,
+    sampling: str = "balanced",
+) -> torch.Tensor:
+    """Upstream `RoMaV2.sample` (balanced) of `[N, 4]` normalised matches with their `[N]` certainties: the indices.
+
+    `sampling`: "plain" draws by certainty only, "fast" balances with `MatchingResult.matches`' subsampled density.
+    """
     c = torch.where(certainty > THRESHOLD, 1.0, certainty) * matches.abs().amax(dim=-1).le(limit).float()
-    ind = torch.multinomial(c, 4 * N_MATCHES, replacement=False, generator=gen)
+    from fastforks.matching._api import _density  # noqa: PLC0415
+
+    if sampling == "plain":
+        return torch.multinomial(c, n, replacement=False, generator=gen)
+    ind = torch.multinomial(c, 4 * n, replacement=False, generator=gen)
     m = matches[ind]
-    density = kde(m)
+    density = kde(m) if sampling == "balanced" else _density(m[None])[0]
     p = 1 / (density + 1)
     p[density < MIN_DENSITY] = 1e-7  # upstream: at least about 10 close neighbours
-    return m[torch.multinomial(p, min(N_MATCHES, len(m)), replacement=False, generator=gen)]
+    return ind[torch.multinomial(p, min(n, len(m)), replacement=False, generator=gen)]
 
 
 def sparse(ref: str) -> bool:
@@ -176,7 +190,7 @@ def _original(ref: str, mode: str) -> tuple[Any, str, dict]:
     return call, "bfloat16" if amp else "float32", {"note": note}
 
 
-def match(a: argparse.Namespace) -> None:
+def match(a: argparse.Namespace) -> None:  # noqa: C901, PLR0912, PLR0915 - one loop over the pairs
     stop = a.stop if a.stop is not None else sys.maxsize
     pairs = [(i, p) for i, p in enumerate(load_pairs(a.root)) if a.start <= i < stop and i % a.every == 0]
     out = a.work / f"{a.ref}-{a.mode}"
@@ -185,6 +199,9 @@ def match(a: argparse.Namespace) -> None:
     call, dtype, extra = (_original if original else _fastforks)(a.ref, a.mode)
     limit = 1 - 1 / OPTIONS["fine_size"]
     is_sparse = sparse(a.ref)
+    # The legacy set (balanced, N_MATCHES) keeps the plain keys and is drawn first; extra sets under "<sampling><n>/".
+    sets = [("", "balanced", N_MATCHES)]
+    sets += [(f"{s}{n}/", s, n) for s in a.sampling for n in a.n_matches if (s, n) != ("balanced", N_MATCHES)]
     kpts, ms, peak, first = {}, [], [0, 0], None
     for i, (name1, name2, *_) in pairs:
         im1, im2 = read(a.root / "images" / name1), read(a.root / "images" / name2)
@@ -213,14 +230,22 @@ def match(a: argparse.Namespace) -> None:
             elif a.mode != "upstreambench":
                 both = torch.cat((normalised(warp_ab, h2, w2), normalised(warp_ba, h1, w1)[:, [2, 3, 0, 1]]))
                 cert = torch.cat((cert_ab.reshape(-1), cert_ba.reshape(-1)))
-            for _ in range(0 if is_sparse else N_RUNS):
-                if a.mode == "upstreambench":
-                    torch.manual_seed(int(torch.randint(2**31, (1,), generator=gen, device="cuda")))
-                    m = call.sample(preds, N_MATCHES)[0]
-                else:
-                    m = sample(both, cert, limit, gen)
-                runs.append(((m + 1) / 2 * size).float().cpu().numpy())
-        kpts[str(i)] = np.stack(runs)  # [runs, matches, 4]: x1, y1, x2, y2 in pixels of the 1200 px images
+            if is_sparse:
+                kpts[str(i)] = np.stack(runs)
+            for key, sampling, n in () if is_sparse else sets:
+                runs, certs = [], []
+                for _ in range(N_RUNS):
+                    if a.mode == "upstreambench":
+                        torch.manual_seed(int(torch.randint(2**31, (1,), generator=gen, device="cuda")))
+                        m = call.sample(preds, N_MATCHES)[0]
+                    else:
+                        ind = sample(both, cert, limit, gen, n, sampling)
+                        m = both[ind]
+                        certs.append(cert[ind].float().cpu().numpy())
+                    runs.append(((m + 1) / 2 * size).float().cpu().numpy())
+                kpts[f"{key}{i}"] = np.stack(runs)  # [runs, matches, 4]: x1, y1, x2, y2 in pixels of the 1200 px images
+                if a.certainty:
+                    kpts[f"{key}c{i}"] = np.stack(certs)  # [runs, matches]
         if len(ms) == 1 and first is None:
             first = ms.pop()  # the first call includes start-up: not in the median
     np.savez(out / f"{a.start:04d}.npz", **kpts)
@@ -324,6 +349,9 @@ def main() -> None:
     ap.add_argument("--start", type=int, default=0)
     ap.add_argument("--stop", type=int, default=None)
     ap.add_argument("--every", type=int, default=1, help="only every N-th pair (a fixed subset)")
+    ap.add_argument("--n-matches", type=int, nargs="+", default=[N_MATCHES], help="match: extra set sizes")
+    ap.add_argument("--sampling", nargs="+", default=["balanced"], choices=("balanced", "plain", "fast"), help="match")
+    ap.add_argument("--certainty", action="store_true", help="match: also save the certainty of every match")
     ap.add_argument("--commit", help="score: git commit of the measured src")
     ap.add_argument("--out", help="score: jsonl to append to")
     a = ap.parse_args()

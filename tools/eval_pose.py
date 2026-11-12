@@ -8,16 +8,18 @@ default 1 px), then converts it with the intrinsics (`E = K2^T F K1`) and recove
 pose AUC measures it.
 
 `DIR` holds the `*.npz` of `tools/eval_matching.py match` (`N_RUNS` samplings of `N_MATCHES` matches per
-MegaDepth-1500 pair). Protocol as `eval_matching.py score`: threshold 0.5 px over the mean focal length, confidence
-0.99999, pose error = max(rotation, translation angle), AUC@5/10/20 over all pairs x samplings. CPU methods run one
-pair per call in `--jobs` processes (single-threaded each: OpenCV's and PoseLib's RANSAC are), GPU methods in
-batches of `--batch` pairs; the single-pair latency of the GPU methods is measured separately (median over pairs).
+MegaDepth-1500 pair). Protocol as `eval_matching.py score` (there 0.5 px): `--threshold` px over the mean focal
+length, confidence 0.99999, pose error = max(rotation, translation angle), AUC@5/10/20 over all pairs x samplings.
+CPU methods run one pair per call in `--jobs` processes (single-threaded each: OpenCV's and PoseLib's RANSAC are),
+GPU methods in batches of `--batch` pairs; the single-pair latency of the GPU methods is measured separately (median
+over pairs).
 Appends one JSON line per run to `--out`.
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
 import statistics
@@ -88,7 +90,7 @@ def run_opencv(item: Item, *, usac: bool = False, fundamental: bool = False, thr
 
 
 def run_poselib(item: Item, *, fundamental: bool = False, thr: float = 0.5) -> tuple[float, float]:
-    import poselib  # noqa: PLC0415
+    poselib = importlib.import_module("poselib")  # optional: only this method needs it
 
     x, k1, k2, r, t, seed = item
     if fundamental:
@@ -190,7 +192,7 @@ def gpu(  # noqa: PLR0913 - the options
     return errors, info
 
 
-def main() -> None:
+def main() -> None:  # noqa: PLR0915 - the options
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", type=Path, default=Path("/home/florian/projects/data/matching/megadepth1500"))
     ap.add_argument("--matches", type=Path, required=True)
@@ -199,17 +201,20 @@ def main() -> None:
     ap.add_argument("--batch", type=int, default=500, help="pairs per call for the GPU methods")
     ap.add_argument("--latency-pairs", type=int, default=100)
     ap.add_argument("--stop", type=int, default=None, help="only the first pairs")
+    ap.add_argument("--set", default="", help="key prefix of the match set in the npz (eval_matching --n-matches)")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--errors", type=Path, default=None, help="save the per-pair errors (npy)")
     ap.add_argument("--problem", default="essential", choices=("essential", "fundamental"))
-    ap.add_argument("--threshold", type=float, default=None, help="pixels; default 0.5 (essential), 1.0 (fundamental)")
+    ap.add_argument("--threshold", type=float, default=None, help="pixels; default: 1.0 (essential), 0.5 (fundamental)")
     a = ap.parse_args()
     from PIL import Image  # noqa: PLC0415
 
     pairs = load_pairs(a.root)[: a.stop]
     kpts: dict[str, np.ndarray] = {}
     for p in sorted(a.matches.glob("*.npz")):
-        kpts |= {k: v for k, v in np.load(p).items() if int(k) < len(pairs)}
+        for k, v in np.load(p).items():
+            if k.startswith(a.set) and k[len(a.set) :].isdigit() and int(k[len(a.set) :]) < len(pairs):
+                kpts[k[len(a.set) :]] = v
     items: list[Item] = []
     for i, (name1, name2, k1, k2, r, t) in enumerate(pairs):
         (w1, h1), (w2, h2) = (Image.open(a.root / "images" / n).size for n in (name1, name2))
@@ -220,7 +225,7 @@ def main() -> None:
         for run, x in enumerate(kpts[str(i)]):
             items.append((x[rng.permutation(len(x))].astype(np.float64), k1s, k2s, r, t, i * N_RUNS + run))
     fundamental = a.problem == "fundamental"
-    thr = a.threshold if a.threshold is not None else (1.0 if fundamental else 0.5)
+    thr = a.threshold if a.threshold is not None else (0.5 if fundamental else 1.0)
     t0 = time.perf_counter()
     if a.method in {"portable", "kernels"}:
         errors, info = gpu(items, a.method, a.batch, a.latency_pairs, fundamental=fundamental, thr=thr)

@@ -31,7 +31,7 @@ min_size = 16
 [options]
 coarse_size = { default = 800, min = 16 }  # square side of the descriptor, matcher and first refinement (upstream H_lr; settings turbo 320, fast 512, base 640, precise / mega1500 800); a multiple of 16
 fine_size = { default = 1280, min = 0 }  # square side of the second refinement (upstream H_hr; precise 1280, mega1500 1024; 0 = none as turbo / fast / base); a multiple of 16
-keep_descriptors = { default = false, effect = "speed" }  # true: keep the DINOv3 descriptors of the last two images, so an image that returns in the next pair (sequence A-B, B-C; one image against many) skips that pass (RTX 5060 Ti: 423 -> 373 ms per pair with one shared image, +54 MB held); same outputs
+keep_descriptors = { default = 0, min = 0, effect = "speed" }  # N > 0: keep the DINOv3 descriptors of the last N images (least recently used dropped), so an image that returns within the next pairs skips that pass: 2 for video / consecutive frames (A-B, B-C), 4 to 10 when each frame is matched against several recent keyframes; 27 MB held per image at coarse_size 800; same outputs. For a known pair list use `match_pairs`, which needs no setting
 
 [modes.portable]
 cuda_dtype = "bfloat16"  # as upstream: the DINOv3 descriptor in bf16, the multi-view ViT, DPT head, VGG and refiner blocks under bf16 autocast; matching, local correlation and warps float32

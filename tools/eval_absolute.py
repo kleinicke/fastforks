@@ -18,6 +18,7 @@ latency measured separately). Appends one JSON line per run to `--out`.
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
 import statistics
@@ -120,7 +121,7 @@ def run_opencv(item: Item, *, thr: float) -> tuple[float, float]:
 
 
 def run_poselib(item: Item, *, thr: float) -> tuple[float, float]:
-    import poselib  # noqa: PLC0415
+    poselib = importlib.import_module("poselib")  # optional: only this method needs it
 
     p2, pts, k, r, t, depth, seed = item
     cam = {

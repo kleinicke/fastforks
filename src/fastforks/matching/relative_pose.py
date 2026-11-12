@@ -18,6 +18,9 @@ every candidate is scored on a subset of the matches, the best of them on all. T
 PyTorch (`_five_point`); `mode="kernels"` runs it and the scoring in one CUDA kernel library
 (`fastforks.kernels.ransac`). `estimate_fundamental` is the same RANSAC with the 7-point solver on Hartley-normalised
 pixels (`findFundamentalMat`), rank-2 refits instead of the pose refinement, no cheirality.
+
+The default thresholds (1.0 px essential, 0.5 px fundamental) are the most accurate ones on MegaDepth-1500 with dense
+RoMa v2 matches (AUC@5 69.9 against 68.6 at the 0.5 px of the matching benchmarks; PoseLib has the same optimum).
 """
 
 from __future__ import annotations
@@ -51,6 +54,11 @@ _ROUND = 512
 _ROUND_PORTABLE = 128
 _SUBSET = 256
 _TOP = 8
+# Fundamental matrices (7-point samples see more outliers per sample): times more hypotheses and fully scored
+# candidates per round (kernels), and RANSAC scores with this multiple of the threshold (the polish uses the threshold
+# itself); +0.6 AUC@5 on MegaDepth-1500 (kernels). Neither helps essential matrices.
+_F_ROUNDS = 4
+_F_WIDE = 2.0
 _REFITS = 1
 _SEED = 0
 _LO_DTYPE = torch.float32
@@ -101,7 +109,7 @@ def estimate_fundamental(
     points1: torch.Tensor,
     points2: torch.Tensor,
     *,
-    threshold: float = 1.0,
+    threshold: float = 0.5,
     mask: torch.Tensor | None = None,
     mode: Literal["auto", "portable", "kernels"] = "auto",
 ) -> FundamentalMatrix:
@@ -181,7 +189,7 @@ def estimate_pose(  # noqa: PLR0913 - the matches, the two intrinsics and the op
     k1: torch.Tensor,
     k2: torch.Tensor,
     *,
-    threshold: float = 0.5,
+    threshold: float = 1.0,
     mask: torch.Tensor | None = None,
     mode: Literal["auto", "portable", "kernels"] = "auto",
 ) -> RelativePose:
@@ -269,8 +277,15 @@ def _estimate(  # noqa: PLR0913, PLR0917 - the RANSAC state
     thr2 = (threshold / focal) ** 2  # [P]
     scorer = _KernelScorer(solver, x1, x2, valid, thr2) if solver is not None else _TorchScorer(x1, x2, valid, thr2)
 
-    rounds = _ROUND if solver is not None else _ROUND_PORTABLE
-    best_e, best_score, best_count = _ransac(scorer, counts, sample, rounds, gen)
+    rounds, top = (_ROUND if solver is not None else _ROUND_PORTABLE), _TOP
+    if sample == MIN_MATCHES_F:
+        if solver is not None:  # the portable 7-point solver is too slow for it
+            rounds, top = rounds * _F_ROUNDS, top * _F_ROUNDS
+        scorer.thr2 = (thr2 * _F_WIDE**2).float().contiguous()
+    best_e, best_score, best_count = _ransac(scorer, counts, sample, rounds, top, gen)
+    if sample == MIN_MATCHES_F:  # the models' scores at the threshold itself
+        scorer.thr2 = thr2.float().contiguous()
+        best_score, best_count = (v[:, 0] for v in scorer.score(torch.arange(P, device=dev), best_e[:, None], N))
     R, t, best_e, inliers, ok = scorer.finish(best_e, best_score, best_count, sample)
     # Back to the caller's match order.
     inliers_out = torch.zeros(P, N, dtype=torch.bool, device=dev).scatter_(1, order, inliers)
@@ -288,13 +303,13 @@ class _Scorer(Protocol):
     def score(self, pairs: torch.Tensor, m: torch.Tensor, n: int, /) -> tuple[torch.Tensor, torch.Tensor]: ...
 
 
-def _ransac(
-    scorer: _Scorer, counts: torch.Tensor, sample: int, rounds: int, gen: torch.Generator
+def _ransac(  # noqa: PLR0913, PLR0917 - the loop state of `_estimate`
+    scorer: _Scorer, counts: torch.Tensor, sample: int, rounds: int, top: int, gen: torch.Generator
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """The RANSAC rounds over all pairs: the best model `[P, M]`, its MSAC score and inlier count `[P]`.
 
     A round draws `rounds` samples of `sample` matches of every unfinished pair, pre-scores all their hypotheses on
-    `_SUBSET` matches, the `_TOP` of them on all, and keeps the best; a pair is done when OpenCV's iteration count
+    `_SUBSET` matches, the `top` of them on all, and keeps the best; a pair is done when OpenCV's iteration count
     for its inlier ratio is reached.
     """
     P, N = scorer.valid.shape
@@ -308,8 +323,8 @@ def _ransac(
         idx = (torch.rand(active.numel(), rounds, sample, device=dev, generator=gen) * counts[active, None, None]).int()
         cand, cand_valid = scorer.hypotheses(active, idx)  # [A, C, M], [A, C]
         sub = torch.where(cand_valid, scorer.score(active, cand, _SUBSET)[0], -1.0)
-        top = sub.topk(_TOP, dim=1).indices
-        cand = torch.gather(cand, 1, top[..., None].expand(-1, -1, scorer.width))
+        best = sub.topk(top, dim=1).indices
+        cand = torch.gather(cand, 1, best[..., None].expand(-1, -1, scorer.width))
         score, count = scorer.score(active, cand, N)
         which = (score if _MSAC else count.float()).argmax(1)
         cand = cand[torch.arange(active.numel(), device=dev), which]

@@ -239,6 +239,16 @@ _DERIVED: dict[str, dict[str, tuple[str, str, str, str, str]]] = {  # result fie
             "(x, y), pixel centres at integer coordinates",
             "always",
         ),
+        "verify": (
+            "VerifiedMatches",
+            "float32",
+            (
+                "the matches with their scores, the RANSAC inlier mask and the fundamental matrix or (with intrinsics)"
+                " the relative pose (method `verify`, computed when called)"
+            ),
+            "(x, y), pixel centres at integer coordinates",
+            "always",
+        ),
     },
     "tracking": {
         "visible": ("[T, Q]", "bool", "visibility > 0.5", "", "when visibility is"),
