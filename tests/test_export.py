@@ -43,10 +43,15 @@ _ONNX_KNOWN_MISMATCH = {  # open: the export runs, ONNX Runtime disagrees (or re
     " 0.56 px, mean 0.006)",
 }
 
-_NOT_TRACEABLE: dict[str, str] = {}  # module() runs, but neither dynamo nor torch.export captures it: documented
+_NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export captures it: documented
+    "aliked-lightglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+    "xfeat@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+}
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
     "rf-detr-keypoint-preview@1": "pinned upstream disables Dynamo for positional interpolation to preserve"
     " antialiased bicubic gradients; non-strict torch.export still captures this fixed-shape inference",
+    "rf-detr-seg-n-coco@1": "pinned upstream disables Dynamo for positional interpolation (as RF-DETR keypoint);"
+    " non-strict torch.export still captures this fixed-shape inference",
     "zoedepth-nk@1": "the NK model routes each image to the NYU or KITTI head by the argmax of its domain logits"
     " (.item(); the export runs both heads and selects)",
 }
