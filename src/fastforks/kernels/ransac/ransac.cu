@@ -322,13 +322,23 @@ extern "C" __global__ void e5pt_hypotheses(const float* __restrict__ pts, const 
   }
 }
 
-// Sampson inlier counts of many candidates per pair: one thread per candidate, the pair's matches through shared
-// memory in chunks. e [A, C, 9]; counts [P] valid matches per pair; thr2 [P]; out [A, C] int32; scores the first
-// min(n, counts[pair]) matches. grid (ceil(C / 256), A), block 256.
+// MSAC score of a match: 1 - sampson / thr2 for inliers (truncated quadratic loss), 0 for outliers.
+__device__ __forceinline__ float gain(const float4 m, const float* E, float t2) {
+  float l0 = E[0] * m.x + E[1] * m.y + E[2], l1 = E[3] * m.x + E[4] * m.y + E[5], l2 = E[6] * m.x + E[7] * m.y + E[8];
+  float r0 = E[0] * m.z + E[3] * m.w + E[6], r1 = E[1] * m.z + E[4] * m.w + E[7];
+  float num = m.z * l0 + m.w * l1 + l2;
+  float den = (l0 * l0 + l1 * l1 + r0 * r0 + r1 * r1) * t2;
+  return (den > 0.f && num * num < den) ? 1.f - num * num / den : 0.f;
+}
+
+// MSAC scores and inlier counts of many candidates per pair: one thread per candidate, the pair's matches through
+// shared memory in chunks. e [A, C, 9]; counts [P] valid matches per pair; thr2 [P]; out [A, C] float32 scores,
+// cnt [A, C] int32 inlier counts; scores the first min(n, counts[pair]) matches. grid (ceil(C / 256), A), block 256.
 #define CHUNK 1024
 extern "C" __global__ void score_many(const float* __restrict__ pts, const int* __restrict__ counts,
                                       const float* __restrict__ thr2, const int* __restrict__ pairs,
-                                      const float* __restrict__ e, int* __restrict__ out, int N, int C, int n) {
+                                      const float* __restrict__ e, float* __restrict__ out, int* __restrict__ cnt,
+                                      int N, int C, int n) {
   __shared__ float4 sm[CHUNK];
   const int a = blockIdx.y, pair = pairs[a];
   const int c = blockIdx.x * blockDim.x + threadIdx.x;
@@ -338,7 +348,8 @@ extern "C" __global__ void score_many(const float* __restrict__ pts, const int* 
   if (c < C)
     for (int k = 0; k < 9; ++k) E[k] = e[((long long)a * C + c) * 9 + k];
   const float t2 = thr2[pair];
-  int cnt = 0;
+  float sc = 0.f;
+  int in = 0;
   for (int base = 0; base < tot; base += CHUNK) {
     const int len = min(CHUNK, tot - base);
     __syncthreads();
@@ -346,51 +357,254 @@ extern "C" __global__ void score_many(const float* __restrict__ pts, const int* 
     __syncthreads();
     if (c < C) {
       for (int i = 0; i < len; ++i) {
-        float4 m = sm[i];
-        float l0 = E[0] * m.x + E[1] * m.y + E[2], l1 = E[3] * m.x + E[4] * m.y + E[5], l2 = E[6] * m.x + E[7] * m.y + E[8];
-        float r0 = E[0] * m.z + E[3] * m.w + E[6], r1 = E[1] * m.z + E[4] * m.w + E[7];
-        float num = m.z * l0 + m.w * l1 + l2;
-        float den = l0 * l0 + l1 * l1 + r0 * r0 + r1 * r1;
-        cnt += (num * num < t2 * den) ? 1 : 0;
+        float g = gain(sm[i], E, t2);
+        sc += g;
+        in += g > 0.f;
       }
     }
   }
-  if (c < C) out[(long long)a * C + c] = cnt;
+  if (c < C) {
+    out[(long long)a * C + c] = sc;
+    cnt[(long long)a * C + c] = in;
+  }
 }
 
-// Sampson inlier counts of few candidates per pair: one block per (a, c), threads over the matches. Writes the
-// inlier mask [A, C, N] (uint8) when `mask` is not null. grid (C, A), block 256.
+// MSAC scores and inlier counts of few candidates per pair: one block per (a, c), threads over the matches. Writes
+// the inlier mask [A, C, N] (uint8) when `mask` is not null. grid (C, A), block 256.
 extern "C" __global__ void score_few(const float* __restrict__ pts, const int* __restrict__ counts,
                                      const float* __restrict__ thr2, const int* __restrict__ pairs,
-                                     const float* __restrict__ e, int* __restrict__ out, unsigned char* mask, int N,
-                                     int C, int n) {
-  __shared__ int red[256];
+                                     const float* __restrict__ e, float* __restrict__ out, int* __restrict__ cnt,
+                                     unsigned char* mask, int N, int C, int n) {
+  __shared__ float red[256];
+  __shared__ int redi[256];
   const int c = blockIdx.x, a = blockIdx.y, pair = pairs[a];
   const int tot = min(n, counts[pair]);
   const float4* p = (const float4*)(pts + (long long)pair * N * 4);
-  const float* E = e + ((long long)a * C + c) * 9;
-  float E0 = E[0], E1 = E[1], E2 = E[2], E3 = E[3], E4 = E[4], E5 = E[5], E6 = E[6], E7 = E[7], E8 = E[8];
+  const float* eg = e + ((long long)a * C + c) * 9;
+  float E[9];
+  for (int k = 0; k < 9; ++k) E[k] = eg[k];
   const float t2 = thr2[pair];
   unsigned char* mk = mask ? mask + ((long long)a * C + c) * N : nullptr;
-  int cnt = 0;
+  float sc = 0.f;
+  int in = 0;
   for (int i = threadIdx.x; i < (mk ? N : tot); i += blockDim.x) {
-    int in = 0;
-    if (i < tot) {
-      float4 m = p[i];
-      float l0 = E0 * m.x + E1 * m.y + E2, l1 = E3 * m.x + E4 * m.y + E5, l2 = E6 * m.x + E7 * m.y + E8;
-      float r0 = E0 * m.z + E3 * m.w + E6, r1 = E1 * m.z + E4 * m.w + E7;
-      float num = m.z * l0 + m.w * l1 + l2;
-      float den = l0 * l0 + l1 * l1 + r0 * r0 + r1 * r1;
-      in = (num * num < t2 * den) ? 1 : 0;
-    }
-    cnt += in;
-    if (mk) mk[i] = (unsigned char)in;
+    float g = i < tot ? gain(p[i], E, t2) : 0.f;
+    sc += g;
+    in += g > 0.f;
+    if (mk) mk[i] = (unsigned char)(g > 0.f);
   }
-  red[threadIdx.x] = cnt;
+  red[threadIdx.x] = sc;
+  redi[threadIdx.x] = in;
   __syncthreads();
   for (int s = 128; s > 0; s >>= 1) {
-    if (threadIdx.x < s) red[threadIdx.x] += red[threadIdx.x + s];
+    if (threadIdx.x < s) {
+      red[threadIdx.x] += red[threadIdx.x + s];
+      redi[threadIdx.x] += redi[threadIdx.x + s];
+    }
     __syncthreads();
   }
-  if (threadIdx.x == 0) out[(long long)a * C + c] = red[0];
+  if (threadIdx.x == 0) {
+    out[(long long)a * C + c] = red[0];
+    cnt[(long long)a * C + c] = redi[0];
+  }
+}
+
+// Levenberg-Marquardt of (R, t), E = [t]_x R, on the truncated Sampson cost (PoseLib's refinement): one block per
+// model, every iteration inside the kernel. rt [A, 12]: R (row-major) then t (unit), updated in place. The cost is
+// sum(min(sampson^2, thr2)) over the first min(n, counts[pair]) matches; J runs over the inliers. grid A, block 256.
+#define NT 21
+__device__ __forceinline__ void cross_mat(const float* v, float* m) {
+  m[0] = 0.f; m[1] = -v[2]; m[2] = v[1]; m[3] = v[2]; m[4] = 0.f; m[5] = -v[0]; m[6] = -v[1]; m[7] = v[0]; m[8] = 0.f;
+}
+__device__ __forceinline__ void mat_mul(const float* a, const float* b, float* c) {
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j) c[i * 3 + j] = a[i * 3] * b[j] + a[i * 3 + 1] * b[3 + j] + a[i * 3 + 2] * b[6 + j];
+}
+// Sum of acc[0..k) over the block into red[0][0..k); all threads call it.
+__device__ void block_sum(float* acc, int k, float (*red)[NT]) {
+  for (int i = 0; i < k; ++i)
+    for (int off = 16; off > 0; off >>= 1) acc[i] += __shfl_down_sync(0xffffffffu, acc[i], off);
+  const int warp = threadIdx.x >> 5, lane = threadIdx.x & 31;
+  __syncthreads();  // red may still be read from the previous reduction
+  if (lane == 0)
+    for (int i = 0; i < k; ++i) red[warp][i] = acc[i];
+  __syncthreads();
+  if (threadIdx.x < k) {
+    float v = 0.f;
+    for (int w = 0; w < 8; ++w) v += red[w][threadIdx.x];
+    red[0][threadIdx.x] = v;
+  }
+  __syncthreads();
+}
+// Per-thread J^T J (upper triangle, 15), J^T r (5) and cost (1) of this thread's matches.
+__device__ void lm_accumulate(const float4* p, int tot, const float* E, const float* D, float t2, float* acc) {
+  for (int k = 0; k < NT; ++k) acc[k] = 0.f;
+  for (int i = threadIdx.x; i < tot; i += blockDim.x) {
+    const float4 m = p[i];
+    const float x1[3] = {m.x, m.y, 1.f}, x2[3] = {m.z, m.w, 1.f};
+    float l0 = E[0] * m.x + E[1] * m.y + E[2], l1 = E[3] * m.x + E[4] * m.y + E[5], l2 = E[6] * m.x + E[7] * m.y + E[8];
+    float r0 = E[0] * m.z + E[3] * m.w + E[6], r1 = E[1] * m.z + E[4] * m.w + E[7];
+    float num = m.z * l0 + m.w * l1 + l2;
+    float den = l0 * l0 + l1 * l1 + r0 * r0 + r1 * r1;
+    if (!(den > 0.f)) { acc[20] += t2; continue; }
+    float inv = rsqrtf(den), res = num * inv;
+    if (res * res >= t2) { acc[20] += t2; continue; }
+    acc[20] += res * res;
+    float s3 = num * inv * inv * inv, J[5] = {0.f, 0.f, 0.f, 0.f, 0.f};
+    for (int i3 = 0; i3 < 3; ++i3)
+      for (int j3 = 0; j3 < 3; ++j3) {
+        float dd = (i3 == 0 ? l0 * x1[j3] : i3 == 1 ? l1 * x1[j3] : 0.f) + (j3 == 0 ? r0 * x2[i3] : j3 == 1 ? r1 * x2[i3] : 0.f);
+        float g = x2[i3] * x1[j3] * inv - s3 * dd;
+        const float* d = D + (i3 * 3 + j3) * 5;
+        for (int k = 0; k < 5; ++k) J[k] += g * d[k];
+      }
+    int q = 0;
+    for (int u = 0; u < 5; ++u)
+      for (int v = u; v < 5; ++v) acc[q++] += J[u] * J[v];
+    for (int k = 0; k < 5; ++k) acc[15 + k] += J[k] * res;
+  }
+}
+__device__ float thread_cost(const float4* p, int tot, const float* E, float t2) {
+  float c = 0.f;
+  for (int i = threadIdx.x; i < tot; i += blockDim.x) {
+    const float4 m = p[i];
+    float l0 = E[0] * m.x + E[1] * m.y + E[2], l1 = E[3] * m.x + E[4] * m.y + E[5], l2 = E[6] * m.x + E[7] * m.y + E[8];
+    float r0 = E[0] * m.z + E[3] * m.w + E[6], r1 = E[1] * m.z + E[4] * m.w + E[7];
+    float num = m.z * l0 + m.w * l1 + l2;
+    float den = l0 * l0 + l1 * l1 + r0 * r0 + r1 * r1;
+    float e2 = den > 0.f ? num * num / den : t2;
+    c += fminf(e2, t2);
+  }
+  return c;
+}
+// Thread 0: E = [t]_x R and the derivatives D [9, 5] of E by (omega, alpha), the tangent basis b1, b2 of t.
+__device__ void lm_linearise(const float* R, const float* t, float* E, float* D, float* b1, float* b2) {
+  int k = fabsf(t[0]) <= fabsf(t[1]) ? (fabsf(t[0]) <= fabsf(t[2]) ? 0 : 2) : (fabsf(t[1]) <= fabsf(t[2]) ? 1 : 2);
+  float ek[3] = {0.f, 0.f, 0.f};
+  ek[k] = 1.f;
+  float c[3] = {t[1] * ek[2] - t[2] * ek[1], t[2] * ek[0] - t[0] * ek[2], t[0] * ek[1] - t[1] * ek[0]};
+  float inv = rsqrtf(fmaxf(c[0] * c[0] + c[1] * c[1] + c[2] * c[2], 1e-24f));
+  for (int i = 0; i < 3; ++i) b1[i] = c[i] * inv;
+  b2[0] = t[1] * b1[2] - t[2] * b1[1]; b2[1] = t[2] * b1[0] - t[0] * b1[2]; b2[2] = t[0] * b1[1] - t[1] * b1[0];
+  float tx[9], tmp[9], gen[9];
+  cross_mat(t, tx);
+  mat_mul(tx, R, E);
+  for (int k3 = 0; k3 < 3; ++k3) {
+    float e3[3] = {0.f, 0.f, 0.f};
+    e3[k3] = 1.f;
+    cross_mat(e3, gen);
+    mat_mul(E, gen, tmp);
+    for (int i = 0; i < 9; ++i) D[i * 5 + k3] = tmp[i];
+  }
+  cross_mat(b1, gen);
+  mat_mul(gen, R, tmp);
+  for (int i = 0; i < 9; ++i) D[i * 5 + 3] = tmp[i];
+  cross_mat(b2, gen);
+  mat_mul(gen, R, tmp);
+  for (int i = 0; i < 9; ++i) D[i * 5 + 4] = tmp[i];
+}
+// Thread 0: the damped normal equations from the 20 terms; the step (omega, alpha) or zero when singular.
+__device__ void lm_step(const float* terms, float lam, float* step) {
+  float M[5][6];
+  int q = 0;
+  for (int u = 0; u < 5; ++u)
+    for (int v = u; v < 5; ++v) {
+      M[u][v] = M[v][u] = terms[q++];
+    }
+  for (int u = 0; u < 5; ++u) {
+    M[u][u] += lam * fmaxf(M[u][u], 1e-12f);
+    M[u][5] = -terms[15 + u];
+  }
+  for (int c = 0; c < 5; ++c) {  // Gaussian elimination with partial pivoting
+    int piv = c;
+    for (int r = c + 1; r < 5; ++r)
+      if (fabsf(M[r][c]) > fabsf(M[piv][c])) piv = r;
+    if (piv != c)
+      for (int j = 0; j < 6; ++j) { float x = M[c][j]; M[c][j] = M[piv][j]; M[piv][j] = x; }
+    if (!(fabsf(M[c][c]) > 1e-30f)) {
+      for (int k = 0; k < 5; ++k) step[k] = 0.f;
+      return;
+    }
+    for (int r = c + 1; r < 5; ++r) {
+      float f = M[r][c] / M[c][c];
+      for (int j = c; j < 6; ++j) M[r][j] -= f * M[c][j];
+    }
+  }
+  for (int r = 4; r >= 0; --r) {
+    float x = M[r][5];
+    for (int j = r + 1; j < 5; ++j) x -= M[r][j] * step[j];
+    step[r] = x / M[r][r];
+  }
+  for (int k = 0; k < 5; ++k)
+    if (!isfinite(step[k])) {
+      for (int j = 0; j < 5; ++j) step[j] = 0.f;
+      return;
+    }
+}
+// Thread 0: apply the step: R_new = R exp([omega]_x), t_new = normalise(t + a1 b1 + a2 b2).
+__device__ void lm_apply(const float* R, const float* t, const float* step, const float* b1, const float* b2,
+                         float* Rn, float* tn) {
+  float th = sqrtf(step[0] * step[0] + step[1] * step[1] + step[2] * step[2]);
+  float Rw[9] = {1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f};
+  if (th > 1e-12f) {
+    float k[3] = {step[0] / th, step[1] / th, step[2] / th}, K[9], K2[9];
+    cross_mat(k, K);
+    mat_mul(K, K, K2);
+    float s = sinf(th), c = 1.f - cosf(th);
+    for (int i = 0; i < 9; ++i) Rw[i] += s * K[i] + c * K2[i];
+  }
+  mat_mul(R, Rw, Rn);
+  for (int i = 0; i < 3; ++i) tn[i] = t[i] + step[3] * b1[i] + step[4] * b2[i];
+  float inv = rsqrtf(fmaxf(tn[0] * tn[0] + tn[1] * tn[1] + tn[2] * tn[2], 1e-24f));
+  for (int i = 0; i < 3; ++i) tn[i] *= inv;
+}
+extern "C" __global__ void lm_refine(const float* __restrict__ pts, const int* __restrict__ counts,
+                                     const float* __restrict__ thr2, const int* __restrict__ pairs,
+                                     float* __restrict__ rt, int iterations, int N, int n) {
+  __shared__ float sR[9], st[3], sRn[9], stn[3], sE[9], sEn[9], sD[45], sb1[3], sb2[3], sStep[5];
+  __shared__ float sLam, sBest;
+  __shared__ float red[8][NT];
+  const int a = blockIdx.x, pair = pairs[a];
+  const int tot = min(n, counts[pair]);
+  const float4* p = (const float4*)(pts + (long long)pair * N * 4);
+  const float t2 = thr2[pair];
+  if (threadIdx.x < 9) sR[threadIdx.x] = rt[a * 12 + threadIdx.x];
+  else if (threadIdx.x < 12) st[threadIdx.x - 9] = rt[a * 12 + threadIdx.x];
+  if (threadIdx.x == 0) {
+    sLam = 1e-3f;
+    lm_linearise(sR, st, sE, sD, sb1, sb2);
+  }
+  __syncthreads();
+  float acc[NT];
+  acc[0] = thread_cost(p, tot, sE, t2);
+  block_sum(acc, 1, red);
+  if (threadIdx.x == 0) sBest = red[0][0];
+  for (int it = 0; it < iterations; ++it) {
+    lm_accumulate(p, tot, sE, sD, t2, acc);
+    block_sum(acc, NT, red);
+    if (threadIdx.x == 0) {
+      lm_step(red[0], sLam, sStep);
+      lm_apply(sR, st, sStep, sb1, sb2, sRn, stn);
+      float tx[9];
+      cross_mat(stn, tx);
+      mat_mul(tx, sRn, sEn);
+    }
+    __syncthreads();
+    acc[0] = thread_cost(p, tot, sEn, t2);
+    block_sum(acc, 1, red);
+    if (threadIdx.x == 0) {
+      if (red[0][0] < sBest) {
+        sBest = red[0][0];
+        for (int i = 0; i < 9; ++i) sR[i] = sRn[i];
+        for (int i = 0; i < 3; ++i) st[i] = stn[i];
+        sLam = fmaxf(sLam * 0.1f, 1e-6f);
+        lm_linearise(sR, st, sE, sD, sb1, sb2);
+      } else {
+        sLam = fminf(sLam * 10.f, 1e6f);
+      }
+    }
+    __syncthreads();
+  }
+  if (threadIdx.x < 9) rt[a * 12 + threadIdx.x] = sR[threadIdx.x];
+  else if (threadIdx.x < 12) rt[a * 12 + threadIdx.x] = st[threadIdx.x - 9];
 }

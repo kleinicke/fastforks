@@ -150,3 +150,46 @@ def test_matches_from_result():
     assert none.shape == (5, 2)
     with pytest.raises(InputError):
         MatchingResult(warp, torch.zeros(h, w), "test@1", "portable").matches(5)
+
+
+def _scorer_inputs(device: str, p: int = 4, n: int = 600) -> tuple:
+    """A scene in normalised coordinates with a perturbed essential matrix to refine."""
+    p1, p2, k, r, t, _ = scene(p, n, outliers=0.5, device=device)
+    x1, x2 = rp._normalise(p1, k), rp._normalise(p2, k)
+    valid = torch.ones(p, n, dtype=torch.bool, device=x1.device)
+    thr2 = torch.full((p,), (3.0 / F) ** 2, device=x1.device)
+    gen = torch.Generator(x1.device).manual_seed(1)
+    r_p = r @ rp._rodrigues(torch.randn(p, 3, device=x1.device, generator=gen) * 0.003)
+    e = (rp._cross(t + torch.randn(p, 3, device=x1.device, generator=gen) * 0.01) @ r_p).reshape(p, 9)
+    e_true = (rp._cross(t) @ r).reshape(p, 9)
+    return x1, x2, valid, thr2, e, e_true
+
+
+def test_refine_lowers_cost():
+    x1, x2, valid, thr2, e, e_true = _scorer_inputs("cpu")
+    scorer = rp._TorchScorer(x1, x2, valid, thr2)
+    pairs = torch.arange(4)
+    before, true = scorer.cost(pairs, e), scorer.cost(pairs, e_true)
+    after = scorer.cost(pairs, scorer.refine(pairs, e, 10))
+    assert (after < before).all()
+    assert (after < true * 1.05).all()  # within noise of the true pose
+    # the kernel's terms agree with the torch chain's cost definition
+    jtj, jtr, cost = scorer.lm_terms(pairs, e, torch.randn(4, 9, 5))
+    assert torch.allclose(cost, before)
+    assert torch.allclose(jtj, jtj.transpose(1, 2))
+    assert jtr.shape == (4, 5)
+
+
+@pytest.mark.gpu
+def test_kernel_refine_matches_portable():
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    from fastforks.kernels import ransac  # noqa: PLC0415 - optional at import time
+
+    x1, x2, valid, thr2, e, _ = _scorer_inputs("cuda", n=2000)
+    pairs = torch.arange(4, device="cuda")
+    torch_scorer = rp._TorchScorer(x1, x2, valid, thr2)
+    kernel_scorer = rp._KernelScorer(ransac.load(x1.device), x1, x2, valid, thr2)
+    a, b = torch_scorer.refine(pairs, e, 10), kernel_scorer.refine(pairs, e, 10)
+    assert torch.allclose(torch_scorer.cost(pairs, a), kernel_scorer.cost(pairs, b), rtol=1e-3)
+    assert torch.minimum((a - b).norm(dim=1), (a + b).norm(dim=1)).max() < 1e-3

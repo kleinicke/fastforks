@@ -1,8 +1,9 @@
 """Essential-matrix RANSAC kernels (`ransac.cu`) for `fastforks.matching.estimate_pose`.
 
 `e5pt_hypotheses`: one thread per five-match sample, Nister's five-point solver in registers (up to ten E per sample).
-`score_many` / `score_few`: Sampson inlier counts of many (one thread each) or few (one block each) candidate E
-against a pair's matches; `score_few` also writes the inlier mask.
+`score_many` / `score_few`: MSAC scores (truncated quadratic Sampson loss) and inlier counts of many (one thread
+each) or few (one block each) candidate E against a pair's matches; `score_few` also writes the inlier mask.
+`lm_refine`: Levenberg-Marquardt of (R, t) per pair on the truncated Sampson cost, all iterations in one launch.
 """
 
 from __future__ import annotations
@@ -14,7 +15,12 @@ import torch
 from fastforks._core.kernels import CubinModule, cubin_library, linear
 
 # p: pointer, i: int32, l: int64, f: float32 (must match the extern "C" kernels in ransac.cu)
-SIGNATURES = {"e5pt_hypotheses": "pppppiii", "score_many": "ppppppiii", "score_few": "pppppppiii"}
+SIGNATURES = {
+    "e5pt_hypotheses": "pppppiii",
+    "score_many": "pppppppiii",
+    "score_few": "ppppppppiii",
+    "lm_refine": "pppppiii",
+}
 THREADS = 256
 MANY = 64  # candidates per pair from which the one-thread-per-candidate kernel wins
 
@@ -42,18 +48,23 @@ def score(  # noqa: PLR0913, PLR0917 - the kernel's arguments
     pairs: torch.Tensor,
     e: torch.Tensor,
     n: int,
-) -> torch.Tensor:
-    """Inlier counts `[A, C]` (int32) of the candidates `e` `[A, C, 9]` on the first `n` matches of `pts[pairs]`."""
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """MSAC scores (float32) and inlier counts (int32), `[A, C]` each, of the candidates `e` `[A, C, 9]`.
+
+    Scored on the first `n` matches of `pts[pairs]`.
+    """
     a, c, _ = e.shape
     big_n = pts.shape[1]
     e = e.contiguous()
-    out = torch.empty(a, c, device=pts.device, dtype=torch.int32)
+    out = torch.empty(a, c, device=pts.device, dtype=torch.float32)
+    cnt = torch.empty(a, c, device=pts.device, dtype=torch.int32)
     if c >= MANY:
         grid = ((c + THREADS - 1) // THREADS, a, 1)
-        lib.launch("score_many", grid, (THREADS, 1, 1), pts, counts, thr2, pairs, e, out, big_n, c, n)
+        lib.launch("score_many", grid, (THREADS, 1, 1), pts, counts, thr2, pairs, e, out, cnt, big_n, c, n)
     else:
-        lib.launch("score_few", (c, a, 1), (THREADS, 1, 1), pts, counts, thr2, pairs, e, out, None, big_n, c, n)
-    return out
+        args = (pts, counts, thr2, pairs, e, out, cnt, None, big_n, c, n)
+        lib.launch("score_few", (c, a, 1), (THREADS, 1, 1), *args)
+    return out, cnt
 
 
 def inlier_masks(
@@ -63,7 +74,27 @@ def inlier_masks(
     p, n = pts.shape[:2]
     e = e.contiguous()
     pairs = torch.arange(p, device=pts.device, dtype=torch.int32)
-    out = torch.empty(p, device=pts.device, dtype=torch.int32)
+    out = torch.empty(p, device=pts.device, dtype=torch.float32)
+    cnt = torch.empty(p, device=pts.device, dtype=torch.int32)
     mask = torch.empty(p, n, device=pts.device, dtype=torch.uint8)
-    lib.launch("score_few", (1, p, 1), (THREADS, 1, 1), pts, counts, thr2, pairs, e, out, mask, n, 1, n)
+    lib.launch("score_few", (1, p, 1), (THREADS, 1, 1), pts, counts, thr2, pairs, e, out, cnt, mask, n, 1, n)
     return mask.bool()
+
+
+def lm_refine(  # noqa: PLR0913, PLR0917 - the kernel's arguments
+    lib: CubinModule,
+    pts: torch.Tensor,
+    counts: torch.Tensor,
+    thr2: torch.Tensor,
+    pairs: torch.Tensor,
+    rt: torch.Tensor,
+    iterations: int,
+) -> torch.Tensor:
+    """Levenberg-Marquardt of the poses `rt` `[A, 12]` (`R` row-major, unit `t`; `E = [t]_x R`).
+
+    Minimises the truncated Sampson cost of `pts[pairs]`, every iteration inside the kernel. Returns the refined poses.
+    """
+    out = rt.contiguous().clone()
+    n = pts.shape[1]
+    lib.launch("lm_refine", (out.shape[0], 1, 1), (THREADS, 1, 1), pts, counts, thr2, pairs, out, iterations, n, n)
+    return out
