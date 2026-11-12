@@ -1,0 +1,44 @@
+schema = 2
+name = "DepthSplat"
+summary = "DepthSplat (Xu et al. 2025): feed-forward 3D Gaussian splatting and depth from posed, calibrated images. A multi-view cost volume (UniMatch transformer, 2D U-Net) fused with a monocular DINOv2 ViT-S predicts every view's depth; a DPT feature upsampler and a Gaussian head predict one Gaussian per pixel (opacity, scale, rotation, degree-2 SH) in the given world frame (`result.gaussians`, `.save(\"scene.ply\")`). Forward pass only: no renderer."
+tier = "experimental"
+uses = ["depth_anything_v2"]  # shared modules imported directly by this family (DINOv2)
+outputs = ["depth", "confidence", "gaussians"]  # confidence: largest match probability over the depth candidates; gaussians: MultiViewResult.gaussians (not a map)
+
+licence_notes = [
+  "Only the Small RealEstate10K checkpoint is shipped: MIT code and weights, its monocular branch initialised from Depth Anything V2 Small (Apache-2.0). The Base / Large checkpoints build on Depth Anything V2 Base / Large (CC-BY-NC-4.0) and are not offered.",
+]
+
+[output]
+kind = "metric"  # in the units of the given cam_to_world and depth_range (scaled internally to near = 1, the training bounds; the network is not scale invariant)
+
+[upstream]
+repo = "https://github.com/cvg/depthsplat"
+commit = "2dad25a"
+
+[licence]
+code = "MIT"  # LICENSE (Haofei Xu)
+weights = "MIT"  # the repository licence covers the released checkpoints (README: model zoo); DAv2-Small init is Apache-2.0
+files = ["LICENSE"]
+training_data = ["realestate10k"]
+training_note = "RealEstate10K (YouTube videos, camera poses from ORB-SLAM; research use per its release), from a UniMatch depth / Depth Anything V2 Small initialisation."
+evidence = "https://github.com/cvg/depthsplat/blob/2dad25a7b9ba7c5537aba08463ef88d8511a06be/LICENSE and https://github.com/cvg/depthsplat/blob/2dad25a7b9ba7c5537aba08463ef88d8511a06be/MODEL_ZOO.md and https://huggingface.co/haofeixu/depthsplat/tree/ed5116c11f7932fff3714989e2b65716730f6f87"
+
+[io]
+input = "0-1"  # the runner resizes (long side long_side, multiples of 16, bicubic antialiased; upstream: 256 x 256 crops)
+pad = "none"
+
+[options]
+long_side = { default = 256, min = 16 }  # network long side (the checkpoint was trained at 256 x 256)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "cudnn_hacc"]
+
+[[variants]]
+id = "depthsplat-small-re10k"
+revision = 1
+weights = [{ name = "depthsplat-gs-small-re10k-256x256-view2-cfeab6b1.pth", size = 153661476, sha256 = "cfeab6b10077ad9bd4097b82b029737221bfbbbd3b4dfca5fc0feaf860276506", url = "https://huggingface.co/haofeixu/depthsplat/resolve/ed5116c11f7932fff3714989e2b65716730f6f87/depthsplat-gs-small-re10k-256x256-view2-cfeab6b1.pth" }]

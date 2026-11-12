@@ -966,6 +966,7 @@ class _Local:
 
     flag = False  # no mixed-precision option of its own: fp16 = torch.autocast around the call
     trimap = "unused"  # matting: "required" adds the bench's synthetic trimap to the call
+    cameras = "unused"  # multiview: "required" adds the bench rig's intrinsics, cam_to_world and depth range
 
     def __init__(
         self,
@@ -1003,7 +1004,9 @@ class _Local:
             device=torch.device("cuda"),
             needs_boxes=self.needs_boxes,
             prompts=(),
-            _runner=types.SimpleNamespace(intrinsics="unused", trimap=self.trimap),
+            _runner=types.SimpleNamespace(
+                intrinsics=self.cameras, cam_to_world=self.cameras, depth_range=self.cameras, trimap=self.trimap
+            ),
         )
         out = []
         for h, w in self.sizes:
@@ -1163,6 +1166,45 @@ def _anysplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - a
     return call
 
 
+class _LocalCameras(_LocalFp16):
+    """A calibrated multiview original: called with the images, intrinsics, cam_to_world and the depth range."""
+
+    cameras = "required"
+
+
+def _depthsplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream DepthSplat's `EncoderDepthSplat` as `tools/golden/depthsplat.py` (the runner's resizing, long side 256).
+
+    `FF_DEPTHSPLAT_REPO`: a checkout with the pinned commit; `FF_DEPTHSPLAT_HUB`: a local copy of the
+    `facebookresearch/dinov2` hub code; `FF_DEPTHSPLAT_SITE`: `einops`, `jaxtyping`, `e3nn` (upstream imports them).
+    Upstream has no mixed precision of its own: fp16 = `torch.autocast(float16)` around the call.
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    site = os.environ.get("FF_DEPTHSPLAT_SITE")
+    if site and site not in sys.path:
+        sys.path.append(site)
+    g = _golden("depthsplat")
+    card, variant = registry.resolve("multiview", full)
+    (weights,) = registry.weights(card, variant)
+    enc = g.network(Path(os.environ["FF_DEPTHSPLAT_REPO"]), Path(weights), Path(os.environ["FF_DEPTHSPLAT_HUB"]))
+    enc = enc.cuda()
+    a.note = f"cvg/depthsplat@{g.REF_COMMIT[:12]} EncoderDepthSplat, long side {g.LONG_SIDE}"
+
+    def call(images: Any, k: Any, c2w: Any, depth_range: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 or 0-1
+        x = images.float() / 255 if images.dtype == torch.uint8 else images.float()
+        near, far = (float(d) for d in depth_range)
+        with torch.autocast("cuda", torch.float16, enabled=fp16):
+            out = g.infer(enc, x, (k.float(), c2w.float(), near, far), g.LONG_SIDE)[0]
+        depth = out["depths"][0][:, None].float()  # back in the input units (`infer`)
+        return F.interpolate(depth, x.shape[2:], mode="bilinear", align_corners=False)[:, 0]
+
+    return call
+
+
 class _LocalTrimap(_LocalFp16):
     """A trimap-guided matting original: called with the image and the bench's synthetic trimap."""
 
@@ -1231,6 +1273,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),
+    "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),
 }
 
 

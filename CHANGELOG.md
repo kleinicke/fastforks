@@ -7,6 +7,12 @@
   upstream. 8 views 336x518: 364 ms kernels, 504 ms portable (427 ms compile, 314 ms TensorRT) vs 1769 ms original
   fp32 (741 ms bf16), peak 5.2 GB vs 7.6 GB. DTU (5 scans, median-scaled) AbsRel 0.0108 for kernels, portable and the original.
 
+- DepthSplat feed-forward Gaussian splatting (`depthsplat-small-re10k`, multiview; MIT code and weights): posed,
+  calibrated views with a depth range to depth and `result.gaussians`. The network is not scale invariant; the scene
+  is scaled to near = 1 (upstream's RealEstate10K bounds) and back. 8 views 336x518: 120 ms kernels, 119 ms portable,
+  82 ms compile, 86 ms TensorRT vs 177 ms original fp32 (127 ms fp16), peak 5.7 GB vs 5.8 GB. DTU (5 scans,
+  calibrated) AbsRel 0.0974 kernels vs 0.0992 original fp32 (0.0974 fp16).
+
 - TAPNext point tracking (`tapnext`, `tapnext-pp`, new `tracking` task; Apache-2.0 code and weights): `model(video,
   queries)` returns `tracks` `[T, Q, 2]` and `visible` `[T, Q]` for `(t, x, y)` queries, online one frame at a time
   as upstream. 24-frame 480x854 video, 256 queries: 382 ms kernels, 529 ms portable vs 1541 ms original fp32;

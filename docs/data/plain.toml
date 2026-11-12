@@ -141,6 +141,7 @@ tipsv2 = "Google DeepMind's TIPSv2 image encoders (B, L): image features aligned
 
 # --- multiview
 anysplat = "AnySplat (InternRobotics): 3D Gaussian splats, cameras and depth from unposed images in one pass; saves a 3DGS .ply. MIT."
+depthsplat = "DepthSplat (ETH Zurich / cvg): 3D Gaussian splats and depth from several posed images in one pass; saves a 3DGS .ply. MIT (Small checkpoint)."
 mapanything = "MapAnything (Meta): metric 3D reconstruction (cameras and depth) from several unposed images in one pass. Commercially usable (Apache variant)."
 mvsanywhere = "MVSAnywhere (Niantic): depth of a reference view from several posed images, for any scene type. Non-commercial licence."
 patchmatchnet = "PatchmatchNet by Fangjinhua Wang et al.: learned PatchMatch multi-view stereo, depth from posed images."

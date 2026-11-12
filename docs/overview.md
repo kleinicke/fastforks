@@ -498,7 +498,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Multiview
 
-6 models; each at its own benchmark input (views x size in Benchmarks).
+7 models; each at its own benchmark input (views x size in Benchmarks).
 
 - Fastest: [`patchmatchnet`](models/multiview.md#patchmatchnet) (29.6 ms).
 - Fastest commercially usable: [`patchmatchnet`](models/multiview.md#patchmatchnet) (29.6 ms).
@@ -507,6 +507,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 |---|---|---|---|---|---|---|
 | [`patchmatchnet`](models/multiview.md#patchmatchnet) | yes | 219.7 (1536x1024) | 201.7 | 29.6 | 7.4x vs original (1536x1024) | 740 |
 | [`mvsanywhere`](models/multiview.md#mvsanywhere) | no | 218.7 (448x672) | 93.2 | 35.2 | 6.2x vs original (448x672) | 702 |
+| [`depthsplat-small-re10k`](models/multiview.md#depthsplat) | yes | 126.5 (336x518) | 118.9 | 119.7 | 1.1x vs original (336x518) | 5479 |
 | [`anysplat`](models/multiview.md#anysplat) | yes | 741.2 (336x518) | 503.5 | 363.8 | 2.0x vs original (336x518) | 4852 |
 | [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 651.2 | 458.4 | 2.1x vs original (336x518) | 3702 |
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 464.4 | 2.0x vs original (336x518) | 3422 |
