@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`romav2`](#romav2) | yes | 411.987, 1.8x | 2944, 0.29x |
+| [`romav2`](#romav2) | yes | 405.85, 1.8x | 2580, 0.25x |
 
 <a id="romav2"></a>
 
@@ -24,7 +24,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `romav2` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1412<br>741<br>552<br>412<br>576<br>353 | 11159 / 11606<br>9881 / 10124<br>2737 / 3160<br>2737 / 2944<br>3150 / 3386<br>5702 (engine) |
+| `romav2` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1412<br>741<br>546<br>406<br>576<br>353 | 11159 / 11606<br>9881 / 10124<br>1989 / 2596<br>1909 / 2580<br>3150 / 3386<br>5702 (engine) |
 
 <details><summary>Details</summary>
 
@@ -43,7 +43,7 @@ Commercial use: yes.
 - `romav2` 768x1024, first call: portable + torch.compile 254 s (cold Inductor cache), TensorRT fp16 185 s (ONNX + engine).
 - `romav2` original (fp32) 768x1024: upstream RoMaV2.match; local correlation: upstream's plain-torch path (no fused-local-corr)
 - `romav2` original 768x1024: the authors' mixed-precision option (bfloat16); upstream RoMaV2.match; local correlation: upstream's plain-torch path (no fused-local-corr)
-- `romav2` load / first call: original 5.45 s / 2.091 s, portable 0.88 s / 0.925 s, kernels 1.51 s / 0.82 s
+- `romav2` load / first call: original 5.45 s / 2.091 s, portable 0.85 s / 0.913 s, kernels 1.5 s / 0.812 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

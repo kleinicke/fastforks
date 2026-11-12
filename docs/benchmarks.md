@@ -923,7 +923,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
-| romav2 | 1412 | 741 | 552 | 412 | 1.8x | 1.3x | 9881 / 10124 | 2737 / 3160 | 2737 / 2944 |
+| romav2 | 1412 | 741 | 546 | 406 | 1.8x | 1.3x | 9881 / 10124 | 1989 / 2596 | 1909 / 2580 |
 
 ### Startup and first call
 
@@ -1317,7 +1317,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | sea-raft-s | 0.30 | 0.05 | 1.10 | 0.30 | 0.23 | 0.05 |
 | sea-raft-s-kitti | 0.30 | 0.05 | 1.10 | 0.30 | 0.23 | 0.05 |
 | sea-raft-s-spring | 0.31 | 0.05 | 1.11 | 0.04 | 0.04 | 0.02 |
-| romav2 | 5.45 | 0.88 | 1.51 | 2.09 | 0.93 | 0.82 |
+| romav2 | 5.45 | 0.85 | 1.50 | 2.09 | 0.91 | 0.81 |
 
 † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 <!-- tables:end -->
@@ -1678,7 +1678,7 @@ scene; "only" marks engines of part of the call) and its memory is the device me
 | sea-raft-s | 1080x1920 | 226 ms | 150 ms | 108 ms | 50.4 ms | 35.4 s | 68.0 s | 8292 / 8354 | 5828 / 5876 | 415 / 492 | 10866 |
 | sea-raft-s-kitti | 1080x1920 | 226 ms | 150 ms | 108 ms | 50.5 ms | 31.8 s | 67.3 s | 8292 / 8354 | 5828 / 5876 | 415 / 492 | 10866 |
 | sea-raft-s-spring | 1080x1920 | 37.1 ms | 23.8 ms | 3.01 ms | 16.0 ms | 21.9 s | 38.8 s | 672 / 714 | 582 / 596 | 160 / 192 | 86 |
-| romav2 | 768x1024 | 552 ms | 576 ms | 353 ms | 412 ms | 254 s | 185 s | 2737 / 3160 | 3150 / 3386 | 2737 / 2944 | 5702 |
+| romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 406 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2580 | 5702 |
 <!-- compile:end -->
 
 ## Original code

@@ -137,6 +137,17 @@ class ConvRefiner(nn.Module):
         self.warp_head = nn.Conv2d(hidden_dim, cfg.warp_dim, 1, 1, 0)
         self.confidence_head = nn.Conv2d(hidden_dim, cfg.confidence_dim, 1, 1, 0)
 
+    def _project(self, f: torch.Tensor) -> torch.Tensor:
+        """Upstream `self.proj(f.float())` (float32); a half-precision map is cast in row chunks of at most 64 MB."""
+        B, H, W, D = f.shape
+        if f.dtype == torch.float32:
+            return self.proj(f.reshape(B, H * W, D)).reshape(B, H, W, self.cfg.proj_dim)
+        out = torch.empty(B, H, W, self.cfg.proj_dim, dtype=torch.float32, device=f.device)
+        rows = max(1, 2**24 // (B * W * D))
+        for i in range(0, H, rows):
+            out[:, i : i + rows] = self.proj(f[:, i : i + rows].float())
+        return out
+
     def forward(
         self,
         *,
@@ -157,12 +168,8 @@ class ConvRefiner(nn.Module):
             f"Config feature dimension {self.cfg.feat_dim=} must be the same as the input feature dimension {D=}"
         )
 
-        f_A = self.proj(f_A.reshape(B, H_A * W_A, self.cfg.feat_dim).float()).reshape(
-            B, H_A, W_A, self.cfg.proj_dim
-        )
-        f_B = self.proj(f_B.reshape(B, H_B * W_B, self.cfg.feat_dim).float()).reshape(
-            B, H_B, W_B, self.cfg.proj_dim
-        )
+        f_A = self._project(f_A)
+        f_B = self._project(f_B)
         with torch.no_grad():
             f_BA = bhwc_grid_sample(
                 f_B, prev_warp, mode=self.cfg.grid_sample_mode, align_corners=False
@@ -176,21 +183,30 @@ class ConvRefiner(nn.Module):
         # Corr in other means take a kxk grid around the predicted coordinate in other image
         f_A_bdhw = f_A.permute(0, 3, 1, 2)
         f_BA_bdhw = f_BA.permute(0, 3, 1, 2)
-        d = torch.cat((f_A_bdhw, f_BA_bdhw, emb_in_displacement), dim=1)
+        parts = [f_A_bdhw, f_BA_bdhw, emb_in_displacement]
         if self.cfg.local_corr_radius is not None and self.correlate is not None:
-            d = torch.cat((d, self.correlate(f_A, f_B, prev_warp, self.cfg.local_corr_radius)), dim=1)
+            parts.append(self.correlate(f_A, f_B, prev_warp, self.cfg.local_corr_radius))
         elif self.cfg.local_corr_radius is not None:
-            local_corr = local_correlation(
+            parts.append(local_correlation(
                 f_A_bdhw,
                 f_B.permute(0, 3, 1, 2),
                 local_radius=self.cfg.local_corr_radius,
                 warp=prev_warp,
                 scale_factor=scale_factor,
-            )
-            d = torch.cat((d, local_corr), dim=1)
+            ))
+        # fastforks: upstream concatenates in float32 and the first block's autocast casts the result; here the
+        # parts are cast while they are copied into the block dtype (the same rounding, half the tensor, no float32
+        # copy), and the parts are dropped before the blocks run.
+        d = torch.empty(B, self.hidden_dim, H_A, W_A, dtype=self.block1.amp or f_A.dtype, device=f_A.device)
         if self.cfg.channels_last:
             d = d.to(memory_format=torch.channels_last)
+        c = 0
+        for part in parts:
+            d[:, c : c + part.shape[1]].copy_(part)
+            c += part.shape[1]
+        del parts, f_A, f_B, f_BA, f_A_bdhw, f_BA_bdhw, emb_in_displacement, in_displacement, in_displacement_bdhw
         z = self.block1(d)
+        del d
         z = self.hidden_blocks(z)
         z = z.float()
 

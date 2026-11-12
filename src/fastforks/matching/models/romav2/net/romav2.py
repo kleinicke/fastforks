@@ -64,6 +64,7 @@ class RoMaV2(nn.Module):
         matcher_output = self.matcher(f_A, f_B, img_A=img_A_lr, img_B=img_B_lr, bidirectional=bidirectional)
         warp_AB, confidence_AB = matcher_output["warp_AB"], matcher_output["confidence_AB"]
         warp_BA, confidence_BA = matcher_output["warp_BA"], matcher_output["confidence_BA"]
+        del f_A, f_B, matcher_output  # fastforks: the descriptors and the attention maps are not needed any more
         stages = [(img_A_lr, img_B_lr)] + ([(img_A_hr, img_B_hr)] if img_A_hr is not None else [])
         for stage, (img_A, img_B) in enumerate(stages):
             B, C, H, W = img_A.shape
@@ -77,8 +78,9 @@ class RoMaV2(nn.Module):
                     warp=warp_AB, confidence=confidence_AB, H=H, W=W, patch_size=patch_size,
                     zero_out_precision=zero_out_precision,
                 )
-                f_patch_A = refiner_features_A[patch_size]
-                f_patch_B = refiner_features_B[patch_size]
+                # fastforks: each stride map is consumed once per stage; popping frees it before the next refiner
+                f_patch_A = refiner_features_A.pop(patch_size)
+                f_patch_B = refiner_features_B.pop(patch_size)
                 out = refiner(
                     f_A=f_patch_A, f_B=f_patch_B, prev_warp=warp_AB, prev_confidence=confidence_AB,
                     scale_factor=scale_factor,

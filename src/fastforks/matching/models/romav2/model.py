@@ -11,7 +11,8 @@ On CUDA the validated dtype is bfloat16 as upstream (`enable_amp=True`): the DIN
 bf16 autocast, and the multi-view ViT, the DPT head, the VGG features and the refiner blocks under bf16 autocast;
 matching, the local correlation and the warps stay float32. float32 is upstream with `enable_amp=False` (and the DPT
 head and VGG autocasts, which upstream cannot switch off, off). On CUDA the eval BatchNorms are folded
-into their convs and the VGG and refiner activations are channels-last (the refiners' 1x1 convs as GEMMs).
+into their convs, the VGG and refiner activations are channels-last (the refiners' 1x1 convs as GEMMs) and the
+linear / conv weights of the bf16 regions are stored in bf16 (`cast_autocast_weights`).
 """
 
 from __future__ import annotations
@@ -79,6 +80,22 @@ def fold_batch_norms(net: RoMaV2) -> None:
             m.conv_depthwise, m.norm = fuse_conv_bn_eval(m.conv_depthwise, m.norm), nn.Identity()
 
 
+def cast_autocast_weights(net: RoMaV2, dtype: torch.dtype) -> None:
+    """Linear / conv weights inside the autocast regions in `dtype`; norms stay float32.
+
+    The multi-view ViT, the DPT head up to its float32 output conv, the VGG and the refiner blocks: autocast casts
+    these weights to `dtype` on every call anyway, so the outputs are the same, without the float32 copies (-220 MB of
+    weights, no cast per call).
+    """
+    regions = [net.matcher.mv_vit, net.matcher.head, net.refiner_features]
+    regions += [m for m in net.modules() if isinstance(m, Block)]
+    skip = set(net.matcher.head.scratch.output_conv2.modules())  # after upstream's `out.float()`
+    for region in regions:
+        for m in region.modules():
+            if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)) and m not in skip:
+                m.to(dtype)
+
+
 class Portable(Runner):
     """Plain PyTorch; see the module docstring for the bf16 regions on CUDA."""
 
@@ -116,6 +133,8 @@ class Portable(Runner):
                     m.to(memory_format=torch.channels_last)
             net.refiner_features.channels_last = True  # NHWC VGG: no layout conversions around cuDNN (-5 % time)
             net.refiner_features.to(memory_format=torch.channels_last)
+            if ctx.dtype == "bfloat16":
+                cast_autocast_weights(net, torch.bfloat16)
         self.net = net
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
