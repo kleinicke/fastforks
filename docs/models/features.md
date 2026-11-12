@@ -527,7 +527,7 @@ Commercial use: yes.
 - Training data: LVD-1689M: 1.689B images curated from 17B public Instagram images by retrieval / clustering, self-supervised (no labels), per the paper; not released
 - Licence note: Code and weights use the DINOv3 License (Meta: attribution and conditions apply); read it before commercial use.
 - Options: `fp16_accumulate` = False (precision only)
-- Kernel libraries: `fastbb`
+- Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `dinov3-vits16`, `dinov3-vitb16`, `dinov3-vitl16`, `dinov3-vith16plus`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -562,10 +562,10 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `dinov3-vits16` | 0.00418 / 0.01399 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov3-vitb16` | 0.00562 / 0.01956 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov3-vitl16` | 0.00773 / 0.02994 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `dinov3-vith16plus` | 0.00567 / 0.0234 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `dinov3-vits16` | 0.00573 / 0.01974 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov3-vitb16` | 0.00548 / 0.01964 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov3-vitl16` | 0.00794 / 0.03182 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `dinov3-vith16plus` | 0.00635 / 0.03203 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 
