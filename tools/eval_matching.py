@@ -125,11 +125,18 @@ def sparse(ref: str) -> bool:
     return "pairs" in (variant.outputs or card.outputs)
 
 
+def sparse_options(ref: str) -> dict[str, int]:
+    """The options of a sparse matcher: glue-factory's setting, or the card defaults for `CARD_PROTOCOL`."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    return {} if registry.resolve("matching", ref)[0].family in CARD_PROTOCOL else SPARSE_OPTIONS
+
+
 def _fastforks(ref: str, mode: str) -> tuple[Any, str, dict]:
     import fastforks.matching as ff  # noqa: PLC0415
 
     dtype = "float32" if mode == "portable32" else None
-    options = SPARSE_OPTIONS if sparse(ref) else OPTIONS
+    options = sparse_options(ref) if sparse(ref) else OPTIONS
     model = ff.load(ref, mode=mode.removesuffix("32"), dtype=dtype, options=options)
     backend = {"mode": model.backend.mode, "dtype": str(model.backend.dtype), "kernels": list(model.backend.kernels)}
 
