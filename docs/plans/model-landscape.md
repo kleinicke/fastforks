@@ -408,7 +408,7 @@ batched RANSAC.
 
 | Kornia part | overlap with us | decision |
 |---|---|---|
-| `kornia.feature` pretrained (LoFTR, LightGlue, DISK, DeDoDe, ALIKED, XFeat, SOLD2, KeyNet, HardNet) | `matching` covers LightGlue, DISK, ALIKED, XFeat, LoFTR | compete on speed in `matching`; follow Kornia's keypoint and pixel-centre conventions; offer a small adapter so Kornia users can swap in our backend. DeDoDe v2 (MIT, weights unverified) is a P2 candidate; lines go through DeepLSD / GlueStick, SOLD2 is a P3 fallback at most |
+| `kornia.feature` pretrained (LoFTR, LightGlue, DISK, DeDoDe, ALIKED, XFeat, SOLD2, KeyNet, HardNet) | `matching` covers LightGlue, DISK, ALIKED, XFeat, LoFTR, DeDoDe v2 | compete on speed in `matching`; follow Kornia's keypoint and pixel-centre conventions; offer a small adapter so Kornia users can swap in our backend. DeDoDe v2 is ported (`dedode-v2-b`, `dedode-v2-g`); lines go through DeepLSD / GlueStick, SOLD2 is a P3 fallback at most |
 | `kornia.models` / `contrib` wrappers (SAM, RT-DETR, YuNet, DexiNed, Depth Anything, RRDBNet, SigLIP2) | all exist or are planned in fastforks | nothing new; their wrappers run eager PyTorch |
 | `kornia.geometry` (RANSAC, homography, epipolar, PnP, camera models, undistortion, Lie groups) | none; algorithms, not networks | ignore; see [roadmap.md](roadmap.md#geometry-sfm-ransac-bundle-adjustment-calibration) |
 | augmentation, filters, enhance, colour, morphology, losses, metrics | none | ignore; the bottleneck is launch overhead, which Kornia is attacking with CUDA graphs |

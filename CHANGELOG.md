@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- DeDoDe v2 sparse matching (`dedode-v2-b`, `dedode-v2-g`, matching; MIT code and weights, DINOv2 of -G
+  Apache-2.0): detector v2 + descriptor B or G, 10000 keypoints on a 784 x 784 square, dual-softmax matches as
+  keypoints plus index pairs. 768x1024 pair: `dedode-v2-b` 247 ms portable (164 ms compile) vs 561 ms original fp32
+  (318 ms fp16), peak 1.8 GB vs 3.3 GB; MegaDepth-1500 (every 10th) AUC@5/10/20 54.6/71.8/83.1 vs 57.3/71.6/82.5
+  original fp16. TensorRT export fails (data-dependent match counts).
+
 - AnySplat feed-forward Gaussian splatting (`anysplat`, multiview; MIT code and weights, VGGT License for the VGGT
   copy): unposed, uncalibrated views to cameras, depth and `result.gaussians` (`.save("scene.ply")`), voxel-fused as
   upstream. 8 views 336x518: 364 ms kernels, 504 ms portable (427 ms compile, 314 ms TensorRT) vs 1769 ms original

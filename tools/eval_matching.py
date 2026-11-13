@@ -21,7 +21,8 @@ The 1500 pairs of scenes 0015 and 0022 (LoFTR's test split; the glue-factory `me
 - Sparse matchers (LightGlue): one call image1 -> image2 at the protocol of LightGlue's MegaDepth-1500 table
   (glue-factory: `long_side` 1600, `max_keypoints` 2048); all its matches, once (`N_RUNS` 1), in the same 1200 px
   frame. `upstream` / `upstream16`: upstream `match_pair` (`tools/_original.py` `_lightglue`, `mp` off / on; needs
-  `FF_LIGHTGLUE_REPO` and kornia).
+  `FF_LIGHTGLUE_REPO` and kornia). LoFTR and DeDoDe (`CARD_PROTOCOL`): their card defaults (their papers' setting);
+  originals `_loftr` (float32 only) / `_dedode` (`upstream16`: upstream's float16 autocast).
 - `score` (CPU): per sampling OpenCV `findEssentialMat` RANSAC (threshold 0.5 px over the mean focal length, confidence
   0.99999) and `recoverPose`, error = max(angle error of R, of t up to sign); 90 degrees if RANSAC fails. AUC@5/10/20
   over the 7500 errors (upstream `pose_auc`). Appends one row to `--out`.
@@ -54,6 +55,7 @@ OPTIONS = {"coarse_size": 800, "fine_size": 1024}  # upstream setting "mega1500"
 N_MATCHES, N_RUNS, LONG_SIDE, THRESHOLD, MIN_DENSITY = 5000, 5, 1200, 0.05, 10
 FIVE = 5  # pose_error: the essential matrix needs 5 correspondences
 SPARSE_OPTIONS = {"long_side": 1600, "max_keypoints": 2048}  # glue-factory's megadepth1500 setting of LightGlue
+CARD_PROTOCOL = ("loftr", "dedode")  # sparse families whose card defaults are their papers' MegaDepth-1500 setting
 ORIGINAL = {"upstream": ("upstream", "original fp32"), "upstream16": ("upstream-fp16", "original fp16")}
 
 
@@ -147,9 +149,25 @@ def _original(ref: str, mode: str) -> tuple[Any, str, dict]:
     if sparse(ref):
         import types  # noqa: PLC0415
 
-        from _original import _lightglue, _xfeat  # noqa: PLC0415  # tools/
+        from _original import _dedode, _lightglue, _loftr, _xfeat  # noqa: PLC0415  # tools/
 
         fp16 = mode == "upstream16"
+        family = registry.resolve("matching", ref)[0].family
+        if family in CARD_PROTOCOL:  # DeDoDe: upstream's float16 autocast as its fp16; LoFTR: float32 only
+            if family == "loftr" and fp16:
+                msg = "upstream LoFTR has no inference precision option: use --mode upstream"
+                raise SystemExit(msg)
+            run = (
+                _dedode(types.SimpleNamespace(), ref, fp16)
+                if family == "dedode"
+                else _loftr(types.SimpleNamespace(), ref)
+            )
+
+            def matched(a: torch.Tensor, b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+                r = run(a, b)
+                return r["keypoints1"][r["pairs"][:, 0]].float(), r["keypoints2"][r["pairs"][:, 1]].float()
+
+            return matched, "float16" if fp16 else "float32", {"note": f"upstream {family}, card defaults"}
         if registry.resolve("matching", ref)[0].family == "xfeat":  # no fp16 option of its own: autocast
             run = _xfeat(types.SimpleNamespace(), ref, options=SPARSE_OPTIONS)
 

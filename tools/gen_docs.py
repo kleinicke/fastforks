@@ -81,6 +81,7 @@ _DATASETS = {
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
+        "megadepth1500-every10": "MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees",
     },
     "matting": {
         "dis-vd": "DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta",
@@ -182,9 +183,10 @@ _PROTOCOL = {
     "from the camera baselines). ",
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
-    "matching": "5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling), "
-    "OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the "
-    "rotation and translation-direction errors. ",
+    "matching": "Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE "
+    "sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; "
+    "LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean "
+    "focal length); AUC of the larger of the rotation and translation-direction errors. ",
     ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
     "pair. ",
     "tracking": "TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model, one query per track at "

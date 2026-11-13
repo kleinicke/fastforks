@@ -837,6 +837,65 @@ def _lightglue(a: Any, full: str, fp16: bool, options: dict[str, Any] | None = N
     return call
 
 
+def _dedode(a: Any, full: str, fp16: bool, options: dict[str, Any] | None = None) -> Any:  # noqa: ANN401, FBT001
+    """Upstream DeDoDe v2 detector + descriptor + `DualSoftMaxMatcher` as `tools/golden/dedode.py` (card `options`).
+
+    fp16: upstream's default on CUDA (float16 autocast, float16 DINOv2 for -G); off: float32. Needs a `FF_DEDODE_REPO`
+    checkout with the pinned commit. The call returns keypoints1, keypoints2, pairs, scores.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("dedode")
+    card, variant = registry.resolve("matching", full)
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_DEDODE_REPO"]), g.REF_COMMIT)))
+    files = registry.weights(card, variant, allow_download=False)
+    params = dict(card.params) | dict(variant.params) | dict(card.options) | (options or {})
+    run = g.build(files, params, amp=fp16, device=torch.device("cuda"))
+    a.note = f"upstream DeDoDe-L v2 + descriptor {params['descriptor']}, {params['max_keypoints']} keypoints"
+
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        return run(img1.float() / 255, img2.float() / 255)
+
+    return call
+
+
+def _loftr(a: Any, full: str, options: dict[str, Any] | None = None) -> Any:  # noqa: ANN401
+    """Upstream `LoFTR` with the variant's settings as `tools/golden/loftr.py` (card `options`), float32 on CUDA.
+
+    Upstream has no inference precision option. Needs a `FF_LOFTR_REPO` checkout with the pinned commit (einops,
+    kornia < 0.8, yacs). The call returns keypoints1, keypoints2, pairs, scores.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("loftr")
+    card, variant = registry.resolve("matching", full)
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_LOFTR_REPO"]), g.REF_COMMIT)))
+    (ckpt,) = registry.weights(card, variant, allow_download=False)
+    params = dict(card.params) | dict(variant.params)
+    long_side = int((dict(card.options) | (options or {}))["long_side"])
+    net = g.build(ckpt, params, params["threshold"]).cuda()
+    a.note = f"upstream LoFTR default_cfg, temp_bug_fix {params['temp_bug_fix']}, long side {long_side}"
+
+    @torch.inference_mode()
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        (g0, s0), (g1, s1) = (g.prepare(i.float() / 255, long_side) for i in (img1, img2))
+        batch = {"image0": g0, "image1": g1, "scale0": s0, "scale1": s1}
+        net(batch)
+        idx = torch.arange(len(batch["mconf"]), device=g0.device)
+        return {
+            "keypoints1": batch["mkpts0_f"],
+            "keypoints2": batch["mkpts1_f"],
+            "pairs": torch.stack([idx, idx], -1),
+            "scores": batch["mconf"],
+        }
+
+    return call
+
+
 def _dfine(a: Any, full: str) -> Any:  # noqa: ANN401
     """D-FINE, DEIM, OWLv2, Grounding DINO as the COCO eval runs them (`tools/_original_coco.py`): numpy RGB in."""
     import _original_coco  # noqa: PLC0415
@@ -1302,6 +1361,8 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "lotus": _LocalFp16("depth", _lotus, ((994, 1482),)),
     "lightglue": _LocalFp16("matching", _lightglue, ((768, 1024),)),
     "xfeat": _Local("matching", _xfeat, ((768, 1024),)),
+    "dedode": _LocalFp16("matching", _dedode, ((768, 1024),)),
+    "loftr": _Local("matching", _loftr, ((768, 1024),)),
     "birefnet": _LocalFp16("matting", _birefnet, ((1080, 1920),)),
     "ben2": _LocalFp16("matting", _ben2, ((1080, 1920),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),

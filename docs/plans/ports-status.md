@@ -36,6 +36,8 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- DeDoDe v2 (`dedode-v2-b`, `dedode-v2-g`, matching): portable MPS goldens and Mac speed rows (768x1024 pair). No
+  kernels. Weights: the pinned GitHub release URLs of the card.
 - AnySplat (`anysplat`, multiview with `result.gaussians`): portable float32 MPS goldens and Mac speed rows (8 views
   336x518). No Metal kernels runner. Weights: the pinned HF URL of the card.
 - DepthSplat (`depthsplat-small-re10k`, multiview with `result.gaussians`): portable float32 MPS goldens and Mac speed
