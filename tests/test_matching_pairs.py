@@ -192,3 +192,31 @@ def test_match_pairs_at_once_equals_one_at_a_time(monkeypatch, streams: int):
             assert torch.equal(result.keypoints1, want.keypoints1)
             assert torch.equal(result.keypoints2, want.keypoints2)
             assert torch.equal(result.pairs, want.pairs)
+
+
+class ManyDummy(SparseDummy):
+    """`SparseDummy` with `match_many`: the window's pairs in one call (each result marks the call's size)."""
+
+    matches_many = True
+    calls: list[int] = []  # noqa: RUF012 - test counter
+
+    def match_many(self, described):
+        ManyDummy.calls.append(len(described))
+        return [self.match(None, None, d) for d in described]
+
+
+def test_match_pairs_uses_match_many_per_window(monkeypatch):
+    """A runner with `match_many` gets `_AT_ONCE_WINDOW` pairs per call; results in pair order, as single calls."""
+    monkeypatch.setattr(registry, "import_model", lambda _card: types.SimpleNamespace(RUNNERS={"portable": ManyDummy}))
+    monkeypatch.setattr(matching_api, "_AT_ONCE_WINDOW", 3)
+    model = matching.load("aliked-lightglue", device="cpu", mode="portable")
+    images = [np.full((64 + i, 72, 3), 20 * i, np.uint8) for i in range(5)]
+    pairs = [(0, 1), (1, 2), (0, 2), (3, 4), (2, 0), (4, 4), (0, 3)]
+    ManyDummy.calls.clear()
+    results = list(model.match_pairs(images, pairs))
+    assert ManyDummy.calls == [3, 3, 1]
+    for (i, j), result in zip(pairs, results, strict=True):
+        single = model(images[i], images[j])
+        assert torch.equal(result.keypoints1, single.keypoints1)
+        assert torch.equal(result.keypoints2, single.keypoints2)
+        assert torch.equal(result.pairs, single.pairs)

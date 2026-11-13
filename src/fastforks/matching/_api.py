@@ -386,7 +386,7 @@ class MatchingModel(core.Model):
     ) -> Iterator[MatchingResult | SparseMatchingResult]:
         """`lazy`: an image whose `describe` result is kept is not read (its size was checked when it was described)."""
         streams = _match_streams(self, lazy=lazy)
-        if streams > 1:
+        if streams > 1 or (lazy and self._runner.matches_many):
             yield from self._match_pairs_at_once(pairs, cache, decoded, streams)
             return
         for pair in pairs:
@@ -415,9 +415,10 @@ class MatchingModel(core.Model):
 
         `describe` runs here in pair order and each pair's `match` starts on one of `streams` threads with a CUDA
         stream each (`Runner.match_streams`) as soon as its images are described; one session per
-        `_AT_ONCE_WINDOW` pairs. The same kernels: equal results.
+        `_AT_ONCE_WINDOW` pairs. The same kernels: equal results. A runner with `match_many` gets the window's
+        pairs in one call instead.
         """
-        cuda = self.device.type == "cuda"
+        cuda = self.device.type == "cuda" and not self._runner.matches_many
         local = threading.local()
 
         def match(described: tuple[Any, Any], ready: torch.cuda.Event | None) -> dict[str, torch.Tensor]:
@@ -436,6 +437,7 @@ class MatchingModel(core.Model):
         with ThreadPoolExecutor(streams) as pool:
             for start in range(0, len(pairs), _AT_ONCE_WINDOW):
                 futures = []
+                many = []
                 with self._session():
                     for pair in pairs[start : start + _AT_ONCE_WINDOW]:
                         images = [None if i in cache.kept else self._checked(decoded.get(i)) for i in pair]
@@ -445,12 +447,15 @@ class MatchingModel(core.Model):
                             for i, x in zip(pair, images, strict=True)
                         )
                         cache.done(pair)
+                        if self._runner.matches_many:
+                            many.append(described)
+                            continue
                         ready = None
                         if cuda:
                             ready = torch.cuda.Event()
                             ready.record()
                         futures.append(pool.submit(match, described, ready))
-                    outs = [f.result() for f in futures]
+                    outs = self._runner.match_many(many) if many else [f.result() for f in futures]
                 for out in outs:
                     yield self._sparse_result(out)
 
