@@ -1,0 +1,57 @@
+schema = 2
+name = "HAT"
+summary = "HAT (Chen et al., CVPR 2023): image super-resolution with residual groups of hybrid attention blocks (16 x 16 window attention plus a channel-attention conv branch) and an overlapping cross-attention block per group. `hat-x4` is the classical x4 model pretrained on ImageNet and fine-tuned on DF2K, `hat-s-x4` the small one (144 channels), `real-hat-gan-x4` the real-world x4 GAN model (Real-ESRGAN degradations)."
+tier = "experimental"
+outputs = ["image"]
+
+[upstream]
+repo = "https://github.com/XPixelGroup/HAT"
+commit = "1638a9a822581657811867bf670717f8371fc3e5"  # hat/archs/hat_arch.py; the call is hat/models/hat_model.py test (reflect padding to a multiple of 16, net_g(img), no tile)
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # the authors' Google Drive folder linked from the README of the Apache-2.0 repository; no separate weights licence
+files = ["LICENSE"]
+training_data = ["imagenet-1k", "div2k", "flickr2k"]
+training_note = "options/train/train_HAT_SRx4_ImageNet_from_scratch.yml then train_HAT_SRx4_finetune_from_ImageNet_pretrain.yml: pretrained on ImageNet, fine-tuned on DF2K (DIV2K + Flickr2K), bicubic-downsampled."
+evidence = "https://github.com/XPixelGroup/HAT/blob/1638a9a822581657811867bf670717f8371fc3e5/LICENSE ; https://github.com/XPixelGroup/HAT/blob/1638a9a822581657811867bf670717f8371fc3e5/README.md (pretrained models: https://drive.google.com/drive/folders/1HpmReFfoUqUbnAOQ7rvOeNU3uf_m69w0)"
+
+[io]
+input = "0-1"  # the test pipeline reads images in [0, 1]; the network subtracts the DIV2K mean itself (img_range 1)
+min_size = 9  # reflect padding to a multiple of 16 needs pad < size
+
+[params]
+scale = 4
+embed_dim = 180
+depths = [6, 6, 6, 6, 6, 6]
+heads = [6, 6, 6, 6, 6, 6]
+compress_ratio = 3
+squeeze_factor = 30
+img_size = 64
+window = 16
+key = "params_ema"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate GEMMs and convolutions
+
+[[variants]]
+id = "hat-x4"
+revision = 1
+weights = [{ name = "HAT_SRx4_ImageNet-pretrain.pth", size = 85137601, sha256 = "4ee053c42461187846dc0e93aa5abd34591c0725a8e044a59000e92ee215e833", url = "https://drive.google.com/uc?export=download&id=1cxls85ZE7kalhNy47eBJI_L_Lwf9hxRI" }]
+
+[[variants]]
+id = "hat-s-x4"
+revision = 1
+params = { embed_dim = 144, compress_ratio = 24, squeeze_factor = 24 }
+licence = { training_data = ["div2k", "flickr2k"], training_note = "options/train/train_HAT-S_SRx4_finetune_from_SRx2.yml: DF2K (DIV2K + Flickr2K), bicubic-downsampled, fine-tuned from the x2 model." }
+weights = [{ name = "HAT-S_SRx4.pth", size = 81089561, sha256 = "a92f81bd2c0c1aaa371a6e4d6cac69e749fde2e36196885ee47a4a3667542c9a", url = "https://drive.google.com/uc?export=download&id=1YvU9PF1XqlP8TVzH7P0bg-YlfP1TKDPC" }]
+
+[[variants]]
+id = "real-hat-gan-x4"
+revision = 1
+licence = { training_data = ["div2k", "flickr2k", "ost"], training_note = "options/train/train_Real_HAT_SRx4_mse_model.yml then train_Real_HAT_GAN_SRx4_finetune_from_mse_model.yml: DF2K + OST with Real-ESRGAN degradations (README: the released model without USM-sharpened ground truth)." }
+weights = [{ name = "Real_HAT_GAN_SRx4.pth", size = 170277017, sha256 = "f5b1e3bbbb05147ca2beefcc715279cb647d7976cbda67d62ea7e6e20d5ffcc7", url = "https://drive.google.com/uc?export=download&id=1Ma12vCWT27P9M99-s2RXnynKN-OQsBrv" }]

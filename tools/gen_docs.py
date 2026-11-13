@@ -85,6 +85,7 @@ _DATASETS = {
         "div2k-val-x4": "DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x4-every4": "DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
     },
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",

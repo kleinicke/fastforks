@@ -175,6 +175,7 @@ rife = "RIFE (Practical-RIFE 4.25, 4.26 and 4.25 lite, Huang et al.): makes the 
 # --- restoration
 realesrgan = "Real-ESRGAN (Wang et al., Tencent ARC, 2021): upscales real-world photos (x4, x2) and anime images (x4) with an RRDB network trained on synthetic degradations (blur, noise, JPEG); the classic ComfyUI upscaler. BSD-3-Clause code and weights."
 span = "SPAN (Wan et al., NTIRE 2024 efficient SR winner): a small, fast x4 / x2 upscaler for clean (bicubic) images, convolutions with parameter-free attention. Apache-2.0 code and weights."
+hat = "HAT (Chen et al., CVPR 2023): a x4 upscaler mixing window attention, channel attention and overlapping cross-attention: two models for clean (bicubic) images (large and small) and a GAN model for real-world photos. Apache-2.0 code and weights."
 swinir = "SwinIR (Liang et al., ICCVW 2021): a Swin Transformer upscaler: x4 / x2 for clean (bicubic) images and x4 for real-world photos (medium and large). Apache-2.0 code and weights."
 
 # --- tracking

@@ -225,6 +225,8 @@ runtime-evaluated-base-classes = []
 "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py" = ["ISC002", "B023"]
 # SwinIR: upstream implicitly concatenated `extra_repr` string over two lines and `math.log(scale, 2)`.
 "src/fastforks/restoration/models/swinir/net/network_swinir.py" = ["ISC002", "FURB163"]
+# HAT / DAT: upstream `math.log(scale, 2)`; HAT's `attn_mask = attn_mask` (`HAB.forward`).
+"src/fastforks/restoration/models/hat/net/hat_arch.py" = ["FURB163", "PLW0127"]
 "src/fastforks/shared/*/net/**" = [
   "PGH004",  # upstream blanket `# noqa` (SAM)
   "PLW2901", "FLY", "TD", "FIX", "PGH003", "RUF013", "RUF012", "RUF100", "B008", "RUF046",  # more upstream (DINOv2 / DPT / EdgeNeXt) style

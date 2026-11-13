@@ -1,0 +1,52 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 3e-06
+gpu_mean = 0.00083
+gpu_p99 = 0.0031
+
+[refs."hat-s-x4@1"]
+sha256 = "c62a9863034bb70080d02eb5d3674ec031e6bb46b685845cbb6999d13909c859"
+upstream = "https://github.com/XPixelGroup/HAT@1638a9a822581657811867bf670717f8371fc3e5"
+settings = "CPU float32, hat_model.py test: reflect padding to a multiple of 16, net_g(img), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."hat-x4@1"]
+sha256 = "cfb22f83374ff0de832d6c9fe9d3a06a20288418452012c000265c64065867a4"
+upstream = "https://github.com/XPixelGroup/HAT@1638a9a822581657811867bf670717f8371fc3e5"
+settings = "CPU float32, hat_model.py test: reflect padding to a multiple of 16, net_g(img), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."real-hat-gan-x4@1"]
+sha256 = "78b7a8d0b393258ed45bbcb9a0ec0ffa3cff051fb0e8e880158d6eabbacfc321"
+upstream = "https://github.com/XPixelGroup/HAT@1638a9a822581657811867bf670717f8371fc3e5"
+settings = "CPU float32, hat_model.py test: reflect padding to a multiple of 16, net_g(img), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[validated."hat-s-x4@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.0005
+p99_px = 0.00182
+
+[validated."hat-x4@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00055
+p99_px = 0.00204
+
+[validated."real-hat-gan-x4@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00045
+p99_px = 0.00158

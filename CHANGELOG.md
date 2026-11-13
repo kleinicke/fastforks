@@ -17,6 +17,13 @@
   kernels, 18.4 ms portable vs 77.3 ms original fp16; L 69.3 / 125 vs 438 ms; peak 0.35x of the original. Accuracy:
   GPU goldens against upstream (no prompt-depth benchmark data here).
 
+- HAT super-resolution (`hat-x4`, `hat-s-x4`, `real-hat-gan-x4`, restoration; Apache-2.0 code and weights): window
+  attention and overlapping cross-attention as one SDPA call each, biases gathered at load; in float16 the last
+  group's residual sum is scaled down (overflow). 512x512 HAT x4: 1445 ms kernels, 1596 ms portable (1185 ms compile)
+  vs 5152 ms original fp32 (3038 ms `.half()`), peak 2.6 GB vs 10.1 GB; HAT-S: 974 / 1072 ms vs 3872 ms, 2.0 GB vs
+  9.5 GB. DIV2K validation (every 4th image: 25) PSNR 31.01 / 30.90 (S, kernels; portable 30.91) / 27.13 (GAN) in
+  every tier, as the original. TensorRT fails at 512x512.
+
 - Swin super-resolution (SwinIR, HAT, DAT): `PatchEmbed` returns contiguous tokens (upstream: a transposed view
   that made every residual add strided), and attention inputs with a strided head dimension are copied before SDPA
   (else it fell back to the unfused math path).
