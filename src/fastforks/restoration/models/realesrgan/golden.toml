@@ -1,0 +1,52 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1e-05
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."realesrgan-x2plus@1"]
+sha256 = "167a68f8caf2d5071bd7cfaa60224a5adf7cb1aa3dd330d75c4edaddad06b948"
+upstream = "https://github.com/xinntao/Real-ESRGAN@a4abfb2979a7bbff3f69f58f58ae324608821e27"
+settings = "CPU float32, upstream RealESRGANer pre_pad 0 no tile (BasicSR RRDBNet @8d56e3a0) on float RGB, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."realesrgan-x4plus-anime-6b@1"]
+sha256 = "ddfca0df856c4fd145cd0d39f6593021f6cc60502aaf9faa3701f66df79643a7"
+upstream = "https://github.com/xinntao/Real-ESRGAN@a4abfb2979a7bbff3f69f58f58ae324608821e27"
+settings = "CPU float32, upstream RealESRGANer pre_pad 0 no tile (BasicSR RRDBNet @8d56e3a0) on float RGB, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."realesrgan-x4plus@1"]
+sha256 = "b2db1aade4c6fc9a9cdf859ea7cccb44fc4278c9529ea998114ee2c171675924"
+upstream = "https://github.com/xinntao/Real-ESRGAN@a4abfb2979a7bbff3f69f58f58ae324608821e27"
+settings = "CPU float32, upstream RealESRGANer pre_pad 0 no tile (BasicSR RRDBNet @8d56e3a0) on float RGB, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[validated."realesrgan-x2plus@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00359
+p99_px = 0.01713
+
+[validated."realesrgan-x4plus-anime-6b@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.001
+p99_px = 0.0078
+
+[validated."realesrgan-x4plus@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00112
+p99_px = 0.00681

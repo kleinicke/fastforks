@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Real-ESRGAN super-resolution (`realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`; new task
+  `restoration`; BSD-3-Clause code and weights): RRDBNet as `RealESRGANer.enhance` (no tiles). 512x512 x4plus:
+  402 ms kernels, 632 ms portable (354 ms compile, 273 ms TensorRT) vs 1209 ms original fp32 (631 ms fp16), peak
+  1.4 GB vs 5.0 GB. DIV2K validation (100 images, bicubic LR) PSNR 26.64 in every tier, as the original.
+
 - RIFE frame interpolation (`rife-4.25`, `rife-4.26`, `rife-4.25-lite`; new task `interpolation`; MIT code and
   weights): Practical-RIFE `IFNet_HDv3`, any timestep in [0, 1], frames zero-padded to a multiple of 128 as upstream.
   1080x1920 pair: 31.4 ms kernels, 36.0 ms portable (44.5 ms compile, 17.6 ms TensorRT) vs 45.3 ms original fp32

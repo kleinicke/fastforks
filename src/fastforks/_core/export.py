@@ -3,10 +3,11 @@
 The exported graph is `model.module()` at one fixed size. Its inputs are named by the task spec (`TaskSpec.inputs`:
 `left`, `right` for stereo, `image` otherwise) and its outputs as `output_names` says: the variant's main output
 (`disparity`, `inverse_depth`, `depth`, `logits`, ...), the names a module declares (SAM: `image_embeddings`), or a
-dict's keys (multi-view). Example inputs come from the task model (`Model.example_inputs`): synthetic
-RGB images in `[0, 1]` (a shifted pair for stereo), the normalised crop for classification. The graph keeps the
-model's compute dtype: fp32 with `dtype="float32"`, else the card's reduced precision on CUDA (the casts are in
-the graph, so TensorRT builds it strongly typed). `kernels` is not exportable: ONNX and TensorRT cannot run our kernels.
+dict's keys (multi-view); an output named like an input gets `_out` (restoration: `image_out`). Example inputs come
+from the task model (`Model.example_inputs`): synthetic RGB images in `[0, 1]` (a shifted pair for stereo), the
+normalised crop for classification. The graph keeps the model's compute dtype: fp32 with `dtype="float32"`, else the
+card's reduced precision on CUDA (the casts are in the graph, so TensorRT builds it strongly typed). `kernels` is not
+exportable: ONNX and TensorRT cannot run our kernels.
 
 `onnx` and `onnxscript` (`pip install "fastforks-core[onnx]"`) and `tensorrt` (`"fastforks-core[tensorrt]"`) are
 optional and imported only here. A TensorRT engine is tied to the GPU and TensorRT version it was built with: build it
@@ -227,13 +228,16 @@ def output_names(model: Model, module: torch.nn.Module, out: Any) -> list[str]: 
     A dict's keys; else `module.output_names` where the module declares them (DETR: `logits`, `boxes`; SAM:
     `image_embeddings`); else the variant's main output (`output_name`) for one tensor, `<main>_<i>` for a tuple.
     """
-    if isinstance(out, dict):
-        return list(out)
     n = len(flat_outputs(out))
-    names = tuple(getattr(module, "output_names", ()))
-    if len(names) == n:
-        return list(names)
-    return [output_name(model)] if n == 1 else [f"{output_name(model)}_{i}" for i in range(n)]
+    declared = list(getattr(module, "output_names", ()))
+    if isinstance(out, dict):
+        names = list(out)
+    elif len(declared) == n:
+        names = declared
+    else:
+        names = [output_name(model)] if n == 1 else [f"{output_name(model)}_{i}" for i in range(n)]
+    inputs = set(spec(model.card.task).inputs)  # an output named like an input is a cycle for TensorRT's parser
+    return [f"{name}_out" if name in inputs else name for name in names]
 
 
 def export_onnx(  # noqa: PLR0913 - the size, the batch and the optional dynamic range

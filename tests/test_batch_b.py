@@ -125,6 +125,8 @@ def test_onnx_output_names_for_tuple_outputs():
     assert output_names(model, plain, t) == ["boxes"]
     one = Forward(torch.nn.Identity(), lambda _n, x: x, output_names=("image_embeddings",))  # R2-2: SAM's encoder
     assert output_names(model, one, t) == ["image_embeddings"]
+    same = SimpleNamespace(card=SimpleNamespace(task="restoration"), variant=SimpleNamespace(outputs=("image",)))
+    assert output_names(same, plain, t) == ["image_out"]  # input `image`: the same name is a cycle for TensorRT
 
 
 def test_engine_call_returns_the_first_named_output(monkeypatch):

@@ -195,6 +195,9 @@ def test_module_compile_export(ref):  # noqa: C901 - one branch per task
     elif TASK[ref] == "interpolation":  # two [B, 3, H, W] in [0, 1] -> the middle frame [B, 3, H, W]
         assert want.shape == (1, 3, *inputs[0].shape[2:])
         assert torch.equal(want[0], model(*(x[0] for x in inputs)).frame)
+    elif TASK[ref] == "restoration":  # [B, 3, H, W] in [0, 1] -> [B, 3, sH, sW], as the model call
+        assert want.shape == (1, 3, *(model.scale * n for n in inputs[0].shape[2:]))
+        assert torch.equal(want[0], model(inputs[0][0]).image)
     elif TASK[ref] == "features":  # -> last_hidden_state [B, N, C], as the model call with the default size
         assert torch.equal(want[0], model(inputs[0][0]).last_hidden_state)
     elif TASK[ref] == "classification":  # transformed images -> logits, as the model call on the raw image
