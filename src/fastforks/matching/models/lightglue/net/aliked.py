@@ -349,7 +349,9 @@ class DeformableConv2d(nn.Module):
         x = modulated_deform_conv(
             x, offset, mask, self.regular_conv.weight, self.regular_conv.bias, 1, self.padding
         )
-        return x
+        # fastforks: the op returns a channels-last view; the NCHW layout keeps the upsample + cat of the four
+        # feature levels on their fast kernels (channels-last cost 2.4x on the cat, 1.4x on the upsample)
+        return x.contiguous()
 
 
 def get_conv(
