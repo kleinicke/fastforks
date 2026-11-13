@@ -12,9 +12,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`rife-4.25`](#rife) | yes | 31.4, 0.8x | 1516, 1.3x |
-| [`rife-4.25-lite`](#rife) | yes | 28.9, 0.7x | 1516, 1.2x |
-| [`rife-4.26`](#rife) | yes | 31.4, 0.8x | 1516, 1.3x |
+| [`rife-4.25`](#rife) | yes | 21.5, 1.1x | 1076, 0.93x |
+| [`rife-4.25-lite`](#rife) | yes | 18.3, 1.2x | 1056, 0.87x |
+| [`rife-4.26`](#rife) | yes | 21.4, 1.1x | 1076, 0.93x |
 
 <a id="rife"></a>
 
@@ -26,9 +26,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rife-4.25` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.5<br>36.0<br>31.4<br>44.9<br>17.6 | 987 / 1154<br>999 / 1254<br>1029 / 1516<br>1094 / 1234<br>696 / 714 |
-| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>35.9<br>31.4<br>44.5<br>17.6 | 1004 / 1154<br>999 / 1254<br>1029 / 1516<br>1094 / 1234<br>696 / 714 |
-| `rife-4.25-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.3<br>32.7<br>28.9<br>42.3<br>14.1 | 1012 / 1214<br>991 / 1174<br>1024 / 1516<br>1061 / 1374<br>696 / 714 |
+| `rife-4.25` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.5<br>25.0<br>21.5<br>44.9<br>17.6 | 987 / 1154<br>755 / 894<br>967 / 1076<br>1094 / 1234<br>696 / 714 |
+| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.1<br>21.4<br>44.5<br>17.6 | 1004 / 1154<br>755 / 896<br>967 / 1076<br>1094 / 1234<br>696 / 714 |
+| `rife-4.25-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.3<br>21.1<br>18.3<br>42.3<br>14.1 | 1012 / 1214<br>754 / 854<br>950 / 1056<br>1061 / 1374<br>696 / 714 |
 
 <details><summary>Details</summary>
 
@@ -49,9 +49,9 @@ Commercial use: yes.
 - `rife-4.25` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
 - `rife-4.26` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
 - `rife-4.25-lite` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
-- `rife-4.25` load / first call: original 1.42 s / 0.265 s, portable 0.05 s / 0.255 s, kernels 1.1 s / 0.139 s
-- `rife-4.26` load / first call: original 0.18 s / 0.046 s, portable 0.09 s / 0.234 s, kernels 1.12 s / 0.14 s
-- `rife-4.25-lite` load / first call: original 0.18 s / 0.12 s, portable 0.05 s / 0.261 s, kernels 1.14 s / 0.137 s
+- `rife-4.25` load / first call: original 1.42 s / 0.265 s, portable 0.31 s / 0.491 s, kernels 1.5 s / 0.203 s
+- `rife-4.26` load / first call: original 0.18 s / 0.046 s, portable 0.78 s / 0.243 s, kernels 1.15 s / 0.198 s
+- `rife-4.25-lite` load / first call: original 0.18 s / 0.12 s, portable 1.0 s / 0.229 s, kernels 1.11 s / 0.183 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -68,7 +68,7 @@ Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5b3a5646, 
 
 ### Parity
 
-CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.00024 and p99 <= 0.0013 (absolute error of the output `frame`).
+CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.00024 and p99 <= 0.0013 (absolute error of the output `frame`).
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|

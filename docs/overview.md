@@ -651,14 +651,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 3 models; size 1080x1920.
 
-- Fastest: [`rife-4.25-lite`](models/interpolation.md#rife) (28.9 ms).
-- Fastest commercially usable: [`rife-4.25-lite`](models/interpolation.md#rife) (28.9 ms).
+- Fastest: [`rife-4.25-lite`](models/interpolation.md#rife) (18.3 ms).
+- Fastest commercially usable: [`rife-4.25-lite`](models/interpolation.md#rife) (18.3 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`rife-4.25-lite`](models/interpolation.md#rife) | yes | 21.3 (1080x1920) | 32.7 | 28.9 | 0.7x vs original (1080x1920) | 1024 |
-| [`rife-4.26`](models/interpolation.md#rife) | yes | 24.2 (1080x1920) | 35.9 | 31.4 | 0.8x vs original (1080x1920) | 1029 |
-| [`rife-4.25`](models/interpolation.md#rife) | yes | 24.5 (1080x1920) | 36.0 | 31.4 | 0.8x vs original (1080x1920) | 1029 |
+| [`rife-4.25-lite`](models/interpolation.md#rife) | yes | 21.3 (1080x1920) | 21.1 | 18.3 | 1.2x vs original (1080x1920) | 950 |
+| [`rife-4.26`](models/interpolation.md#rife) | yes | 24.2 (1080x1920) | 25.1 | 21.4 | 1.1x vs original (1080x1920) | 967 |
+| [`rife-4.25`](models/interpolation.md#rife) | yes | 24.5 (1080x1920) | 25.0 | 21.5 | 1.1x vs original (1080x1920) | 967 |
 
 ## Restoration
 

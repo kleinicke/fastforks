@@ -5,7 +5,7 @@
 # passed with (`pytest -m gpu --record`). Not shipped in wheels.
 
 [tolerance]
-cpu_atol = 1e-05
+cpu_atol = 0.0001  # the runners evaluate the warps only where the blocks read them: 1-ulp input changes move the frame by up to 4e-5
 gpu_mean = 0.00024
 gpu_p99 = 0.0013
 
