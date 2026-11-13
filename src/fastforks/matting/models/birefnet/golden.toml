@@ -1,0 +1,38 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 7.8e-05
+gpu_mean = 6e-06
+gpu_p99 = 2.1e-05
+
+[refs."birefnet-lite@1"]
+sha256 = "ff0a01e62c97bfc41e8b62fc8f4a716fc58b1cdf5bdbca80678b52d0ef010418"
+upstream = "https://huggingface.co/ZhengPeng7/BiRefNet_lite@aa62cd87eafb9cc43056d08ef3615a14628b831d"
+settings = "CPU float32, HF birefnet.py + weights BiRefNet_lite@aa62cd87eafb9cc43056d08ef3615a14628b831d, 1024x1024 bilinear antialiased, ImageNet normalisation, sigmoid, bicubic back, coffee.png, torch 2.14.1+cu130"
+
+[refs."birefnet@1"]
+sha256 = "6830dbb19ac678b8a1c0da947ec56a90b80204ac3692c2f8d953cdf949efa2bd"
+upstream = "https://huggingface.co/ZhengPeng7/BiRefNet@e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4"
+settings = "CPU float32, HF birefnet.py + weights BiRefNet@e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4, 1024x1024 bilinear antialiased, ImageNet normalisation, sigmoid, bicubic back, coffee.png, torch 2.14.1+cu130"
+
+[validated."birefnet-lite@1"]
+kernels = ["deform_conv@a38662ea1bfc:sm_120"]
+symbols = {"deform_conv" = {"deform_conv_fwd" = "3d728397880ef467"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.0
+p99_px = 1e-05
+
+[validated."birefnet@1"]
+kernels = ["deform_conv@a38662ea1bfc:sm_120"]
+symbols = {"deform_conv" = {"deform_conv_fwd" = "3d728397880ef467"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.0
+p99_px = 0.0

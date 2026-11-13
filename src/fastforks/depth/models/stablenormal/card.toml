@@ -1,0 +1,58 @@
+schema = 2
+name = "StableNormal turbo"
+summary = "StableNormal turbo (Ye et al., SIGGRAPH Asia 2024): surface normals in one step (YOSO, v0.3); a Stable Diffusion 2 UNet denoises a normals latent with the image latent fed through a ControlNet encoder."
+tier = "experimental"
+outputs = ["normals"]
+uses = ["sd2"]  # fastforks.shared modules this family imports
+limitations = [
+  "Normals only: no depth.",
+  "Diffusion model: the seeded noise comes from a CPU generator; upstream draws it from the unseeded global RNG, so its outputs vary from call to call (slightly).",
+  "Upstream's `Predictor` wrapper (pre-resize to a multiple of 64 near 1024 px, uint8 round trip, LANCZOS back) is not applied: the runners follow its pipeline (768 px).",
+  "A traced or exported module reuses the noise of its traced shape.",
+]
+
+[output]
+kind = "none"  # normals only
+
+[upstream]
+repo = "https://github.com/Stable-X/StableNormal"
+commit = "594b934630ab3bc71f35c77d14ec7feb98480cd0"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Stable Diffusion 2 (LAION-5B subsets) fine-tuned on synthetic and real normals datasets (Hypersim, Replica, ScanNet and others per the StableNormal paper, arXiv 2406.16864)"
+evidence = "https://github.com/Stable-X/StableNormal/blob/594b934630ab3bc71f35c77d14ec7feb98480cd0/LICENSE.txt (Apache-2.0); https://huggingface.co/Stable-X/yoso-normal-v0-3/blob/2202fcb69960d94b437e06c19c556a12ceeb57c0/README.md (license: apache-2.0)"
+
+[io]
+input = "0-1"  # the runner maps to [-1, 1], resizes (longest side to long_side, bilinear, antialiased) and pads itself
+pad = "none"
+
+[options]
+long_side = { default = 768, min = 0, aliases = ["processing_res"] }  # longest side of the network input (original default); 0 = the input size
+seed = 0  # seed of the noise (CPU generator; upstream: unseeded); the output depends on it slightly
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]
+
+[[papers]]
+title = "StableNormal: Reducing Diffusion Variance for Stable and Sharp Normal"
+url = "https://arxiv.org/abs/2406.16864"
+date = "2024-06-24"
+venue = "SIGGRAPH Asia 2024"
+
+[[variants]]
+id = "stablenormal-turbo"  # upstream hubconf StableNormal_turbo: Stable-X/yoso-normal-v0-3, t_start 0
+revision = 1
+weights = [
+  { name = "unet/diffusion_pytorch_model.fp16.safetensors", size = 1731904736, sha256 = "b966130575b75c6eadbef009780aeb09ea970075e8f186ce389d9d5b44deca80", url = "https://huggingface.co/Stable-X/yoso-normal-v0-3/resolve/2202fcb69960d94b437e06c19c556a12ceeb57c0/unet/diffusion_pytorch_model.fp16.safetensors" },
+  { name = "vae/diffusion_pytorch_model.fp16.safetensors", size = 167335342, sha256 = "3e4c08995484ee61270175e9e7a072b66a6e4eeb5f0c266667fe1f45b90daf9a", url = "https://huggingface.co/Stable-X/yoso-normal-v0-3/resolve/2202fcb69960d94b437e06c19c556a12ceeb57c0/vae/diffusion_pytorch_model.fp16.safetensors" },
+  { name = "text_encoder/model.fp16.safetensors", size = 680820392, sha256 = "bc1827c465450322616f06dea41596eac7d493f4e95904dcb51f0fc745c4e13f", url = "https://huggingface.co/Stable-X/yoso-normal-v0-3/resolve/2202fcb69960d94b437e06c19c556a12ceeb57c0/text_encoder/model.fp16.safetensors" },
+  { name = "controlnet/diffusion_pytorch_model.fp16.safetensors", size = 728496840, sha256 = "d54aabc094e33ae8748429b3c4a7c88dccb7cd1decd20b36d964c0d3f1fd1deb", url = "https://huggingface.co/Stable-X/yoso-normal-v0-3/resolve/2202fcb69960d94b437e06c19c556a12ceeb57c0/controlnet/diffusion_pytorch_model.fp16.safetensors" },
+]

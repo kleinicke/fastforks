@@ -23,6 +23,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
 from fastforks.features._runner import Forward, Runner
+from fastforks.kernels import dpt_fused
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.depth_anything_v2 import FastViT, vit_base, vit_large
 from fastforks.shared.depth_anything_v2.fast_vit import _fp16_accumulate
@@ -206,7 +207,7 @@ class Kernels(Runner):
         vit = _network(ctx)
         _init(self, vit)
         # fp16 in place on the CPU first: an fp32 copy on the device stays reserved by the caching allocator
-        self.fast = _FastTips(vit, _KERNELS_ATTN[ctx.params.arch], None)
+        self.fast = _FastTips(vit, _KERNELS_ATTN[ctx.params.arch], None, fused=dpt_fused.load(ctx.device))
         self.fast.vit, self.fast.pos_fp32 = vit.to(ctx.device), self.fast.pos_fp32.to(ctx.device)
         pixels = _GRAPH_WORK * vit.patch_size**2 // vit.embed_dim
         self.graphs = SmallShapeGraphs(self._last, pixels=pixels, graphs=_GRAPHS)

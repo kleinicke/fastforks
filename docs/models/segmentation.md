@@ -12,26 +12,26 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.06, 2.7x | 518, 0.24x |
-| [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 18.02, 3.0x | 560, 0.28x |
-| [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 22.63, 1.8x | 904, 0.41x |
-| [`dinov2-l-linear-ade20k`](#dinov2_linear) | yes | 56.78, 1.7x | 1244, 0.4x |
-| [`dinov2-s-linear-ade20k`](#dinov2_linear) | yes | 12.44, 2.0x | 676, 0.34x |
-| [`eomt-l-dinov2-ade20k`](#eomt) | yes | 34.99, 1.8x | 1584, 0.45x |
+| [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.1, 2.7x | 518, 0.24x |
+| [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 18.0, 3.0x | 560, 0.28x |
+| [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 20.1, 2.0x | 884, 0.4x |
+| [`dinov2-l-linear-ade20k`](#dinov2_linear) | yes | 52.8, 1.8x | 1244, 0.4x |
+| [`dinov2-s-linear-ade20k`](#dinov2_linear) | yes | 11.8, 2.1x | 676, 0.34x |
+| [`eomt-l-dinov2-ade20k`](#eomt) | yes | 35.0, 1.8x | 1584, 0.45x |
 | [`eomt-l-dinov3-ade20k`](#eomt) | yes | 38.8, 1.9x | 1584, 0.45x |
-| [`fcn-r101-d8-ade20k`](#mmseg) | yes | 16.65, 2.8x | 478, 0.23x |
-| [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.86, 4.1x | 430, 0.23x |
-| [`mask2former-swinl-ade20k`](#mask2former) | no | 60.44, 2.4x | 1400, 0.38x |
-| [`oneformer-swinl-ade20k`](#oneformer) | yes | 99.95, 2.1x | 2476, 0.32x |
-| [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.96, 1.9x | 494, 0.24x |
-| [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.56, 1.9x | 1762, 0.65x |
-| [`sapiens-seg-1b-goliath`](#sapiens) | no | 185.2, 1.9x | 3382, 0.57x |
-| [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.479, 5.0x | 238, 0.15x |
-| [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.347, 2.8x | 534, 0.21x |
-| [`segnext-mscan-b-ade20k`](#segnext) | yes | 12.206, 2.8x | 332, 0.19x |
-| [`segnext-mscan-l-ade20k`](#segnext) | yes | 20.553, 2.5x | 428, 0.24x |
-| [`segnext-mscan-s-ade20k`](#segnext) | yes | 8.043, 2.9x | 290, 0.17x |
-| [`segnext-mscan-t-ade20k`](#segnext) | yes | 8.987, 2.3x | 206, 0.13x |
+| [`fcn-r101-d8-ade20k`](#mmseg) | yes | 16.6, 2.8x | 478, 0.23x |
+| [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.9, 4.1x | 430, 0.23x |
+| [`mask2former-swinl-ade20k`](#mask2former) | no | 60.4, 2.4x | 1400, 0.38x |
+| [`oneformer-swinl-ade20k`](#oneformer) | yes | 100, 2.1x | 2476, 0.32x |
+| [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 25.0, 1.9x | 494, 0.24x |
+| [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.6, 1.9x | 1762, 0.65x |
+| [`sapiens-seg-1b-goliath`](#sapiens) | no | 185, 1.9x | 3382, 0.57x |
+| [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.48, 5.0x | 238, 0.15x |
+| [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.3, 2.8x | 534, 0.21x |
+| [`segnext-mscan-b-ade20k`](#segnext) | yes | 12.2, 2.8x | 332, 0.19x |
+| [`segnext-mscan-l-ade20k`](#segnext) | yes | 20.6, 2.5x | 428, 0.24x |
+| [`segnext-mscan-s-ade20k`](#segnext) | yes | 8.04, 2.9x | 290, 0.17x |
+| [`segnext-mscan-t-ade20k`](#segnext) | yes | 8.99, 2.3x | 206, 0.13x |
 
 <a id="mmseg"></a>
 
@@ -51,16 +51,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
-- Paper: [Fully Convolutional Networks for Semantic Segmentation](https://arxiv.org/abs/1411.4038), CVPR 2015, 2014-11-14 (for `fcn-r101-d8-ade20k`)
-- Paper: [Pyramid Scene Parsing Network](https://arxiv.org/abs/1612.01105), CVPR 2017, 2016-12-04 (for `pspnet-r101-d8-ade20k`)
-- Paper: [Rethinking Atrous Convolution for Semantic Image Segmentation](https://arxiv.org/abs/1706.05587), arXiv, 2017-06-17 (for `deeplabv3-r101-d8-ade20k`)
-- Paper: [Encoder-Decoder with Atrous Separable Convolution for Semantic Image Segmentation](https://arxiv.org/abs/1802.02611), ECCV 2018, 2018-02-07 (for `deeplabv3plus-r101-d8-ade20k`)
-- Paper: [Deep High-Resolution Representation Learning for Visual Recognition](https://arxiv.org/abs/1908.07919), TPAMI 2020, 2019-08-20 (for `hrnet-w48-fcn-ade20k`)
 - Original code: <https://github.com/open-mmlab/mmsegmentation> at `c685fe6767c4`
-- Authors' code, not used: <https://github.com/shelhamer/fcn.berkeleyvision.org> (Caffe) (for `fcn-r101-d8-ade20k`): The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights.
-- Authors' code, not used: <https://github.com/hszhao/PSPNet> (Caffe) (for `pspnet-r101-d8-ade20k`): The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights.
-- Authors' code, not used: <https://github.com/tensorflow/models/tree/master/research/deeplab> (TensorFlow) (for `deeplabv3-r101-d8-ade20k`, `deeplabv3plus-r101-d8-ade20k`): The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights.
-- Authors' code, not used: <https://github.com/HRNet/HRNet-Semantic-Segmentation> (PyTorch) (for `hrnet-w48-fcn-ade20k`): The ADE20K checkpoints are mmsegmentation's own training runs of re-implementations, not the authors' released code or weights.
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/open-mmlab/mmsegmentation/blob/c685fe6767c4cadf6b051983ca6208f1b9d1ccb8/README.md#license>
@@ -126,19 +117,18 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov2-s-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 55.8<br>24.7<br>18.3<br>12.4<br>20.7<br>40.3 | 1653 / 2010<br>1694 / 2046<br>642 / 696<br>645 / 676<br>1331 / 1376<br>3084 / 3130 |
-| `dinov2-b-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 115<br>40.1<br>33.3<br>22.6<br>35.8<br>49.5 | 1899 / 2224<br>2063 / 2426<br>765 / 884<br>771 / 904<br>1455 / 1504<br>3367 / 3424 |
-| `dinov2-l-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 332<br>95.7<br>83.9<br>56.8<br>84.5<br>82.1 | 2730 / 3124<br>3308 / 3726<br>1181 / 1244<br>1189 / 1244<br>1870 / 1904<br>4257 / 4318 |
+| `dinov2-s-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 55.8<br>24.7<br>18.3<br>11.8<br>20.7<br>40.3 | 1653 / 2010<br>1694 / 2046<br>642 / 696<br>645 / 676<br>1331 / 1376<br>3084 / 3130 |
+| `dinov2-b-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 115<br>40.1<br>33.3<br>20.1<br>35.8<br>49.5 | 1899 / 2224<br>2063 / 2426<br>765 / 884<br>771 / 884<br>1455 / 1504<br>3367 / 3424 |
+| `dinov2-l-linear-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 332<br>95.7<br>83.9<br>52.8<br>84.5<br>82.1 | 2730 / 3124<br>3308 / 3726<br>1181 / 1244<br>1189 / 1244<br>1870 / 1904<br>4257 / 4318 |
 
 <details><summary>Details</summary>
 
-- Paper: [DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/abs/2304.07193), TMLR 2024, 2023-04-14
 - Original code: <https://github.com/facebookresearch/dinov2> at `7764ea0f912e`
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/facebookresearch/dinov2/blob/7764ea0f912e53c92e82eb78a2a1631e92725fc8/README.md#L660>
 - Training data: LVD-142M (DINOv2's curated web-image set, not released), ADE20K (SceneParsing, 150 classes)
-- Kernel libraries: `fastbb`, `seg_up`
+- Kernel libraries: `fastbb`, `seg_up`, `dpt_fused`
 - Variants: `dinov2-s-linear-ade20k`, `dinov2-b-linear-ade20k`, `dinov2-l-linear-ade20k`
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -149,10 +139,9 @@ Commercial use: yes.
 - `dinov2-s-linear-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `dinov2-b-linear-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `dinov2-l-linear-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
-- `dinov2-s-linear-ade20k` load / first call: original 4.02 s / 0.303 s (512x512), portable 0.12 s / 0.09 s, kernels 0.23† s / 0.061† s
-- `dinov2-b-linear-ade20k` load / first call: original 12.01 s / 0.016 s (512x512), portable 0.27 s / 0.105 s, kernels 0.4† s / 0.071† s
-- `dinov2-l-linear-ade20k` load / first call: original 7.86 s / 0.382 s (512x512), portable 0.81 s / 0.156 s, kernels 0.92† s / 0.103† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `dinov2-s-linear-ade20k` load / first call: original 4.02 s / 0.303 s (512x512), portable 0.12 s / 0.09 s, kernels 1.0 s / 0.06 s
+- `dinov2-b-linear-ade20k` load / first call: original 12.01 s / 0.016 s (512x512), portable 0.27 s / 0.105 s, kernels 1.11 s / 0.067 s
+- `dinov2-l-linear-ade20k` load / first call: original 7.86 s / 0.382 s (512x512), portable 0.81 s / 0.156 s, kernels 1.83 s / 0.1 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 
 ### Measured
@@ -173,9 +162,9 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `dinov2-s-linear-ade20k` | 0.00642 / 0.02309 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `seg_up@3e44e71200cd:sm_120` |
-| `dinov2-b-linear-ade20k` | 0.01485 / 0.05741 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `seg_up@3e44e71200cd:sm_120` |
-| `dinov2-l-linear-ade20k` | 0.01132 / 0.04447 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `seg_up@3e44e71200cd:sm_120` |
+| `dinov2-s-linear-ade20k` | 0.00655 / 0.02391 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `seg_up@3e44e71200cd:sm_120` |
+| `dinov2-b-linear-ade20k` | 0.01527 / 0.05855 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `seg_up@3e44e71200cd:sm_120` |
+| `dinov2-l-linear-ade20k` | 0.01123 / 0.04402 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `seg_up@3e44e71200cd:sm_120` |
 
 </details>
 
@@ -194,9 +183,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
-- Paper: [Your ViT is Secretly an Image Segmentation Model](https://arxiv.org/abs/2503.19108), CVPR 2025, 2025-03-24
 - Original code: <https://github.com/huggingface/transformers> at `c4c4605f9618`
-- Authors' code, not used: <https://github.com/tue-mps/eomt> (PyTorch): Hugging Face transformers ships an EoMT port that loads the authors' checkpoints (incl. DINOv3) without the authors' Lightning/detectron2 stack.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: MIT
   - `eomt-l-dinov3-ade20k`: MIT AND LicenseRef-DINOv3-License
@@ -254,9 +241,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 <details><summary>Details</summary>
 
-- Paper: [Masked-attention Mask Transformer for Universal Image Segmentation](https://arxiv.org/abs/2112.01527), CVPR 2022, 2021-12-02
 - Original code: <https://github.com/huggingface/transformers> at `c4c4605f9618`
-- Authors' code, not used: <https://github.com/facebookresearch/Mask2Former> (PyTorch): The authors' code needs detectron2; the transformers port is self-contained.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: CC-BY-NC-4.0
 - Licence evidence: <https://github.com/facebookresearch/Mask2Former/blob/9b0651c6c1d5b3af2e6da0589b719c514ec0d69a/MODEL_ZOO.md#license>
@@ -302,13 +287,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>139<br>100.0<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>83.3 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476<br>–<br>4524 / 4576 |
+| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>139<br>100<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>83.3 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476<br>–<br>4524 / 4576 |
 
 <details><summary>Details</summary>
 
-- Paper: [OneFormer: One Transformer to Rule Universal Image Segmentation](https://arxiv.org/abs/2211.06220), CVPR 2023, 2022-11-10
 - Original code: <https://github.com/huggingface/transformers> at `c4c4605f9618`
-- Authors' code, not used: <https://github.com/SHI-Labs/OneFormer> (PyTorch): The Hugging Face transformers port loads the authors' ADE20K Swin-L checkpoint without detectron2 or custom CUDA ops.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/shi-labs/oneformer_ade20k_swin_large/blob/4a5bac8e64f82681a12db2e151a4c2f4ce6092b2/README.md>
@@ -359,7 +342,6 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 <details><summary>Details</summary>
 
-- Paper: [Sapiens: Foundation for Human Vision Models](https://arxiv.org/abs/2408.12569), ECCV 2024 (oral), 2024-08-22
 - Original code: <https://github.com/facebookresearch/sapiens> at `2cb07227a740`
 - Code licence: CC-BY-NC-4.0 (noncommercial); files: `LICENSE`
 - Weights licence: CC-BY-NC-4.0
@@ -416,9 +398,7 @@ Commercial use: **no** (weights: LicenseRef-NVIDIA-Source-Code-License-NC).
 
 <details><summary>Details</summary>
 
-- Paper: [SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers](https://arxiv.org/abs/2105.15203), NeurIPS 2021, 2021-05-31
 - Original code: <https://github.com/huggingface/transformers> at `c4c4605f9618`
-- Authors' code, not used: <https://github.com/NVlabs/SegFormer> (PyTorch): The authors' code needs mmsegmentation; the transformers port is self-contained.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: LicenseRef-NVIDIA-Source-Code-License-NC
 - Licence evidence: <https://huggingface.co/nvidia/segformer-b0-finetuned-ade-512-512/blob/489d5cd81a0b59fab9b7ea758d3548ebe99677da/README.md>
@@ -475,9 +455,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
-- Paper: [SegNeXt: Rethinking Convolutional Attention Design for Semantic Segmentation](https://arxiv.org/abs/2209.08575), NeurIPS 2022, 2022-09-18
 - Original code: <https://github.com/open-mmlab/mmsegmentation> at `c685fe6767c4`
-- Authors' code, not used: <https://github.com/Visual-Attention-Network/SegNeXt> (PyTorch): The mmsegmentation port carries the architecture and the model-zoo checkpoints without the authors' mmsegmentation fork.
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/open-mmlab/mmsegmentation/blob/c685fe6767c4cadf6b051983ca6208f1b9d1ccb8/README.md#license>

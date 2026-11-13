@@ -76,6 +76,10 @@ class _Mlp(nn.Module):
         self.gate_proj = nn.Linear(c, hidden) if gated else None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if hasattr(self, "gate_up_weight"):  # packed (`pack`): one GEMM, its halves gate / up
+            w, b = cast("torch.Tensor", self.gate_up_weight), cast("torch.Tensor", self.gate_up_bias)
+            g, u = F.linear(x, w, b).chunk(2, -1)
+            return self.down_proj(F.silu(g) * u)
         if self.gate_proj is not None:
             return self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
         return self.down_proj(F.gelu(self.up_proj(x)))
@@ -101,10 +105,17 @@ def rope_table(h: int, w: int, head_dim: int, theta: float, device: torch.device
     return ang.cos(), ang.sin()
 
 
-def rotate_half(x: torch.Tensor) -> torch.Tensor:
-    """`[x1, x2] -> [-x2, x1]` over the last dimension."""
-    x1, x2 = x.chunk(2, dim=-1)
-    return torch.cat((-x2, x1), dim=-1)
+def rope_padded(h: int, w: int, head_dim: int, theta: float, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
+    """fp32 `(cos, sin')` `[1 + REGISTERS + h * w, head_dim]` for `x * cos + roll(x, head_dim / 2) * sin'`.
+
+    HF's `x * cos + rotate_half(x) * sin` with `rotate_half(x) = [-x2, x1]` and the tiled table `sin = [s, s]` equals
+    `x * cos + [x2, x1] * [-s, s]`: `sin'` is the sign-flipped first half. The prefix tokens (cls, registers) take no
+    RoPE: their rows are `cos = 1`, `sin' = 0` (exact in every dtype), so the whole q / k rotates in three ops.
+    """
+    cos, sin = rope_table(h, w, head_dim, theta, device)
+    sin[:, : head_dim // 2].neg_()
+    pre = 1 + REGISTERS
+    return torch.cat([cos.new_ones(pre, head_dim), cos]), torch.cat([sin.new_zeros(pre, head_dim), sin])
 
 
 class DINOv3ViT(nn.Module):
@@ -150,8 +161,11 @@ class DINOv3ViT(nn.Module):
         b = p.shape[0]
         return torch.cat([e.cls_token.expand(b, -1, -1), e.register_tokens.expand(b, -1, -1), p], 1)
 
-    def pack_qkv(self) -> DINOv3ViT:
-        """Replace the q / k / v projections of each block by one `[3C, C]` GEMM (zero k bias): fewer launches."""
+    def pack(self) -> DINOv3ViT:
+        """Merge q / k / v into one `[3C, C]` GEMM (zero k bias) and gate / up (ViT-H+) into one `[2 hidden, C]` GEMM.
+
+        Fewer launches, the input read once; the merged weights are buffers (`qkv_weight`, `gate_up_weight`, ...).
+        """
         for blk in self.blocks():
             a = blk.attention
             w = torch.cat([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight]).detach()
@@ -159,27 +173,37 @@ class DINOv3ViT(nn.Module):
             a.register_buffer("qkv_weight", w, persistent=False)
             a.register_buffer("qkv_bias", b, persistent=False)
             del a.q_proj, a.k_proj, a.v_proj
+            m = blk.mlp
+            if m.gate_proj is not None:
+                m.register_buffer("gate_up_weight", torch.cat([m.gate_proj.weight, m.up_proj.weight]).detach())
+                m.register_buffer("gate_up_bias", torch.cat([m.gate_proj.bias, m.up_proj.bias]).detach())
+                del m.gate_proj, m.up_proj
+                m.gate_proj = None
         return self
 
     def attention(self, blk: _Layer, y: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """RoPE SDPA attention + output projection of the normed `y`; its temporaries are freed on return."""
         b, n, c = y.shape
         h = self.cfg.num_heads
+        d = c // h
         a = blk.attention
         if hasattr(a, "qkv_weight"):
             w, bias = cast("torch.Tensor", a.qkv_weight), cast("torch.Tensor", a.qkv_bias)
-            qkv = F.linear(y, w, bias).view(b, n, 3, h, c // h)
-            q, k, v = qkv.permute(2, 0, 3, 1, 4).unbind(0)
+            qkv = F.linear(y, w, bias).view(b, n, 3, h, d).permute(2, 0, 3, 1, 4)
         else:
-            q, k, v = (p(y).view(b, n, h, c // h).transpose(1, 2) for p in (a.q_proj, a.k_proj, a.v_proj))
-        cos, sin = rope
-        np_ = cos.shape[0]
-        q = torch.cat([q[:, :, :-np_], q[:, :, -np_:] * cos + rotate_half(q[:, :, -np_:]) * sin], 2)
-        k = torch.cat([k[:, :, :-np_], k[:, :, -np_:] * cos + rotate_half(k[:, :, -np_:]) * sin], 2)
-        return a.o_proj(F.scaled_dot_product_attention(q, k, v).transpose(1, 2).reshape(b, n, c))
+            qkv = torch.stack([p(y).view(b, n, h, d).transpose(1, 2) for p in (a.q_proj, a.k_proj, a.v_proj)])
+        cos, sin = rope  # padded tables (`rope_padded`): RoPE in place on q and k together
+        qk = qkv[:2]
+        rolled = qk.roll(d // 2, -1)  # before the in-place scale: `[x2, x1]` of the unscaled q / k
+        if torch.onnx.is_in_onnx_export():  # out of place: no in-place op on a view in the graph
+            qk = torch.addcmul(qk * cos, rolled, sin)
+        else:
+            qk.mul_(cos).addcmul_(rolled, sin)
+        q, k = qk.unbind(0)
+        return a.o_proj(F.scaled_dot_product_attention(q, k, qkv[2]).transpose(1, 2).reshape(b, n, c))
 
     def block(self, blk: _Layer, x: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
-        """One pre-norm block (SDPA attention); `rope` = `(cos, sin)` in the dtype of `x`."""
+        """One pre-norm block (SDPA attention); `rope` = padded `(cos, sin')` in the dtype of `x`."""
         if torch.onnx.is_in_onnx_export():  # ONNX addcmul promotes to fp32: plain ops for the export
             x = x + self.attention(blk, blk.norm1(x), rope) * blk.layer_scale1.lambda1
             return x + blk.mlp(blk.norm2(x)) * blk.layer_scale2.lambda1
@@ -187,13 +211,13 @@ class DINOv3ViT(nn.Module):
         return torch.addcmul(x, blk.mlp(blk.norm2(x)), blk.layer_scale2.lambda1)
 
     def rope(self, h: int, w: int, dtype: torch.dtype, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
-        """`(cos, sin)` of an `h x w` patch grid in `dtype`; in inference mode kept for the last `_ROPE_SIZES` grids."""
+        """Padded `(cos, sin')` of an `h x w` grid in `dtype`; in inference mode the last `_ROPE_SIZES` are kept."""
         cache = not torch.compiler.is_compiling() and torch.is_inference_mode_enabled()  # not in traces / autograd
         key = (h, w, dtype, device)
         if cache and key in self._rope:
             return self._rope[key]
         cfg = self.cfg
-        cos, sin = rope_table(h, w, cfg.hidden_size // cfg.num_heads, cfg.rope_theta, device)
+        cos, sin = rope_padded(h, w, cfg.hidden_size // cfg.num_heads, cfg.rope_theta, device)
         cs = cos.to(dtype), sin.to(dtype)
         if cache:
             if len(self._rope) >= _ROPE_SIZES:

@@ -12,49 +12,49 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`dwpose-l`](#rtmpose) | yes | 6.196, 28.7x | 306, 0.79x |
-| [`dwpose-l-384`](#rtmpose) | yes | 12.471, 15.5x | 424, 0.52x |
-| [`dwpose-m`](#rtmpose) | yes | 4.856, 33.8x | 220, 0.28x |
-| [`dwpose-s`](#rtmpose) | yes | 3.302, 52.3x | 198, 0.23x |
-| [`dwpose-t`](#rtmpose) | yes | 3.155, 50.8x | 192, 0.22x |
-| [`hrnet-w32`](#hrnet) | yes | 9.791, 18.0x | 262, 0.81x |
-| [`hrnet-w32-384`](#hrnet) | yes | 19.442, 9.8x | 380, 0.5x |
-| [`hrnet-w48`](#hrnet) | yes | 15.483, 12.9x | 398, 0.86x |
-| [`hrnet-w48-384`](#hrnet) | yes | 33.912, 7.2x | 498, 0.54x |
-| [`rf-detr-keypoint-preview`](#rfdetr_keypoint) | yes | 9.476, 2.0x | 224, 0.92x |
-| [`rtmo-l`](#rtmo) | yes | 8.302, 2.1x | 228, 0.35x |
-| [`rtmo-m`](#rtmo) | yes | 6.847, 2.1x | 212, 0.59x |
-| [`rtmo-s`](#rtmo) | yes | 6.267, 1.8x | 180, 0.82x |
-| [`rtmo-t`](#rtmo) | yes | 6.313, 1.8x | 156, 1.4x |
-| [`rtmpose-l`](#rtmpose) | yes | 5.635, 28.6x | 264, 0.24x |
-| [`rtmpose-l-384`](#rtmpose) | yes | 11.171, 15.3x | 406, 0.99x |
+| [`dwpose-l`](#rtmpose) | yes | 6.20, 28.7x | 306, 0.79x |
+| [`dwpose-l-384`](#rtmpose) | yes | 12.5, 15.5x | 424, 0.52x |
+| [`dwpose-m`](#rtmpose) | yes | 4.86, 33.8x | 220, 0.28x |
+| [`dwpose-s`](#rtmpose) | yes | 3.30, 52.3x | 198, 0.23x |
+| [`dwpose-t`](#rtmpose) | yes | 3.15, 50.8x | 192, 0.22x |
+| [`hrnet-w32`](#hrnet) | yes | 9.79, 18.0x | 262, 0.81x |
+| [`hrnet-w32-384`](#hrnet) | yes | 19.4, 9.8x | 380, 0.5x |
+| [`hrnet-w48`](#hrnet) | yes | 15.5, 12.9x | 398, 0.86x |
+| [`hrnet-w48-384`](#hrnet) | yes | 33.9, 7.2x | 498, 0.54x |
+| [`rf-detr-keypoint-preview`](#rfdetr_keypoint) | yes | 9.48, 2.0x | 224, 0.92x |
+| [`rtmo-l`](#rtmo) | yes | 8.30, 2.1x | 228, 0.35x |
+| [`rtmo-m`](#rtmo) | yes | 6.85, 2.1x | 212, 0.59x |
+| [`rtmo-s`](#rtmo) | yes | 6.27, 1.8x | 180, 0.82x |
+| [`rtmo-t`](#rtmo) | yes | 6.31, 1.8x | 156, 1.4x |
+| [`rtmpose-l`](#rtmpose) | yes | 5.63, 28.6x | 264, 0.24x |
+| [`rtmpose-l-384`](#rtmpose) | yes | 11.2, 15.3x | 406, 0.99x |
 | [`rtmpose-l-halpe26`](#rtmpose) | yes | 5.65, 29.1x | 264, 0.5x |
-| [`rtmpose-l-halpe26-384`](#rtmpose) | yes | 11.206, 18.4x | 406, 0.39x |
-| [`rtmpose-m`](#rtmpose) | yes | 4.423, 40.4x | 200, 0.55x |
+| [`rtmpose-l-halpe26-384`](#rtmpose) | yes | 11.2, 18.4x | 406, 0.39x |
+| [`rtmpose-m`](#rtmpose) | yes | 4.42, 40.4x | 200, 0.55x |
 | [`rtmpose-m-384`](#rtmpose) | yes | 8.97, 18.6x | 340, 0.58x |
-| [`rtmpose-m-ap10k`](#rtmpose) | yes | 5.408, 34.5x | 220, 0.27x |
-| [`rtmpose-m-face6`](#rtmpose) | yes | 5.781, 34.3x | 242, 0.35x |
-| [`rtmpose-m-halpe26`](#rtmpose) | yes | 4.463, 40.2x | 220, 0.69x |
-| [`rtmpose-m-halpe26-384`](#rtmpose) | yes | 9.014, 21.3x | 340, 0.45x |
-| [`rtmpose-m-hand5`](#rtmpose) | yes | 5.436, 35.3x | 240, 0.51x |
-| [`rtmpose-s`](#rtmpose) | yes | 3.011, 53.4x | 178, 0.37x |
-| [`rtmpose-s-face6`](#rtmpose) | yes | 3.748, 63.2x | 222, 0.41x |
-| [`rtmpose-s-halpe26`](#rtmpose) | yes | 3.038, 56.5x | 198, 0.99x |
-| [`rtmpose-t`](#rtmpose) | yes | 2.901, 52.0x | 176, 0.36x |
-| [`rtmpose-t-face6`](#rtmpose) | yes | 3.627, 51.8x | 220, 0.47x |
-| [`rtmpose-t-halpe26`](#rtmpose) | yes | 2.904, 59.1x | 196, 1.4x |
-| [`rtmpose-x-halpe26-384`](#rtmpose) | yes | 18.721, 11.6x | 470, 0.85x |
-| [`rtmw-l`](#rtmpose) | yes | 10.215, 19.8x | 336, 0.47x |
-| [`rtmw-l-384`](#rtmpose) | yes | 20.245, 13.6x | 476, 0.47x |
-| [`rtmw-m`](#rtmpose) | yes | 7.537, 22.5x | 268, 0.82x |
-| [`rtmw-x`](#rtmpose) | yes | 14.312, 14.5x | 394, 0.62x |
-| [`rtmw-x-384`](#rtmpose) | yes | 50.766, 5.7x | 674, 0.37x |
-| [`vitpose-base`](#vitpose) | yes | 13.967, 7.5x | 704, 1.2x |
-| [`vitpose-base-simple`](#vitpose) | yes | 14.147, 7.7x | 684, 0.97x |
-| [`vitpose-plus-base`](#vitpose) | yes | 13.949, 8.1x | 704, 0.95x |
-| [`vitpose-plus-huge`](#vitpose) | yes | 64.102, 3.8x | 1766, 0.43x |
-| [`vitpose-plus-large`](#vitpose) | yes | 34.893, 4.7x | 1124, 0.52x |
-| [`vitpose-plus-small`](#vitpose) | yes | 8.067, 12.9x | 558, 1.8x |
+| [`rtmpose-m-ap10k`](#rtmpose) | yes | 5.41, 34.5x | 220, 0.27x |
+| [`rtmpose-m-face6`](#rtmpose) | yes | 5.78, 34.3x | 242, 0.35x |
+| [`rtmpose-m-halpe26`](#rtmpose) | yes | 4.46, 40.2x | 220, 0.69x |
+| [`rtmpose-m-halpe26-384`](#rtmpose) | yes | 9.01, 21.3x | 340, 0.45x |
+| [`rtmpose-m-hand5`](#rtmpose) | yes | 5.44, 35.3x | 240, 0.51x |
+| [`rtmpose-s`](#rtmpose) | yes | 3.01, 53.4x | 178, 0.37x |
+| [`rtmpose-s-face6`](#rtmpose) | yes | 3.75, 63.2x | 222, 0.41x |
+| [`rtmpose-s-halpe26`](#rtmpose) | yes | 3.04, 56.5x | 198, 0.99x |
+| [`rtmpose-t`](#rtmpose) | yes | 2.90, 52.0x | 176, 0.36x |
+| [`rtmpose-t-face6`](#rtmpose) | yes | 3.63, 51.8x | 220, 0.47x |
+| [`rtmpose-t-halpe26`](#rtmpose) | yes | 2.90, 59.1x | 196, 1.4x |
+| [`rtmpose-x-halpe26-384`](#rtmpose) | yes | 18.7, 11.6x | 470, 0.85x |
+| [`rtmw-l`](#rtmpose) | yes | 10.2, 19.8x | 336, 0.47x |
+| [`rtmw-l-384`](#rtmpose) | yes | 20.2, 13.6x | 476, 0.47x |
+| [`rtmw-m`](#rtmpose) | yes | 7.54, 22.5x | 268, 0.82x |
+| [`rtmw-x`](#rtmpose) | yes | 14.3, 14.5x | 394, 0.62x |
+| [`rtmw-x-384`](#rtmpose) | yes | 50.8, 5.7x | 674, 0.37x |
+| [`vitpose-base`](#vitpose) | yes | 14.0, 7.5x | 704, 1.2x |
+| [`vitpose-base-simple`](#vitpose) | yes | 14.1, 7.7x | 684, 0.97x |
+| [`vitpose-plus-base`](#vitpose) | yes | 13.9, 8.1x | 704, 0.95x |
+| [`vitpose-plus-huge`](#vitpose) | yes | 64.1, 3.8x | 1766, 0.43x |
+| [`vitpose-plus-large`](#vitpose) | yes | 34.9, 4.7x | 1124, 0.52x |
+| [`vitpose-plus-small`](#vitpose) | yes | 8.07, 12.9x | 558, 1.8x |
 
 <a id="rtmpose"></a>
 
@@ -97,8 +97,6 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
-- Paper: [RTMPose: Real-Time Multi-Person Pose Estimation based on MMPose](https://arxiv.org/abs/2303.07399), arXiv, 2023-03-13 (for `rtmpose-t`, `rtmpose-s`, `rtmpose-m`, `rtmpose-l`, `rtmpose-m-384`, `rtmpose-l-384`)
-- Paper: [Effective Whole-body Pose Estimation with Two-stages Distillation](https://arxiv.org/abs/2307.15880), ICCV 2023 CV4Metaverse Workshop, 2023-07-29 (for `dwpose-t`, `dwpose-s`, `dwpose-m`, `dwpose-l`, `dwpose-l-384`)
 - Original code: <https://github.com/open-mmlab/mmpose> at `5408bc76f5b8`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -335,9 +333,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
-- Paper: [Deep High-Resolution Representation Learning for Human Pose Estimation](https://arxiv.org/abs/1902.09212), CVPR 2019, 2019-02-25
 - Original code: <https://github.com/open-mmlab/mmpose> at `5408bc76f5b8`
-- Authors' code, not used: <https://github.com/leoxiaobin/deep-high-resolution-net.pytorch> (PyTorch): The mmpose port loads the model-zoo checkpoints retrained and evaluated in the OpenMMLab pipeline, with its own heatmap codec, instead of the authors' original scripts and weights.
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/open-mmlab/mmpose/blob/5408bc76f5b848cf925a0d1857899011d8c5b497/README.md#license>
@@ -406,7 +402,6 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
-- Paper: [RF-DETR: Neural Architecture Search for Real-Time Detection Transformers](https://arxiv.org/abs/2511.09554), ICLR 2026, 2025-11-12
 - Original code: <https://github.com/roboflow/rf-detr> at `5b22dfc09406`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -470,7 +465,6 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
-- Paper: [RTMO: Towards High-Performance One-Stage Real-Time Multi-Person Pose Estimation](https://arxiv.org/abs/2312.07526), CVPR 2024, 2023-12-12
 - Original code: <https://github.com/open-mmlab/mmpose> at `5408bc76f5b8`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -481,7 +475,7 @@ Commercial use: yes.
 - Variants: `rtmo-t`, `rtmo-s`, `rtmo-m`, `rtmo-l`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmo-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmo-s` not measured yet; `rtmo-m` not measured yet; `rtmo-l` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmo-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmo-s` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmo-m` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmo-l` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
 - `rtmo-t` 1080x1920, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `rtmo-s` 1080x1920, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `rtmo-m` 1080x1920, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
@@ -554,10 +548,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
-- Paper: [ViTPose: Simple Vision Transformer Baselines for Human Pose Estimation](https://arxiv.org/abs/2204.12484), NeurIPS 2022, 2022-04-26 (for `vitpose-base-simple`, `vitpose-base`)
-- Paper: [ViTPose++: Vision Transformer for Generic Body Pose Estimation](https://arxiv.org/abs/2212.04246), TPAMI 2023, 2022-12-07 (for `vitpose-plus-small`, `vitpose-plus-base`, `vitpose-plus-large`, `vitpose-plus-huge`)
 - Original code: <https://github.com/huggingface/transformers> at `v4.57.1`
-- Authors' code, not used: <https://github.com/ViTAE-Transformer/ViTPose> (PyTorch): The authors' code is built on mmpose; the Hugging Face transformers port is dependency-light and ships the converted weights.
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
 - Licence evidence: https://huggingface.co/usyd-community/vitpose-base-simple (model card licence)
@@ -571,7 +562,7 @@ Commercial use: yes.
 - Variants: `vitpose-base-simple`, `vitpose-base`, `vitpose-plus-small`, `vitpose-plus-base`, `vitpose-plus-large`, `vitpose-plus-huge`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vitpose-base-simple` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-small` 3000x4000 (4.4 GiB peak allocated, 4.6 reserved); `vitpose-plus-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-large` 3000x4000 (4.9 GiB peak allocated, 5.2 reserved); `vitpose-plus-huge` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vitpose-base-simple` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-small` 3000x4000 (4.4 GiB peak allocated, 4.6 reserved); `vitpose-plus-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-large` 3000x4000 (4.9 GiB peak allocated, 5.2 reserved); `vitpose-plus-huge` 3000x4000 (5.5 GiB peak allocated, 5.7 reserved)
 - `vitpose-base-simple` 1080x1920, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `vitpose-base` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `vitpose-plus-small` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 38 s (ONNX + engine).
@@ -602,14 +593,14 @@ Commercial use: yes.
 
 Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | portable | kernels | note |
-|---|---|---|---|---|
-| `vitpose-base-simple` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.3 |  |
-| `vitpose-base` | COCO val2017, ground-truth person boxes, keypoint AP | 76.4 | 76.4 |  |
-| `vitpose-plus-small` | COCO val2017, ground-truth person boxes, keypoint AP | 76.8 | 76.8 |  |
-| `vitpose-plus-base` | COCO val2017, ground-truth person boxes, keypoint AP | 78.6 | 78.6 |  |
-| `vitpose-plus-large` | COCO val2017, ground-truth person boxes, keypoint AP | 80.5 | 80.5 |  |
-| `vitpose-plus-huge` | COCO val2017, ground-truth person boxes, keypoint AP | 80.9 | 80.9 |  |
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `vitpose-base-simple` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.2 | 76.3 | 76.3 |  |
+| `vitpose-base` | COCO val2017, ground-truth person boxes, keypoint AP | 76.4 | 76.4 | 76.4 | 76.4 |  |
+| `vitpose-plus-small` | COCO val2017, ground-truth person boxes, keypoint AP | 76.8 | 76.8 | 76.8 | 76.8 |  |
+| `vitpose-plus-base` | COCO val2017, ground-truth person boxes, keypoint AP | 78.6 | 78.6 | 78.6 | 78.6 |  |
+| `vitpose-plus-large` | COCO val2017, ground-truth person boxes, keypoint AP | 80.6 | 80.6 | 80.5 | 80.5 |  |
+| `vitpose-plus-huge` | COCO val2017, ground-truth person boxes, keypoint AP | 81.0 | 81.0 | 80.9 | 80.9 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted, 2026-11-09.
 

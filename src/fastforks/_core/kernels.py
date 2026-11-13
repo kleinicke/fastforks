@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Literal, TypeVar
 import torch
 
 from fastforks._core.errors import CardError, KernelUnavailableError, WeightsError
-from fastforks._core.files import FileSpec, cache_root, locate, search_path
+from fastforks._core.files import FileSpec, cache_root, locate, read_caches, search_path
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -302,7 +302,7 @@ def _private(path: Path) -> bool:
     Anyone who can write there already is this user; for a shared, foreign or writable location the binary is
     hashed on every load and loaded from the hashed bytes.
     """
-    roots = {r.resolve() for r in (cache_root(), *search_path(KERNEL_PATH_ENV))}
+    roots = {r.resolve() for r in (cache_root(), *read_caches(), *search_path(KERNEL_PATH_ENV))}
     uid = os.getuid()
     try:
         p = path.resolve()
@@ -511,6 +511,35 @@ def note_fallback(library: str, what: str) -> None:
         log.info("%s: %s runs without the custom kernel", library, what)
 
 
+T = TypeVar("T")
+_AUTO_FAILED: dict[tuple[object, str], KernelUnavailableError] = {}
+
+
+def auto_kernels(load: Callable[[torch.device], T], device: torch.device, logger: logging.Logger) -> T | None:
+    """`mode="auto"` of a per-call function: the kernel library `load(device)`, or None for the portable path.
+
+    A library that cannot load is remembered for the process, so calls do not retry it (a missing binary costs an
+    HTTP 404, ~120 ms, per try), and one WARNING says so: the portable path can be orders of magnitude slower
+    (fundamental-matrix RANSAC ~400x), which an INFO hid.
+    """
+    key = load, str(device)
+    if key in _AUTO_FAILED:
+        return None
+    try:
+        return load(device)
+    except KernelUnavailableError as e:
+        with _FALLBACK_LOCK:
+            first = _AUTO_FAILED.setdefault(key, e) is e
+        if first:
+            logger.warning(
+                "%s kernels unavailable on %s (%s); mode='auto' runs the much slower portable path",
+                e.library,
+                device,
+                e.reason,
+            )
+        return None
+
+
 def fallbacks() -> dict[tuple[str, str], int]:
     """Counts of `note_fallback` cases since the last `reset_fallbacks()`, keyed by `(library, case)`."""
     with _FALLBACK_LOCK:
@@ -537,8 +566,6 @@ def call_index() -> int:
     """The index of the current model call (0 before the first); see `begin_call`."""
     return _call
 
-
-T = TypeVar("T")
 
 _SLOTS = 1024  # fixed: launch checks per fp32 buffer of a `checked` run (4 KB; more launches: one more buffer + sync)
 

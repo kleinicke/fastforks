@@ -14,7 +14,10 @@ official training scenes (valid = finite GT < 1000, bad > 2 px), all pixels, the
 evaluation code. Depth: NYUv2 (654) and iBims-1 (100) of the MoGe eval set, ETH3D (27) / Middlebury trainingH (15)
 left images with depth = f * B / (disp + doffs); least-squares scale + shift in the prediction's space (disparity for
 inverse-depth outputs), clamp to the GT range, AbsRel and delta1 < 1.25; metric models also the raw metric AbsRel /
-delta1. A prediction of another size is resized bilinearly to the GT (noted). Non-finite predictions count as 0 (the
+delta1. Normals-only models (`--datasets nyu-normals,ibims-normals`): NYUv2 test (654) and iBims-1 (100) of Marigold's
+normals evaluation set (DSINE's GT), angular error in degrees over the pixels with a GT normal, per image mean, median
+and % within 11.25 / 30 degrees, averaged over images. A prediction of another size is resized bilinearly to the GT
+(noted). Non-finite predictions count as 0 (the
 fraction is recorded; > 1 % of an item's pixels makes the tier an `error` row). ms = CUDA-synchronised call, mean over
 items without the process's first call; peak = max allocated / reserved during the calls (inputs and model included).
 """
@@ -38,7 +41,10 @@ from _data import DATA
 
 STEREO = DATA / "stereo"
 MONO = DATA / "mono/moge_eval"
+NORMALS = DATA / "mono/marigold_normals_eval"  # Marigold's normals evaluation_dataset.zip (DSINE's NYUv2 / iBims-1)
 DATASETS = {"stereo": ("eth3d", "middH"), "depth": ("nyu", "ibims", "eth3d", "middH")}
+NORMALS_SETS = {"nyu-normals": "nyuv2/test", "ibims-normals": "ibims/ibims"}  # depth task, normals-only models
+_ANGLES = (11.25, 30.0)  # degrees: the share of pixels within (Marigold's normals eval)
 BAD = {"eth3d": (1.0, 512.0), "middH": (2.0, 1000.0)}
 NONFINITE_MAX = 0.01
 
@@ -94,8 +100,23 @@ def stereo_items(ds: str) -> list[tuple[str, Any]]:
     ]
 
 
+def normals_items(ds: str) -> list[tuple[str, Any]]:
+    """[(key, loader)]; loader() -> (uint8 HWC, GT unit normals HxWx3 float32 in the camera frame, 0 = invalid)."""
+    items: list[tuple[str, Any]] = []
+    for img in sorted(Path(NORMALS / NORMALS_SETS[ds]).glob("*_img.png")):
+
+        def ld(img: Path = img) -> tuple[np.ndarray, np.ndarray]:
+            gt = np.load(str(img).replace("_img.png", "_normal.npy")).astype(np.float32)
+            return rgb(str(img)), gt * np.float32([1.0, -1.0, -1.0])  # Marigold's (x right, y up, z to the viewer)
+
+        items.append((img.name.removesuffix("_img.png"), ld))
+    return items
+
+
 def depth_items(ds: str) -> list[tuple[str, Any]]:
     """[(key, loader)]; loader() -> (uint8 HWC, GT depth HxW float32 m, nan = invalid)."""
+    if ds in NORMALS_SETS:
+        return normals_items(ds)
     items: list[tuple[str, Any]] = []
     if ds in {"nyu", "ibims"}:
         root = f"{MONO}/{'NYUv2' if ds == 'nyu' else 'iBims-1'}"
@@ -161,7 +182,7 @@ def _align(pred: Any, gt: Any, m: Any, space: str) -> Any:  # noqa: ANN401
 class Predictor:
     """One tier of one model: `call(uint8 HWC images...) -> (map, space)`; prep untimed, the call timed."""
 
-    def __init__(self, task: str, ref: str, tier: str) -> None:  # noqa: D107
+    def __init__(self, task: str, ref: str, tier: str, *, normals: bool = False) -> None:  # noqa: D107
         import torch  # noqa: PLC0415
 
         self.task, self.tier, self.note = task, tier, ""
@@ -172,15 +193,20 @@ class Predictor:
             self.orig = _original.load(task, ref, tier)
             _, _, variant = _original.full_ref(task, ref)
             self.kind = variant.output_info.get("kind", "relative") if task == "depth" else ""
-            inv = self.orig.adapter.key == "inverse_depth" and "inverse_depth" in variant.outputs  # DAv2 Metric: depth
-            self.space = "disparity" if inv else "depth"
+            inv = getattr(self.orig.adapter, "key", "") == "inverse_depth" and "inverse_depth" in variant.outputs
+            self.space = "normals" if variant.outputs == ("normals",) else "disparity" if inv else "depth"
             self.mode, self.dtype, self.how, self.note = "upstream", self.orig.dtype, self.orig.how, self.orig.note
             self.backend = f"original {self.how}"
             return
         self.orig = None
         mod = __import__(f"fastforks.{task}", fromlist=["load"])
         mode = "portable" if tier == "portable32" else tier
-        kw = {"dtype": "float32"} if tier == "portable32" else {}
+        kw: dict[str, Any] = {"dtype": "float32"} if tier == "portable32" else {}
+        if normals:  # a model with an optional normal head (MoGe): run it
+            from fastforks._core.registry import cards  # noqa: PLC0415
+
+            if "normals" in cards(task)[ref][0].options:
+                kw["options"] = {"normals": True}
         self.model = mod.load(ref, mode=mode, device="cuda", **kw)
         self.mode, self.how = mode, None
         self.dtype = str(self.model.backend.dtype).removeprefix("torch.")
@@ -195,12 +221,18 @@ class Predictor:
         xs = tuple(torch.from_numpy(i).permute(2, 0, 1).contiguous().cuda() for i in ims)
         return self.orig.prep(xs) if self.orig is not None else xs
 
-    def call(self, args: tuple[Any, ...]) -> tuple[Any, str]:  # noqa: D102
+    def call(self, args: tuple[Any, ...], ds: str = "") -> tuple[Any, str]:  # noqa: D102
         if self.orig is not None:
+            if ds in NORMALS_SETS and self.space != "normals":
+                raise RuntimeError("the original adapter returns no normals")  # noqa: TRY003, EM101
             return self.orig(*args), self.space
         r = self.model(*args)
         if self.task == "stereo":
             return r.disparity, "disparity"
+        if ds in NORMALS_SETS:
+            if r.normals is None:
+                raise RuntimeError("the model returns no normals")  # noqa: TRY003, EM101
+            return r.normals, "normals"
         if r.inverse_depth is not None:
             return r.inverse_depth, "disparity"
         if r.depth is not None:
@@ -208,9 +240,26 @@ class Predictor:
         return r.points[..., 2], "depth"
 
 
+def _normals_item(pred: Any, gt: np.ndarray) -> dict[str, Any]:  # noqa: ANN401
+    """Angular error (degrees) over the pixels with a GT normal: mean, median and the share within `_ANGLES` (%)."""
+    import torch  # noqa: PLC0415
+
+    g = torch.from_numpy(gt).cuda()
+    p = torch.as_tensor(pred).float().cuda().reshape(g.shape)
+    fin = torch.isfinite(p).all(-1)
+    m = (g.norm(dim=-1) > 0) & fin
+    cos = torch.nn.functional.cosine_similarity(p[m], g[m], dim=-1).clamp(-1.0, 1.0)
+    e = torch.rad2deg(torch.acos(cos))
+    row = {"nonfinite": round(1 - fin.float().mean().item(), 6), "ang_mean": e.mean().item()}
+    row |= {"ang_median": e.median().item(), **{f"a{a:g}": 100 * (e < a).float().mean().item() for a in _ANGLES}}
+    return row | {"n_px": int(m.sum())}
+
+
 def _item(pred: Any, space: str, gt: np.ndarray, ds: str, task: str, kind: str) -> dict[str, Any]:  # noqa: ANN401, PLR0913, PLR0917
     import torch  # noqa: PLC0415
 
+    if space == "normals":
+        return _normals_item(pred, gt)
     g = torch.from_numpy(gt).cuda()
     p, resized = _hw(pred, tuple(g.shape))
     fin = torch.isfinite(p)
@@ -284,7 +333,7 @@ def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, P
                                 "command": " ".join(["python", "tools/eval_stereo_depth.py", *sys.argv[1:]])}  # fmt: skip  # noqa: E501
         try:
             tb = time.perf_counter()
-            pr = Predictor(a.task, ref, tier)
+            pr = Predictor(a.task, ref, tier, normals=any(ds in NORMALS_SETS for ds in sets))
             meta |= {"mode": pr.mode, "dtype": pr.dtype, "how": pr.how, "note": pr.note, "backend": pr.backend,
                      "kind": pr.kind, "build_s": round(time.perf_counter() - tb, 1)}  # fmt: skip
         except Exception as e:  # noqa: BLE001 - recorded; the queue goes on
@@ -305,7 +354,7 @@ def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, P
             torch.cuda.reset_peak_memory_stats()
             tc = time.perf_counter()
             try:
-                pred, space = pr.call(args)
+                pred, space = pr.call(args, ds)
                 torch.cuda.synchronize()
             except Exception as e:  # noqa: BLE001
                 f.write(json.dumps({"ds": ds, "key": key, "error": f"call: {type(e).__name__}: {e}"[:400]}) + "\n")
@@ -329,7 +378,7 @@ def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, P
     return 3 if again else 0
 
 
-def summary_rows(out: Path) -> list[dict[str, Any]]:
+def summary_rows(out: Path) -> list[dict[str, Any]]:  # noqa: C901 - one branch per row kind
     """One docs row per model, tier and dataset from the per-item files under `out`."""
     res = []
     for per in sorted(p for task in ("stereo", "depth") for p in (out / task).glob("*__*.jsonl")):  # not coco/
@@ -345,8 +394,10 @@ def summary_rows(out: Path) -> list[dict[str, Any]]:
         if meta.get("note"):
             base["note"] = meta["note"]
         err = next((r["error"] for r in rows if "error" in r), None)
-        for ds in DATASETS[task]:
+        for ds in (*DATASETS[task], *(NORMALS_SETS if task == "depth" else ())):
             rs = [r for r in rows if r.get("ds") == ds and "key" in r and "error" not in r]
+            if not rs and ds in NORMALS_SETS:
+                continue  # a depth model: no normals rows
             want = len((stereo_items if task == "stereo" else depth_items)(ds))
             row = dict(base, dataset=ds)
             if err and len(rs) < want:
@@ -358,7 +409,8 @@ def summary_rows(out: Path) -> list[dict[str, Any]]:
             if bad_nf:
                 row["error"] = f"non-finite output (> 1 % of the pixels) on {bad_nf} of {len(rs)} items"
             timed = [r["ms"] for r in rs if not r["first"]] or [r["ms"] for r in rs]
-            mets = {k: round(float(np.mean([r[k] for r in rs])), 4) for k in rs[0] if k.endswith(("absrel", "d1"))}
+            keys = ("absrel", "d1", "ang_mean", "ang_median", *(f"a{a:g}" for a in _ANGLES))
+            mets = {k: round(float(np.mean([r[k] for r in rs])), 4) for k in rs[0] if k.endswith(keys)}
             if task == "stereo":
                 mets = {"bad": round(100 * float(np.mean([r["bad"] for r in rs])), 2),
                         "epe": round(float(np.mean([r["epe"] for r in rs])), 4)}  # fmt: skip
@@ -390,7 +442,11 @@ def main() -> None:
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     if a.cmd == "rows":
-        for r in summary_rows(Path(a.out)):
+        from acc_collect import choose  # noqa: PLC0415 - acc_collect imports this module
+
+        rows = summary_rows(Path(a.out))
+        choose(rows)  # docs modes: `upstream16` (or `upstreamac`) is `upstream-fp16`, not the original's `upstream`
+        for r in rows:
             print(json.dumps(r))
         return
     sys.exit(run(a))

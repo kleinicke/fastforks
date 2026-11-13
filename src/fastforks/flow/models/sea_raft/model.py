@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
+import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
@@ -13,8 +14,6 @@ from fastforks.flow._runner import Forward, Runner
 from .net import MEDIUM, SEARAFT, SMALL
 
 if TYPE_CHECKING:
-    import torch
-
     from fastforks.flow._runner import Context
 
 
@@ -70,9 +69,13 @@ class Portable(_Scaled):
         self.net.load_state_dict(sd)
         self.net.fp16 = ctx.dtype == "float16"
         self.net.eval().to(ctx.device)
+        # Channels-last on CUDA: -10 % (cuDNN's NHWC convolutions without layout copies; RAFT is slower this way).
+        self.layout = torch.channels_last if ctx.device.type == "cuda" else torch.contiguous_format
+        self.net.to(memory_format=self.layout)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
+        image1, image2 = (x.contiguous(memory_format=self.layout) for x in (image1, image2))
         return {"flow": self.net(image1, image2, self.ctx.params.iters)}
 
     def module(self) -> torch.nn.Module:

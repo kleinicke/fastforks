@@ -222,6 +222,12 @@ _PIPELINE = {
     "multiview": "image-to-3d",
     "pose": "keypoint-detection",
     "matching": "image-to-image",
+    "matting": "image-segmentation",
+    "retrieval": "image-feature-extraction",
+    "calibration": "image-feature-extraction",  # no camera-calibration pipeline on the Hub
+    "tracking": "keypoint-detection",  # no point-tracking pipeline on the Hub: query points tracked over time
+    "interpolation": "image-to-image",  # no frame-interpolation pipeline on the Hub: two frames -> the middle one
+    "restoration": "image-to-image",
 }
 _TASK_TAGS = {
     "stereo": ["stereo", "stereo-matching", "disparity"],
@@ -235,6 +241,12 @@ _TASK_TAGS = {
     "multiview": ["multi-view-stereo", "3d-reconstruction", "camera-pose-estimation"],
     "pose": ["pose-estimation", "human-pose-estimation", "keypoint-detection"],
     "matching": ["dense-matching", "image-matching", "feature-matching"],
+    "matting": ["background-removal", "dichotomous-image-segmentation", "matting"],
+    "tracking": ["point-tracking", "tracking-any-point", "video"],
+    "interpolation": ["frame-interpolation", "video-frame-interpolation", "video"],
+    "retrieval": ["image-retrieval", "visual-place-recognition", "global-descriptor"],
+    "calibration": ["camera-calibration", "single-image-calibration", "gravity-estimation"],
+    "restoration": ["super-resolution", "image-upscaling", "image-restoration"],
 }
 _SNIPPET = {
     "stereo": 'result = model("left.png", "right.png")\nresult.{out}  # [H, W] float32 tensor, input resolution',
@@ -258,6 +270,27 @@ _SNIPPET = {
         "result.{out}  # [V, H, W] float32 tensor; result.kind says what the maps mean"
     ),
     "matching": ('result = model("view1.jpg", "view2.jpg")\nresult.{out}  # [2, H1, W1] float32: x, y in view2 pixels'),
+    "matting": 'result = model("photo.jpg")\nresult.{out}  # [H, W] float32 in [0, 1], input resolution',
+    "retrieval": (
+        'result = model("photo.jpg")\nresult.{out}  # [D] float32, unit norm\n'
+        "# fastforks.retrieval.top_k(queries, database, k=5): the nearest database images"
+    ),
+    "calibration": (
+        'result = model("photo.jpg")\nresult.{out}  # [3, 3] float32 K in input pixels\n'
+        "# result.roll, result.pitch, result.vfov (radians), result.gravity [3]: where the model estimates them"
+    ),
+    "tracking": (
+        "result = model(frames, [[0, x, y]])  # frames: the video's images in order; queries (t, x, y)\n"
+        "result.{out}  # [T, Q, 2] float32: x, y in input pixels; result.visible [T, Q] bool"
+    ),
+    "interpolation": (
+        'result = model("frame1.png", "frame2.png")  # timestep=0.5: the middle frame\n'
+        "result.{out}  # [3, H, W] float32 RGB in [0, 1], input resolution"
+    ),
+    "restoration": (
+        'result = model("photo.png")  # tile=512 for large images\n'
+        "result.{out}  # [3, sH, sW] float32 RGB in [0, 1], s = model.scale"
+    ),
     "pose": (
         'result = model("photo.jpg", boxes=[[x0, y0, x1, y1]])  # one box per person, or a fastforks.detection result\n'
         "result.{out}, result.keypoint_scores  # [P, K, 2] input pixels, [P, K]"
@@ -268,6 +301,14 @@ _SNIPPET_FAMILY = {
     "sam3": (
         'result = model("photo.jpg", text="coin")  # a concept: every instance of it; or input_boxes= exemplar boxes\n'
         "result.boxes, result.scores, result.masks  # [N, 4], [N], [N, H, W] bool"
+    ),
+    "xfeat": (
+        'result = model("view1.jpg", "view2.jpg")\n'
+        "result.keypoints1, result.keypoints2, result.pairs  # [N, 2], [M, 2] pixels; [K, 2] int64 index pairs"
+    ),
+    "lightglue": (
+        'result = model("view1.jpg", "view2.jpg")\n'
+        "result.keypoints1, result.keypoints2, result.pairs  # [N, 2], [M, 2] pixels; [K, 2] int64 index pairs"
     ),
     "mvsanywhere": (
         'result = model(["ref.jpg", "src1.jpg", "src2.jpg"], intrinsics=K, cam_to_world=c2w)  # views[0] = reference\n'

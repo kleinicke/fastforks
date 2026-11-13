@@ -86,6 +86,8 @@ def test_download_dry_run_commercial_only_env(monkeypatch, capsys):
 
 def test_download_named_nc_model_with_flag_says_excluded(monkeypatch, capsys):
     monkeypatch.delenv("FASTFORKS_NONCOMMERCIAL", raising=False)
+    monkeypatch.delenv("FASTFORKS_OFFLINE", raising=False)  # offline would stop the download before the licence check
+    monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
     assert cli.main(["download", "s2m2-s", "--commercial-only"]) == 1
     err = capsys.readouterr().err
     assert "--commercial-only: not cleared for commercial use, so excluded: s2m2-s" in err

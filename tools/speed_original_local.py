@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import types
 from pathlib import Path
 from typing import Any
@@ -41,7 +42,13 @@ def _shim(dev: str) -> None:
     import torch  # noqa: PLC0415
 
     sync = torch.mps.synchronize if dev == "mps" else (lambda: None)
-    torch.Tensor.cuda = lambda self, *_a, **_k: self.to(dev)  # type: ignore[method-assign]
+
+    def tensor_cuda(self: torch.Tensor, *_a: object, **_k: object) -> torch.Tensor:
+        if dev == "mps" and self.dtype == torch.float64:  # MPS has no float64 (FlowSeek's numpy mean / std)
+            return self.to(dev, torch.float32)
+        return self.to(dev)
+
+    torch.Tensor.cuda = tensor_cuda  # type: ignore[method-assign]
     torch.nn.Module.cuda = lambda self, *_a, **_k: self.to(dev)  # type: ignore[method-assign]
     c = torch.cuda
     c.synchronize = lambda *_a, **_k: sync()
@@ -69,7 +76,9 @@ def _original(dev: str) -> Any:  # noqa: ANN401 - the tools/_original module
     sys.path.insert(0, str(bench))
     bu = _rewritten("bench_upstream", bench / "bench_upstream.py", dev)
     bu.GOLDEN_DIR = Path(os.environ["FASTFORKS_GOLDEN_PATH"])
-    return _rewritten("_original", Path(__file__).with_name("_original.py"), dev)
+    orig = _rewritten("_original", Path(__file__).with_name("_original.py"), dev)
+    _rewritten("_original_coco", Path(__file__).with_name("_original_coco.py"), dev)  # D-FINE / DEIM / OWLv2 / DINO
+    return orig
 
 
 CKPT = {  # fixed: bench adapters with a hard-coded checkpoint path -> the card's weight file of that name
@@ -95,6 +104,13 @@ def _weights(bu: Any, task: str, family: str, full: str) -> None:  # noqa: ANN40
         wp = Path(tempfile.mkdtemp())
         (wp / f"{ck}.pth").symlink_to(ffweights.wfile(f"{ck}.pth"))
         a.WP = wp
+    elif family == "great_igev":  # the checkout (FF_GREAT_REPO) and a directory of `great-igev-<v>-submit.pth`
+        if repo := os.environ.get("FF_GREAT_REPO"):
+            a.SRC = Path(repo)
+        name = f"great-igev-{full.split('@', maxsplit=1)[0].removeprefix('great-igev-')}-submit.pth"
+        wp = Path(tempfile.mkdtemp())
+        (wp / name).symlink_to(ffweights.wfile(name))
+        a.WP = wp
     elif family == "mapanything":  # the hub snapshot: config.json from the hub, the card's verified weights
         from huggingface_hub import hf_hub_download  # noqa: PLC0415
 
@@ -105,7 +121,7 @@ def _weights(bu: Any, task: str, family: str, full: str) -> None:  # noqa: ANN40
         a.SNAP = snap
 
 
-def _input(task: str, label: str, dev: str, *, local: bool) -> tuple[Any, ...]:
+def _input(task: str, label: str, dev: str, *, local: bool, needs_boxes: bool = True) -> tuple[Any, ...]:
     """The survey's synthetic input of `label` as uint8 CHW on `dev`.
 
     Bench adapters: the image (a pair for stereo). The originals of `_original.LOCAL`: the library's `bench_inputs`
@@ -122,9 +138,29 @@ def _input(task: str, label: str, dev: str, *, local: bool) -> tuple[Any, ...]:
         pair = [(x[0] * 255).round().byte().to(dev) for x in synthetic_pair(h, w, "cpu")]
         return tuple(pair) if task == "stereo" else (pair[0],)
     api = importlib.import_module(f"fastforks.{task}._api")
-    like = types.SimpleNamespace(device=torch.device(dev), needs_boxes=True, prompts=())
+    like = types.SimpleNamespace(device=torch.device(dev), needs_boxes=needs_boxes, prompts=())
     args, kw = api.bench_inputs(like, BenchSize(h, w))
     return (*((x.squeeze(0) * 255).round().byte() for x in args), *kw.values())
+
+
+def _args(spec: dict[str, Any], bu: Any, o: Any, *, local: bool) -> Any:  # noqa: ANN401 - bench / adapter objects
+    """The original's call arguments for the row's input.
+
+    Raises:
+        ValueError: The bench's multi-view rig is not the input of the portable rows.
+    """
+    a = o.adapter
+    if not local and isinstance(a, bu.MvAdapter):  # the bench's rig: views, intrinsics, poses, depth range
+        label, _, args = a.inputs(spec["full"])[0]
+        if label != spec["input"]:
+            msg = f"{spec['ref']}: the bench rig is {label}, the portable rows {spec['input']}"
+            raise ValueError(msg)
+        return args
+    if local and hasattr(a, "inputs"):  # the adapter's own inputs (matting: trimap; tracking: video + queries)
+        (args,) = (x for lab, _, x in a.inputs(spec["full"]) if lab == spec["input"])
+        return o.prep(args)
+    boxes = getattr(a, "needs_boxes", True)  # RTMO / RF-DETR keypoint: whole image, no person boxes
+    return o.prep(_input(spec["task"], spec["input"], spec["device"], local=local, needs_boxes=boxes))
 
 
 def worker(spec: dict[str, Any]) -> int:
@@ -147,7 +183,7 @@ def worker(spec: dict[str, Any]) -> int:
         torch.cuda.synchronize()  # the shim's device sync
         common["load_s"] = round(time.perf_counter() - t0, 2)
         a, local = o.adapter, spec["family"] not in bu.FAM
-        args = o.prep(_input(spec["task"], spec["input"], dev, local=local))
+        args = _args(spec, bu, o, local=local)
 
         def call() -> Any:  # noqa: ANN401
             with torch.no_grad():
@@ -162,12 +198,15 @@ def worker(spec: dict[str, Any]) -> int:
         if dev == "cpu":
             row["threads"] = torch.get_num_threads()
         rows.append(row)
-        if not local:  # the bench's golden check (the LOCAL originals have none)
+        if not local or hasattr(a, "key"):  # the bench's golden check (most LOCAL originals have none)
             t0 = time.perf_counter()
-            msg = bu.golden_check(a, spec["full"], o.fn, False)  # noqa: FBT003 - fp16 off
+            # the bench adapter holds the golden's key / task (a LOCAL original in a bench family, e.g. FastViT, too)
+            msg = bu.golden_check(a if local else bu.FAM[spec["family"]], spec["full"], o.fn, False)  # noqa: FBT003 - fp16 off
             gold = {"golden": "pass" if msg is None else "fail", "golden_s": round(time.perf_counter() - t0, 2)}
             rows.append({**common, "input": ss.GOLDEN, **gold, **({"golden_msg": msg} if msg else {})})
     except Exception as e:  # noqa: BLE001 - a failed / oom speed row, or a failed golden check after a timed one
+        if os.environ.get("FF_ORIG_TRACE"):  # debugging a failed ref: the full traceback on stderr
+            traceback.print_exc()
         err = " ".join(f"{type(e).__name__}: {e}".split())[:600]
         rows += [{**common, "input": ss.GOLDEN, "golden": "fail", "error": err}] if rows else [{**common, "error": err}]
     out.write_text("".join(json.dumps(r) + "\n" for r in rows))
@@ -234,6 +273,8 @@ def main() -> int:
             try:
                 r = subprocess.run(cmd, timeout=a.timeout, check=False, capture_output=True, text=True)
                 tail = f"rc={r.returncode}: " + " ".join(r.stderr.split()[-60:])
+                if os.environ.get("FF_ORIG_TRACE"):
+                    print(r.stderr, file=sys.stderr)
             except subprocess.TimeoutExpired:
                 tail = f"timeout after {a.timeout:g} s"
             got = [json.loads(s) for s in out.read_text().splitlines() if s.strip()] if out.is_file() else []

@@ -200,8 +200,13 @@ __device__ __forceinline__ void corr_lookup_body(const __half* __restrict__ f1, 
     {
         const __half* src = f1 + p * C + lane * V;
         __align__(16) __half v[V];
-        if constexpr (V == 8) *reinterpret_cast<uint4*>(v) = *reinterpret_cast<const uint4*>(src);
-        else *reinterpret_cast<uint2*>(v) = *reinterpret_cast<const uint2*>(src);
+        if constexpr (V % 8 == 0) {
+#pragma unroll
+            for (int u = 0; u < V / 8; ++u)
+                reinterpret_cast<uint4*>(v)[u] = reinterpret_cast<const uint4*>(src)[u];
+        } else {
+            *reinterpret_cast<uint2*>(v) = *reinterpret_cast<const uint2*>(src);
+        }
 #pragma unroll
         for (int k = 0; k < V; ++k) a[k] = __half2float(v[k]) * scale;
     }
@@ -229,8 +234,13 @@ __device__ __forceinline__ void corr_lookup_body(const __half* __restrict__ f1, 
                     if (gx >= 0 && gx < wl && gy >= 0 && gy < hl) {
                         const __half* src = base + ((long long)gy * wl + gx) * C;
                         __align__(16) __half v[V];
-                        if constexpr (V == 8) *reinterpret_cast<uint4*>(v) = __ldg(reinterpret_cast<const uint4*>(src));
-                        else *reinterpret_cast<uint2*>(v) = __ldg(reinterpret_cast<const uint2*>(src));
+                        if constexpr (V % 8 == 0) {
+#pragma unroll
+                            for (int u = 0; u < V / 8; ++u)
+                                reinterpret_cast<uint4*>(v)[u] = __ldg(reinterpret_cast<const uint4*>(src) + u);
+                        } else {
+                            *reinterpret_cast<uint2*>(v) = __ldg(reinterpret_cast<const uint2*>(src));
+                        }
                         float acc = 0.f;
 #pragma unroll
                         for (int c = 0; c < V; ++c) acc = fmaf(a[c], __half2float(v[c]), acc);
@@ -275,6 +285,13 @@ extern "C" __global__ void __launch_bounds__(256) corr_lookup_c128_r3(const __ha
                                                                       const float* coords, __half* out, int ostride,
                                                                       float scale) {
     corr_lookup_body<128, 3, 4>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
+}
+// MEMFOF: C = 1024, radius 4, four levels (324 channels).
+extern "C" __global__ void __launch_bounds__(256) corr_lookup_c1024_r4(const __half* f1, const __half* l0, const __half* l1,
+                                                                       const __half* l2, const __half* l3, int h0, int w0,
+                                                                       const float* coords, __half* out, int ostride,
+                                                                       float scale) {
+    corr_lookup_body<1024, 4, 4>(f1, l0, l1, l2, l3, h0, w0, coords, out, ostride, scale);
 }
 // NeuFlow v2: one level, C = 128, radius 4 (81 channels); f1 is the query image's features, l0 the other image's.
 extern "C" __global__ void __launch_bounds__(256) corr_lookup_c128_r4_l1(const __half* f1, const __half* l0, int h0, int w0,

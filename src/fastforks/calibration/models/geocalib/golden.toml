@@ -1,0 +1,24 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.0032
+gpu_mean = 0.087
+gpu_p99 = 0.39
+
+[refs."geocalib-pinhole@1"]
+sha256 = "025959cebf15d25d39593885547f048aa4fa1f788d84b6866e058f91fb69933a"
+upstream = "https://github.com/cvg/GeoCalib@1dedb29f94fc11b896c5f572005978aeebccd67f"
+settings = "CPU float32, geocalib.GeoCalib(weights=geocalib-pinhole.tar).calibrate(camera_model='pinhole') after torch.manual_seed(0), coffee.png, torch 2.14.1+cu130"
+
+[validated."geocalib-pinhole@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.05777
+p99_px = 0.25995

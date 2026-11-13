@@ -202,6 +202,15 @@ def _is_safetensors(path: Path) -> bool:
     return brace == b"{" and int.from_bytes(size, "little") < path.stat().st_size
 
 
+def _is_npz(path: Path) -> bool:
+    """Whether `path` is a numpy `.npz` archive (by content: a zip of `.npy` files only)."""
+    if not zipfile.is_zipfile(path):
+        return False
+    with zipfile.ZipFile(path) as z:
+        names = z.namelist()
+    return bool(names) and all(n.endswith(".npy") for n in names)
+
+
 def _plain_pickle(path: Path) -> bool:
     with path.open("rb") as f:
         return f.read(len(_LEGACY_MAGIC)) != _LEGACY_MAGIC
@@ -232,6 +241,13 @@ def load_state_dict(
         from safetensors.torch import load_file  # noqa: PLC0415 - only for safetensors weights
 
         ckpt: object = load_file(path)
+    elif _is_npz(path):  # numpy archive (e.g. a JAX checkpoint): arrays only, no pickles
+        try:
+            with np.load(path, allow_pickle=False) as z:
+                ckpt = {k: z[k] for k in z.files}
+        except ValueError as e:  # an object array
+            msg = f"{path.name}: {e}"
+            raise WeightsError(msg) from e
     elif _is_torchscript(path):
         ckpt = torchscript_state_dict(path)
     else:

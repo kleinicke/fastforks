@@ -31,7 +31,7 @@ from torch import nn
 
 from fastforks._core.kernels import linear
 from fastforks._core.patch import base_type, override
-from fastforks.kernels import igevpp
+from fastforks.kernels import dpt_fused, igevpp
 from fastforks.kernels.cutlass_conv import ConvEpiArgs
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, bn_affine, conv_ep, conv_fused, cutlass, epilogue, fused_cfg
@@ -436,7 +436,7 @@ def prepare_kernels(model: nn.Module, device: torch.device) -> None:
             w = c.weight.data
             c.weight.data = torch.cat([w, w.new_zeros(w.shape[0], cin - w.shape[1], *w.shape[2:])], 1)
             c.in_channels = cin
-    use_fast_vit(model.mono_encoder, attn="hh")
+    use_fast_vit(model.mono_encoder, attn="hh", fused=dpt_fused.load(device))
     cnn_kernels.patch_norms(model)  # remaining BatchNorms (DPT-free; REMP's) and bare InstanceNorms
     cnn_kernels.prepare_convs(model)
     for blk in (model.update_block,):  # the fused motion conv needs 128 (127 + pad) CUTLASS outputs

@@ -26,6 +26,19 @@ def image(h: int = 100, w: int = 150, seed: int = 0) -> np.ndarray:
     return pair(h, w, seed)[0]
 
 
+def prompt_depth(h: int = 12, w: int = 18, seed: int = 0) -> np.ndarray:
+    """Return a smooth positive float32 depth prompt `[h, w]` in metres (1 to 5 m), for depth-prompted models."""
+    rng = np.random.default_rng(seed)
+    y, x = np.linspace(0, 1, h)[:, None], np.linspace(0, 1, w)[None]
+    return (1.5 + 2.0 * y + 1.0 * x + 0.3 * np.sin(9 * x + 5 * y) + 0.05 * rng.random((h, w))).astype(np.float32)
+
+
+def prompt_kwargs(model: object, seed: int = 0) -> dict[str, np.ndarray]:
+    """`{"prompt_depth": ...}` for a depth model that requires a depth prompt, else `{}`."""
+    runner = getattr(model, "_runner", None)
+    return {"prompt_depth": prompt_depth(seed=seed)} if getattr(runner, "prompt_depth", "unused") == "required" else {}
+
+
 def size(min_size: int = 1, h: int = 100, w: int = 150) -> tuple[int, int]:
     """Test image size `h x w`, raised to a model's `io.min_size` (e.g. PSMNet's 64 px pooling at 1/4 needs 241)."""
     return max(h, min_size), max(w, min_size)
@@ -40,6 +53,36 @@ def prompts() -> dict[str, dict[str, object]]:
     return {
         "": {**point, "multimask_output": True},
         "box_": {**point, "input_boxes": [20, 15, 120, 85], "multimask_output": False},
+    }
+
+
+def clip(n: int = 6, h: int = 100, w: int = 150) -> list[np.ndarray]:
+    """Frames of a video-tracking golden: an orange disk (radius 18 px) moving right / down over `image()` darkened.
+
+    uint8 `[H, W, 3]` each; the disk centre is at `(50 + 5 t, 45 + 2 t)` in frame `t`.
+    """
+    bg = (image(h, w).astype(np.float64) * 0.5).round()
+    yy, xx = np.mgrid[:h, :w]
+    frames = []
+    for t in range(n):
+        f = bg.copy()
+        f[(xx - 50 - 5 * t) ** 2 + (yy - 45 - 2 * t) ** 2 <= 18**2] = (230, 160, 40)
+        frames.append(f.astype(np.uint8))
+    return frames
+
+
+def track_queries() -> list[list[float]]:
+    """`(t, x, y)` queries on `clip()` for point tracking: the disk centre in frames 0 and 2, a background point."""
+    return [[0, 50.0, 45.0], [2, 60.0, 49.0], [0, 110.0, 70.0]]
+
+
+def clip_prompts() -> dict[str, dict[str, Any]]:
+    """Frame-0 prompts of `clip()` for `track`, by golden key prefix: a point, a box, the disk's mask."""
+    yy, xx = np.mgrid[:100, :150]
+    return {
+        "video_": {"input_points": [[50, 45]], "input_labels": [1]},
+        "video_box_": {"input_boxes": [30, 25, 70, 65]},
+        "video_mask_": {"input_masks": ((xx - 50) ** 2 + (yy - 45) ** 2 <= 18**2).astype(np.uint8)},
     }
 
 

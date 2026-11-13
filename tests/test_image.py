@@ -11,6 +11,7 @@ import pytest
 import torch
 from PIL import Image
 
+import fastforks
 from fastforks import InputError
 from fastforks._core import image as image_mod
 from fastforks._core.image import to_rgb_batch
@@ -235,3 +236,45 @@ def test_url_in_stereo_pipeline(served):
     assert pipeline._path(names[0]) is None
     assert pipeline._peek(names[0]) is None
     assert pipeline._peek(str(path)) is not None
+
+
+def test_files_of_one_call_decode_in_parallel(tmp_path, monkeypatch):
+    """A pair / view list of files: the same tensors as one by one, decoded on several threads, first error first."""
+    rng = np.random.default_rng(0)
+    arrays = [rng.integers(0, 255, (9, 12, 3), dtype=np.uint8) for _ in range(3)]
+    paths = [tmp_path / f"{i}.png" for i in range(3)]
+    for a, p in zip(arrays, paths, strict=True):
+        Image.fromarray(a).save(p)
+    threads = set()
+    decode = image_mod.decode_image
+    monkeypatch.setattr(image_mod, "decode_image", lambda src: (threads.add(threading.get_ident()), decode(src))[1])
+    mixed = [paths[0], arrays[1], paths[2].read_bytes()]
+    for got, a in zip(image_mod.to_rgb_batches(mixed, CPU), (arrays[0], arrays[1], arrays[2]), strict=True):
+        assert torch.equal(got, image_mod.to_rgb_batch(a, CPU))
+    assert len(threads) == 2  # the caller's thread and one worker
+    left, right = image_mod.to_rgb_pair(paths[0], str(paths[0]), CPU)
+    assert torch.equal(left, right)
+    with pytest.raises(InputError, match="missing_a"):
+        image_mod.to_rgb_batches([tmp_path / "missing_a.png", tmp_path / "missing_b.png"], CPU)
+
+
+def test_read_images_decodes_ahead_in_order(tmp_path) -> None:
+    """`read_images`: the arrays of `decode_image` in order, from a generator, bounded ahead; errors at their item."""
+    paths = []
+    for i in range(12):
+        paths.append(tmp_path / f"{i}.png")
+        Image.fromarray(np.full((4, 6, 3), i, np.uint8)).save(paths[-1])
+    taken = []
+    reader = image_mod.read_images((taken.append(p) or p for p in paths), workers=2)
+    assert not taken  # nothing is read before the loop starts
+    first = next(reader)
+    assert len(taken) == 4  # 2 * workers ahead, not the whole stream
+    out = [first, *reader]
+    assert [int(a[0, 0, 0]) for a in out] == list(range(12))
+    assert not [t for t in threading.enumerate() if t.name.startswith("fastforks-read")]
+    mixed = [paths[0], paths[1].read_bytes(), str(tmp_path / "missing.png"), paths[2]]
+    reader = image_mod.read_images(mixed)
+    assert [int(next(reader)[0, 0, 0]) for _ in range(2)] == [0, 1]
+    with pytest.raises(InputError, match="missing"):
+        next(reader)
+    assert fastforks.read_images is image_mod.read_images

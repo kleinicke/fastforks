@@ -60,6 +60,8 @@ class Context:
         params: The runner's `Params`, filled from the card and the load options.
         kernels: Kernel library tags of `kernels` (`name@build:target`), empty for portable.
         user_weights: The files of `load(weights=...)`, used instead of the variant's (not hash-checked).
+        user_state: The state dict of `user_weights`, already read and mapped by the task (`load_variant`); then
+            `state_dict()` returns it whatever its arguments.
     """
 
     card: ModelCard
@@ -70,6 +72,7 @@ class Context:
     params: Any
     kernels: tuple[str, ...] = ()
     user_weights: tuple[Path, ...] | None = None
+    user_state: Mapping[str, torch.Tensor] | None = None
 
     @property
     def io(self) -> Io:
@@ -112,6 +115,8 @@ class Context:
             WeightsError: Missing, unverifiable or unsafe weights, or a user's file that cannot be read (empty,
                 truncated, another format): the message names it and the variant.
         """
+        if self.user_state is not None:
+            return dict(self.user_state)
         path = self.weights()[index]
         if self.user_weights is None:
             return load_state_dict(path, key=key, strip=strip, extra=extra)

@@ -57,10 +57,12 @@ class RoMaV2(nn.Module):
         img_A_hr: torch.Tensor | None = None,
         img_B_hr: torch.Tensor | None = None,
         bidirectional: bool = False,
+        f_A: list[torch.Tensor] | None = None,  # fastforks: `describe(img_A_lr)` the caller kept from an earlier pair
+        f_B: list[torch.Tensor] | None = None,
     ) -> dict[str, torch.Tensor]:
         """Images in [0, 1], `[B, 3, H, W]`, A and B of the same size (lr: a multiple of 16, hr: of 4)."""
-        f_A = self.describe(img_A_lr)
-        f_B = self.describe(img_B_lr)
+        f_A = self.describe(img_A_lr) if f_A is None else f_A
+        f_B = self.describe(img_B_lr) if f_B is None else f_B
         matcher_output = self.matcher(f_A, f_B, img_A=img_A_lr, img_B=img_B_lr, bidirectional=bidirectional)
         warp_AB, confidence_AB = matcher_output["warp_AB"], matcher_output["confidence_AB"]
         warp_BA, confidence_BA = matcher_output["warp_BA"], matcher_output["confidence_BA"]

@@ -622,6 +622,21 @@ def test_torch_hub_cache_by_file_name(tmp_path, monkeypatch):
         locate(other, group="fam", env_var=ENV, allow_download=False)
 
 
+def test_read_caches_are_used_in_place(tmp_path, monkeypatch):
+    """A blob of a `FASTFORKS_READ_CACHES` cache is used where it is (also as an archive member); others download."""
+    other = tmp_path / "other"
+    monkeypatch.setenv("FASTFORKS_READ_CACHES", f"{tmp_path / 'missing'}{os.pathsep}{other}")
+    spec = dataclasses.replace(spec_for(b"payload", "https://example.com/a.zip"), member="w.bin")
+    blob = files.blob_path(spec.sha256, other)
+    blob.parent.mkdir(parents=True)
+    blob.write_bytes(b"payload")
+    assert files.present(spec, "fam", ENV)
+    assert locate(spec, group="fam", env_var=ENV, allow_download=False) == blob
+    assert not files.blob_path(spec.sha256).exists()  # not copied into FASTFORKS_CACHE
+    with pytest.raises(WeightsDownloadError, match="not found"):
+        locate(spec_for(b"other"), group="fam", env_var=ENV, allow_download=False)
+
+
 def test_legacy_huggingface_hub_cache_variable(tmp_path, monkeypatch):
     monkeypatch.delenv("HF_HUB_CACHE", raising=False)
     monkeypatch.setenv("HUGGINGFACE_HUB_CACHE", str(tmp_path / "legacy"))

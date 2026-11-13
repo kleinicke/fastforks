@@ -28,7 +28,7 @@ ENV = "FF_TEST_PATH"
 
 def _call(model: Any, ref: str, seed: int = 0) -> torch.Tensor:
     """The main map of one call on a seeded synthetic input (copied off the model's buffers)."""
-    if TASK[ref] in {"stereo", "flow", "matching"}:
+    if TASK[ref] in {"stereo", "flow", "matching", "interpolation"}:
         left, right = pair(96, 128, seed)
         result = model(left, right)
     else:
@@ -160,7 +160,9 @@ LEAK_SIZES = ((384, 512), (480, 640))
 def _gpu_call(model: Any, ref: str, size: tuple[int, int]) -> torch.Tensor:
     """The main map of one call on a seeded input of `size`, left on the GPU."""
     h, w = size
-    result = model(*pair(h, w, 0)) if TASK[ref] in {"stereo", "flow", "matching"} else model(image(h, w, 0))
+    result = (
+        model(*pair(h, w, 0)) if TASK[ref] in {"stereo", "flow", "matching", "interpolation"} else model(image(h, w, 0))
+    )
     name = next(k for k in (*spec(TASK[ref]).standard, "labels") if getattr(result, k, None) is not None)
     return getattr(result, name)
 

@@ -75,6 +75,22 @@ def test_odd_size_is_padded_and_exports(weights: Path) -> None:
     torch.testing.assert_close(exported, model(a, b).flow, rtol=0, atol=1e-5)
 
 
+@pytest.mark.parametrize(("height", "width", "batch"), [(5, 7, 2), (12, 9, 1)])
+def test_half_lookup_matches_grid_sample(height: int, width: int, batch: int) -> None:
+    """The fp16 volume's gather lookup equals `grid_sample` on the same values, borders and far-off windows included."""
+    torch.manual_seed(0)
+    features = torch.randn(2 * batch, nf.FEATURE, height, width).half()
+    flow_ = torch.randn(batch, 2, height, width) * 6
+    flow_[0, :, 0, 0] = torch.tensor([width - 1.0, 0.0])  # exactly on the last column
+    lookup = nf.volume_lookup(features)
+    corr = lookup.args[0]
+    assert corr.dtype == torch.float16
+    want = nf._lookup(corr.float().view(-1, 1, height, width), flow_)
+    torch.testing.assert_close(lookup(flow_), want, rtol=0, atol=1e-5)
+    ref = nf.volume_lookup(features.float()).args[0].view(corr.shape)
+    torch.testing.assert_close(corr.float(), ref, rtol=2e-3, atol=2e-3)  # one fp16 rounding of the volume
+
+
 @pytest.mark.gpu
 @pytest.mark.parametrize(("height", "width", "batch"), [(17, 21, 2), (136, 240, 1)])  # odd cells; the 1080p cells
 def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> None:
@@ -82,7 +98,7 @@ def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> 
     torch.manual_seed(0)
     features = torch.randn(2 * batch, nf.FEATURE, height, width, device="cuda").half()
     flow_ = torch.randn(batch, 2, height, width, device="cuda") * 20  # windows far off and over the border
-    want = nf.volume_lookup(features)(flow_)
+    want = nf.volume_lookup(features.float())(flow_)  # the fp32 volume of the same fp16 operands
     got = _kernel_lookup(raft_flow.load(torch.device("cuda")), features)(flow_)
     assert got.shape == want.shape
     torch.testing.assert_close(got.float(), want.half().float(), rtol=0, atol=2e-3)  # fp16 ulp of |corr| < 4

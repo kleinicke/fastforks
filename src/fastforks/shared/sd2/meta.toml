@@ -1,0 +1,4 @@
+summary = "Stable Diffusion 2 UNet, VAE and CLIP text encoder (diffusers / transformers module names, checkpoints load unchanged), the empty-prompt embedding, seeded noise and the fp16 channels-last kernels forward."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/huggingface/diffusers (UNet2DConditionModel, AutoencoderKL; Apache-2.0) and https://github.com/huggingface/transformers (CLIPTextModel; Apache-2.0), re-implemented for the SD2 configurations Marigold and Lotus ship; moved from the marigold family. Weights are NOT part of this module."

@@ -26,7 +26,7 @@ pad = { multiple = 16, mode = "centre", fill = "replicate" }  # upstream InputPa
 iters = { default = 8, min = 1 }  # refinements at 1/8 resolution (upstream iters_s8; one refinement at 1/16 before them)
 
 [modes.portable]
-cuda_dtype = "float16"  # autocast for the convolutions and the cross-attention; matching, correlation, lookup and upsampling in float32
+cuda_dtype = "float16"  # autocast for the convolutions and the cross-attention, the correlation volume stored in fp16; matching, lookup weights and upsampling in float32
 mps_dtypes = ["float32"]
 
 [modes.kernels]

@@ -33,7 +33,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["igev", "igevpp", "cutlass_conv", "cudnn_hacc", "fastbb"]
+kernels = ["igev", "igevpp", "cutlass_conv", "cudnn_hacc", "fastbb", "dpt_fused"]
 mps_kernels = ["stereo_metal"]
 
 # CPU golden tolerance (golden.toml cpu_atol 0.2 px): ours vs upstream (CPU fp32, synthetic pair) is <= 0.007 px max up to

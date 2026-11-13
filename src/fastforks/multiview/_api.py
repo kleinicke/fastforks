@@ -15,7 +15,7 @@ from fastforks._core import cameras
 from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
-from fastforks._core.errors import InputError
+from fastforks._core.errors import CardError, InputError
 from fastforks._core.image import ImageLike, to_rgb_batch, to_rgb_batches
 from fastforks._core.io import MAP_SUFFIXES, check_suffix, write_map
 from fastforks._core.model import Backend
@@ -23,6 +23,7 @@ from fastforks._core.outputs import MapOutputs, _array
 from fastforks._core.save import CLOUD_SUFFIXES
 from fastforks._core.tasks import spec
 from fastforks._core.tasks.multiview import MultiViewKind
+from fastforks.multiview._gaussians import Gaussians, pop_gaussians
 from fastforks.multiview._runner import Runner
 from fastforks.multiview._scene import SceneFormat, save_scene
 
@@ -79,6 +80,8 @@ class MultiViewResult(MapOutputs):
         model: Versioned model id.
         backend: The backend that produced the result.
         options: Load options that differ from the validated defaults.
+        gaussians: Feed-forward splatting models (card output `"gaussians"`): the scene as 3D Gaussians in the world
+            frame of `cam_to_world` (`gaussians.save("scene.ply")`); otherwise `None`.
     """
 
     depth: torch.Tensor | None
@@ -93,6 +96,7 @@ class MultiViewResult(MapOutputs):
     model: str
     backend: Backend
     options: Mapping[str, Any] = field(default_factory=dict)
+    gaussians: Gaussians | None = None
 
     _save_fields = ("depth",)
     _save_suffixes = MAP_SUFFIXES + CLOUD_SUFFIXES
@@ -318,12 +322,14 @@ class MultiViewModel(core.Model):
             # per-scene work (e.g. the features of every view) once for several references; for one, a plain call
             predict = (r.scene if len(refs) > 1 else partial(Runner.scene, r))(x, k, run_c2w, rng)
             outs = []
+            gaussians = None
             for ref in refs:
-                if ref == 0:  # input order: no gather
-                    outs.append(predict(None))
-                    continue
-                order = torch.tensor([ref, *(i for i in range(n) if i != ref)], device=x.device)
+                order = None if ref == 0 else torch.tensor([ref, *(i for i in range(n) if i != ref)], device=x.device)
                 maps = predict(order)
+                gaussians = self._gaussians(maps)
+                if order is None:  # input order: no gather
+                    outs.append(maps)
+                    continue
                 if r.per_view:
                     maps = {name: v[torch.argsort(order).to(v.device)] for name, v in maps.items()}
                 outs.append(maps)
@@ -335,13 +341,14 @@ class MultiViewModel(core.Model):
             if given is not None and name not in out:
                 out[name] = given[idx.to(given.device)]
         result = MultiViewResult(
-            **{name: out.pop(name, None) for name in _STANDARD},
+            **{name: out.pop(name, None) for name in _STANDARD if name != "gaussians"},
             extras=out,
             views=views,
             kind=self.variant.output_info["kind"],
             model=self.variant.ref,
             backend=self.backend,
             options=self.options,
+            gaussians=gaussians,
         )
         object.__setattr__(result, "_image", x if views == tuple(range(n)) else x[idx])  # not a field: save colours
         return result
@@ -458,6 +465,16 @@ class MultiViewModel(core.Model):
             msg = f"reference views {refs} must be distinct indices in [0, {n})"
             raise InputError(msg)
         return refs
+
+    def _gaussians(self, maps: dict[str, torch.Tensor]) -> Gaussians | None:
+        """Pop the runner's `gaussians/*` entries into `Gaussians` (models that predict every view: one reference)."""
+        g = pop_gaussians(maps)
+        if g is None:
+            return None
+        if "gaussians" not in self.variant.outputs:
+            msg = f"{self.variant.ref}: runner returned gaussians; card outputs are {list(self.variant.outputs)}"
+            raise CardError(msg)
+        return g
 
     def _check(self, maps: Mapping[str, torch.Tensor], v: int, hw: tuple[int, int]) -> dict[str, torch.Tensor]:
         """The runner's maps checked (names, shapes with leading dim `v`, bool masks) and cast to the result dtypes."""

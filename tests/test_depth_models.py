@@ -191,7 +191,7 @@ def test_seeded_noise_is_the_cpu_generator_draw(task, family, device):
     shape = torch.Size((1, 4, 6, 10))
     want = torch.randn(shape, generator=torch.Generator().manual_seed(7))
     for dtype in (torch.float32, torch.float16, torch.bfloat16):
-        got = noise(shape, torch.device(device), dtype)
+        got = noise(shape, torch.device(device), dtype)[0]  # the first draw: the initial latent
         assert got.device.type == device
         torch.testing.assert_close(got.cpu(), want.to(dtype), rtol=0, atol=0)  # also checks the dtype
 

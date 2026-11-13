@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.patch import is_base, override
+from fastforks.kernels import dpt_fused
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep
 from fastforks.shared.depth_anything_v2 import use_fast_vit
@@ -77,7 +78,9 @@ def prepare_kernels(model: WAFT, device: torch.device) -> None:
     """
     model.eval()
     _merge_lora(model)
-    use_fast_vit(model.encoder.encoder)  # fp16 DINOv2 with the fastbb flash kernel; the iterative modules use SDPA
+    use_fast_vit(
+        model.encoder.encoder, fused=dpt_fused.load(device)
+    )  # fp16 DINOv2 with the fastbb flash kernel; the iterative modules use SDPA
     for m in model.modules():
         if isinstance(m, resconv):
             if not (isinstance(m.conv[1], nn.SiLU) and is_base(m.conv[0], nn.InstanceNorm2d) and not m.conv[0].affine):

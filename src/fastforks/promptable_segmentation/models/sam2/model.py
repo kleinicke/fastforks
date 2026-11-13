@@ -28,8 +28,11 @@ from .net.mask_decoder import MaskDecoder
 from .net.position_encoding import PositionEmbeddingSine
 from .net.prompt_encoder import PromptEncoder
 from .net.transformer import TwoWayTransformer
+from .video import VIDEO_KEYS, Tracker, VideoModules, resize_frame
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from fastforks.promptable_segmentation._runner import Context
 
 PROMPT_DIM = 256  # fixed: SAM 2's FPN / prompt / mask-decoder width (all released checkpoints)
@@ -38,17 +41,7 @@ STRIDE = 16  # fixed: SAM 2's image-embedding stride (all released checkpoints)
 STABILITY = (0.05, 0.98)  # fixed: upstream build_sam2 post-processing (stability delta, threshold)
 LOGIT_CLAMP = 32.0  # fixed: upstream SAM2ImagePredictor clamps the returned low-resolution logits
 # The video-memory modules of the checkpoint (image mode does not use them); every other tensor must fit.
-VIDEO = (
-    "mask_downsample.",
-    "maskmem_tpos_enc",
-    "memory_attention.",
-    "memory_encoder.",
-    "no_mem_pos_enc",
-    "no_obj_embed_spatial",
-    "no_obj_ptr",
-    "obj_ptr_proj.",
-    "obj_ptr_tpos_proj.",
-)
+VIDEO = (*VIDEO_KEYS, "no_mem_pos_enc")  # `track` loads VIDEO_KEYS on first use; no_mem_pos_enc is never used
 
 
 @dataclass(frozen=True)
@@ -62,6 +55,8 @@ class Params:
     global_att_blocks: list[int]  # blocks with global attention
     window_spec: list[int]  # attention window per stage
     pos_embed_size: list[int]  # background position-embedding grid (upstream window_pos_embed_bkg_spatial_size)
+    kf_score_weight: float  # SAMURAI motion weight
+    samurai: bool  # option: `track` as SAMURAI
 
 
 class Sam2Image(torch.nn.Module):
@@ -126,7 +121,10 @@ class _Sam2(Runner):
     batch = 1
     Params = Params
     low_res_clamp = LOGIT_CLAMP
+    video = True
     net: Sam2Image
+    no_mem: torch.Tensor  # [256] float32 on the device
+    _video: Tracker | None = None
 
     def predict(  # noqa: PLR0913 - one argument per prompt kind
         self,
@@ -167,6 +165,71 @@ class _Sam2(Runner):
         """Upstream `SAM2Transforms.postprocess_masks` (no hole / sprinkle removal, as `SAM2ImagePredictor`)."""
         return F.interpolate(pred_masks, size, mode="bilinear", align_corners=False)
 
+    def _tracker(self) -> Tracker:
+        """The video modules, loaded on the first `track` call (image use does not hold them)."""
+        if self._video is None:
+            ctx = self.ctx
+            mods = VideoModules.load(
+                ctx.state_dict(key="model"), ctx.params.image_size // STRIDE, f"{ctx.variant.ref} checkpoint"
+            ).to(ctx.device)
+            mods.memory_attention.to(ctx.torch_dtype)
+            mods.memory_encoder.to(ctx.torch_dtype)
+            dec = self.net.sam_mask_decoder
+            self._video = Tracker(
+                mods, self.net.sam_prompt_encoder, dec, self.no_mem, ctx.torch_dtype, ctx.params.image_size
+            )
+        return self._video
+
+    def track(  # noqa: PLR0913 - one argument per prompt kind
+        self,
+        frames: Callable[[int], torch.Tensor],
+        n_frames: int,
+        size: tuple[int, int],
+        *,
+        points: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        boxes: torch.Tensor | None,
+        masks: torch.Tensor | None,
+    ) -> dict[str, torch.Tensor]:
+        """Upstream `SAM2VideoPredictor`: frame 0 prompts, then `propagate_in_video` (`video.py`; option `samurai`)."""
+        tracker, s, dev = self._tracker(), self.ctx.params.image_size, self.ctx.device
+        coords = labs = mask = None
+        if masks is not None:
+            mask = masks.float()[:, None]
+            if mask.shape[-2:] != (s, s):
+                mask = F.interpolate(mask, (s, s), mode="bilinear", align_corners=False, antialias=True)
+                mask = (mask >= 0.5).float()  # noqa: PLR2004 - upstream add_new_mask
+            p = mask.shape[0]
+        else:
+            (h, w) = size
+            wh = torch.tensor([w, h], device=dev, dtype=torch.float32)
+            cs, ls = [], []
+            if boxes is not None:
+                cs.append(boxes.float().view(-1, 2, 2) / wh * s)
+                ls.append(torch.tensor([[2, 3]], device=dev).expand(boxes.shape[0], 2))
+            if points is not None and labels is not None:
+                cs.append(points.float() / wh * s)
+                ls.append(labels)
+            coords, labs = torch.cat(cs, 1), torch.cat(ls, 1).int()
+            p = coords.shape[0]
+        # On the CPU, filled frame by frame (as the original's offloaded state): device memory stays bounded by the
+        # memory bank instead of growing with the video length x resolution.
+        out = {
+            "masks": torch.empty(n_frames, p, *size, dtype=torch.bool),
+            "pred_masks": torch.empty(n_frames, p, *self.mask_size),
+            "object_score_logits": torch.empty(n_frames, p),
+        }
+
+        def emit(t: int, low: torch.Tensor, obj: torch.Tensor) -> None:
+            out["masks"][t] = self.upsample(low, size)[:, 0] > 0
+            out["pred_masks"][t] = low[:, 0]
+            out["object_score_logits"][t] = obj[:, 0]
+
+        feats = (self.embed(resize_frame(frames(t), s)) for t in range(n_frames))
+        kf = self.ctx.params.kf_score_weight if self.ctx.params.samurai else None
+        tracker.run(feats, n_frames, coords=coords, labels=labs, mask=mask, emit=emit, kf_weight=kf)
+        return out
+
 
 class Portable(_Sam2):
     """Plain PyTorch: upstream Hiera blocks, the folded neck; float16 image encoder on CUDA."""
@@ -182,6 +245,7 @@ class Portable(_Sam2):
         self.pos = pos_embed(t, ctx.params.image_size // PATCH_STRIDE).to(ctx.device, ctx.torch_dtype)
         self.trunk = t.to(ctx.device, ctx.torch_dtype)
         self.neck = n.to(ctx.device, ctx.torch_dtype)
+        self.no_mem = self.neck.no_mem
         del net.image_encoder
         self.net = net.to(ctx.device)
 
@@ -214,6 +278,7 @@ class Kernels(_Sam2):
         n = Neck.build(net.image_encoder, net.sam_mask_decoder, net.no_mem_embed)
         k = load_dpt_fused(ctx.device)
         self.encoder = FusedEncoder(net.image_encoder, n, ctx.params.image_size, ctx.device, k)
+        self.no_mem = n.no_mem.to(ctx.device)
         del net.image_encoder
         self.net = net.to(ctx.device)
 

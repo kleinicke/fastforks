@@ -46,15 +46,18 @@ class Runner(core.Runner):
     """
 
     intrinsics: ClassVar[Literal["unused", "optional", "required"]] = "unused"
+    prompt_depth: ClassVar[Literal["unused", "required"]] = "unused"
 
     @classmethod
     def input_use(cls, params: Any) -> dict[str, Any]:  # noqa: ANN401, ARG003 - the family's `Params`
-        """`{"intrinsics": cls.intrinsics}`.
+        """`{"intrinsics": cls.intrinsics}`, plus `"prompt_depth"` for runners that take one.
 
         Args:
             params: The variant's `Params`.
         """
-        return {"intrinsics": cls.intrinsics}
+        if cls.prompt_depth == "unused":
+            return {"intrinsics": cls.intrinsics}
+        return {"intrinsics": cls.intrinsics, "prompt_depth": cls.prompt_depth}
 
     @abc.abstractmethod
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:

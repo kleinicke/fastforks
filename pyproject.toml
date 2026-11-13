@@ -5,7 +5,7 @@ description = "Fast, typed inference for published vision models: portable PyTor
 readme = "README.md"
 license = "Apache-2.0 AND BSD-3-Clause AND MIT"  # + shared/cnn_kernels (MIT) and the CUTLASS-linked kernels (BSD-3-Clause); tests/test_policy.py checks
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "src/fastforks/shared/*/LICENSE*"]
-authors = [{ name = "Florian Kleinicke", email = "coding@f-kleinicke.de" }]
+authors = [{ name = "Florian Nick", email = "coding@f-kleinicke.de" }]
 requires-python = ">=3.11"
 keywords = [
   "computer-vision", "pytorch", "inference", "cuda", "metal", "stereo-matching", "depth-estimation",
@@ -185,6 +185,13 @@ runtime-evaluated-base-classes = []
   "S603",   # subprocess argv built from repo files and fixed tool names, no shell
   "S607",   # `git` from PATH in developer tools
 ]
+"space/**" = [
+  "T201",   # the data script prints
+  "INP001", # the Hugging Face Space demo: scripts, not a package
+  "D103",   # small helpers of one app
+  "EM",     # `gr.Error` messages are shown to the visitor as written
+  "TRY003",
+]
 # One-off measurement scripts (not part of the package, not type-checked).
 "src/fastforks/matching/relative_pose.py" = ["N806"]  # tensor shape names (P, N, A, C)
 "runs/**" = ["ANN", "D", "E501", "FURB", "INP001", "PLC3002", "PLR2004", "PTH", "S607", "SLF001", "T201"]
@@ -202,8 +209,9 @@ runtime-evaluated-base-classes = []
   "EXE", "RUF046", "PTH120", "T100", "A001", "PLW2901", "TD", "FIX", "RUF013", "FLY002", "B008", "RUF007", "PGH003",  # FoundationStereo / DEFOM: pdb imports, loop vars, FIXME notes
   "PGH004", "RUF100",  # upstream blanket `# noqa` (SAM)
 ]
-# VGGT: upstream sets XFORMERS_AVAILABLE = False, so its xformers-only branches name undefined functions (dead code).
-"src/fastforks/multiview/models/vggt/net/layers/{attention,block}.py" = ["F821"]
+# VGGT (and AnySplat's copy): upstream sets XFORMERS_AVAILABLE = False, so its xformers-only branches name undefined
+# functions (dead code).
+"src/fastforks/multiview/models/{vggt,anysplat}/net/layers/{attention,block}.py" = ["F821"]
 # EfficientViT-SAM: upstream's `EfficientViTBlock` names a `GLUMBConv` it never defines (branch unused by the SAM
 # encoders); `build_kwargs_from_config` loops over dict keys.
 "src/fastforks/promptable_segmentation/models/efficientvit_sam/net/{ops,utils}.py" = ["F821", "PLC0206"]
@@ -211,8 +219,14 @@ runtime-evaluated-base-classes = []
 "src/fastforks/multiview/models/vggt_omega/net/models/layers/{utils,vision_transformer}.py" = [
   "G004", "BLE001", "NPY002", "PTH100", "S110", "S603", "S607",
 ]
+# GeoCalib: upstream logging f-strings, lambdas over loop variables (called in the loop), `int | float` hints.
+"src/fastforks/calibration/models/geocalib/net/*.py" = ["G003", "G004", "B023", "RUF015", "PYI041"]
+# AnyCalib: upstream `None | T` hints.
+"src/fastforks/calibration/models/anycalib/net/gauss_newton.py" = ["RUF036"]
 # MobileSAM's TinyViT: upstream backslash-continued f-string and lambdas over a loop variable (called in the loop).
 "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py" = ["ISC002", "B023"]
+# SwinIR: upstream implicitly concatenated `extra_repr` string over two lines and `math.log(scale, 2)`.
+"src/fastforks/restoration/models/swinir/net/network_swinir.py" = ["ISC002", "FURB163"]
 "src/fastforks/shared/*/net/**" = [
   "PGH004",  # upstream blanket `# noqa` (SAM)
   "PLW2901", "FLY", "TD", "FIX", "PGH003", "RUF013", "RUF012", "RUF100", "B008", "RUF046",  # more upstream (DINOv2 / DPT / EdgeNeXt) style
@@ -253,6 +267,7 @@ include = ["src", "tests", "tools"]
 allowed-unresolved-imports = [
   "timm", "timm.**", "transformers", "transformers.**", "scipy", "scipy.**", "onnx", "onnx_ir", "onnxruntime",
   "tensorrt", "laspy", "lazrs", "pycocotools", "pycocotools.**", "depth_anything_v2.**", "s2m2.**",
+  "fvcore.**",  # SPAN's `__main__` FLOP count
 ]
 
 [tool.ty.rules]
@@ -304,6 +319,7 @@ markers = [
 [[tool.ty.overrides]]
 include = [
   "src/fastforks/multiview/models/vggt/net/utils/pose_enc.py",
+  "src/fastforks/multiview/models/anysplat/net/utils/pose_enc.py",
   "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py",  # `for block in layer.blocks`
 ]
 

@@ -1,6 +1,11 @@
 {
  "min_gain": 1.05,
  "portable": [
+  "birefnet",
+  "depthsplat-small-re10k",
+  "geocalib-pinhole",
+  "memfof",
+  "memfof-kitti",
   "rtmw-x-384",
   "segformer-b0-ade20k",
   "vit_so400m_patch14_siglip_378.webli_ft_in1k"

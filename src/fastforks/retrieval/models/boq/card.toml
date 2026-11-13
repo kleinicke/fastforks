@@ -1,0 +1,43 @@
+schema = 2
+name = "BoQ"
+summary = "BoQ, Bag-of-Queries (Ali-bey, Chaib-draa and Giguère, CVPR 2024): visual place recognition. A DINOv2 ViT-B/14 (last two blocks fine-tuned on GSV-Cities); its patch features are projected by a 3x3 convolution, refined by two transformer encoder layers and read out by two sets of 64 learned queries with cross-attention, then projected to a 12288-d unit descriptor."
+tier = "experimental"
+outputs = ["descriptor"]
+uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+
+[upstream]
+repo = "https://github.com/amaralibey/Bag-of-Queries"
+commit = "1a4965ea7dfd9bd0dd846adf7a0e430f68101d12"  # net/boq.py = src/boq.py; its DINOv2 ViT-B/14 (torch.hub dinov2_vitb14) = shared/depth_anything_v2 (same layers and position interpolation)
+
+[licence]
+code = "MIT"  # LICENSE
+weights = "MIT"  # released with the code (GitHub release v1.0), no separate weights licence
+files = ["LICENSE"]
+training_data = ["lvd-142m", "gsv-cities"]
+training_note = "DINOv2 ViT-B/14 (LVD-142M) with its last two blocks and the aggregator trained on GSV-Cities at 320 x 320 (README, Training)."
+evidence = "https://github.com/amaralibey/Bag-of-Queries/blob/1a4965ea7dfd9bd0dd846adf7a0e430f68101d12/LICENSE ; https://github.com/amaralibey/Bag-of-Queries/releases/tag/v1.0"
+
+[io]
+input = "imagenet"  # the runner resizes to `size` x `size` first (bicubic, antialiased: torchvision Resize as in the README)
+
+[params]
+size = 322  # network input side (README: 322 x 322 for the DINOv2 backbone)
+dim = 12288
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused"]
+
+[[papers]]
+title = "BoQ: A Place is Worth a Bag of Learnable Queries"
+url = "https://arxiv.org/abs/2405.07364"
+date = "2024-05-12"
+venue = "CVPR 2024"
+
+[[variants]]
+id = "boq-dinov2"
+revision = 1
+weights = [{ name = "dinov2_12288.pth", size = 380916283, sha256 = "d72ee0ce899e2790be6cf6d1d57f75dfad0c76475bd2198e6dc0c3f0221b3583", url = "https://github.com/amaralibey/Bag-of-Queries/releases/download/v1.0/dinov2_12288.pth" }]

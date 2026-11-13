@@ -32,7 +32,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "dpt_fused"]
 mps_kernels = ["stereo_metal"]
 
 # Upstream also publishes KITTI / Middlebury / ETH3D fine-tunes (same Hugging Face repo); not added yet (not local).

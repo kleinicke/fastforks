@@ -19,6 +19,7 @@ nav:
   - Docker and offline: docker.md
   - Export: export.md
   - Stereo geometry: stereo_geometry.md
+  - Structure from motion: sfm.md
   - Which model: overview.md
   - Benchmarks:
       - Methods and RTX 5060 Ti (reference): benchmarks.md
@@ -43,6 +44,12 @@ nav:
       - Promptable segmentation: api/promptable_segmentation.md
       - Detection: api/detection.md
       - Multi-view: api/multiview.md
+      - Matting: api/matting.md
+      - Point tracking: api/tracking.md
+      - Frame interpolation: api/interpolation.md
+      - Retrieval: api/retrieval.md
+      - Calibration: api/calibration.md
+      - Image restoration: api/restoration.md
       - Errors: api/errors.md
   - Models:
       - Stereo: models/stereo.md
@@ -56,6 +63,12 @@ nav:
       - Promptable segmentation: models/promptable_segmentation.md
       - Detection: models/detection.md
       - Multi-view: models/multiview.md
+      - Matting: models/matting.md
+      - Point tracking: models/tracking.md
+      - Frame interpolation: models/interpolation.md
+      - Retrieval: models/retrieval.md
+      - Calibration: models/calibration.md
+      - Image restoration: models/restoration.md
   - Contributing: contributing.md
 markdown_extensions:
   - admonition

@@ -5,9 +5,9 @@
 # passed with (`pytest -m gpu --record`). Not shipped in wheels.
 
 [tolerance]
-cpu_atol = 0.0001  # measured 0 on x86-64 (same operations in the same order as upstream); room for other CPUs
-gpu_mean = 0.0014  # RTX 5060 Ti fp16: worst mean 0.0009174316 px, 1.5x rounded up to 2 significant digits
-gpu_p99 = 0.0067  # worst p99 0.0044460297 px, same measured rule (2026-11-11)
+cpu_atol = 0.0001
+gpu_mean = 0.0014
+gpu_p99 = 0.0067
 
 [refs."neuflow-v2-sintel@1"]
 sha256 = "46d1ca0c5657c327f9800273d4bc87a6152d00110ae11bd4c64153bece6ba4f7"
@@ -25,28 +25,28 @@ upstream = "https://github.com/neufieldrobotics/NeuFlow_v2@204b5e3744461d90303b9
 settings = "CPU float32, upstream NeuFlow iters_s16=1 iters_s8=8, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
 
 [validated."neuflow-v2-sintel@1"]
-kernels = ["raft_flow@14e84c3378be:sm_120"]
-symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "bbb2c1f8a100147f"}}
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-11"
+date = "2026-11-12"
 mean_px = 0.00084
 p99_px = 0.0046
 
 [validated."neuflow-v2-things@1"]
-kernels = ["raft_flow@14e84c3378be:sm_120"]
-symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "bbb2c1f8a100147f"}}
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-11"
+date = "2026-11-12"
 mean_px = 0.00094
 p99_px = 0.00429
 
 [validated."neuflow-v2@1"]
-kernels = ["raft_flow@14e84c3378be:sm_120"]
-symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "bbb2c1f8a100147f"}}
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-11"
+date = "2026-11-12"
 mean_px = 0.00075
 p99_px = 0.00425

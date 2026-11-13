@@ -7,8 +7,9 @@ checkpoints load as they are. Changes: no huggingface_hub import (the hub mixin)
 position channels and the zero iteration context are made in the forward pass, so any batch and size run); the input
 is already scaled to [0, 1] and padded (the core does both, as the card's `[io]` says); the flow is upsampled once,
 after the last 1/8 iteration (upstream's last list entry); with `fp16=True` the convolutions and the cross-attention
-run under fp16 autocast while the global matching, the correlation, its lookup, the flow and the convex upsampling
-stay float32 (upstream's own half mode keeps coordinates and correlation in fp16 too).
+run under fp16 autocast and the correlation volume is stored in fp16, while the global matching, the lookup's
+coordinates and weights, the flow and the convex upsampling stay float32 (upstream's own half mode keeps coordinates
+in fp16 too).
 
 - Backbone: conv-bn-LeakyReLU blocks on the image averaged down by 2, 4 and 8 give 1/8 and 1/16 features of both
   images (192 channels: 64 context + 128 matching; the 1/16 ones end with two position channels).
@@ -245,10 +246,44 @@ def _lookup(corr: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
     return out.view(b, h, w, -1).permute(0, 3, 1, 2)
 
 
+def _lookup_half(corr: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
+    """`_lookup` on an fp16 volume `[B * H * W, H, W]`: a 10 x 10 gather, bilinear weights in fp32, zeros outside.
+
+    All 81 taps of a pixel share one fractional offset, so the window is the 10 x 10 integer cells from the floor of
+    its match, combined by the four shifted 9 x 9 slices (no fp16 grid as `grid_sample` would need).
+    """
+    b, _, h, w = flow.shape
+    side = 2 * RADIUS + 2
+    coords = (_grid(flow) + flow).permute(0, 2, 3, 1).reshape(b * h * w, 2)
+    base = coords.floor()
+    frac = coords - base
+    steps = torch.arange(-RADIUS, RADIUS + 2, device=flow.device, dtype=flow.dtype)
+    xs, ys = base[:, 0:1] + steps, base[:, 1:2] + steps  # [P, 10]
+    inside = ((xs >= 0) & (xs <= w - 1))[:, None, :] & ((ys >= 0) & (ys <= h - 1))[:, :, None]  # [P, y, x]
+    index = (ys.clamp(0, h - 1)[:, :, None] * w + xs.clamp(0, w - 1)[:, None, :]).long()
+    cells = corr.view(b * h * w, h * w).gather(1, index.view(-1, side * side)).view(-1, side, side)
+    cells = cells.float() * inside
+    fx, fy = frac[:, 0, None, None], frac[:, 1, None, None]
+    top = cells[:, :-1, :-1] * (1 - fx) + cells[:, :-1, 1:] * fx
+    bottom = cells[:, 1:, :-1] * (1 - fx) + cells[:, 1:, 1:] * fx
+    out = top * (1 - fy) + bottom * fy  # [P, y offset, x offset]
+    return out.transpose(1, 2).reshape(b, h, w, -1).permute(0, 3, 1, 2)
+
+
 def volume_lookup(features: torch.Tensor) -> Callable[[torch.Tensor], torch.Tensor]:
-    """The all-pairs volume of the pair `[2B, C, H, W]` (fp32), looked up around each refinement's flow."""
-    corr = _correlation(*features.float().chunk(2, dim=0))
-    return functools.partial(_lookup, corr)
+    """The all-pairs volume of the pair `[2B, C, H, W]`, looked up around each refinement's flow.
+
+    fp32 features (float32 mode): fp32 volume and `grid_sample`, as upstream's float path. fp16 features (the fp16
+    autocast mode): the volume is an fp16 matmul (fp32 accumulation) stored in fp16, half the memory and traffic of
+    the largest tensor, with the scale applied to the first operand so the stored values stay small.
+    """
+    if features.dtype != torch.float16:
+        return functools.partial(_lookup, _correlation(*features.float().chunk(2, dim=0)))
+    feature0, feature1 = features.chunk(2, dim=0)
+    b, c, h, w = feature0.shape
+    f0 = (feature0.float() / math.sqrt(c)).half().view(b, c, h * w).transpose(1, 2)
+    corr = torch.matmul(f0, feature1.reshape(b, c, h * w))
+    return functools.partial(_lookup_half, corr)
 
 
 class NeuFlow(nn.Module):

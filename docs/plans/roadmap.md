@@ -250,6 +250,20 @@ frozen-backbone heads (customisation 1 in [fastforks-next.md](fastforks-next.md#
 - **NVIDIA Jetson and ARM64 Linux** (F4, after the Windows `.dll` builds): plan in
   [fastforks-next.md](fastforks-next.md#jetson-and-arm64-linux). The audience is robotics (stereo, depth, detection,
   pose, SAM); the competitor there is TensorRT. Needs a device to test on; no support claim without one.
+- **MLX backend on Apple Silicon** (backlog, not scheduled): an optional `mlx` mode beside portable / kernels.
+  Experiment 2026-11-12 on the M1 Pro 16 GB (ports and scripts in `/Volumes/Daten/ff-mlx/`, outside the repo):
+  - DINOv2 ViT-S/B at 224 / 448: MLX fp16 is 1.14–1.55x faster than PyTorch MPS fp16; fp32 matches MPS to 8e-6 rel.
+  - CREStereo at 994x1482, 20 iters: MLX is 1.2–1.4x *slower* than MPS (7.2 / 5.2 s vs 5.2 / 4.2 s fp32 / fp16), but
+    needs less memory (1.5 vs 2.4 GB fp16). The convolutions themselves are faster in MLX (3x3 256 ch at 1/4 res:
+    15 vs 21 ms); the loss is the refinement loop (gather-based `grid_sample`, unfused correlation, many small ops).
+  - MLX's buffer cache must be capped (`mx.set_cache_limit`): uncapped it grew to 10.7 GB and swapped (up to 9x slower).
+  - Plan: start with the ViT families (DINOv2/v3, transformer features and segmenters). Stereo / flow only with fused
+    `mx.fast.metal_kernel` sampling + correlation (the same idea as the MPS `flow_metal` kernels).
+  - Optimised ports (same day, `/Volumes/Daten/ff-mlx/v2/`): CREStereo with fused Metal kernels runs in 3.9 / 2.8 s
+    fp32 / fp16, against 4.8 / 3.4 s for the best PyTorch MPS mode, with less memory; DINOv2 ViT-S is 1.2–1.6x faster
+    than MPS. All gates pass at both dtypes, except ViT-B fp32 against the strict CPU golden (torch CPU misses it on
+    this Mac too).
+  - Re-tuning for newer Macs (M4 Pro test planned, M5 neural accelerators): [mlx-newer-macs.md](mlx-newer-macs.md).
 - **Not planned**: AMD and Intel GPUs (a second kernel set for a small ML audience); browser and mobile except for the
   splat viewer.
 - **ComfyUI node pack** (F3, separate GPL-3.0 repo): plan in [fastforks-next.md](fastforks-next.md#comfyui-node-pack).

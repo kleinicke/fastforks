@@ -56,7 +56,10 @@ def _reparam_tree(module: nn.Module) -> None:
     """The walk of timm's `reparameterize_model` (timm.utils.model), without importing timm."""
     for name, child in module.named_children():
         if hasattr(child, "fuse"):  # blocks that return a fused module
-            setattr(module, name, child.fuse())  # ty: ignore[call-non-callable]
+            p = next(child.parameters(), None)
+            fused = child.fuse()  # ty: ignore[call-non-callable]
+            # some `fuse()` (timm TinyViT ConvNorm) build the new conv on the CPU: back to the block's device
+            setattr(module, name, fused.to(p.device) if p is not None and isinstance(fused, nn.Module) else fused)
         elif hasattr(child, "reparameterize"):
             child.reparameterize()
         elif hasattr(child, "switch_to_deploy"):

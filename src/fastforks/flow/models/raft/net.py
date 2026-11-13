@@ -267,7 +267,7 @@ def _pyramid(fmap1: torch.Tensor, fmap2: torch.Tensor, levels: int) -> list[torc
     """All-pairs correlation `[B * h * w, 1, h, w]`, average-pooled `levels - 1` times."""
     b, c, h, w = fmap1.shape
     corr = torch.matmul(fmap1.reshape(b, c, h * w).transpose(1, 2), fmap2.reshape(b, c, h * w))
-    corr = corr.reshape(b * h * w, 1, h, w) / math.sqrt(c)
+    corr = corr.reshape(b * h * w, 1, h, w).div_(math.sqrt(c))  # in place: the volume is the peak memory
     out = [corr]
     for _ in range(levels - 1):
         corr = F.avg_pool2d(corr, kernel_size=2, stride=2)

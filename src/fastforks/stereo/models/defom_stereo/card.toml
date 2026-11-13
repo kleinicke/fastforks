@@ -39,7 +39,7 @@ cuda_dtype = "bfloat16"
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "dpt_fused"]
 mps_kernels = ["stereo_metal"]
 
 # Upstream also publishes ViT-S / ViT-B SceneFlow checkpoints and Middlebury / ETH3D / KITTI fine-tunes; only the

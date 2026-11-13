@@ -29,7 +29,7 @@ class Params:
 
 
 class Portable(Runner):
-    """Plain PyTorch; on CUDA in fp16 the convolutions and the cross-attention run under autocast, the rest in fp32."""
+    """Plain PyTorch; in fp16 the convolutions and the cross-attention run under autocast, the volume is fp16."""
 
     dtypes = ("float32", "float16")
     Params = Params

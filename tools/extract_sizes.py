@@ -34,9 +34,10 @@ def main() -> None:
         if r.get("status") != "ok" or r["mode"] != "portable":
             continue
         h, w = r["hw"]
-        cur = new.get(r["ref"])
+        ref = registry.resolve_any(r["ref"])[1].ref  # the log keeps the ref as given (`tapir` -> `tapir@1`)
+        cur = new.get(ref)
         if cur is None or h * w > cur[0] * cur[1]:
-            new[r["ref"]] = [h, w, r["alloc_mib"], r["reserved_mib"]]
+            new[ref] = [h, w, r["alloc_mib"], r["reserved_mib"]]
     best.update(new)
     if len(sys.argv) < 3:  # noqa: PLR2004 - no min-size log: keep the probed minimums
         OUT.write_text(json.dumps({"min": old["min"], "max": best}, sort_keys=True, separators=(",", ":")) + "\n")

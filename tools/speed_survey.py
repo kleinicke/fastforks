@@ -353,7 +353,9 @@ def detect(_a: argparse.Namespace) -> int:
 
 def _status(error: str) -> str:
     low = error.lower()
-    return "oom" if "out of memory" in low or "outofmemoryerror" in low else "failed"
+    # MPS: "Invalid buffer size: N GiB" is one allocation above the device's maximum buffer length
+    oom = ("out of memory", "outofmemoryerror", "invalid buffer size")
+    return "oom" if any(s in low for s in oom) else "failed"
 
 
 def _row(

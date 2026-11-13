@@ -15,19 +15,25 @@ from fastforks import InputError
 from fastforks._core import model as core_model
 from fastforks._core import registry
 from fastforks._core.tasks import spec
+from fastforks.calibration import CalibrationResult
 from fastforks.classification import ClassificationResult
 from fastforks.depth import DepthResult
 from fastforks.detection import DetectionResult
 from fastforks.features import FeaturesResult
 from fastforks.flow import FlowResult
-from fastforks.matching import MatchingResult
+from fastforks.interpolation import InterpolationResult
+from fastforks.matching import MatchingResult, SparseMatchingResult
+from fastforks.matting import MattingResult
 from fastforks.multiview import MultiViewResult
 from fastforks.pose import PoseResult
 from fastforks.promptable_segmentation._api import ConceptSegmentationResult, PromptableSegmentationResult
+from fastforks.restoration import RestorationResult
+from fastforks.retrieval import RetrievalResult
 from fastforks.segmentation import SegmentationResult
 from fastforks.stereo import StereoResult
 from fastforks.stereo.calibrated import PairViews, StereoPairResult, StereoView
 from fastforks.stereo.pipeline import PairResult
+from fastforks.tracking import TrackingResult
 
 RESULTS = {
     "stereo": (StereoResult, StereoView, PairViews, StereoPairResult, PairResult),
@@ -36,11 +42,17 @@ RESULTS = {
     "detection": (DetectionResult,),
     "pose": (PoseResult,),
     "flow": (FlowResult,),
-    "matching": (MatchingResult,),
+    "matching": (MatchingResult, SparseMatchingResult),
+    "matting": (MattingResult,),
+    "interpolation": (InterpolationResult,),
+    "retrieval": (RetrievalResult,),
+    "calibration": (CalibrationResult,),
+    "restoration": (RestorationResult,),
     "features": (FeaturesResult,),
     "classification": (ClassificationResult,),
     "promptable_segmentation": (PromptableSegmentationResult, ConceptSegmentationResult),
     "segmentation": (SegmentationResult,),
+    "tracking": (TrackingResult,),
 }
 
 

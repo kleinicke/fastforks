@@ -35,6 +35,7 @@ _DEPTH_UNIT = {
     "scale_invariant": "unknown scale",
     "affine_invariant": "unknown scale and shift",
     "affine_invariant_inverse": "unknown scale and shift (inverse depth; depth and points are not defined)",
+    "none": "no depth (normals only)",
 }
 _MULTIVIEW_UNIT = {
     "metric": "metres (estimated cameras) or the units of the given cam_to_world",
@@ -129,8 +130,12 @@ def resolve(card: ModelCard) -> Contract:
     )
 
 
+_EXTRA_INPUT_TASKS = {"multiview", "matting", "depth"}
+"""Tasks whose inputs after the first (cameras, depth prompt) are declared per model by `input_use`."""
+
+
 def _task_inputs(task: str) -> dict[str, str]:
-    main = spec(task).inputs[:1] if task == "multiview" else spec(task).inputs  # multi-view cameras: `input_use`
+    main = spec(task).inputs[:1] if task in _EXTRA_INPUT_TASKS else spec(task).inputs
     return dict.fromkeys(main, "required")
 
 
@@ -231,10 +236,26 @@ _DERIVED: dict[str, dict[str, tuple[str, str, str, str, str]]] = {  # result fie
         "matches": (
             "([n, 2], [n, 2])",
             "float32",
-            "n keypoint matches in pixels of image1 and image2, drawn by certainty (method `matches(n)`)",
+            (
+                "keypoint matches in pixels of image1 and image2 (method `matches`): dense models draw n by certainty,"
+                " sparse ones return their matched keypoints"
+            ),
             "(x, y), pixel centres at integer coordinates",
             "always",
         ),
+        "verify": (
+            "VerifiedMatches",
+            "float32",
+            (
+                "the matches with their scores, the RANSAC inlier mask and the fundamental matrix or (with intrinsics)"
+                " the relative pose (method `verify`, computed when called)"
+            ),
+            "(x, y), pixel centres at integer coordinates",
+            "always",
+        ),
+    },
+    "tracking": {
+        "visible": ("[T, Q]", "bool", "visibility > 0.5", "", "when visibility is"),
     },
     "multiview": {
         "extrinsics": (
@@ -284,6 +305,27 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
     "matching": {
         "warp": ("[B, 2, H1, W1]", "float32", "pixels of image2, (x, y)", "image1 pixels"),
         "certainty": ("[B, H1, W1]", "float32", "[0, 1]", "image1 pixels"),
+        "keypoints1": ("[N, 2]", "float32", "pixels of image1, (x, y)", "detected keypoints, one pair per call"),
+        "keypoints2": ("[M, 2]", "float32", "pixels of image2, (x, y)", "detected keypoints"),
+        "pairs": ("[K, 2]", "int64", "indices into keypoints1, keypoints2", "one row per match"),
+        "scores": ("[K]", "float32", "[0, 1] match confidence", ""),
+    },
+    "matting": {"alpha": ("[B, H, W]", "float32", "[0, 1], 1 = foreground", "input pixels")},
+    "interpolation": {"frame": ("[B, 3, H, W]", "float32", "RGB in [0, 1]", "input pixels, at time `timestep`")},
+    "retrieval": {
+        "descriptor": ("[B, D]", "float32", "unit L2 norm (cosine similarity = dot product)", "one per image")
+    },
+    "calibration": {
+        "intrinsics": ("[B, 3, 3]", "float32", "pixels of the input image", "K; principal point as the model fits it"),
+        "gravity": ("[B, 3]", "float32", "unit vector, camera frame", "x right, y down, z forward"),
+        "roll": ("[B]", "float32", "radians", "rotation about the optical axis"),
+        "pitch": ("[B]", "float32", "radians", "tilt of the optical axis against the horizon"),
+        "vfov": ("[B]", "float32", "radians", "vertical field of view"),
+    },
+    "restoration": {"image": ("[B, 3, sH, sW]", "float32", "RGB in [0, 1]", "input pixels x `model.scale`")},
+    "tracking": {
+        "tracks": ("[T, Q, 2]", "float32", "pixels of the input, (x, y)", "every frame, one row per query"),
+        "visibility": ("[T, Q]", "float32", "[0, 1] probability that the point is visible", "every frame"),
     },
     "features": {
         "last_hidden_state": ("[B, N, C]", "float32", "tokens after the final norm", "prefix tokens, then patches"),
@@ -327,6 +369,7 @@ def _output(card: ModelCard, v: Variant, name: str, uses: Mapping[str, Any]) -> 
             "mask": ("[V, H, W]", "bool", "valid pixels", "input pixels"),
             "intrinsics": ("[V, 3, 3]", "float32", "pixels of the input", f"{OPENCV_PIXELS} pixels"),
             "cam_to_world": ("[V, 4, 4]", "float32 (float64 if given as float64)", unit, world),
+            "gaussians": ("Gaussians, G entries", "float32", unit, world),
         }
     elif task in _FIXED_TABLES:
         table = _FIXED_TABLES[task]
@@ -362,13 +405,22 @@ def _d(shape: str, dtype: str, unit: str, frame: str, present: str = _ALWAYS) ->
 _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "stereo": (("scale", "pad", "network", "crop"), ("image conversion", "rig= rectification", "depth / points")),
     "flow": (("scale", "pad", "network", "crop"), ("image conversion",)),
+    "interpolation": (("scale", "pad", "network", "crop"), ("image conversion",)),
+    "restoration": (("scale", "pad", "network (tiles: blend)", "crop", "clamp"), ("image conversion",)),
     "matching": (("scale", "resize to the network squares", "network", "resize to image1"), ("image conversion",)),
+    "tracking": (
+        ("resize to the network size", "network (frame by frame)", "scale to the input"),
+        ("image conversion",),
+    ),
     "depth": (
         ("resize to the processing size", "pad", "network", "crop / resize to the input"),
         ("image conversion", "other maps than the main one", "intrinsics="),
     ),
     "classification": (("network",), ("image conversion", "resize", "crop", "normalise (model.data_config)", "top-k")),
     "segmentation": (("input handling", "network", "logits at the input size"), ("image conversion", "argmax")),
+    "matting": (("resize to the network size", "normalise", "network", "resize to the input"), ("image conversion",)),
+    "retrieval": (("resize to the network size", "normalise", "network"), ("image conversion", "top_k", "pairs")),
+    "calibration": (("resize", "crop", "network", "camera fit", "camera of the input image"), ("image conversion",)),
     "features": (("resize to the patch stride", "network"), ("image conversion", "pooler_output", "hidden_states")),
     "promptable_segmentation": (
         ("resize to the encoder input", "image encoder"),
@@ -391,8 +443,8 @@ def _export(card: ModelCard, v: Variant, uses: Mapping[str, Any]) -> dict[str, A
 
     inside, outside = _STAGES[card.task]
     inputs: tuple[str, ...] = spec(card.task).inputs
-    if card.task == "multiview":  # the views, then the cameras the model requires (`example_inputs`)
-        inputs = ("images", *(k for k in inputs[1:] if uses.get(k) == "required"))
+    if card.task in _EXTRA_INPUT_TASKS:  # the image(s), then the cameras / trimap / prompt the model requires
+        inputs = (inputs[0], *(k for k in inputs[1:] if uses.get(k) == "required"))
     side = 0  # as `Model.export_size()`: the classification crop, the promptable encoder side, else the task's
     if card.task == "classification":
         side = v.io.crop or v.io.resize

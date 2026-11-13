@@ -1,4 +1,5 @@
 import inspect
+import json
 import re
 import subprocess
 import sys
@@ -262,7 +263,21 @@ def test_summary_table_matches_the_speed_tables():
     speed = gen_docs._speed_rows()
     row = next(r for r in speed["crestereo-eth3d"] if r["mode"] == "kernels" and r["input"] == "994x1482")
     page = (ROOT / "docs" / "models" / "stereo.md").read_text()
-    assert f"| [`crestereo-eth3d`](#crestereo) | yes | 1.39 \u2020 | {row['ms']}, " in page
+    assert f"| [`crestereo-eth3d`](#crestereo) | yes | 1.39 \u2020 | {gen_docs._ms_str(row['ms'])}, " in page
+
+
+def test_summary_times_are_rounded_on_every_page():
+    """Every model page's summary prints its kernels ms to 3 significant digits, like the speed tables."""
+    checked = 0
+    for page in sorted((ROOT / "docs" / "models").glob("*.md")):
+        table = page.read_text().split("kernels time (ms)", 1)[-1].split("\n\n", 1)[0]
+        for line in table.splitlines()[2:]:
+            ms = line.split("|")[-3].strip().split(",")[0].split(" ")[0]
+            if ms in (gen_docs._DASH, "OOM"):
+                continue
+            checked += 1
+            assert ms == gen_docs._ms_str(float(ms)), (page.name, ms)
+    assert checked > 50
 
 
 def test_one_speed_table_per_task_and_scene():
@@ -364,3 +379,17 @@ def test_a_failing_original_is_a_cell_and_a_failing_fastforks_tier_is_not():
     )
     with pytest.raises(ValueError, match="no cell"):
         gen_docs._accuracy("multiview", {("portable", d): err}, "portable", d)
+
+
+def test_original_eval_cells_come_from_their_tier():
+    """The row a docs cell shows (the last per model, mode and dataset): original fp32 from the fp32 tier, original
+    fp16 from an fp16 tier (an fp16 row labelled `upstream` overwrote the fp32 cell of moge-2-vitb-normal)."""
+    want = {"upstream": ("upstream",), "upstream-fp16": ("upstream16", "upstreamac")}
+    for path in (ROOT / "docs" / "data").glob("*_eval.jsonl"):
+        last = {}
+        for line in path.read_text().splitlines():
+            r = json.loads(line)
+            if r.get("mode") in want:
+                last[r["ref"], r["mode"], r.get("dataset")] = r
+        bad = [(*k, r.get("tier")) for k, r in last.items() if "tier" in r and r["tier"] not in want[k[1]]]
+        assert not bad, f"{path.name}: {bad}"

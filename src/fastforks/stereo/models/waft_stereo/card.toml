@@ -39,7 +39,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "dpt_fused"]
 
 # Upstream also publishes DAv2L-5 (SynLarge) and the Real/ KITTI and Middlebury fine-tunes; only the two SynLarge
 # checkpoints below are available locally and added so far.

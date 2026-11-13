@@ -22,6 +22,7 @@ def _isolated_cache(request, tmp_path, monkeypatch, _weight_stamps):
     monkeypatch.setenv("FASTFORKS_CACHE", str(cache))
     monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path / "hf_hub"))
     monkeypatch.setenv("TORCH_HOME", str(tmp_path / "torch_home"))
+    monkeypatch.delenv("FASTFORKS_READ_CACHES", raising=False)
     registry.cards.cache_clear()
     shared = request.node.get_closest_marker("model") is not None
     if shared and _weight_stamps.is_dir():
