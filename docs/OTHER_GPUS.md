@@ -69,6 +69,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | flowformer, lightglue, xfeat | fp32 | - | fp32 | - |
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 |
 | moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
+| loma | bf16 | - | fp32 | - |
 | romav2 | bf16 | bf16 | fp32 | - |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
 | pi3 | fp16 | fp16 | - | - |
