@@ -382,3 +382,9 @@ name = "Supervisely Person Dataset (human segmentation)"
 licence = "not checked"  # terms not read for the U²-Net port (2026-11-13)
 commercial = "unclear"
 url = "https://supervise.ly/explore/projects/supervisely-person-dataset-23304/datasets"
+
+[danbooru]
+name = "Danbooru (anime illustrations with community tags; WD taggers: image ids up to 7 220 105)"
+licence = "not stated"  # images are uploaded artworks under their artists' copyright; the site states no dataset terms
+commercial = "unclear"
+url = "https://danbooru.donmai.us/"

@@ -81,12 +81,24 @@ def scale(x: torch.Tensor, io: Io) -> torch.Tensor:
 def resize_crop(x: torch.Tensor, io: Io) -> torch.Tensor:
     """Resize the shorter side to `io.resize` (antialiased), then centre-crop `io.crop` x `io.crop` (0: skip either).
 
-    The torchvision / timm eval transform (`Resize(resize)` + `CenterCrop(crop)`), on the GPU.
+    The torchvision / timm eval transform (`Resize(resize)` + `CenterCrop(crop)`), on the GPU. With `io.pad_square`
+    the image is first pasted centred on a square of that value (PIL `paste` at `((side - w) // 2, (side - h) // 2)`);
+    with `io.stretch` both sides are resized to `io.resize` (Hugging Face `ViTImageProcessor`).
     """
+    if io.pad_square is not None:
+        h, w = x.shape[-2:]
+        side = max(h, w)
+        left, top = (side - w) // 2, (side - h) // 2
+        if side != min(h, w):
+            x = F.pad(x, (left, side - w - left, top, side - h - top), value=io.pad_square)
     if io.resize:
         h, w = x.shape[-2:]
-        # torchvision truncates the long side: 427 x 640 -> 256 x 383
-        size = (io.resize, max(1, int(w * io.resize / h))) if h <= w else (max(1, int(h * io.resize / w)), io.resize)
+        if io.stretch:
+            size = (io.resize, io.resize)
+        else:  # torchvision truncates the long side: 427 x 640 -> 256 x 383
+            size = (
+                (io.resize, max(1, int(w * io.resize / h))) if h <= w else (max(1, int(h * io.resize / w)), io.resize)
+            )
         if size != (h, w):
             antialias = io.interpolation != "nearest"
             x = F.interpolate(x, size=size, mode=io.interpolation, antialias=antialias, align_corners=None)

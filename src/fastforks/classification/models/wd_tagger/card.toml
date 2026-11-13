@@ -1,0 +1,77 @@
+schema = 2
+name = "WD Tagger v3"
+summary = "SmilingWolf's WD v3 anime image taggers: timm ViT / ConvNeXt / EVA-02 trained on Danbooru, 10 861 tags (multi-label)."
+tier = "stable"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+limitations = [
+  "An image with an alpha channel is not composited on white first, as the reference script does: pass RGB.",
+]
+# Multi-label: `probs` is the sigmoid of each logit. Classes 0-3 are the ratings (general, sensitive, questionable,
+# explicit), 4-8109 general tags, 8110-10860 characters; the reference script keeps general tags above 0.35 and
+# characters above 0.75.
+
+[upstream]
+repo = "https://github.com/huggingface/pytorch-image-models"
+commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
+
+[licence]
+code = "Apache-2.0"  # timm
+weights = "Apache-2.0"  # the Hugging Face model card of each tagger
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["danbooru"]
+evidence = "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3/blob/7f6b584d0bd3f55c4531f14ba3d4761b2bccdc0f/README.md"
+
+[io]
+# Size: any H x W >= 1: the image is padded to a white square, resized to 448 x 448 (the crop is the whole square).
+# Reference inference (https://github.com/neggles/wdv3-timm/blob/2f49e85ea3f5561e974a00d1756e357539b66acd/wdv3_timm.py):
+# white square canvas, timm's eval transform (bicubic, crop_pct 1.0, mean / std 0.5), RGB -> BGR (the runner swaps the
+# first convolution's input channels at load instead), sigmoid.
+input = "mean_std"
+pad_square = 1.0
+resize = 448
+crop = 448
+interpolation = "bicubic"
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+
+[params]
+library = "timm"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+
+[output]
+label_set = "wd-tagger-v3"  # selected_tags.csv of the repos (the same file in all five)
+probs = "sigmoid"
+
+[[variants]]
+id = "wd-vit-tagger-v3"
+revision = 1
+weights = [{ name = "wd-vit-tagger-v3.safetensors", size = 378417260, sha256 = "ee78db0cd9f1c7e01578cc89661a10c73675d60c30e235e505c391f57ea4d4e5", url = "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3/resolve/7f6b584d0bd3f55c4531f14ba3d4761b2bccdc0f/model.safetensors" }]
+params = { arch = "vit_base_patch16_224", model_args = { img_size = 448, class_token = false, global_pool = "avg", fc_norm = false, act_layer = "gelu_tanh" } }
+
+[[variants]]
+id = "wd-convnext-tagger-v3"
+revision = 1
+weights = [{ name = "wd-convnext-tagger-v3.safetensors", size = 394830604, sha256 = "77ad172eb1f7a697dc629bef7da7d50402e93ef0b1c86d7f69a865d31be64022", url = "https://huggingface.co/SmilingWolf/wd-convnext-tagger-v3/resolve/d39e46de298d27340111b64965e20b8185c407e6/model.safetensors" }]
+params = { arch = "convnext_base", model_args = { act_layer = "gelu_tanh" } }
+licence = { evidence = "https://huggingface.co/SmilingWolf/wd-convnext-tagger-v3/blob/d39e46de298d27340111b64965e20b8185c407e6/README.md" }
+
+[[variants]]
+id = "wd-vit-large-tagger-v3"
+revision = 1
+weights = [{ name = "wd-vit-large-tagger-v3.safetensors", size = 1260410716, sha256 = "6aa088240416168cf7e7994fbd5e594e06e66735ccd6ec7d154fa863c6777edc", url = "https://huggingface.co/SmilingWolf/wd-vit-large-tagger-v3/resolve/ae469aa2e4706a3af08d3673cf73a11d1add314c/model.safetensors" }]
+params = { arch = "vit_large_patch16_224", model_args = { img_size = 448, class_token = false, global_pool = "avg", fc_norm = false, act_layer = "gelu_tanh", patch_size = 14 } }
+licence = { evidence = "https://huggingface.co/SmilingWolf/wd-vit-large-tagger-v3/blob/ae469aa2e4706a3af08d3673cf73a11d1add314c/README.md" }
+
+[[variants]]
+id = "wd-eva02-large-tagger-v3"
+revision = 1
+weights = [{ name = "wd-eva02-large-tagger-v3.safetensors", size = 1260796004, sha256 = "74f05b0aad869d9f91fbc597bc8d157d98abdead573d5c23509a195dbb8a7ef5", url = "https://huggingface.co/SmilingWolf/wd-eva02-large-tagger-v3/resolve/b25b82a03f7282e41aa2f257a52c7583b710bd1c/model.safetensors" }]
+params = { arch = "eva02_large_patch14_448", model_args = { img_size = 448, ref_feat_shape = [32, 32] } }
+licence = { evidence = "https://huggingface.co/SmilingWolf/wd-eva02-large-tagger-v3/blob/b25b82a03f7282e41aa2f257a52c7583b710bd1c/README.md" }

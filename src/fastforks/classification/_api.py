@@ -43,6 +43,7 @@ class ClassificationResult(NumpyOutputs):
         model: Versioned model id.
         backend: The backend that produced the result.
         options: Load options that differ from the validated defaults.
+        multi_label: The classes are independent tags (card `[output] probs = "sigmoid"`, e.g. the WD taggers).
     """
 
     logits: torch.Tensor
@@ -50,11 +51,12 @@ class ClassificationResult(NumpyOutputs):
     model: str
     backend: Backend
     options: Mapping[str, Any] = field(default_factory=dict)
+    multi_label: bool = False
 
     @property
     def probs(self) -> torch.Tensor:
-        """Softmax of `logits` over the classes."""
-        return self.logits.softmax(-1)
+        """Softmax of `logits` over the classes; the sigmoid of each logit for a `multi_label` model."""
+        return self.logits.sigmoid() if self.multi_label else self.logits.softmax(-1)
 
     def top(self, k: int = 5) -> list[tuple[str, float]] | list[list[tuple[str, float]]]:
         """The `k` most likely classes as `(name, probability)`, best first.
@@ -163,7 +165,12 @@ class ClassificationModel(core.Model):
         out = self._batched(self._run, x)
         logits = self._check_outputs(out, {"logits": (x.shape[0], len(self.class_names))})["logits"]
         return ClassificationResult(
-            logits if is_batch(image) else logits[0], self.class_names, self.variant.ref, self.backend, self.options
+            logits if is_batch(image) else logits[0],
+            self.class_names,
+            self.variant.ref,
+            self.backend,
+            self.options,
+            multi_label=self.variant.output_info.get("probs") == "sigmoid",
         )
 
     def _run(self, x: torch.Tensor) -> dict[str, torch.Tensor]:

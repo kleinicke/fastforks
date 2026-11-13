@@ -108,6 +108,7 @@ siglip = "SigLIP So400m/14 (Zhai et al. 2023) fine-tuned on ImageNet-1k."
 squeezenet = "SqueezeNet 1.1 (Iandola et al. 2016): a classifier built from fire modules."
 swin = "Swin Transformer (Liu et al. 2021): a vision transformer with shifted-window attention."
 vgg = "VGG (Simonyan and Zisserman 2014): a classifier of stacked 3x3 convolutions."
+wd_tagger = "SmilingWolf's WD v3 taggers: tag anime-style images with 10 861 Danbooru tags (general, character, rating), on ViT, ConvNeXt and EVA-02 backbones. Apache-2.0 weights."
 vit = "Vision Transformer (Dosovitskiy et al. 2020): a transformer classifier on 16x16 image patches."
 
 # --- segmentation

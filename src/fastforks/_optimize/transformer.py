@@ -125,7 +125,7 @@ def _cnx_ok(blk: _Blk) -> bool:
         and is_base(m.fc2, nn.Linear)
         and _is_id(blk.shortcut)
         and _id_or(blk.drop_path, cls[3])
-        and _gelu(m.act) == _GELU
+        and _gelu(m.act) != 0  # exact or tanh (WD ConvNeXt tagger)
         and m.fc1.bias is not None
         and m.fc2.bias is not None
         and _is_id(getattr(m, "norm", None))
@@ -180,7 +180,7 @@ def _cnx_kernels(self: _Blk, x: torch.Tensor) -> torch.Tensor:
     shortcut = x.contiguous(memory_format=torch.channels_last)
     h = ops.dwconv(shortcut, self._w_rsc, c.bias, list(c.stride), list(c.padding), 0).permute(0, 2, 3, 1)
     h = self.norm(h)
-    h = lin(h, self._w1, self.mlp.fc1.bias, act=_GELU)
+    h = lin(h, self._w1, self.mlp.fc1.bias, act=self._act)
     if hasattr(self, "_grn_eps"):
         h = _grn(self, h)
     return lin(h, self._w2_4, self._b2, res=shortcut.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
@@ -219,6 +219,7 @@ def _cnx_kprep(blk: _Blk) -> None:
             "_w2_4": _w4(blk._w2),
         },
     )
+    blk._act = _gelu(blk.mlp.act)
 
 
 def _cnx_reload(blk: _Blk, _keys: object) -> None:
@@ -454,7 +455,7 @@ def _swin_block(blk: _Blk, x: torch.Tensor, bias: torch.Tensor, nw: int) -> torc
     v = lin(h, blk._wv, blk._bv).view(b, n, nw * heads, d).transpose(1, 2)
     o = F.scaled_dot_product_attention(q, k, v, attn_mask=bias, scale=a.scale).transpose(1, 2).reshape(b, tokens, c)
     x = lin(o, blk._wp, a.proj.bias, res=x)
-    h = lin(blk.norm2(x), blk._w1, m.fc1.bias, act=_GELU)
+    h = lin(blk.norm2(x), blk._w1, m.fc1.bias, act=blk._act)
     return lin(h, blk._w2, m.fc2.bias, res=x)
 
 
@@ -504,6 +505,7 @@ def _swin_prep(st: _Blk) -> bool:
             },
         )
         b._ff_nw = nw
+        b._act = _gelu(m.act)
     st._ff_hw = (h, w)
     return True
 
@@ -527,7 +529,7 @@ def patch_swin_kernels(model: nn.Module) -> int:
             and is_base(b.attn, cls[2])
             and is_base(b.mlp, cls[3])
             and _own_forwards(b, b.attn, b.mlp)
-            and _gelu(b.mlp.act) == _GELU
+            and _gelu(b.mlp.act) != 0  # exact or tanh
             and b.attn.qkv.bias is not None
             and b.attn.proj.bias is not None
             for b in st.blocks

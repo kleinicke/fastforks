@@ -140,7 +140,10 @@ class Io:
         min_size: Smallest supported input height / width.
         mean: Per-channel mean for `input = "mean_std"`.
         std: Per-channel standard deviation for `input = "mean_std"`.
+        pad_square: Classification: pad the image to a centred square with this value (`[0, 1]`, every channel)
+            before resizing, as the original pastes it on a square canvas (WD taggers: 1.0, white); `None`: no padding.
         resize: Tasks that resize first (classification): the shorter side is resized to this (0: no resizing).
+        stretch: Resize both sides to `resize` instead, ignoring the aspect ratio (Hugging Face `ViTImageProcessor`).
         crop: Then a centre crop of this size (0: none).
         interpolation: Resampling filter of `resize` (antialiased).
     """
@@ -152,7 +155,9 @@ class Io:
     min_size: int = 1
     mean: tuple[float, float, float] = (0.485, 0.456, 0.406)
     std: tuple[float, float, float] = (0.229, 0.224, 0.225)
+    pad_square: float | None = None
     resize: int = 0
+    stretch: bool = False
     crop: int = 0
     interpolation: Interpolation = "bilinear"
 
@@ -539,14 +544,16 @@ def _io(t: dict[str, Any], where: str, task: str, base: Io | None = None) -> Io:
     changes = _pad(t.get("pad", {}), f"{where} pad")
     if "input" in t:
         changes["input"] = _literal(t["input"], InputRange, f"{where} input")
-    for key in ("min_size", "resize", "crop"):
+    for key, kind in (("min_size", int), ("resize", int), ("crop", int), ("stretch", bool)):
         if key in t:
-            changes[key] = _get(t, key, int, where)
+            changes[key] = _get(t, key, kind, where)
     for key in ("mean", "std"):
         if key in t:
             changes[key] = _floats3(t[key], f"{where} {key}")
     if "interpolation" in t:
         changes["interpolation"] = _literal(t["interpolation"], Interpolation, f"{where} interpolation")
+    if "pad_square" in t:
+        changes["pad_square"] = _unit(t["pad_square"], f"{where} pad_square")
     io = dataclasses.replace(base, **changes)
     if ("mean" in t or "std" in t) and io.input != "mean_std":
         msg = f"{where}: mean / std are only used with input = 'mean_std' (got input = {io.input!r})"
@@ -555,6 +562,13 @@ def _io(t: dict[str, Any], where: str, task: str, base: Io | None = None) -> Io:
         msg = f"{where}: pad multiple and min_size must be >= 1, resize and crop >= 0, std > 0"
         raise CardError(msg)
     return io
+
+
+def _unit(value: object, where: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float) or not 0 <= value <= 1:
+        msg = f"{where}: must be a number in [0, 1], got {value!r}"
+        raise CardError(msg)
+    return float(value)
 
 
 def _pad(pad: object, where: str) -> dict[str, Any]:
@@ -735,7 +749,11 @@ def _output(task: str, outputs: tuple[str, ...], info: dict[str, Any], where: st
     if not sp.required & set(outputs):
         msg = f"{where}: outputs must include {' or '.join(repr(o) for o in sorted(sp.required))}"
         raise CardError(msg)
-    _unknown_keys(info, set(sp.output_keys), f"{where} [output]")
+    _unknown_keys(info, set(sp.output_keys) | set(sp.optional_output_keys), f"{where} [output]")
+    for key, values in sp.optional_output_keys.items():
+        if key in info and _get(info, key, str, f"{where} [output]") not in values:
+            msg = f"{where} [output] {key}: must be one of {values}, got {info[key]!r}"
+            raise CardError(msg)
     for key, values in sp.output_keys.items():
         value = _get(info, key, str, f"{where} [output]")
         if values is None:
