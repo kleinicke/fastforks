@@ -29,7 +29,9 @@ print(rec.registered, rec.points, rec.seconds)
   costs <= 0.6 AUC@3 on Mip-NeRF 360 garden/counter and gains 6.6 on ETH3D facade (6048 x 4032 images).
 - `matcher_options` passes load options to the matcher: `{"long_side": 1600}` detects features at up to 1600 px
   instead of 1024 (garden AUC@3 95.1 -> 96.3, counter 95.4 -> 96.2; +16 % front-end time, 2x matching memory).
-- Only sparse matchers fit (keypoints per image); dense ones (RoMa, LoFTR) are refused.
+- Dense matchers (`matcher="romav2"`, `romav1`, `loftr`) work like hloc's `match_dense`: per pair the `dense_matches`
+  (default 4096) most certain pixels of a stride-2 grid and their warp endpoints; per image, endpoints within 1 px
+  merge into one keypoint so matches of different pairs form tracks.
 - The database uses the COLMAP 3 schema; COLMAP 4 / pycolmap 4 read it.
 
 ## Speed (RTX 5060 Ti, front end only)

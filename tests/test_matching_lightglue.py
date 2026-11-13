@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from fastforks import matching
 from fastforks._core import registry
 from fastforks.matching import SparseMatchingResult
+from fastforks.matching.models.lightglue.model import Matcher, Params
 from fastforks.shared.lightglue import LightGlue, match_many, resize_long
 
 
@@ -70,3 +72,22 @@ def test_match_many_equals_the_per_pair_forward() -> None:
         assert torch.equal(out["matches"], single["matches"][0])
         assert torch.allclose(out["scores"], single["scores"][0], atol=1e-5)
     assert outs[-1]["matches"].shape == (0, 2)
+
+
+@pytest.mark.parametrize("extractor", ["aliked", "disk"])
+def test_float16_extractor_keeps_float32_outputs(extractor) -> None:
+    """`dtype="float16"` autocasts only the dense network: keypoints and descriptors come out float32 (the matcher's
+    and the API's dtype) and are the float32 run's up to half precision."""
+    torch.manual_seed(0)
+    net = Matcher(Params(extractor, 0.0, 64, 0)).eval()
+    image = torch.rand(1, 3, 64, 96)
+    with torch.inference_mode():
+        ref = net.extract(image)
+        net.extractor.half = True
+        out = net.extract(image)  # CPU autocast to float16: the same code path as CUDA
+    assert out["keypoints"].dtype == out["descriptors"].dtype == torch.float32
+    assert out["keypoints"].shape[1] > 0
+    assert ref["descriptors"].shape == out["descriptors"].shape
+    # the same detections up to the half-precision maps (random weights: near-equal scores change the score order)
+    d = torch.cdist(out["keypoints"][0], ref["keypoints"][0]).min(1).values
+    assert (d < 1.0).float().mean() > 0.9, d

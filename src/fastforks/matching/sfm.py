@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     import os
     from collections.abc import Generator, Iterable, Mapping, Sequence
 
+    from fastforks._core.cards import Dtype
     from fastforks.matching._api import SparseMatchingResult
 
 __all__ = ["DatabaseStats", "ReconstructionStats", "colmap_database", "reconstruct"]
@@ -88,6 +89,7 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
     dense_matches: int = 4096,
     mode: Literal["auto", "portable", "kernels"] = "auto",
     device: str | torch.device | None = None,
+    dtype: Dtype | torch.dtype | None = None,
 ) -> DatabaseStats:
     """Match an image folder and write a COLMAP database ready for the mapper.
 
@@ -105,6 +107,7 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
         dense_matches: Dense matchers: matches sampled per pair (the most certain grid pixels of the first image).
         mode: Backend of the models and of the RANSAC.
         device: Of the models (default as `load`).
+        dtype: Compute dtype of the matcher (as `load`; default the card's).
 
     Returns:
         The counts and the time per stage.
@@ -137,7 +140,7 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
     pair_list = [(int(i), int(j)) for i, j in pairs]
     sizes = [_size(p) for p in paths]
     with _stage("matching", seconds, peak):
-        model = matching.load(matcher, mode=mode, device=device, options=matcher_options)
+        model = matching.load(matcher, mode=mode, device=device, dtype=dtype, options=matcher_options)
         results = model.match_pairs(paths, pair_list)
         if model.sparse:
             keypoints, raw, verified = _sparse(pair_list, results, threshold, mode)
