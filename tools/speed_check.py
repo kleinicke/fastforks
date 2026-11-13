@@ -128,13 +128,15 @@ def jobs(only: Iterable[str] = (), modes: Iterable[str] = MODES) -> list[dict[st
     `compile` / `tensorrt` jobs are the refs of the floor's portable rows, with their standard input only.
     """
     out: dict[tuple[str, str], dict[str, Any]] = {}
-    only, want = set(only), set(modes)
+    only, want = _floor_refs(only), set(modes)
     read = (want - set(NEW_MODES)) | ({"portable"} if want & set(NEW_MODES) else set())
     for r in floor_rows():
         if r["mode"] not in read or (only and r["ref"] not in only):
             continue
         j = out.setdefault((r["ref"], r["mode"]), {"ref": r["ref"], "task": r["task"], "mode": r["mode"], "inputs": []})
-        j["inputs"].append({"label": r["input"], "scene": r.get("scene", "")})
+        inp = {"label": r["input"], "scene": r.get("scene", "")}
+        if inp not in j["inputs"]:  # a stale floor row of the same input is no second job
+            j["inputs"].append(inp)
     for j in out.values():
         j["inputs"].sort(key=lambda i: _px(i["label"]))
     found = []
@@ -145,6 +147,29 @@ def jobs(only: Iterable[str] = (), modes: Iterable[str] = MODES) -> list[dict[st
             std = next((i for i in j["inputs"] if i["label"] == STANDARD.get(j["task"])), j["inputs"][0])
             found += [{**j, "mode": m, "inputs": [std]} for m in NEW_MODES if m in want]
     return found
+
+
+def _floor_refs(names: Iterable[str]) -> set[str]:
+    """Floor refs of `--only` names: a floor ref as is, a model id (`geocalib`) as its variant's ref; else an error.
+
+    An unknown name used to select no job, so `run` ended without a row or a message.
+    """
+    refs = {r["ref"] for r in floor_rows()}
+    out = set()
+    for name in names:
+        if name not in refs:
+            from fastforks._core.registry import resolve_any  # noqa: PLC0415 - only for a name that is no floor ref
+
+            try:
+                name = resolve_any(name)[1].ref  # noqa: PLW2901
+            except Exception as e:  # noqa: BLE001 - any lookup failure is the same user error
+                msg = f"--only {name}: no floor rows and no model of that id ({e})"
+                raise SystemExit(msg) from None
+            if name not in refs:
+                msg = f"--only: model ref {name} has no floor rows in {FLOOR}"
+                raise SystemExit(msg)
+        out.add(name)
+    return out
 
 
 def files_hash(files: Iterable[str]) -> str:
