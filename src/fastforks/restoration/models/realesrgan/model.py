@@ -38,7 +38,11 @@ class Params:
 
 
 class Portable(Runner):
-    """Plain PyTorch in the card's dtype."""
+    """Plain PyTorch in the card's dtype, channels-last on CUDA.
+
+    cuDNN's float16 convolutions at 512²: 631 -> 470 ms, 2.2 -> 1.2 GB. On the CPU, channels-last changes the float32
+    rounding (4e-5 against the golden's 1e-5), so the layout stays.
+    """
 
     dtypes = ("float32", "float16")
     Params = Params
@@ -49,7 +53,8 @@ class Portable(Runner):
         p = ctx.params
         self.net = RRDBNet(num_in_ch=3, num_out_ch=3, scale=p.scale, num_feat=64, num_block=p.num_block, num_grow_ch=32)
         load_strict(self.net, ctx.state_dict(key="params_ema"), f"{ctx.variant.ref} checkpoint")
-        self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+        self.fmt = torch.channels_last if torch.device(ctx.device).type == "cuda" else torch.contiguous_format
+        self.net.eval().to(ctx.device, getattr(torch, ctx.dtype)).to(memory_format=self.fmt)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
         """x2: reflect padding at the bottom and right to even sizes (`RealESRGANer.pre_process`); x4: none."""
@@ -60,12 +65,12 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""
-        return {"image": self.net(image.to(getattr(torch, self.ctx.dtype)))}
+        return {"image": self.net(image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt))}
 
     def module(self) -> torch.nn.Module:
         """The network in the card's dtype."""
-        dtype = getattr(torch, self.ctx.dtype)
-        return Forward(self.net, lambda net, image: net(image.to(dtype)))
+        dtype, fmt = getattr(torch, self.ctx.dtype), self.fmt
+        return Forward(self.net, lambda net, image: net(image.to(dtype).contiguous(memory_format=fmt)))
 
 
 def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
@@ -83,12 +88,11 @@ class Kernels(Portable):
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
             if type(m) is torch.nn.Conv2d:
-                m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last)
                 override(m, _hacc_conv)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""
-        x = image.to(torch.float16).contiguous(memory_format=torch.channels_last)
+        x = image.to(torch.float16).contiguous(memory_format=self.fmt)
         with fp16_accumulate():
             return {"image": self.net(x)}
 
