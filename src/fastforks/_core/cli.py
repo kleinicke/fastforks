@@ -893,7 +893,7 @@ def _add_sfm(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--matcher", default="aliked-lightglue", help="sparse matching model id (default aliked-lightglue)")
     p.add_argument("--retrieval", default="megaloc", help="retrieval model id that picks the pairs, or none: all pairs")
     p.add_argument("--k", type=int, default=20, help="pairs per image (default 20)")
-    p.add_argument("--threshold", type=float, default=1.0, help="RANSAC inlier threshold in pixels (default 1)")
+    p.add_argument("--threshold", type=float, default=4.0, help="RANSAC inlier threshold in pixels (default 4)")
     p.add_argument("--single-camera", action="store_true", help="one camera for all images of the same size")
     p.add_argument("--mode", choices=("auto", "portable", "kernels"), default="auto", help="backend (default auto)")
     p.add_argument("--device", help="e.g. cpu, cuda, cuda:1 (default: as `load`)")

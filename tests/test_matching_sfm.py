@@ -78,3 +78,10 @@ def test_rejects_existing_database_and_empty_folder(scene):
     (scene / "empty").mkdir()
     with pytest.raises(InputError, match="no images"):
         sfm.colmap_database(scene / "empty", scene / "new.db")
+
+
+def test_matcher_options_reach_load(scene, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(matching, "load", lambda *_a, **k: seen.update(k) or FakeMatcher())
+    sfm.colmap_database(scene / "img", scene / "db.db", retrieval=None, matcher_options={"long_side": 1600})
+    assert seen["options"] == {"long_side": 1600}
