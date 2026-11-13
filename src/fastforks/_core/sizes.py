@@ -22,6 +22,7 @@ PATCH = {
     "prompt_depth_anything": 14,
     "depth_anything_3": 14,
     "moge": 14,
+    "lingbot_depth": 14,
     "unik3d": 14,
     "depth_pro": 16,
 }

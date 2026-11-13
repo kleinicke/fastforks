@@ -63,6 +63,7 @@ depth_anything_3 = "ByteDance's Depth Anything 3: depth from one image, with rel
 depth_anything_v2 = "Depth Anything V2: relative depth from one image, in small, base and large. The licence differs by size, see the table."
 video_depth_anything = "Video Depth Anything (ByteDance): depth of a whole video, consistent from frame to frame, in windows of 32 frames on the Depth Anything V2 Small encoder; relative and metric. Apache-2.0 code and weights (Small only)."
 prompt_depth_anything = "Prompt Depth Anything: metric depth from one image plus a low-resolution depth prompt (for example a phone LiDAR map), in small and large."
+lingbot_depth = "LingBot-Depth (Robbyant, 2026): metric depth completion from an image plus an incomplete or noisy metric depth map (RGB-D camera, LiDAR), and a depth-completion variant (dc). Apache-2.0 code and weights."
 depth_pro = "Apple's single-image model for metric depth and the camera focal length, at 1536x1536 internal resolution. Research-only licence."
 lotus = "Lotus from HKUST (Guangzhou): surface normals from one image in one step on a Stable Diffusion UNet, generative (G) or direct (D). Apache-2.0 code and weights."
 marigold = "Marigold from ETH Zurich (PRS): depth from one image by diffusion on a Stable Diffusion UNet. Commercially usable under an OpenRAIL licence."

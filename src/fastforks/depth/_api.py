@@ -177,9 +177,10 @@ class DepthModel(core.Model):
             intrinsics: Pinhole matrix `[3, 3]` (or `[B, 3, 3]`; tensor, numpy array or nested lists) in pixels of
                 `image`, for models that use it (see the card); `None` lets the model estimate it. OpenCV pixel
                 centres (pixel `i` centred at `i`), as the estimates.
-            prompt_depth: For depth-prompted models (Prompt Depth Anything; see the card): a low-resolution metric depth
-                map in metres, `[h, w]` (shared by a batch) or `[B, h, w]`, e.g. from a LiDAR; any size, it is
-                resampled inside the network. It is required by those models and an error for the others.
+            prompt_depth: For depth-prompted models (Prompt Depth Anything, LingBot-Depth; see the card): a metric
+                depth map in metres, `[h, w]` (shared by a batch) or `[B, h, w]`, e.g. from a LiDAR; any size, it is
+                resampled inside the network. It is required by those models and an error for the others. Depth
+                completion models (LingBot-Depth) take maps with holes (0, NaN or inf: missing).
 
         Returns:
             The result; batched inputs give batched maps.
@@ -187,7 +188,7 @@ class DepthModel(core.Model):
         Raises:
             InputError: Unsupported or too small image, intrinsics of the wrong shape, intrinsics passed to a model
                 that does not use them, or missing for one that needs them; the same for `prompt_depth`, or a
-                `prompt_depth` that is not a finite, positive map.
+                dense `prompt_depth` that is not a finite, positive map.
         """
         x = to_rgb_batch(image, self.device)
         self._check_size(x)
@@ -251,7 +252,9 @@ class DepthModel(core.Model):
             msg = f"prompt_depth must be [h, w] or [{batch}, h, w], got shape {tuple(p.shape)}"
             raise InputError(msg)
         p = p.to(self.device)
-        if not bool(torch.isfinite(p).all() & (p.amin() > 0)):  # one sync, as the other input checks
+        if not self._runner.prompt_sparse and not bool(
+            torch.isfinite(p).all() & (p.amin() > 0)
+        ):  # one sync, as the other input checks
             msg = "prompt_depth must be finite and positive (metres); fill missing LiDAR pixels before the call"
             raise InputError(msg)
         return p.expand(batch, -1, -1)[:, None].contiguous()  # [B, 1, h, w]

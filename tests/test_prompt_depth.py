@@ -1,4 +1,4 @@
-"""Prompt Depth Anything: the `prompt_depth` argument (checks run on the weights if available), network size."""
+"""Depth prompts: the `prompt_depth` argument (checks run on the weights if available), network size."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pytest
 from fastforks import InputError, WeightsError, depth
 from fastforks._core import registry
 from fastforks.depth.models.prompt_depth_anything.model import network_size
-from synth import image, prompt_depth
+from synth import image, prompt_depth, sparse_prompt
 
 REF = "prompt-depth-anything-s"
 
@@ -55,3 +55,19 @@ def test_prompt_unused_rejected() -> None:
     m = depth.load("depth-anything-v2-s", device="cpu")
     with pytest.raises(InputError, match="does not use a depth prompt"):
         m(image(56, 84), prompt_depth=prompt_depth())
+
+
+def test_sparse_prompt_only_for_completion_models(model: depth.DepthModel) -> None:
+    """Holes (0 / NaN) are rejected by Prompt Depth Anything and taken by LingBot-Depth (a hole-only map too)."""
+    with pytest.raises(InputError, match="finite and positive"):
+        model(image(56, 84), prompt_depth=sparse_prompt())
+    card, variant = registry.resolve("depth", "lingbot-depth")
+    try:
+        registry.weights(card, variant, allow_download=False)
+    except WeightsError as e:
+        pytest.skip(f"weights of lingbot-depth not available locally: {e}")
+    m = depth.load("lingbot-depth", device="cpu", options={"resolution_level": 0})
+    for p in (sparse_prompt(), np.zeros((4, 4), np.float32)):
+        r = m(image(56, 84), prompt_depth=p)
+        assert r.depth.shape[-2:] == (56, 84)
+        assert np.isfinite(np.asarray(r.depth)).all()

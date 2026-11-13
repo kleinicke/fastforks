@@ -56,6 +56,10 @@ _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.
     " (.item(); the export runs both heads and selects)",
 }
 
+_SHORTER_EAGER = {  # eager drops tokens module() keeps masked (static shapes): same math, another summation order
+    "lingbot-depth@1": "the model call drops the depth patches without depth; module() masks them",
+}
+
 
 STEREO = [r for r in SMALLEST if TASK[r] == "stereo"]
 DEPTH = [r for r in SMALLEST if TASK[r] == "depth"]
@@ -177,7 +181,7 @@ def _check_export_names(ref: str, model: Any, module: torch.nn.Module, out: Any)
 @pytest.mark.model
 @pytest.mark.filterwarnings("ignore:The .grad attribute of a Tensor that is not a leaf")  # dynamo reads .grad
 @pytest.mark.parametrize("ref", SMALLEST)
-def test_module_compile_export(ref):  # noqa: C901 - one branch per task
+def test_module_compile_export(ref):  # noqa: C901, PLR0912 - one branch per task
     if ref in _NOT_TRACEABLE:
         pytest.xfail(_NOT_TRACEABLE[ref])
     if ref in _CPU_RAM_HEAVY and not os.environ.get("FASTFORKS_HEAVY_CPU_TESTS"):
@@ -193,7 +197,11 @@ def test_module_compile_export(ref):  # noqa: C901 - one branch per task
         assert want.shape == (1, *inputs[0].shape[2:], *channels)
         kw = {k: v[0, 0] for k, v in zip(prompt_kwargs(model), inputs[1:], strict=False)}
         n = 2 if TASK[ref] == "stereo" else 1
-        assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs[:n]), **kw)))
+        got = _main_map(model(*(x[0] for x in inputs[:n]), **kw))
+        if ref in _SHORTER_EAGER:
+            torch.testing.assert_close(want[0], got, rtol=1e-4, atol=1e-4)
+        else:
+            assert torch.equal(want[0], got)
     elif TASK[ref] == "flow":  # two [B, 3, H, W] in [0, 1] -> [B, 2, H, W], as the model call
         assert want.shape == (1, 2, *inputs[0].shape[2:])
         assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs))))
