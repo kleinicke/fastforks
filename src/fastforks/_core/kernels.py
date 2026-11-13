@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Literal, TypeVar
 import torch
 
 from fastforks._core.errors import CardError, KernelUnavailableError, WeightsError
-from fastforks._core.files import FileSpec, cache_root, locate, search_path
+from fastforks._core.files import FileSpec, cache_root, locate, read_caches, search_path
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -302,7 +302,7 @@ def _private(path: Path) -> bool:
     Anyone who can write there already is this user; for a shared, foreign or writable location the binary is
     hashed on every load and loaded from the hashed bytes.
     """
-    roots = {r.resolve() for r in (cache_root(), *search_path(KERNEL_PATH_ENV))}
+    roots = {r.resolve() for r in (cache_root(), *read_caches(), *search_path(KERNEL_PATH_ENV))}
     uid = os.getuid()
     try:
         p = path.resolve()

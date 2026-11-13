@@ -33,6 +33,7 @@ directory.
 |---|---|
 | `FASTFORKS_CACHE` | cache directory (default: the platform user cache) |
 | `FASTFORKS_WEIGHTS_PATH` | extra directories searched for weight files before downloading (`os.pathsep`-separated) |
+| `FASTFORKS_READ_CACHES` | other fastforks cache directories whose files are used in place, never written (`os.pathsep`-separated; e.g. the user cache when an app moves `FASTFORKS_CACHE`) |
 | `FASTFORKS_KERNEL_PATH` | extra directories searched for kernel binaries (offline machines, own builds) |
 | `FASTFORKS_OFFLINE` | `1` = never touch the network (also `HF_HUB_OFFLINE=1`); missing files raise `WeightsDownloadError` |
 | `FASTFORKS_NONCOMMERCIAL` | `1` = also download weights with non-commercial licences (off in every install, also `fastforks`) |
