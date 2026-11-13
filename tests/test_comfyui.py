@@ -252,3 +252,14 @@ def test_upscale_files(pack: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatc
         want = m(image[i].permute(2, 0, 1)).image.float().permute(1, 2, 0).clamp(0, 1)
         torch.testing.assert_close(out[i], want, rtol=0, atol=0)
     nodes._cache.clear()
+
+
+def test_node_model_lists(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each node lists the ids of its families (cards only, nothing loads)."""
+    nodes = pack.nodes
+    monkeypatch.setattr(nodes, "upscale_files", list)
+
+    def ids(node: type) -> set[str]:
+        return {nodes.model_id(e) for e in node.INPUT_TYPES()["required"]["model"][0]}
+
+    assert {"hat-x4", "hat-s-x4", "real-hat-gan-x4"} <= ids(nodes.Upscale)
