@@ -1,12 +1,13 @@
 # GPU pose solver (idea, after the quality/speed audit)
 
-Status: done 2026-11-12 for the essential matrix: `fastforks.matching.estimate_pose` (portable PyTorch + CUDA
-kernels `fastforks.kernels.ransac`) and `MatchingResult.matches(n)`. MegaDepth-1500 x5, RoMa v2 matches, RTX 5060 Ti +
-Ryzen 7 5800X (rows: `docs/data/relative_pose_eval.jsonl`): kernels AUC@5/10/20 68.63/80.73/88.86 at 18,235 pairs/s
-(500 pairs per call; 1.67 ms for one pair alone), PoseLib 68.85/80.89/88.97 at 222 pairs/s and OpenCV RANSAC
-62.87/76.90/86.42 at 327 pairs/s (both in 16 single-threaded processes). Experiment-level notes:
-`results/2026-11-12_gpu_ransac.md`. Open: fundamental matrix (7/8-point), CUDA-graph single-pair latency, publishing the
-`ransac` kernel build. The roadmap line "GPU RANSAC only if a profile shows it dominates" is superseded.
+Status: done 2026-11-12: `fastforks.matching.estimate_pose` / `estimate_fundamental` (portable PyTorch + CUDA kernels
+`fastforks.kernels.ransac`) and `MatchingResult.matches(n)`. MegaDepth-1500 x5, RoMa v2 matches, RTX 5060 Ti + Ryzen 7
+5800X (follow-up 6 of `results/2026-11-12_gpu_ransac.md`, raw rows in `results/raw/2026-11-12_gpu_ransac/accuracy/`;
+the threshold-0.5 rows are in `docs/data/relative_pose_eval.jsonl`): essential,
+kernels at threshold 1.0 AUC@5/10/20 69.87/81.48/89.33 at 0.055 ms/pair batched (1.68 ms for one pair alone) vs
+PoseLib at its best threshold 69.96/81.58/89.47 at 39-45 ms/pair (a tie within noise); fundamental, kernels 63.65 AUC@5
+at 0.074 ms/pair vs PoseLib 64.00. Open: CUDA-graph single-pair latency, publishing the `ransac` kernel build. The
+roadmap line "GPU RANSAC only if a profile shows it dominates" is superseded.
 
 ## Why
 Users of a dense matcher (RoMa v2, later others) almost always run RANSAC on the matches. Today that is OpenCV on the
