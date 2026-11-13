@@ -34,7 +34,7 @@ long_side = { default = 840, min = 0 }  # longest side the images are matched at
 threshold = 0.2  # coarse dual-softmax confidence (upstream MATCH_COARSE.THR)
 
 [modes.portable]
-cuda_dtype = "float32"
+cuda_dtype = "float16"  # fastforks (upstream float32): backbone and transformers in float16; coarse and fine similarities, dual-softmax and outputs float32
 mps_dtypes = ["float32"]
 
 [modes.kernels]

@@ -110,15 +110,22 @@ def sine_encoding(d_model: int, h: int, w: int, *, temp_bug_fix: bool, device: t
     return pe[None]
 
 
-def linear_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
-    """Upstream `LinearAttention` (no masks): `[N, L, H, D]` queries, `[N, S, H, D]` keys / values."""
-    q = F.elu(q) + 1
-    k = F.elu(k) + 1
-    s = v.size(1)
-    v = v / s  # upstream: prevents fp16 overflow
-    kv = torch.einsum("nshd,nshv->nhdv", k, v)
-    z = 1 / (torch.einsum("nlhd,nhd->nlh", q, k.sum(dim=1)) + eps)
-    return torch.einsum("nlhd,nhdv,nlh->nlhv", q, kv, z) * s
+def linear_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, nhead: int, eps: float = 1e-6) -> torch.Tensor:
+    """Upstream `LinearAttention` (no masks) on `[N, L, C]` queries, `[N, S, C]` keys / values, `C` = H x D.
+
+    fastforks: the normaliser from the keys' mean instead of their sum (`q . sum k + eps` =
+    `S (q . mean k + eps / S)`, the factor S cancels against upstream's `* v_length`), so float16 does not overflow on
+    long sequences (the coarse S is H W / 64); batched per-head GEMMs instead of einsums.
+    """
+    n, l, c = q.shape
+    s, d = k.shape[1], c // nhead
+    q = (F.elu(q) + 1).view(n, l, nhead, d).transpose(1, 2)  # [N, H, L, D]
+    k = (F.elu(k) + 1).view(n, s, nhead, d).transpose(1, 2)
+    v = (v / s).view(n, s, nhead, d).transpose(1, 2)  # upstream: prevents fp16 overflow
+    kv = k.transpose(2, 3) @ v  # [N, H, D, D]
+    k_mean = k.mean(2, keepdim=True, dtype=torch.float32).to(q.dtype)  # [N, H, 1, D]
+    z = (q @ k_mean.transpose(2, 3)).add_(eps / s)  # [N, H, L, 1]
+    return (q @ kv).div_(z).transpose(1, 2).reshape(n, l, c)
 
 
 class LoFTREncoderLayer(nn.Module):
@@ -139,12 +146,8 @@ class LoFTREncoderLayer(nn.Module):
         self.norm2 = nn.LayerNorm(d_model)
 
     def forward(self, x: torch.Tensor, source: torch.Tensor) -> torch.Tensor:
-        bs = x.size(0)
-        q = self.q_proj(x).view(bs, -1, self.nhead, self.dim)
-        k = self.k_proj(source).view(bs, -1, self.nhead, self.dim)
-        v = self.v_proj(source).view(bs, -1, self.nhead, self.dim)
-        message = self.merge(linear_attention(q, k, v).reshape(bs, -1, self.nhead * self.dim))
-        message = self.norm1(message)
+        q, k, v = self.q_proj(x), self.k_proj(source), self.v_proj(source)
+        message = self.norm1(self.merge(linear_attention(q, k, v, self.nhead)))
         message = self.norm2(self.mlp(torch.cat([x, message], dim=2)))
         return x + message
 
@@ -237,43 +240,43 @@ class LoFTR(nn.Module):
             seqs.append((f + pe.to(f.dtype)).flatten(2).transpose(1, 2))
         return self.loftr_coarse(*seqs)
 
-    def confidence(self, feat_c0: torch.Tensor, feat_c1: torch.Tensor) -> torch.Tensor:
-        """Upstream dual-softmax confidence matrix `[1, L, S]`."""
-        c = feat_c0.shape[-1]
-        sim = torch.einsum("nlc,nsc->nls", feat_c0 / c**0.5, feat_c1 / c**0.5) / self.temperature
-        return F.softmax(sim, 1) * F.softmax(sim, 2)
-
     def coarse_matches(
-        self, conf: torch.Tensor, hw0: tuple[int, int], hw1: tuple[int, int]
+        self, feat_c0: torch.Tensor, feat_c1: torch.Tensor, hw0: tuple[int, int], hw1: tuple[int, int]
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Upstream `get_coarse_match` (inference): threshold, border removal, mutual maximum -> i, j, confidence."""
-        mask = (conf > self.thr).view(1, *hw0, *hw1)
-        b = self.border_rm
-        if b > 0:
-            mask[:, :b] = False
-            mask[:, :, :b] = False
-            mask[:, :, :, :b] = False
-            mask[:, :, :, :, :b] = False
-            mask[:, -b:] = False
-            mask[:, :, -b:] = False
-            mask[:, :, :, -b:] = False
-            mask[:, :, :, :, -b:] = False
-        mask = mask.view(conf.shape)
-        mask = (
-            mask
-            & (conf == conf.max(dim=2, keepdim=True)[0])
-            & (conf == conf.max(dim=1, keepdim=True)[0])
-        )
-        mask_v, all_j = mask.max(dim=2)
-        i_ids = torch.where(mask_v[0])[0]
-        j_ids = all_j[0, i_ids]
-        return i_ids, j_ids, conf[0, i_ids, j_ids]
+        """Upstream dual-softmax confidence + `get_coarse_match` (inference): threshold, border removal, mutual
+        maximum -> i, j, confidence.
+
+        fastforks: one `[L, S]` matrix, built in place (`softmax(sim, 1) * softmax(sim, 2)` =
+        `exp(2 sim - logsumexp_1 - logsumexp_2)`), and the mutual maximum from its row / column maxima instead of
+        `[L, S]` masks (upstream keeps four `[L, S]` matrices; the same matches unless a row has two equal maxima).
+        """
+        c = feat_c0.shape[-1]
+        conf = (feat_c0[0].float() / c**0.5) @ (feat_c1[0].float() / c**0.5).T  # [L, S], float32
+        conf = conf.div_(self.temperature)
+        lse_s = conf.logsumexp(1, keepdim=True)  # [L, 1]: softmax over the second image's cells
+        lse_l = conf.logsumexp(0, keepdim=True)  # [1, S]
+        conf = conf.mul_(2).sub_(lse_s).sub_(lse_l).exp_()
+        row, j_all = conf.max(1)
+        col = conf.max(0)[0]
+        ok = (row > self.thr) & (row == col[j_all])
+        if self.border_rm > 0:
+            ok &= self._inside(hw0, conf.device)
+            ok &= self._inside(hw1, conf.device)[j_all]
+        i_ids = torch.where(ok)[0]
+        return i_ids, j_all[i_ids], row[i_ids]
+
+    def _inside(self, hw: tuple[int, int], device: torch.device) -> torch.Tensor:
+        """Cells at least `border_rm` cells off the border, flattened `[h * w]`."""
+        b, (h, w) = self.border_rm, hw
+        y = torch.arange(h, device=device)
+        x = torch.arange(w, device=device)
+        return (((y >= b) & (y < h - b))[:, None] & ((x >= b) & (x < w - b))[None]).reshape(-1)
 
     def fine(self, feat_f0: torch.Tensor, feat_f1: torch.Tensor) -> torch.Tensor:
         """Upstream `FineMatching`: the expected offset in the window, normalised to [-1, 1] (x, y), `[M, 2]`."""
         m, ww, c = feat_f0.shape
         w = math.isqrt(ww)
-        sim = torch.einsum("mc,mrc->mr", feat_f0[:, ww // 2], feat_f1)
+        sim = torch.einsum("mc,mrc->mr", feat_f0[:, ww // 2].float(), feat_f1.float())  # float32
         heat = torch.softmax(sim / c**0.5, dim=1)  # [M, WW]
         g = torch.linspace(-1, 1, w, device=heat.device, dtype=heat.dtype)
         gx, gy = g[None].expand(w, w).reshape(-1), g[:, None].expand(w, w).reshape(-1)
@@ -285,8 +288,7 @@ class LoFTR(nn.Module):
         feat_c0, feat_c1, feat_f0, feat_f1 = self.features(image0, image1)
         hw0, hw1 = tuple(feat_c0.shape[-2:]), tuple(feat_c1.shape[-2:])
         feat_c0, feat_c1 = self.coarse(feat_c0, feat_c1)
-        conf = self.confidence(feat_c0, feat_c1)
-        i_ids, j_ids, mconf = self.coarse_matches(conf.float(), hw0, hw1)
+        i_ids, j_ids, mconf = self.coarse_matches(feat_c0, feat_c1, hw0, hw1)
         scale = image0.shape[2] / hw0[0]
         mk0 = torch.stack([i_ids % hw0[1], i_ids // hw0[1]], 1) * scale
         mk1 = torch.stack([j_ids % hw1[1], j_ids // hw1[1]], 1) * scale

@@ -158,8 +158,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>243<br>–<br>176<br>fails: ONNX export: torch.export failed | 1739 / 1870<br>1673 / 1870<br>–<br>1149 / 1232<br>– |
-| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels | 242<br>241<br>– | 1751 / 1910<br>1685 / 1890<br>– |
+| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>–<br>176<br>fails: ONNX export: torch.export failed | 1739 / 1870<br>796 / 904<br>–<br>1149 / 1232<br>– |
+| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels | 242<br>111<br>– | 1751 / 1910<br>796 / 904<br>– |
 
 <details><summary>Details</summary>
 
@@ -177,8 +177,8 @@ Commercial use: yes.
 - `loftr-outdoor` 768x1024, first call: portable + torch.compile 33 s (cold Inductor cache).
 - `loftr-outdoor` original 768x1024: upstream LoFTR default_cfg, temp_bug_fix False, long side 840
 - `loftr-indoor` original 768x1024: upstream LoFTR default_cfg, temp_bug_fix True, long side 840
-- `loftr-outdoor` load / first call: original 0.35 s / 0.242 s, portable 0.12 s / 0.855 s
-- `loftr-indoor` load / first call: original 1.49 s / 0.693 s, portable 0.14 s / 0.785 s
+- `loftr-outdoor` load / first call: original 0.35 s / 0.242 s, portable 0.24 s / 0.578 s
+- `loftr-indoor` load / first call: original 1.49 s / 0.693 s, portable 0.32 s / 0.53 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -193,7 +193,7 @@ Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 
 
 ### Parity
 
-CPU, float32: max |diff| <= 3e-05 vs the original. GPU, portable float32 and kernels float16 (the defaults): mean |diff| <= 0.00036 and p99 <= 0.0019 (absolute error of the output `keypoints1`).
+CPU, float32: max |diff| <= 3e-05 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.0025 and p99 <= 0.02 (absolute error of the output `keypoints1`).
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|

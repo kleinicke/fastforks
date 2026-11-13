@@ -5,7 +5,8 @@ As upstream's MegaDepth / ScanNet loaders and demo: the RGB image is converted t
 cut down to multiples of 8 (bilinear, as `cv2.resize`), then upstream's LoFTR: coarse matches (dual-softmax confidence
 above `threshold`, `border_rm` cells off the border, mutual maxima) refined in a 5 x 5 window at 1/2 resolution. The
 matched points are scaled back to the input (`x * W / W_resized`, as upstream's loaders' `scale0` / `scale1`); every
-match is its own keypoint pair, so `pairs` is `[[0, 0], [1, 1], ...]` and `scores` the coarse confidence. Float32.
+match is its own keypoint pair, so `pairs` is `[[0, 0], [1, 1], ...]` and `scores` the coarse confidence. The network
+runs in the context dtype; the coarse and fine similarities, the dual-softmax and the outputs are float32.
 """
 
 from __future__ import annotations
@@ -68,7 +69,7 @@ class Matcher(nn.Module):
         g = (image * self.gray).sum(1, keepdim=True)
         if (rh, rw) != (h, w):
             g = F.interpolate(g, size=(rh, rw), mode="bilinear", align_corners=False)
-        return g, torch.tensor([w / rw, h / rh], device=image.device)
+        return g.to(self.loftr.backbone.conv1.weight.dtype), torch.tensor([w / rw, h / rh], device=image.device)
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """The pair's matches (batch 1)."""
@@ -89,12 +90,16 @@ def load_matcher(ctx: Context) -> Matcher:
     net = Matcher(ctx.params)
     sd = ctx.state_dict(0, key="state_dict", strip="matcher.")
     net.loftr.load_state_dict(sd, strict=True)
-    return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    net = net.eval().requires_grad_(requires_grad=False).to(ctx.device, ctx.torch_dtype)
+    if net.gray.is_cuda:  # cuDNN: the backbone channels-last (no layout conversion around every convolution)
+        net.loftr.backbone.to(memory_format=torch.channels_last)
+    return net
 
 
 class Portable(Runner):
-    """Plain PyTorch, float32."""
+    """Plain PyTorch; float32 or float16."""
 
+    dtypes = ("float32", "float16")
     Params = Params
 
     def __init__(self, ctx: Context) -> None:

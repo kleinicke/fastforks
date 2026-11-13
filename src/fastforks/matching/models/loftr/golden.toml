@@ -8,13 +8,14 @@
 # sparse: share of golden keypoints with a fastforks keypoint within 1 px (recall), share of matches found in both
 # (match), max |score diff| over those (cpu_atol), GPU mean / p99 keypoint distance (px)
 # CPU measured: recall, match 1.0; keypoints within 4.3e-5 px, scores identical (floors as xfeat)
+# GPU float16 measured: recall / match 0.9986 (indoor) and 0.9994 (outdoor), mean 1.3e-3 / 1.8e-3 px, p99 6.8e-3 / 0.0128 px
 cpu_atol = 3.0e-5
 cpu_min_recall = 0.99
 cpu_min_match = 0.99
-gpu_mean = 3.6e-4
-gpu_p99 = 0.0019
-gpu_min_recall = 0.999
-gpu_min_match = 0.9997
+gpu_mean = 2.5e-3
+gpu_p99 = 0.02
+gpu_min_recall = 0.998
+gpu_min_match = 0.998
 
 [refs."loftr-indoor@1"]
 sha256 = "a1ee885116539d036da3b165c272275b10d17985d2b1b73515ad0a250f0f44f5"
