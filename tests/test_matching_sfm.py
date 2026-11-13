@@ -62,7 +62,7 @@ def test_cli_writes_colmap_database(scene, capsys):
     pair = lambda i, j: i * 2147483647 + j  # noqa: E731
     assert raw == {pair(1, 2): N, pair(1, 3): N, pair(2, 3): 5}
     geo = con.execute("SELECT pair_id, rows, data, config, F FROM two_view_geometries ORDER BY pair_id").fetchall()
-    assert [(g[0], g[1], g[3]) for g in geo] == [(pair(1, 2), N - 1, 2), (pair(1, 3), N - 1, 2)]
+    assert [(g[0], g[1], g[3]) for g in geo] == [(pair(1, 2), N - 1, 3), (pair(1, 3), N - 1, 3)]  # 3: UNCALIBRATED
     np.testing.assert_array_equal(np.frombuffer(geo[0][2], np.uint32).reshape(-1, 2)[0], [1, 1])
     f = np.frombuffer(geo[0][4]).reshape(3, 3)  # the same epipolar constraint in COLMAP's pixels
     x1, x2 = np.array([3.0, 4.0, 1.0]), np.array([5.0, 7.0, 1.0])
@@ -78,3 +78,10 @@ def test_rejects_existing_database_and_empty_folder(scene):
     (scene / "empty").mkdir()
     with pytest.raises(InputError, match="no images"):
         sfm.colmap_database(scene / "empty", scene / "new.db")
+
+
+def test_matcher_options_reach_load(scene, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(matching, "load", lambda *_a, **k: seen.update(k) or FakeMatcher())
+    sfm.colmap_database(scene / "img", scene / "db.db", retrieval=None, matcher_options={"long_side": 1600})
+    assert seen["options"] == {"long_side": 1600}

@@ -123,6 +123,7 @@ class Portable(Runner):
         return self.net(image1, image2)
 
     match_reads_images = False
+    match_streams = 2  # match_pairs, garden, ALIKED: 15.0 ms per pair instead of 19.0, +128 MB (3: 14.5 ms, +110 MB)
 
     def describe(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The image's keypoints and descriptors: the per-image stage."""

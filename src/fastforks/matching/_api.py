@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -38,6 +40,7 @@ TASK = "matching"
 Mode = Literal["auto", "portable", "kernels"]
 CACHE_MB = 512.0  # `match_pairs`: 26 RoMa v2 descriptors (19.5 MB each at coarse_size 800)
 DECODED_MB = 1024.0  # `match_pairs`: host memory for decoded image files (300 images of 1 MP)
+_AT_ONCE_WINDOW = 16  # `Runner.match_streams` > 1: pairs per session (their results are yielded when all are done)
 
 
 @dataclass(frozen=True)
@@ -382,6 +385,10 @@ class MatchingModel(core.Model):
         lazy: bool,
     ) -> Iterator[MatchingResult | SparseMatchingResult]:
         """`lazy`: an image whose `describe` result is kept is not read (its size was checked when it was described)."""
+        streams = _match_streams(self, lazy=lazy)
+        if streams > 1:
+            yield from self._match_pairs_at_once(pairs, cache, decoded, streams)
+            return
         for pair in pairs:
             image1 = images[pair[0]]
             t1, t2 = (None if lazy and i in cache.kept else self._checked(decoded.get(i)) for i in pair)
@@ -400,6 +407,52 @@ class MatchingModel(core.Model):
                     maps["warp"], maps.get("certainty"), self.variant.ref, self.backend, self.options
                 )
             yield result
+
+    def _match_pairs_at_once(
+        self, pairs: list[tuple[int, int]], cache: PairCache, decoded: DecodedImages, streams: int
+    ) -> Iterator[SparseMatchingResult]:
+        """`_match_pairs` (lazy), `streams` pairs at a time.
+
+        `describe` runs here in pair order and each pair's `match` starts on one of `streams` threads with a CUDA
+        stream each (`Runner.match_streams`) as soon as its images are described; one session per
+        `_AT_ONCE_WINDOW` pairs. The same kernels: equal results.
+        """
+        cuda = self.device.type == "cuda"
+        local = threading.local()
+
+        def match(described: tuple[Any, Any], ready: torch.cuda.Event | None) -> dict[str, torch.Tensor]:
+            if not cuda:
+                with torch.inference_mode():
+                    return self._runner.match(None, None, described)  # ty: ignore[invalid-argument-type]
+            if not hasattr(local, "stream"):
+                local.stream = torch.cuda.Stream(self.device)
+            with torch.inference_mode(), torch.cuda.device(self.device), torch.cuda.stream(local.stream):
+                local.stream.wait_event(ready)
+                out = self._runner.match(None, None, described)  # ty: ignore[invalid-argument-type]
+            local.stream.synchronize()  # before the inputs or outputs are freed or read on another stream
+            return out
+
+        io = self.variant.io
+        with ThreadPoolExecutor(streams) as pool:
+            for start in range(0, len(pairs), _AT_ONCE_WINDOW):
+                futures = []
+                with self._session():
+                    for pair in pairs[start : start + _AT_ONCE_WINDOW]:
+                        images = [None if i in cache.kept else self._checked(decoded.get(i)) for i in pair]
+                        decoded.done(pair)
+                        described = tuple(
+                            cache.get(i, lambda x=x: self._runner.describe(scale(x, io)))  # ty: ignore[invalid-argument-type] - not kept
+                            for i, x in zip(pair, images, strict=True)
+                        )
+                        cache.done(pair)
+                        ready = None
+                        if cuda:
+                            ready = torch.cuda.Event()
+                            ready.record()
+                        futures.append(pool.submit(match, described, ready))
+                    outs = [f.result() for f in futures]
+                for out in outs:
+                    yield self._sparse_result(out)
 
     def _matched(
         self, image1: torch.Tensor | None, image2: torch.Tensor | None, cache: PairCache | None, pair: tuple[int, int]
@@ -440,7 +493,10 @@ class MatchingModel(core.Model):
         pair: tuple[int, int] = (0, 0),
     ) -> SparseMatchingResult:
         """Scale, run and check one pair `[1, 3, H, W]`."""
-        out = self._matched(image1, image2, cache, pair)
+        return self._sparse_result(self._matched(image1, image2, cache, pair))
+
+    def _sparse_result(self, out: dict[str, torch.Tensor]) -> SparseMatchingResult:
+        """The checked result of a sparse runner's output."""
         n, m, k = (len(out[key]) for key in ("keypoints1", "keypoints2", "pairs"))
         shapes = {"keypoints1": (n, 2), "keypoints2": (m, 2), "pairs": (k, 2), "scores": (k,)}
         maps = self._check_outputs(out, shapes)
@@ -451,6 +507,11 @@ class MatchingModel(core.Model):
         return SparseMatchingResult(
             maps["keypoints1"], maps["keypoints2"], pairs, maps["scores"], self.variant.ref, self.backend, self.options
         )
+
+
+def _match_streams(model: MatchingModel, *, lazy: bool) -> int:
+    """Pairs `match_pairs` matches at once: `Runner.match_streams` on CUDA if `match` does not read the images."""
+    return model._runner.match_streams if lazy and model.device.type == "cuda" else 1  # noqa: SLF001 - its runner
 
 
 class _PortableModule(torch.nn.Module):

@@ -428,7 +428,7 @@ class BaseCamera(ABC):
         if hasattr(self, "NUM_F"):
             nparams += self.NUM_F
         if hasattr(self, "num_k"):
-            nparams += self.num_k  # type: ignore
+            nparams += self.num_k
         return nparams
 
     def undistort_image(

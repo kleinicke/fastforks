@@ -322,3 +322,28 @@ def test_kernel_finish_matches_portable():
     # both close to the true pose
     e_true = e_true / e_true.norm(dim=1, keepdim=True)
     assert torch.minimum((eb - e_true).norm(dim=1), (eb + e_true).norm(dim=1)).max() < 2e-2
+
+
+def test_auto_missing_kernels_warns_once(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """A kernel library that cannot load: auto warns once and does not retry per call; kernels still raises."""
+    from fastforks._core import kernels as core  # noqa: PLC0415
+    from fastforks.kernels import ransac  # noqa: PLC0415
+
+    calls = []
+
+    def missing(device: torch.device) -> None:
+        calls.append(device)
+        lib, why = "ransac", "no binary"
+        raise KernelUnavailableError(lib, why)
+
+    monkeypatch.setattr(core, "_AUTO_FAILED", {})
+    monkeypatch.setattr(ransac, "load", missing)
+    dev = torch.device("cuda")
+    with caplog.at_level("INFO"):
+        assert rp._solver("auto", dev) is None
+        assert rp._solver("auto", dev) is None
+    warnings = [r for r in caplog.records if r.levelname == "WARNING" and "portable" in r.getMessage()]
+    assert len(warnings) == 1
+    assert len(calls) == 1
+    with pytest.raises(KernelUnavailableError):
+        rp._solver("kernels", dev)

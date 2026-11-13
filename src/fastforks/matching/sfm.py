@@ -20,7 +20,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import torch
@@ -31,7 +31,7 @@ from fastforks._core.image import read_images
 
 if TYPE_CHECKING:
     import os
-    from collections.abc import Generator, Sequence
+    from collections.abc import Generator, Mapping, Sequence
 
     from fastforks.matching._api import SparseMatchingResult
 
@@ -41,7 +41,7 @@ IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")
 """Files of the image folder that are used (case-insensitive, subfolders included)."""
 MIN_INLIERS = 15  # COLMAP's `TwoViewGeometryOptions.min_num_inliers`: fewer and the pair is not verified
 _VERIFY_BATCH = 64  # pairs per batched RANSAC call
-_UNCALIBRATED = 2  # COLMAP `TwoViewGeometry::UNCALIBRATED`: a fundamental matrix
+_UNCALIBRATED = 3  # COLMAP `TwoViewGeometry::UNCALIBRATED` (2 is CALIBRATED): a fundamental matrix
 _SIMPLE_RADIAL = 2  # COLMAP camera model id: f, cx, cy, k
 _PAIR_FACTOR = 2147483647  # COLMAP `kMaxNumImages`: pair_id = id1 * it + id2
 
@@ -70,9 +70,10 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
     database: str | os.PathLike[str],
     *,
     matcher: str = "aliked-lightglue",
+    matcher_options: Mapping[str, Any] | None = None,
     retrieval: str | None = "megaloc",
     k: int = 20,
-    threshold: float = 1.0,
+    threshold: float = 4.0,
     single_camera: bool = False,
     mode: Literal["auto", "portable", "kernels"] = "auto",
     device: str | torch.device | None = None,
@@ -84,9 +85,10 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
             relative to it, so pass the same folder as the mapper's `--image_path`.
         database: The COLMAP database file to write (must not exist).
         matcher: A sparse matching model id (`matching.list_models()`, e.g. `aliked-lightglue`, `disk-lightglue`).
+        matcher_options: Load options of the matcher (`options` of `load`), e.g. `{"long_side": 1600}`.
         retrieval: The retrieval model that picks the pairs (`retrieval.list_models()`); `None`: all pairs.
         k: Pairs per image (each image with its `k` most similar others); all pairs if `k >= images - 1`.
-        threshold: Inlier threshold of the fundamental-matrix RANSAC in pixels (Sampson distance).
+        threshold: Inlier threshold of the fundamental-matrix RANSAC in pixels (Sampson distance; 4 as COLMAP).
         single_camera: One camera (intrinsics) for all images of the same size; default one per image, as COLMAP.
         mode: Backend of the models and of the RANSAC.
         device: Of the models (default as `load`).
@@ -121,7 +123,7 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
             del model, desc
     pair_list = [(int(i), int(j)) for i, j in pairs]
     with _stage("matching", seconds, peak):
-        model = matching.load(matcher, mode=mode, device=device)
+        model = matching.load(matcher, mode=mode, device=device, options=matcher_options)
         if not model.sparse:
             msg = f"{matcher} is a dense matcher; the COLMAP database needs a sparse one (keypoints per image)"
             raise InputError(msg)
