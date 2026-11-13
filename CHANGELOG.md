@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Checkpoint loads keep the checkpoint's value of every weight a model class ties (`untie_to_checkpoint` in
+  `shared/seginfer`): transformers 5.19 ties MM-Grounding-DINO's per-layer decoder heads to layer 0 and silently
+  dropped the trained heads of layers 1-5. A load now raises if any loaded value still differs from the checkpoint.
+
 - StableNormal turbo surface normals (`stablenormal-turbo`, depth task, normals only; Apache-2.0 code and weights):
   one-step YOSO v0.3 on a Stable Diffusion 2 UNet with a ControlNet image encoder, seeded noise. 994x1482 image:
   180 ms kernels, 289 ms portable (238 ms compile) vs 613 ms original fp32 (299 ms fp16), peak 3.0 GB vs 7.9 GB;
