@@ -29,11 +29,12 @@ By default (`mode="auto"`) fastforks uses kernels where they can run and the rec
 | [promptable segmentation: SAM / SAM 2](https://fastforks.dev/tasks/promptable_segmentation) | `fastforks.promptable_segmentation` | `model(image, input_points=[[x, y]], input_labels=[1])` or `input_boxes=` → `masks [3, H, W]` bool + `iou_scores [3]` (one point) | `sam-vit-b`, `sam2.1-hiera-large` |
 | promptable segmentation: SAM 3 concepts | `fastforks.promptable_segmentation` | `model(image, text="cat")` and / or exemplar boxes `input_boxes=` → every instance of the concept | `sam3` |
 | [object detection](https://fastforks.dev/tasks/detection) | `fastforks.detection` | `model(image)` → boxes, labels, scores | `faster-rcnn-r50-fpn-3x-coco`, `mask-rcnn-r50-fpn-3x-coco` |
-| [matting / background removal](https://fastforks.dev/tasks/matting) | `fastforks.matting` | `model(image)` → alpha `[H, W]` in [0, 1] (1 = foreground) | `birefnet`, `birefnet-lite`, `ben2` |
+| [matting / background removal](https://fastforks.dev/tasks/matting) | `fastforks.matting` | `model(image)` → alpha `[H, W]` in [0, 1] (1 = foreground) | `birefnet`, `birefnet-lite`, `ben2`, `isnet-general-use`, `u2net`, `inspyrenet` |
 | [point tracking](https://fastforks.dev/tasks/tracking) | `fastforks.tracking` | `model(frames, queries)` with queries `[Q, 3]` `(t, x, y)` → `tracks [T, Q, 2]` (pixels) + `visibility [T, Q]` | `tapnext`, `tapnext-pp`, `bootstapir`, `tapir`, `alltracker`, `alltracker-tiny` |
 | frame interpolation | `fastforks.interpolation` | `model(frame1, frame2, timestep=0.5)` → `frame [3, H, W]` RGB in [0, 1] | `rife-4.25`, `rife-4.26`, `rife-4.25-lite` |
 | [image retrieval / place recognition](https://fastforks.dev/tasks/retrieval) | `fastforks.retrieval` | `model(image)` → descriptor `[D]` (unit norm); `retrieval.top_k(queries, database)`, `retrieval.pairs(descriptors)` | `megaloc` |
 | [camera calibration](https://fastforks.dev/tasks/calibration) | `fastforks.calibration` | `model(image)` → intrinsics `[3, 3]`, gravity `[3]`, roll / pitch / vertical FoV (rad) | `geocalib-pinhole`, `anycalib-pinhole` |
+| image restoration / upscaling | `fastforks.restoration` | `model(image)` (`tile=512` for large images) → `image [3, sH, sW]` RGB in [0, 1], s = `model.scale` | `realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b` |
 | [human pose](https://fastforks.dev/tasks/pose) | `fastforks.pose` | `model(image, boxes=person_boxes)` → 17 COCO keypoints (133 whole-body for DWPose) with scores per person | `rtmpose-m`, `vitpose-plus-base`, `rtmpose-l-384` |
 | [feature backbones](https://fastforks.dev/tasks/features) | `fastforks.features` | `model(image)` → token features, image embedding | `dinov2-vitb14`, `dinov3-vitl16`, `dinov3-convnext-small` |
 

@@ -218,6 +218,8 @@ runtime-evaluated-base-classes = []
 "src/fastforks/calibration/models/anycalib/net/gauss_newton.py" = ["RUF036"]
 # MobileSAM's TinyViT: upstream backslash-continued f-string and lambdas over a loop variable (called in the loop).
 "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py" = ["ISC002", "B023"]
+# SwinIR: upstream implicitly concatenated `extra_repr` string over two lines and `math.log(scale, 2)`.
+"src/fastforks/restoration/models/swinir/net/network_swinir.py" = ["ISC002", "FURB163"]
 "src/fastforks/shared/*/net/**" = [
   "PGH004",  # upstream blanket `# noqa` (SAM)
   "PLW2901", "FLY", "TD", "FIX", "PGH003", "RUF013", "RUF012", "RUF100", "B008", "RUF046",  # more upstream (DINOv2 / DPT / EdgeNeXt) style
@@ -259,6 +261,7 @@ allowed-unresolved-imports = [
   "timm", "timm.**", "transformers", "transformers.**", "scipy", "scipy.**", "onnx", "onnx_ir", "onnxruntime",
   "tensorrt", "laspy", "lazrs", "pycocotools", "pycocotools.**", "depth_anything_v2.**", "s2m2.**",
   "comfy", "comfy.**", "folder_paths",  # ComfyUI (integrations/comfyui runs inside it)
+  "fvcore.**",  # SPAN's `__main__` FLOP count
 ]
 
 [tool.ty.rules]

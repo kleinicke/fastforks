@@ -742,6 +742,13 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | ben2 | 201 | 184 | 173 | 1.2x | 1.1x | 2466 / 2772 | 1681 / 1976 | 1946 / 2238 |
 | birefnet | 234 | 225 | 214 | 1.1x | 1.0x | 1666 / 1930 | 1660 / 1888 | 1674 / 1916 |
 | birefnet-lite | 75.1 | 67.3 | 59.3 | 1.3x | 1.1x | 913 / 974 | 810 / 932 | 754 / 960 |
+| inspyrenet | 241 | 159 | – | – | – | 3240 / 3262 | 1649 / 1854 | – |
+| inspyrenet-fast | 71.1 | 45.1 | – | – | – | 810 / 836 | 432 / 494 | – |
+| isnet | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
+| isnet-general-use | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
+| u2net | 15.9 | 14.9 | 8.83 | 1.8x | 1.7x | 476 / 502 | 248 / 278 | 237 / 260 |
+| u2net-human-seg | 16.0 | 14.6 | 9.05 | 1.8x | 1.6x | 476 / 502 | 248 / 278 | 237 / 260 |
+| u2netp | 14.8 | 14.6 | 9.80 | 1.5x | 1.5x | 280 / 314 | 150 / 172 | 138 / 172 |
 | vitmatte-b | 257 | 182 | 147 | 1.7x | 1.2x | 5070 / 5128 | 1548 / 1692 | 1484 / 1710 |
 | vitmatte-s | 140 | 102 | 83.8 | 1.7x | 1.2x | 2536 / 2582 | 1401 / 1524 | 1337 / 1444 |
 
@@ -1032,6 +1039,20 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | rife-4.25-lite | 21.3 | 32.7 | 28.9 | 0.7x | 1.1x | 1012 / 1214 | 991 / 1174 | 1024 / 1516 |
 | rife-4.26 | 24.2 | 35.9 | 31.4 | 0.8x | 1.1x | 1004 / 1154 | 999 / 1254 | 1029 / 1516 |
 
+### Restoration, synthetic, 512x512
+
+| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|
+| realesrgan-x2plus | 128 | 128 | 80.0 | 1.6x | 1.6x | 592 / 656 | 589 / 654 | 333 / 394 |
+| realesrgan-x4plus | 631 | 632 | 402 | 1.6x | 1.6x | 2266 / 2496 | 2245 / 2474 | 1220 / 1434 |
+| realesrgan-x4plus-anime-6b | 205 | 206 | 132 | 1.6x | 1.6x | 2243 / 2472 | 2221 / 2450 | 1197 / 1410 |
+| span-x2 | 24.6 | 23.5 | 14.9 | 1.6x | 1.6x | 611 / 648 | 607 / 662 | 487 / 522 |
+| span-x4 | 26.9 | 24.2 | 14.6 | 1.8x | 1.7x | 611 / 648 | 607 / 662 | 487 / 522 |
+| swinir-l-x4-real | 3709 | 3716 | 2672 | 1.4x | 1.4x | 2357 / 2746 | 3834 / 4052 | 3868 / 4172 |
+| swinir-m-x2 | 3252 | 2007 | 1384 | 2.4x | 1.5x | 1500 / 1818 | 2883 / 3074 | 3074 / 3254 |
+| swinir-m-x4 | 3497 | 2029 | 1406 | 2.5x | 1.4x | 1500 / 2058 | 2884 / 3074 | 3074 / 3254 |
+| swinir-m-x4-real | 2462 | 2057 | 1414 | 1.7x | 1.5x | 2321 / 2978 | 2883 / 3074 | 3074 / 3254 |
+
 ### Startup and first call
 
 load: from the load call until the model is on the GPU; first call: the whole first inference call, including one normal inference (see the speed table for the warm time). Seconds, at each task's standard size (another size is shown in brackets).
@@ -1261,6 +1282,13 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | ben2 | 2.29 | 0.30 | 1.40 | 0.93 | 0.66 | 0.42 |
 | birefnet | 3.60 | 0.75 | 1.61 | 0.39 | 0.56 | 0.44 |
 | birefnet-lite | 8.04 | 0.26 | 1.03 | 1.10 | 0.63 | 0.32 |
+| inspyrenet | 6.68 | 0.58 | – | 1.49 | 0.62 | – |
+| inspyrenet-fast | 5.93 | 0.69 | – | 1.33 | 0.73 | – |
+| isnet | 1.58 | 0.23 | 1.54 | 0.41 | 0.34 | 0.12 |
+| isnet-general-use | 1.58 | 0.24 | 1.32 | 0.41 | 0.29 | 0.09 |
+| u2net | 0.64 | 0.49 | 1.37 | 0.40 | 0.21 | 0.11 |
+| u2net-human-seg | 0.54 | 0.32 | 1.37 | 0.38 | 0.30 | 0.11 |
+| u2netp | 0.18 | 0.11 | 1.28 | 0.47 | 0.26 | 0.11 |
 | vitmatte-b | 0.21 | 0.52 | 1.32 | 0.56 | 0.35 | 0.25 |
 | vitmatte-s | 2.85 | 0.16 | 1.30 | 0.72 | 0.41 | 0.20 |
 | efficientvit-sam-l0 | 0.35 | 0.83 | 1.63 | 0.82 | 0.72 | 0.25 |
@@ -1486,6 +1514,15 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | rife-4.25 | 1.42 | 0.05 | 1.10 | 0.27 | 0.26 | 0.14 |
 | rife-4.25-lite | 0.18 | 0.05 | 1.14 | 0.12 | 0.26 | 0.14 |
 | rife-4.26 | 0.18 | 0.09 | 1.12 | 0.05 | 0.23 | 0.14 |
+| realesrgan-x2plus | 1.54 | 0.18 | 1.32 | 0.42 | 0.21 | 0.11 |
+| realesrgan-x4plus | 1.62 | 0.19 | 1.32 | 1.64 | 0.79 | 0.42 |
+| realesrgan-x4plus-anime-6b | 1.30 | 0.06 | 2.32 | 0.50 | 0.31 | 0.18 |
+| span-x2 | 0.23 | 0.10 | 2.88 | 0.32 | 0.26 | 0.10 |
+| span-x4 | 0.45 | 0.10 | 1.11 | 0.58 | 0.26 | 0.05 |
+| swinir-l-x4-real | 2.15 | 0.92 | 2.81 | 5.95 | 3.81 | 2.78 |
+| swinir-m-x2 | 2.95 | 0.57 | 1.34 | 4.49 | 2.13 | 1.45 |
+| swinir-m-x4 | 2.07 | 0.22 | 3.56 | 3.27 | 2.29 | 1.59 |
+| swinir-m-x4-real | 2.06 | 0.49 | 1.24 | 3.33 | 2.17 | 1.49 |
 
 † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 <!-- tables:end -->
@@ -1701,6 +1738,13 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | ben2 | 1080x1920 | 184 ms | 103 ms | 58.2 ms | 173 ms | 70.8 s | 140 s | 1681 / 1976 | 813 / 916 | 1946 / 2238 | 1280 / 1326 |
 | birefnet | 1080x1920 | 225 ms | 138 ms | 87.8 ms | 214 ms | 93.8 s | 201 s | 1660 / 1888 | 1874 / 1932 | 1674 / 1916 | 1753 / 1814 |
 | birefnet-lite | 1080x1920 | 67.3 ms | 50.2 ms | 49.0 ms | 59.3 ms | 75.1 s | 156 s | 810 / 932 | 1469 / 1552 | 754 / 960 | 874 / 934 |
+| inspyrenet | 1080x1920 | 159 ms | 85.8 ms | fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | – | 70.8 s | – | 1649 / 1854 | 913 / 1018 | – | – |
+| inspyrenet-fast | 1080x1920 | 45.1 ms | 17.7 ms | 6.99 ms | – | 76.6 s | 138 s | 432 / 494 | 345 / 376 | – | 561 / 600 |
+| isnet | 1080x1920 | 21.0 ms | 13.1 ms | 6.70 ms | 12.1 ms | 33.8 s | 34.4 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
+| isnet-general-use | 1080x1920 | 21.0 ms | 13.1 ms | 6.66 ms | 12.1 ms | 33.9 s | 32.3 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
+| u2net | 1080x1920 | 14.9 ms | 6.24 ms | 3.07 ms | 8.83 ms | 35.7 s | 36.0 s | 248 / 278 | 235 / 278 | 237 / 260 | 335 / 390 |
+| u2net-human-seg | 1080x1920 | 14.6 ms | 6.25 ms | 3.08 ms | 9.05 ms | 36.0 s | 34.7 s | 248 / 278 | 235 / 278 | 237 / 260 | 335 / 390 |
+| u2netp | 1080x1920 | 14.6 ms | 5.44 ms | 1.87 ms | 9.80 ms | 29.9 s | 26.1 s | 150 / 172 | 152 / 188 | 138 / 172 | 206 / 236 |
 | vitmatte-b | 1080x1920 | 182 ms | 157 ms | 108 ms | 147 ms | 32.6 s | 48.8 s | 1548 / 1692 | 1166 / 1472 | 1484 / 1710 | 1233 / 1262 |
 | vitmatte-s | 1080x1920 | 102 ms | 81.9 ms | 54.6 ms | 83.8 ms | 31.5 s | 51.3 s | 1401 / 1524 | 1025 / 1284 | 1337 / 1444 | 876 / 920 |
 | efficientvit-sam-l0 | 1024x1024 | 12.7 ms | 6.44 ms | 5.56 ms, fp32 engine (image encoder only) | 4.45 ms | 25.2 s | 19.9 s | 171 / 210 | 188 / 228 | 176 / 256 | 404 / 428 |
@@ -1906,6 +1950,15 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | rife-4.25 | 1080x1920 | 36.0 ms | 44.9 ms | 17.6 ms | 31.4 ms | 36.1 s | 56.3 s | 999 / 1254 | 1094 / 1234 | 1029 / 1516 | 696 / 714 |
 | rife-4.25-lite | 1080x1920 | 32.7 ms | 42.3 ms | 14.1 ms | 28.9 ms | 34.9 s | 49.5 s | 991 / 1174 | 1061 / 1374 | 1024 / 1516 | 696 / 714 |
 | rife-4.26 | 1080x1920 | 35.9 ms | 44.5 ms | 17.6 ms | 31.4 ms | 34.9 s | 54.9 s | 999 / 1254 | 1094 / 1234 | 1029 / 1516 | 696 / 714 |
+| realesrgan-x2plus | 512x512 | 128 ms | 85.2 ms | 59.7 ms | 80.0 ms | 33.2 s | 40.3 s | 589 / 654 | 323 / 394 | 333 / 394 | 476 / 500 |
+| realesrgan-x4plus | 512x512 | 632 ms | 354 ms | 273 ms | 402 ms | 29.9 s | 55.2 s | 2245 / 2474 | 1091 / 1394 | 1220 / 1434 | 1546 / 1594 |
+| realesrgan-x4plus-anime-6b | 512x512 | 206 ms | 114 ms | 83.1 ms | 132 ms | 10.0 s | 36.7 s | 2221 / 2450 | 1068 / 1370 | 1197 / 1410 | 1505 / 1552 |
+| span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
+| span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |
+| swinir-l-x4-real | 512x512 | 3716 ms | 1426 ms | 1118 ms | 2672 ms | 68.1 s | 193 s | 3834 / 4052 | 2153 / 2876 | 3868 / 4172 | 9182 / 9282 |
+| swinir-m-x2 | 512x512 | 2007 ms | 781 ms | 719 ms | 1384 ms | 60.3 s | 102 s | 2883 / 3074 | 1683 / 1796 | 3074 / 3254 | 5088 / 5144 |
+| swinir-m-x4 | 512x512 | 2029 ms | 795 ms | 727 ms | 1406 ms | 61.8 s | 104 s | 2884 / 3074 | 1684 / 1796 | 3074 / 3254 | 5525 / 5604 |
+| swinir-m-x4-real | 512x512 | 2057 ms | 807 ms | 733 ms | 1414 ms | 59.6 s | 109 s | 2883 / 3074 | 1683 / 1796 | 3074 / 3254 | 5427 / 5506 |
 <!-- compile:end -->
 
 ## Original code

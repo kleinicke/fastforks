@@ -80,6 +80,11 @@ _DATASETS = {
     },
     "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
     "interpolation": {"davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM"},
+    "restoration": {
+        "div2k-val-x4": "DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+    },
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
@@ -143,6 +148,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
     "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
+    "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
@@ -200,6 +206,11 @@ _PROTOCOL = {
     "from the camera baselines). ",
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
+    "restoration": "DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), "
+    "one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output "
+    "rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world "
+    "degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with "
+    "PSNR-oriented upscalers. ",
     "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
     "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
     "output rounded to uint8, on RGB in [0, 1], averaged over the triplets. ",
@@ -941,6 +952,10 @@ TASK_IO = {
         "Input: two RGB images (consecutive frames). Output: per-pixel motion from the first to the second "
         "(dx, dy in pixels)."
     ),
+    "restoration": (
+        "Input: one RGB image. Output: the restored (upscaled) image, `model.scale` x the input size, RGB in "
+        "[0, 1]. `tile=` runs large images in overlapping tiles (as ComfyUI)."
+    ),
     "interpolation": (
         "Input: two RGB images (consecutive frames). Output: the frame between them at `timestep` (0.5 by default; 0 "
         "= the first, 1 = the second), RGB in [0, 1]."
@@ -1160,6 +1175,7 @@ _STD_SIZE = {
     "flow": "1080x1920",
     "matching": "768x1024",
     "interpolation": "1080x1920",
+    "restoration": "512x512",
     "matting": "1080x1920",
     "tracking": "480x854",
     "retrieval": "480x640",

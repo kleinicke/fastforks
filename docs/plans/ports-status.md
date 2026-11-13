@@ -36,6 +36,19 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- InSPyReNet (`inspyrenet`, `inspyrenet-fast`, matting): portable MPS goldens and Mac speed rows (1080x1920; check
+  float16 on MPS: the context sums need float32). Weights: the pinned GitHub release URLs of the card.
+- IS-Net (`isnet-general-use`, `isnet`, matting): portable MPS goldens and Mac speed rows (1080x1920). No Metal
+  kernels runner. Weights: the pinned Google Drive URLs of the card (also in `~/scratch_tests/port-p5/w/`).
+- U²-Net (`u2net`, `u2netp`, `u2net-human-seg`, matting): portable MPS goldens and Mac speed rows (1080x1920). No
+  Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in `~/scratch_tests/port-p5/w/`).
+- SwinIR (`swinir-m-x4`, `swinir-m-x2`, `swinir-m-x4-real`, `swinir-l-x4-real`, restoration): portable MPS goldens
+  and Mac speed rows (512x512; check the float16 last-group scaling on MPS). No Metal kernels runner. Weights: the
+  pinned GitHub release URLs of the card.
+- SPAN (`span-x4`, `span-x2`, restoration): portable MPS goldens and Mac speed rows (512x512). No Metal kernels
+  runner. Weights: the pinned Google Drive URLs of the card (also in `~/scratch_tests/port-p5/w/` on the CUDA machine).
+- Real-ESRGAN (`realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`, restoration): portable MPS
+  goldens and Mac speed rows (512x512). No Metal kernels runner. Weights: the pinned GitHub release URLs of the card.
 - RIFE (`rife-4.25`, `rife-4.26`, `rife-4.25-lite`, interpolation): portable MPS goldens and Mac speed rows
   (1080x1920 pair). No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
   `~/scratch_tests/port-p5/w/rife/` on the CUDA machine).

@@ -1,0 +1,4 @@
+summary = "Shared parts of the Swin super-resolution networks (SwinIR, HAT): timm-free `DropPath` / `to_2tuple` / `trunc_normal_` for the vendored nets, the shifted-window mask cached per size on the device, and window attention as one `scaled_dot_product_attention` with the relative position bias computed once."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/JingyunLiang/SwinIR (6545850fbf8df298df73d81f3e8cba638787c8bd), models/network_swinir.py WindowAttention / SwinTransformerBlock.calculate_mask (Apache-2.0, itself from microsoft/Swin-Transformer, MIT); re-implemented"

@@ -42,6 +42,7 @@ from fastforks import (
     multiview,
     pose,
     promptable_segmentation,
+    restoration,
     retrieval,
     segmentation,
     stereo,
@@ -80,6 +81,7 @@ API: dict[str, Any] = {
     "interpolation": interpolation,
     "retrieval": retrieval,
     "calibration": calibration,
+    "restoration": restoration,
     "tracking": tracking,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
@@ -330,6 +332,9 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     elif task == "calibration":
         r = m(img)
         maps = {k: getattr(r, k) for k in spec(task).standard if getattr(r, k) is not None}
+    elif task == "restoration":
+        r = m(img)
+        maps = {"image": r.image}
     else:
         r = m(img, logits=True)
         assert r.logits is not None

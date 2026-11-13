@@ -7,8 +7,8 @@ measuring scripts are not part of this repository; the protocols are described b
 ## Accuracy: `<task>_eval.jsonl`
 
 One file per task (`stereo`, `depth`, `classification`, `segmentation`, `detection`, `promptable_segmentation`,
-`features`, `multiview`, `pose`, `flow`, `matching`, `matting`, `tracking`, `interpolation`, `retrieval`, `calibration`), one JSON
-object per model, tier and dataset. Measured in the 2026-11-05 campaign
+`features`, `multiview`, `pose`, `flow`, `matching`, `matting`, `tracking`, `interpolation`, `retrieval`, `calibration`,
+`restoration`), one JSON object per model, tier and dataset. Measured in the 2026-11-05 campaign
 (`tools/acc_collect.py` builds the files from the raw output of the `tools/eval_*.py` scripts; the older 2026-10-27
 stereo / depth rows were replaced: they predate this repository's history and the current protocol).
 
@@ -89,6 +89,10 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
   ground truth in `images.csv`), dataset keys `lamar2k` and `lamar2k-every10`, measured with
   `tools/eval_calibration.py`; `median_err_deg` = median roll / pitch / vFoV error, `ms_per_img` the median time of one
   image.
+- Restoration: `psnr` (dB) and `ssim` on the Y channel (BT.601) of the output, rounded to uint8, against the HR image,
+  `scale` px border cropped, on the 100 DIV2K validation images from the official bicubic LR images (`div2k-val-x4`,
+  `div2k-val-x2`, the model's scale), one pass without tiles, measured with `tools/eval_restoration.py`; `ms_per_image`
+  is the median time of a call.
 - Multiview: `absrel`, `d125` (% within 1.25) on DTU scans 1, 9, 24, 33, 75 (reference view 24 + 7 sources, 640x512),
   median-scaled for uncalibrated models; calibrated MVS also `mae_mm`, `le2mm`, `le4mm`. `n` = scans.
 

@@ -227,6 +227,7 @@ _PIPELINE = {
     "calibration": "image-feature-extraction",  # no camera-calibration pipeline on the Hub
     "tracking": "keypoint-detection",  # no point-tracking pipeline on the Hub: query points tracked over time
     "interpolation": "image-to-image",  # no frame-interpolation pipeline on the Hub: two frames -> the middle one
+    "restoration": "image-to-image",
 }
 _TASK_TAGS = {
     "stereo": ["stereo", "stereo-matching", "disparity"],
@@ -245,6 +246,7 @@ _TASK_TAGS = {
     "interpolation": ["frame-interpolation", "video-frame-interpolation", "video"],
     "retrieval": ["image-retrieval", "visual-place-recognition", "global-descriptor"],
     "calibration": ["camera-calibration", "single-image-calibration", "gravity-estimation"],
+    "restoration": ["super-resolution", "image-upscaling", "image-restoration"],
 }
 _SNIPPET = {
     "stereo": 'result = model("left.png", "right.png")\nresult.{out}  # [H, W] float32 tensor, input resolution',
@@ -284,6 +286,10 @@ _SNIPPET = {
     "interpolation": (
         'result = model("frame1.png", "frame2.png")  # timestep=0.5: the middle frame\n'
         "result.{out}  # [3, H, W] float32 RGB in [0, 1], input resolution"
+    ),
+    "restoration": (
+        'result = model("photo.png")  # tile=512 for large images\n'
+        "result.{out}  # [3, sH, sW] float32 RGB in [0, 1], s = model.scale"
     ),
     "pose": (
         'result = model("photo.jpg", boxes=[[x0, y0, x1, y1]])  # one box per person, or a fastforks.detection result\n'

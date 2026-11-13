@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+- InSPyReNet background removal (`inspyrenet`, `inspyrenet-fast`, matting; MIT code and weights): transparent-
+  background's `Remover` (static resize, no LR/HR blending). 1080x1920 image, size 1024: 159 ms portable (86 ms
+  compile, 51 ms TensorRT) vs 241 ms original fp32, peak 1.9 GB vs 3.3 GB; fast (384): 45 ms vs 71 ms. DIS5K
+  validation (235 images) max F-beta 0.970 / 0.895 (fast) in every tier, as the original. The attention context
+  sums and their key / value convolutions stay float32. No kernels runner: `cudnn_hacc` convolutions were slower.
+
+- IS-Net dichotomous segmentation (`isnet-general-use`, `isnet`, matting; Apache-2.0 code and weights): 1080x1920
+  image (1024x1024 net): 12.1 ms kernels, 21.0 ms portable (13.1 ms compile, 6.7 ms TensorRT) vs 38.5 ms original
+  fp32, peak 0.52 GB vs 1.04 GB. DIS5K validation (235 images) max F-beta 0.962 (general use) / 0.782 in every tier,
+  as the original.
+
+- U²-Net salient object segmentation (`u2net`, `u2netp`, `u2net-human-seg`, matting; Apache-2.0 code and weights):
+  batch norms folded into the convolutions (float16 range). 1080x1920 image (320x320 net): 8.8 ms kernels, 14.9 ms
+  portable (6.2 ms compile, 3.1 ms TensorRT) vs 16.0 ms original fp32, peak 0.26 GB vs 0.50 GB. DIS5K validation
+  (every 2nd image: 235) max F-beta 0.527 kernels / portable vs 0.528 original, MAE 0.149 vs 0.148.
+
+- SwinIR super-resolution (`swinir-m-x4`, `swinir-m-x2`, `swinir-m-x4-real`, `swinir-l-x4-real`, restoration;
+  Apache-2.0 code and weights): window attention as one SDPA call with the bias gathered at load; in float16 the
+  last group's residual sum is scaled down (overflow). 512x512 M x4: 1406 ms kernels, 2029 ms portable (795 ms
+  compile, 727 ms TensorRT) vs 3086 ms original fp32 (3497 ms `.half()`), peak 3.3 GB vs 3.2 GB. DIV2K validation
+  (every 2nd image: 50) PSNR M x4 30.89 kernels / 30.90 portable vs 30.90, M x4 real 26.71 vs 26.71, L x4 real
+  27.05 / 27.04 vs 27.04. M x2 has no eval: a whole x2 DIV2K image needs more than 16 GB in every tier.
+
+- SPAN efficient super-resolution (`span-x4`, `span-x2`, restoration; Apache-2.0 code and weights): Conv3XC
+  re-parameterised at load. 512x512 x4: 14.6 ms kernels, 24.2 ms portable (13.2 ms compile, 8.3 ms TensorRT) vs
+  47.0 ms original fp32 (27.0 ms `.half()`), peak 0.5 GB vs 1.0 GB. DIV2K validation PSNR 30.47 (x4) / 36.20 (x2)
+  in every tier, as the original.
+
+- Real-ESRGAN super-resolution (`realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`; new task
+  `restoration`; BSD-3-Clause code and weights): RRDBNet as `RealESRGANer.enhance` (no tiles). 512x512 x4plus:
+  402 ms kernels, 632 ms portable (354 ms compile, 273 ms TensorRT) vs 1209 ms original fp32 (631 ms fp16), peak
+  1.4 GB vs 5.0 GB. DIV2K validation (100 images, bicubic LR) PSNR 26.64 in every tier, as the original.
+
 - RIFE frame interpolation (`rife-4.25`, `rife-4.26`, `rife-4.25-lite`; new task `interpolation`; MIT code and
   weights): Practical-RIFE `IFNet_HDv3`, any timestep in [0, 1], frames zero-padded to a multiple of 128 as upstream.
   1080x1920 pair: 31.4 ms kernels, 36.0 ms portable (44.5 ms compile, 17.6 ms TensorRT) vs 45.3 ms original fp32

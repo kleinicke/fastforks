@@ -55,3 +55,19 @@ def test_fold_layer_scale(ffn: str) -> None:
         assert fold_layer_scale(net) == 4  # two blocks, two LayerScales each
         out = net.forward_features(x)["x_norm_patchtokens"]
     torch.testing.assert_close(out, ref, rtol=1e-5, atol=1e-5)
+
+
+@pytest.mark.parametrize(("groups", "bias", "dilation"), [(1, True, 1), (1, False, 2), (4, True, 1)])
+def test_fold_bn(groups: int, bias: bool, dilation: int) -> None:  # noqa: FBT001 - parametrized
+    """`cnn_kernels.fold_bn`: conv -> BatchNorm unchanged, the BatchNorm left as an exact identity."""
+    from fastforks.shared.cnn_kernels import fold_bn  # noqa: PLC0415 - kernels package import, CPU only here
+
+    torch.manual_seed(0)
+    net = nn.Sequential(nn.Conv2d(8, 12, 3, padding=dilation, dilation=dilation, groups=groups, bias=bias),
+                        nn.BatchNorm2d(12)).eval()  # fmt: skip
+    _randomize_bn(net)
+    x = torch.randn(2, 8, 9, 11)
+    want = net(x)
+    fold_bn(net[0], net[1])
+    torch.testing.assert_close(net(x), want, rtol=1e-5, atol=1e-5)
+    torch.testing.assert_close(net[1](want), want, rtol=0, atol=0)

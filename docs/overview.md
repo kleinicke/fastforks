@@ -285,19 +285,26 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Matting
 
-5 models; size 1080x1920.
+12 models; size 1080x1920.
 
-- Fastest: [`birefnet-lite`](models/matting.md#birefnet) (59.3 ms).
+- Fastest: [`u2net`](models/matting.md#u²-net) (8.8 ms).
 - Most accurate: [`birefnet`](models/matting.md#birefnet) (214.3 ms, error 0.0325).
 - Best trade-off: [`ben2`](models/matting.md#ben2) (172.6 ms, error 0.0403).
-- Fastest commercially usable: [`birefnet-lite`](models/matting.md#birefnet) (59.3 ms).
+- Fastest commercially usable: [`u2net`](models/matting.md#u²-net) (8.8 ms).
 - Most accurate commercially usable: [`birefnet`](models/matting.md#birefnet) (214.3 ms, error 0.0325).
 
 | model | commercial use | DIS-VD MAE | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
+| [`u2net`](models/matting.md#u²-net) | yes | – | 15.9 (1080x1920) | 14.9 | 8.8 | 1.8x vs original (1080x1920) | 237 |
+| [`u2net-human-seg`](models/matting.md#u²-net) | yes | – | 16.0 (1080x1920) | 14.6 | 9.1 | 1.8x vs original (1080x1920) | 237 |
+| [`u2netp`](models/matting.md#u²-net) | yes | – | 14.8 (1080x1920) | 14.6 | 9.8 | 1.5x vs original (1080x1920) | 138 |
+| [`isnet-general-use`](models/matting.md#is-net) | yes | – | 38.5 (1080x1920) | 21.0 | 12.1 | 3.2x vs original (1080x1920) | 487 |
+| [`isnet`](models/matting.md#is-net) | yes | – | 38.5 (1080x1920) | 21.0 | 12.1 | 3.2x vs original (1080x1920) | 487 |
+| [`inspyrenet-fast`](models/matting.md#inspyrenet) | yes | – | 71.1 (1080x1920) | 45.1 | – | – | – |
 | [`birefnet-lite`](models/matting.md#birefnet) | yes | – | 75.1 (1080x1920) | 67.3 | 59.3 | 1.3x vs original (1080x1920) | 754 |
 | [`vitmatte-s`](models/matting.md#vitmatte) | yes | – | 140.2 (1080x1920) | 101.9 | 83.8 | 1.7x vs original (1080x1920) | 1337 |
 | [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 181.7 | 147.4 | 1.7x vs original (1080x1920) | 1484 |
+| [`inspyrenet`](models/matting.md#inspyrenet) | yes | – | 240.9 (1080x1920) | 159.4 | – | – | – |
 | [`ben2`](models/matting.md#ben2) | yes | 0.0403 | 200.6 (1080x1920) | 184.4 | 172.6 | 1.2x vs original (1080x1920) | 1946 |
 | [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 224.5 | 214.3 | 1.1x vs original (1080x1920) | 1674 |
 
@@ -643,3 +650,22 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rife-4.25-lite`](models/interpolation.md#rife) | yes | 21.3 (1080x1920) | 32.7 | 28.9 | 0.7x vs original (1080x1920) | 1024 |
 | [`rife-4.26`](models/interpolation.md#rife) | yes | 24.2 (1080x1920) | 35.9 | 31.4 | 0.8x vs original (1080x1920) | 1029 |
 | [`rife-4.25`](models/interpolation.md#rife) | yes | 24.5 (1080x1920) | 36.0 | 31.4 | 0.8x vs original (1080x1920) | 1029 |
+
+## Restoration
+
+9 models; size 512x512.
+
+- Fastest: [`span-x4`](models/restoration.md#span) (14.6 ms).
+- Fastest commercially usable: [`span-x4`](models/restoration.md#span) (14.6 ms).
+
+| model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
+|---|---|---|---|---|---|---|
+| [`span-x4`](models/restoration.md#span) | yes | 26.9 (512x512) | 24.2 | 14.6 | 1.8x vs original (512x512) | 487 |
+| [`span-x2`](models/restoration.md#span) | yes | 24.6 (512x512) | 23.5 | 14.9 | 1.6x vs original (512x512) | 487 |
+| [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 127.8 | 80.0 | 1.6x vs original (512x512) | 333 |
+| [`realesrgan-x4plus-anime-6b`](models/restoration.md#real-esrgan) | yes | 205.1 (512x512) | 206.2 | 132.1 | 1.6x vs original (512x512) | 1197 |
+| [`realesrgan-x4plus`](models/restoration.md#real-esrgan) | yes | 631.1 (512x512) | 631.8 | 402.2 | 1.6x vs original (512x512) | 1220 |
+| [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 2007.3 | 1383.8 | 2.4x vs original (512x512) | 3074 |
+| [`swinir-m-x4`](models/restoration.md#swinir) | yes | 3497.4 (512x512) | 2029.4 | 1406.4 | 2.5x vs original (512x512) | 3074 |
+| [`swinir-m-x4-real`](models/restoration.md#swinir) | yes | 2461.6 (512x512) | 2057.2 | 1413.7 | 1.7x vs original (512x512) | 3074 |
+| [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 3716.2 | 2672.1 | 1.4x vs original (512x512) | 3868 |

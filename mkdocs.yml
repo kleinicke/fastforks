@@ -50,6 +50,7 @@ nav:
       - Frame interpolation: api/interpolation.md
       - Retrieval: api/retrieval.md
       - Calibration: api/calibration.md
+      - Image restoration: api/restoration.md
       - Errors: api/errors.md
   - Models:
       - Stereo: models/stereo.md
@@ -68,6 +69,7 @@ nav:
       - Frame interpolation: models/interpolation.md
       - Retrieval: models/retrieval.md
       - Calibration: models/calibration.md
+      - Image restoration: models/restoration.md
   - Contributing: contributing.md
 markdown_extensions:
   - admonition

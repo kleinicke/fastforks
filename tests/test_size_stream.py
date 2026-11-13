@@ -29,6 +29,7 @@ from fastforks import (
     multiview,
     pose,
     promptable_segmentation,
+    restoration,
     retrieval,
     segmentation,
     stereo,
@@ -56,6 +57,7 @@ API: dict[str, Any] = {
     "interpolation": interpolation,
     "retrieval": retrieval,
     "calibration": calibration,
+    "restoration": restoration,
 }
 OUTPUTS = (  # the outputs checked, where a result has them
     "disparity",
@@ -77,6 +79,7 @@ OUTPUTS = (  # the outputs checked, where a result has them
     "alpha",
     "descriptor",
     "intrinsics",
+    "image",
 )
 A, B, C = (243, 333), (307, 451), (259, 397)  # odd sizes off every tile; B > A, both small enough for graphs
 LARGE = (1001, 1497)

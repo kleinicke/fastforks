@@ -299,6 +299,20 @@ def bn_affine(bn: Patched, conv: Patched = None) -> tuple[torch.Tensor, torch.Te
     return s.contiguous(), t.contiguous()
 
 
+def fold_bn(conv: nn.Conv2d, bn: nn.BatchNorm2d) -> None:
+    """Fold an eval BatchNorm into the conv before it, in place (call before the fp16 cast; `bn` is then a no-op).
+
+    The conv then outputs the BatchNorm's scale: an unnormalised conv output can exceed float16 where the normalised
+    one does not, also when `conv_ep` applies the BatchNorm in its epilogue (the raw conv is stored as float16 first).
+    """
+    s, t = bn_affine(bn, conv)
+    with torch.no_grad():
+        conv.weight.mul_(s.to(conv.weight.dtype).view(-1, *[1] * (conv.weight.dim() - 1)))
+    conv.bias = nn.Parameter(t.to(conv.weight.dtype))
+    for name, v in (("running_mean", 0.0), ("running_var", 1.0 - bn.eps), ("weight", 1.0), ("bias", 0.0)):
+        getattr(bn, name).data.fill_(v)
+
+
 def instance_stats(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Per-sample, per-channel mean and (biased) variance over the spatial dims, fp32."""
     var, mean = torch.var_mean(x.float(), dim=tuple(range(2, x.dim())), keepdim=True, unbiased=False)

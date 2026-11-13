@@ -114,6 +114,21 @@ def predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
                     return ben2.predict(net, x, autocast=fp16)[0]
 
             return call
+        if card.family in {
+            "u2net",
+            "isnet",
+            "inspyrenet",
+        }:  # the authors' networks, float32 (no fp16 option of their own)
+            sys.path.insert(0, str(ROOT / "tools"))
+            import _original  # noqa: PLC0415 - tools/_original.py
+
+            orig = _original.LOCAL[card.family].build(ref, False)  # noqa: FBT003 - adapter signature
+
+            def call(x: torch.Tensor, _: None) -> torch.Tensor:
+                with torch.inference_mode():
+                    return orig((x[0] * 255).round().byte())[0]
+
+            return call
         if card.family == "vitmatte":  # transformers' port, fp16 = its float16 weights
             import vitmatte  # noqa: PLC0415 - tools/golden/vitmatte.py
 

@@ -239,6 +239,7 @@ _RESULTS = {
     "interpolation": "InterpolationResult",
     "retrieval": "RetrievalResult",
     "calibration": "CalibrationResult",
+    "restoration": "RestorationResult",
     "depth": "DepthResult",
     "features": "FeaturesResult",
     "multiview": "MultiViewResult",

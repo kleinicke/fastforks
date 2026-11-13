@@ -320,6 +320,7 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
         "pitch": ("[B]", "float32", "radians", "tilt of the optical axis against the horizon"),
         "vfov": ("[B]", "float32", "radians", "vertical field of view"),
     },
+    "restoration": {"image": ("[B, 3, sH, sW]", "float32", "RGB in [0, 1]", "input pixels x `model.scale`")},
     "tracking": {
         "tracks": ("[T, Q, 2]", "float32", "pixels of the input, (x, y)", "every frame, one row per query"),
         "visibility": ("[T, Q]", "float32", "[0, 1] probability that the point is visible", "every frame"),
@@ -403,6 +404,7 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "stereo": (("scale", "pad", "network", "crop"), ("image conversion", "rig= rectification", "depth / points")),
     "flow": (("scale", "pad", "network", "crop"), ("image conversion",)),
     "interpolation": (("scale", "pad", "network", "crop"), ("image conversion",)),
+    "restoration": (("scale", "pad", "network (tiles: blend)", "crop", "clamp"), ("image conversion",)),
     "matching": (("scale", "resize to the network squares", "network", "resize to image1"), ("image conversion",)),
     "tracking": (
         ("resize to the network size", "network (frame by frame)", "scale to the input"),
