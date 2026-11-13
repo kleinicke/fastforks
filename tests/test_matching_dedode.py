@@ -7,7 +7,7 @@ import torch
 
 from fastforks import matching
 from fastforks._core import registry
-from fastforks.matching.models.dedode.net.dedode import dual_softmax_match, get_grid, vgg19_bn_features
+from fastforks.shared.dedode import VGG11_BN, dual_softmax_match, get_grid, vgg_bn_features
 
 
 def test_cards() -> None:
@@ -24,8 +24,11 @@ def test_cards() -> None:
 def test_vgg_layout() -> None:
     """The same state-dict keys and shapes as torchvision's `vgg19_bn().features[:40]` (upstream's encoder)."""
     tvm = pytest.importorskip("torchvision.models")
-    ours = {k: v.shape for k, v in vgg19_bn_features().state_dict().items()}
+    ours = {k: v.shape for k, v in vgg_bn_features().state_dict().items()}
     ref = torch.nn.ModuleList(tvm.vgg19_bn(weights=None).features[:40]).state_dict()
+    assert ours == {k: v.shape for k, v in ref.items()}
+    ours = {k: v.shape for k, v in vgg_bn_features(VGG11_BN).state_dict().items()}  # the DaD detector's encoder
+    ref = torch.nn.ModuleList(tvm.vgg11_bn(weights=None).features[:22]).state_dict()
     assert ours == {k: v.shape for k, v in ref.items()}
 
 
