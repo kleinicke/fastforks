@@ -694,8 +694,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`dat-light-x4`](models/restoration.md#dat) | yes | 2203.5 (512x512) | 267.8 | 268.2 | 8.2x vs original (512x512) | 1535 |
 | [`realesrgan-x4plus`](models/restoration.md#real-esrgan) | yes | 631.1 (512x512) | 471.3 | 402.7 | 1.6x vs original (512x512) | 1220 |
 | [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 1192.3 | 557.8 | 5.8x vs original (512x512) | 1577 |
+| [`swinir-m-x4`](models/restoration.md#swinir) | yes | 3497.4 (512x512) | 767.5 | 580.4 | 6.0x vs original (512x512) | 1390 |
 | [`swinir-m-x4-real`](models/restoration.md#swinir) | yes | 2461.6 (512x512) | 1241.7 | 588.5 | 4.2x vs original (512x512) | 1577 |
-| [`swinir-m-x4`](models/restoration.md#swinir) | yes | 3497.4 (512x512) | 907.0 | 730.2 | 4.8x vs original (512x512) | 1762 |
 | [`hat-s-x4`](models/restoration.md#hat) | yes | 2401.8 (512x512) | 1072.2 | 974.4 | 2.5x vs original (512x512) | 1985 |
 | [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 2098.7 | 1043.5 | 3.6x vs original (512x512) | 1872 |
 | [`dat-2-x4`](models/restoration.md#dat) | yes | 4880.3 (512x512) | 1338.0 | 1246.7 | 3.9x vs original (512x512) | 2730 |
