@@ -258,7 +258,7 @@ include = ["src", "tests", "tools", "integrations"]
 allowed-unresolved-imports = [
   "timm", "timm.**", "transformers", "transformers.**", "scipy", "scipy.**", "onnx", "onnx_ir", "onnxruntime",
   "tensorrt", "laspy", "lazrs", "pycocotools", "pycocotools.**", "depth_anything_v2.**", "s2m2.**",
-  "comfy", "comfy.**",  # ComfyUI (integrations/comfyui runs inside it)
+  "comfy", "comfy.**", "folder_paths",  # ComfyUI (integrations/comfyui runs inside it)
 ]
 
 [tool.ty.rules]

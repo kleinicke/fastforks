@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import gc
 import logging
+import os
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
@@ -30,7 +31,7 @@ BACKENDS = ["auto", "portable", "kernels"]
 DTYPES = ["auto", "float32", "float16", "bfloat16"]
 _TAGS = {"no": " [non-commercial]", "unclear": " [licence unclear]"}
 _MAX_CACHED = 2
-_cache: OrderedDict[tuple[str, str, str, str], fastforks.Model] = OrderedDict()
+_cache: OrderedDict[tuple[Any, ...], fastforks.Model] = OrderedDict()
 _LICENCE_TIP = (
     " Ids marked [non-commercial] have a non-commercial code or weights licence (research use only; their weights"
     " download only with the environment variable FASTFORKS_NONCOMMERCIAL=1); [licence unclear] means not cleared"
@@ -82,12 +83,12 @@ def _weights_bytes(mid: str) -> int:
     return sum(f.size or 0 for f in variant.weights)
 
 
-def load(label: str, backend: str, dtype: str) -> fastforks.Model:
+def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = None) -> fastforks.Model:
     """The cached model, or load it on ComfyUI's device after asking ComfyUI to free room for it."""
     mm = _mm()
     device = mm.get_torch_device()
     mid = model_id(label)
-    key = (mid, backend, dtype, str(device))
+    key = (mid, backend, dtype, str(device), tuple(sorted((options or {}).items())))
     if key in _cache:
         _cache.move_to_end(key)
         return _cache[key]
@@ -97,10 +98,41 @@ def load(label: str, backend: str, dtype: str) -> fastforks.Model:
         mm.soft_empty_cache()
     # weights + activations: ComfyUI unloads its own models until this much is free (no-op if it already is)
     mm.free_memory(2 * _weights_bytes(mid) + 2**30, device)
-    model = fastforks.load(mid, mode=backend, device=device, dtype=None if dtype == "auto" else dtype)  # ty: ignore[invalid-argument-type]
+    model = fastforks.load(
+        mid,
+        mode=backend,  # ty: ignore[invalid-argument-type]
+        device=device,
+        dtype=None if dtype == "auto" else dtype,  # ty: ignore[invalid-argument-type]
+        options=options or None,
+    )
     log.info("fastforks: loaded %s (%s)", mid, model.backend)
     _cache[key] = model
     return model
+
+
+def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ) -> None:
+    """Download weights and kernels into ComfyUI's `models/fastforks` (the first `fastforks` model folder).
+
+    Files already in the HF hub or torch hub cache, the normal fastforks cache or other `fastforks` folders of
+    `extra_model_paths.yaml` are used in place (`FASTFORKS_READ_CACHES`); only missing files are downloaded.
+    """
+    import folder_paths  # noqa: PLC0415 - ComfyUI only
+
+    folder_paths.add_model_folder_path("fastforks", os.path.join(folder_paths.models_dir, "fastforks"))  # noqa: PTH118
+    dirs = list(folder_paths.get_folder_paths("fastforks"))
+    normal = environ.get("FASTFORKS_CACHE") or fastforks_cache_default()
+    reads = [*dirs[1:], normal, *environ.get("FASTFORKS_READ_CACHES", "").split(os.pathsep)]
+    environ["FASTFORKS_CACHE"] = dirs[0]
+    keep = [d for d in dict.fromkeys(reads) if d and d != dirs[0] and os.path.isdir(d)]  # noqa: PTH112
+    environ["FASTFORKS_READ_CACHES"] = os.pathsep.join(keep)
+    log.info("fastforks: downloads go to %s; also reading %s", dirs[0], keep)
+
+
+def fastforks_cache_default() -> str:
+    """The fastforks cache when `FASTFORKS_CACHE` is unset (the platform user cache)."""
+    import platformdirs  # noqa: PLC0415 - fastforks dependency
+
+    return platformdirs.user_cache_dir("fastforks")
 
 
 def unload_all() -> None:
@@ -447,6 +479,235 @@ class Classify(_Node):
         return ("\n\n".join(each(image.shape[0], one)),)
 
 
+_PX = "in pixels of the first frame"
+
+
+def _prompt_inputs() -> dict[str, Any]:
+    return {
+        "positive_points": ("STRING", {"default": "", "tooltip": f"'x,y; x,y' foreground points {_PX}"}),
+        "negative_points": ("STRING", {"default": "", "tooltip": f"'x,y; x,y' background points {_PX}"}),
+        "box": ("STRING", {"default": "", "tooltip": f"'x0,y0,x1,y1' {_PX}"}),
+    }
+
+
+class SemanticSegment(_Node):
+    """Semantic segmentation: a class colour map, a mask of chosen classes and the classes present."""
+
+    DESCRIPTION = "Class per pixel: colour map (one colour per class), mask of the listed classes, classes present."
+    RETURN_TYPES = ("IMAGE", "MASK", "STRING")
+    RETURN_NAMES = ("colour_map", "mask", "classes_found")
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        tip = "Comma-separated class names for the mask (e.g. 'sky, tree'); empty: an empty mask."
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                **common(_ids("segmentation"), "segnext-mscan-t-ade20k"),
+                "classes": ("STRING", {"default": "", "tooltip": tip}),
+            }
+        }
+
+    def run(
+        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, classes: str
+    ) -> tuple[torch.Tensor, torch.Tensor, str]:
+        """Segment every image."""
+        m = load(model, backend, dtype)
+        names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
+        wanted = torch.tensor(convert.class_ids(classes, names), dtype=torch.long)
+        colours = convert.palette(len(names))
+
+        def one(i: int) -> tuple[torch.Tensor, torch.Tensor, list[str]]:
+            lab = m(convert.frame(image, i, m.device)).labels
+            present = [names[c] for c in lab.unique().tolist()]
+            return convert.labels_image(lab, colours), torch.isin(lab, wanted.to(lab.device)), present
+
+        out = each(image.shape[0], one)
+        found = "\n".join(", ".join(o[2]) for o in out)
+        return (
+            convert.to_image([o[0] for o in out], _out_device()),
+            convert.to_mask([o[1] for o in out], _out_device()),
+            found,
+        )
+
+
+class Stereo(_Node):
+    """Stereo matching: disparity of the left image from a rectified left / right pair."""
+
+    DESCRIPTION = "Disparity of rectified left / right pairs, scaled to 0-1 per image (near = white, as Depth)."
+    RETURN_TYPES = ("IMAGE",)
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        return {
+            "required": {"left": ("IMAGE",), "right": ("IMAGE",), **common(_ids("stereo"), "raft-stereo-middlebury")}
+        }
+
+    def run(
+        self, *, left: torch.Tensor, right: torch.Tensor, model: str, backend: str, dtype: str
+    ) -> tuple[torch.Tensor]:
+        """Match every left / right pair."""
+        if left.shape != right.shape:
+            msg = f"left and right must be batches of one size, got {tuple(left.shape)} and {tuple(right.shape)}"
+            raise ValueError(msg)
+        m = load(model, backend, dtype)
+
+        def one(i: int) -> torch.Tensor:
+            return convert.depth_image(
+                None, m(convert.frame(left, i, m.device), convert.frame(right, i, m.device)).disparity
+            )
+
+        return (convert.to_image(each(left.shape[0], one), _out_device()),)
+
+
+class Flow(_Node):
+    """Optical flow between consecutive frames: colour-wheel images and the raw flow (for Warp)."""
+
+    DESCRIPTION = "Flow from each frame to the next (B - 1 results): colour-wheel image and raw flow in pixels."
+    RETURN_TYPES = ("IMAGE", "FASTFORKS_FLOW")
+    RETURN_NAMES = ("flow_image", "flow")
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        return {"required": {"frames": ("IMAGE",), **common(_ids("flow"), "sea-raft-s")}}
+
+    def run(self, *, frames: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor, torch.Tensor]:
+        """Flow of every pair of consecutive frames."""
+        if frames.shape[0] < 2:  # noqa: PLR2004 - a pair
+            msg = "Flow needs a batch of at least 2 frames"
+            raise ValueError(msg)
+        m = load(model, backend, dtype)
+        flows = each(
+            frames.shape[0] - 1,
+            lambda i: m(convert.frame(frames, i, m.device), convert.frame(frames, i + 1, m.device)).flow,
+        )
+        raw = torch.stack([f.detach().float().permute(1, 2, 0) for f in flows]).to(_out_device()).contiguous()
+        return convert.to_image([convert.flow_image(f) for f in flows], _out_device()), raw
+
+
+class Warp(_Node):
+    """Backward warp with a flow: each image sampled where the flow points (frame t + 1 -> frame t)."""
+
+    DESCRIPTION = "Warps image i by flow i: frames[1:] with the Flow output reproduce frames[:-1] (black outside)."
+    RETURN_TYPES = ("IMAGE",)
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        return {"required": {"image": ("IMAGE",), "flow": ("FASTFORKS_FLOW",)}}
+
+    def run(self, *, image: torch.Tensor, flow: torch.Tensor) -> tuple[torch.Tensor]:
+        """Warp the first len(flow) images."""
+        n = flow.shape[0]
+        if image.shape[0] < n or image.shape[1:3] != flow.shape[1:3]:
+            msg = f"need at least {n} images of the flow size {tuple(flow.shape[1:3])}, got {tuple(image.shape)}"
+            raise ValueError(msg)
+        return (convert.warp(image[:n], flow).to(_out_device()),)
+
+
+class VideoSegment(_Node):
+    """Video object segmentation (SAM 2 video / SAMURAI): one object prompted on the first frame, tracked."""
+
+    DESCRIPTION = "Mask of one object over a frame batch, prompted by points / box on the first frame."
+    RETURN_TYPES = ("MASK",)
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        ids = _ids("promptable_segmentation", lambda m: "samurai" in fastforks.model_card(m).options)
+        tip = "SAMURAI: motion-aware memory (Kalman filter), steadier on fast motion and occlusions; best with a box."
+        return {
+            "required": {
+                "frames": ("IMAGE",),
+                **common(ids, "sam2.1-hiera-small"),
+                **_prompt_inputs(),
+                "samurai": ("BOOLEAN", {"default": False, "tooltip": tip}),
+            }
+        }
+
+    def run(  # noqa: PLR0913 - one argument per input
+        self,
+        *,
+        frames: torch.Tensor,
+        model: str,
+        backend: str,
+        dtype: str,
+        positive_points: str,
+        negative_points: str,
+        box: str,
+        samurai: bool,
+    ) -> tuple[torch.Tensor]:
+        """Track the prompted object through the frames."""
+        pos, neg, bx = convert.points(positive_points), convert.points(negative_points), convert.box(box)
+        kwargs: dict[str, Any] = {}
+        if pos or neg:
+            kwargs |= {"input_points": pos + neg, "input_labels": [1] * len(pos) + [0] * len(neg)}
+        if bx is not None:
+            kwargs["input_boxes"] = bx
+        if not kwargs:
+            msg = "give positive_points, negative_points or box (on the first frame)"
+            raise ValueError(msg)
+        m = load(model, backend, dtype, {"samurai": True} if samurai else None)
+        _mm().throw_exception_if_processing_interrupted()
+        video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
+        masks = m.track(video, **kwargs).masks  # ty: ignore[unresolved-attribute]
+        return (convert.to_mask(list(masks), _out_device()),)
+
+
+class PointTrack(_Node):
+    """Point tracking: points of the first frame followed through the frames, drawn on them and as JSON."""
+
+    DESCRIPTION = "Tracks of a point grid (or given points) of the first frame, drawn on the frames and as JSON."
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("tracks_image", "tracks")
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        return {
+            "required": {
+                "frames": ("IMAGE",),
+                **common(_ids("tracking"), "tapir"),
+                "grid_size": ("INT", {"default": 10, "min": 1, "max": 64, "tooltip": "n x n points if no points"}),
+                "points": ("STRING", {"default": "", "tooltip": f"'x,y; x,y' points to track {_PX}"}),
+                "trail": ("INT", {"default": 8, "min": 0, "max": 1000, "tooltip": "frames of track drawn per point"}),
+                "line_width": ("INT", {"default": 2, "min": 1, "max": 32}),
+            }
+        }
+
+    def run(  # noqa: PLR0913 - one argument per input
+        self,
+        *,
+        frames: torch.Tensor,
+        model: str,
+        backend: str,
+        dtype: str,
+        grid_size: int,
+        points: str,
+        trail: int,
+        line_width: int,
+    ) -> tuple[torch.Tensor, str]:
+        """Track the points through the frames."""
+        m = load(model, backend, dtype)
+        pts = convert.points(points) or convert.grid_points(grid_size, (frames.shape[1], frames.shape[2]))
+        queries = torch.tensor([[0.0, x, y] for x, y in pts])
+        _mm().throw_exception_if_processing_interrupted()
+        video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
+        r = m(video, queries)
+        tracks = r.tracks.float().cpu()
+        visible = r.visible.cpu() if r.visibility is not None else torch.ones(tracks.shape[:2], dtype=torch.bool)
+        drawn = each(
+            frames.shape[0],
+            lambda t: convert.draw_tracks(
+                convert.frame(frames, t, torch.device("cpu")), tracks, visible, t, trail=trail, width=line_width
+            ),
+        )
+        return convert.to_image(drawn, _out_device()), convert.to_json({"tracks": tracks, "visible": visible})
+
+
 NODE_CLASS_MAPPINGS = {
     "FastforksDepth": Depth,
     "FastforksNormals": Normals,
@@ -456,6 +717,12 @@ NODE_CLASS_MAPPINGS = {
     "FastforksPose": Pose,
     "FastforksInterpolate": Interpolate,
     "FastforksClassify": Classify,
+    "FastforksSemanticSegment": SemanticSegment,
+    "FastforksStereo": Stereo,
+    "FastforksFlow": Flow,
+    "FastforksWarp": Warp,
+    "FastforksVideoSegment": VideoSegment,
+    "FastforksPointTrack": PointTrack,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FastforksDepth": "Depth (fastforks)",
@@ -466,4 +733,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FastforksPose": "Pose (fastforks)",
     "FastforksInterpolate": "Interpolate frames (fastforks)",
     "FastforksClassify": "Classify (fastforks)",
+    "FastforksSemanticSegment": "Semantic segmentation (fastforks)",
+    "FastforksStereo": "Stereo disparity (fastforks)",
+    "FastforksFlow": "Optical flow (fastforks)",
+    "FastforksWarp": "Warp by flow (fastforks)",
+    "FastforksVideoSegment": "Video segment (SAM 2 / SAMURAI, fastforks)",
+    "FastforksPointTrack": "Track points (fastforks)",
 }

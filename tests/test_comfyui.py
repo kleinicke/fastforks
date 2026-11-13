@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
 import types
 from pathlib import Path
@@ -20,7 +21,7 @@ PACK = Path(__file__).resolve().parents[1] / "integrations" / "comfyui"
 
 
 @pytest.fixture(scope="module")
-def pack() -> Any:
+def pack(tmp_path_factory: pytest.TempPathFactory) -> Any:
     """The pack as a package (`comfyui_fastforks`), imported with a stub `comfy.model_management`."""
     calls: list[str] = []
     mm = types.ModuleType("comfy.model_management")
@@ -28,8 +29,15 @@ def pack() -> Any:
     mm.soft_empty_cache = lambda: calls.append("empty")
     comfy = types.ModuleType("comfy")
     comfy.model_management = mm
-    saved = {k: sys.modules.get(k) for k in ("comfy", "comfy.model_management")}
-    sys.modules |= {"comfy": comfy, "comfy.model_management": mm}
+    fp = types.ModuleType("folder_paths")
+    fp.models_dir = str(tmp_path_factory.mktemp("models"))
+    fp.paths = {}
+    fp.add_model_folder_path = lambda name, path: fp.paths.setdefault(name, []).append(path)
+    fp.get_folder_paths = lambda name: fp.paths[name]
+    names = ("comfy", "comfy.model_management", "folder_paths")
+    saved = {k: sys.modules.get(k) for k in names}
+    env = dict(os.environ)
+    sys.modules |= {"comfy": comfy, "comfy.model_management": mm, "folder_paths": fp}
     try:
         spec = importlib.util.spec_from_file_location(
             "comfyui_fastforks", PACK / "__init__.py", submodule_search_locations=[str(PACK)]
@@ -41,8 +49,11 @@ def pack() -> Any:
         spec.loader.exec_module(module)
         module.calls = calls
         module.mm = mm
+        module.fp = fp
         yield module
     finally:
+        os.environ.clear()
+        os.environ.update(env)  # the pack points FASTFORKS_CACHE at ComfyUI's models folder
         for k, v in saved.items():
             if v is None:
                 sys.modules.pop(k, None)
@@ -142,3 +153,63 @@ def test_labels_and_unload_hook(pack: Any) -> None:
     assert pack.calls == ["comfy", "empty"]
     assert not nodes._cache
     assert set(pack.NODE_CLASS_MAPPINGS) == set(pack.NODE_DISPLAY_NAME_MAPPINGS)
+
+
+def test_cache_setup(pack: Any, tmp_path: Path) -> None:
+    """Downloads go to models/fastforks; the normal cache and extra model folders are read in place."""
+    first, extra, normal = tmp_path / "first", tmp_path / "extra", tmp_path / "normal"
+    for d in (extra, normal):
+        d.mkdir()
+    pack.fp.paths["fastforks"] = [str(first), str(extra), str(tmp_path / "missing")]
+    environ = {"FASTFORKS_CACHE": str(normal)}
+    pack.nodes.setup_cache(environ)
+    assert environ["FASTFORKS_CACHE"] == str(first)
+    assert environ["FASTFORKS_READ_CACHES"].split(os.pathsep) == [str(extra), str(normal)]
+    assert pack.fp.paths["fastforks"][-1] == str(Path(pack.fp.models_dir) / "fastforks")
+
+
+def test_semantic_maps(pack: Any) -> None:
+    """Class colours (VOC colormap), class names to ids, label map to colours."""
+    c = pack.convert
+    pal = c.palette(4)
+    assert pal[0].tolist() == [0, 0, 0]
+    assert (pal[1] * 255).round().tolist() == [128, 0, 0]
+    assert (pal[2] * 255).round().tolist() == [0, 128, 0]
+    assert c.class_ids(" Sky, wall", ("wall", "sky")) == [1, 0]
+    assert c.class_ids("", ("wall",)) == []
+    with pytest.raises(ValueError, match="unknown classes"):
+        c.class_ids("cat", ("wall",))
+    img = c.labels_image(torch.tensor([[0, 2]]), pal)
+    assert img.shape == (3, 1, 2)
+    assert img[:, 0, 1].tolist() == pal[2].tolist()
+
+
+def test_flow_image_and_warp(pack: Any) -> None:
+    """No motion is white, the fastest rightward motion red; warping by a shift of +1 px reads the next column."""
+    c = pack.convert
+    flow = torch.zeros(2, 2, 3)
+    flow[0, 0, 0] = 4.0
+    img = c.flow_image(flow)
+    assert img.shape == (3, 2, 3)
+    assert img[:, 1, 1].tolist() == [1, 1, 1]
+    assert img[0, 0, 0] == 1
+    assert img[1, 0, 0] == 0
+    assert c.flow_image(torch.full((2, 1, 1), float("nan"))).tolist() == [[[1.0]], [[1.0]], [[1.0]]]
+    image = torch.arange(6.0).reshape(1, 2, 3, 1)
+    shift = torch.zeros(1, 2, 3, 2)
+    shift[..., 0] = 1
+    out = c.warp(image, shift)
+    assert out[0, :, :2, 0].tolist() == [[1, 2], [4, 5]]
+    assert out[0, :, 2, 0].abs().max() < 0.6  # half outside: blended with the black border
+
+
+def test_tracks(pack: Any) -> None:
+    """Grid queries at cell centres; visible points are drawn in their colour, hidden ones are not."""
+    c = pack.convert
+    assert c.grid_points(2, (4, 8)) == [[2.0, 1.0], [6.0, 1.0], [2.0, 3.0], [6.0, 3.0]]
+    tracks = torch.tensor([[[2.0, 2.0], [12.0, 12.0]], [[4.0, 2.0], [12.0, 12.0]]])
+    visible = torch.tensor([[True, True], [True, False]])
+    out = c.draw_tracks(torch.zeros(3, 16, 16), tracks, visible, 1, trail=4, width=1)
+    assert out.shape == (3, 16, 16)
+    assert out[:, 2, 4].tolist() == [1, 0, 0]  # point 0, red
+    assert out[:, 12, 12].sum() == 0  # point 1 hidden in frame 1
