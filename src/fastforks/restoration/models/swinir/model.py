@@ -13,13 +13,16 @@ the square (exact).
 
 from __future__ import annotations
 
+import math
+import re
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.kernels import cudnn_hacc
@@ -30,6 +33,8 @@ from .net import SwinIR
 from .net.network_swinir import RSTB, SwinTransformerBlock, WindowAttention
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from fastforks.restoration._runner import Context
 
 
@@ -160,3 +165,57 @@ class Kernels(Portable):
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}
+
+_BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
+
+
+def _upsampler(sd: Mapping[str, torch.Tensor]) -> tuple[str, int] | None:
+    """`(upsampler, scale)` from the reconstruction layers, or None for one fastforks does not run (denoising)."""
+    if "conv_up1.weight" in sd:
+        return "nearest+conv", 4 if "conv_up2.weight" in sd else 2
+    convs = [v for k, v in sd.items() if k.startswith("upsample.") and k.endswith(".weight")]
+    if not convs:
+        return None
+    if "conv_before_upsample.0.weight" not in sd:  # one conv to scale² x 3 channels
+        return "pixelshuffledirect", round(math.sqrt(convs[0].shape[0] / 3))
+    ratio = convs[0].shape[0] // sd["conv_before_upsample.0.weight"].shape[0]
+    return "pixelshuffle", 3 if ratio == 9 else 2 ** len(convs)  # noqa: PLR2004 - x3: one conv to 9 x channels
+
+
+def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
+    """`load_file`: a SwinIR state dict as a variant and its params (size, depths, heads, upsampler); keys unchanged."""
+    blocks = [(int(m.group(1)), int(m.group(2))) for k in sd if (m := _BLOCK.match(k))]
+    if "conv_first.weight" not in sd or not blocks:
+        return None
+    layers = 1 + max(i for i, _ in blocks)
+    depths = tuple(1 + max(j for i, j in blocks if i == n) for n in range(layers))
+    tables = [sd[f"layers.{n}.residual_group.blocks.0.attn.relative_position_bias_table"] for n in range(layers)]
+    embed_dim = sd["conv_first.weight"].shape[0]
+    window = (math.isqrt(tables[0].shape[0]) + 1) // 2
+    mask = sd.get("layers.0.residual_group.blocks.1.attn_mask")
+    up = _upsampler(sd)
+    problems = []
+    if sd["conv_first.weight"].shape[1] != 3:  # noqa: PLR2004 - RGB
+        problems.append("not 3 input channels")
+    if up is None:
+        problems.append("no upsampler (denoising / JPEG models)")
+    if "absolute_pos_embed" in sd:
+        problems.append("absolute position embedding")
+    if sd["layers.0.residual_group.blocks.0.mlp.fc1.weight"].shape[0] != 2 * embed_dim:
+        problems.append("an MLP ratio other than 2")
+    if problems:
+        msg = f"SwinIR checkpoint with {', '.join(problems)}: not supported"
+        raise WeightsError(msg)
+    upsampler, scale = up  # ty: ignore[not-iterable]
+    params = {
+        "scale": scale,
+        "embed_dim": embed_dim,
+        "depths": depths,
+        "heads": tuple(t.shape[1] for t in tables),
+        "upsampler": upsampler,
+        "resi_connection": "3conv" if "layers.0.conv.0.weight" in sd else "1conv",
+        "img_size": 64 if mask is None else math.isqrt(mask.shape[0]) * window,
+        "window": window,
+    }
+    base = "swinir-m-x4-real" if upsampler == "nearest+conv" else "swinir-m-x2" if scale == 2 else "swinir-m-x4"  # noqa: PLR2004
+    return base, params, dict(sd)

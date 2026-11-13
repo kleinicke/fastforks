@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+import dataclasses
 import functools
+import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import torch
 
 from fastforks._core import model as core
+from fastforks._core import registry
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
-from fastforks._core.errors import InputError
+from fastforks._core.checkpoint import load_state_dict
+from fastforks._core.errors import InputError, WeightsError
 from fastforks._core.image import ImageLike, to_rgb_batch, unbatch
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs
@@ -20,9 +25,20 @@ from fastforks.restoration._runner import Crop, crop, scale
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from fastforks._core.cards import Dtype, ModelCard
+    from fastforks._core.model import ModeArg
     from fastforks.restoration._runner import Runner
 
-__all__ = ["Backend", "RestorationModel", "RestorationResult", "list_models", "load", "model_card"]
+__all__ = [
+    "Backend",
+    "RestorationModel",
+    "RestorationResult",
+    "checkpoint_family",
+    "list_models",
+    "load",
+    "load_file",
+    "model_card",
+]
 
 TASK = "restoration"
 OVERLAP = 32  # tile overlap in input pixels, as ComfyUI's "Upscale Image (using Model)" node
@@ -181,3 +197,71 @@ def bench_inputs(model: RestorationModel, size: BenchSize) -> BenchInputs:
 
 
 list_models, model_card, load = task_api(TASK, RestorationModel)
+
+_WRAPPERS = ("params_ema", "params", "state_dict", "model")  # BasicSR / training-framework checkpoint entries
+
+
+def _read(path: Path) -> dict[str, torch.Tensor]:
+    """The state dict of a checkpoint file: unwrapped from BasicSR's `params_ema` / `params` and similar entries."""
+    sd: Mapping[str, Any] = load_state_dict(path, strip="")
+    for k in _WRAPPERS:
+        inner = sd.get(k)
+        if isinstance(inner, dict):
+            sd = inner
+            break
+    return {k.removeprefix("module."): v for k, v in sd.items() if isinstance(v, torch.Tensor)}
+
+
+def _detect(sd: Mapping[str, torch.Tensor], name: str) -> tuple[ModelCard, str, dict[str, Any], dict[str, Any]]:
+    """`(card, variant id, params, mapped state dict)` of the family whose `from_checkpoint` recognises `sd`."""
+    families = {card.family: card for card, _ in registry.cards(TASK).values()}
+    for card in families.values():
+        found = registry.import_model(card).from_checkpoint(sd)
+        if found is not None:
+            return card, *found
+    msg = (
+        f"{name}: unsupported architecture; fastforks.restoration.load_file reads the networks of"
+        f" {', '.join(c.name for c in families.values())} (keys of the original code or of spandrel's formats)"
+    )
+    raise WeightsError(msg)
+
+
+def checkpoint_family(path: str | os.PathLike[str]) -> str | None:
+    """The family `load_file` builds for a checkpoint file (`"realesrgan"`, `"span"`, `"swinir"`), or `None`.
+
+    `None` for a file `load_file` cannot load: an unsupported architecture or configuration, or not a checkpoint.
+    """
+    try:
+        return _detect(_read(Path(os.fspath(path))), Path(path).name)[0].family
+    except (WeightsError, OSError, RuntimeError, ValueError):
+        return None
+
+
+def load_file(
+    path: str | os.PathLike[str],
+    *,
+    mode: ModeArg = "auto",
+    device: str | torch.device | None = None,
+    dtype: Dtype | torch.dtype | None = None,
+) -> RestorationModel:
+    """Load an upscaler checkpoint of a supported architecture (e.g. a file of ComfyUI's `models/upscale_models`).
+
+    The architecture and its parameters (scale, blocks, channels, ...) are read from the state dict, and keys of
+    other layouts of the same network (ESRGAN's old `model.N` keys) are mapped; the model is built as the nearest
+    variant of the family (`model.variant`) with these parameters and loaded strictly. Not hash-checked: the
+    golden parity does not apply. `mode`, `device` and `dtype` are those of `load`.
+
+    Raises:
+        WeightsError: Missing or unreadable file, or an architecture or configuration fastforks does not implement
+            (the message says which).
+    """
+    p = Path(os.fspath(path)).expanduser()
+    if not p.is_file():
+        msg = f"{str(path)!r}: no such file"
+        raise WeightsError(msg)
+    card, variant_id, params, sd = _detect(_read(p), p.name)
+    variant = next(v for v in card.variants if v.id == variant_id)
+    variant = dataclasses.replace(variant, params={**variant.params, **params})
+    return core.load_variant(
+        TASK, card, variant, RestorationModel, mode=mode, device=device, dtype=dtype, weights=p, state=sd
+    )
