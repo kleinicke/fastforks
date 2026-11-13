@@ -1826,6 +1826,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "starnet": _Local("classification", _convnext, ((224, 224),)),
     "fastvit": _Local("classification", _convnext, ((224, 224),)),  # the authors' reparameterized inference
     "wd_tagger": _Local("classification", _convnext, ((448, 448),)),  # wdv3_timm.py: pad square, BGR
+    "nsfw_vit": _Local("classification", _convnext, ((224, 224),)),  # transformers ViTForImageClassification
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),

@@ -17,6 +17,10 @@
   kernels, 18.4 ms portable vs 77.3 ms original fp16; L 69.3 / 125 vs 438 ms; peak 0.35x of the original. Accuracy:
   GPU goldens against upstream (no prompt-depth benchmark data here).
 
+- Falconsai NSFW detector (`falconsai-nsfw-vit`, classification; Apache-2.0 weights): a Hugging Face ViT-B/16 on
+  timm's `vit_base_patch16_224`. 224x224: 1.6 ms kernels, 2.8 ms portable (1.1 ms TensorRT) vs 6.8 ms original fp32,
+  peak 0.20 GB vs 0.37 GB. Top-1 equal to the original fp32 on 200 of 200 images.
+
 - WD v3 anime taggers (`wd-vit-tagger-v3`, `wd-convnext-tagger-v3`, `wd-vit-large-tagger-v3`,
   `wd-eva02-large-tagger-v3`, classification; Apache-2.0 weights): multi-label (`result.probs` is the sigmoid), white
   square padding (card `[io] pad_square`), BGR swapped into the first convolution at load. 448x448: ViT 4.0 ms

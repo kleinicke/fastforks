@@ -1,0 +1,49 @@
+schema = 2
+name = "Falconsai NSFW ViT"
+summary = "Falconsai's NSFW image detector: ViT-B/16 (ImageNet-21k pretrained) fine-tuned on about 80 000 images, classes normal / nsfw."
+tier = "stable"
+outputs = ["logits"]
+uses = ["libnet"]  # fastforks.shared modules this family imports
+limitations = [
+  "The image is stretched to 224 x 224 without keeping its aspect ratio, as the original processor does.",
+]
+
+[upstream]
+repo = "https://huggingface.co/Falconsai/nsfw_image_detection"
+commit = "96cb0d0342c7afb80cab76ecc58b265fa44da256"  # `ViTForImageClassification` (transformers); built as timm's ViT
+
+[licence]
+code = "Apache-2.0"  # timm (the network) and transformers (the original)
+weights = "Apache-2.0"  # the Hugging Face model card
+files = []  # no vendored code: the architecture is timm's own module
+training_data = ["imagenet-21k", "falconsai-nsfw"]
+evidence = "https://huggingface.co/Falconsai/nsfw_image_detection/blob/96cb0d0342c7afb80cab76ecc58b265fa44da256/README.md"
+
+[io]
+# Size: any H x W >= 1: the image is resized to 224 x 224 (`preprocessor_config.json`: ViTImageProcessor, bilinear,
+# mean / std 0.5, no crop).
+input = "mean_std"
+resize = 224
+stretch = true
+interpolation = "bilinear"
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+
+[params]
+library = "timm"
+arch = "vit_base_patch16_224"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
+
+[output]
+label_set = "nsfw-2"
+
+[[variants]]
+id = "falconsai-nsfw-vit"
+revision = 1
+weights = [{ name = "falconsai-nsfw-vit.safetensors", size = 343223968, sha256 = "97b2ce64ec146884b37f98ee7944ca4891aa72f6827dc0cb10684a1cbecd5830", url = "https://huggingface.co/Falconsai/nsfw_image_detection/resolve/96cb0d0342c7afb80cab76ecc58b265fa44da256/model.safetensors" }]
