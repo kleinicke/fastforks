@@ -518,13 +518,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Calibration
 
-1 models; size 1080x1920.
+2 models; size 1080x1920.
 
-- Fastest: [`geocalib-pinhole`](models/calibration.md#geocalib) (82.5 ms).
-- Fastest commercially usable: [`geocalib-pinhole`](models/calibration.md#geocalib) (82.5 ms).
+- Fastest: [`anycalib-pinhole`](models/calibration.md#anycalib) (21.3 ms).
+- Fastest commercially usable: [`anycalib-pinhole`](models/calibration.md#anycalib) (21.3 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
+| [`anycalib-pinhole`](models/calibration.md#anycalib) | yes | 38.4 (1080x1920) | 29.4 | 21.3 | 1.8x vs original (1080x1920) | 741 |
 | [`geocalib-pinhole`](models/calibration.md#geocalib) | yes | 106.2 (1080x1920) | 82.3 | 82.5 | 1.3x vs original (1080x1920) | 279 |
 
 ## Multiview

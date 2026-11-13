@@ -37,11 +37,17 @@
 - New task `fastforks.calibration` (single-image camera calibration): the pinhole intrinsics `[3, 3]` and the
   vertical field of view, plus gravity, roll and pitch where the model estimates them.
 
-- GeoCalib (`geocalib-pinhole`, calibration; Apache-2.0 code and weights): MSCAN-L encoder with up / latitude field
+- GeoCalib (`geocalib-pinhole`, calibration; Apache-2.0 code, CC-BY-4.0 weights): MSCAN-L encoder with up / latitude field
   heads and a Levenberg-Marquardt fit of the camera and gravity. 1080x1920 image: 82.5 ms kernels, 82.3 ms portable
   (73.1 ms compile; TensorRT export fails on the LM fit) vs 124.9 ms original fp32 (106.2 ms autocast), peak 342 MB vs
   658 MB. LaMAR2k AUC@5 roll / pitch / vFoV 92.6 / 76.8 / 41.6 for all modes and the original. The Hamburger heads'
   NMF starts from fixed bases (upstream: new random ones per call); no uncertainty estimate.
+
+- AnyCalib (`anycalib-pinhole`, calibration; Apache-2.0 code and weights): DINOv2 ViT-L/14 with a light DPT decoder
+  predicting one ray per pixel, then a linear pinhole fit and 10 Gauss-Newton steps. 1080x1920 image: 21.3 ms kernels,
+  29.4 ms portable (25.5 ms compile; TensorRT export fails on the fit) vs 58.5 ms original fp32 (38.4 ms autocast), peak
+  816 MB vs 1372 MB. LaMAR2k vFoV AUC@5 51.5 for all modes and the original. The fit runs batched in float32; a failed
+  fit gives NaN (no RANSAC); pinhole only, intrinsics and vertical FoV (no gravity).
 
 - LW-DETR real-time detection (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection; Apache-2.0 code and
   weights): ViT encoder with a multi-level projector and a deformable DETR decoder, the authors' PostProcess.

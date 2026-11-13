@@ -214,6 +214,8 @@ runtime-evaluated-base-classes = []
 ]
 # GeoCalib: upstream logging f-strings, lambdas over loop variables (called in the loop), `int | float` hints.
 "src/fastforks/calibration/models/geocalib/net/*.py" = ["G003", "G004", "B023", "RUF015", "PYI041"]
+# AnyCalib: upstream `None | T` hints.
+"src/fastforks/calibration/models/anycalib/net/gauss_newton.py" = ["RUF036"]
 # MobileSAM's TinyViT: upstream backslash-continued f-string and lambdas over a loop variable (called in the loop).
 "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py" = ["ISC002", "B023"]
 "src/fastforks/shared/*/net/**" = [

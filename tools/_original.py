@@ -1143,6 +1143,21 @@ def _geocalib(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda image: g.predict(net, image[None].float() / 255)["intrinsics"]
 
 
+def _anycalib(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """The authors' `AnyCalib.predict` (resize / crop, network, linear + GN fit), as `tools/golden/anycalib.py`.
+
+    `FF_ANYCALIB_REPO`: a javrtg/AnyCalib checkout; no precision option of its own (autocast tier).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("anycalib")
+    card, variant = registry.resolve("calibration", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_ANYCALIB_REPO"]), Path(weights)).cuda()
+    a.note = f"javrtg/AnyCalib@{g.COMMIT[:12]} AnyCalib.predict (pinhole), its resize / crop / linear + GN fit"
+    return lambda image: g.predict(net, image[None].float() / 255)["intrinsics"]
+
+
 class _Local:
     """An original the bench has no adapter for, on the library's own bench inputs as uint8 CUDA tensors.
 
@@ -1523,6 +1538,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "megaloc": _Local("retrieval", _megaloc, ((480, 640),)),
     "boq": _Local("retrieval", _boq, ((480, 640),)),
     "geocalib": _Local("calibration", _geocalib, ((1080, 1920),)),
+    "anycalib": _Local("calibration", _anycalib, ((1080, 1920),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),

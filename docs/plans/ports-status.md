@@ -51,6 +51,9 @@ In this order, unless something more useful turns up:
 - GeoCalib (`geocalib-pinhole`, new calibration task): portable float32 MPS goldens and Mac speed rows at 1080x1920;
   check the LM fit's `cholesky_ex` / `cholesky_solve` on MPS. No Metal kernels runner. Weights: the pinned GitHub
   release URL of the card (also in `data/ff-weights/geocalib/`).
+- AnyCalib (`anycalib-pinhole`, calibration): portable float32 MPS goldens and Mac speed rows at 1080x1920; check the
+  fit's `linalg.lstsq` / `solve_ex` / `cholesky_ex` on MPS. No Metal kernels runner. Weights: the pinned GitHub release
+  URL of the card (also in `data/ff-weights/anycalib/`).
 - LW-DETR (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection): portable MPS goldens and Mac speed rows
   (800x1344). No Metal kernels runner. Weights: the pinned HF URLs of the card.
 - MM-Grounding-DINO (`mm-grounding-dino-tiny`, `mm-grounding-dino-base`, detection): portable MPS goldens and Mac
