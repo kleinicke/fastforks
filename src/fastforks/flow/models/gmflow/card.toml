@@ -109,7 +109,7 @@ weights = [{ name = "gmflow-scale2-regrefine6-sintelft-6e39e2b9.pth", size = 295
 id = "gmflow-scale2-regrefine6-kitti"  # upstream gmflow-scale2-regrefine6-kitti15-25b554d7.pth; upstream's KITTI 2015 submission model
 revision = 1
 params = { scales = 2, refine = 6 }
-licence = { training_data = ["flyingchairs", "sceneflow", "unstated"], training_note = "FlyingChairs, FlyingThings3D, Virtual KITTI 2 (no dataset entry here yet, hence 'unstated'), then KITTI 2012 + 2015 (upstream scripts/gmflow_scale2_regrefine6_train.sh, stages vkitti2 and kitti_mix)" }
+licence = { training_data = ["flyingchairs", "sceneflow", "kitti", "unstated"], training_note = "FlyingChairs, FlyingThings3D, Virtual KITTI 2 (no dataset entry here yet, hence 'unstated'), then KITTI 2012 + 2015 (upstream scripts/gmflow_scale2_regrefine6_train.sh, stages vkitti2 and kitti_mix)" }
 weights = [{ name = "gmflow-scale2-regrefine6-kitti15-25b554d7.pth", size = 29500177, sha256 = "25b554d766e91666202eeb936dfe4d3b8f185948ec7cdec4ef21978305a5062e", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-regrefine6-kitti15-25b554d7.pth" }]
 
 [[variants]]

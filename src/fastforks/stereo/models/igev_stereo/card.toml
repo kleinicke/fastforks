@@ -52,13 +52,13 @@ weights = [{ mirror = true, name = "sceneflow.pth", size = 50808741, sha256 = "c
 [[variants]]
 id = "igev-stereo-middlebury"
 revision = 1
-licence = { training_data = ["unstated"], training_note = "Middlebury submission model" }
+licence = { training_data = ["middlebury", "unstated"], training_note = "Middlebury submission model: fine-tuned on Middlebury; the rest of its training is not stated" }
 weights = [{ mirror = true, name = "middlebury.pth", size = 50812261, sha256 = "018b6788a3c2d998aa6384d19fa2f511004c1b46c83b100125a0af26ac445dc5", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=12VFCIo6hiVbaTfpk2xOP_olQVTjQbl-B" }]
 
 [[variants]]
 id = "igev-stereo-eth3d"
 revision = 1
-licence = { training_data = ["unstated"], training_note = "ETH3D submission model" }
+licence = { training_data = ["eth3d", "unstated"], training_note = "ETH3D submission model: fine-tuned on ETH3D; the rest of its training is not stated" }
 weights = [{ mirror = true, name = "eth3d.pth", size = 50812261, sha256 = "de31bb775757f214c0783c8dc8d59c5aca57d30cca8a00cbf87fbbf0259fcb0a", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=19wL74xlvwCVsS0ZbotYDJ7B7K_BCpYzi" }]
 
 [[variants]]
