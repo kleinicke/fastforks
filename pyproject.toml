@@ -207,6 +207,7 @@ runtime-evaluated-base-classes = []
 # VGGT (and AnySplat's copy): upstream sets XFORMERS_AVAILABLE = False, so its xformers-only branches name undefined
 # functions (dead code).
 "src/fastforks/multiview/models/{vggt,anysplat}/net/layers/{attention,block}.py" = ["F821"]
+"src/fastforks/flow/models/megaflow/net/layers/{attention,block}.py" = ["F821"]
 "src/fastforks/multiview/models/pi3/net/layers/{attention,block}.py" = ["F821"]  # same, Pi3 (and its DINOv2)
 "src/fastforks/multiview/models/pi3/net/dinov2/layers/{attention,block}.py" = ["F821"]
 "src/fastforks/multiview/models/mvsplat/net/costvolume/ldm_unet/unet.py" = ["PLW0127"]  # upstream self-assignment

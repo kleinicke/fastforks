@@ -698,6 +698,35 @@ def _neuflow_v2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001
     return call
 
 
+def _megaflow(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001
+    """Upstream `MegaFlow` as `tools/golden/megaflow.py` (`FF_MEGAFLOW_REPO`): the pair as a two-frame clip in [0, 255].
+
+    fp16 = the authors' recipe (README, demo_flow.py): `torch.autocast("cuda", torch.bfloat16)`; the fp32 tier is the
+    plain model. Upstream pads, resizes and unpads inside its forward. The reference environment supplies
+    huggingface_hub (upstream imports it).
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("megaflow")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_MEGAFLOW_REPO")
+        if not repo:
+            msg = "FF_MEGAFLOW_REPO: a clone of cvg/megaflow for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+    card, variant = registry.resolve("flow", full)
+    net = g.build(a.tree, registry.weights(card, variant, allow_download=False)[0]).cuda()
+    a.note = f"upstream MegaFlow, num_reg_refine={g.ITERS}" + (", README recipe: bf16 autocast" * fp16)
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        with torch.autocast("cuda", torch.bfloat16, enabled=fp16):
+            return net(torch.stack([im1, im2]).float()[None], num_reg_refine=g.ITERS)["flow_preds"][-1][:, 0]
+
+    return call
+
+
 def _vitpose(a: Any, full: str) -> Any:  # noqa: ANN401
     """HF transformers `VitPoseImageProcessor` + `VitPoseForPoseEstimation` at the pin of `tools/golden/vitpose.py`.
 
@@ -1926,6 +1955,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "memfof": _Local("flow", _memfof, ((1080, 1920), (375, 1242))),
     "memflow": _Local("flow", _memflow, ((1080, 1920), (375, 1242))),
     "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
+    "megaflow": _LocalFp16("flow", _megaflow, ((1080, 1920), (375, 1242))),
     "rife": _LocalFp16("interpolation", _rife, ((1080, 1920),)),
     "realesrgan": _LocalFp16("restoration", _realesrgan, ((512, 512),), _hwc01),
     "span": _Local("restoration", _span, ((512, 512),), _bchw01),

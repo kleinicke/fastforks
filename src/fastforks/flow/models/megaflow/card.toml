@@ -1,0 +1,41 @@
+schema = 2
+name = "MegaFlow"
+summary = "MegaFlow (Zhang, Wang, Pollefeys, Xu, ECCV 2026): zero-shot large-displacement optical flow from a video transformer. The frames are resized to width 952 for a DINOv2 ViT-L/14 + 24 alternating frame / global attention blocks (VGGT's aggregator); a DPT head fuses four of its layers with a ResNet34 CNN into 128-channel features, a global softmax correlation gives the initial flow, and RAFT-style updates on 9 x 9 local correlations of the CNN's 1/4 features refine it (convex 4x upsampling). The authors' released megaflow-flow weights; the network is ported from cvg/megaflow. A pair runs as upstream's two-frame clip. Paper: state-of-the-art zero-shot results on Sintel, KITTI and Spring."
+tier = "experimental"
+outputs = ["flow"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 ViT-L of the kernels path)
+limitations = ["Pairs only: upstream's multi-frame clips (temporal attention across more than two frames) and its point-tracking and chairs-things checkpoints are not exposed."]
+
+[upstream]
+repo = "https://github.com/cvg/megaflow"
+commit = "2328f8bb26901171c17e7e147413f9ed8c563b1a"  # net/ vendors megaflow/model/*.py
+
+[licence]
+code = "Apache-2.0"  # LICENSE; net/layers: Meta's DINOv2 / VGGT layers (Apache-2.0)
+weights = "Apache-2.0"  # Hugging Face model card Kristen-Z/MegaFlow: "license: apache-2.0"
+files = ["LICENSE"]
+training_data = ["flyingchairs", "tartanair", "sceneflow", "sintel-flow", "kitti", "hd1k"]
+training_note = "FlyingChairs, FlyingThings3D (part of SceneFlow), TartanAir, then a mix with Sintel, KITTI 2015 and HD1K, as upstream's README lists the training datasets"
+evidence = "https://huggingface.co/Kristen-Z/MegaFlow/blob/b4c5c33800b8fa88e047d2eb70ae74b0feca606d/README.md"  # weights licence; code: https://github.com/cvg/megaflow/blob/2328f8bb26901171c17e7e147413f9ed8c563b1a/LICENSE
+
+[io]
+input = "mean_std"  # upstream: (x / 255 - ImageNet mean) / ImageNet std
+mean = [0.485, 0.456, 0.406]
+std = [0.229, 0.224, 0.225]
+min_size = 64  # the 1/4 refinement grid and the width-952 resize need a few rows
+pad = { multiple = 8, mode = "centre", fill = "replicate" }  # upstream InputPadderMF ('sintel' mode)
+
+[options]
+iters = { default = 8, min = 1 }  # refinement updates (upstream README and demo_flow.py: num_reg_refine = 8)
+
+[modes.portable]
+cuda_dtype = "float16"  # pure fp16 network (aggregator, head, CNN, update block); global and local correlation sampling and the flow in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "cudnn_hacc", "raft_flow"]  # flash attention + fast DINOv2, fp16-accumulate convs, the correlation windows on the fly
+
+[[variants]]
+id = "megaflow"  # upstream megaflow-flow (the optical-flow checkpoint of its README and demo)
+revision = 1
+weights = [{ name = "megaflow-flow.safetensors", size = 3744990496, sha256 = "6b8524bdce14f35abeaebdd11a315d28f7845a67d2f03225270243fe84423790", url = "https://huggingface.co/Kristen-Z/MegaFlow/resolve/b4c5c33800b8fa88e047d2eb70ae74b0feca606d/megaflow-flow.safetensors" }]
