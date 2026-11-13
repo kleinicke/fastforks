@@ -11,7 +11,7 @@ from fastforks import matching
 from fastforks._core import cli
 from fastforks._core.errors import InputError, MissingDependencyError, OptionsError
 from fastforks.matching import relative_pose, sfm
-from fastforks.matching._api import SparseMatchingResult
+from fastforks.matching._api import MatchingResult, SparseMatchingResult
 
 N = 20  # keypoints per image
 
@@ -136,6 +136,50 @@ def test_reconstruct_writes_the_database_then_maps(scene, fake_pycolmap, capsys)
     assert "2 verified" in text
     assert f"3/3 images, 40 points -> {scene / 'cli' / 'sparse' / '1'}" in text
     assert fake_pycolmap[-1][0] == "incremental"
+
+
+class FakeDense:
+    """Dense matcher stub: the warp shifts every pixel by (+1, +2); pair (1, 2) is certain in 3 pixels only."""
+
+    sparse = False
+
+    def __init__(self, sizes):
+        self.sizes = sizes  # (w, h) per image index
+
+    def match_pairs(self, _images, pairs):
+        for i, j in pairs:
+            w, h = self.sizes[i]
+            ys, xs = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
+            warp = torch.stack([xs + 1, ys + 2]).float()
+            certainty = torch.full((h, w), 0.9)
+            if (i, j) == (1, 2):
+                certainty = torch.zeros(h, w)
+                certainty[0, 0] = certainty[0, 2] = certainty[2, 0] = 1.0
+            yield MatchingResult(warp, certainty, "fake@1", "portable")
+
+
+def test_dense_matcher_keypoints_are_shared_tracks(scene, monkeypatch):
+    dense = FakeDense({0: (32, 24), 1: (32, 24), 2: (16, 16)})
+    monkeypatch.setattr(matching, "load", lambda *_a, **_k: dense)
+    stats = sfm.colmap_database(scene / "img", scene / "db.db", retrieval=None, dense_matches=50)
+    assert (stats.images, stats.pairs, stats.verified) == (3, 3, 2)  # pair (1, 2): 3 matches, not verifiable
+    con = sqlite3.connect(scene / "db.db")
+    kp = {}
+    for image_id, rows, data in con.execute("SELECT image_id, rows, data FROM keypoints"):
+        kp[image_id] = np.frombuffer(data, np.float32).reshape(rows, 2) - 0.5
+    # image b: the targets of (a, b) (grid + (1, 2)) and the sources of (b, c) (the grid): the same keypoints where
+    # they coincide (one per 1 px cell), none outside the image
+    assert all((k >= 0).all() and (k <= [31.5, 23.5]).all() for k in kp.values())
+    assert 50 < len(kp[2]) < 100  # 50 targets of (a, b) and 50 sources of (b, c), some shared
+    pair = lambda i, j: i * 2147483647 + j  # noqa: E731
+    raw = {}
+    for p, rows, data in con.execute("SELECT pair_id, rows, data FROM matches"):
+        raw[p] = np.frombuffer(data, np.uint32).reshape(rows, 2)
+    assert raw[pair(2, 3)].shape == (3, 2)
+    for m in raw.values():
+        assert len(np.unique(m[:, 0])) == len(m) == len(np.unique(m[:, 1]))  # one match per keypoint
+    m = raw[pair(1, 2)]
+    np.testing.assert_allclose(kp[2][m[:, 1]] - kp[1][m[:, 0]], [[1.0, 2.0]] * len(m), atol=1e-5)
 
 
 def test_reconstruct_names_the_sfm_extra_without_pycolmap(scene, monkeypatch):

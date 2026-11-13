@@ -12,6 +12,11 @@ Stages: retrieval (each image with its `k` most similar others, `retrieval.pairs
 `estimate_fundamental` on the GPU) and the database: cameras, images, keypoints, raw matches and the verified
 two-view geometries (fundamental matrix + inlier matches), in the COLMAP 3 schema (COLMAP 4 reads it too).
 
+A dense matcher (RoMa, LoFTR) gets keypoints the way hloc's `match_dense` does: per pair, the `dense_matches` most
+certain pixels of a `DENSE_STRIDE` grid of the first image and where the warp puts them in the second; per image, the
+endpoints of all its pairs merged within `DENSE_CELL` px cells (one keypoint per cell, at the mean) so matches of
+different pairs share keypoints (tracks); one match per keypoint and pair (the most certain).
+
 `reconstruct` goes on to the reconstruction with pycolmap's mapper (`pip install 'fastforks-core[sfm]'`).
 """
 
@@ -33,11 +38,11 @@ from fastforks._core.image import read_images
 
 if TYPE_CHECKING:
     import os
-    from collections.abc import Generator, Mapping, Sequence
+    from collections.abc import Generator, Iterable, Mapping, Sequence
 
     from fastforks.matching._api import SparseMatchingResult
 
-__all__ = ["DatabaseStats", "colmap_database"]
+__all__ = ["DatabaseStats", "ReconstructionStats", "colmap_database", "reconstruct"]
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")
 """Files of the image folder that are used (case-insensitive, subfolders included)."""
@@ -46,6 +51,9 @@ _VERIFY_BATCH = 64  # pairs per batched RANSAC call
 _UNCALIBRATED = 3  # COLMAP `TwoViewGeometry::UNCALIBRATED` (2 is CALIBRATED): a fundamental matrix
 _SIMPLE_RADIAL = 2  # COLMAP camera model id: f, cx, cy, k
 _PAIR_FACTOR = 2147483647  # COLMAP `kMaxNumImages`: pair_id = id1 * it + id2
+DENSE_STRIDE = 2  # dense matchers: grid of candidate pixels in the first image
+DENSE_CELL = 1.0  # dense matchers: keypoints closer than this (px) merge into one (hloc `max_error` 1)
+_DENSE_MIN_CERTAINTY = 0.1  # dense matchers: candidates below it are never used
 
 
 @dataclass(frozen=True)
@@ -77,6 +85,7 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
     k: int = 20,
     threshold: float = 4.0,
     single_camera: bool = False,
+    dense_matches: int = 4096,
     mode: Literal["auto", "portable", "kernels"] = "auto",
     device: str | torch.device | None = None,
 ) -> DatabaseStats:
@@ -86,12 +95,14 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
         images: Folder of the images (`IMAGE_SUFFIXES`, subfolders included); the database names them by their path
             relative to it, so pass the same folder as the mapper's `--image_path`.
         database: The COLMAP database file to write (must not exist).
-        matcher: A sparse matching model id (`matching.list_models()`, e.g. `aliked-lightglue`, `disk-lightglue`).
+        matcher: A matching model id (`matching.list_models()`): sparse (`aliked-lightglue`, `disk-lightglue`, ...)
+            or dense (`romav2`, ...: keypoints from the warps, see the module docstring).
         matcher_options: Load options of the matcher (`options` of `load`), e.g. `{"long_side": 1600}`.
         retrieval: The retrieval model that picks the pairs (`retrieval.list_models()`); `None`: all pairs.
         k: Pairs per image (each image with its `k` most similar others); all pairs if `k >= images - 1`.
         threshold: Inlier threshold of the fundamental-matrix RANSAC in pixels (Sampson distance; 4 as COLMAP).
         single_camera: One camera (intrinsics) for all images of the same size; default one per image, as COLMAP.
+        dense_matches: Dense matchers: matches sampled per pair (the most certain grid pixels of the first image).
         mode: Backend of the models and of the RANSAC.
         device: Of the models (default as `load`).
 
@@ -99,7 +110,7 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
         The counts and the time per stage.
 
     Raises:
-        InputError: No images, an unreadable image, an existing database or a dense matcher.
+        InputError: No images, an unreadable image or an existing database.
     """
     from fastforks import matching  # noqa: PLC0415 - the task modules import this one lazily
     from fastforks import retrieval as retrieval_task  # noqa: PLC0415
@@ -124,32 +135,16 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
             pairs = retrieval_task.pairs(desc, k).cpu()
             del model, desc
     pair_list = [(int(i), int(j)) for i, j in pairs]
+    sizes = [_size(p) for p in paths]
     with _stage("matching", seconds, peak):
         model = matching.load(matcher, mode=mode, device=device, options=matcher_options)
-        if not model.sparse:
-            msg = f"{matcher} is a dense matcher; the COLMAP database needs a sparse one (keypoints per image)"
-            raise InputError(msg)
-        keypoints: dict[int, np.ndarray] = {}
-        raw: dict[tuple[int, int], np.ndarray] = {}
-        verified: dict[tuple[int, int], tuple[np.ndarray, np.ndarray]] = {}
-        batch: list[tuple[tuple[int, int], torch.Tensor, torch.Tensor, torch.Tensor]] = []
         results = model.match_pairs(paths, pair_list)
-        for pair, result in zip(pair_list, results, strict=True):
-            assert isinstance(result, _sparse_type())  # noqa: S101 - `model.sparse`
-            for image, kp in zip(pair, (result.keypoints1, result.keypoints2), strict=True):
-                if image not in keypoints:
-                    keypoints[image] = kp.cpu().numpy()
-            raw[pair] = result.pairs.cpu().numpy()
-            if len(result.pairs) >= MIN_INLIERS:
-                p1, p2 = result.keypoints1[result.pairs[:, 0]], result.keypoints2[result.pairs[:, 1]]
-                batch.append((pair, p1, p2, result.pairs))
-            if len(batch) == _VERIFY_BATCH:
-                verified.update(_verify(batch, threshold, mode))
-                batch = []
-        verified.update(_verify(batch, threshold, mode))
+        if model.sparse:
+            keypoints, raw, verified = _sparse(pair_list, results, threshold, mode)
+        else:
+            keypoints, raw, verified = _dense(pair_list, results, sizes, dense_matches, (threshold, mode))
         del model
     with _stage("database", seconds, peak):
-        sizes = [_size(p) for p in paths]
         _write(
             Path(database),
             [p.relative_to(root).as_posix() for p in paths],
@@ -231,6 +226,124 @@ def reconstruct(
     best, rec = max(models.items(), key=lambda kv: kv[1].num_reg_images())
     registered, points = rec.num_reg_images(), rec.num_points3D()
     return ReconstructionStats(stats, mapper, seconds, len(models), registered, points, sparse / str(best))
+
+
+Keypoints = dict[int, np.ndarray]
+Raw = dict[tuple[int, int], np.ndarray]
+Verified = dict[tuple[int, int], tuple[np.ndarray, np.ndarray]]
+_Batch = list[tuple[tuple[int, int], torch.Tensor, torch.Tensor, torch.Tensor]]
+
+
+def _sparse(
+    pairs: list[tuple[int, int]], results: Iterable[Any], threshold: float, mode: str
+) -> tuple[Keypoints, Raw, Verified]:
+    """Keypoints, raw matches and verified geometries of a sparse matcher's `match_pairs` results."""
+    keypoints: Keypoints = {}
+    raw: Raw = {}
+    verified: Verified = {}
+    batch: _Batch = []
+    for pair, result in zip(pairs, results, strict=True):
+        assert isinstance(result, _sparse_type())  # noqa: S101 - `model.sparse`
+        for image, kp in zip(pair, (result.keypoints1, result.keypoints2), strict=True):
+            if image not in keypoints:
+                keypoints[image] = kp.cpu().numpy()
+        raw[pair] = result.pairs.cpu().numpy()
+        if len(result.pairs) >= MIN_INLIERS:
+            p1, p2 = result.keypoints1[result.pairs[:, 0]], result.keypoints2[result.pairs[:, 1]]
+            batch.append((pair, p1, p2, result.pairs))
+        if len(batch) == _VERIFY_BATCH:
+            verified.update(_verify(batch, threshold, mode))
+            batch = []
+    verified.update(_verify(batch, threshold, mode))
+    return keypoints, raw, verified
+
+
+def _dense(
+    pairs: list[tuple[int, int]],
+    results: Iterable[Any],
+    sizes: Sequence[tuple[int, int]],
+    n: int,
+    verify: tuple[float, str],
+) -> tuple[Keypoints, Raw, Verified]:
+    """Keypoints (merged match endpoints), raw matches and verified geometries from a dense matcher's warps.
+
+    `sizes`: (w, h) per image; `n`: matches sampled per pair; `verify`: the RANSAC threshold and backend.
+    """
+    threshold, mode = verify
+    sampled = []  # per pair: points in the first image, in the second, certainty (CPU)
+    device = None
+    for (_, j), result in zip(pairs, results, strict=True):
+        p1, p2, conf = _dense_matches(result.warp, result.certainty, sizes[j], n)
+        device = p1.device
+        sampled.append((p1.cpu(), p2.cpu(), conf.cpu()))
+    points: dict[int, list[torch.Tensor]] = {}
+    for (i, j), (p1, p2, _) in zip(pairs, sampled, strict=True):
+        points.setdefault(i, []).append(p1)
+        points.setdefault(j, []).append(p2)
+    keypoints: Keypoints = {}
+    index: dict[int, list[torch.Tensor]] = {}  # per image: the keypoint index of each appended point list
+    for image, lists in points.items():
+        kp, idx = _merge(torch.cat(lists), DENSE_CELL)
+        keypoints[image] = kp.numpy()
+        index[image] = list(idx.split([len(t) for t in lists]))
+    raw: Raw = {}
+    verified: Verified = {}
+    batch: _Batch = []
+    for (i, j), (_, _, conf) in zip(pairs, sampled, strict=True):
+        ids = torch.stack([index[i].pop(0), index[j].pop(0)], 1)
+        ids = _one_per_keypoint(ids, conf)
+        raw[i, j] = ids.numpy()
+        if len(ids) >= MIN_INLIERS:
+            kp1, kp2 = torch.from_numpy(keypoints[i]), torch.from_numpy(keypoints[j])
+            batch.append(((i, j), kp1[ids[:, 0]].to(device), kp2[ids[:, 1]].to(device), ids))
+        if len(batch) == _VERIFY_BATCH:
+            verified.update(_verify(batch, threshold, mode))
+            batch = []
+    verified.update(_verify(batch, threshold, mode))
+    return keypoints, raw, verified
+
+
+def _dense_matches(
+    warp: torch.Tensor, certainty: torch.Tensor | None, size2: tuple[int, int], n: int
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """The `n` most certain pixels of the `DENSE_STRIDE` grid of the first image and where the warp puts them.
+
+    Pixels below the minimum certainty or warped outside the second image (`size2`: w, h) are skipped.
+    Returns `(x, y)` in the first image, in the second, and the certainty.
+    """
+    h, w = warp.shape[-2:]
+    ys = torch.arange(0, h, DENSE_STRIDE, device=warp.device)
+    xs = torch.arange(0, w, DENSE_STRIDE, device=warp.device)
+    target = warp[:, ys][:, :, xs].reshape(2, -1).T  # [G, 2]
+    conf = torch.ones(len(target), device=warp.device) if certainty is None else certainty[ys][:, xs].flatten()
+    inside = (target >= 0).all(1) & (target[:, 0] <= size2[0] - 1) & (target[:, 1] <= size2[1] - 1)
+    conf = conf.masked_fill(~inside | (conf < _DENSE_MIN_CERTAINTY), -1.0)
+    conf, pick = conf.topk(min(n, len(conf)))
+    keep = conf >= 0
+    pick, conf = pick[keep], conf[keep]
+    source = torch.stack([xs[pick % len(xs)], ys[pick // len(xs)]], 1).to(target.dtype)
+    return source, target[pick], conf
+
+
+def _merge(points: torch.Tensor, cell: float) -> tuple[torch.Tensor, torch.Tensor]:
+    """One keypoint per `cell` px cell holding points (their mean): keypoints `[K, 2]`, the keypoint of each point."""
+    q = torch.floor(points / cell).long()
+    key = q[:, 1] * (int(q[:, 0].max()) + 2) + q[:, 0]
+    _, index, counts = key.unique(return_inverse=True, return_counts=True)
+    keypoints = torch.zeros(len(counts), 2).index_add_(0, index, points) / counts[:, None]
+    return keypoints, index
+
+
+def _one_per_keypoint(ids: torch.Tensor, conf: torch.Tensor) -> torch.Tensor:
+    """`ids` `[M, 2]` keypoint index pairs, at most one per first and per second keypoint: the most certain."""
+    order = conf.argsort(descending=True)
+    ids = ids[order]
+    keep = torch.ones(len(ids), dtype=torch.bool)
+    for col in (0, 1):
+        _, inv = ids[:, col].unique(return_inverse=True)
+        first = torch.full((int(inv.max()) + 1,), len(ids)).scatter_reduce_(0, inv, torch.arange(len(ids)), "amin")
+        keep &= first[inv] == torch.arange(len(ids))
+    return ids[keep]
 
 
 def _size(path: Path) -> tuple[int, int]:
