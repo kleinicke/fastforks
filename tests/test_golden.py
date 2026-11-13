@@ -41,6 +41,7 @@ from fastforks import (
     multiview,
     pose,
     promptable_segmentation,
+    retrieval,
     segmentation,
     stereo,
     tracking,
@@ -76,6 +77,7 @@ API: dict[str, Any] = {
     "matching": matching,
     "matting": matting,
     "interpolation": interpolation,
+    "retrieval": retrieval,
     "tracking": tracking,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
@@ -315,6 +317,9 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     elif task == "matting":  # trimap-guided models: the golden's trimap
         r = m(img, trimap=want["trimap"].round().astype(np.uint8)) if want and "trimap" in want else m(img)
         maps = {"alpha": r.alpha}
+    elif task == "retrieval":
+        r = m(img)
+        maps = {"descriptor": r.descriptor}
     else:
         r = m(img, logits=True)
         assert r.logits is not None

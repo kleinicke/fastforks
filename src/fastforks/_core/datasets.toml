@@ -299,3 +299,33 @@ name = "Vimeo-90K (septuplets / triplets for frame interpolation)"
 licence = "not stated"  # clips from vimeo.com under their uploaders' terms; the page asks only for a citation
 commercial = "unclear"
 url = "http://toflow.csail.mit.edu/"
+
+[gsv-cities]
+name = "GSV-Cities (Google Street View images of 62k places in 40 cities)"
+licence = "not checked"  # terms not read for the retrieval ports (2026-11-13)
+commercial = "unclear"
+url = "https://github.com/amaralibey/gsv-cities"
+
+[msls]
+name = "Mapillary Street-Level Sequences"
+licence = "CC-BY-NC-SA-4.0"  # Mapillary's MSLS terms (research use), not re-read for the retrieval ports (2026-11-13)
+commercial = "no"
+url = "https://www.mapillary.com/dataset/places"
+
+[megascenes]
+name = "MegaScenes (Internet photo collections of scenes from Wikimedia Commons)"
+licence = "not checked"  # terms not read for the retrieval ports (2026-11-13)
+commercial = "unclear"
+url = "https://megascenes.github.io/"
+
+[scannet]
+name = "ScanNet (RGB-D scans of indoor scenes)"
+licence = "ScanNet Terms of Use"  # non-commercial research terms, not re-read for the retrieval ports (2026-11-13)
+commercial = "no"
+url = "http://www.scan-net.org/"
+
+[sf-xl]
+name = "San Francisco eXtra Large (street-view images of San Francisco)"
+licence = "not checked"  # terms not read for the retrieval ports (2026-11-13)
+commercial = "unclear"
+url = "https://github.com/gmberton/CosPlace"

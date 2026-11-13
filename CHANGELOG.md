@@ -8,6 +8,14 @@
   (24.5 ms fp16), peak 1.0 GB vs 1.9 GB. DAVIS 2017 (180 triplets) PSNR 27.13 kernels / portable vs 27.13 original
   fp32 (27.03 fp16); the warps sample in float32.
 
+- New task `fastforks.retrieval` (image retrieval / visual place recognition): one unit-length global descriptor per
+  image, `top_k` (exact cosine top-k on the GPU, chunked) and `pairs` (image pairs for 3-D reconstruction).
+
+- MegaLoc place recognition (`megaloc`, retrieval; MIT code and weights): DINOv2 ViT-B with optimal-transport
+  (Sinkhorn) pooling, an 8448-d descriptor. 480x640 image: 4.26 ms kernels, 5.29 ms portable (4.27 ms compile, 3.21 ms
+  TensorRT) vs 14.6 ms original fp32 (9.68 ms autocast; `half()` fails in the authors' code), peak 508 MB vs 944 MB.
+  St Lucia recall@1 100.0 for all modes and the original.
+
 - LW-DETR real-time detection (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection; Apache-2.0 code and
   weights): ViT encoder with a multi-level projector and a deformable DETR decoder, the authors' PostProcess.
   800x1344 image, tiny: 2.2 ms kernels, 7.4 ms portable (3.0 ms compile, 1.0 ms TensorRT) vs 20.4 ms original fp32

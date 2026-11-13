@@ -26,6 +26,7 @@ from fastforks.matting import MattingResult
 from fastforks.multiview import MultiViewResult
 from fastforks.pose import PoseResult
 from fastforks.promptable_segmentation._api import ConceptSegmentationResult, PromptableSegmentationResult
+from fastforks.retrieval import RetrievalResult
 from fastforks.segmentation import SegmentationResult
 from fastforks.stereo import StereoResult
 from fastforks.stereo.calibrated import PairViews, StereoPairResult, StereoView
@@ -42,6 +43,7 @@ RESULTS = {
     "matching": (MatchingResult, SparseMatchingResult),
     "matting": (MattingResult,),
     "interpolation": (InterpolationResult,),
+    "retrieval": (RetrievalResult,),
     "features": (FeaturesResult,),
     "classification": (ClassificationResult,),
     "promptable_segmentation": (PromptableSegmentationResult, ConceptSegmentationResult),

@@ -237,6 +237,7 @@ _RESULTS = {
     "matching": "MatchingResult SparseMatchingResult",
     "matting": "MattingResult",
     "interpolation": "InterpolationResult",
+    "retrieval": "RetrievalResult",
     "depth": "DepthResult",
     "features": "FeaturesResult",
     "multiview": "MultiViewResult",

@@ -45,6 +45,7 @@ from fastforks.multiview._runner import Runner as MultiViewRunner
 from fastforks.pose._runner import Runner as PoseRunner
 from fastforks.promptable_segmentation._api import MAX_EXEMPLARS, ConceptModelId, _model_class
 from fastforks.promptable_segmentation._runner import Runner as PromptRunner
+from fastforks.retrieval._runner import Runner as RetrievalRunner
 from fastforks.segmentation._runner import Runner as SegRunner
 from fastforks.tracking._runner import Runner as TrackingRunner
 
@@ -602,6 +603,7 @@ def test_resize_crop_bicubic_stays_in_range():
         "matting",
         "tracking",
         "interpolation",
+        "retrieval",
     ],
 )
 def test_runner_without_call_cannot_be_built(task):
@@ -615,6 +617,7 @@ def test_runner_without_call_cannot_be_built(task):
     base["matting"] = MattingRunner
     base["tracking"] = TrackingRunner
     base["interpolation"] = InterpolationRunner
+    base["retrieval"] = RetrievalRunner
 
     class NoCall(base[task]):
         pass

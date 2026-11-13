@@ -1095,6 +1095,22 @@ def _vitmatte(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - a
     return lambda image, trimap: g.predict(net, image[None].float() / 255, trimap)
 
 
+def _megaloc(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """The authors' `megaloc_model.py` with the README's resize / normalisation, as `tools/golden/megaloc.py`.
+
+    `FF_MEGALOC_REPO`: a gmberton/MegaLoc checkout; no precision option of its own (autocast / `half()` tiers).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("megaloc")
+    card, variant = registry.resolve("retrieval", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_MEGALOC_REPO"]), Path(weights)).cuda()
+    a.note = f"gmberton/MegaLoc@{g.COMMIT[:12]} megaloc_model.py, 322 x 322 bilinear antialiased resize, normalisation"
+    return lambda image: g.predict(net, image[None].float() / 255)
+
+
+
 class _Local:
     """An original the bench has no adapter for, on the library's own bench inputs as uint8 CUDA tensors.
 
@@ -1472,6 +1488,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "loftr": _Local("matching", _loftr, ((768, 1024),)),
     "birefnet": _LocalFp16("matting", _birefnet, ((1080, 1920),)),
     "ben2": _LocalFp16("matting", _ben2, ((1080, 1920),)),
+    "megaloc": _Local("retrieval", _megaloc, ((480, 640),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),

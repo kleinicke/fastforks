@@ -310,6 +310,9 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
     },
     "matting": {"alpha": ("[B, H, W]", "float32", "[0, 1], 1 = foreground", "input pixels")},
     "interpolation": {"frame": ("[B, 3, H, W]", "float32", "RGB in [0, 1]", "input pixels, at time `timestep`")},
+    "retrieval": {
+        "descriptor": ("[B, D]", "float32", "unit L2 norm (cosine similarity = dot product)", "one per image")
+    },
     "tracking": {
         "tracks": ("[T, Q, 2]", "float32", "pixels of the input, (x, y)", "every frame, one row per query"),
         "visibility": ("[T, Q]", "float32", "[0, 1] probability that the point is visible", "every frame"),
@@ -405,6 +408,7 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "classification": (("network",), ("image conversion", "resize", "crop", "normalise (model.data_config)", "top-k")),
     "segmentation": (("input handling", "network", "logits at the input size"), ("image conversion", "argmax")),
     "matting": (("resize to the network size", "normalise", "network", "resize to the input"), ("image conversion",)),
+    "retrieval": (("resize to the network size", "normalise", "network"), ("image conversion", "top_k", "pairs")),
     "features": (("resize to the patch stride", "network"), ("image conversion", "pooler_output", "hidden_states")),
     "promptable_segmentation": (
         ("resize to the encoder input", "image encoder"),

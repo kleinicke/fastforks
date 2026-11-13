@@ -91,6 +91,10 @@ _DATASETS = {
         "aim500": "AIM-500, all 500 images, generated trimaps, SAD / MSE x 1000 (unknown region)",
         "aim500-every5": "AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region)",
     },
+    "retrieval": {
+        "st-lucia": "St Lucia, all 1464 queries against the 1549 database images, recall@1 / @5 % (25 m)",
+        "st-lucia-every5": "St Lucia, every 5th query (293) against the 1549 database images, recall@1 / @5 % (25 m)",
+    },
     "tracking": {
         "tapvid-davis-first-every3": "TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA %",
         "tapvid-davis-first": "TAP-Vid DAVIS (query first), AJ / delta_avg / OA %",
@@ -138,6 +142,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
+    "retrieval": ((("r1", "{:.2f}", ""), ("r5", "{:.2f}", "")), "n", "queries"),
     **{
         ("matting", d): ((("sad", "{:.2f}", ""), ("mse", "{:.3f}", "")), "n", "images")
         for d in ("aim500", "aim500-every5")
@@ -204,6 +209,9 @@ _PROTOCOL = {
     ("matting", "aim500-every5"): "Trimap-guided models, AIM-500: each image at its own size with a trimap made from "
     "its alpha (alpha 255 / 0 eroded by a 21 px ellipse = foreground / background, the rest unknown); SAD / 1000 and "
     "MSE of the 8-bit alpha in the unknown region (ViTMatte's evaluation). ",
+    "retrieval": "Every query's descriptor against every database descriptor (cosine similarity, exact top-k on the "
+    "GPU); a query counts as found at k when one of its k nearest database images is within 25 m (UTM positions of "
+    "the file names), the standard visual place recognition protocol. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
@@ -954,6 +962,10 @@ TASK_IO = {
     ),
     "segmentation": "Input: one RGB image. Output: per-pixel class labels (logits with `logits=True`).",
     "promptable_segmentation": "Input: one image plus a point, box or text prompt. Output: masks with quality scores.",
+    "retrieval": (
+        "Input: one RGB image. Output: a global descriptor `[D]` (unit L2 norm) for image retrieval / visual place "
+        "recognition; `fastforks.retrieval.top_k` and `pairs` find the nearest images (cosine similarity) on the GPU."
+    ),
     "tracking": (
         "Input: a video (its frames in order) and query points `(t, x, y)`. Output: the position of every query in "
         "every frame and the probability that it is visible there."
@@ -1132,6 +1144,7 @@ _STD_SIZE = {
     "interpolation": "1080x1920",
     "matting": "1080x1920",
     "tracking": "480x854",
+    "retrieval": "480x640",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input

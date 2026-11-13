@@ -1,0 +1,37 @@
+schema = 2
+name = "MegaLoc"
+summary = "MegaLoc (Berton and Masone, CVPR 2025 workshops): one image-retrieval model for visual place recognition, landmark retrieval and structure-from-motion pair selection. A DINOv2 ViT-B/14 fine-tuned on a mix of place-recognition, landmark and SfM datasets; its patch features are assigned to 64 clusters by optimal transport (SALAD-style aggregation) and projected to an 8448-d unit descriptor."
+tier = "experimental"
+outputs = ["descriptor"]
+uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+
+[upstream]
+repo = "https://github.com/gmberton/MegaLoc"
+commit = "5fe0dd697c4a70ba3e23607f6716ab3c606b16db"  # net/megaloc.py = megaloc_model.py's aggregator (OpenGlue Sinkhorn, FeatureAggregator, Aggregator); its DINOv2 ViT-B/14 = shared/depth_anything_v2 (same layers and position interpolation)
+
+[licence]
+code = "MIT"  # LICENSE
+weights = "MIT"  # the HF model card: "license: mit"
+files = ["LICENSE"]
+training_data = ["lvd-142m", "gsv-cities", "msls", "megascenes", "scannet", "sf-xl"]
+training_note = "Fine-tuned from DINOv2 ViT-B/14 (LVD-142M) on GSV-Cities, MSLS, MegaScenes, ScanNet and SF-XL (paper, arXiv 2502.17237, Sec. 2); MSLS and ScanNet carry non-commercial terms. Only the weights licence (MIT) counts for the commercial flag."
+evidence = "https://github.com/gmberton/MegaLoc/blob/5fe0dd697c4a70ba3e23607f6716ab3c606b16db/LICENSE ; https://huggingface.co/gberton/MegaLoc/blob/a0f34722c4297ff787e022433799250180860af7/README.md"
+
+[io]
+input = "imagenet"  # the runner resizes to `size` x `size` first (bilinear, antialiased: torchvision Resize as in the README)
+
+[params]
+size = 322  # network input side (README evaluation preprocessing)
+dim = 8448
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused"]
+
+[[variants]]
+id = "megaloc"
+revision = 1
+weights = [{ name = "megaloc.safetensors", size = 914577436, sha256 = "d4f9f2bcb60018f91eb6a8e061ed054fd55654e10c2569cf13841ea986ffb4f8", url = "https://huggingface.co/gberton/MegaLoc/resolve/a0f34722c4297ff787e022433799250180860af7/model.safetensors" }]

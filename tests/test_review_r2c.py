@@ -228,6 +228,7 @@ def test_python_m_fastforks(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Capt
         ("matching", "MatchingModel"),
         ("matting", "MattingModel"),
         ("interpolation", "InterpolationModel"),
+        ("retrieval", "RetrievalModel"),
         ("tracking", "TrackingModel"),
     ],
 )

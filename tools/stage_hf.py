@@ -223,6 +223,7 @@ _PIPELINE = {
     "pose": "keypoint-detection",
     "matching": "image-to-image",
     "matting": "image-segmentation",
+    "retrieval": "image-feature-extraction",
     "tracking": "keypoint-detection",  # no point-tracking pipeline on the Hub: query points tracked over time
     "interpolation": "image-to-image",  # no frame-interpolation pipeline on the Hub: two frames -> the middle one
 }
@@ -241,6 +242,7 @@ _TASK_TAGS = {
     "matting": ["background-removal", "dichotomous-image-segmentation", "matting"],
     "tracking": ["point-tracking", "tracking-any-point", "video"],
     "interpolation": ["frame-interpolation", "video-frame-interpolation", "video"],
+    "retrieval": ["image-retrieval", "visual-place-recognition", "global-descriptor"],
 }
 _SNIPPET = {
     "stereo": 'result = model("left.png", "right.png")\nresult.{out}  # [H, W] float32 tensor, input resolution',
@@ -265,6 +267,10 @@ _SNIPPET = {
     ),
     "matching": ('result = model("view1.jpg", "view2.jpg")\nresult.{out}  # [2, H1, W1] float32: x, y in view2 pixels'),
     "matting": 'result = model("photo.jpg")\nresult.{out}  # [H, W] float32 in [0, 1], input resolution',
+    "retrieval": (
+        'result = model("photo.jpg")\nresult.{out}  # [D] float32, unit norm\n'
+        "# fastforks.retrieval.top_k(queries, database, k=5): the nearest database images"
+    ),
     "tracking": (
         "result = model(frames, [[0, x, y]])  # frames: the video's images in order; queries (t, x, y)\n"
         "result.{out}  # [T, Q, 2] float32: x, y in input pixels; result.visible [T, Q] bool"

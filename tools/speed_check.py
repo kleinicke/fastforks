@@ -99,6 +99,7 @@ STANDARD = {  # the task's standard input of docs/benchmarks.md (tools/gen_docs.
     "matting": "1080x1920",
     "tracking": "480x854",
     "interpolation": "1080x1920",
+    "retrieval": "480x640",
 }
 PROFILE_INPUT = {
     "stereo": "994x1482",

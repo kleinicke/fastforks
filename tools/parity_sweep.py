@@ -62,6 +62,7 @@ TASKS = (
     "matting",
     "tracking",
     "interpolation",
+    "retrieval",
 )
 STANDARD = {  # the task's output order: the first one present is the primary map (tolerances apply to it)
     "stereo": ("disparity", "confidence"),
@@ -69,6 +70,7 @@ STANDARD = {  # the task's output order: the first one present is the primary ma
     "matching": ("warp", "certainty"),
     "matting": ("alpha",),
     "interpolation": ("frame",),
+    "retrieval": ("descriptor",),
     "depth": ("depth", "inverse_depth", "points", "intrinsics", "confidence", "mask", "normals"),
     "multiview": ("depth", "world_points", "confidence", "mask", "intrinsics", "cam_to_world"),
     "classification": ("logits",),

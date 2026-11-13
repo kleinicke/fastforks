@@ -504,6 +504,17 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`pe-spatial-g14-448`](models/features.md#perception-encoder) | yes | 52.7 (224x224) | 25.5 | 16.9 | 3.1x vs original (224x224) | 5123 |
 | [`pe-core-g14-448`](models/features.md#perception-encoder) | yes | 52.4 (224x224) | 25.4 | 17.0 | 3.1x vs original (224x224) | 5180 |
 
+## Retrieval
+
+1 models; size 480x640.
+
+- Fastest: [`megaloc`](models/retrieval.md#megaloc) (4.3 ms).
+- Fastest commercially usable: [`megaloc`](models/retrieval.md#megaloc) (4.3 ms).
+
+| model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
+|---|---|---|---|---|---|---|
+| [`megaloc`](models/retrieval.md#megaloc) | yes | 9.7 (480x640) | 5.3 | 4.3 | 2.3x vs original (480x640) | 485 |
+
 ## Multiview
 
 7 models; each at its own benchmark input (views x size in Benchmarks).
