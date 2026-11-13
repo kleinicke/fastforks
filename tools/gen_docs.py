@@ -222,7 +222,7 @@ _PROTOCOL = {
     "pair. ",
     "tracking": "TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the "
     "original frames, resized by the model), one query per track at its first visible point, tracked online "
-    "(TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker); AJ, delta_avg (< 1, 2, 4, 8, 16 px at "
+    "(TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg (< 1, 2, 4, 8, 16 px at "
     "256 x 256) and occlusion accuracy averaged over the videos. ",
     ("matting", "dis-vd-every2"): "Each image at its own size against its binary mask: MAE of the alpha, max F-beta "
     "(beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). ",

@@ -42,6 +42,12 @@
   peak 1.6 GB vs 1.3 GB (reserved). TAP-Vid DAVIS (first, 10 videos) AJ 69.65 kernels, 69.69 portable vs 69.60
   original fp32 (69.64 fp16).
 
+- LocoTrack point tracking (`locotrack-b`, `locotrack-s`, tracking; Apache-2.0 code and weights): offline over the
+  whole clip, a per-frame match from a cost volume refined with local 4-D correlation and a transformer over the
+  frames. 24-frame 480x854 video, 256 queries: `locotrack-b` 178 ms kernels, 190 ms portable (83 ms compile, the
+  TensorRT export fails) vs 274 ms original fp32 (203 ms fp16), peak 840 MB vs 1018 MB (reserved). TAP-Vid DAVIS
+  (first, 10 videos) AJ 67.29 kernels, 67.31 portable vs 67.19 original fp32 (67.31 fp16).
+
 - RIFE frame interpolation (`rife-4.25`, `rife-4.26`, `rife-4.25-lite`; new task `interpolation`; MIT code and
   weights): Practical-RIFE `IFNet_HDv3`, any timestep in [0, 1], frames zero-padded to a multiple of 128 as upstream.
   1080x1920 pair: 31.4 ms kernels, 36.0 ms portable (44.5 ms compile, 17.6 ms TensorRT) vs 45.3 ms original fp32

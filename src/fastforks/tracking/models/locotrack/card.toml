@@ -1,0 +1,44 @@
+schema = 2
+name = "LocoTrack"
+summary = "LocoTrack (Cho et al., ECCV 2024): tracking any point offline over a whole video, TAPIR-like with local 4D correlation. A ResNet encodes every 256 x 256 frame at three resolutions; two cost volumes against the query's features give the initial position, visibility and uncertainty; then four refinements correlate the 7 x 7 neighbourhood of each track point with the 7 x 7 support of its query (a 4D correlation, encoded by small convs) and a transformer with ALiBi attention over the frames of each track corrects the whole track at once."
+tier = "experimental"
+outputs = ["tracks", "visibility"]
+uses = []  # fastforks.shared modules this family imports
+limitations = [
+  "Offline: the whole video is encoded before tracking (features of every frame in memory, about 7 MB per frame in float32); for live video use an online tracker (TAPNext, Track-On2).",
+  "Frames are resized to 256 x 256 (the training size and that of upstream's TAP-Vid numbers), whatever their size and aspect ratio. Upstream's higher-resolution refinement is not ported.",
+  "One video per call; all queries of a call share the video.",
+]
+
+[upstream]
+repo = "https://github.com/KU-CVLAB/LocoTrack"
+commit = "3385a233a270160b253a69050c6a3934527f7775"  # net/locotrack.py = locotrack_pytorch/models/{locotrack_model,nets,utils,cmdtop}.py at 256 x 256, offline, einops removed
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # Hugging Face dataset card hamacojr/LocoTrack-pytorch-weights: "license: apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Upstream README: trained on the panning Kubric MOVi-E sequences (synthetic, released as hamacojr/LocoTrack-panning-MOVi-E). No dataset entry here yet."
+evidence = "https://huggingface.co/datasets/hamacojr/LocoTrack-pytorch-weights/blob/a8754d0edfd9e53713dcb31ee21734aac8b727cf/README.md (license: apache-2.0); https://github.com/KU-CVLAB/LocoTrack/blob/3385a233a270160b253a69050c6a3934527f7775/LICENSE (Apache-2.0)"
+
+[io]
+input = "0-1"  # the runner resizes the frames to 256 x 256 (bilinear, antialiased) and scales them to [-1, 1] itself
+min_size = 16
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fvm_conv"]  # the refinement transformer: fused GEMMs (one q/k/v GEMM, exact-GELU epilogue), fp16 accumulation
+
+[[variants]]
+id = "locotrack-b"  # upstream LocoTrack-B (locotrack_base.ckpt): mixer width 384, 6 heads
+revision = 1
+weights = [{ name = "locotrack_base.ckpt", size = 46139570, sha256 = "8a5adbaeb610d1f06adfbc7c9076b66f727d674c0fd1d668890201cf3339736c", url = "https://huggingface.co/datasets/hamacojr/LocoTrack-pytorch-weights/resolve/a8754d0edfd9e53713dcb31ee21734aac8b727cf/locotrack_base.ckpt" }]
+
+[[variants]]
+id = "locotrack-s"  # upstream LocoTrack-S (locotrack_small.ckpt): mixer width 256, 4 heads
+revision = 1
+weights = [{ name = "locotrack_small.ckpt", size = 33001026, sha256 = "da023594e6d6c05ecad9644efc1467545481cfa899e20730bd9fdce778ffa5ac", url = "https://huggingface.co/datasets/hamacojr/LocoTrack-pytorch-weights/resolve/a8754d0edfd9e53713dcb31ee21734aac8b727cf/locotrack_small.ckpt" }]

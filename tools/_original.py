@@ -1501,6 +1501,28 @@ def _track_on(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - t
     return call
 
 
+def _locotrack(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream `LocoTrack.forward` offline (CUDA, unpatched) via `tools/golden/locotrack.py`, at 256 x 256.
+
+    fp16: `torch.autocast("cuda", torch.float16)`. Needs `LOCOTRACK_SRC`, a KU-CVLAB/LocoTrack checkout with the pinned
+    commit (with einops importable).
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("locotrack")
+    card, variant = registry.resolve("tracking", full)
+    file = Path(registry.weights(card, variant, allow_download=False)[0])
+    model = g.load(Path(os.environ["LOCOTRACK_SRC"]), file, g.MODELS[f"{variant.id}@1"][1]).cuda()
+    a.note = f"KU-CVLAB/LocoTrack@{g.COMMIT[:12]} forward, offline (whole video), frames resized to 256 x 256"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        return g.track(model, video.float() / 255, queries, amp=torch.float16 if fp16 else None)
+
+    return call
+
+
 class _Tracking(_LocalFp16):
     """The tracking bench call: the uint8 video `[T, 3, H, W]` and the float32 query grid (not scaled to uint8)."""
 
@@ -1675,6 +1697,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "tapir": _Tracking("tracking", _tapir, ((480, 854),)),
     "alltracker": _Tracking("tracking", _alltracker, ((480, 854),)),
     "track_on": _Tracking("tracking", _track_on, ((480, 854),)),
+    "locotrack": _Tracking("tracking", _locotrack, ((480, 854),)),
 }
 
 
