@@ -41,18 +41,18 @@ kernels = ["cudnn_hacc"]  # fp16-accumulate GEMMs and dense convolutions
 [[variants]]
 id = "dat-x4"
 revision = 1
-weights = [{ name = "DAT_x4.pth", size = 154692051, sha256 = "391a6ce69899dff5ea3214557e9d585608254579217169faf3d4c353caff049e", url = "https://drive.google.com/uc?export=download&id=1pEhXmg--IWHaZOwHUFdh7TEJqt2qeuYg" }]
+weights = [{ name = "DAT_x4.pth", size = 154692051, sha256 = "391a6ce69899dff5ea3214557e9d585608254579217169faf3d4c353caff049e", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1pEhXmg--IWHaZOwHUFdh7TEJqt2qeuYg" }]
 
 [[variants]]
 id = "dat-2-x4"
 revision = 1
 params = { expansion = 2 }
 licence = { training_note = "options/Train/train_DAT_2_x4.yml: DF2K (DIV2K + Flickr2K), bicubic-downsampled, fine-tuned from the x2 model." }
-weights = [{ name = "DAT_2_x4.pth", size = 140333139, sha256 = "05b5c17bb5d1939ec0ec6b9368368d82d8c45b80c134e370f798efec0aeec395", url = "https://drive.google.com/uc?export=download&id=1sfB15jklXRjGiZZWgYXZAYc2Ut4TuKOz" }]
+weights = [{ name = "DAT_2_x4.pth", size = 140333139, sha256 = "05b5c17bb5d1939ec0ec6b9368368d82d8c45b80c134e370f798efec0aeec395", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1sfB15jklXRjGiZZWgYXZAYc2Ut4TuKOz" }]
 
 [[variants]]
 id = "dat-light-x4"
 revision = 1
 params = { embed_dim = 60, depths = [18], heads = [6], expansion = 2, resi = "3conv", upsampler = "pixelshuffledirect" }
 licence = { training_note = "options/Train/train_DAT_light_x4.yml: DF2K (DIV2K + Flickr2K), bicubic-downsampled, fine-tuned from the x2 model." }
-weights = [{ name = "DAT_light_x4.pth", size = 45819662, sha256 = "e18223fc41500e72e6bd576f2a576eae0818f58fa8cc8646a2233f5faf7d0f74", url = "https://drive.google.com/uc?export=download&id=12m8cZ_vkztI5VsQemoHnbVVBm1ZtQe7J" }]
+weights = [{ name = "DAT_light_x4.pth", size = 45819662, sha256 = "e18223fc41500e72e6bd576f2a576eae0818f58fa8cc8646a2233f5faf7d0f74", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=12m8cZ_vkztI5VsQemoHnbVVBm1ZtQe7J" }]

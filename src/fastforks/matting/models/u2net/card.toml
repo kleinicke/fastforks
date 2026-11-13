@@ -34,16 +34,16 @@ kernels = ["cudnn_hacc", "igev", "cutlass_conv"]  # conv + BatchNorm + ReLU bloc
 [[variants]]
 id = "u2net"
 revision = 1
-weights = [{ name = "u2net.pth", size = 176290937, sha256 = "10025a17f49cd3208afc342b589890e402ee63123d6f2d289a4a0903695cce58", url = "https://drive.google.com/uc?export=download&id=1ao1ovG1Qtx4b7EoskHXmi2E9rp5CHLcZ" }]
+weights = [{ name = "u2net.pth", size = 176290937, sha256 = "10025a17f49cd3208afc342b589890e402ee63123d6f2d289a4a0903695cce58", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1ao1ovG1Qtx4b7EoskHXmi2E9rp5CHLcZ" }]
 
 [[variants]]
 id = "u2netp"
 revision = 1
 params = { arch = "u2netp" }
-weights = [{ name = "u2netp.pth", size = 4683258, sha256 = "e7567cde013fb64813973ce6e1ecc25a80c05c3ca7adbc5a54f3c3d90991b854", url = "https://drive.google.com/uc?export=download&id=1rbSTGKAE-MTxBYHd-51l2hMOQPT_7EPy" }]
+weights = [{ name = "u2netp.pth", size = 4683258, sha256 = "e7567cde013fb64813973ce6e1ecc25a80c05c3ca7adbc5a54f3c3d90991b854", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1rbSTGKAE-MTxBYHd-51l2hMOQPT_7EPy" }]
 
 [[variants]]
 id = "u2net-human-seg"
 revision = 1
 licence = { training_data = ["supervisely-person"], training_note = "README (2021-Feb-06): the human segmentation model, trained on the Supervisely Person Dataset." }
-weights = [{ name = "u2net_human_seg.pth", size = 176315793, sha256 = "13f0396e3f6fbc1d7ab55a8558640bef306a59b9110a5c595eb949ff69cf2414", url = "https://drive.google.com/uc?export=download&id=1m_Kgs91b21gayc2XLW0ou8yugAIadWVP" }]
+weights = [{ name = "u2net_human_seg.pth", size = 176315793, sha256 = "13f0396e3f6fbc1d7ab55a8558640bef306a59b9110a5c595eb949ff69cf2414", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1m_Kgs91b21gayc2XLW0ou8yugAIadWVP" }]

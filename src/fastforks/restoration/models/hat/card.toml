@@ -41,17 +41,17 @@ kernels = ["cudnn_hacc"]  # fp16-accumulate GEMMs and convolutions
 [[variants]]
 id = "hat-x4"
 revision = 1
-weights = [{ name = "HAT_SRx4_ImageNet-pretrain.pth", size = 85137601, sha256 = "4ee053c42461187846dc0e93aa5abd34591c0725a8e044a59000e92ee215e833", url = "https://drive.google.com/uc?export=download&id=1cxls85ZE7kalhNy47eBJI_L_Lwf9hxRI" }]
+weights = [{ name = "HAT_SRx4_ImageNet-pretrain.pth", size = 85137601, sha256 = "4ee053c42461187846dc0e93aa5abd34591c0725a8e044a59000e92ee215e833", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1cxls85ZE7kalhNy47eBJI_L_Lwf9hxRI" }]
 
 [[variants]]
 id = "hat-s-x4"
 revision = 1
 params = { embed_dim = 144, compress_ratio = 24, squeeze_factor = 24 }
 licence = { training_data = ["div2k", "flickr2k"], training_note = "options/train/train_HAT-S_SRx4_finetune_from_SRx2.yml: DF2K (DIV2K + Flickr2K), bicubic-downsampled, fine-tuned from the x2 model." }
-weights = [{ name = "HAT-S_SRx4.pth", size = 81089561, sha256 = "a92f81bd2c0c1aaa371a6e4d6cac69e749fde2e36196885ee47a4a3667542c9a", url = "https://drive.google.com/uc?export=download&id=1YvU9PF1XqlP8TVzH7P0bg-YlfP1TKDPC" }]
+weights = [{ name = "HAT-S_SRx4.pth", size = 81089561, sha256 = "a92f81bd2c0c1aaa371a6e4d6cac69e749fde2e36196885ee47a4a3667542c9a", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1YvU9PF1XqlP8TVzH7P0bg-YlfP1TKDPC" }]
 
 [[variants]]
 id = "real-hat-gan-x4"
 revision = 1
 licence = { training_data = ["div2k", "flickr2k", "ost"], training_note = "options/train/train_Real_HAT_SRx4_mse_model.yml then train_Real_HAT_GAN_SRx4_finetune_from_mse_model.yml: DF2K + OST with Real-ESRGAN degradations (README: the released model without USM-sharpened ground truth)." }
-weights = [{ name = "Real_HAT_GAN_SRx4.pth", size = 170277017, sha256 = "f5b1e3bbbb05147ca2beefcc715279cb647d7976cbda67d62ea7e6e20d5ffcc7", url = "https://drive.google.com/uc?export=download&id=1Ma12vCWT27P9M99-s2RXnynKN-OQsBrv" }]
+weights = [{ name = "Real_HAT_GAN_SRx4.pth", size = 170277017, sha256 = "f5b1e3bbbb05147ca2beefcc715279cb647d7976cbda67d62ea7e6e20d5ffcc7", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1Ma12vCWT27P9M99-s2RXnynKN-OQsBrv" }]

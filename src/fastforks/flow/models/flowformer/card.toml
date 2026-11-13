@@ -71,16 +71,16 @@ reason = "Latent cost memory and recurrent attention need a dedicated kernel imp
 id = "flowformer-small-chairs"
 revision = 1
 licence = { training_data = ["flyingchairs"] }
-weights = [{ name = "flowformer-small-chairs.pth", size = 25038043, sha256 = "353914dcbf903f14d6dd518c95a0318098b40f932b672d4a8a0a269e73cd5eb2", url = "https://drive.google.com/uc?export=download&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/chairs.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
+weights = [{ name = "flowformer-small-chairs.pth", size = 25038043, sha256 = "353914dcbf903f14d6dd518c95a0318098b40f932b672d4a8a0a269e73cd5eb2", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/chairs.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
 
 [[variants]]
 id = "flowformer-small-things"
 revision = 1
 licence = { training_data = ["flyingchairs", "sceneflow"] }
-weights = [{ name = "flowformer-small-things.pth", size = 25038043, sha256 = "6bd2b44f31700c88196aecbdda70456f75491f8056503d27f349d3905c61b109", url = "https://drive.google.com/uc?export=download&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/things.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
+weights = [{ name = "flowformer-small-things.pth", size = 25038043, sha256 = "6bd2b44f31700c88196aecbdda70456f75491f8056503d27f349d3905c61b109", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/things.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
 
 [[variants]]
 id = "flowformer-small-sintel"
 revision = 1
 licence = { training_data = ["flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"] }
-weights = [{ name = "flowformer-small-sintel.pth", size = 25038043, sha256 = "0ed780e005042ce406a3178330d071cd67a8337738d909a4b61fc18e7e9feeff", url = "https://drive.google.com/uc?export=download&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/sintel.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
+weights = [{ name = "flowformer-small-sintel.pth", size = 25038043, sha256 = "0ed780e005042ce406a3178330d071cd67a8337738d909a4b61fc18e7e9feeff", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/sintel.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]

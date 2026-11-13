@@ -35,9 +35,9 @@ kernels = ["cudnn_hacc", "igev", "cutlass_conv"]  # conv + BatchNorm + ReLU bloc
 [[variants]]
 id = "isnet-general-use"
 revision = 1
-weights = [{ name = "isnet-general-use.pth", size = 176579397, sha256 = "9e1aafea58f0b55d0c35077e0ceade6ba1ba2bce372fd4f8f77215391f3fac13", url = "https://drive.google.com/uc?export=download&id=1XHIzgTzY5BQHw140EDIgwIb53K659ENH" }]
+weights = [{ name = "isnet-general-use.pth", size = 176579397, sha256 = "9e1aafea58f0b55d0c35077e0ceade6ba1ba2bce372fd4f8f77215391f3fac13", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1XHIzgTzY5BQHw140EDIgwIb53K659ENH" }]
 
 [[variants]]
 id = "isnet"
 revision = 1
-weights = [{ name = "isnet.pth", size = 176597693, sha256 = "ea0889743a78391b48d6b7c40b4def963ee329cb10934c75aa32481dc5af9c61", url = "https://drive.google.com/uc?export=download&id=1klUkUnQFAxPdFu9XE3Vhnn-e72CVz6oM" }]
+weights = [{ name = "isnet.pth", size = 176597693, sha256 = "ea0889743a78391b48d6b7c40b4def963ee329cb10934c75aa32481dc5af9c61", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1klUkUnQFAxPdFu9XE3Vhnn-e72CVz6oM" }]
