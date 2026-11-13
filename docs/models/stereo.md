@@ -50,7 +50,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`igev-plusplus-kitti15`](#igev_plusplus) | yes | 25.50 | 393, 3.3x | 2302, 0.74x |
 | [`igev-plusplus-middlebury`](#igev_plusplus) | yes | 18.46 ? | 393, 3.3x | 2302, 0.74x |
 | [`igev-plusplus-sceneflow`](#igev_plusplus) | yes | 4.66 | 393, 3.3x | 2302, 0.74x |
-| [`igev-stereo-eth3d`](#igev_stereo) | yes | 0.56 ? | 288, 3.3x | 1374, 0.71x |
+| [`igev-stereo-eth3d`](#igev_stereo) | yes | 0.56 † | 288, 3.3x | 1374, 0.71x |
 | [`igev-stereo-kitti12`](#igev_stereo) | yes | 26.02 | 288, 3.3x | 1374, 0.71x |
 | [`igev-stereo-kitti15`](#igev_stereo) | yes | 24.63 | 288, 3.3x | 1374, 0.71x |
 | [`igev-stereo-middlebury`](#igev_stereo) | yes | 19.80 ? | 288, 3.3x | 1374, 0.71x |
@@ -66,7 +66,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`monster-sceneflow`](#monster) | no | 1.34 | 653, 6.5x | 2734, 0.43x |
 | [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 196, 1.6x | 1112, 0.54x |
 | [`psmnet-sceneflow`](#psmnet) | yes | 15.13 | 232, 2.6x | 2122, 0.35x |
-| [`raft-stereo-eth3d`](#raft_stereo) | yes | 2.61 ? | 273, 3.8x | 802, 0.31x |
+| [`raft-stereo-eth3d`](#raft_stereo) | yes | 2.61 † | 273, 3.8x | 802, 0.31x |
 | [`raft-stereo-middlebury`](#raft_stereo) | yes | 2.79 | 273, 3.8x | 802, 0.31x |
 | [`raft-stereo-sceneflow`](#raft_stereo) | yes | 2.60 | 273, 3.8x | 802, 0.31x |
 | [`rt-monster-plusplus-mix-all`](#rt_monster_plusplus) | no | 2.05 ? | 94.1, 2.7x | 3976, 1.3x |
@@ -1099,8 +1099,8 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: <https://github.com/gangweix/IGEV/blob/4a3d937aab788b3ff3ed49b7b5c81340ab46a5eb/README.md#L17>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
-  - `igev-stereo-middlebury`: Middlebury submission model
-  - `igev-stereo-eth3d`: ETH3D submission model
+  - `igev-stereo-middlebury`: Middlebury stereo (2014), not stated by the authors (Middlebury submission model: fine-tuned on Middlebury; the rest of its training is not stated)
+  - `igev-stereo-eth3d`: ETH3D two-view stereo, not stated by the authors (ETH3D submission model: fine-tuned on ETH3D; the rest of its training is not stated)
   - `igev-stereo-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2012 submission model))
   - `igev-stereo-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI (KITTI 2015 submission model))
 - Options: `iters` = 32 (>= 1)
@@ -1130,8 +1130,8 @@ Original = the original code named under Details, same checkpoint and protocol.
 | `igev-stereo-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 4.05 / 0.333 | 4.04 / 0.333 | 4.06 / 0.333 | 4.04 / 0.333 |  |
 | `igev-stereo-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.92 / 2.635 | 11.89 / 2.631 | 11.89 / 2.631 | 11.93 / 2.637 |  |
 | `igev-stereo-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 19.81 / 0.796 | 19.81 / 0.797 | 19.81 / 0.796 | 19.80 / 0.797 | possibly in the training data |
-| `igev-stereo-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 5.44 / 0.869 | 5.45 / 0.866 | 5.45 / 0.870 | 5.48 / 0.871 | possibly in the training data |
-| `igev-stereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.56 / 0.128 | 0.57 / 0.128 | 0.55 / 0.128 | 0.56 / 0.128 | possibly in the training data |
+| `igev-stereo-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 5.44 / 0.869 | 5.45 / 0.866 | 5.45 / 0.870 | 5.48 / 0.871 | trained on this dataset's public images; not a zero-shot result |
+| `igev-stereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.56 / 0.128 | 0.57 / 0.128 | 0.55 / 0.128 | 0.56 / 0.128 | trained on this dataset's public images; not a zero-shot result |
 | `igev-stereo-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.86 / 3.019 | 11.86 / 3.040 | 11.88 / 3.046 | 11.90 / 3.036 | possibly in the training data |
 | `igev-stereo-kitti12` | ETH3D two-view train, bad > 1 px % / EPE | 26.02 / 1.701 | 26.04 / 1.728 | 26.07 / 1.733 | 26.02 / 1.735 |  |
 | `igev-stereo-kitti12` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.30 / 4.653 | 17.33 / 4.636 | 17.28 / 4.638 | 17.33 / 4.648 |  |
@@ -1534,7 +1534,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/princeton-vl/RAFT-Stereo/blob/6e93ed2169bd858dbb43033988563f3b0bb49506/README.md#L79>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
   - `raft-stereo-middlebury`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), Middlebury stereo (2014) (SceneFlow, then fine-tuned on the 23 Middlebury 2014 training scenes)
-  - `raft-stereo-eth3d`: ETH3D submission model
+  - `raft-stereo-eth3d`: ETH3D two-view stereo, not stated by the authors (ETH3D submission model: fine-tuned on ETH3D; the rest of its training is not stated)
 - Options: `iters` = 32 (>= 1)
 - Kernel libraries: `raft`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `raft-stereo-middlebury`, `raft-stereo-sceneflow`, `raft-stereo-eth3d`
@@ -1561,7 +1561,7 @@ Original = the original code named under Details, same checkpoint and protocol.
 | `raft-stereo-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.20 / 1.069 | 7.19 / 1.069 | 7.20 / 1.069 | 7.21 / 1.071 | trained on this dataset's public images; not a zero-shot result |
 | `raft-stereo-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 2.61 / 0.266 | 2.61 / 0.267 | 2.60 / 0.267 | 2.60 / 0.267 |  |
 | `raft-stereo-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.22 / 1.436 | 11.21 / 1.439 | 11.23 / 1.438 | 11.23 / 1.452 |  |
-| `raft-stereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 2.61 / 0.274 | 2.60 / 0.274 | 2.60 / 0.274 | 2.61 / 0.274 | possibly in the training data |
+| `raft-stereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 2.61 / 0.274 | 2.60 / 0.274 | 2.60 / 0.274 | 2.61 / 0.274 | trained on this dataset's public images; not a zero-shot result |
 | `raft-stereo-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.95 / 1.635 | 11.99 / 1.634 | 12.00 / 1.635 | 11.98 / 1.635 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
@@ -1911,10 +1911,10 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`igev-plusplus-kitti15`](#igev_plusplus) | portable, kernels | MIT | MIT (assumed from code) | sceneflow, kitti | yes | disparity |
 | [`igev-plusplus-middlebury`](#igev_plusplus) | portable, kernels | MIT | MIT (assumed from code) | sceneflow, tartanair, falling_things, crestereo, instereo2k, middlebury, unstated | yes | disparity |
 | [`igev-plusplus-sceneflow`](#igev_plusplus) | portable, kernels | MIT | MIT (assumed from code) | sceneflow | yes | disparity |
-| [`igev-stereo-eth3d`](#igev_stereo) | portable, kernels | MIT | MIT (assumed from code) | unstated | yes | disparity |
+| [`igev-stereo-eth3d`](#igev_stereo) | portable, kernels | MIT | MIT (assumed from code) | eth3d, unstated | yes | disparity |
 | [`igev-stereo-kitti12`](#igev_stereo) | portable, kernels | MIT | MIT (assumed from code) | sceneflow, kitti | yes | disparity |
 | [`igev-stereo-kitti15`](#igev_stereo) | portable, kernels | MIT | MIT (assumed from code) | sceneflow, kitti | yes | disparity |
-| [`igev-stereo-middlebury`](#igev_stereo) | portable, kernels | MIT | MIT (assumed from code) | unstated | yes | disparity |
+| [`igev-stereo-middlebury`](#igev_stereo) | portable, kernels | MIT | MIT (assumed from code) | middlebury, unstated | yes | disparity |
 | [`igev-stereo-sceneflow`](#igev_stereo) | portable, kernels | MIT | MIT (assumed from code) | sceneflow | yes | disparity |
 | [`las2-h`](#las2) | portable, kernels | MIT | MIT | unstated | yes | disparity |
 | [`las2-l`](#las2) | portable, kernels | MIT | MIT | unstated | yes | disparity |
@@ -1927,7 +1927,7 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`monster-sceneflow`](#monster) | portable, kernels | LicenseRef-noncommercial | LicenseRef-noncommercial AND CC-BY-NC-4.0 | sceneflow | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial AND CC-BY-NC-4.0) | disparity |
 | [`nmrf-sceneflow`](#nmrf) | portable, kernels | MIT | MIT (assumed from code) | sceneflow | yes | disparity |
 | [`psmnet-sceneflow`](#psmnet) | portable, kernels | MIT | MIT (assumed from code) | sceneflow | yes | disparity |
-| [`raft-stereo-eth3d`](#raft_stereo) | portable, kernels | MIT | MIT (assumed from code) | unstated | yes | disparity |
+| [`raft-stereo-eth3d`](#raft_stereo) | portable, kernels | MIT | MIT (assumed from code) | eth3d, unstated | yes | disparity |
 | [`raft-stereo-middlebury`](#raft_stereo) | portable, kernels | MIT | MIT (assumed from code) | sceneflow, middlebury | yes | disparity |
 | [`raft-stereo-sceneflow`](#raft_stereo) | portable, kernels | MIT | MIT (assumed from code) | sceneflow | yes | disparity |
 | [`rt-monster-plusplus-mix-all`](#rt_monster_plusplus) | portable, kernels | LicenseRef-noncommercial | LicenseRef-noncommercial | unstated | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial) | disparity |

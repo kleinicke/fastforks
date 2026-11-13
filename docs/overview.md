@@ -52,11 +52,11 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`gwcnet-g-sceneflow`](models/stereo.md#gwcnet) | yes | 9.59 | 352.4 (994x1482) | 344.2 | 238.1 | 1.5x vs original (994x1482) | 1799 |
 | [`s2m2-m`](models/stereo.md#s2m2) | no | 0.95 ? | 666.2 (994x1482) | 670.4 | 247.9 | 2.7x vs original (994x1482) | 876 |
 | [`gwcnet-gc-sceneflow`](models/stereo.md#gwcnet) | yes | 10.96 | 364.8 (994x1482) | 352.9 | 257.3 | 1.4x vs original (994x1482) | 1768 |
-| [`raft-stereo-eth3d`](models/stereo.md#raft-stereo) | yes | 2.61 ? | 1036.7 (994x1482) | 745.6 | 272.8 | 3.8x vs original (994x1482) | 765 |
+| [`raft-stereo-eth3d`](models/stereo.md#raft-stereo) | yes | 2.61 † | 1036.7 (994x1482) | 745.6 | 272.8 | 3.8x vs original (994x1482) | 765 |
 | [`raft-stereo-middlebury`](models/stereo.md#raft-stereo) | yes | 2.79 | 1036.7 (994x1482) | 745.6 | 272.8 | 3.8x vs original (994x1482) | 765 |
 | [`raft-stereo-sceneflow`](models/stereo.md#raft-stereo) | yes | 2.60 | 1036.7 (994x1482) | 745.6 | 272.8 | 3.8x vs original (994x1482) | 765 |
 | [`waft-stereo-s`](models/stereo.md#waft-stereo) | yes | 0.95 ? | 689.3 (994x1482) | 689.0 | 281.2 | 2.5x vs original (994x1482) | 1113 |
-| [`igev-stereo-eth3d`](models/stereo.md#igev-stereo) | yes | 0.56 ? | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
+| [`igev-stereo-eth3d`](models/stereo.md#igev-stereo) | yes | 0.56 † | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
 | [`igev-stereo-kitti12`](models/stereo.md#igev-stereo) | yes | 26.02 | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
 | [`igev-stereo-kitti15`](models/stereo.md#igev-stereo) | yes | 24.63 | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
 | [`igev-stereo-middlebury`](models/stereo.md#igev-stereo) | yes | 19.80 ? | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
@@ -615,7 +615,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 2183.3 | – | – | – |
 | [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 2189.4 | – | – | – |
 | [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 2191.5 | – | – | – |
-| [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 ? | 2187.8 (1080x1920) | 2194.3 | – | – | – |
+| [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 2194.3 | – | – | – |
 | [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | – | – | – | – |
 | [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | – | – | – | – |
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | – | – | – | – |

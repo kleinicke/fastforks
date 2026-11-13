@@ -678,7 +678,7 @@ Commercial use: yes.
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
 - Licence evidence: https://github.com/isl-org/MiDaS/blob/454597711a62eabcbf7d1e89f3fb9f569051ac9b/LICENSE (weights are release assets of the same repository)
-- Training data: 12 datasets (ReDWeb, DIML, Movies, MegaDepth, WSVD, TartanAir, HRWSI, ApolloScape, BlendedMVS, IRS, KITTI, NYU Depth V2) per the MiDaS v3.1 paper (arXiv 2307.14460)
+- Training data: KITTI stereo / optical flow 2012 / 2015, NYU Depth V2, MegaDepth (Internet photo collections with SfM / MVS depth), TartanAir, not stated by the authors (12 datasets (ReDWeb, DIML, Movies, MegaDepth, WSVD, TartanAir, HRWSI, ApolloScape, BlendedMVS, IRS, KITTI, NYU Depth V2) per the MiDaS v3.1 paper (arXiv 2307.14460))
 - Options: `input_size` = 512 (>= 32)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `midas-dpt-beit-large-512`
@@ -1105,7 +1105,7 @@ Commercial use: yes.
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT (assumed from code)
 - Licence evidence: https://github.com/isl-org/ZoeDepth/blob/d87f17b2f5fdcb174cf4fb115491f4a6c60de152/LICENSE (weights are release assets of the same repository)
-- Training data: MiDaS v3.1 BEiT-L relative-depth pre-training on 12 datasets, then metric fine-tuning on NYU Depth V2 and KITTI (ZoeDepth paper, arXiv 2302.12288)
+- Training data: NYU Depth V2, KITTI stereo / optical flow 2012 / 2015, MegaDepth (Internet photo collections with SfM / MVS depth), TartanAir, not stated by the authors (MiDaS v3.1 BEiT-L relative-depth pre-training on 12 datasets, then metric fine-tuning on NYU Depth V2 and KITTI (ZoeDepth paper, arXiv 2302.12288))
 - Options: `pad_input` = True, `flip` = True
 - Kernel libraries: `cudnn_hacc`
 - Variants: `zoedepth-nk`
@@ -1179,7 +1179,7 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`marigold-depth-v1-1`](#marigold) | portable, kernels | Apache-2.0 | LicenseRef-CreativeML-OpenRAIL-PlusPlus-M | unstated | yes | depth |
 | [`marigold-normals-lcm-v0-1`](#marigold_normals) | portable, kernels | Apache-2.0 | Apache-2.0 | unstated | yes | normals |
 | [`metric3d-vit-large`](#metric3d) | portable, kernels | BSD-2-Clause | BSD-2-Clause (assumed from code) | unstated | yes | depth, normals, confidence |
-| [`midas-dpt-beit-large-512`](#midas) | portable, kernels | MIT | MIT (assumed from code) | unstated | yes | inverse_depth |
+| [`midas-dpt-beit-large-512`](#midas) | portable, kernels | MIT | MIT (assumed from code) | kitti, nyu, megadepth, tartanair, unstated | yes | inverse_depth |
 | [`moge-2-vitb-normal`](#moge) | portable, kernels | MIT | MIT | unstated | yes | depth, points, intrinsics, mask, normals |
 | [`moge-2-vitl-normal`](#moge) | portable, kernels | MIT | MIT | unstated | yes | depth, points, intrinsics, mask, normals |
 | [`moge-2-vits-normal`](#moge) | portable, kernels | MIT | MIT | unstated | yes | depth, points, intrinsics, mask, normals |
@@ -1191,7 +1191,7 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`unik3d-vitl`](#unik3d) | portable, kernels | CC-BY-NC-SA-4.0 | CC-BY-NC-SA-4.0 (assumed from code) | unstated | **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC-SA-4.0 (assumed from code)) | depth, points, confidence |
 | [`video-depth-anything-metric-s`](#video_depth_anything) | portable, kernels | Apache-2.0 | Apache-2.0 | unstated | yes | inverse_depth, depth |
 | [`video-depth-anything-s`](#video_depth_anything) | portable, kernels | Apache-2.0 | Apache-2.0 | unstated | yes | inverse_depth, depth |
-| [`zoedepth-nk`](#zoedepth) | portable, kernels | MIT | MIT (assumed from code) | unstated | yes | depth |
+| [`zoedepth-nk`](#zoedepth) | portable, kernels | MIT | MIT (assumed from code) | nyu, kitti, megadepth, tartanair, unstated | yes | depth |
 
 </details>
 
@@ -1199,3 +1199,7 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 
 | id | dataset | licence | commercial use |
 |---|---|---|---|
+| `kitti` | [KITTI stereo / optical flow 2012 / 2015](https://www.cvlibs.net/datasets/kitti/) | CC-BY-NC-SA-3.0 | no |
+| `nyu` | [NYU Depth V2](https://cs.nyu.edu/~fergus/datasets/nyu_depth_v2.html) | not stated | unclear |
+| `tartanair` | [TartanAir](https://theairlab.org/tartanair-dataset/) | CC-BY-4.0 | yes |
+| `megadepth` | [MegaDepth (Internet photo collections with SfM / MVS depth)](https://www.cs.cornell.edu/projects/megadepth/) | CC-BY-4.0 | unclear |

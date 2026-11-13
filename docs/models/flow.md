@@ -21,7 +21,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | – | – |
 | [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | – | – |
 | [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | – | – |
-| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 ? | – | – |
+| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | – | – |
 | [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | yes | 1.315 ? | – | – |
 | [`gmflow-scale2-regrefine6-sintelft`](#gmflow) | yes | 1.154 † | – | – |
 | [`gmflow-scale2-regrefine6-things`](#gmflow) | yes | 4.917 | – | – |
@@ -230,7 +230,7 @@ Commercial use: yes.
   - `gmflow-scale2-sintel`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (FlyingChairs, FlyingThings3D, then upstream's 'sintel' stage: Sintel, KITTI 2015, HD1K and FlyingThings3D)
   - `gmflow-scale2-mixdata`: MODEL_ZOO.md: "trained on several mixed public datasets" (not listed)
   - `gmflow-scale2-regrefine6-sintelft`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (FlyingChairs, FlyingThings3D, the 'sintel' stage (Sintel, KITTI 2015, HD1K, FlyingThings3D), then fine-tuned on Sintel)
-  - `gmflow-scale2-regrefine6-kitti`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), not stated by the authors (FlyingChairs, FlyingThings3D, Virtual KITTI 2 (no dataset entry here yet, hence 'unstated'), then KITTI 2012 + 2015 (upstream scripts/gmflow_scale2_regrefine6_train.sh, stages vkitti2 and kitti_mix))
+  - `gmflow-scale2-regrefine6-kitti`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015, not stated by the authors (FlyingChairs, FlyingThings3D, Virtual KITTI 2 (no dataset entry here yet, hence 'unstated'), then KITTI 2012 + 2015 (upstream scripts/gmflow_scale2_regrefine6_train.sh, stages vkitti2 and kitti_mix))
   - `gmflow-scale2-regrefine6-mixdata`: MODEL_ZOO.md: "trained on several mixed public datasets" (not listed)
 - Kernel libraries: none (none of the existing kernels fits (window attention with one head, global softmax matching), and no new kernel was written for it)
 - Variants: `gmflow-scale1-things`, `gmflow-scale1-mixdata`, `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata`
@@ -290,7 +290,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | `gmflow-scale2-mixdata` | KITTI 2015 train, EPE / Fl-all % | 2.390 / 10.10 | 2.390 / 10.10 | 2.389 / 10.10 | possibly in the training data |
 | `gmflow-scale2-regrefine6-things` | KITTI 2015 train, EPE / Fl-all % | 4.918 / 16.33 | 4.918 / 16.32 | 4.917 / 16.32 |  |
 | `gmflow-scale2-regrefine6-sintelft` | KITTI 2015 train, EPE / Fl-all % | 1.153 / 3.92 | 1.154 / 3.92 | 1.154 / 3.92 | trained on this dataset's public images; not a zero-shot result |
-| `gmflow-scale2-regrefine6-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.570 / 1.15 | 0.570 / 1.15 | 0.570 / 1.15 | possibly in the training data |
+| `gmflow-scale2-regrefine6-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.570 / 1.15 | 0.570 / 1.15 | 0.570 / 1.15 | trained on this dataset's public images; not a zero-shot result |
 | `gmflow-scale2-regrefine6-mixdata` | KITTI 2015 train, EPE / Fl-all % | 1.315 / 4.64 | 1.315 / 4.63 | 1.315 / 4.64 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11.
@@ -716,7 +716,7 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`gmflow-scale1-mixdata`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | unstated | yes | flow |
 | [`gmflow-scale1-things`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
 | [`gmflow-scale2-mixdata`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | unstated | yes | flow |
-| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, unstated | yes | flow |
+| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, kitti, unstated | yes | flow |
 | [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | unstated | yes | flow |
 | [`gmflow-scale2-regrefine6-sintelft`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 | [`gmflow-scale2-regrefine6-things`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
