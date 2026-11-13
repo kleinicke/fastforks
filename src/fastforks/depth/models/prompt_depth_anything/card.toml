@@ -1,0 +1,50 @@
+schema = 2
+name = "Prompt Depth Anything"
+summary = "Prompt Depth Anything (Lin et al., CVPR 2025): metric depth from an image and a low-resolution metric depth prompt (e.g. a LiDAR map), a DINOv2 ViT with a DPT head that fuses the prompt at every refinement stage."
+tier = "experimental"
+outputs = ["depth"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the ViT and the DPT blocks)
+limitations = [
+  "The depth prompt is required: call the model with `prompt_depth=` a finite, positive map in metres (zero or missing LiDAR pixels must be filled first). Export is at a fixed size only.",
+]
+
+[output]
+kind = "metric"  # metres, in the scale of the prompt
+
+[upstream]
+repo = "https://github.com/DepthAnything/PromptDA"
+commit = "9161547"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Synthetic and real RGB-D data (including pseudo-labelled real images) per the paper (arXiv 2412.14015)"
+evidence = "https://github.com/DepthAnything/PromptDA/blob/9161547ca7151e14fcc8f490ad3cc02fa9437483/README.md and the Hugging Face model cards (license: apache-2.0)"
+
+[io]
+input = "imagenet"  # the runner shrinks the image to max_size (area), floors both sides to 14 and normalises itself
+pad = "none"
+
+[options]
+max_size = { default = 1008, min = 14 }  # longest network side (upstream load_image's max_size), rounded down to a multiple of 14
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused"]
+
+[[variants]]
+id = "prompt-depth-anything-s"
+revision = 1
+params = { arch = "vits" }
+weights = [{ name = "prompt_depth_anything_vits.ckpt", size = 100444079, sha256 = "51b99fef5e3c467f3ccd12f2f4687220e7f1e88f6a07fe21f7a66adffca2af99", url = "https://huggingface.co/depth-anything/prompt-depth-anything-vits/resolve/bdc8715134ff95362ffd0402748c6f08071bc1e4/model.ckpt" }]
+
+[[variants]]
+id = "prompt-depth-anything-l"
+revision = 1
+params = { arch = "vitl" }
+weights = [{ name = "prompt_depth_anything_vitl.ckpt", size = 1360366431, sha256 = "4b3a3e0a60ea68e719cad3b2e22da8c95ce78f9559ee04824c064a2a06b0f10f", url = "https://huggingface.co/depth-anything/prompt-depth-anything-vitl/resolve/573ab70c94c27d96f0bc70f81f670d2b0a62d571/model.ckpt" }]

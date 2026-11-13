@@ -26,7 +26,7 @@ from fastforks._core.preprocess import resize_crop, scale
 from fastforks._core.tasks import spec
 from fastforks.stereo import _module  # noqa: F401 - registers the kernels custom op
 from fastforks.stereo._export import _cuda_device, _fix_folded_weight_casts
-from synth import pair, size
+from synth import pair, prompt_kwargs, size
 from test_golden import FAMILIES, GOLDEN, SMALLEST, TASK, sweep_model
 
 LOAD_ONCE = True  # conftest runs the tests of one ref together: `sweep_model` loads it once
@@ -121,7 +121,10 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
         return (scale(resize_crop(pair[0], io), io),)
     if TASK[ref] in {"multiview", "tracking"}:  # one scene / video: views or frames (+ cameras / queries)
         return model.example_inputs(*_shape(model)[2:], batch=2)
-    return pair if TASK[ref] in {"stereo", "flow", "matching", "interpolation"} else pair[:1]
+    if TASK[ref] in {"stereo", "flow", "matching", "interpolation"}:
+        return pair
+    extra = prompt_kwargs(model)  # depth: the image, then the prompt [1, 1, h, w] of a model that requires one
+    return (pair[0], *(torch.as_tensor(v)[None, None] for v in extra.values()))
 
 
 def _multiview_call(model: Any, inputs: tuple[torch.Tensor, ...]) -> Any:
@@ -188,7 +191,9 @@ def test_module_compile_export(ref):  # noqa: C901 - one branch per task
     if TASK[ref] in {"stereo", "depth"}:  # [B, 3, H, W] in [0, 1] -> the main map, as the model call
         channels = (3,) if _main_map_name(ref) == "normals" else ()  # normals-only models: [B, H, W, 3]
         assert want.shape == (1, *inputs[0].shape[2:], *channels)
-        assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs))))
+        kw = {k: v[0, 0] for k, v in zip(prompt_kwargs(model), inputs[1:], strict=False)}
+        n = 2 if TASK[ref] == "stereo" else 1
+        assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs[:n]), **kw)))
     elif TASK[ref] == "flow":  # two [B, 3, H, W] in [0, 1] -> [B, 2, H, W], as the model call
         assert want.shape == (1, 2, *inputs[0].shape[2:])
         assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs))))
@@ -265,14 +270,15 @@ def test_onnx_depth(ref, tmp_path):
     if ref in _ONNX_SKIP_DEPTH:
         pytest.skip(_ONNX_SKIP_DEPTH[ref])
     model = _load(ref)
-    (image,) = model.example_inputs(*SHAPE[2:])
+    inputs = model.example_inputs(*SHAPE[2:])  # the image, then the depth prompt where the model requires one
+    names = ["image", *prompt_kwargs(model)]
     path = model.export_onnx(tmp_path / "m.onnx", *SHAPE[2:])
     with torch.inference_mode():
-        want = model.module()(image)
+        want = model.module()(*inputs)
     session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
-    assert [i.name for i in session.get_inputs()] == ["image"]
+    assert [i.name for i in session.get_inputs()] == names
     assert [o.name for o in session.get_outputs()] == [_main_map_name(ref)]
-    (got,) = session.run(None, {"image": image.numpy()})
+    (got,) = session.run(None, {n: x.numpy() for n, x in zip(names, inputs, strict=True)})
     torch.testing.assert_close(torch.from_numpy(got), want, rtol=1e-3, atol=1e-3 * want.abs().max().item())
 
 
@@ -389,7 +395,8 @@ def test_trt_dtype_unknown_is_a_clear_error():
 
 def test_export_defaults_per_task():
     assert spec("stereo").inputs == ("left", "right")
-    assert all(spec(t).inputs == ("image",) for t in ("depth", "classification", "segmentation"))
+    assert spec("depth").inputs == ("image", "prompt_depth")  # the prompt only where the model requires it
+    assert all(spec(t).inputs == ("image",) for t in ("classification", "segmentation"))
     assert [spec(t).export_size for t in ("stereo", "depth", "segmentation")] == [None] * 3  # no legacy default size
     assert spec("features").export_size == (224, 224)
 

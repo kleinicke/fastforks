@@ -16,5 +16,5 @@ SPEC = TaskSpec(
     io_keys=VALUE_KEYS | {"pad"},
     order=10,
     bool_outputs=frozenset({"mask"}),
-    inputs=("image",),
+    inputs=("image", "prompt_depth"),  # the depth prompt only where the model requires it (`input_use`)
 )

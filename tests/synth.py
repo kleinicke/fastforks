@@ -26,6 +26,19 @@ def image(h: int = 100, w: int = 150, seed: int = 0) -> np.ndarray:
     return pair(h, w, seed)[0]
 
 
+def prompt_depth(h: int = 12, w: int = 18, seed: int = 0) -> np.ndarray:
+    """Return a smooth positive float32 depth prompt `[h, w]` in metres (1 to 5 m), for depth-prompted models."""
+    rng = np.random.default_rng(seed)
+    y, x = np.linspace(0, 1, h)[:, None], np.linspace(0, 1, w)[None]
+    return (1.5 + 2.0 * y + 1.0 * x + 0.3 * np.sin(9 * x + 5 * y) + 0.05 * rng.random((h, w))).astype(np.float32)
+
+
+def prompt_kwargs(model: object, seed: int = 0) -> dict[str, np.ndarray]:
+    """`{"prompt_depth": ...}` for a depth model that requires a depth prompt, else `{}`."""
+    runner = getattr(model, "_runner", None)
+    return {"prompt_depth": prompt_depth(seed=seed)} if getattr(runner, "prompt_depth", "unused") == "required" else {}
+
+
 def size(min_size: int = 1, h: int = 100, w: int = 150) -> tuple[int, int]:
     """Test image size `h x w`, raised to a model's `io.min_size` (e.g. PSMNet's 64 px pooling at 1/4 needs 241)."""
     return max(h, min_size), max(w, min_size)

@@ -17,7 +17,14 @@ CAP = (3000, 4000)
 ENCODER_SIDE = {"sam3": 1008}
 """Encoder input side of the promptable-segmentation families that fix it in code, not in `[params] image_size`."""
 
-PATCH = {"depth_anything_v2": 14, "depth_anything_3": 14, "moge": 14, "unik3d": 14, "depth_pro": 16}
+PATCH = {
+    "depth_anything_v2": 14,
+    "prompt_depth_anything": 14,
+    "depth_anything_3": 14,
+    "moge": 14,
+    "unik3d": 14,
+    "depth_pro": 16,
+}
 """ViT patch side of the families that resize / pad inside the model (shown in the size range)."""
 
 EXAMPLE_SIZE = "704x1280"
