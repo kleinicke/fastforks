@@ -16,7 +16,7 @@ commit = "4545977"
 code = "MIT"
 weights = "assumed from code"
 files = ["LICENSE"]
-training_data = ["unstated"]
+training_data = ["kitti", "nyu", "megadepth", "tartanair", "unstated"]  # the 12 datasets of the note; the others have no dataset entry
 training_note = "12 datasets (ReDWeb, DIML, Movies, MegaDepth, WSVD, TartanAir, HRWSI, ApolloScape, BlendedMVS, IRS, KITTI, NYU Depth V2) per the MiDaS v3.1 paper (arXiv 2307.14460)"
 evidence = "https://github.com/isl-org/MiDaS/blob/454597711a62eabcbf7d1e89f3fb9f569051ac9b/LICENSE (weights are release assets of the same repository)"
 

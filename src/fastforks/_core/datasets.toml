@@ -19,6 +19,12 @@ licence = "CC-BY-NC-SA-4.0"
 commercial = "no"
 url = "https://www.eth3d.net/"
 
+[nyu]
+name = "NYU Depth V2"
+licence = "not stated"  # the official page (read 2026-11-13) states no licence or terms of use
+commercial = "unclear"
+url = "https://cs.nyu.edu/~fergus/datasets/nyu_depth_v2.html"
+
 [middlebury]
 name = "Middlebury stereo (2014)"
 licence = "not stated"  # "We grant permission to use and publish all images and disparity maps on this website."
