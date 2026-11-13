@@ -12,7 +12,8 @@ Status (2026-11-10): working notes for the branch `work/ports`, which sits on to
 
 - One commit per finished network, not before. Finished means: `ruff format --check`, `ruff check`, `ty check`,
   `tools/gen_docs.py --check` and `pytest -m "not gpu"` pass, the GPU goldens are recorded (`pytest -m gpu --record`),
-  and the rows below exist.
+  the size-table entries exist (`tools/bench_sizes.py run --modes portable --runs 3 --out new.jsonl REF ...`, then
+  `tools/extract_sizes.py new.jsonl`; `tests/test_sizes.py` fails without them), and the rows below exist.
 - `git pull --rebase` before every push. Never force-push.
 - A licence gate comes first: code and weights licences are checked against the source before any work starts, and
   a non-commercial weight licence stops the port (see [model-landscape.md](model-landscape.md)).
