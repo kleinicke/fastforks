@@ -54,7 +54,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`vitpose-plus-base`](#vitpose) | yes | 13.9, 8.1x | 704, 0.95x |
 | [`vitpose-plus-huge`](#vitpose) | yes | 64.1, 3.8x | 1766, 0.43x |
 | [`vitpose-plus-large`](#vitpose) | yes | 34.9, 4.7x | 1124, 0.52x |
-| [`vitpose-plus-small`](#vitpose) | yes | 8.07, 12.9x | 558, 1.8x |
+| [`vitpose-plus-small`](#vitpose) | yes | 6.05, 17.2x | 198, 0.64x |
 
 <a id="rtmpose"></a>
 
@@ -541,7 +541,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `vitpose-base-simple` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 145<br>109<br>20.1<br>14.1<br>16.0<br>9.36 (network on person crops only) | 667 / 702<br>828 / 962<br>590 / 642<br>567 / 684<br>590 / 622<br>499 / 550 |
 | `vitpose-base` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 139<br>105<br>19.9<br>14.0<br>16.4<br>8.88 (network on person crops only) | 592 / 602<br>713 / 762<br>597 / 642<br>574 / 704<br>597 / 622<br>473 / 516 |
-| `vitpose-plus-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 120<br>104<br>9.96<br>8.07<br>7.54<br>3.39 (network on person crops only) | 298 / 310<br>312 / 376<br>472 / 496<br>449 / 558<br>472 / 496<br>214 / 256 |
+| `vitpose-plus-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 120<br>104<br>7.83<br>6.05<br>7.54<br>3.39 (network on person crops only) | 298 / 310<br>312 / 376<br>164 / 196<br>145 / 198<br>472 / 496<br>214 / 256 |
 | `vitpose-plus-base` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>113<br>19.9<br>13.9<br>16.4<br>8.87 (network on person crops only) | 729 / 742<br>918 / 1002<br>597 / 642<br>574 / 704<br>597 / 622<br>473 / 516 |
 | `vitpose-plus-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 331<br>165<br>53.7<br>34.9<br>46.9<br>29.3 (network on person crops only) | 2111 / 2144<br>2873 / 3004<br>1014 / 1062<br>991 / 1124<br>1014 / 1062<br>1312 / 1338 |
 | `vitpose-plus-huge` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 610<br>242<br>104<br>64.1<br>92.9<br>58.7 (network on person crops only) | 4100 / 4124<br>5732 / 5846<br>1641 / 1704<br>1618 / 1766<br>1641 / 1682<br>2595 / 2654 |
@@ -583,7 +583,7 @@ Commercial use: yes.
 - `vitpose-plus-huge` original 1080x1920: torch.autocast(fp16) around the call; transformers 4.57.1 VitPoseImageProcessor (CPU crop) + VitPoseForPoseEstimation + post_process_pose_estimation, all in the timed call
 - `vitpose-base-simple` load / first call: original 0.15 s / 0.17 s, portable 0.4 s / 0.408 s, kernels 1.04 s / 0.41 s
 - `vitpose-base` load / first call: original 0.16 s / 0.328 s, portable 3.48 s / 0.403 s, kernels 1.06 s / 0.343 s
-- `vitpose-plus-small` load / first call: original 0.15 s / 0.119 s, portable 0.25 s / 0.528 s, kernels 0.95 s / 0.33 s
+- `vitpose-plus-small` load / first call: original 0.15 s / 0.119 s, portable 0.81 s / 0.461 s, kernels 1.09 s / 0.503 s
 - `vitpose-plus-base` load / first call: original 0.19 s / 0.121 s, portable 0.65 s / 0.345 s, kernels 1.1 s / 0.343 s
 - `vitpose-plus-large` load / first call: original 0.41 s / 0.166 s, portable 1.5 s / 0.412 s, kernels 1.63 s / 0.407 s
 - `vitpose-plus-huge` load / first call: original 0.65 s / 0.251 s, portable 2.69 s / 0.438 s, kernels 2.26 s / 0.397 s

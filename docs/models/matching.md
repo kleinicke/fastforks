@@ -141,8 +141,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>247<br>–<br>164<br>fails: timeout after 298 s | 1734 / 1992<br>1722 / 1774<br>–<br>1893 / 2434<br>– |
-| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels | 666<br>593<br>– | 2335 / 2472<br>2323 / 2834<br>– |
+| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>–<br>164<br>fails: timeout after 298 s | 1734 / 1992<br>1535 / 1654<br>–<br>1893 / 2434<br>– |
+| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels | 666<br>592<br>– | 2335 / 2472<br>2142 / 2334<br>– |
 
 <details><summary>Details</summary>
 
@@ -160,8 +160,8 @@ Commercial use: yes.
 - `dedode-v2-b` 768x1024, first call: portable + torch.compile 50 s (cold Inductor cache).
 - `dedode-v2-b` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor B, 10000 keypoints
 - `dedode-v2-g` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor G, 10000 keypoints
-- `dedode-v2-b` load / first call: original 3.73 s / 1.099 s, portable 0.25 s / 0.82 s
-- `dedode-v2-g` load / first call: original 6.36 s / 1.509 s, portable 1.02 s / 1.059 s
+- `dedode-v2-b` load / first call: original 3.73 s / 1.099 s, portable 0.67 s / 0.753 s
+- `dedode-v2-g` load / first call: original 6.36 s / 1.509 s, portable 1.12 s / 1.038 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -420,8 +420,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.89<br>8.35<br>–<br>5.65<br>fails: ONNX export: conversion failed | 128 / 174<br>186 / 214<br>–<br>186 / 212<br>– |
-| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>22.5<br>–<br>16.2<br>fails: ONNX export: torch.export failed | 448 / 478<br>444 / 476<br>–<br>262 / 278<br>– |
+| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.89<br>7.17<br>–<br>5.65<br>fails: ONNX export: conversion failed | 128 / 174<br>122 / 154<br>–<br>186 / 212<br>– |
+| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>–<br>16.2<br>fails: ONNX export: torch.export failed | 448 / 478<br>445 / 476<br>–<br>262 / 278<br>– |
 
 <details><summary>Details</summary>
 
@@ -440,8 +440,8 @@ Commercial use: yes.
 - `xfeat-lighterglue` 768x1024, first call: portable + torch.compile 40 s (cold Inductor cache).
 - `xfeat` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + mnn, top_k 4096
 - `xfeat-lighterglue` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + lighterglue, top_k 4096
-- `xfeat` load / first call: original 1.51 s / 0.629 s, portable 0.04 s / 0.565 s
-- `xfeat-lighterglue` load / first call: original 1.46 s / 0.692 s, portable 0.07 s / 0.635 s
+- `xfeat` load / first call: original 1.51 s / 0.629 s, portable 0.16 s / 0.74 s
+- `xfeat-lighterglue` load / first call: original 1.46 s / 0.692 s, portable 0.25 s / 0.681 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

@@ -354,15 +354,15 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
 | [`yolox-tiny`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 9.8 (800x1344) | 5.6 | 2.0 | 4.9x vs original (800x1344) | 62 |
-| [`rtmdet-nano-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 12.9 (800x1344) | 7.6 | 2.1 | 6.1x vs original (800x1344) | 49 |
+| [`rtmdet-nano-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 12.9 (800x1344) | 8.5 | 2.1 | 6.1x vs original (800x1344) | 11 |
 | [`lw-detr-tiny-coco`](models/detection.md#lw-detr-vit-tiny--small--medium--large--xlarge) | yes | 16.4 (800x1344) | 7.4 | 2.2 | 7.5x vs original (800x1344) | 94 |
 | [`rf-detr-n-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 10.5 (800x1344) | 9.4 | 2.5 | 4.2x vs original (800x1344) | 114 |
 | [`deim-n-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 24.6 (800x1344) | 10.2 | 2.5 | 9.8x vs original (800x1344) | 93 |
 | [`dfine-n-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 24.3 (800x1344) | 10.3 | 2.5 | 9.7x vs original (800x1344) | 93 |
 | [`yolox-s`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 10.4 (800x1344) | 5.5 | 2.6 | 3.9x vs original (800x1344) | 84 |
-| [`rtmdet-tiny-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 10.7 (800x1344) | 6.1 | 2.7 | 4.0x vs original (800x1344) | 80 |
+| [`rtmdet-tiny-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 10.7 (800x1344) | 6.0 | 2.7 | 3.9x vs original (800x1344) | 40 |
 | [`lw-detr-small-coco`](models/detection.md#lw-detr-vit-tiny--small--medium--large--xlarge) | yes | 19.9 (800x1344) | 8.8 | 2.8 | 7.1x vs original (800x1344) | 99 |
-| [`rtmdet-s-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 12.1 (800x1344) | 6.3 | 3.0 | 4.1x vs original (800x1344) | 88 |
+| [`rtmdet-s-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 12.1 (800x1344) | 6.2 | 3.0 | 4.1x vs original (800x1344) | 48 |
 | [`rf-detr-s-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 11.2 (800x1344) | 10.1 | 3.4 | 3.2x vs original (800x1344) | 125 |
 | [`yolox-m`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 12.4 (800x1344) | 6.4 | 3.7 | 3.4x vs original (800x1344) | 115 |
 | [`rf-detr-seg-n-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 13.0 (800x1344) | 11.9 | 3.7 | 3.5x vs original (800x1344) | 126 |
@@ -431,12 +431,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rtmpose-l`](models/pose.md#rtmpose) | yes | 161.2 (1080x1920) | 8.9 | 5.6 | 28.6x vs original (1080x1920) | 175 |
 | [`rtmpose-l-halpe26`](models/pose.md#rtmpose) | yes | 164.4 (1080x1920) | 9.1 | 5.7 | 29.1x vs original (1080x1920) | 176 |
 | [`rtmpose-m-face6`](models/pose.md#rtmpose) | yes | 198.4 (1080x1920) | 8.7 | 5.8 | 34.3x vs original (1080x1920) | 169 |
+| [`vitpose-plus-small`](models/pose.md#vitpose--vitpose) | yes | 104.1 (1080x1920) | 7.8 | 6.1 | 17.2x vs original (1080x1920) | 145 |
 | [`dwpose-l`](models/pose.md#rtmpose) | yes | 178.0 (1080x1920) | 10.2 | 6.2 | 28.7x vs original (1080x1920) | 186 |
 | [`rtmo-s`](models/pose.md#rtmo) | yes | 11.4 (1080x1920) | 7.5 | 6.3 | 1.8x vs original (1080x1920) | 142 |
 | [`rtmo-t`](models/pose.md#rtmo) | yes | 11.3 (1080x1920) | 7.6 | 6.3 | 1.8x vs original (1080x1920) | 121 |
 | [`rtmo-m`](models/pose.md#rtmo) | yes | 14.3 (1080x1920) | 8.7 | 6.8 | 2.1x vs original (1080x1920) | 166 |
 | [`rtmw-m`](models/pose.md#rtmpose) | yes | 169.4 (1080x1920) | 11.2 | 7.5 | 22.5x vs original (1080x1920) | 184 |
-| [`vitpose-plus-small`](models/pose.md#vitpose--vitpose) | yes | 104.1 (1080x1920) | 10.0 | 8.1 | 12.9x vs original (1080x1920) | 449 |
 | [`rtmo-l`](models/pose.md#rtmo) | yes | 17.1 (1080x1920) | 10.8 | 8.3 | 2.1x vs original (1080x1920) | 208 |
 | [`rtmpose-m-384`](models/pose.md#rtmpose) | yes | 167.2 (1080x1920) | 13.1 | 9.0 | 18.6x vs original (1080x1920) | 202 |
 | [`rtmpose-m-halpe26-384`](models/pose.md#rtmpose) | yes | 192.0 (1080x1920) | 13.2 | 9.0 | 21.3x vs original (1080x1920) | 203 |
@@ -582,20 +582,20 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 | model | commercial use | KITTI 2015 train EPE (px) | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
-| [`sea-raft-s-spring`](models/flow.md#sea-raft) | yes | 7.757 † | 42.4 (1080x1920) | 37.1 | 16.0 | 2.6x vs original (1080x1920) | 160 |
-| [`sea-raft-m-spring`](models/flow.md#sea-raft) | yes | 6.783 † | 56.7 (1080x1920) | 52.3 | 23.2 | 2.4x vs original (1080x1920) | 181 |
-| [`raft-small`](models/flow.md#raft) | yes | 7.834 | 196.1 (1080x1920) | 143.6 | 36.3 | 5.4x vs original (1080x1920) | 197 |
-| [`sea-raft-s`](models/flow.md#sea-raft) | yes | 1.054 † | 299.6 (1080x1920) | 226.4 | 50.4 | 6.0x vs original (1080x1920) | 415 |
-| [`sea-raft-s-kitti`](models/flow.md#sea-raft) | yes | 0.935 † | 299.0 (1080x1920) | 226.3 | 50.5 | 5.9x vs original (1080x1920) | 415 |
+| [`sea-raft-s-spring`](models/flow.md#sea-raft) | yes | 7.757 † | 42.4 (1080x1920) | 32.8 | 16.0 | 2.6x vs original (1080x1920) | 160 |
+| [`sea-raft-m-spring`](models/flow.md#sea-raft) | yes | 6.783 † | 56.7 (1080x1920) | 46.8 | 23.2 | 2.4x vs original (1080x1920) | 181 |
+| [`raft-small`](models/flow.md#raft) | yes | 7.834 | 196.1 (1080x1920) | 144.2 | 36.3 | 5.4x vs original (1080x1920) | 197 |
+| [`sea-raft-s`](models/flow.md#sea-raft) | yes | 1.054 † | 299.6 (1080x1920) | 210.6 | 50.4 | 6.0x vs original (1080x1920) | 415 |
+| [`sea-raft-s-kitti`](models/flow.md#sea-raft) | yes | 0.935 † | 299.0 (1080x1920) | 210.4 | 50.5 | 5.9x vs original (1080x1920) | 415 |
 | [`neuflow-v2-things`](models/flow.md#neuflow-v2) | yes | 4.095 | 75.8 (1080x1920) | 71.2 | 58.9 | 1.3x vs original (1080x1920) | 790 |
 | [`neuflow-v2-sintel`](models/flow.md#neuflow-v2) | yes | 1.566 † | 75.7 (1080x1920) | 71.2 | 58.9 | 1.3x vs original (1080x1920) | 790 |
 | [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.577 † | 75.6 (1080x1920) | 71.3 | 59.1 | 1.3x vs original (1080x1920) | 790 |
-| [`sea-raft-m-things`](models/flow.md#sea-raft) | yes | 4.307 | 367.3 (1080x1920) | 299.3 | 73.1 | 5.0x vs original (1080x1920) | 435 |
-| [`sea-raft-m-kitti`](models/flow.md#sea-raft) | yes | 0.808 † | 367.3 (1080x1920) | 298.9 | 73.1 | 5.0x vs original (1080x1920) | 435 |
-| [`sea-raft-m`](models/flow.md#sea-raft) | yes | 0.880 † | 366.9 (1080x1920) | 299.0 | 73.1 | 5.0x vs original (1080x1920) | 435 |
-| [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 290.2 | 83.1 | 5.8x vs original (1080x1920) | 333 |
-| [`raft-large`](models/flow.md#raft) | yes | 1.526 † | 479.5 (1080x1920) | 290.3 | 83.5 | 5.7x vs original (1080x1920) | 342 |
-| [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 290.2 | 83.6 | 5.7x vs original (1080x1920) | 333 |
+| [`sea-raft-m-things`](models/flow.md#sea-raft) | yes | 4.307 | 367.3 (1080x1920) | 270.3 | 73.1 | 5.0x vs original (1080x1920) | 435 |
+| [`sea-raft-m-kitti`](models/flow.md#sea-raft) | yes | 0.808 † | 367.3 (1080x1920) | 269.9 | 73.1 | 5.0x vs original (1080x1920) | 435 |
+| [`sea-raft-m`](models/flow.md#sea-raft) | yes | 0.880 † | 366.9 (1080x1920) | 270.3 | 73.1 | 5.0x vs original (1080x1920) | 435 |
+| [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 291.5 | 83.1 | 5.8x vs original (1080x1920) | 333 |
+| [`raft-large`](models/flow.md#raft) | yes | 1.526 † | 479.5 (1080x1920) | 290.9 | 83.5 | 5.7x vs original (1080x1920) | 342 |
+| [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 291.0 | 83.6 | 5.7x vs original (1080x1920) | 333 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | – | – | 385.6 | 380.0 (375x1242) | 1.0x vs portable | 1137 |
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | – | – | – |
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 395.3 | – | – | – |
@@ -627,21 +627,21 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 12 models; size 768x1024.
 
-- Fastest: [`xfeat`](models/matching.md#xfeat) (8.4 ms).
-- Fastest commercially usable: [`xfeat`](models/matching.md#xfeat) (8.4 ms).
+- Fastest: [`xfeat`](models/matching.md#xfeat) (7.2 ms).
+- Fastest commercially usable: [`xfeat`](models/matching.md#xfeat) (7.2 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`xfeat`](models/matching.md#xfeat) | yes | 8.9 (768x1024) | 8.4 | – | – | – |
-| [`xfeat-lighterglue`](models/matching.md#xfeat) | yes | 23.6 (768x1024) | 22.5 | – | – | – |
+| [`xfeat`](models/matching.md#xfeat) | yes | 8.9 (768x1024) | 7.2 | – | – | – |
+| [`xfeat-lighterglue`](models/matching.md#xfeat) | yes | 23.6 (768x1024) | 21.6 | – | – | – |
 | [`aliked-lightglue`](models/matching.md#lightglue) | yes | 41.8 (768x1024) | 48.4 | – | – | – |
 | [`loftr-outdoor`](models/matching.md#loftr) | yes | 241.5 (768x1024) | 109.9 | – | – | – |
 | [`loftr-indoor`](models/matching.md#loftr) | yes | 241.6 (768x1024) | 110.6 | – | – | – |
 | [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.4 | – | – | – |
-| [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.6 | – | – | – |
+| [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.5 | – | – | – |
 | [`romav1`](models/matching.md#roma) | yes | 385.8 (768x1024) | 376.3 | 356.0 | 1.1x vs original (768x1024) | 1720 |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 405.9 | 1.8x vs original (768x1024) | 1909 |
-| [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 593.4 | – | – | – |
+| [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 592.5 | – | – | – |
 | [`aliked-flexglue`](models/matching.md#flexglue) | yes | – | – | – | – | – |
 | [`loma-b`](models/matching.md#loma) | yes | – | – | – | – | – |
 
@@ -649,15 +649,15 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 10 models; size 480x854.
 
-- Fastest: [`tapir`](models/tracking.md#tapir) (138.3 ms).
-- Fastest commercially usable: [`tapir`](models/tracking.md#tapir) (138.3 ms).
+- Fastest: [`tapir`](models/tracking.md#tapir) (140.8 ms).
+- Fastest commercially usable: [`tapir`](models/tracking.md#tapir) (140.8 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`tapir`](models/tracking.md#tapir) | yes | 186.9 (480x854) | 185.6 | 138.3 | 1.4x vs original (480x854) | 678 |
+| [`tapir`](models/tracking.md#tapir) | yes | 186.9 (480x854) | 181.8 | 140.8 | 1.3x vs original (480x854) | 463 |
 | [`locotrack-s`](models/tracking.md#locotrack) | yes | 192.8 (480x854) | 179.5 | 151.1 | 1.3x vs original (480x854) | 764 |
 | [`locotrack-b`](models/tracking.md#locotrack) | yes | 203.3 (480x854) | 190.1 | 177.6 | 1.1x vs original (480x854) | 782 |
-| [`bootstapir`](models/tracking.md#tapir) | yes | 242.5 (480x854) | 239.5 | 191.3 | 1.3x vs original (480x854) | 769 |
+| [`bootstapir`](models/tracking.md#tapir) | yes | 242.5 (480x854) | 233.7 | 192.5 | 1.3x vs original (480x854) | 508 |
 | [`alltracker`](models/tracking.md#alltracker) | yes | 485.3 (480x854) | 391.2 | 221.3 | 2.2x vs original (480x854) | 1076 |
 | [`alltracker-tiny`](models/tracking.md#alltracker) | yes | 424.2 (480x854) | 329.9 | 232.9 | 1.8x vs original (480x854) | 978 |
 | [`tapnext`](models/tracking.md#tapnext) | yes | 908.8 (480x854) | 529.5 | 382.2 | 2.4x vs original (480x854) | 1313 |

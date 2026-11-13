@@ -55,9 +55,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`rtmdet-l-coco`](#rtmdet) | yes | 5.74, 3.4x | 284, 0.9x |
 | [`rtmdet-m-coco`](#rtmdet) | yes | 4.49, 3.3x | 200, 1.0x |
 | [`rtmdet-m-person`](#rtmdet) | yes | 4.12, 3.4x | 202, 1.0x |
-| [`rtmdet-nano-person`](#rtmdet) | yes | 2.10, 6.1x | 92, 3.1x |
-| [`rtmdet-s-coco`](#rtmdet) | yes | 2.98, 4.1x | 136, 1.5x |
-| [`rtmdet-tiny-coco`](#rtmdet) | yes | 2.69, 4.0x | 124, 1.9x |
+| [`rtmdet-nano-person`](#rtmdet) | yes | 2.11, 6.1x | 52, 1.7x |
+| [`rtmdet-s-coco`](#rtmdet) | yes | 2.97, 4.1x | 96, 1.0x |
+| [`rtmdet-tiny-coco`](#rtmdet) | yes | 2.74, 3.9x | 84, 1.3x |
 | [`rtmdet-x-coco`](#rtmdet) | yes | 8.55, 2.8x | 378, 0.73x |
 | [`yolox-l`](#yolox) | yes | 5.24, 2.9x | 304, 1.0x |
 | [`yolox-m`](#yolox) | yes | 3.68, 3.4x | 182, 1.1x |
@@ -709,12 +709,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rtmdet-tiny-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>13.8<br>6.08<br>2.69<br>3.43<br>0.962 | 73 / 96<br>48 / 64<br>72 / 96<br>80 / 124<br>64 / 94<br>80 / 122 |
-| `rtmdet-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.1<br>14.5<br>6.25<br>2.98<br>3.56<br>1.19 | 86 / 106<br>73 / 92<br>81 / 102<br>88 / 136<br>76 / 98<br>93 / 130 |
+| `rtmdet-tiny-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>13.8<br>6.04<br>2.74<br>3.43<br>0.962 | 73 / 96<br>48 / 64<br>40 / 56<br>40 / 84<br>64 / 94<br>80 / 122 |
+| `rtmdet-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.1<br>14.5<br>6.21<br>2.97<br>3.56<br>1.19 | 86 / 106<br>73 / 92<br>53 / 82<br>48 / 96<br>76 / 98<br>93 / 130 |
 | `rtmdet-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.7<br>17.8<br>7.69<br>4.49<br>4.78<br>2.39 | 168 / 200<br>168 / 198<br>114 / 148<br>122 / 200<br>115 / 130<br>156 / 212 |
 | `rtmdet-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.5<br>20.4<br>9.60<br>5.74<br>10.6<br>3.59 | 295 / 316<br>332 / 356<br>183 / 230<br>178 / 284<br>178 / 226<br>283 / 318 |
 | `rtmdet-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 32.2<br>24.2<br>13.3<br>8.55<br>11.8<br>6.17 | 480 / 518<br>585 / 604<br>267 / 316<br>267 / 378<br>271 / 292<br>471 / 504 |
-| `rtmdet-nano-person` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.9<br>16.0<br>7.56<br>2.10<br>4.23<br>0.769 | 14 / 30<br>12 / 30<br>48 / 84<br>49 / 92<br>48 / 64<br>49 / 58 |
+| `rtmdet-nano-person` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.9<br>16.0<br>8.49<br>2.11<br>4.23<br>0.769 | 14 / 30<br>12 / 30<br>10 / 26<br>11 / 52<br>48 / 64<br>49 / 58 |
 | `rtmdet-m-person` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.1<br>16.3<br>7.39<br>4.12<br>4.44<br>2.38 | 168 / 200<br>168 / 198<br>114 / 146<br>119 / 202<br>115 / 128<br>153 / 190 |
 
 <details><summary>Details</summary>
@@ -753,12 +753,12 @@ Commercial use: yes.
 - `rtmdet-nano-person` original 800x1344: torch.autocast(float16) around the call; mmdet 3.3.0 inference_detector (CPU cv2 resize + pad, network, decode, NMS: torchvision nms in mmcv's batched_nms logic), score_thr 0.05, 100 detections (card defaults), all in the timed call
 - `rtmdet-m-person` original (fp32) 800x1344: mmdet 3.3.0 inference_detector (CPU cv2 resize + pad, network, decode, NMS: torchvision nms in mmcv's batched_nms logic), score_thr 0.05, 100 detections (card defaults), all in the timed call
 - `rtmdet-m-person` original 800x1344: torch.autocast(float16) around the call; mmdet 3.3.0 inference_detector (CPU cv2 resize + pad, network, decode, NMS: torchvision nms in mmcv's batched_nms logic), score_thr 0.05, 100 detections (card defaults), all in the timed call
-- `rtmdet-tiny-coco` load / first call: original 0.22 s / 1.242 s, portable 0.13 s / 1.322 s, kernels 1.66 s / 0.251 s
-- `rtmdet-s-coco` load / first call: original 0.27 s / 0.581 s, portable 0.18 s / 1.392 s, kernels 1.68 s / 0.225 s
+- `rtmdet-tiny-coco` load / first call: original 0.22 s / 1.242 s, portable 0.31 s / 1.539 s, kernels 2.12 s / 0.261 s
+- `rtmdet-s-coco` load / first call: original 0.27 s / 0.581 s, portable 0.28 s / 1.582 s, kernels 1.81 s / 0.212 s
 - `rtmdet-m-coco` load / first call: original 0.46 s / 0.313 s, portable 0.34 s / 1.34 s, kernels 1.81 s / 0.335 s
 - `rtmdet-l-coco` load / first call: original 0.68 s / 0.323 s, portable 0.63 s / 1.27 s, kernels 2.07 s / 0.356 s
 - `rtmdet-x-coco` load / first call: original 1.0 s / 0.608 s, portable 0.77 s / 1.252 s, kernels 2.38 s / 0.29 s
-- `rtmdet-nano-person` load / first call: original 0.14 s / 2.695 s, portable 0.1 s / 1.638 s, kernels 1.92 s / 0.353 s
+- `rtmdet-nano-person` load / first call: original 0.14 s / 2.695 s, portable 0.19 s / 2.196 s, kernels 4.13 s / 0.602 s
 - `rtmdet-m-person` load / first call: original 0.51 s / 0.025 s, portable 0.23 s / 0.515 s, kernels 1.72 s / 0.213 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

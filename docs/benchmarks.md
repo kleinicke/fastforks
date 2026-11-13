@@ -830,9 +830,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | rtmdet-l-coco | 19.5 | 20.4 | 9.60 | 5.74 | 3.4x | 1.7x | 332 / 356 | 183 / 230 | 178 / 284 |
 | rtmdet-m-coco | 14.7 | 17.8 | 7.69 | 4.49 | 3.3x | 1.7x | 168 / 198 | 114 / 148 | 122 / 200 |
 | rtmdet-m-person | 14.1 | 16.3 | 7.39 | 4.12 | 3.4x | 1.8x | 168 / 198 | 114 / 146 | 119 / 202 |
-| rtmdet-nano-person | 12.9 | 16.0 | 7.56 | 2.10 | 6.1x | 3.6x | 12 / 30 | 48 / 84 | 49 / 92 |
-| rtmdet-s-coco | 12.1 | 14.5 | 6.25 | 2.98 | 4.1x | 2.1x | 73 / 92 | 81 / 102 | 88 / 136 |
-| rtmdet-tiny-coco | 10.7 | 13.8 | 6.08 | 2.69 | 4.0x | 2.3x | 48 / 64 | 72 / 96 | 80 / 124 |
+| rtmdet-nano-person | 12.9 | 16.0 | 8.49 | 2.11 | 6.1x | 4.0x | 12 / 30 | 10 / 26 | 11 / 52 |
+| rtmdet-s-coco | 12.1 | 14.5 | 6.21 | 2.97 | 4.1x | 2.1x | 73 / 92 | 53 / 82 | 48 / 96 |
+| rtmdet-tiny-coco | 10.7 | 13.8 | 6.04 | 2.74 | 3.9x | 2.2x | 48 / 64 | 40 / 56 | 40 / 84 |
 | rtmdet-x-coco | 32.2 | 24.2 | 13.3 | 8.55 | 2.8x | 1.6x | 585 / 604 | 267 / 316 | 267 / 378 |
 | yolox-l | – | 15.1 | 8.13 | 5.24 | 2.9x | 1.6x | 265 / 298 | 165 / 206 | 170 / 304 |
 | yolox-m | – | 12.4 | 6.42 | 3.68 | 3.4x | 1.7x | 142 / 160 | 110 / 132 | 115 / 182 |
@@ -886,7 +886,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | vitpose-plus-base | 162 | 113 | 19.9 | 13.9 | 8.1x | 1.4x | 918 / 1002 | 597 / 642 | 574 / 704 |
 | vitpose-plus-huge | 610 | 242 | 104 | 64.1 | 3.8x | 1.6x | 5732 / 5846 | 1641 / 1704 | 1618 / 1766 |
 | vitpose-plus-large | 331 | 165 | 53.7 | 34.9 | 4.7x | 1.5x | 2873 / 3004 | 1014 / 1062 | 991 / 1124 |
-| vitpose-plus-small | 120 | 104 | 9.96 | 8.07 | 12.9x | 1.2x | 312 / 376 | 472 / 496 | 449 / 558 |
+| vitpose-plus-small | 120 | 104 | 7.83 | 6.05 | 17.2x | 1.3x | 312 / 376 | 164 / 196 | 145 / 198 |
 
 ### Features, synthetic, 224x224
 
@@ -1006,17 +1006,17 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | neuflow-v2 | 1080x1920 | 171 | 75.6 | 71.3 | 59.1 | 1.3x | 1.2x | 4367 / 4556 | 2435 / 2478 | 790 / 896 |
 | neuflow-v2-sintel | 1080x1920 | 171 | 75.7 | 71.2 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2435 / 2478 | 790 / 896 |
 | neuflow-v2-things | 1080x1920 | 172 | 75.8 | 71.2 | 58.9 | 1.3x | 1.2x | 4374 / 4720 | 2435 / 2478 | 790 / 896 |
-| raft-large | 1080x1920 | 480 | 567 | 290 | 83.5 | 5.7x | 3.5x | 7164 / 10928 | 8268 / 8298 | 342 / 372 |
-| raft-large-kitti | 1080x1920 | 480 | 567 | 290 | 83.6 | 5.7x | 3.5x | 7164 / 10928 | 8268 / 8298 | 333 / 352 |
-| raft-large-things | 1080x1920 | 481 | 566 | 290 | 83.1 | 5.8x | 3.5x | 7164 / 10928 | 8268 / 8298 | 333 / 352 |
-| raft-small | 1080x1920 | 196 | 395 | 144 | 36.3 | 5.4x | 4.0x | 7032 / 10888 | 8198 / 8226 | 197 / 224 |
-| sea-raft-m | 1080x1920 | 504 | 367 | 299 | 73.1 | 5.0x | 4.1x | 7385 / 8570 | 8333 / 8420 | 435 / 514 |
-| sea-raft-m-kitti | 1080x1920 | 504 | 367 | 299 | 73.1 | 5.0x | 4.1x | 7385 / 8570 | 8333 / 8420 | 435 / 514 |
-| sea-raft-m-spring | 1080x1920 | 96.1 | 56.7 | 52.3 | 23.2 | 2.4x | 2.3x | 761 / 812 | 713 / 740 | 181 / 214 |
-| sea-raft-m-things | 1080x1920 | 504 | 367 | 299 | 73.1 | 5.0x | 4.1x | 7385 / 8570 | 8333 / 8420 | 435 / 514 |
-| sea-raft-s | 1080x1920 | 365 | 300 | 226 | 50.4 | 6.0x | 4.5x | 7323 / 8502 | 8292 / 8354 | 415 / 492 |
-| sea-raft-s-kitti | 1080x1920 | 365 | 299 | 226 | 50.5 | 5.9x | 4.5x | 7323 / 8502 | 8292 / 8354 | 415 / 492 |
-| sea-raft-s-spring | 1080x1920 | 67.1 | 42.4 | 37.1 | 16.0 | 2.6x | 2.3x | 699 / 764 | 672 / 714 | 160 / 192 |
+| raft-large | 1080x1920 | 480 | 567 | 291 | 83.5 | 5.7x | 3.5x | 7164 / 10928 | 5930 / 6058 | 342 / 372 |
+| raft-large-kitti | 1080x1920 | 480 | 567 | 291 | 83.6 | 5.7x | 3.5x | 7164 / 10928 | 5930 / 6058 | 333 / 352 |
+| raft-large-things | 1080x1920 | 481 | 566 | 291 | 83.1 | 5.8x | 3.5x | 7164 / 10928 | 5930 / 6058 | 333 / 352 |
+| raft-small | 1080x1920 | 196 | 395 | 144 | 36.3 | 5.4x | 4.0x | 7032 / 10888 | 5669 / 5706 | 197 / 224 |
+| sea-raft-m | 1080x1920 | 504 | 367 | 270 | 73.1 | 5.0x | 3.7x | 7385 / 8570 | 6060 / 6180 | 435 / 514 |
+| sea-raft-m-kitti | 1080x1920 | 504 | 367 | 270 | 73.1 | 5.0x | 3.7x | 7385 / 8570 | 6060 / 6180 | 435 / 514 |
+| sea-raft-m-spring | 1080x1920 | 96.1 | 56.7 | 46.8 | 23.2 | 2.4x | 2.0x | 761 / 812 | 652 / 700 | 181 / 214 |
+| sea-raft-m-things | 1080x1920 | 504 | 367 | 270 | 73.1 | 5.0x | 3.7x | 7385 / 8570 | 6060 / 6180 | 435 / 514 |
+| sea-raft-s | 1080x1920 | 365 | 300 | 211 | 50.4 | 6.0x | 4.2x | 7323 / 8502 | 6019 / 6136 | 415 / 492 |
+| sea-raft-s-kitti | 1080x1920 | 365 | 299 | 210 | 50.5 | 5.9x | 4.2x | 7323 / 8502 | 6019 / 6136 | 415 / 492 |
+| sea-raft-s-spring | 1080x1920 | 67.1 | 42.4 | 32.8 | 16.0 | 2.6x | 2.0x | 699 / 764 | 611 / 656 | 160 / 192 |
 
 ### Flow, KITTI 2015, 375x1242
 
@@ -1032,15 +1032,15 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
 | aliked-lightglue | – | 41.8 | 48.4 | – | – | – | 1305 / 1364 | 1300 / 1406 | – |
-| dedode-v2-b | – | 318 | 247 | – | – | – | 1734 / 1992 | 1722 / 1774 | – |
-| dedode-v2-g | – | 666 | 593 | – | – | – | 2335 / 2472 | 2323 / 2834 | – |
+| dedode-v2-b | – | 318 | 246 | – | – | – | 1734 / 1992 | 1535 / 1654 | – |
+| dedode-v2-g | – | 666 | 592 | – | – | – | 2335 / 2472 | 2142 / 2334 | – |
 | disk-lightglue | – | 117 | 116 | – | – | – | 1955 / 2412 | 1950 / 2398 | – |
 | loftr-indoor | – | 242 | 111 | – | – | – | 1751 / 1910 | 796 / 904 | – |
 | loftr-outdoor | – | 241 | 110 | – | – | – | 1739 / 1870 | 796 / 904 | – |
 | romav1 | – | 386 | 376 | 356 | 1.1x | 1.1x | 3887 / 4094 | 1720 / 1820 | 1720 / 1860 |
 | romav2 | 1412 | 741 | 546 | 406 | 1.8x | 1.3x | 9881 / 10124 | 1989 / 2596 | 1909 / 2580 |
-| xfeat | – | 8.89 | 8.35 | – | – | – | 128 / 174 | 186 / 214 | – |
-| xfeat-lighterglue | – | 23.6 | 22.5 | – | – | – | 448 / 478 | 444 / 476 | – |
+| xfeat | – | 8.89 | 7.17 | – | – | – | 128 / 174 | 122 / 154 | – |
+| xfeat-lighterglue | – | 23.6 | 21.6 | – | – | – | 448 / 478 | 445 / 476 | – |
 
 ### Tracking, synthetic, 480x854
 
@@ -1048,10 +1048,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|---|
 | alltracker | 485 | 391 | 221 | 2.2x | 1.8x | 2100 / 2318 | 993 / 1238 | 1076 / 1288 |
 | alltracker-tiny | 424 | 330 | 233 | 1.8x | 1.4x | 1995 / 2200 | 919 / 1178 | 978 / 1166 |
-| bootstapir | 243 | 240 | 191 | 1.3x | 1.3x | 639 / 774 | 720 / 768 | 769 / 828 |
+| bootstapir | 243 | 234 | 192 | 1.3x | 1.2x | 639 / 774 | 508 / 628 | 508 / 628 |
 | locotrack-b | 203 | 190 | 178 | 1.1x | 1.1x | 719 / 784 | 771 / 856 | 782 / 840 |
 | locotrack-s | 193 | 180 | 151 | 1.3x | 1.2x | 706 / 812 | 759 / 842 | 764 / 822 |
-| tapir | 187 | 186 | 138 | 1.4x | 1.3x | 498 / 574 | 630 / 690 | 678 / 750 |
+| tapir | 187 | 182 | 141 | 1.3x | 1.3x | 498 / 574 | 463 / 548 | 463 / 548 |
 | tapnext | 909 | 529 | 382 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1313 / 1374 |
 | track-on-r | 2022 | 1188 | 1102 | 1.8x | 1.1x | 1801 / 1928 | 1423 / 1632 | 1368 / 1620 |
 | track-on2 | 1953 | 1238 | 1120 | 1.7x | 1.1x | 1403 / 1558 | 1423 / 1632 | 1368 / 1620 |
@@ -1392,9 +1392,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | rtmdet-l-coco | 0.68 | 0.63 | 2.07 | 0.32 | 1.27 | 0.36 |
 | rtmdet-m-coco | 0.46 | 0.34 | 1.81 | 0.31 | 1.34 | 0.34 |
 | rtmdet-m-person | 0.51 | 0.23 | 1.72 | 0.03 | 0.52 | 0.21 |
-| rtmdet-nano-person | 0.14 | 0.10 | 1.92 | 2.69 | 1.64 | 0.35 |
-| rtmdet-s-coco | 0.27 | 0.18 | 1.68 | 0.58 | 1.39 | 0.23 |
-| rtmdet-tiny-coco | 0.22 | 0.13 | 1.66 | 1.24 | 1.32 | 0.25 |
+| rtmdet-nano-person | 0.14 | 0.19 | 4.13 | 2.69 | 2.20 | 0.60 |
+| rtmdet-s-coco | 0.27 | 0.28 | 1.81 | 0.58 | 1.58 | 0.21 |
+| rtmdet-tiny-coco | 0.22 | 0.31 | 2.12 | 1.24 | 1.54 | 0.26 |
 | rtmdet-x-coco | 1.00 | 0.77 | 2.38 | 0.61 | 1.25 | 0.29 |
 | yolox-l | 0.65 | 0.41 | 1.72 | 0.03 | 1.16 | 0.36 |
 | yolox-m | 0.32 | 0.24 | 1.60 | 0.03 | 0.36 | 0.19 |
@@ -1443,7 +1443,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | vitpose-plus-base | 0.19 | 0.65 | 1.10 | 0.12 | 0.34 | 0.34 |
 | vitpose-plus-huge | 0.65 | 2.69 | 2.26 | 0.25 | 0.44 | 0.40 |
 | vitpose-plus-large | 0.41 | 1.50 | 1.63 | 0.17 | 0.41 | 0.41 |
-| vitpose-plus-small | 0.15 | 0.25 | 0.95 | 0.12 | 0.53 | 0.33 |
+| vitpose-plus-small | 0.15 | 0.81 | 1.09 | 0.12 | 0.46 | 0.50 |
 | c-radio-v3-b | – | – | – | 0.14 | 0.08 | 0.06 |
 | c-radio-v3-g | – | – | – | 0.17 | 0.08 | 0.07 |
 | c-radio-v3-h | – | – | – | 0.16 | 0.07 | 0.07 |
@@ -1538,33 +1538,33 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | neuflow-v2 | 0.20 | 0.05 (375x1242) | 0.96 (375x1242) | 0.22 | 0.30 (375x1242) | 0.18 (375x1242) |
 | neuflow-v2-sintel | 0.17 | 0.07 (375x1242) | 0.95 (375x1242) | 0.08 | 0.28 (375x1242) | 0.18 (375x1242) |
 | neuflow-v2-things | 0.17 | 0.06 (375x1242) | 0.92 (375x1242) | 0.08 | 0.30 (375x1242) | 0.18 (375x1242) |
-| raft-large | 0.14 | 0.05 | 1.07 | 0.76 | 0.61 | 0.11 |
-| raft-large-kitti | 0.14 | 0.05 | 1.06 | 0.58 | 0.60 | 0.11 |
-| raft-large-things | 0.13 | 0.05 | 1.07 | 0.58 | 0.61 | 0.11 |
-| raft-small | 0.09 | 0.03 | 1.06 | 0.43 | 0.48 | 0.07 |
-| sea-raft-m | 0.53 | 0.09 | 1.15 | 0.37 | 0.30 | 0.07 |
-| sea-raft-m-kitti | 0.67 | 0.09 | 1.14 | 0.37 | 0.30 | 0.07 |
-| sea-raft-m-spring | 0.57 | 0.09 | 1.14 | 0.06 | 0.06 | 0.02 |
-| sea-raft-m-things | 0.55 | 0.09 | 1.13 | 0.37 | 0.30 | 0.07 |
-| sea-raft-s | 0.30 | 0.05 | 1.10 | 0.30 | 0.23 | 0.05 |
-| sea-raft-s-kitti | 0.30 | 0.05 | 1.10 | 0.30 | 0.23 | 0.05 |
-| sea-raft-s-spring | 0.31 | 0.05 | 1.11 | 0.04 | 0.04 | 0.02 |
+| raft-large | 0.14 | 0.17 | 1.07 | 0.76 | 0.30 | 0.11 |
+| raft-large-kitti | 0.14 | 0.17 | 1.06 | 0.58 | 0.30 | 0.11 |
+| raft-large-things | 0.13 | 0.25 | 1.07 | 0.58 | 0.30 | 0.11 |
+| raft-small | 0.09 | 0.16 | 1.06 | 0.43 | 0.17 | 0.07 |
+| sea-raft-m | 0.53 | 0.29 | 1.15 | 0.37 | 0.27 | 0.07 |
+| sea-raft-m-kitti | 0.67 | 1.02 | 1.14 | 0.37 | 0.27 | 0.07 |
+| sea-raft-m-spring | 0.57 | 0.74 | 1.14 | 0.06 | 0.05 | 0.02 |
+| sea-raft-m-things | 0.55 | 0.29 | 1.13 | 0.37 | 0.27 | 0.07 |
+| sea-raft-s | 0.30 | 0.18 | 1.10 | 0.30 | 0.21 | 0.05 |
+| sea-raft-s-kitti | 0.30 | 0.27 | 1.10 | 0.30 | 0.21 | 0.05 |
+| sea-raft-s-spring | 0.31 | 0.34 | 1.11 | 0.04 | 0.04 | 0.02 |
 | aliked-lightglue | 1.49 | 0.20 | – | 0.73 | 0.75 | – |
-| dedode-v2-b | 3.73 | 0.25 | – | 1.10 | 0.82 | – |
-| dedode-v2-g | 6.36 | 1.02 | – | 1.51 | 1.06 | – |
+| dedode-v2-b | 3.73 | 0.67 | – | 1.10 | 0.75 | – |
+| dedode-v2-g | 6.36 | 1.12 | – | 1.51 | 1.04 | – |
 | disk-lightglue | 1.43 | 0.20 | – | 0.64 | 0.63 | – |
 | loftr-indoor | 1.49 | 0.32 | – | 0.69 | 0.53 | – |
 | loftr-outdoor | 0.35 | 0.24 | – | 0.24 | 0.58 | – |
 | romav1 | 6.28 | 1.09 | 1.96 | 2.57 | 0.83 | 0.86 |
 | romav2 | 5.45 | 0.85 | 1.50 | 2.09 | 0.91 | 0.81 |
-| xfeat | 1.51 | 0.04 | – | 0.63 | 0.56 | – |
-| xfeat-lighterglue | 1.46 | 0.07 | – | 0.69 | 0.64 | – |
+| xfeat | 1.51 | 0.16 | – | 0.63 | 0.74 | – |
+| xfeat-lighterglue | 1.46 | 0.25 | – | 0.69 | 0.68 | – |
 | alltracker | 1.68 | 0.22 | 0.98 | 1.31 | 0.85 | 0.45 |
 | alltracker-tiny | 1.22 | 0.06 | 0.96 | 1.40 | 0.73 | 0.54 |
-| bootstapir | 0.60 | 0.15 | 1.19 | 0.90 | 0.79 | 0.53 |
+| bootstapir | 0.60 | 0.32 | 1.14 | 0.90 | 0.80 | 0.66 |
 | locotrack-b | 0.79 | 0.06 | 1.00 | 1.06 | 0.64 | 0.69 |
 | locotrack-s | 0.29 | 0.06 | 1.13 | 0.23 | 0.65 | 0.66 |
-| tapir | 0.35 | 0.16 | 0.97 | 0.83 | 0.82 | 0.52 |
+| tapir | 0.35 | 0.19 | 1.13 | 0.83 | 0.84 | 0.69 |
 | tapnext | 16.92 | 2.72 | 2.63 | 2.17 | 0.69 | 0.56 |
 | track-on-r | 0.88 | 0.24 | 1.11 | 2.91 | 1.99 | 1.72 |
 | track-on2 | 3.77 | 0.46 | 1.17 | 3.63 | 2.64 | 1.75 |
@@ -1873,9 +1873,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | rtmdet-l-coco | 800x1344 | 9.60 ms | 10.6 ms | 3.59 ms | 5.74 ms | 17.2 s | 25.0 s | 183 / 230 | 178 / 226 | 178 / 284 | 283 / 318 |
 | rtmdet-m-coco | 800x1344 | 7.69 ms | 4.78 ms | 2.39 ms | 4.49 ms | 15.7 s | 22.4 s | 114 / 148 | 115 / 130 | 122 / 200 | 156 / 212 |
 | rtmdet-m-person | 800x1344 | 7.39 ms | 4.44 ms | 2.38 ms | 4.12 ms | 15.5 s | 24.8 s | 114 / 146 | 115 / 128 | 119 / 202 | 153 / 190 |
-| rtmdet-nano-person | 800x1344 | 7.56 ms | 4.23 ms | 0.769 ms | 2.10 ms | 16.3 s | 22.6 s | 48 / 84 | 48 / 64 | 49 / 92 | 49 / 58 |
-| rtmdet-s-coco | 800x1344 | 6.25 ms | 3.56 ms | 1.19 ms | 2.98 ms | 14.3 s | 20.1 s | 81 / 102 | 76 / 98 | 88 / 136 | 93 / 130 |
-| rtmdet-tiny-coco | 800x1344 | 6.08 ms | 3.43 ms | 0.962 ms | 2.69 ms | 13.7 s | 19.3 s | 72 / 96 | 64 / 94 | 80 / 124 | 80 / 122 |
+| rtmdet-nano-person | 800x1344 | 8.49 ms | 4.23 ms | 0.769 ms | 2.11 ms | 16.3 s | 22.6 s | 10 / 26 | 48 / 64 | 11 / 52 | 49 / 58 |
+| rtmdet-s-coco | 800x1344 | 6.21 ms | 3.56 ms | 1.19 ms | 2.97 ms | 14.3 s | 20.1 s | 53 / 82 | 76 / 98 | 48 / 96 | 93 / 130 |
+| rtmdet-tiny-coco | 800x1344 | 6.04 ms | 3.43 ms | 0.962 ms | 2.74 ms | 13.7 s | 19.3 s | 40 / 56 | 64 / 94 | 40 / 84 | 80 / 122 |
 | rtmdet-x-coco | 800x1344 | 13.3 ms | 11.8 ms | 6.17 ms | 8.55 ms | 18.6 s | 27.8 s | 267 / 316 | 271 / 292 | 267 / 378 | 471 / 504 |
 | yolox-l | 800x1344 | 8.13 ms | 6.15 ms | 3.10 ms | 5.24 ms | 15.3 s | 21.2 s | 165 / 206 | 173 / 208 | 170 / 304 | 279 / 324 |
 | yolox-m | 800x1344 | 6.42 ms | 3.70 ms | 2.03 ms | 3.68 ms | 13.4 s | 20.1 s | 110 / 132 | 111 / 132 | 115 / 182 | 152 / 194 |
@@ -1924,7 +1924,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | vitpose-plus-base | 1080x1920 | 19.9 ms | 16.4 ms | 8.87 ms (network on person crops only) | 13.9 ms | 10.6 s | 35.0 s | 597 / 642 | 597 / 622 | 574 / 704 | 473 / 516 |
 | vitpose-plus-huge | 1080x1920 | 104 ms | 92.9 ms | 58.7 ms (network on person crops only) | 64.1 ms | 21.2 s | 47.3 s | 1641 / 1704 | 1641 / 1682 | 1618 / 1766 | 2595 / 2654 |
 | vitpose-plus-large | 1080x1920 | 53.7 ms | 46.9 ms | 29.3 ms (network on person crops only) | 34.9 ms | 17.9 s | 39.0 s | 1014 / 1062 | 1014 / 1062 | 991 / 1124 | 1312 / 1338 |
-| vitpose-plus-small | 1080x1920 | 9.96 ms | 7.54 ms | 3.39 ms (network on person crops only) | 8.07 ms | 10.6 s | 37.5 s | 472 / 496 | 472 / 496 | 449 / 558 | 214 / 256 |
+| vitpose-plus-small | 1080x1920 | 7.83 ms | 7.54 ms | 3.39 ms (network on person crops only) | 6.05 ms | 10.6 s | 37.5 s | 164 / 196 | 472 / 496 | 145 / 198 | 214 / 256 |
 | c-radio-v3-b | 224x224 | 3.04 ms | 7.33 ms | 1.19 ms | 1.35 ms | 8.29 s | 37.4 s | 217 / 246 | 278 / 306 | 284 / 326 | 427 / 454 |
 | c-radio-v3-g | 224x224 | 14.6 ms | 25.5 ms | 10.3 ms | 10.6 ms | 16.5 s | 57.1 s | 2266 / 2308 | 2329 / 2368 | 3166 / 3230 | 4483 / 4530 |
 | c-radio-v3-h | 224x224 | 8.90 ms | 18.1 ms | 6.62 ms | 7.42 ms | 14.7 s | 44.7 s | 1289 / 1308 | 1350 / 1386 | 1789 / 1828 | 2558 / 2586 |
@@ -2002,31 +2002,31 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | neuflow-v2 | 1080x1920 | 71.3 ms | 91.4 ms | 65.0 ms | 59.1 ms | 28.5 s | 104 s | 2435 / 2478 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-sintel | 1080x1920 | 71.2 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2435 / 2478 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-things | 1080x1920 | 71.2 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2435 / 2478 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
-| raft-large | 1080x1920 | 290 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 41.3 s | – | 8268 / 8298 | 5886 / 5924 | 342 / 372 | – |
-| raft-large-kitti | 1080x1920 | 290 ms | 195 ms | fails: TensorRT engine build failed | 83.6 ms | 39.3 s | – | 8268 / 8298 | 5886 / 5924 | 333 / 352 | – |
-| raft-large-things | 1080x1920 | 290 ms | 195 ms | fails: TensorRT engine build failed | 83.1 ms | 39.4 s | – | 8268 / 8298 | 5886 / 5924 | 333 / 352 | – |
-| raft-small | 1080x1920 | 144 ms | 110 ms | fails: TensorRT engine build failed | 36.3 ms | 37.0 s | – | 8198 / 8226 | 5704 / 5728 | 197 / 224 | – |
-| sea-raft-m | 1080x1920 | 299 ms | 191 ms | 132 ms | 73.1 ms | 34.3 s | 70.0 s | 8333 / 8420 | 5869 / 5920 | 435 / 514 | 11110 / 11130 |
-| sea-raft-m-kitti | 1080x1920 | 299 ms | 191 ms | 132 ms | 73.1 ms | 34.9 s | 69.7 s | 8333 / 8420 | 5869 / 5920 | 435 / 514 | 11110 / 11130 |
-| sea-raft-m-spring | 1080x1920 | 52.3 ms | 34.6 ms | 4.43 ms | 23.2 ms | 23.2 s | 47.1 s | 713 / 740 | 624 / 640 | 181 / 214 | 291 / 318 |
-| sea-raft-m-things | 1080x1920 | 299 ms | 192 ms | 132 ms | 73.1 ms | 34.9 s | 73.6 s | 8333 / 8420 | 5869 / 5920 | 435 / 514 | 11110 / 11130 |
-| sea-raft-s | 1080x1920 | 226 ms | 150 ms | 108 ms | 50.4 ms | 35.4 s | 68.0 s | 8292 / 8354 | 5828 / 5876 | 415 / 492 | 11043 / 11078 |
-| sea-raft-s-kitti | 1080x1920 | 226 ms | 150 ms | 108 ms | 50.5 ms | 31.8 s | 67.3 s | 8292 / 8354 | 5828 / 5876 | 415 / 492 | 11043 / 11078 |
-| sea-raft-s-spring | 1080x1920 | 37.1 ms | 23.8 ms | 3.01 ms | 16.0 ms | 21.9 s | 38.8 s | 672 / 714 | 582 / 596 | 160 / 192 | 215 / 278 |
+| raft-large | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 41.3 s | – | 5930 / 6058 | 5886 / 5924 | 342 / 372 | – |
+| raft-large-kitti | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.6 ms | 39.3 s | – | 5930 / 6058 | 5886 / 5924 | 333 / 352 | – |
+| raft-large-things | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.1 ms | 39.4 s | – | 5930 / 6058 | 5886 / 5924 | 333 / 352 | – |
+| raft-small | 1080x1920 | 144 ms | 110 ms | fails: TensorRT engine build failed | 36.3 ms | 37.0 s | – | 5669 / 5706 | 5704 / 5728 | 197 / 224 | – |
+| sea-raft-m | 1080x1920 | 270 ms | 191 ms | 132 ms | 73.1 ms | 34.3 s | 70.0 s | 6060 / 6180 | 5869 / 5920 | 435 / 514 | 11110 / 11130 |
+| sea-raft-m-kitti | 1080x1920 | 270 ms | 191 ms | 132 ms | 73.1 ms | 34.9 s | 69.7 s | 6060 / 6180 | 5869 / 5920 | 435 / 514 | 11110 / 11130 |
+| sea-raft-m-spring | 1080x1920 | 46.8 ms | 34.6 ms | 4.43 ms | 23.2 ms | 23.2 s | 47.1 s | 652 / 700 | 624 / 640 | 181 / 214 | 291 / 318 |
+| sea-raft-m-things | 1080x1920 | 270 ms | 192 ms | 132 ms | 73.1 ms | 34.9 s | 73.6 s | 6060 / 6180 | 5869 / 5920 | 435 / 514 | 11110 / 11130 |
+| sea-raft-s | 1080x1920 | 211 ms | 150 ms | 108 ms | 50.4 ms | 35.4 s | 68.0 s | 6019 / 6136 | 5828 / 5876 | 415 / 492 | 11043 / 11078 |
+| sea-raft-s-kitti | 1080x1920 | 210 ms | 150 ms | 108 ms | 50.5 ms | 31.8 s | 67.3 s | 6019 / 6136 | 5828 / 5876 | 415 / 492 | 11043 / 11078 |
+| sea-raft-s-spring | 1080x1920 | 32.8 ms | 23.8 ms | 3.01 ms | 16.0 ms | 21.9 s | 38.8 s | 611 / 656 | 582 / 596 | 160 / 192 | 215 / 278 |
 | aliked-lightglue | 768x1024 | 48.4 ms | 29.5 ms | fails: ONNX export: torch.export failed | – | 30.8 s | – | 1300 / 1406 | 1653 / 1680 | – | – |
-| dedode-v2-b | 768x1024 | 247 ms | 164 ms | fails: timeout after 298 s | – | 50.5 s | – | 1722 / 1774 | 1893 / 2434 | – | – |
+| dedode-v2-b | 768x1024 | 246 ms | 164 ms | fails: timeout after 298 s | – | 50.5 s | – | 1535 / 1654 | 1893 / 2434 | – | – |
 | disk-lightglue | 768x1024 | 116 ms | 113 ms | fails: ONNX export: torch.export failed | – | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | – | – |
 | loftr-outdoor | 768x1024 | 110 ms | 176 ms | fails: ONNX export: torch.export failed | – | 33.3 s | – | 796 / 904 | 1149 / 1232 | – | – |
 | romav1 | 768x1024 | 376 ms | fails: worker rc=124 | fails: ONNX export: conversion failed | 356 ms | – | – | 1720 / 1820 | – | 1720 / 1860 | – |
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 406 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2580 | 6694 / 6740 |
-| xfeat | 768x1024 | 8.35 ms | 5.65 ms | fails: ONNX export: conversion failed | – | 30.8 s | – | 186 / 214 | 186 / 212 | – | – |
-| xfeat-lighterglue | 768x1024 | 22.5 ms | 16.2 ms | fails: ONNX export: torch.export failed | – | 39.7 s | – | 444 / 476 | 262 / 278 | – | – |
+| xfeat | 768x1024 | 7.17 ms | 5.65 ms | fails: ONNX export: conversion failed | – | 30.8 s | – | 122 / 154 | 186 / 212 | – | – |
+| xfeat-lighterglue | 768x1024 | 21.6 ms | 16.2 ms | fails: ONNX export: torch.export failed | – | 39.7 s | – | 445 / 476 | 262 / 278 | – | – |
 | alltracker | 480x854 | 391 ms | 284 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 221 ms | 105 s | – | 993 / 1238 | 1273 / 1358 | 1076 / 1288 | – |
 | alltracker-tiny | 480x854 | 330 ms | 229 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 233 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
-| bootstapir | 480x854 | 240 ms | 183 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 191 ms | 207 s | – | 720 / 768 | 758 / 832 | 769 / 828 | – |
+| bootstapir | 480x854 | 234 ms | 183 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 192 ms | 207 s | – | 508 / 628 | 758 / 832 | 508 / 628 | – |
 | locotrack-b | 480x854 | 190 ms | 82.6 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 178 ms | 146 s | – | 771 / 856 | 1117 / 1140 | 782 / 840 | – |
 | locotrack-s | 480x854 | 180 ms | 74.1 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 151 ms | 140 s | – | 759 / 842 | 1000 / 1034 | 764 / 822 | – |
-| tapir | 480x854 | 186 ms | 131 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 138 ms | 169 s | – | 630 / 690 | 630 / 752 | 678 / 750 | – |
+| tapir | 480x854 | 182 ms | 131 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 141 ms | 169 s | – | 463 / 548 | 630 / 752 | 463 / 548 | – |
 | tapnext | 480x854 | 529 ms | 398 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 382 ms | 40.5 s | – | 1220 / 1294 | 1164 / 1272 | 1313 / 1374 | – |
 | track-on-r | 480x854 | 1188 ms | fails: worker rc=124 | fails: ValueError: not enough values to unpack (expected 4, got 2) | 1102 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |
 | track-on2 | 480x854 | 1238 ms | fails: worker rc=124 | fails: ValueError: not enough values to unpack (expected 4, got 2) | 1120 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |

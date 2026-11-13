@@ -14,10 +14,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 |---|---|---|---|
 | [`alltracker`](#alltracker) | yes | 221, 2.2x | 1288, 0.56x |
 | [`alltracker-tiny`](#alltracker) | yes | 233, 1.8x | 1166, 0.53x |
-| [`bootstapir`](#tapir) | yes | 191, 1.3x | 828, 1.1x |
+| [`bootstapir`](#tapir) | yes | 192, 1.3x | 628, 0.81x |
 | [`locotrack-b`](#locotrack) | yes | 178, 1.1x | 840, 1.1x |
 | [`locotrack-s`](#locotrack) | yes | 151, 1.3x | 822, 1.0x |
-| [`tapir`](#tapir) | yes | 138, 1.4x | 750, 1.3x |
+| [`tapir`](#tapir) | yes | 141, 1.3x | 548, 0.95x |
 | [`tapnext`](#tapnext) | yes | 382, 2.4x | 1374, 0.72x |
 | [`tapnext-pp`](#tapnext) | yes | – | – |
 | [`track-on-r`](#track_on) | yes | 1102, 1.8x | 1620, 0.84x |
@@ -97,8 +97,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `bootstapir` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 243<br>240<br>191<br>183<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 639 / 774<br>720 / 768<br>769 / 828<br>758 / 832<br>– |
-| `tapir` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 187<br>186<br>138<br>131<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 498 / 574<br>630 / 690<br>678 / 750<br>630 / 752<br>– |
+| `bootstapir` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 243<br>234<br>192<br>183<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 639 / 774<br>508 / 628<br>508 / 628<br>758 / 832<br>– |
+| `tapir` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 187<br>182<br>141<br>131<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 498 / 574<br>463 / 548<br>463 / 548<br>630 / 752<br>– |
 
 <details><summary>Details</summary>
 
@@ -116,8 +116,8 @@ Commercial use: yes.
 - `tapir` 480x854, first call: portable + torch.compile 169 s (cold Inductor cache).
 - `bootstapir` original 480x854: the authors' mixed-precision option (float16); upstream BootsTAPIR, offline (whole video); frames resized to 256 x 256
 - `tapir` original 480x854: the authors' mixed-precision option (float16); upstream TAPIR, offline (whole video); frames resized to 256 x 256
-- `bootstapir` load / first call: original 0.6 s / 0.901 s, portable 0.15 s / 0.793 s, kernels 1.19 s / 0.532 s
-- `tapir` load / first call: original 0.35 s / 0.827 s, portable 0.16 s / 0.823 s, kernels 0.97 s / 0.515 s
+- `bootstapir` load / first call: original 0.6 s / 0.901 s, portable 0.32 s / 0.8 s, kernels 1.14 s / 0.659 s
+- `tapir` load / first call: original 0.35 s / 0.827 s, portable 0.19 s / 0.836 s, kernels 1.13 s / 0.688 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

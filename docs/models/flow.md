@@ -524,10 +524,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `raft-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>290<br>83.5<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>8268 / 8298<br>342 / 372<br>5886 / 5924<br>– |
-| `raft-large-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 481<br>566<br>290<br>83.1<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>8268 / 8298<br>333 / 352<br>5886 / 5924<br>– |
-| `raft-large-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>290<br>83.6<br>195<br>fails: TensorRT engine build failed | 13489 / 13818<br>7164 / 10928<br>8268 / 8298<br>333 / 352<br>5886 / 5924<br>– |
-| `raft-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>395<br>144<br>36.3<br>110<br>fails: TensorRT engine build failed | 13441 / 13686<br>7032 / 10888<br>8198 / 8226<br>197 / 224<br>5704 / 5728<br>– |
+| `raft-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>83.5<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>342 / 372<br>5886 / 5924<br>– |
+| `raft-large-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 481<br>566<br>291<br>83.1<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>333 / 352<br>5886 / 5924<br>– |
+| `raft-large-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>83.6<br>195<br>fails: TensorRT engine build failed | 13489 / 13818<br>7164 / 10928<br>5930 / 6058<br>333 / 352<br>5886 / 5924<br>– |
+| `raft-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>395<br>144<br>36.3<br>110<br>fails: TensorRT engine build failed | 13441 / 13686<br>7032 / 10888<br>5669 / 5706<br>197 / 224<br>5704 / 5728<br>– |
 
 <details><summary>Details</summary>
 
@@ -556,10 +556,10 @@ Commercial use: yes.
 - `raft-large-kitti` original 1080x1920: torch.autocast(fp16) around the call; torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
 - `raft-small` original (fp32) 1080x1920: torchvision 0.29.1+cu130 raft_small, num_flow_updates=12, [-1, 1] conversion in the call
 - `raft-small` original 1080x1920: torch.autocast(fp16) around the call; torchvision 0.29.1+cu130 raft_small, num_flow_updates=12, [-1, 1] conversion in the call
-- `raft-large` load / first call: original 0.14 s / 0.762 s, portable 0.05 s / 0.61 s, kernels 1.07 s / 0.107 s
-- `raft-large-things` load / first call: original 0.13 s / 0.58 s, portable 0.05 s / 0.607 s, kernels 1.07 s / 0.108 s
-- `raft-large-kitti` load / first call: original 0.14 s / 0.58 s, portable 0.05 s / 0.605 s, kernels 1.06 s / 0.107 s
-- `raft-small` load / first call: original 0.09 s / 0.433 s, portable 0.03 s / 0.485 s, kernels 1.06 s / 0.068 s
+- `raft-large` load / first call: original 0.14 s / 0.762 s, portable 0.17 s / 0.304 s, kernels 1.07 s / 0.107 s
+- `raft-large-things` load / first call: original 0.13 s / 0.58 s, portable 0.25 s / 0.303 s, kernels 1.07 s / 0.108 s
+- `raft-large-kitti` load / first call: original 0.14 s / 0.58 s, portable 0.17 s / 0.304 s, kernels 1.06 s / 0.107 s
+- `raft-small` load / first call: original 0.09 s / 0.433 s, portable 0.16 s / 0.173 s, kernels 1.06 s / 0.068 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -598,13 +598,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sea-raft-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>299<br>73.1<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>8333 / 8420<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
-| `sea-raft-m-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>299<br>73.1<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>8333 / 8420<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
-| `sea-raft-m-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 96.1<br>56.7<br>52.3<br>23.2<br>34.6<br>4.43 | 759 / 858<br>761 / 812<br>713 / 740<br>181 / 214<br>624 / 640<br>291 / 318 |
-| `sea-raft-m-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>299<br>73.1<br>192<br>132 | 8503 / 8580<br>7385 / 8570<br>8333 / 8420<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
-| `sea-raft-s` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>300<br>226<br>50.4<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>8292 / 8354<br>415 / 492<br>5828 / 5876<br>11043 / 11078 |
-| `sea-raft-s-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>299<br>226<br>50.5<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>8292 / 8354<br>415 / 492<br>5828 / 5876<br>11043 / 11078 |
-| `sea-raft-s-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 67.1<br>42.4<br>37.1<br>16.0<br>23.8<br>3.01 | 718 / 814<br>699 / 764<br>672 / 714<br>160 / 192<br>582 / 596<br>215 / 278 |
+| `sea-raft-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.1<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
+| `sea-raft-m-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.1<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
+| `sea-raft-m-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 96.1<br>56.7<br>46.8<br>23.2<br>34.6<br>4.43 | 759 / 858<br>761 / 812<br>652 / 700<br>181 / 214<br>624 / 640<br>291 / 318 |
+| `sea-raft-m-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.1<br>192<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
+| `sea-raft-s` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>300<br>211<br>50.4<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>6019 / 6136<br>415 / 492<br>5828 / 5876<br>11043 / 11078 |
+| `sea-raft-s-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>299<br>210<br>50.5<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>6019 / 6136<br>415 / 492<br>5828 / 5876<br>11043 / 11078 |
+| `sea-raft-s-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 67.1<br>42.4<br>32.8<br>16.0<br>23.8<br>3.01 | 718 / 814<br>699 / 764<br>611 / 656<br>160 / 192<br>582 / 596<br>215 / 278 |
 
 <details><summary>Details</summary>
 
@@ -647,13 +647,13 @@ Commercial use: yes.
 - `sea-raft-s-kitti` original 1080x1920: torch.autocast(fp16) around the call; upstream RAFT (spring-S.json architecture) + evaluate.py calc_flow, iters=4, scale=0
 - `sea-raft-s-spring` original (fp32) 1080x1920: upstream RAFT (spring-S.json architecture) + evaluate.py calc_flow, iters=4, scale=-1
 - `sea-raft-s-spring` original 1080x1920: torch.autocast(fp16) around the call; upstream RAFT (spring-S.json architecture) + evaluate.py calc_flow, iters=4, scale=-1
-- `sea-raft-m` load / first call: original 0.53 s / 0.367 s, portable 0.09 s / 0.3 s, kernels 1.15 s / 0.072 s
-- `sea-raft-m-kitti` load / first call: original 0.67 s / 0.367 s, portable 0.09 s / 0.3 s, kernels 1.14 s / 0.072 s
-- `sea-raft-m-spring` load / first call: original 0.57 s / 0.06 s, portable 0.09 s / 0.059 s, kernels 1.14 s / 0.023 s
-- `sea-raft-m-things` load / first call: original 0.55 s / 0.367 s, portable 0.09 s / 0.3 s, kernels 1.13 s / 0.072 s
-- `sea-raft-s` load / first call: original 0.3 s / 0.3 s, portable 0.05 s / 0.227 s, kernels 1.1 s / 0.05 s
-- `sea-raft-s-kitti` load / first call: original 0.3 s / 0.299 s, portable 0.05 s / 0.227 s, kernels 1.1 s / 0.05 s
-- `sea-raft-s-spring` load / first call: original 0.31 s / 0.043 s, portable 0.05 s / 0.041 s, kernels 1.11 s / 0.016 s
+- `sea-raft-m` load / first call: original 0.53 s / 0.367 s, portable 0.29 s / 0.27 s, kernels 1.15 s / 0.072 s
+- `sea-raft-m-kitti` load / first call: original 0.67 s / 0.367 s, portable 1.02 s / 0.27 s, kernels 1.14 s / 0.072 s
+- `sea-raft-m-spring` load / first call: original 0.57 s / 0.06 s, portable 0.74 s / 0.052 s, kernels 1.14 s / 0.023 s
+- `sea-raft-m-things` load / first call: original 0.55 s / 0.367 s, portable 0.29 s / 0.27 s, kernels 1.13 s / 0.072 s
+- `sea-raft-s` load / first call: original 0.3 s / 0.3 s, portable 0.18 s / 0.211 s, kernels 1.1 s / 0.05 s
+- `sea-raft-s-kitti` load / first call: original 0.3 s / 0.299 s, portable 0.27 s / 0.211 s, kernels 1.1 s / 0.05 s
+- `sea-raft-s-spring` load / first call: original 0.31 s / 0.043 s, portable 0.34 s / 0.039 s, kernels 1.11 s / 0.016 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
