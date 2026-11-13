@@ -295,9 +295,16 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 | model | commercial use | DIS-VD MAE | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
+| [`u2net`](models/matting.md#u²-net) | yes | – | 15.9 (1080x1920) | 14.9 | 8.8 | 1.8x vs original (1080x1920) | 237 |
+| [`u2net-human-seg`](models/matting.md#u²-net) | yes | – | 16.0 (1080x1920) | 14.6 | 9.1 | 1.8x vs original (1080x1920) | 237 |
+| [`u2netp`](models/matting.md#u²-net) | yes | – | 14.8 (1080x1920) | 14.6 | 9.8 | 1.5x vs original (1080x1920) | 138 |
+| [`isnet-general-use`](models/matting.md#is-net) | yes | – | 38.5 (1080x1920) | 21.0 | 12.1 | 3.2x vs original (1080x1920) | 487 |
+| [`isnet`](models/matting.md#is-net) | yes | – | 38.5 (1080x1920) | 21.0 | 12.1 | 3.2x vs original (1080x1920) | 487 |
+| [`inspyrenet-fast`](models/matting.md#inspyrenet) | yes | – | 71.1 (1080x1920) | 45.1 | – | – | – |
 | [`birefnet-lite`](models/matting.md#birefnet) | yes | – | 75.1 (1080x1920) | 67.3 | 59.3 | 1.3x vs original (1080x1920) | 754 |
 | [`vitmatte-s`](models/matting.md#vitmatte) | yes | – | 140.2 (1080x1920) | 101.9 | 83.8 | 1.7x vs original (1080x1920) | 1337 |
 | [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 181.7 | 147.4 | 1.7x vs original (1080x1920) | 1484 |
+| [`inspyrenet`](models/matting.md#inspyrenet) | yes | – | 240.9 (1080x1920) | 159.4 | – | – | – |
 | [`ben2`](models/matting.md#ben2) | yes | 0.0403 | 200.6 (1080x1920) | 184.4 | 172.6 | 1.2x vs original (1080x1920) | 1946 |
 | [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 224.5 | 214.3 | 1.1x vs original (1080x1920) | 1674 |
 

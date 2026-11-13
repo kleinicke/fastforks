@@ -1,0 +1,43 @@
+schema = 2
+name = "InSPyReNet"
+summary = "InSPyReNet (Kim et al., ACCV 2022): salient object detection with an inverse saliency pyramid: a Swin-B encoder, pyramid attention context modules and scale-invariant context attention that reconstruct the saliency map from a coarse map plus Laplacian residuals. The `transparent-background` models ComfyUI's InSPyReNet nodes run: `inspyrenet` (base, 1024 x 1024) and `inspyrenet-fast` (384 x 384), both trained on the authors' extra-data mix (Plus Ultra)."
+tier = "experimental"
+outputs = ["alpha"]
+uses = ["swin_v1"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/plemeri/transparent-background"
+commit = "f0fa91701a98cfc8e955c554e84522f365ec6da3"  # 1.3.4; net/ = InSPyReNet.py + modules/ (plemeri/InSPyReNet 692ad8a5 lib/, inference only); Swin-B: shared/swin_v1; the call is Remover.process (static resize, threshold None)
+
+[licence]
+code = "MIT"  # LICENSE (transparent-background; plemeri/InSPyReNet is MIT as well)
+weights = "MIT"  # release 1.2.12 assets of the MIT repository (= InSPyReNet's Plus_Ultra / Plus_Ultra_LR, same md5); no separate weights licence
+files = ["LICENSE"]
+training_data = ["duts", "hrsod", "uhrsd", "dis5k"]
+training_note = "plemeri/InSPyReNet docs/model_zoo.md, Plus_Ultra(_LR): DUTS-TR/TE, HRSOD-TR/TE, UHRSD-TR/TE, DIS-TR/VD/TE1-4, DUT-OMRON, ECSSD, HKU-IS, PASCAL-S, DAVIS-S, FSS-1000, MSRA-10K (all test sets included, so benchmark numbers on them are not held out). Swin-B backbone from ImageNet-22k -> 1k."
+evidence = "https://github.com/plemeri/transparent-background/blob/f0fa91701a98cfc8e955c554e84522f365ec6da3/LICENSE ; https://github.com/plemeri/transparent-background/releases/tag/1.2.12 ; https://github.com/plemeri/InSPyReNet/blob/692ad8a5774cf95ef615a730d5070aad18f6b160/docs/model_zoo.md"
+
+[io]
+input = "imagenet"  # Remover: static resize to `size` x `size` (PIL bilinear; here antialiased F.interpolate), /255, ImageNet
+
+[params]
+size = 1024  # network input side (base_size); the sigmoid map is min-max normalised and resized back (bilinear, align_corners)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "measured slower: cudnn_hacc convolutions 189.9 ms vs 159.4 ms portable (1080x1920, size 1024; upstream views their outputs, so channels-last needs copies); fp16-accumulate GEMMs alone 3 %"
+
+[[variants]]
+id = "inspyrenet"
+revision = 1
+weights = [{ name = "ckpt_base.pth", size = 367520613, sha256 = "0a6fe2a73ab0532d6d0b8d82849a9760a226df719e3063d09b4149ece6f80fcd", url = "https://github.com/plemeri/transparent-background/releases/download/1.2.12/ckpt_base.pth" }]
+
+[[variants]]
+id = "inspyrenet-fast"
+revision = 1
+params = { size = 384 }
+weights = [{ name = "ckpt_fast.pth", size = 367520613, sha256 = "e61ed7e85763dd83a796e1d650ea78604fff524121750858c54a6b560ac58c82", url = "https://github.com/plemeri/transparent-background/releases/download/1.2.12/ckpt_fast.pth" }]

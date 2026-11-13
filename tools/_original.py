@@ -1148,6 +1148,41 @@ def _ben2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapt
     return lambda image: g.predict(net, image[None].float() / 255, autocast=fp16)
 
 
+def _rsu(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """U²-Net / IS-Net (xuebinqin) with float pre- and post-processing, as `tools/golden/{u2net,isnet}.py`, float32.
+
+    `FF_U2NET_REPO` / `FF_DIS_REPO`: a U-2-Net / DIS checkout.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    card, variant = registry.resolve("matting", full)
+    (weights,) = registry.weights(card, variant)
+    g = _golden(card.family)
+    p = {**card.params, **variant.params}
+    if card.family == "u2net":
+        net = g.network(Path(os.environ["FF_U2NET_REPO"]), Path(weights), p["arch"]).cuda()
+    else:
+        net = g.network(Path(os.environ["FF_DIS_REPO"]), Path(weights)).cuda()
+    a.note = f"{g.UPSTREAM.removeprefix('https://github.com/')}@{g.COMMIT[:12]}, float pre- and post-processing"
+    return lambda image: g.predict(net, image[None].float() / 255, p["size"])
+
+
+def _inspyrenet(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """transparent-background's `InSPyReNet_SwinB` with float pre- and post-processing, as `tools/golden/inspyrenet.py`.
+
+    `FF_TBG_PKG`: the `transparent_background` package directory (1.3.4); float32 (`Remover` has no fp16 option).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    card, variant = registry.resolve("matting", full)
+    (weights,) = registry.weights(card, variant)
+    g = _golden("inspyrenet")
+    size = {**card.params, **variant.params}["size"]
+    net = g.network(Path(os.environ["FF_TBG_PKG"]), Path(weights), size).to("cuda")  # upstream `to` moves the kernel
+    a.note = f"{g.UPSTREAM.removeprefix('https://github.com/')}@{g.COMMIT[:12]}, float pre- and post-processing"
+    return lambda image: g.predict(net, image[None].float() / 255, size)
+
+
 def _vitmatte(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
     """The transformers `VitMatteForImageMatting` with the processor's maths on tensors, as `tools/golden/vitmatte.py`.
 
@@ -1608,6 +1643,9 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "boq": _Local("retrieval", _boq, ((480, 640),)),
     "geocalib": _Local("calibration", _geocalib, ((1080, 1920),)),
     "anycalib": _Local("calibration", _anycalib, ((1080, 1920),)),
+    "u2net": _Local("matting", _rsu, ((1080, 1920),)),
+    "isnet": _Local("matting", _rsu, ((1080, 1920),)),
+    "inspyrenet": _Local("matting", _inspyrenet, ((1080, 1920),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),

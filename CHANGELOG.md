@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- InSPyReNet background removal (`inspyrenet`, `inspyrenet-fast`, matting; MIT code and weights): transparent-
+  background's `Remover` (static resize, no LR/HR blending). 1080x1920 image, size 1024: 159 ms portable (86 ms
+  compile, 51 ms TensorRT) vs 241 ms original fp32, peak 1.9 GB vs 3.3 GB; fast (384): 45 ms vs 71 ms. DIS5K
+  validation (235 images) max F-beta 0.970 / 0.895 (fast) in every tier, as the original. The attention context
+  sums and their key / value convolutions stay float32. No kernels runner: `cudnn_hacc` convolutions were slower.
+
 - IS-Net dichotomous segmentation (`isnet-general-use`, `isnet`, matting; Apache-2.0 code and weights): 1080x1920
   image (1024x1024 net): 12.1 ms kernels, 21.0 ms portable (13.1 ms compile, 6.7 ms TensorRT) vs 38.5 ms original
   fp32, peak 0.52 GB vs 1.04 GB. DIS5K validation (235 images) max F-beta 0.962 (general use) / 0.782 in every tier,
