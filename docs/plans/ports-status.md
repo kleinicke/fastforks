@@ -41,6 +41,8 @@ In this order, unless something more useful turns up:
   `~/scratch_tests/port-p5/w/rife/` on the CUDA machine).
 - MegaLoc (`megaloc`, new retrieval task): portable float32 MPS goldens and Mac speed rows at 480x640. No Metal
   kernels runner. Weights: the pinned HF URL of the card (also in `data/ff-weights/megaloc/`).
+- BoQ (`boq-dinov2`, retrieval): portable float32 MPS goldens and Mac speed rows at 480x640. No Metal kernels runner.
+  Weights: the pinned GitHub release URL of the card (also in `data/ff-weights/boq/`).
 - LW-DETR (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection): portable MPS goldens and Mac speed rows
   (800x1344). No Metal kernels runner. Weights: the pinned HF URLs of the card.
 - MM-Grounding-DINO (`mm-grounding-dino-tiny`, `mm-grounding-dino-base`, detection): portable MPS goldens and Mac

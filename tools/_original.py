@@ -1110,6 +1110,23 @@ def _megaloc(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda image: g.predict(net, image[None].float() / 255)
 
 
+def _boq(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """The authors' `hubconf.py` with the README's resize / normalisation, as `tools/golden/boq.py`.
+
+    `FF_BOQ_REPO`: an amaralibey/Bag-of-Queries checkout, `FF_DINOV2_REPO`: facebookresearch/dinov2; no precision
+    option of its own (autocast / `half()` tiers).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("boq")
+    card, variant = registry.resolve("retrieval", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_BOQ_REPO"]), Path(weights)).cuda()
+    a.note = (
+        f"amaralibey/Bag-of-Queries@{g.COMMIT[:12]} hubconf.py, 322 x 322 bicubic antialiased resize, normalisation"
+    )
+    return lambda image: g.predict(net, image[None].float() / 255)
+
 
 class _Local:
     """An original the bench has no adapter for, on the library's own bench inputs as uint8 CUDA tensors.
@@ -1489,6 +1506,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "birefnet": _LocalFp16("matting", _birefnet, ((1080, 1920),)),
     "ben2": _LocalFp16("matting", _ben2, ((1080, 1920),)),
     "megaloc": _Local("retrieval", _megaloc, ((480, 640),)),
+    "boq": _Local("retrieval", _boq, ((480, 640),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),

@@ -16,6 +16,11 @@
   TensorRT) vs 14.6 ms original fp32 (9.68 ms autocast; `half()` fails in the authors' code), peak 508 MB vs 944 MB.
   St Lucia recall@1 100.0 for all modes and the original.
 
+- BoQ, Bag-of-Queries place recognition (`boq-dinov2`, retrieval; MIT code and weights): DINOv2 ViT-B with learned
+  queries, a 12288-d descriptor. 480x640 image: 2.84 ms kernels, 5.73 ms portable (3.89 ms compile, 2.73 ms TensorRT)
+  vs 13.5 ms original fp32 (7.44 ms `half()`), peak 256 MB vs 430 MB. St Lucia recall@1 99.86 for all modes and the
+  original. The ResNet-50 variant is not ported.
+
 - LW-DETR real-time detection (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection; Apache-2.0 code and
   weights): ViT encoder with a multi-level projector and a deformable DETR decoder, the authors' PostProcess.
   800x1344 image, tiny: 2.2 ms kernels, 7.4 ms portable (3.0 ms compile, 1.0 ms TensorRT) vs 20.4 ms original fp32

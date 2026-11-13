@@ -506,13 +506,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Retrieval
 
-1 models; size 480x640.
+2 models; size 480x640.
 
-- Fastest: [`megaloc`](models/retrieval.md#megaloc) (4.3 ms).
-- Fastest commercially usable: [`megaloc`](models/retrieval.md#megaloc) (4.3 ms).
+- Fastest: [`boq-dinov2`](models/retrieval.md#boq) (2.8 ms).
+- Fastest commercially usable: [`boq-dinov2`](models/retrieval.md#boq) (2.8 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
+| [`boq-dinov2`](models/retrieval.md#boq) | yes | 7.4 (480x640) | 5.7 | 2.8 | 2.6x vs original (480x640) | 227 |
 | [`megaloc`](models/retrieval.md#megaloc) | yes | 9.7 (480x640) | 5.3 | 4.3 | 2.3x vs original (480x640) | 485 |
 
 ## Multiview
