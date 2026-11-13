@@ -43,6 +43,7 @@ TIERS = {  # tier -> (mode, dtype, how, column)
 HOW = {  # family -> tier -> `how`, where not Real-ESRGAN's
     "span": {"upstream": "BasicSR SRModel.test, float32"},
     "swinir": {"upstream": "main_test_swinir.py, float32"},
+    "hat": {"upstream": "hat_model.py test, float32"},
 }
 
 
