@@ -3,7 +3,7 @@
 loader, preprocessing and the layer-0 `descriptor_head`, which the sparse matcher never reads).
 
 The DINOv3 ConvNeXt-B backbone (its weights: DINOv3 License, LICENSE-DINOv3) and the stride-8 `LinearConvHead`.
-fastforks changes: `encode` only (the caller resizes).
+fastforks changes: `encode` only (the caller resizes), channels-last activations.
 """
 
 from __future__ import annotations
@@ -112,4 +112,6 @@ class Descriptor(nn.Module):
         self.register_buffer("std", torch.tensor(STD)[:, None, None], persistent=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # noqa: D102
-        return self.head(self.backbone((x - self.mean) / self.std))
+        # channels-last: the (b, h, w, c) views of the LayerNorms and MLPs are free, no permute copies
+        x = ((x - self.mean) / self.std).contiguous(memory_format=torch.channels_last)
+        return self.head(self.backbone(x)).contiguous()

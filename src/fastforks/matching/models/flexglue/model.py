@@ -11,8 +11,10 @@ both points lie inside the images, the geometric mean of both confidences is at 
 distance of the two predictions to their keypoints is below `max_distance_px` (pixels of the descriptor input).
 Keypoints are returned in input pixels with pixel centres at integers (upstream's corner keypoints minus 0.5).
 
-On CUDA the default dtype is float16 as upstream (`mp="float16"`): the transformer layers under float16 autocast,
-everything else float32; bfloat16 likewise, float32 has no autocast (the CPU reference).
+On CUDA the default dtype is float16 (upstream `mp="float16"`, which autocasts the transformer layers only): here the
+descriptor runs under float16 autocast too (2x faster, matches agree with upstream's to Jaccard 0.999); ALIKED, the
+head and the matching stay float32, so keypoints are upstream's. bfloat16 likewise, float32 has no autocast (the CPU
+reference). ALIKED's own descriptors are skipped (unused), the descriptor runs channels-last.
 """
 
 from __future__ import annotations
@@ -69,6 +71,7 @@ class Matcher(nn.Module):
             detection_threshold=ALIKED_THRESHOLD,
             nms_radius=ALIKED_NMS,
         )
+        self.extractor.describe = False  # FlexGlue reads the keypoints only
         self.descriptor = Descriptor()
         self.matcher = FlexGlueNet()
         self.amp: torch.dtype | None = None
@@ -81,7 +84,9 @@ class Matcher(nn.Module):
         scale = torch.tensor([x.shape[-1] / w, x.shape[-2] / h], device=x.device, dtype=x.dtype)
         kpts = self.extractor({"image": x})["keypoints"][0]
         sq = F.interpolate(image, (p.size, p.size), mode="bilinear", align_corners=False)
-        return (kpts + 0.5) / scale, self.descriptor(sq)  # the patched LightGlue's `origin="corner"`
+        with torch.autocast(image.device.type, self.amp or torch.float16, enabled=self.amp is not None):
+            features = self.descriptor(sq).float()
+        return (kpts + 0.5) / scale, features  # the patched LightGlue's `origin="corner"`
 
     def match(
         self, image1: torch.Tensor, image2: torch.Tensor, d1: Described, d2: Described
@@ -154,12 +159,13 @@ def load_matcher(ctx: Context) -> Matcher:
         net.get_submodule(name).load_state_dict(sd, strict=True)
     net.extractor.load_state_dict(ctx.state_dict(1), strict=True)
     net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    net.descriptor.to(memory_format=torch.channels_last)
     net.amp = None if ctx.dtype == "float32" else ctx.torch_dtype
     return net
 
 
 class Portable(Runner):
-    """Plain PyTorch; the transformer layers under float16 / bfloat16 autocast unless dtype is float32."""
+    """Plain PyTorch; descriptor and transformer layers under float16 / bfloat16 autocast unless dtype is float32."""
 
     dtypes = ("float32", "float16", "bfloat16")
     Params = Params

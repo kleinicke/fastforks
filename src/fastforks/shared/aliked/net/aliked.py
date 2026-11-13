@@ -676,6 +676,7 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         )
         self.desc_head = SDDH(dim, K, M, gate=self.gate, conv2D=conv2D, mask=mask)
         self.fp16 = False  # fastforks: dense maps under float16 autocast (set by the loader)
+        self.describe = True  # fastforks: SDDH descriptors; False = keypoints and scores only (FlexGlue)
         self.dkd = DKD(
             radius=conf.nms_radius,
             top_k=-1 if conf.detection_threshold > 0 else conf.max_num_keypoints,
@@ -747,15 +748,16 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         keypoints, kptscores, scoredispersitys = self.dkd(
             score_map, image_size=data.get("image_size")
         )
-        descriptors, offsets = self.desc_head(feature_map, keypoints)
-
         _, _, h, w = image.shape
         wh = torch.tensor([w - 1, h - 1], device=image.device)
         # no padding required
         # we can set detection_threshold=-1 and conf.max_num_keypoints > 0
-        return {
+        out = {
             "keypoints": wh * (torch.stack(keypoints) + 1) / 2.0
             + 0.0,  # B x N x 2  # fastforks: coords_offset of origin "center"
-            "descriptors": torch.stack(descriptors),  # B x N x D
             "keypoint_scores": torch.stack(kptscores),  # B x N
         }
+        if self.describe:
+            descriptors, offsets = self.desc_head(feature_map, keypoints)
+            out["descriptors"] = torch.stack(descriptors)  # B x N x D
+        return out
