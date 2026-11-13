@@ -562,7 +562,7 @@ Commercial use: yes.
 - Variants: `vitpose-base-simple`, `vitpose-base`, `vitpose-plus-small`, `vitpose-plus-base`, `vitpose-plus-large`, `vitpose-plus-huge`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vitpose-base-simple` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-small` 3000x4000 (4.4 GiB peak allocated, 4.6 reserved); `vitpose-plus-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-large` 3000x4000 (4.9 GiB peak allocated, 5.2 reserved); `vitpose-plus-huge` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vitpose-base-simple` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-small` 3000x4000 (4.4 GiB peak allocated, 4.6 reserved); `vitpose-plus-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-large` 3000x4000 (4.9 GiB peak allocated, 5.2 reserved); `vitpose-plus-huge` 3000x4000 (5.5 GiB peak allocated, 5.7 reserved)
 - `vitpose-base-simple` 1080x1920, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `vitpose-base` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `vitpose-plus-small` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 38 s (ONNX + engine).
