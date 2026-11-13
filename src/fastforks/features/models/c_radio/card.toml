@@ -1,12 +1,14 @@
 schema = 2
-name = "C-RADIOv3"
-summary = "C-RADIOv3 (NVIDIA 2025), the commercially licensed agglomerative ViT distilled from CLIP, SigLIP 2, DINOv2 and SAM: ViT-B / L / H / g at patch 16, dense patch tokens and a 3-teacher summary embedding at any size up to 2048 px."
+name = "C-RADIOv3 / v4"
+summary = "C-RADIOv3 and C-RADIOv4 (NVIDIA 2025 / 2026), the commercially licensed agglomerative ViTs: v3 distilled from CLIP, SigLIP 2, DINOv2 and SAM (ViT-B / L / H / g), v4 from SigLIP 2-g, DINOv3-7B and SAM 3 (ViT-SO400M / H); patch 16, dense patch tokens and a summary embedding (v3: 3 teachers, v4: 2) at any size up to 2048 px."
 tier = "experimental"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
 uses = ["libnet"]  # shared modules imported directly by this family
 limitations = [
-  "last_hidden_state holds 8 prefix tokens (4 summary, 4 registers), then the patches (upstream's `features` are `[:, 8:]`); pooler_output is upstream's `summary`: the clip, siglip2 and dino_v2 summary tokens concatenated (3 x hidden size).",
+  "last_hidden_state holds the prefix tokens (v3: 4 summary + 4 registers; v4: 3 summary + 7 registers), then the patches (upstream's `features`).",
+  "pooler_output is upstream's `summary`: the summary tokens concatenated (v3: clip, siglip2, dino_v2 = 3 x hidden size; v4: siglip2, dino_v3 = 2 x hidden size).",
   "The teacher adaptors (the heads mapping the summary to CLIP / SigLIP 2 text space) are not included.",
+  "v4 is tested by NVIDIA from 256 to 2048 px; our goldens check it at 112 px like v3 (the same code path).",
   "kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",
   "Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.",
   "`fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).",
@@ -17,15 +19,15 @@ licence_notes = [
 
 [upstream]
 repo = "https://huggingface.co/nvidia/C-RADIOv3-B"
-commit = "44653a0482cf460bb4f12595fc3cc3dfecc403d1"  # hf_model.RADIOModel (trust_remote_code) of the B repo; the sizes' repos differ: B / H resample the position table with align_corners, L / g without (`pos_align_corners`), each pinned by its weights url
+commit = "44653a0482cf460bb4f12595fc3cc3dfecc403d1"  # hf_model.RADIOModel (trust_remote_code) of the B repo; the sizes' repos differ: v3 B / H resample the position table with align_corners, v3 L / g and v4 without (`pos_align_corners`), each pinned by its weights url
 
 [licence]
 code = "Apache-2.0"  # timm's VisionTransformer and our walk (no vendored code)
 weights = "LicenseRef-NVIDIA-Open-Model-License"
 files = []
 training_data = ["nv-cc-img-text"]
-training_note = "700 M web images (NV-CC-Img-Text-Dataset), distilled from the DFN CLIP ViT-H/14, SigLIP 2 (So400m; g for C-RADIOv3-H), DINOv2-g and SAM ViT-H teachers, whose own training data does not carry over as terms"
-evidence = "https://huggingface.co/nvidia/C-RADIOv3-B/blob/44653a0482cf460bb4f12595fc3cc3dfecc403d1/README.md"
+training_note = "700 M web images (NV-CC-Img-Text-Dataset), distilled from teachers whose own training data does not carry over as terms: v3 the DFN CLIP ViT-H/14, SigLIP 2 (So400m; g for C-RADIOv3-H), DINOv2-g and SAM ViT-H; v4 SigLIP 2-g, DINOv3-7B and SAM 3"
+evidence = "https://huggingface.co/nvidia/C-RADIOv3-B/blob/44653a0482cf460bb4f12595fc3cc3dfecc403d1/README.md and https://huggingface.co/nvidia/C-RADIOv4-SO400M/blob/c0457f5dc26ca145f954cd4fc5bb6114e5705ad8/README.md"
 
 [io]
 # the core resizes (never pads / crops) to multiples of 16, antialiased bicubic; upstream takes RGB in [0, 1] and
@@ -42,6 +44,8 @@ fp32_accumulate = { default = false, effect = "precision" }  # true: kernels run
 
 [params]
 library = "timm"
+mlp_ratio = 4.0  # MLP width / embed_dim
+summary_tokens = 4  # v3: one per teacher (clip, siglip2, dino_v2, sam)
 
 [modes.portable]
 cuda_dtype = "float16"
@@ -73,3 +77,15 @@ id = "c-radio-v3-g"
 revision = 1
 params = { embed_dim = 1536, depth = 40, num_heads = 24, layer_scale = false, pos_align_corners = false }
 weights = [{ name = "c-radio-v3-g.safetensors", size = 4638530056, sha256 = "8234e4556fcbbc36cb7935861ddbf795b5a1dab13ab2ccfe0e39a1e1ee6b899e", url = "https://huggingface.co/nvidia/C-RADIOv3-g/resolve/28e70735780c22cd7fca20f0c509cb9fc3893aeb/model.safetensors" }]
+
+[[variants]]
+id = "c-radio-v4-so400m"
+revision = 1
+params = { embed_dim = 1152, depth = 27, num_heads = 16, mlp_ratio = 3.736111111111111, summary_tokens = 3, layer_scale = false, pos_align_corners = false }  # mlp_ratio = 4304 / 1152; summary: siglip2, dino_v3, sam3
+weights = [{ name = "c-radio-v4-so400m.safetensors", size = 1724986512, sha256 = "23e0c117de49d4ce909150fe6658d470829e6639647c7a5b035ce82e0d5b763c", url = "https://huggingface.co/nvidia/C-RADIOv4-SO400M/resolve/c0457f5dc26ca145f954cd4fc5bb6114e5705ad8/model.safetensors" }]
+
+[[variants]]
+id = "c-radio-v4-h"
+revision = 1
+params = { embed_dim = 1280, depth = 32, num_heads = 16, summary_tokens = 3, layer_scale = false, pos_align_corners = false }  # summary: siglip2, dino_v3, sam3
+weights = [{ name = "c-radio-v4-h.safetensors", size = 2606626368, sha256 = "851f283468118830a08e70173f1ab9a30f613c704958fc0b3c8e638aef738f81", url = "https://huggingface.co/nvidia/C-RADIOv4-H/resolve/0057b339059c0b9e1b4ba996f975410ebbfdfcc8/model.safetensors" }]
