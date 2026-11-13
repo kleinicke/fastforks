@@ -30,7 +30,14 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Crop, Forward, Runner
-from fastforks.shared.swin_sr import pad_heads, patch_embed, relative_bias, shift_mask, window_attention
+from fastforks.shared.swin_sr import (
+    checkpoint_upsampler,
+    pad_heads,
+    patch_embed,
+    relative_bias,
+    shift_mask,
+    window_attention,
+)
 
 from .net import SwinIR
 from .net.network_swinir import RSTB, PatchEmbed, SwinTransformerBlock, WindowAttention
@@ -175,23 +182,10 @@ RUNNERS = {"portable": Portable, "kernels": Kernels}
 _BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
 
 
-def _upsampler(sd: Mapping[str, torch.Tensor]) -> tuple[str, int] | None:
-    """`(upsampler, scale)` from the reconstruction layers, or None for one fastforks does not run (denoising)."""
-    if "conv_up1.weight" in sd:
-        return "nearest+conv", 4 if "conv_up2.weight" in sd else 2
-    convs = [v for k, v in sd.items() if k.startswith("upsample.") and k.endswith(".weight")]
-    if not convs:
-        return None
-    if "conv_before_upsample.0.weight" not in sd:  # one conv to scale² x 3 channels
-        return "pixelshuffledirect", round(math.sqrt(convs[0].shape[0] / 3))
-    ratio = convs[0].shape[0] // sd["conv_before_upsample.0.weight"].shape[0]
-    return "pixelshuffle", 3 if ratio == 9 else 2 ** len(convs)  # noqa: PLR2004 - x3: one conv to 9 x channels
-
-
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
     """`load_file`: a SwinIR state dict as a variant and its params (size, depths, heads, upsampler); keys unchanged."""
     blocks = [(int(m.group(1)), int(m.group(2))) for k in sd if (m := _BLOCK.match(k))]
-    if "conv_first.weight" not in sd or not blocks:
+    if "conv_first.weight" not in sd or not blocks or any(".overlap_attn." in k for k in sd):  # HAT's keys
         return None
     layers = 1 + max(i for i, _ in blocks)
     depths = tuple(1 + max(j for i, j in blocks if i == n) for n in range(layers))
@@ -199,7 +193,7 @@ def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any]
     embed_dim = sd["conv_first.weight"].shape[0]
     window = (math.isqrt(tables[0].shape[0]) + 1) // 2
     mask = sd.get("layers.0.residual_group.blocks.1.attn_mask")
-    up = _upsampler(sd)
+    up = checkpoint_upsampler(sd)
     problems = []
     if sd["conv_first.weight"].shape[1] != 3:  # noqa: PLR2004 - RGB
         problems.append("not 3 input channels")

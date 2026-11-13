@@ -15,24 +15,36 @@ blocks stay below 25 000), so its final conv and its skip input are divided by `
 
 from __future__ import annotations
 
+import math
+import re
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Crop, Forward, Runner
-from fastforks.shared.swin_sr import attention, patch_embed, relative_bias, shift_mask, window_attention
+from fastforks.shared.swin_sr import (
+    attention,
+    checkpoint_upsampler,
+    patch_embed,
+    relative_bias,
+    shift_mask,
+    window_attention,
+)
 
 from .net import HAT
 from .net.hat_arch import OCAB, RHAG, PatchEmbed, WindowAttention, window_partition, window_reverse
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from fastforks.restoration._runner import Context
 
 
@@ -182,3 +194,42 @@ class Kernels(Portable):
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}
+
+_BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
+
+
+def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
+    """`load_file`: a HAT state dict as a variant and its params (channels, depths, heads, CAB ratios)."""
+    blocks = [(int(m.group(1)), int(m.group(2))) for k in sd if (m := _BLOCK.match(k))]
+    if "conv_first.weight" not in sd or "layers.0.residual_group.overlap_attn.qkv.weight" not in sd or not blocks:
+        return None
+    layers = 1 + max(i for i, _ in blocks)
+    g = "layers.0.residual_group."
+    embed_dim = sd["conv_first.weight"].shape[0]
+    window = (math.isqrt(sd[g + "blocks.0.attn.relative_position_bias_table"].shape[0]) + 1) // 2
+    up = checkpoint_upsampler(sd)
+    problems = []
+    if sd["conv_first.weight"].shape[1] != 3:  # noqa: PLR2004 - RGB
+        problems.append("not 3 input channels")
+    if up is None or up[0] != "pixelshuffle":
+        problems.append("an upsampler other than pixelshuffle")
+    if sd[g + "blocks.0.mlp.fc1.weight"].shape[0] != 2 * embed_dim:
+        problems.append("an MLP ratio other than 2")
+    if math.isqrt(sd[g + "overlap_attn.relative_position_bias_table"].shape[0]) != window + window * 3 // 2 - 1:
+        problems.append("an overlap ratio other than 0.5")
+    if "absolute_pos_embed" in sd or g + "conv.0.weight" in sd:
+        problems.append("absolute position embedding or 3conv residual connections")
+    if problems:
+        msg = f"HAT checkpoint with {', '.join(problems)}: not supported"
+        raise WeightsError(msg)
+    tables = [sd[f"layers.{n}.residual_group.blocks.0.attn.relative_position_bias_table"] for n in range(layers)]
+    params = {
+        "scale": up[1],  # ty: ignore[not-subscriptable]
+        "embed_dim": embed_dim,
+        "depths": tuple(1 + max(j for i, j in blocks if i == n) for n in range(layers)),
+        "heads": tuple(t.shape[1] for t in tables),
+        "compress_ratio": embed_dim // sd[g + "blocks.0.conv_block.cab.0.weight"].shape[0],
+        "squeeze_factor": embed_dim // sd[g + "blocks.0.conv_block.cab.3.attention.1.weight"].shape[0],
+        "window": window,
+    }
+    return ("hat-s-x4" if embed_dim < 180 else "hat-x4"), params, dict(sd)  # noqa: PLR2004 - HAT-S: 144 channels

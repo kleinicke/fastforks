@@ -9,20 +9,27 @@ zero-pads a block's head dimension to a multiple of 8 in its `qkv` / `proj` weig
 (2.1 GB and 28 ms per block of a 520 x 520 image, SwinIR-M; padded: 0.6 GB, 5 ms). The scores are unchanged (zero
 rows of q and k), the extra output channels meet zero columns of `proj`. `attention` is the SDPA call itself, padding
 the head size at run time where the weights are not padded (HAT, DAT) and copying strided inputs. `patch_embed` is
-`PatchEmbed.forward` with contiguous tokens.
+`PatchEmbed.forward` with contiguous tokens. `checkpoint_upsampler` reads a checkpoint's reconstruction layers
+(`load_file`).
 """
 
 from __future__ import annotations
 
 import functools
+import math
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 __all__ = [
     "DropPath",
     "attention",
+    "checkpoint_upsampler",
     "pad_heads",
     "patch_embed",
     "relative_bias",
@@ -141,3 +148,16 @@ def patch_embed(m: nn.Module, x: torch.Tensor) -> torch.Tensor:
     """
     x = x.flatten(2).transpose(1, 2).contiguous()
     return x if m.norm is None else m.norm(x)  # ty: ignore[call-non-callable]
+
+
+def checkpoint_upsampler(sd: Mapping[str, torch.Tensor]) -> tuple[str, int] | None:
+    """`(upsampler, scale)` of a checkpoint from its reconstruction layers, or None (denoising: not run here)."""
+    if "conv_up1.weight" in sd:
+        return "nearest+conv", 4 if "conv_up2.weight" in sd else 2
+    convs = [v for k, v in sd.items() if k.startswith("upsample.") and k.endswith(".weight")]
+    if not convs:
+        return None
+    if "conv_before_upsample.0.weight" not in sd:  # one conv to scale² x 3 channels
+        return "pixelshuffledirect", round(math.sqrt(convs[0].shape[0] / 3))
+    ratio = convs[0].shape[0] // sd["conv_before_upsample.0.weight"].shape[0]
+    return "pixelshuffle", 3 if ratio == 9 else 2 ** len(convs)  # noqa: PLR2004 - x3: one conv to 9 x channels

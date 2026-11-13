@@ -18,10 +18,12 @@ it, its `eps` divided by the square (exact).
 from __future__ import annotations
 
 import functools
+import math
+import re
 import types
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
@@ -29,11 +31,12 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Crop, Forward, Runner
-from fastforks.shared.swin_sr import attention
+from fastforks.shared.swin_sr import attention, checkpoint_upsampler
 
 from .net import DAT
 from .net.dat_arch import (
@@ -47,6 +50,8 @@ from .net.dat_arch import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from fastforks.restoration._runner import Context
 
 
@@ -288,3 +293,37 @@ class Kernels(Portable):
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}
+
+_BLOCK = re.compile(r"layers\.(\d+)\.blocks\.(\d+)\.")
+
+
+def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
+    """`load_file`: a DAT state dict as a variant and its params (channels, depths, heads, split, FFN, tail)."""
+    a = "layers.0.blocks.0.attn.attns.0."
+    blocks = [(int(m.group(1)), int(m.group(2))) for k in sd if (m := _BLOCK.match(k))]
+    if "conv_first.weight" not in sd or "before_RG.1.weight" not in sd or a + "rpe_biases" not in sd:
+        return None
+    layers = 1 + max(i for i, _ in blocks)
+    embed_dim = sd["conv_first.weight"].shape[0]
+    rpe = sd[a + "rpe_biases"]  # the window's relative offsets: -(split - 1) .. split - 1 per axis
+    split = (int(rpe[:, 0].max()) + 1, int(rpe[:, 1].max()) + 1)
+    mask = next((v for k, v in sd.items() if k.endswith(".attn.attn_mask_0")), None)  # [windows, N, N] at img_size
+    up = checkpoint_upsampler(sd)
+    if sd["conv_first.weight"].shape[1] != 3 or up is None or up[0] == "nearest+conv":  # noqa: PLR2004 - RGB
+        msg = "DAT checkpoint with not 3 input channels or no pixelshuffle upsampler: not supported"
+        raise WeightsError(msg)
+    hidden = sd["layers.0.blocks.0.ffn.fc1.weight"].shape[0]
+    params = {
+        "scale": up[1],
+        "embed_dim": embed_dim,
+        "depths": tuple(1 + max(j for i, j in blocks if i == n) for n in range(layers)),
+        "heads": tuple(2 * sd[f"layers.{n}.blocks.0.attn.attns.0.pos.pos3.2.weight"].shape[0] for n in range(layers)),
+        "split": split,
+        "expansion": hidden // embed_dim if hidden % embed_dim == 0 else hidden / embed_dim,
+        "resi": "3conv" if "layers.0.conv.0.weight" in sd else "1conv",
+        "upsampler": up[0],
+        "img_size": 64 if mask is None else math.isqrt(mask.shape[0] * split[0] * split[1]),
+    }
+    if up[0] == "pixelshuffledirect":
+        return "dat-light-x4", params, dict(sd)
+    return ("dat-2-x4" if hidden == 2 * embed_dim else "dat-x4"), params, dict(sd)
