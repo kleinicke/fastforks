@@ -11,6 +11,8 @@ Stages: retrieval (each image with its `k` most similar others, `retrieval.pairs
 (`MatchingModel.match_pairs`: each image's keypoints are computed once), geometric verification (batched
 `estimate_fundamental` on the GPU) and the database: cameras, images, keypoints, raw matches and the verified
 two-view geometries (fundamental matrix + inlier matches), in the COLMAP 3 schema (COLMAP 4 reads it too).
+
+`reconstruct` goes on to the reconstruction with pycolmap's mapper (`pip install 'fastforks-core[sfm]'`).
 """
 
 from __future__ import annotations
@@ -26,7 +28,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from fastforks._core.errors import InputError
+from fastforks._core.errors import InputError, MissingDependencyError, OptionsError, install_hint
 from fastforks._core.image import read_images
 
 if TYPE_CHECKING:
@@ -158,6 +160,77 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
             single_camera=single_camera,
         )
     return DatabaseStats(n, len(pair_list), len(verified), seconds, peak)
+
+
+@dataclass(frozen=True)
+class ReconstructionStats:
+    """What `reconstruct` built.
+
+    Attributes:
+        database: The `DatabaseStats` of the front end.
+        mapper: `incremental` or `global`.
+        seconds: Wall time of the mapper.
+        models: Reconstructions the mapper produced (`<out>/sparse/0`, `/1`, ...; ideally one).
+        registered: Images with a pose in the largest model.
+        points: 3D points of the largest model.
+        model: Folder of the largest model, `None` if the mapper produced none.
+    """
+
+    database: DatabaseStats
+    mapper: str
+    seconds: float
+    models: int
+    registered: int
+    points: int
+    model: Path | None
+
+
+def reconstruct(
+    images: str | os.PathLike[str],
+    out: str | os.PathLike[str],
+    *,
+    mapper: Literal["incremental", "global"] = "incremental",
+    **options: Any,  # noqa: ANN401 - `colmap_database`'s
+) -> ReconstructionStats:
+    """`colmap_database` into `<out>/database.db`, then pycolmap's mapper into `<out>/sparse` (COLMAP models).
+
+    Args:
+        images: Folder of the images (as `colmap_database`).
+        out: Output folder (created; `database.db` must not exist in it).
+        mapper: `incremental` (COLMAP's mapper) or `global` (GLOMAP, pycolmap >= 3.12).
+        **options: Options of `colmap_database` (`matcher`, `retrieval`, `k`, `threshold`, ...).
+
+    Returns:
+        The front-end stats, the mapper time and what the largest model registered.
+
+    Raises:
+        MissingDependencyError: pycolmap is not installed (`pip install 'fastforks-core[sfm]'`).
+        OptionsError: `mapper` is not `incremental` or `global`.
+        InputError: As `colmap_database`.
+    """
+    try:
+        import pycolmap  # noqa: PLC0415 - optional
+    except ImportError as err:
+        msg = f"sfm.reconstruct needs pycolmap: {install_hint('sfm')}"
+        raise MissingDependencyError(msg) from err
+    mappers = {"incremental": pycolmap.incremental_mapping, "global": getattr(pycolmap, "global_mapping", None)}
+    if mappers.get(mapper) is None:
+        msg = f"mapper must be one of {', '.join(mappers)} (global needs pycolmap >= 3.12), not {mapper!r}"
+        raise OptionsError(msg)
+    folder = Path(out)
+    folder.mkdir(parents=True, exist_ok=True)
+    database = folder / "database.db"
+    stats = colmap_database(images, database, **options)
+    sparse = folder / "sparse"
+    sparse.mkdir(exist_ok=True)
+    t0 = time.perf_counter()
+    models = mappers[mapper](database, Path(images), sparse)
+    seconds = time.perf_counter() - t0
+    if not models:
+        return ReconstructionStats(stats, mapper, seconds, 0, 0, 0, None)
+    best, rec = max(models.items(), key=lambda kv: kv[1].num_reg_images())
+    registered, points = rec.num_reg_images(), rec.num_points3D()
+    return ReconstructionStats(stats, mapper, seconds, len(models), registered, points, sparse / str(best))
 
 
 def _size(path: Path) -> tuple[int, int]:
