@@ -156,6 +156,7 @@ depthsplat = "DepthSplat (ETH Zurich / cvg): 3D Gaussian splats and depth from s
 mapanything = "MapAnything (Meta): metric 3D reconstruction (cameras and depth) from several unposed images in one pass. Commercially usable (Apache variant)."
 mvsanywhere = "MVSAnywhere (Niantic): depth of a reference view from several posed images, for any scene type. Non-commercial licence."
 patchmatchnet = "PatchmatchNet by Fangjinhua Wang et al.: learned PatchMatch multi-view stereo, depth from posed images."
+pi3 = "π3 (Pi3, yyfz): cameras, depth and 3D points from many unposed images in one pass, with no reference view. Non-commercial weights."
 vggt = "VGGT (Meta): cameras, depth and 3D points for many images in one pass. Non-commercial weights."
 vggt_omega = "VGGT-Omega (Meta): the successor of VGGT with a DINOv3 backbone, cameras and depth from many images. Non-commercial licence."
 

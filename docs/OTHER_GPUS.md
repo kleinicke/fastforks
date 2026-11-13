@@ -71,6 +71,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
 | romav2 | bf16 | bf16 | fp32 | - |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
+| pi3 | fp16 | fp16 | - | - |
 | vggt | fp16 | fp16 | fp32 | vggt_metal fp32 |
 <!-- capabilities:end -->
 
@@ -97,7 +98,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `cutlass_conv` | aanet, ben2, c_foundationstereo, cas_gwcnet, cfnet, coex, crestereo, defom_stereo, dlnr, fast_acvnet, great_igev, gwcnet, igev_plusplus, igev_stereo, isnet, las2, mmseg, mocha_stereo, monster, monster_plusplus, mvsanywhere, psmnet, raft, raft_stereo, rt_monster_plusplus, sea_raft, selective_igev, u2net, vitmatte, waft_stereo |
 | `deform_conv` | aanet, birefnet |
 | `dpt_fused` | anycalib, boq, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, prompt_depth_anything, sam, sam2, sam_hq, tipsv2, track_on, unidepth_v2, unik3d, vitmatte, waft_stereo |
-| `fastbb` | anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, mapanything, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, prompt_depth_anything, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft_stereo |
+| `fastbb` | anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, mapanything, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, pi3, prompt_depth_anything, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft_stereo |
 | `ffs_cutlass` | c_foundationstereo |
 | `fs` | c_foundationstereo, foundationstereo |
 | `fs_cutlass` | c_foundationstereo, foundationstereo |

@@ -43,6 +43,7 @@ BF16 = {
     "depth_anything_3",
     "romav2",
     "anysplat",
+    "pi3",
 }  # the authors' mixed precision is bfloat16
 NATIVE_HALF = {
     "depth_pro",
@@ -1637,6 +1638,29 @@ def _anysplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - a
     return call
 
 
+def _pi3(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `Pi3` as `tools/golden/pi3.py` (the runner's resizing, PIXEL_LIMIT 255000).
+
+    `FF_PI3_REPO`: a checkout with the pinned commit. fp16 = the authors' bf16 autocast around the whole forward (their
+    `example.py`).
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("pi3")
+    card, variant = registry.resolve("multiview", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_PI3_REPO"]), Path(weights)).cuda()
+    a.note = f"yyfz/Pi3@{g.REF_COMMIT[:12]} Pi3.forward, PIXEL_LIMIT {g.PIXEL_LIMIT}"
+
+    def call(images: Any, *_: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 (bench) or float 0-1 (eval); no cameras
+        x = images.float() / 255 if images.dtype == torch.uint8 else images.float()
+        return g.predict(net, x, bf16=fp16)["depth"]
+
+    return call
+
+
 class _LocalCameras(_LocalFp16):
     """A calibrated multiview original: called with the images, intrinsics, cam_to_world and the depth range."""
 
@@ -1766,6 +1790,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),
+    "pi3": _LocalFp16("multiview", _pi3, ((336, 518),)),
     "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),
     "tapir": _Tracking("tracking", _tapir, ((480, 854),)),
     "alltracker": _Tracking("tracking", _alltracker, ((480, 854),)),

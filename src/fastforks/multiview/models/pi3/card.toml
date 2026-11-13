@@ -1,0 +1,43 @@
+schema = 2
+name = "Pi3"
+summary = "π³, permutation-equivariant visual geometry learning (Wang et al. 2025): cameras, depth and point maps of every view from unposed images in one forward pass, with no reference view. A DINOv2 ViT-L/14 encoder feeds 36 alternating frame / global attention blocks (q/k norm, 2-D RoPE); three small transformer decoders give local point maps, confidences and camera poses."
+tier = "experimental"
+uses = ["depth_anything_v2"]  # shared modules imported directly by this family
+outputs = ["depth", "confidence", "world_points", "cam_to_world"]  # confidence: sigmoid of the original logit
+
+licence_notes = [
+  "The Pi3 code is BSD-3-Clause, but the README licenses the Pi3 weights CC-BY-NC-4.0 (non-commercial); the Hugging Face card's bsd-2-clause tag is overridden by that statement.",
+]
+
+[output]
+kind = "scale_invariant"  # Pi3 normalises the scene: depth, points and translations share one unknown scale
+
+[upstream]
+repo = "https://github.com/yyfz/Pi3"
+commit = "9fa3ddb"
+
+[licence]
+code = "BSD-3-Clause"
+weights = "CC-BY-NC-4.0"  # README "License": model weights (Pi3 and Pi3X) CC BY-NC 4.0, strictly non-commercial
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Per the paper (arXiv 2507.13347): a mixture of public synthetic and real multi-view datasets; DINOv2 initialisation. The README restricts the weights to non-commercial use because of the training datasets."
+evidence = "https://github.com/yyfz/Pi3/blob/9fa3ddb/LICENSE and https://github.com/yyfz/Pi3/blob/9fa3ddb/README.md#-license"
+
+[io]
+input = "0-1"  # the runner resizes (original load_images_as_tensor: ~pixel_limit pixels, multiples of 14) and normalises itself
+pad = "none"
+
+[options]
+pixel_limit = { default = 255000, min = 196 }  # network pixel budget (original PIXEL_LIMIT)
+
+[modes.portable]
+cuda_dtype = "float16"
+
+[modes.kernels]
+kernels = ["fastbb"]
+
+[[variants]]
+id = "pi3"
+revision = 1
+weights = [{ name = "model.safetensors", size = 3834909248, sha256 = "33580e4702ac671558aedeab1148fd08118f7ce45bdbeb99f3e3cf340062875d", url = "https://huggingface.co/yyfz233/Pi3/resolve/ae722e7039287d0c8fde9f11f197f804f44b510c/model.safetensors" }]
