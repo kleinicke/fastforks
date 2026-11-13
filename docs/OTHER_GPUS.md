@@ -66,7 +66,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | rtmpose | fp16 | fp16 | fp32/fp16 | pose_metal fp32 |
 | aanet, bridgedepth, igev_stereo, las2, nmrf | fp16 | fp16 | fp32 | stereo_metal fp16 |
 | perception_encoder | fp16 | fp16 | fp32/fp16 | vit_metal fp16 |
-| flowformer, lightglue, xfeat | fp32 | - | fp32 | - |
+| flowformer, lightglue, loftr, xfeat | fp32 | - | fp32 | - |
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 |
 | moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
 | romav2 | bf16 | bf16 | fp32 | - |

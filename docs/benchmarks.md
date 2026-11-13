@@ -985,6 +985,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | dedode-v2-b | – | 318 | 247 | – | – | – | 1734 / 1992 | 1722 / 1774 | – |
 | dedode-v2-g | – | 666 | 593 | – | – | – | 2335 / 2472 | 2323 / 2834 | – |
 | disk-lightglue | – | 117 | 116 | – | – | – | 1955 / 2412 | 1950 / 2398 | – |
+| loftr-indoor | – | 242 | 241 | – | – | – | 1751 / 1910 | 1685 / 1890 | – |
+| loftr-outdoor | – | 241 | 243 | – | – | – | 1739 / 1870 | 1673 / 1870 | – |
 | romav2 | 1412 | 741 | 546 | 406 | 1.8x | 1.3x | 9881 / 10124 | 1989 / 2596 | 1909 / 2580 |
 | xfeat | – | 8.89 | 8.35 | – | – | – | 128 / 174 | 186 / 214 | – |
 | xfeat-lighterglue | – | 23.6 | 22.5 | – | – | – | 448 / 478 | 444 / 476 | – |
@@ -1425,6 +1427,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | dedode-v2-b | 3.73 | 0.25 | – | 1.10 | 0.82 | – |
 | dedode-v2-g | 6.36 | 1.02 | – | 1.51 | 1.06 | – |
 | disk-lightglue | 1.43 | 0.20 | – | 0.64 | 0.63 | – |
+| loftr-indoor | 1.49 | 0.14 | – | 0.69 | 0.79 | – |
+| loftr-outdoor | 0.35 | 0.12 | – | 0.24 | 0.85 | – |
 | romav2 | 5.45 | 0.85 | 1.50 | 2.09 | 0.91 | 0.81 |
 | xfeat | 1.51 | 0.04 | – | 0.63 | 0.56 | – |
 | xfeat-lighterglue | 1.46 | 0.07 | – | 0.69 | 0.64 | – |
@@ -1826,6 +1830,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | aliked-lightglue | 768x1024 | 48.4 ms | 29.5 ms | fails: ONNX export: torch.export failed | – | 30.8 s | – | 1300 / 1406 | 1653 / 1680 | – | – |
 | dedode-v2-b | 768x1024 | 247 ms | 164 ms | fails: timeout after 298 s | – | 50.5 s | – | 1722 / 1774 | 1893 / 2434 | – | – |
 | disk-lightglue | 768x1024 | 116 ms | 113 ms | fails: ONNX export: torch.export failed | – | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | – | – |
+| loftr-outdoor | 768x1024 | 243 ms | 176 ms | fails: ONNX export: torch.export failed | – | 33.3 s | – | 1673 / 1870 | 1149 / 1232 | – | – |
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 406 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2580 | 6694 / 6740 |
 | xfeat | 768x1024 | 8.35 ms | 5.65 ms | fails: ONNX export: conversion failed | – | 30.8 s | – | 186 / 214 | 186 / 212 | – | – |
 | xfeat-lighterglue | 768x1024 | 22.5 ms | 16.2 ms | fails: ONNX export: torch.export failed | – | 39.7 s | – | 444 / 476 | 262 / 278 | – | – |

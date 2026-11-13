@@ -565,7 +565,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Matching
 
-7 models; size 768x1024.
+9 models; size 768x1024.
 
 - Fastest: [`xfeat`](models/matching.md#xfeat) (8.4 ms).
 - Fastest commercially usable: [`xfeat`](models/matching.md#xfeat) (8.4 ms).
@@ -576,6 +576,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`xfeat-lighterglue`](models/matching.md#xfeat) | yes | 23.6 (768x1024) | 22.5 | – | – | – |
 | [`aliked-lightglue`](models/matching.md#lightglue) | yes | 41.8 (768x1024) | 48.4 | – | – | – |
 | [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.4 | – | – | – |
+| [`loftr-indoor`](models/matching.md#loftr) | yes | 241.6 (768x1024) | 241.2 | – | – | – |
+| [`loftr-outdoor`](models/matching.md#loftr) | yes | 241.5 (768x1024) | 242.5 | – | – | – |
 | [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.6 | – | – | – |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 405.9 | 1.8x vs original (768x1024) | 1909 |
 | [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 593.4 | – | – | – |

@@ -1,0 +1,54 @@
+schema = 2
+name = "LoFTR"
+summary = "LoFTR (Sun et al., CVPR 2021): detector-free dense matching. A ResNet-FPN gives 1/8 and 1/2 resolution features; a linear-attention transformer matches the 1/8 cells of both images (dual-softmax, mutual nearest neighbours above a confidence threshold) and a second transformer refines each match to sub-pixel precision in a 5 x 5 window at 1/2 resolution. Returns the matched points of both images, their (identity) index pairs and the coarse confidence."
+tier = "experimental"
+outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
+uses = []  # fastforks.shared modules this family imports
+limitations = [
+  "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; every match is its own keypoint pair (`pairs` is `[[0, 0], [1, 1], ...]`).",
+  "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
+  "No exportable module: the match counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
+  "Images are converted to grayscale and matched at `long_side` (default 840, upstream's MegaDepth test size); the coarse matching holds an (H W / 64)^2 score matrix, so memory grows with the 4th power of the side. The indoor weights were evaluated by upstream at 640 x 480 (ScanNet).",
+]
+
+[upstream]
+repo = "https://github.com/zju3dv/LoFTR"
+commit = "df7ca80f917334b94cfbe32cc2901e09a80e70a8"  # net/loftr.py = src/loftr/{backbone,loftr_module,utils}/ + loftr.py in one file (no einops / kornia; the position encoding is computed per input size)
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # the authors' checkpoints carry no licence of their own: they inherit the code licence; kornia/loftr on the Hugging Face Hub mirrors them
+files = ["LICENSE"]
+training_data = ["megadepth"]
+training_note = "loftr-outdoor: MegaDepth. loftr-indoor: ScanNet (ScanNet terms of use: non-commercial research), README training section."
+evidence = "https://github.com/zju3dv/LoFTR/blob/df7ca80f917334b94cfbe32cc2901e09a80e70a8/LICENSE ; https://huggingface.co/kornia/loftr/tree/0fb3b456cf176746709c38fa9cf80695a1c82dac"
+
+[io]
+input = "0-1"  # converted to grayscale (OpenCV weights) and resized by the runner
+min_size = 16
+
+[options]
+long_side = { default = 840, min = 0 }  # longest side the images are matched at (0 = the input size; cut down to multiples of 8)
+
+[params]
+threshold = 0.2  # coarse dual-softmax confidence (upstream MATCH_COARSE.THR)
+
+[modes.portable]
+cuda_dtype = "float32"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not implemented yet: data-dependent match counts (mutual nearest neighbours above a threshold)"
+
+[[variants]]
+id = "loftr-outdoor"  # upstream outdoor_ds: trained with the original (buggy) position encoding, eval border_rm 2
+revision = 1
+params = { temp_bug_fix = false, border_rm = 2 }
+weights = [{ name = "loftr_outdoor.ckpt", size = 46341978, sha256 = "21f5bec5968178e8bc8b7633441836fe5de4f47d861dd2cd7dc38e271b0479ec", url = "https://huggingface.co/kornia/loftr/resolve/0fb3b456cf176746709c38fa9cf80695a1c82dac/loftr_outdoor.ckpt" }]
+
+[[variants]]
+id = "loftr-indoor"  # upstream indoor_ds_new: the fixed position encoding, eval border_rm 0
+revision = 1
+params = { temp_bug_fix = true, border_rm = 0 }
+weights = [{ name = "loftr_indoor_ds_new.ckpt", size = 46355053, sha256 = "be9ff88b323ec27889114719f668ae41aff7034b56a4c4acbd46b8b180b87ed3", url = "https://huggingface.co/kornia/loftr/resolve/0fb3b456cf176746709c38fa9cf80695a1c82dac/loftr_indoor_ds_new.ckpt" }]

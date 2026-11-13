@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- LoFTR semi-dense matching (`loftr-outdoor`, `loftr-indoor`, matching; Apache-2.0 code, the authors' weights
+  inherit it): grayscale coarse-to-fine transformer matching, matches as keypoints plus index pairs. 768x1024 pair:
+  242 ms portable (176 ms compile) vs 242 ms original fp32 (no fp16 in upstream), peak 1.7 GB vs 1.9 GB;
+  MegaDepth-1500 (every 10th) AUC@5/10/20 52.1/71.0/83.3 vs 53.8/71.8/83.7 original. TensorRT export fails.
+
 - DeDoDe v2 sparse matching (`dedode-v2-b`, `dedode-v2-g`, matching; MIT code and weights, DINOv2 of -G
   Apache-2.0): detector v2 + descriptor B or G, 10000 keypoints on a 784 x 784 square, dual-softmax matches as
   keypoints plus index pairs. 768x1024 pair: `dedode-v2-b` 247 ms portable (164 ms compile) vs 561 ms original fp32
