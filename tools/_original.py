@@ -1232,6 +1232,28 @@ def _tapir(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the 
     return call
 
 
+def _alltracker(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream AllTracker `Net.forward` (CUDA, unpatched) through `tools/golden/alltracker.py` `track`.
+
+    384 x 512, 4 iters, forward + backward passes per query frame; fp16: `torch.autocast("cuda", torch.float16)`.
+    Needs `ALLTRACKER_SRC`, an aharley/alltracker checkout with the pinned commit (with einops importable).
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("alltracker")
+    card, variant = registry.resolve("tracking", full)
+    file = registry.weights(card, variant, allow_download=False)[0]
+    model = g.load(Path(os.environ["ALLTRACKER_SRC"]), Path(file), g.MODELS[f"{variant.id}@1"][1]).cuda()
+    a.note = f"aharley/alltracker@{g.COMMIT[:12]} Net.forward, 384 x 512, {g.ITERS} iters"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        return g.track(model, video.float() / 255, queries, amp=torch.float16 if fp16 else None)
+
+    return call
+
+
 class _Tracking(_LocalFp16):
     """The tracking bench call: the uint8 video `[T, 3, H, W]` and the float32 query grid (not scaled to uint8)."""
 
@@ -1389,6 +1411,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),
     "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),
     "tapir": _Tracking("tracking", _tapir, ((480, 854),)),
+    "alltracker": _Tracking("tracking", _alltracker, ((480, 854),)),
 }
 
 

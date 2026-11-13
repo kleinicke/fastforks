@@ -1,0 +1,48 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 2.3e-05
+gpu_mean = 0.0019
+gpu_p99 = 0.0099
+
+[refs."alltracker-tiny@1"]
+sha256 = "5c714072fc50f6983dea5cb6fb8a74af783295e07988d23cf2de11a533833f78"
+upstream = "https://github.com/aharley/alltracker@e7553135e7b361590dbccd10e2b274b024f41cd6"
+patch = "alltracker-cpu-device.patch"
+patch_sha256 = "7a9639ac92f5aa5a96657e122f79be0ba88799c53ff02efef749787b7dd1aee7"
+settings = "CPU float32, upstream Net.forward (16-frame windows, stride 8, 4 iters), forward + backward passes per query frame, tests/synth.py clip() 6 x 100 x 150 bilinear to 384 x 512, bilinear query sampling, torch 2.14.1+cu130"
+gpu_mean = 0.0018
+gpu_p99 = 0.0099
+gpu_extra = [["visibility", 0.00024, 0.0014]]
+
+[refs."alltracker@1"]
+sha256 = "6109ae5f7bb26a0ea0154c0e654f2a0647afc069b6202e571e3ab417659c91c6"
+upstream = "https://github.com/aharley/alltracker@e7553135e7b361590dbccd10e2b274b024f41cd6"
+patch = "alltracker-cpu-device.patch"
+patch_sha256 = "7a9639ac92f5aa5a96657e122f79be0ba88799c53ff02efef749787b7dd1aee7"
+settings = "CPU float32, upstream Net.forward (16-frame windows, stride 8, 4 iters), forward + backward passes per query frame, tests/synth.py clip() 6 x 100 x 150 bilinear to 384 x 512, bilinear query sampling, torch 2.14.1+cu130"
+gpu_mean = 0.0019
+gpu_p99 = 0.0094
+gpu_extra = [["visibility", 4.8e-05, 0.00038]]
+
+[validated."alltracker-tiny@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00119
+p99_px = 0.00662
+
+[validated."alltracker@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00125
+p99_px = 0.00626

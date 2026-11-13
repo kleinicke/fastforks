@@ -19,7 +19,11 @@ coordinates (normalised x 256 - 0.5). The authors' PyTorch models (`$TAPNET_SRC`
 einshape and dm-tree on the path): `upstream` (fp32) and `upstream16` (float16 autocast), queries `(t, y, x)`
 continuous. TAPNext online as their evaluation (the first frame with the queries, then one frame at a time with the
 state); TAPIR / BootsTAPIR offline (the whole video at once; visible where `(1 - sigmoid(occlusion)) * (1 -
-sigmoid(expected_dist)) > 0.5`).
+sigmoid(expected_dist)) > 0.5`). AllTracker (both tiers and the original) gets the original frames, queries in
+their pixels, and resizes them itself to 384 x 512 (upstream's evaluation resizes the originals with cv2 bilinear);
+the predictions are scaled to 256 x 256 for the metrics. Its original (`$ALLTRACKER_SRC`, an aharley/alltracker
+checkout with einops) runs through `tools/golden/alltracker.py` `track`: forward + backward passes per query frame,
+queries sampled bilinearly (upstream's evaluation runs forward only from frame 0 with queries rounded to pixels).
 
 Timing: one sequence per call, synchronised, per frame; after one untimed warm-up sequence. Each sequence appends one
 record to `<out>/<model>__<tier>.jsonl`; a run resumes after the last finished sequence and stops after `--budget`
@@ -54,23 +58,32 @@ WEIGHT = {
     "tapir": "tapir_checkpoint_panning.pt",
 }
 TAPIR_REFS = ("bootstapir", "tapir")
+NATIVE_REFS = ("alltracker", "alltracker-tiny")  # fed the original frames (they resize to their own 384 x 512)
 
 
 def sequences(every: int) -> list[str]:
     return sorted(p.stem for p in ROOT.glob("*.npz"))[::every]
 
 
-def load_sequence(name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """256 x 256 frames, queries `[Q, 3]` `(t, x, y)` in pixels, target points `[Q, T, 2]` and occlusion `[Q, T]`."""
+def load_sequence(name: str, *, native: bool = False) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Frames, queries `[Q, 3]` `(t, x, y)` in their pixels, target points `[Q, T, 2]` (256 x 256) and occlusion.
+
+    The frames are 256 x 256, or with `native` the original ones (the queries then in original pixels).
+    """
     with np.load(ROOT / f"{name}.npz", allow_pickle=False) as z:
         video, points, occluded = z["video"], z["points"], z["occluded"]
-    frames = np.stack([np.asarray(Image.fromarray(f).resize((SIZE, SIZE), Image.Resampling.LANCZOS)) for f in video])
+    if native:
+        frames = video
+    else:
+        frames = np.stack(
+            [np.asarray(Image.fromarray(f).resize((SIZE, SIZE), Image.Resampling.LANCZOS)) for f in video]
+        )
     keep = (~occluded).any(1)
-    points, occluded = points[keep] * SIZE, occluded[keep]  # continuous 256 x 256 raster coordinates
+    points, occluded = points[keep], occluded[keep]
     first = np.argmax(~occluded, 1)
-    xy = points[np.arange(len(first)), first]
+    xy = points[np.arange(len(first)), first] * np.array(frames.shape[2:0:-1], dtype=np.float32)
     queries = np.concatenate([first[:, None], xy - 0.5], 1).astype(np.float32)
-    return frames, queries, points, occluded
+    return frames, queries, points * SIZE, occluded  # targets in continuous 256 x 256 raster coordinates
 
 
 def metrics(first: np.ndarray, occ: np.ndarray, pts: np.ndarray, pred_occ: np.ndarray, pred: np.ndarray) -> dict:
@@ -105,6 +118,29 @@ class Ours:
         """Tracks `[Q, T, 2]` in continuous coordinates and the predicted occlusion `[Q, T]`."""
         r = self.model(list(frames), queries)
         return r.tracks.cpu().numpy().transpose(1, 0, 2) + 0.5, ~r.visible.cpu().numpy().T
+
+
+class OriginalAllTracker:
+    """The authors' AllTracker through `tools/golden/alltracker.py` `track` (`$ALLTRACKER_SRC`, unpatched, CUDA)."""
+
+    def __init__(self, ref: str, tier: str) -> None:  # noqa: D107
+        sys.path.insert(0, str(Path(__file__).parent / "golden"))
+        import alltracker as g  # noqa: PLC0415
+
+        file, kwargs = g.MODELS[f"{ref}@1"]
+        self.g = g
+        weights = Path(os.environ["FASTFORKS_WEIGHTS_PATH"]) / "alltracker" / file
+        self.model = g.load(Path(os.environ["ALLTRACKER_SRC"]), weights, kwargs).cuda()
+        self.backend = _Upstream(tier)
+        self.backend.name = "AllTracker"
+
+    def __call__(self, frames: np.ndarray, queries: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Tracks `[Q, T, 2]` in continuous coordinates and the predicted occlusion `[Q, T]`."""
+        video = torch.from_numpy(frames).cuda().permute(0, 3, 1, 2).float() / 255
+        amp = torch.float16 if self.backend.dtype == torch.float16 else None
+        with torch.inference_mode():
+            tracks, vis = self.g.track(self.model, video, torch.from_numpy(queries).cuda(), amp=amp)
+        return tracks.transpose(0, 1).cpu().numpy() + 0.5, (vis.T <= 0.5).cpu().numpy()  # noqa: PLR2004
 
 
 class _Upstream:
@@ -202,7 +238,7 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:
     torch.cuda.empty_cache()
     torch.cuda.reset_peak_memory_stats()
     t0 = time.perf_counter()
-    orig = OriginalTapir if ref in TAPIR_REFS else Original
+    orig = OriginalTapir if ref in TAPIR_REFS else OriginalAllTracker if ref in NATIVE_REFS else Original
     model = (orig if tier.startswith("upstream") else Ours)(ref, tier)
     build_s = round(time.perf_counter() - t0, 1)
     be = model.backend
@@ -225,17 +261,19 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:
         ).stdout.strip(),
         "command": " ".join(["python", *sys.argv]),
     }
-    warm = load_sequence(todo[0])  # untimed warm-up: the first sequence
+    native = ref in NATIVE_REFS
+    warm = load_sequence(todo[0], native=native)  # untimed warm-up: the first sequence
     model(warm[0], warm[1])
     for name in todo:
         if time.perf_counter() > deadline:
             return False
-        frames, queries, pts, occ = load_sequence(name)
+        frames, queries, pts, occ = load_sequence(name, native=native)
         torch.cuda.synchronize()
         t = time.perf_counter()
         pred, pred_occ = model(frames, queries)
         torch.cuda.synchronize()
         ms = (time.perf_counter() - t) * 1000 / len(frames)
+        pred = pred * (SIZE / np.array(frames.shape[2:0:-1]))  # to 256 x 256 (a no-op on 256 x 256 frames)
         rec = common | {
             "seq": name,
             "frames": len(frames),

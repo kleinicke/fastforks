@@ -1,0 +1,22 @@
+diff --git a/nets/alltracker.py b/nets/alltracker.py
+index 5e35462..db485f7 100644
+--- a/nets/alltracker.py
++++ b/nets/alltracker.py
+@@ -189,7 +189,7 @@ class Net(nn.Module):
+             fmaps = []
+             for t in range(0, T, fmaps_chunk_size):
+                 images_chunk = images[:, t : t + fmaps_chunk_size]
+-                images_chunk = images_chunk.cuda()
++                images_chunk = images_chunk.to(next(self.parameters()).device)
+                 if self.use_basicencoder:
+                     if self.full_split:
+                         fmaps_chunk1 = self.fnet(images_chunk.reshape(-1, 3, H_pad, W_pad))
+@@ -208,7 +208,7 @@ class Net(nn.Module):
+         else:
+             if not is_training:
+                 # sometimes we need to move things to cuda here
+-                images_ = images_.cuda()
++                images_ = images_.to(next(self.parameters()).device)
+             if self.use_basicencoder:
+                 if self.full_split:
+                     fmaps1_ = self.fnet(images_)

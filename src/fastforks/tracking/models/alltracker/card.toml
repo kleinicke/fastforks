@@ -1,0 +1,54 @@
+schema = 2
+name = "AllTracker"
+summary = "AllTracker (Harley et al., ICCV 2025): tracking every pixel of a query frame through a video offline, as long-range optical flow. A ConvNeXt (tiny: a residual CNN) encodes every frame at 1/8; 16-frame windows (stride 8) refine the flow and visibility of all anchor pixels to all window frames at once, with a correlation pyramid, 2D ConvNeXt blocks over space and 1D blocks over time, then an 8x convex upsampling. Point queries read the dense result."
+tier = "experimental"
+outputs = ["tracks", "visibility"]
+uses = []  # fastforks.shared modules this family imports
+limitations = [
+  "Offline: the features of every frame are kept in memory (about 2.5 MB per frame in float16 at 384 x 512); each query frame costs a forward pass (and a backward pass from frame 0 if it is not the first).",
+  "Frames are resized to 384 x 512 (upstream's default evaluation size), whatever their size and aspect ratio. Upstream reports higher accuracy at larger sizes (TAP-Vid DAVIS AJ 65.9 at 448 x 768, 67.2 at 768 x 1024); the size is a card parameter.",
+  "Tracks are sampled bilinearly at the query position; upstream's evaluation rounds the query to the nearest pixel.",
+  "One video per call; all queries of a call share the video.",
+]
+
+[upstream]
+repo = "https://github.com/aharley/alltracker"
+commit = "e7553135e7b361590dbccd10e2b274b024f41cd6"  # net/alltracker.py = nets/{alltracker,blocks}.py inference path (Net.forward windows, upstream demo.py forward + backward passes)
+
+[licence]
+code = "MIT"  # LICENSE
+weights = "MIT"  # Hugging Face model card aharley/alltracker: "license: mit"
+files = ["LICENSE"]
+training_data = ["sceneflow", "flyingchairs", "spring", "hd1k", "kitti", "tartanair", "unstated"]
+training_note = "Upstream README: stage 1 on Kubric MOVi-F, stage 2 on a mix of point tracking data (Kubric, PointOdyssey, Dynamic Replica and point tracks made from FlyingThings3D, Monkaa, Driving, SPRING) and optical flow data (FlyingChairs, FlyingThings3D, Monkaa, Driving, AutoFlow, SPRING, VIPER, HD1K, KITTI, TartanAir). Kubric, PointOdyssey, Dynamic Replica, AutoFlow and VIPER have no dataset entry here yet (\"unstated\")."
+evidence = "https://huggingface.co/aharley/alltracker"
+
+[io]
+input = "0-1"  # the runner resizes the frames to height x width (bilinear), pads them to multiples of 64 and normalizes them itself
+min_size = 16
+
+[params]
+encoder = "convnext"
+height = 384
+width = 512
+
+[options]
+iters = { default = 4, min = 1 }  # refinement steps per window (upstream inference_iters)
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast; the 1D blocks' attention (16 tokens) as two batched GEMMs and a softmax, not SDPA; flow state, correlation lookup and point sampling in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fvm_conv"]  # ConvNeXt blocks, update block and heads: depthwise 7 x 7 and fused convs / GEMMs (ReLU / GELU / residual epilogues), one q/k/v GEMM, fp16 accumulation
+
+[[variants]]
+id = "alltracker"  # upstream alltracker.pth; TAP-Vid DAVIS AJ 63.3 at 384 x 512 (upstream README)
+revision = 1
+weights = [{ name = "alltracker.pth", size = 66005722, sha256 = "ffd9ebcfb6d206d594b646999a150540f92c049cf9b2bf940facf7123f62aa1d", url = "https://huggingface.co/aharley/alltracker/resolve/c8ba31225828cab9ec512d0627f0f826e641a877/alltracker.pth" }]
+
+[[variants]]
+id = "alltracker-tiny"  # upstream alltracker_tiny.pth (Net(16, use_basicencoder=True, no_split=True))
+revision = 1
+params = { encoder = "basic" }
+weights = [{ name = "alltracker_tiny.pth", size = 25236708, sha256 = "43991b4fcee5bec0f828e7cc556ef3cfa379fc44874f56ccb531f59f5aaf234e", url = "https://huggingface.co/aharley/alltracker/resolve/c8ba31225828cab9ec512d0627f0f826e641a877/alltracker_tiny.pth" }]

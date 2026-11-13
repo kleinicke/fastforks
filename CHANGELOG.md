@@ -18,6 +18,12 @@
   (318 ms fp16), peak 1.8 GB vs 3.3 GB; MegaDepth-1500 (every 10th) AUC@5/10/20 54.6/71.8/83.1 vs 57.3/71.6/82.5
   original fp16. TensorRT export fails (data-dependent match counts).
 
+- AllTracker dense point tracking (`alltracker`, `alltracker-tiny`, tracking task; MIT code and weights): every pixel
+  of a query frame tracked offline through the video as long-range flow (384 x 512 internally, as upstream's
+  evaluation). 24-frame 480x854 video, 256 queries: `alltracker` 221 ms kernels, 391 ms portable (284 ms
+  compile; the TensorRT export fails) vs 788 ms original fp32 (485 ms fp16), peak 1.1 GB vs 2.5 GB; TAP-Vid DAVIS
+  (first) AJ 64.15 kernels, 64.14 portable vs 64.17 original.
+
 - AnySplat feed-forward Gaussian splatting (`anysplat`, multiview; MIT code and weights, VGGT License for the VGGT
   copy): unposed, uncalibrated views to cameras, depth and `result.gaussians` (`.save("scene.ply")`), voxel-fused as
   upstream. 8 views 336x518: 364 ms kernels, 504 ms portable (427 ms compile, 314 ms TensorRT) vs 1769 ms original

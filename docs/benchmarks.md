@@ -996,6 +996,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
+| alltracker | 485 | 391 | 221 | 2.2x | 1.8x | 2100 / 2318 | 993 / 1238 | 1076 / 1288 |
+| alltracker-tiny | 424 | 330 | 233 | 1.8x | 1.4x | 1995 / 2200 | 919 / 1178 | 978 / 1166 |
 | bootstapir | 243 | 240 | 191 | 1.3x | 1.3x | 639 / 774 | 720 / 768 | 769 / 828 |
 | tapir | 187 | 186 | 138 | 1.4x | 1.3x | 498 / 574 | 630 / 690 | 678 / 750 |
 | tapnext | 909 | 529 | 382 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1313 / 1374 |
@@ -1434,6 +1436,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | romav2 | 5.45 | 0.85 | 1.50 | 2.09 | 0.91 | 0.81 |
 | xfeat | 1.51 | 0.04 | – | 0.63 | 0.56 | – |
 | xfeat-lighterglue | 1.46 | 0.07 | – | 0.69 | 0.64 | – |
+| alltracker | 1.68 | 0.22 | 0.98 | 1.31 | 0.85 | 0.45 |
+| alltracker-tiny | 1.22 | 0.06 | 0.96 | 1.40 | 0.73 | 0.54 |
 | bootstapir | 0.60 | 0.15 | 1.19 | 0.90 | 0.79 | 0.53 |
 | tapir | 0.35 | 0.16 | 0.97 | 0.83 | 0.82 | 0.52 |
 | tapnext | 16.92 | 2.72 | 2.63 | 2.17 | 0.69 | 0.56 |
@@ -1837,6 +1841,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 406 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2580 | 6694 / 6740 |
 | xfeat | 768x1024 | 8.35 ms | 5.65 ms | fails: ONNX export: conversion failed | – | 30.8 s | – | 186 / 214 | 186 / 212 | – | – |
 | xfeat-lighterglue | 768x1024 | 22.5 ms | 16.2 ms | fails: ONNX export: torch.export failed | – | 39.7 s | – | 444 / 476 | 262 / 278 | – | – |
+| alltracker | 480x854 | 391 ms | 284 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 221 ms | 105 s | – | 993 / 1238 | 1273 / 1358 | 1076 / 1288 | – |
+| alltracker-tiny | 480x854 | 330 ms | 229 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 233 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
 | bootstapir | 480x854 | 240 ms | 183 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 191 ms | 207 s | – | 720 / 768 | 758 / 832 | 769 / 828 | – |
 | tapir | 480x854 | 186 ms | 131 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 138 ms | 169 s | – | 630 / 690 | 630 / 752 | 678 / 750 | – |
 | tapnext | 480x854 | 529 ms | 398 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 382 ms | 40.5 s | – | 1220 / 1294 | 1164 / 1272 | 1313 / 1374 | – |

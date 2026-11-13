@@ -189,9 +189,10 @@ _PROTOCOL = {
     "focal length); AUC of the larger of the rotation and translation-direction errors. ",
     ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
     "pair. ",
-    "tracking": "TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model, one query per track at "
-    "its first visible point, tracked online (TAPNext) or over the whole clip (TAPIR); AJ, delta_avg (< 1, 2, 4, 8, "
-    "16 px at 256 x 256) and occlusion accuracy averaged over the videos. ",
+    "tracking": "TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the "
+    "original frames, resized by the model), one query per track at its first visible point, tracked online "
+    "(TAPNext) or over the whole clip (TAPIR, AllTracker); AJ, delta_avg (< 1, 2, 4, 8, 16 px at 256 x 256) and "
+    "occlusion accuracy averaged over the videos. ",
     ("matting", "dis-vd-every2"): "Each image at its own size against its binary mask: MAE of the alpha, max F-beta "
     "(beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). ",
     ("matting", "aim500-every5"): "Trimap-guided models, AIM-500: each image at its own size with a trimap made from "
