@@ -1115,7 +1115,7 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
         weights=() if weights else tuple(f.sha256 for f in variant.weights),
     )
     model = cls(runner, backend, options)
-    _settle(model, card, mode, device)
+    _settle(device)
     return model
 
 
@@ -1134,12 +1134,8 @@ def _checkpoint_id(files: tuple[Path, ...] | None) -> tuple[str, ...]:
     return tuple(out)
 
 
-def _settle(model: Model, card: ModelCard, mode: Mode, device: torch.device) -> None:
-    """The device-side end of a build: the cuDNN plan workspace's owner, and the build's cached blocks freed."""
-    if mode == "kernels" and "cudnn_hacc" in card.kernel_libs:
-        from fastforks.kernels import cudnn_hacc  # noqa: PLC0415 - only kernels models
-
-        cudnn_hacc.attach(model)  # frees the plan workspace with the last such model
+def _settle(device: torch.device) -> None:
+    """The device-side end of a build: the build's cached blocks freed."""
     if device.type == "cuda":
         # The build's transient blocks (fp32 BN-fold probes that pick large cuDNN workspaces, checkpoint copies before
         # the cast) would stay cached and count in the reserved memory for good (regnety_160 3990 -> 250 MiB).
