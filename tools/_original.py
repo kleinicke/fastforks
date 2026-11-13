@@ -897,7 +897,7 @@ def _loftr(a: Any, full: str, options: dict[str, Any] | None = None) -> Any:  # 
 
 
 def _dfine(a: Any, full: str) -> Any:  # noqa: ANN401
-    """D-FINE, DEIM, OWLv2, Grounding DINO as the COCO eval runs them (`tools/_original_coco.py`): numpy RGB in."""
+    """D-FINE, DEIM, LW-DETR, OWLv2, Grounding DINO as the COCO eval runs them (`tools/_original_coco.py`), RGB in."""
     import _original_coco  # noqa: PLC0415
 
     ref = full.split("@", maxsplit=1)[0]
@@ -910,6 +910,9 @@ def _dfine(a: Any, full: str) -> Any:  # noqa: ANN401
         a.note = (
             "transformers Owlv2ForObjectDetection + processor (CPU), coco-80 queries, text tower per call, 300 best"
         )
+    elif ref.startswith("lw-detr"):
+        a.COMMIT = "transformers-" + importlib.import_module("transformers").__version__
+        a.note = "transformers LwDetrForObjectDetection + image processor (CPU), the authors' PostProcess (all kept)"
     elif ref.startswith("deim"):
         a.COMMIT = _original_coco.DEIM_COMMIT
         a.note = "official DEIM deploy model; incl. CPU PIL resize + host-to-device copy, RT-DETR postprocess (all 300)"

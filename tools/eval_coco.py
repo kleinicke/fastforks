@@ -116,8 +116,10 @@ def _load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401 - a model of e
         opts = {"score_threshold": 0.0} if ref.startswith("rf-detr-keypoint") else None
         return pos.load(ref, mode=mode, device="cuda", dtype=dtype, options=opts)
 
-    # RT-DETRv2 / D-FINE mAP: the official postprocessor (all 300 queries, no threshold); defaults: 0.05 / 100
-    all300 = ref.startswith(("rtdetrv2", "dfine", "deim", "rf-detr", "owlv2", "grounding-dino"))
+    # RT-DETRv2 / D-FINE / LW-DETR mAP: the official postprocessor (all queries, no threshold); defaults: 0.05 / 100
+    all300 = ref.startswith(
+        ("rtdetrv2", "dfine", "deim", "rf-detr", "owlv2", "grounding-dino", "mm-grounding-dino", "lw-detr")
+    )
     opts = {"score_threshold": 0.0, "max_detections": 300} if all300 else None
     if ref.startswith("rtmdet") and ref.endswith("-coco"):  # the reference configs' COCO test settings
         opts = {"score_threshold": 0.001, "max_detections": 300}
@@ -367,7 +369,6 @@ def _coco_map(coco: Any, dets: list[dict[str, Any]], kind: str, ids: list[int], 
 def _summarize(a: argparse.Namespace) -> None:  # noqa: PLR0915 - one branch per task
     out = Path(a.out)
     cocos = {}
-    ids = [int(f.stem) for f in _images(a.every)]
     lines = ["| task | model | tier | metric | ms/image | MiB alloc / reserved | images |", "|---" * 7 + "|"]
     docs = []
     for jl in sorted(out.glob("*.jsonl")):
@@ -376,10 +377,12 @@ def _summarize(a: argparse.Namespace) -> None:  # noqa: PLR0915 - one branch per
         task, ref, tier = stem.name.split("__")
         coco = cocos.setdefault(task, _gt(task))
         last = rows[-1]
+        every = rows[0].get("every", a.every)  # the run's stride (a summarize --every of another run halved the mAP)
+        ids = [int(f.stem) for f in _images(every)]
         mode = "upstream-fp16" if tier.startswith("upstream") and tier != "upstream" else last.get("mode", tier)
         row: dict[str, Any] = {"ref": ref, "task": task, "tier": tier, "mode": mode,
                                "dtype": last.get("dtype"), "how": last.get("how"),
-                               "dataset": f"coco-val2017-every{a.every}" + (("-keypoints-gtbox" if last.get("pose_gt_boxes", True) else "-keypoints") if task == "pose" else "")}  # fmt: skip  # noqa: E501
+                               "dataset": f"coco-val2017-every{every}" + (("-keypoints-gtbox" if last.get("pose_gt_boxes", True) else "-keypoints") if task == "pose" else "")}  # fmt: skip  # noqa: E501
         if last.get("pose_protocol"):
             row["protocol"] = last["pose_protocol"]
         if err := next((r for r in rows if "error" in r or "skipped" in r), None):

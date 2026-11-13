@@ -1,0 +1,101 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.28
+gpu_p99 = 0.93
+gpu_extra = [["labels", 0.001, 0.001], ["scores", 0.04, 0.093]]
+
+[refs."lw-detr-large-coco@1"]
+gpu_mean = 0.19
+gpu_p99 = 0.36
+gpu_extra = [["labels", 0.001, 0.001], ["scores", 0.0056, 0.014]]
+sha256 = "da21ac2c07d9d7a708da8c9ef323582ca9411a7f6d9c00ef003c25361778f118"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, transformers LwDetrForObjectDetection + DeformableDetrImageProcessor 640x640, the authors' PostProcess (num_select 300), skimage coffee.png, score threshold 0.5, torch 2.14.1+cu130"
+options = [["score_threshold", 0.5]]
+
+[refs."lw-detr-medium-coco@1"]
+gpu_mean = 0.19
+gpu_p99 = 0.64
+gpu_extra = [["labels", 0.001, 0.001], ["scores", 0.0057, 0.014]]
+sha256 = "92fe1d8409629f0553e912a316f09f9033961743d256a65fbe13b449c4f10a22"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, transformers LwDetrForObjectDetection + DeformableDetrImageProcessor 640x640, the authors' PostProcess (num_select 300), skimage coffee.png, score threshold 0.5, torch 2.14.1+cu130"
+options = [["score_threshold", 0.5]]
+
+[refs."lw-detr-small-coco@1"]
+gpu_mean = 0.28
+gpu_p99 = 0.93
+gpu_extra = [["labels", 0.001, 0.001], ["scores", 0.04, 0.093]]
+sha256 = "9542d1d25aa2b315ccf0d9a09596b95dcbcb1c4acdf1f1a391a414c03f020ecc"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, transformers LwDetrForObjectDetection + DeformableDetrImageProcessor 640x640, the authors' PostProcess (num_select 300), skimage coffee.png, score threshold 0.484, torch 2.14.1+cu130"
+options = [["score_threshold", 0.484]]
+
+[refs."lw-detr-tiny-coco@1"]
+sha256 = "f7703b06ebd78555d7ab4a8dfd70dd8589cc8d442343bbeb591970eae0c3c7b0"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, transformers LwDetrForObjectDetection + DeformableDetrImageProcessor 640x640, the authors' PostProcess (num_select 100), skimage coffee.png, score threshold 0.78, torch 2.14.1+cu130"
+gpu_mean = 0.23
+gpu_p99 = 0.33
+gpu_extra = [["labels", 0.001, 0.001], ["scores", 0.023, 0.023]]
+options = [["score_threshold", 0.78]]
+
+[refs."lw-detr-xlarge-coco@1"]
+gpu_mean = 0.14
+gpu_p99 = 0.48
+gpu_extra = [["labels", 0.001, 0.001], ["scores", 0.0018, 0.0036]]
+sha256 = "580d8645135a0e45b8f46c09bdfbfa9c0432a4b0899c8052249b06afc16c4060"
+upstream = "https://github.com/huggingface/transformers@v5.19.0"
+settings = "CPU float32, transformers LwDetrForObjectDetection + DeformableDetrImageProcessor 640x640, the authors' PostProcess (num_select 300), skimage coffee.png, score threshold 0.5, torch 2.14.1+cu130"
+options = [["score_threshold", 0.5]]
+
+[validated."lw-detr-large-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.07557
+p99_px = 0.17951
+
+[validated."lw-detr-medium-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.1222
+p99_px = 0.42107
+
+[validated."lw-detr-small-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.17032
+p99_px = 0.61935
+
+[validated."lw-detr-tiny-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.04142
+p99_px = 0.06935
+
+[validated."lw-detr-xlarge-coco@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.06452
+p99_px = 0.31725

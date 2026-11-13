@@ -15,6 +15,8 @@ Code paths (each family's venv, `bench/bench_upstream.py list`):
   (card default), RT-DETRv2 all 300 queries (the official postprocessor, as the fastforks tiers of this eval). 007 venv.
 - D-FINE: transformers `DFineForObjectDetection` (the golden's reference) at the card's revision, 640 x 640 PIL
   bilinear input in [0, 1], the RT-DETR postprocess keeping all 300 (as the fastforks tiers of this eval).
+- LW-DETR: transformers `LwDetrForObjectDetection` with the weights' image processor (CPU) and the authors'
+  PostProcess (the golden's reference, `tools/golden/lwdetr.py`), all `num_select` detections kept.
 - DEIM: the official DEIM code (`FF_DEIM_REPO`: a checkout at `DEIM_COMMIT`) built from
   `configs/deim_dfine/deim_hgnetv2_<size>_coco.yml`, the authors' checkpoint, `deploy()`; input and postprocess as
   D-FINE. Its training-only imports (tensorboard, faster-coco-eval, calflops) are stubbed. One DEIM model per process.
@@ -249,6 +251,25 @@ def _dfine(ref: str, tier: str) -> _Detector:
         cx, cy, bw, bh = out.pred_boxes.float()[0][query].unbind(-1)
         boxes = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1)
         return boxes * torch.tensor([w, h, w, h], device=boxes.device), scores, labels, None
+
+    return _Detector(t, fn, "rtdetr")
+
+
+def _lwdetr(ref: str, tier: str) -> _Detector:
+    """The golden's transformers `LwDetrForObjectDetection`, the weights' image processor, the authors' PostProcess.
+
+    The processor runs on the CPU (as `tools/golden/lwdetr.py`); all `num_select` detections kept (coco-80 labels).
+    """
+    g = _original._golden("lwdetr")  # noqa: SLF001 - the family's reference recipe
+    net, num_select = g.reference(ref)
+    net = net.to("cuda")
+    proc = g.processor(ref.removeprefix("lw-detr-").removesuffix("-coco"))
+    t = _Tier(tier, "lwdetr", [net])
+
+    def fn(img: np.ndarray) -> tuple[Any, ...]:
+        x = proc(images=img, return_tensors="pt")["pixel_values"].cuda()
+        d = g.detect(net, num_select, img, x.half() if t.how == "half" else x)
+        return d["boxes"], d["scores"], d["labels"], None
 
     return _Detector(t, fn, "rtdetr")
 
@@ -600,6 +621,8 @@ def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, C901, PLR0911 
             return _dfine(ref, tier)
         if ref.startswith("deim"):
             return _deim(ref, tier)
+        if ref.startswith("lw-detr"):
+            return _lwdetr(ref, tier)
         if ref.startswith("owlv2"):
             return _owlv2(ref, tier)
         if ref.startswith("grounding-dino"):

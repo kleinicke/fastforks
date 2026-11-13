@@ -56,6 +56,7 @@ _DATASETS = {
     },
     "detection": {
         "coco-val2017-every10": "COCO val2017, every 10th image, box mAP",
+        "coco-val2017-every20": "COCO val2017, every 20th image, box mAP",
         "coco-val2017-every10-person": "COCO val2017, every 10th image, box AP of the person class",
         "coco-val2017-every1": "COCO val2017, all 5000 images, box mAP",
     },

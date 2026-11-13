@@ -786,6 +786,11 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | faster-rcnn-r50-fpn-3x-coco | 83.6 | 41.4 | 22.8 | 19.5 | 2.1x | 1.2x | 626 / 708 | 390 / 490 | 391 / 450 |
 | grounding-dino-base | – | 230 | 160 | – | – | – | 2895 / 3094 | 1525 / 1624 | – |
 | grounding-dino-tiny | – | 199 | 138 | – | – | – | 2541 / 2716 | 1404 / 1468 | – |
+| lw-detr-large-coco | – | 22.8 | 10.2 | 5.64 | 4.0x | 1.8x | 355 / 382 | 204 / 230 | 192 / 254 |
+| lw-detr-medium-coco | – | 23.3 | 8.86 | 3.83 | 6.1x | 2.3x | 228 / 274 | 128 / 136 | 128 / 180 |
+| lw-detr-small-coco | – | 19.9 | 8.82 | 2.80 | 7.1x | 3.1x | 129 / 166 | 97 / 116 | 99 / 140 |
+| lw-detr-tiny-coco | – | 16.4 | 7.45 | 2.20 | 7.5x | 3.4x | 114 / 132 | 92 / 112 | 94 / 134 |
+| lw-detr-xlarge-coco | – | 25.5 | 12.1 | 9.44 | 2.7x | 1.3x | 762 / 850 | 344 / 360 | 333 / 408 |
 | mask-rcnn-r50-fpn-3x-coco | 85.4 | 43.5 | 24.6 | 21.0 | 2.1x | 1.2x | 604 / 650 | 352 / 440 | 353 / 400 |
 | owlv2-b16 | – | 92.3 | 31.8 | 23.8 | 3.9x | 1.3x | 921 / 960 | 497 / 570 | 607 / 732 |
 | owlv2-l14 | – | 212 | 155 | 110 | 1.9x | 1.4x | 2550 / 2606 | 1239 / 1282 | 1552 / 1726 |
@@ -1265,6 +1270,11 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | faster-rcnn-r50-fpn-3x-coco | 0.73 | 0.53 | 0.14† | 0.04 | 0.25 | 0.04 |
 | grounding-dino-base | 4.16 | 3.29 | – | 0.99 | 0.53 | – |
 | grounding-dino-tiny | 4.06 | 3.01 | – | 1.18 | 0.51 | – |
+| lw-detr-large-coco | 3.82 | 3.20 | 3.04 | 0.72 | 0.36 | 0.34 |
+| lw-detr-medium-coco | 3.91 | 2.73 | 2.93 | 0.64 | 0.35 | 0.33 |
+| lw-detr-small-coco | 4.14 | 2.72 | 2.91 | 0.63 | 0.35 | 0.33 |
+| lw-detr-tiny-coco | 3.80 | 2.69 | 2.91 | 0.64 | 0.35 | 0.33 |
+| lw-detr-xlarge-coco | 4.72 | 2.91 | 3.05 | 0.71 | 0.37 | 0.34 |
 | mask-rcnn-r50-fpn-3x-coco | 0.97 | 1.50 | 0.22† | 0.84 | 0.42 | 0.04 |
 | owlv2-b16 | 8.22 | 2.81 | 3.00 | 0.74 | 0.32 | 0.27 |
 | owlv2-l14 | 9.55 | 3.18 | 3.16 | 1.18 | 0.42 | 0.36 |
@@ -1689,6 +1699,11 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | faster-rcnn-r50-fpn-3x-coco | 800x1344 | 22.8 ms | 18.9 ms | 5.35 ms (backbone + FPN only) | 19.5 ms | 26.0 s | 15.6 s | 390 / 490 | 413 / 438 | 391 / 450 | 439 / 494 |
 | grounding-dino-base | 800x1344 | 160 ms | 131 ms | fails: ONNX export: conversion failed | – | 98.4 s | – | 1525 / 1624 | 2669 / 2800 | – | – |
 | grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | fails: ONNX export: conversion failed | – | 72.5 s | – | 1404 / 1468 | 2550 / 2664 | – | – |
+| lw-detr-large-coco | 800x1344 | 10.2 ms | 5.62 ms | 3.45 ms | 5.64 ms | 29.6 s | 56.0 s | 204 / 230 | 195 / 208 | 192 / 254 | 270 / 296 |
+| lw-detr-medium-coco | 800x1344 | 8.86 ms | 3.74 ms | 2.30 ms | 3.83 ms | 22.4 s | 63.3 s | 128 / 136 | 147 / 174 | 128 / 180 | 185 / 212 |
+| lw-detr-small-coco | 800x1344 | 8.82 ms | 3.63 ms | 1.36 ms | 2.80 ms | 23.0 s | 63.1 s | 97 / 116 | 116 / 134 | 99 / 140 | 121 / 130 |
+| lw-detr-tiny-coco | 800x1344 | 7.45 ms | 2.98 ms | 0.999 ms | 2.20 ms | 21.6 s | 60.3 s | 92 / 112 | 112 / 130 | 94 / 134 | 116 / 128 |
+| lw-detr-xlarge-coco | 800x1344 | 12.1 ms | 10.7 ms | 6.58 ms | 9.44 ms | 30.5 s | 57.5 s | 344 / 360 | 339 / 358 | 333 / 408 | 544 / 566 |
 | mask-rcnn-r50-fpn-3x-coco | 800x1344 | 24.6 ms | 21.5 ms | 5.34 ms (backbone + FPN only) | 21.0 ms | 29.3 s | 18.3 s | 352 / 440 | 333 / 358 | 353 / 400 | 444 / 496 |
 | owlv2-b16 | 800x1344 | 31.8 ms | 28.5 ms | 18.4 ms | 23.8 ms | 10.6 s | 25.9 s | 497 / 570 | 487 / 530 | 607 / 732 | 655 / 726 |
 | owlv2-l14 | 800x1344 | 155 ms | 141 ms | 95.9 ms | 110 ms | 12.4 s | 33.8 s | 1239 / 1282 | 1190 / 1242 | 1552 / 1726 | 1786 / 1820 |

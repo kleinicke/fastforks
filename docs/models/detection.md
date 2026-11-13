@@ -27,6 +27,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.5, 2.1x | 450, 0.64x |
 | [`grounding-dino-base`](#grounding_dino) | yes | – | – |
 | [`grounding-dino-tiny`](#grounding_dino) | yes | – | – |
+| [`lw-detr-large-coco`](#lwdetr) | yes | 5.64, 4.0x | 254, 0.66x |
+| [`lw-detr-medium-coco`](#lwdetr) | yes | 3.83, 6.1x | 180, 0.66x |
+| [`lw-detr-small-coco`](#lwdetr) | yes | 2.80, 7.1x | 140, 0.84x |
+| [`lw-detr-tiny-coco`](#lwdetr) | yes | 2.20, 7.5x | 134, 1.0x |
+| [`lw-detr-xlarge-coco`](#lwdetr) | yes | 9.44, 2.7x | 408, 0.48x |
 | [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 21.0, 2.1x | 400, 0.62x |
 | [`owlv2-b16`](#owlv2) | yes | 23.8, 3.9x | 732, 0.76x |
 | [`owlv2-l14`](#owlv2) | yes | 110, 1.9x | 1726, 0.66x |
@@ -351,6 +356,82 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 - Class names are joined into one caption of at most 256 tokens (about 100 short names); a longer list raises an error instead of being split into several passes.
 - No phrase output: `labels` index into the given names (the token-level text threshold of the Hugging Face post-processing is not used).
 - grounding-dino-base was trained with COCO (and RefCOCO, ODinW) data: its COCO numbers are not zero-shot.
+
+</details>
+
+<a id="lwdetr"></a>
+
+## LW-DETR (ViT, tiny / small / medium / large / xlarge)
+
+LW-DETR (tiny to xlarge; ViT, COCO) from Baidu: real-time end-to-end detector, a plain ViT encoder with a multi-level projector and a DETR decoder with deformable attention, no NMS. Apache-2.0 code and weights.
+
+Commercial use: yes.
+
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `lw-detr-tiny-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.4<br>7.45<br>2.20<br>2.98<br>0.999 | 114 / 132<br>92 / 112<br>94 / 134<br>112 / 130<br>116 / 128 |
+| `lw-detr-small-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.9<br>8.82<br>2.80<br>3.63<br>1.36 | 129 / 166<br>97 / 116<br>99 / 140<br>116 / 134<br>121 / 130 |
+| `lw-detr-medium-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.3<br>8.86<br>3.83<br>3.74<br>2.30 | 228 / 274<br>128 / 136<br>128 / 180<br>147 / 174<br>185 / 212 |
+| `lw-detr-large-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.8<br>10.2<br>5.64<br>5.62<br>3.45 | 355 / 382<br>204 / 230<br>192 / 254<br>195 / 208<br>270 / 296 |
+| `lw-detr-xlarge-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.5<br>12.1<br>9.44<br>10.7<br>6.58 | 762 / 850<br>344 / 360<br>333 / 408<br>339 / 358<br>544 / 566 |
+
+<details><summary>Details</summary>
+
+- Original code: <https://github.com/huggingface/transformers> at `c4c4605f9618`
+- Code licence: Apache-2.0 (permissive); files: 
+- Weights licence: Apache-2.0
+- Licence evidence: <https://huggingface.co/AnnaZhang/lwdetr_tiny_60e_coco/blob/4b636b514dcf623f6eafc9e1ab63b8ad5c513925/README.md>
+- Training data: COCO 2017 (train, instance annotations), Objects365 (train, box annotations) (COCO 2017 train after detection pretraining on Objects365; the ViT encoders start from CAEv2 self-supervised pretraining (paper arXiv:2406.03459 section 4).)
+- Options: `score_threshold` = 0.05 (0.0 to 1.0), `max_detections` = 100 (>= 1), `cuda_graphs` = True (speed only)
+- Kernel libraries: `cudnn_hacc`
+- Variants: `lw-detr-tiny-coco`, `lw-detr-small-coco`, `lw-detr-medium-coco`, `lw-detr-large-coco`, `lw-detr-xlarge-coco`
+- Outputs: boxes, scores, labels; label_set: `coco-80`
+- Input size: any H x W >= 32, padded to a multiple of 32
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lw-detr-tiny-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `lw-detr-small-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `lw-detr-medium-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `lw-detr-large-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `lw-detr-xlarge-coco` 3000x4000 (0.7 GiB peak allocated, 0.7 reserved)
+- `lw-detr-tiny-coco` 800x1344, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 60 s (ONNX + engine).
+- `lw-detr-small-coco` 800x1344, first call: portable + torch.compile 23 s (cold Inductor cache), TensorRT fp16 63 s (ONNX + engine).
+- `lw-detr-medium-coco` 800x1344, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 63 s (ONNX + engine).
+- `lw-detr-large-coco` 800x1344, first call: portable + torch.compile 30 s (cold Inductor cache), TensorRT fp16 56 s (ONNX + engine).
+- `lw-detr-xlarge-coco` 800x1344, first call: portable + torch.compile 30 s (cold Inductor cache), TensorRT fp16 58 s (ONNX + engine).
+- `lw-detr-tiny-coco` original 800x1344: torch.autocast(float16) around the call; transformers LwDetrForObjectDetection + image processor (CPU), the authors' PostProcess (all kept)
+- `lw-detr-small-coco` original 800x1344: torch.autocast(float16) around the call; transformers LwDetrForObjectDetection + image processor (CPU), the authors' PostProcess (all kept)
+- `lw-detr-medium-coco` original 800x1344: torch.autocast(float16) around the call; transformers LwDetrForObjectDetection + image processor (CPU), the authors' PostProcess (all kept)
+- `lw-detr-large-coco` original 800x1344: torch.autocast(float16) around the call; transformers LwDetrForObjectDetection + image processor (CPU), the authors' PostProcess (all kept)
+- `lw-detr-xlarge-coco` original 800x1344: torch.autocast(float16) around the call; transformers LwDetrForObjectDetection + image processor (CPU), the authors' PostProcess (all kept)
+- `lw-detr-tiny-coco` load / first call: original 3.8 s / 0.644 s, portable 2.69 s / 0.348 s, kernels 2.91 s / 0.329 s
+- `lw-detr-small-coco` load / first call: original 4.14 s / 0.634 s, portable 2.72 s / 0.351 s, kernels 2.91 s / 0.331 s
+- `lw-detr-medium-coco` load / first call: original 3.91 s / 0.642 s, portable 2.73 s / 0.348 s, kernels 2.93 s / 0.331 s
+- `lw-detr-large-coco` load / first call: original 3.82 s / 0.72 s, portable 3.2 s / 0.36 s, kernels 3.04 s / 0.338 s
+- `lw-detr-xlarge-coco` load / first call: original 4.72 s / 0.711 s, portable 2.91 s / 0.368 s, kernels 3.05 s / 0.336 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `lw-detr-tiny-coco` | COCO val2017, every 20th image, box mAP | 49.05 | 48.81 | 48.99 |  |
+| `lw-detr-large-coco` | COCO val2017, every 20th image, box mAP | 60.67 | 61.01 | 60.74 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13.
+
+### Parity
+
+CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.28 and p99 <= 0.93 (absolute error of the output `boxes`).
+
+| variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
+|---|---|---|---|
+| `lw-detr-tiny-coco` | 0.04142 / 0.06935 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `lw-detr-small-coco` | 0.17032 / 0.61935 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `lw-detr-medium-coco` | 0.1222 / 0.42107 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `lw-detr-large-coco` | 0.07557 / 0.17951 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `lw-detr-xlarge-coco` | 0.06452 / 0.31725 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+
+### Limitations
+
+- Requires the optional transformers library (the network is its `LwDetrForObjectDetection`).
+- The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port (AnnaZhang/lwdetr_*_60e_coco weights) of the official LW-DETR (Apache-2.0); the official repository code itself was not run.
 
 </details>
 
@@ -721,6 +802,11 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | portable, kernels | Apache-2.0 | CC-BY-SA-3.0 | coco | yes | boxes, scores, labels, masks |
 | [`grounding-dino-base`](#grounding_dino) | portable | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`grounding-dino-tiny`](#grounding_dino) | portable | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
+| [`lw-detr-large-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
+| [`lw-detr-medium-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
+| [`lw-detr-small-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
+| [`lw-detr-tiny-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
+| [`lw-detr-xlarge-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | portable, kernels | Apache-2.0 | CC-BY-SA-3.0 | coco | yes | boxes, scores, labels, masks |
 | [`owlv2-b16`](#owlv2) | portable, kernels | Apache-2.0 | Apache-2.0 | webli, objects365 | yes | boxes, scores, labels |
 | [`owlv2-l14`](#owlv2) | portable, kernels | Apache-2.0 | Apache-2.0 | webli, objects365 | yes | boxes, scores, labels |
