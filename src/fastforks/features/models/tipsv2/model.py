@@ -87,7 +87,8 @@ class _Vit(DinoVisionTransformer):
 
 
 def _network(ctx: Context) -> Any:  # noqa: ANN401 - vendored DinoVisionTransformer
-    with mock.patch.object(DinoVisionTransformer, "init_weights", return_value=None):  # every tensor is assigned
+    # every tensor is assigned: built on the meta device (no allocation), without upstream's initialisation
+    with torch.device("meta"), mock.patch.object(DinoVisionTransformer, "init_weights", return_value=None):
         vit = _vit(ctx.params)
     state = ctx.state_dict(strip="vision_encoder.")
     load_strict(vit, state, f"{ctx.variant.ref} checkpoint", unused=("text_encoder.",), assign=True)

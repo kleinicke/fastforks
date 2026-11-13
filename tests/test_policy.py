@@ -377,9 +377,18 @@ def test_card_kernels_match_imports(task):
             for m in imported_modules(p)
             if m.startswith("fastforks.kernels.") and m.split(".")[2] in libs
         }
+        # A family that loads another task's models through its public API (INSID3: `fastforks.features` DINOv3)
+        # runs that task's kernels, which no static import shows: they bound what it may declare.
+        other = {m.split(".")[1] for m in mods if m.split(".")[:1] == ["fastforks"] and m.count(".") >= 1} - {task}
+        via = {
+            lib
+            for t in sorted(other & set(registry.TASKS))
+            for c, _ in registry.cards(t).values()
+            for lib in c.kernel_libs
+        }
         # The Metal libraries (`*_metal`) are the MPS runner's, the others the CUDA one's: check each list on its own.
         cuda, metal = {u for u in used if not u.endswith("_metal")}, {u for u in used if u.endswith("_metal")}
-        _kernel_import_bounds(card.family, set(card.kernel_libs), direct & cuda, cuda)
+        _kernel_import_bounds(card.family, set(card.kernel_libs), direct & cuda, cuda | via)
         _kernel_import_bounds(card.family, set(card.mps_kernel_libs), direct & metal, metal)
 
 

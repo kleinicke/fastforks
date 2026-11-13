@@ -2,6 +2,7 @@ schema = 2
 name = "SwinIR"
 summary = "SwinIR (Liang et al., ICCVW 2021): image restoration with residual groups of Swin Transformer layers (8 x 8 window attention, shifted every second layer) between a conv stem and an upsampler. `swinir-m-x4` / `swinir-m-x2` are the classical (bicubic, PSNR-trained) DF2K models, `swinir-m-x4-real` and `swinir-l-x4-real` the real-world x4 GAN models (BSRGAN degradations; L = 9 groups, 240 channels)."
 tier = "experimental"
+uses = ["swin_sr"]  # fastforks.shared modules this family imports
 outputs = ["image"]
 
 [upstream]

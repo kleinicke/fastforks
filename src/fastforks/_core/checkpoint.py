@@ -482,7 +482,8 @@ def load_strict(  # noqa: PLR0913 - the exceptions a family may declare
         unused: Key prefixes of checkpoint tensors the network does not use; those not in the network are dropped.
         not_in_checkpoint: Key suffixes of network tensors the checkpoint lacks (unused at inference); they keep
             their initial values.
-        assign: See `Module.load_state_dict`.
+        assign: See `Module.load_state_dict`. A network built under `torch.device("meta")` (no allocation, no
+            initialisation: the fastest build) must get every tensor from `state`.
         dtype: The floating-point dtype of the loaded tensors, e.g. that of the recorded checkpoint when the network
             is built on the meta device in float32; default: each network tensor's dtype.
 
@@ -500,6 +501,9 @@ def load_strict(  # noqa: PLR0913 - the exceptions a family may declare
     if assign:
         state = {k: _cast(v, dtype or own[k].dtype) for k, v in state.items()}
     module.load_state_dict(state, strict=not not_in_checkpoint, assign=assign)
+    if assign and (meta := [k for k, v in (*module.named_parameters(), *module.named_buffers()) if v.is_meta]):
+        msg = f"{what}: {len(meta)} tensors of the meta-device build were not assigned, e.g. {meta[:3]}"
+        raise CheckpointMismatchError(msg)
 
 
 def _fitting(

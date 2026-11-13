@@ -26,6 +26,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.tracing import in_onnx_export
 from fastforks._core.checkpoint import load_strict
 
 PATCH = 16
@@ -203,7 +204,7 @@ class DINOv3ViT(nn.Module):
         cos, sin = rope  # padded tables (`rope_padded`): RoPE in place on q and k together
         qk = qkv[:2]
         rolled = qk.roll(d // 2, -1)  # before the in-place scale: `[x2, x1]` of the unscaled q / k
-        if torch.onnx.is_in_onnx_export():  # out of place: no in-place op on a view in the graph
+        if in_onnx_export():  # out of place: no in-place op on a view in the graph
             qk = torch.addcmul(qk * cos, rolled, sin)
         else:
             qk.mul_(cos).addcmul_(rolled, sin)
@@ -212,7 +213,7 @@ class DINOv3ViT(nn.Module):
 
     def block(self, blk: _Layer, x: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """One pre-norm block (SDPA attention); `rope` = padded `(cos, sin')` in the dtype of `x`."""
-        if torch.onnx.is_in_onnx_export():  # ONNX addcmul promotes to fp32: plain ops for the export
+        if in_onnx_export():  # ONNX addcmul promotes to fp32: plain ops for the export
             x = x + self.attention(blk, blk.norm1(x), rope) * blk.layer_scale1.lambda1
             return x + blk.mlp(blk.norm2(x)) * blk.layer_scale2.lambda1
         x = torch.addcmul(x, self.attention(blk, blk.norm1(x), rope), blk.layer_scale1.lambda1)

@@ -8,6 +8,7 @@ import itertools
 import numpy as np
 import torch
 import torch.nn.functional as F
+from fastforks._core.tracing import in_onnx_export
 from fastforks._core.sampling import grid_sample
 
 # fastforks: the upstream low_memory chunk size (batches cuDNN refuses run natively in the shared sampler)
@@ -599,7 +600,7 @@ def build_concat_volume(refimg_feature, targetimg_feature, maxdisp):
     """
     B, C, H, W = refimg_feature.shape
 
-    if torch.jit.is_tracing() or torch.onnx.is_in_onnx_export():
+    if torch.jit.is_tracing() or in_onnx_export():
         return _concat_volume_traced(refimg_feature, targetimg_feature, maxdisp)
 
     # Initialize an empty volume to store the concatenated features.
@@ -804,7 +805,7 @@ def build_gwc_volume(refimg_feature, targetimg_feature, maxdisp, num_groups, str
     # Calculate the number of disparity levels in the volume based on maxdisp and stride.
     num_disparity_levels = maxdisp // stride
 
-    traced = torch.jit.is_tracing() or torch.onnx.is_in_onnx_export()
+    traced = torch.jit.is_tracing() or in_onnx_export()
     if not traced and stride == 1 and num_disparity_levels <= W:
         return _gwc_volume_gemm(refimg_feature, targetimg_feature, num_disparity_levels, num_groups, normalize)
     if traced and stride == 1 and num_disparity_levels < W:

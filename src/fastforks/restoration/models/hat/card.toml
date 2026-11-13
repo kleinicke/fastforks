@@ -2,6 +2,7 @@ schema = 2
 name = "HAT"
 summary = "HAT (Chen et al., CVPR 2023): image super-resolution with residual groups of hybrid attention blocks (16 x 16 window attention plus a channel-attention conv branch) and an overlapping cross-attention block per group. `hat-x4` is the classical x4 model pretrained on ImageNet and fine-tuned on DF2K, `hat-s-x4` the small one (144 channels), `real-hat-gan-x4` the real-world x4 GAN model (Real-ESRGAN degradations)."
 tier = "experimental"
+uses = ["swin_sr"]  # fastforks.shared modules this family imports
 outputs = ["image"]
 
 [upstream]

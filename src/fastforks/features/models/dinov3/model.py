@@ -45,10 +45,22 @@ def _stream_scale(arch: str) -> float:
     return 8.0 if CONFIGS[arch].hidden_size >= _WIDE else 1.0
 
 
-def _network(ctx: Context, stream_scale: float) -> DINOv3ViT:
-    return (
-        DINOv3ViT(CONFIGS[ctx.params.arch]).load(ctx.state_dict(), stream_scale, f"{ctx.variant.ref} checkpoint").eval()
-    )
+def _state(ctx: Context) -> dict[str, torch.Tensor]:
+    """The checkpoint on the device: the fold, the casts and `pack` then run there (no CPU passes over 1+ GB)."""
+    return {k: v.to(ctx.device) for k, v in ctx.state_dict().items()}
+
+
+def _network(
+    ctx: Context, stream_scale: float, dtype: torch.dtype | None = None, sd: dict[str, torch.Tensor] | None = None
+) -> DINOv3ViT:
+    """The packed network on the device with the checkpoint (`sd`, default `_state`) in `dtype` (default float32).
+
+    Built on the meta device (no allocation, no init).
+    """
+    with torch.device("meta"):
+        net = DINOv3ViT(CONFIGS[ctx.params.arch])
+    sd = _state(ctx) if sd is None else sd
+    return net.load(sd, stream_scale, f"{ctx.variant.ref} checkpoint", dtype).eval().pack()
 
 
 def _init(runner: Runner, arch: str) -> None:
@@ -77,9 +89,10 @@ class Portable(Runner):
         super().__init__(ctx)
         self.half = ctx.dtype == "float16"
         self.acc = self.half and ctx.params.fp16_accumulate
-        net = _network(ctx, _stream_scale(ctx.params.arch) if self.half else 1.0)
-        # fp16 weights (no per-call autocast casts), converted on the CPU; packed qkv
-        self.net = (net.half() if self.half else net).pack().to(ctx.device)
+        # fp16 weights (no per-call autocast casts); packed qkv
+        self.net = _network(
+            ctx, _stream_scale(ctx.params.arch) if self.half else 1.0, torch.float16 if self.half else None
+        )
         _init(self, ctx.params.arch)
 
     def _run(self, x: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
@@ -138,22 +151,20 @@ class Kernels(Runner):
     Params = Params
 
     def __init__(self, ctx: Context) -> None:
-        """Build the network on the CPU, pack qkv, convert to fp16, move it to the device."""
+        """Build the fp16 network on the device and pack qkv."""
         super().__init__(ctx)
         arch = ctx.params.arch
         cfg = CONFIGS[arch]
         if cfg.hidden_size // cfg.num_heads != HEAD_DIM:
             msg = f"fastbb flash attention needs head_dim {HEAD_DIM}"
             raise BackendUnavailableError(msg)  # mode="auto" falls back to portable
-        net = _network(ctx, _stream_scale(arch)).pack()
-        self.scales = [  # LayerScale in fp32 (the GEMM epilogue's scale)
-            (
-                b.layer_scale1.lambda1.detach().float().to(ctx.device),
-                b.layer_scale2.lambda1.detach().float().to(ctx.device),
-            )
-            for b in net.blocks()
+        s = _stream_scale(arch)
+        sd = _state(ctx)
+        self.scales = [  # LayerScale in fp32 (the GEMM epilogue's scale), folded as `DINOv3ViT.load` folds it
+            (sd[f"layer.{i}.layer_scale1.lambda1"].float() / s, sd[f"layer.{i}.layer_scale2.lambda1"].float() / s)
+            for i in range(cfg.num_layers)
         ]
-        self.net = net.half().to(ctx.device)
+        self.net = _network(ctx, s, torch.float16, sd)  # built in fp16: no float32 copy of the network
         self.blocks = self.net.blocks()
         self.cfg, self.attn = cfg, Flash64(_KERNELS_ATTN[arch])
         self.kernels = load_kernels(ctx.device)

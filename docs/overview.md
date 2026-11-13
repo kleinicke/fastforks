@@ -345,7 +345,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`sam3`](models/promptable_segmentation.md#segment-anything-3-sam-3-image) | yes | 281.0 (1024x1024) | 179.4 | 116.5 | 2.4x vs original (1024x1024) | 2019 |
 | [`sam-vit-h`](models/promptable_segmentation.md#segment-anything-sam) | yes | 306.5 (1024x1024) | 214.5 | 143.1 | 2.1x vs original (1024x1024) | 1480 |
 | [`sam-hq-vit-h`](models/promptable_segmentation.md#hq-sam) | yes | 311.0 (1024x1024) | 216.8 | 143.5 | 2.2x vs original (1024x1024) | 1541 |
-| [`insid3-vitl16`](models/promptable_segmentation.md#insid3) | yes | 713.5 (1024x1024) | 255.5 | 156.5 | 4.6x vs original (1024x1024) | 987 |
+| [`insid3-vitl16`](models/promptable_segmentation.md#insid3) | yes | 713.5 (1024x1024) | 254.9 | 156.9 | 4.5x vs original (1024x1024) | 987 |
 
 ## Detection
 

@@ -2,6 +2,7 @@ schema = 2
 name = "DAT"
 summary = "DAT (Chen et al., ICCV 2023): image super-resolution with residual groups that alternate spatial window attention (8 x 32 rectangle windows) and channel attention, each with a convolution branch and adaptive interaction, and a spatial-gate feed-forward network. `dat-x4` is the main x4 model, `dat-2-x4` its variant with a 2x feed-forward expansion, `dat-light-x4` the lightweight one (60 channels, one-step upsampler); all trained on DF2K, bicubic x4."
 tier = "experimental"
+uses = ["swin_sr"]  # fastforks.shared modules this family imports
 outputs = ["image"]
 
 [upstream]

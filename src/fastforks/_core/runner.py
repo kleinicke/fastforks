@@ -61,7 +61,7 @@ class Context:
         kernels: Kernel library tags of `kernels` (`name@build:target`), empty for portable.
         user_weights: The files of `load(weights=...)`, used instead of the variant's (not hash-checked).
         user_state: The state dict of `user_weights`, already read and mapped by the task (`load_variant`); then
-            `state_dict()` returns it whatever its arguments.
+            `state_dict()` returns it whatever its arguments (during the build only: `drop_state`).
     """
 
     card: ModelCard
@@ -73,6 +73,10 @@ class Context:
     kernels: tuple[str, ...] = ()
     user_weights: tuple[Path, ...] | None = None
     user_state: Mapping[str, torch.Tensor] | None = None
+
+    def drop_state(self) -> None:
+        """Forget `user_state` once the runner is built: the model must not keep the read checkpoint alive."""
+        object.__setattr__(self, "user_state", None)  # frozen for the runners; the build's input only
 
     @property
     def io(self) -> Io:

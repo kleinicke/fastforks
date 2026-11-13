@@ -20,8 +20,11 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
-from fastforks import features
+from fastforks._core import registry
+from fastforks._core.checkpoint import load_state_dict
 from fastforks._core.image import checked_ranges
+from fastforks._core.model import load_variant
+from fastforks.features._api import TASK, FeaturesModel
 from fastforks.promptable_segmentation._runner import Forward, Runner
 
 if TYPE_CHECKING:
@@ -110,23 +113,36 @@ class Portable(Runner):
     encoder_mode = "portable"
 
     def __init__(self, ctx: Context) -> None:
-        """Estimate the positional subspace with a float32 backbone, then load the backbone of the mode.
+        """Estimate the positional subspace with a float32 backbone, then build the backbone of the mode.
 
         The subspace is float32 as upstream's (built outside its autocast): its trailing singular vectors are nearly
-        degenerate, so fp16 features of the black image rotate them (similarity off by ~0.05).
+        degenerate, so fp16 features of the black image rotate them (similarity off by ~0.05). The checkpoint is
+        read and moved to the device once; both backbones are built from that copy, the second while the first embeds.
         """
         super().__init__(ctx)
         p = ctx.params
         self.size = (p.image_size, p.image_size)
-        encoder = functools.partial(features.load, p.encoder, device=ctx.device, weights=ctx.weights()[0])
+        card, variant = registry.resolve(TASK, p.encoder)
+        path = ctx.weights()[0]
+        state = {k: v.to(ctx.device) for k, v in load_state_dict(path).items()}
+        encoder = functools.partial(
+            load_variant,
+            TASK,
+            card,
+            variant,
+            FeaturesModel,
+            device=ctx.device,
+            weights=path,
+            state=state,
+        )
         fp32 = self.encoder_mode == "portable" and ctx.dtype == "float32"
-        self.encoder = encoder(mode="portable", dtype="float32")
+        self.encoder = encoder(mode="portable", dtype="float32")  # assigned the device checkpoint, no copy
         e = self.embed(torch.zeros(1, 3, *self.size, device=ctx.device))["features"][0].flatten(1)  # [C, N] unit
+        if not fp32:  # built on the CPU while the device still runs the float32 embed
+            self.encoder = encoder(mode=self.encoder_mode, dtype=ctx.dtype if self.encoder_mode == "portable" else None)
+        del state
         u = torch.linalg.svd(e - e.mean(1, keepdim=True), full_matrices=False)[0][:, : p.svd_components]
         self.p_perp = torch.eye(u.shape[0], device=ctx.device) - u @ u.T
-        if not fp32:
-            del self.encoder, e
-            self.encoder = encoder(mode=self.encoder_mode, dtype=ctx.dtype if self.encoder_mode == "portable" else None)
 
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Unit last-layer patch features `[B, C, h, w]` at `image_size` x `image_size` (upstream's square resize)."""
