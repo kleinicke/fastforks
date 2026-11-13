@@ -21,6 +21,13 @@
   vs 13.5 ms original fp32 (7.44 ms `half()`), peak 256 MB vs 430 MB. St Lucia recall@1 99.86 for all modes and the
   original. The ResNet-50 variant is not ported.
 
+- Multi-object tracking (`tracking.ByteTracker`, `tracking.track_objects`; MIT, after ByteTrack): ByteTrack's two-stage
+  association of per-frame detections (D-FINE / RT-DETR / RF-DETR results or `[N, 5]` arrays), batched Kalman filter
+  (`shared/box_kalman`, also for SAMURAI) and an exact linear assignment without scipy. MOT17 train with D-FINE-X
+  person detections: identical tracks to the official ByteTrack (0 id differences in 5316 frames, boxes within
+  1.2e-4 px; HOTA 39.40 / MOTA 33.05 / IDF1 46.23 both), 1.10 ms per frame on the CPU (official 1.27 ms); with the
+  detector 11.5 ms per 1080p frame kernels (20.0 ms portable).
+
 - LW-DETR real-time detection (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection; Apache-2.0 code and
   weights): ViT encoder with a multi-level projector and a deformable DETR decoder, the authors' PostProcess.
   800x1344 image, tiny: 2.2 ms kernels, 7.4 ms portable (3.0 ms compile, 1.0 ms TensorRT) vs 20.4 ms original fp32

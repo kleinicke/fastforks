@@ -43,6 +43,8 @@ In this order, unless something more useful turns up:
   kernels runner. Weights: the pinned HF URL of the card (also in `data/ff-weights/megaloc/`).
 - BoQ (`boq-dinov2`, retrieval): portable float32 MPS goldens and Mac speed rows at 480x640. No Metal kernels runner.
   Weights: the pinned GitHub release URL of the card (also in `data/ff-weights/boq/`).
+- ByteTrack multi-object tracking (`tracking.ByteTracker`): CPU numpy, nothing device-specific; optional Mac row of
+  `tools/eval_mot.py track` (tracker ms per frame). No weights.
 - LW-DETR (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection): portable MPS goldens and Mac speed rows
   (800x1344). No Metal kernels runner. Weights: the pinned HF URLs of the card.
 - MM-Grounding-DINO (`mm-grounding-dino-tiny`, `mm-grounding-dino-base`, detection): portable MPS goldens and Mac
