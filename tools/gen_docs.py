@@ -64,6 +64,7 @@ _DATASETS = {
     "promptable_segmentation": {
         "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
         "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
+        "coco-val2017-oneshot-k3": "COCO val2017, one-shot episodes (3 per class), class mIoU %",
         "davis2017-val-every3": "DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F %",
         "davis2017-val-every1": "DAVIS 2017 val, video tracking, J&F / J / F %",
     },
@@ -136,6 +137,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         "n",
         "images",
     ),
+    ("promptable_segmentation", "coco-val2017-oneshot-k3"): ((("miou", "{:.2f}", ""),), "n", "episodes"),
     **{
         ("promptable_segmentation", d): (
             (("jf", "{:.2f}", ""), ("j", "{:.2f}", ""), ("f", "{:.2f}", "")),
@@ -194,6 +196,9 @@ _PROTOCOL = {
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
     "image; the top 100 instances go to pycocotools COCOeval. ",
+    ("promptable_segmentation", "coco-val2017-oneshot-k3"): "In-context: per COCO class 3 (reference, target) pairs "
+    "drawn with seed 0 from the images whose class covers >= 2 %, the class's non-crowd instances as one mask; "
+    "foreground IoU summed per class, mean over the 80 classes. ",
     **{
         ("promptable_segmentation", d): "Semi-supervised: every object's first-frame mask as `input_masks`, `track` "
         "forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as "

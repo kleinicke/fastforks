@@ -69,10 +69,10 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | flowformer, lightglue, xfeat | fp32 | - | fp32 | - |
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 |
 | moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
+| insid3, pi3 | fp16 | fp16 | - | - |
 | loma | bf16 | - | fp32 | - |
 | romav2 | bf16 | bf16 | fp32 | - |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
-| pi3 | fp16 | fp16 | - | - |
 | vggt | fp16 | fp16 | fp32 | vggt_metal fp32 |
 <!-- capabilities:end -->
 
@@ -98,8 +98,8 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `cudnn_hacc` | aanet, alexnet, anycalib, anysplat, ben2, c_foundationstereo, c_radio, cas_gwcnet, cfnet, clip, coex, convnextv2, crestereo, dat, defom_stereo, deit, densenet, depthsplat, detr, dfine, dinov2_linear_cls, dlnr, efficientnet, efficientnetv2, efficientvit, eva02, fast_acvnet, fastvit, foundationstereo, geocalib, great_igev, gwcnet, hat, hrnet, igev_plusplus, igev_stereo, inception_v3, isnet, las2, lotus, lwdetr, marigold, marigold_normals, midas, mmseg, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mocha_stereo, monster, monster_plusplus, mvsanywhere, mvsplat, nsfw_vit, perception_encoder, psmnet, raft, raft_stereo, rcnn, realesrgan, regnet, repvit, resnet, rife, rt_monster_plusplus, rtdetrv2, rtmdet, rtmo, rtmpose, s2m2, sam3, sapiens, sea_raft, segformer, segnext, selective_igev, shufflenetv2, siglip, siglip2, span, squeezenet, stablenormal, starnet, swin, swinir, u2net, unidepth_v2, vgg, vggt, vit, vitmatte, waft_stereo, wd_tagger, yolox, zoedepth |
 | `cutlass_conv` | aanet, ben2, c_foundationstereo, cas_gwcnet, cfnet, coex, crestereo, defom_stereo, dlnr, fast_acvnet, great_igev, gwcnet, igev_plusplus, igev_stereo, isnet, las2, mmseg, mocha_stereo, monster, monster_plusplus, mvsanywhere, psmnet, raft, raft_stereo, rt_monster_plusplus, sea_raft, selective_igev, u2net, vitmatte, waft_stereo |
 | `deform_conv` | aanet, birefnet |
-| `dpt_fused` | anycalib, boq, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, prompt_depth_anything, sam, sam2, sam_hq, tipsv2, track_on, unidepth_v2, unik3d, vitmatte, waft_stereo |
-| `fastbb` | anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, mapanything, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, pi3, prompt_depth_anything, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft_stereo |
+| `dpt_fused` | anycalib, boq, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, insid3, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, prompt_depth_anything, sam, sam2, sam_hq, tipsv2, track_on, unidepth_v2, unik3d, vitmatte, waft_stereo |
+| `fastbb` | anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, insid3, mapanything, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, pi3, prompt_depth_anything, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft_stereo |
 | `ffs_cutlass` | c_foundationstereo |
 | `fs` | c_foundationstereo, foundationstereo |
 | `fs_cutlass` | c_foundationstereo, foundationstereo |

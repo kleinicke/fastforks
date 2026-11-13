@@ -1,0 +1,41 @@
+schema = 2
+name = "INSID3"
+summary = "INSID3 (2026): training-free in-context segmentation. Reference images with masks -> the same concept in a target image, from frozen DINOv3 ViT-L patch features (positional debiasing, forward / backward matching, average-linkage clustering of the target patches). The backbone is fastforks' DINOv3 (`features`), the clustering runs on the GPU. The portable `module()` is the backbone only."
+tier = "experimental"
+outputs = ["similarity", "masks"]  # the `InContextSegmentationResult` fields
+licence_notes = [
+  "The INSID3 code is Apache-2.0; it ships no weights of its own and runs the DINOv3 ViT-L/16 checkpoint, which is under the DINOv3 License (Meta: attribution and conditions apply; gated on Hugging Face); read it before commercial use.",
+]
+
+[upstream]
+repo = "https://github.com/visinf/INSID3"
+commit = "0c165a10cf52ab91f335883d06260de86854adbe"  # models/insid3.py predict_mask (bilinear refiner, no CRF) + utils/; the encoder is transformers DINOv3ViTModel (= features dinov3)
+
+[licence]
+code = "Apache-2.0"
+weights = "LicenseRef-DINOv3-License"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "training-free; the DINOv3 backbone: LVD-1689M (1.689B curated Instagram images, self-supervised), not released"
+evidence = "https://github.com/visinf/INSID3/blob/0c165a10cf52ab91f335883d06260de86854adbe/LICENSE (Apache-2.0); backbone weights: https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m (DINOv3 License, gated)"
+
+[io]
+input = "imagenet"  # applied by the DINOv3 backbone (fastforks.features) after its square resize to image_size
+
+[params]
+image_size = 1024  # square network input (upstream's resize)
+svd_components = 500  # positional subspace size
+tau = 0.6  # clustering similarity threshold
+merge_threshold = 0.2  # cluster aggregation threshold
+
+[modes.portable]
+cuda_dtype = "float16"
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused"]
+
+[[variants]]
+id = "insid3-vitl16"
+revision = 1
+params = { encoder = "dinov3-vitl16" }
+weights = [{ name = "dinov3-vitl16-pretrain-lvd1689m/model.safetensors", size = 1212559808, sha256 = "dcb2e45127cccbf1601e5f42fef165eea275c8e5213197e8dcf3f48822718179", url = "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m/resolve/ea8dc2863c51be0a264bab82070e3e8836b02d51/model.safetensors" }]

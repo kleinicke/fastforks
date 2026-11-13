@@ -291,6 +291,11 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
                 f"{prefix}pred_masks": out["pred_masks"][q]
             }
         return {k: v.float().cpu() for k, v in maps.items()}, m.backend
+    elif task == "promptable_segmentation" and "reference" in m.prompts:  # in-context: the golden's reference + mask
+        assert want is not None, "in-context goldens store their reference image and mask"
+        ref_img = want["reference"].round().astype(np.uint8)
+        r = m(img, reference_images=ref_img, reference_masks=want["reference_mask"] > 0.5)
+        maps = {"similarity": r.similarity, "masks": r.masks}
     elif task == "promptable_segmentation":  # one embedding, the fixed prompts (key prefix per prompt)
         emb = m.get_image_embeddings(img)
         assert isinstance(emb, promptable_segmentation.ImageEmbeddings)
@@ -344,9 +349,17 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     return {k: v.float().cpu() for k, v in maps.items() if v is not None}, r.backend
 
 
-# stored inputs of a golden (the image(s); tracking queries; a matting trimap; per concept prompt, the queries
-# whose masks are kept)
-INPUTS = ("input", "input2", "queries", "trimap", *(f"{prefix}mask_query" for prefix in concepts()))
+# stored inputs of a golden (the image(s); tracking queries; a matting trimap; an in-context reference and its mask;
+# per concept prompt, the queries whose masks are kept)
+INPUTS = (
+    "input",
+    "input2",
+    "queries",
+    "trimap",
+    "reference",
+    "reference_mask",
+    *(f"{prefix}mask_query" for prefix in concepts()),
+)
 
 
 def primary(ref: str, maps: dict[str, np.ndarray]) -> str:

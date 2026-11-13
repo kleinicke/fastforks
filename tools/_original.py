@@ -44,6 +44,7 @@ BF16 = {
     "romav2",
     "anysplat",
     "pi3",
+    "insid3",
 }  # the authors' mixed precision is bfloat16
 NATIVE_HALF = {
     "depth_pro",
@@ -1379,6 +1380,7 @@ class _Local:
     flag = False  # no mixed-precision option of its own: fp16 = torch.autocast around the call
     trimap = "unused"  # matting: "required" adds the bench's synthetic trimap to the call
     cameras = "unused"  # multiview: "required" adds the bench rig's intrinsics, cam_to_world and depth range
+    prompts: tuple[str, ...] = ()  # promptable segmentation: ("reference",) adds the bench's reference image and mask
 
     def __init__(
         self,
@@ -1415,7 +1417,7 @@ class _Local:
         like = types.SimpleNamespace(
             device=torch.device("cuda"),
             needs_boxes=self.needs_boxes,
-            prompts=(),
+            prompts=self.prompts,
             _runner=types.SimpleNamespace(
                 intrinsics=self.cameras, cam_to_world=self.cameras, depth_range=self.cameras, trimap=self.trimap
             ),
@@ -1771,6 +1773,56 @@ def _mvsplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - ad
     return call
 
 
+def _insid3(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, ARG001, FBT001 - adapter signature
+    """Upstream `INSID3` as `tools/golden/insid3.py` (`FF_INSID3_REPO`; `FF_INSID3_WEIGHTS`: DINOv3 dir).
+
+    fp16 = upstream as shipped (bf16 autocast around the encoder on CUDA, scikit-learn clustering on the CPU); fp32 =
+    the same with that autocast off. The timed call: `set_reference`, `set_target`, `segment` (upstream's resizing).
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("insid3")
+    tree = g.reference_tree(Path(os.environ["FF_INSID3_REPO"]), g.REF_COMMIT)
+    sys.path.insert(0, str(tree))
+    from models.insid3 import INSID3  # noqa: PLC0415  # ty: ignore[unresolved-import]
+    from transformers import DINOv3ViTModel  # noqa: PLC0415
+
+    class Fp32(g.HubShim):
+        def get_intermediate_layers(self, x: Any, n: int = 1, reshape: bool = True) -> Any:  # noqa: ANN401, FBT001, FBT002
+            with torch.autocast("cuda", enabled=False):
+                return super().get_intermediate_layers(x.float(), n, reshape)
+
+    path = Path(os.environ["FF_INSID3_WEIGHTS"]) / "dinov3-vitl16-pretrain-lvd1689m"
+    net = DINOv3ViTModel.from_pretrained(path, dtype=torch.float32).cuda().eval()
+    model = INSID3((g.HubShim if fp16 else Fp32)(net), device="cuda").eval()
+    a.note = f"visinf/INSID3@{g.REF_COMMIT[:12]} set_reference + set_target + segment" + (
+        ", bf16 autocast (as shipped)" if fp16 else ", its encoder autocast off"
+    )
+
+    def call(target: Any, reference: Any, mask: Any) -> Any:  # noqa: ANN401
+        model.set_reference(reference, mask.cpu())
+        model.set_target(target)
+        return model.segment()
+
+    return call
+
+
+def _insid3_prep(args: tuple[Any, ...]) -> tuple[Any, ...]:
+    """uint8 target, float 0-1 reference (CHW, CUDA) -> upstream's ImageNet-normalised `[1, 3, H, W]` tensors."""
+    import torch  # noqa: PLC0415
+
+    target, reference, mask = args
+    mean = torch.tensor((0.485, 0.456, 0.406), device=target.device).view(3, 1, 1)
+    std = torch.tensor((0.229, 0.224, 0.225), device=target.device).view(3, 1, 1)
+    return ((target.float() / 255 - mean) / std)[None], ((reference.float() - mean) / std)[None], mask
+
+
+class _LocalReference(_LocalFp16):
+    """An in-context segmentation original: called with the image, the reference image and its mask."""
+
+    prompts = ("reference",)
+
+
 class _LocalTrimap(_LocalFp16):
     """A trimap-guided matting original: called with the image and the bench's synthetic trimap."""
 
@@ -1869,6 +1921,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "pi3": _LocalFp16("multiview", _pi3, ((336, 518),)),
     "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),
     "mvsplat": _LocalCameras("multiview", _mvsplat, ((336, 518),)),
+    "insid3": _LocalReference("promptable_segmentation", _insid3, ((1024, 1024),), _insid3_prep),
     "tapir": _Tracking("tracking", _tapir, ((480, 854),)),
     "alltracker": _Tracking("tracking", _alltracker, ((480, 854),)),
     "track_on": _Tracking("tracking", _track_on, ((480, 854),)),

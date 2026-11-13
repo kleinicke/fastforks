@@ -51,7 +51,10 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
 - Promptable segmentation: SAM / SAM 2 `miou_best` (the candidate with the best predicted IoU of three) and
   `miou_single`, one interior point per non-crowd instance of the same 500 COCO images. SAM 3 (concept prompts):
   `box_map` / `mask_map`, one text prompt per COCO category present in the image, threshold 0.5; dataset key
-  `coco-val2017-every10-text` (same images, another benchmark).
+  `coco-val2017-every10-text` (same images, another benchmark). INSID3 (in-context): `miou` on one-shot episodes, 3
+  (reference, target) pairs per COCO class drawn with seed 0 from the val2017 images whose class covers >= 2 %, the
+  class's non-crowd instances as one mask, foreground IoU summed per class and averaged over the 80 classes; dataset
+  key `coco-val2017-oneshot-k3`.
 - Features: kNN `top1` (k = 20, cosine, similarity-weighted) of the CLS feature at 224x224, ImageNet val split into two
   seeded disjoint subsets (10000 memory, 5000 test).
 - Optical flow: `epe` (mean over pairs of the per-pair mean end-point error, px) and `fl_all` (% of all valid pixels,

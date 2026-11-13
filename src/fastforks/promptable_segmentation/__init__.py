@@ -22,6 +22,14 @@ r = model("kitchen.jpg", input_boxes=[[40, 60, 120, 150]])  # every object like 
 r = model("kitchen.jpg", text="mug", input_boxes=[[40, 60, 120, 150], [300, 80, 380, 170]], input_boxes_labels=[1, 0])
 ```
 
+INSID3 segments in a target image what reference masks mark in reference images (`InContextModelId`,
+`InContextSegmentationModel`, `InContextSegmentationResult`):
+
+```python
+model = ps.load("insid3-vitl16", mode="kernels")
+r = model("target.jpg", reference_images=["cat.jpg"], reference_masks=[cat_mask])  # r.masks [H, W] bool
+```
+
 SAM 2 also tracks objects through a video (`track`; prompts on the first frame, `VideoSegmentationResult`):
 
 ```python
@@ -44,6 +52,9 @@ from fastforks.promptable_segmentation._api import (
     ConceptSegmentationModel,
     ConceptSegmentationResult,
     ImageEmbeddings,
+    InContextModelId,
+    InContextSegmentationModel,
+    InContextSegmentationResult,
     PromptableSegmentationModel,
     PromptableSegmentationResult,
     PromptLike,
@@ -60,6 +71,9 @@ __all__ = [
     "ConceptSegmentationResult",
     "ImageEmbeddings",
     "ImageLike",
+    "InContextModelId",
+    "InContextSegmentationModel",
+    "InContextSegmentationResult",
     "ModelCard",
     "PromptLike",
     "PromptableSegmentationModel",
