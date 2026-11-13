@@ -41,7 +41,7 @@ IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")
 """Files of the image folder that are used (case-insensitive, subfolders included)."""
 MIN_INLIERS = 15  # COLMAP's `TwoViewGeometryOptions.min_num_inliers`: fewer and the pair is not verified
 _VERIFY_BATCH = 64  # pairs per batched RANSAC call
-_UNCALIBRATED = 2  # COLMAP `TwoViewGeometry::UNCALIBRATED`: a fundamental matrix
+_UNCALIBRATED = 3  # COLMAP `TwoViewGeometry::UNCALIBRATED` (2 is CALIBRATED): a fundamental matrix
 _SIMPLE_RADIAL = 2  # COLMAP camera model id: f, cx, cy, k
 _PAIR_FACTOR = 2147483647  # COLMAP `kMaxNumImages`: pair_id = id1 * it + id2
 
