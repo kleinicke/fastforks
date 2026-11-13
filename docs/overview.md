@@ -337,22 +337,25 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Detection
 
-47 models; size 800x1344.
+52 models; size 800x1344.
 
-- Fastest: [`rtmdet-nano-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) (2.1 ms).
-- Fastest commercially usable: [`rtmdet-nano-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) (2.1 ms).
+- Fastest: [`yolox-tiny`](models/detection.md#yolox-tiny--s--m--l--x) (2.0 ms).
+- Fastest commercially usable: [`yolox-tiny`](models/detection.md#yolox-tiny--s--m--l--x) (2.0 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
+| [`yolox-tiny`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 9.8 (800x1344) | 5.6 | 2.0 | 4.9x vs original (800x1344) | 62 |
 | [`rtmdet-nano-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 12.9 (800x1344) | 7.6 | 2.1 | 6.1x vs original (800x1344) | 49 |
 | [`lw-detr-tiny-coco`](models/detection.md#lw-detr-vit-tiny--small--medium--large--xlarge) | yes | 16.4 (800x1344) | 7.4 | 2.2 | 7.5x vs original (800x1344) | 94 |
 | [`rf-detr-n-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 10.5 (800x1344) | 9.4 | 2.5 | 4.2x vs original (800x1344) | 114 |
 | [`deim-n-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 24.6 (800x1344) | 10.2 | 2.5 | 9.8x vs original (800x1344) | 93 |
 | [`dfine-n-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 24.3 (800x1344) | 10.3 | 2.5 | 9.7x vs original (800x1344) | 93 |
+| [`yolox-s`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 10.4 (800x1344) | 5.5 | 2.6 | 3.9x vs original (800x1344) | 84 |
 | [`rtmdet-tiny-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 10.7 (800x1344) | 6.1 | 2.7 | 4.0x vs original (800x1344) | 80 |
 | [`lw-detr-small-coco`](models/detection.md#lw-detr-vit-tiny--small--medium--large--xlarge) | yes | 19.9 (800x1344) | 8.8 | 2.8 | 7.1x vs original (800x1344) | 99 |
 | [`rtmdet-s-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 12.1 (800x1344) | 6.3 | 3.0 | 4.1x vs original (800x1344) | 88 |
 | [`rf-detr-s-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 11.2 (800x1344) | 10.1 | 3.4 | 3.2x vs original (800x1344) | 125 |
+| [`yolox-m`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 12.4 (800x1344) | 6.4 | 3.7 | 3.4x vs original (800x1344) | 115 |
 | [`rf-detr-seg-n-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 13.0 (800x1344) | 11.9 | 3.7 | 3.5x vs original (800x1344) | 126 |
 | [`deim-s-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 26.4 (800x1344) | 11.4 | 3.8 | 7.0x vs original (800x1344) | 106 |
 | [`dfine-s-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 25.7 (800x1344) | 11.1 | 3.8 | 6.7x vs original (800x1344) | 106 |
@@ -364,6 +367,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rtmdet-m-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 14.7 (800x1344) | 7.7 | 4.5 | 3.3x vs original (800x1344) | 122 |
 | [`dfine-m-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 30.8 (800x1344) | 13.5 | 5.2 | 6.0x vs original (800x1344) | 127 |
 | [`deim-m-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 31.4 (800x1344) | 13.6 | 5.2 | 6.1x vs original (800x1344) | 127 |
+| [`yolox-l`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 15.1 (800x1344) | 8.1 | 5.2 | 2.9x vs original (800x1344) | 170 |
 | [`rtdetrv2-m-coco`](models/detection.md#rt-detrv2-resnet-vd-s--m--m--l--x) | yes | 17.1 (800x1344) | 10.4 | 5.3 | 3.2x vs original (800x1344) | 177 |
 | [`rf-detr-l-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 11.8 (800x1344) | 10.7 | 5.4 | 2.2x vs original (800x1344) | 146 |
 | [`rf-detr-seg-m-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 14.4 (800x1344) | 15.1 | 5.4 | 2.7x vs original (800x1344) | 144 |
@@ -374,6 +378,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rtdetrv2-l-coco`](models/detection.md#rt-detrv2-resnet-vd-s--m--m--l--x) | yes | 30.3 (800x1344) | 12.1 | 6.6 | 4.6x vs original (800x1344) | 200 |
 | [`dfine-l-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 37.1 (800x1344) | 16.2 | 6.6 | 5.6x vs original (800x1344) | 149 |
 | [`rf-detr-seg-l-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 15.3 (800x1344) | 15.2 | 6.8 | 2.3x vs original (800x1344) | 151 |
+| [`yolox-x`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 17.2 (800x1344) | 11.8 | 7.8 | 2.2x vs original (800x1344) | 258 |
 | [`rtmdet-x-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 24.2 (800x1344) | 13.3 | 8.5 | 2.8x vs original (800x1344) | 267 |
 | [`rtdetrv2-x-coco`](models/detection.md#rt-detrv2-resnet-vd-s--m--m--l--x) | yes | 36.3 (800x1344) | 14.6 | 9.2 | 3.9x vs original (800x1344) | 262 |
 | [`lw-detr-xlarge-coco`](models/detection.md#lw-detr-vit-tiny--small--medium--large--xlarge) | yes | 25.5 (800x1344) | 12.1 | 9.4 | 2.7x vs original (800x1344) | 333 |
@@ -624,7 +629,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Tracking
 
-6 models; size 480x854.
+10 models; size 480x854.
 
 - Fastest: [`tapir`](models/tracking.md#tapir) (138.3 ms).
 - Fastest commercially usable: [`tapir`](models/tracking.md#tapir) (138.3 ms).
@@ -632,10 +637,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
 | [`tapir`](models/tracking.md#tapir) | yes | 186.9 (480x854) | 185.6 | 138.3 | 1.4x vs original (480x854) | 678 |
+| [`locotrack-s`](models/tracking.md#locotrack) | yes | 192.8 (480x854) | 179.5 | 151.1 | 1.3x vs original (480x854) | 764 |
+| [`locotrack-b`](models/tracking.md#locotrack) | yes | 203.3 (480x854) | 190.1 | 177.6 | 1.1x vs original (480x854) | 782 |
 | [`bootstapir`](models/tracking.md#tapir) | yes | 242.5 (480x854) | 239.5 | 191.3 | 1.3x vs original (480x854) | 769 |
 | [`alltracker`](models/tracking.md#alltracker) | yes | 485.3 (480x854) | 391.2 | 221.3 | 2.2x vs original (480x854) | 1076 |
 | [`alltracker-tiny`](models/tracking.md#alltracker) | yes | 424.2 (480x854) | 329.9 | 232.9 | 1.8x vs original (480x854) | 978 |
 | [`tapnext`](models/tracking.md#tapnext) | yes | 908.8 (480x854) | 529.5 | 382.2 | 2.4x vs original (480x854) | 1313 |
+| [`track-on-r`](models/tracking.md#track-on2) | yes | 2021.8 (480x854) | 1188.0 | 1102.3 | 1.8x vs original (480x854) | 1368 |
+| [`track-on2`](models/tracking.md#track-on2) | yes | 1952.8 (480x854) | 1238.3 | 1120.3 | 1.7x vs original (480x854) | 1368 |
 | [`tapnext-pp`](models/tracking.md#tapnext) | yes | – | – | – | – | – |
 
 ## Interpolation

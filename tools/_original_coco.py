@@ -27,6 +27,9 @@ Code paths (each family's venv, `bench/bench_upstream.py list`):
 - RTMDet: mmdet 3.3.0 `inference_detector` on the model of `tools/golden/rtmdet.py` (`FF_MMDET_SITE`: mmdet,
   mmengine, mmcv-lite; NMS through torchvision's operator), the configs' test settings (COCO: score 0.001, 300
   detections; the person detectors: 0.05, 100).
+- YOLOX: `tools/golden/yolox.py`'s reference path (`YOLOX_SRC`: a Megvii-BaseDetection/YOLOX checkout with loguru,
+  pycocotools, tabulate): `ValTransform`, the network, `postprocess` at the exps' COCO settings (`test_conf` 0.01,
+  NMS 0.65, every box kept).
 - Pose: mmpose 1.3.2 `inference_topdown` / `inference_bottomup` (RTMPose, HRNet, RTMO; `tools/_original.py`); ViTPose =
   transformers `VitPoseImageProcessor` + `VitPoseForPoseEstimation` + `post_process_pose_estimation` (the golden's pin).
 - SAM: `segment_anything.SamPredictor.set_image` + `predict_torch` (point coordinates through its `ResizeLongestSide`).
@@ -217,6 +220,25 @@ def _rtmdet(ref: str, tier: str) -> _Detector:
     if variant.output_info["label_set"] == "person-1":
         det.class_names = ["person"]
     return det
+
+
+def _yolox(ref: str, tier: str) -> _Detector:
+    """The reference demo path of `tools/golden/yolox.py` with its COCO test settings (`test_conf` 0.01, every box)."""
+    import os  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _original._golden("yolox")  # noqa: SLF001 - the family's reference recipe
+    card, variant = registry.resolve("detection", ref)
+    exp, net = g.reference(os.environ["YOLOX_SRC"], card, variant)
+    net = net.cuda()
+    t = _Tier(tier, "yolox", [net])
+
+    def fn(img: np.ndarray) -> tuple[Any, ...]:
+        boxes, scores, labels = g.detect(exp, net, np.ascontiguousarray(img[..., ::-1]))
+        return boxes, scores, labels, None
+
+    return _Detector(t, fn, "yolox")
 
 
 def _dfine(ref: str, tier: str) -> _Detector:
@@ -617,6 +639,8 @@ def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, C901, PLR0911,
     if task == "detection":
         if ref.startswith("rtmdet"):
             return _rtmdet(ref, tier)
+        if ref.startswith("yolox"):
+            return _yolox(ref, tier)
         if ref.startswith("dfine"):
             return _dfine(ref, tier)
         if ref.startswith("deim"):

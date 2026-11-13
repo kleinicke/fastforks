@@ -19,11 +19,14 @@ coordinates (normalised x 256 - 0.5). The authors' PyTorch models (`$TAPNET_SRC`
 einshape and dm-tree on the path): `upstream` (fp32) and `upstream16` (float16 autocast), queries `(t, y, x)`
 continuous. TAPNext online as their evaluation (the first frame with the queries, then one frame at a time with the
 state); TAPIR / BootsTAPIR offline (the whole video at once; visible where `(1 - sigmoid(occlusion)) * (1 -
-sigmoid(expected_dist)) > 0.5`). AllTracker (both tiers and the original) gets the original frames, queries in
-their pixels, and resizes them itself to 384 x 512 (upstream's evaluation resizes the originals with cv2 bilinear);
-the predictions are scaled to 256 x 256 for the metrics. Its original (`$ALLTRACKER_SRC`, an aharley/alltracker
-checkout with einops) runs through `tools/golden/alltracker.py` `track`: forward + backward passes per query frame,
-queries sampled bilinearly (upstream's evaluation runs forward only from frame 0 with queries rounded to pixels).
+sigmoid(expected_dist)) > 0.5`); LocoTrack the same (`$LOCOTRACK_SRC`, a KU-CVLAB/LocoTrack checkout with einops,
+through `tools/golden/locotrack.py` `track`). Track-On2 / Track-On-R (`$TRACK_ON_SRC`, a gorkaydemir/track_on
+checkout) through `tools/golden/track_on.py` `track`, online on the 256 x 256 frames as upstream's evaluation.
+AllTracker (both tiers and the original) gets the original frames, queries in their pixels, and resizes them itself
+to 384 x 512 (upstream's evaluation resizes the originals with cv2 bilinear); the predictions are scaled to 256 x 256
+for the metrics. Its original (`$ALLTRACKER_SRC`, an aharley/alltracker checkout with einops) runs through
+`tools/golden/alltracker.py` `track`: forward + backward passes per query frame, queries sampled bilinearly
+(upstream's evaluation runs forward only from frame 0 with queries rounded to pixels).
 
 Timing: one sequence per call, synchronised, per frame; after one untimed warm-up sequence. Each sequence appends one
 record to `<out>/<model>__<tier>.jsonl`; a run resumes after the last finished sequence and stops after `--budget`
@@ -58,6 +61,8 @@ WEIGHT = {
     "tapir": "tapir_checkpoint_panning.pt",
 }
 TAPIR_REFS = ("bootstapir", "tapir")
+TRACK_ON_REFS = ("track-on2", "track-on-r")
+LOCOTRACK_REFS = ("locotrack-b", "locotrack-s")
 NATIVE_REFS = ("alltracker", "alltracker-tiny")  # fed the original frames (they resize to their own 384 x 512)
 
 
@@ -133,6 +138,54 @@ class OriginalAllTracker:
         self.model = g.load(Path(os.environ["ALLTRACKER_SRC"]), weights, kwargs).cuda()
         self.backend = _Upstream(tier)
         self.backend.name = "AllTracker"
+
+    def __call__(self, frames: np.ndarray, queries: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Tracks `[Q, T, 2]` in continuous coordinates and the predicted occlusion `[Q, T]`."""
+        video = torch.from_numpy(frames).cuda().permute(0, 3, 1, 2).float() / 255
+        amp = torch.float16 if self.backend.dtype == torch.float16 else None
+        with torch.inference_mode():
+            tracks, vis = self.g.track(self.model, video, torch.from_numpy(queries).cuda(), amp=amp)
+        return tracks.transpose(0, 1).cpu().numpy() + 0.5, (vis.T <= 0.5).cpu().numpy()  # noqa: PLR2004
+
+
+class OriginalTrackOn:
+    """The authors' Track-On2 through `tools/golden/track_on.py` `track` (`$TRACK_ON_SRC`, CUDA).
+
+    Their `Predictor` loop on the 256 x 256 frames (it resizes to 384 x 512 itself), visible where `sigmoid >= 0.8`.
+    """
+
+    def __init__(self, ref: str, tier: str) -> None:  # noqa: D107
+        sys.path.insert(0, str(Path(__file__).parent / "golden"))
+        import track_on as g  # noqa: PLC0415
+
+        root = Path(os.environ["FASTFORKS_WEIGHTS_PATH"]) / "track_on"
+        self.g = g
+        self.model = g.load(Path(os.environ["TRACK_ON_SRC"]), root / g.MODELS[f"{ref}@1"], root / g.DINOV3).cuda()
+        self.backend = _Upstream(tier)
+        self.backend.name = "Track-On2"
+
+    def __call__(self, frames: np.ndarray, queries: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Tracks `[Q, T, 2]` in continuous coordinates and the predicted occlusion `[Q, T]`."""
+        video = torch.from_numpy(frames).cuda().permute(0, 3, 1, 2).float() / 255
+        amp = torch.float16 if self.backend.dtype == torch.float16 else None
+        with torch.inference_mode():
+            tracks, vis = self.g.track(self.model, video, torch.from_numpy(queries).cuda(), amp=amp)
+        return tracks.transpose(0, 1).cpu().numpy() + 0.5, (vis.T <= 0.5).cpu().numpy()  # noqa: PLR2004
+
+
+class OriginalLocoTrack:
+    """The authors' LocoTrack through `tools/golden/locotrack.py` `track` (`$LOCOTRACK_SRC`, CUDA): offline."""
+
+    def __init__(self, ref: str, tier: str) -> None:  # noqa: D107
+        sys.path.insert(0, str(Path(__file__).parent / "golden"))
+        import locotrack as g  # noqa: PLC0415
+
+        file, size = g.MODELS[f"{ref}@1"]
+        root = Path(os.environ["FASTFORKS_WEIGHTS_PATH"]) / "locotrack"
+        self.g = g
+        self.model = g.load(Path(os.environ["LOCOTRACK_SRC"]), root / file, size).cuda()
+        self.backend = _Upstream(tier)
+        self.backend.name = "LocoTrack"
 
     def __call__(self, frames: np.ndarray, queries: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Tracks `[Q, T, 2]` in continuous coordinates and the predicted occlusion `[Q, T]`."""
@@ -238,7 +291,17 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:
     torch.cuda.empty_cache()
     torch.cuda.reset_peak_memory_stats()
     t0 = time.perf_counter()
-    orig = OriginalTapir if ref in TAPIR_REFS else OriginalAllTracker if ref in NATIVE_REFS else Original
+    orig = (
+        OriginalTapir
+        if ref in TAPIR_REFS
+        else OriginalAllTracker
+        if ref in NATIVE_REFS
+        else OriginalTrackOn
+        if ref in TRACK_ON_REFS
+        else OriginalLocoTrack
+        if ref in LOCOTRACK_REFS
+        else Original
+    )
     model = (orig if tier.startswith("upstream") else Ours)(ref, tier)
     build_s = round(time.perf_counter() - t0, 1)
     be = model.backend

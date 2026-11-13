@@ -88,6 +88,13 @@ In this order, unless something more useful turns up:
 - AllTracker (`alltracker`, `alltracker-tiny`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854
   video, 256 queries). No Metal kernels runner. Weights: the pinned URLs of the card (also in
   `data/ff-weights/alltracker/`).
+- Track-On2 (`track-on2`, `track-on-r`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854 video,
+  256 queries); the DINOv3 ViT-S+ backbone weights are gated on Hugging Face. No Metal kernels runner. Weights: the
+  pinned URLs of the card (also in `data/ff-weights/track_on/` and `data/ff-weights/dinov3/`).
+- LocoTrack (`locotrack-b`, `locotrack-s`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854 video,
+  256 queries). No Metal kernels runner. Weights: the pinned URLs of the card (also in `data/ff-weights/locotrack/`).
+- YOLOX (`yolox-tiny` to `yolox-x`, detection): portable float32 MPS goldens and Mac speed rows (800x1344). No Metal
+  kernels runner. Weights: the pinned URLs of the card (also in `data/ff-weights/yolox/`).
 - SAM 2 video (`track` of `sam2.1-hiera-*`): portable float32 MPS video goldens (`video_*` keys of
   `tests/test_golden.py`); the memory features are stored in bfloat16 as upstream.
 - ViTMatte (`vitmatte-s`, `vitmatte-b`, matting with a trimap input): portable float32 MPS goldens and Mac speed

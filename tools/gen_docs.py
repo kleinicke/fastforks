@@ -57,6 +57,7 @@ _DATASETS = {
     "detection": {
         "coco-val2017-every10": "COCO val2017, every 10th image, box mAP",
         "coco-val2017-every20": "COCO val2017, every 20th image, box mAP",
+        "coco-val2017-every25": "COCO val2017, every 25th image (200), box mAP",
         "coco-val2017-every10-person": "COCO val2017, every 10th image, box AP of the person class",
         "coco-val2017-every1": "COCO val2017, all 5000 images, box mAP",
     },
@@ -222,8 +223,8 @@ _PROTOCOL = {
     "pair. ",
     "tracking": "TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the "
     "original frames, resized by the model), one query per track at its first visible point, tracked online "
-    "(TAPNext) or over the whole clip (TAPIR, AllTracker); AJ, delta_avg (< 1, 2, 4, 8, 16 px at 256 x 256) and "
-    "occlusion accuracy averaged over the videos. ",
+    "(TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg (< 1, 2, 4, 8, 16 px at "
+    "256 x 256) and occlusion accuracy averaged over the videos. ",
     ("matting", "dis-vd-every2"): "Each image at its own size against its binary mask: MAE of the alpha, max F-beta "
     "(beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). ",
     ("matting", "aim500-every5"): "Trimap-guided models, AIM-500: each image at its own size with a trimap made from "

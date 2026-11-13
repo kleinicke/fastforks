@@ -123,6 +123,8 @@ def _load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401 - a model of e
     opts = {"score_threshold": 0.0, "max_detections": 300} if all300 else None
     if ref.startswith("rtmdet") and ref.endswith("-coco"):  # the reference configs' COCO test settings
         opts = {"score_threshold": 0.001, "max_detections": 300}
+    if ref.startswith("yolox"):  # the reference's COCO evaluator: test_conf 0.01, every box after NMS
+        opts = {"score_threshold": 0.01, "max_detections": 1000}
     return (det if task == "detection" else seg).load(ref, mode=mode, device="cuda", options=opts, dtype=dtype)
 
 

@@ -696,6 +696,27 @@ def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda bgr: inference_detector(net, bgr)
 
 
+def _yolox(a: Any, full: str) -> Any:  # noqa: ANN401
+    """The reference demo path of `tools/golden/yolox.py` (`ValTransform`, network, `postprocess`) on CUDA.
+
+    Needs `YOLOX_SRC`, a Megvii-BaseDetection/YOLOX checkout at the golden's commit (with loguru, pycocotools and
+    tabulate importable). CPU cv2 resize and pad, network and NMS are in the timed call; the score threshold is the
+    card's default (0.05), as the library's rows; the reference keeps every box after NMS.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("yolox")
+    card, variant = registry.resolve("detection", full)
+    exp, model = g.reference(os.environ["YOLOX_SRC"], card, variant)
+    model = model.cuda()
+    conf = card.options["score_threshold"]
+    a.note = (
+        f"Megvii-BaseDetection/YOLOX@{g.COMMIT[:12]} ValTransform (CPU cv2) + model + postprocess (NMS "
+        f"{exp.nmsthre}), score {conf} (card default), all in the timed call"
+    )
+    return lambda bgr: g.detect(exp, model, bgr, conf)
+
+
 def _segnext(a: Any, full: str) -> Any:  # noqa: ANN401
     """Mmsegmentation `init_model` + the configs' test protocol, as `tools/golden/segnext.py` (NMF bases seeded)."""
     from fastforks._core import registry  # noqa: PLC0415
@@ -1479,6 +1500,50 @@ def _alltracker(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 -
     return call
 
 
+def _track_on(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream Track-On2 `Predictor` loop (CUDA, mmcv MSDA as its PyTorch path) via `tools/golden/track_on.py`.
+
+    384 x 512, memory 72, 20 x 20 support grid; fp16: `torch.autocast("cuda", torch.float16)`. Needs `TRACK_ON_SRC`, a
+    gorkaydemir/track_on checkout with the pinned commit, and the DINOv3 ViT-S+ snapshot next to the weights.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("track_on")
+    card, variant = registry.resolve("tracking", full)
+    file = Path(registry.weights(card, variant, allow_download=False)[0])
+    model = g.load(Path(os.environ["TRACK_ON_SRC"]), file, file.parent / g.DINOV3).cuda()
+    a.note = f"gorkaydemir/track_on@{g.COMMIT[:12]} Predictor loop, 384 x 512, memory 72"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        return g.track(model, video.float() / 255, queries, amp=torch.float16 if fp16 else None)
+
+    return call
+
+
+def _locotrack(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream `LocoTrack.forward` offline (CUDA, unpatched) via `tools/golden/locotrack.py`, at 256 x 256.
+
+    fp16: `torch.autocast("cuda", torch.float16)`. Needs `LOCOTRACK_SRC`, a KU-CVLAB/LocoTrack checkout with the pinned
+    commit (with einops importable).
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("locotrack")
+    card, variant = registry.resolve("tracking", full)
+    file = Path(registry.weights(card, variant, allow_download=False)[0])
+    model = g.load(Path(os.environ["LOCOTRACK_SRC"]), file, g.MODELS[f"{variant.id}@1"][1]).cuda()
+    a.note = f"KU-CVLAB/LocoTrack@{g.COMMIT[:12]} forward, offline (whole video), frames resized to 256 x 256"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        return g.track(model, video.float() / 255, queries, amp=torch.float16 if fp16 else None)
+
+    return call
+
+
 class _Tracking(_LocalFp16):
     """The tracking bench call: the uint8 video `[T, 3, H, W]` and the float32 query grid (not scaled to uint8)."""
 
@@ -1612,6 +1677,9 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "rtmdet": _Local(
         "detection", _rtmdet, ((800, 1344),), lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),)
     ),
+    "yolox": _Local(
+        "detection", _yolox, ((800, 1344),), lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),)
+    ),
     "convnext": _Local("classification", _convnext, ((224, 224),)),
     "repvit": _Local("classification", _convnext, ((224, 224),)),
     "tinyvit": _Local("classification", _convnext, ((224, 224),)),
@@ -1652,6 +1720,8 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),
     "tapir": _Tracking("tracking", _tapir, ((480, 854),)),
     "alltracker": _Tracking("tracking", _alltracker, ((480, 854),)),
+    "track_on": _Tracking("tracking", _track_on, ((480, 854),)),
+    "locotrack": _Tracking("tracking", _locotrack, ((480, 854),)),
 }
 
 

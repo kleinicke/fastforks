@@ -825,6 +825,11 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | rtmdet-s-coco | 12.1 | 14.5 | 6.25 | 2.98 | 4.1x | 2.1x | 73 / 92 | 81 / 102 | 88 / 136 |
 | rtmdet-tiny-coco | 10.7 | 13.8 | 6.08 | 2.69 | 4.0x | 2.3x | 48 / 64 | 72 / 96 | 80 / 124 |
 | rtmdet-x-coco | 32.2 | 24.2 | 13.3 | 8.55 | 2.8x | 1.6x | 585 / 604 | 267 / 316 | 267 / 378 |
+| yolox-l | – | 15.1 | 8.13 | 5.24 | 2.9x | 1.6x | 265 / 298 | 165 / 206 | 170 / 304 |
+| yolox-m | – | 12.4 | 6.42 | 3.68 | 3.4x | 1.7x | 142 / 160 | 110 / 132 | 115 / 182 |
+| yolox-s | – | 10.4 | 5.55 | 2.64 | 3.9x | 2.1x | 67 / 90 | 79 / 100 | 84 / 134 |
+| yolox-tiny | – | 9.79 | 5.58 | 2.02 | 4.9x | 2.8x | 32 / 58 | 60 / 92 | 62 / 108 |
+| yolox-x | – | 17.2 | 11.8 | 7.82 | 2.2x | 1.5x | 450 / 504 | 255 / 300 | 258 / 358 |
 
 ### Pose, synthetic, 1080x1920
 
@@ -1028,8 +1033,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | alltracker | 485 | 391 | 221 | 2.2x | 1.8x | 2100 / 2318 | 993 / 1238 | 1076 / 1288 |
 | alltracker-tiny | 424 | 330 | 233 | 1.8x | 1.4x | 1995 / 2200 | 919 / 1178 | 978 / 1166 |
 | bootstapir | 243 | 240 | 191 | 1.3x | 1.3x | 639 / 774 | 720 / 768 | 769 / 828 |
+| locotrack-b | 203 | 190 | 178 | 1.1x | 1.1x | 719 / 784 | 771 / 856 | 782 / 840 |
+| locotrack-s | 193 | 180 | 151 | 1.3x | 1.2x | 706 / 812 | 759 / 842 | 764 / 822 |
 | tapir | 187 | 186 | 138 | 1.4x | 1.3x | 498 / 574 | 630 / 690 | 678 / 750 |
 | tapnext | 909 | 529 | 382 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1313 / 1374 |
+| track-on-r | 2022 | 1188 | 1102 | 1.8x | 1.1x | 1801 / 1928 | 1423 / 1632 | 1368 / 1620 |
+| track-on2 | 1953 | 1238 | 1120 | 1.7x | 1.1x | 1403 / 1558 | 1423 / 1632 | 1368 / 1620 |
 
 ### Interpolation, synthetic, 1080x1920
 
@@ -1355,6 +1364,11 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | rtmdet-s-coco | 0.27 | 0.18 | 1.68 | 0.58 | 1.39 | 0.23 |
 | rtmdet-tiny-coco | 0.22 | 0.13 | 1.66 | 1.24 | 1.32 | 0.25 |
 | rtmdet-x-coco | 1.00 | 0.77 | 2.38 | 0.61 | 1.25 | 0.29 |
+| yolox-l | 0.65 | 0.41 | 1.72 | 0.03 | 1.16 | 0.36 |
+| yolox-m | 0.32 | 0.24 | 1.60 | 0.03 | 0.36 | 0.19 |
+| yolox-s | 0.22 | 0.15 | 1.55 | 0.03 | 1.35 | 0.30 |
+| yolox-tiny | 1.55 | 0.18 | 1.58 | 0.52 | 1.31 | 0.31 |
+| yolox-x | 0.76 | 0.59 | 2.06 | 0.08 | 0.21 | 0.26 |
 | dwpose-l | 0.50 | 0.88 | 1.64 | 1.14 | 1.83 | 0.28 |
 | dwpose-l-384 | 0.42 | 0.58 | 1.67 | 0.42 | 1.10 | 0.28 |
 | dwpose-m | 0.26 | 0.24 | 1.51 | 0.60 | 1.10 | 0.29 |
@@ -1509,8 +1523,12 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | alltracker | 1.68 | 0.22 | 0.98 | 1.31 | 0.85 | 0.45 |
 | alltracker-tiny | 1.22 | 0.06 | 0.96 | 1.40 | 0.73 | 0.54 |
 | bootstapir | 0.60 | 0.15 | 1.19 | 0.90 | 0.79 | 0.53 |
+| locotrack-b | 0.79 | 0.06 | 1.00 | 1.06 | 0.64 | 0.69 |
+| locotrack-s | 0.29 | 0.06 | 1.13 | 0.23 | 0.65 | 0.66 |
 | tapir | 0.35 | 0.16 | 0.97 | 0.83 | 0.82 | 0.52 |
 | tapnext | 16.92 | 2.72 | 2.63 | 2.17 | 0.69 | 0.56 |
+| track-on-r | 0.88 | 0.24 | 1.11 | 2.91 | 1.99 | 1.72 |
+| track-on2 | 3.77 | 0.46 | 1.17 | 3.63 | 2.64 | 1.75 |
 | rife-4.25 | 1.42 | 0.05 | 1.10 | 0.27 | 0.26 | 0.14 |
 | rife-4.25-lite | 0.18 | 0.05 | 1.14 | 0.12 | 0.26 | 0.14 |
 | rife-4.26 | 0.18 | 0.09 | 1.12 | 0.05 | 0.23 | 0.14 |
@@ -1806,6 +1824,11 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | rtmdet-s-coco | 800x1344 | 6.25 ms | 3.56 ms | 1.19 ms | 2.98 ms | 14.3 s | 20.1 s | 81 / 102 | 76 / 98 | 88 / 136 | 93 / 130 |
 | rtmdet-tiny-coco | 800x1344 | 6.08 ms | 3.43 ms | 0.962 ms | 2.69 ms | 13.7 s | 19.3 s | 72 / 96 | 64 / 94 | 80 / 124 | 80 / 122 |
 | rtmdet-x-coco | 800x1344 | 13.3 ms | 11.8 ms | 6.17 ms | 8.55 ms | 18.6 s | 27.8 s | 267 / 316 | 271 / 292 | 267 / 378 | 471 / 504 |
+| yolox-l | 800x1344 | 8.13 ms | 6.15 ms | 3.10 ms | 5.24 ms | 15.3 s | 21.2 s | 165 / 206 | 173 / 208 | 170 / 304 | 279 / 324 |
+| yolox-m | 800x1344 | 6.42 ms | 3.70 ms | 2.03 ms | 3.68 ms | 13.4 s | 20.1 s | 110 / 132 | 111 / 132 | 115 / 182 | 152 / 194 |
+| yolox-s | 800x1344 | 5.55 ms | 2.95 ms | 1.02 ms | 2.64 ms | 12.7 s | 17.2 s | 79 / 100 | 74 / 96 | 84 / 134 | 86 / 126 |
+| yolox-tiny | 800x1344 | 5.58 ms | 2.87 ms | 0.561 ms | 2.02 ms | 13.1 s | 23.7 s | 60 / 92 | 58 / 94 | 62 / 108 | 62 / 90 |
+| yolox-x | 800x1344 | 11.8 ms | 11.3 ms | 5.28 ms | 7.82 ms | 15.8 s | 24.1 s | 255 / 300 | 265 / 296 | 258 / 358 | 432 / 478 |
 | dwpose-l | 1080x1920 | 10.2 ms | 5.75 ms | 3.33 ms (network on person crops only) | 6.20 ms | 14.8 s | 20.0 s | 222 / 280 | 197 / 216 | 186 / 306 | 277 / 294 |
 | dwpose-l-384 | 1080x1920 | 21.2 ms | 11.9 ms | 7.46 ms (network on person crops only) | 12.5 ms | 14.9 s | 20.6 s | 351 / 460 | 253 / 296 | 240 / 424 | 347 / 370 |
 | dwpose-m | 1080x1920 | 7.25 ms | 3.80 ms | 2.13 ms (network on person crops only) | 4.86 ms | 12.9 s | 18.9 s | 162 / 196 | 156 / 174 | 157 / 220 | 203 / 228 |
@@ -1945,8 +1968,12 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | alltracker | 480x854 | 391 ms | 284 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 221 ms | 105 s | – | 993 / 1238 | 1273 / 1358 | 1076 / 1288 | – |
 | alltracker-tiny | 480x854 | 330 ms | 229 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 233 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
 | bootstapir | 480x854 | 240 ms | 183 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 191 ms | 207 s | – | 720 / 768 | 758 / 832 | 769 / 828 | – |
+| locotrack-b | 480x854 | 190 ms | 82.6 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 178 ms | 146 s | – | 771 / 856 | 1117 / 1140 | 782 / 840 | – |
+| locotrack-s | 480x854 | 180 ms | 74.1 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 151 ms | 140 s | – | 759 / 842 | 1000 / 1034 | 764 / 822 | – |
 | tapir | 480x854 | 186 ms | 131 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 138 ms | 169 s | – | 630 / 690 | 630 / 752 | 678 / 750 | – |
 | tapnext | 480x854 | 529 ms | 398 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 382 ms | 40.5 s | – | 1220 / 1294 | 1164 / 1272 | 1313 / 1374 | – |
+| track-on-r | 480x854 | 1188 ms | fails: worker rc=124 | fails: ValueError: not enough values to unpack (expected 4, got 2) | 1102 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |
+| track-on2 | 480x854 | 1238 ms | fails: worker rc=124 | fails: ValueError: not enough values to unpack (expected 4, got 2) | 1120 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |
 | rife-4.25 | 1080x1920 | 36.0 ms | 44.9 ms | 17.6 ms | 31.4 ms | 36.1 s | 56.3 s | 999 / 1254 | 1094 / 1234 | 1029 / 1516 | 696 / 714 |
 | rife-4.25-lite | 1080x1920 | 32.7 ms | 42.3 ms | 14.1 ms | 28.9 ms | 34.9 s | 49.5 s | 991 / 1174 | 1061 / 1374 | 1024 / 1516 | 696 / 714 |
 | rife-4.26 | 1080x1920 | 35.9 ms | 44.5 ms | 17.6 ms | 31.4 ms | 34.9 s | 54.9 s | 999 / 1254 | 1094 / 1234 | 1029 / 1516 | 696 / 714 |

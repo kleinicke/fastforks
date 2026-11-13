@@ -215,13 +215,14 @@ def _read(path: Path) -> dict[str, torch.Tensor]:
 def _detect(sd: Mapping[str, torch.Tensor], name: str) -> tuple[ModelCard, str, dict[str, Any], dict[str, Any]]:
     """`(card, variant id, params, mapped state dict)` of the family whose `from_checkpoint` recognises `sd`."""
     families = {card.family: card for card, _ in registry.cards(TASK).values()}
-    for card in families.values():
-        found = registry.import_model(card).from_checkpoint(sd)
+    readers = [(c, f) for c in families.values() if (f := getattr(registry.import_model(c), "from_checkpoint", None))]
+    for card, read in readers:
+        found = read(sd)
         if found is not None:
             return card, *found
     msg = (
         f"{name}: unsupported architecture; fastforks.restoration.load_file reads the networks of"
-        f" {', '.join(c.name for c in families.values())} (keys of the original code or of spandrel's formats)"
+        f" {', '.join(c.name for c, _ in readers)} (keys of the original code or of spandrel's formats)"
     )
     raise WeightsError(msg)
 
