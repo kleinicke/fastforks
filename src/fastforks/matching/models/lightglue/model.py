@@ -110,7 +110,7 @@ def load_matcher(ctx: Context) -> Matcher:
     net.extractor.load_state_dict(sd, strict=True)
     net = net.eval().requires_grad_(requires_grad=False).to(ctx.device)
     if ctx.torch_dtype == torch.float16:
-        net.extractor.half = True
+        net.extractor.fp16 = True
         if ctx.params.extractor == "aliked":  # channels-last convs: 15.5 -> 14.5 ms (DISK: no gain)
             net.extractor.to(memory_format=torch.channels_last)
     return net

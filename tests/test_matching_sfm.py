@@ -47,11 +47,12 @@ def scene(tmp_path, monkeypatch):
     return tmp_path
 
 
-def test_cli_writes_colmap_database(scene, capsys):
+def test_cli_writes_colmap_database(scene, capsys, request):
     db = scene / "db.db"
     assert cli.main(["sfm", str(scene / "img"), str(db), "--retrieval", "none", "--single-camera"]) == 0
     assert "3 images, 3 pairs, 2 verified" in capsys.readouterr().out
     con = sqlite3.connect(db)
+    request.addfinalizer(con.close)
     names = con.execute("SELECT image_id, name, camera_id FROM images ORDER BY image_id").fetchall()
     assert names == [(1, "a.png", 1), (2, "b.jpg", 1), (3, "sub/c.png", 2)]  # one camera per image size
     width, height, params = con.execute("SELECT width, height, params FROM cameras WHERE camera_id = 1").fetchone()
@@ -160,12 +161,13 @@ class FakeDense:
             yield MatchingResult(warp, certainty, "fake@1", "portable")
 
 
-def test_dense_matcher_keypoints_are_shared_tracks(scene, monkeypatch):
+def test_dense_matcher_keypoints_are_shared_tracks(scene, monkeypatch, request):
     dense = FakeDense({0: (32, 24), 1: (32, 24), 2: (16, 16)})
     monkeypatch.setattr(matching, "load", lambda *_a, **_k: dense)
     stats = sfm.colmap_database(scene / "img", scene / "db.db", retrieval=None, dense_matches=50)
     assert (stats.images, stats.pairs, stats.verified) == (3, 3, 2)  # pair (1, 2): 3 matches, not verifiable
     con = sqlite3.connect(scene / "db.db")
+    request.addfinalizer(con.close)
     kp = {}
     for image_id, rows, data in con.execute("SELECT image_id, rows, data FROM keypoints"):
         kp[image_id] = np.frombuffer(data, np.float32).reshape(rows, 2) - 0.5

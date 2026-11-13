@@ -207,12 +207,13 @@ def reconstruct(
         InputError: As `colmap_database`.
     """
     try:
-        import pycolmap  # noqa: PLC0415 - optional
+        import pycolmap  # noqa: PLC0415 - optional  # ty: ignore[unresolved-import]
     except ImportError as err:
         msg = f"sfm.reconstruct needs pycolmap: {install_hint('sfm')}"
         raise MissingDependencyError(msg) from err
     mappers = {"incremental": pycolmap.incremental_mapping, "global": getattr(pycolmap, "global_mapping", None)}
-    if mappers.get(mapper) is None:
+    run = mappers.get(mapper)
+    if run is None:
         msg = f"mapper must be one of {', '.join(mappers)} (global needs pycolmap >= 3.12), not {mapper!r}"
         raise OptionsError(msg)
     folder = Path(out)
@@ -222,7 +223,7 @@ def reconstruct(
     sparse = folder / "sparse"
     sparse.mkdir(exist_ok=True)
     t0 = time.perf_counter()
-    models = mappers[mapper](database, Path(images), sparse)
+    models = run(database, Path(images), sparse)
     seconds = time.perf_counter() - t0
     if not models:
         return ReconstructionStats(stats, mapper, seconds, 0, 0, 0, None)
