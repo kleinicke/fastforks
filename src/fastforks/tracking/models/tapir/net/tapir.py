@@ -258,13 +258,18 @@ class TAPIR(nn.Module):
         mods = self.torch_cost_volume_track_mods
         cost = torch.einsum("bnc,bthwc->tbnhw", query, grid)
         t, b, n, h, w = cost.shape
-        hidden = torch.relu(mods["hid1"](cost.reshape(t * b * n, 1, h, w)))
-        pos = mods["hid2"](hidden).reshape(t, b, n, h, w).permute(1, 2, 0, 3, 4)
-        heat = F.softmax(pos.reshape(b, n, t, -1) * SOFTMAX_TEMPERATURE, -1).view_as(pos)
-        points = soft_argmax(heat) * torch.tensor([SIZE / w, SIZE / h], device=heat.device)
+        hidden = mods["hid1"](cost.reshape(t * b * n, 1, h, w)).relu_()
+        del cost  # fastforks: each `[T * B * N, C, H, W]` map freed once used (upstream keeps all to the end)
+        pos = mods["hid2"](hidden).reshape(t, b, n, h, w).permute(1, 2, 0, 3, 4).reshape(b, n, t, -1)
+        heat = F.softmax(pos.mul_(SOFTMAX_TEMPERATURE), -1).view(b, n, t, h, w)
+        del pos
+        points = soft_argmax(heat) * torch.tensor([SIZE / w, SIZE / h], device=queries.device)
+        del heat
         is_query = torch.round(queries[..., :1]) == torch.arange(t, device=queries.device)  # [B, N, T]
         points = torch.where(is_query[..., None], queries[:, :, None, 1:].flip(-1), points)
-        occ = torch.relu(mods["hid3"](F.pad(hidden, (0, 2, 0, 2)))).mean((-1, -2))
+        hidden = F.pad(hidden, (0, 2, 0, 2))
+        occ = mods["hid3"](hidden).relu_().mean((-1, -2))
+        del hidden
         occ = mods["occ_out"](torch.relu(mods["hid4"](occ)))  # [T * B * N, 2]
         occ = occ.reshape(t, b, n, 2).permute(1, 2, 0, 3)
         return points, occ[..., 0], occ[..., 1]
