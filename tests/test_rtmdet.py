@@ -60,7 +60,7 @@ def test_cv2_linear_equals_the_recorded_opencv_result(device: str) -> None:
     digest = hashlib.sha256()
     for size, out in RESIZES:
         got = cv2_linear(torch.from_numpy(_noise(size, out)).permute(2, 0, 1)[None].float().to(device), *out)
-        assert got.dtype == torch.float32
+        assert got.dtype == torch.uint8
         assert got.shape == (1, 3, *out)
         digest.update(got[0].permute(1, 2, 0).to(torch.uint8).cpu().numpy().tobytes())
     assert digest.hexdigest() == RESIZED_SHA256

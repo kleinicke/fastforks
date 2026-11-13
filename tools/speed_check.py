@@ -114,6 +114,15 @@ COPY = ("copy", "memcpy", "nchwtonhwc", "nhwctonchw", "transpose", "catarraybatc
 SYNC = ("cudaStreamSynchronize", "cudaDeviceSynchronize", "cudaEventSynchronize", "aten::_local_scalar_dense")
 
 
+def scene_of(r: dict[str, Any]) -> str:
+    """The input a row was measured on: a real scene of SCENES or "synthetic" (bench_inputs).
+
+    Rows of one input label on different scenes are different measurements (las2-s 375x1242 portable: KITTI 20.5 ms,
+    synthetic 13.9 ms); comparing them hid regressions when a wrong `$FASTFORKS_DATA` fell back to synthetic inputs.
+    """
+    return next((k for k in SCENES if r.get("scene", "").startswith(k)), "synthetic")
+
+
 def floor_rows() -> list[dict[str, Any]]:
     return [json.loads(line) for line in FLOOR.read_text().splitlines() if line.strip()]
 
@@ -136,8 +145,11 @@ def jobs(only: Iterable[str] = (), modes: Iterable[str] = MODES) -> list[dict[st
             continue
         j = out.setdefault((r["ref"], r["mode"]), {"ref": r["ref"], "task": r["task"], "mode": r["mode"], "inputs": []})
         inp = {"label": r["input"], "scene": r.get("scene", "")}
-        if inp not in j["inputs"]:  # a stale floor row of the same input is no second job
+        same = next((i for i in j["inputs"] if i["label"] == inp["label"]), None)
+        if same is None:
             j["inputs"].append(inp)
+        elif scene_of(same) == "synthetic":  # one job per input; the real scene wins (one call, one row)
+            same["scene"] = inp["scene"]
     for j in out.values():
         j["inputs"].sort(key=lambda i: _px(i["label"]))
     found = []
@@ -209,6 +221,8 @@ def lib_inputs(model: Any, task: str, ref: str, inp: dict[str, str]) -> tuple[tu
         h, w = w, h
     args, kw = bench_inputs(model, BenchSize(h, w, VIEWS.get(ref, 8)))
     scene = next((p for k, p in SCENES.items() if inp["scene"].startswith(k)), None)
+    if scene is not None and not scene.exists():  # the row is "synthetic" then and is compared to synthetic rows only
+        print(f"note: {scene} missing ($FASTFORKS_DATA={DATA}): {ref} {inp['label']} on synthetic inputs", flush=True)
     if scene is not None and scene.exists():  # else the synthetic bench inputs (no local datasets)
         left = _image(scene)
         if task == "flow":
@@ -368,24 +382,36 @@ def _lib_job(
     calls = []
     runner = m._runner  # noqa: SLF001 - the task's own runner contract
     for inp in spec["inputs"]:
-        args, kw = lib_inputs(m, spec["task"], spec["ref"], inp)
-        torch.cuda.empty_cache()  # as speed_original after its input prep: peaks of the call, not of the input build
+        # Each input is built just before its own timing and dropped after it: building all inputs up front held the
+        # later, larger ones during every earlier peak (raft-large kernels 375x1242: 133 MiB vs 85 with the
+        # 1080x1920 pair held).
+        box: dict[str, Any] = {}
         cap = _Capture(runner)
 
-        def full(a: tuple[Any, ...] = args, k: dict[str, Any] = kw) -> Any:  # noqa: ANN401
+        def inputs(i: dict[str, str] = inp, b: dict[str, Any] = box) -> tuple[tuple[Any, ...], dict[str, Any]]:
+            if "args" not in b:
+                b["args"] = lib_inputs(m, spec["task"], spec["ref"], i)
+                torch.cuda.empty_cache()  # as speed_original after its input prep: peaks of the call, not the build
+            return b["args"]
+
+        def full(*, prepare: bool = False, i: Callable[[], Any] = inputs) -> Any:  # noqa: ANN401
+            a, k = i()
+            if prepare:
+                return None
             with torch.inference_mode():
                 return m(*a, **k)
 
-        def core(*, release: bool = False, c: _Capture = cap, a: tuple[Any, ...] = args, k: dict[str, Any] = kw) -> Any:  # noqa: ANN401
+        def core(*, release: bool = False, c: _Capture = cap, b: dict[str, Any] = box) -> Any:  # noqa: ANN401
             # The runner's tensors are recorded here, after the peaks were measured, and dropped again after the
             # core timing: holding them during the full-call rows added two padded fp32 images to every peak.
             if release:
                 c.__dict__["_args"] = None
+                b.clear()
                 return None
             if c.__dict__["_args"] is None:
                 m._runner = c  # noqa: SLF001 - records the runner's tensors of this input
                 try:
-                    full(a, k)
+                    full()
                 finally:
                     m._runner = runner  # noqa: SLF001
             fn, ca, ck = c.__dict__["_args"]
@@ -417,6 +443,8 @@ def speed_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: 
                 from fastforks._core import kernels  # noqa: PLC0415
 
                 kernels.reset_fallbacks()
+            if core is not None:
+                full(prepare=True)  # this input only (lib side)
             row |= measure(full)
             if core is not None:
                 row["core_ms"] = core_ms(core)
@@ -802,8 +830,12 @@ def run(a: argparse.Namespace) -> int:
     return check(a.out) if a.check else 0
 
 
+def _key(r: dict[str, Any]) -> tuple[str, str, str]:
+    return r["ref"], r["mode"], r["input"]
+
+
 def _floor_index() -> dict[tuple[str, str, str], dict[str, Any]]:
-    return {(r["ref"], r["mode"], r["input"]): r for r in floor_rows() if r["mode"] in MODES}
+    return {_key(r): r for r in floor_rows() if r["mode"] in MODES}
 
 
 def latest(rows: list[dict[str, Any]], side: str = "lib") -> dict[tuple[str, str, str], dict[str, Any]]:
@@ -815,9 +847,10 @@ def latest(rows: list[dict[str, Any]], side: str = "lib") -> dict[tuple[str, str
 
 
 def check(path: Path) -> int:
-    floor, bad = _floor_index(), 0
+    floor = {(*_key(r), scene_of(r)): r for r in floor_rows() if r["mode"] in MODES}
+    bad = 0
     for key, r in sorted(latest(read_rows(path)).items()):
-        f = floor.get(key)
+        f = floor.get((*key, scene_of(r)))
         if f is None:
             continue
         tol = 1 + max(TOL_MS, r.get("noise", 0))
@@ -840,13 +873,13 @@ def check(path: Path) -> int:
 
 
 def static_violations() -> list[tuple[str, str]]:
-    """(key, message) of floor rows slower than a mode they must not lose to (same ref and input)."""
-    by: dict[tuple[str, str], dict[str, float]] = {}
+    """(key, message) of floor rows slower than a mode they must not lose to (same ref, input and scene)."""
+    by: dict[tuple[str, str, str], dict[str, float]] = {}
     for r in floor_rows():
         if "ms" in r:  # an OOM original has no time
-            by.setdefault((r["ref"], r["input"]), {})[r["mode"]] = r["ms"]
+            by.setdefault((r["ref"], r["input"], scene_of(r)), {})[r["mode"]] = r["ms"]
     out = []
-    for (ref, inp), ms in sorted(by.items()):
+    for (ref, inp, _scene), ms in sorted(by.items()):
         origs = [m for m in ("upstream", "upstream-default") if m in ms]
         orig = min(origs, key=ms.__getitem__) if origs else ""
         pairs = [("kernels", "portable")] + [(m, orig) for m in MODES if orig]

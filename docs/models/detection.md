@@ -714,7 +714,7 @@ Commercial use: yes.
 | `rtmdet-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.7<br>17.8<br>7.69<br>4.49<br>4.78<br>2.39 | 168 / 200<br>168 / 198<br>114 / 148<br>122 / 200<br>115 / 130<br>156 / 212 |
 | `rtmdet-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.5<br>20.4<br>9.60<br>5.74<br>10.6<br>3.59 | 295 / 316<br>332 / 356<br>183 / 230<br>178 / 284<br>178 / 226<br>283 / 318 |
 | `rtmdet-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 32.2<br>24.2<br>13.3<br>8.55<br>11.8<br>6.17 | 480 / 518<br>585 / 604<br>267 / 316<br>267 / 378<br>271 / 292<br>471 / 504 |
-| `rtmdet-nano-person` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.9<br>16.0<br>8.49<br>2.11<br>4.23<br>0.769 | 14 / 30<br>12 / 30<br>10 / 26<br>11 / 52<br>48 / 64<br>49 / 58 |
+| `rtmdet-nano-person` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.9<br>16.0<br>7.45<br>2.11<br>4.23<br>0.769 | 14 / 30<br>12 / 30<br>9 / 28<br>11 / 52<br>48 / 64<br>49 / 58 |
 | `rtmdet-m-person` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.1<br>16.3<br>7.39<br>4.12<br>4.44<br>2.38 | 168 / 200<br>168 / 198<br>114 / 146<br>119 / 202<br>115 / 128<br>153 / 190 |
 
 <details><summary>Details</summary>
