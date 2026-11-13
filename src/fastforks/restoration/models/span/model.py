@@ -9,12 +9,13 @@ buffer of the network's dtype and device.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.kernels import cudnn_hacc
@@ -24,6 +25,8 @@ from .net import SPAN
 from .net.span_arch import Conv3XC
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from fastforks.restoration._runner import Context
 
 
@@ -99,3 +102,21 @@ class Kernels(Portable):
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}
+
+
+def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
+    """`load_file`: a SPAN state dict as a variant and its params (feature channels, scale); keys unchanged."""
+    if "block_1.c1_r.sk.weight" not in sd or "conv_1.sk.weight" not in sd:
+        return None
+    first, up = sd["conv_1.sk.weight"], sd.get("upsampler.0.weight")
+    scale = round((up.shape[0] / 3) ** 0.5) if up is not None else 0
+    problems = []
+    if "no_norm" in sd:
+        problems.append("no input normalisation (fastforks: the DIV2K mean, x 255)")
+    if first.shape[1] != 3 or up is None or up.shape[0] != 3 * scale**2:  # noqa: PLR2004 - RGB
+        problems.append("not 3 input and output channels")
+    if problems:
+        msg = f"SPAN checkpoint with {', '.join(problems)}: not supported"
+        raise WeightsError(msg)
+    variant = f"span-x{scale}" if scale in {2, 4} else "span-x4"
+    return variant, {"scale": scale, "channels": first.shape[0]}, dict(sd)
