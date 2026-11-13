@@ -81,6 +81,12 @@ In this order, unless something more useful turns up:
   336x518). No Metal kernels runner. Weights: the pinned HF URL of the card.
 - DepthSplat (`depthsplat-small-re10k`, multiview with `result.gaussians`): portable float32 MPS goldens and Mac speed
   rows (8 views 336x518, calibrated). No Metal kernels runner. Weights: the pinned HF URL of the card.
+- MVSplat (`mvsplat-re10k`, multiview with `result.gaussians`): portable float32 MPS goldens and Mac speed rows (8
+  views 336x518, calibrated). No Metal kernels runner. Weights: the pinned HF URL of the card.
+- π3 (`pi3`, multiview): portable float32 MPS goldens and Mac speed rows (8 views 336x518). No Metal kernels runner.
+  Weights: the pinned HF URL of the card.
+- Prompt Depth Anything (`prompt-depth-anything-s`, `-l`, depth with `prompt=`): portable MPS goldens and Mac speed
+  rows (756x1008 + 192x256 prompt). No Metal kernels runner. Weights: the pinned HF URLs of the card.
 - TAPNext (`tapnext`, `tapnext-pp`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854 video, 256
   queries). No Metal kernels runner. Weights: the pinned URLs of the card (also in `data/ff-weights/tapnext/`).
 - TAPIR (`bootstapir`, `tapir`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854 video, 256
