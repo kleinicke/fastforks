@@ -1,4 +1,6 @@
 import sqlite3
+import sys
+import types
 
 import numpy as np
 import pytest
@@ -7,7 +9,7 @@ from PIL import Image
 
 from fastforks import matching
 from fastforks._core import cli
-from fastforks._core.errors import InputError
+from fastforks._core.errors import InputError, MissingDependencyError, OptionsError
 from fastforks.matching import relative_pose, sfm
 from fastforks.matching._api import SparseMatchingResult
 
@@ -85,3 +87,59 @@ def test_matcher_options_reach_load(scene, monkeypatch):
     monkeypatch.setattr(matching, "load", lambda *_a, **k: seen.update(k) or FakeMatcher())
     sfm.colmap_database(scene / "img", scene / "db.db", retrieval=None, matcher_options={"long_side": 1600})
     assert seen["options"] == {"long_side": 1600}
+
+
+class FakeReconstruction:
+    def __init__(self, registered, points):
+        self._registered, self._points = registered, points
+
+    def num_reg_images(self):
+        return self._registered
+
+    def num_points3D(self):  # noqa: N802 - pycolmap's name
+        return self._points
+
+
+@pytest.fixture
+def fake_pycolmap(monkeypatch):
+    """A `pycolmap` module whose mappers record their call and return two models (the second one larger)."""
+    calls = []
+
+    def mapping(name):
+        def run(database, images, out):
+            calls.append((name, database, images, out))
+            return {0: FakeReconstruction(2, 10), 1: FakeReconstruction(3, 40)}
+
+        return run
+
+    module = types.ModuleType("pycolmap")
+    module.incremental_mapping = mapping("incremental")
+    module.global_mapping = mapping("global")
+    monkeypatch.setitem(sys.modules, "pycolmap", module)
+    return calls
+
+
+def test_reconstruct_writes_the_database_then_maps(scene, fake_pycolmap, capsys):
+    out = scene / "out"
+    rec = sfm.reconstruct(scene / "img", out, retrieval=None, mapper="global")
+    assert fake_pycolmap == [("global", out / "database.db", scene / "img", out / "sparse")]
+    assert (out / "database.db").is_file()
+    assert (out / "sparse").is_dir()
+    assert (rec.database.images, rec.database.verified) == (3, 2)
+    assert (rec.models, rec.registered, rec.points, rec.model) == (2, 3, 40, out / "sparse" / "1")
+    with pytest.raises(InputError, match="exists"):  # the database is there now
+        sfm.reconstruct(scene / "img", out, retrieval=None)
+    with pytest.raises(OptionsError, match="mapper must be"):
+        sfm.reconstruct(scene / "img", scene / "other", mapper="hierarchical")
+    assert cli.main(["sfm", str(scene / "img"), str(scene / "cli"), "--retrieval", "none", "--reconstruct"]) == 0
+    text = capsys.readouterr().out
+    assert "2 verified" in text
+    assert f"3/3 images, 40 points -> {scene / 'cli' / 'sparse' / '1'}" in text
+    assert fake_pycolmap[-1][0] == "incremental"
+
+
+def test_reconstruct_names_the_sfm_extra_without_pycolmap(scene, monkeypatch):
+    monkeypatch.setitem(sys.modules, "pycolmap", None)  # import fails
+    with pytest.raises(MissingDependencyError, match=r"fastforks-core\[sfm\]"):
+        sfm.reconstruct(scene / "img", scene / "out")
+    assert not (scene / "out").exists()
