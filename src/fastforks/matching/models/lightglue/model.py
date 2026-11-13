@@ -19,7 +19,7 @@ import torch
 from torch import nn
 
 from fastforks.matching._runner import Forward, Runner
-from fastforks.shared.lightglue import LightGlue, resize_long
+from fastforks.shared.lightglue import LightGlue, match_many, resize_long
 
 from .net.aliked import ALIKED
 from .net.disk import DISK
@@ -123,7 +123,7 @@ class Portable(Runner):
         return self.net(image1, image2)
 
     match_reads_images = False
-    match_streams = 2  # match_pairs, garden, ALIKED: 15.0 ms per pair instead of 19.0, +128 MB (3: 14.5 ms, +110 MB)
+    matches_many = True
 
     def describe(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The image's keypoints and descriptors: the per-image stage."""
@@ -133,6 +133,19 @@ class Portable(Runner):
         """`__call__` with the two images' `describe` results (the images are not read again)."""
         del image1, image2
         return self.net.match(*described)
+
+    def match_many(self, described: list[tuple[Any, Any]]) -> list[dict[str, torch.Tensor]]:
+        """`match` of many pairs in one packed LightGlue forward (`fastforks.shared.lightglue.match_many`)."""
+        outs = match_many(self.net.matcher, described)
+        return [
+            {
+                "keypoints1": f1["keypoints"][0],
+                "keypoints2": f2["keypoints"][0],
+                "pairs": o["matches"],
+                "scores": o["scores"],
+            }
+            for (f1, f2), o in zip(described, outs, strict=True)
+        ]
 
     def module(self) -> torch.nn.Module:
         """The extractor and matcher (data-dependent keypoint counts: compiles with graph breaks, does not export)."""

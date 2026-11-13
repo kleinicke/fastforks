@@ -71,6 +71,13 @@ class Runner(core.Runner):
         """`__call__(image1, image2)`, bit-identical, from the two images' `describe` results."""
         raise NotImplementedError
 
+    matches_many = False
+    """Whether `match_many` is implemented: `match_pairs` then matches `_AT_ONCE_WINDOW` pairs per call with it."""
+
+    def match_many(self, described: list[tuple[Any, Any]]) -> list[dict[str, torch.Tensor]]:
+        """`match` of many pairs at once (a `match` that does not read the images), one result per pair."""
+        raise NotImplementedError
+
     def module(self) -> torch.nn.Module:
         """The plain-PyTorch network as an `nn.Module`, as `torch.export` / ONNX export see it.
 
