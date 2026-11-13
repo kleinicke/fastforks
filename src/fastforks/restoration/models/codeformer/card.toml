@@ -1,0 +1,40 @@
+schema = 2
+name = "CodeFormer"
+summary = "CodeFormer (Zhou et al., NeurIPS 2022): blind face restoration with a learned codebook: a VQGAN encoder, a transformer that predicts the code of each of the 16 x 16 latent positions, and the VQGAN decoder with controllable feature fusion from the encoder (fidelity w). Input: an aligned 512 x 512 face crop (FFHQ alignment); detecting, aligning and pasting the face back are not part of the model."
+tier = "experimental"
+outputs = ["image"]
+
+[upstream]
+repo = "https://github.com/sczhou/CodeFormer"
+commit = "b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b"  # basicsr/archs/codeformer_arch.py, vqgan_arch.py; the call is inference_codeformer.py (net(x, w=w, adain=True)[0] on the [-1, 1] aligned face)
+
+[licence]
+code = "LicenseRef-noncommercial"  # S-Lab License 1.0: redistribution and use for non-commercial purposes; no share-alike clause
+weights = "LicenseRef-noncommercial"  # the v0.1.0 GitHub release of the same repository, under its S-Lab License 1.0
+files = ["LICENSE"]
+training_data = ["ffhq"]
+training_note = "Paper Sec. 4.1: FFHQ (70 000 faces, resized to 512 x 512) with synthetic degradations (blur, downsampling, noise, JPEG)."
+evidence = "https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/LICENSE ; https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/README.md (weights: https://github.com/sczhou/CodeFormer/releases/tag/v0.1.0)"
+
+[io]
+input = "0-1"  # the runner maps [0, 1] to the network's [-1, 1] and back (upstream: normalize(0.5, 0.5), tensor2img(min_max=(-1, 1)))
+min_size = 512  # exactly the aligned 512 x 512 crop (the runner rejects other sizes)
+
+[params]
+scale = 1
+size = 512
+fidelity = 0.5  # w, inference_codeformer.py's default
+key = "params_ema"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not built yet: a VQGAN of 3x3 convolutions with GroupNorm around a 16 x 16 transformer; fp16-accumulate convolutions (`cudnn_hacc`) are the next step"
+
+[[variants]]
+id = "codeformer"
+revision = 1
+weights = [{ name = "codeformer.pth", size = 376637898, sha256 = "1009e537e0c2a07d4cabce6355f53cb66767cd4b4297ec7a4a64ca4b8a5684b7", url = "https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/codeformer.pth" }]

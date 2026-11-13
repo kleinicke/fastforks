@@ -17,6 +17,11 @@
   kernels, 18.4 ms portable vs 77.3 ms original fp16; L 69.3 / 125 vs 438 ms; peak 0.35x of the original. Accuracy:
   GPU goldens against upstream (no prompt-depth benchmark data here).
 
+- CodeFormer face restoration (`codeformer`, restoration; non-commercial, S-Lab License 1.0): an aligned 512x512
+  face crop in, `fidelity` w = 0.5. 48.6 ms portable fp16 (30.8 ms compile, 16.3 ms TensorRT) vs 85.7 ms original
+  fp32 (its `.half()` fails), peak 0.51 GB vs 0.96 GB. Output PSNR vs the original fp32: 50.5 dB (fp16 portable;
+  the original under fp16 autocast: 49.8 dB). Face detection / alignment is not included; no kernels runner.
+
 - SegFormer fine-tunes (`segformer-b2-clothes`, 18 clothes / body classes, licence not stated;
   `segformer-b5-face-parsing`, 19 face classes, non-commercial; segmentation): the checkpoints' processor (fixed
   512x512 resize, card `resize = ["fixed", 512, 512]`). 512x512: B2 3.6 ms kernels, 8.1 ms portable (2.7 ms

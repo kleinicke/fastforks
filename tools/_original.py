@@ -625,6 +625,20 @@ def _dat(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda x: g.run(net, x, p["scale"])
 
 
+def _codeformer(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `CodeFormer` as `tools/golden/codeformer.py` (`FF_CODEFORMER_REPO`, `FF_CODEFORMER_WEIGHTS`), float32.
+
+    As `inference_codeformer.py` on one aligned 512 x 512 face: [-1, 1], `net(x, w, adain=True)[0]`, back to [0, 1].
+    """
+    g = _golden("codeformer")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    tree = g.reference_tree(Path(os.environ["FF_CODEFORMER_REPO"]), g.REF_COMMIT)
+    net = g.build(tree, Path(os.environ["FF_CODEFORMER_WEIGHTS"]) / variant.weights[0].name, p).cuda()
+    a.note = f"upstream inference_codeformer.py on the aligned face, float32, w {p['fidelity']}"
+    return lambda x: g.run(net, x, p["fidelity"])
+
+
 def _bchw01(args: tuple[Any, ...]) -> tuple[Any, ...]:
     """uint8 CUDA CHW -> float32 `[1, 3, H, W]` in [0, 1] (BasicSR's lq)."""
     return ((args[0].float() / 255)[None],)
@@ -1779,6 +1793,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "swinir": _Local("restoration", _swinir, ((512, 512),), _bchw01),
     "hat": _Local("restoration", _hat, ((512, 512),), _bchw01),
     "dat": _Local("restoration", _dat, ((512, 512),), _bchw01),
+    "codeformer": _Local("restoration", _codeformer, ((512, 512),), _bchw01),
     "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
     "flowformer": _Local("flow", _flowformer, ((1080, 1920), (375, 1242))),
     "flowseek": _Local("flow", _flowseek, ((1080, 1920), (375, 1242))),

@@ -36,6 +36,9 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- CodeFormer (`codeformer`, restoration): portable MPS goldens and Mac speed rows (512x512 aligned face; MPS runs
+  float32). No kernels runner. Weights: the pinned GitHub release URL of the card (also in
+  `/home/florian/projects/data/ff-weights/codeformer/`).
 - SegFormer fine-tunes (`segformer-b2-clothes`, `segformer-b5-face-parsing`, segmentation): portable MPS goldens
   and Mac speed rows (512x512). Weights: the pinned Hugging Face URLs of the card (also in
   `/home/florian/projects/data/ff-weights/segformer/`).
