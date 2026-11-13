@@ -1,0 +1,44 @@
+schema = 2
+name = "LingBot-Map"
+summary = "LingBot-Map (Robbyant, 2026): streaming 3D reconstruction. A VGGT-style aggregator (DINOv2 ViT-L patch embed, 24 frame / global attention blocks, 3D RoPE) runs causally over the views in order with a KV cache (scale frames + a sliding window), then a camera head and a DPT depth head give cameras and depth of every view."
+tier = "experimental"
+uses = ["rope2d"]  # shared modules imported directly by this family (through the VGGT family)
+outputs = ["depth", "confidence", "intrinsics", "cam_to_world"]
+limitations = [
+  "Views are a sequence (a video): each view only sees the first `scale_frames` views and the views before it (older than `window` frames: their 6 special tokens only). At most 1024 views.",
+]
+
+[output]
+kind = "scale_invariant"  # the scene's scale is the network's own: depth and translations share one unknown scale
+
+[upstream]
+repo = "https://github.com/Robbyant/lingbot-map"
+commit = "b9dd1b1"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"  # the Hugging Face repo states no licence of its own: the code licence applies
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Per the README: a stage-1 bidirectional (VGGT-style) checkpoint, then streaming training; datasets are not listed"
+evidence = "https://github.com/Robbyant/lingbot-map/blob/b9dd1b1/LICENSE.txt and https://huggingface.co/robbyant/lingbot-map (no licence field)"
+
+[io]
+input = "0-1"  # the runner resizes (long side long_side, multiples of 14, bicubic antialiased) and normalises itself
+pad = "none"
+
+[options]
+long_side = { default = 518, min = 14 }  # network long side (original demo: width 518)
+scale_frames = { default = 8, min = 1 }  # original --num_scale_frames
+window = { default = 64, min = 1 }  # original --kv_cache_sliding_window
+
+[modes.portable]
+cuda_dtype = "float16"
+
+[modes.kernels]
+kernels = ["fastbb", "cudnn_hacc"]
+
+[[variants]]
+id = "lingbot-map"
+revision = 1
+weights = [{ name = "lingbot-map.pt", size = 4632303465, sha256 = "ee665103348e07e6b826d529b8e61de8f413d5432a4f2e84970d6c8fd2e1cd72", url = "https://huggingface.co/robbyant/lingbot-map/resolve/e8984048a940fbdfa19909f8cc0c0ad834c1ee5a/lingbot-map.pt" }]

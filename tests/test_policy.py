@@ -67,6 +67,10 @@ CROSS_FAMILY_IMPORTS |= {
     )
     for file in ("model", "net")
 }
+# LingBot-Map is VGGT's code with a streaming aggregator: it reuses VGGT's modules and fast path.
+CROSS_FAMILY_IMPORTS |= {
+    f"multiview/models/lingbot_map/{file}.py": "fastforks.multiview.models.vggt" for file in ("model", "net")
+}
 TORCH_LOAD = {"depth/models/midas/model.py", "depth/models/zoedepth/model.py"}  # per-family checkpoint loaders
 UNDOCUMENTED_CONSTANTS = {
     ("depth/models/depth_anything_3/model.py", "PATCH"),
