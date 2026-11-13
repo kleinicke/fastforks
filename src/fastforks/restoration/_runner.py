@@ -26,7 +26,7 @@ def from_checkpoint(sd):  # a user's state dict (`load_file`): None if it is not
     return "<variant id>", {"scale": 4, ...}, sd  # params read from the shapes, keys mapped to the network's
 ```
 
-`from_checkpoint` raises `WeightsError` for this family's network in a configuration the code does not implement.
+`from_checkpoint` is optional; it raises `WeightsError` for its network in a configuration the code does not run.
 
 The core does everything else: image conversion and checks, scaling and padding as the card's `[io]` says, tiling,
 cropping (`scale` x the padding), clamping to `[0, 1]`, output checks, the cast to float32, batching, locking and the
