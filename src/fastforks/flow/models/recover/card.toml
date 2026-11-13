@@ -1,0 +1,55 @@
+schema = 2
+name = "ReCoVEr"
+summary = "ReCoVEr (Kiefhaber, Roth & Schaub-Meyer, ICCV 2025): optical flow without a cost volume. SEA-RAFT's update block refines a flow regressed from a context encoder on both frames (6 channels, stride 8); the authors' training removes the correlation input, so no feature encoder and no correlation pyramid run at inference. 4 iterations, convex upsampling. The authors' released weights; the network is ported from visinf/ReCoVEr. Three context encoders: `recover-cx` (ConvNeXt-T stages, most accurate), `recover-rn` (ResNet34 stages), `recover-mn` (MobileNetV3-Large, fastest). Paper: CX reaches state-of-the-art accuracy at 1.2x the speed and 1/6 the memory of comparable models; MN runs Full HD at 20 FPS in 500 MB."
+tier = "experimental"
+outputs = ["flow"]
+uses = []  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/visinf/ReCoVEr"
+commit = "503a27e38bad1080bd29da91df74c5523e11f8d8"  # net.py ports models/recover.py, update.py, layer.py, resnet.py, mobilenet.py, convnext.py
+
+[licence]
+code = "BSD-3-Clause"  # LICENSE: Copyright (c) 2025, Visual Inference Lab @TU Darmstadt
+weights = "BSD-3-Clause"  # no separate licence: the checkpoints are a release asset of the BSD-3-Clause repository
+files = ["LICENSE"]
+training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"]
+training_note = "TartanAir, FlyingChairs, FlyingThings3D (part of SceneFlow), then a mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH), as upstream's config/recover_*/Tartan*.json stages"
+evidence = "https://github.com/visinf/ReCoVEr/blob/503a27e38bad1080bd29da91df74c5523e11f8d8/LICENSE"
+
+[io]
+input = "mean_std"  # upstream: 2 * (x / 255) - 1, i.e. [0, 1] -> [-1, 1]
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+min_size = 64  # 1/8 feature maps of at least 8 px
+pad = { multiple = 8, mode = "centre", fill = "replicate" }  # upstream InputPadder ('sintel' mode)
+
+[options]
+iters = { default = 4, min = 1 }  # flow updates after the initial regression (upstream's default args: 4)
+
+[params]
+arch = "cx"
+
+[modes.portable]
+cuda_dtype = "float16"  # the whole network in fp16 channels-last; flow state and convex upsampling in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions (+ fp16-accumulate cuBLAS GEMMs)
+
+[[variants]]
+id = "recover-cx"  # upstream ReCoVEr_CX, ckpt/recover_cx.pth
+revision = 1
+weights = [{ name = "recover_cx.pth", size = 160306281, sha256 = "623319aa23ad2e04acfb8250b0dbd3fa7006d792981a7edb2cf348b2d0f907ca", url = "https://github.com/visinf/ReCoVEr/releases/download/0.1/ckpt.tar.gz", member = "ckpt/recover_cx.pth", archive = { size = 276615565, sha256 = "6740586ad2cd78ca22234690600c92b50abeaa678c0b070d5139f5fffb605e3d" } }]
+
+[[variants]]
+id = "recover-rn"  # upstream ReCoVEr_RN, ckpt/recover_rn.pth
+revision = 1
+params = { arch = "rn" }
+weights = [{ name = "recover_rn.pth", size = 78902298, sha256 = "3c24e9c62f31d5e7a2d43184fd59fd18650f91b1da1298908d92807fb37d7d76", url = "https://github.com/visinf/ReCoVEr/releases/download/0.1/ckpt.tar.gz", member = "ckpt/recover_rn.pth", archive = { size = 276615565, sha256 = "6740586ad2cd78ca22234690600c92b50abeaa678c0b070d5139f5fffb605e3d" } }]
+
+[[variants]]
+id = "recover-mn"  # upstream ReCoVEr_MN, ckpt/recover_mn.pth
+revision = 1
+params = { arch = "mn" }
+weights = [{ name = "recover_mn.pth", size = 58889028, sha256 = "b187dc6f4de8a2e97411c4462ec886cdf5bb1aeac37a75fae2bcb1a2d4d00fd7", url = "https://github.com/visinf/ReCoVEr/releases/download/0.1/ckpt.tar.gz", member = "ckpt/recover_mn.pth", archive = { size = 276615565, sha256 = "6740586ad2cd78ca22234690600c92b50abeaa678c0b070d5139f5fffb605e3d" } }]

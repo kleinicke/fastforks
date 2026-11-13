@@ -45,6 +45,7 @@ BF16 = {
     "anysplat",
     "pi3",
     "insid3",
+    "megaflow",
 }  # the authors' mixed precision is bfloat16
 NATIVE_HALF = {
     "depth_pro",
@@ -725,6 +726,34 @@ def _megaflow(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001
             return net(torch.stack([im1, im2]).float()[None], num_reg_refine=g.ITERS)["flow_preds"][-1][:, 0]
 
     return call
+
+
+def _recover(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Upstream `ReCoVEr_{CX,RN,MN}` as `tools/golden/recover.py` (`FF_RECOVER_REPO`): uint8 pair as float [0, 255].
+
+    Upstream scales, pads and unpads inside its forward (its demo.py `calc_flow` at scale 0); no fp16 option.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+    from fastforks._core.checkpoint import load_state_dict  # noqa: PLC0415
+
+    g = _golden("recover")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_RECOVER_REPO")
+        if not repo:
+            msg = "FF_RECOVER_REPO: a clone of visinf/ReCoVEr for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+        sys.path[:0] = [str(a.tree)]
+        g._no_imagenet()  # noqa: SLF001 - the golden's own switch: no ImageNet download at construction
+    from models import recover  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    card, variant = registry.resolve("flow", full)
+    arch = variant.params.get("arch", card.params["arch"])
+    net = getattr(recover, g.CLASSES[arch])(pretrained=False)
+    net.load_state_dict(load_state_dict(registry.weights(card, variant, allow_download=False)[0]), strict=True)
+    net = net.cuda().eval()
+    a.note = f"upstream {g.CLASSES[arch]}, iters={g.ITERS}, test_mode"
+    return lambda im1, im2: net(im1[None].float(), im2[None].float(), iters=g.ITERS, test_mode=True)["final"]
 
 
 def _vitpose(a: Any, full: str) -> Any:  # noqa: ANN401
@@ -1956,6 +1985,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "memflow": _Local("flow", _memflow, ((1080, 1920), (375, 1242))),
     "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
     "megaflow": _LocalFp16("flow", _megaflow, ((1080, 1920), (375, 1242))),
+    "recover": _Local("flow", _recover, ((1080, 1920), (375, 1242))),
     "rife": _LocalFp16("interpolation", _rife, ((1080, 1920),)),
     "realesrgan": _LocalFp16("restoration", _realesrgan, ((512, 512),), _hwc01),
     "span": _Local("restoration", _span, ((512, 512),), _bchw01),
