@@ -51,11 +51,14 @@ class Runner(core.Runner):
             "pairs": [K, 2] (integer indices into the two keypoint sets), "scores": [K]}`, keypoints in input pixels.
         """
 
+    match_reads_images = True
+    """Whether `match` reads the images; if not, `match_pairs` decodes only images whose `describe` is not kept."""
+
     def describe(self, image: torch.Tensor) -> object:  # noqa: ARG002 - the default: no per-image stage
         """The part of a call that depends on one image only (`[1, 3, H, W]`, scaled), or `None` if there is none.
 
         `MatchingModel.match_pairs` computes it once per image and passes the two results to `match`. Whatever it
-        returns (tensors, lists / tuples of them) must not be modified by `match`.
+        returns (tensors, lists / tuples / dicts of them) must not be modified by `match`.
         """
         return None
 

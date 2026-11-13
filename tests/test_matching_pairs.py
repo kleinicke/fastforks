@@ -8,10 +8,14 @@ import types
 import numpy as np
 import pytest
 import torch
+from PIL import Image
 
 from fastforks import matching
 from fastforks._core import registry
-from fastforks.matching._pairs import PairCache
+from fastforks._core.image import decode_image
+from fastforks.matching import _api as matching_api
+from fastforks.matching import _pairs
+from fastforks.matching._pairs import PairCache, nbytes
 from fastforks.matching._runner import Runner
 
 
@@ -110,3 +114,61 @@ def test_match_pairs_equals_single_calls(monkeypatch, cache_mb: float):
         assert torch.equal(result.warp, single.warp)
         assert torch.equal(result.certainty, single.certainty)
         assert result.warp.shape == (2, 16 + i, 24)
+
+
+def test_nbytes_counts_dict_values():
+    value = {"keypoints": torch.zeros(4, 2), "descriptors": [torch.zeros(4, 8)], "name": "x"}
+    assert nbytes(value) == 4 * (8 + 32)
+
+
+@dataclasses.dataclass(frozen=True)
+class SparseParams:
+    extractor: str
+    max_keypoints: int
+    detection_threshold: float
+    long_side: int
+
+
+class SparseDummy(Runner):
+    """Keypoints = the image corners scaled by its red mean; `match` does not read the images."""
+
+    Params = SparseParams
+    match_reads_images = False
+
+    def __call__(self, image1, image2):
+        return self.match(image1, image2, (self.describe(image1), self.describe(image2)))
+
+    def describe(self, image):
+        return {"keypoints": torch.tensor([[0.0, 0.0], [1.0, 1.0]]) * image[0, 0].mean() + image.shape[-1]}
+
+    def match(self, image1, image2, described):  # noqa: ARG002 - test stub
+        return {
+            "keypoints1": described[0]["keypoints"],
+            "keypoints2": described[1]["keypoints"],
+            "pairs": torch.tensor([[0, 0], [1, 1]]),
+            "scores": torch.ones(2),
+        }
+
+
+@pytest.mark.parametrize(
+    ("runner", "decoded_mb", "once"), [(Dummy, 1024.0, True), (Dummy, 0.0, False), (SparseDummy, 0.0, True)]
+)
+def test_match_pairs_decodes_files_once(monkeypatch, tmp_path, runner, decoded_mb: float, *, once: bool):
+    """Files are decoded ahead and kept while later pairs need them (within `DECODED_MB`); a runner whose `match`
+    does not read the images needs no file again once its `describe` result is kept."""
+    card = "romav2" if runner is Dummy else "aliked-lightglue"
+    monkeypatch.setattr(registry, "import_model", lambda _card: types.SimpleNamespace(RUNNERS={"portable": runner}))
+    monkeypatch.setattr(matching_api, "DECODED_MB", decoded_mb)
+    model = matching.load(card, device="cpu", mode="portable")
+    arrays = [np.full((64 + i, 72, 3), 20 * i, np.uint8) for i in range(5)]
+    paths = [tmp_path / f"{i}.png" for i in range(5)]
+    for path, array in zip(paths, arrays, strict=True):
+        Image.fromarray(array).save(path)
+    calls = []
+    monkeypatch.setattr(_pairs, "decode_image", lambda p: calls.append(p) or decode_image(p))
+    pairs = [(0, 1), (1, 2), (0, 2), (3, 4), (2, 0), (4, 4), (0, 3)]
+    results = list(model.match_pairs(paths, pairs))
+    assert (len(calls) == len(paths)) == once
+    for result, expected in zip(results, model.match_pairs(arrays, pairs), strict=True):
+        for name in ("keypoints1", "keypoints2") if model.sparse else ("warp",):
+            assert torch.equal(getattr(result, name), getattr(expected, name))

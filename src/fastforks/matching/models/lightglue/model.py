@@ -13,7 +13,7 @@ float32.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 from torch import nn
@@ -86,7 +86,10 @@ class Matcher(nn.Module):
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """The pair's features and matches (batch 1)."""
-        f1, f2 = self.extract(image1), self.extract(image2)
+        return self.match(self.extract(image1), self.extract(image2))
+
+    def match(self, f1: dict[str, torch.Tensor], f2: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        """LightGlue on the two images' `extract` results."""
         out = self.matcher({"image0": f1, "image1": f2})
         return {
             "keypoints1": f1["keypoints"][0],
@@ -118,6 +121,17 @@ class Portable(Runner):
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Keypoints of both images, the index pairs of their matches and the match scores."""
         return self.net(image1, image2)
+
+    match_reads_images = False
+
+    def describe(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The image's keypoints and descriptors: the per-image stage."""
+        return self.net.extract(image)
+
+    def match(self, image1: torch.Tensor, image2: torch.Tensor, described: tuple[Any, Any]) -> dict[str, torch.Tensor]:
+        """`__call__` with the two images' `describe` results (the images are not read again)."""
+        del image1, image2
+        return self.net.match(*described)
 
     def module(self) -> torch.nn.Module:
         """The extractor and matcher (data-dependent keypoint counts: compiles with graph breaks, does not export)."""

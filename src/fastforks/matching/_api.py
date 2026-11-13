@@ -11,10 +11,10 @@ from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_pair
 from fastforks._core.errors import CardError, InputError
-from fastforks._core.image import ImageLike, is_batch, to_rgb_batches, unbatch
+from fastforks._core.image import ImageLike, is_batch, to_rgb_batch, to_rgb_batches, unbatch
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs
-from fastforks.matching._pairs import PairCache
+from fastforks.matching._pairs import DecodedImages, PairCache
 from fastforks.matching._runner import scale
 from fastforks.matching.relative_pose import FundamentalMatrix, RelativePose, estimate_fundamental, estimate_pose
 
@@ -37,6 +37,7 @@ __all__ = [
 TASK = "matching"
 Mode = Literal["auto", "portable", "kernels"]
 CACHE_MB = 512.0  # `match_pairs`: 26 RoMa v2 descriptors (19.5 MB each at coarse_size 800)
+DECODED_MB = 1024.0  # `match_pairs`: host memory for decoded image files (300 images of 1 MP)
 
 
 @dataclass(frozen=True)
@@ -353,7 +354,8 @@ class MatchingModel(core.Model):
         together to avoid it). Families without a per-image part just run the pairs.
 
         Args:
-            images: The image set (paths are read when their pair comes; any `ImageLike`, single images).
+            images: The image set (any `ImageLike`, single images; files are decoded once, in background threads
+                ahead of their pairs, and kept in host memory while later pairs need them).
             pairs: `(i, j)` indices into `images`: match image `i` into image `j`.
             cache_mb: Device memory for the kept per-image parts, in MB (RoMa v2: 19.5 MB per image; the two images
                 of the running pair come on top).
@@ -366,13 +368,31 @@ class MatchingModel(core.Model):
         """
         pairs = [(int(i), int(j)) for i, j in pairs]
         cache = PairCache(pairs, int(cache_mb * 2**20))
+        lazy = self.sparse and not self._runner.match_reads_images
+        with DecodedImages(images, pairs, int(DECODED_MB * 2**20), lambda i: lazy and i in cache.kept) as decoded:
+            yield from self._match_pairs(images, pairs, cache, decoded, lazy=lazy)
+
+    def _match_pairs(
+        self,
+        images: Sequence[ImageLike],
+        pairs: list[tuple[int, int]],
+        cache: PairCache,
+        decoded: DecodedImages,
+        *,
+        lazy: bool,
+    ) -> Iterator[MatchingResult | SparseMatchingResult]:
+        """`lazy`: an image whose `describe` result is kept is not read (its size was checked when it was described)."""
         for pair in pairs:
             image1 = images[pair[0]]
-            t1, t2 = to_rgb_batches((image1, images[pair[1]]), self.device)
-            self._check_size(t1)
-            self._check_size(t2)
+            t1, t2 = (None if lazy and i in cache.kept else self._checked(decoded.get(i)) for i in pair)
+            decoded.done(pair)
             with self._session():
-                result = self._run_sparse(t1, t2, cache, pair) if self.sparse else self._run(t1, t2, cache, pair)
+                if self.sparse:
+                    result = self._run_sparse(t1, t2, cache, pair)
+                else:
+                    assert t1 is not None  # noqa: S101 - `lazy` is sparse only
+                    assert t2 is not None  # noqa: S101
+                    result = self._run(t1, t2, cache, pair)
                 cache.done(pair)
             if isinstance(result, dict):
                 maps = unbatch(result, image1)
@@ -382,16 +402,27 @@ class MatchingModel(core.Model):
             yield result
 
     def _matched(
-        self, image1: torch.Tensor, image2: torch.Tensor, cache: PairCache | None, pair: tuple[int, int]
+        self, image1: torch.Tensor | None, image2: torch.Tensor | None, cache: PairCache | None, pair: tuple[int, int]
     ) -> dict[str, torch.Tensor]:
-        """Scale and run one chunk; `cache` (`match_pairs`) holds the runner's per-image parts of the images `pair`."""
+        """Scale and run one chunk; `cache` (`match_pairs`) holds the runner's per-image parts of the images `pair`.
+
+        An image is `None` (`match_pairs`, a runner whose `match` does not read the images) if its part is kept.
+        """
         io = self.variant.io
-        image1, image2 = scale(image1, io), scale(image2, io)
+        image1, image2 = (None if x is None else scale(x, io) for x in (image1, image2))
         if cache is None:
-            return self._runner(image1, image2)
-        d1 = cache.get(pair[0], lambda: self._runner.describe(image1))
-        d2 = cache.get(pair[1], lambda: self._runner.describe(image2))
-        return self._runner(image1, image2) if d1 is None else self._runner.match(image1, image2, (d1, d2))
+            return self._runner(image1, image2)  # ty: ignore[invalid-argument-type] - images without a cache
+        d1 = cache.get(pair[0], lambda: self._runner.describe(image1))  # ty: ignore[invalid-argument-type] - not kept
+        d2 = cache.get(pair[1], lambda: self._runner.describe(image2))  # ty: ignore[invalid-argument-type]
+        if d1 is None:
+            return self._runner(image1, image2)  # ty: ignore[invalid-argument-type] - not lazy without `describe`
+        return self._runner.match(image1, image2, (d1, d2))  # ty: ignore[invalid-argument-type]
+
+    def _checked(self, image: ImageLike) -> torch.Tensor:
+        """`image` on the device as `[1, 3, H, W]`, its size checked."""
+        t = to_rgb_batch(image, self.device)
+        self._check_size(t)
+        return t
 
     def _run(
         self, image1: torch.Tensor, image2: torch.Tensor, cache: PairCache | None = None, pair: tuple[int, int] = (0, 0)
@@ -402,7 +433,11 @@ class MatchingModel(core.Model):
         return self._check_outputs(out, {"warp": (b, 2, h, w), "certainty": (b, h, w)})
 
     def _run_sparse(
-        self, image1: torch.Tensor, image2: torch.Tensor, cache: PairCache | None = None, pair: tuple[int, int] = (0, 0)
+        self,
+        image1: torch.Tensor | None,
+        image2: torch.Tensor | None,
+        cache: PairCache | None = None,
+        pair: tuple[int, int] = (0, 0),
     ) -> SparseMatchingResult:
         """Scale, run and check one pair `[1, 3, H, W]`."""
         out = self._matched(image1, image2, cache, pair)
