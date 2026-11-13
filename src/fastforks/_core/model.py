@@ -12,6 +12,8 @@ import dataclasses
 import difflib
 import functools
 import importlib
+import importlib.abc
+import importlib.machinery
 import json
 import logging
 import math
@@ -224,21 +226,58 @@ def _import_dynamo() -> None:
         t = threading.Thread(target=importlib.import_module, args=("torch._dynamo",))
         t.start()
         t.join()  # an import error is raised again by the caller's own import
+    _arm()
+
+
+def _arm() -> None:
     while _AFTER_DYNAMO:
         with contextlib.suppress(IndexError):  # another thread took the last one
             _AFTER_DYNAMO.pop()()
 
 
-_AFTER_DYNAMO: list[Callable[[], None]] = []  # `eager_in_compile` wrappers still to make, once dynamo is imported
+class _DynamoImported(importlib.abc.MetaPathFinder):
+    """Runs the waiting `_AFTER_DYNAMO` steps right after `torch._dynamo` is imported, by whoever imports it.
+
+    `torch.compile` imports it before it traces anything, so a caller's own `torch.compile` finds the eager wrappers
+    made; a process that never compiles never pays dynamo's ~1 s import.
+    """
+
+    def find_spec(self, name: str, path: Any, target: Any = None) -> Any:  # noqa: ANN401 - the finder protocol
+        if name != "torch._dynamo":
+            return None
+        with contextlib.suppress(ValueError):  # once
+            sys.meta_path.remove(self)
+        spec = importlib.machinery.PathFinder.find_spec(name, path, target)
+        if spec is not None and isinstance(spec.loader, importlib.machinery.SourceFileLoader):
+            run = spec.loader.exec_module
+
+            def exec_module(module: Any) -> None:  # noqa: ANN401 - the loader protocol
+                run(module)
+                _arm()
+
+            spec.loader.exec_module = exec_module  # ty: ignore[invalid-assignment] - this spec's own loader instance
+        return spec
+
+
+_AFTER_DYNAMO: list[Callable[[], None]] = []  # `torch.compiler.disable` wrappers still to make, once dynamo is imported
+if "torch._dynamo" not in sys.modules:
+    sys.meta_path.insert(0, _DynamoImported())
 _Fn = TypeVar("_Fn", bound="Callable[..., Any]")
 
 
-def eager_in_compile(fn: _Fn) -> _Fn:
-    """`fn`, run eagerly (untraced) when it is called inside a `Model.compile()` trace.
+def _after_dynamo(arm: Callable[[], None]) -> None:
+    """Run `arm` now if `torch._dynamo` is imported, else right after its import (~1 s: eager processes skip it)."""
+    if "torch._dynamo" in sys.modules:
+        arm()
+    else:
+        _AFTER_DYNAMO.append(arm)
 
-    `torch.compiler.disable` imports `torch._dynamo`, so the disabled function is not made here (at the import of
-    the caller's module) but by `_import_dynamo`, which `compile()` and every kernels load call first. A trace that
-    starts without it (a caller's own `torch.compile`) traces `fn`.
+
+def eager_in_compile(fn: _Fn) -> _Fn:
+    """`fn`, run eagerly (untraced) when it is called inside a `torch.compile` trace.
+
+    `torch.compiler.disable` imports `torch._dynamo`, so the disabled function is made only once dynamo is imported
+    (`_DynamoImported`), not at the import of the caller's module.
     """
     disabled: Callable[..., Any] | None = None
 
@@ -246,10 +285,7 @@ def eager_in_compile(fn: _Fn) -> _Fn:
         nonlocal disabled
         disabled = torch.compiler.disable(fn)
 
-    if "torch._dynamo" in sys.modules:
-        arm()
-    else:
-        _AFTER_DYNAMO.append(arm)
+    _after_dynamo(arm)
 
     @functools.wraps(fn)
     def call(*a: Any, **k: Any) -> Any:  # noqa: ANN401 - the wrapped function's own signature
@@ -265,7 +301,6 @@ def _kernels_entry_points(runner: Runner) -> None:
     launcher probes, else none). Dynamo would otherwise trace into the kernel launchers (RecursionError, then a silent
     eager run); outside a trace the check costs one `is_compiling()` call.
     """
-    _import_dynamo()  # `torch.compiler.disable` imports it
     base = type(runner)
 
     def opaque(name: str) -> Callable[..., Any]:
@@ -275,7 +310,13 @@ def _kernels_entry_points(runner: Runner) -> None:
         def run(self: Any, *a: Any, **k: Any) -> Any:  # noqa: ANN401 - the runner's bound method
             return checked(eager, self, *a, **k)
 
-        disabled = torch.compiler.disable(run)
+        disabled: Callable[..., Any] = run
+
+        def arm() -> None:
+            nonlocal disabled
+            disabled = torch.compiler.disable(run)
+
+        _after_dynamo(arm)  # not imported at load: dynamo's first import costs ~1 s
 
         @functools.wraps(eager)
         def call(self: Any, *a: Any, **k: Any) -> Any:  # noqa: ANN401 - the runner's bound method
@@ -1102,11 +1143,14 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
         if error is None:
             raise
         raise error from e
+    finally:
+        ctx.drop_state()  # runners keep `ctx`
     if mode == "kernels" and device.type == "cuda":
         claim_kernels_device(device)
     adapt_to_device(runner, mode, device)
     if device.type == "cuda":
         warmup.wait(device)  # the loaded model starts on a clean device: no warm-up step (cuBLAS workspace) still live
+        torch.cuda.empty_cache()  # nor the build's freed buffers (device checkpoint copies, casts) as reserved memory
     backend = Backend(
         mode,
         str(device),

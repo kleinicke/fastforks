@@ -3,7 +3,7 @@ name = "BiRefNet"
 summary = "BiRefNet (Zheng et al., CAAI AIR 2024): bilateral reference network for high-resolution dichotomous image segmentation and background removal. A Swin Transformer v1 encoder at full and half resolution feeds a decoder with deformable ASPP blocks, image patches as reference and gradient attention; one foreground mask per image."
 tier = "experimental"
 outputs = ["alpha"]
-uses = ["swin_v1", "deform_conv"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "deform_conv", "swin_v1"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/ZhengPeng7/BiRefNet"

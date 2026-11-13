@@ -3,7 +3,7 @@ name = "Prompt Depth Anything"
 summary = "Prompt Depth Anything (Lin et al., CVPR 2025): metric depth from an image and a low-resolution metric depth prompt (e.g. a LiDAR map), a DINOv2 ViT with a DPT head that fuses the prompt at every refinement stage."
 tier = "experimental"
 outputs = ["depth"]
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the ViT and the DPT blocks)
+uses = ["cv2_resize", "depth_anything_v2"]  # fastforks.shared modules this family imports (the ViT and the DPT blocks)
 limitations = [
   "The depth prompt is required: call the model with `prompt_depth=` a finite, positive map in metres (zero or missing LiDAR pixels must be filled first). Export is at a fixed size only.",
 ]

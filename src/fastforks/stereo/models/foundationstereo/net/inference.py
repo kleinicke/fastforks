@@ -23,6 +23,7 @@ import math
 from dataclasses import dataclass
 
 import torch
+from fastforks._core.tracing import in_onnx_export
 from fastforks._core.patch import override
 import torch.nn as nn
 import torch.nn.functional as F
@@ -42,7 +43,7 @@ class Opts:
 
 
 def _exporting():
-    return torch.compiler.is_exporting() or torch.compiler.is_compiling() or torch.onnx.is_in_onnx_export()
+    return torch.compiler.is_exporting() or torch.compiler.is_compiling() or in_onnx_export()
 
 
 # ------------------------------------------------------------------------------------------------ preparation

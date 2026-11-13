@@ -126,7 +126,8 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
         super().__init__(ctx)
-        net = ConvNext(ctx.params.arch)
+        with torch.device("meta"):  # every tensor is assigned
+            net = ConvNext(ctx.params.arch)
         load_strict(net, ctx.state_dict(), f"{ctx.variant.ref} checkpoint", assign=True)
         self.half = ctx.dtype == "float16"
         self.net = (net.half() if self.half else net).eval().to(ctx.device)
@@ -208,7 +209,8 @@ class Kernels(Runner):
         self.seg = fvm_seg.load(ctx.device)
         self._idx = torch.arange(0, dtype=torch.int32, device=ctx.device)  # identity row index of `ln_gather_h`
         self._old: list[torch.Tensor] = []  # outgrown index buffers a captured graph may still read
-        net = ConvNext(ctx.params.arch)
+        with torch.device("meta"):  # every tensor is assigned
+            net = ConvNext(ctx.params.arch)
         load_strict(net, ctx.state_dict(), f"{ctx.variant.ref} checkpoint", assign=True)
         dev = ctx.device
         self.stages = []

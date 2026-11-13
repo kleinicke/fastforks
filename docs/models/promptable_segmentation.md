@@ -17,7 +17,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`efficientvit-sam-l2`](#efficientvit_sam) | yes | 6.83, 5.0x | 312, 0.91x |
 | [`efficientvit-sam-xl0`](#efficientvit_sam) | yes | 9.75, 2.9x | 492, 0.73x |
 | [`efficientvit-sam-xl1`](#efficientvit_sam) | yes | 15.3, 2.7x | 728, 0.71x |
-| [`insid3-vitl16`](#insid3) | yes | 156, 4.6x | 1108, 0.63x |
+| [`insid3-vitl16`](#insid3) | yes | 157, 4.5x | 1228, 0.7x |
 | [`mobile-sam`](#mobile_sam) | yes | 6.86, 3.4x | 296, 1.0x |
 | [`sam-hq-vit-b`](#sam_hq) | yes | 36.8, 2.8x | 564, 0.32x |
 | [`sam-hq-vit-h`](#sam_hq) | yes | 144, 2.2x | 1708, 0.4x |
@@ -120,7 +120,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `insid3-vitl16` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 1649<br>713<br>256<br>156 | 1665 / 1746<br>2148 / 2226<br>986 / 1108<br>987 / 1108 |
+| `insid3-vitl16` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 1649<br>713<br>255<br>157 | 1665 / 1746<br>2148 / 2226<br>986 / 1228<br>987 / 1228 |
 
 <details><summary>Details</summary>
 
@@ -138,7 +138,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `insid3-vitl16` 1080x1920 (1.0 GiB peak allocated, 1.3 reserved)
 - `insid3-vitl16` original (fp32) 1024x1024: visinf/INSID3@0c165a10cf52 set_reference + set_target + segment, its encoder autocast off
 - `insid3-vitl16` original 1024x1024: the authors' mixed-precision option (bfloat16); visinf/INSID3@0c165a10cf52 set_reference + set_target + segment, bf16 autocast (as shipped)
-- `insid3-vitl16` load / first call: original 1.06 s / 1.114 s, portable 1.85 s / 0.344 s, kernels 3.03 s / 0.294 s
+- `insid3-vitl16` load / first call: original 1.06 s / 1.114 s, portable 2.69 s / 0.441 s, kernels 1.39 s / 0.464 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
