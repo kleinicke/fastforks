@@ -365,6 +365,12 @@ licence = "CC-BY-NC-SA-4.0"  # the dataset (NVIDIA); the images: their Flickr au
 commercial = "no"
 url = "https://github.com/NVlabs/ffhq-dataset"
 
+[wider-face]
+name = "WIDER FACE (32k images, 394k labelled faces)"
+licence = "LicenseRef-research-only"  # "The WIDER FACE dataset is available for non-commercial research purposes only."
+commercial = "no"
+url = "http://shuoyang1213.me/WIDERFACE/"
+
 [manga109]
 name = "Manga109 (109 Japanese manga volumes)"
 licence = "academic research only"  # Manga109-s is the subset for commercial use

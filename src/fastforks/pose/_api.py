@@ -57,6 +57,7 @@ SKELETONS: dict[str, tuple[tuple[int, int], ...]] = {  # limbs as keypoint index
         "0-1 1-2 2-3 3-4 0-5 5-6 6-7 7-8 0-9 9-10 10-11 11-12 0-13 13-14 14-15 15-16 0-17 17-18 18-19 19-20"
     ),
     "lapa-106": (),
+    "face-5": (),  # RetinaFace landmarks: points only
     "ap10k-17": _pairs("0-1 0-2 1-2 2-3 3-4 3-5 5-6 6-7 3-8 8-9 9-10 4-11 11-12 12-13 4-14 14-15 15-16"),
 }
 

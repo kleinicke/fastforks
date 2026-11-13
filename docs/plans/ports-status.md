@@ -198,6 +198,8 @@ In this order, unless something more useful turns up:
 - NeuFlow v2, all three variants: MPS float32 goldens and portable speed/memory rows. CUDA weights are in
   `~/scratch_tests/port-flow2/weights/` (symlinks to its cache), or use the pinned authors' URLs.
 
+- RetinaFace (resnet50, mobilenet0.25): MPS goldens and portable speed rows. Weights: the pinned facexlib release
+  URLs of the card (also on CUDA in `data/ff-weights/retinaface/`).
 - RTMO (4 bottom-up pose variants): MPS goldens, person counts near the score threshold, and portable speed.
   Weights in `~/scratch_tests/port-rtmo/w/` or its `cache/` on CUDA, otherwise the pinned upstream URLs.
 - HRNet top-down pose (w32, w32-384, w48, w48-384): MPS goldens and portable speed rows. CUDA bounds

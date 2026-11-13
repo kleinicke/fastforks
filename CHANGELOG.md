@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- RetinaFace face detection (`retinaface-resnet50`, `retinaface-mobilenet0.25`, pose task; MIT code and weights):
+  `model(image)` finds faces with a box and five landmarks (eyes, nose, mouth corners), facexlib's `detect_faces`
+  at the image's own size. 1080x1920: ResNet-50 11.7 ms kernels, 24.3 ms portable vs 81.0 ms original fp32
+  (79.4 ms autocast), peak 379 / 464 MB vs 545 / 648 MB; MobileNet-0.25 2.7 ms kernels, 3.4 ms portable vs 75.9 ms.
+
+- CodeFormer: the load option `fidelity` (alias `fidelity_weight`, 0..1) replaces the fixed 0.5.
+
+- Restoration `load_file`: HAT and DAT checkpoints are recognised by their keys, as SwinIR's.
+
 - MVSplat feed-forward Gaussian splatting (`mvsplat-re10k`, multiview; MIT code and weights): posed, calibrated views
   with a depth range to depth and `result.gaussians`, the scene scaled to near = 1 as DepthSplat. Window attention as
   one SDPA call, the cost volume in fp16 chunks of depth candidates. 8 views 336x518: 178 ms kernels, 186 ms portable

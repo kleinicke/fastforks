@@ -168,6 +168,7 @@ vggt = "VGGT (Meta): cameras, depth and 3D points for many images in one pass. N
 vggt_omega = "VGGT-Omega (Meta): the successor of VGGT with a DINOv3 backbone, cameras and depth from many images. Non-commercial licence."
 
 # --- pose
+retinaface = "RetinaFace (ResNet-50, MobileNet-0.25; biubug6 / facexlib): finds faces with a box and five landmarks (eyes, nose, mouth corners); the detector CodeFormer and GFPGAN use for face restoration. MIT."
 rfdetr_keypoint = "Roboflow RF-DETR Keypoint Preview: predicts people and their 17 COCO joints from a whole image using a DINOv2 backbone and transformer decoder. Apache-2.0 code and preview weights."
 hrnet = "HRNet (w32, w48; 256x192 and 384x288): top-down 2D human pose with a high-resolution CNN and heatmap decoding, the COCO checkpoints of OpenMMLab's mmpose. Apache-2.0."
 rtmo = "OpenMMLab's RTMO (t, s, m, l): real-time one-stage multi-person 2D pose; finds people and their 17 COCO keypoints in one pass over the image, no person detector needed. Apache-2.0."

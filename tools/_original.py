@@ -834,6 +834,22 @@ def _rtmo(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda bgr: inference_bottomup(net, bgr)
 
 
+def _retinaface(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """The facexlib `detect_faces` as `tools/golden/retinaface.py` (`FF_FACEXLIB_REPO`, `FF_RETINAFACE_WEIGHTS`).
+
+    float32 on CUDA, the image at its own size (`use_origin_size`), card thresholds; BGR uint8 in, NMS and decoding in
+    the timed call.
+    """
+    g = _golden("retinaface")
+    card, variant = full_ref("pose", full)[1:]
+    p = {**card.params, **card.options, **variant.params}
+    tree = g.reference_tree(Path(os.environ["FF_FACEXLIB_REPO"]), g.REF_COMMIT)
+    weights = Path(os.environ["FF_RETINAFACE_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(tree, weights, p["backbone"], "cuda").cuda()
+    a.note = "facexlib 0.3.0 detect_faces (use_origin_size, float32): preprocessing, network, NMS, decode"
+    return lambda bgr: g.run(net, bgr, p["score_threshold"], p["nms_iou"])
+
+
 def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401
     """`inference_detector` of mmdet on the `tools/golden/rtmdet.py` model (`FF_MMDET_SITE`), card thresholds.
 
@@ -1940,6 +1956,13 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "rtmo": _Local(
         "pose",
         _rtmo,
+        ((1080, 1920),),
+        lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),),
+        needs_boxes=False,
+    ),
+    "retinaface": _Local(
+        "pose",
+        _retinaface,
         ((1080, 1920),),
         lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),),
         needs_boxes=False,

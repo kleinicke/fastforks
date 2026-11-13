@@ -117,6 +117,7 @@ CPU_ALSO = {
     "mask-rcnn-r50-fpn-3x-coco@1": "mask head (smallest: Faster R-CNN, boxes only)",
     "mocha-v2-sceneflow@1": "mccv = false (smallest: true)",
     "raft-large@1": "residual blocks, convex upsampling, two GRUs (smallest: bottleneck, bilinear, one)",
+    "retinaface-resnet50@1": "ResNet-50 backbone, ReLU FPN / SSH (smallest: MobileNet-0.25, LeakyReLU)",
     "rtmo-l@1": "CSPRep blocks without the 1 x 1 output conv (smallest: with it)",
     "rtmpose-t-face6@1": "1 : 1 crop, 106 keypoints (smallest: 3 : 4 crop, 17)",
     "rtmw-m@1": "RTMW: PAFPN neck and two-scale head (smallest: backbone and SimCC head only)",
