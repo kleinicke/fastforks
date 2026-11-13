@@ -1,0 +1,64 @@
+schema = 2
+name = "SwinIR"
+summary = "SwinIR (Liang et al., ICCVW 2021): image restoration with residual groups of Swin Transformer layers (8 x 8 window attention, shifted every second layer) between a conv stem and an upsampler. `swinir-m-x4` / `swinir-m-x2` are the classical (bicubic, PSNR-trained) DF2K models, `swinir-m-x4-real` and `swinir-l-x4-real` the real-world x4 GAN models (BSRGAN degradations; L = 9 groups, 240 channels)."
+tier = "experimental"
+outputs = ["image"]
+
+[upstream]
+repo = "https://github.com/JingyunLiang/SwinIR"
+commit = "6545850fbf8df298df73d81f3e8cba638787c8bd"  # models/network_swinir.py; the call is main_test_swinir.py (mirror padding, model(lq), no tile)
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # release v0.0 assets of the Apache-2.0 repository; no separate weights licence
+files = ["LICENSE"]
+training_data = ["div2k", "flickr2k"]
+training_note = "README, Training and testing: classical SR on DF2K (DIV2K + Flickr2K) HR images, bicubic-downsampled."
+evidence = "https://github.com/JingyunLiang/SwinIR/blob/6545850fbf8df298df73d81f3e8cba638787c8bd/LICENSE ; https://github.com/JingyunLiang/SwinIR/releases/tag/v0.0"
+
+[io]
+input = "0-1"  # main_test_swinir.py divides by 255; the network subtracts the DIV2K mean itself (img_range 1)
+min_size = 4  # the mirror padding doubles at most once
+
+[params]
+scale = 4
+embed_dim = 180
+depths = [6, 6, 6, 6, 6, 6]
+heads = [6, 6, 6, 6, 6, 6]
+upsampler = "pixelshuffle"
+resi_connection = "1conv"
+img_size = 64
+window = 8
+key = "params"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate GEMMs and convolutions
+
+[[variants]]
+id = "swinir-m-x4"
+revision = 1
+weights = [{ name = "001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth", size = 67869037, sha256 = "4e78e33f22c1aa8a773db0cf4a7381bae97c2362c717f155439ebc690cbd9215", url = "https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth" }]
+
+[[variants]]
+id = "swinir-m-x2"
+revision = 1
+params = { scale = 2 }
+weights = [{ name = "001_classicalSR_DF2K_s64w8_SwinIR-M_x2.pth", size = 67277475, sha256 = "2032ebf8f401dd3ce2fae5f3852117cb72101ec6ed8358faa64c2a3fa09ed4ac", url = "https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/001_classicalSR_DF2K_s64w8_SwinIR-M_x2.pth" }]
+
+[[variants]]
+id = "swinir-m-x4-real"
+revision = 1
+params = { upsampler = "nearest+conv", key = "params_ema" }
+licence = { training_data = ["div2k", "flickr2k", "ost"], training_note = "README, Training and testing: real-world SR, SwinIR-M on DIV2K + Flickr2K + OST HR images with BSRGAN degradations." }
+weights = [{ name = "003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x4_GAN.pth", size = 67129861, sha256 = "b9afb61e65e04eb7f8aba5095d070bbe9af28df76acd0c9405aeb33b814bcfc6", url = "https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/003_realSR_BSRGAN_DFO_s64w8_SwinIR-M_x4_GAN.pth" }]
+
+[[variants]]
+id = "swinir-l-x4-real"
+revision = 1
+params = { embed_dim = 240, depths = [6, 6, 6, 6, 6, 6, 6, 6, 6], heads = [8, 8, 8, 8, 8, 8, 8, 8, 8], upsampler = "nearest+conv", resi_connection = "3conv", key = "params_ema" }
+licence = { training_data = ["div2k", "flickr2k", "ost", "wed", "ffhq", "manga109", "scut-ctw1500"], training_note = "README, Training and testing: real-world SR, SwinIR-L on DIV2K + Flickr2K + OST + WED + FFHQ (first 2000) + Manga109 + SCUT-CTW1500 (first 100) with BSRGAN degradations." }
+weights = [{ name = "003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x4_GAN.pth", size = 142473939, sha256 = "99adfa91350a84c99e946c1eb3d8fce34bc28f57d807b09dc8fe40a316328c0a", url = "https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/003_realSR_BSRGAN_DFOWMFC_s64w8_SwinIR-L_x4_GAN.pth" }]

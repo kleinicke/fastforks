@@ -1032,6 +1032,20 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | rife-4.25-lite | 21.3 | 32.7 | 28.9 | 0.7x | 1.1x | 1012 / 1214 | 991 / 1174 | 1024 / 1516 |
 | rife-4.26 | 24.2 | 35.9 | 31.4 | 0.8x | 1.1x | 1004 / 1154 | 999 / 1254 | 1029 / 1516 |
 
+### Restoration, synthetic, 512x512
+
+| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|
+| realesrgan-x2plus | 128 | 128 | 80.0 | 1.6x | 1.6x | 592 / 656 | 589 / 654 | 333 / 394 |
+| realesrgan-x4plus | 631 | 632 | 402 | 1.6x | 1.6x | 2266 / 2496 | 2245 / 2474 | 1220 / 1434 |
+| realesrgan-x4plus-anime-6b | 205 | 206 | 132 | 1.6x | 1.6x | 2243 / 2472 | 2221 / 2450 | 1197 / 1410 |
+| span-x2 | 24.6 | 23.5 | 14.9 | 1.6x | 1.6x | 611 / 648 | 607 / 662 | 487 / 522 |
+| span-x4 | 26.9 | 24.2 | 14.6 | 1.8x | 1.7x | 611 / 648 | 607 / 662 | 487 / 522 |
+| swinir-l-x4-real | 3709 | 3716 | 2672 | 1.4x | 1.4x | 2357 / 2746 | 3834 / 4052 | 3868 / 4172 |
+| swinir-m-x2 | 3252 | 2007 | 1384 | 2.4x | 1.5x | 1500 / 1818 | 2883 / 3074 | 3074 / 3254 |
+| swinir-m-x4 | 3497 | 2029 | 1406 | 2.5x | 1.4x | 1500 / 2058 | 2884 / 3074 | 3074 / 3254 |
+| swinir-m-x4-real | 2462 | 2057 | 1414 | 1.7x | 1.5x | 2321 / 2978 | 2883 / 3074 | 3074 / 3254 |
+
 ### Startup and first call
 
 load: from the load call until the model is on the GPU; first call: the whole first inference call, including one normal inference (see the speed table for the warm time). Seconds, at each task's standard size (another size is shown in brackets).
@@ -1486,6 +1500,15 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | rife-4.25 | 1.42 | 0.05 | 1.10 | 0.27 | 0.26 | 0.14 |
 | rife-4.25-lite | 0.18 | 0.05 | 1.14 | 0.12 | 0.26 | 0.14 |
 | rife-4.26 | 0.18 | 0.09 | 1.12 | 0.05 | 0.23 | 0.14 |
+| realesrgan-x2plus | 1.54 | 0.18 | 1.32 | 0.42 | 0.21 | 0.11 |
+| realesrgan-x4plus | 1.62 | 0.19 | 1.32 | 1.64 | 0.79 | 0.42 |
+| realesrgan-x4plus-anime-6b | 1.30 | 0.06 | 2.32 | 0.50 | 0.31 | 0.18 |
+| span-x2 | 0.23 | 0.10 | 2.88 | 0.32 | 0.26 | 0.10 |
+| span-x4 | 0.45 | 0.10 | 1.11 | 0.58 | 0.26 | 0.05 |
+| swinir-l-x4-real | 2.15 | 0.92 | 2.81 | 5.95 | 3.81 | 2.78 |
+| swinir-m-x2 | 2.95 | 0.57 | 1.34 | 4.49 | 2.13 | 1.45 |
+| swinir-m-x4 | 2.07 | 0.22 | 3.56 | 3.27 | 2.29 | 1.59 |
+| swinir-m-x4-real | 2.06 | 0.49 | 1.24 | 3.33 | 2.17 | 1.49 |
 
 † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 <!-- tables:end -->
@@ -1906,6 +1929,15 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | rife-4.25 | 1080x1920 | 36.0 ms | 44.9 ms | 17.6 ms | 31.4 ms | 36.1 s | 56.3 s | 999 / 1254 | 1094 / 1234 | 1029 / 1516 | 696 / 714 |
 | rife-4.25-lite | 1080x1920 | 32.7 ms | 42.3 ms | 14.1 ms | 28.9 ms | 34.9 s | 49.5 s | 991 / 1174 | 1061 / 1374 | 1024 / 1516 | 696 / 714 |
 | rife-4.26 | 1080x1920 | 35.9 ms | 44.5 ms | 17.6 ms | 31.4 ms | 34.9 s | 54.9 s | 999 / 1254 | 1094 / 1234 | 1029 / 1516 | 696 / 714 |
+| realesrgan-x2plus | 512x512 | 128 ms | 85.2 ms | 59.7 ms | 80.0 ms | 33.2 s | 40.3 s | 589 / 654 | 323 / 394 | 333 / 394 | 476 / 500 |
+| realesrgan-x4plus | 512x512 | 632 ms | 354 ms | 273 ms | 402 ms | 29.9 s | 55.2 s | 2245 / 2474 | 1091 / 1394 | 1220 / 1434 | 1546 / 1594 |
+| realesrgan-x4plus-anime-6b | 512x512 | 206 ms | 114 ms | 83.1 ms | 132 ms | 10.0 s | 36.7 s | 2221 / 2450 | 1068 / 1370 | 1197 / 1410 | 1505 / 1552 |
+| span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
+| span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |
+| swinir-l-x4-real | 512x512 | 3716 ms | 1426 ms | 1118 ms | 2672 ms | 68.1 s | 193 s | 3834 / 4052 | 2153 / 2876 | 3868 / 4172 | 9182 / 9282 |
+| swinir-m-x2 | 512x512 | 2007 ms | 781 ms | 719 ms | 1384 ms | 60.3 s | 102 s | 2883 / 3074 | 1683 / 1796 | 3074 / 3254 | 5088 / 5144 |
+| swinir-m-x4 | 512x512 | 2029 ms | 795 ms | 727 ms | 1406 ms | 61.8 s | 104 s | 2884 / 3074 | 1684 / 1796 | 3074 / 3254 | 5525 / 5604 |
+| swinir-m-x4-real | 512x512 | 2057 ms | 807 ms | 733 ms | 1414 ms | 59.6 s | 109 s | 2883 / 3074 | 1683 / 1796 | 3074 / 3254 | 5427 / 5506 |
 <!-- compile:end -->
 
 ## Original code

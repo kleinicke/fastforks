@@ -36,6 +36,9 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- SwinIR (`swinir-m-x4`, `swinir-m-x2`, `swinir-m-x4-real`, `swinir-l-x4-real`, restoration): portable MPS goldens
+  and Mac speed rows (512x512; check the float16 last-group scaling on MPS). No Metal kernels runner. Weights: the
+  pinned GitHub release URLs of the card.
 - SPAN (`span-x4`, `span-x2`, restoration): portable MPS goldens and Mac speed rows (512x512). No Metal kernels
   runner. Weights: the pinned Google Drive URLs of the card (also in `~/scratch_tests/port-p5/w/` on the CUDA machine).
 - Real-ESRGAN (`realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`, restoration): portable MPS

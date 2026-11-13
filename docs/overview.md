@@ -643,3 +643,22 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rife-4.25-lite`](models/interpolation.md#rife) | yes | 21.3 (1080x1920) | 32.7 | 28.9 | 0.7x vs original (1080x1920) | 1024 |
 | [`rife-4.26`](models/interpolation.md#rife) | yes | 24.2 (1080x1920) | 35.9 | 31.4 | 0.8x vs original (1080x1920) | 1029 |
 | [`rife-4.25`](models/interpolation.md#rife) | yes | 24.5 (1080x1920) | 36.0 | 31.4 | 0.8x vs original (1080x1920) | 1029 |
+
+## Restoration
+
+9 models; size 512x512.
+
+- Fastest: [`span-x4`](models/restoration.md#span) (14.6 ms).
+- Fastest commercially usable: [`span-x4`](models/restoration.md#span) (14.6 ms).
+
+| model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
+|---|---|---|---|---|---|---|
+| [`span-x4`](models/restoration.md#span) | yes | 26.9 (512x512) | 24.2 | 14.6 | 1.8x vs original (512x512) | 487 |
+| [`span-x2`](models/restoration.md#span) | yes | 24.6 (512x512) | 23.5 | 14.9 | 1.6x vs original (512x512) | 487 |
+| [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 127.8 | 80.0 | 1.6x vs original (512x512) | 333 |
+| [`realesrgan-x4plus-anime-6b`](models/restoration.md#real-esrgan) | yes | 205.1 (512x512) | 206.2 | 132.1 | 1.6x vs original (512x512) | 1197 |
+| [`realesrgan-x4plus`](models/restoration.md#real-esrgan) | yes | 631.1 (512x512) | 631.8 | 402.2 | 1.6x vs original (512x512) | 1220 |
+| [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 2007.3 | 1383.8 | 2.4x vs original (512x512) | 3074 |
+| [`swinir-m-x4`](models/restoration.md#swinir) | yes | 3497.4 (512x512) | 2029.4 | 1406.4 | 2.5x vs original (512x512) | 3074 |
+| [`swinir-m-x4-real`](models/restoration.md#swinir) | yes | 2461.6 (512x512) | 2057.2 | 1413.7 | 1.7x vs original (512x512) | 3074 |
+| [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 3716.2 | 2672.1 | 1.4x vs original (512x512) | 3868 |

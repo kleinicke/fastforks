@@ -488,6 +488,72 @@ def _rife(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapt
     return call
 
 
+def _realesrgan(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `RealESRGANer` as `tools/golden/realesrgan.py`; fp16 = inference_realesrgan.py's default (`half`).
+
+    `FF_REALESRGAN_REPO` / `FF_BASICSR_REPO`: xinntao/Real-ESRGAN and XPixelGroup/BasicSR clones;
+    `FF_REALESRGAN_WEIGHTS`: the release `.pth` files. `pre_pad` 0, no tile; the timed call is `enhance`'s float
+    part: the numpy image to the GPU (`pre_process`, x2: reflect padding), the network, `post_process`.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("realesrgan")
+    card, variant = full_ref("restoration", full)[1:]
+    up = g.build(
+        Path(os.environ["FF_REALESRGAN_REPO"]),
+        Path(os.environ["FF_BASICSR_REPO"]),
+        Path(os.environ["FF_REALESRGAN_WEIGHTS"]) / variant.weights[0].name,
+        {**card.params, **variant.params},
+        half=fp16,
+        device=torch.device("cuda"),
+    )
+    a.note = "upstream RealESRGANer pre_pad 0, no tile, on the float image" + (", half (the default)" * fp16)
+    return lambda img: g.run(up, img)
+
+
+def _span(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `SPAN` in eval mode as `tools/golden/span.py` (`FF_SPAN_REPO`, `FF_SPAN_WEIGHTS`), float32.
+
+    As BasicSR's test: `net(lq)`, clamped (its `Conv3XC` re-fuses the weights on every call, as upstream).
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("span")
+    card, variant = full_ref("restoration", full)[1:]
+    weights = Path(os.environ["FF_SPAN_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(
+        Path(os.environ["FF_SPAN_REPO"]), weights, {**card.params, **variant.params}, device=torch.device("cuda")
+    )
+    a.note = "upstream SPAN eval mode, float32, net(lq) clamped"
+    return lambda x: g.run(net, x)
+
+
+def _swinir(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `SwinIR` as `tools/golden/swinir.py` (`FF_SWINIR_REPO`, `FF_SWINIR_WEIGHTS`), float32.
+
+    As `main_test_swinir.py`: mirror padding, `model(lq)` (no tile), crop, clamp.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("swinir")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    weights = Path(os.environ["FF_SWINIR_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(Path(os.environ["FF_SWINIR_REPO"]), weights, p, device=torch.device("cuda"))
+    a.note = "upstream main_test_swinir.py, float32, no tile"
+    return lambda x: g.run(net, x, p["scale"])
+
+
+def _bchw01(args: tuple[Any, ...]) -> tuple[Any, ...]:
+    """uint8 CUDA CHW -> float32 `[1, 3, H, W]` in [0, 1] (BasicSR's lq)."""
+    return ((args[0].float() / 255)[None],)
+
+
+def _hwc01(args: tuple[Any, ...]) -> tuple[Any, ...]:
+    """uint8 CUDA CHW -> float32 numpy HWC in [0, 1] (`enhance` divides by 255 before `pre_process`)."""
+    return ((args[0].permute(1, 2, 0).float() / 255).cpu().numpy(),)
+
+
 def _neuflow_v2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001
     """Upstream `NeuFlow` as `tools/golden/neuflow_v2.py` (`FF_NEUFLOW_V2_REPO`); fp16 = upstream infer.py's recipe.
 
@@ -1478,6 +1544,9 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "memfof": _Local("flow", _memfof, ((1080, 1920), (375, 1242))),
     "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
     "rife": _LocalFp16("interpolation", _rife, ((1080, 1920),)),
+    "realesrgan": _LocalFp16("restoration", _realesrgan, ((512, 512),), _hwc01),
+    "span": _Local("restoration", _span, ((512, 512),), _bchw01),
+    "swinir": _Local("restoration", _swinir, ((512, 512),), _bchw01),
     "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
     "flowformer": _Local("flow", _flowformer, ((1080, 1920), (375, 1242))),
     "flowseek": _Local("flow", _flowseek, ((1080, 1920), (375, 1242))),
