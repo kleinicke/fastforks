@@ -59,7 +59,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 <!-- capabilities:begin (tools/gen_docs.py, from the model cards) -->
 | families | CUDA portable | CUDA kernels | MPS portable (validated) | MPS kernels (libraries, dtype) |
 |---|---|---|---|---|
-| alltracker, anycalib, anysplat, ben2, birefnet, boq, c_foundationstereo, convnext, convnext_features, convnextv2, deit, densenet, depth_anything_v2, depthsplat, detr, dfine, dinov2_linear, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, fast_acvnet, fastvit, geocalib, gwcnet, inception_v3, isnet, locotrack, lwdetr, megaloc, memfof, metric3d, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, neuflow_v2, owlv2, patchmatchnet, psmnet, raft, rcnn, realesrgan, repvit, resnet, rife, romav1, rt_monster_plusplus, rtdetrv2, sam, sam2, sam_hq, sea_raft, segformer, shufflenetv2, span, starnet, swin, swinir, tapir, tapnext, tinyvit, track_on, u2net, unidepth_v2, unik3d, video_depth_anything, vit, vitmatte, waft_stereo | fp16 | fp16 | fp32 | - |
+| alltracker, anycalib, anysplat, ben2, birefnet, boq, c_foundationstereo, convnext, convnext_features, convnextv2, deit, densenet, depth_anything_v2, depthsplat, detr, dfine, dinov2_linear, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, fast_acvnet, fastvit, geocalib, gwcnet, inception_v3, isnet, locotrack, lwdetr, megaloc, memflow, memfof, metric3d, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, neuflow_v2, owlv2, patchmatchnet, psmnet, raft, rcnn, realesrgan, repvit, resnet, rife, romav1, rt_monster_plusplus, rtdetrv2, sam, sam2, sam_hq, sea_raft, segformer, shufflenetv2, span, starnet, swin, swinir, tapir, tapnext, tinyvit, track_on, u2net, unidepth_v2, unik3d, video_depth_anything, vit, vitmatte, waft_stereo | fp16 | fp16 | fp32 | - |
 | alexnet, c_radio, cas_gwcnet, clip, coex, depth_anything_3, depth_pro, dinov2, dinov3, dinov3_convnext, dlnr, eomt, eva02, hrnet, lotus, mapanything, marigold, marigold_normals, mask2former, midas, mmseg, oneformer, regnet, rfdetr, rfdetr_keypoint, rtmdet, rtmo, s2m2, sam3, sapiens, segnext, siglip, siglip2, squeezenet, stablenormal, tipsv2, vgg, vggt_omega, yolox, zoedepth | fp16 | fp16 | fp32/fp16 | - |
 | coatnet, davit, dedode, efficientformer, efficientformerv2, flowseek, focalnet, gmflow, grounding_dino, hgnetv2, inspyrenet, loftr, shvit | fp16 | - | fp32 | - |
 | cfnet, crestereo, foundationstereo, great_igev, hitnet, igev_plusplus, mocha_stereo, monster, monster_plusplus, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 |
@@ -114,7 +114,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `mvsanywhere` | mvsanywhere |
 | `patchmatchnet` | patchmatchnet |
 | `raft` | dlnr, raft_stereo |
-| `raft_flow` | memfof, neuflow_v2, raft, sea_raft |
+| `raft_flow` | memflow, memfof, neuflow_v2, raft, sea_raft |
 | `romav2` | romav2 |
 | `s2m2` | s2m2 |
 | `s2m2_cutlass` | s2m2 |

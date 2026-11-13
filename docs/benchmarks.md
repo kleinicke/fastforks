@@ -985,6 +985,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | gmflow-scale2-regrefine6-things | 1080x1920 | 3230 | 2175 | 2183 | – | – | – | 8537 / 8822 | 6443 / 7250 | – |
 | gmflow-scale2-sintel | 1080x1920 | 2541 | 1607 | 1644 | – | – | – | 8425 / 8552 | 6433 / 7244 | – |
 | gmflow-scale2-things | 1080x1920 | 2537 | 1599 | 1636 | – | – | – | 8425 / 8552 | 6433 / 7244 | – |
+| memflow | 1080x1920 | – | 3116 | 964 | 865 | 3.6x | 1.1x | 15061 / 15594 | 8265 / 8382 | 968 / 1022 |
+| memflow-kitti | 1080x1920 | – | 3247 | 965 | 865 | 3.8x | 1.1x | 15061 / 15594 | 8265 / 8382 | 968 / 1022 |
+| memflow-sintel | 1080x1920 | – | 3214 | 964 | 865 | 3.7x | 1.1x | 15061 / 15634 | 8265 / 8382 | 968 / 1022 |
 | memfof | 1080x1920 | – | 531 | 433 | 427 | 1.2x | 1.0x | 2003 / 2144 | 1911 / 2196 | 1301 / 1418 |
 | memfof-kitti | 375x1242 | – | – | 386 | 380 | – | 1.0x | – | 1619 / 1856 | 1137 / 1218 |
 | neuflow-v2 | 1080x1920 | 171 | 75.6 | 71.3 | 59.1 | 1.3x | 1.2x | 4367 / 4556 | 2435 / 2478 | 790 / 896 |
@@ -1494,6 +1497,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | gmflow-scale2-regrefine6-things | 0.15 | 0.16 (375x1242) | – | 2.19 | 0.75 (375x1242) | – |
 | gmflow-scale2-sintel | 0.13 | 0.09 (375x1242) | – | 1.62 | 0.61 (375x1242) | – |
 | gmflow-scale2-things | 0.14 | 0.11 (375x1242) | – | 1.61 | 0.63 (375x1242) | – |
+| memflow | 0.16 | 0.06 | 1.18 | 3.82 | 0.97 | 0.88 |
+| memflow-kitti | 0.14 | 0.14 | 0.97 | 3.06 | 0.98 | 0.88 |
+| memflow-sintel | 0.14 | 0.10 | 0.95 | 3.06 | 0.98 | 0.88 |
 | memfof | 2.06 | 0.22 (375x1242) | 1.84 (375x1242) | 1.29 | 0.41 (375x1242) | 0.29 (375x1242) |
 | memfof-kitti | – | 0.21 (375x1242) | 1.07 (375x1242) | – | 0.65 (375x1242) | 0.56 (375x1242) |
 | neuflow-v2 | 0.20 | 0.05 (375x1242) | 0.96 (375x1242) | 0.22 | 0.30 (375x1242) | 0.18 (375x1242) |
@@ -1941,6 +1947,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale2-regrefine6-things | 1080x1920 | 2183 ms | 1116 ms | fails: TensorRT bug: Myelin internal error | – | 58.2 s | – | 6443 / 7250 | 10875 / 10972 | – | – |
 | gmflow-scale2-sintel | 1080x1920 | 1644 ms | 765 ms | fails: TensorRT bug: Myelin internal error | – | 46.6 s | – | 6433 / 7244 | 10865 / 10904 | – | – |
 | gmflow-scale2-things | 1080x1920 | 1636 ms | 765 ms | fails: TensorRT bug: Myelin internal error | – | 46.7 s | – | 6433 / 7244 | 10865 / 10904 | – | – |
+| memflow | 1080x1920 | 964 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
+| memflow-kitti | 1080x1920 | 965 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
+| memflow-sintel | 1080x1920 | 964 ms | 1640 ms | fails: TensorRT engine build failed | 865 ms | 76.0 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 427 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 1301 / 1418 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: TensorRT engine build failed | 380 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 1137 / 1218 | – |
 | neuflow-v2 | 1080x1920 | 71.3 ms | 91.4 ms | 65.0 ms | 59.1 ms | 28.5 s | 104 s | 2435 / 2478 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |

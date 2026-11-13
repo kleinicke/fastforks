@@ -54,6 +54,14 @@
   fp16), peak 358 MB vs 562 MB (reserved). COCO val2017 (200 images) box mAP 54.60 kernels, 54.62 portable vs 54.64
   original fp32 (54.61 fp16); `yolox-tiny` to `yolox-l` within 0.1 of the original.
 
+- MemFlow optical flow (`memflow`, `memflow-sintel`, `memflow-kitti`, flow; Apache-2.0 code and weights): RAFT-style
+  all-pairs correlation with a motion-memory attention in each of its 15 updates; a pair is upstream's first step of a
+  video (empty memory). 1080x1920 pair: 865 ms kernels (no correlation volume, 1.0 GB), 964 ms portable (1.6 s
+  compile; TensorRT export fails) vs 3.1 s original fp16 (fp32 runs out of memory), peak 1.0 GB kernels and 8.4 GB
+  portable vs 15.6 GB (reserved); 375x1242: 141 ms kernels, 144 ms portable vs 314 ms fp32 (256 ms fp16). KITTI 2015
+  train (200 pairs) EPE / Fl-all `memflow-kitti` 0.600 / 1.21 % in every tier as the original; `memflow` 4.10 kernels,
+  4.11 portable vs 4.11 original.
+
 - RIFE frame interpolation (`rife-4.25`, `rife-4.26`, `rife-4.25-lite`; new task `interpolation`; MIT code and
   weights): Practical-RIFE `IFNet_HDv3`, any timestep in [0, 1], frames zero-padded to a multiple of 128 as upstream.
   1080x1920 pair: 31.4 ms kernels, 36.0 ms portable (44.5 ms compile, 17.6 ms TensorRT) vs 45.3 ms original fp32

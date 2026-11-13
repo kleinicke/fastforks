@@ -95,6 +95,9 @@ In this order, unless something more useful turns up:
   256 queries). No Metal kernels runner. Weights: the pinned URLs of the card (also in `data/ff-weights/locotrack/`).
 - YOLOX (`yolox-tiny` to `yolox-x`, detection): portable float32 MPS goldens and Mac speed rows (800x1344). No Metal
   kernels runner. Weights: the pinned URLs of the card (also in `data/ff-weights/yolox/`).
+- MemFlow (`memflow`, `memflow-sintel`, `memflow-kitti`, flow): portable float32 MPS goldens and Mac speed rows
+  (375x1242, 1080x1920). No Metal kernels runner. Weights: the pinned URLs of the card (also in
+  `data/ff-weights/memflow/`).
 - SAM 2 video (`track` of `sam2.1-hiera-*`): portable float32 MPS video goldens (`video_*` keys of
   `tests/test_golden.py`); the memory features are stored in bfloat16 as upstream.
 - ViTMatte (`vitmatte-s`, `vitmatte-b`, matting with a trimap input): portable float32 MPS goldens and Mac speed
