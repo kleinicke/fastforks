@@ -1,0 +1,24 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1e-05
+gpu_mean = 0.00052
+gpu_p99 = 0.0022
+
+[refs."marigold-normals-lcm-v0-1@1"]
+sha256 = "5cb915beed187b64c6ea54b9df5cea75cb2fa09b99c5fe1b199c0007eda1dc77"
+upstream = "https://github.com/huggingface/diffusers@v0.41.0"
+settings = "CPU float32, weights prs-eth/marigold-normals-lcm-v0-1@28214f06633a6a73088b569d1d068c3e48ea7902, 1 LCM step(s), processing resolution 768, ensemble 1, CPU generator seed 2024, camera frame, torch 2.14.1+cu130"
+
+[validated."marigold-normals-lcm-v0-1@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.00034
+p99_px = 0.00146

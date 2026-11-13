@@ -1,0 +1,69 @@
+schema = 2
+name = "DeDoDe v2"
+summary = "DeDoDe v2 (Edstedt et al., 3DV 2024; detector v2: CVPR Workshops 2024): detect, don't describe, describe, don't detect. A VGG19 network with convolutional refiners finds 10000 keypoints per image (the detector, retrained in v2), a separate descriptor network (VGG19, or VGG19 + a frozen DINOv2 ViT-L/14 for -G) describes them, and the descriptions are matched as mutual maxima of a dual softmax. Returns both keypoint sets, the index pairs of the matches and their probability."
+tier = "experimental"
+outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
+uses = ["dedode", "depth_anything_v2"]  # fastforks.shared modules this family imports (the nets; the DINOv2 ViT-L/14 of -G)
+limitations = [
+  "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
+  "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
+  "No exportable module: the match counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
+  "Images are resized to a `size` x `size` square (default 784, as upstream) whatever their aspect ratio; the dual softmax holds a `max_keypoints`^2 matrix (10000 keypoints: 400 MB per float32 copy).",
+  "Upright only: the released descriptors are not trained for in-plane rotations.",
+]
+
+[upstream]
+repo = "https://github.com/Parskatt/DeDoDe"
+commit = "6d156183f4dc84cd704ae779eebc8350995c5b06"  # shared/dedode = DeDoDe/{encoder,decoder}.py, detectors/, descriptors/, the model zoo and the inference utils in one file; the DINOv2 of -G is fastforks.shared.depth_anything_v2's
+
+[licence]
+code = "MIT"  # LICENSE; DINOv2 (-G): Apache-2.0, LICENSE_DINOv2
+weights = "MIT"  # README "License: All code/models except DINOv2 (descriptor-G), are MIT license. DINOv2 is Apache-2 license"
+files = ["LICENSE", "LICENSE-DINOv2"]
+training_data = ["megadepth"]
+training_note = "Detector v2 and descriptors: MegaDepth (README training section, papers); DINOv2 (-G, frozen): LVD-142M (Meta)."
+evidence = "https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/README.md#license ; https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/LICENSE"
+
+[io]
+input = "0-1"  # resized to the square, ImageNet-normalised by the runner
+min_size = 8
+
+[options]
+size = { default = 784, min = 56 }  # side of the square the images are resized to (upstream 784 = 56 x 14)
+max_keypoints = { default = 10000, min = 1 }  # keypoints per image (upstream demos 10_000)
+
+[params]
+threshold = 0.01  # dual-softmax probability a match needs (upstream demos; the README uses 0.1)
+
+[modes.portable]
+cuda_dtype = "float16"  # as upstream: encoders and refiners under float16 autocast, DINOv2 (-G) in float16; keypoint sampling and matching float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not implemented yet"
+
+[[papers]]
+title = "DeDoDe v2: Analyzing and Improving the DeDoDe Keypoint Detector"
+url = "https://arxiv.org/abs/2404.08928"
+date = "2024-04-13"
+venue = "CVPR Workshops 2024"
+
+[[variants]]
+id = "dedode-v2-b"  # DeDoDe-L v2 detector + DeDoDe-B descriptor (upstream README default)
+revision = 1
+params = { descriptor = "B" }
+weights = [
+  { name = "dedode_detector_L_v2.pth", size = 58483585, sha256 = "4113809dd9e0367af013a45fc2255a6b243ff241cd06520d17a65d9e231bdc17", url = "https://github.com/Parskatt/DeDoDe/releases/download/v2/dedode_detector_L_v2.pth" },
+  { name = "dedode_descriptor_B.pth", size = 54257185, sha256 = "8eccfc270ec990ced60cd54a434411a47c4c504de13586f596d042e005b3022b", url = "https://github.com/Parskatt/DeDoDe/releases/download/dedode_pretrained_models/dedode_descriptor_B.pth" },
+]
+
+[[variants]]
+id = "dedode-v2-g"  # DeDoDe-L v2 detector + DeDoDe-G descriptor (VGG19 + frozen DINOv2 ViT-L/14)
+revision = 1
+params = { descriptor = "G" }
+weights = [
+  { name = "dedode_detector_L_v2.pth", size = 58483585, sha256 = "4113809dd9e0367af013a45fc2255a6b243ff241cd06520d17a65d9e231bdc17", url = "https://github.com/Parskatt/DeDoDe/releases/download/v2/dedode_detector_L_v2.pth" },
+  { name = "dedode_descriptor_G.pth", size = 75485969, sha256 = "ef6e3f2911bb3c179960db15545a2137d0746054bb5bad75559524ccab1fee41", url = "https://github.com/Parskatt/DeDoDe/releases/download/dedode_pretrained_models/dedode_descriptor_G.pth" },
+  { name = "dinov2_vitl14_pretrain.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth" },
+]

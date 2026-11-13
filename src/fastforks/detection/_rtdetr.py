@@ -108,20 +108,21 @@ def sincos_position(h: int, w: int, dim: int, device: torch.device) -> torch.Ten
 
 
 class Mlp(nn.Module):
-    """`layers.N` linears with ReLU between."""
+    """`layers.N` linears with ReLU (or `act = "silu"`: SiLU) between."""
 
-    def __init__(self, cin: int, hidden: int, cout: int, n: int) -> None:
+    def __init__(self, cin: int, hidden: int, cout: int, n: int, act: str = "relu") -> None:
         """Create `n` linears."""
         super().__init__()
         dims = [cin] + [hidden] * (n - 1) + [cout]
         self.layers = nn.ModuleList(nn.Linear(i, o) for i, o in itertools.pairwise(dims))
+        self.act = F.silu if act == "silu" else F.relu
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Run the layers."""
         for i, layer in enumerate(self.layers):
             x = layer(x)
             if i < len(self.layers) - 1:
-                x = F.relu(x)
+                x = self.act(x)
         return x
 
 

@@ -17,7 +17,7 @@ import pytest
 import torch
 from torch import nn
 
-from synth import image, pair, size
+from synth import clip, image, pair, size, track_queries
 from test_golden import API, GOLDEN, SMALLEST, TASK
 
 # ref -> (modules, nn.Identity modules, overridden methods as "BaseClass.method": count); recorded on main f5927bc, the
@@ -210,7 +210,9 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
             "InstanceNorm2d.forward": 3,
         },
     ),
+    "lotus-normal-d-v1-1@1": (855, 48, {}),
     "marigold-depth-v1-1@1": (852, 48, {}),
+    "marigold-normals-lcm-v0-1@1": (852, 48, {}),
     "metric3d-vit-large@1": (
         581,
         52,
@@ -332,6 +334,7 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
             "ResidualBlock.forward": 14,
         },
     ),
+    "stablenormal-turbo@1": (1146, 69, {}),
     "unidepth-v2-vitl14@1": (614, 80, {"UniDepthV2.stacking_fn": 1}),
     "unik3d-vitl@1": (482, 50, {}),
     "waft-stereo-s@1": (
@@ -398,7 +401,10 @@ def load_and_call(ref: str) -> Any:
     task = TASK[ref]
     m = API[task].load(ref, mode="kernels", device="cuda")
     hw = size(m.variant.io.min_size)
-    m(*pair(*hw)) if task in {"stereo", "flow", "matching"} else m(image(*hw))
+    if task == "tracking":
+        m(clip(4, *hw), track_queries())
+    else:
+        m(*pair(*hw)) if task in {"stereo", "flow", "matching", "interpolation"} else m(image(*hw))
     return m
 
 

@@ -1,0 +1,111 @@
+schema = 2
+name = "Grounding DINO and MM-Grounding-DINO (open-vocabulary, Swin-T and Swin-B)"
+summary = "Grounding DINO (Liu et al. 2023, IDEA Research): open-set detection that fuses a Swin image backbone with a BERT text encoder in a DINO-style deformable transformer; each of 900 queries scores every caption token. MM-Grounding-DINO (Zhao et al. 2024, OpenMMLab) is the same network with a scaled, biased contrastive class head and unshared decoder heads, retrained on Objects365, GoldG and V3Det. Pass `text=[...]` at call time (default: the 80 COCO class names), joined into one caption; a class score is the mean token score of its name. Images are resized to 800 px on the short side (at most 1333 on the long side). The portable `module()` is the image side with the COCO caption's text features as constants."
+tier = "experimental"
+outputs = ["boxes", "scores", "labels"]
+uses = ["seginfer", "bert_tokenizer"]  # fastforks.shared modules this family imports
+limitations = [
+  "Requires the optional transformers library (the network is its `GroundingDinoForObjectDetection`).",
+  "The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port with the authors' weights (IDEA-Research/grounding-dino-*, openmmlab-community/mm_grounding_dino_*); the official GroundingDINO and mmdetection code (their CUDA deformable-attention ops) was not run.",
+  "Class names are joined into one caption of at most 256 tokens (about 100 short names); a longer list raises an error instead of being split into several passes.",
+  "No phrase output: `labels` index into the given names (the token-level text threshold of the Hugging Face post-processing is not used).",
+  "grounding-dino-base was trained with COCO (and RefCOCO, ODinW) data: its COCO numbers are not zero-shot.",
+]
+
+[upstream]
+repo = "https://github.com/huggingface/transformers"
+commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/IDEA-Research/GroundingDINO"
+framework = "PyTorch"
+reason = "fastforks follows the Hugging Face transformers port, which loads the IDEA-Research/grounding-dino-* weights, instead of the authors' repository."
+
+[[upstream.official]]
+repo = "https://github.com/open-mmlab/mmdetection"
+framework = "PyTorch"
+reason = "The MM-Grounding-DINO authors' code lives in MMDetection; fastforks follows the Hugging Face transformers port that loads the converted weights."
+
+[licence]
+code = "Apache-2.0"  # transformers; the original IDEA-Research/GroundingDINO is Apache-2.0 too
+weights = "Apache-2.0"  # the IDEA-Research/grounding-dino-* model cards: license apache-2.0
+files = []  # no vendored code: the architecture is transformers' own module
+training_data = ["objects365"]
+training_note = "Grounding DINO-T: Objects365, GoldG (Flickr30k Entities + GQA / Visual Genome images) and Cap4M (web image-caption pairs with pseudo-boxes); GoldG and Cap4M have no dataset id here (paper arXiv:2303.05499 table 2; the authors' model table)."
+evidence = "https://huggingface.co/IDEA-Research/grounding-dino-tiny/blob/a2bb814dd30d776dcf7e30523b00659f4f141c71/README.md"
+
+[io]
+input = "0-1"  # the runner resizes and normalises itself (the transformers processor)
+
+[options]
+score_threshold = { default = 0.25, min = 0.0, max = 1.0 }  # the transformers post-processing default threshold (kept if above, strictly)
+max_detections = { default = 100, min = 1 }  # the best (query, class) pairs kept per image (the authors' COCO evaluation: 300)
+
+[params]
+arch = "GroundingDinoForObjectDetection"
+
+[modes.portable]
+cuda_dtype = "float16"  # backbone, encoder and decoder; the text tower (once per query list) and the last heads stay float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not built yet: fp16-accumulate GEMMs gain nothing (tiny 112.5 vs 112.5 ms, base 127.6 vs 131.3 ms at 480x640); the time is in the deformable attention (grid_sample) and many small ops, which needs a multi-scale deformable attention kernel and per-size CUDA graphs"
+
+[output]
+label_set = "coco-80"  # the default queries; `text=` replaces them per call
+
+[[papers]]
+title = "Grounding DINO: Marrying DINO with Grounded Pre-Training for Open-Set Object Detection"
+url = "https://arxiv.org/abs/2303.05499"
+date = "2023-03-09"
+venue = "ECCV 2024"
+variants = ["grounding-dino-tiny", "grounding-dino-base"]
+
+[[papers]]
+title = "An Open and Comprehensive Pipeline for Unified Object Grounding and Detection"
+url = "https://arxiv.org/abs/2401.02361"
+date = "2024-01-04"
+venue = "arXiv"
+variants = ["mm-grounding-dino-tiny", "mm-grounding-dino-base"]
+
+[[variants]]
+id = "grounding-dino-tiny"
+revision = 1
+weights = [
+    { name = "gdino-tiny.config.json", size = 1644, sha256 = "eec82c5ab66e16df12a9a212e68ac011779927c2536cf9078658e35d85f0c67a", url = "https://huggingface.co/IDEA-Research/grounding-dino-tiny/resolve/a2bb814dd30d776dcf7e30523b00659f4f141c71/config.json" },
+    { name = "gdino-tiny.model.safetensors", size = 689359096, sha256 = "1a2412ef99bd74bcd3c2a246fa1e48581f8889a1300c9051974741314fc042f3", url = "https://huggingface.co/IDEA-Research/grounding-dino-tiny/resolve/a2bb814dd30d776dcf7e30523b00659f4f141c71/model.safetensors" },
+    { name = "bert-uncased.vocab.txt", size = 231508, sha256 = "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3", url = "https://huggingface.co/IDEA-Research/grounding-dino-tiny/resolve/a2bb814dd30d776dcf7e30523b00659f4f141c71/vocab.txt" },
+]
+
+[[variants]]
+id = "grounding-dino-base"
+revision = 1
+licence = { evidence = "https://huggingface.co/IDEA-Research/grounding-dino-base/blob/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/README.md", training_data = ["coco", "objects365"], training_note = "Grounding DINO-B: COCO, Objects365, GoldG (Flickr30k Entities + GQA / Visual Genome images), Cap4M (web image-caption pairs with pseudo-boxes), OpenImages, ODinW-35 and RefCOCO; only COCO and Objects365 have dataset ids here (the authors' model table, github.com/IDEA-Research/GroundingDINO README)." }
+weights = [
+    { name = "gdino-base.config.json", size = 1737, sha256 = "eda416dae6f49419ff831b1c190ec430a060b19aae688dbaf2425a075b650608", url = "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/config.json" },
+    { name = "gdino-base.model.safetensors", size = 933400872, sha256 = "5548f844c928c4b6f411fa8cbcc2bfa8dbbba437cb1d513975519f93c2a9ed21", url = "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/model.safetensors" },
+    { name = "bert-uncased.vocab.txt", size = 231508, sha256 = "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3", url = "https://huggingface.co/IDEA-Research/grounding-dino-base/resolve/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/vocab.txt" },
+]
+
+[[variants]]
+id = "mm-grounding-dino-tiny"
+revision = 1
+params = { arch = "MMGroundingDinoForObjectDetection" }
+licence = { evidence = "https://huggingface.co/openmmlab-community/mm_grounding_dino_tiny_o365v1_goldg_v3det/blob/ef2053aa1e0cc9d9cee1df31ca919ee9aae4fc8e/README.md", training_data = ["objects365"], training_note = "MM-Grounding-DINO-T (o365v1_goldg_v3det): Objects365 v1, GoldG (Flickr30k Entities + GQA / Visual Genome images) and V3Det; no COCO, so its COCO numbers are zero-shot (mmdetection configs/mm_grounding_dino README; paper arXiv:2401.02361)." }
+weights = [
+    { name = "mmgdino-tiny.config.json", size = 2697, sha256 = "cb8ffc83fa083aebe4a72d4714c759568b4001b32e28a1850e8c2f30c1db5923", url = "https://huggingface.co/openmmlab-community/mm_grounding_dino_tiny_o365v1_goldg_v3det/resolve/ef2053aa1e0cc9d9cee1df31ca919ee9aae4fc8e/config.json" },
+    { name = "mmgdino-tiny.model.safetensors", size = 692015412, sha256 = "ad9d9f5f8a94f1bb1ca1969e52e47ce31e97875f80ee07740c74e341839b8755", url = "https://huggingface.co/openmmlab-community/mm_grounding_dino_tiny_o365v1_goldg_v3det/resolve/ef2053aa1e0cc9d9cee1df31ca919ee9aae4fc8e/model.safetensors" },
+    { name = "bert-uncased.vocab.txt", size = 231508, sha256 = "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3", url = "https://huggingface.co/openmmlab-community/mm_grounding_dino_tiny_o365v1_goldg_v3det/resolve/ef2053aa1e0cc9d9cee1df31ca919ee9aae4fc8e/vocab.txt" },
+]
+
+[[variants]]
+id = "mm-grounding-dino-base"
+revision = 1
+params = { arch = "MMGroundingDinoForObjectDetection" }
+licence = { evidence = "https://huggingface.co/openmmlab-community/mm_grounding_dino_base_o365v1_goldg_v3det/blob/6f52a61753b22842954209e4b190b22135c57bf0/README.md", training_data = ["objects365"], training_note = "MM-Grounding-DINO-B (o365v1_goldg_v3det): Objects365 v1, GoldG (Flickr30k Entities + GQA / Visual Genome images) and V3Det; no COCO, so its COCO numbers are zero-shot (mmdetection configs/mm_grounding_dino README; paper arXiv:2401.02361)." }
+weights = [
+    { name = "mmgdino-base.config.json", size = 2701, sha256 = "3e48e01f93f7d94b3b5301e19da35ef6b4a2b6f5c10a3c14d8e39bb72ec92291", url = "https://huggingface.co/openmmlab-community/mm_grounding_dino_base_o365v1_goldg_v3det/resolve/6f52a61753b22842954209e4b190b22135c57bf0/config.json" },
+    { name = "mmgdino-base.model.safetensors", size = 936057092, sha256 = "c0b2e1d6ba3ff6c5f2737d22830157ab9859b23db6cb84e513ec3b1da66f5d8d", url = "https://huggingface.co/openmmlab-community/mm_grounding_dino_base_o365v1_goldg_v3det/resolve/6f52a61753b22842954209e4b190b22135c57bf0/model.safetensors" },
+    { name = "bert-uncased.vocab.txt", size = 231508, sha256 = "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3", url = "https://huggingface.co/openmmlab-community/mm_grounding_dino_base_o365v1_goldg_v3det/resolve/6f52a61753b22842954209e4b190b22135c57bf0/vocab.txt" },
+]

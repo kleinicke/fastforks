@@ -1,0 +1,57 @@
+schema = 2
+name = "LightGlue"
+summary = "LightGlue (Lindenberger, Sarlin and Pollefeys 2023): sparse feature matching. A keypoint detector-descriptor (ALIKED or DISK) finds up to 2048 keypoints per image at a 1024-pixel long side, and a transformer with self- and cross-attention, adaptive depth and point pruning matches them. Returns both keypoint sets, the index pairs of the matches and their confidence."
+tier = "experimental"
+outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
+uses = ["aliked", "deform_conv", "lightglue"]  # fastforks.shared modules this family imports (ALIKED + its deformable conv op; the matcher)
+limitations = [
+  "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
+  "One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.",
+  "No exportable module: the keypoint counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
+]
+
+[upstream]
+repo = "https://github.com/cvg/LightGlue"
+commit = "5a650c444718caffc2669dc0094cde908f42dd73"  # shared/aliked = its lightglue/aliked.py (torchvision deform_conv2d -> shared/deform_conv passed in, no hub download); net/disk.py = kornia 0.8.3 kornia/feature/disk (Apache-2.0, Kornia Team); the matcher is shared/lightglue
+
+[licence]
+code = "Apache-2.0 AND BSD-3-Clause"  # LICENSE (LightGlue, kornia DISK: Apache-2.0); shared/aliked carries the ALIKED BSD-3-Clause header (LICENSE-ALIKED)
+weights = "Apache-2.0 AND BSD-3-Clause"  # LightGlue README: "The pre-trained weights of LightGlue and the code provided in this repository are released under the Apache-2.0 license. DISK follows this license as well but SuperPoint follows its own license"; ALIKED weights: its repo's BSD-3-Clause LICENSE
+files = ["LICENSE", "LICENSE-ALIKED"]
+training_data = ["megadepth"]
+training_note = "LightGlue: pretrained on synthetic homographies of the Oxford-Paris 1M distractor images (Flickr; no dataset entry here), fine-tuned on MegaDepth. ALIKED and DISK: trained on MegaDepth."
+evidence = "https://github.com/cvg/LightGlue/blob/5a650c444718caffc2669dc0094cde908f42dd73/README.md#license ; https://github.com/Shiaoming/ALIKED/blob/683d7c65197395c0b3f01ebe76e1084a27e73a65/LICENSE ; https://github.com/cvlab-epfl/disk/blob/8dc6d4d65b47210f629e21ad1fbfb56944b11696/LICENSE.txt"
+
+[io]
+input = "0-1"  # the runner resizes each image to the long side itself (kornia antialiasing) and maps the keypoints back
+min_size = 32
+
+[options]
+max_keypoints = { default = 2048, min = 1 }  # per image (upstream README usage: max_num_keypoints=2048)
+long_side = { default = 1024, min = 0 }  # longest side the features are detected at (upstream extractor resize 1024; 0 = the input size)
+
+[modes.portable]
+cuda_dtype = "float32"  # as upstream: LightGlue's attention casts q, k, v to float16 on CUDA, the rest is float32; dtype="float16" (opt-in) also runs the extractor's dense network under float16 autocast, detection and descriptors float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not implemented: data-dependent keypoint counts (detection, top-k, match filtering); portable float32 with upstream's fp16 attention"
+
+[[papers]]
+title = "LightGlue: Local Feature Matching at Light Speed"
+url = "https://arxiv.org/abs/2306.13643"
+date = "2023-06-23"
+venue = "ICCV 2023"
+
+[[variants]]
+id = "aliked-lightglue"  # ALIKED-n16 (threshold 0.2) + LightGlue aliked_lightglue v0.1_arxiv
+revision = 1
+params = { extractor = "aliked", detection_threshold = 0.2 }
+weights = [{ name = "aliked_lightglue.pth", size = 47632827, sha256 = "d975e965b105311a6143194852297dff4f02aea5cc2e10cecfed966ca0e22503", url = "https://github.com/cvg/LightGlue/releases/download/v0.1_arxiv/aliked_lightglue.pth" }, { name = "aliked-n16.pth", size = 2738091, sha256 = "5be8704840ed662d9d8c561bf7279c222092674e7eb05fd0feab94899e9d82f2", url = "https://raw.githubusercontent.com/Shiaoming/ALIKED/683d7c65197395c0b3f01ebe76e1084a27e73a65/models/aliked-n16.pth" }]
+
+[[variants]]
+id = "disk-lightglue"  # DISK depth + LightGlue disk_lightglue v0.1_arxiv
+revision = 1
+params = { extractor = "disk", detection_threshold = 0.0 }
+weights = [{ name = "disk_lightglue.pth", size = 47631405, sha256 = "b5b21d47ea24f2c5e501aec9c91b9716e4c8c3429a4dc1e615c133c4c9378335", url = "https://github.com/cvg/LightGlue/releases/download/v0.1_arxiv/disk_lightglue.pth" }, { name = "depth-save.pth", size = 4375832, sha256 = "9c2ee4ded238892dfa51569941372601e35e4a74aa6f84ea80053d2ab1c07abe", url = "https://raw.githubusercontent.com/cvlab-epfl/disk/8dc6d4d65b47210f629e21ad1fbfb56944b11696/depth-save.pth" }]

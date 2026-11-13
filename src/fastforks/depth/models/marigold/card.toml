@@ -3,6 +3,7 @@ name = "Marigold"
 summary = "Marigold (Ke et al. 2023): affine-invariant monocular depth by diffusion; a Stable Diffusion 2 UNet fine-tuned to denoise a depth latent conditioned on the image latent (depth v1-1, few DDIM steps)."
 tier = "stable"
 outputs = ["depth"]
+uses = ["sd2"]  # fastforks.shared modules this family imports
 limitations = [
   "Diffusion model: the seeded noise comes from a CPU generator and differs from the original code's CUDA generator for the same seed.",
   "A traced or exported module reuses the noise of its traced shape.",

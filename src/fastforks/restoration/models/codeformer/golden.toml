@@ -1,0 +1,15 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."codeformer@1"]
+sha256 = "195f70cc077724e876a3371f2bbe10701aa71d3f072c0c82ffdcf64160031289"
+upstream = "https://github.com/sczhou/CodeFormer@b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b"
+settings = "CPU float32, inference_codeformer.py on an aligned face: [-1, 1], net(x, w=0.5, adain=True)[0], back to [0, 1], clamped, no uint8 rounding; inputs/cropped_faces/0143.png; torch 2.14.1+cu130"

@@ -1,0 +1,49 @@
+schema = 2
+name = "IS-Net"
+summary = "IS-Net (Qin et al., ECCV 2022): dichotomous image segmentation, a U²-Net-style encoder-decoder of residual U-blocks at 1024 x 1024 (strided stem), trained with intermediate supervision. `isnet-general-use` is the authors' general-purpose model (rembg's `isnet-general-use`), `isnet` the academic DIS5K model."
+tier = "experimental"
+outputs = ["alpha"]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/xuebinqin/DIS"
+commit = "b6764e20381f6f42a70f83fa3324181529ed1403"  # net/isnet.py = IS-Net/models/isnet.py (losses and the GT encoder removed); the call is IS-Net/Inference.py
+
+[licence]
+code = "Apache-2.0"  # LICENSE.md
+weights = "Apache-2.0"  # Google Drive links in the README of the Apache-2.0 repository; no separate weights licence
+files = ["LICENSE"]
+training_data = ["dis5k"]
+training_note = "README: the general-use model is \"optimized ... for general use\" (training data not named); isnet.pth is the academic model trained on DIS5K V1.0 (DIS-TR). DIS5K ships its own terms of use (DIS5K-Dataset-Terms-of-Use.pdf)."
+evidence = "https://github.com/xuebinqin/DIS/blob/b6764e20381f6f42a70f83fa3324181529ed1403/LICENSE.md ; https://github.com/xuebinqin/DIS/blob/b6764e20381f6f42a70f83fa3324181529ed1403/README.md"
+
+[io]
+input = "mean_std"  # Inference.py: /255, normalize(mean 0.5, std 1.0); the runner resizes to `size` x `size` first (bilinear)
+mean = [0.5, 0.5, 0.5]
+std = [1.0, 1.0, 1.0]
+
+[params]
+size = 1024  # network input side (upstream inference); the map is resized back (bilinear) and min-max normalised
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "igev", "cutlass_conv"]  # conv + BatchNorm + ReLU blocks as one conv with an fp32 epilogue
+
+[[papers]]
+title = "Highly Accurate Dichotomous Image Segmentation"
+url = "https://arxiv.org/abs/2203.03041"
+date = "2022-03-06"
+venue = "ECCV 2022"
+
+[[variants]]
+id = "isnet-general-use"
+revision = 1
+weights = [{ name = "isnet-general-use.pth", size = 176579397, sha256 = "9e1aafea58f0b55d0c35077e0ceade6ba1ba2bce372fd4f8f77215391f3fac13", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1XHIzgTzY5BQHw140EDIgwIb53K659ENH" }]
+
+[[variants]]
+id = "isnet"
+revision = 1
+weights = [{ name = "isnet.pth", size = 176597693, sha256 = "ea0889743a78391b48d6b7c40b4def963ee329cb10934c75aa32481dc5af9c61", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1klUkUnQFAxPdFu9XE3Vhnn-e72CVz6oM" }]

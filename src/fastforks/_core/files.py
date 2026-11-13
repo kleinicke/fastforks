@@ -4,7 +4,9 @@ Lookup order for a file `name` of a `group` (e.g. a model family or a kernel lib
 1. every directory in the search-path environment variable (`FASTFORKS_WEIGHTS_PATH` / `FASTFORKS_KERNEL_PATH`),
    as `<dir>/<group>/<name>` or `<dir>/<name>`; these are read-only and never copied;
 2. the content-addressed user cache, `<cache>/blobs/sha256/<ab>/<sha256>` (two variants or libraries that ship the
-   same bytes share one blob, and same-named files of different families cannot collide);
+   same bytes share one blob, and same-named files of different families cannot collide), then the same layout in
+   every directory of `FASTFORKS_READ_CACHES` (other fastforks caches, read in place, never written to: an
+   application that moves `FASTFORKS_CACHE` into its own models folder lists the user cache there);
 3. a copy another tool already downloaded, read in place and never written to: the Hugging Face hub cache
    (`HF_HUB_CACHE`, else `HF_HOME/hub`, else `~/.cache/huggingface/hub`; `models--<org>--<name>/snapshots/*/<file>`)
    for `huggingface.co/<repo>/resolve/<rev>/<file>` URLs, and the torch hub cache (`TORCH_HOME/hub/checkpoints`,
@@ -69,6 +71,7 @@ _UNSIZED_CAP = 4 << 30  # fetch limit when a spec has no size (cards and manifes
 _STALE_DOWNLOAD_S = 24 * 3600
 HF_ENDPOINT_ENV = "FASTFORKS_HF_ENDPOINT"
 OFFLINE_ENV = "FASTFORKS_OFFLINE"
+READ_CACHES_ENV = "FASTFORKS_READ_CACHES"
 _OUR_HF = re.compile(r"https://huggingface\.co/((?:datasets/)?fastforks/.+)")
 MIRROR_URL = "https://huggingface.co/fastforks/mirrors/resolve/main/{group}/{name}"
 _HF_FILE = re.compile(r"https://huggingface\.co/(?P<repo>[^/]+/[^/]+)/resolve/(?P<rev>[^/]+)/(?P<file>.+)")
@@ -201,6 +204,11 @@ def cache_root() -> Path:
     return root
 
 
+def read_caches() -> list[Path]:
+    """Other fastforks caches whose blobs are used in place (`FASTFORKS_READ_CACHES`, `os.pathsep`-separated)."""
+    return search_path(READ_CACHES_ENV)
+
+
 def hf_hub_cache() -> Path:
     """The Hugging Face hub cache, as `huggingface_hub` finds it.
 
@@ -229,8 +237,11 @@ def _other_caches(spec: FileSpec) -> Iterator[Path]:
 
     Hugging Face: the snapshot of the URL's revision first (a branch or tag via `refs/`), then the other snapshots
     (the file may be unchanged across revisions). torch hub: `<checkpoints>/<file name of the URL>`. Archive members
-    are not looked up. Directories that cannot be read are skipped.
+    are not looked up. Directories that cannot be read are skipped. Before them: the blobs of `read_caches()`.
     """
+    for root in read_caches():
+        if _is_file(blob := blob_path(spec.sha256, root)):
+            yield blob
     if spec.url is None or spec.member is not None:
         return
     url = urllib.parse.urlsplit(spec.url)
@@ -329,8 +340,8 @@ def sha256_of(path: Path) -> str:
 _HEX = re.compile(r"[0-9a-f]{64}")
 
 
-def blob_path(sha256: str) -> Path:
-    """Cache path of the blob with this SHA-256.
+def blob_path(sha256: str, root: Path | None = None) -> Path:
+    """Cache path of the blob with this SHA-256 (in the cache `root`, default `cache_root()`).
 
     Raises:
         ValueError: `sha256` is not 64 lower-case hex digits.
@@ -338,7 +349,7 @@ def blob_path(sha256: str) -> Path:
     if not _HEX.fullmatch(sha256):
         msg = f"not a lower-case hex SHA-256: {sha256!r}"
         raise ValueError(msg)
-    return cache_root() / "blobs" / "sha256" / sha256[:2] / sha256
+    return (root or cache_root()) / "blobs" / "sha256" / sha256[:2] / sha256
 
 
 def _stamp_file(path: Path) -> Path:

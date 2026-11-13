@@ -25,6 +25,7 @@ from torch import nn
 
 from fastforks._core.checkpoint import Inert, load_strict
 from fastforks._core.half import fp16_accumulate
+from fastforks.kernels import dpt_fused
 from fastforks.multiview._runner import Forward, Runner, f64, invert, scale, take
 from fastforks.shared.depth_anything_v2 import DINOv2, FastViT, use_sdpa_attention
 from fastforks.shared.quantile import quantile
@@ -547,8 +548,9 @@ class Kernels(_Base):
         self.w1 = w1.to(ctx.device)
         self.b1 = l1.bias.float().to(ctx.device)
         self.net = net.to(ctx.device)
-        self.fv = FastViT(net.vit, "fh", None)
-        self.fcv = FastViT(net.cv_vit, "fh", None)
+        fused = dpt_fused.load(ctx.device)
+        self.fv = FastViT(net.vit, "fh", None, fused=fused)
+        self.fcv = FastViT(net.cv_vit, "fh", None, fused=fused)
         net.cv_fusers.half()
         for mod in (net.matching, net.cv_patch_embed, net.dpt):
             prepare_generic(mod, ctx.device)

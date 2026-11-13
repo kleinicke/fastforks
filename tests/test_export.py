@@ -26,7 +26,7 @@ from fastforks._core.preprocess import resize_crop, scale
 from fastforks._core.tasks import spec
 from fastforks.stereo import _module  # noqa: F401 - registers the kernels custom op
 from fastforks.stereo._export import _cuda_device, _fix_folded_weight_casts
-from synth import pair, size
+from synth import pair, prompt_kwargs, size
 from test_golden import FAMILIES, GOLDEN, SMALLEST, TASK, sweep_model
 
 LOAD_ONCE = True  # conftest runs the tests of one ref together: `sweep_model` loads it once
@@ -43,12 +43,21 @@ _ONNX_KNOWN_MISMATCH = {  # open: the export runs, ONNX Runtime disagrees (or re
     " 0.56 px, mean 0.006)",
 }
 
-_NOT_TRACEABLE: dict[str, str] = {}  # module() runs, but neither dynamo nor torch.export captures it: documented
+_NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export captures it: documented
+    "aliked-lightglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+    "xfeat@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+}
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
     "rf-detr-keypoint-preview@1": "pinned upstream disables Dynamo for positional interpolation to preserve"
     " antialiased bicubic gradients; non-strict torch.export still captures this fixed-shape inference",
+    "rf-detr-seg-n-coco@1": "pinned upstream disables Dynamo for positional interpolation (as RF-DETR keypoint);"
+    " non-strict torch.export still captures this fixed-shape inference",
     "zoedepth-nk@1": "the NK model routes each image to the NYU or KITTI head by the argmax of its domain logits"
     " (.item(); the export runs both heads and selects)",
+}
+
+_SHORTER_EAGER = {  # eager drops tokens module() keeps masked (static shapes): same math, another summation order
+    "lingbot-depth@1": "the model call drops the depth patches without depth; module() masks them",
 }
 
 
@@ -60,6 +69,12 @@ _CAMERAS = ("intrinsics", "cam_to_world", "depth_range")  # the multiview inputs
 _CPU_RAM_HEAVY = {  # compile + torch.export on the CPU need more RAM than the suite's 20 GB cgroup
     "marigold-depth-v1-1@1": "CPU torch.export of the Stable Diffusion UNet + VAE is OOM-killed at 20 GB RAM (also"
     " before export-all); run it alone in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
+    "marigold-normals-lcm-v0-1@1": "the same Stable Diffusion UNet + VAE as Marigold depth; run it alone in a larger"
+    " cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
+    "lotus-normal-d-v1-1@1": "the same Stable Diffusion UNet + VAE as Marigold depth; run it alone in a larger cgroup"
+    " with FASTFORKS_HEAVY_CPU_TESTS=1",
+    "stablenormal-turbo@1": "the Stable Diffusion UNet + VAE of Marigold depth plus a ControlNet encoder; run it alone"
+    " in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
     "depth-pro@1": "CPU dynamo explain + torch.export of the two DINOv2-L encoders at 1536 px is OOM-killed at 20 GB"
     " RAM (after a 7.5 GB load); run it alone in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
     "sam3@1": "CPU dynamo explain + torch.export peak at 13.2 GB RSS, above the suite's 13 GB cap; run it alone in a"
@@ -68,6 +83,9 @@ _CPU_RAM_HEAVY = {  # compile + torch.export on the CPU need more RAM than the s
 _ONNX_SKIP_MULTIVIEW: dict[str, str] = {}
 _ONNX_SKIP_DEPTH = {  # exports, but too big for the CPU suite
     "marigold-depth-v1-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
+    "marigold-normals-lcm-v0-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
+    "lotus-normal-d-v1-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
+    "stablenormal-turbo@1": "Stable Diffusion UNet + ControlNet + VAE (> 2 GB graph); checked on the GPU",
 }
 _HAS_ONNX = bool(importlib.util.find_spec("onnxscript") and importlib.util.find_spec("onnxruntime"))
 ONNX_TESTS = "FASTFORKS_ONNX_TESTS"  # 1: the ONNX export + ONNX Runtime checks (release only: ~27 min of the CPU suite)
@@ -105,9 +123,12 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
     if TASK[ref] == "classification":  # the module takes transformed images (the model call's [io] transform)
         io = model.variant.io
         return (scale(resize_crop(pair[0], io), io),)
-    if TASK[ref] == "multiview":  # one scene: views + the cameras the runner requires
+    if TASK[ref] in {"multiview", "tracking"}:  # one scene / video: views or frames (+ cameras / queries)
         return model.example_inputs(*_shape(model)[2:], batch=2)
-    return pair if TASK[ref] in {"stereo", "flow", "matching"} else pair[:1]
+    if TASK[ref] in {"stereo", "flow", "matching", "interpolation"}:
+        return pair
+    extra = prompt_kwargs(model)  # depth: the image, then the prompt [1, 1, h, w] of a model that requires one
+    return (pair[0], *(torch.as_tensor(v)[None, None] for v in extra.values()))
 
 
 def _multiview_call(model: Any, inputs: tuple[torch.Tensor, ...]) -> Any:
@@ -160,7 +181,7 @@ def _check_export_names(ref: str, model: Any, module: torch.nn.Module, out: Any)
 @pytest.mark.model
 @pytest.mark.filterwarnings("ignore:The .grad attribute of a Tensor that is not a leaf")  # dynamo reads .grad
 @pytest.mark.parametrize("ref", SMALLEST)
-def test_module_compile_export(ref):
+def test_module_compile_export(ref):  # noqa: C901, PLR0912 - one branch per task
     if ref in _NOT_TRACEABLE:
         pytest.xfail(_NOT_TRACEABLE[ref])
     if ref in _CPU_RAM_HEAVY and not os.environ.get("FASTFORKS_HEAVY_CPU_TESTS"):
@@ -172,11 +193,24 @@ def test_module_compile_export(ref):
         want = module(*inputs)
     _check_export_names(ref, model, module, want)
     if TASK[ref] in {"stereo", "depth"}:  # [B, 3, H, W] in [0, 1] -> the main map, as the model call
-        assert want.shape == (1, *inputs[0].shape[2:])
-        assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs))))
+        channels = (3,) if _main_map_name(ref) == "normals" else ()  # normals-only models: [B, H, W, 3]
+        assert want.shape == (1, *inputs[0].shape[2:], *channels)
+        kw = {k: v[0, 0] for k, v in zip(prompt_kwargs(model), inputs[1:], strict=False)}
+        n = 2 if TASK[ref] == "stereo" else 1
+        got = _main_map(model(*(x[0] for x in inputs[:n]), **kw))
+        if ref in _SHORTER_EAGER:
+            torch.testing.assert_close(want[0], got, rtol=1e-4, atol=1e-4)
+        else:
+            assert torch.equal(want[0], got)
     elif TASK[ref] == "flow":  # two [B, 3, H, W] in [0, 1] -> [B, 2, H, W], as the model call
         assert want.shape == (1, 2, *inputs[0].shape[2:])
         assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs))))
+    elif TASK[ref] == "interpolation":  # two [B, 3, H, W] in [0, 1] -> the middle frame [B, 3, H, W]
+        assert want.shape == (1, 3, *inputs[0].shape[2:])
+        assert torch.equal(want[0], model(*(x[0] for x in inputs)).frame)
+    elif TASK[ref] == "restoration":  # [B, 3, H, W] in [0, 1] -> [B, 3, sH, sW], as the model call
+        assert want.shape == (1, 3, *(model.scale * n for n in inputs[0].shape[2:]))
+        assert torch.equal(want[0], model(inputs[0][0]).image)
     elif TASK[ref] == "features":  # -> last_hidden_state [B, N, C], as the model call with the default size
         assert torch.equal(want[0], model(inputs[0][0]).last_hidden_state)
     elif TASK[ref] == "classification":  # transformed images -> logits, as the model call on the raw image
@@ -184,6 +218,8 @@ def test_module_compile_export(ref):
         assert torch.equal(want[0].float(), model(_pair(_shape(model))[0][0]).logits)
     elif TASK[ref] == "multiview":  # one scene -> a dict of maps, as the model call
         assert torch.equal(want["depth"].float(), _multiview_call(model, inputs).depth)
+    elif TASK[ref] == "tracking":  # one video + queries -> {"tracks", "visibility"}, as the model call
+        assert torch.equal(want["tracks"], model(inputs[0], inputs[1]).tracks)
 
     if ref not in _GRAPH_BREAKS:
         explain = torch._dynamo.explain(module)(*inputs)
@@ -242,14 +278,15 @@ def test_onnx_depth(ref, tmp_path):
     if ref in _ONNX_SKIP_DEPTH:
         pytest.skip(_ONNX_SKIP_DEPTH[ref])
     model = _load(ref)
-    (image,) = model.example_inputs(*SHAPE[2:])
+    inputs = model.example_inputs(*SHAPE[2:])  # the image, then the depth prompt where the model requires one
+    names = ["image", *prompt_kwargs(model)]
     path = model.export_onnx(tmp_path / "m.onnx", *SHAPE[2:])
     with torch.inference_mode():
-        want = model.module()(image)
+        want = model.module()(*inputs)
     session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
-    assert [i.name for i in session.get_inputs()] == ["image"]
+    assert [i.name for i in session.get_inputs()] == names
     assert [o.name for o in session.get_outputs()] == [_main_map_name(ref)]
-    (got,) = session.run(None, {"image": image.numpy()})
+    (got,) = session.run(None, {n: x.numpy() for n, x in zip(names, inputs, strict=True)})
     torch.testing.assert_close(torch.from_numpy(got), want, rtol=1e-3, atol=1e-3 * want.abs().max().item())
 
 
@@ -366,7 +403,8 @@ def test_trt_dtype_unknown_is_a_clear_error():
 
 def test_export_defaults_per_task():
     assert spec("stereo").inputs == ("left", "right")
-    assert all(spec(t).inputs == ("image",) for t in ("depth", "classification", "segmentation"))
+    assert spec("depth").inputs == ("image", "prompt_depth")  # the prompt only where the model requires it
+    assert all(spec(t).inputs == ("image",) for t in ("classification", "segmentation"))
     assert [spec(t).export_size for t in ("stereo", "depth", "segmentation")] == [None] * 3  # no legacy default size
     assert spec("features").export_size == (224, 224)
 

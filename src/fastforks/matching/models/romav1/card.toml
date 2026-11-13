@@ -1,0 +1,55 @@
+schema = 2
+name = "RoMa"
+summary = "RoMa (Edstedt, Sun, Bökman, Wadenbäck, Felsberg, CVPR 2024): dense feature matching between two images of any viewpoint. A frozen DINOv2 ViT-L/14 and a VGG19-BN describe both images; a Gaussian process over the coarse DINOv2 features and a transformer classifier give a coarse warp, and convolutional refiners (local correlation at strides 16, 8, 4) sharpen it at strides 16 to 1, at a coarse square size and again at a fine size. Returns, for every pixel of the first image, its position in the second (pixels) and the probability that it is visible there."
+tier = "experimental"
+outputs = ["warp", "certainty"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 ViT and its fast path)
+limitations = [
+  "One direction (the first image's half of upstream's symmetric call); upstream's sampling / keypoint helpers are not included; tools/eval_matching.py has the MegaDepth-1500 sampling.",
+  "Both images are resized to squares (upstream's behaviour), whatever their aspect ratio; upstream resizes PIL images, this runner float tensors (bicubic, antialiased).",
+]
+licence_notes = [
+  "The DINOv2 ViT-L/14 weights are the second weight file (Meta's release, Apache-2.0).",
+]
+
+[upstream]
+repo = "https://github.com/Parskatt/RoMa"
+commit = "77f8d68803526dcddfd9b7a46bc76125bdc25f15"  # net/ = romatch/models/matcher.py, encoders.py, transformer/ (inference path of roma_outdoor, einops removed, autocast regions switchable); the DINOv2 ViT is fastforks.shared.depth_anything_v2's
+
+[licence]
+code = "MIT"  # LICENSE (MIT, Johan Edstedt); README: "All our code except DINOv2 is MIT license. DINOv2 has an Apache 2 license"
+weights = "MIT AND Apache-2.0"  # roma_outdoor.pth: no separate weights licence (MIT as the code); dinov2_vitl14_pretrain.pth: Apache-2.0 (facebookresearch/dinov2 README)
+files = ["LICENSE"]
+training_data = ["megadepth"]
+training_note = "roma_outdoor: MegaDepth (upstream README / paper). The frozen DINOv2 was pretrained on LVD-142M (not released)."
+evidence = "https://github.com/Parskatt/RoMa/blob/77f8d68803526dcddfd9b7a46bc76125bdc25f15/README.md#license"
+
+[io]
+input = "0-1"  # the runner resizes both images to squares (bicubic, antialiased) and normalises with the ImageNet mean / std itself, as upstream match()
+min_size = 16
+
+[options]
+coarse_size = { default = 560, min = 14 }  # square side of the coarse pass (upstream coarse_res: 560 default, 672 in its MegaDepth benchmark); a multiple of 14
+fine_size = { default = 864, min = 0 }  # square side of the upsampling pass (upstream upsample_res: 864 default, 1344 in its benchmark; 0 = none); a multiple of 8
+
+[modes.portable]
+cuda_dtype = "float16"  # as upstream: DINOv2 in fp16 weights, the VGG, the projections, the transformer classifier and the refiner blocks under fp16 autocast (upstream enables it on CUDA for every region); Gaussian process, refiner outputs and warps float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+dtype = "float16"  # as portable
+kernels = ["fastbb"]  # DINOv2 on the fused fp16 ViT path (flash attention); the rest is the portable fp16 path
+
+[[papers]]
+title = "RoMa: Robust Dense Feature Matching"
+url = "https://arxiv.org/abs/2305.15404"
+date = "2023-05-24"
+venue = "CVPR 2024"
+
+[[variants]]
+id = "romav1"  # upstream roma_outdoor.pth (roma_outdoor()); MegaDepth-1500 AUC@5/10/20 62.6 / 76.7 / 86.3 (paper)
+revision = 1
+weights = [
+  { name = "roma_outdoor.pth", size = 445647516, sha256 = "c7a45c80d41ad788a63c641d1b686d7cb3f297f40097c6f4e75039889e5cc8ba", url = "https://github.com/Parskatt/storage/releases/download/roma/roma_outdoor.pth" },
+  { name = "dinov2_vitl14_pretrain.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth" },
+]

@@ -1,0 +1,52 @@
+schema = 2
+name = "AnySplat"
+summary = "AnySplat (Jiang et al. 2025): feed-forward 3D Gaussian splatting from unposed, uncalibrated images. A VGGT backbone (fine-tuned aggregator, camera head and depth head) predicts the cameras and depth of every view; a DPT Gaussian head predicts per-pixel Gaussians (opacity, scale, rotation, degree-4 SH), fused per voxel into one scene (`result.gaussians`, `.save(\"scene.ply\")`). Forward pass only: no renderer."
+tier = "experimental"
+uses = ["depth_anything_v2", "rope2d"]  # shared modules imported directly by this family
+outputs = ["depth", "confidence", "world_points", "intrinsics", "cam_to_world", "gaussians"]  # gaussians: MultiViewResult.gaussians (not a map)
+
+licence_notes = [
+  "AnySplat's code and checkpoint are MIT; its VGGT copy (net/) is under the VGGT License (commercial use allowed). The checkpoint was fine-tuned from VGGT-1B, whose own weights are CC-BY-NC-4.0: the AnySplat authors release theirs as MIT.",
+  "Upstream's Gaussian head file (vggt_dpt_gs_head.py) carries a stale Naver CC BY-NC-SA header from DUSt3R although the class used here is new code on the VGGT DPT head; this family reimplements that head (GSHead in model.py) and vendors none of the Naver-headed files.",
+]
+
+[output]
+kind = "scale_invariant"  # the scene is normalised as VGGT: depth, points, translations and Gaussians share one unknown scale
+
+[upstream]
+repo = "https://github.com/InternRobotics/AnySplat"
+commit = "5f5e208"
+
+[licence]
+code = "MIT AND LicenseRef-VGGT"  # LICENSE (MIT, AnySplat authors); net/ is AnySplat's copy of VGGT (LICENSE-VGGT)
+weights = "MIT"  # Hugging Face model card of lhjiang/anysplat: license mit
+files = ["LICENSE", "LICENSE-VGGT"]
+training_data = ["unstated"]
+training_note = "Per the paper (arXiv 2505.23716) a mixture of public multi-view datasets; the repository ships CO3Dv2, DL3DV and ScanNet++ training configs. VGGT-1B initialisation."
+evidence = "https://github.com/InternRobotics/AnySplat/blob/5f5e208a7dd57d52e43ea0d553a95eab526e8775/LICENSE and https://huggingface.co/lhjiang/anysplat/blob/d2e8c343672646041ad4ea518184968f94362f01/README.md (license: mit)"
+
+[io]
+input = "0-1"  # the runner resizes (long side long_side, multiples of 14, bicubic antialiased; upstream: 448 x 448 crops)
+pad = "none"
+
+[options]
+long_side = { default = 448, min = 14 }  # network long side (upstream inference: 448)
+voxel_size = { default = 0.002, min = 0.0 }  # Gaussian fusion voxel in scene units (released config 0.002; 0: one Gaussian per pixel)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "cudnn_hacc"]
+
+[[papers]]
+title = "AnySplat: Feed-forward 3D Gaussian Splatting from Unconstrained Views"
+url = "https://arxiv.org/abs/2505.23716"
+date = "2025-05-29"
+venue = "arXiv"
+
+[[variants]]
+id = "anysplat"
+revision = 1
+weights = [{ name = "model.safetensors", size = 2944896024, sha256 = "1c4de2ba5a29c540b899af901bf02107395b5f0617655d347e262f814b4c0c7c", url = "https://huggingface.co/lhjiang/anysplat/resolve/d2e8c343672646041ad4ea518184968f94362f01/model.safetensors" }]

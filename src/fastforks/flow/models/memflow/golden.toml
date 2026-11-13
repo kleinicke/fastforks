@@ -1,0 +1,52 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 4.2e-05
+gpu_mean = 0.0018
+gpu_p99 = 0.0065
+
+[refs."memflow-kitti@1"]
+sha256 = "fdd6f926128fef1d319357ccb552dc35000d05ab49eb295c864ed22b715196de"
+upstream = "https://github.com/DQiaole/MemFlow@5486fb88a55b04c2e2b292b3abaa7641d9988831"
+settings = "CPU float32, upstream MemFlowNet configs/kitti_memflownet.py, InferenceCore.step(end=True) on the pair (val_decoder_depth 15, empty memory, non-flash readout), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."memflow-sintel@1"]
+sha256 = "03eb300a435e7cf6c2ec97439047a4aea5cd1a17a12b17247113f3bbc55d1b50"
+upstream = "https://github.com/DQiaole/MemFlow@5486fb88a55b04c2e2b292b3abaa7641d9988831"
+settings = "CPU float32, upstream MemFlowNet configs/sintel_memflownet.py, InferenceCore.step(end=True) on the pair (val_decoder_depth 15, empty memory, non-flash readout), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."memflow@1"]
+sha256 = "831fcdbadc25453eaefb43f9f4407986600ebfc7b74a8daf5c3b09a19f2caf5a"
+upstream = "https://github.com/DQiaole/MemFlow@5486fb88a55b04c2e2b292b3abaa7641d9988831"
+settings = "CPU float32, upstream MemFlowNet configs/things_memflownet.py, InferenceCore.step(end=True) on the pair (val_decoder_depth 15, empty memory, non-flash readout), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[validated."memflow-kitti@1"]
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c256_r4" = "cd9f0bd2a65ce8ca"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00106
+p99_px = 0.00435
+
+[validated."memflow-sintel@1"]
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c256_r4" = "cd9f0bd2a65ce8ca"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00072
+p99_px = 0.00354
+
+[validated."memflow@1"]
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c256_r4" = "cd9f0bd2a65ce8ca"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00089
+p99_px = 0.00347

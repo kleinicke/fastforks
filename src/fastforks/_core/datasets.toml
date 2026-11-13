@@ -233,3 +233,176 @@ name = "Spring (scene flow / optical flow / stereo, University of Stuttgart)"
 licence = "CC-BY-4.0"  # DaRUS record doi:10.18419/darus-3376 (version 2): licence "CC BY 4.0" (read 2026-11-09)
 commercial = "yes"
 url = "https://spring-benchmark.org/"
+
+[megadepth]
+name = "MegaDepth (Internet photo collections with SfM / MVS depth)"
+licence = "CC-BY-4.0"  # "is licensed under a Creative Commons Attribution 4.0 International License"; "The original images come with their own licenses" (read 2026-11-12)
+commercial = "unclear"
+url = "https://www.cs.cornell.edu/projects/megadepth/"
+
+[dis5k]
+name = "DIS5K (dichotomous image segmentation)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "https://github.com/xuebinqin/DIS"
+
+[duts]
+name = "DUTS (salient object detection)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "http://saliencydetection.net/duts/"
+
+[hrsod]
+name = "HRSOD (high-resolution salient object detection)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "https://github.com/yi94code/HRSOD"
+
+[uhrsd]
+name = "UHRSD (ultra-high-resolution salient object detection)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "https://github.com/iCVTEAM/PGNet"
+
+[hrs10k]
+name = "HRS10K (high-resolution salient object detection)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "https://github.com/DrowsyMon/HRS10K"
+
+[p3m-10k]
+name = "P3M-10k (privacy-preserving portrait matting)"
+licence = "not checked"  # terms not read for the BiRefNet port (2026-11-12)
+commercial = "unclear"
+url = "https://github.com/JizhiziLi/P3M"
+
+[prama-internal]
+name = "Prama LLC proprietary segmentation data"
+licence = "not stated"  # BEN2 card: "our 22K proprietary segmentation dataset"
+commercial = "unclear"
+url = "https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md"
+
+[composition-1k]
+name = "Composition-1k (Adobe Deep Image Matting)"
+licence = "Adobe research licence on request"  # the DIM dataset is shared by Adobe on request for non-commercial research
+commercial = "no"
+url = "https://sites.google.com/view/deepimagematting"
+
+[realestate10k]
+name = "RealEstate10K (camera trajectories of YouTube real-estate videos)"
+licence = "CC-BY-4.0"  # the released camera files; the frames are downloaded from YouTube under the videos' own terms
+commercial = "unclear"
+url = "https://google.github.io/realestate10k/"
+
+[vimeo90k]
+name = "Vimeo-90K (septuplets / triplets for frame interpolation)"
+licence = "not stated"  # clips from vimeo.com under their uploaders' terms; the page asks only for a citation
+commercial = "unclear"
+url = "http://toflow.csail.mit.edu/"
+
+[gsv-cities]
+name = "GSV-Cities (Google Street View images of 62k places in 40 cities)"
+licence = "not checked"  # terms not read for the retrieval ports (2026-11-13)
+commercial = "unclear"
+url = "https://github.com/amaralibey/gsv-cities"
+
+[msls]
+name = "Mapillary Street-Level Sequences"
+licence = "CC-BY-NC-SA-4.0"  # Mapillary's MSLS terms (research use), not re-read for the retrieval ports (2026-11-13)
+commercial = "no"
+url = "https://www.mapillary.com/dataset/places"
+
+[megascenes]
+name = "MegaScenes (Internet photo collections of scenes from Wikimedia Commons)"
+licence = "not checked"  # terms not read for the retrieval ports (2026-11-13)
+commercial = "unclear"
+url = "https://megascenes.github.io/"
+
+[scannet]
+name = "ScanNet (RGB-D scans of indoor scenes)"
+licence = "ScanNet Terms of Use"  # non-commercial research terms, not re-read for the retrieval ports (2026-11-13)
+commercial = "no"
+url = "http://www.scan-net.org/"
+
+[sf-xl]
+name = "San Francisco eXtra Large (street-view images of San Francisco)"
+licence = "not checked"  # terms not read for the retrieval ports (2026-11-13)
+commercial = "unclear"
+url = "https://github.com/gmberton/CosPlace"
+
+[openpano]
+name = "OpenPano (perspective crops of public 360-degree panoramas: PolyHaven, HDRMaps, AmbientCG, BlenderKit)"
+licence = "mixed"  # per-source terms (PolyHaven / AmbientCG CC0, HDRMaps and BlenderKit their own), not re-read for the calibration ports (2026-11-13)
+commercial = "unclear"
+url = "https://github.com/cvg/GeoCalib/blob/main/siclib/datasets/README.md"
+[div2k]
+name = "DIV2K (NTIRE 2017 super-resolution, 1000 2K images)"
+licence = "academic research only"  # images collected from the Internet, copyright with their owners
+commercial = "no"
+url = "https://data.vision.ee.ethz.ch/cvl/DIV2K/"
+
+[flickr2k]
+name = "Flickr2K (2650 2K Flickr images, EDSR)"
+licence = "not stated"  # Flickr photos under their uploaders' terms
+commercial = "unclear"
+url = "https://github.com/limbee/NTIRE2017"
+
+[ost]
+name = "OutdoorSceneTraining (OST, SFTGAN)"
+licence = "not stated"  # images collected from the Internet
+commercial = "unclear"
+url = "https://github.com/xinntao/SFTGAN"
+
+[ffhq]
+name = "Flickr-Faces-HQ (FFHQ, 70k face images)"
+licence = "CC-BY-NC-SA-4.0"  # the dataset (NVIDIA); the images: their Flickr authors' CC BY / BY-NC / public-domain terms
+commercial = "no"
+url = "https://github.com/NVlabs/ffhq-dataset"
+
+[manga109]
+name = "Manga109 (109 Japanese manga volumes)"
+licence = "academic research only"  # Manga109-s is the subset for commercial use
+commercial = "no"
+url = "http://www.manga109.org/en/"
+
+[wed]
+name = "Waterloo Exploration Database (4744 natural images)"
+licence = "not stated"  # images collected from the Internet
+commercial = "unclear"
+url = "https://ece.uwaterloo.ca/~k29ma/exploration/"
+
+[scut-ctw1500]
+name = "SCUT-CTW1500 (curved scene text)"
+licence = "not stated"  # the page asks for a citation only
+commercial = "unclear"
+url = "https://github.com/Yuliang-Liu/Curve-Text-Detector"
+
+[supervisely-person]
+name = "Supervisely Person Dataset (human segmentation)"
+licence = "not checked"  # terms not read for the U²-Net port (2026-11-13)
+commercial = "unclear"
+url = "https://supervise.ly/explore/projects/supervisely-person-dataset-23304/datasets"
+
+[danbooru]
+name = "Danbooru (anime illustrations with community tags; WD taggers: image ids up to 7 220 105)"
+licence = "not stated"  # images are uploaded artworks under their artists' copyright; the site states no dataset terms
+commercial = "unclear"
+url = "https://danbooru.donmai.us/"
+
+[falconsai-nsfw]
+name = "Falconsai proprietary NSFW data (about 80 000 images, normal / nsfw)"
+licence = "not stated"  # Falconsai/nsfw_image_detection card: "a proprietary dataset"
+commercial = "unclear"
+url = "https://huggingface.co/Falconsai/nsfw_image_detection/blob/96cb0d0342c7afb80cab76ecc58b265fa44da256/README.md"
+
+[atr]
+name = "ATR human parsing dataset (18 clothes / body-part classes; SegFormer-B2 clothes: Hugging Face mirror mattmdjaga/human_parsing_dataset)"
+licence = "not stated"  # the README only asks for a citation "for acadamic and commercial research"; no licence
+commercial = "unclear"
+url = "https://github.com/lemondan/HumanParsing-Dataset"
+
+[celebamask-hq]
+name = "CelebAMask-HQ (30 000 CelebA-HQ faces, 19 face-part masks)"
+licence = "LicenseRef-noncommercial"  # "available for non-commercial research purposes only"
+commercial = "no"
+url = "https://github.com/switchablenorms/CelebAMask-HQ"

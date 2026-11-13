@@ -37,7 +37,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb"]
+kernels = ["fastbb", "dpt_fused"]
 
 [[papers]]
 title = "TIPSv2: Advancing Vision-Language Pretraining with Enhanced Patch-Text Alignment"

@@ -16,12 +16,15 @@ anything else (scientific TIFF, EXR, raw, .npy, OpenCV) yourself and pass a nump
 
 from __future__ import annotations
 
+import collections
 import contextlib
 import io
+import itertools
 import logging
 import os
 import urllib.error
 import urllib.request
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextvars import ContextVar
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeAlias, TypeGuard
@@ -33,7 +36,7 @@ from PIL import Image
 from fastforks._core.errors import InputError
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Sequence
+    from collections.abc import Generator, Iterable, Iterator, Sequence
 
 log = logging.getLogger(__name__)
 _exif_warned = False
@@ -60,6 +63,9 @@ _LOSSLESS_FIX = (
 _RGB, _RGBA = 3, 4
 _BATCH_DIMS = 4
 _URL_TIMEOUT_S, _URL_MAX_BYTES = 30, 100 * 2**20
+_FILE = (str, os.PathLike, bytes, bytearray, io.BytesIO)  # inputs `decode_image` reads
+_DECODERS = 8  # threads at most for the files of one call
+_pool: tuple[int, ThreadPoolExecutor] | None = None  # (pid, pool): a forked child starts its own threads
 
 
 def _as_tensor(img: ImageLike) -> torch.Tensor:
@@ -68,7 +74,7 @@ def _as_tensor(img: ImageLike) -> torch.Tensor:
     The one conversion of every image input (model calls, calibrated / two-view calls, `run_many`): models compute in
     float32 and MPS has no float64, so float64 images give the same numbers as their float32 copy on every path.
     """
-    if isinstance(img, (str, os.PathLike, bytes, bytearray, io.BytesIO)):
+    if isinstance(img, _FILE):
         return _as_tensor(decode_image(img))
     shape = tuple(getattr(img, "shape", ()))  # as the caller passed it, for the error messages
     if isinstance(img, Image.Image):
@@ -158,6 +164,61 @@ def decode_image(source: str | os.PathLike[str] | bytes | bytearray | io.BytesIO
     except (OSError, ValueError, Image.DecompressionBombError) as e:  # missing, not an image, truncated, too large
         msg = f"cannot read image {name!r}: {e}"
         raise InputError(msg) from e
+
+
+def read_images(
+    sources: Iterable[str | os.PathLike[str] | bytes | bytearray | io.BytesIO], *, workers: int = 4
+) -> Iterator[np.ndarray]:
+    """Decode a stream of image files in background threads, in order, ahead of the loop that uses them.
+
+    `for image in fastforks.read_images(paths): model(image)` gives the results of `model(path)`; the next files
+    decode while the model runs, so a small model no longer waits for the JPEG decoder. For pairs zip two readers.
+    At most `2 * workers` decoded images wait in memory.
+
+    Args:
+        sources: Paths, URLs or encoded bytes (what a model call reads as a file); may be a generator.
+        workers: Decode threads.
+
+    Raises:
+        InputError: As the model call would for that file, when the loop reaches it.
+    """
+    it = iter(sources)
+    ahead: collections.deque[Future[np.ndarray]] = collections.deque()
+    with ThreadPoolExecutor(workers, thread_name_prefix="fastforks-read") as pool:
+        try:
+            while True:
+                for src in itertools.islice(it, 2 * workers - len(ahead)):
+                    ahead.append(pool.submit(decode_image, src))
+                if not ahead:
+                    return
+                yield ahead.popleft().result()
+        finally:  # error or abandoned loop: drop what has not started
+            for f in ahead:
+                f.cancel()
+
+
+def _decoded(imgs: Sequence[ImageLike]) -> Sequence[ImageLike]:
+    """`imgs` with the files of a pair / view list decoded in parallel (Pillow decodes without the GIL).
+
+    One file (or none) is left to the sequential path; errors are those of the sequential order.
+    """
+    files = [i for i, img in enumerate(imgs) if isinstance(img, _FILE)]
+    if len(files) < 2:  # noqa: PLR2004 - nothing to overlap
+        return imgs
+    global _pool  # noqa: PLW0603 - one pool per process
+    if _pool is None or _pool[0] != os.getpid():
+        workers = min(_DECODERS, os.cpu_count() or 1)
+        _pool = os.getpid(), ThreadPoolExecutor(workers, thread_name_prefix="fastforks-decode")
+    rest = [_pool[1].submit(decode_image, imgs[i]) for i in files[1:]]  # ty: ignore[invalid-argument-type]
+    out = list(imgs)
+    try:
+        out[files[0]] = decode_image(imgs[files[0]])  # ty: ignore[invalid-argument-type]
+        for i, f in zip(files[1:], rest, strict=True):
+            out[i] = f.result()
+    finally:
+        for f in rest:
+            f.cancel()
+    return out
 
 
 def _warn_orientation(im: Image.Image, name: str) -> None:
@@ -260,13 +321,15 @@ def _from_numpy(img: np.ndarray) -> torch.Tensor:
     return t[None] if t.ndim == 2 else t.movedim(-1, -3)  # noqa: PLR2004 - HW has no channel axis
 
 
-def to_rgb_batch(img: ImageLike, device: torch.device) -> torch.Tensor:
+def to_rgb_batch(img: ImageLike, device: torch.device, *, keep_uint8: bool = False) -> torch.Tensor:
     """Convert one image (or a batch) to float32 RGB `[B, 3, H, W]` in `[0, 1]` on `device`.
+
+    With `keep_uint8`, uint8 images stay uint8 (levels 0..255; no full-size float32 copy, see `Runner.uint8_input`).
 
     Raises:
         InputError: Unsupported type, shape, channel count, dtype or value range.
     """
-    t, _, bounds = _to_rgb(img, device)
+    t, _, bounds = _to_rgb(img, device, keep_uint8=keep_uint8)
     _check_ranges([bounds])
     return t
 
@@ -277,7 +340,7 @@ def to_rgb_batches(imgs: Sequence[ImageLike], device: torch.device) -> list[torc
     Raises:
         InputError: As `to_rgb_batch` (the first image out of range is named).
     """
-    conv = [_to_rgb(img, device) for img in imgs]
+    conv = [_to_rgb(img, device) for img in _decoded(imgs)]
     _check_ranges([b for _, _, b in conv])
     return [t for t, _, _ in conv]
 
@@ -296,6 +359,7 @@ def to_rgb_pair(
     Raises:
         InputError: As `to_rgb_batch`, or the two images differ in shape or in gray / colour.
     """
+    left, right = _decoded((left, right))
     (lt, lc, lb), (rt, rc, rb) = _to_rgb(left, device), _to_rgb(right, device)
     _check_ranges([lb, rb])  # one host sync for both
     a, b = names
@@ -337,7 +401,9 @@ def _check_ranges(bounds: Sequence[tuple[torch.Tensor, torch.Tensor] | None]) ->
     raise InputError(msg)
 
 
-def _to_rgb(img: ImageLike, device: torch.device) -> tuple[torch.Tensor, int, tuple[torch.Tensor, torch.Tensor] | None]:
+def _to_rgb(
+    img: ImageLike, device: torch.device, *, keep_uint8: bool = False
+) -> tuple[torch.Tensor, int, tuple[torch.Tensor, torch.Tensor] | None]:
     """`to_rgb_batch` without the value-range check: the image, its input channels and its float `[min, max]`.
 
     The bounds are `None` for integer images and inside `checked_ranges`.
@@ -354,6 +420,8 @@ def _to_rgb(img: ImageLike, device: torch.device) -> tuple[torch.Tensor, int, tu
         t = t.to(device, torch.float32, non_blocking=True)
         if not _CHECKED.get():
             bounds = t.aminmax()
+    elif keep_uint8 and t.dtype == torch.uint8:
+        t = t.to(device, non_blocking=True)
     else:
         scale = _INT_MAX.get(t.dtype)
         if scale is None:

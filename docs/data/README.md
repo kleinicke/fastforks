@@ -7,7 +7,8 @@ measuring scripts are not part of this repository; the protocols are described b
 ## Accuracy: `<task>_eval.jsonl`
 
 One file per task (`stereo`, `depth`, `classification`, `segmentation`, `detection`, `promptable_segmentation`,
-`features`, `multiview`, `pose`, `flow`, `matching`), one JSON object per model, tier and dataset. Measured in the 2026-11-05 campaign
+`features`, `multiview`, `pose`, `flow`, `matching`, `matting`, `tracking`, `interpolation`, `retrieval`, `calibration`,
+`restoration`), one JSON object per model, tier and dataset. Measured in the 2026-11-05 campaign
 (`tools/acc_collect.py` builds the files from the raw output of the `tools/eval_*.py` scripts; the older 2026-10-27
 stereo / depth rows were replaced: they predate this repository's history and the current protocol).
 
@@ -50,7 +51,10 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
 - Promptable segmentation: SAM / SAM 2 `miou_best` (the candidate with the best predicted IoU of three) and
   `miou_single`, one interior point per non-crowd instance of the same 500 COCO images. SAM 3 (concept prompts):
   `box_map` / `mask_map`, one text prompt per COCO category present in the image, threshold 0.5; dataset key
-  `coco-val2017-every10-text` (same images, another benchmark).
+  `coco-val2017-every10-text` (same images, another benchmark). INSID3 (in-context): `miou` on one-shot episodes, 3
+  (reference, target) pairs per COCO class drawn with seed 0 from the val2017 images whose class covers >= 2 %, the
+  class's non-crowd instances as one mask, foreground IoU summed per class and averaged over the 80 classes; dataset
+  key `coco-val2017-oneshot-k3`.
 - Features: kNN `top1` (k = 20, cosine, similarity-weighted) of the CLS feature at 224x224, ImageNet val split into two
   seeded disjoint subsets (10000 memory, 5000 test).
 - Optical flow: `epe` (mean over pairs of the per-pair mean end-point error, px) and `fl_all` (% of all valid pixels,
@@ -65,6 +69,33 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
   intrinsics scaled to a 1200 px long side, OpenCV `findEssentialMat` (RANSAC, 0.5 px over the mean focal length,
   confidence 0.99999) and `recoverPose`; the error of a pair is the larger of the rotation and translation-direction
   errors, 5 seeded runs per pair. `ms_per_img` is the median time of a pair's two calls.
+- Matting: `mae`, `max_fbeta` (beta^2 = 0.3, the best of 256 thresholds) of the alpha against the binary masks of
+  DIS5K's validation split (DIS-VD, 470 images, each at its own size), dataset keys `dis-vd` and `dis-vd-every2`
+  (every 2nd image), measured with `tools/eval_matting.py`; `ms_per_img` includes the resize to and from 1024 x 1024.
+- Point tracking: `aj` (average Jaccard), `delta_avg` (share of visible points within 1, 2, 4, 8, 16 px) and `oa`
+  (occlusion accuracy), %, averaged over the videos of TAP-Vid DAVIS in the "query first" protocol (30 videos; one
+  query per track at its first visible point), frames resized to 256 x 256 with PIL Lanczos before the model as
+  tapnet's `evaluation_datasets.py`, errors at 256 x 256; dataset keys `tapvid-davis-first` and
+  `tapvid-davis-first-every3` (every 3rd video), measured with `tools/eval_tracking.py`. `ms_frame` is the mean time
+  per frame.
+- Frame interpolation: `psnr` (dB) and `ssim` of the middle frame, rounded to uint8, against the true one, on DAVIS
+  2017 trainval 480p: frames 0 and 2 -> 1 and 20 and 22 -> 21 of each of the 90 videos (`davis2017-triplets180`),
+  measured with `tools/eval_interpolation.py`; `ms_per_pair` is the median time of a call. Vimeo-90K and UCF101, the
+  papers' sets, are not used: they are not available locally.
+- Retrieval: `r1`, `r5` (recall@1 / @5, %): a query counts as found when one of its 1 / 5 nearest database images
+  (cosine similarity of the descriptors, exact search) is within 25 m; St Lucia (the VPR-datasets-downloader split:
+  1549 database, 1464 query images, 640 x 480, UTM positions in the file names), dataset keys `st-lucia` and
+  `st-lucia-every5` (every 5th query against the full database), measured with `tools/eval_retrieval.py`; `n` =
+  queries, `ms_per_img` the median time of one image.
+- Calibration: `roll_auc1` ... `vfov_auc10` (AUC of the absolute roll / pitch / vertical-FoV error up to 1 / 5 / 10
+  degrees, %, as GeoCalib's `siclib` eval with `min_error=1`); LaMAR2k (GeoCalib's release: 2000 images, 1920 x 1440,
+  ground truth in `images.csv`), dataset keys `lamar2k` and `lamar2k-every10`, measured with
+  `tools/eval_calibration.py`; `median_err_deg` = median roll / pitch / vFoV error, `ms_per_img` the median time of one
+  image.
+- Restoration: `psnr` (dB) and `ssim` on the Y channel (BT.601) of the output, rounded to uint8, against the HR image,
+  `scale` px border cropped, on the 100 DIV2K validation images from the official bicubic LR images (`div2k-val-x4`,
+  `div2k-val-x2`, the model's scale), one pass without tiles, measured with `tools/eval_restoration.py`; `ms_per_image`
+  is the median time of a call.
 - Multiview: `absrel`, `d125` (% within 1.25) on DTU scans 1, 9, 24, 33, 75 (reference view 24 + 7 sources, 640x512),
   median-scaled for uncalibrated models; calibrated MVS also `mae_mm`, `le2mm`, `le4mm`. `n` = scans.
 
@@ -150,6 +181,27 @@ model, dataset and `setting`:
 `tools/exp_da3_longside.py` and `tools/exp_crestereo_scale.py` (`python tools/<script> <out dir>` writes `rows.jsonl`);
 the `dpt_fused` kernel binary came from a local build (build id `48e0065bb7cf`). The DA3 script changes `long_side` on
 one loaded model and first checks that this is bit-equal to loading with that `long_side`.
+
+## Relative pose: `relative_pose_eval.jsonl`
+
+`fastforks.matching.estimate_pose` against the usual CPU solvers on the same matches (the table on the RoMa v2 model
+page). Written by `tools/eval_pose.py --matches DIR --method opencv|usac|poselib|portable|kernels [--jobs N] [--stop N]`,
+one row per run; every row says where its numbers came from.
+
+- Matches: RoMa v2 (`romav2`, kernels mode, bfloat16, kernel build `romav2@1c8e19405d40`) on MegaDepth-1500, 5000
+  matches per pair sampled 5 times (`tools/eval_matching.py match`), saved once and read by every solver.
+  `matches_sha256` (SHA-256 over the sorted `.npz` files, first 16 hex digits) pins the exact matches; `matches` is the
+  directory's name. Pose AUC@5/10/20 (`auc5`, `auc10`, `auc20`) over all `n` = 5 x `n_pairs` poses, threshold 0.5 px.
+- Throughput rows (no `--stop`, 1500 pairs): `pairs_per_s` is wall-clock over all poses. CPU solvers run one pair per
+  call in `jobs` single-threaded processes; the GPU solver takes `batch` pairs per call. `ms_per_pair_single` (CPU) and
+  `ms_single_pair_median` (GPU) are the median time of one pair alone.
+- Single-core rows (`jobs` 1, `--stop 300`): the first 300 pairs only, for the per-pair time; their AUC is over that
+  subset.
+- Trust fields: `commit` (the checkout that ran, `src_dirty` true if `src` or `tools` had uncommitted changes),
+  `versions` (torch, OpenCV, NumPy, PoseLib), `cpu_model`, `gpu`, `loadavg_1min` (1-minute load average when the run
+  started: CPU throughput depends on other work on the machine; the rows here are from runs started below 2), `kernel`
+  (kernels rows: the RANSAC binary loaded, by file name = build, SHA-256 prefix, and `local build` = not yet published,
+  read from `FASTFORKS_KERNEL_PATH` and checked against the manifest), `command` (paths reduced to file names), `date`.
 
 ## Devices: `devices.toml`, `speed/<slug>.jsonl`
 

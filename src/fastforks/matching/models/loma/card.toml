@@ -1,0 +1,59 @@
+schema = 2
+name = "LoMa"
+summary = "LoMa (Nordström, Edstedt et al. 2026): local feature matching with a light transformer. DaD (a VGG11 detector trained by distillation, Edstedt et al. 2025) finds 2048 keypoints per image, the DeDoDe-G descriptor (VGG19 + a frozen DINOv2 ViT-L/14) describes them, and nine LightGlue-style transformer layers (rotary self-attention, cross-attention) refine the descriptions before a dual-softmax assignment. Returns both keypoint sets, the index pairs of the matches and their scores."
+tier = "experimental"
+outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
+uses = ["dedode", "depth_anything_v2", "lightglue"]  # fastforks.shared modules this family imports (the DaD / DeDoDe nets; the DINOv2 ViT-L/14; the transformer blocks)
+limitations = [
+  "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
+  "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
+  "No exportable module: the match counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
+  "Two resizes per image as upstream: the detector sees a long side of `long_side` (aspect kept), the descriptor a `size` x `size` square whatever the aspect ratio.",
+  "Upright only: the released weights are not trained for in-plane rotations.",
+]
+
+[upstream]
+repo = "https://github.com/davnords/loma"
+commit = "415caedde23a9ed479172ed174fe4ff7b4514d4b"  # loma/loma.py (matcher, match), loma/detector/{dad,utils}.py (DaD; Parskatt/dad 41b9e86a), loma/descriptor/dedode.py (DeDoDe-G); the nets are fastforks.shared.dedode's, the DINOv2 fastforks.shared.depth_anything_v2's, the transformer blocks fastforks.shared.lightglue's
+
+[licence]
+code = "MIT"  # LICENSE (LoMa); DaD: MIT, LICENSE-DAD; DeDoDe: MIT, LICENSE-DEDODE; DINOv2: Apache-2.0, LICENSE-DINOv2
+weights = "MIT"  # LoMa README "License: MIT"; the checkpoint bundles the DaD (MIT), DeDoDe-G (MIT) and DINOv2 (Apache-2.0) weights
+files = ["LICENSE", "LICENSE-DAD", "LICENSE-DEDODE", "LICENSE-DINOv2"]
+training_data = ["megadepth"]
+training_note = "Matcher: MegaDepth (paper); DaD: MegaDepth-based distillation (DaD paper); DeDoDe-G descriptor: MegaDepth; DINOv2 (frozen): LVD-142M (Meta)."
+evidence = "https://github.com/davnords/loma/blob/415caedde23a9ed479172ed174fe4ff7b4514d4b/LICENSE ; https://github.com/Parskatt/dad/blob/41b9e86a1a3ae52128485cc1094aa4952ef489ba/LICENSE ; https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/README.md#license"
+
+[io]
+input = "0-1"  # resized twice by the runner (detector: ImageNet-normalised; descriptor: not, as upstream)
+min_size = 16
+
+[options]
+max_keypoints = { default = 2048, min = 1 }  # keypoints per image (upstream `Cfg.num_keypoints`; its benchmarks use 4096)
+long_side = { default = 1024, min = 16 }  # the detector's image: long side, aspect kept, sides floored to a multiple of 8 (upstream `DaD.Cfg.resize`)
+size = { default = 784, min = 56 }  # the descriptor's image: side of the square (upstream `read_image`; 784 = 56 x 14)
+
+[params]
+threshold = 0.1  # match score (product of the row and column softmaxes) a match needs (upstream `Cfg.filter_threshold`)
+
+[modes.portable]
+cuda_dtype = "bfloat16"  # as upstream on Ampere+: encoders, refiners and DINOv2 in bfloat16, the matcher under bfloat16 autocast; keypoint sampling and the match filter float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not implemented yet"
+
+[[papers]]
+title = "LoMa: Local Feature Matching Revisited"
+url = "https://arxiv.org/abs/2604.04931"
+date = "2026-04-06"
+venue = "ECCV 2026"
+
+[[variants]]
+id = "loma-b"  # DaD detector + DeDoDe-G descriptor + the 256-d, 4-head, 9-layer matcher (upstream README default `loma_B`)
+revision = 1
+params = { dim = 256, heads = 4, layers = 9 }
+weights = [
+  { name = "loma_B.pt", size = 757888113, sha256 = "3a38824391e22b33bb3e10377c7736243fd8a2fbf1561446e7e133e497c35758", url = "https://github.com/davnords/storage/releases/download/loma/loma_B.pt" },
+]

@@ -186,3 +186,16 @@ def test_hf_weight_urls_are_pinned_to_a_commit():  # TH-3
             if m and not re.fullmatch(r"[0-9a-f]{40}", m[1]):
                 bad.append((ref, w.url))
     assert not bad, bad
+
+
+def test_google_drive_urls_skip_the_confirm_page():
+    # drive.google.com/uc serves an HTML virus-scan page instead of files above a size limit (hat-x4 at 81 MB):
+    # the download then fails its hash check. The usercontent URL with confirm=t returns the file itself.
+    bad = [
+        (ref, w.url)
+        for ref in registry.list_models(registry.TASKS)
+        for w in registry.resolve_any(ref)[1].weights
+        if "drive.google.com/uc" in (w.url or "")
+        or ("drive.usercontent.google.com" in (w.url or "") and "confirm=t" not in (w.url or ""))
+    ]
+    assert not bad, bad

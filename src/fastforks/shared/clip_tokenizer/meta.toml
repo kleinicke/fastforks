@@ -1,0 +1,4 @@
+summary = "CLIP byte-level BPE tokenizer in pure Python (the text side of CLIP-style models; reads the checkpoint's vocab.json and merges.txt)."
+licence = "MIT"
+files = ["LICENSE"]
+derived_from = "https://github.com/openai/CLIP (clip/simple_tokenizer.py, MIT; re-implemented without ftfy / regex), behaviour checked against the Hugging Face CLIPTokenizer"

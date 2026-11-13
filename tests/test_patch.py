@@ -15,6 +15,8 @@ from torch import nn
 
 import fastforks
 from fastforks._core.patch import base_type, override
+from fastforks.depth.models.depth_anything_3.net.dinov2.layers.rope import RotaryPositionEmbedding2D
+from fastforks.shared.rope2d import rope_forward
 
 
 class Net(nn.Module):
@@ -166,6 +168,42 @@ def test_fast_vit_subclasses_hold_the_vit():
     assert fast.vit is other
 
 
+@pytest.mark.gpu
+@pytest.mark.parametrize(("ffn", "ratio"), [("mlp", 4), ("swiglu", 4), ("mlp", 64)])  # 64: FFN output with DEEP_K
+def test_fast_vit_fused_blocks_match_cublas(ffn, ratio):
+    """`FastViT(fused=...)`: calls of `FUSED_ROWS` tokens and more run the fused GEMMs, to the cuBLAS blocks' values."""
+    import copy  # noqa: PLC0415
+
+    from fastforks.kernels.dpt_fused import DEEP_K, DptFused  # noqa: PLC0415 - needs the GPU library
+    from fastforks.shared.depth_anything_v2 import FastViT  # noqa: PLC0415 - needs the DINOv2 net
+    from fastforks.shared.depth_anything_v2.fast_vit import FUSED_ROWS  # noqa: PLC0415
+    from fastforks.shared.depth_anything_v2.net.dinov2 import DinoVisionTransformer  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    vit = DinoVisionTransformer(
+        img_size=28, patch_size=14, embed_dim=128, depth=3, num_heads=2, mlp_ratio=ratio, ffn_layer=ffn,
+        init_values=0.5, block_chunks=0,
+    )  # fmt: skip
+    dev = torch.device("cuda")
+    plain = FastViT(copy.deepcopy(vit), "ff", None, swiglu=True)
+    kern, calls = DptFused(dev), []
+    gemm = kern.gemm
+    kern.gemm = lambda *a, **k: calls.append(1) or gemm(*a, **k)
+    fused = FastViT(vit, "ff", None, swiglu=True, fused=kern)
+    for f in (plain, fused):
+        f.vit, f.pos_fp32 = f.vit.to(dev), f.pos_fp32.to(dev)
+    with torch.inference_mode():
+        small = torch.randn(1, 3, 14 * 8, 14 * 12, device=dev).half()  # 97 tokens: the cuBLAS blocks in both
+        assert torch.equal(fused.get_intermediate_layers(small)[0], plain.get_intermediate_layers(small)[0])
+        assert not calls
+        big = torch.randn(1, 3, 14 * 23, 14 * 23, device=dev).half()
+        assert FUSED_ROWS <= 23 * 23 + 1
+        got, want = fused.get_intermediate_layers(big)[0].float(), plain.get_intermediate_layers(big)[0].float()
+    assert len(calls) == 3 * (3 if ratio * 128 >= DEEP_K else 4)  # FFN outputs with DEEP_K inputs stay in cuBLAS
+    # measured: bit-equal with the GELU FFN, 1.8e-5 with SwiGLU
+    assert ((got - want).abs().mean() / want.abs().mean()).item() < 2.7e-5
+
+
 def test_defom_max_encoder_fuses_all_resblocks():
     """The instance norms are overridden first; the ResidualBlock check after that must still see them."""
     from fastforks.stereo.models.defom_stereo.kernels.encoder import optimize_encoder  # noqa: PLC0415 - DEFOM only
@@ -195,9 +233,10 @@ def test_no_exact_type_checks_on_modules():
 
 
 def test_no_bound_method_overrides():
-    """`m.forward = fn.__get__(m)` / `MethodType(fn, m)` keep `del model` from freeing the weights: use `override`."""
+    """`m.forward = fn.__get__(m)` / `MethodType(fn, m)` / `partial(fn, m)` keep `del model` from freeing the weights:
+    use `override`."""
     src = Path(fastforks.__file__).parent
-    pattern = re.compile(r"\.__get__\(|\bMethodType\(")
+    pattern = re.compile(r"\.__get__\(|\bMethodType\(|\.forward = (functools\.)?partial\(")
     bad = [
         f"{p.relative_to(src)}:{i}: {line.strip()}"
         for p in sorted(src.rglob("*.py"))
@@ -219,3 +258,11 @@ def test_pickle_and_deepcopy_keep_the_override(tmp_path):
         assert type(c) is type(m)
         assert type(c.conv) is type(m.conv)
         torch.testing.assert_close(c(x), m(x))
+
+
+def test_rope_forward_matches_upstream() -> None:
+    rope = RotaryPositionEmbedding2D(frequency=100.0)
+    tokens = torch.randn(2, 3, 12, 64, dtype=torch.float64)
+    positions = torch.stack(torch.meshgrid(torch.arange(3), torch.arange(4), indexing="ij"), -1).view(1, 12, 2) + 1
+    positions = torch.cat([positions, torch.zeros_like(positions)])  # a patch grid, and all tokens at (0, 0)
+    assert torch.allclose(rope_forward(rope, tokens, positions), rope(tokens, positions), rtol=0, atol=1e-12)

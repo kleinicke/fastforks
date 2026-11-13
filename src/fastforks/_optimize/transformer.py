@@ -86,11 +86,25 @@ def _id_or(m: object, *classes: type) -> bool:
     return _is_id(m) or any(is_base(m, c) for c in classes)
 
 
-def _reg(mod: _Blk, bufs: dict[str, torch.Tensor]) -> None:
+def _reg(mod: _Blk, bufs: dict[str, torch.Tensor | None]) -> None:
     for k, v in bufs.items():
         # buffers follow the module across .to(); detached: an fp32 weight passes `.float()` / `.to()` unchanged and
-        # would stay a Parameter that requires grad (torch.export warns and treats it as a constant)
-        mod.register_buffer(k, v.detach(), persistent=False)
+        # would stay a Parameter that requires grad (torch.export warns and treats it as a constant). A buffer made
+        # from a parameter without a fold shares its storage (no copy of the weights: lean).
+        mod.register_buffer(k, None if v is None else v.detach(), persistent=False)
+
+
+def _alias(params: list[nn.Parameter], packed: torch.Tensor, rows: list[int] | None = None) -> None:
+    """Point `params` at row slices of `packed` (which holds exactly their values) instead of their own storage.
+
+    One copy of the weights serves the packed buffer and the parameters (state_dict, the portable forward).
+    """
+    at = 0
+    for i, p in enumerate(params):
+        if rows is not None:
+            at = rows[i]
+        p.data = packed[at : at + p.shape[0]]
+        at += p.shape[0]
 
 
 # --- ConvNeXt (timm ConvNeXtBlock, Linear MLP) ---------------------------------------------------------------------
@@ -111,7 +125,7 @@ def _cnx_ok(blk: _Blk) -> bool:
         and is_base(m.fc2, nn.Linear)
         and _is_id(blk.shortcut)
         and _id_or(blk.drop_path, cls[3])
-        and _gelu(m.act) == _GELU
+        and _gelu(m.act) != 0  # exact or tanh (WD ConvNeXt tagger)
         and m.fc1.bias is not None
         and m.fc2.bias is not None
         and _is_id(getattr(m, "norm", None))
@@ -126,7 +140,10 @@ def _cnx_prep(blk: _Blk) -> None:
             g = blk.gamma.float()
             w2, b2 = w2 * g[:, None], b2 * g
         dt = m.fc2.weight.dtype
-        _reg(blk, {"_w2": w2.to(dt).contiguous(), "_b2": b2.to(dt)})
+        if blk.gamma is None:
+            _reg(blk, {"_w2": m.fc2.weight, "_b2": m.fc2.bias})
+        else:
+            _reg(blk, {"_w2": w2.to(dt).contiguous(), "_b2": b2.to(dt)})
     grn = getattr(m, "grn", None)
     if grn is not None:
         blk._grn_eps = grn.eps
@@ -163,7 +180,7 @@ def _cnx_kernels(self: _Blk, x: torch.Tensor) -> torch.Tensor:
     shortcut = x.contiguous(memory_format=torch.channels_last)
     h = ops.dwconv(shortcut, self._w_rsc, c.bias, list(c.stride), list(c.padding), 0).permute(0, 2, 3, 1)
     h = self.norm(h)
-    h = lin(h, self._w1, self.mlp.fc1.bias, act=_GELU)
+    h = lin(h, self._w1, self.mlp.fc1.bias, act=self._act)
     if hasattr(self, "_grn_eps"):
         h = _grn(self, h)
     return lin(h, self._w2_4, self._b2, res=shortcut.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
@@ -202,6 +219,7 @@ def _cnx_kprep(blk: _Blk) -> None:
             "_w2_4": _w4(blk._w2),
         },
     )
+    blk._act = _gelu(blk.mlp.act)
 
 
 def _cnx_reload(blk: _Blk, _keys: object) -> None:
@@ -261,7 +279,9 @@ def _vit_kernels(
     o = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, is_causal=is_causal, scale=a.scale)
     o = o.transpose(1, 2).reshape(b, n, c)
     x = lin(o, self._w_proj, self._b_proj, res=x)
-    y = lin(self.norm2(x), self._w_fc1, self._b_fc1, act=self._act)
+    n2 = self.norm2
+    h = n2(x) if self._ln2_w is None else F.layer_norm(x, n2.normalized_shape, self._ln2_w, self._ln2_b, n2.eps)
+    y = lin(h, self._w_fc1, self._b_fc1, act=self._act)
     return lin(y, self._w_fc2, self._b_fc2, res=x)
 
 
@@ -276,33 +296,53 @@ def _vit_act(mod: _Blk) -> int:
 
 
 def _vit_prep(mod: _Blk) -> None:
-    """Fused-path buffers: LayerScale folded into proj / fc2; QuickGELU as SiLU on fc1 x 1.702, fc2 / 1.702."""
+    """Fused-path buffers; without a fold a buffer shares the parameter's storage.
+
+    Folds: LayerScale into proj / fc2; QuickGELU as SiLU on 1.702 x (the factor in norm2's affine and fc1's bias),
+    fc2 / 1.702.
+    """
     a, m = mod.attn, mod.mlp
     g1, g2 = _gamma(mod.ls1), _gamma(mod.ls2)
     quick = _quick_gelu(m.act)
+    n2 = mod.norm2
+    tln = _timm("layers.norm", "LayerNorm")
+    ln2 = (
+        quick
+        and (is_base(n2, nn.LayerNorm) or (tln is not None and is_base(n2, tln[0])))
+        and n2.weight is not None
+        and n2.bias is not None
+    )
+    dt = a.qkv.weight.dtype
+    bufs: dict[str, torch.Tensor | None] = {
+        "_w_qkv": _w4(a.qkv.weight),
+        "_w_proj": _w4(a.proj.weight),
+        "_b_proj": a.proj.bias,
+        "_ln2_w": None,
+        "_ln2_b": None,
+        "_w_fc1": _w4(m.fc1.weight),
+        "_b_fc1": m.fc1.bias,
+        "_w_fc2": _w4(m.fc2.weight),
+        "_b_fc2": m.fc2.bias,
+    }
     with torch.no_grad():
-        wp, bp = a.proj.weight.float(), a.proj.bias.float()
-        w1, b1 = m.fc1.weight.float(), m.fc1.bias.float()
-        w2, b2 = m.fc2.weight.float(), m.fc2.bias.float()
-        if quick:
-            w1, b1, w2 = w1 * _QUICK_GELU, b1 * _QUICK_GELU, w2 / _QUICK_GELU
         if g1 is not None:
-            wp, bp = wp * g1.float()[:, None], bp * g1.float()
-        if g2 is not None:
-            w2, b2 = w2 * g2.float()[:, None], b2 * g2.float()
-        dt = a.qkv.weight.dtype
-        _reg(
-            mod,
-            {
-                "_w_qkv": _w4(a.qkv.weight),
-                "_w_proj": _w4(wp.to(dt)),
-                "_b_proj": bp.to(dt),
-                "_w_fc1": _w4(w1.to(dt)) if quick else _w4(m.fc1.weight),  # unscaled: the parameter's storage
-                "_b_fc1": b1.to(dt) if quick else m.fc1.bias,
-                "_w_fc2": _w4(w2.to(dt)),
-                "_b_fc2": b2.to(dt),
-            },
-        )
+            bufs["_w_proj"] = _w4((a.proj.weight.float() * g1.float()[:, None]).to(dt))
+            bufs["_b_proj"] = (a.proj.bias.float() * g1.float()).to(dt)
+        if quick:
+            bufs["_b_fc1"] = (m.fc1.bias.float() * _QUICK_GELU).to(dt)
+            if ln2:
+                bufs["_ln2_w"] = (n2.weight.float() * _QUICK_GELU).to(n2.weight.dtype)
+                bufs["_ln2_b"] = (n2.bias.float() * _QUICK_GELU).to(n2.bias.dtype)
+            else:
+                bufs["_w_fc1"] = _w4((m.fc1.weight.float() * _QUICK_GELU).to(dt))
+        if quick or g2 is not None:
+            w2, b2 = m.fc2.weight.float(), m.fc2.bias.float()
+            if quick:
+                w2 = w2 / _QUICK_GELU
+            if g2 is not None:
+                w2, b2 = w2 * g2.float()[:, None], b2 * g2.float()
+            bufs["_w_fc2"], bufs["_b_fc2"] = _w4(w2.to(dt)), b2.to(dt)
+    _reg(mod, bufs)
 
 
 def _vit_reload(mod: _Blk, _keys: object) -> None:
@@ -415,7 +455,7 @@ def _swin_block(blk: _Blk, x: torch.Tensor, bias: torch.Tensor, nw: int) -> torc
     v = lin(h, blk._wv, blk._bv).view(b, n, nw * heads, d).transpose(1, 2)
     o = F.scaled_dot_product_attention(q, k, v, attn_mask=bias, scale=a.scale).transpose(1, 2).reshape(b, tokens, c)
     x = lin(o, blk._wp, a.proj.bias, res=x)
-    h = lin(blk.norm2(x), blk._w1, m.fc1.bias, act=_GELU)
+    h = lin(blk.norm2(x), blk._w1, m.fc1.bias, act=blk._act)
     return lin(h, blk._w2, m.fc2.bias, res=x)
 
 
@@ -465,6 +505,7 @@ def _swin_prep(st: _Blk) -> bool:
             },
         )
         b._ff_nw = nw
+        b._act = _gelu(m.act)
     st._ff_hw = (h, w)
     return True
 
@@ -488,7 +529,7 @@ def patch_swin_kernels(model: nn.Module) -> int:
             and is_base(b.attn, cls[2])
             and is_base(b.mlp, cls[3])
             and _own_forwards(b, b.attn, b.mlp)
-            and _gelu(b.mlp.act) == _GELU
+            and _gelu(b.mlp.act) != 0  # exact or tanh
             and b.attn.qkv.bias is not None
             and b.attn.proj.bias is not None
             for b in st.blocks
@@ -553,16 +594,21 @@ def _eva_prep(blk: _Blk) -> None:
         lw = torch.zeros(hp, dtype=dt, device=dev)
         lb = torch.zeros(hp, dtype=dt, device=dev)
         lw[:hid], lb[:hid] = m.norm.weight, m.norm.bias
+        w2 = w2.to(dt)
+        _alias([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight], wqkv)
+        _alias([m.fc1_g.weight, m.fc1_x.weight], w1, [0, hp])
+        if blk.gamma_2 is None:
+            m.fc2.weight.data = w2[:, :hid]
     _reg(
         blk,
         {
             "_wqkv": _w4(wqkv),
             "_bqkv": bqkv,
-            "_wp": _w4(wp.to(dt)),
-            "_bp": bp.to(dt),
+            "_wp": _w4(a.proj.weight) if blk.gamma_1 is None else _w4(wp.to(dt)),
+            "_bp": a.proj.bias if blk.gamma_1 is None else bp.to(dt),
             "_w1": _w4(w1),
             "_b1": b1,
-            "_w2": _w4(w2.to(dt)),
+            "_w2": _w4(w2),
             "_b2": b2.to(dt),
             "_lw": lw,
             "_lb": lb,
@@ -662,11 +708,11 @@ def _pe_prep(blk: _Blk) -> None:
             blk,
             {
                 "_w_qkv": _w4(a.qkv.weight),
-                "_w_proj": _w4(wp.to(dt)),
-                "_b_proj": bp.to(dt),
+                "_w_proj": _w4(a.proj.weight) if blk.gamma_1 is None else _w4(wp.to(dt)),
+                "_b_proj": a.proj.bias if blk.gamma_1 is None else bp.to(dt),
                 "_w_fc1": _w4(m.fc1.weight),
-                "_w_fc2": _w4(w2.to(dt)),
-                "_b_fc2": b2.to(dt),
+                "_w_fc2": _w4(m.fc2.weight) if blk.gamma_2 is None else _w4(w2.to(dt)),
+                "_b_fc2": m.fc2.bias if blk.gamma_2 is None else b2.to(dt),
             },
         )
 
@@ -856,10 +902,12 @@ def patch_hf_siglip(model: nn.Module) -> int:
 def _siglip_prep(lay: _Blk) -> None:
     a, m = lay.self_attn, lay.mlp
     with torch.no_grad():
+        wqkv = torch.cat([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight])
+        _alias([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight], wqkv)
         _reg(
             lay,
             {
-                "_wqkv": _w4(torch.cat([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight])),
+                "_wqkv": _w4(wqkv),
                 "_bqkv": torch.cat([a.q_proj.bias, a.k_proj.bias, a.v_proj.bias]).detach(),
                 "_wo": _w4(a.out_proj.weight),
                 "_w1": _w4(m.fc1.weight),

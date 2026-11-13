@@ -12,77 +12,77 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | ETH3D bad > 1 px (%) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`aanet-plus-sceneflow`](#aanet) | yes | 18.50 | 88.91, 2.2x | 920, 0.24x |
-| [`aanet-sceneflow`](#aanet) | yes | 14.64 | 100.81, 1.8x | 644, 0.57x |
-| [`bridgedepth-rvc-pretrain`](#bridgedepth) | no | 1.22 ? | 353.63, 1.3x | 2686, 0.85x |
-| [`bridgedepth-sf`](#bridgedepth) | no | 1.24 | 348.37, 1.3x | 2634, 0.84x |
-| [`c-fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | yes | 2.20 | 134.91, 3.9x | 1516, 0.51x |
-| [`c-foundationstereo-s`](#c_foundationstereo) | yes | 1.24 | 1362.1, 2.8x | 4376, 0.34x |
-| [`cas-gwcnet-c-sceneflow`](#cas_gwcnet) | yes | 7.85 | 225.4, 1.7x | 1930, 0.65x |
-| [`cas-gwcnet-gc-sceneflow`](#cas_gwcnet) | yes | 8.09 | 357.52, 1.6x | 2514, 0.29x |
-| [`cfnet-sceneflow`](#cfnet) | yes | 5.60 | 400.67, 1.4x | 4718, 0.6x |
-| [`coex-sceneflow`](#coex) | yes | 33.46 | 23.48, 2.6x | 886, 0.41x |
-| [`crestereo-eth3d`](#crestereo) | yes | 1.39 † | 228.95, 7.0x | 732, 0.42x |
-| [`defom-stereo-vitl-sceneflow`](#defom_stereo) | no | 2.44 | 658.71, 4.3x | 3566, 0.41x |
-| [`dlnr-middlebury`](#dlnr) | yes | 34.38 | 213.87, 2.8x | 1606, 0.45x |
-| [`dlnr-sceneflow`](#dlnr) | yes | 30.27 | 213.87, 2.8x | 1606, 0.45x |
-| [`fast-acvnet-generalization`](#fast_acvnet) | yes | 6.51 | 38.16, 1.6x | 1042, 0.69x |
-| [`fast-acvnet-kitti12`](#fast_acvnet) | yes | 19.06 | 38.16, 1.6x | 1042, 0.69x |
-| [`fast-acvnet-kitti15`](#fast_acvnet) | yes | 17.59 | 38.16, 1.6x | 1042, 0.69x |
-| [`fast-acvnet-plus-generalization`](#fast_acvnet) | yes | 6.20 | 46.41, 1.7x | 1120, 0.74x |
-| [`fast-acvnet-plus-kitti12`](#fast_acvnet) | yes | 21.62 | 46.41, 1.7x | 1120, 0.74x |
-| [`fast-acvnet-plus-kitti15`](#fast_acvnet) | yes | 21.63 | 46.41, 1.7x | 1120, 0.74x |
-| [`fast-acvnet-plus-sceneflow`](#fast_acvnet) | yes | 12.62 | 46.41, 1.7x | 1120, 0.74x |
-| [`fast-acvnet-sceneflow`](#fast_acvnet) | yes | 8.43 | 38.16, 1.6x | 1042, 0.69x |
-| [`fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | no | 1.72 | 134.98, 3.9x | 1576, 0.48x |
-| [`foundationstereo-vit-l`](#foundationstereo) | no | 0.65 ? | 1513.07, 2.8x | 3300, 0.38x |
-| [`foundationstereo-vit-s`](#foundationstereo) | no | 1.10 ? | 1120.17, 3.2x | 2470, 0.34x |
-| [`great-igev-eth3d`](#great_igev) | yes | 0.49 † | 393.14, 3.7x | 1564, 0.17x |
-| [`great-igev-kitti`](#great_igev) | yes | 23.36 | 393.14, 3.7x | 1564, 0.17x |
-| [`great-igev-middlebury`](#great_igev) (max_disp 768) | yes | 27.53 ? | 578.81 | 1744 |
-| [`great-igev-sceneflow`](#great_igev) | yes | 4.44 | 393.14, 3.7x | 1564, 0.17x |
-| [`gwcnet-g-sceneflow`](#gwcnet) | yes | 9.59 | 238.13, 1.5x | 2102, 0.39x |
-| [`gwcnet-gc-sceneflow`](#gwcnet) | yes | 10.96 | 257.33, 1.4x | 1962, 0.32x |
-| [`hitnet-eth3d`](#hitnet) | yes | 0.93 † | 23.16, 7.9x | 1248 |
-| [`hitnet-middlebury-d400`](#hitnet) | yes | 7.07 | 52.73, 9.2x | 2368 |
-| [`igev-plusplus-eth3d`](#igev_plusplus) | yes | 0.50 † | 393.04, 3.3x | 2302, 0.74x |
-| [`igev-plusplus-kitti12`](#igev_plusplus) | yes | 26.78 | 393.04, 3.3x | 2302, 0.74x |
-| [`igev-plusplus-kitti15`](#igev_plusplus) | yes | 25.50 | 393.04, 3.3x | 2302, 0.74x |
-| [`igev-plusplus-middlebury`](#igev_plusplus) | yes | 18.46 ? | 393.04, 3.3x | 2302, 0.74x |
-| [`igev-plusplus-sceneflow`](#igev_plusplus) | yes | 4.66 | 393.04, 3.3x | 2302, 0.74x |
-| [`igev-stereo-eth3d`](#igev_stereo) | yes | 0.56 ? | 288.25, 3.3x | 1374, 0.71x |
-| [`igev-stereo-kitti12`](#igev_stereo) | yes | 26.02 | 288.25, 3.3x | 1374, 0.71x |
-| [`igev-stereo-kitti15`](#igev_stereo) | yes | 24.63 | 288.25, 3.3x | 1374, 0.71x |
-| [`igev-stereo-middlebury`](#igev_stereo) | yes | 19.80 ? | 288.25, 3.3x | 1374, 0.71x |
-| [`igev-stereo-sceneflow`](#igev_stereo) | yes | 4.04 | 288.25, 3.3x | 1374, 0.71x |
-| [`las2-h`](#las2) | yes | 2.14 ? | 53.27, 2.5x | 1388, 1.3x |
-| [`las2-l`](#las2) | yes | 2.24 ? | 29.92, 3.0x | 600, 0.55x |
-| [`las2-m`](#las2) | yes | 2.98 ? | 18.29, 2.9x | 572, 0.57x |
-| [`las2-s`](#las2) | yes | 4.10 ? | 14.35, 3.0x | 558, 0.57x |
-| [`mocha-v1-sceneflow`](#mocha_stereo) | yes | 4.35 | 455.46, 3.2x | 1730, 0.43x |
-| [`mocha-v2-sceneflow`](#mocha_stereo) | yes | 3.82 | 448.12, 2.9x | 1790, 0.45x |
-| [`monster-mix-all`](#monster) | no | 1.25 † | 667.63, 6.4x | 2714, 0.42x |
-| [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 697.92, 6.2x | 2760, 0.43x |
-| [`monster-sceneflow`](#monster) | no | 1.34 | 667.63, 6.4x | 2714, 0.42x |
-| [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 195.66, 1.6x | 1112, 0.54x |
-| [`psmnet-sceneflow`](#psmnet) | yes | 15.13 | 231.81, 2.6x | 2122, 0.35x |
-| [`raft-stereo-eth3d`](#raft_stereo) | yes | 2.61 ? | 272.78, 3.8x | 802, 0.31x |
-| [`raft-stereo-middlebury`](#raft_stereo) | yes | 2.79 | 272.78, 3.8x | 802, 0.31x |
-| [`raft-stereo-sceneflow`](#raft_stereo) | yes | 2.60 | 272.78, 3.8x | 802, 0.31x |
-| [`rt-monster-plusplus-mix-all`](#rt_monster_plusplus) | no | 2.05 ? | 94.13, 2.7x | 3976, 1.3x |
-| [`s2m2-l`](#s2m2) | no | 0.82 ? | 375.83, 2.7x | 1568, 0.38x |
-| [`s2m2-m`](#s2m2) | no | 0.95 ? | 247.87, 2.7x | 1162, 0.4x |
-| [`s2m2-s`](#s2m2) | no | 1.10 ? | 113.45, 3.1x | 820, 0.41x |
-| [`s2m2-xl`](#s2m2) | no | 0.52 ? | 681.94, 2.6x | 2274, 0.37x |
-| [`selective-igev-eth3d-finetune`](#selective_igev) | yes | 0.32 † | 348.76, 4.2x | 1390, 0.65x |
-| [`selective-igev-eth3d-train`](#selective_igev) | yes | 0.78 † | 348.76, 4.2x | 1390, 0.65x |
-| [`selective-igev-kitti12`](#selective_igev) | yes | 24.07 | 348.76, 4.2x | 1390, 0.65x |
-| [`selective-igev-kitti15`](#selective_igev) | yes | 24.26 | 348.76, 4.2x | 1390, 0.65x |
-| [`selective-igev-middlebury-finetune`](#selective_igev) | yes | 24.24 | 348.76, 4.2x | 1390, 0.65x |
-| [`selective-igev-middlebury-train`](#selective_igev) | yes | 10.25 | 348.76, 4.2x | 1390, 0.65x |
-| [`selective-igev-sceneflow`](#selective_igev) | yes | 6.06 | 348.76, 4.2x | 1390, 0.65x |
-| [`waft-stereo-b`](#waft_stereo) | no | 0.74 ? | 392.88, 2.9x | 2316, 0.39x |
-| [`waft-stereo-s`](#waft_stereo) | yes | 0.95 ? | 283.76, 2.4x | 1286, 0.38x |
+| [`aanet-plus-sceneflow`](#aanet) | yes | 18.50 | 88.9, 2.2x | 920, 0.24x |
+| [`aanet-sceneflow`](#aanet) | yes | 14.64 | 101, 1.8x | 644, 0.57x |
+| [`bridgedepth-rvc-pretrain`](#bridgedepth) | no | 1.22 ? | 354, 1.3x | 2686, 0.85x |
+| [`bridgedepth-sf`](#bridgedepth) | no | 1.24 | 348, 1.3x | 2634, 0.84x |
+| [`c-fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | yes | 2.20 | 135, 3.9x | 1516, 0.51x |
+| [`c-foundationstereo-s`](#c_foundationstereo) | yes | 1.24 | 1362, 2.8x | 4376, 0.34x |
+| [`cas-gwcnet-c-sceneflow`](#cas_gwcnet) | yes | 7.85 | 225, 1.7x | 1930, 0.65x |
+| [`cas-gwcnet-gc-sceneflow`](#cas_gwcnet) | yes | 8.09 | 358, 1.6x | 2514, 0.29x |
+| [`cfnet-sceneflow`](#cfnet) | yes | 5.60 | 401, 1.4x | 4718, 0.6x |
+| [`coex-sceneflow`](#coex) | yes | 33.46 | 23.5, 2.6x | 886, 0.41x |
+| [`crestereo-eth3d`](#crestereo) | yes | 1.39 † | 229, 7.0x | 732, 0.42x |
+| [`defom-stereo-vitl-sceneflow`](#defom_stereo) | no | 2.44 | 642, 4.4x | 3522, 0.4x |
+| [`dlnr-middlebury`](#dlnr) | yes | 34.38 | 214, 2.8x | 1606, 0.45x |
+| [`dlnr-sceneflow`](#dlnr) | yes | 30.27 | 214, 2.8x | 1606, 0.45x |
+| [`fast-acvnet-generalization`](#fast_acvnet) | yes | 6.51 | 38.2, 1.6x | 1042, 0.69x |
+| [`fast-acvnet-kitti12`](#fast_acvnet) | yes | 19.06 | 38.2, 1.6x | 1042, 0.69x |
+| [`fast-acvnet-kitti15`](#fast_acvnet) | yes | 17.59 | 38.2, 1.6x | 1042, 0.69x |
+| [`fast-acvnet-plus-generalization`](#fast_acvnet) | yes | 6.20 | 46.4, 1.7x | 1120, 0.74x |
+| [`fast-acvnet-plus-kitti12`](#fast_acvnet) | yes | 21.62 | 46.4, 1.7x | 1120, 0.74x |
+| [`fast-acvnet-plus-kitti15`](#fast_acvnet) | yes | 21.63 | 46.4, 1.7x | 1120, 0.74x |
+| [`fast-acvnet-plus-sceneflow`](#fast_acvnet) | yes | 12.62 | 46.4, 1.7x | 1120, 0.74x |
+| [`fast-acvnet-sceneflow`](#fast_acvnet) | yes | 8.43 | 38.2, 1.6x | 1042, 0.69x |
+| [`fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | no | 1.72 | 135, 3.9x | 1576, 0.48x |
+| [`foundationstereo-vit-l`](#foundationstereo) | no | 0.65 ? | 1513, 2.8x | 3300, 0.38x |
+| [`foundationstereo-vit-s`](#foundationstereo) | no | 1.10 ? | 1120, 3.2x | 2470, 0.34x |
+| [`great-igev-eth3d`](#great_igev) | yes | 0.49 † | 393, 3.7x | 1564, 0.17x |
+| [`great-igev-kitti`](#great_igev) | yes | 23.36 | 393, 3.7x | 1564, 0.17x |
+| [`great-igev-middlebury`](#great_igev) (max_disp 768) | yes | 27.53 ? | 579 | 1744 |
+| [`great-igev-sceneflow`](#great_igev) | yes | 4.44 | 393, 3.7x | 1564, 0.17x |
+| [`gwcnet-g-sceneflow`](#gwcnet) | yes | 9.59 | 238, 1.5x | 2102, 0.39x |
+| [`gwcnet-gc-sceneflow`](#gwcnet) | yes | 10.96 | 257, 1.4x | 1962, 0.32x |
+| [`hitnet-eth3d`](#hitnet) | yes | 0.93 † | 23.2, 7.9x | 1248 |
+| [`hitnet-middlebury-d400`](#hitnet) | yes | 7.07 | 52.7, 9.2x | 2368 |
+| [`igev-plusplus-eth3d`](#igev_plusplus) | yes | 0.50 † | 393, 3.3x | 2302, 0.74x |
+| [`igev-plusplus-kitti12`](#igev_plusplus) | yes | 26.78 | 393, 3.3x | 2302, 0.74x |
+| [`igev-plusplus-kitti15`](#igev_plusplus) | yes | 25.50 | 393, 3.3x | 2302, 0.74x |
+| [`igev-plusplus-middlebury`](#igev_plusplus) | yes | 18.46 ? | 393, 3.3x | 2302, 0.74x |
+| [`igev-plusplus-sceneflow`](#igev_plusplus) | yes | 4.66 | 393, 3.3x | 2302, 0.74x |
+| [`igev-stereo-eth3d`](#igev_stereo) | yes | 0.56 ? | 288, 3.3x | 1374, 0.71x |
+| [`igev-stereo-kitti12`](#igev_stereo) | yes | 26.02 | 288, 3.3x | 1374, 0.71x |
+| [`igev-stereo-kitti15`](#igev_stereo) | yes | 24.63 | 288, 3.3x | 1374, 0.71x |
+| [`igev-stereo-middlebury`](#igev_stereo) | yes | 19.80 ? | 288, 3.3x | 1374, 0.71x |
+| [`igev-stereo-sceneflow`](#igev_stereo) | yes | 4.04 | 288, 3.3x | 1374, 0.71x |
+| [`las2-h`](#las2) | yes | 2.14 ? | 53.3, 2.5x | 1388, 1.3x |
+| [`las2-l`](#las2) | yes | 2.24 ? | 29.9, 3.0x | 600, 0.55x |
+| [`las2-m`](#las2) | yes | 2.98 ? | 18.3, 2.9x | 572, 0.57x |
+| [`las2-s`](#las2) | yes | 4.10 ? | 14.3, 3.0x | 558, 0.57x |
+| [`mocha-v1-sceneflow`](#mocha_stereo) | yes | 4.35 | 455, 3.2x | 1730, 0.43x |
+| [`mocha-v2-sceneflow`](#mocha_stereo) | yes | 3.82 | 448, 2.9x | 1790, 0.45x |
+| [`monster-mix-all`](#monster) | no | 1.25 † | 653, 6.5x | 2734, 0.43x |
+| [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 657, 6.6x | 2754, 0.43x |
+| [`monster-sceneflow`](#monster) | no | 1.34 | 653, 6.5x | 2734, 0.43x |
+| [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 196, 1.6x | 1112, 0.54x |
+| [`psmnet-sceneflow`](#psmnet) | yes | 15.13 | 232, 2.6x | 2122, 0.35x |
+| [`raft-stereo-eth3d`](#raft_stereo) | yes | 2.61 ? | 273, 3.8x | 802, 0.31x |
+| [`raft-stereo-middlebury`](#raft_stereo) | yes | 2.79 | 273, 3.8x | 802, 0.31x |
+| [`raft-stereo-sceneflow`](#raft_stereo) | yes | 2.60 | 273, 3.8x | 802, 0.31x |
+| [`rt-monster-plusplus-mix-all`](#rt_monster_plusplus) | no | 2.05 ? | 94.1, 2.7x | 3976, 1.3x |
+| [`s2m2-l`](#s2m2) | no | 0.82 ? | 376, 2.7x | 1568, 0.38x |
+| [`s2m2-m`](#s2m2) | no | 0.95 ? | 248, 2.7x | 1162, 0.4x |
+| [`s2m2-s`](#s2m2) | no | 1.10 ? | 113, 3.1x | 820, 0.41x |
+| [`s2m2-xl`](#s2m2) | no | 0.52 ? | 682, 2.6x | 2274, 0.37x |
+| [`selective-igev-eth3d-finetune`](#selective_igev) | yes | 0.32 † | 349, 4.2x | 1390, 0.65x |
+| [`selective-igev-eth3d-train`](#selective_igev) | yes | 0.78 † | 349, 4.2x | 1390, 0.65x |
+| [`selective-igev-kitti12`](#selective_igev) | yes | 24.07 | 349, 4.2x | 1390, 0.65x |
+| [`selective-igev-kitti15`](#selective_igev) | yes | 24.26 | 349, 4.2x | 1390, 0.65x |
+| [`selective-igev-middlebury-finetune`](#selective_igev) | yes | 24.24 | 349, 4.2x | 1390, 0.65x |
+| [`selective-igev-middlebury-train`](#selective_igev) | yes | 10.25 | 349, 4.2x | 1390, 0.65x |
+| [`selective-igev-sceneflow`](#selective_igev) | yes | 6.06 | 349, 4.2x | 1390, 0.65x |
+| [`waft-stereo-b`](#waft_stereo) | no | 0.74 ? | 385, 3.0x | 2152, 0.37x |
+| [`waft-stereo-s`](#waft_stereo) | yes | 0.95 ? | 281, 2.5x | 1282, 0.38x |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
@@ -270,7 +270,7 @@ Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|
-| `c-foundationstereo-s` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.202 | 1.25 / 0.202 | 1.25 / 0.201 | 1.24 / 0.202 |  |
+| `c-foundationstereo-s` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.202 | 1.25 / 0.201 | 1.25 / 0.201 | 1.24 / 0.202 |  |
 | `c-foundationstereo-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | out of memory | out of memory | 3.87 / 0.747 | 3.87 / 0.748 |  |
 | `c-fast-foundationstereo` | ETH3D two-view train, bad > 1 px % / EPE | 2.20 / 0.255 | 2.21 / 0.254 | 2.20 / 0.254 | 2.20 / 0.256 |  |
 | `c-fast-foundationstereo` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.82 / 1.861 | 7.82 / 1.858 | 7.81 / 1.853 | 7.82 / 1.856 |  |
@@ -536,7 +536,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1531<br>659<br>1002<br>fails: TensorRT bug: Myelin internal error | 10896 / 11072<br>8639 / 8766<br>4362 / 4838<br>3154 / 3566<br>3021 / 3292<br>– |
+| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1531<br>642<br>1002<br>fails: TensorRT bug: Myelin internal error | 10896 / 11072<br>8639 / 8766<br>4362 / 4838<br>3154 / 3522<br>3021 / 3292<br>– |
 
 <details><summary>Details</summary>
 
@@ -548,14 +548,14 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
 - Licence note: The weights embed Depth Anything V2 ViT-L weights released under CC-BY-NC-4.0, so they are non-commercial even though the code is MIT.
 - Options: `iters` = 32 (>= 1), `scale_iters` = 8 (>= 0)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `defom-stereo-vitl-sceneflow`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `defom-stereo-vitl-sceneflow` 1988x2880 (12.0 GiB peak allocated, 14.5 reserved)
 - `defom-stereo-vitl-sceneflow` 994x1482, first call: portable + torch.compile 122 s (cold Inductor cache).
 - `defom-stereo-vitl-sceneflow` original 994x1482: the authors' mixed-precision option (float16)
-- `defom-stereo-vitl-sceneflow` load / first call: original 4.24 s / 2.83 s, portable 2.31 s / 1.534† s, kernels 1.18† s / 0.663† s
+- `defom-stereo-vitl-sceneflow` load / first call: original 4.24 s / 2.83 s, portable 2.31 s / 1.534† s, kernels 2.74 s / 0.305 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -576,7 +576,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, portable bfloat16 and ke
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `defom-stereo-vitl-sceneflow` | 0.00143 / 0.00808 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `defom-stereo-vitl-sceneflow` | 0.00143 / 0.00808 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 
@@ -1168,10 +1168,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `las2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 62.0<br>43.5<br>46.9<br>14.3<br>23.7<br>10.3 | 1676 / 1746<br>933 / 978<br>955 / 988<br>320 / 558<br>238 / 264<br>258 / 304 |
-| `las2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 79.1<br>52.4<br>54.1<br>18.3<br>28.6<br>13.2 | 1691 / 1762<br>948 / 1000<br>972 / 1026<br>329 / 572<br>252 / 300<br>343 / 386 |
-| `las2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 154<br>90.8<br>80.3<br>29.9<br>46.6<br>23.4 | 1753 / 1812<br>1010 / 1082<br>1036 / 1098<br>397 / 600<br>385 / 432<br>393 / 424 |
-| `las2-h` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>135<br>123<br>53.3<br>75.0<br>fails: TensorRT bug: Myelin internal error | 1839 / 1884<br>1022 / 1084<br>1050 / 1110<br>1021 / 1388<br>579 / 724<br>– |
+| `las2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 62.0<br>43.5<br>27.8<br>14.3<br>23.7<br>10.3 | 1676 / 1746<br>933 / 978<br>568 / 648<br>320 / 558<br>238 / 264<br>258 / 304 |
+| `las2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 79.1<br>52.4<br>37.1<br>18.3<br>28.6<br>13.2 | 1691 / 1762<br>948 / 1000<br>584 / 664<br>329 / 572<br>252 / 300<br>343 / 386 |
+| `las2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 154<br>90.8<br>75.7<br>29.9<br>46.6<br>23.4 | 1753 / 1812<br>1010 / 1082<br>648 / 716<br>397 / 600<br>385 / 432<br>393 / 424 |
+| `las2-h` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>135<br>113<br>53.3<br>75.0<br>fails: TensorRT bug: Myelin internal error | 1839 / 1884<br>1022 / 1084<br>1013 / 1066<br>1021 / 1388<br>579 / 724<br>– |
 
 <details><summary>Details</summary>
 
@@ -1196,10 +1196,10 @@ Commercial use: yes.
 - `las2-m` original 994x1482: torch.autocast(fp16) around the forward
 - `las2-l` original 994x1482: torch.autocast(fp16) around the forward
 - `las2-h` original 994x1482: torch.autocast(fp16) around the forward
-- `las2-s` load / first call: original 0.11 s / 0.019 s (375x1242), portable 0.09 s / 0.047† s, kernels 0.07† s / 0.015† s
-- `las2-m` load / first call: original 0.17 s / 0.023 s (375x1242), portable 0.12 s / 0.054† s, kernels 0.1† s / 0.02† s
-- `las2-l` load / first call: original 0.39 s / 0.044 s (375x1242), portable 0.23 s / 0.081† s, kernels 0.18† s / 0.031† s
-- `las2-h` load / first call: original 0.26 s / 1.212 s (375x1242), portable 0.18 s / 0.136† s, kernels 0.13† s / 0.062† s
+- `las2-s` load / first call: original 0.11 s / 0.019 s (375x1242), portable 0.27 s / 0.465 s (375x1242), kernels 0.07† s / 0.015† s
+- `las2-m` load / first call: original 0.17 s / 0.023 s (375x1242), portable 0.25 s / 0.402 s (375x1242), kernels 0.1† s / 0.02† s
+- `las2-l` load / first call: original 0.39 s / 0.044 s (375x1242), portable 0.53 s / 0.329 s (375x1242), kernels 0.18† s / 0.031† s
+- `las2-h` load / first call: original 0.26 s / 1.212 s (375x1242), portable 0.31 s / 0.553 s (375x1242), kernels 0.13† s / 0.062† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, `las2-s`, `las2-m`, `las2-l`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 - Protocol, `las2-h`: median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -1306,7 +1306,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `monster-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4275<br>4277<br>1585<br>668<br>1096<br>671 | 6382 / 6430<br>6382 / 6430<br>2336 / 2494<br>2356 / 2714<br>2081 / 2272<br>2865 / 2928 |
+| `monster-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4275<br>4277<br>1585<br>653<br>1096<br>671 | 6382 / 6430<br>6382 / 6430<br>2336 / 2494<br>2356 / 2734<br>2081 / 2272<br>2865 / 2928 |
+| `monster-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4275<br>4277<br>1585<br>653<br>1098<br>674 | 6382 / 6430<br>6382 / 6430<br>2336 / 2494<br>2356 / 2734<br>2081 / 2272<br>2898 / 2960 |
 
 <details><summary>Details</summary>
 
@@ -1318,15 +1319,17 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
   - `monster-mix-all`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015, ETH3D two-view stereo, Middlebury stereo (2014), TartanAir, CREStereo synthetic stereo dataset (Megvii), NVIDIA Falling Things (FAT), InStereo2K, MPI Sintel stereo, HR-VS (high-resolution virtual stereo, Yang et al. CVPR 2019) (mix of all the datasets the README lists; the README recommends it for zero-shot use)
 - Options: `iters` = 32 (>= 1)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `monster-sceneflow`, `monster-mix-all`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `monster-sceneflow` 1988x2880 (6.8 GiB peak allocated, 9.0 reserved); `monster-mix-all` 1988x2880 (6.8 GiB peak allocated, 9.0 reserved)
-- `monster-mix-all`: same network and settings as `monster-sceneflow`, measured once (rows not repeated).
 - `monster-sceneflow` 994x1482, first call: portable + torch.compile 103 s (cold Inductor cache), TensorRT fp16 384 s (ONNX + engine).
-- `monster-sceneflow` load / first call: original 5.85 s / 1.256 s (375x1242), portable 4.83 s / 1.595† s, kernels 0.95† s / 0.669† s
-- `monster-mix-all` load / first call: original 5.85 s / 1.256 s (375x1242), portable 4.83 s / 1.595† s, kernels 0.95† s / 0.669† s
+- `monster-mix-all` 994x1482, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp16 391 s (ONNX + engine).
+- `monster-mix-all` original (fp32) 994x1482, original 994x1482: timed with monster-sceneflow (same network, other weights)
+- `monster-mix-all` portable 994x1482: measured on monster-sceneflow (same architecture, other checkpoint)
+- `monster-sceneflow` load / first call: original 5.85 s / 1.256 s (375x1242), portable 4.83 s / 1.595† s, kernels 4.01 s / 0.428 s (375x1242)
+- `monster-mix-all` load / first call: original 5.85 s / 1.256 s (375x1242), portable 4.83 s / 1.595† s, kernels 3.79 s / 0.422 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -1349,8 +1352,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `monster-sceneflow` | 0.00079 / 0.00303 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
-| `monster-mix-all` | 0.00095 / 0.00547 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `monster-sceneflow` | 0.00079 / 0.00303 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `monster-mix-all` | 0.00095 / 0.00547 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
 
 </details>
 
@@ -1364,7 +1367,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4339<br>4334<br>1633<br>698<br>1126<br>697 | 6382 / 6430<br>6382 / 6430<br>2583 / 2918<br>2438 / 2760<br>2328 / 2532<br>3489 / 3552 |
+| `monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4339<br>4334<br>1633<br>657<br>1126<br>697 | 6382 / 6430<br>6382 / 6430<br>2583 / 2918<br>2438 / 2754<br>2328 / 2532<br>3489 / 3552 |
 
 <details><summary>Details</summary>
 
@@ -1375,13 +1378,13 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: <https://github.com/Junda24/MonSter-plusplus/blob/9167101af8fbe93c706707daa7a8181089c8b1b4/LICENSE#L34>
 - Training data: mix_all: 'all the datasets we collect over 2M image pairs' (README), not listed
 - Options: `iters` = 32 (>= 1)
-- Kernel libraries: `igev`, `igevpp`, `cutlass_conv`, `cudnn_hacc`, `fastbb`
+- Kernel libraries: `igev`, `igevpp`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `monster-plusplus-mix-all`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `monster-plusplus-mix-all` 1988x2880 (7.7 GiB peak allocated, 9.6 reserved)
 - `monster-plusplus-mix-all` 994x1482, first call: portable + torch.compile 109 s (cold Inductor cache), TensorRT fp16 416 s (ONNX + engine).
-- `monster-plusplus-mix-all` load / first call: original 8.37 s / 1.233 s (375x1242), portable 2.45 s / 1.633† s, kernels 0.79† s / 0.698† s
+- `monster-plusplus-mix-all` load / first call: original 8.37 s / 1.233 s (375x1242), portable 2.45 s / 1.633† s, kernels 3.12 s / 0.421 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -1402,7 +1405,7 @@ CPU, float32: max |diff| <= 0.2 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `monster-plusplus-mix-all` | 0.02547 / 0.13171 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `igevpp@df1bb4dbe09a:sm_120` |
+| `monster-plusplus-mix-all` | 0.02547 / 0.13171 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `igevpp@df1bb4dbe09a:sm_120` |
 
 </details>
 
@@ -1805,8 +1808,8 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>689<br>284<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>1113 / 1286<br>2024 / 2058<br>1061 / 1114 |
-| `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 1898<br>1140<br>1137<br>393 | 7348 / 7528<br>5743 / 5876<br>5775 / 5852<br>1907 / 2316 |
+| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>689<br>281<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>1113 / 1282<br>2024 / 2058<br>1061 / 1114 |
+| `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 1898<br>1140<br>1137<br>385 | 7348 / 7528<br>5743 / 5876<br>5775 / 5852<br>1906 / 2152 |
 
 <details><summary>Details</summary>
 
@@ -1819,7 +1822,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), not stated by the authors (SceneFlow, TartanAir, CREStereo, Falling Things, Sintel, Virtual KITTI 2, UnrealStereo4K, WMGStereo, CARLA, Spring, TartanGround, FSD (configs/SynLarge/*.yaml); only SceneFlow is in datasets.toml)
 - Licence note: WAFT-Stereo-B is labelled CC-BY-NC-4.0 conservatively although the Hugging Face card says BSD-3-Clause: the checkpoint embeds a fine-tuned Depth Anything V2 ViT-B whose original weights are CC-BY-NC-4.0.
 - Licence note: Both checkpoints were trained on data that includes NVIDIA's FSD dataset, whose terms for commercial use of trained models are unclear; the status does not depend on the training data.
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `waft-stereo-s`, `waft-stereo-b`
 - Outputs: disparity
 - Input size: any H x W >= 17, resized or padded inside the model
@@ -1827,8 +1830,8 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 - `waft-stereo-s` 994x1482, first call: portable + torch.compile 95 s (cold Inductor cache), TensorRT fp16 152 s (ONNX + engine).
 - `waft-stereo-s` original 994x1482: torch.autocast(fp16) around the forward
 - `waft-stereo-b` original 994x1482: torch.autocast(fp16) around the forward
-- `waft-stereo-s` load / first call: original 1.6 s / 0.14 s (375x1242), portable 0.58 s / 0.691† s, kernels 0.3† s / 0.284† s
-- `waft-stereo-b` load / first call: original 3.07 s / 0.444 s (375x1242), portable 1.65 s / 1.148† s, kernels 0.42† s / 0.393† s
+- `waft-stereo-s` load / first call: original 1.6 s / 0.14 s (375x1242), portable 0.58 s / 0.691† s, kernels 1.47 s / 0.32 s (375x1242)
+- `waft-stereo-b` load / first call: original 3.07 s / 0.444 s (375x1242), portable 1.65 s / 1.148† s, kernels 1.77 s / 0.459 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -1851,8 +1854,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `waft-stereo-s` | 0.0013 / 0.00398 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
-| `waft-stereo-b` | 0.0013 / 0.00417 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `waft-stereo-s` | 0.0013 / 0.00398 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `waft-stereo-b` | 0.0013 / 0.00417 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 

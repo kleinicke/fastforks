@@ -1,0 +1,4 @@
+summary = "BERT WordPiece tokenizer in pure Python (uncased; the text side of BERT-based detectors; reads the checkpoint's vocab.txt)."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/google-research/bert (tokenization.py `BasicTokenizer` + `WordpieceTokenizer`, Apache-2.0; re-implemented), behaviour checked against the Hugging Face BertTokenizer"

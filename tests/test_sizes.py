@@ -44,61 +44,7 @@ def test_tested_max_and_not_measured():
 
 
 # refs without a measured largest size, with the reason (cards never say "not measured" for anything else)
-_NO_DISK = "weights not downloaded: the probe machine had < 6 GB free disk (2026-11-11)"
-UNMEASURED = {
-    "c-radio-v3-g": "weights 4.3 GB: over the probe machine's scratch disk (2026-11-11)",
-    "pe-core-g14-448": "weights 7.0 GB: over the probe machine's scratch disk (2026-11-11)",
-    "pe-spatial-g14-448": "weights 6.9 GB: over the probe machine's scratch disk (2026-11-11)",
-    "siglip2-g16-256": "weights 4.3 GB: over the probe machine's scratch disk (2026-11-11)",
-    "siglip2-g16-384": "weights 4.3 GB: over the probe machine's scratch disk (2026-11-11)",
-} | dict.fromkeys(
-    [
-        "c-radio-v3-b",
-        "c-radio-v3-h",
-        "c-radio-v3-l",
-        "clip-b16-laion2b",
-        "clip-b16-openai",
-        "clip-h14-378-dfn5b",
-        "clip-h14-dfn5b",
-        "clip-h14-laion2b",
-        "clip-l14-336-openai",
-        "clip-l14-datacompxl",
-        "clip-l14-dfn2b",
-        "clip-l14-laion2b",
-        "clip-l14-openai",
-        "depth-anything-v2-metric-hypersim-b",
-        "depth-anything-v2-metric-hypersim-l",
-        "depth-anything-v2-metric-hypersim-s",
-        "depth-anything-v2-metric-vkitti-b",
-        "depth-anything-v2-metric-vkitti-l",
-        "depth-anything-v2-metric-vkitti-s",
-        "distill-any-depth-b",
-        "distill-any-depth-l",
-        "distill-any-depth-s",
-        "moge-2-vitb-normal",
-        "pe-core-b16-224",
-        "pe-core-l14-336",
-        "pe-core-s16-384",
-        "pe-spatial-b16-512",
-        "pe-spatial-l14-448",
-        "pe-spatial-s16-512",
-        "pe-spatial-t16-512",
-        "rtmo-l",
-        "rtmo-m",
-        "rtmo-s",
-        "siglip2-b16-256",
-        "siglip2-b16-512",
-        "siglip2-l16-256",
-        "siglip2-l16-512",
-        "siglip2-so400m14-224",
-        "siglip2-so400m14-378",
-        "siglip2-so400m16-256",
-        "siglip2-so400m16-512",
-        "tipsv2-l14",
-        "vitpose-plus-huge",
-    ],
-    _NO_DISK,
-)
+UNMEASURED: dict[str, str] = {}  # ref: why it has no tested size
 
 
 def test_every_ref_has_a_tested_size():

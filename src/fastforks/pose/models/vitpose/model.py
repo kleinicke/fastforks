@@ -72,9 +72,9 @@ def crop(image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor, height: 
     gx = (x * (2 / (iw - 1)) - 1)[:, None, :].expand(-1, height, -1)
     gy = (y * (2 / (ih - 1)) - 1)[:, :, None].expand(-1, -1, width)
     p = centre.shape[0]
-    out = F.grid_sample(
-        image.float().expand(p, -1, -1, -1), torch.stack([gx, gy], -1), align_corners=True, padding_mode="zeros"
-    )
+    grid = torch.stack([gx, gy], -1).reshape(1, p * height, width, 2)  # all crops from the one image: no P copies
+    out = F.grid_sample(image.float(), grid, align_corners=True, padding_mode="zeros")
+    out = out.view(3, p, height, width).transpose(0, 1)
     inside = ((x >= 0) & (x <= iw - 1))[:, None, :] & ((y >= 0) & (y <= ih - 1))[:, :, None]
     return out * inside[:, None].to(out.dtype)
 

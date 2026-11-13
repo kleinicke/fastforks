@@ -36,8 +36,25 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 BENCH = Path(os.environ.get("FF_BENCH_DIR", ROOT.parent / "bench"))
 TIERS = {"upstream": "fp32", "upstream16": "autocast", "upstreamhalf": "half", "upstreamac": "autocast-plain"}
-BF16 = {"vggt", "vggt_omega", "mapanything", "depth_anything_3", "romav2"}  # the authors' mixed precision is bfloat16
-NATIVE_HALF = {"depth_pro", "marigold", "rfdetr_keypoint"}  # build(ref, True) is a float16 model, not mixed precision
+BF16 = {
+    "vggt",
+    "vggt_omega",
+    "mapanything",
+    "depth_anything_3",
+    "romav2",
+    "anysplat",
+    "pi3",
+    "insid3",
+}  # the authors' mixed precision is bfloat16
+NATIVE_HALF = {
+    "depth_pro",
+    "marigold",
+    "marigold_normals",
+    "lotus",
+    "birefnet",
+    "rfdetr_keypoint",
+    "rfdetr",
+}  # build(ref, True) is a float16 model, not mixed precision
 _SETUP: set[str] = set()
 _MOBILE_SAM: list[Any] = []  # the golden script of MobileSAM, see `mobile_sam_recipe`
 
@@ -328,6 +345,90 @@ def _sea_raft(a: Any, full: str) -> Any:  # noqa: ANN401
     return run
 
 
+def _memfof(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Upstream `MEMFOF` and `scale_and_forward_flow` as `tools/golden/memfof.py` (`FF_MEMFOF_REPO`).
+
+    Frames (image1, image1, image2) in [0, 255], the forward flow of the last update. The reference environment
+    supplies einops and huggingface_hub (upstream imports them).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+    from fastforks._core.checkpoint import load_state_dict  # noqa: PLC0415
+
+    g = _golden("memfof")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_MEMFOF_REPO")
+        if not repo:
+            msg = "FF_MEMFOF_REPO: a clone of msu-video-group/memfof for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+        sys.path[:0] = [str(a.tree)]
+    import torch  # noqa: PLC0415
+    from memfof.model import MEMFOF  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    card, variant = registry.resolve("flow", full)
+    scale = variant.params.get("scale", card.params["scale"])
+    net = MEMFOF(backbone_weights=None)
+    net.load_state_dict(load_state_dict(registry.weights(card, variant, allow_download=False)[0]), strict=True)
+    net = net.cuda().eval()
+    a.note = (
+        f"upstream MEMFOF + scale_and_forward_flow, iters={g.ITERS}, scale={scale}, frames (image1, image1, image2)"
+    )
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        t1, t2 = im1[None].float(), im2[None].float()
+        return g.scale_and_forward_flow(net, torch.stack([t1, t1, t2], dim=1), scale)
+
+    return call
+
+
+def _memflow(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Upstream MemFlowNet + `InferenceCore.step(end=True)` per pair as `tools/golden/memflow.py` (`FF_MEMFLOW_REPO`).
+
+    A fresh `InferenceCore` per call (empty memory: upstream's first pair of a sequence), the frames padded as upstream
+    `InputPadder` (centred, replicate, multiples of 8) and the flow cropped. Upstream's inference has no
+    mixed-precision path (`mixed_precision` is a training setting): the fp16 tier is autocast. The reference
+    environment supplies yacs, loguru, einops and scipy.
+    """
+    import importlib as il  # noqa: PLC0415
+    import types  # noqa: PLC0415
+
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+    from fastforks._core.checkpoint import load_state_dict  # noqa: PLC0415
+
+    g = _golden("memflow")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_MEMFLOW_REPO")
+        if not repo:
+            msg = "FF_MEMFLOW_REPO: a clone of DQiaole/MemFlow for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+        sys.path[:0] = [str(a.tree), str(a.tree / "core")]
+        sys.modules.setdefault("timm", types.ModuleType("timm"))  # only the Twins-SVT encoders use it
+    from core.Networks import build_network  # noqa: PLC0415  # ty: ignore[unresolved-import]
+    from inference.inference_core_skflow import InferenceCore  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    card, variant = registry.resolve("flow", full)
+    cfg = il.import_module(f"configs.{g.CONFIGS[variant.id]}").get_cfg()
+    net = build_network(cfg).eval()
+    (ckpt,) = registry.weights(card, variant, allow_download=False)
+    net.load_state_dict(load_state_dict(ckpt, key="model", strip=""), strict=True)
+    net = net.cuda()
+    a.note = f"upstream MemFlowNet configs/{g.CONFIGS[variant.id]}.py, InferenceCore.step(end=True) per pair"
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        h, w = im1.shape[-2:]
+        ph, pw = -h % 8, -w % 8
+        pad = (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2)
+        x = torch.stack([F.pad(im[None].float(), pad, mode="replicate")[0] for im in (im1, im2)])[None]
+        _, flow = InferenceCore(net, config=cfg).step(2 * (x / 255.0) - 1.0, end=True)
+        return flow[..., pad[2] : pad[2] + h, pad[0] : pad[0] + w]
+
+    return call
+
+
 def _flowformer(a: Any, full: str) -> Any:  # noqa: ANN401
     """Authors' FlowFormer Small, full-frame inference with their centred padding.
 
@@ -411,6 +512,152 @@ def _flowseek(a: Any, full: str) -> Any:  # noqa: ANN401
     net = g.build(a.tree, registry.weights(card, variant, allow_download=False)[0]).cuda()
     a.note = f"upstream FlowSeek ({g.CONFIG}), iters={g.ITERS}"
     return lambda im1, im2: g.calc_flow(net, im1[None].float(), im2[None].float())
+
+
+def _rife(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `RIFE_HDv3.Model` as `tools/golden/rife.py`; fp16 = inference_video.py's `--fp16` recipe.
+
+    `FF_RIFE_REPO`: a hzwer/Practical-RIFE clone; `FF_RIFE_RELEASES`: one unpacked release per variant id
+    (`<id>/train_log`). `--fp16` makes half the default tensor type, so the model, its warp grid and the input are
+    half; here `torch.set_default_dtype(torch.float16)` while building and calling. Zero pad right / bottom to 128.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("rife")
+    ref = full.split("@", maxsplit=1)[0]
+    tree = g.reference_tree(Path(os.environ["FF_RIFE_REPO"]), g.REF_COMMIT)
+    dtype = torch.float16 if fp16 else torch.float32
+    before = torch.get_default_dtype()
+    torch.set_default_dtype(dtype)
+    try:
+        model = g.build(tree, Path(os.environ["FF_RIFE_RELEASES"]) / ref)
+    finally:
+        torch.set_default_dtype(before)
+    model.flownet.to(dtype)
+    a.note = "upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128" + (
+        ", inference_video.py --fp16: half default dtype, model and input" * fp16
+    )
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        torch.set_default_dtype(dtype)
+        try:
+            return g.interpolate(model, im1[None].to(dtype) / 255, im2[None].to(dtype) / 255)
+        finally:
+            torch.set_default_dtype(before)
+
+    return call
+
+
+def _realesrgan(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `RealESRGANer` as `tools/golden/realesrgan.py`; fp16 = inference_realesrgan.py's default (`half`).
+
+    `FF_REALESRGAN_REPO` / `FF_BASICSR_REPO`: xinntao/Real-ESRGAN and XPixelGroup/BasicSR clones;
+    `FF_REALESRGAN_WEIGHTS`: the release `.pth` files. `pre_pad` 0, no tile; the timed call is `enhance`'s float
+    part: the numpy image to the GPU (`pre_process`, x2: reflect padding), the network, `post_process`.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("realesrgan")
+    card, variant = full_ref("restoration", full)[1:]
+    up = g.build(
+        Path(os.environ["FF_REALESRGAN_REPO"]),
+        Path(os.environ["FF_BASICSR_REPO"]),
+        Path(os.environ["FF_REALESRGAN_WEIGHTS"]) / variant.weights[0].name,
+        {**card.params, **variant.params},
+        half=fp16,
+        device=torch.device("cuda"),
+    )
+    a.note = "upstream RealESRGANer pre_pad 0, no tile, on the float image" + (", half (the default)" * fp16)
+    return lambda img: g.run(up, img)
+
+
+def _span(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `SPAN` in eval mode as `tools/golden/span.py` (`FF_SPAN_REPO`, `FF_SPAN_WEIGHTS`), float32.
+
+    As BasicSR's test: `net(lq)`, clamped (its `Conv3XC` re-fuses the weights on every call, as upstream).
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("span")
+    card, variant = full_ref("restoration", full)[1:]
+    weights = Path(os.environ["FF_SPAN_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(
+        Path(os.environ["FF_SPAN_REPO"]), weights, {**card.params, **variant.params}, device=torch.device("cuda")
+    )
+    a.note = "upstream SPAN eval mode, float32, net(lq) clamped"
+    return lambda x: g.run(net, x)
+
+
+def _swinir(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `SwinIR` as `tools/golden/swinir.py` (`FF_SWINIR_REPO`, `FF_SWINIR_WEIGHTS`), float32.
+
+    As `main_test_swinir.py`: mirror padding, `model(lq)` (no tile), crop, clamp.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("swinir")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    weights = Path(os.environ["FF_SWINIR_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(Path(os.environ["FF_SWINIR_REPO"]), weights, p, device=torch.device("cuda"))
+    a.note = "upstream main_test_swinir.py, float32, no tile"
+    return lambda x: g.run(net, x, p["scale"])
+
+
+def _hat(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `HAT` as `tools/golden/hat.py` (`FF_HAT_REPO`, `FF_HAT_WEIGHTS`; needs `einops`), float32.
+
+    As `hat_model.py` test: reflect padding to a multiple of 16, `net_g(img)` (no tile), crop, clamp.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("hat")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    weights = Path(os.environ["FF_HAT_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(Path(os.environ["FF_HAT_REPO"]), weights, p, device=torch.device("cuda"))
+    a.note = "upstream hat_model.py test, float32, no tile"
+    return lambda x: g.run(net, x, p["scale"])
+
+
+def _dat(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `DAT` as `tools/golden/dat.py` (`FF_DAT_REPO`, `FF_DAT_WEIGHTS`; needs `einops`), float32.
+
+    As `dat_model.py` test (`use_chop` False): `net_g(img)`, clamp.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("dat")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    weights = Path(os.environ["FF_DAT_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(Path(os.environ["FF_DAT_REPO"]), weights, p, device=torch.device("cuda"))
+    a.note = "upstream dat_model.py test, float32, no chop"
+    return lambda x: g.run(net, x, p["scale"])
+
+
+def _codeformer(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `CodeFormer` as `tools/golden/codeformer.py` (`FF_CODEFORMER_REPO`, `FF_CODEFORMER_WEIGHTS`), float32.
+
+    As `inference_codeformer.py` on one aligned 512 x 512 face: [-1, 1], `net(x, w, adain=True)[0]`, back to [0, 1].
+    """
+    g = _golden("codeformer")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    tree = g.reference_tree(Path(os.environ["FF_CODEFORMER_REPO"]), g.REF_COMMIT)
+    net = g.build(tree, Path(os.environ["FF_CODEFORMER_WEIGHTS"]) / variant.weights[0].name, p).cuda()
+    a.note = f"upstream inference_codeformer.py on the aligned face, float32, w {p['fidelity']}"
+    return lambda x: g.run(net, x, p["fidelity"])
+
+
+def _bchw01(args: tuple[Any, ...]) -> tuple[Any, ...]:
+    """uint8 CUDA CHW -> float32 `[1, 3, H, W]` in [0, 1] (BasicSR's lq)."""
+    return ((args[0].float() / 255)[None],)
+
+
+def _hwc01(args: tuple[Any, ...]) -> tuple[Any, ...]:
+    """uint8 CUDA CHW -> float32 numpy HWC in [0, 1] (`enhance` divides by 255 before `pre_process`)."""
+    return ((args[0].permute(1, 2, 0).float() / 255).cpu().numpy(),)
 
 
 def _neuflow_v2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001
@@ -616,6 +863,27 @@ def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda bgr: inference_detector(net, bgr)
 
 
+def _yolox(a: Any, full: str) -> Any:  # noqa: ANN401
+    """The reference demo path of `tools/golden/yolox.py` (`ValTransform`, network, `postprocess`) on CUDA.
+
+    Needs `YOLOX_SRC`, a Megvii-BaseDetection/YOLOX checkout at the golden's commit (with loguru, pycocotools and
+    tabulate importable). CPU cv2 resize and pad, network and NMS are in the timed call; the score threshold is the
+    card's default (0.05), as the library's rows; the reference keeps every box after NMS.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("yolox")
+    card, variant = registry.resolve("detection", full)
+    exp, model = g.reference(os.environ["YOLOX_SRC"], card, variant)
+    model = model.cuda()
+    conf = card.options["score_threshold"]
+    a.note = (
+        f"Megvii-BaseDetection/YOLOX@{g.COMMIT[:12]} ValTransform (CPU cv2) + model + postprocess (NMS "
+        f"{exp.nmsthre}), score {conf} (card default), all in the timed call"
+    )
+    return lambda bgr: g.detect(exp, model, bgr, conf)
+
+
 def _segnext(a: Any, full: str) -> Any:  # noqa: ANN401
     """Mmsegmentation `init_model` + the configs' test protocol, as `tools/golden/segnext.py` (NMF bases seeded)."""
     from fastforks._core import registry  # noqa: PLC0415
@@ -631,33 +899,27 @@ def _segnext(a: Any, full: str) -> Any:  # noqa: ANN401
 
 
 def _convnext(a: Any, full: str) -> Any:  # noqa: ANN401
-    """A timm classifier as `tools/golden/libnet_classification.py` builds it, with the card's `[io]` transform on GPU.
+    """A classifier as `tools/golden/libnet_classification.py` builds it, with the card's `[io]` transform on GPU.
 
-    The bench's classification adapter for a family it does not list: antialiased resize of the shorter side, clamp
-    after bicubic, centre crop, normalisation, network, all in the timed call.
+    The bench's classification adapter for a family it does not list: the golden's `prepare` (pad to square,
+    antialiased resize, clamp after bicubic, centre crop, normalisation) and network, all in the timed call.
     """
     from fastforks._core import registry  # noqa: PLC0415
 
     g = _golden("libnet_classification")
     card, variant = registry.resolve("classification", full)
     io = variant.io
-    a.sizes = ((io.crop, io.crop),)  # Benchmark each classifier at its native crop, including 384/512 variants.
-    net = g._timm({**card.params, **variant.params}["arch"]).eval()  # noqa: SLF001 - the golden's builder
+    side = io.crop or io.resize
+    a.sizes = ((side, side),)  # Benchmark each classifier at its native input, including 384/512 variants.
+    net = g.reference(card, variant)[0].eval()
     if card.family == "fastvit":
         from timm.utils import reparameterize_model  # noqa: PLC0415 - authors' inference recipe
 
         net = reparameterize_model(net, inplace=True)
         a.note = "timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call"
     net = net.cuda()
-    tf = g.TF
     a.COMMIT = f"{card.upstream}@{card.upstream_commit}"  # as the bench's classification rows
-
-    def fn(x: Any) -> Any:  # noqa: ANN401 - uint8 CHW
-        t = tf.resize(x[None].float() / 255, [io.resize], interpolation=tf.InterpolationMode.BICUBIC, antialias=True)
-        t = tf.center_crop(t.clamp(0, 1), [io.crop])
-        return net(tf.normalize(t, list(g.IMAGENET_MEAN), list(g.IMAGENET_STD)))[0]
-
-    return fn
+    return lambda x: net(g.prepare(x[None].float() / 255, io))[0]
 
 
 def efficientvit_sam_recipe() -> Any:  # noqa: ANN401 - tools/golden/efficientvit_sam.py with upstream importable
@@ -797,11 +1059,386 @@ def _romav2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the
     return call
 
 
+def _romav1(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream RoMa v1 `match` as `tools/golden/romav1.py` (card sizes, one direction), outputs as the API returns.
+
+    fp16: upstream's default `amp_dtype=torch.float16` (fp16 autocast regions, DINOv2 in fp16); fp32: `amp_dtype`
+    float32. Local correlation: upstream's plain-torch path. Needs `FF_ROMAV1_REPO` (pinned commit) and einops.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("romav1")
+    card, variant = registry.resolve("matching", full)
+    tree = g.reference_tree(Path(os.environ["FF_ROMAV1_REPO"]), g.REF_COMMIT)
+    sizes = (card.options["coarse_size"], card.options["fine_size"])
+    model = g.build(tree, list(registry.weights(card, variant, allow_download=False)), sizes, "cuda", amp=fp16)
+    a.note = (
+        "upstream RoMa v1 match, one direction; local correlation: upstream's plain-torch path (use_custom_corr off)"
+    )
+
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        return g.match(model, img1[None].float() / 255, img2[None].float() / 255, *sizes)
+
+    return call
+
+
+def _xfeat(a: Any, full: str, options: dict[str, Any] | None = None) -> Any:  # noqa: ANN401
+    """Upstream `XFeat.detectAndCompute` + `match` / kornia `LighterGlue` as `tools/golden/xfeat.py` (card `options`).
+
+    `options` override the card's. Upstream has no fp16 option (fp16 = autocast around the call). Needs a
+    `FF_XFEAT_REPO` checkout with the pinned commit and kornia. The call returns keypoints1, keypoints2, pairs, scores.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("xfeat")
+    card, variant = registry.resolve("matching", full)
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_XFEAT_REPO"]), g.REF_COMMIT)))
+    files = {f.name: f for f in registry.weights(card, variant, allow_download=False)}
+    opts = dict(card.options) | (options or {})
+    if not torch.cuda.is_available():
+        msg = "the XFeat original runs on CUDA (upstream picks its device itself)"
+        raise RuntimeError(msg)
+    run = g.build(files, variant.params["matcher"], opts["max_keypoints"], opts["long_side"])
+    a.note = f"upstream XFeat.detectAndCompute + {variant.params['matcher']}, top_k {opts['max_keypoints']}"
+
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        return run(img1.float() / 255, img2.float() / 255)
+
+    return call
+
+
+def _lightglue(a: Any, full: str, fp16: bool, options: dict[str, Any] | None = None) -> Any:  # noqa: ANN401, FBT001
+    """Upstream `match_pair` with the extractor and `LightGlue` as `tools/golden/lightglue.py` (card `options`).
+
+    `options` override the card's. fp16: the authors' `mp` option (LightGlue's mixed precision; the extractor stays
+    float32). Upstream's attention runs in float16 on CUDA either way. Needs a `FF_LIGHTGLUE_REPO` checkout with the
+    pinned commit and kornia.
+    """
+    import functools  # noqa: PLC0415
+
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("lightglue")
+    card, variant = registry.resolve("matching", full)
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_LIGHTGLUE_REPO"]), g.REF_COMMIT)))
+    from lightglue import ALIKED, DISK, LightGlue  # noqa: PLC0415  # reference checkout  # ty: ignore[unresolved-import]
+    from lightglue.utils import match_pair  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    files = {f.name: f for f in registry.weights(card, variant, allow_download=False)}
+    torch.hub.load_state_dict_from_url = functools.partial(g.from_files, files)
+    params, opts = dict(variant.params), dict(card.options) | (options or {})
+    extractor = {"aliked": ALIKED, "disk": DISK}[params["extractor"]]
+    ex = extractor(max_num_keypoints=opts["max_keypoints"]).eval().cuda()
+    lg = LightGlue(features=params["extractor"], mp=fp16).eval().cuda()
+    a.note = f"upstream match_pair {params['extractor']} + LightGlue, resize {opts['long_side']}"
+
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        return match_pair(ex, lg, img1.float() / 255, img2.float() / 255, device="cuda", resize=opts["long_side"])
+
+    return call
+
+
+def _dedode(a: Any, full: str, fp16: bool, options: dict[str, Any] | None = None) -> Any:  # noqa: ANN401, FBT001
+    """Upstream DeDoDe v2 detector + descriptor + `DualSoftMaxMatcher` as `tools/golden/dedode.py` (card `options`).
+
+    fp16: upstream's default on CUDA (float16 autocast, float16 DINOv2 for -G); off: float32. Needs a `FF_DEDODE_REPO`
+    checkout with the pinned commit. The call returns keypoints1, keypoints2, pairs, scores.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("dedode")
+    card, variant = registry.resolve("matching", full)
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_DEDODE_REPO"]), g.REF_COMMIT)))
+    files = registry.weights(card, variant, allow_download=False)
+    params = dict(card.params) | dict(variant.params) | dict(card.options) | (options or {})
+    run = g.build(files, params, amp=fp16, device=torch.device("cuda"))
+    a.note = f"upstream DeDoDe-L v2 + descriptor {params['descriptor']}, {params['max_keypoints']} keypoints"
+
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        return run(img1.float() / 255, img2.float() / 255)
+
+    return call
+
+
+def _loftr(a: Any, full: str, options: dict[str, Any] | None = None) -> Any:  # noqa: ANN401
+    """Upstream `LoFTR` with the variant's settings as `tools/golden/loftr.py` (card `options`), float32 on CUDA.
+
+    Upstream has no inference precision option. Needs a `FF_LOFTR_REPO` checkout with the pinned commit (einops,
+    kornia < 0.8, yacs). The call returns keypoints1, keypoints2, pairs, scores.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("loftr")
+    card, variant = registry.resolve("matching", full)
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_LOFTR_REPO"]), g.REF_COMMIT)))
+    (ckpt,) = registry.weights(card, variant, allow_download=False)
+    params = dict(card.params) | dict(variant.params)
+    long_side = int((dict(card.options) | (options or {}))["long_side"])
+    net = g.build(ckpt, params, params["threshold"]).cuda()
+    a.note = f"upstream LoFTR default_cfg, temp_bug_fix {params['temp_bug_fix']}, long side {long_side}"
+
+    @torch.inference_mode()
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        (g0, s0), (g1, s1) = (g.prepare(i.float() / 255, long_side) for i in (img1, img2))
+        batch = {"image0": g0, "image1": g1, "scale0": s0, "scale1": s1}
+        net(batch)
+        idx = torch.arange(len(batch["mconf"]), device=g0.device)
+        return {
+            "keypoints1": batch["mkpts0_f"],
+            "keypoints2": batch["mkpts1_f"],
+            "pairs": torch.stack([idx, idx], -1),
+            "scores": batch["mconf"],
+        }
+
+    return call
+
+
+def _dfine(a: Any, full: str) -> Any:  # noqa: ANN401
+    """D-FINE, DEIM, LW-DETR, OWLv2, Grounding DINO as the COCO eval runs them (`tools/_original_coco.py`), RGB in."""
+    import _original_coco  # noqa: PLC0415
+
+    ref = full.split("@", maxsplit=1)[0]
+    det = _original_coco.load("detection", ref, "upstream")
+    if "grounding-dino" in ref:  # also mm-grounding-dino
+        a.COMMIT = "transformers-" + importlib.import_module("transformers").__version__
+        arch = "MMGroundingDino" if ref.startswith("mm-") else "GroundingDino"
+        a.note = f"transformers {arch}ForObjectDetection + processor (CPU), coco-80 caption, text tower per call"
+    elif ref.startswith("owlv2"):
+        a.COMMIT = "transformers-" + importlib.import_module("transformers").__version__
+        a.note = (
+            "transformers Owlv2ForObjectDetection + processor (CPU), coco-80 queries, text tower per call, 300 best"
+        )
+    elif ref.startswith("lw-detr"):
+        a.COMMIT = "transformers-" + importlib.import_module("transformers").__version__
+        a.note = "transformers LwDetrForObjectDetection + image processor (CPU), the authors' PostProcess (all kept)"
+    elif ref.startswith("deim"):
+        a.COMMIT = _original_coco.DEIM_COMMIT
+        a.note = "official DEIM deploy model; incl. CPU PIL resize + host-to-device copy, RT-DETR postprocess (all 300)"
+    else:
+        a.COMMIT = "transformers-" + importlib.import_module("transformers").__version__
+        a.note = "transformers DFineForObjectDetection; incl. CPU PIL resize + host-to-device copy, all 300"
+    return det
+
+
 def _hwc_point(a: tuple[Any, ...]) -> tuple[Any, ...]:
     """(uint8 CUDA CHW, points, labels) of the bench call -> (uint8 HWC array, [1, 2] float array, [1] int array)."""
     import numpy as np  # noqa: PLC0415
 
     return a[0].permute(1, 2, 0).cpu().numpy(), np.array(a[1], np.float64), np.array(a[2])
+
+
+def _lotus(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `LotusGPipeline` / `LotusDPipeline` as `tools/golden/lotus.py` (one step, seed 42, camera frame).
+
+    `FF_LOTUS_REPO`: a clone of EnVision-Research/Lotus; `FF_LOTUS_SNAPSHOT_G` / `FF_LOTUS_SNAPSHOT_D`: the weights
+    snapshot directories. fp16 = the diffusers `torch_dtype=float16` load under CUDA autocast (upstream's
+    `--half_precision`; infer.py always runs under autocast, the fp32 tier here does not).
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("lotus")
+    if not hasattr(a, "tree"):
+        a.tree = g.reference_tree(Path(os.environ["FF_LOTUS_REPO"]), g.REF_COMMIT)
+    kind = "G" if full.startswith("lotus-normal-g") else "D"
+    pipe = g.pipeline(a.tree, os.environ[f"FF_LOTUS_SNAPSHOT_{kind}"], full, torch.float16 if fp16 else torch.float32)
+    pipe = pipe.to("cuda")
+    pipe.set_progress_bar_config(disable=True)
+    a.note = f"upstream Lotus-{kind} pipeline, diffusers {g.DIFFUSERS}, timestep {g.TIMESTEP}, seed {g.SEED}"
+    if not fp16:
+        return lambda image: g.predict(pipe, image[None].float() / 255)
+
+    def run(image: Any) -> Any:  # noqa: ANN401 - torch tensors
+        with torch.autocast("cuda"):
+            return g.predict(pipe, image[None].float() / 255)
+
+    return run
+
+
+def _marigold_normals(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, ARG001, FBT001 - adapter signature
+    """The diffusers `MarigoldNormalsPipeline` as `tools/golden/marigold_normals.py` (card defaults, CPU generator).
+
+    `FF_MARIGOLD_NORMALS_SNAPSHOT`: the weights snapshot directory (configs + safetensors); fp16 = the diffusers
+    `torch_dtype=float16` load (the authors' float16 option). Output: unit normals `[H, W, 3]`, camera frame.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("marigold_normals")
+    pipe = g.pipeline(os.environ["FF_MARIGOLD_NORMALS_SNAPSHOT"], torch.float16 if fp16 else torch.float32).to("cuda")
+    pipe.set_progress_bar_config(disable=True)
+    a.note = f"diffusers {g.DIFFUSERS} MarigoldNormalsPipeline, {g.STEPS} LCM step, CPU generator seed {g.SEED}"
+    return lambda image: g.predict(pipe, image[None].float() / 255)
+
+
+def _stablenormal(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, ARG001, FBT001 - adapter signature
+    """Upstream `YOSONormalsPipeline` as `tools/golden/stablenormal.py` (hubconf turbo, seeded `latents`, camera frame).
+
+    `FF_STABLENORMAL_REPO`: a clone of Stable-X/StableNormal; `FF_STABLENORMAL_SNAPSHOT`: the yoso-normal-v0-3
+    snapshot directory (configs, `controlnet/controlnetvae.py`, fp16 safetensors); fp16 = `torch_dtype=float16`.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("stablenormal")
+    if not hasattr(a, "tree"):
+        a.tree = g.reference_tree(Path(os.environ["FF_STABLENORMAL_REPO"]), g.REF_COMMIT)
+    dtype = torch.float16 if fp16 else torch.float32
+    pipe = g.pipeline(a.tree, os.environ["FF_STABLENORMAL_SNAPSHOT"], dtype).to("cuda")
+    pipe.set_progress_bar_config(disable=True)
+    a.note = f"upstream YOSONormalsPipeline (turbo, t_start 0), diffusers {g.DIFFUSERS}, latents seed {g.SEED}"
+    return lambda image: g.predict(pipe, image[None].float() / 255)
+
+
+def _birefnet(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """The HF repo's `birefnet.py` with the card's pre- and post-processing, as `tools/golden/birefnet.py`.
+
+    `FF_BIREFNET_HF`: a directory with the HF snapshots as `<ref>/birefnet.py` (+ `BiRefNet_config.py`); fp16 = the
+    model card's `half()` (fp16 weights and input).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("birefnet")
+    ref = full.split("@", maxsplit=1)[0]
+    card, variant = registry.resolve("matting", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_BIREFNET_HF"]) / ref, Path(weights)).cuda()
+    if fp16:
+        net = net.half()
+    repo, rev = g.HF_REVISION[ref]
+    a.note = f"HF ZhengPeng7/{repo}@{rev[:12]} birefnet.py, the card's resize / normalisation / sigmoid / resize back"
+    return lambda image: g.predict(net, image[None].float() / 255)
+
+
+def _ben2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """The authors' `BEN2.py` with float pre- and post-processing, as `tools/golden/ben2.py`.
+
+    `FF_BEN2_REPO`: a PramaLLC/BEN2 checkout; fp16 = the forward's own CUDA fp16 autocast (fp32: without it).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("ben2")
+    card, variant = registry.resolve("matting", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_BEN2_REPO"]), Path(weights)).cuda()
+    a.note = f"PramaLLC/BEN2@{g.COMMIT[:12]} BEN2.py, bicubic resize / normalisation / bilinear back / min-max"
+    return lambda image: g.predict(net, image[None].float() / 255, autocast=fp16)
+
+
+def _rsu(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """U²-Net / IS-Net (xuebinqin) with float pre- and post-processing, as `tools/golden/{u2net,isnet}.py`, float32.
+
+    `FF_U2NET_REPO` / `FF_DIS_REPO`: a U-2-Net / DIS checkout.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    card, variant = registry.resolve("matting", full)
+    (weights,) = registry.weights(card, variant)
+    g = _golden(card.family)
+    p = {**card.params, **variant.params}
+    if card.family == "u2net":
+        net = g.network(Path(os.environ["FF_U2NET_REPO"]), Path(weights), p["arch"]).cuda()
+    else:
+        net = g.network(Path(os.environ["FF_DIS_REPO"]), Path(weights)).cuda()
+    a.note = f"{g.UPSTREAM.removeprefix('https://github.com/')}@{g.COMMIT[:12]}, float pre- and post-processing"
+    return lambda image: g.predict(net, image[None].float() / 255, p["size"])
+
+
+def _inspyrenet(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """transparent-background's `InSPyReNet_SwinB` with float pre- and post-processing, as `tools/golden/inspyrenet.py`.
+
+    `FF_TBG_PKG`: the `transparent_background` package directory (1.3.4); float32 (`Remover` has no fp16 option).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    card, variant = registry.resolve("matting", full)
+    (weights,) = registry.weights(card, variant)
+    g = _golden("inspyrenet")
+    size = {**card.params, **variant.params}["size"]
+    net = g.network(Path(os.environ["FF_TBG_PKG"]), Path(weights), size).to("cuda")  # upstream `to` moves the kernel
+    a.note = f"{g.UPSTREAM.removeprefix('https://github.com/')}@{g.COMMIT[:12]}, float pre- and post-processing"
+    return lambda image: g.predict(net, image[None].float() / 255, size)
+
+
+def _vitmatte(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """The transformers `VitMatteForImageMatting` with the processor's maths on tensors, as `tools/golden/vitmatte.py`.
+
+    `FF_VITMATTE_HF`: a directory with the HF snapshots as `<ref>/` (config + weights); fp16 = `torch_dtype=float16`.
+    """
+    import transformers  # noqa: PLC0415
+
+    g = _golden("vitmatte")
+    net = g.network(Path(os.environ["FF_VITMATTE_HF"]) / full.split("@", maxsplit=1)[0], fp16=fp16).cuda()
+    a.note = f"transformers {transformers.__version__} VitMatteForImageMatting, normalise / trimap / pad 32 / crop"
+    return lambda image, trimap: g.predict(net, image[None].float() / 255, trimap)
+
+
+def _megaloc(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """The authors' `megaloc_model.py` with the README's resize / normalisation, as `tools/golden/megaloc.py`.
+
+    `FF_MEGALOC_REPO`: a gmberton/MegaLoc checkout; no precision option of its own (autocast / `half()` tiers).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("megaloc")
+    card, variant = registry.resolve("retrieval", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_MEGALOC_REPO"]), Path(weights)).cuda()
+    a.note = f"gmberton/MegaLoc@{g.COMMIT[:12]} megaloc_model.py, 322 x 322 bilinear antialiased resize, normalisation"
+    return lambda image: g.predict(net, image[None].float() / 255)
+
+
+def _boq(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """The authors' `hubconf.py` with the README's resize / normalisation, as `tools/golden/boq.py`.
+
+    `FF_BOQ_REPO`: an amaralibey/Bag-of-Queries checkout, `FF_DINOV2_REPO`: facebookresearch/dinov2; no precision
+    option of its own (autocast / `half()` tiers).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("boq")
+    card, variant = registry.resolve("retrieval", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_BOQ_REPO"]), Path(weights)).cuda()
+    a.note = (
+        f"amaralibey/Bag-of-Queries@{g.COMMIT[:12]} hubconf.py, 322 x 322 bicubic antialiased resize, normalisation"
+    )
+    return lambda image: g.predict(net, image[None].float() / 255)
+
+
+def _geocalib(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """The authors' `GeoCalib.calibrate` (resize, network, LM fit, camera of the input), as `tools/golden/geocalib.py`.
+
+    `FF_GEOCALIB_REPO`: a cvg/GeoCalib checkout; no precision option of its own (autocast tier).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("geocalib")
+    card, variant = registry.resolve("calibration", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_GEOCALIB_REPO"]), Path(weights)).cuda()
+    a.note = f"cvg/GeoCalib@{g.COMMIT[:12]} GeoCalib.calibrate (pinhole), its kornia resize / crop / LM fit"
+    return lambda image: g.predict(net, image[None].float() / 255)["intrinsics"]
+
+
+def _anycalib(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """The authors' `AnyCalib.predict` (resize / crop, network, linear + GN fit), as `tools/golden/anycalib.py`.
+
+    `FF_ANYCALIB_REPO`: a javrtg/AnyCalib checkout; no precision option of its own (autocast tier).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("anycalib")
+    card, variant = registry.resolve("calibration", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_ANYCALIB_REPO"]), Path(weights)).cuda()
+    a.note = f"javrtg/AnyCalib@{g.COMMIT[:12]} AnyCalib.predict (pinhole), its resize / crop / linear + GN fit"
+    return lambda image: g.predict(net, image[None].float() / 255)["intrinsics"]
 
 
 class _Local:
@@ -812,6 +1449,9 @@ class _Local:
     """
 
     flag = False  # no mixed-precision option of its own: fp16 = torch.autocast around the call
+    trimap = "unused"  # matting: "required" adds the bench's synthetic trimap to the call
+    cameras = "unused"  # multiview: "required" adds the bench rig's intrinsics, cam_to_world and depth range
+    prompts: tuple[str, ...] = ()  # promptable segmentation: ("reference",) adds the bench's reference image and mask
 
     def __init__(
         self,
@@ -845,7 +1485,14 @@ class _Local:
         from fastforks._core.bench import BenchSize  # noqa: PLC0415
 
         api = importlib.import_module(f"fastforks.{self.task}._api")
-        like = types.SimpleNamespace(device=torch.device("cuda"), needs_boxes=self.needs_boxes, prompts=())
+        like = types.SimpleNamespace(
+            device=torch.device("cuda"),
+            needs_boxes=self.needs_boxes,
+            prompts=self.prompts,
+            _runner=types.SimpleNamespace(
+                intrinsics=self.cameras, cam_to_world=self.cameras, depth_range=self.cameras, trimap=self.trimap
+            ),
+        )
         out = []
         for h, w in self.sizes:
             args, kw = api.bench_inputs(like, BenchSize(h, w))
@@ -858,9 +1505,15 @@ class _RFDETRKeypoint(_Local):
     """The authors' explicit inference dtype option, without a compiler, on the same CUDA uint8 inputs."""
 
     flag = True
+    family = "rfdetr_keypoint"
+    postprocess = "uncertainty-fused PostProcess"
 
-    def __init__(self) -> None:
-        super().__init__("pose", None, ((1080, 1920),), needs_boxes=False)
+    def __init__(self, task: str = "pose", sizes: tuple[tuple[int, int], ...] = ((1080, 1920),)) -> None:
+        super().__init__(task, None, sizes, needs_boxes=False)
+
+    def reference(self, g: Any, checkout: Path, full: str, checkpoint: Path) -> Any:  # noqa: ANN401 - upstream wrapper
+        _ = full
+        return g.reference(checkout, checkpoint, "cuda")
 
     def build(self, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - bench adapter contract
         import torch  # noqa: PLC0415
@@ -874,12 +1527,12 @@ class _RFDETRKeypoint(_Local):
         site = os.environ.get("FF_RFDETR_SITE")
         if site and site not in sys.path:
             sys.path.append(site)
-        g = _golden("rfdetr_keypoint")
-        card, variant = registry.resolve("pose", full)
+        g = _golden(self.family)
+        card, variant = registry.resolve(self.task, full)
         (checkpoint,) = registry.weights(card, variant)
-        model = g.reference(Path(checkout), checkpoint, "cuda")
+        model = self.reference(g, Path(checkout), full, checkpoint)
         self.COMMIT = card.upstream_commit
-        self.note = "pinned RF-DETR torchvision resize/normalize, original network and uncertainty-fused PostProcess"
+        self.note = f"pinned RF-DETR torchvision resize/normalize, original network and {self.postprocess}"
         if fp16:
             model.inference(compile=False, dtype=torch.float16, inplace=True)
             self.note += "; authors inference(compile=False, dtype=float16, inplace=True)"
@@ -892,10 +1545,359 @@ class _RFDETRKeypoint(_Local):
         return call
 
 
+class _RFDETR(_RFDETRKeypoint):
+    """RF-DETR detection / Seg: the golden's upstream class per variant id."""
+
+    family = "rfdetr"
+    postprocess = "PostProcess"
+
+    def reference(self, g: Any, checkout: Path, full: str, checkpoint: Path) -> Any:  # noqa: ANN401 - upstream wrapper
+        return g.reference(checkout, g.CLASSES[full.split("@", maxsplit=1)[0]], checkpoint, "cuda")
+
+
 class _LocalFp16(_Local):
     """An original with an fp16 option of its own: its builder takes `(adapter, ref, fp16)`."""
 
     flag = True
+
+
+def _tapnext(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream `TAPNext` online (one frame per call, as the authors' online demo), the eval's resizing to 256 x 256.
+
+    fp16: `torch.autocast("cuda", torch.float16)` as upstream's evaluation. Needs `TAPNET_SRC`, a tapnet checkout with
+    the pinned commit. The call returns tracks `[1, T, Q, 2]` and the visible logits `[1, T, Q, 1]` (upstream's).
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    sys.path.insert(0, os.environ["TAPNET_SRC"])
+    from tapnet.tapnext.tapnext_torch import TAPNext  # noqa: PLC0415  # ty: ignore[unresolved-import]
+    from tapnet.tapnext.tapnext_torch_utils import (  # noqa: PLC0415  # ty: ignore[unresolved-import]
+        restore_model_from_jax_checkpoint,
+    )
+
+    card, variant = registry.resolve("tracking", full)
+    file = registry.weights(card, variant, allow_download=False)[0]
+    model = TAPNext(image_size=(256, 256))
+    if variant.weights[0].name.endswith(".npz"):
+        model = restore_model_from_jax_checkpoint(model, str(file))
+    else:
+        sd = torch.load(file, map_location="cpu", weights_only=True)["state_dict"]
+        model.load_state_dict({k.removeprefix("tapnext."): v for k, v in sd.items()})
+    model = model.eval().cuda()
+    a.note = "upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        h, w = video.shape[-2:]
+        scale = torch.tensor((256 / w, 256 / h), device=queries.device)
+        qp = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]
+        tracks, vis, state = [], [], None
+        with torch.autocast("cuda", torch.float16, enabled=fp16):
+            for t in range(video.shape[0]):
+                x = F.interpolate(video[t : t + 1].float() / 255, (256, 256), mode="bilinear", antialias=True)
+                x = (x * 2 - 1).permute(0, 2, 3, 1)[:, None]  # [1, 1, 256, 256, 3]
+                kw = {"query_points": qp} if state is None else {"state": state}
+                tr, _, vl, state = model(video=x, **kw)
+                tracks.append(tr), vis.append(vl)
+        return torch.cat(tracks, 1), torch.cat(vis, 1)
+
+    return call
+
+
+def _tapir(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream `TAPIR` offline (the whole video in one call, as the authors' offline demo), resized to 256 x 256.
+
+    fp16: `torch.autocast("cuda", torch.float16)`. Needs `TAPNET_SRC`, a tapnet checkout with the pinned commit (with
+    einshape and dm-tree). The call returns upstream's output dict (tracks `[1, Q, T, 2]`, occlusion and
+    expected-distance logits).
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    sys.path.insert(0, os.environ["TAPNET_SRC"])
+    from tapnet.torch.tapir_model import TAPIR  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    card, variant = registry.resolve("tracking", full)
+    file = registry.weights(card, variant, allow_download=False)[0]
+    boots = variant.id == "bootstapir"
+    model = TAPIR(pyramid_level=1) if boots else TAPIR(pyramid_level=0, extra_convs=False)
+    model.load_state_dict(torch.load(file, map_location="cpu", weights_only=True))
+    model = model.eval().cuda()
+    a.note = f"upstream {'BootsTAPIR' if boots else 'TAPIR'}, offline (whole video); frames resized to 256 x 256"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        h, w = video.shape[-2:]
+        scale = torch.tensor((256 / w, 256 / h), device=queries.device)
+        qp = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]
+        with torch.autocast("cuda", torch.float16, enabled=fp16):
+            x = F.interpolate(video.float() / 255, (256, 256), mode="bilinear", antialias=True)
+            return model((x * 2 - 1).permute(0, 2, 3, 1)[None], qp)
+
+    return call
+
+
+def _alltracker(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream AllTracker `Net.forward` (CUDA, unpatched) through `tools/golden/alltracker.py` `track`.
+
+    384 x 512, 4 iters, forward + backward passes per query frame; fp16: `torch.autocast("cuda", torch.float16)`.
+    Needs `ALLTRACKER_SRC`, an aharley/alltracker checkout with the pinned commit (with einops importable).
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("alltracker")
+    card, variant = registry.resolve("tracking", full)
+    file = registry.weights(card, variant, allow_download=False)[0]
+    model = g.load(Path(os.environ["ALLTRACKER_SRC"]), Path(file), g.MODELS[f"{variant.id}@1"][1]).cuda()
+    a.note = f"aharley/alltracker@{g.COMMIT[:12]} Net.forward, 384 x 512, {g.ITERS} iters"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        return g.track(model, video.float() / 255, queries, amp=torch.float16 if fp16 else None)
+
+    return call
+
+
+def _track_on(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream Track-On2 `Predictor` loop (CUDA, mmcv MSDA as its PyTorch path) via `tools/golden/track_on.py`.
+
+    384 x 512, memory 72, 20 x 20 support grid; fp16: `torch.autocast("cuda", torch.float16)`. Needs `TRACK_ON_SRC`, a
+    gorkaydemir/track_on checkout with the pinned commit, and the DINOv3 ViT-S+ snapshot next to the weights.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("track_on")
+    card, variant = registry.resolve("tracking", full)
+    file = Path(registry.weights(card, variant, allow_download=False)[0])
+    model = g.load(Path(os.environ["TRACK_ON_SRC"]), file, file.parent / g.DINOV3).cuda()
+    a.note = f"gorkaydemir/track_on@{g.COMMIT[:12]} Predictor loop, 384 x 512, memory 72"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        return g.track(model, video.float() / 255, queries, amp=torch.float16 if fp16 else None)
+
+    return call
+
+
+def _locotrack(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream `LocoTrack.forward` offline (CUDA, unpatched) via `tools/golden/locotrack.py`, at 256 x 256.
+
+    fp16: `torch.autocast("cuda", torch.float16)`. Needs `LOCOTRACK_SRC`, a KU-CVLAB/LocoTrack checkout with the pinned
+    commit (with einops importable).
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("locotrack")
+    card, variant = registry.resolve("tracking", full)
+    file = Path(registry.weights(card, variant, allow_download=False)[0])
+    model = g.load(Path(os.environ["LOCOTRACK_SRC"]), file, g.MODELS[f"{variant.id}@1"][1]).cuda()
+    a.note = f"KU-CVLAB/LocoTrack@{g.COMMIT[:12]} forward, offline (whole video), frames resized to 256 x 256"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        return g.track(model, video.float() / 255, queries, amp=torch.float16 if fp16 else None)
+
+    return call
+
+
+class _Tracking(_LocalFp16):
+    """The tracking bench call: the uint8 video `[T, 3, H, W]` and the float32 query grid (not scaled to uint8)."""
+
+    def inputs(self, full: str) -> list[tuple[str, str, tuple[Any, ...]]]:  # noqa: ARG002 - the adapter signature
+        """(label, scene, (video, queries)) per size, from `fastforks.tracking` `bench_inputs`."""
+        import torch  # noqa: PLC0415
+
+        from fastforks._core.bench import BenchSize  # noqa: PLC0415
+        from fastforks.tracking._api import bench_inputs  # noqa: PLC0415
+
+        like = types.SimpleNamespace(device=torch.device("cuda"))
+        out = []
+        for h, w in self.sizes:
+            (video, queries), _ = bench_inputs(like, BenchSize(h, w))
+            out.append((f"{h}x{w}", "synthetic (fastforks bench)", ((video * 255).round().byte(), queries)))
+        return out
+
+
+def _anysplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream AnySplat's inference modules as `tools/golden/anysplat.py` (long side 448, voxel 0.002 as released).
+
+    `FF_ANYSPLAT_REPO`: a checkout with the pinned commit; `FF_ANYSPLAT_SITE`: `einops` + `jaxtyping` (upstream
+    imports them). fp16 = upstream's own bf16 autocast around the aggregator (heads in float32).
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    site = os.environ.get("FF_ANYSPLAT_SITE")
+    if site and site not in sys.path:
+        sys.path.append(site)
+    g = _golden("anysplat")
+    card, variant = registry.resolve("multiview", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_ANYSPLAT_REPO"]), Path(weights))
+    net.enc, net.adapter = net.enc.cuda(), net.adapter.cuda()
+    a.note = f"InternRobotics/AnySplat@{g.REF_COMMIT[:12]} EncoderAnySplat inference, long side 448, voxel_size 0.002"
+
+    def call(images: Any, *_: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 (bench) or float 0-1 (eval); no cameras
+        x = images.float() / 255 if images.dtype == torch.uint8 else images.float()
+        return g.predict(net, x, 448, 0.002, bf16=fp16)["depth"]
+
+    return call
+
+
+def _pi3(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `Pi3` as `tools/golden/pi3.py` (the runner's resizing, PIXEL_LIMIT 255000).
+
+    `FF_PI3_REPO`: a checkout with the pinned commit. fp16 = the authors' bf16 autocast around the whole forward (their
+    `example.py`).
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("pi3")
+    card, variant = registry.resolve("multiview", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_PI3_REPO"]), Path(weights)).cuda()
+    a.note = f"yyfz/Pi3@{g.REF_COMMIT[:12]} Pi3.forward, PIXEL_LIMIT {g.PIXEL_LIMIT}"
+
+    def call(images: Any, *_: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 (bench) or float 0-1 (eval); no cameras
+        x = images.float() / 255 if images.dtype == torch.uint8 else images.float()
+        return g.predict(net, x, bf16=fp16)["depth"]
+
+    return call
+
+
+class _LocalCameras(_LocalFp16):
+    """A calibrated multiview original: called with the images, intrinsics, cam_to_world and the depth range."""
+
+    cameras = "required"
+
+
+def _depthsplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream DepthSplat's `EncoderDepthSplat` as `tools/golden/depthsplat.py` (the runner's resizing, long side 256).
+
+    `FF_DEPTHSPLAT_REPO`: a checkout with the pinned commit; `FF_DEPTHSPLAT_HUB`: a local copy of the
+    `facebookresearch/dinov2` hub code; `FF_DEPTHSPLAT_SITE`: `einops`, `jaxtyping`, `e3nn` (upstream imports them).
+    Upstream has no mixed precision of its own: fp16 = `torch.autocast(float16)` around the call.
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    site = os.environ.get("FF_DEPTHSPLAT_SITE")
+    if site and site not in sys.path:
+        sys.path.append(site)
+    g = _golden("depthsplat")
+    card, variant = registry.resolve("multiview", full)
+    (weights,) = registry.weights(card, variant)
+    enc = g.network(Path(os.environ["FF_DEPTHSPLAT_REPO"]), Path(weights), Path(os.environ["FF_DEPTHSPLAT_HUB"]))
+    enc = enc.cuda()
+    a.note = f"cvg/depthsplat@{g.REF_COMMIT[:12]} EncoderDepthSplat, long side {g.LONG_SIDE}"
+
+    def call(images: Any, k: Any, c2w: Any, depth_range: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 or 0-1
+        x = images.float() / 255 if images.dtype == torch.uint8 else images.float()
+        near, far = (float(d) for d in depth_range)
+        with torch.autocast("cuda", torch.float16, enabled=fp16):
+            out = g.infer(enc, x, (k.float(), c2w.float(), near, far), g.LONG_SIDE)[0]
+        depth = out["depths"][0][:, None].float()  # back in the input units (`infer`)
+        return F.interpolate(depth, x.shape[2:], mode="bilinear", align_corners=False)[:, 0]
+
+    return call
+
+
+def _mvsplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream MVSplat's `EncoderCostVolume` as `tools/golden/mvsplat.py` (the runner's resizing, long side 256).
+
+    `FF_MVSPLAT_REPO`: a checkout with the pinned commit; `FF_MVSPLAT_SITE`: `einops`, `jaxtyping`, `e3nn`,
+    `omegaconf` (upstream imports them). Upstream has no mixed precision of its own: fp16 = `torch.autocast(float16)`.
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    site = os.environ.get("FF_MVSPLAT_SITE")
+    if site and site not in sys.path:
+        sys.path.append(site)
+    g = _golden("mvsplat")
+    card, variant = registry.resolve("multiview", full)
+    (weights,) = registry.weights(card, variant)
+    enc = g.network(Path(os.environ["FF_MVSPLAT_REPO"]), Path(weights), 2).cuda()
+    a.note = f"donydchen/mvsplat@{g.REF_COMMIT[:12]} EncoderCostVolume, long side {g.LONG_SIDE}"
+
+    def call(images: Any, k: Any, c2w: Any, depth_range: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 or 0-1
+        x = images.float() / 255 if images.dtype == torch.uint8 else images.float()
+        near, far = (float(d) for d in depth_range)
+        with torch.autocast("cuda", torch.float16, enabled=fp16):
+            _, dump, _, sc = g.infer(enc, x, (k.float(), c2w.float(), near, far), g.LONG_SIDE)
+        depth = dump["depth"][0, ..., 0, 0][:, None].float() / sc
+        return F.interpolate(depth, x.shape[2:], mode="bilinear", align_corners=False)[:, 0]
+
+    return call
+
+
+def _insid3(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, ARG001, FBT001 - adapter signature
+    """Upstream `INSID3` as `tools/golden/insid3.py` (`FF_INSID3_REPO`; `FF_INSID3_WEIGHTS`: DINOv3 dir).
+
+    fp16 = upstream as shipped (bf16 autocast around the encoder on CUDA, scikit-learn clustering on the CPU); fp32 =
+    the same with that autocast off. The timed call: `set_reference`, `set_target`, `segment` (upstream's resizing).
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("insid3")
+    tree = g.reference_tree(Path(os.environ["FF_INSID3_REPO"]), g.REF_COMMIT)
+    sys.path.insert(0, str(tree))
+    from models.insid3 import INSID3  # noqa: PLC0415  # ty: ignore[unresolved-import]
+    from transformers import DINOv3ViTModel  # noqa: PLC0415
+
+    class Fp32(g.HubShim):
+        def get_intermediate_layers(self, x: Any, n: int = 1, reshape: bool = True) -> Any:  # noqa: ANN401, FBT001, FBT002
+            with torch.autocast("cuda", enabled=False):
+                return super().get_intermediate_layers(x.float(), n, reshape)
+
+    path = Path(os.environ["FF_INSID3_WEIGHTS"]) / "dinov3-vitl16-pretrain-lvd1689m"
+    net = DINOv3ViTModel.from_pretrained(path, dtype=torch.float32).cuda().eval()
+    model = INSID3((g.HubShim if fp16 else Fp32)(net), device="cuda").eval()
+    a.note = f"visinf/INSID3@{g.REF_COMMIT[:12]} set_reference + set_target + segment" + (
+        ", bf16 autocast (as shipped)" if fp16 else ", its encoder autocast off"
+    )
+
+    def call(target: Any, reference: Any, mask: Any) -> Any:  # noqa: ANN401
+        model.set_reference(reference, mask.cpu())
+        model.set_target(target)
+        return model.segment()
+
+    return call
+
+
+def _insid3_prep(args: tuple[Any, ...]) -> tuple[Any, ...]:
+    """uint8 target, float 0-1 reference (CHW, CUDA) -> upstream's ImageNet-normalised `[1, 3, H, W]` tensors."""
+    import torch  # noqa: PLC0415
+
+    target, reference, mask = args
+    mean = torch.tensor((0.485, 0.456, 0.406), device=target.device).view(3, 1, 1)
+    std = torch.tensor((0.229, 0.224, 0.225), device=target.device).view(3, 1, 1)
+    return ((target.float() / 255 - mean) / std)[None], ((reference.float() - mean) / std)[None], mask
+
+
+class _LocalReference(_LocalFp16):
+    """An in-context segmentation original: called with the image, the reference image and its mask."""
+
+    prompts = ("reference",)
+
+
+class _LocalTrimap(_LocalFp16):
+    """A trimap-guided matting original: called with the image and the bench's synthetic trimap."""
+
+    trimap = "required"
 
 
 def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
@@ -905,7 +1907,16 @@ def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
 LOCAL = {  # family -> adapter where the bench has none or a local one wins (flow, pose, RTMDet, timm classifiers)
     "raft": _Local("flow", _raft, ((1080, 1920), (375, 1242))),
     "sea_raft": _Local("flow", _sea_raft, ((1080, 1920), (375, 1242))),
+    "memfof": _Local("flow", _memfof, ((1080, 1920), (375, 1242))),
+    "memflow": _Local("flow", _memflow, ((1080, 1920), (375, 1242))),
     "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
+    "rife": _LocalFp16("interpolation", _rife, ((1080, 1920),)),
+    "realesrgan": _LocalFp16("restoration", _realesrgan, ((512, 512),), _hwc01),
+    "span": _Local("restoration", _span, ((512, 512),), _bchw01),
+    "swinir": _Local("restoration", _swinir, ((512, 512),), _bchw01),
+    "hat": _Local("restoration", _hat, ((512, 512),), _bchw01),
+    "dat": _Local("restoration", _dat, ((512, 512),), _bchw01),
+    "codeformer": _Local("restoration", _codeformer, ((512, 512),), _bchw01),
     "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
     "flowformer": _Local("flow", _flowformer, ((1080, 1920), (375, 1242))),
     "flowseek": _Local("flow", _flowseek, ((1080, 1920), (375, 1242))),
@@ -916,7 +1927,16 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "hrnet": _Local(
         "pose", _topdown, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
     ),
+    "dfine": _Local("detection", _dfine, ((800, 1344),), lambda a: (a[0].permute(1, 2, 0).contiguous().cpu().numpy(),)),
+    "lwdetr": _Local(
+        "detection", _dfine, ((800, 1344),), lambda a: (a[0].permute(1, 2, 0).contiguous().cpu().numpy(),)
+    ),
+    "owlv2": _Local("detection", _dfine, ((800, 1344),), lambda a: (a[0].permute(1, 2, 0).contiguous().cpu().numpy(),)),
+    "grounding_dino": _Local(
+        "detection", _dfine, ((800, 1344),), lambda a: (a[0].permute(1, 2, 0).contiguous().cpu().numpy(),)
+    ),
     "rfdetr_keypoint": _RFDETRKeypoint(),
+    "rfdetr": _RFDETR("detection", ((800, 1344),)),
     "rtmo": _Local(
         "pose",
         _rtmo,
@@ -926,6 +1946,9 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     ),
     "rtmdet": _Local(
         "detection", _rtmdet, ((800, 1344),), lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),)
+    ),
+    "yolox": _Local(
+        "detection", _yolox, ((800, 1344),), lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),)
     ),
     "convnext": _Local("classification", _convnext, ((224, 224),)),
     "repvit": _Local("classification", _convnext, ((224, 224),)),
@@ -940,10 +1963,40 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "shvit": _Local("classification", _convnext, ((224, 224),)),
     "starnet": _Local("classification", _convnext, ((224, 224),)),
     "fastvit": _Local("classification", _convnext, ((224, 224),)),  # the authors' reparameterized inference
+    "wd_tagger": _Local("classification", _convnext, ((448, 448),)),  # wdv3_timm.py: pad square, BGR
+    "nsfw_vit": _Local("classification", _convnext, ((224, 224),)),  # transformers ViTForImageClassification
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),
     "romav2": _LocalFp16("matching", _romav2, ((768, 1024),)),
+    "romav1": _LocalFp16("matching", _romav1, ((768, 1024),)),
+    "marigold_normals": _LocalFp16("depth", _marigold_normals, ((994, 1482),)),
+    "lotus": _LocalFp16("depth", _lotus, ((994, 1482),)),
+    "stablenormal": _LocalFp16("depth", _stablenormal, ((994, 1482),)),
+    "lightglue": _LocalFp16("matching", _lightglue, ((768, 1024),)),
+    "xfeat": _Local("matching", _xfeat, ((768, 1024),)),
+    "dedode": _LocalFp16("matching", _dedode, ((768, 1024),)),
+    "loftr": _Local("matching", _loftr, ((768, 1024),)),
+    "birefnet": _LocalFp16("matting", _birefnet, ((1080, 1920),)),
+    "ben2": _LocalFp16("matting", _ben2, ((1080, 1920),)),
+    "megaloc": _Local("retrieval", _megaloc, ((480, 640),)),
+    "boq": _Local("retrieval", _boq, ((480, 640),)),
+    "geocalib": _Local("calibration", _geocalib, ((1080, 1920),)),
+    "anycalib": _Local("calibration", _anycalib, ((1080, 1920),)),
+    "u2net": _Local("matting", _rsu, ((1080, 1920),)),
+    "isnet": _Local("matting", _rsu, ((1080, 1920),)),
+    "inspyrenet": _Local("matting", _inspyrenet, ((1080, 1920),)),
+    "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
+    "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
+    "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),
+    "pi3": _LocalFp16("multiview", _pi3, ((336, 518),)),
+    "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),
+    "mvsplat": _LocalCameras("multiview", _mvsplat, ((336, 518),)),
+    "insid3": _LocalReference("promptable_segmentation", _insid3, ((1024, 1024),), _insid3_prep),
+    "tapir": _Tracking("tracking", _tapir, ((480, 854),)),
+    "alltracker": _Tracking("tracking", _alltracker, ((480, 854),)),
+    "track_on": _Tracking("tracking", _track_on, ((480, 854),)),
+    "locotrack": _Tracking("tracking", _locotrack, ((480, 854),)),
 }
 
 

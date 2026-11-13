@@ -35,6 +35,8 @@ from fastforks._core.preprocess import scale
 from fastforks._core.runner import Context, Forward, NoParams
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import torch
 
 __all__ = ["Context", "Forward", "NoParams", "Runner", "scale"]
@@ -49,12 +51,14 @@ class Runner(core.Runner):
         mask_size: `(h, w)` of the low-resolution masks (`predict` output and `masks` prompt).
         low_res_clamp: If set, the returned `pred_masks` are clamped to `[-c, c]` after `upsample` has seen the
             unclamped logits (SAM 2: 32).
+        video: The runner implements `track` (video object tracking from frame-0 prompts).
     """
 
     prompts: ClassVar[frozenset[str]] = frozenset({"points", "boxes", "masks"})
     mask_size: ClassVar[tuple[int, int]] = (256, 256)
     low_res_clamp: ClassVar[float | None] = None
     compiled_methods: ClassVar[tuple[str, ...]] = ("embed", "predict")
+    video: ClassVar[bool] = False
 
     @classmethod
     def input_use(cls, params: Any) -> dict[str, Any]:  # noqa: ANN401, ARG003 - the family's `Params`
@@ -128,6 +132,39 @@ class Runner(core.Runner):
             NotImplementedError: The model takes no text prompts.
         """
         msg = f"{type(self).__name__} takes no text prompts"
+        raise NotImplementedError(msg)
+
+    def track(  # noqa: PLR0913 - one argument per prompt kind
+        self,
+        frames: Callable[[int], torch.Tensor],
+        n_frames: int,
+        size: tuple[int, int],
+        *,
+        points: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        boxes: torch.Tensor | None,
+        masks: torch.Tensor | None,
+    ) -> dict[str, torch.Tensor]:
+        """Track `P` objects prompted on frame 0 through a video (models with `video = True`).
+
+        Args:
+            frames: Frame `t` as `[1, 3, H, W]` float32 RGB in `[0, 1]` on `ctx.device` (called once per frame, in
+                order).
+            n_frames: Number of frames `T`.
+            size: `(H, W)` of the frames.
+            points: As `predict`, on frame 0.
+            labels: As `predict`.
+            boxes: As `predict`.
+            masks: `[P, H, W]` float32 binary masks on frame 0 (instead of points / boxes), or `None`.
+
+        Returns:
+            `{"masks": [T, P, H, W] bool, "pred_masks": [T, P, h, w], "object_score_logits": [T, P]}` on the CPU,
+            filled per frame (device memory must not grow with `T`).
+
+        Raises:
+            NotImplementedError: The model does not track video.
+        """
+        msg = f"{type(self).__name__} does not track video"
         raise NotImplementedError(msg)
 
     @abc.abstractmethod

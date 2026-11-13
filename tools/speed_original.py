@@ -45,6 +45,7 @@ class _Features:
             "dinov3": "transformers pooler_output",
             "convnext": "timm num_classes=0 (pooled, head norm)",
             "tipsv2": "tips image_encoder first cls token",
+            "c": "NVIDIA RADIOModel (trust_remote_code) summary",  # c-radio-*
         }
         self.note = notes.get(ref.replace("_", "-").split("-", maxsplit=1)[0], "dinov2 forward_features CLS")
 

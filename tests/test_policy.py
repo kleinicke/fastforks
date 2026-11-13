@@ -41,6 +41,7 @@ OPTIONAL = {
     },
     "laspy": {"stereo/geometry/ply.py"},  # .las / .laz point clouds (dependencies, imported in this module only)
     "lazrs": {"stereo/geometry/ply.py"},
+    "pycolmap": {"matching/sfm.py"},  # `sfm.reconstruct` (the `sfm` extra)
 }
 # Files allowed to import computed module names: the registry imports `fastforks.<task>.models.<family>.model`, the
 # task package its own `<task>` spec modules, the top level the module of each lazily re-exported name.
@@ -48,9 +49,23 @@ DYNAMIC = {"__init__.py", "_core/registry.py", "_core/tasks/__init__.py"}
 # Known violations of three rules on main, open in the depth / features workstreams. Exempt per file (and per name),
 # so the rules stay active for every other file of these tasks; remove an entry when its file is fixed.
 # DPT conversions shared from the DAv2 `fused` module (should move to shared/):
-CROSS_FAMILY_IMPORTS = {
-    f"depth/models/{family}/model.py": "fastforks.depth.models.depth_anything_v2.fused"
-    for family in ("depth_anything_3", "depth_pro", "moge", "unik3d")
+CROSS_FAMILY_IMPORTS: dict[str, str | tuple[str, ...]] = {
+    f"depth/models/{family}/{file}.py": "fastforks.depth.models.depth_anything_v2.fused"
+    for family, file in (
+        ("depth_anything_3", "model"),
+        ("depth_pro", "model"),
+        ("moge", "model"),
+        ("unik3d", "model"),
+        ("prompt_depth_anything", "fused"),
+    )
+}
+# LingBot-Depth reuses MoGe's neck / heads and its kernels-mode helpers (upstream builds on MoGe's modules):
+CROSS_FAMILY_IMPORTS |= {
+    f"depth/models/lingbot_depth/{file}.py": (
+        "fastforks.depth.models.moge",
+        "fastforks.depth.models.depth_anything_v2.fused",
+    )
+    for file in ("model", "net")
 }
 TORCH_LOAD = {"depth/models/midas/model.py", "depth/models/zoedepth/model.py"}  # per-family checkpoint loaders
 UNDOCUMENTED_CONSTANTS = {
@@ -58,7 +73,6 @@ UNDOCUMENTED_CONSTANTS = {
     ("depth/models/depth_anything_3/model.py", "HEAD_DIM"),
     ("depth/models/depth_anything_3/model.py", "_FEATURES"),
     ("depth/models/depth_anything_v2/model.py", "PATCH"),
-    ("depth/models/marigold/model.py", "LATENT_SCALE"),
     ("depth/models/midas/model.py", "MULTIPLE"),
     ("depth/models/moge/model.py", "_REFINE_STEPS"),
     ("depth/models/moge/model.py", "_DEPTH_RES"),
@@ -191,10 +205,11 @@ def test_families_do_not_import_each_other(task):
         own = models + card.family
         for path in _family_files(task, card.family):
             allowed = CROSS_FAMILY_IMPORTS.get(str(path.relative_to(SRC)), own)
+            prefixes = tuple(p + "." for p in ((allowed,) if isinstance(allowed, str) else allowed))
             bad = {
                 m
                 for m in imported_modules(path)
-                if m.startswith(models) and not (m + ".").startswith((own + ".", allowed + "."))
+                if m.startswith(models) and not (m + ".").startswith((own + ".", *prefixes))
             }
             assert not bad, f"{path.relative_to(SRC)} imports another family: {bad} (move shared code to shared/)"
 

@@ -753,14 +753,40 @@ def load_model(  # noqa: PLR0913 - the arguments of every task's `load`
     weights: str | os.PathLike[str] | None = None,
 ) -> M:
     """Load `model` of `task` as a `cls`; see the task's `load` for the arguments and errors."""
-    log = logging.getLogger(f"fastforks.{task}")
     card, variant = registry.resolve(task, model)
+    return load_variant(
+        task, card, variant, cls, mode=mode, device=device, dtype=dtype, options=options, weights=weights
+    )
+
+
+def load_variant(  # noqa: PLR0913 - the arguments of `load_model`
+    task: str,
+    card: ModelCard,
+    variant: Variant,
+    cls: type[M],
+    *,
+    mode: ModeArg = "auto",
+    device: str | torch.device | None = None,
+    dtype: Dtype | torch.dtype | None = None,
+    options: Mapping[str, Any] | None = None,
+    weights: str | os.PathLike[str] | None = None,
+    state: Mapping[str, torch.Tensor] | None = None,
+) -> M:
+    """`load_model` of a resolved (possibly derived) `variant`; `state`: the state dict of `weights`, already read.
+
+    A task that reads a user's checkpoint itself (e.g. to detect its architecture and map its keys) passes the
+    derived variant (its `params`) and the mapped state dict; the runners get it from `Context.state_dict`.
+    """
+    log = logging.getLogger(f"fastforks.{task}")
     registry.require_commercial(card, variant)
     registry.require(card, variant.ref)
     fp32, want = _check_args(mode, dtype)  # every argument is checked before `weights` logs its warning
     dev = resolve_device(device, card)
     opts = check_options(card, {} if options is None else options, variant.ref)
     files = None if weights is None else user_weights(variant, weights, log)
+    if state is not None and files is None:
+        msg = "state needs the weights file it was read from"
+        raise ValueError(msg)
     if fp32 and mode == "kernels" and card.kernels_dtype_on(dev) != "float32":
         msg = "kernels runs reduced-precision kernels here; use mode='portable' with dtype='float32'"
         raise OptionsError(msg)
@@ -768,7 +794,9 @@ def load_model(  # noqa: PLR0913 - the arguments of every task's `load`
         reason = _no_auto_kernels(card, variant, dev, fp32=fp32, want=want)
         if reason is None:
             try:
-                m = _build(cls, card, variant, mode="kernels", device=dev, options=opts, want=want, weights=files)
+                m = _build(
+                    cls, card, variant, mode="kernels", device=dev, options=opts, want=want, weights=files, state=state
+                )
             except BackendUnavailableError as e:
                 reason = f"kernels unavailable ({e})"
             else:
@@ -784,7 +812,9 @@ def load_model(  # noqa: PLR0913 - the arguments of every task's `load`
         if mode == "kernels" and card.no_kernels_reason:
             msg += f": {card.no_kernels_reason}"
         raise BackendUnavailableError(msg)
-    return _build(cls, card, variant, mode=mode, device=dev, options=opts, fp32=fp32, want=want, weights=files)
+    return _build(
+        cls, card, variant, mode=mode, device=dev, options=opts, fp32=fp32, want=want, weights=files, state=state
+    )
 
 
 def user_weights(variant: Variant, path: str | os.PathLike[str], log: logging.Logger | None = None) -> tuple[Path, ...]:
@@ -1052,6 +1082,7 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
     fp32: bool = False,
     want: Dtype | None = None,
     weights: tuple[Path, ...] | None = None,
+    state: Mapping[str, torch.Tensor] | None = None,
 ) -> M:
     if device.type == "cuda":
         warmup.start(device)  # CUDA library start-up overlaps with the build below
@@ -1059,7 +1090,8 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
     tags = _kernel_tags(card, variant, device) if mode == "kernels" else ()
     rcls = runner_class(card, mode, device)
     dtype = compute_dtype(card, rcls, mode, device, fp32=fp32, want=want)
-    ctx = Context(card, variant, mode, device, dtype, make_params(rcls.Params, card, variant, options), tags, weights)
+    params = make_params(rcls.Params, card, variant, options)
+    ctx = Context(card, variant, mode, device, dtype, params, tags, weights, state)
     try:
         # the checkpoint overwrites the initial values: skip the random fill; the build runs at the requested dtype
         # whatever the caller's `torch.set_default_dtype`
@@ -1073,6 +1105,8 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
     if mode == "kernels" and device.type == "cuda":
         claim_kernels_device(device)
     adapt_to_device(runner, mode, device)
+    if device.type == "cuda":
+        warmup.wait(device)  # the loaded model starts on a clean device: no warm-up step (cuBLAS workspace) still live
     backend = Backend(
         mode,
         str(device),
@@ -1083,7 +1117,7 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
         weights=() if weights else tuple(f.sha256 for f in variant.weights),
     )
     model = cls(runner, backend, options)
-    _settle(model, card, mode, device)
+    _settle(device)
     return model
 
 
@@ -1102,12 +1136,8 @@ def _checkpoint_id(files: tuple[Path, ...] | None) -> tuple[str, ...]:
     return tuple(out)
 
 
-def _settle(model: Model, card: ModelCard, mode: Mode, device: torch.device) -> None:
-    """The device-side end of a build: the cuDNN plan workspace's owner, and the build's cached blocks freed."""
-    if mode == "kernels" and "cudnn_hacc" in card.kernel_libs:
-        from fastforks.kernels import cudnn_hacc  # noqa: PLC0415 - only kernels models
-
-        cudnn_hacc.attach(model)  # frees the plan workspace with the last such model
+def _settle(device: torch.device) -> None:
+    """The device-side end of a build: the build's cached blocks freed."""
     if device.type == "cuda":
         # The build's transient blocks (fp32 BN-fold probes that pick large cuDNN workspaces, checkpoint copies before
         # the cast) would stay cached and count in the reserved memory for good (regnety_160 3990 -> 250 MiB).

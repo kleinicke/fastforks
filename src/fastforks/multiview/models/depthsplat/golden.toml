@@ -1,0 +1,25 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1.6e-05
+gpu_mean = 0.0035
+gpu_p99 = 0.017
+gpu_extra = [["confidence", 0.014, 0.086], ["gaussians.harmonics", 0.025, 0.38], ["gaussians.means", 0.0014, 0.0092], ["gaussians.opacities", 0.0012, 0.0055], ["gaussians.rotations", 0.0022, 0.011], ["gaussians.scales", 0.0053, 0.036]]
+
+[refs."depthsplat-small-re10k@1"]
+sha256 = "154a24dffe30ce49bd0ba64ee30a0ccd353ba4b47a4ef6d7d4b4f311f4a47631"
+upstream = "https://github.com/cvg/depthsplat@2dad25a7b9ba7c5537aba08463ef88d8511a06be"
+settings = "CPU float32, synth scene (4 views) at 120x160 -> network 192x256, torch 2.14.1+cu130"
+
+[validated."depthsplat-small-re10k@1"]
+kernels = ["cudnn_hacc@cudnn92400", "fastbb@7d058322634d:sm_120"]
+symbols = {"fastbb" = {"dwconv3_nhwc" = "461af1376dfb8afe", "dwgate_v1" = "25de990d911ff307", "dwgate_v2" = "11ee2a591d9160ab", "dwgate_v4" = "cf25266bdde3954e", "flash64_r1_ff" = "1604a30ef2d4ae6e", "flash64_r1_fh" = "009d9582cac02f1b", "flash64_r1_hh" = "d1f5d5770223fe92", "flash64_r2_ff" = "9b3746ef97a939af", "flash64_r2_fh" = "798b5f638ae8cb98", "flash64_r2_hh" = "2a9037ad469879c2", "in_apply_b" = "ab88bf1c206c6dd9", "in_apply_h" = "7070fd936a52ae6a", "in_stats_b" = "9a760b11bd7b68ba", "in_stats_final" = "891b933057d094c4", "in_stats_h" = "91e1f5f344c0d209", "ln_lastdim_v1" = "3ece7d1f56e15c7d", "ln_lastdim_v2" = "17ff4380e757afe4", "ln_lastdim_v4" = "fdd5d1a89bb0c226", "ln_lastdim_v8" = "12fb0730809c7b26", "rope_qk_h" = "4f2344f43da7554c", "win_rpe_attn" = "a9cc3be192c753c1"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.00197
+p99_px = 0.00899

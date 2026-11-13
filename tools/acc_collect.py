@@ -202,15 +202,20 @@ def _ports(rows: list[dict[str, Any]]) -> None:
 def choose(rows: list[dict[str, Any]]) -> dict[str, str]:
     """Set `column` / `mode` on the rows; map ref -> its fp16 original tier.
 
-    `upstream16`, or `upstreamac` where the authors' own option fails (c-foundationstereo-s: "CUDA error: invalid
-    argument").
+    `upstream16`, or `upstreamac` on the datasets where the authors' own option fails (c-foundationstereo-s on
+    Middlebury: "CUDA error: invalid argument"; its ETH3D rows keep the own option). The map (for the speed rows) names
+    `upstreamac` where any dataset of the ref uses it.
     """
     _ports(rows)
-    failed = {r["ref"] for r in rows if r["tier"] == "upstream16" and "error" in r}
-    ok = {r["ref"] for r in rows if r["tier"] == "upstreamac" and "error" not in r}
-    picked = {r["ref"]: "upstreamac" if r["ref"] in failed & ok else "upstream16" for r in rows if r["tier"] in FP16}
+    failed = {(r["ref"], r.get("dataset")) for r in rows if r["tier"] == "upstream16" and "error" in r}
+    ok = {(r["ref"], r.get("dataset")) for r in rows if r["tier"] == "upstreamac" and "error" not in r}
+    use = {(r["ref"], r.get("dataset")): "upstreamac" if (r["ref"], r.get("dataset")) in failed & ok else "upstream16"
+           for r in rows if r["tier"] in FP16}  # fmt: skip
+    picked: dict[str, str] = {}
+    for (ref, _), tier in use.items():
+        picked[ref] = "upstreamac" if "upstreamac" in (tier, picked.get(ref)) else tier
     for r in rows:
-        fp16 = r["tier"] == picked.get(r["ref"])
+        fp16 = r["tier"] == use.get((r["ref"], r.get("dataset")))
         r["column"] = "original fp16" if fp16 else COLUMN.get(r["tier"])
         r["mode"] = "upstream-fp16" if fp16 else MODE.get(r["tier"], r["tier"])
     return picked

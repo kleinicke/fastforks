@@ -22,6 +22,7 @@ from fastforks._core.errors import WeightsError
 from fastforks._core.model import Model
 from fastforks.depth._runner import Runner as DepthRunner
 from fastforks.stereo._runner import Runner
+from synth import prompt_kwargs
 from test_api import Params
 from test_golden import API, SMALLEST, TASK, sweep_model
 
@@ -199,9 +200,9 @@ def test_tiny_and_odd_sizes(ref, monkeypatch):
         x = RNG.integers(0, 256, (h, w, 3), dtype=np.uint8)
         if min(h, w) < lo:
             with pytest.raises(InputError, match="at least"):
-                m(x, x) if task in {"stereo", "flow"} else m(x)
+                m(x, x) if task in {"stereo", "flow"} else m(x, **prompt_kwargs(m))
             continue
-        r = m(x, np.roll(x, -1, 1)) if task in {"stereo", "flow"} else m(x)
+        r = m(x, np.roll(x, -1, 1)) if task in {"stereo", "flow"} else m(x, **prompt_kwargs(m))
         if task == "flow":
             main = r.flow
             assert main.shape == (2, h, w), (h, w)

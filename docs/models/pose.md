@@ -12,49 +12,49 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`dwpose-l`](#rtmpose) | yes | 6.196, 28.7x | 306, 0.79x |
-| [`dwpose-l-384`](#rtmpose) | yes | 12.471, 15.5x | 424, 0.52x |
-| [`dwpose-m`](#rtmpose) | yes | 4.856, 33.8x | 220, 0.28x |
-| [`dwpose-s`](#rtmpose) | yes | 3.302, 52.3x | 198, 0.23x |
-| [`dwpose-t`](#rtmpose) | yes | 3.155, 50.8x | 192, 0.22x |
-| [`hrnet-w32`](#hrnet) | yes | 9.791, 18.0x | 262, 0.81x |
-| [`hrnet-w32-384`](#hrnet) | yes | 19.442, 9.8x | 380, 0.5x |
-| [`hrnet-w48`](#hrnet) | yes | 15.483, 12.9x | 398, 0.86x |
-| [`hrnet-w48-384`](#hrnet) | yes | 33.912, 7.2x | 498, 0.54x |
-| [`rf-detr-keypoint-preview`](#rfdetr_keypoint) | yes | 9.476, 2.0x | 224, 0.92x |
-| [`rtmo-l`](#rtmo) | yes | 8.302, 2.1x | 228, 0.35x |
-| [`rtmo-m`](#rtmo) | yes | 6.847, 2.1x | 212, 0.59x |
-| [`rtmo-s`](#rtmo) | yes | 6.267, 1.8x | 180, 0.82x |
-| [`rtmo-t`](#rtmo) | yes | 6.313, 1.8x | 156, 1.4x |
-| [`rtmpose-l`](#rtmpose) | yes | 5.635, 28.6x | 264, 0.24x |
-| [`rtmpose-l-384`](#rtmpose) | yes | 11.171, 15.3x | 406, 0.99x |
+| [`dwpose-l`](#rtmpose) | yes | 6.20, 28.7x | 306, 0.79x |
+| [`dwpose-l-384`](#rtmpose) | yes | 12.5, 15.5x | 424, 0.52x |
+| [`dwpose-m`](#rtmpose) | yes | 4.86, 33.8x | 220, 0.28x |
+| [`dwpose-s`](#rtmpose) | yes | 3.30, 52.3x | 198, 0.23x |
+| [`dwpose-t`](#rtmpose) | yes | 3.15, 50.8x | 192, 0.22x |
+| [`hrnet-w32`](#hrnet) | yes | 9.79, 18.0x | 262, 0.81x |
+| [`hrnet-w32-384`](#hrnet) | yes | 19.4, 9.8x | 380, 0.5x |
+| [`hrnet-w48`](#hrnet) | yes | 15.5, 12.9x | 398, 0.86x |
+| [`hrnet-w48-384`](#hrnet) | yes | 33.9, 7.2x | 498, 0.54x |
+| [`rf-detr-keypoint-preview`](#rfdetr_keypoint) | yes | 9.48, 2.0x | 224, 0.92x |
+| [`rtmo-l`](#rtmo) | yes | 8.30, 2.1x | 228, 0.35x |
+| [`rtmo-m`](#rtmo) | yes | 6.85, 2.1x | 212, 0.59x |
+| [`rtmo-s`](#rtmo) | yes | 6.27, 1.8x | 180, 0.82x |
+| [`rtmo-t`](#rtmo) | yes | 6.31, 1.8x | 156, 1.4x |
+| [`rtmpose-l`](#rtmpose) | yes | 5.63, 28.6x | 264, 0.24x |
+| [`rtmpose-l-384`](#rtmpose) | yes | 11.2, 15.3x | 406, 0.99x |
 | [`rtmpose-l-halpe26`](#rtmpose) | yes | 5.65, 29.1x | 264, 0.5x |
-| [`rtmpose-l-halpe26-384`](#rtmpose) | yes | 11.206, 18.4x | 406, 0.39x |
-| [`rtmpose-m`](#rtmpose) | yes | 4.423, 40.4x | 200, 0.55x |
+| [`rtmpose-l-halpe26-384`](#rtmpose) | yes | 11.2, 18.4x | 406, 0.39x |
+| [`rtmpose-m`](#rtmpose) | yes | 4.42, 40.4x | 200, 0.55x |
 | [`rtmpose-m-384`](#rtmpose) | yes | 8.97, 18.6x | 340, 0.58x |
-| [`rtmpose-m-ap10k`](#rtmpose) | yes | 5.408, 34.5x | 220, 0.27x |
-| [`rtmpose-m-face6`](#rtmpose) | yes | 5.781, 34.3x | 242, 0.35x |
-| [`rtmpose-m-halpe26`](#rtmpose) | yes | 4.463, 40.2x | 220, 0.69x |
-| [`rtmpose-m-halpe26-384`](#rtmpose) | yes | 9.014, 21.3x | 340, 0.45x |
-| [`rtmpose-m-hand5`](#rtmpose) | yes | 5.436, 35.3x | 240, 0.51x |
-| [`rtmpose-s`](#rtmpose) | yes | 3.011, 53.4x | 178, 0.37x |
-| [`rtmpose-s-face6`](#rtmpose) | yes | 3.748, 63.2x | 222, 0.41x |
-| [`rtmpose-s-halpe26`](#rtmpose) | yes | 3.038, 56.5x | 198, 0.99x |
-| [`rtmpose-t`](#rtmpose) | yes | 2.901, 52.0x | 176, 0.36x |
-| [`rtmpose-t-face6`](#rtmpose) | yes | 3.627, 51.8x | 220, 0.47x |
-| [`rtmpose-t-halpe26`](#rtmpose) | yes | 2.904, 59.1x | 196, 1.4x |
-| [`rtmpose-x-halpe26-384`](#rtmpose) | yes | 18.721, 11.6x | 470, 0.85x |
-| [`rtmw-l`](#rtmpose) | yes | 10.215, 19.8x | 336, 0.47x |
-| [`rtmw-l-384`](#rtmpose) | yes | 20.245, 13.6x | 476, 0.47x |
-| [`rtmw-m`](#rtmpose) | yes | 7.537, 22.5x | 268, 0.82x |
-| [`rtmw-x`](#rtmpose) | yes | 14.312, 14.5x | 394, 0.62x |
-| [`rtmw-x-384`](#rtmpose) | yes | 50.766, 5.7x | 674, 0.37x |
-| [`vitpose-base`](#vitpose) | yes | 13.967, 7.5x | 704, 1.2x |
-| [`vitpose-base-simple`](#vitpose) | yes | 14.147, 7.7x | 684, 0.97x |
-| [`vitpose-plus-base`](#vitpose) | yes | 13.949, 8.1x | 704, 0.95x |
-| [`vitpose-plus-huge`](#vitpose) | yes | 64.102, 3.8x | 1766, 0.43x |
-| [`vitpose-plus-large`](#vitpose) | yes | 34.893, 4.7x | 1124, 0.52x |
-| [`vitpose-plus-small`](#vitpose) | yes | 8.067, 12.9x | 558, 1.8x |
+| [`rtmpose-m-ap10k`](#rtmpose) | yes | 5.41, 34.5x | 220, 0.27x |
+| [`rtmpose-m-face6`](#rtmpose) | yes | 5.78, 34.3x | 242, 0.35x |
+| [`rtmpose-m-halpe26`](#rtmpose) | yes | 4.46, 40.2x | 220, 0.69x |
+| [`rtmpose-m-halpe26-384`](#rtmpose) | yes | 9.01, 21.3x | 340, 0.45x |
+| [`rtmpose-m-hand5`](#rtmpose) | yes | 5.44, 35.3x | 240, 0.51x |
+| [`rtmpose-s`](#rtmpose) | yes | 3.01, 53.4x | 178, 0.37x |
+| [`rtmpose-s-face6`](#rtmpose) | yes | 3.75, 63.2x | 222, 0.41x |
+| [`rtmpose-s-halpe26`](#rtmpose) | yes | 3.04, 56.5x | 198, 0.99x |
+| [`rtmpose-t`](#rtmpose) | yes | 2.90, 52.0x | 176, 0.36x |
+| [`rtmpose-t-face6`](#rtmpose) | yes | 3.63, 51.8x | 220, 0.47x |
+| [`rtmpose-t-halpe26`](#rtmpose) | yes | 2.90, 59.1x | 196, 1.4x |
+| [`rtmpose-x-halpe26-384`](#rtmpose) | yes | 18.7, 11.6x | 470, 0.85x |
+| [`rtmw-l`](#rtmpose) | yes | 10.2, 19.8x | 336, 0.47x |
+| [`rtmw-l-384`](#rtmpose) | yes | 20.2, 13.6x | 476, 0.47x |
+| [`rtmw-m`](#rtmpose) | yes | 7.54, 22.5x | 268, 0.82x |
+| [`rtmw-x`](#rtmpose) | yes | 14.3, 14.5x | 394, 0.62x |
+| [`rtmw-x-384`](#rtmpose) | yes | 50.8, 5.7x | 674, 0.37x |
+| [`vitpose-base`](#vitpose) | yes | 14.0, 7.5x | 704, 1.2x |
+| [`vitpose-base-simple`](#vitpose) | yes | 14.1, 7.7x | 684, 0.97x |
+| [`vitpose-plus-base`](#vitpose) | yes | 13.9, 8.1x | 704, 0.95x |
+| [`vitpose-plus-huge`](#vitpose) | yes | 64.1, 3.8x | 1766, 0.43x |
+| [`vitpose-plus-large`](#vitpose) | yes | 34.9, 4.7x | 1124, 0.52x |
+| [`vitpose-plus-small`](#vitpose) | yes | 6.05, 17.2x | 198, 0.64x |
 
 <a id="rtmpose"></a>
 
@@ -481,7 +481,7 @@ Commercial use: yes.
 - Variants: `rtmo-t`, `rtmo-s`, `rtmo-m`, `rtmo-l`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmo-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmo-s` not measured yet; `rtmo-m` not measured yet; `rtmo-l` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmo-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmo-s` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmo-m` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmo-l` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
 - `rtmo-t` 1080x1920, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `rtmo-s` 1080x1920, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `rtmo-m` 1080x1920, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
@@ -547,7 +547,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `vitpose-base-simple` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 145<br>109<br>20.1<br>14.1<br>16.0<br>9.36 (network on person crops only) | 667 / 702<br>828 / 962<br>590 / 642<br>567 / 684<br>590 / 622<br>499 / 550 |
 | `vitpose-base` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 139<br>105<br>19.9<br>14.0<br>16.4<br>8.88 (network on person crops only) | 592 / 602<br>713 / 762<br>597 / 642<br>574 / 704<br>597 / 622<br>473 / 516 |
-| `vitpose-plus-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 120<br>104<br>9.96<br>8.07<br>7.54<br>3.39 (network on person crops only) | 298 / 310<br>312 / 376<br>472 / 496<br>449 / 558<br>472 / 496<br>214 / 256 |
+| `vitpose-plus-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 120<br>104<br>7.83<br>6.05<br>7.54<br>3.39 (network on person crops only) | 298 / 310<br>312 / 376<br>164 / 196<br>145 / 198<br>472 / 496<br>214 / 256 |
 | `vitpose-plus-base` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>113<br>19.9<br>13.9<br>16.4<br>8.87 (network on person crops only) | 729 / 742<br>918 / 1002<br>597 / 642<br>574 / 704<br>597 / 622<br>473 / 516 |
 | `vitpose-plus-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 331<br>165<br>53.7<br>34.9<br>46.9<br>29.3 (network on person crops only) | 2111 / 2144<br>2873 / 3004<br>1014 / 1062<br>991 / 1124<br>1014 / 1062<br>1312 / 1338 |
 | `vitpose-plus-huge` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 610<br>242<br>104<br>64.1<br>92.9<br>58.7 (network on person crops only) | 4100 / 4124<br>5732 / 5846<br>1641 / 1704<br>1618 / 1766<br>1641 / 1682<br>2595 / 2654 |
@@ -571,7 +571,7 @@ Commercial use: yes.
 - Variants: `vitpose-base-simple`, `vitpose-base`, `vitpose-plus-small`, `vitpose-plus-base`, `vitpose-plus-large`, `vitpose-plus-huge`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vitpose-base-simple` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-small` 3000x4000 (4.4 GiB peak allocated, 4.6 reserved); `vitpose-plus-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-large` 3000x4000 (4.9 GiB peak allocated, 5.2 reserved); `vitpose-plus-huge` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `vitpose-base-simple` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-small` 3000x4000 (4.4 GiB peak allocated, 4.6 reserved); `vitpose-plus-base` 3000x4000 (4.5 GiB peak allocated, 4.8 reserved); `vitpose-plus-large` 3000x4000 (4.9 GiB peak allocated, 5.2 reserved); `vitpose-plus-huge` 3000x4000 (5.5 GiB peak allocated, 5.7 reserved)
 - `vitpose-base-simple` 1080x1920, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `vitpose-base` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `vitpose-plus-small` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 38 s (ONNX + engine).
@@ -592,7 +592,7 @@ Commercial use: yes.
 - `vitpose-plus-huge` original 1080x1920: torch.autocast(fp16) around the call; transformers 4.57.1 VitPoseImageProcessor (CPU crop) + VitPoseForPoseEstimation + post_process_pose_estimation, all in the timed call
 - `vitpose-base-simple` load / first call: original 0.15 s / 0.17 s, portable 0.4 s / 0.408 s, kernels 1.04 s / 0.41 s
 - `vitpose-base` load / first call: original 0.16 s / 0.328 s, portable 3.48 s / 0.403 s, kernels 1.06 s / 0.343 s
-- `vitpose-plus-small` load / first call: original 0.15 s / 0.119 s, portable 0.25 s / 0.528 s, kernels 0.95 s / 0.33 s
+- `vitpose-plus-small` load / first call: original 0.15 s / 0.119 s, portable 0.81 s / 0.461 s, kernels 1.09 s / 0.503 s
 - `vitpose-plus-base` load / first call: original 0.19 s / 0.121 s, portable 0.65 s / 0.345 s, kernels 1.1 s / 0.343 s
 - `vitpose-plus-large` load / first call: original 0.41 s / 0.166 s, portable 1.5 s / 0.412 s, kernels 1.63 s / 0.407 s
 - `vitpose-plus-huge` load / first call: original 0.65 s / 0.251 s, portable 2.69 s / 0.438 s, kernels 2.26 s / 0.397 s
@@ -602,14 +602,14 @@ Commercial use: yes.
 
 Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | portable | kernels | note |
-|---|---|---|---|---|
-| `vitpose-base-simple` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.3 |  |
-| `vitpose-base` | COCO val2017, ground-truth person boxes, keypoint AP | 76.4 | 76.4 |  |
-| `vitpose-plus-small` | COCO val2017, ground-truth person boxes, keypoint AP | 76.8 | 76.8 |  |
-| `vitpose-plus-base` | COCO val2017, ground-truth person boxes, keypoint AP | 78.6 | 78.6 |  |
-| `vitpose-plus-large` | COCO val2017, ground-truth person boxes, keypoint AP | 80.5 | 80.5 |  |
-| `vitpose-plus-huge` | COCO val2017, ground-truth person boxes, keypoint AP | 80.9 | 80.9 |  |
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `vitpose-base-simple` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.2 | 76.3 | 76.3 |  |
+| `vitpose-base` | COCO val2017, ground-truth person boxes, keypoint AP | 76.4 | 76.4 | 76.4 | 76.4 |  |
+| `vitpose-plus-small` | COCO val2017, ground-truth person boxes, keypoint AP | 76.8 | 76.8 | 76.8 | 76.8 |  |
+| `vitpose-plus-base` | COCO val2017, ground-truth person boxes, keypoint AP | 78.6 | 78.6 | 78.6 | 78.6 |  |
+| `vitpose-plus-large` | COCO val2017, ground-truth person boxes, keypoint AP | 80.6 | 80.6 | 80.5 | 80.5 |  |
+| `vitpose-plus-huge` | COCO val2017, ground-truth person boxes, keypoint AP | 81.0 | 81.0 | 80.9 | 80.9 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted, 2026-11-09.
 

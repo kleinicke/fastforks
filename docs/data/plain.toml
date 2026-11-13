@@ -37,8 +37,23 @@ waft_stereo = "A stereo network from the Princeton Vision & Learning Lab that wa
 raft = "RAFT (Teed and Deng, Princeton) with torchvision's weights: dense optical flow refined step by step over an all-pairs correlation volume. BSD-3-Clause code; some training sets (FlyingChairs, Sintel) are research-only."
 sea_raft = "SEA-RAFT (Princeton, 2024): a faster and more accurate successor of RAFT for dense optical flow, needing only 4 refinement steps. BSD-3-Clause code and weights; some training sets are research-only."
 neuflow_v2 = "NeuFlow v2 (Northeastern University, 2024): a small and fast optical-flow network built for edge devices: a light CNN backbone, global matching at 1/16 and a few cheap refinements at 1/8. Apache-2.0 code and weights."
+memfof = "MEMFOF (MSU Graphics & Media Lab, ICCV 2025): memory-efficient multi-frame optical flow, a RAFT-style network that also looks at the previous frame and runs at full HD. BSD-3-Clause code and weights; some training sets are research-only."
+memflow = "MemFlow (Dong and Fu, CVPR 2024): optical flow with a motion memory, a RAFT-style network whose update step also reads attention over the frame's motion features. Apache-2.0 code and weights; some training sets are research-only."
 gmflow = "GMFlow (2022; the flow models of UniMatch, 2023): optical flow as one global matching step between Transformer-enhanced features of both images; variants add a second matching scale and refinement steps. MIT code; the authors' weights carry no separate licence."
+xfeat = "XFeat (Verlab, CVPR 2024): fast sparse keypoints and descriptors, matched by mutual nearest neighbours or LighterGlue; output as keypoints plus index pairs (the form COLMAP takes). Apache-2.0 code and weights."
+lightglue = "LightGlue (ETH Zurich, Microsoft; ICCV 2023) with ALIKED or DISK keypoints: sparse matching of two photos of one scene, as keypoints plus index pairs (the form COLMAP takes). Apache-2.0 (LightGlue, DISK) and BSD-3-Clause (ALIKED) code and weights."
+loftr = "LoFTR (Zhejiang University, CVPR 2021): detector-free matching of two photos of one scene with transformers; semi-dense matches as keypoint pairs (the form COLMAP takes). Outdoor (MegaDepth) and indoor (ScanNet) weights. Apache-2.0 code and weights."
+dedode = "DeDoDe v2 (Chalmers, Linköping University; 3DV 2024): sparse keypoints from a detector network, descriptions from a separate one (VGG19, plus DINOv2 for -G), dual-softmax matches as keypoint index pairs (the form COLMAP takes). MIT; DINOv2 Apache-2.0."
+loma = "LoMa (Nordström, Edstedt et al. 2026): sparse matching of two photos of one scene: DaD keypoints, DeDoDe-G descriptions (VGG19 plus DINOv2) and a light LightGlue-style transformer matcher; matches as keypoint index pairs (the form COLMAP takes). MIT code and weights; DINOv2 Apache-2.0."
+flexglue = "FlexGlue (ETH Zurich and partners, 2026): sparse matching of two photos of one scene: ALIKED keypoints, DINOv3 ConvNeXt features and a transformer that predicts where each keypoint lands in the other photo; keypoint index pairs. MIT; DINOv3 backbone weights under the DINOv3 licence."
+romav1 = "RoMa (2024): dense matching between two photos of one scene from any viewpoints: where each pixel of the first image is in the second, and how sure the model is that it is visible there. Built on Meta's DINOv2 and a VGG19. MIT code and weights; the DINOv2 weights are Apache-2.0."
 romav2 = "RoMa v2 (2025): dense matching between two photos of one scene from any viewpoints: where each pixel of the first image is in the second, and how sure the model is that it is visible there. Built on Meta's DINOv3. MIT code; the DINOv3 parts of the code and weights are under the DINOv3 licence."
+birefnet = "BiRefNet (Nankai University and partners, CAAI AIR 2024): cuts the foreground out of a photo as a soft mask at full resolution (background removal), with a Swin Transformer encoder; general and lite versions. MIT code and weights."
+vitmatte = "ViTMatte (Huazhong University of Science and Technology, 2023): refines a rough trimap (sure background, sure foreground, unknown band) into a soft alpha matte, e.g. hair and fur edges; a plain Vision Transformer plus a small detail decoder; small and base versions. Apache-2.0 code and weights."
+ben2 = "BEN2 (Prama LLC, 2025): cuts the foreground out of a photo as a soft mask (background removal); a Swin Transformer looks at the whole image and at four full-resolution patches and merges the views. MIT code and weights."
+u2net = "U²-Net (University of Alberta, Pattern Recognition 2020): finds the main object of a photo and cuts it out as a soft mask at 320 x 320 (rembg's default background remover); a full model, a 4.7 MB small one and one trained on people. Apache-2.0 code and weights."
+isnet = "IS-Net (ECCV 2022, the DIS benchmark's authors): cuts the foreground out of a photo as a fine mask at 1024 x 1024 (background removal); the authors' general-use model and the academic DIS5K one. Apache-2.0 code and weights."
+inspyrenet = "InSPyReNet (Kim et al., ACCV 2022) as transparent-background ships it: cuts the foreground out of a photo as a soft mask at 1024 x 1024 (384 x 384 fast); a Swin-B encoder with an image-pyramid decoder. MIT code and weights."
 flowseek = "FlowSeek (University of Bologna, 2025), size T: SEA-RAFT optical flow that also uses a frozen Depth Anything V2 Small: its features help the matching and its depth tells which flow a camera motion would cause. Apache-2.0 code; the authors' weights carry no separate licence."
 
 flowformer = "FlowFormer Small (ECCV 2022): convolutional features and a latent cost-memory transformer for optical flow. Apache-2.0 code; the authors provide no separate checkpoint licence."
@@ -46,11 +61,17 @@ flowformer = "FlowFormer Small (ECCV 2022): convolutional features and a latent 
 # --- depth
 depth_anything_3 = "ByteDance's Depth Anything 3: depth from one image, with relative, metric and multi-view versions. The licence differs by variant, see the table."
 depth_anything_v2 = "Depth Anything V2: relative depth from one image, in small, base and large. The licence differs by size, see the table."
+video_depth_anything = "Video Depth Anything (ByteDance): depth of a whole video, consistent from frame to frame, in windows of 32 frames on the Depth Anything V2 Small encoder; relative and metric. Apache-2.0 code and weights (Small only)."
+prompt_depth_anything = "Prompt Depth Anything: metric depth from one image plus a low-resolution depth prompt (for example a phone LiDAR map), in small and large."
+lingbot_depth = "LingBot-Depth (Robbyant, 2026): metric depth completion from an image plus an incomplete or noisy metric depth map (RGB-D camera, LiDAR), and a depth-completion variant (dc). Apache-2.0 code and weights."
 depth_pro = "Apple's single-image model for metric depth and the camera focal length, at 1536x1536 internal resolution. Research-only licence."
+lotus = "Lotus from HKUST (Guangzhou): surface normals from one image in one step on a Stable Diffusion UNet, generative (G) or direct (D). Apache-2.0 code and weights."
 marigold = "Marigold from ETH Zurich (PRS): depth from one image by diffusion on a Stable Diffusion UNet. Commercially usable under an OpenRAIL licence."
+marigold_normals = "Marigold normals LCM from ETH Zurich (PRS): surface normals from one image in one diffusion step on a Stable Diffusion UNet. Apache-2.0 code and weights."
 metric3d = "Metric3D v2 (Wei Yin and Mu Hu et al.): metric depth and surface normals from one image, given the focal length. Commercially usable; the authors ask commercial users to contact them."
 midas = "MiDaS v3.1 from Intel ISL, with a BEiT-L encoder: relative depth from one image."
 moge = "Microsoft's MoGe: depth, 3D points, normals and focal length from one image."
+stablenormal = "StableNormal turbo from Stable-X (Ye et al., SIGGRAPH Asia 2024): surface normals from one image in one step on a Stable Diffusion UNet with a ControlNet image encoder. Apache-2.0 code and weights."
 unidepth_v2 = "UniDepth V2: metric depth from one image without known camera data. Non-commercial licence."
 unik3d = "UniK3D: metric 3D from one image for any camera type, using a spherical-harmonic ray model. Non-commercial licence."
 zoedepth = "ZoeDepth from the Intelligent Systems Lab: metric depth from one image, for indoor and outdoor scenes."
@@ -89,6 +110,8 @@ siglip = "SigLIP So400m/14 (Zhai et al. 2023) fine-tuned on ImageNet-1k."
 squeezenet = "SqueezeNet 1.1 (Iandola et al. 2016): a classifier built from fire modules."
 swin = "Swin Transformer (Liu et al. 2021): a vision transformer with shifted-window attention."
 vgg = "VGG (Simonyan and Zisserman 2014): a classifier of stacked 3x3 convolutions."
+nsfw_vit = "Falconsai's NSFW detector: a ViT-B/16 that classifies an image as normal or nsfw. Apache-2.0 weights."
+wd_tagger = "SmilingWolf's WD v3 taggers: tag anime-style images with 10 861 Danbooru tags (general, character, rating), on ViT, ConvNeXt and EVA-02 backbones. Apache-2.0 weights."
 vit = "Vision Transformer (Dosovitskiy et al. 2020): a transformer classifier on 16x16 image patches."
 
 # --- segmentation
@@ -99,7 +122,7 @@ eomt = "EoMT: a plain vision transformer that also predicts masks, for ADE20K sc
 mask2former = "Mask2Former with a Swin-L backbone for ADE20K scene segmentation. Non-commercial weights."
 oneformer = "OneFormer (SHI Labs): one network for several segmentation tasks, used here for ADE20K scene segmentation."
 sapiens = "Meta's Sapiens: segmentation of human body parts (28 Goliath classes such as face, hair, limbs and clothing). Non-commercial licence."
-segformer = "NVIDIA's SegFormer: a transformer for ADE20K scene segmentation, sizes B0 and B5. Non-commercial weights."
+segformer = "NVIDIA's SegFormer: a transformer for ADE20K scene segmentation (sizes B0 and B5), plus two community fine-tunes: clothes parsing (B2, 18 classes) and face parsing (B5, 19 classes). Non-commercial weights."
 
 # --- promptable segmentation
 efficientvit_sam = "EfficientViT-SAM (MIT Han lab): Segment Anything with a fast convolutional image encoder, in five sizes."
@@ -108,13 +131,19 @@ sam = "Segment Anything: masks from clicks, boxes or mask prompts, in sizes B, L
 sam_hq = "HQ-SAM (ETH Zurich): Segment Anything with an added head for sharper mask borders and thin structures, in sizes B, L and H."
 sam2 = "Segment Anything 2.1 in image mode: masks from clicks, boxes or mask prompts, in four sizes."
 sam3 = "Segment Anything 3: masks for every object that matches a text or example prompt, as well as clicks and boxes. Meta's SAM License applies; commercially usable under it."
+insid3 = "INSID3 (2026): finds the object shown in one or more example images with masks in a new image, without training, from Meta's DINOv3 features. Apache-2.0 code; the DINOv3 weights are under the gated DINOv3 licence."
 
 # --- detection
 rcnn = "Faster R-CNN and Mask R-CNN from the detectron2 model zoo (ResNet-50 FPN, COCO): boxes, classes and, for Mask R-CNN, instance masks."
 detr = "DETR (ResNet-50 and ResNet-101, COCO) from Facebook Research: end-to-end boxes and classes from 100 object queries, no NMS."
 rtdetrv2 = "RT-DETRv2 (S, M, M*, L, X; ResNet-vd, COCO) from the RT-DETR authors: real-time end-to-end detector, 300 queries and deformable attention, no NMS."
 rtmdet = "OpenMMLab's RTMDet (tiny, s, m, l, x on COCO; nano and m person detectors): real-time one-stage box detector, a CSPNeXt CNN with NMS. The person detectors supply the boxes for RTMPose. Apache-2.0."
-dfine = "D-FINE (N, S, M, L, X; HGNetV2, COCO) from USTC: real-time end-to-end detector in the RT-DETR style, 300 queries, deformable attention and box edges refined as distributions, no NMS."
+yolox = "Megvii's YOLOX (tiny, s, m, l, x on COCO): anchor-free one-stage box detector, a CSPDarknet CNN with a decoupled head and NMS. Apache-2.0 code and weights."
+dfine = "D-FINE (N, S, M, L, X; HGNetV2, COCO) from USTC: real-time end-to-end detector in the RT-DETR style, 300 queries, deformable attention and box edges refined as distributions, no NMS. Also DEIM (N, S, M, L, X): the same network with SiLU decoder MLPs, trained with dense one-to-one matching."
+lwdetr = "LW-DETR (tiny to xlarge; ViT, COCO) from Baidu: real-time end-to-end detector, a plain ViT encoder with a multi-level projector and a DETR decoder with deformable attention, no NMS. Apache-2.0 code and weights."
+rfdetr = "Roboflow RF-DETR (N, S, M, L detection; Seg N to 2XL with instance masks; COCO): real-time end-to-end detector with a windowed DINOv2 backbone and deformable decoder, no NMS. Apache-2.0 code and weights."
+owlv2 = "Google's OWLv2 (CLIP ViT-B/16 and L/14): open-vocabulary detector, finds boxes for any class names given as text at call time (default: the 80 COCO classes). Apache-2.0 code and weights."
+grounding_dino = "IDEA Research's Grounding DINO and OpenMMLab's MM-Grounding-DINO (tiny, base; Swin backbone, BERT text encoder): open-vocabulary detector, finds boxes for class names given as text at call time (default: the 80 COCO classes). Apache-2.0 code and weights."
 
 # --- features
 convnext_features = "Meta's ConvNeXt (tiny, small, base, large) trained on ImageNet-22k, without the classifier: the last stage's feature map as tokens and a pooled image embedding. Apache-2.0 weights."
@@ -128,9 +157,13 @@ siglip2 = "Google's SigLIP 2 image encoders (B, L, So400m, g): image features al
 tipsv2 = "Google DeepMind's TIPSv2 image encoders (B, L): image features aligned with text, with patch features meant for dense tasks. Apache-2.0."
 
 # --- multiview
+anysplat = "AnySplat (InternRobotics): 3D Gaussian splats, cameras and depth from unposed images in one pass; saves a 3DGS .ply. MIT."
+depthsplat = "DepthSplat (ETH Zurich / cvg): 3D Gaussian splats and depth from several posed images in one pass; saves a 3DGS .ply. MIT (Small checkpoint)."
 mapanything = "MapAnything (Meta): metric 3D reconstruction (cameras and depth) from several unposed images in one pass. Commercially usable (Apache variant)."
 mvsanywhere = "MVSAnywhere (Niantic): depth of a reference view from several posed images, for any scene type. Non-commercial licence."
+mvsplat = "MVSplat (Chen et al.): 3D Gaussian splats and depth from several posed, calibrated images in one pass; saves a 3DGS .ply. MIT."
 patchmatchnet = "PatchmatchNet by Fangjinhua Wang et al.: learned PatchMatch multi-view stereo, depth from posed images."
+pi3 = "π3 (Pi3, yyfz): cameras, depth and 3D points from many unposed images in one pass, with no reference view. Non-commercial weights."
 vggt = "VGGT (Meta): cameras, depth and 3D points for many images in one pass. Non-commercial weights."
 vggt_omega = "VGGT-Omega (Meta): the successor of VGGT with a DINOv3 backbone, cameras and depth from many images. Non-commercial licence."
 
@@ -140,3 +173,25 @@ hrnet = "HRNet (w32, w48; 256x192 and 384x288): top-down 2D human pose with a hi
 rtmo = "OpenMMLab's RTMO (t, s, m, l): real-time one-stage multi-person 2D pose; finds people and their 17 COCO keypoints in one pass over the image, no person detector needed. Apache-2.0."
 rtmpose = "OpenMMLab's RTMPose (t, s, m, l; 256x192 and 384x288): real-time top-down 2D human pose, a CSPNeXt CNN with a SimCC head; also the whole-body DWPose and RTMW checkpoints (133 keypoints with feet, face and hands); Halpe (26 keypoints), hand, face and animal checkpoints. Apache-2.0."
 vitpose = "ViTPose and ViTPose++ (base, small, large, huge): top-down 2D human pose with a plain vision transformer, from the weights published by the University of Sydney on Hugging Face. Apache-2.0."
+
+# --- interpolation
+rife = "RIFE (Practical-RIFE 4.25, 4.26 and 4.25 lite, Huang et al.): makes the frame between two video frames from the optical flow it estimates between them, for slow motion and higher frame rates. MIT code and weights."
+
+# --- restoration
+realesrgan = "Real-ESRGAN (Wang et al., Tencent ARC, 2021): upscales real-world photos (x4, x2) and anime images (x4) with an RRDB network trained on synthetic degradations (blur, noise, JPEG); the classic ComfyUI upscaler. BSD-3-Clause code and weights."
+span = "SPAN (Wan et al., NTIRE 2024 efficient SR winner): a small, fast x4 / x2 upscaler for clean (bicubic) images, convolutions with parameter-free attention. Apache-2.0 code and weights."
+codeformer = "CodeFormer (Zhou et al., S-Lab NTU, NeurIPS 2022): restores a degraded face (an aligned 512 x 512 crop) by predicting codes of a learned face codebook; fidelity w trades quality against faithfulness. Non-commercial code and weights (S-Lab License 1.0)."
+dat = "DAT (Chen et al., ICCV 2023): a x4 upscaler for clean (bicubic) images that alternates spatial and channel attention, in three sizes (DAT, DAT-2, DAT-light). Apache-2.0 code and weights."
+hat = "HAT (Chen et al., CVPR 2023): a x4 upscaler mixing window attention, channel attention and overlapping cross-attention: two models for clean (bicubic) images (large and small) and a GAN model for real-world photos. Apache-2.0 code and weights."
+swinir = "SwinIR (Liang et al., ICCVW 2021): a Swin Transformer upscaler: x4 / x2 for clean (bicubic) images and x4 for real-world photos (medium and large). Apache-2.0 code and weights."
+
+# --- tracking
+tapir = "TAPIR and BootsTAPIR (Google DeepMind, 2023 / 2024): track any point through a whole video offline: a per-frame match from a cost volume, then four temporal refinement passes; BootsTAPIR adds self-training on real videos. Apache-2.0 code and weights."
+alltracker = "AllTracker (Harley et al., ICCV 2025): track every pixel of a query frame through a whole video offline, as long-range optical flow over 16-frame windows; point queries read the dense result. MIT code and weights."
+track_on = "Track-On2 and Track-On-R (Aydemir et al., 2025): online point tracking, one frame at a time, as a transformer decoder over a DINOv3 ViT-S+ adapter with a memory of past features; -R is fine-tuned on real videos. MIT; DINOv3 weights under the DINOv3 License."
+locotrack = "LocoTrack (Cho et al., ECCV 2024): track any point through a whole video offline: a per-frame match from a cost volume, then refinement with local 4-D correlation and a transformer over the frames of each track. Apache-2.0 code and weights."
+tapnext = "TAPNext (Google DeepMind, 2025): tracks any point through a video, online one frame at a time, as next-token prediction with a ViT + linear-recurrence (RG-LRU) backbone; BootsTAPNext-B and the long-video TAPNext++. Apache-2.0 code and weights."
+megaloc = "MegaLoc (Politecnico di Torino, 2025): one descriptor per photo to find photos of the same place (place recognition, loop closure, image pairs for 3-D reconstruction); DINOv2 ViT-B with optimal-transport pooling. MIT code and weights; some training sets are research-only."
+geocalib = "GeoCalib (ETH Zurich / Microsoft, 2024): the camera of one photo (focal length, field of view) and how it is tilted (roll, pitch from gravity), from perspective fields and an optimisation; no checkerboard needed. Apache-2.0 code, CC-BY-4.0 weights; training photos of mixed licences."
+anycalib = "AnyCalib (University of Zaragoza, ICCV 2025): the camera of one photo (focal length, principal point, field of view) from one predicted viewing ray per pixel and a fit; no checkerboard needed, no gravity. Apache-2.0 code and weights; trained on crops of public 360-degree panoramas."
+boq = "BoQ, Bag-of-Queries (Université Laval, 2024): one descriptor per photo to find photos of the same place (place recognition, loop closure); DINOv2 ViT-B with learned queries that read out the image features. MIT code and weights."

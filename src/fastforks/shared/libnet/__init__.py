@@ -99,6 +99,8 @@ def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # no
     p = ctx.params
     if p.library == "timm":
         overlay = {"state_dict": ctx.state_dict(index, strip="")}  # read (and hash-checked) by the core, loaded by timm
+        if "num_classes" in kwargs:  # else timm drops a head whose size differs from its config's and loads non-strict
+            overlay["num_classes"] = kwargs["num_classes"]
         try:
             return timm().create_model(p.arch, pretrained=True, pretrained_cfg_overlay=overlay, **kwargs).eval()
         except RuntimeError as e:  # timm's strict load of the state dict

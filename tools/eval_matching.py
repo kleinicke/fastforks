@@ -1,4 +1,4 @@
-"""Two-view pose accuracy of fastforks dense matchers on MegaDepth-1500 (AUC@5/10/20 of the relative pose error).
+"""Two-view pose accuracy of fastforks matchers on MegaDepth-1500 (AUC@5/10/20 of the relative pose error).
 
     python tools/eval_matching.py match --ref romav2 --mode portable --work DIR [--start 0 --stop 300]   # GPU
     python tools/eval_matching.py score --ref romav2 --mode portable --work DIR --commit C --out x.jsonl  # CPU
@@ -11,13 +11,19 @@ The 1500 pairs of scenes 0015 and 0022 (LoFTR's test split; the glue-factory `me
 
 - `match` (GPU, resumable in chunks): the model matches the pair at full size in both directions (two calls: image1
   -> image2 and image2 -> image1), with the options of upstream's "mega1500" setting (`coarse_size` 800, `fine_size`
-  1024). Upstream's balanced sampling then draws 5000 matches five times (seeded): certainties above 0.05 count as 1
-  (upstream `threshold`), matches with a normalised coordinate beyond 1 - 1 / fine_size are dropped, 20000 are drawn
-  by certainty, then 5000 by the inverse of their kernel density (std 0.1, density < 10 excluded). Keypoints in pixels
-  of the images scaled to 1200 px on the long side (upstream's convention, the intrinsics scaled alike). Writes
+  1024; RoMa v1: 672 and 1344 as its `experiments/eval_roma_outdoor.py`). Upstream's balanced sampling then draws
+  5000 matches five times (seeded): certainties above 0.05 count as 1 (upstream `threshold`), matches with a
+  normalised coordinate beyond 1 - 1 / fine_size are dropped (RoMa v2 only), 20000 are drawn by certainty, then
+  5000 by the inverse of their kernel density (std 0.1, density < 10 excluded). Keypoints in pixels of the images
+  scaled to 1200 px on the long side (upstream's convention, the intrinsics scaled alike). Writes
   `DIR/<ref>-<mode>/<first>.npz` per chunk and, in a JSON next to it, the time of each pair's two calls (upload of the
   uint8 images and the outputs on the GPU included) and their peak torch memory (the model loaded; sampling excluded,
   reserved memory includes what earlier pairs left in the cache).
+- Sparse matchers (LightGlue): one call image1 -> image2 at the protocol of LightGlue's MegaDepth-1500 table
+  (glue-factory: `long_side` 1600, `max_keypoints` 2048); all its matches, once (`N_RUNS` 1), in the same 1200 px
+  frame. `upstream` / `upstream16`: upstream `match_pair` (`tools/_original.py` `_lightglue`, `mp` off / on; needs
+  `FF_LIGHTGLUE_REPO` and kornia). LoFTR and DeDoDe (`CARD_PROTOCOL`): their card defaults (their papers' setting);
+  originals `_loftr` (float32 only) / `_dedode` (`upstream16`: upstream's float16 autocast).
 - `score` (CPU): per sampling OpenCV `findEssentialMat` RANSAC (threshold 0.5 px over the mean focal length, confidence
   0.99999) and `recoverPose`, error = max(angle error of R, of t up to sign); 90 degrees if RANSAC fails. AUC@5/10/20
   over the 7500 errors (upstream `pose_auc`). Appends one row to `--out`.
@@ -27,7 +33,8 @@ Modes: `portable32` (float32), `portable`, `kernels` (card default dtype) throug
 matmul precision "highest" / upstream's `enable_amp=True` bfloat16) through the same two calls and the same sampling;
 `upstreambench`: upstream's own benchmark path (`apply_setting("mega1500")`: one bidirectional bf16 call, upstream
 `sample` on its 1024x1024 output grid), the reference for this protocol. The original needs `FF_ROMAV2_REPO` and
-`FF_DINOV3_REPO` (git checkouts with the pinned commits) and einops.
+`FF_DINOV3_REPO` (git checkouts with the pinned commits) and einops. RoMa v1's original: `tools/golden/romav1.py`
+`build` (`amp_dtype` float32 / upstream's default float16) with `FF_ROMAV1_REPO` and einops.
 """
 
 from __future__ import annotations
@@ -47,7 +54,11 @@ from _data import DATA
 
 DATASET = "megadepth1500"
 OPTIONS = {"coarse_size": 800, "fine_size": 1024}  # upstream setting "mega1500"
+FAMILY_OPTIONS = {"romav1": {"coarse_size": 672, "fine_size": 1344}}  # RoMa v1's experiments/eval_roma_outdoor.py
 N_MATCHES, N_RUNS, LONG_SIDE, THRESHOLD, MIN_DENSITY = 5000, 5, 1200, 0.05, 10
+FIVE = 5  # pose_error: the essential matrix needs 5 correspondences
+SPARSE_OPTIONS = {"long_side": 1600, "max_keypoints": 2048}  # glue-factory's megadepth1500 setting of LightGlue
+CARD_PROTOCOL = ("loftr", "dedode")  # sparse families whose card defaults are their papers' MegaDepth-1500 setting
 ORIGINAL = {"upstream": ("upstream", "original fp32"), "upstream16": ("upstream-fp16", "original fp16")}
 
 
@@ -84,27 +95,73 @@ def normalised(warp: torch.Tensor, h2: int, w2: int) -> torch.Tensor:
     return torch.cat((grid, to), dim=-1).reshape(-1, 4)
 
 
-def sample(matches: torch.Tensor, certainty: torch.Tensor, limit: float, gen: torch.Generator) -> torch.Tensor:
-    """Upstream `RoMaV2.sample` (balanced) of `[N, 4]` normalised matches with their `[N]` certainties."""
+def sample(  # noqa: PLR0913, PLR0917 - the sampling options
+    matches: torch.Tensor,
+    certainty: torch.Tensor,
+    limit: float,
+    gen: torch.Generator,
+    n: int = N_MATCHES,
+    sampling: str = "balanced",
+) -> torch.Tensor:
+    """Upstream `RoMaV2.sample` (balanced) of `[N, 4]` normalised matches with their `[N]` certainties: the indices.
+
+    `sampling`: "plain" draws by certainty only, "fast" balances with `MatchingResult.matches`' subsampled density.
+    """
     c = torch.where(certainty > THRESHOLD, 1.0, certainty) * matches.abs().amax(dim=-1).le(limit).float()
-    ind = torch.multinomial(c, 4 * N_MATCHES, replacement=False, generator=gen)
+    from fastforks.matching._api import _density  # noqa: PLC0415
+
+    if sampling == "plain":
+        return torch.multinomial(c, n, replacement=False, generator=gen)
+    ind = torch.multinomial(c, 4 * n, replacement=False, generator=gen)
     m = matches[ind]
-    density = kde(m)
+    density = kde(m) if sampling == "balanced" else _density(m[None])[0]
     p = 1 / (density + 1)
     p[density < MIN_DENSITY] = 1e-7  # upstream: at least about 10 close neighbours
-    return m[torch.multinomial(p, min(N_MATCHES, len(m)), replacement=False, generator=gen)]
+    return ind[torch.multinomial(p, min(n, len(m)), replacement=False, generator=gen)]
+
+
+def sparse(ref: str) -> bool:
+    """Whether `ref` is a sparse matcher (index pairs of keypoints, no warp)."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    card, variant = registry.resolve("matching", ref)
+    return "pairs" in (variant.outputs or card.outputs)
+
+
+def sparse_options(ref: str) -> dict[str, int]:
+    """The options of a sparse matcher: glue-factory's setting, or the card defaults for `CARD_PROTOCOL`."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    return {} if registry.resolve("matching", ref)[0].family in CARD_PROTOCOL else SPARSE_OPTIONS
+
+
+def options_of(ref: str) -> dict[str, int]:
+    """The dense matcher's protocol options: upstream's MegaDepth-1500 sizes of its family."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    return FAMILY_OPTIONS.get(registry.resolve("matching", ref)[0].family, OPTIONS)
+
+
+def border_limit(ref: str) -> float:
+    """RoMa v2's sampling drops matches beyond 1 - 1 / fine_size; RoMa v1's keeps them (its warp is clamped)."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    if registry.resolve("matching", ref)[0].family == "romav1":
+        return float("inf")
+    return 1 - 1 / options_of(ref)["fine_size"]
 
 
 def _fastforks(ref: str, mode: str) -> tuple[Any, str, dict]:
     import fastforks.matching as ff  # noqa: PLC0415
 
     dtype = "float32" if mode == "portable32" else None
-    model = ff.load(ref, mode=mode.removesuffix("32"), dtype=dtype, options=OPTIONS)
+    options = sparse_options(ref) if sparse(ref) else options_of(ref)
+    model = ff.load(ref, mode=mode.removesuffix("32"), dtype=dtype, options=options)
     backend = {"mode": model.backend.mode, "dtype": str(model.backend.dtype), "kernels": list(model.backend.kernels)}
 
     def call(a: torch.Tensor, b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         r = model(a, b)
-        return r.warp, r.certainty
+        return r.matches() if model.sparse else (r.warp, r.certainty)
 
     return call, backend["dtype"], {"backend": backend}
 
@@ -115,9 +172,48 @@ def _original(ref: str, mode: str) -> tuple[Any, str, dict]:
     from _original import _golden  # noqa: PLC0415  # tools/
     from fastforks._core import registry  # noqa: PLC0415
 
-    g = _golden("romav2")
+    if sparse(ref):
+        import types  # noqa: PLC0415
 
+        from _original import _dedode, _lightglue, _loftr, _xfeat  # noqa: PLC0415  # tools/
+
+        fp16 = mode == "upstream16"
+        family = registry.resolve("matching", ref)[0].family
+        if family in CARD_PROTOCOL:  # DeDoDe: upstream's float16 autocast as its fp16; LoFTR: float32 only
+            if family == "loftr" and fp16:
+                msg = "upstream LoFTR has no inference precision option: use --mode upstream"
+                raise SystemExit(msg)
+            run = (
+                _dedode(types.SimpleNamespace(), ref, fp16)
+                if family == "dedode"
+                else _loftr(types.SimpleNamespace(), ref)
+            )
+
+            def matched(a: torch.Tensor, b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+                r = run(a, b)
+                return r["keypoints1"][r["pairs"][:, 0]].float(), r["keypoints2"][r["pairs"][:, 1]].float()
+
+            return matched, "float16" if fp16 else "float32", {"note": f"upstream {family}, card defaults"}
+        if registry.resolve("matching", ref)[0].family == "xfeat":  # no fp16 option of its own: autocast
+            run = _xfeat(types.SimpleNamespace(), ref, options=SPARSE_OPTIONS)
+
+            def matched(a: torch.Tensor, b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+                with torch.autocast("cuda", torch.float16, enabled=fp16):
+                    r = run(a, b)
+                return r["keypoints1"][r["pairs"][:, 0]].float(), r["keypoints2"][r["pairs"][:, 1]].float()
+
+            note = "upstream XFeat" + (", torch.autocast float16" if fp16 else "")
+            return matched, "float16" if fp16 else "float32", {"note": note}
+        match_pair = _lightglue(types.SimpleNamespace(), ref, fp16, options=SPARSE_OPTIONS)
+
+        def matched(a: torch.Tensor, b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+            f1, f2, m = match_pair(a, b)
+            return f1["keypoints"][m["matches"][:, 0]], f2["keypoints"][m["matches"][:, 1]]
+
+        note = "upstream match_pair + LightGlue" + (", mp=True (fp16)" if fp16 else "")
+        return matched, "float16" if fp16 else "float32", {"note": note}
     card, variant = registry.resolve("matching", ref)
+    g = _golden("romav2")
     tree = g.reference_tree(Path(os.environ["FF_ROMAV2_REPO"]), g.REF_COMMIT)
     dino = g.reference_tree(Path(os.environ["FF_DINOV3_REPO"]), g.DINOV3_COMMIT)
     amp = mode != "upstream"
@@ -137,14 +233,46 @@ def _original(ref: str, mode: str) -> tuple[Any, str, dict]:
     return call, "bfloat16" if amp else "float32", {"note": note}
 
 
-def match(a: argparse.Namespace) -> None:
+def _original_romav1(ref: str, mode: str) -> tuple[Any, str, dict]:
+    """Upstream RoMa v1 `match` (`tools/golden/romav1.py`; one direction per call, `FF_ROMAV1_REPO` checkout)."""
+    import os  # noqa: PLC0415
+
+    from _original import _golden  # noqa: PLC0415  # tools/
+    from fastforks._core import registry  # noqa: PLC0415
+
+    if mode == "upstreambench":
+        msg = "upstreambench is RoMa v2's own benchmark path"
+        raise SystemExit(msg)
+    g = _golden("romav1")
+    card, variant = registry.resolve("matching", ref)
+    tree = g.reference_tree(Path(os.environ["FF_ROMAV1_REPO"]), g.REF_COMMIT)
+    opts = options_of(ref)
+    sizes = (opts["coarse_size"], opts["fine_size"])
+    amp = mode == "upstream16"
+    model = g.build(tree, list(registry.weights(card, variant, allow_download=False)), sizes, "cuda", amp=amp)
+    note = "upstream RoMa v1 match, " + ("amp_dtype float16 (upstream default)" if amp else "amp_dtype float32")
+    note += ", local correlation: upstream's plain-torch path (use_custom_corr=False)"
+
+    def call(a: torch.Tensor, b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        out = g.match(model, a[None].float() / 255, b[None].float() / 255, *sizes)
+        return out["warp"][0], out["certainty"][0]
+
+    return call, "float16" if amp else "float32", {"note": note}
+
+
+def match(a: argparse.Namespace) -> None:  # noqa: C901, PLR0912, PLR0915 - one loop over the pairs
     stop = a.stop if a.stop is not None else sys.maxsize
     pairs = [(i, p) for i, p in enumerate(load_pairs(a.root)) if a.start <= i < stop and i % a.every == 0]
     out = a.work / f"{a.ref}-{a.mode}"
     out.mkdir(parents=True, exist_ok=True)
     original = a.mode in ORIGINAL or a.mode == "upstreambench"
-    call, dtype, extra = (_original if original else _fastforks)(a.ref, a.mode)
-    limit = 1 - 1 / OPTIONS["fine_size"]
+    runner = (_original_romav1 if a.ref == "romav1" else _original) if original else _fastforks
+    call, dtype, extra = runner(a.ref, a.mode)
+    limit = border_limit(a.ref)
+    is_sparse = sparse(a.ref)
+    # The legacy set (balanced, N_MATCHES) keeps the plain keys and is drawn first; extra sets under "<sampling><n>/".
+    sets = [("", "balanced", N_MATCHES)]
+    sets += [(f"{s}{n}/", s, n) for s in a.sampling for n in a.n_matches if (s, n) != ("balanced", N_MATCHES)]
     kpts, ms, peak, first = {}, [], [0, 0], None
     for i, (name1, name2, *_) in pairs:
         im1, im2 = read(a.root / "images" / name1), read(a.root / "images" / name2)
@@ -158,24 +286,37 @@ def match(a: argparse.Namespace) -> None:
             t = time.perf_counter()
             if a.mode == "upstreambench":
                 preds = call.match(im1[None].float() / 255, im2[None].float() / 255)
+            elif is_sparse:
+                p1, p2 = call(im1, im2)
             else:
                 warp_ab, cert_ab = call(im1, im2)
                 warp_ba, cert_ba = call(im2, im1)
             torch.cuda.synchronize()
             ms.append((time.perf_counter() - t) * 1000)
             peak = [max(peak[0], torch.cuda.max_memory_allocated()), max(peak[1], torch.cuda.max_memory_reserved())]
-            if a.mode != "upstreambench":
+            runs = []
+            if is_sparse:  # all matches, once; pixel centres -> the corner frame of the dense path's coordinates
+                scale = torch.tensor((s1, s1, s2, s2), device="cuda")
+                runs.append(((torch.cat((p1, p2), 1).float() + 0.5) * scale).cpu().numpy())
+            elif a.mode != "upstreambench":
                 both = torch.cat((normalised(warp_ab, h2, w2), normalised(warp_ba, h1, w1)[:, [2, 3, 0, 1]]))
                 cert = torch.cat((cert_ab.reshape(-1), cert_ba.reshape(-1)))
-            runs = []
-            for _ in range(N_RUNS):
-                if a.mode == "upstreambench":
-                    torch.manual_seed(int(torch.randint(2**31, (1,), generator=gen, device="cuda")))
-                    m = call.sample(preds, N_MATCHES)[0]
-                else:
-                    m = sample(both, cert, limit, gen)
-                runs.append(((m + 1) / 2 * size).float().cpu().numpy())
-        kpts[str(i)] = np.stack(runs)  # [runs, matches, 4]: x1, y1, x2, y2 in pixels of the 1200 px images
+            if is_sparse:
+                kpts[str(i)] = np.stack(runs)
+            for key, sampling, n in () if is_sparse else sets:
+                runs, certs = [], []
+                for _ in range(N_RUNS):
+                    if a.mode == "upstreambench":
+                        torch.manual_seed(int(torch.randint(2**31, (1,), generator=gen, device="cuda")))
+                        m = call.sample(preds, N_MATCHES)[0]
+                    else:
+                        ind = sample(both, cert, limit, gen, n, sampling)
+                        m = both[ind]
+                        certs.append(cert[ind].float().cpu().numpy())
+                    runs.append(((m + 1) / 2 * size).float().cpu().numpy())
+                kpts[f"{key}{i}"] = np.stack(runs)  # [runs, matches, 4]: x1, y1, x2, y2 in pixels of the 1200 px images
+                if a.certainty:
+                    kpts[f"{key}c{i}"] = np.stack(certs)  # [runs, matches]
         if len(ms) == 1 and first is None:
             first = ms.pop()  # the first call includes start-up: not in the median
     np.savez(out / f"{a.start:04d}.npz", **kpts)
@@ -201,6 +342,8 @@ def pose_error(k1: np.ndarray, k2: np.ndarray, x: np.ndarray, gt_r: np.ndarray, 
     """max(rotation, translation-direction angle error) in degrees of upstream's `estimate_pose_cv2_ransac`."""
     import cv2  # noqa: PLC0415
 
+    if len(x) < FIVE:  # OpenCV raises on fewer points than the five-point solver needs
+        return 90.0
     thr = 0.5 / (np.mean(np.abs(k1[:2, :2])) + np.mean(np.abs(k2[:2, :2])))
     p1 = (np.linalg.inv(k1[:2, :2]) @ (x[:, :2] - k1[None, :2, 2]).T).T
     p2 = (np.linalg.inv(k2[:2, :2]) @ (x[:, 2:] - k2[None, :2, 2]).T).T
@@ -254,7 +397,8 @@ def score(a: argparse.Namespace) -> None:
     docs_mode, column = ORIGINAL.get(a.mode, (a.mode, None if a.mode in {"portable32", "upstreambench"} else a.mode))
     row = {"ref": a.ref, "task": "matching", "tier": a.mode, "mode": docs_mode, "dtype": infos[0]["dtype"]}
     dataset = DATASET if a.every == 1 else f"{DATASET}-every{a.every}"
-    row |= {"how": {"upstream": "fp32", "upstream16": "authors flag"}.get(a.mode), "dataset": dataset, "n": len(index)}
+    fp16 = "autocast" if "autocast" in infos[0].get("note", "") else "authors flag"
+    row |= {"how": {"upstream": "fp32", "upstream16": fp16}.get(a.mode), "dataset": dataset, "n": len(index)}
     row |= {**metrics, "metrics": metrics, "ms_per_img": round(statistics.median(ms), 1)}
     row |= {"peak_alloc_mb": max(i["peak_alloc_mb"] for i in infos)}
     row |= {"peak_reserved_mb": max(i["peak_reserved_mb"] for i in infos)}
@@ -276,6 +420,9 @@ def main() -> None:
     ap.add_argument("--start", type=int, default=0)
     ap.add_argument("--stop", type=int, default=None)
     ap.add_argument("--every", type=int, default=1, help="only every N-th pair (a fixed subset)")
+    ap.add_argument("--n-matches", type=int, nargs="+", default=[N_MATCHES], help="match: extra set sizes")
+    ap.add_argument("--sampling", nargs="+", default=["balanced"], choices=("balanced", "plain", "fast"), help="match")
+    ap.add_argument("--certainty", action="store_true", help="match: also save the certainty of every match")
     ap.add_argument("--commit", help="score: git commit of the measured src")
     ap.add_argument("--out", help="score: jsonl to append to")
     a = ap.parse_args()

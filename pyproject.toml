@@ -57,6 +57,8 @@ tensorrt = ["tensorrt>=10.13"]
 timm = ["timm>=1.0.30"]  # 1.0.30: the tested version
 torchvision = ["torchvision>=0.23"]
 transformers = ["transformers>=5.19,<6", "scipy>=1.10"]  # scipy: transformers builds Mask2Former / OneFormer with it
+# `matching.sfm.reconstruct` / `fastforks sfm --reconstruct`: COLMAP's mapper (3.12: also GLOMAP's global mapper).
+sfm = ["pycolmap>=3.11"]
 # Every optional library at once (not TensorRT: CUDA-version specific); the `fastforks` metapackage is this plus `nc`.
 libs = ["fastforks-core[timm,torchvision,transformers,onnx]"]
 
@@ -202,8 +204,12 @@ runtime-evaluated-base-classes = []
   "EXE", "RUF046", "PTH120", "T100", "A001", "PLW2901", "TD", "FIX", "RUF013", "FLY002", "B008", "RUF007", "PGH003",  # FoundationStereo / DEFOM: pdb imports, loop vars, FIXME notes
   "PGH004", "RUF100",  # upstream blanket `# noqa` (SAM)
 ]
-# VGGT: upstream sets XFORMERS_AVAILABLE = False, so its xformers-only branches name undefined functions (dead code).
-"src/fastforks/multiview/models/vggt/net/layers/{attention,block}.py" = ["F821"]
+# VGGT (and AnySplat's copy): upstream sets XFORMERS_AVAILABLE = False, so its xformers-only branches name undefined
+# functions (dead code).
+"src/fastforks/multiview/models/{vggt,anysplat}/net/layers/{attention,block}.py" = ["F821"]
+"src/fastforks/multiview/models/pi3/net/layers/{attention,block}.py" = ["F821"]  # same, Pi3 (and its DINOv2)
+"src/fastforks/multiview/models/pi3/net/dinov2/layers/{attention,block}.py" = ["F821"]
+"src/fastforks/multiview/models/mvsplat/net/costvolume/ldm_unet/unet.py" = ["PLW0127"]  # upstream self-assignment
 # EfficientViT-SAM: upstream's `EfficientViTBlock` names a `GLUMBConv` it never defines (branch unused by the SAM
 # encoders); `build_kwargs_from_config` loops over dict keys.
 "src/fastforks/promptable_segmentation/models/efficientvit_sam/net/{ops,utils}.py" = ["F821", "PLC0206"]
@@ -211,8 +217,19 @@ runtime-evaluated-base-classes = []
 "src/fastforks/multiview/models/vggt_omega/net/models/layers/{utils,vision_transformer}.py" = [
   "G004", "BLE001", "NPY002", "PTH100", "S110", "S603", "S607",
 ]
+# GeoCalib: upstream logging f-strings, lambdas over loop variables (called in the loop), `int | float` hints.
+"src/fastforks/calibration/models/geocalib/net/*.py" = ["G003", "G004", "B023", "RUF015", "PYI041"]
+# AnyCalib: upstream `None | T` hints.
+"src/fastforks/calibration/models/anycalib/net/gauss_newton.py" = ["RUF036"]
 # MobileSAM's TinyViT: upstream backslash-continued f-string and lambdas over a loop variable (called in the loop).
 "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py" = ["ISC002", "B023"]
+# SwinIR: upstream implicitly concatenated `extra_repr` string over two lines and `math.log(scale, 2)`.
+"src/fastforks/restoration/models/swinir/net/network_swinir.py" = ["ISC002", "FURB163"]
+# HAT / DAT: upstream `math.log(scale, 2)`; HAT's `attn_mask = attn_mask` (`HAB.forward`).
+"src/fastforks/restoration/models/hat/net/hat_arch.py" = ["FURB163", "PLW0127"]
+"src/fastforks/restoration/models/dat/net/dat_arch.py" = ["FURB163"]
+# CodeFormer: upstream f-string logging calls (the VQGAN checkpoint loader).
+"src/fastforks/restoration/models/codeformer/net/vqgan_arch.py" = ["G004", "F541"]
 "src/fastforks/shared/*/net/**" = [
   "PGH004",  # upstream blanket `# noqa` (SAM)
   "PLW2901", "FLY", "TD", "FIX", "PGH003", "RUF013", "RUF012", "RUF100", "B008", "RUF046",  # more upstream (DINOv2 / DPT / EdgeNeXt) style
@@ -253,6 +270,7 @@ include = ["src", "tests", "tools"]
 allowed-unresolved-imports = [
   "timm", "timm.**", "transformers", "transformers.**", "scipy", "scipy.**", "onnx", "onnx_ir", "onnxruntime",
   "tensorrt", "laspy", "lazrs", "pycocotools", "pycocotools.**", "depth_anything_v2.**", "s2m2.**",
+  "fvcore.**",  # SPAN's `__main__` FLOP count
 ]
 
 [tool.ty.rules]
@@ -300,11 +318,13 @@ markers = [
   "slow: takes > 1 s; skipped without --slow (release suite, the tests of changed code)",
 ]
 
-# VGGT pose_enc: `H, W = image_size_hw` on an argument typed Optional upstream. TinyViT: a ModuleList attribute.
+# VGGT pose_enc: `H, W = image_size_hw` on an argument typed Optional upstream. TinyViT, MVSplat: Module containers.
 [[tool.ty.overrides]]
 include = [
   "src/fastforks/multiview/models/vggt/net/utils/pose_enc.py",
+  "src/fastforks/multiview/models/anysplat/net/utils/pose_enc.py",
   "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py",  # `for block in layer.blocks`
+  "src/fastforks/multiview/models/mvsplat/net/costvolume/ldm_unet/unet.py",  # `for submodule in module` (Sequential)
 ]
 
 [tool.ty.overrides.rules]

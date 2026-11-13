@@ -388,8 +388,10 @@ Checked 2026-11-09 against `_optimize/conv_ops.py`, `_optimize/transformer.py` a
 | 3D instance norm, depthwise 3D conv (MedNeXt), sliding window, NIfTI | missing; that is the `volume` task |
 
 U-Net candidates by value per effort:
-1. **SD UNet one-step models** (Marigold exists; Lotus, Lotus-2, StableNormal planned): a fused conv + GroupNorm +
-   SiLU kernel and UNet attention on the ViT kernels speed all of them up at once.
+1. **SD UNet one-step models** (Marigold, Marigold normals, Lotus and StableNormal turbo exist; Lotus-2 is skipped:
+   it is built on FLUX.1-dev, whose [weights licence](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/LICENSE.md)
+   is non-commercial): a fused conv + GroupNorm + SiLU kernel and UNet attention on the ViT kernels speed all of them
+   up at once.
 2. **Plain 2D U-Nets**: U²-Net / ISNet (rembg's legacy models, Apache-2.0 code), DexiNed, NAFNet (U-shaped, conv +
    SimpleGate, very fusable), the DISK backbone. They need a fused upsample + concat + conv; Restormer additionally
    needs channel ("transposed") attention. U²-Net / ISNet are P3 because BiRefNet / BEN2 are better.
@@ -406,7 +408,7 @@ batched RANSAC.
 
 | Kornia part | overlap with us | decision |
 |---|---|---|
-| `kornia.feature` pretrained (LoFTR, LightGlue, DISK, DeDoDe, ALIKED, XFeat, SOLD2, KeyNet, HardNet) | `matching` covers LightGlue, DISK, ALIKED, XFeat, LoFTR | compete on speed in `matching`; follow Kornia's keypoint and pixel-centre conventions; offer a small adapter so Kornia users can swap in our backend. DeDoDe v2 (MIT, weights unverified) is a P2 candidate; lines go through DeepLSD / GlueStick, SOLD2 is a P3 fallback at most |
+| `kornia.feature` pretrained (LoFTR, LightGlue, DISK, DeDoDe, ALIKED, XFeat, SOLD2, KeyNet, HardNet) | `matching` covers LightGlue, DISK, ALIKED, XFeat, LoFTR, DeDoDe v2 | compete on speed in `matching`; follow Kornia's keypoint and pixel-centre conventions; offer a small adapter so Kornia users can swap in our backend. DeDoDe v2 is ported (`dedode-v2-b`, `dedode-v2-g`); lines go through DeepLSD / GlueStick, SOLD2 is a P3 fallback at most |
 | `kornia.models` / `contrib` wrappers (SAM, RT-DETR, YuNet, DexiNed, Depth Anything, RRDBNet, SigLIP2) | all exist or are planned in fastforks | nothing new; their wrappers run eager PyTorch |
 | `kornia.geometry` (RANSAC, homography, epipolar, PnP, camera models, undistortion, Lie groups) | none; algorithms, not networks | ignore; see [roadmap.md](roadmap.md#geometry-sfm-ransac-bundle-adjustment-calibration) |
 | augmentation, filters, enhance, colour, morphology, losses, metrics | none | ignore; the bottleneck is launch overhead, which Kornia is attacking with CUDA graphs |

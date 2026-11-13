@@ -1,0 +1,27 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+# sparse: share of golden keypoints with a fastforks keypoint within 1 px (recall), share of matches found in both
+# (match), max |score diff| over those (cpu_atol), GPU mean / p99 keypoint distance (px)
+# CPU measured: recall, match 1.0 both; keypoints identical; score -b 0, -g 7.17e-3 (DINOv2 attention) x1.5
+cpu_atol = 0.011
+cpu_min_recall = 0.99
+cpu_min_match = 0.99
+gpu_mean = 0.0020
+gpu_p99 = 1.0e-3
+gpu_min_recall = 0.9986
+gpu_min_match = 0.986
+
+[refs."dedode-v2-b@1"]
+sha256 = "f08d994ee3d91f6fd6bcc049dc96a5d2731aa01a0c216884e6b97175f07bec56"
+upstream = "https://github.com/Parskatt/DeDoDe@6d156183f4dc84cd704ae779eebc8350995c5b06"
+settings = "CPU float32, upstream dedode_detector_L(v2) + dedode_descriptor_B + DualSoftMaxMatcher(normalize, inv_temp 20, threshold 0.01), 10000 keypoints, 784x784 input (torch bicubic antialias), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."dedode-v2-g@1"]
+sha256 = "8509ded8792fff0a0ecea1c9c2e7d9c626883417a1f966a2f410dad83dd3ff0b"
+upstream = "https://github.com/Parskatt/DeDoDe@6d156183f4dc84cd704ae779eebc8350995c5b06"
+settings = "CPU float32, upstream dedode_detector_L(v2) + dedode_descriptor_G + DualSoftMaxMatcher(normalize, inv_temp 20, threshold 0.01), 10000 keypoints, 784x784 input (torch bicubic antialias), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"

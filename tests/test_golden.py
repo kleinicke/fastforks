@@ -30,17 +30,23 @@ import torch
 
 import goldens
 from fastforks import (
+    calibration,
     classification,
     depth,
     detection,
     features,
     flow,
+    interpolation,
     matching,
+    matting,
     multiview,
     pose,
     promptable_segmentation,
+    restoration,
+    retrieval,
     segmentation,
     stereo,
+    tracking,
 )
 from fastforks._core import kernels, registry
 from fastforks._core.errors import BackendUnavailableError, WeightsDownloadError, WeightsError
@@ -49,7 +55,7 @@ from fastforks._core.preprocess import resize_crop, scale
 from fastforks._core.tasks import spec
 from fastforks.kernels import cudnn_hacc
 from fastforks.promptable_segmentation._api import _normalised
-from synth import concepts, image, pair, prompts, scene, size
+from synth import clip, clip_prompts, concepts, image, pair, prompt_kwargs, prompts, scene, size
 
 FAMILIES = goldens.load_all(registry.TASKS)
 GOLDEN = {ref: e for fam in FAMILIES.values() for ref, e in fam["refs"].items()}
@@ -71,6 +77,12 @@ API: dict[str, Any] = {
     "pose": pose,
     "flow": flow,
     "matching": matching,
+    "matting": matting,
+    "interpolation": interpolation,
+    "retrieval": retrieval,
+    "calibration": calibration,
+    "restoration": restoration,
+    "tracking": tracking,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
 HEAVY_CPU = "FASTFORKS_HEAVY_CPU_TESTS"  # 1: every CPU case, also those left out of the release suite for time / RAM
@@ -92,6 +104,7 @@ CPU_ALSO = {
     "cas-gwcnet-gc-sceneflow@1": "arch gc (smallest: arch c)",
     "da3-large-1.1@1": "arch large (smallest: metric)",
     "da3mono-large@1": "arch mono (smallest: metric)",
+    "deim-n-coco@1": "DEIM: SiLU decoder MLPs, the authors' checkpoint keys (smallest: ReLU, transformers keys)",
     "depth-anything-v2-metric-hypersim-s@1": "metric head: sigmoid * max_depth (smallest: relative, ReLU)",
     "dinov2-vits14@1": "no register tokens (smallest: registers)",
     "dinov2-vitg14-reg@1": "fused SwiGLU FFN (ViT-g only)",
@@ -119,6 +132,9 @@ CPU_HEAVY = {
     "mvsanywhere@1": "4 views at 480 x 640 (CPU ~75 s)",
     "vit_so400m_patch14_siglip_378.webli_ft_in1k@1": "SigLIP So400m at 378 px (CPU ~55 s)",
     "marigold-depth-v1-1@1": "Stable Diffusion UNet, 4 steps at 768 px (CPU ~40 s)",
+    "marigold-normals-lcm-v0-1@1": "Stable Diffusion UNet, 1 step at 768 px (CPU ~20 s)",
+    "lotus-normal-d-v1-1@1": "Stable Diffusion UNet, 1 step at 768 px (CPU ~20 s)",
+    "stablenormal-turbo@1": "Stable Diffusion UNet + ControlNet encoder, 1 step at 768 px (CPU ~25 s)",
     "romav2@1": "DINOv3 ViT-L at 800 px + two-view ViT + refiners at 1280 px (CPU ~60 s)",
 }
 CPU_REFS = set(SMALLEST) - set(CPU_HEAVY) | set(CPU_ALSO)
@@ -126,6 +142,9 @@ CPU_REFS = set(SMALLEST) - set(CPU_HEAVY) | set(CPU_ALSO)
 # (the goldens check the defaults).
 _SWEEP_OPTIONS: dict[str, dict[str, Any]] = {
     "marigold": {"steps": 1, "long_side": 256},
+    "marigold_normals": {"long_side": 256},
+    "lotus": {"long_side": 256},
+    "stablenormal": {"long_side": 256},
     "moge": {"resolution_level": 0},
     "unik3d": {"resolution_level": 0},
     "zoedepth": {"flip": False},
@@ -135,6 +154,7 @@ _SWEEP_OPTIONS: dict[str, dict[str, Any]] = {
     "mvsanywhere": {"long_side": 320},
     "midas": {"input_size": 256},
     "depth_anything_v2": {"short_side": 252},
+    "video_depth_anything": {"short_side": 252},
     "depth_anything_3": {"long_side": 252},
     "defom_stereo": {"iters": 2, "scale_iters": 1},
     "romav2": {"coarse_size": 256, "fine_size": 384},
@@ -223,7 +243,9 @@ def _scene(m: Any) -> tuple[Any, dict[str, torch.Tensor]]:
     s = scene()
     given = {k: s[k] for k in SCENE_INPUTS if getattr(m._runner, k) == "required"}
     r = m(list(s["images"]), **given)
-    return r, {k: getattr(r, k) for k in spec("multiview").standard if k not in given} | dict(r.extras)
+    maps = {k: getattr(r, k) for k in spec("multiview").standard if k not in {*given, "gaussians"}} | dict(r.extras)
+    g = r.gaussians  # feed-forward splatting: the per-pixel Gaussians (golden option voxel_size = 0)
+    return r, maps | ({f"gaussians.{k}": getattr(g, k) for k in multiview.Gaussians.__dataclass_fields__} if g else {})
 
 
 @contextlib.contextmanager
@@ -235,7 +257,7 @@ def _plans_at_once() -> Any:
         cudnn_hacc.BUILD_AFTER = old
 
 
-def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901, PLR0912 - one branch per task
+def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901, PLR0912, PLR0915 - one branch per task
     """One call of `m` on the golden's input: its output maps and backend."""
     task = TASK[ref]
     img = want["input"].round().astype(np.uint8) if want and "input" in want else image()
@@ -243,7 +265,7 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         r = m(*pair(*size(m.variant.io.min_size)))
         maps = {"disparity": r.disparity, "confidence": r.confidence, **r.extras}
     elif task == "depth":
-        r = m(img)
+        r = m(img, **prompt_kwargs(m))
         maps = {**{k: getattr(r, k) for k in spec("depth").standard}, **r.extras}
     elif task == "multiview":
         r, maps = _scene(m)
@@ -268,6 +290,11 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
                 f"{prefix}pred_masks": out["pred_masks"][q]
             }
         return {k: v.float().cpu() for k, v in maps.items()}, m.backend
+    elif task == "promptable_segmentation" and "reference" in m.prompts:  # in-context: the golden's reference + mask
+        assert want is not None, "in-context goldens store their reference image and mask"
+        ref_img = want["reference"].round().astype(np.uint8)
+        r = m(img, reference_images=ref_img, reference_masks=want["reference_mask"] > 0.5)
+        maps = {"similarity": r.similarity, "masks": r.masks}
     elif task == "promptable_segmentation":  # one embedding, the fixed prompts (key prefix per prompt)
         emb = m.get_image_embeddings(img)
         assert isinstance(emb, promptable_segmentation.ImageEmbeddings)
@@ -275,6 +302,15 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         for prefix, p in prompts().items():
             pr = m(emb, **p)
             maps |= {f"{prefix}pred_masks": pr.pred_masks, f"{prefix}iou_scores": pr.iou_scores}
+        if want is not None and "video_pred_masks" in want:  # video goldens: `track` on the synth clip per prompt
+            for prefix, p in clip_prompts().items():
+                tr = m.track(clip(), **p)
+                maps |= {f"{prefix}pred_masks": tr.pred_masks, f"{prefix}object_score_logits": tr.object_score_logits}
+        if want is not None and "samurai_box_pred_masks" in want:  # SAMURAI: the box prompt on a longer clip
+            b = m.backend
+            sm = API[TASK[ref]].load(ref, mode=b.mode, device=b.device, dtype=b.dtype, options={"samurai": True})
+            tr = sm.track(clip(len(want["samurai_box_object_score_logits"])), **clip_prompts()["video_box_"])
+            maps |= {"samurai_box_pred_masks": tr.pred_masks, "samurai_box_object_score_logits": tr.object_score_logits}
         return {k: v.float().cpu() for k, v in maps.items()}, m.backend
     elif task == "detection":  # instances in score order; labels and masks stored as float
         r = m(img)
@@ -284,10 +320,26 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         assert want is not None, "pose goldens store their input image and person boxes"
         r = m(img, boxes=want["boxes"]) if m.needs_boxes else m(img)
         maps = {k: getattr(r, k) for k in spec("pose").standard}
-    elif task in {"flow", "matching"}:  # the golden's image pair
+    elif task == "tracking":  # tests/synth.py clip() and the golden's queries
+        assert want is not None, "tracking goldens store their queries"
+        r = m(clip(), want["queries"])
+        maps = {k: getattr(r, k) for k in spec(task).standard if getattr(r, k) is not None}
+    elif task in {"flow", "matching", "interpolation"}:  # the golden's image pair
         assert want is not None, f"{task} goldens store their image pair"
         r = m(img, want["input2"].round().astype(np.uint8))
-        maps = {k: getattr(r, k) for k in spec(task).standard}
+        maps = {k: getattr(r, k, None) for k in spec(task).standard}  # sparse matchers: no warp / certainty
+    elif task == "matting":  # trimap-guided models: the golden's trimap
+        r = m(img, trimap=want["trimap"].round().astype(np.uint8)) if want and "trimap" in want else m(img)
+        maps = {"alpha": r.alpha}
+    elif task == "retrieval":
+        r = m(img)
+        maps = {"descriptor": r.descriptor}
+    elif task == "calibration":
+        r = m(img)
+        maps = {k: getattr(r, k) for k in spec(task).standard if getattr(r, k) is not None}
+    elif task == "restoration":
+        r = m(img)
+        maps = {"image": r.image}
     else:
         r = m(img, logits=True)
         assert r.logits is not None
@@ -296,8 +348,17 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     return {k: v.float().cpu() for k, v in maps.items() if v is not None}, r.backend
 
 
-# stored inputs of a golden (the image(s); per concept prompt, the queries whose masks are kept)
-INPUTS = ("input", "input2", *(f"{prefix}mask_query" for prefix in concepts()))
+# stored inputs of a golden (the image(s); tracking queries; a matting trimap; an in-context reference and its mask;
+# per concept prompt, the queries whose masks are kept)
+INPUTS = (
+    "input",
+    "input2",
+    "queries",
+    "trimap",
+    "reference",
+    "reference_mask",
+    *(f"{prefix}mask_query" for prefix in concepts()),
+)
 
 
 def primary(ref: str, maps: dict[str, np.ndarray]) -> str:
@@ -353,6 +414,43 @@ def run_or_skip(ref: str, **kw: Any) -> tuple[list[dict[str, torch.Tensor]], Any
         pytest.skip(f"{ref}: gated weights, not in FASTFORKS_WEIGHTS_PATH")
 
 
+NEAR = 1.0  # px: a golden keypoint is recalled by an output keypoint this close (sparse matchers)
+
+
+def sparse_parity(want: dict[str, np.ndarray], got: dict[str, torch.Tensor]) -> tuple[float, float, np.ndarray, float]:
+    """Sparse matchers (`pairs`): the keypoint order (score ties) and the float noise differ between backends, so each
+    golden keypoint is paired with its nearest output keypoint and vice versa. The recall (share of the golden
+    keypoints of both images within `NEAR` px), the match agreement (the smaller of the shares of golden and output
+    matches whose two keypoints pair up with a match of the other side), the distances of the recalled keypoints and
+    the max |score diff| of the agreeing matches."""
+    near, dist = [], []
+    for k in ("keypoints1", "keypoints2"):
+        d = torch.cdist(torch.from_numpy(want[k]).double(), got[k].double())
+        if d.numel() == 0:
+            return 0.0, 0.0, np.zeros(1), 0.0
+        to_got, to_want = d.min(1), d.min(0)
+        dist.append(to_got.values.numpy())
+        near.append(
+            (
+                to_got.indices.numpy(),
+                to_got.values.numpy() <= NEAR,
+                to_want.indices.numpy(),
+                to_want.values.numpy() <= NEAR,
+            )
+        )
+    pw, pg = want["pairs"].astype(np.int64), got["pairs"].numpy().astype(np.int64)
+    index_g = {(int(i), int(j)): n for n, (i, j) in enumerate(pg)}
+    index_w = {(int(i), int(j)) for i, j in pw}
+    (g1, ok1, w1, okw1), (g2, ok2, w2, okw2) = near
+    hits = [index_g.get((int(g1[i]), int(g2[j]))) if ok1[i] and ok2[j] else None for i, j in pw]
+    back = [okw1[i] and okw2[j] and (int(w1[i]), int(w2[j])) in index_w for i, j in pg]
+    agree = min(np.mean([h is not None for h in hits]) if len(pw) else 1.0, np.mean(back) if len(pg) else 1.0)
+    scores = got["scores"].numpy()
+    ds = [abs(float(scores[h]) - float(want["scores"][n])) for n, h in enumerate(hits) if h is not None]
+    d = np.concatenate(dist)
+    return float((d <= NEAR).mean()), float(agree), d[d <= NEAR], max(ds, default=0.0)
+
+
 def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tensor]) -> list[str]:
     """Per output: shape, max / mean |diff| against the golden and the bound (masks: the fraction of differing pixels);
     the rows of the outputs out of bounds come first, marked `FAIL`."""
@@ -360,6 +458,15 @@ def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tenso
     rows = tol.get("cpu_extra", [])  # optional [key, atol] rows: one output bound looser than cpu_atol
     assert isinstance(rows, list)
     atol, rtol = dict(rows), tol.get("cpu_rtol", 0)
+    if "pairs" in want:  # sparse matchers: keypoint and match sets, not element-wise
+        recall, agree, d, ds = sparse_parity(want, got)
+        bad = recall < tol["cpu_min_recall"] or agree < tol["cpu_min_match"] or ds > tol["cpu_atol"]
+        line = (
+            f"{'FAIL ' * bad}keypoints recall {recall:.4f} (min {tol['cpu_min_recall']}), matches {agree:.4f} (min"
+            f" {tol['cpu_min_match']}), max |keypoint diff| {d.max(initial=0):.3g}, max |score diff| {ds:.3g} (atol"
+            f" {tol['cpu_atol']})"
+        )
+        return [line]
     lines = []
     for k, v in sorted(want.items()):
         g = got[k].numpy()
@@ -414,14 +521,42 @@ def sure_mask(score: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
     return np.broadcast_to(np.expand_dims(score, axis), shape)
 
 
+def paired_detections(want: dict[str, np.ndarray], got: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    """`got`'s instances in the golden's order: near-equal scores swap places between backends (fp16), so each golden
+    box in turn takes the closest (L1) box not yet taken. Masks add their mean |diff| (x 1000 px): duplicate queries
+    can give near-equal boxes with different masks (rf-detr-seg-xl: two full-image tables). Other counts are left to
+    the shape check."""
+    n = want["boxes"].shape[0]
+    if n == 0 or tuple(got["boxes"].shape) != want["boxes"].shape:
+        return got
+    dist = torch.cdist(torch.from_numpy(want["boxes"]).double(), got["boxes"].double(), p=1)
+    if "masks" in want and tuple(got.get("masks", torch.empty(0)).shape) == want["masks"].shape:
+        w, g = torch.from_numpy(want["masks"]).flatten(1).double(), got["masks"].flatten(1).double()
+        dist += 1000 * torch.cdist(w, g, p=1) / w.shape[1]
+    order: list[int] = []
+    for row in dist:
+        row[order] = float("inf")
+        order.append(int(row.argmin()))
+    return {k: v[order] if v.ndim and v.shape[0] == n else v for k, v in got.items()}
+
+
 def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torch.Tensor], what: str) -> np.ndarray:
     """Assert `got` within the GPU tolerances of the golden; the error map of the primary output."""
-    for k in want.keys() & got.keys():  # e.g. the same detections
+    if TASK[ref] == "detection":
+        got = paired_detections(want, got)
+    for k in want.keys() & got.keys() if "pairs" not in want else ():  # e.g. the same detections (not sparse counts)
         assert tuple(got[k].shape) == want[k].shape, f"{what}{k}: shape {tuple(got[k].shape)}, golden {want[k].shape}"
     if TASK[ref] == "features":  # hidden states are not compared below: at least no fp16 overflow
         assert all(bool(torch.isfinite(v).all()) for v in got.values()), f"{what}non-finite features"
     key = primary(ref, want)
     tol = tolerance(ref, mode)
+    if "pairs" in want:  # sparse matchers: the distances of the recalled keypoints
+        recall, agree, err, _ = sparse_parity(want, got)
+        assert recall >= tol["gpu_min_recall"], f"{what}keypoints: recall {recall:.4f}"
+        assert agree >= tol["gpu_min_match"], f"{what}matches: agreement {agree:.4f}"
+        assert err.mean() < tol["gpu_mean"], f"{what}keypoints: mean |diff| {err.mean():.4f}"
+        assert np.percentile(err, 99) < tol["gpu_p99"], f"{what}keypoints: p99 |diff| {np.percentile(err, 99):.4f}"
+        return err
     unit = np.median(np.abs(want[key])) if tol.get("relative") else 1.0  # scale-free outputs (relative depth)
     err = np.abs(got[key].numpy() - want[key]) / unit
     if "gpu_min_score" in tol:  # unsure points: pose argmax ties, matching pixels outside the overlap

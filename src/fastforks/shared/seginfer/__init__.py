@@ -19,6 +19,7 @@ The protocol helpers reproduce how each upstream evaluates on ADE20K, on `[B, 3,
 from __future__ import annotations
 
 import contextlib
+import copy
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -98,6 +99,71 @@ def _quiet(tf: ModuleType) -> Generator[None]:
             log.enable_progress_bar()
 
 
+def _slot(net: torch.nn.Module, path: str) -> tuple[torch.nn.Module, str]:
+    parent, _, name = path.rpartition(".")
+    return net.get_submodule(parent), name
+
+
+def _shared_slots(net: torch.nn.Module, sd: dict[str, torch.Tensor], bad: list[str]) -> list[str]:
+    """Per differing key, the outermost module or tensor on its path that another name with other values shares."""
+    names: dict[int, list[str]] = {}
+    for n, x in [
+        *net.named_modules(remove_duplicate=False),
+        *net.named_parameters(remove_duplicate=False),
+        *net.named_buffers(remove_duplicate=False),
+    ]:
+        names.setdefault(id(x), []).append(n)
+    paths: dict[str, None] = {}
+    for k in bad:
+        parts = k.split(".")
+        for i in range(1, len(parts) + 1):
+            p, rest = ".".join(parts[:i]), "".join(f".{r}" for r in parts[i:])
+            other = [sd.get(q + rest) for q in names[id(getattr(*_slot(net, p)))] if q != p]
+            if any(v is not None and not torch.equal(v, sd[k]) for v in other):
+                paths[p] = None
+                break
+    return list(paths)
+
+
+def untie_to_checkpoint(net: torch.nn.Module, sd: dict[str, torch.Tensor]) -> list[str]:
+    """Untie what transformers shares although the checkpoint holds different values for it; the untied paths.
+
+    transformers ties some weights by key patterns regardless of the config (5.19: MM-Grounding-DINO's per-layer
+    `bbox_embed.N` / `class_embed.N` parameters to layer 0, although `decoder_bbox_embed_share` is false), so
+    `from_pretrained` silently drops the checkpoint's other values. For each differing tensor the outermost module
+    or tensor whose aliases hold other checkpoint values gets its own copy, then the checkpoint is loaded again;
+    aliases whose values agree (a decoder list shared with the top-level heads) stay shared.
+
+    Raises:
+        CheckpointMismatchError: a tensor still differs from the checkpoint afterwards.
+    """
+    untied: list[str] = []
+    while True:
+        own = net.state_dict()
+        bad = [k for k in sd if k in own and not torch.equal(own[k], sd[k].to(own[k].device, own[k].dtype))]
+        if not bad:
+            return untied
+        paths = _shared_slots(net, sd, bad)
+        if not paths:
+            what = "checkpoint"
+            raise CheckpointMismatchError(what, f"{len(bad)} tensors differ after loading ({', '.join(bad[:3])})")
+        done: set[tuple[int, str]] = set()  # one copy per slot, reached under several names when its holder is shared
+        for p in paths:
+            holder, name = _slot(net, p)
+            if (id(holder), name) in done:
+                continue
+            done.add((id(holder), name))
+            untied.append(p)
+            x = getattr(holder, name)
+            if isinstance(x, torch.nn.Parameter):
+                setattr(holder, name, torch.nn.Parameter(x.detach().clone(), requires_grad=x.requires_grad))
+            elif isinstance(x, torch.Tensor):
+                holder.register_buffer(name, x.clone())  # in the state dict: persistent
+            else:
+                setattr(holder, name, copy.deepcopy(x))  # ModuleList children are "0", "1", ...
+        net.load_state_dict({k: v for k, v in sd.items() if k in own}, strict=False)
+
+
 def pretrained(ctx: Context, config: int = 0, weights: int = 1) -> torch.nn.Module:
     """`transformers.<ctx.params.arch>` with the variant's `config.json` (file `config`) and weights (file `weights`).
 
@@ -129,6 +195,7 @@ def pretrained(ctx: Context, config: int = 0, weights: int = 1) -> torch.nn.Modu
     if missing or unexpected or shapes:  # transformers only warns about these (and re-initialises reshaped tensors)
         what = f"{ctx.variant.ref} checkpoint"
         raise CheckpointMismatchError(what, mismatch_details(missing, unexpected, shapes))
+    untie_to_checkpoint(net, sd)
     return net.float().eval().requires_grad_(requires_grad=False)
 
 
@@ -142,9 +209,12 @@ def target_size(h: int, w: int, rule: Sequence[Any]) -> tuple[int, int]:
             `("short", short, max_long)`: shorter side to `short`, unless the longer side then exceeds `max_long`
             (detectron2 `ResizeShortestEdge`). Sizes are rounded as both do (`int(x + 0.5)`);
             `("eomt", short)`: shorter side to `short`, sizes rounded with Python `round` (EoMT
-            `scale_img_size_semantic`).
+            `scale_img_size_semantic`); `("fixed", h, w)`: that size whatever the aspect ratio (the Hugging Face
+            `SegformerImageProcessor` of fine-tuned SegFormer checkpoints).
     """
     kind = rule[0]
+    if kind == "fixed":
+        return int(rule[1]), int(rule[2])
     if kind == "mmseg":
         s = min(rule[1] / max(h, w), rule[2] / min(h, w))
     elif kind == "short":

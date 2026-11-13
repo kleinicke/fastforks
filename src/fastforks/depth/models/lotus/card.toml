@@ -1,0 +1,67 @@
+schema = 2
+name = "Lotus normals"
+summary = "Lotus (He et al., ICLR 2025): surface normals by a Stable Diffusion 2 UNet fine-tuned to predict the normals latent in one step; Lotus-G (generative: also denoises a noise latent) and Lotus-D (deterministic), v1.1 (aligned normals)."
+tier = "experimental"
+outputs = ["normals"]
+limitations = [
+  "Normals only: no depth.",
+  "Lotus-G: the seeded noise comes from a CPU generator and differs from a CUDA generator's for the same seed (Lotus-D uses it only for the image latent's posterior sample).",
+  "A traced or exported module reuses the noise of its traced shape.",
+]
+
+[output]
+kind = "none"  # normals only
+
+[upstream]
+repo = "https://github.com/EnVision-Research/Lotus"
+commit = "b737e12238d2a41fc582ee8c6c6b1104d318d799"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Stable Diffusion 2 base (LAION-5B subsets) fine-tuned on the synthetic Hypersim and Virtual KITTI 2 per the Lotus paper (arXiv 2409.18124)"
+evidence = "https://github.com/EnVision-Research/Lotus/blob/b737e12238d2a41fc582ee8c6c6b1104d318d799/LICENSE (Apache-2.0); https://huggingface.co/jingheya/lotus-normal-g-v1-1/blob/92b42fd7f5c3f97f09a2af8e96263d87ea899bf1/README.md (license: apache-2.0)"
+
+[io]
+input = "0-1"  # the runner maps to [-1, 1] and resizes (longest side to long_side, bilinear, antialiased) itself
+pad = "none"
+
+[options]
+long_side = { default = 768, min = 0, aliases = ["processing_res"] }  # longest side of the network input (original default); 0 = the input size
+seed = 42  # seed of the noise (CPU generator; upstream infer.sh: 42); the output depends on it
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]
+
+[[papers]]
+title = "Lotus: Diffusion-based Visual Foundation Model for High-quality Dense Prediction"
+url = "https://arxiv.org/abs/2409.18124"
+date = "2024-09-26"
+venue = "ICLR 2025"
+
+[[variants]]
+id = "lotus-normal-g-v1-1"  # upstream jingheya/lotus-normal-g-v1-1 (generation mode)
+revision = 1
+params = { generative = true }
+weights = [
+  { name = "unet-g/diffusion_pytorch_model.safetensors", size = 3470357352, sha256 = "f34c2b019051fe53512f56726928bf35bd035ac699ec0c3508c496cc0797de77", url = "https://huggingface.co/jingheya/lotus-normal-g-v1-1/resolve/92b42fd7f5c3f97f09a2af8e96263d87ea899bf1/unet/diffusion_pytorch_model.safetensors" },
+  { name = "vae/diffusion_pytorch_model.safetensors", size = 167335342, sha256 = "3e4c08995484ee61270175e9e7a072b66a6e4eeb5f0c266667fe1f45b90daf9a", url = "https://huggingface.co/jingheya/lotus-normal-g-v1-1/resolve/92b42fd7f5c3f97f09a2af8e96263d87ea899bf1/vae/diffusion_pytorch_model.safetensors" },
+  { name = "text_encoder/model.safetensors", size = 680820392, sha256 = "bc1827c465450322616f06dea41596eac7d493f4e95904dcb51f0fc745c4e13f", url = "https://huggingface.co/jingheya/lotus-normal-g-v1-1/resolve/92b42fd7f5c3f97f09a2af8e96263d87ea899bf1/text_encoder/model.safetensors" },
+]
+
+[[variants]]
+id = "lotus-normal-d-v1-1"  # upstream jingheya/lotus-normal-d-v1-1 (regression mode)
+revision = 1
+params = { generative = false }
+licence = { evidence = "https://huggingface.co/jingheya/lotus-normal-d-v1-1/blob/1d4d52149432060efabb0827e0a9fe4a0b63e817/README.md (license: apache-2.0)" }
+weights = [
+  { name = "unet-d/diffusion_pytorch_model.safetensors", size = 3470311272, sha256 = "91bf02e9b19d5702e5825ce7ac461ff8b4af5830240b159cfbdae985159b053a", url = "https://huggingface.co/jingheya/lotus-normal-d-v1-1/resolve/1d4d52149432060efabb0827e0a9fe4a0b63e817/unet/diffusion_pytorch_model.safetensors" },
+  { name = "vae/diffusion_pytorch_model.safetensors", size = 167335342, sha256 = "3e4c08995484ee61270175e9e7a072b66a6e4eeb5f0c266667fe1f45b90daf9a", url = "https://huggingface.co/jingheya/lotus-normal-d-v1-1/resolve/1d4d52149432060efabb0827e0a9fe4a0b63e817/vae/diffusion_pytorch_model.safetensors" },
+  { name = "text_encoder/model.safetensors", size = 680820392, sha256 = "bc1827c465450322616f06dea41596eac7d493f4e95904dcb51f0fc745c4e13f", url = "https://huggingface.co/jingheya/lotus-normal-d-v1-1/resolve/1d4d52149432060efabb0827e0a9fe4a0b63e817/text_encoder/model.safetensors" },
+]

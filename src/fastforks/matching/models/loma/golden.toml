@@ -1,0 +1,19 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.011
+cpu_min_recall = 0.99
+cpu_min_match = 0.99
+gpu_mean = 0.002
+gpu_p99 = 0.001
+gpu_min_recall = 0.9986
+gpu_min_match = 0.986
+
+[refs."loma-b@1"]
+sha256 = "a44f0696d87eaf2291e69bdc879a2f6c8a9b03522d33512a25b82c302c6a0adc"
+upstream = "https://github.com/davnords/loma@415caedde23a9ed479172ed174fe4ff7b4514d4b"
+settings = "CPU float32, upstream LoMa(LoMaB(mp=False)) with loma_B.pt, DaD detect on a long side of 1024 + DeDoDe-G describe on 784x784 (torch bicubic antialias), 2048 keypoints, filter_matches threshold 0.1, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"

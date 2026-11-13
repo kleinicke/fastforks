@@ -1,0 +1,49 @@
+schema = 2
+name = "AnyCalib"
+summary = "AnyCalib (Tirado-Garín and Civera, ICCV 2025): single-image camera calibration. A DINOv2 ViT-L/14 with a light DPT decoder predicts one ray per pixel (tangent coordinates on the unit sphere, convex upsampling); a linear fit and Gauss-Newton refinement give the intrinsics of the chosen camera model. Gives the pinhole intrinsics (fx, fy, cx, cy) and the vertical field of view; no gravity."
+tier = "experimental"
+outputs = ["intrinsics", "vfov"]
+uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+
+[upstream]
+repo = "https://github.com/javrtg/AnyCalib"
+commit = "027a8497d893f4b2596f23d6324c05e4b81064ed"  # net/ = anycalib/{manifolds,utils}.py, model/{dpt_light_decoder,ray_decoder}.py, cameras/{base,pinhole}.py (camera_base.py, pinhole.py), optim/gauss_newton.py; its DINOv2 ViT-L/14 = shared/depth_anything_v2 (same layers and position interpolation)
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # no separate weights licence (GitHub release v1.0.0 of the same repo): the code licence applies
+files = ["LICENSE"]
+training_data = ["lvd-142m", "openpano"]
+training_note = "anycalib_pinhole: DINOv2 ViT-L/14 (LVD-142M) fine-tuned on the perspective OpenPano split (OP_p; README, paper Sec. 5). Only the weights licence counts for the commercial flag."
+evidence = "https://github.com/javrtg/AnyCalib/blob/027a8497d893f4b2596f23d6324c05e4b81064ed/LICENSE ; https://github.com/javrtg/AnyCalib/blob/027a8497d893f4b2596f23d6324c05e4b81064ed/README.md"
+
+[io]
+input = "0-1"  # RGB in [0, 1]; the backbone normalises with the ImageNet mean / std itself
+
+[params]
+resolution = 102400  # network input pixels (AnyCalib.RESOLUTION; the side lengths multiples of `edge`)
+edge = 14
+ar_min = 0.5  # H / W of the network input clamped to [ar_min, ar_max] (AnyCalib.AR_RANGE)
+ar_max = 2.0
+gn_iters = 10  # Gauss-Newton steps (GaussNewtonCalib default)
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network from a CUDA graph per input size (false: eager, no graph pool)
+
+[modes.portable]
+cuda_dtype = "float16"  # the network; the ray head's upsampling and the camera fit run in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused", "cudnn_hacc"]
+
+[[papers]]
+title = "AnyCalib: On-Manifold Learning for Model-Agnostic Single-View Camera Calibration"
+url = "https://arxiv.org/abs/2503.12701"
+date = "2025-03-16"
+venue = "ICCV 2025"
+
+[[variants]]
+id = "anycalib-pinhole"
+revision = 1
+weights = [{ name = "anycalib_pinhole.pt", size = 1281195455, sha256 = "e73b174563bcb90dc9a0e348ee64fbb898901d2a1786623e62fc0e3b176a1a38", url = "https://github.com/javrtg/AnyCalib/releases/download/v1.0.0/anycalib_pinhole.pt" }]

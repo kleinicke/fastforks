@@ -201,7 +201,7 @@ def _pyramid(fmap1: torch.Tensor, fmap2: torch.Tensor, levels: int) -> list[torc
     out = []
     for _ in range(levels):
         h2, w2 = fmap2.shape[-2:]
-        corr = torch.matmul(f1, fmap2.reshape(b, c, h2 * w2)) / math.sqrt(c)
+        corr = torch.matmul(f1, fmap2.reshape(b, c, h2 * w2)).div_(math.sqrt(c))  # in place: the peak memory
         out.append(corr.reshape(b * h * w, 1, h2, w2))
         fmap2 = F.interpolate(fmap2, scale_factor=0.5, mode="bilinear", align_corners=False)
     return out

@@ -3,6 +3,9 @@
 Test-time protocol of the ADE20K checkpoints (mmseg `test_pipeline`, the HF image processor's post-processing):
 resize keeping the aspect ratio to fit `2048 x short` (bilinear), ImageNet normalisation, one forward pass of the
 whole image, logits (1/4 resolution) resized bilinearly to the network input size, then to the image size (mmseg).
+The fine-tuned Hugging Face checkpoints (clothes, face parsing; `resize = ["fixed", 512, 512]`) follow their model
+cards: `SegformerImageProcessor` (PIL bilinear resize to 512 x 512, ImageNet normalisation), logits resized bilinearly
+straight to the image size.
 
 Both passes run the transformers modules' weights with the same math, only precision, layout and association change:
 fp16 weights and activations on CUDA, tokens kept as `[B, H, W, C]` (so token <-> conv-map switches are views), key
@@ -186,14 +189,16 @@ class Portable(Runner):
         self.acc = False
         self.fused = False  # kernels: logits resize and argmax by `seg_up`
 
-    def _scores(self, image: torch.Tensor) -> tuple[torch.Tensor, tuple[tuple[int, int], tuple[int, int]]]:
-        """Logits at 1/4 size `[B, 150, h, w]` and their resize steps (to the network input size, then the image)."""
+    def _scores(self, image: torch.Tensor) -> tuple[torch.Tensor, tuple[tuple[int, int], ...]]:
+        """Logits at 1/4 size `[B, classes, h, w]` and their resize steps (to the input size, then the image)."""
         h, w = image.shape[-2:]
         size = target_size(h, w, self.ctx.params.resize)
         size = (max(size[0], _MIN_SIDE), max(size[1], _MIN_SIDE))  # very thin images (aspect > 70): stretched
-        x = scale(resize(image, size), self.ctx.io)
+        fixed = self.ctx.params.resize[0] == "fixed"  # HF processor: PIL resize, logits straight to the image size
+        x = scale(resize(image, size, pil=fixed), self.ctx.io)
         s = self._forward(x).permute(0, 3, 1, 2)
-        return (s if self.fused else s.contiguous()), (size, (h, w))  # NCHW: faster PyTorch bilinear upsampling
+        steps = ((h, w),) if fixed else (size, (h, w))
+        return (s if self.fused else s.contiguous()), steps  # NCHW: faster PyTorch bilinear upsampling
 
     def _forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.acc:
@@ -206,7 +211,7 @@ class Portable(Runner):
         return upsample(s, sizes, fused=self.fused)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
-        """Logits `[B, 150, H, W]` of a batch."""
+        """Logits `[B, classes, H, W]` of a batch."""
         return {"logits": self._run(image)}
 
     def labels(self, image: torch.Tensor) -> torch.Tensor:
@@ -215,7 +220,7 @@ class Portable(Runner):
         return upsample_argmax(s, sizes, fused=self.fused)
 
     def module(self) -> torch.nn.Module:
-        """The network with its input handling: `[B, 3, H, W]` in `[0, 1]` -> logits `[B, 150, H, W]`."""
+        """The network with its input handling: `[B, 3, H, W]` in `[0, 1]` -> logits `[B, classes, H, W]`."""
         return Forward(self.net.eval(), lambda _net, image: self._run(image))
 
 

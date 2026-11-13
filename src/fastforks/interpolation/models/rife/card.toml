@@ -1,0 +1,59 @@
+schema = 2
+name = "RIFE"
+summary = "RIFE (Huang et al., ECCV 2022), the Practical-RIFE 4.25 / 4.26 releases: real-time video frame interpolation. A small conv encoder gives 4-channel features of both frames; five IFBlocks (two stride-2 convs, 8 residual convs, a transposed conv) estimate the flow from the intermediate frame to both inputs and a fusion mask, coarse to fine from 1/16 of the image to full size; the frame is both inputs warped to the time and blended by the mask. Any time in [0, 1]. `rife-4.25` is the authors' recommended default, `rife-4.26` the next release, `rife-4.25-lite` a narrower last block for lower cost."
+tier = "experimental"
+outputs = ["frame"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/hzwer/Practical-RIFE"
+commit = "bbfd2ea90910789a860ea3e2b32a240cd577b75e"  # net/ = the releases' train_log/IFNet_HDv3.py (same file in 4.25 and 4.26) + model/warplayer.py; the call is train_log/RIFE_HDv3.py `inference`
+
+[licence]
+code = "MIT"  # LICENSE
+weights = "MIT"  # README "Trained Model": "The content of these links is under the same MIT license as this project."
+files = ["LICENSE"]
+training_data = ["vimeo90k"]
+training_note = "The README does not list the training data of the 4.x releases; the RIFE paper (arXiv:2011.06294) trains on Vimeo-90K, the 4.x releases add unnamed data (anime scenes per the 4.25 release note)."
+evidence = "https://github.com/hzwer/Practical-RIFE/blob/bbfd2ea90910789a860ea3e2b32a240cd577b75e/README.md ; https://github.com/hzwer/Practical-RIFE/blob/bbfd2ea90910789a860ea3e2b32a240cd577b75e/LICENSE"
+
+[io]
+input = "0-1"  # upstream divides its uint8 frames by 255
+min_size = 16
+pad = { multiple = 128, mode = "bottom_right", fill = "zero" }  # inference_video.py pad_image: zeros right / bottom to max(128, 128 / scale)
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network from a CUDA graph (false: eager, no graph pool)
+
+[params]
+scales = [16, 8, 4, 2, 1]  # RIFE_HDv3.inference scale_list at scale 1.0
+c4 = 32  # width of the last IFBlock
+
+[modes.portable]
+cuda_dtype = "float16"  # inference_video.py --fp16 (the warps sample in float32 here)
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate convs and transposed convs, the residual scales folded, one CUDA graph per input shape
+
+[[papers]]
+title = "Real-Time Intermediate Flow Estimation for Video Frame Interpolation"
+url = "https://arxiv.org/abs/2011.06294"
+date = "2020-11-12"
+venue = "ECCV 2022"
+
+[[variants]]
+id = "rife-4.25"  # README: "recommended to choose 4.25 by default"
+revision = 1
+weights = [{ name = "rife-4.25-flownet.pkl", size = 24636301, sha256 = "6615790efd627772917205db291f51cd392528a157ecbb2ecaeec3bff8eb6de2", url = "https://drive.usercontent.google.com/download?id=1ZKjcbmt1hypiFprJPIKW0Tt0lr_2i7bg&export=download&confirm=t", member = "train_log/flownet.pkl", archive = { size = 22919050, sha256 = "e63d481b7ae5d4a4e6ad7ac5b410ff78f3bf7be3b51b2e38ca8152747abde5b4" } }]
+
+[[variants]]
+id = "rife-4.26"
+revision = 1
+weights = [{ name = "rife-4.26-flownet.pkl", size = 24636301, sha256 = "45c7f74156704769dc9f85cfcaf8552e1e926f9399dcfa3a553dee88fac6f53f", url = "https://drive.usercontent.google.com/download?id=1gViYvvQrtETBgU1w8axZSsr7YUuw31uy&export=download&confirm=t", member = "train_log/flownet.pkl", archive = { size = 22867954, sha256 = "c2452dd2b244947d4be580156bbead60d6b72af5736860f7d6b3f99648c9c4cc" } }]
+
+[[variants]]
+id = "rife-4.25-lite"  # its RIFE_HDv3.py: scale_list [32, 16, 8, 4, 1]
+revision = 1
+params = { scales = [32, 16, 8, 4, 1], c4 = 24 }
+weights = [{ name = "rife-4.25-lite-flownet.pkl", size = 24467405, sha256 = "81cdba223fe72a120130cc8552e5d2ecac824259d406f0c15323b3decf96b8b1", url = "https://drive.usercontent.google.com/download?id=1zlKblGuKNatulJNFf5jdB-emp9AqGK05&export=download&confirm=t", member = "train_log/flownet.pkl", archive = { size = 22765148, sha256 = "e84366c23e0eb1a637a55aad2e4f3442ec2bf4c388043b4aabbf590be289e6e8" } }]

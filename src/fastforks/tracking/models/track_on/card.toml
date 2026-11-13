@@ -1,0 +1,70 @@
+schema = 2
+name = "Track-On2"
+summary = "Track-On2 / Track-On-R (Aydemir et al., 2025): online point tracking with a memory. A ViT-Adapter around a frozen DINOv3 ViT-S+/16 encodes each frame into 4 feature levels; each query decodes its position frame by frame against the frame features and its own memory of the last 72 frames, re-ranks the 16 best correlation peaks with deformable attention and refines the offset. Frames are processed causally (a streaming tracker). The DINOv3 weights are gated: accept the DINOv3 licence on Hugging Face, download model.safetensors yourself and put it under FASTFORKS_WEIGHTS_PATH (path and SHA-256 in the load error)."
+tier = "experimental"
+outputs = ["tracks", "visibility"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (fastbb flash attention in kernels)
+limitations = [
+  "Frames are resized to 384 x 512 (the size the learned position embedding was trained at), whatever their size and aspect ratio.",
+  "Upstream adds a 20 x 20 grid of support points on frame 0 to every call (option support_grid); they are tracked with the user's queries, so a call costs at least 400 tracked points.",
+  "Online: a query only sees the frames from its own frame on; frames before it return the query position with visibility 0.",
+  "One video per call; all queries of a call share the video.",
+]
+licence_notes = [
+  "The DINOv3 ViT-S+/16 weights and net/dinov3.py are under the DINOv3 License (Meta: attribution and conditions apply); read it before commercial use. The Track-On code and checkpoints are MIT.",
+]
+
+[upstream]
+repo = "https://github.com/gorkaydemir/track_on"
+commit = "04efe8a137bd76e45e07382f02748794c9b61a96"  # net/track_on.py = model/ inference path (Predictor.forward, Track_On2.track_frame, ViT-Adapter with mmcv MultiScaleDeformableAttention as its PyTorch path); net/dinov3.py = transformers DINOv3ViTModel (as features.dinov3)
+
+[licence]
+code = "MIT AND LicenseRef-DINOv3-License"  # LICENSE (MIT, Görkay Aydemir); net/dinov3.py implements the DINOv3 ViT (LICENSE.md)
+weights = "MIT AND LicenseRef-DINOv3-License"  # Hugging Face model cards gorkaydemir/track_on2 and gorkaydemir/track_on_r: "license: mit"; the frozen DINOv3 ViT-S+/16 file is under the DINOv3 License
+files = ["LICENSE", "LICENSE.md"]
+training_data = ["unstated"]
+training_note = "Upstream README / paper: Track-On2 trained on Kubric MOVi-F (synthetic, 64-frame clips); Track-On-R fine-tuned on real-world videos with pseudo-labels from an ensemble of trackers (verifier). Neither has a dataset entry here yet. The frozen DINOv3 ViT-S+/16 was pretrained on LVD-1689M (not released)."
+evidence = "https://huggingface.co/gorkaydemir/track_on2/blob/672a47c4614f6d661edc36b7999a5bb5c3a5d2c9/README.md (license: mit); https://huggingface.co/gorkaydemir/track_on_r/blob/9401fe5c9ec6e21fb4f6070f05ac9ce75e3c9845/README.md (license: mit); https://github.com/gorkaydemir/track_on/blob/04efe8a137bd76e45e07382f02748794c9b61a96/LICENSE (MIT)"
+
+[io]
+input = "0-1"  # the runner resizes the frames to height x width (bilinear) and normalises with the ImageNet mean / std itself
+min_size = 16
+
+[params]
+arch = "vits16plus"
+vit_scale = 1.143  # upstream vit_upsample_factor: the ViT reads the frame at 432 x 576
+height = 384
+width = 512
+
+[options]
+memory = { default = 72, min = 1 }  # frames of memory per query (upstream inference M_i 72; trained with 24, the temporal embedding is interpolated)
+support_grid = { default = 20, min = 0 }  # support points per side on frame 0 (upstream support_grid_size; 0 = none, faster, changes the tracks slightly)
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast; correlation, arg-max, deformable-attention locations and coordinates in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused"]  # ViT-S+ blocks: packed q/k/v and gate/up fp16-accumulate GEMMs with fused epilogues, fused RoPE, flash attention; the rest fp16 autocast with fp16 accumulation
+
+[[papers]]
+title = "Track-On2: Enhancing Online Point Tracking with Memory"
+url = "https://arxiv.org/abs/2509.19115"
+date = "2025-09-23"
+venue = "TPAMI 2026"
+
+[[variants]]
+id = "track-on2"  # upstream trackon2_dinov3_checkpoint.pt; TAP-Vid DAVIS delta_avg 79.9 (upstream README)
+revision = 1
+weights = [
+  { name = "trackon2_dinov3_checkpoint.pt", size = 93901966, sha256 = "0e319c279cbdf51a5fc761b47dc1969520e8cfccfb57dc5a019a8c56e1039cd4", url = "https://huggingface.co/gorkaydemir/track_on2/resolve/672a47c4614f6d661edc36b7999a5bb5c3a5d2c9/trackon2_dinov3_checkpoint.pt" },
+  { name = "dinov3-vits16plus-pretrain-lvd1689m/model.safetensors", size = 114794096, sha256 = "208146e499dace99e4c9376ddb8a26f77d64c31c46c4dc4b86ff8bc63b0235e2", url = "https://huggingface.co/facebook/dinov3-vits16plus-pretrain-lvd1689m/resolve/c93d816fc9e567563bc068f01475bec89cc634a6/model.safetensors" },
+]
+
+[[variants]]
+id = "track-on-r"  # upstream track_on_r.pt (Track-On2 fine-tuned on real videos); TAP-Vid DAVIS delta_avg 80.3 (upstream README)
+revision = 1
+weights = [
+  { name = "track_on_r.pt", size = 93892091, sha256 = "a77165e6e84b8c4ffe735a6da5fb8554bcd616bb522a3a911fae22abe9f2e214", url = "https://huggingface.co/gorkaydemir/track_on_r/resolve/9401fe5c9ec6e21fb4f6070f05ac9ce75e3c9845/track_on_r.pt" },
+  { name = "dinov3-vits16plus-pretrain-lvd1689m/model.safetensors", size = 114794096, sha256 = "208146e499dace99e4c9376ddb8a26f77d64c31c46c4dc4b86ff8bc63b0235e2", url = "https://huggingface.co/facebook/dinov3-vits16plus-pretrain-lvd1689m/resolve/c93d816fc9e567563bc068f01475bec89cc634a6/model.safetensors" },
+]

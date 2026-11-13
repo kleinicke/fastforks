@@ -10,7 +10,7 @@ estimate the cameras; for calibrated MVS the units of the given `cam_to_world`).
 scale shared by every view, depth and translation alike."""
 
 SPEC = TaskSpec(
-    standard=("depth", "world_points", "confidence", "mask", "intrinsics", "cam_to_world"),
+    standard=("depth", "world_points", "confidence", "mask", "intrinsics", "cam_to_world", "gaussians"),
     extras=True,
     required=frozenset({"depth", "world_points"}),
     output_keys={"kind": get_args(MultiViewKind)},

@@ -35,6 +35,7 @@ OPTIONAL = {
     "tensorrt",
     "laspy",
     "lazrs",
+    "pycolmap",
 }
 GUARDED = {  # (file under src/fastforks, function) -> the guarded helper that may import an optional library
     ("shared/libnet/__init__.py", "timm"),
@@ -45,6 +46,7 @@ GUARDED = {  # (file under src/fastforks, function) -> the guarded helper that m
     ("_core/export.py", "_fix_folded_weight_casts"),
     ("_core/export.py", "_probe_dynamic_onnx"),  # after an export, which needs onnx
     ("stereo/geometry/ply.py", "write_las"),
+    ("matching/sfm.py", "reconstruct"),
 }
 
 

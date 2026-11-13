@@ -17,22 +17,27 @@ import pytest
 import torch
 
 from fastforks import (
+    calibration,
     classification,
     depth,
     detection,
     features,
     flow,
+    interpolation,
     matching,
+    matting,
     multiview,
     pose,
     promptable_segmentation,
+    restoration,
+    retrieval,
     segmentation,
     stereo,
 )
 from fastforks._core import registry
 from fastforks._core.errors import WeightsError
 from fastforks.kernels import cudnn_hacc
-from synth import image, pair, prompts, scene, size
+from synth import clip, image, pair, prompts, scene, size, track_queries
 
 pytestmark = [pytest.mark.model, pytest.mark.gpu]
 
@@ -48,10 +53,16 @@ API: dict[str, Any] = {
     "pose": pose,
     "flow": flow,
     "matching": matching,
+    "matting": matting,
+    "interpolation": interpolation,
+    "retrieval": retrieval,
+    "calibration": calibration,
+    "restoration": restoration,
 }
 OUTPUTS = (  # the outputs checked, where a result has them
     "disparity",
     "flow",
+    "frame",
     "warp",
     "certainty",
     "depth",
@@ -65,6 +76,10 @@ OUTPUTS = (  # the outputs checked, where a result has them
     "boxes",
     "keypoints",
     "keypoint_scores",
+    "alpha",
+    "descriptor",
+    "intrinsics",
+    "image",
 )
 A, B, C = (243, 333), (307, 451), (259, 397)  # odd sizes off every tile; B > A, both small enough for graphs
 LARGE = (1001, 1497)
@@ -89,8 +104,10 @@ REFS = _smallest()
 
 def _call(m: Any, task: str, hw: tuple[int, int]) -> dict[str, torch.Tensor]:
     """One call at `hw`: the checked outputs (float tensors)."""
-    if task in ("stereo", "flow", "matching"):
+    if task in ("stereo", "flow", "matching", "interpolation"):
         r = m(*pair(*size(m.variant.io.min_size, *hw)))
+    elif task == "tracking":
+        r = m(clip(4, *hw), track_queries())
     elif task == "multiview":
         s = scene(h=VIEWS[hw][0], w=VIEWS[hw][1])
         r = m(list(s["images"]), **{k: s[k] for k in ("intrinsics", "cam_to_world", "depth_range")

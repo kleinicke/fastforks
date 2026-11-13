@@ -1,0 +1,146 @@
+schema = 2
+name = "RF-DETR (N / S / M / L detection, Seg N to 2XL)"
+summary = "RF-DETR (Roboflow 2025): real-time end-to-end detection with a DINOv2-small backbone using windowed attention, a single-scale projector and a deformable-attention decoder over 100 to 300 queries, no NMS; boxes, scores and COCO classes at the input size, plus instance masks for the Seg variants. The image is resized to a square (384 to 768 px per variant). The portable `module()` is the whole network (normalised boxes, class logits and, for Seg, mask logits)."
+tier = "experimental"
+uses = ["rfdetr", "cuda_graphs"]
+outputs = ["boxes", "scores", "labels", "masks"]
+limitations = [
+  "Requires the optional transformers and torchvision libraries.",
+  "Only the Apache-2.0 checkpoints are included; the PML-1.0 detection variants (A / F / P / XL / 2XL) are not.",
+  "torch.compile uses upstream positional-interpolation graph breaks; fullgraph=True is unsupported.",
+]
+
+[upstream]
+repo = "https://github.com/roboflow/rf-detr"
+commit = "5b22dfc0940697ce1abdfa681a5f7392b3eddbfb"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"  # README "License": N / S / M / L detection and every Seg checkpoint are Apache-designated
+files = ["LICENSE"]
+training_data = ["coco", "objects365", "lvd-142m"]
+training_note = "COCO 2017 train (README); the RF-DETR paper (arXiv:2511.09554) pretrains detection on Objects365; the DINOv2-small backbone originates from LVD-142M pretraining. Full intermediate training provenance is not stated."
+evidence = "https://github.com/roboflow/rf-detr/blob/5b22dfc0940697ce1abdfa681a5f7392b3eddbfb/README.md#license"
+
+[io]
+input = "imagenet"  # the runner resizes to the variant's square resolution (bilinear, no antialiasing) and normalises itself
+
+[options]
+score_threshold = { default = 0.5, min = 0.0, max = 1.0 }  # upstream predict() default; COCO evaluation uses 0.0
+max_detections = { default = 100, min = 1 }  # COCO evaluation keeps the best 100 per image
+
+[params]
+encoder = "dinov2_windowed_small"
+out_feature_indexes = [3, 6, 9, 12]
+vit_encoder_num_layers = 12
+hidden_dim = 256
+patch_size = 16
+num_windows = 2
+resolution = 576
+positional_encoding_size = 36
+dec_layers = 4
+sa_nheads = 8
+ca_nheads = 16
+dec_n_points = 2
+dim_feedforward = 2048
+num_queries = 300
+num_select = 300
+group_detr = 13
+projector_scale = ["P4"]
+num_classes = 90  # COCO category ids 1..90 (+ id 0); unused ids are dropped
+two_stage = true
+bbox_reparam = true
+lite_refpoint_refine = true
+layer_norm = true
+use_grouppose_keypoints = false
+num_keypoints_per_class = []
+keypoint_cross_attn = true
+inter_instance_kp_attn = false
+grouppose_keypoint_dim_downscale = 1
+dual_projector = false
+dual_projector_kp_only = false
+num_decoder_registers = 0
+segmentation_head = false
+mask_downsample_ratio = 4
+trace_alpha = 0.2
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["fastbb", "fvm_conv"]  # packed-QKV flash attention in the backbone, depthwise convs of the Seg head, fp16-accumulate GEMMs, CUDA graph replay of the network
+
+[output]
+label_set = "coco-80"
+
+[[papers]]
+title = "RF-DETR: Neural Architecture Search for Real-Time Detection Transformers"
+url = "https://arxiv.org/abs/2511.09554"
+date = "2025-11-12"
+venue = "ICLR 2026"
+
+[[variants]]
+id = "rf-detr-n-coco"
+revision = 1
+outputs = ["boxes", "scores", "labels"]
+params = { dec_layers = 2, resolution = 384, positional_encoding_size = 24 }
+weights = [{ name = "rf-detr-nano.pth", size = 366287238, sha256 = "d8d6b9ee57d4d0ed2b1f305163624712a0532cb7bce0c747317984fc5457440d", url = "https://repo.roboflow.com/rfdetr/nano_coco/checkpoint_best_regular.pth" }]
+
+[[variants]]
+id = "rf-detr-s-coco"
+revision = 1
+outputs = ["boxes", "scores", "labels"]
+params = { dec_layers = 3, resolution = 512, positional_encoding_size = 32 }
+weights = [{ name = "rf-detr-small.pth", size = 386045550, sha256 = "d81979a9213a2109345158ce9232668df4c1ae52e9b8db3f2ec0a8cbad959b33", url = "https://repo.roboflow.com/rfdetr/small_coco/checkpoint_best_regular.pth" }]
+
+[[variants]]
+id = "rf-detr-m-coco"
+revision = 1
+outputs = ["boxes", "scores", "labels"]
+params = {}
+weights = [{ name = "rf-detr-medium.pth", size = 404992918, sha256 = "749ff6071828aaffac63e204c4f4135ed3d6cdae4d702e086c360edc3b5768c8", url = "https://repo.roboflow.com/rfdetr/medium_coco/checkpoint_best_regular.pth" }]
+
+[[variants]]
+id = "rf-detr-l-coco"
+revision = 1
+outputs = ["boxes", "scores", "labels"]
+params = { resolution = 704, positional_encoding_size = 44 }
+weights = [{ name = "rf-detr-large-2026.pth", size = 135954129, sha256 = "0f4e20e19a99c0f8a62b5685f57f6c8b5c371c59081feda6752a0561a79ccf38", url = "https://repo.roboflow.com/rfdetr/rf-detr-large-2026.pth" }]
+
+[[variants]]
+id = "rf-detr-seg-n-coco"
+revision = 1
+params = { segmentation_head = true, patch_size = 12, num_windows = 1, resolution = 312, positional_encoding_size = 26, num_queries = 100, num_select = 100 }
+weights = [{ name = "rf-detr-seg-n-ft.pth", size = 134545398, sha256 = "a44613a4ecd6b5ba61a62002c600b0b6cb7a9da2936a45317ec4b62c635fb99b", url = "https://repo.roboflow.com/rfdetr/rf-detr-seg-n-ft.pth" }]
+
+[[variants]]
+id = "rf-detr-seg-s-coco"
+revision = 1
+params = { segmentation_head = true, patch_size = 12, resolution = 384, positional_encoding_size = 32, num_queries = 100, num_select = 100 }
+weights = [{ name = "rf-detr-seg-s-ft.pth", size = 135042342, sha256 = "6de3da31b2572cac214a1c76cce4a92a13966d56390ac2b3a3de9a8dc2b2bca3", url = "https://repo.roboflow.com/rfdetr/rf-detr-seg-s-ft.pth" }]
+
+[[variants]]
+id = "rf-detr-seg-m-coco"
+revision = 1
+params = { segmentation_head = true, patch_size = 12, dec_layers = 5, resolution = 432, positional_encoding_size = 36, num_queries = 200, num_select = 200 }
+weights = [{ name = "rf-detr-seg-m-ft.pth", size = 143024058, sha256 = "3ad325094735f431aee9962a8d204d68eb5bfc393d53e7e836e70998fef5ea58", url = "https://repo.roboflow.com/rfdetr/rf-detr-seg-m-ft.pth" }]
+
+[[variants]]
+id = "rf-detr-seg-l-coco"
+revision = 1
+params = { segmentation_head = true, patch_size = 12, dec_layers = 5, resolution = 504, positional_encoding_size = 42, num_queries = 200, num_select = 200 }
+weights = [{ name = "rf-detr-seg-l-ft.pth", size = 145055866, sha256 = "ca7b7c630ba22496067cc4f034c4e70c8e47fd7adcea04c3a49aa8c1755cbe6b", url = "https://repo.roboflow.com/rfdetr/rf-detr-seg-l-ft.pth" }]
+
+[[variants]]
+id = "rf-detr-seg-xl-coco"
+revision = 1
+params = { segmentation_head = true, patch_size = 12, dec_layers = 6, resolution = 624, positional_encoding_size = 52 }
+weights = [{ name = "rf-detr-seg-xl-ft.pth", size = 152713150, sha256 = "77d67f2b8033fbb25e23f29c22c02a8f677b3939687e9a1a5fdde3765f33f423", url = "https://repo.roboflow.com/rfdetr/rf-detr-seg-xl-ft.pth" }]
+
+[[variants]]
+id = "rf-detr-seg-2xl-coco"
+revision = 1
+params = { segmentation_head = true, patch_size = 12, dec_layers = 6, resolution = 768, positional_encoding_size = 64 }
+weights = [{ name = "rf-detr-seg-2xl-ft.pth", size = 154851262, sha256 = "f6e06ac5ebafd3f9f6f01c55a7f53b8785a1697037063a6adeb737c4c6ce4838", url = "https://repo.roboflow.com/rfdetr/rf-detr-seg-2xl-ft.pth" }]
+

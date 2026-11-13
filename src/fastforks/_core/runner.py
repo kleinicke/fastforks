@@ -60,6 +60,8 @@ class Context:
         params: The runner's `Params`, filled from the card and the load options.
         kernels: Kernel library tags of `kernels` (`name@build:target`), empty for portable.
         user_weights: The files of `load(weights=...)`, used instead of the variant's (not hash-checked).
+        user_state: The state dict of `user_weights`, already read and mapped by the task (`load_variant`); then
+            `state_dict()` returns it whatever its arguments.
     """
 
     card: ModelCard
@@ -70,6 +72,7 @@ class Context:
     params: Any
     kernels: tuple[str, ...] = ()
     user_weights: tuple[Path, ...] | None = None
+    user_state: Mapping[str, torch.Tensor] | None = None
 
     @property
     def io(self) -> Io:
@@ -112,6 +115,8 @@ class Context:
             WeightsError: Missing, unverifiable or unsafe weights, or a user's file that cannot be read (empty,
                 truncated, another format): the message names it and the variant.
         """
+        if self.user_state is not None:
+            return dict(self.user_state)
         path = self.weights()[index]
         if self.user_weights is None:
             return load_state_dict(path, key=key, strip=strip, extra=extra)
@@ -135,6 +140,9 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
         deterministic_cudnn: Run each CUDA call with `torch.backends.cudnn.deterministic = True` (restored after).
             Set on the portable runners where cuDNN's default algorithms (atomics in transposed convs) made repeated
             calls differ and the deterministic ones cost nothing (measured on IGEV++, LAS2 and the other GRU families).
+        uint8_input: The task API passes uint8 images on as uint8 `[B, 3, H, W]` (levels 0..255) instead of float32 in
+            `[0, 1]` (other inputs stay float32): for families that resize the 8-bit levels themselves, so no full-size
+            float32 copy is made (detection).
         compiled_methods: The methods the task API calls, which `Model.compile()` wraps in `torch.compile` (one
             calling another runs inside the caller's graph). A family whose API path calls other methods (a
             multi-view `scene` override) lists those.
@@ -144,6 +152,7 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
     batch: ClassVar[int | None] = 1
     Params: ClassVar[type[Any]] = NoParams
     deterministic_cudnn: ClassVar[bool] = False
+    uint8_input: ClassVar[bool] = False
     compiled_methods: ClassVar[tuple[str, ...]] = ("__call__",)
 
     def __init__(self, ctx: Context) -> None:

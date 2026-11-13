@@ -45,6 +45,10 @@ _DATASETS = {
         "ibims": "iBims-1, AbsRel / delta1",
         "eth3d": "ETH3D two-view train left, AbsRel / delta1",
         "middH": "Middlebury 2014 trainingH left, AbsRel / delta1",
+        "nyu-normals": "NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg",
+        "ibims-normals": "iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg",
+        "tum-video-110": "TUM RGB-D video (3 sequences, first 110 frames each), AbsRel / delta1",
+        "tum-video-1000": "TUM RGB-D video (3 sequences, first 1000 frames each), AbsRel / delta1",
     },
     "segmentation": {
         "ade20k-val": "ADE20K val, every 4th image, mIoU / aAcc %",
@@ -52,11 +56,17 @@ _DATASETS = {
     },
     "detection": {
         "coco-val2017-every10": "COCO val2017, every 10th image, box mAP",
+        "coco-val2017-every20": "COCO val2017, every 20th image, box mAP",
+        "coco-val2017-every25": "COCO val2017, every 25th image (200), box mAP",
         "coco-val2017-every10-person": "COCO val2017, every 10th image, box AP of the person class",
+        "coco-val2017-every1": "COCO val2017, all 5000 images, box mAP",
     },
     "promptable_segmentation": {
         "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
         "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
+        "coco-val2017-oneshot-k3": "COCO val2017, one-shot episodes (3 per class), class mIoU %",
+        "davis2017-val-every3": "DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F %",
+        "davis2017-val-every1": "DAVIS 2017 val, video tracking, J&F / J / F %",
     },
     "features": {
         "imagenet-val-knn-train10000-test5000-seed0-k20": "ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / "
@@ -71,9 +81,35 @@ _DATASETS = {
         "coco-val2017-every10-keypoints": "COCO val2017, every 10th image, predicted people, keypoint AP",
     },
     "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
+    "interpolation": {"davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM"},
+    "restoration": {
+        "div2k-val-x4": "DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x4-every4": "DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+    },
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
+        "megadepth1500-every10": "MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees",
+    },
+    "matting": {
+        "dis-vd": "DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta",
+        "dis-vd-every2": "DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta",
+        "aim500": "AIM-500, all 500 images, generated trimaps, SAD / MSE x 1000 (unknown region)",
+        "aim500-every5": "AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region)",
+    },
+    "retrieval": {
+        "st-lucia": "St Lucia, all 1464 queries against the 1549 database images, recall@1 / @5 % (25 m)",
+        "st-lucia-every5": "St Lucia, every 5th query (293) against the 1549 database images, recall@1 / @5 % (25 m)",
+    },
+    "calibration": {
+        "lamar2k": "LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees %",
+        "lamar2k-every10": "LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees %",
+    },
+    "tracking": {
+        "tapvid-davis-first-every3": "TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA %",
+        "tapvid-davis-first": "TAP-Vid DAVIS (query first), AJ / delta_avg / OA %",
     },
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
@@ -83,6 +119,14 @@ _Metric = tuple[str, str, str]
 _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "stereo": ((("bad", "{:.2f}", ""), ("epe", "{:.3f}", "")), "n_pairs", "pairs"),
     "depth": ((("rel_absrel", "{:.4f}", ""), ("rel_d1", "{:.4f}", "")), "n_images", "images"),
+    **{
+        ("depth", d): (
+            (("ang_mean", "{:.2f}", ""), ("ang_median", "{:.2f}", ""), ("a11.25", "{:.2f}", ""), ("a30", "{:.2f}", "")),
+            "n_images",
+            "images",
+        )
+        for d in ("nyu-normals", "ibims-normals")
+    },
     "segmentation": ((("miou", "{:.2f}", ""), ("aacc", "{:.2f}", "")), "n", "images"),
     ("segmentation", "coco-val2017-persons-every10"): ((("person_iou", "{:.2f}", ""),), "n", "images"),
     "detection": ((("box_map", "{:.2f}", ""), ("mask_map", "{:.2f}", " / mask mAP")), "n", "images"),
@@ -93,17 +137,44 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         "n",
         "images",
     ),
+    ("promptable_segmentation", "coco-val2017-oneshot-k3"): ((("miou", "{:.2f}", ""),), "n", "episodes"),
+    **{
+        ("promptable_segmentation", d): (
+            (("jf", "{:.2f}", ""), ("j", "{:.2f}", ""), ("f", "{:.2f}", "")),
+            "n",
+            "objects",
+        )
+        for d in ("davis2017-val-every3", "davis2017-val-every1")
+    },
     "features": ((("top1", "{:.2f}", ""),), "n", "images"),
     "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
     "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
+    "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
+    "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
+    "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
+    "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
+    "retrieval": ((("r1", "{:.2f}", ""), ("r5", "{:.2f}", "")), "n", "queries"),
+    "calibration": (
+        (("roll_auc5", "{:.1f}", "dash"), ("pitch_auc5", "{:.1f}", "dash"), ("vfov_auc5", "{:.1f}", "")),
+        "n",
+        "images",
+    ),
+    **{
+        ("matting", d): ((("sad", "{:.2f}", ""), ("mse", "{:.3f}", "")), "n", "images")
+        for d in ("aim500", "aim500-every5")
+    },
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
     "depth": "AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), "
     "mean over images. ",
+    ("depth", "tum-video-110"): "Video: one call per sequence, one scale + shift per sequence, AbsRel / delta1 over "
+    "all its pixels with Kinect depth, mean over sequences. ",
+    ("depth", "nyu-normals"): "Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's "
+    "evaluation sets), mean over images. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
     ("segmentation", "coco-val2017-persons-every10"): "Any body part counts as person; ground truth = the COCO person "
     "masks. ",
@@ -125,6 +196,15 @@ _PROTOCOL = {
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
     "image; the top 100 instances go to pycocotools COCOeval. ",
+    ("promptable_segmentation", "coco-val2017-oneshot-k3"): "In-context: per COCO class 3 (reference, target) pairs "
+    "drawn with seed 0 from the images whose class covers >= 2 %, the class's non-crowd instances as one mask; "
+    "foreground IoU summed per class, mean over the 80 classes. ",
+    **{
+        ("promptable_segmentation", d): "Semi-supervised: every object's first-frame mask as `input_masks`, `track` "
+        "forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as "
+        "davis2017-evaluation, mean over objects. "
+        for d in ("davis2017-val-every3", "davis2017-val-every1")
+    },
     "features": "Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop "
     "224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. ",
     "multiview": "640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light "
@@ -133,11 +213,35 @@ _PROTOCOL = {
     "from the camera baselines). ",
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
-    "matching": "5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling), "
-    "OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the "
-    "rotation and translation-direction errors. ",
+    "restoration": "DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), "
+    "one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output "
+    "rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world "
+    "degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with "
+    "PSNR-oriented upscalers. ",
+    "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
+    "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
+    "output rounded to uint8, on RGB in [0, 1], averaged over the triplets. ",
+    "matching": "Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE "
+    "sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; "
+    "LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean "
+    "focal length); AUC of the larger of the rotation and translation-direction errors. ",
     ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
     "pair. ",
+    "tracking": "TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the "
+    "original frames, resized by the model), one query per track at its first visible point, tracked online "
+    "(TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg (< 1, 2, 4, 8, 16 px at "
+    "256 x 256) and occlusion accuracy averaged over the videos. ",
+    ("matting", "dis-vd-every2"): "Each image at its own size against its binary mask: MAE of the alpha, max F-beta "
+    "(beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). ",
+    ("matting", "aim500-every5"): "Trimap-guided models, AIM-500: each image at its own size with a trimap made from "
+    "its alpha (alpha 255 / 0 eroded by a 21 px ellipse = foreground / background, the rest unknown); SAD / 1000 and "
+    "MSE of the 8-bit alpha in the unknown region (ViTMatte's evaluation). ",
+    "retrieval": "Every query's descriptor against every database descriptor (cosine similarity, exact top-k on the "
+    "GPU); a query counts as found at k when one of its k nearest database images is within 25 m (UTM positions of "
+    "the file names), the standard visual place recognition protocol. ",
+    "calibration": "Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the "
+    "fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, "
+    "siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
@@ -239,7 +343,7 @@ def _trt_peaks(row: dict | None) -> tuple[int, int] | None:
 
 
 def _trt_peak(row: dict | None) -> str:
-    """`alloc / reserved` of `_trt_peaks`: `unknown` where the engine's memory was not recorded, dash if no row."""
+    """`alloc / reserved` of `_trt_peaks`; `unknown` where the engine memory was not recorded; a dash without a row."""
     if row is None or "fails" in row:
         return DASH
     peaks = _trt_peaks(row)
@@ -250,7 +354,7 @@ def _ms_str(ms: object) -> str:
     """A time in ms to 3 significant digits (all digits from 1000 ms): `3.48`, `20.1`, `214`."""
     if not isinstance(ms, int | float) or isinstance(ms, bool) or not math.isfinite(ms) or ms == 0:
         return str(ms)
-    return f"{ms:.{max(0, 2 - math.floor(math.log10(abs(ms))))}f}"
+    return f"{ms:.{max(0, 2 - math.floor(math.log10(abs(float(f'{ms:.3g}')))))}f}"  # 99.96 -> 100, not 100.0
 
 
 def _ms_cell(row: dict | None, *, oom: bool = False) -> str:
@@ -643,7 +747,9 @@ def _accuracy(task: str, by: dict[tuple[str, str], dict], mode: str, dataset: st
         raise ValueError(msg)
     m = r.get("metrics") or r
     n, full = r.get(count), by.get(("portable", dataset), r).get(count)
-    cell = " / ".join(fmt.format(m[k]) for k, fmt, opt in metrics if not opt or k in m)
+    cell = " / ".join(  # opt "dash": a dash where the model has no such output (e.g. calibration without gravity)
+        fmt.format(m[k]) if k in m else _DASH for k, fmt, opt in metrics if opt in ("", "dash") or k in m
+    )
     cell += f" ({n} {noun})" if n and full and n < full else ""
     return cell + (" (NaN / inf output)" if err else "")
 
@@ -670,7 +776,7 @@ def _span(days: set[str]) -> str:
 def _suffixes(task: str, dataset: str, rows: list[dict]) -> list[str]:
     """Title suffixes of the optional metrics of `dataset` that one of `rows` has."""
     metrics = (_METRICS.get((task, dataset)) or _METRICS[task])[0]
-    return [opt for k, _, opt in metrics if opt and any(k in (r.get("metrics") or r) for r in rows)]
+    return [opt for k, _, opt in metrics if opt not in ("", "dash") and any(k in (r.get("metrics") or r) for r in rows)]
 
 
 def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[str]:
@@ -853,7 +959,7 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
             err = _DASH if r["error"] is None else r["fmt"].format(r["error"]) + (f" {r['mark']}" if r["mark"] else "")
             marks.add(r["mark"])
             cells.append(err)
-        body.append([*cells, str(ms) + speedup + (f" ({at})" if size not in {at, _OWN} else ""), mem])
+        body.append([*cells, _ms_str(ms) + speedup + (f" ({at})" if size not in {at, _OWN} else ""), mem])
     lines = _md_table(head, body)
     for m in (_DAGGER, "?"):
         lines += ["", _LEGEND[m]] if m in marks else []
@@ -866,6 +972,14 @@ TASK_IO = {
         "Input: two RGB images (consecutive frames). Output: per-pixel motion from the first to the second "
         "(dx, dy in pixels)."
     ),
+    "restoration": (
+        "Input: one RGB image. Output: the restored (upscaled) image, `model.scale` x the input size, RGB in "
+        "[0, 1]. `tile=` runs large images in overlapping tiles (as ComfyUI)."
+    ),
+    "interpolation": (
+        "Input: two RGB images (consecutive frames). Output: the frame between them at `timestep` (0.5 by default; 0 "
+        "= the first, 1 = the second), RGB in [0, 1]."
+    ),
     "depth": (
         "Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field, `result.kind`) says what "
         "the numbers mean: `metric` = metres; `scale_invariant`, `affine_invariant` and `affine_invariant_inverse` "
@@ -874,13 +988,20 @@ TASK_IO = {
         "need it for correct metres (`da3metric-large`: metres = output x focal / 300; without `intrinsics=` a 300 px "
         "focal length is assumed, wrong for a real camera). `unidepth-v2-vitl14`, `unik3d-vitl`, `depth-pro` and "
         "MoGe estimate the camera themselves (given `intrinsics=` replace `fx`); `zoedepth-nk` and the relative "
-        "models (`da3mono-large` too) take none."
+        "models (`da3mono-large` too) take none. Normals-only models (`kind` `none`) return `result.normals` "
+        "`[B, H, W, 3]` (unit vectors, camera frame: x right, y down, z forward)."
     ),
     "classification": "Input: one RGB image. Output: ImageNet-1k class logits.",
     "detection": "Input: one RGB image. Output: boxes, class labels, scores and instance masks.",
     "matching": (
         "Input: two RGB images of one scene. Output: for every pixel of the first image its position in the second "
-        "(x, y in pixels) and a certainty that the pixel is visible in both."
+        "(x, y in pixels) and a certainty that the pixel is visible in both. Sparse matchers (LightGlue) return "
+        "the keypoints of both images and the index pairs of the matched ones instead."
+    ),
+    "matting": (
+        "Input: one RGB image (trimap-guided models also a trimap: background / unknown / foreground). Output: an "
+        "alpha matte `[H, W]` in [0, 1] at the input size: 1 = foreground (background removal, dichotomous / salient "
+        "object segmentation)."
     ),
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",
@@ -890,6 +1011,18 @@ TASK_IO = {
     ),
     "segmentation": "Input: one RGB image. Output: per-pixel class labels (logits with `logits=True`).",
     "promptable_segmentation": "Input: one image plus a point, box or text prompt. Output: masks with quality scores.",
+    "retrieval": (
+        "Input: one RGB image. Output: a global descriptor `[D]` (unit L2 norm) for image retrieval / visual place "
+        "recognition; `fastforks.retrieval.top_k` and `pairs` find the nearest images (cosine similarity) on the GPU."
+    ),
+    "calibration": (
+        "Input: one RGB image. Output: the camera intrinsics `[3, 3]` and, where the model estimates them, the gravity "
+        "direction in the camera frame, roll, pitch and vertical field of view."
+    ),
+    "tracking": (
+        "Input: a video (its frames in order) and query points `(t, x, y)`. Output: the position of every query in "
+        "every frame and the probability that it is visible there."
+    ),
 }
 
 
@@ -1063,6 +1196,12 @@ _STD_SIZE = {
     "detection": "800x1344",
     "flow": "1080x1920",
     "matching": "768x1024",
+    "interpolation": "1080x1920",
+    "restoration": "512x512",
+    "matting": "1080x1920",
+    "tracking": "480x854",
+    "retrieval": "480x640",
+    "calibration": "1080x1920",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input
@@ -1071,6 +1210,7 @@ _OVERVIEW_ACC = {
     "stereo": ("eth3d", "bad", "ETH3D bad > 1 px (%)", "{:.2f}"),
     "depth": ("nyu", "rel_absrel", "NYUv2 AbsRel (scale+shift aligned)", "{:.4f}"),
     "flow": ("kitti2015-train", "epe", "KITTI 2015 train EPE (px)", "{:.3f}"),
+    "matting": ("dis-vd", "mae", "DIS-VD MAE", "{:.4f}"),
 }
 _PICK_NOTES = {
     "depth": (

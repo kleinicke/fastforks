@@ -228,13 +228,18 @@ def test_input_use_of_the_runners():
 
 _NOT_OUTPUTS = {  # result fields that are metadata, not outputs
     "model", "backend", "options", "class_names", "kind", "extras", "views", "layers", "grid",
-    "num_prefix_tokens", "num_register_tokens", "labels", "keypoint_names", "skeleton", "to_list",
+    "num_prefix_tokens", "num_register_tokens", "labels", "keypoint_names", "skeleton", "to_list", "multi_label",
 }  # fmt: skip
 _RESULTS = {
     "detection": "DetectionResult",
     "pose": "PoseResult",
     "flow": "FlowResult",
-    "matching": "MatchingResult",
+    "matching": "MatchingResult SparseMatchingResult",
+    "matting": "MattingResult",
+    "interpolation": "InterpolationResult",
+    "retrieval": "RetrievalResult",
+    "calibration": "CalibrationResult",
+    "restoration": "RestorationResult",
     "depth": "DepthResult",
     "features": "FeaturesResult",
     "multiview": "MultiViewResult",
@@ -242,6 +247,7 @@ _RESULTS = {
     "stereo": "StereoResult",
     "segmentation": "SegmentationResult",
     "promptable_segmentation": "PromptableSegmentationResult",
+    "tracking": "TrackingResult",
 }
 
 
@@ -249,7 +255,7 @@ def test_contract_lists_every_result_field():
     """Every output field (and derived property / method) of each task's result is in some contract of the task."""
     import importlib  # noqa: PLC0415
 
-    for task, name in _RESULTS.items():
+    for task, name in ((t, n) for t, names in _RESULTS.items() for n in names.split()):
         cls = getattr(importlib.import_module(f"fastforks.{task}._api"), name)
         names = {f.name for f in dataclasses.fields(cls)} | {
             n for n, v in vars(cls).items() if not n.startswith("_") and (isinstance(v, property) or callable(v))

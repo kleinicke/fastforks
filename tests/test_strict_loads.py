@@ -92,6 +92,51 @@ def test_transformers_loads_strictly(change, tmp_path):
         seginfer.pretrained(ctx, config=0, weights=0)
 
 
+def _tied_heads(*, by_parameter: bool = False) -> torch.nn.Module:
+    """Per-layer heads tied to head 0, their list shared with the decoder on purpose.
+
+    `by_parameter`: MM-Grounding-DINO's layout in transformers 5.19, own modules sharing head 0's parameters.
+    """
+    net, net.dec = torch.nn.Module(), torch.nn.Module()
+    heads = [torch.nn.Sequential(torch.nn.Linear(2, 2), torch.nn.Linear(2, 2)) for _ in range(3)]
+    for h in heads[1:]:
+        for j in range(2):
+            if by_parameter:
+                h[j].weight, h[j].bias = heads[0][j].weight, heads[0][j].bias
+    net.heads = net.dec.heads = torch.nn.ModuleList(heads if by_parameter else [heads[0]] * 3)
+    return net
+
+
+def _checkpoint() -> dict[str, torch.Tensor]:
+    """Different values per layer; layer 0 stored under the top-level name, the others under the decoder's."""
+    keys = [f"{i}.{j}.{p}" for i in range(3) for j in range(2) for p in ("weight", "bias")]
+    return {
+        f"{'heads' if k[0] == '0' else 'dec.heads'}.{k}": torch.full((2, 2) if k.endswith("weight") else (2,), float(n))
+        for n, k in enumerate(keys)
+    }
+
+
+@pytest.mark.parametrize("by_parameter", [False, True])
+def test_untie_restores_every_checkpoint_head(by_parameter):
+    """A transformers tie the config does not ask for (5.19, MM-Grounding-DINO) must not drop checkpoint values."""
+    net, sd = _tied_heads(by_parameter=by_parameter), _checkpoint()
+    net.load_state_dict(sd, strict=False)  # the shared head keeps the last layer's values
+    seginfer.untie_to_checkpoint(net, sd)
+    own = net.state_dict()
+    assert all(torch.equal(own[k], v) for k, v in sd.items())
+    assert all(torch.equal(own[k], own[f"dec.{k}"]) for k in own if k.startswith("heads."))
+    assert net.dec.heads is net.heads
+    assert seginfer.untie_to_checkpoint(net, sd) == []
+
+
+def test_untie_raises_when_a_value_cannot_be_restored():
+    net, sd = _tied_heads(), _checkpoint()
+    sd = {k: v for k, v in sd.items() if k.startswith("heads.0")} | {"heads.0.0.weight": torch.zeros(2, 2)}
+    net.register_load_state_dict_pre_hook(lambda _m, d, *_a: d.pop("heads.0.0.weight", None))
+    with pytest.raises(CheckpointMismatchError, match="tensors differ after loading"):
+        seginfer.untie_to_checkpoint(net, sd)
+
+
 SWIN = "model.pixel_level_module.encoder.swin"
 
 

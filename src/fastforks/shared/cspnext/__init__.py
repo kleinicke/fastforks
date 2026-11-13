@@ -160,15 +160,15 @@ class CSPNeXt(nn.Module):
         return c3, c4, self.stage4(c4)
 
 
-def fold_bn(sd: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-    """A reference state dict with every `ConvModule`'s BatchNorm folded into its conv (weight and bias)."""
+def fold_bn(sd: dict[str, torch.Tensor], eps: float = BN_EPS) -> dict[str, torch.Tensor]:
+    """A reference state dict with every `ConvModule`'s BatchNorm (eps `eps`) folded into its conv (weight, bias)."""
     out: dict[str, torch.Tensor] = {}
     for k, v in sd.items():
         if ".bn." in k:
             continue
         if k.endswith(".conv.weight"):
             p = k[: -len(".conv.weight")]
-            std = (sd[f"{p}.bn.running_var"].double() + BN_EPS).sqrt()
+            std = (sd[f"{p}.bn.running_var"].double() + eps).sqrt()
             g = sd[f"{p}.bn.weight"].double() / std
             out[k] = (v.double() * g.view(-1, 1, 1, 1)).float()
             out[f"{p}.conv.bias"] = (sd[f"{p}.bn.bias"].double() - sd[f"{p}.bn.running_mean"].double() * g).float()

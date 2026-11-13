@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
@@ -55,19 +56,26 @@ def _linear_1x1(m: nn.Module, device: torch.device) -> tuple[torch.Tensor, torch
 class FusedViT(FastViT):
     """DINOv2 with fused-epilogue GEMMs (`features`); weights converted on the CPU, then moved to `device`."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - the switches
         self,
         vit: Any,  # noqa: ANN401 - duck-typed DINOv2 module
         device: torch.device,
         k: DptFused,
         attn: str = "hh",
         gelu: int | None = None,
+        *,
+        res32: bool = False,
     ) -> None:
         """Check and convert the ViT (fp16, LayerScale kept in fp32), move it to `device`.
 
-        `attn`: the flash variant; `gelu`: the MLP epilogue (default `k.gelu`, the card's).
+        `attn`: the flash variant; `gelu`: the MLP epilogue (default `k.gelu`, the card's). `res32`: also keep the
+        LayerNorms in fp32 for `block32` / `norm32` (a float32 residual stream).
         """
         blocks = list(vit.blocks)
+        ln32 = [
+            [(n.weight.detach().float().to(device), n.bias.detach().float().to(device), n.eps) for n in norms]
+            for norms in ([(b.norm1, b.norm2) for b in blocks] + [(vit.norm,)] if res32 else [])
+        ]
         gammas = [
             tuple(
                 g.detach().float().contiguous() if (g := getattr(getattr(b, n), "gamma", None)) is not None else None
@@ -98,6 +106,7 @@ class FusedViT(FastViT):
         vit.patch_embed = nn.Identity()  # replaced by w_patch
         vit.to(device)
         self._tables: dict[tuple[int, int], tuple[torch.Tensor, torch.Tensor]] = {}
+        self.ln32 = ln32
 
     def _pos_tables(self, gh: int, gw: int) -> tuple[torch.Tensor, torch.Tensor]:
         """(position embedding of the patch tokens `[gh * gw, C]`, cls token + its position `[C]`), cached."""
@@ -120,6 +129,29 @@ class FusedViT(FastViT):
         k.gemm(_flash(qkv, (c // h) ** -0.5, self.attn), a.proj.weight, a.proj.bias, scale=g1, res=x, out=x)
         hid = k.gemm(blk.norm2(x), m.fc1.weight, m.fc1.bias, act=self.gelu)
         k.gemm(hid, m.fc2.weight, m.fc2.bias, scale=g2, res=x, out=x)
+        return x
+
+    def norm32(self, x: torch.Tensor, i: int = -1, j: int = 0) -> torch.Tensor:
+        """fp16 LayerNorm (fp32 maths) of the float32 stream `x`: block `i`'s norm1 / norm2 (`j`), default the last."""
+        w, b, eps = self.ln32[i][j]
+        return F.layer_norm(x, w.shape, w, b, eps).half()
+
+    def block32(self, i: int, x: torch.Tensor) -> torch.Tensor:
+        """`_block` on a float32 residual stream `x` (in place): fp16 GEMMs, residual adds and LayerNorms in fp32.
+
+        Upstream runs fp16 / bf16 autocast, whose residual stream stays float32; models that copy metric inputs
+        through the ViT (LingBot-Depth's depth tokens) lose accuracy on an fp16 stream.
+        """
+        blk = self.blocks[i]
+        a, m = blk.attn, blk.mlp
+        g1, g2 = self.gammas[i]
+        k = self.k
+        b, n, c = x.shape
+        h = a.num_heads
+        qkv = k.gemm(self.norm32(x, i, 0), a.qkv.weight, a.qkv.bias).view(b, n, 3, h, c // h)
+        x += k.gemm(_flash(qkv, (c // h) ** -0.5, self.attn), a.proj.weight, a.proj.bias, scale=g1)
+        hid = k.gemm(self.norm32(x, i, 1), m.fc1.weight, m.fc1.bias, act=self.gelu)
+        x += k.gemm(hid, m.fc2.weight, m.fc2.bias, scale=g2)
         return x
 
     def features(self, image: torch.Tensor, size: tuple[int, int], layers: Sequence[int]) -> list[torch.Tensor]:

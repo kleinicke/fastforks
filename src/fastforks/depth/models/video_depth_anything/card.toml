@@ -1,0 +1,70 @@
+schema = 2
+name = "Video Depth Anything"
+summary = "Video Depth Anything (Chen et al., CVPR 2025): temporally consistent depth of long videos from the Depth Anything V2 encoder and a DPT head with temporal attention, run in overlapping 32-frame windows; relative (Small) and metric (Metric Small) checkpoints."
+tier = "experimental"
+outputs = ["inverse_depth", "depth"]  # union; each variant lists its own
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
+
+licence_notes = [
+  "Only the Small checkpoints (relative and metric) are Apache-2.0; the Base and Large checkpoints are CC-BY-NC-4.0 and not included.",
+  "The metric model is trained on Virtual KITTI 2 (CC BY-NC-SA 3.0) and IRS per the upstream README (a note only).",
+]
+limitations = [
+  "A call's batch is one video in time order: frames are not independent (each window attends over time and is aligned to the previous one), so a batch is not the same as single calls.",
+  "Every call runs at least one 32-frame window (shorter videos are padded with copies of their last frame): one image costs about as much as 32 frames in the temporal head.",
+  "The whole video's depth is kept on the device as float32 (L x H x W); split very long videos.",
+]
+
+[output]
+kind = "affine_invariant_inverse"  # relative disparity (aligned across the video): inverse depth up to one unknown scale and shift
+
+[upstream]
+repo = "https://github.com/DepthAnything/Video-Depth-Anything"
+commit = "4f5ae23172ba60fd7bc11ef671cca678842c7072"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Depth Anything V2 Small encoder; the temporal head on synthetic video depth and pseudo-labelled real videos and images per the paper (arXiv 2501.12375)"
+evidence = "https://github.com/DepthAnything/Video-Depth-Anything/blob/4f5ae23172ba60fd7bc11ef671cca678842c7072/LICENSE (Apache-2.0); https://huggingface.co/depth-anything/Video-Depth-Anything-Small/blob/256875362cff76724b920335dfb4b29dd611f66e/README.md (license: apache-2.0)"
+
+[io]
+input = "imagenet"  # the runner resizes (both sides >= short_side, multiples of 14, bicubic) and normalises itself
+pad = "none"
+
+[options]
+short_side = { default = 518, min = 14, aliases = ["input_size"] }  # lower bound of the resized sides (original infer_video_depth's input_size); lowered for videos wider than 16:9 as upstream
+
+[params]
+metric = false  # metric checkpoints: depth in metres, windows not scale + shift aligned
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb"]
+
+[[papers]]
+title = "Video Depth Anything: Consistent Depth Estimation for Super-Long Videos"
+url = "https://arxiv.org/abs/2501.12375"
+date = "2025-01-21"
+venue = "CVPR 2025"
+
+[[variants]]
+id = "video-depth-anything-s"
+revision = 1
+outputs = ["inverse_depth"]
+params = { arch = "vits" }
+weights = [{ name = "video_depth_anything_vits.pth", size = 116440756, sha256 = "13379300b739e659f076a59d52e9801bd8d38c541a7e71f73bbca4dcfb013609", url = "https://huggingface.co/depth-anything/Video-Depth-Anything-Small/resolve/256875362cff76724b920335dfb4b29dd611f66e/video_depth_anything_vits.pth" }]
+
+[[variants]]
+id = "video-depth-anything-metric-s"
+revision = 1
+outputs = ["depth"]
+output = { kind = "metric" }
+params = { arch = "vits", metric = true }
+licence = { evidence = "https://huggingface.co/depth-anything/Metric-Video-Depth-Anything-Small/blob/273d090f2ce17df50c2872d82c8322c45da5b4dd/README.md (license: apache-2.0)" }
+weights = [{ name = "metric_video_depth_anything_vits.pth", size = 116444063, sha256 = "3c28432b4e1f0d7bb31cad5151b6313b49457db5aa58d82e85bfb0f8b1311b33", url = "https://huggingface.co/depth-anything/Metric-Video-Depth-Anything-Small/resolve/273d090f2ce17df50c2872d82c8322c45da5b4dd/metric_video_depth_anything_vits.pth" }]

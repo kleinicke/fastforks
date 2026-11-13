@@ -12,7 +12,8 @@ Status (2026-11-10): working notes for the branch `work/ports`, which sits on to
 
 - One commit per finished network, not before. Finished means: `ruff format --check`, `ruff check`, `ty check`,
   `tools/gen_docs.py --check` and `pytest -m "not gpu"` pass, the GPU goldens are recorded (`pytest -m gpu --record`),
-  and the rows below exist.
+  the size-table entries exist (`tools/bench_sizes.py run --modes portable --runs 3 --out new.jsonl REF ...`, then
+  `tools/extract_sizes.py new.jsonl`; `tests/test_sizes.py` fails without them), and the rows below exist.
 - `git pull --rebase` before every push. Never force-push.
 - A licence gate comes first: code and weights licences are checked against the source before any work starts, and
   a non-commercial weight licence stops the port (see [model-landscape.md](model-landscape.md)).
@@ -35,8 +36,129 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- CodeFormer (`codeformer`, restoration): portable MPS goldens and Mac speed rows (512x512 aligned face; MPS runs
+  float32). No kernels runner. Weights: the pinned GitHub release URL of the card (also in
+  `/home/florian/projects/data/ff-weights/codeformer/`).
+- SegFormer fine-tunes (`segformer-b2-clothes`, `segformer-b5-face-parsing`, segmentation): portable MPS goldens
+  and Mac speed rows (512x512). Weights: the pinned Hugging Face URLs of the card (also in
+  `/home/florian/projects/data/ff-weights/segformer/`).
+- Falconsai NSFW (`falconsai-nsfw-vit`, classification): portable MPS goldens and Mac speed rows (224x224). Weights:
+  the pinned Hugging Face URL of the card (also in `/home/florian/projects/data/ff-weights/nsfw_vit/`).
+- WD v3 taggers (`wd-vit-tagger-v3`, `wd-convnext-tagger-v3`, `wd-vit-large-tagger-v3`, `wd-eva02-large-tagger-v3`,
+  classification): portable MPS goldens and Mac speed rows (448x448). Weights: the pinned Hugging Face URLs of the
+  card (also in `/home/florian/projects/data/ff-weights/wd_tagger/`).
+- DAT (`dat-x4`, `dat-2-x4`, `dat-light-x4`, restoration): portable MPS goldens and Mac speed rows (512x512; MPS runs
+  float32). No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
+  `/home/florian/projects/data/ff-weights/dat/`).
+- HAT (`hat-x4`, `hat-s-x4`, `real-hat-gan-x4`, restoration): portable MPS goldens and Mac speed rows (512x512; MPS
+  runs float32). No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
+  `/home/florian/projects/data/ff-weights/hat/`).
+- InSPyReNet (`inspyrenet`, `inspyrenet-fast`, matting): portable MPS goldens and Mac speed rows (1080x1920; check
+  float16 on MPS: the context sums need float32). Weights: the pinned GitHub release URLs of the card.
+- IS-Net (`isnet-general-use`, `isnet`, matting): portable MPS goldens and Mac speed rows (1080x1920). No Metal
+  kernels runner. Weights: the pinned Google Drive URLs of the card (also in `~/scratch_tests/port-p5/w/`).
+- U²-Net (`u2net`, `u2netp`, `u2net-human-seg`, matting): portable MPS goldens and Mac speed rows (1080x1920). No
+  Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in `~/scratch_tests/port-p5/w/`).
+- SwinIR (`swinir-m-x4`, `swinir-m-x2`, `swinir-m-x4-real`, `swinir-l-x4-real`, restoration): portable MPS goldens
+  and Mac speed rows (512x512; check the float16 last-group scaling on MPS). No Metal kernels runner. Weights: the
+  pinned GitHub release URLs of the card.
+- SPAN (`span-x4`, `span-x2`, restoration): portable MPS goldens and Mac speed rows (512x512). No Metal kernels
+  runner. Weights: the pinned Google Drive URLs of the card (also in `~/scratch_tests/port-p5/w/` on the CUDA machine).
+- Real-ESRGAN (`realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`, restoration): portable MPS
+  goldens and Mac speed rows (512x512). No Metal kernels runner. Weights: the pinned GitHub release URLs of the card.
+- RIFE (`rife-4.25`, `rife-4.26`, `rife-4.25-lite`, interpolation): portable MPS goldens and Mac speed rows
+  (1080x1920 pair). No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
+  `~/scratch_tests/port-p5/w/rife/` on the CUDA machine).
+- MegaLoc (`megaloc`, new retrieval task): portable float32 MPS goldens and Mac speed rows at 480x640. No Metal
+  kernels runner. Weights: the pinned HF URL of the card (also in `data/ff-weights/megaloc/`).
+- BoQ (`boq-dinov2`, retrieval): portable float32 MPS goldens and Mac speed rows at 480x640. No Metal kernels runner.
+  Weights: the pinned GitHub release URL of the card (also in `data/ff-weights/boq/`).
+- SAMURAI (`samurai` option of the `sam2.1-hiera-*` cards, promptable_segmentation `track`): portable float32 MPS
+  goldens (`samurai_box_*` keys). The sam2 goldens were regenerated, so all sam2 MPS validation is needed again. Golden
+  files in `golden_ports/`. No new weights.
+- ByteTrack multi-object tracking (`tracking.ByteTracker`): CPU numpy, nothing device-specific; optional Mac row of
+  `tools/eval_mot.py track` (tracker ms per frame). No weights.
+- GeoCalib (`geocalib-pinhole`, new calibration task): portable float32 MPS goldens and Mac speed rows at 1080x1920;
+  check the LM fit's `cholesky_ex` / `cholesky_solve` on MPS. No Metal kernels runner. Weights: the pinned GitHub
+  release URL of the card (also in `data/ff-weights/geocalib/`).
+- AnyCalib (`anycalib-pinhole`, calibration): portable float32 MPS goldens and Mac speed rows at 1080x1920; check the
+  fit's `linalg.lstsq` / `solve_ex` / `cholesky_ex` on MPS. No Metal kernels runner. Weights: the pinned GitHub release
+  URL of the card (also in `data/ff-weights/anycalib/`).
+- LW-DETR (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection): portable MPS goldens and Mac speed rows
+  (800x1344). No Metal kernels runner. Weights: the pinned HF URLs of the card.
+- MM-Grounding-DINO (`mm-grounding-dino-tiny`, `mm-grounding-dino-base`, detection): portable MPS goldens and Mac
+  speed rows (800x1344). No kernels. Weights: the pinned HF URLs of the card.
+- StableNormal turbo (`stablenormal-turbo`, depth task, normals): portable MPS goldens and Mac speed rows (994x1482).
+  No Metal kernels runner. Weights: the pinned HF URLs of the card.
+- DeDoDe v2 (`dedode-v2-b`, `dedode-v2-g`, matching): portable MPS goldens and Mac speed rows (768x1024 pair). No
+  kernels. Weights: the pinned GitHub release URLs of the card.
+- LoFTR (`loftr-outdoor`, `loftr-indoor`, matching): portable MPS goldens and Mac speed rows (768x1024 pair). No
+  kernels. Weights: the pinned HF URLs of the card (kornia mirror).
+- AnySplat (`anysplat`, multiview with `result.gaussians`): portable float32 MPS goldens and Mac speed rows (8 views
+  336x518). No Metal kernels runner. Weights: the pinned HF URL of the card.
+- DepthSplat (`depthsplat-small-re10k`, multiview with `result.gaussians`): portable float32 MPS goldens and Mac speed
+  rows (8 views 336x518, calibrated). No Metal kernels runner. Weights: the pinned HF URL of the card.
+- MVSplat (`mvsplat-re10k`, multiview with `result.gaussians`): portable float32 MPS goldens and Mac speed rows (8
+  views 336x518, calibrated). No Metal kernels runner. Weights: the pinned HF URL of the card.
+- π3 (`pi3`, multiview): portable float32 MPS goldens and Mac speed rows (8 views 336x518). No Metal kernels runner.
+  Weights: the pinned HF URL of the card.
+- Prompt Depth Anything (`prompt-depth-anything-s`, `-l`, depth with `prompt=`): portable MPS goldens and Mac speed
+  rows (756x1008 + 192x256 prompt). No Metal kernels runner. Weights: the pinned HF URLs of the card.
+- TAPNext (`tapnext`, `tapnext-pp`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854 video, 256
+  queries). No Metal kernels runner. Weights: the pinned URLs of the card (also in `data/ff-weights/tapnext/`).
+- TAPIR (`bootstapir`, `tapir`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854 video, 256
+  queries). No Metal kernels runner. Weights: the pinned URLs of the card (also in `data/ff-weights/tapir/`).
+- AllTracker (`alltracker`, `alltracker-tiny`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854
+  video, 256 queries). No Metal kernels runner. Weights: the pinned URLs of the card (also in
+  `data/ff-weights/alltracker/`).
+- Track-On2 (`track-on2`, `track-on-r`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854 video,
+  256 queries); the DINOv3 ViT-S+ backbone weights are gated on Hugging Face. No Metal kernels runner. Weights: the
+  pinned URLs of the card (also in `data/ff-weights/track_on/` and `data/ff-weights/dinov3/`).
+- LocoTrack (`locotrack-b`, `locotrack-s`): portable float32 MPS goldens and Mac speed rows (24-frame 480x854 video,
+  256 queries). No Metal kernels runner. Weights: the pinned URLs of the card (also in `data/ff-weights/locotrack/`).
+- YOLOX (`yolox-tiny` to `yolox-x`, detection): portable float32 MPS goldens and Mac speed rows (800x1344). No Metal
+  kernels runner. Weights: the pinned URLs of the card (also in `data/ff-weights/yolox/`).
+- MemFlow (`memflow`, `memflow-sintel`, `memflow-kitti`, flow): portable float32 MPS goldens and Mac speed rows
+  (375x1242, 1080x1920). No Metal kernels runner. Weights: the pinned URLs of the card (also in
+  `data/ff-weights/memflow/`).
+- SAM 2 video (`track` of `sam2.1-hiera-*`): portable float32 MPS video goldens (`video_*` keys of
+  `tests/test_golden.py`); the memory features are stored in bfloat16 as upstream.
+- ViTMatte (`vitmatte-s`, `vitmatte-b`, matting with a trimap input): portable float32 MPS goldens and Mac speed
+  rows at 1080x1920. No Metal kernels runner. Weights: the pinned HF URLs of the card.
+- BEN2 (`ben2`, matting): portable float32 MPS goldens and Mac speed rows at 1080x1920. No Metal kernels runner.
+  Weights: the pinned HF URL of the card (also in `~/scratch_tests/port-p1/w/ben2/`).
+- BiRefNet (`birefnet`, `birefnet-lite`, new matting task; new `shared/swin_v1`): portable float32 MPS goldens and
+  Mac speed rows at 1080x1920. No Metal kernels runner (CUDA kernels: `deform_conv` in the ASPP branches). Weights: the
+  pinned HF URLs of the card (also in `~/scratch_tests/port-p1/w/birefnet/`).
+- Video Depth Anything (`video-depth-anything-s`, `video-depth-anything-metric-s`): portable float32 MPS goldens and
+  Mac speed rows (an 88-frame 480x640 video). No Metal kernels runner. Weights: the pinned HF URLs of the card (also in
+  `~/scratch_tests/port-p1/w/video_depth_anything/`).
+- Grounding DINO (`grounding-dino-tiny`, `grounding-dino-base`): portable float32 MPS goldens and Mac speed rows at
+  800x1344; needs transformers. No Metal kernels runner. Weights: the pinned HF URLs of the card (also in
+  `data/ff-weights/grounding_dino/`).
+- OWLv2 (`owlv2-b16`, `owlv2-l14`): portable float32 MPS goldens and Mac speed rows at 800x1344; needs transformers.
+  No Metal kernels runner. Weights: the pinned HF URLs of the card (also in `data/ff-weights/owlv2/`).
+- DEIM (`deim-{n,s,m,l,x}-coco`, in the dfine family): portable float32 MPS goldens and Mac speed rows at 800x1344.
+  No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in `data/ff-weights/dfine/`).
+- Lotus normals (`lotus-normal-g-v1-1`, `lotus-normal-d-v1-1`): portable float32 MPS goldens and Mac speed rows
+  (994x1482). No Metal kernels runner. Weights: the pinned HF URLs of the card (also in
+  `~/scratch_tests/port-p1/w/lotus/`).
+- Marigold normals LCM (`marigold-normals-lcm-v0-1`): portable float32 MPS golden and Mac speed rows (994x1482). No
+  Metal kernels runner. Weights: the pinned HF URLs of the card (also in `~/scratch_tests/port-p1/w/marigold_normals/`).
+- XFeat (`xfeat`, `xfeat-lighterglue`): portable float32 MPS goldens and Mac speed rows at 768x1024. No Metal kernels
+  runner. Weights: the pinned GitHub URLs of the card (also in `~/scratch_tests/port-p1/w/xfeat/`).
+- LightGlue (`aliked-lightglue`, `disk-lightglue`): portable float32 MPS goldens (sparse: keypoint recall and match
+  agreement) and Mac speed rows at 768x1024. No Metal kernels runner. Weights: the pinned GitHub release URLs of the
+  card (also in `~/scratch_tests/port-p1/w/lightglue/`).
+- MEMFOF (`memfof`, `memfof-kitti`): portable float32 MPS goldens and Mac speed rows (375x1242, 1080p). No Metal
+  kernels runner. Weights: the pinned HF URLs of the card (also in `~/scratch_tests/port-p1/w/memfof/`).
+- RF-DETR detection / Seg (10 variants): portable float32 MPS goldens and Mac speed rows at 800x1344. No Metal
+  kernels runner. Weights: the pinned Roboflow URLs of the card (also on CUDA in `~/scratch_tests/port-p1/w/rfdetr/`).
 - RoMa v2 (`romav2`, new matching task): portable float32 MPS goldens (`warp` checked where the golden certainty
   is >= 0.5) and Mac timings at 768x1024. No Metal kernels runner. Weights: the pinned GitHub release URL (1.1 GB).
+- RoMa v1 (`romav1`): portable float32 MPS goldens (`warp` checked where the golden certainty is >= 0.5) and Mac
+  timings at 768x1024. No Metal kernels runner. Weights: the pinned URLs of the card (GitHub release +
+  Meta's DINOv2 ViT-L/14, also in `data/ff-weights/romav1/`).
 - RTMPose zoo (7 Halpe26, hand5, 3 face6, AP-10K): MPS golden checks and portable speed rows.
   COCO accuracy covers Halpe26 body joints; hand, face and animal validation datasets are not staged.
   Weights on CUDA in `~/scratch_tests/port-rtmo/w/`.

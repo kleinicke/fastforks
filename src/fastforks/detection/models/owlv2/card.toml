@@ -1,0 +1,78 @@
+schema = 2
+name = "OWLv2 (open-vocabulary, CLIP B/16 and L/14)"
+summary = "OWLv2 (Minderer et al. 2023, Google): open-vocabulary detection by self-training OWL-ViT on web image-text data; a CLIP ViT image tower predicts one box per patch and scores it against CLIP text embeddings of free-text class names. Pass `text=[...]` at call time (default: the 80 COCO class names); the image is padded to a square and resized to 960 (B/16) or 1008 (L/14) px. The portable `module()` is the image tower and heads with the COCO names as constant queries."
+tier = "experimental"
+outputs = ["boxes", "scores", "labels"]
+uses = ["seginfer", "cuda_graphs", "clip_tokenizer"]  # fastforks.shared modules this family imports
+limitations = [
+  "Requires the optional transformers library (the network is its `Owlv2ForObjectDetection`).",
+  "The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port with the authors' weights (google/owlv2-*-ensemble); the official scenic (JAX) code was not run.",
+  "Text queries are used as given (no prompt templates or prompt ensembling as in the paper's COCO / LVIS numbers); each is cut to 16 tokens as the transformers processor does.",
+  "No objectness scores and no image-guided (one-shot) detection.",
+  "One box per patch token (3600 for B/16, 5184 for L/14) without NMS, as the original post-processing; overlapping boxes of the same object are common at low thresholds.",
+]
+
+[upstream]
+repo = "https://github.com/huggingface/transformers"
+commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/google-research/scenic"
+framework = "JAX"
+reason = "The official OWLv2 code is JAX (Scenic); fastforks follows the PyTorch transformers port that loads the google/owlv2-* weights."
+
+[licence]
+code = "Apache-2.0"  # transformers; the original google-research/scenic is Apache-2.0 too
+weights = "Apache-2.0"  # the google/owlv2-*-ensemble model cards: license apache-2.0
+files = []  # no vendored code: the architecture is transformers' own module
+training_data = ["webli", "objects365"]
+training_note = "Self-training on WebLI image-text pairs with pseudo-boxes from an OWL-ViT annotator (itself trained on Objects365 and Visual Genome), then the weight ensemble of that model and its fine-tune on Objects365 + Visual Genome; Visual Genome has no dataset id here (OWLv2 paper, arXiv:2306.09683; the ensemble checkpoints)."
+evidence = "https://huggingface.co/google/owlv2-base-patch16-ensemble/blob/cfd3195ba4ea9592eec887ded089f4c08eff231d/README.md"
+
+[io]
+input = "0-1"  # the runner pads to a square, blurs, resizes and normalises itself (the transformers processor)
+
+[options]
+score_threshold = { default = 0.1, min = 0.0, max = 1.0 }  # the transformers post-processing default (kept if above, strictly)
+max_detections = { default = 100, min = 1 }  # the best boxes kept per image (the original keeps every box above the threshold)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the image tower and heads from a CUDA graph (false: eager, no graph pool)
+
+[params]
+arch = "Owlv2ForObjectDetection"
+
+[modes.portable]
+cuda_dtype = "float16"  # patch embedding and encoder layers; final norms, heads and text matching stay float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fvm_conv"]  # encoder GEMMs with fused bias / SiLU (folded QuickGELU) / residual epilogues, fp16 accumulation, CUDA graph
+
+[output]
+label_set = "coco-80"  # the default queries; `text=` replaces them per call
+
+[[papers]]
+title = "Scaling Open-Vocabulary Object Detection"
+url = "https://arxiv.org/abs/2306.09683"
+date = "2023-06-16"
+venue = "NeurIPS 2023"
+
+[[variants]]
+id = "owlv2-b16"
+revision = 1
+weights = [
+    { name = "owlv2-b16.config.json", size = 414, sha256 = "ba9df8c25a4b8461887dd0a93d9252c9cd84697fe8d49a9d8794ce409af9acb2", url = "https://huggingface.co/google/owlv2-base-patch16-ensemble/resolve/cfd3195ba4ea9592eec887ded089f4c08eff231d/config.json" },
+    { name = "owlv2-b16.safetensors", size = 619918824, sha256 = "e1e130b9e404cf91a75ad45644c1da9d7fa5284085eecc864266a6923efb99e7", url = "https://huggingface.co/google/owlv2-base-patch16-ensemble/resolve/cfd3195ba4ea9592eec887ded089f4c08eff231d/model.safetensors" },
+    { name = "clip-bpe.vocab.json", size = 1059962, sha256 = "e089ad92ba36837a0d31433e555c8f45fe601ab5c221d4f607ded32d9f7a4349", url = "https://huggingface.co/google/owlv2-base-patch16-ensemble/resolve/cfd3195ba4ea9592eec887ded089f4c08eff231d/vocab.json" },
+    { name = "clip-bpe.merges.txt", size = 524619, sha256 = "9fd691f7c8039210e0fced15865466c65820d09b63988b0174bfe25de299051a", url = "https://huggingface.co/google/owlv2-base-patch16-ensemble/resolve/cfd3195ba4ea9592eec887ded089f4c08eff231d/merges.txt" },
+]
+
+[[variants]]
+id = "owlv2-l14"
+revision = 1
+licence = { evidence = "https://huggingface.co/google/owlv2-large-patch14-ensemble/blob/95e26936e865f87db1742128404b3c035d47d89d/README.md" }
+weights = [
+    { name = "owlv2-l14.config.json", size = 617, sha256 = "3d45ac1f2698c5d824aef0a0dacd356d063f9cd950119103a03fd6a62b828a52", url = "https://huggingface.co/google/owlv2-large-patch14-ensemble/resolve/95e26936e865f87db1742128404b3c035d47d89d/config.json" },
+    { name = "owlv2-l14.safetensors", size = 1750520144, sha256 = "d1c2261503c55aaf400667a843a54a5167e3c696334674c4093d6d10f7f40075", url = "https://huggingface.co/google/owlv2-large-patch14-ensemble/resolve/95e26936e865f87db1742128404b3c035d47d89d/model.safetensors" },
+    { name = "clip-bpe.vocab.json", size = 1059962, sha256 = "e089ad92ba36837a0d31433e555c8f45fe601ab5c221d4f607ded32d9f7a4349", url = "https://huggingface.co/google/owlv2-base-patch16-ensemble/resolve/cfd3195ba4ea9592eec887ded089f4c08eff231d/vocab.json" },
+    { name = "clip-bpe.merges.txt", size = 524619, sha256 = "9fd691f7c8039210e0fced15865466c65820d09b63988b0174bfe25de299051a", url = "https://huggingface.co/google/owlv2-base-patch16-ensemble/resolve/cfd3195ba4ea9592eec887ded089f4c08eff231d/merges.txt" },
+]

@@ -152,9 +152,9 @@ class _ViT(FastViT):
     (`interpolate_offset` 0), as upstream.
     """
 
-    def __init__(self, vit: Any, attn: str, out_dtype: torch.dtype | None) -> None:  # noqa: ANN401 - vendored ViT
+    def __init__(self, vit: Any, attn: str, fused: dpt_fused.DptFused | None) -> None:  # noqa: ANN401 - vendored ViT
         """As `FastViT`; upstream's `train()` override returns `None`, so `eval()` cannot be chained."""
-        super().__init__(vit, attn, out_dtype)
+        super().__init__(vit, attn, None, fused=fused)
         self.vit = vit
 
     def interpolate_pos(self, h0: int, w0: int) -> torch.Tensor:
@@ -393,9 +393,8 @@ class Kernels(Runner):
         """Build the network and convert it."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
-        dpt_fused.load(ctx.device)
         self.net = _net(ctx)
-        vit = _ViT(self.net.pixel_encoder, "hh", None)
+        vit = _ViT(self.net.pixel_encoder, "hh", dpt_fused.load(ctx.device))
         self.fast = _Fast(ctx, self.net, vit, _conv_hacc, _fp16_accumulate)
         self.fast.interp = _interp_nhwc
 

@@ -657,7 +657,9 @@ def _export(args: argparse.Namespace) -> None:
         f"wrote {out}: TensorRT engine of {model.variant.ref} at {h}x{w}{_dyn(bounds)}, {model.backend.dtype}"
         f" ({ENGINE_NOTE})"
     )
-    what = "pair" if card.task in {"stereo", "flow", "matching"} else "image"
+    what = {"stereo": "pair", "flow": "pair", "matching": "pair", "interpolation": "pair", "tracking": "video"}.get(
+        card.task, "image"
+    )
     stats = _parity(want, got, stereo=card.task == "stereo", scores=getattr(module, "query_scores", None))
     print(f"check vs portable (synthetic {what}): {stats}; {t_trt:.1f} ms TensorRT vs {t_ref:.1f} ms portable")
 
@@ -866,6 +868,48 @@ def _add_stereo(sub: argparse._SubParsersAction) -> None:
     p.set_defaults(run=_stereo_run)
 
 
+def _sfm(args: argparse.Namespace) -> None:
+    from fastforks.matching import sfm  # noqa: PLC0415 - heavy, only for this command
+
+    options: dict[str, Any] = {
+        "matcher": args.matcher,
+        "retrieval": None if args.retrieval == "none" else args.retrieval,
+        "k": args.k,
+        "threshold": args.threshold,
+        "single_camera": args.single_camera,
+        "mode": args.mode,
+        "device": args.device,
+        "dtype": args.dtype,
+    }
+    rec = sfm.reconstruct(args.images, args.out, mapper=args.mapper, **options) if args.reconstruct else None
+    if rec is not None:
+        stats, target = rec.database, Path(args.out) / "database.db"
+    else:
+        stats, target = sfm.colmap_database(args.images, args.out, **options), Path(args.out)
+    times = ", ".join(f"{name} {s:.1f} s" for name, s in stats.seconds.items())
+    print(f"{stats.images} images, {stats.pairs} pairs, {stats.verified} verified ({times}) -> {target}")
+    if rec is not None:
+        built = f"{rec.registered}/{stats.images} images, {rec.points} points"
+        print(f"{rec.mapper} mapper {rec.seconds:.1f} s: {built} -> {rec.model}")
+
+
+def _add_sfm(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser("sfm", help="an image folder -> a COLMAP database (pairs, matches, verified geometries)")
+    p.add_argument("images", help="image folder (pass the same folder as the mapper's --image_path)")
+    p.add_argument("out", help="COLMAP database file to write (must not exist); with --reconstruct: the output folder")
+    p.add_argument("--reconstruct", action="store_true", help="also run pycolmap's mapper: out/database.db, out/sparse")
+    p.add_argument("--mapper", choices=("incremental", "global"), default="incremental", help="with --reconstruct")
+    p.add_argument("--matcher", default="aliked-lightglue", help="sparse matching model id (default aliked-lightglue)")
+    p.add_argument("--retrieval", default="megaloc", help="retrieval model id that picks the pairs, or none: all pairs")
+    p.add_argument("--k", type=int, default=20, help="pairs per image (default 20)")
+    p.add_argument("--threshold", type=float, default=4.0, help="RANSAC inlier threshold in pixels (default 4)")
+    p.add_argument("--single-camera", action="store_true", help="one camera for all images of the same size")
+    p.add_argument("--mode", choices=("auto", "portable", "kernels"), default="auto", help="backend (default auto)")
+    p.add_argument("--device", help="e.g. cpu, cuda, cuda:1 (default: as `load`)")
+    p.add_argument("--dtype", choices=("float32", "float16", "bfloat16"), help="matcher dtype (default: the card's)")
+    p.set_defaults(run=_sfm)
+
+
 _SHOWN = 6  # model ids `doctor` names before "... (N more)"
 
 
@@ -1025,6 +1069,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ).set_defaults(run=_doctor)
     sub.add_parser("env", help="versions, GPU and kernel binaries (for bug reports)").set_defaults(run=_env)
     _add_stereo(sub)
+    _add_sfm(sub)
     return _run(ap.parse_args(argv))
 
 

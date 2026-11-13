@@ -6,6 +6,7 @@ outputs = ["boxes", "scores", "labels"]
 uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 limitations = [
   "The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port (DFineForObjectDetection, ustc-community weights) of the official D-FINE (Apache-2.0); the official repository code itself was not run.",
+  "deim-* variants: DEIM (Huang et al. 2025), the D-FINE network with SiLU decoder MLPs, trained with dense one-to-one matching; weights and the original in the benchmarks are from the official DEIM repository (@09d35d53).",
 ]
 
 [upstream]
@@ -20,7 +21,7 @@ reason = "The benchmarked original is the Hugging Face transformers port (DFineF
 [licence]
 code = "Apache-2.0"
 weights = "Apache-2.0"  # the Hugging Face conversions (ustc-community) state apache-2.0
-files = ["LICENSE"]
+files = ["LICENSE", "LICENSE-DEIM"]
 training_data = ["coco", "imagenet-1k"]
 training_note = "COCO 2017 train; the HGNetV2 backbones start from ImageNet-1k pretraining"
 evidence = "https://github.com/Peterande/D-FINE/blob/956d1709314c2c6a4df6f34de232054578a7449f/LICENSE"
@@ -33,6 +34,7 @@ size = 640
 num_queries = 300
 num_classes = 80
 reg_scale = 4.0
+act = "relu"  # decoder feed-forward and head MLPs (DEIM: silu)
 levels = 3
 lab = false
 enc_dim = 256
@@ -52,7 +54,7 @@ cuda_dtype = "float16"  # backbone, encoder and decoder layers; query selection,
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU), fp16-accumulate GEMMs, CUDA graph
+kernels = ["cudnn_hacc", "fvm_conv"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU), our depthwise kernel, fp16-accumulate GEMMs, CUDA graph
 
 [output]
 label_set = "coco-80"
@@ -92,3 +94,38 @@ id = "dfine-x-coco"
 revision = 1
 params = { stem = [32, 64], mid = [64, 128, 256, 512], out = [128, 512, 1024, 2048], blocks = [1, 2, 5, 2], layers = 6, enc_dim = 384, enc_ffn = 2048, csp_blocks = 3, dec_layers = 6, reg_scale = 8.0 }
 weights = [{ name = "dfine-xlarge-coco.safetensors", size = 251619400, sha256 = "3ac6ea37c6c995ed65a10beeda703249e97aac1bb40bda18cfaa1c2f6cdca4c5", url = "https://huggingface.co/ustc-community/dfine-xlarge-coco/resolve/ea4f6be7350bbe3c199ec6febc74168346cb5a68/model.safetensors" }]
+
+[[variants]]
+id = "deim-n-coco"
+revision = 1
+params = { stem = [16, 16], mid = [16, 32, 64, 128], out = [64, 256, 512, 1024], blocks = [1, 1, 2, 1], layers = 3, lab = true, levels = 2, enc_dim = 128, dec_dim = 128, enc_ffn = 512, dec_ffn = 512, csp_blocks = 2, expansion = 0.34, dec_layers = 3, points = [6, 6], act = "silu" }
+weights = [{ name = "deim_dfine_hgnetv2_n_coco.pth", size = 15500899, sha256 = "8536a97a57bad2951cb4679e8578be225e4a19db678ab568a44e538f4f0fc917", url = "https://drive.usercontent.google.com/download?id=1ZPEhiU9nhW4M5jLnYOFwTSLQC1Ugf62e&export=download&confirm=t" }]
+licence = { weights = "assumed from code", evidence = "https://github.com/Intellindust-AI-Lab/DEIM/blob/09d35d53d39ee3145a1e61e3a989b28b9468d1dd/LICENSE" }
+
+[[variants]]
+id = "deim-s-coco"
+revision = 1
+params = { stem = [16, 16], mid = [16, 32, 64, 128], out = [64, 256, 512, 1024], blocks = [1, 1, 2, 1], layers = 3, lab = true, csp_blocks = 1, expansion = 0.5, dec_layers = 3, act = "silu" }
+weights = [{ name = "deim_dfine_hgnetv2_s_coco.pth", size = 41867693, sha256 = "a089c9eb798f8a0322e05f757fe8e8188eee34aa578788a35ec253bcec8a6b38", url = "https://drive.usercontent.google.com/download?id=1tB8gVJNrfb6dhFvoHJECKOF5VpkthhfC&export=download&confirm=t" }]
+licence = { weights = "assumed from code", evidence = "https://github.com/Intellindust-AI-Lab/DEIM/blob/09d35d53d39ee3145a1e61e3a989b28b9468d1dd/LICENSE" }
+
+[[variants]]
+id = "deim-m-coco"
+revision = 1
+params = { stem = [24, 32], mid = [32, 64, 128, 256], out = [96, 384, 768, 1536], blocks = [1, 1, 3, 1], layers = 4, lab = true, csp_blocks = 2, dec_layers = 4, act = "silu" }
+weights = [{ name = "deim_dfine_hgnetv2_m_coco.pth", size = 79143599, sha256 = "2b6cd0582a4aa711f583982057b7fb0f3daebdd98e4dc168824714014c3219bc", url = "https://drive.usercontent.google.com/download?id=18Lj2a6UN6k_n_UzqnJyiaiLGpDzQQit8&export=download&confirm=t" }]
+licence = { weights = "assumed from code", evidence = "https://github.com/Intellindust-AI-Lab/DEIM/blob/09d35d53d39ee3145a1e61e3a989b28b9468d1dd/LICENSE" }
+
+[[variants]]
+id = "deim-l-coco"
+revision = 1
+params = { stem = [32, 48], mid = [48, 96, 192, 384], out = [128, 512, 1024, 2048], blocks = [1, 1, 3, 1], layers = 6, csp_blocks = 3, dec_layers = 6, act = "silu" }
+weights = [{ name = "deim_dfine_hgnetv2_l_coco.pth", size = 126125711, sha256 = "a9ac1f9bf51a41a7ec02c373c85e0109f84908dde11d80759b43248dcb638baa", url = "https://drive.usercontent.google.com/download?id=1PIRf02XkrA2xAD3wEiKE2FaamZgSGTAr&export=download&confirm=t" }]
+licence = { weights = "assumed from code", evidence = "https://github.com/Intellindust-AI-Lab/DEIM/blob/09d35d53d39ee3145a1e61e3a989b28b9468d1dd/LICENSE" }
+
+[[variants]]
+id = "deim-x-coco"
+revision = 1
+params = { stem = [32, 64], mid = [64, 128, 256, 512], out = [128, 512, 1024, 2048], blocks = [1, 2, 5, 2], layers = 6, enc_dim = 384, enc_ffn = 2048, csp_blocks = 3, dec_layers = 6, reg_scale = 8.0, act = "silu" }
+weights = [{ name = "deim_dfine_hgnetv2_x_coco.pth", size = 252221511, sha256 = "e729436f96d95e78dbf67452bf3fb654cd5bed37de43067f5cf0aafb24d0fc7a", url = "https://drive.usercontent.google.com/download?id=1dPtbgtGgq1Oa7k_LgH1GXPelg1IVeu0j&export=download&confirm=t" }]
+licence = { weights = "assumed from code", evidence = "https://github.com/Intellindust-AI-Lab/DEIM/blob/09d35d53d39ee3145a1e61e3a989b28b9468d1dd/LICENSE" }

@@ -31,6 +31,7 @@ __all__ = ["Backend", "DepthKind", "DepthModel", "DepthResult", "list_models", "
 TASK = "depth"
 _STANDARD = spec(TASK).standard
 _VECTOR_MAPS = ("points", "normals")
+_MAP_DIMS = 2
 ArrayLike: TypeAlias = "torch.Tensor | np.ndarray | Sequence[Sequence[float]] | Sequence[Sequence[Sequence[float]]]"
 
 
@@ -166,7 +167,9 @@ class DepthModel(core.Model):
 
     _runner: Runner
 
-    def __call__(self, image: ImageLike, *, intrinsics: ArrayLike | None = None) -> DepthResult:
+    def __call__(
+        self, image: ImageLike, *, intrinsics: ArrayLike | None = None, prompt_depth: ArrayLike | None = None
+    ) -> DepthResult:
         """Estimate depth (and whatever else the model produces) for an image.
 
         Args:
@@ -174,19 +177,25 @@ class DepthModel(core.Model):
             intrinsics: Pinhole matrix `[3, 3]` (or `[B, 3, 3]`; tensor, numpy array or nested lists) in pixels of
                 `image`, for models that use it (see the card); `None` lets the model estimate it. OpenCV pixel
                 centres (pixel `i` centred at `i`), as the estimates.
+            prompt_depth: For depth-prompted models (Prompt Depth Anything, LingBot-Depth; see the card): a metric
+                depth map in metres, `[h, w]` (shared by a batch) or `[B, h, w]`, e.g. from a LiDAR; any size, it is
+                resampled inside the network. It is required by those models and an error for the others. Depth
+                completion models (LingBot-Depth) take maps with holes (0, NaN or inf: missing).
 
         Returns:
             The result; batched inputs give batched maps.
 
         Raises:
             InputError: Unsupported or too small image, intrinsics of the wrong shape, intrinsics passed to a model
-                that does not use them, or missing for one that needs them.
+                that does not use them, or missing for one that needs them; the same for `prompt_depth`, or a
+                dense `prompt_depth` that is not a finite, positive map.
         """
         x = to_rgb_batch(image, self.device)
         self._check_size(x)
         k = self._intrinsics(intrinsics, x.shape[0])
         b, (h, w) = x.shape[0], x.shape[-2:]
-        maps = self._batched(self._runner, x, k)
+        p = self._prompt(prompt_depth, x.shape[0])
+        maps = self._batched(self._runner, x, k) if p is None else self._batched(self._runner, x, k, p)
         shapes = {
             name: (b, h, w, 3)
             if name in _VECTOR_MAPS
@@ -211,6 +220,44 @@ class DepthModel(core.Model):
         )
         object.__setattr__(result, "_image", x if is_batch(image) else x[0])  # not a field: colours of `save`
         return result
+
+    def example_inputs(
+        self, height: int | None = None, width: int | None = None, *, batch: int = 1
+    ) -> tuple[torch.Tensor, ...]:
+        """Example `module()` inputs: the image `[batch, 3, H, W]`, then the prompt `[batch, 1, H/8, W/8]` if needed."""
+        (image,) = super().example_inputs(height, width, batch=batch)[:1]
+        if self._runner.prompt_depth != "required":
+            return (image,)
+        prompt = synthetic_prompt(*image.shape[-2:], self.device)
+        return image, prompt.expand(batch, 1, -1, -1).contiguous()
+
+    def _prompt(self, p: ArrayLike | None, batch: int) -> torch.Tensor | None:
+        use = self._runner.prompt_depth
+        if p is None:
+            if use == "required":
+                msg = f"{self.variant.ref} needs a depth prompt (prompt_depth=[h, w] metric depth map in metres)"
+                raise InputError(msg)
+            return None
+        if use == "unused":
+            msg = f"{self.variant.ref} does not use a depth prompt; call it without prompt_depth"
+            raise InputError(msg)
+        try:
+            p = torch.as_tensor(p, dtype=torch.float32)
+        except (TypeError, ValueError, RuntimeError) as e:
+            msg = f"prompt_depth must be a [h, w] or [B, h, w] array: {e}"
+            raise InputError(msg) from e
+        if p.ndim == _MAP_DIMS:
+            p = p[None]
+        if p.ndim != _MAP_DIMS + 1 or p.shape[0] not in {1, batch} or min(p.shape[-2:]) < 1:
+            msg = f"prompt_depth must be [h, w] or [{batch}, h, w], got shape {tuple(p.shape)}"
+            raise InputError(msg)
+        p = p.to(self.device)
+        if not self._runner.prompt_sparse and not bool(
+            torch.isfinite(p).all() & (p.amin() > 0)
+        ):  # one sync, as the other input checks
+            msg = "prompt_depth must be finite and positive (metres); fill missing LiDAR pixels before the call"
+            raise InputError(msg)
+        return p.expand(batch, -1, -1)[:, None].contiguous()  # [B, 1, h, w]
 
     def _intrinsics(self, k: ArrayLike | None, batch: int) -> torch.Tensor | None:
         use = self._runner.intrinsics
@@ -244,13 +291,25 @@ class DepthModel(core.Model):
 
 
 def bench_inputs(model: DepthModel, size: BenchSize) -> BenchInputs:
-    """`fastforks bench` call: one synthetic image `[1, 3, H, W]`, plus pinhole intrinsics if the model needs them."""
+    """`fastforks bench` call: one synthetic image `[1, 3, H, W]`, plus the intrinsics / prompt the model needs."""
     h, w = size.height, size.width
     image = synthetic_image(h, w, model.device)
-    if model._runner.intrinsics != "required":  # noqa: SLF001 - the task's own runner contract
-        return (image,), {}
-    k = torch.tensor([[0.9 * w, 0.0, (w - 1) / 2], [0.0, 0.9 * w, (h - 1) / 2], [0.0, 0.0, 1.0]])  # OpenCV pixels
-    return (image,), {"intrinsics": k}
+    r = model._runner  # noqa: SLF001 - the task's own runner contract
+    kwargs: dict[str, Any] = {}
+    if r.intrinsics == "required":
+        kwargs["intrinsics"] = torch.tensor(
+            [[0.9 * w, 0.0, (w - 1) / 2], [0.0, 0.9 * w, (h - 1) / 2], [0.0, 0.0, 1.0]]
+        )  # OpenCV pixels
+    if r.prompt_depth == "required":
+        kwargs["prompt_depth"] = synthetic_prompt(h, w, model.device)
+    return (image,), kwargs
+
+
+def synthetic_prompt(h: int, w: int, device: torch.device | str) -> torch.Tensor:
+    """A smooth positive depth prompt `[h // 8, w // 8]` in metres (the LiDAR-like 1/8-resolution map)."""
+    y = torch.linspace(0, 1, max(h // 8, 1), device=device)[:, None]
+    x = torch.linspace(0, 1, max(w // 8, 1), device=device)[None]
+    return 1.5 + 2.0 * y + 1.0 * x + 0.3 * torch.sin(9 * x + 5 * y)
 
 
 list_models, model_card, load = task_api(TASK, DepthModel)

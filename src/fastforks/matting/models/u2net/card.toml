@@ -1,0 +1,55 @@
+schema = 2
+name = "U²-Net"
+summary = "U²-Net (Qin et al., Pattern Recognition 2020): salient object detection with a two-level nested U-structure: six residual U-blocks (RSU) in the encoder, five in the decoder, a fused sigmoid map at 320 x 320. rembg's default background remover. `u2net` / `u2netp` (1.1 M parameters) are the DUTS-TR salient object models, `u2net-human-seg` the human segmentation model (Supervisely Person Dataset)."
+tier = "experimental"
+outputs = ["alpha"]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/xuebinqin/U-2-Net"
+commit = "ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29"  # net/u2net.py = model/u2net.py; the call is u2net_test.py (320 x 320, divide by the max, ImageNet, d0, normPRED)
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # Google Drive links in the README of the Apache-2.0 repository; no separate weights licence
+files = ["LICENSE"]
+training_data = ["duts"]
+training_note = "README / paper: trained on DUTS-TR (10553 images)."
+evidence = "https://github.com/xuebinqin/U-2-Net/blob/ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29/LICENSE ; https://github.com/xuebinqin/U-2-Net/blob/ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29/README.md"
+
+[io]
+input = "imagenet"  # the runner resizes to `size` x `size` first (bilinear, antialiased; upstream: scikit-image resize) and divides by the maximum
+
+[params]
+size = 320  # network input side (upstream inference); the map is min-max normalised and resized back (bilinear)
+arch = "u2net"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "igev", "cutlass_conv"]  # conv + BatchNorm + ReLU blocks as one conv with an fp32 epilogue
+
+[[papers]]
+title = "U²-Net: Going Deeper with Nested U-Structure for Salient Object Detection"
+url = "https://arxiv.org/abs/2005.09007"
+date = "2020-05-18"
+venue = "Pattern Recognition 2020"
+
+[[variants]]
+id = "u2net"
+revision = 1
+weights = [{ name = "u2net.pth", size = 176290937, sha256 = "10025a17f49cd3208afc342b589890e402ee63123d6f2d289a4a0903695cce58", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1ao1ovG1Qtx4b7EoskHXmi2E9rp5CHLcZ" }]
+
+[[variants]]
+id = "u2netp"
+revision = 1
+params = { arch = "u2netp" }
+weights = [{ name = "u2netp.pth", size = 4683258, sha256 = "e7567cde013fb64813973ce6e1ecc25a80c05c3ca7adbc5a54f3c3d90991b854", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1rbSTGKAE-MTxBYHd-51l2hMOQPT_7EPy" }]
+
+[[variants]]
+id = "u2net-human-seg"
+revision = 1
+licence = { training_data = ["supervisely-person"], training_note = "README (2021-Feb-06): the human segmentation model, trained on the Supervisely Person Dataset." }
+weights = [{ name = "u2net_human_seg.pth", size = 176315793, sha256 = "13f0396e3f6fbc1d7ab55a8558640bef306a59b9110a5c595eb949ff69cf2414", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1m_Kgs91b21gayc2XLW0ou8yugAIadWVP" }]

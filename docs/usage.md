@@ -33,6 +33,7 @@ directory.
 |---|---|
 | `FASTFORKS_CACHE` | cache directory (default: the platform user cache) |
 | `FASTFORKS_WEIGHTS_PATH` | extra directories searched for weight files before downloading (`os.pathsep`-separated) |
+| `FASTFORKS_READ_CACHES` | other fastforks cache directories whose files are used in place, never written (`os.pathsep`-separated; e.g. the user cache when an app moves `FASTFORKS_CACHE`) |
 | `FASTFORKS_KERNEL_PATH` | extra directories searched for kernel binaries (offline machines, own builds) |
 | `FASTFORKS_OFFLINE` | `1` = never touch the network (also `HF_HUB_OFFLINE=1`); missing files raise `WeightsDownloadError` |
 | `FASTFORKS_NONCOMMERCIAL` | `1` = also download weights with non-commercial licences (off in every install, also `fastforks`) |
@@ -90,7 +91,9 @@ features.load("dinov2-vitb14")("cat.jpg").pooler_output  # image embedding; .las
 ```python
 # needs: pip install "fastforks-core[torchvision]" "fastforks-core[nc]"
 # MVSAnywhere's code and weights are non-commercial: its weights download only with FASTFORKS_NONCOMMERCIAL=1
-from fastforks import detection, flow, multiview, pose, promptable_segmentation
+import torch
+
+from fastforks import calibration, detection, flow, matting, multiview, pose, promptable_segmentation, retrieval
 
 det = detection.load("faster-rcnn-r50-fpn-3x-coco")
 det("street.jpg", score_threshold=0.5).to_list()  # dicts: box, class_name, score
@@ -109,6 +112,13 @@ people = pose.load("rtmpose-m")(  # top-down: one box (x0, y0, x1, y1 in pixels)
 )  # e.g. the person boxes of a detector
 people.keypoints, people.keypoint_scores  # [P, 17, 2] pixels of the input, [P, 17]; names: people.keypoint_names
 flow.load("raft-large")("frame1.png", "frame2.png").flow  # [2, H, W]: dx, dy in pixels, frame 1 -> frame 2
+matting.load("birefnet-lite")("photo.jpg").alpha  # [H, W] in [0, 1]: 1 = foreground (background removal)
+vpr = retrieval.load("megaloc")
+d = [vpr(p).descriptor for p in paths]  # each [8448], unit norm; any image sizes
+retrieval.pairs(torch.stack(d), k=20)  # [P, 2] image pairs to match (each image with its 20 nearest), e.g. for SfM
+
+cam = calibration.load("geocalib-pinhole")(image)  # one photo: no checkerboard, no EXIF
+cam.intrinsics, cam.roll, cam.pitch, cam.vfov  # [3, 3] (pixels of the input), radians
 ```
 
 How a call runs: the model card (`card.toml`) is resolved to a variant (the id and revision); the variant and `mode` select a
@@ -117,9 +127,11 @@ tensors; calling it returns the typed result, whose `.backend` records what ran.
 
 Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
 `fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation`,
-`fastforks.multiview` and `fastforks.matching`.
+`fastforks.multiview`, `fastforks.matching`, `fastforks.matting`, `fastforks.tracking`, `fastforks.interpolation`,
+`fastforks.retrieval`, `fastforks.calibration` and `fastforks.restoration`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
-PatchmatchNet return the reference view only. See the [API pages](api/index.md) for every result's fields.
+PatchmatchNet return the reference view only. AnySplat also returns 3D Gaussians: `result.gaussians.save("scene.ply")`
+writes a standard 3DGS PLY. See the [API pages](api/index.md) for every result's fields.
 
 Every result has `.to(device)` and `.cpu()` (same type, so `save`, `top`, ... keep working; tensors already there are not copied), and `.numpy()` for a dict of arrays.
 
@@ -658,6 +670,19 @@ model = depth.load("depth-anything-v2-s")
 for p in sorted(pathlib.Path("images").glob("*.jpg")):
     model(p).save(f"out/{p.stem}.tif")
 ```
+
+With a small model the JPEG decode (about 10 ms for 2 MP on one core) costs more than the network. `read_images`
+decodes the next files in background threads while the model runs; same pixels, same results:
+
+```python
+import fastforks
+
+paths = sorted(pathlib.Path("images").glob("*.jpg"))
+for p, image in zip(paths, fastforks.read_images(paths)):
+    model(image).save(f"out/{p.stem}.tif")
+```
+
+A pair or view list given as files in one call (matching, stereo, flow, multiview) is decoded in parallel.
 
 ```python
 import time

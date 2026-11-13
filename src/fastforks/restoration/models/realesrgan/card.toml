@@ -1,0 +1,55 @@
+schema = 2
+name = "Real-ESRGAN"
+summary = "Real-ESRGAN (Wang et al., ICCVW 2021): practical blind super-resolution. ESRGAN's RRDBNet (23 residual-in-residual dense blocks of 3 x 3 convs, then two nearest x2 upsamplings with convs) trained with a GAN on synthetic real-world degradations (blur, noise, JPEG, two-stage). `realesrgan-x4plus` is the general x4 model, `realesrgan-x2plus` the x2 one (the input pixel-unshuffled first), `realesrgan-x4plus-anime-6b` a 6-block x4 model for anime images."
+tier = "experimental"
+outputs = ["image"]
+
+[upstream]
+repo = "https://github.com/xinntao/Real-ESRGAN"
+commit = "a4abfb2979a7bbff3f69f58f58ae324608821e27"  # the call is realesrgan/utils.py RealESRGANer.enhance (no tile, pre_pad 0); net/ = BasicSR 8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a basicsr/archs/rrdbnet_arch.py
+
+[licence]
+code = "BSD-3-Clause"  # LICENSE; the vendored BasicSR network: Apache-2.0 (LICENSE-BasicSR)
+weights = "BSD-3-Clause"  # release assets of the BSD-3-Clause repository; no separate weights licence
+files = ["LICENSE", "LICENSE-BasicSR"]
+training_data = ["div2k", "flickr2k", "ost"]
+training_note = "docs/Training.md: DF2K (DIV2K + Flickr2K) + OST, HR images only; the anime model: anime images (not named)."
+evidence = "https://github.com/xinntao/Real-ESRGAN/blob/a4abfb2979a7bbff3f69f58f58ae324608821e27/LICENSE ; https://github.com/xinntao/Real-ESRGAN/releases ; https://github.com/XPixelGroup/BasicSR/blob/8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a/LICENSE.txt"
+
+[io]
+input = "0-1"  # RealESRGANer divides by 255
+min_size = 4
+
+[params]
+scale = 4
+num_block = 23
+
+[modes.portable]
+cuda_dtype = "float16"  # inference_realesrgan.py default (`--fp32` for float32)
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions, channels-last
+
+[[papers]]
+title = "Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data"
+url = "https://arxiv.org/abs/2107.10833"
+date = "2021-07-22"
+venue = "ICCVW 2021"
+
+[[variants]]
+id = "realesrgan-x4plus"
+revision = 1
+weights = [{ name = "RealESRGAN_x4plus.pth", size = 67040989, sha256 = "4fa0d38905f75ac06eb49a7951b426670021be3018265fd191d2125df9d682f1", url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth" }]
+
+[[variants]]
+id = "realesrgan-x2plus"
+revision = 1
+params = { scale = 2 }
+weights = [{ name = "RealESRGAN_x2plus.pth", size = 67061725, sha256 = "49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb", url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth" }]
+
+[[variants]]
+id = "realesrgan-x4plus-anime-6b"
+revision = 1
+params = { num_block = 6 }
+weights = [{ name = "RealESRGAN_x4plus_anime_6B.pth", size = 17938799, sha256 = "f872d837d3c90ed2e05227bed711af5671a6fd1c9f7d7e91c911a61f155e99da", url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth" }]

@@ -1,0 +1,84 @@
+schema = 2
+name = "YOLOX (tiny / S / M / L / X)"
+summary = "YOLOX (Ge et al. 2021, Megvii): anchor-free one-stage detector, all convolutions: a CSPDarknet backbone, a PAFPN neck and a decoupled head that predicts, per cell of the stride 8 / 16 / 32 maps, a box (centre and size), an objectness and a score per class; a cell's score is objectness x its best class; class-wise NMS. COCO checkpoints (80 classes) from the authors. The image is fitted into 640 x 640 (tiny: 416 x 416); vendored from the reference (no yolox dependency). The portable `module()` is the whole network (decoded boxes, scores and labels per cell, before NMS)."
+tier = "experimental"
+outputs = ["boxes", "scores", "labels"]
+uses = ["cspnext", "cuda_graphs"]  # fastforks.shared modules this family imports
+limitations = [
+  "The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what the reference calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.",
+  "Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.",
+  "One label per box (the cell's best class), as upstream: a cell does not report a second class.",
+]
+
+[upstream]
+repo = "https://github.com/Megvii-BaseDetection/YOLOX"
+commit = "6ddff4824372906469a7fae2dc3206c7aa4bbaee"  # yolox/models/{darknet,network_blocks,yolo_pafpn,yolo_head}.py, utils/boxes.py `postprocess`, data/data_augment.py `preproc`
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # released with the repository (GitHub release 0.1.1rc0 of Megvii-BaseDetection/YOLOX), no separate terms
+files = ["LICENSE"]
+training_data = ["coco"]
+training_note = "COCO 2017 train, 300 epochs from scratch (no ImageNet pretraining; Ge et al. 2021, section 2.1)"
+evidence = "https://github.com/Megvii-BaseDetection/YOLOX/blob/6ddff4824372906469a7fae2dc3206c7aa4bbaee/LICENSE (Apache-2.0); https://github.com/Megvii-BaseDetection/YOLOX/releases/tag/0.1.1rc0 (the weights)"
+
+[io]
+input = "0-255"  # the runner fits the image into size x size (OpenCV-style bilinear) and pads with 114; no normalisation
+
+[params]
+size = 640
+num_classes = 80
+depth = 1.0
+width = 1.0
+nms_iou = 0.65  # reference exp `nmsthre`
+
+[options]
+score_threshold = { default = 0.05, min = 0.0, max = 1.0 }  # as the other detection families; the reference's COCO test_conf is 0.01
+max_detections = { default = 100, min = 1 }  # COCO evaluation keeps the best 100 per image; the reference keeps every box after NMS
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay network and box decoding from a CUDA graph (false: eager, no graph pool)
+
+[modes.portable]
+cuda_dtype = "float16"  # the network; scores, boxes and NMS stay float32
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the whole network through fastforks._optimize (fused conv + SiLU, residual, concat); one CUDA graph
+
+[output]
+label_set = "coco-80"
+
+[[papers]]
+title = "YOLOX: Exceeding YOLO Series in 2021"
+url = "https://arxiv.org/abs/2107.08430"
+date = "2021-07-18"
+venue = "arXiv"
+
+[[variants]]
+id = "yolox-tiny"  # YOLOX-Tiny at 416 x 416; COCO val AP 32.8 (README)
+revision = 1
+params = { size = 416, depth = 0.33, width = 0.375 }
+weights = [{ name = "yolox_tiny.pth", size = 40755013, sha256 = "9de513de589ac98bb92d3bca53b5af7b9acfa9b0bacb831f7999d0f7afaee8f0", url = "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.pth" }]
+
+[[variants]]
+id = "yolox-s"  # YOLOX-S; AP 40.5
+revision = 1
+params = { depth = 0.33, width = 0.5 }
+weights = [{ name = "yolox_s.pth", size = 72089125, sha256 = "f55ded7181e1b0c13285c56e7790b8f0e8f8db590fe4edb37f0b7f345c913a30", url = "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth" }]
+
+[[variants]]
+id = "yolox-m"  # YOLOX-M; AP 46.9
+revision = 1
+params = { depth = 0.67, width = 0.75 }
+weights = [{ name = "yolox_m.pth", size = 203114461, sha256 = "60076992b32da82951c90cfa7bd6ab70eba9eda243e08b940a396f60ac2d19b6", url = "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_m.pth" }]
+
+[[variants]]
+id = "yolox-l"  # YOLOX-L; AP 49.7
+revision = 1
+params = {}
+weights = [{ name = "yolox_l.pth", size = 434357141, sha256 = "1e6b7fa6240375370b2a8a8eab9066b3cdd43fd1d0bfa8d2027fd3a51def2917", url = "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_l.pth" }]
+
+[[variants]]
+id = "yolox-x"  # YOLOX-X; AP 51.1
+revision = 1
+params = { depth = 1.33, width = 1.25 }
+weights = [{ name = "yolox_x.pth", size = 793463373, sha256 = "5652330b6ae860043f091b8f550a60c10e1129f416edfdb65c259be6caf355cf", url = "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_x.pth" }]

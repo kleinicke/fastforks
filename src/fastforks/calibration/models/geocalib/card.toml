@@ -1,0 +1,47 @@
+schema = 2
+name = "GeoCalib"
+summary = "GeoCalib (Veicht et al., ECCV 2024): single-image camera calibration. An MSCAN-L network predicts per-pixel perspective fields (up vectors and latitude) with confidences; a differentiable Levenberg-Marquardt optimiser fits the focal length and gravity direction (roll, pitch) to them. Gives intrinsics, gravity, roll, pitch and vertical field of view."
+tier = "experimental"
+outputs = ["intrinsics", "gravity", "roll", "pitch", "vfov"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/cvg/GeoCalib"
+commit = "1dedb29f94fc11b896c5f572005978aeebccd67f"  # net/ = geocalib/{geocalib,modules,lm_optimizer,camera,gravity,misc,perspective_fields}.py, utils.py trimmed to the geometry helpers
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "CC-BY-4.0"  # README: "the model weights are released under the CC-BY-4.0 license" (attribution)
+files = ["LICENSE", "LICENSE-WEIGHTS"]
+training_data = ["openpano"]
+training_note = "Trained on OpenPano (README, paper Sec. 4): perspective crops of ~2.8k public 360-degree panoramas (PolyHaven, HDRMaps, AmbientCG, BlenderKit). Only the weights licence (CC-BY-4.0) counts for the commercial flag."
+evidence = "https://github.com/cvg/GeoCalib/blob/1dedb29f94fc11b896c5f572005978aeebccd67f/LICENSE ; https://github.com/cvg/GeoCalib/blob/1dedb29f94fc11b896c5f572005978aeebccd67f/README.md"
+
+[io]
+input = "0-1"  # RGB in [0, 1]; the encoder converts to BGR x 255 itself
+
+[params]
+resize = 320  # shorter side of the network input (GeoCalib.calibrate's ImagePreprocessor)
+edge = 32  # the resized image is centre-cropped to multiples of this
+camera_model = "pinhole"
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network from a CUDA graph (false: eager, no graph pool)
+
+[modes.portable]
+cuda_dtype = "float16"  # the network; the NMF and the LM fit run in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]
+
+[[papers]]
+title = "GeoCalib: Learning Single-image Calibration with Geometric Optimization"
+url = "https://arxiv.org/abs/2409.06704"
+date = "2024-09-10"
+venue = "ECCV 2024"
+
+[[variants]]
+id = "geocalib-pinhole"
+revision = 1
+weights = [{ name = "geocalib-pinhole.tar", size = 116074121, sha256 = "86d6aeacd8bbd974c59ce39f61854e00d36911c732ad89be471476fd708722ac", url = "https://github.com/cvg/GeoCalib/releases/download/v1.0/geocalib-pinhole.tar" }]

@@ -1,0 +1,49 @@
+schema = 2
+name = "BiRefNet"
+summary = "BiRefNet (Zheng et al., CAAI AIR 2024): bilateral reference network for high-resolution dichotomous image segmentation and background removal. A Swin Transformer v1 encoder at full and half resolution feeds a decoder with deformable ASPP blocks, image patches as reference and gradient attention; one foreground mask per image."
+tier = "experimental"
+outputs = ["alpha"]
+uses = ["swin_v1", "deform_conv"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/ZhengPeng7/BiRefNet"
+commit = "f7079632d681ecf12161fcea8905682934e59e51"  # net/ = models/birefnet.py, models/modules/{aspp,decoder_blocks,deform_conv,lateral_blocks}.py, the model settings of config.py; Swin: shared/swin_v1; the weights' own code (HF birefnet.py) is the golden reference
+
+[licence]
+code = "MIT"  # LICENSE
+weights = "MIT"  # the HF model cards: "license: mit"
+files = ["LICENSE"]
+training_data = ["dis5k", "duts", "hrsod", "uhrsd", "hrs10k", "p3m-10k"]
+training_note = "General-use checkpoints: DIS5K-TR, DIS-TEs, DUTS-TR/TE, HRSOD-TR/TE, UHRSD-TR/TE, HRS10K-TR/TE, TR-P3M-10k, TE-P3M-500-NP, TE-P3M-500-P, TR-humans (HF model card). Some of these sets carry research-only terms; only the weights licence (MIT) counts for the commercial flag."
+evidence = "https://huggingface.co/ZhengPeng7/BiRefNet/blob/e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4/README.md ; https://huggingface.co/ZhengPeng7/BiRefNet_lite/blob/aa62cd87eafb9cc43056d08ef3615a14628b831d/README.md ; https://github.com/ZhengPeng7/BiRefNet/blob/f7079632d681ecf12161fcea8905682934e59e51/LICENSE"
+
+[io]
+input = "imagenet"  # the runner resizes to `size` x `size` first (bilinear, antialiased: torchvision Resize as in the HF README)
+
+[params]
+size = 1024  # network input side (HF README inference); the mask is resized back to the image (bicubic)
+
+[modes.portable]
+cuda_dtype = "float16"  # the authors' README runs `birefnet.half()`
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["deform_conv"]
+
+[[papers]]
+title = "Bilateral Reference for High-Resolution Dichotomous Image Segmentation"
+url = "https://arxiv.org/abs/2401.03407"
+date = "2024-01-07"
+venue = "CAAI AIR 2024"
+
+[[variants]]
+id = "birefnet"  # general use, Swin-L (ZhengPeng7/BiRefNet)
+revision = 1
+params = { backbone = "swin_v1_l" }
+weights = [{ name = "birefnet.safetensors", size = 444473596, sha256 = "9ab37426bf4de0567af6b5d21b16151357149139362e6e8992021b8ce356a154", url = "https://huggingface.co/ZhengPeng7/BiRefNet/resolve/e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4/model.safetensors" }]
+
+[[variants]]
+id = "birefnet-lite"  # general use, Swin-T (ZhengPeng7/BiRefNet_lite)
+revision = 1
+params = { backbone = "swin_v1_t" }
+weights = [{ name = "birefnet_lite.safetensors", size = 177634392, sha256 = "4417d89795250e698c3cb0ae8df15743810065f646f48a694fdfa7ca052d0815", url = "https://huggingface.co/ZhengPeng7/BiRefNet_lite/resolve/aa62cd87eafb9cc43056d08ef3615a14628b831d/model.safetensors" }]

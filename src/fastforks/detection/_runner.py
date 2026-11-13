@@ -39,6 +39,7 @@ class Runner(core.Runner):
     """One backend of an object detection family."""
 
     batch = 1
+    open_vocabulary = False  # True: `__call__` also takes `text` (class names; labels index into them)
 
     @abc.abstractmethod
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
@@ -47,6 +48,9 @@ class Runner(core.Runner):
         Args:
             image: `[1, 3, H, W]` RGB float32 in `[0, 1]` on `ctx.device`.
             score_threshold: Minimum class score (the call's, else the load option `score_threshold`).
+
+        Open-vocabulary runners (`open_vocabulary = True`) also take `text`: a tuple of class names, given at call
+        time; without it they detect the card's label set.
 
         Returns:
             The card's outputs for `N` instances sorted by descending score: `boxes` `[N, 4]` (`x0, y0, x1, y1` in

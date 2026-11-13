@@ -1,0 +1,101 @@
+schema = 2
+name = "LW-DETR (ViT, tiny / small / medium / large / xlarge)"
+summary = "LW-DETR (Chen et al. 2024, Baidu): real-time end-to-end detection with a plain ViT encoder (interleaved window and global attention), a C2f projector and a 3-layer deformable DETR decoder over the encoder's best proposals (no NMS); boxes, scores and COCO classes at the input size. Images are resized to 640x640 (aspect ratio ignored). The portable `module()` is the whole network at its input size (class logits and normalised boxes)."
+tier = "experimental"
+outputs = ["boxes", "scores", "labels"]
+uses = ["seginfer", "cuda_graphs"]  # fastforks.shared modules this family imports
+limitations = [
+  "Requires the optional transformers library (the network is its `LwDetrForObjectDetection`).",
+  "The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port (AnnaZhang/lwdetr_*_60e_coco weights) of the official LW-DETR (Apache-2.0); the official repository code itself was not run.",
+]
+
+[upstream]
+repo = "https://github.com/huggingface/transformers"
+commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
+
+[[upstream.official]]
+repo = "https://github.com/Atten4Vis/LW-DETR"
+framework = "PyTorch"
+reason = "fastforks follows the Hugging Face transformers port, which loads the AnnaZhang/lwdetr_*_60e_coco weights, instead of the authors' repository."
+
+[licence]
+code = "Apache-2.0"  # transformers; the original Atten4Vis/LW-DETR is Apache-2.0 too
+weights = "Apache-2.0"  # the AnnaZhang/lwdetr_*_60e_coco model cards: license apache-2.0
+files = []  # no vendored code: the architecture is transformers' own module
+training_data = ["coco", "objects365"]
+training_note = "COCO 2017 train after detection pretraining on Objects365; the ViT encoders start from CAEv2 self-supervised pretraining (paper arXiv:2406.03459 section 4)."
+evidence = "https://huggingface.co/AnnaZhang/lwdetr_tiny_60e_coco/blob/4b636b514dcf623f6eafc9e1ab63b8ad5c513925/README.md"
+
+[io]
+input = "0-1"  # the runner resizes to 640x640 and normalises itself (the transformers processor)
+
+[options]
+score_threshold = { default = 0.05, min = 0.0, max = 1.0 }  # as D-FINE / DETR (kept if at or above); the authors' COCO evaluation keeps all of `num_select`
+max_detections = { default = 100, min = 1 }  # COCO evaluation keeps the best 100 per image
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network from a CUDA graph (false: eager, no graph pool)
+
+[params]
+arch = "LwDetrForObjectDetection"
+size = 640
+num_select = 300  # the authors' PostProcess: the best (query, class) pairs before the threshold
+
+[modes.portable]
+cuda_dtype = "float16"  # the whole network; PostProcess float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate convs (patch embedding, projector), fp16-accumulate GEMMs, one CUDA graph per input shape
+
+[output]
+label_set = "coco-80"
+
+[[papers]]
+title = "LW-DETR: A Transformer Replacement to YOLO for Real-Time Detection"
+url = "https://arxiv.org/abs/2406.03459"
+date = "2024-06-05"
+venue = "arXiv"
+
+[[variants]]
+id = "lw-detr-tiny-coco"
+revision = 1
+params = { num_select = 100 }
+weights = [
+    { name = "lwdetr-tiny.config.json", size = 5591, sha256 = "71b79e99f9bf606fc4085ae9df856aa81d452ddce4266942256f98106b4e3552", url = "https://huggingface.co/AnnaZhang/lwdetr_tiny_60e_coco/resolve/4b636b514dcf623f6eafc9e1ab63b8ad5c513925/config.json" },
+    { name = "lwdetr-tiny.model.safetensors", size = 48266520, sha256 = "42dece9592febf9a340a660014710507cbfa50d04b5dd9b67c5514a9978813e6", url = "https://huggingface.co/AnnaZhang/lwdetr_tiny_60e_coco/resolve/4b636b514dcf623f6eafc9e1ab63b8ad5c513925/model.safetensors" },
+]
+
+[[variants]]
+id = "lw-detr-small-coco"
+revision = 1
+params = { num_select = 300 }
+weights = [
+    { name = "lwdetr-small.config.json", size = 5711, sha256 = "0fda7252545d44e6b4f0ab10a8388f1565e3411e6c70cd38a137dcb866a0bbf2", url = "https://huggingface.co/AnnaZhang/lwdetr_small_60e_coco/resolve/deebf67dc6e174fe3f4c83d7d5f9ea7eaa651197/config.json" },
+    { name = "lwdetr-small.model.safetensors", size = 58297008, sha256 = "152597c899b33e07f929e501d2f3d9c87825b17170031632e33dceed172673b0", url = "https://huggingface.co/AnnaZhang/lwdetr_small_60e_coco/resolve/deebf67dc6e174fe3f4c83d7d5f9ea7eaa651197/model.safetensors" },
+]
+
+[[variants]]
+id = "lw-detr-medium-coco"
+revision = 1
+params = { num_select = 300 }
+weights = [
+    { name = "lwdetr-medium.config.json", size = 5711, sha256 = "d04681b8a578091d2e6a0087e5aa5dd6ec3e08b39927c1bc4515df2c00b502f3", url = "https://huggingface.co/AnnaZhang/lwdetr_medium_60e_coco/resolve/f7e65ca24c5bdc13acdb230e3fb89cdb5bb363b8/config.json" },
+    { name = "lwdetr-medium.model.safetensors", size = 113017416, sha256 = "1707a8b1112d469f8edea743604f9ee4c6c8a3d13be1f54e5853e07cce61e16c", url = "https://huggingface.co/AnnaZhang/lwdetr_medium_60e_coco/resolve/f7e65ca24c5bdc13acdb230e3fb89cdb5bb363b8/model.safetensors" },
+]
+
+[[variants]]
+id = "lw-detr-large-coco"
+revision = 1
+params = { num_select = 300 }
+weights = [
+    { name = "lwdetr-large.config.json", size = 5730, sha256 = "4ce0d981459da716bc4b883a5d5d7dab437396c40f2d57722af20fa1edc09351", url = "https://huggingface.co/AnnaZhang/lwdetr_large_60e_coco/resolve/1a96e2659a637027892e987104556b8a7ec7aac9/config.json" },
+    { name = "lwdetr-large.model.safetensors", size = 187408048, sha256 = "c9d4a1066e29df42e9bbe81cdaf0cd877c0d500e90c50d5cfbbf606f23f4ac5c", url = "https://huggingface.co/AnnaZhang/lwdetr_large_60e_coco/resolve/1a96e2659a637027892e987104556b8a7ec7aac9/model.safetensors" },
+]
+
+[[variants]]
+id = "lw-detr-xlarge-coco"
+revision = 1
+params = { num_select = 300 }
+weights = [
+    { name = "lwdetr-xlarge.config.json", size = 5730, sha256 = "a2d2679802faab8c918eed6f6b333516fd2db45491c3fb9664d53510bc0206f3", url = "https://huggingface.co/AnnaZhang/lwdetr_xlarge_60e_coco/resolve/773f350103149fcc58ea5a0d944b469484e12470/config.json" },
+    { name = "lwdetr-xlarge.model.safetensors", size = 472275600, sha256 = "2918313e50816fe9a9593e7f90a945b645c96492cdd2214002b15217b43979db", url = "https://huggingface.co/AnnaZhang/lwdetr_xlarge_60e_coco/resolve/773f350103149fcc58ea5a0d944b469484e12470/model.safetensors" },
+]
