@@ -1,0 +1,4 @@
+summary = "DeDoDe (Edstedt et al., 3DV 2024): VGG-BN encoders, convolutional refiners, the detector and descriptor networks and the keypoint sampling / dual-softmax matching helpers, used by the dedode and loma matching families."
+licence = "MIT"
+files = ["LICENSE"]
+derived_from = "https://github.com/Parskatt/DeDoDe (6d156183f4dc84cd704ae779eebc8350995c5b06), DeDoDe/{encoder,decoder}.py, detectors/, descriptors/, model_zoo, utils.py; the VGG11 variant and DETECTOR_S: https://github.com/Parskatt/dad (41b9e86a1a3ae52128485cc1094aa4952ef489ba) dad/detectors/dedode_detector.py (MIT)"
