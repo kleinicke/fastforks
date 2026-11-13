@@ -263,6 +263,8 @@ def test_node_model_lists(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         return {nodes.model_id(e) for e in node.INPUT_TYPES()["required"]["model"][0]}
 
     assert {"hat-x4", "hat-s-x4", "real-hat-gan-x4", "dat-x4", "dat-2-x4", "dat-light-x4"} <= ids(nodes.Upscale)
+    assert "codeformer" not in ids(nodes.Upscale)
+    assert ids(nodes.FaceRestore) == {"codeformer"}
     tagger = {"wd-vit-tagger-v3", "wd-convnext-tagger-v3", "wd-vit-large-tagger-v3", "wd-eva02-large-tagger-v3"}
     assert ids(nodes.Tag) == tagger
     assert ids(nodes.NsfwCheck) == {"falconsai-nsfw-vit"}

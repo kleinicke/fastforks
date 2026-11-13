@@ -834,6 +834,9 @@ class PointTrack(_Node):
         return convert.to_image(drawn, _out_device()), convert.to_json({"tracks": tracks, "visible": visible})
 
 
+_FACE_IDS = {"codeformer"}  # aligned face crops only: the FaceRestore node, not Upscale
+
+
 class Upscale(_Node):
     """Super-resolution / restoration (Real-ESRGAN, SPAN, SwinIR, HAT, DAT, ...), tiled for large images."""
 
@@ -848,7 +851,7 @@ class Upscale(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        inputs = common(_ids("restoration"), "realesrgan-x4plus")
+        inputs = common(_ids("restoration", lambda m: m not in _FACE_IDS), "realesrgan-x4plus")
         entries, opts = inputs["model"]
         inputs["model"] = ([*entries, *upscale_files()], opts)
         tip = "Tile size in input pixels (overlap 32 px, as ComfyUI's upscaler): less memory. 0: one pass."
@@ -865,6 +868,29 @@ class Upscale(_Node):
         m = cast("restoration.RestorationModel", load(model, backend, dtype))
         maps = each(image.shape[0], lambda i: m(convert.frame(image, i, m.device), tile=tile or None).image)
         return (convert.to_image(maps, _out_device()),)
+
+
+class FaceRestore(_Node):
+    """Face restoration (CodeFormer) of aligned face crops."""
+
+    DESCRIPTION = (
+        "[non-commercial] CodeFormer face restoration (fidelity 0.5), research use only. Input: aligned 512 x 512 face"
+        " crops (FFHQ alignment) only; this pack does not detect, align or paste faces back."
+    )
+
+    RETURN_TYPES = ("IMAGE",)
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        return {"required": {"image": ("IMAGE",), **common(sorted(_FACE_IDS), "codeformer")}}
+
+    def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
+        """Restore every face crop."""
+        m = load(model, backend, dtype)
+        return (
+            convert.to_image(each(image.shape[0], lambda i: m(convert.frame(image, i, m.device)).image), _out_device()),
+        )
 
 
 NODE_CLASS_MAPPINGS = {
@@ -886,6 +912,7 @@ NODE_CLASS_MAPPINGS = {
     "FastforksVideoSegment": VideoSegment,
     "FastforksPointTrack": PointTrack,
     "FastforksUpscale": Upscale,
+    "FastforksFaceRestore": FaceRestore,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FastforksDepth": "Depth (fastforks)",
@@ -906,4 +933,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FastforksVideoSegment": "Video segment (SAM 2 / SAMURAI, fastforks)",
     "FastforksPointTrack": "Track points (fastforks)",
     "FastforksUpscale": "Upscale / restore (fastforks)",
+    "FastforksFaceRestore": "Restore aligned faces (CodeFormer, fastforks, non-commercial)",
 }

@@ -36,6 +36,7 @@ Once fastforks is on PyPI, ComfyUI-Manager and the Comfy registry install the pa
 | Video segment (SAM 2 / SAMURAI) | IMAGE batch, points / box on frame 0, samurai | MASK batch |
 | Track points | IMAGE batch, grid size or points on frame 0 | IMAGE (tracks drawn on the frames), STRING (JSON tracks) |
 | Upscale / restore | IMAGE, tile (input px, 32 px overlap; 0 = one pass; keep it on for HAT / DAT) | IMAGE |
+| Restore aligned faces (CodeFormer, non-commercial) | IMAGE: aligned 512 x 512 face crops only (no detection / alignment / paste-back in this pack) | IMAGE |
 
 Every node has `model`, `backend` (`auto`: our CUDA kernels where they are faster, else portable PyTorch;
 `portable`; `kernels`) and `dtype` (`auto`: the validated one). Ids marked `[non-commercial]` or `[licence unclear]`
