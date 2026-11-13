@@ -388,3 +388,9 @@ name = "Danbooru (anime illustrations with community tags; WD taggers: image ids
 licence = "not stated"  # images are uploaded artworks under their artists' copyright; the site states no dataset terms
 commercial = "unclear"
 url = "https://danbooru.donmai.us/"
+
+[falconsai-nsfw]
+name = "Falconsai proprietary NSFW data (about 80 000 images, normal / nsfw)"
+licence = "not stated"  # Falconsai/nsfw_image_detection card: "a proprietary dataset"
+commercial = "unclear"
+url = "https://huggingface.co/Falconsai/nsfw_image_detection/blob/96cb0d0342c7afb80cab76ecc58b265fa44da256/README.md"

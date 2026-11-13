@@ -36,6 +36,8 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- Falconsai NSFW (`falconsai-nsfw-vit`, classification): portable MPS goldens and Mac speed rows (224x224). Weights:
+  the pinned Hugging Face URL of the card (also in `/home/florian/projects/data/ff-weights/nsfw_vit/`).
 - WD v3 taggers (`wd-vit-tagger-v3`, `wd-convnext-tagger-v3`, `wd-vit-large-tagger-v3`, `wd-eva02-large-tagger-v3`,
   classification): portable MPS goldens and Mac speed rows (448x448). Weights: the pinned Hugging Face URLs of the
   card (also in `/home/florian/projects/data/ff-weights/wd_tagger/`).
