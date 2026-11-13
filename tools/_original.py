@@ -1700,6 +1700,37 @@ def _depthsplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 -
     return call
 
 
+def _mvsplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream MVSplat's `EncoderCostVolume` as `tools/golden/mvsplat.py` (the runner's resizing, long side 256).
+
+    `FF_MVSPLAT_REPO`: a checkout with the pinned commit; `FF_MVSPLAT_SITE`: `einops`, `jaxtyping`, `e3nn`,
+    `omegaconf` (upstream imports them). Upstream has no mixed precision of its own: fp16 = `torch.autocast(float16)`.
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    site = os.environ.get("FF_MVSPLAT_SITE")
+    if site and site not in sys.path:
+        sys.path.append(site)
+    g = _golden("mvsplat")
+    card, variant = registry.resolve("multiview", full)
+    (weights,) = registry.weights(card, variant)
+    enc = g.network(Path(os.environ["FF_MVSPLAT_REPO"]), Path(weights), 2).cuda()
+    a.note = f"donydchen/mvsplat@{g.REF_COMMIT[:12]} EncoderCostVolume, long side {g.LONG_SIDE}"
+
+    def call(images: Any, k: Any, c2w: Any, depth_range: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 or 0-1
+        x = images.float() / 255 if images.dtype == torch.uint8 else images.float()
+        near, far = (float(d) for d in depth_range)
+        with torch.autocast("cuda", torch.float16, enabled=fp16):
+            _, dump, _, sc = g.infer(enc, x, (k.float(), c2w.float(), near, far), g.LONG_SIDE)
+        depth = dump["depth"][0, ..., 0, 0][:, None].float() / sc
+        return F.interpolate(depth, x.shape[2:], mode="bilinear", align_corners=False)[:, 0]
+
+    return call
+
+
 class _LocalTrimap(_LocalFp16):
     """A trimap-guided matting original: called with the image and the bench's synthetic trimap."""
 
@@ -1792,6 +1823,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),
     "pi3": _LocalFp16("multiview", _pi3, ((336, 518),)),
     "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),
+    "mvsplat": _LocalCameras("multiview", _mvsplat, ((336, 518),)),
     "tapir": _Tracking("tracking", _tapir, ((480, 854),)),
     "alltracker": _Tracking("tracking", _alltracker, ((480, 854),)),
     "track_on": _Tracking("tracking", _track_on, ((480, 854),)),

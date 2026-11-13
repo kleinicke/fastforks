@@ -209,6 +209,7 @@ runtime-evaluated-base-classes = []
 "src/fastforks/multiview/models/{vggt,anysplat}/net/layers/{attention,block}.py" = ["F821"]
 "src/fastforks/multiview/models/pi3/net/layers/{attention,block}.py" = ["F821"]  # same, Pi3 (and its DINOv2)
 "src/fastforks/multiview/models/pi3/net/dinov2/layers/{attention,block}.py" = ["F821"]
+"src/fastforks/multiview/models/mvsplat/net/costvolume/ldm_unet/unet.py" = ["PLW0127"]  # upstream self-assignment
 # EfficientViT-SAM: upstream's `EfficientViTBlock` names a `GLUMBConv` it never defines (branch unused by the SAM
 # encoders); `build_kwargs_from_config` loops over dict keys.
 "src/fastforks/promptable_segmentation/models/efficientvit_sam/net/{ops,utils}.py" = ["F821", "PLC0206"]
@@ -312,12 +313,13 @@ markers = [
   "slow: takes > 1 s; skipped without --slow (release suite, the tests of changed code)",
 ]
 
-# VGGT pose_enc: `H, W = image_size_hw` on an argument typed Optional upstream. TinyViT: a ModuleList attribute.
+# VGGT pose_enc: `H, W = image_size_hw` on an argument typed Optional upstream. TinyViT, MVSplat: Module containers.
 [[tool.ty.overrides]]
 include = [
   "src/fastforks/multiview/models/vggt/net/utils/pose_enc.py",
   "src/fastforks/multiview/models/anysplat/net/utils/pose_enc.py",
   "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py",  # `for block in layer.blocks`
+  "src/fastforks/multiview/models/mvsplat/net/costvolume/ldm_unet/unet.py",  # `for submodule in module` (Sequential)
 ]
 
 [tool.ty.overrides.rules]
