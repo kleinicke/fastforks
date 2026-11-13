@@ -45,20 +45,27 @@ def _taps(n_in: int, n_out: int, *, rows: bool) -> tuple[torch.Tensor, torch.Ten
     )
 
 
-def cv2_linear(x: torch.Tensor, h: int, w: int) -> torch.Tensor:
-    """`cv2.resize` (INTER_LINEAR) of `[B, C, H, W]` uint8 levels (float, values 0..255) to `h x w`; float32 levels."""
+def cv2_linear(x: torch.Tensor, h: int, w: int, scale: float = 1.0) -> torch.Tensor:
+    """`cv2.resize` (INTER_LINEAR) of `[B, C, H, W]` 8-bit levels to `h x w`; float32 levels.
+
+    `x` is uint8, or float whose values times `scale` round to the levels (0..255: float levels with `scale` 1, an
+    image in [0, 1] with `scale` 255). Only the source pixels the taps read are converted (no full-size copy).
+    """
     hin, win = x.shape[-2:]
+
+    def levels(t: torch.Tensor) -> torch.Tensor:
+        return (t.mul(scale).round_() if t.is_floating_point() else t).to(torch.int32)
+
     if (hin, win) == (h, w):
-        return x.float()
-    v = x.to(torch.int32)
+        return levels(x).float()
     if hin == _AREA_FAST * h and win == _AREA_FAST * w:
-        v = v[..., 0::2, 0::2] + v[..., 0::2, 1::2] + v[..., 1::2, 0::2] + v[..., 1::2, 1::2]
+        v = sum(levels(x[..., i::2, j::2]) for i in (0, 1) for j in (0, 1))
         return ((v + 2) >> 2).float()
     taps = _taps.__wrapped__ if torch.compiler.is_compiling() else _taps  # dynamo cannot trace through lru_cache
     x0, x1, a0, a1 = (t.to(x.device) for t in taps(win, w, rows=False))
     y0, y1, b0, b1 = (t.to(x.device) for t in taps(hin, h, rows=True))
-    r0, r1 = v[..., y0, :], v[..., y1, :]
-    r0 = r0[..., x0] * a0 + r0[..., x1] * a1
-    r1 = r1[..., x0] * a0 + r1[..., x1] * a1
+    y0, y1 = y0[:, None], y1[:, None]
+    r0 = levels(x[..., y0, x0]) * a0 + levels(x[..., y0, x1]) * a1  # [B, C, h, w]: rows y0, horizontal pass
+    r1 = levels(x[..., y1, x0]) * a0 + levels(x[..., y1, x1]) * a1
     b0, b1 = b0[:, None], b1[:, None]
     return ((((b0 * (r0 >> 4)) >> 16) + ((b1 * (r1 >> 4)) >> 16) + 2) >> 2).float()

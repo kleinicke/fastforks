@@ -96,11 +96,11 @@ def fit(h: int, w: int, size: int) -> tuple[int, int]:
 
 
 def canvas(image: torch.Tensor, size: int) -> tuple[torch.Tensor, tuple[float, float]]:
-    """`[1, 3, H, W]` RGB in [0, 1] -> the padded `[1, 3, size, size]` canvas (0..255) and the (x, y) factors."""
+    """`[1, 3, H, W]` RGB in [0, 1] or uint8 -> the padded `[1, 3, size, size]` canvas (0..255), (x, y) factors."""
     h, w = image.shape[-2:]
     nh, nw = fit(h, w, size)
-    x = image.new_full((1, 3, size, size), PAD)
-    x[..., :nh, :nw] = cv2_linear(image.mul(255).round_(), nh, nw)
+    x = image.new_full((1, 3, size, size), PAD, dtype=torch.float32)
+    x[..., :nh, :nw] = cv2_linear(image, nh, nw, 1.0 if image.dtype == torch.uint8 else 255.0)
     return x, (nw / w, nh / h)
 
 
@@ -109,6 +109,7 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    uint8_input = True
 
     def __init__(self, ctx: Context) -> None:
         """Build the network with the checkpoint (BatchNorm folded) on the device."""

@@ -66,6 +66,16 @@ def test_cv2_linear_equals_the_recorded_opencv_result(device: str) -> None:
     assert digest.hexdigest() == RESIZED_SHA256
 
 
+@pytest.mark.parametrize("device", DEVICES)
+def test_cv2_linear_takes_uint8_and_unit_floats_alike(device: str) -> None:
+    _cuda(device)
+    for size, out in RESIZES:
+        u8 = torch.from_numpy(_noise(size, out)).permute(2, 0, 1)[None].to(device)
+        want = cv2_linear(u8.float(), *out)
+        np.testing.assert_array_equal(cv2_linear(u8, *out).cpu(), want.cpu())
+        np.testing.assert_array_equal(cv2_linear(u8.float() / 255, *out, 255.0).cpu(), want.cpu())
+
+
 def test_cv2_linear_matches_opencv_4() -> None:
     cv2 = pytest.importorskip("cv2")
     if not cv2.__version__.startswith("4."):

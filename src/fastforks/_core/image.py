@@ -321,13 +321,15 @@ def _from_numpy(img: np.ndarray) -> torch.Tensor:
     return t[None] if t.ndim == 2 else t.movedim(-1, -3)  # noqa: PLR2004 - HW has no channel axis
 
 
-def to_rgb_batch(img: ImageLike, device: torch.device) -> torch.Tensor:
+def to_rgb_batch(img: ImageLike, device: torch.device, *, keep_uint8: bool = False) -> torch.Tensor:
     """Convert one image (or a batch) to float32 RGB `[B, 3, H, W]` in `[0, 1]` on `device`.
+
+    With `keep_uint8`, uint8 images stay uint8 (levels 0..255; no full-size float32 copy, see `Runner.uint8_input`).
 
     Raises:
         InputError: Unsupported type, shape, channel count, dtype or value range.
     """
-    t, _, bounds = _to_rgb(img, device)
+    t, _, bounds = _to_rgb(img, device, keep_uint8=keep_uint8)
     _check_ranges([bounds])
     return t
 
@@ -399,7 +401,9 @@ def _check_ranges(bounds: Sequence[tuple[torch.Tensor, torch.Tensor] | None]) ->
     raise InputError(msg)
 
 
-def _to_rgb(img: ImageLike, device: torch.device) -> tuple[torch.Tensor, int, tuple[torch.Tensor, torch.Tensor] | None]:
+def _to_rgb(
+    img: ImageLike, device: torch.device, *, keep_uint8: bool = False
+) -> tuple[torch.Tensor, int, tuple[torch.Tensor, torch.Tensor] | None]:
     """`to_rgb_batch` without the value-range check: the image, its input channels and its float `[min, max]`.
 
     The bounds are `None` for integer images and inside `checked_ranges`.
@@ -416,6 +420,8 @@ def _to_rgb(img: ImageLike, device: torch.device) -> tuple[torch.Tensor, int, tu
         t = t.to(device, torch.float32, non_blocking=True)
         if not _CHECKED.get():
             bounds = t.aminmax()
+    elif keep_uint8 and t.dtype == torch.uint8:
+        t = t.to(device, non_blocking=True)
     else:
         scale = _INT_MAX.get(t.dtype)
         if scale is None:
