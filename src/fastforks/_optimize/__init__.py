@@ -34,7 +34,7 @@ import torch
 from torch import fx, nn
 
 from fastforks._core.deferred_init import float32_default
-from fastforks._core.errors import BackendUnavailableError, OptionsError
+from fastforks._core.errors import BackendUnavailableError, KernelUnavailableError, OptionsError
 from fastforks._core.half import fp16_accumulate  # re-exported: `fastforks._optimize.fp16_accumulate`
 from fastforks._core.kernels import cuda_device
 from fastforks._core.model import Backend, dtype_name, resolve_device
@@ -329,7 +329,9 @@ def patch(
     try:  # the kernels checks run before the model is touched; a covered model without a kernels pass returns portable
         fast = optimize(model, mode="kernels", device=device, auto=True)
     except BackendUnavailableError as e:
-        log.info("%s: %s; using portable", name, e)
+        # as `load`: a kernel library failing on the GPU is a WARNING; by design (architecture, CPU, hooks) INFO
+        level = logging.WARNING if isinstance(e, KernelUnavailableError) else logging.INFO
+        log.log(level, "%s: %s; using portable", name, e)
         return _replaced(optimize(model, mode="portable", device=device), name)
     log.info("%s: using %s", name, fast.mode)
     return _replaced(fast, name)

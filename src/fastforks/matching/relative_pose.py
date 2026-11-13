@@ -234,15 +234,10 @@ def _solver(mode: str, device: torch.device) -> CubinModule | None:
             lib, why = "ransac", f"needs a CUDA device, got {device}"
             raise KernelUnavailableError(lib, why)
         return None
-    from fastforks.kernels import ransac  # noqa: PLC0415 - optional at import time
+    from fastforks._core.kernels import auto_kernels  # noqa: PLC0415 - optional at import time
+    from fastforks.kernels import ransac  # noqa: PLC0415
 
-    try:
-        return ransac.load(device)
-    except KernelUnavailableError:
-        if mode == "kernels":
-            raise
-        log.info("ransac kernels unavailable on %s, portable path", device)
-        return None
+    return ransac.load(device) if mode == "kernels" else auto_kernels(ransac.load, device, log)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
