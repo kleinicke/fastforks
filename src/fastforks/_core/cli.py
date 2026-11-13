@@ -868,6 +868,38 @@ def _add_stereo(sub: argparse._SubParsersAction) -> None:
     p.set_defaults(run=_stereo_run)
 
 
+def _sfm(args: argparse.Namespace) -> None:
+    from fastforks.matching import sfm  # noqa: PLC0415 - heavy, only for this command
+
+    stats = sfm.colmap_database(
+        args.images,
+        args.database,
+        matcher=args.matcher,
+        retrieval=None if args.retrieval == "none" else args.retrieval,
+        k=args.k,
+        threshold=args.threshold,
+        single_camera=args.single_camera,
+        mode=args.mode,
+        device=args.device,
+    )
+    times = ", ".join(f"{name} {s:.1f} s" for name, s in stats.seconds.items())
+    print(f"{stats.images} images, {stats.pairs} pairs, {stats.verified} verified ({times}) -> {args.database}")
+
+
+def _add_sfm(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser("sfm", help="an image folder -> a COLMAP database (pairs, matches, verified geometries)")
+    p.add_argument("images", help="image folder (pass the same folder as the mapper's --image_path)")
+    p.add_argument("database", help="COLMAP database file to write (must not exist)")
+    p.add_argument("--matcher", default="aliked-lightglue", help="sparse matching model id (default aliked-lightglue)")
+    p.add_argument("--retrieval", default="megaloc", help="retrieval model id that picks the pairs, or none: all pairs")
+    p.add_argument("--k", type=int, default=20, help="pairs per image (default 20)")
+    p.add_argument("--threshold", type=float, default=1.0, help="RANSAC inlier threshold in pixels (default 1)")
+    p.add_argument("--single-camera", action="store_true", help="one camera for all images of the same size")
+    p.add_argument("--mode", choices=("auto", "portable", "kernels"), default="auto", help="backend (default auto)")
+    p.add_argument("--device", help="e.g. cpu, cuda, cuda:1 (default: as `load`)")
+    p.set_defaults(run=_sfm)
+
+
 _SHOWN = 6  # model ids `doctor` names before "... (N more)"
 
 
@@ -1027,6 +1059,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ).set_defaults(run=_doctor)
     sub.add_parser("env", help="versions, GPU and kernel binaries (for bug reports)").set_defaults(run=_env)
     _add_stereo(sub)
+    _add_sfm(sub)
     return _run(ap.parse_args(argv))
 
 

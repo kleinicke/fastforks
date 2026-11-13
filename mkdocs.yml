@@ -19,6 +19,7 @@ nav:
   - Docker and offline: docker.md
   - Export: export.md
   - Stereo geometry: stereo_geometry.md
+  - Structure from motion: sfm.md
   - Which model: overview.md
   - Benchmarks:
       - Methods and RTX 5060 Ti (reference): benchmarks.md
