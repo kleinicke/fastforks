@@ -285,12 +285,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Matting
 
-5 models; size 1080x1920.
+12 models; size 1080x1920.
 
-- Fastest: [`birefnet-lite`](models/matting.md#birefnet) (59.3 ms).
+- Fastest: [`u2net`](models/matting.md#u²-net) (8.8 ms).
 - Most accurate: [`birefnet`](models/matting.md#birefnet) (214.3 ms, error 0.0325).
 - Best trade-off: [`ben2`](models/matting.md#ben2) (172.6 ms, error 0.0403).
-- Fastest commercially usable: [`birefnet-lite`](models/matting.md#birefnet) (59.3 ms).
+- Fastest commercially usable: [`u2net`](models/matting.md#u²-net) (8.8 ms).
 - Most accurate commercially usable: [`birefnet`](models/matting.md#birefnet) (214.3 ms, error 0.0325).
 
 | model | commercial use | DIS-VD MAE | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |

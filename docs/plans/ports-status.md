@@ -36,6 +36,8 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- U²-Net (`u2net`, `u2netp`, `u2net-human-seg`, matting): portable MPS goldens and Mac speed rows (1080x1920). No
+  Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in `~/scratch_tests/port-p5/w/`).
 - SwinIR (`swinir-m-x4`, `swinir-m-x2`, `swinir-m-x4-real`, `swinir-l-x4-real`, restoration): portable MPS goldens
   and Mac speed rows (512x512; check the float16 last-group scaling on MPS). No Metal kernels runner. Weights: the
   pinned GitHub release URLs of the card.

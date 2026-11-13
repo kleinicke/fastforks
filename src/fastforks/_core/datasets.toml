@@ -335,3 +335,50 @@ name = "OpenPano (perspective crops of public 360-degree panoramas: PolyHaven, H
 licence = "mixed"  # per-source terms (PolyHaven / AmbientCG CC0, HDRMaps and BlenderKit their own), not re-read for the calibration ports (2026-11-13)
 commercial = "unclear"
 url = "https://github.com/cvg/GeoCalib/blob/main/siclib/datasets/README.md"
+[div2k]
+name = "DIV2K (NTIRE 2017 super-resolution, 1000 2K images)"
+licence = "academic research only"  # images collected from the Internet, copyright with their owners
+commercial = "no"
+url = "https://data.vision.ee.ethz.ch/cvl/DIV2K/"
+
+[flickr2k]
+name = "Flickr2K (2650 2K Flickr images, EDSR)"
+licence = "not stated"  # Flickr photos under their uploaders' terms
+commercial = "unclear"
+url = "https://github.com/limbee/NTIRE2017"
+
+[ost]
+name = "OutdoorSceneTraining (OST, SFTGAN)"
+licence = "not stated"  # images collected from the Internet
+commercial = "unclear"
+url = "https://github.com/xinntao/SFTGAN"
+
+[ffhq]
+name = "Flickr-Faces-HQ (FFHQ, 70k face images)"
+licence = "CC-BY-NC-SA-4.0"  # the dataset (NVIDIA); the images: their Flickr authors' CC BY / BY-NC / public-domain terms
+commercial = "no"
+url = "https://github.com/NVlabs/ffhq-dataset"
+
+[manga109]
+name = "Manga109 (109 Japanese manga volumes)"
+licence = "academic research only"  # Manga109-s is the subset for commercial use
+commercial = "no"
+url = "http://www.manga109.org/en/"
+
+[wed]
+name = "Waterloo Exploration Database (4744 natural images)"
+licence = "not stated"  # images collected from the Internet
+commercial = "unclear"
+url = "https://ece.uwaterloo.ca/~k29ma/exploration/"
+
+[scut-ctw1500]
+name = "SCUT-CTW1500 (curved scene text)"
+licence = "not stated"  # the page asks for a citation only
+commercial = "unclear"
+url = "https://github.com/Yuliang-Liu/Curve-Text-Detector"
+
+[supervisely-person]
+name = "Supervisely Person Dataset (human segmentation)"
+licence = "not checked"  # terms not read for the U²-Net port (2026-11-13)
+commercial = "unclear"
+url = "https://supervise.ly/explore/projects/supervisely-person-dataset-23304/datasets"

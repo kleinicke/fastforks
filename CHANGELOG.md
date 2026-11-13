@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- U²-Net salient object segmentation (`u2net`, `u2netp`, `u2net-human-seg`, matting; Apache-2.0 code and weights):
+  batch norms folded into the convolutions (float16 range). 1080x1920 image (320x320 net): 8.8 ms kernels, 14.9 ms
+  portable (6.2 ms compile, 3.1 ms TensorRT) vs 16.0 ms original fp32, peak 0.26 GB vs 0.50 GB. DIS5K validation
+  (every 2nd image: 235) max F-beta 0.527 kernels / portable vs 0.528 original, MAE 0.149 vs 0.148.
+
 - SwinIR super-resolution (`swinir-m-x4`, `swinir-m-x2`, `swinir-m-x4-real`, `swinir-l-x4-real`, restoration;
   Apache-2.0 code and weights): window attention as one SDPA call with the bias gathered at load; in float16 the
   last group's residual sum is scaled down (overflow). 512x512 M x4: 1406 ms kernels, 2029 ms portable (795 ms
