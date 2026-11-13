@@ -388,7 +388,7 @@ Checked 2026-11-09 against `_optimize/conv_ops.py`, `_optimize/transformer.py` a
 | 3D instance norm, depthwise 3D conv (MedNeXt), sliding window, NIfTI | missing; that is the `volume` task |
 
 U-Net candidates by value per effort:
-1. **SD UNet one-step models** (Marigold, Marigold normals and Lotus exist; StableNormal planned; Lotus-2 is skipped:
+1. **SD UNet one-step models** (Marigold, Marigold normals, Lotus and StableNormal turbo exist; Lotus-2 is skipped:
    it is built on FLUX.1-dev, whose [weights licence](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/LICENSE.md)
    is non-commercial): a fused conv + GroupNorm + SiLU kernel and UNet attention on the ViT kernels speed all of them
    up at once.

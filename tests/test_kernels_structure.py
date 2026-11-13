@@ -334,6 +334,7 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
             "ResidualBlock.forward": 14,
         },
     ),
+    "stablenormal-turbo@1": (1146, 69, {}),
     "unidepth-v2-vitl14@1": (614, 80, {"UniDepthV2.stacking_fn": 1}),
     "unik3d-vitl@1": (482, 50, {}),
     "waft-stereo-s@1": (

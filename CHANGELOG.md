@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- StableNormal turbo surface normals (`stablenormal-turbo`, depth task, normals only; Apache-2.0 code and weights):
+  one-step YOSO v0.3 on a Stable Diffusion 2 UNet with a ControlNet image encoder, seeded noise. 994x1482 image:
+  180 ms kernels, 289 ms portable (238 ms compile) vs 613 ms original fp32 (299 ms fp16), peak 3.0 GB vs 7.9 GB;
+  iBims-1 normals mean angle 17.46 deg for all modes and the original. TensorRT build times out.
+
 - LoFTR semi-dense matching (`loftr-outdoor`, `loftr-indoor`, matching; Apache-2.0 code, the authors' weights
   inherit it): grayscale coarse-to-fine transformer matching, matches as keypoints plus index pairs. 768x1024 pair:
   242 ms portable (176 ms compile) vs 242 ms original fp32 (no fp16 in upstream), peak 1.7 GB vs 1.9 GB;

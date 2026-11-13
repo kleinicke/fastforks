@@ -138,22 +138,37 @@ class Fast:
         x = self.transformer(blk.attentions[0], x)
         return self.resnet(blk.resnets[1], x, temb[blk.resnets[1]])
 
-    def unet_forward(self, x: torch.Tensor, t: int) -> torch.Tensor:
-        """`UNet2DConditionModel.forward(x, t, empty prompt)` for one of the load-time timesteps."""
+    def encode(self, x: torch.Tensor, t: int) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        """`UNet2DConditionModel.encode` (mid output, skips) for one of the load-time timesteps."""
         u, temb = self.unet, self.temb[t]
-        odd = any(s % 2 ** (len(u.up_blocks) - 1) for s in x.shape[-2:])
         x = self.conv(x.contiguous(memory_format=torch.channels_last), u.conv_in)
         skips = [x]
         for blk in u.down_blocks:
             x, s = self.down(blk, x, temb)
             skips += s
-        x = self.mid(u.mid_block, x, temb)
+        return self.mid(u.mid_block, x, temb), skips
+
+    def unet_forward(
+        self, x: torch.Tensor, t: int, residuals: tuple[list[torch.Tensor], torch.Tensor] | None = None
+    ) -> torch.Tensor:
+        """`UNet2DConditionModel.forward(x, t, empty prompt, residuals=...)` for one of the load-time timesteps."""
+        u, temb = self.unet, self.temb[t]
+        odd = any(s % 2 ** (len(u.up_blocks) - 1) for s in x.shape[-2:])
+        x, skips = self.encode(x, t)
+        if residuals is not None:
+            skips = [s.add_(r) for s, r in zip(skips, residuals[0], strict=True)]
+            x = x.add_(residuals[1])
         for blk in u.up_blocks:
             mine = skips[-len(blk.resnets) :]
             del skips[-len(blk.resnets) :]
             size = tuple(skips[-1].shape[2:]) if odd and blk.upsamplers is not None else None
             x = self.up(blk, x, mine, temb, size)
         return self.conv(group_norm(x, u.conv_norm_out, silu=True), u.conv_out)
+
+    def control(self, x: torch.Tensor, t: int) -> tuple[list[torch.Tensor], torch.Tensor]:
+        """`ControlNetEncoder.forward` (this `Fast` holds the ControlNet as `unet`)."""
+        x, skips = self.encode(x, t)
+        return skips, x
 
     def vae_attention(self, m: AttentionBlock, x: torch.Tensor) -> torch.Tensor:
         """`vae.AttentionBlock.forward` on a channels-last map."""

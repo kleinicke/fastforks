@@ -36,6 +36,8 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- StableNormal turbo (`stablenormal-turbo`, depth task, normals): portable MPS goldens and Mac speed rows (994x1482).
+  No Metal kernels runner. Weights: the pinned HF URLs of the card.
 - DeDoDe v2 (`dedode-v2-b`, `dedode-v2-g`, matching): portable MPS goldens and Mac speed rows (768x1024 pair). No
   kernels. Weights: the pinned GitHub release URLs of the card.
 - LoFTR (`loftr-outdoor`, `loftr-indoor`, matching): portable MPS goldens and Mac speed rows (768x1024 pair). No

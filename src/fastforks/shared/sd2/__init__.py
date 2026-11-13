@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
 LATENT_SCALE = 0.18215  # fixed: the Stable Diffusion VAE latent scale, hard-coded upstream
 EMPTY_PROMPT = [49406, 49407]  # CLIPTokenizer("", padding="do_not_pad").input_ids: <|startoftext|>, <|endoftext|>
+# CLIPTokenizer("", padding="max_length").input_ids of the SD2 tokenizer (pad token "!" = 0): diffusers `encode_prompt`
+EMPTY_PROMPT_77 = [*EMPTY_PROMPT, *[0] * 75]
 # fixed: the VAE mid-block attention of checkpoints saved by diffusers >= 0.14 (Lotus) -> the 0.8 names of `vae.py`
 _VAE_ATTENTION = {".to_q.": ".query.", ".to_k.": ".key.", ".to_v.": ".value.", ".to_out.0.": ".proj_attn."}
 
@@ -32,29 +34,32 @@ def _old_attention_names(key: str) -> str:
 
 
 class SD2Net(torch.nn.Module):
-    """UNet + VAE + the empty-prompt text embedding `[1, 2, 1024]` (a buffer)."""
+    """UNet + VAE + the empty-prompt text embedding `[1, tokens, 1024]` (a buffer)."""
 
     empty_text: torch.Tensor
 
-    def __init__(self, **unet: Any) -> None:  # noqa: ANN401 - UNet2DConditionModel arguments
+    def __init__(self, tokens: int = len(EMPTY_PROMPT), **unet: Any) -> None:  # noqa: ANN401 - UNet2DConditionModel arguments
         """Random weights."""
         super().__init__()
         self.unet = UNet2DConditionModel(**unet)
         self.vae = AutoencoderKL()
-        self.register_buffer("empty_text", torch.zeros(1, len(EMPTY_PROMPT), 1024), persistent=False)
+        self.register_buffer("empty_text", torch.zeros(1, tokens, 1024), persistent=False)
 
 
-def load_net(ctx: Context, **unet: Any) -> SD2Net:  # noqa: ANN401 - UNet2DConditionModel arguments
-    """The checkpoint's UNet (file 0) and VAE (file 1); the text encoder (file 2) runs once, on the CPU, in float32."""
+def load_net(ctx: Context, prompt: list[int] = EMPTY_PROMPT, **unet: Any) -> SD2Net:  # noqa: ANN401 - UNet2DConditionModel arguments
+    """The checkpoint's UNet (file 0) and VAE (file 1); the text encoder (file 2) runs once, on the CPU, in float32.
+
+    `prompt`: the token ids of the text embedding (`EMPTY_PROMPT`, or `EMPTY_PROMPT_77` of diffusers' `encode_prompt`).
+    """
     text = CLIPTextTransformer()
     text.load_state_dict(
         {k: v for k, v in ctx.state_dict(2, strip="text_model.").items() if k != "embeddings.position_ids"}
     )
     with torch.no_grad():
-        embed = text.eval()(torch.tensor([EMPTY_PROMPT]))
+        embed = text.eval()(torch.tensor([prompt]))
     del text
     with torch.device(ctx.device):
-        net = SD2Net(**unet)
+        net = SD2Net(len(prompt), **unet)
     net.unet.load_state_dict(ctx.state_dict(0, strip=""))
     net.vae.load_state_dict({_old_attention_names(k): v for k, v in ctx.state_dict(1, strip="").items()})
     net.empty_text.copy_(embed)

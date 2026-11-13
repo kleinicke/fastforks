@@ -3,10 +3,11 @@
 # CrossAttnDownBlock2D x 3 + DownBlock2D, UNetMidBlock2DCrossAttn, UpBlock2D + CrossAttnUpBlock2D x 3, linear
 # projections, GEGLU feed-forward, flip_sin_to_cos timestep embedding). Module and parameter names are diffusers', so
 # the checkpoint loads unchanged. Inference only: no dropout (identity in eval), no gradient checkpointing, no LoRA /
-# adapter / ControlNet hooks; attention is `scaled_dot_product_attention` (diffusers' default `AttnProcessor2_0`).
+# adapter hooks; ControlNet residuals as diffusers adds them (StableNormal); attention is `scaled_dot_product_attention` (diffusers' default `AttnProcessor2_0`).
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -276,14 +277,10 @@ class UNet2DConditionModel(nn.Module):
         self.conv_norm_out = nn.GroupNorm(32, channels[0], eps=1e-5)
         self.conv_out = nn.Conv2d(channels[0], cout, 3, padding=1)
 
-    def forward(
+    def encode(
         self, x: torch.Tensor, t: torch.Tensor, ctx: torch.Tensor, labels: torch.Tensor | None = None
-    ) -> torch.Tensor:
-        """`x` `[B, 8, h, w]`, integer timestep `t` (0-dim), text states `ctx` `[B, n, 1024]` -> `[B, 4, h, w]`.
-
-        `labels`: the `[B, class_embed]` class labels of a UNet with a class embedding (required there).
-        """
-        odd = any(s % 2 ** (len(self.up_blocks) - 1) for s in x.shape[-2:])  # forward_upsample_size
+    ) -> tuple[torch.Tensor, list[torch.Tensor], torch.Tensor]:
+        """The time embedding, `conv_in`, the down blocks and the mid block -> (mid output, skips, time embedding)."""
         tf = timestep_features(t.reshape(1).expand(x.shape[0]), self.conv_in.out_channels).to(x.dtype)
         temb = self.time_embedding(tf)
         if self.class_embedding is not None:
@@ -293,10 +290,49 @@ class UNet2DConditionModel(nn.Module):
         for blk in self.down_blocks:
             x, s = blk(x, temb, ctx)
             skips += s
-        x = self.mid_block(x, temb, ctx)
+        return self.mid_block(x, temb, ctx), skips, temb
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        t: torch.Tensor,
+        ctx: torch.Tensor,
+        labels: torch.Tensor | None = None,
+        residuals: tuple[list[torch.Tensor], torch.Tensor] | None = None,
+    ) -> torch.Tensor:
+        """`x` `[B, 8, h, w]`, integer timestep `t` (0-dim), text states `ctx` `[B, n, 1024]` -> `[B, 4, h, w]`.
+
+        `labels`: the `[B, class_embed]` class labels of a UNet with a class embedding (required there).
+        `residuals`: a ControlNet's (skips, mid output), added to the skips and the mid-block output (diffusers'
+        `down_block_additional_residuals`, `mid_block_additional_residual`).
+        """
+        odd = any(s % 2 ** (len(self.up_blocks) - 1) for s in x.shape[-2:])  # forward_upsample_size
+        x, skips, temb = self.encode(x, t, ctx, labels)
+        if residuals is not None:
+            skips = [s + r for s, r in zip(skips, residuals[0], strict=True)]
+            x = x + residuals[1]
         for blk in self.up_blocks:
             mine = skips[-len(blk.resnets) :]
             del skips[-len(blk.resnets) :]
             size = tuple(skips[-1].shape[2:]) if odd and blk.upsamplers is not None else None
             x = blk(x, mine, temb, ctx, size)
         return self.conv_out(F.silu(self.conv_norm_out(x)))
+
+
+class ControlNetEncoder(UNet2DConditionModel):
+    """A diffusers `ControlNetModel` run as StableNormal's `ControlNetVAEModel`: the UNet encoder on a latent.
+
+    Its outputs are the encoder's skips and mid output, unscaled (`conditioning_scale` 1); the conditioning embedding
+    and the zero convolutions of the checkpoint are not used by that forward (load without them).
+    """
+
+    def __init__(self, **unet: Any) -> None:  # noqa: ANN401 - UNet2DConditionModel arguments
+        super().__init__(**unet)
+        del self.up_blocks, self.conv_norm_out, self.conv_out
+
+    def forward(
+        self, x: torch.Tensor, t: torch.Tensor, ctx: torch.Tensor, labels: torch.Tensor | None = None
+    ) -> tuple[list[torch.Tensor], torch.Tensor]:
+        """`x` `[B, cin, h, w]`, timestep `t`, text states `ctx` -> the `UNet2DConditionModel.forward` residuals."""
+        x, skips, _ = self.encode(x, t, ctx, labels)
+        return skips, x

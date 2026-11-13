@@ -62,6 +62,7 @@ marigold_normals = "Marigold normals LCM from ETH Zurich (PRS): surface normals 
 metric3d = "Metric3D v2 (Wei Yin and Mu Hu et al.): metric depth and surface normals from one image, given the focal length. Commercially usable; the authors ask commercial users to contact them."
 midas = "MiDaS v3.1 from Intel ISL, with a BEiT-L encoder: relative depth from one image."
 moge = "Microsoft's MoGe: depth, 3D points, normals and focal length from one image."
+stablenormal = "StableNormal turbo from Stable-X (Ye et al., SIGGRAPH Asia 2024): surface normals from one image in one step on a Stable Diffusion UNet with a ControlNet image encoder. Apache-2.0 code and weights."
 unidepth_v2 = "UniDepth V2: metric depth from one image without known camera data. Non-commercial licence."
 unik3d = "UniK3D: metric 3D from one image for any camera type, using a spherical-harmonic ray model. Non-commercial licence."
 zoedepth = "ZoeDepth from the Intelligent Systems Lab: metric depth from one image, for indoor and outdoor scenes."

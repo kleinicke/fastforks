@@ -1,0 +1,24 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1e-05
+gpu_mean = 0.00046
+gpu_p99 = 0.0021
+
+[refs."stablenormal-turbo@1"]
+sha256 = "266e1b7f436adc5bf0d4bac852a8a6b4de53458a3d3da50b5280dcfb74812f4e"
+upstream = "https://github.com/Stable-X/StableNormal@594b934630ab3bc71f35c77d14ec7feb98480cd0"
+settings = "CPU float32, weights Stable-X/yoso-normal-v0-3@2202fcb69960d94b437e06c19c556a12ceeb57c0 (fp16 files), t_start 0, processing resolution 768, CPU generator seed 0 as `latents`, camera frame, diffusers 0.41.0, torch 2.14.1+cu130"
+
+[validated."stablenormal-turbo@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.0003
+p99_px = 0.00138

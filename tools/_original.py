@@ -968,6 +968,24 @@ def _marigold_normals(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, AR
     return lambda image: g.predict(pipe, image[None].float() / 255)
 
 
+def _stablenormal(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, ARG001, FBT001 - adapter signature
+    """Upstream `YOSONormalsPipeline` as `tools/golden/stablenormal.py` (hubconf turbo, seeded `latents`, camera frame).
+
+    `FF_STABLENORMAL_REPO`: a clone of Stable-X/StableNormal; `FF_STABLENORMAL_SNAPSHOT`: the yoso-normal-v0-3
+    snapshot directory (configs, `controlnet/controlnetvae.py`, fp16 safetensors); fp16 = `torch_dtype=float16`.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("stablenormal")
+    if not hasattr(a, "tree"):
+        a.tree = g.reference_tree(Path(os.environ["FF_STABLENORMAL_REPO"]), g.REF_COMMIT)
+    dtype = torch.float16 if fp16 else torch.float32
+    pipe = g.pipeline(a.tree, os.environ["FF_STABLENORMAL_SNAPSHOT"], dtype).to("cuda")
+    pipe.set_progress_bar_config(disable=True)
+    a.note = f"upstream YOSONormalsPipeline (turbo, t_start 0), diffusers {g.DIFFUSERS}, latents seed {g.SEED}"
+    return lambda image: g.predict(pipe, image[None].float() / 255)
+
+
 def _birefnet(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
     """The HF repo's `birefnet.py` with the card's pre- and post-processing, as `tools/golden/birefnet.py`.
 
@@ -1359,6 +1377,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "romav2": _LocalFp16("matching", _romav2, ((768, 1024),)),
     "marigold_normals": _LocalFp16("depth", _marigold_normals, ((994, 1482),)),
     "lotus": _LocalFp16("depth", _lotus, ((994, 1482),)),
+    "stablenormal": _LocalFp16("depth", _stablenormal, ((994, 1482),)),
     "lightglue": _LocalFp16("matching", _lightglue, ((768, 1024),)),
     "xfeat": _Local("matching", _xfeat, ((768, 1024),)),
     "dedode": _LocalFp16("matching", _dedode, ((768, 1024),)),
