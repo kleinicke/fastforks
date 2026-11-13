@@ -505,11 +505,16 @@ def sure_mask(score: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
 
 def paired_detections(want: dict[str, np.ndarray], got: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
     """`got`'s instances in the golden's order: near-equal scores swap places between backends (fp16), so each golden
-    box in turn takes the closest (L1) box not yet taken. Other counts are left to the shape check."""
+    box in turn takes the closest (L1) box not yet taken. Masks add their mean |diff| (x 1000 px): duplicate queries
+    can give near-equal boxes with different masks (rf-detr-seg-xl: two full-image tables). Other counts are left to
+    the shape check."""
     n = want["boxes"].shape[0]
     if n == 0 or tuple(got["boxes"].shape) != want["boxes"].shape:
         return got
     dist = torch.cdist(torch.from_numpy(want["boxes"]).double(), got["boxes"].double(), p=1)
+    if "masks" in want and tuple(got.get("masks", torch.empty(0)).shape) == want["masks"].shape:
+        w, g = torch.from_numpy(want["masks"]).flatten(1).double(), got["masks"].flatten(1).double()
+        dist += 1000 * torch.cdist(w, g, p=1) / w.shape[1]
     order: list[int] = []
     for row in dist:
         row[order] = float("inf")
