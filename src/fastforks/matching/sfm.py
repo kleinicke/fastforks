@@ -340,6 +340,8 @@ def _merge(points: torch.Tensor, cell: float) -> tuple[torch.Tensor, torch.Tenso
 
 def _one_per_keypoint(ids: torch.Tensor, conf: torch.Tensor) -> torch.Tensor:
     """`ids` `[M, 2]` keypoint index pairs, at most one per first and per second keypoint: the most certain."""
+    if len(ids) == 0:  # a pair whose matches were all sampled away (e.g. no certain ones)
+        return ids
     order = conf.argsort(descending=True)
     ids = ids[order]
     keep = torch.ones(len(ids), dtype=torch.bool)

@@ -146,8 +146,9 @@ class FakeDense:
 
     sparse = False
 
-    def __init__(self, sizes):
+    def __init__(self, sizes, *, empty_pair=False):
         self.sizes = sizes  # (w, h) per image index
+        self.empty_pair = empty_pair  # pair (1, 2) without any certain pixel
 
     def match_pairs(self, _images, pairs):
         for i, j in pairs:
@@ -157,7 +158,8 @@ class FakeDense:
             certainty = torch.full((h, w), 0.9)
             if (i, j) == (1, 2):
                 certainty = torch.zeros(h, w)
-                certainty[0, 0] = certainty[0, 2] = certainty[2, 0] = 1.0
+                if not self.empty_pair:
+                    certainty[0, 0] = certainty[0, 2] = certainty[2, 0] = 1.0
             yield MatchingResult(warp, certainty, "fake@1", "portable")
 
 
@@ -184,6 +186,20 @@ def test_dense_matcher_keypoints_are_shared_tracks(scene, monkeypatch, request):
         assert len(np.unique(m[:, 0])) == len(m) == len(np.unique(m[:, 1]))  # one match per keypoint
     m = raw[pair(1, 2)]
     np.testing.assert_allclose(kp[2][m[:, 1]] - kp[1][m[:, 0]], [[1.0, 2.0]] * len(m), atol=1e-5)
+
+
+def test_dense_pair_without_certain_matches(scene, monkeypatch):
+    """A dense pair whose pixels are all uncertain gives no matches (RoMa v2 on facade crashed `_one_per_keypoint`)."""
+    dense = FakeDense({0: (32, 24), 1: (32, 24), 2: (16, 16)}, empty_pair=True)
+    monkeypatch.setattr(matching, "load", lambda *_a, **_k: dense)
+    stats = sfm.colmap_database(scene / "img", scene / "db.db", retrieval=None, dense_matches=50)
+    assert (stats.images, stats.pairs, stats.verified) == (3, 3, 2)
+    con = sqlite3.connect(scene / "db.db")
+    try:
+        rows = dict(con.execute("SELECT pair_id, rows FROM matches").fetchall())
+    finally:
+        con.close()
+    assert rows[2 * 2147483647 + 3] == 0
 
 
 def test_reconstruct_names_the_sfm_extra_without_pycolmap(scene, monkeypatch):
