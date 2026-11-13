@@ -1,0 +1,38 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1e-05
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."span-x2@1"]
+sha256 = "612c282dca07eaf4cf9d4ef39ec6f21fce2c6e39fb1635194eb75ee1e5130607"
+upstream = "https://github.com/hongyuanyu/SPAN@c77a5917759f09e66fbc7124220c5afc5ee221e5"
+settings = "CPU float32, upstream SPAN eval mode, net(lq) on float RGB, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."span-x4@1"]
+sha256 = "6b30936463be5085b468fc32bf7fa6989deb07045ed9134aabc48b575bb71783"
+upstream = "https://github.com/hongyuanyu/SPAN@c77a5917759f09e66fbc7124220c5afc5ee221e5"
+settings = "CPU float32, upstream SPAN eval mode, net(lq) on float RGB, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[validated."span-x2@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00207
+p99_px = 0.0225
+
+[validated."span-x4@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00074
+p99_px = 0.00305

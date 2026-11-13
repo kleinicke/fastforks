@@ -258,6 +258,7 @@ include = ["src", "tests", "tools"]
 allowed-unresolved-imports = [
   "timm", "timm.**", "transformers", "transformers.**", "scipy", "scipy.**", "onnx", "onnx_ir", "onnxruntime",
   "tensorrt", "laspy", "lazrs", "pycocotools", "pycocotools.**", "depth_anything_v2.**", "s2m2.**",
+  "fvcore.**",  # SPAN's `__main__` FLOP count
 ]
 
 [tool.ty.rules]

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- SPAN efficient super-resolution (`span-x4`, `span-x2`, restoration; Apache-2.0 code and weights): Conv3XC
+  re-parameterised at load. 512x512 x4: 14.6 ms kernels, 24.2 ms portable (13.2 ms compile, 8.3 ms TensorRT) vs
+  47.0 ms original fp32 (27.0 ms `.half()`), peak 0.5 GB vs 1.0 GB. DIV2K validation PSNR 30.47 (x4) / 36.20 (x2)
+  in every tier, as the original.
+
 - Real-ESRGAN super-resolution (`realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`; new task
   `restoration`; BSD-3-Clause code and weights): RRDBNet as `RealESRGANer.enhance` (no tiles). 512x512 x4plus:
   402 ms kernels, 632 ms portable (354 ms compile, 273 ms TensorRT) vs 1209 ms original fp32 (631 ms fp16), peak
