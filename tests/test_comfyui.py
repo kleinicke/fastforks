@@ -213,3 +213,42 @@ def test_tracks(pack: Any) -> None:
     assert out.shape == (3, 16, 16)
     assert out[:, 2, 4].tolist() == [1, 0, 0]  # point 0, red
     assert out[:, 12, 12].sum() == 0  # point 1 hidden in frame 1
+
+
+def test_upscale_files(pack: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """models/upscale_models lists only files fastforks runs; the node output equals `restoration.load_file`."""
+    from fastforks import restoration  # noqa: PLC0415
+    from fastforks.restoration.models.span.net import SPAN  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    torch.save(SPAN(3, 3, feature_channels=8, upscale=2).state_dict(), tmp_path / "2x-span.pth")
+    torch.save({"body.0.weight": torch.zeros(8, 3, 3, 3)}, tmp_path / "compact.pth")  # SRVGG-like: not runnable
+    fp, mm, nodes = pack.fp, pack.mm, pack.nodes
+    monkeypatch.setattr(fp, "get_filename_list", lambda _: sorted(p.name for p in tmp_path.iterdir()), raising=False)
+    monkeypatch.setattr(fp, "get_full_path", lambda _, name: str(tmp_path / name), raising=False)
+    monkeypatch.setattr(fp, "get_full_path_or_raise", lambda _, name: str(tmp_path / name), raising=False)
+    utils = types.ModuleType("comfy.utils")
+    utils.ProgressBar = lambda _: types.SimpleNamespace(update=lambda _: None)
+    monkeypatch.setitem(sys.modules, "comfy.utils", utils)
+    monkeypatch.setattr(sys.modules["comfy"], "utils", utils, raising=False)
+    for name, value in {
+        "get_torch_device": lambda: torch.device("cpu"), "intermediate_device": lambda: torch.device("cpu"),
+        "free_memory": lambda *_: None, "throw_exception_if_processing_interrupted": lambda: None,
+        "InterruptProcessingException": type("Interrupt", (Exception,), {}),
+    }.items():  # fmt: skip
+        monkeypatch.setattr(mm, name, value, raising=False)
+
+    assert nodes.upscale_files() == ["file: 2x-span.pth"]
+    assert nodes.model_id("file: 2x-span.pth") == "file: 2x-span.pth"
+    inputs = nodes.Upscale.INPUT_TYPES()["required"]
+    assert "file: 2x-span.pth" in inputs["model"][0]
+    assert "realesrgan-x4plus" in inputs["model"][0]
+
+    image = torch.rand(2, 16, 24, 3)
+    (out,) = nodes.Upscale().run(image=image, model="file: 2x-span.pth", backend="portable", dtype="float32", tile=0)
+    m = restoration.load_file(tmp_path / "2x-span.pth", mode="portable", device="cpu", dtype="float32")
+    assert out.shape == (2, 32, 48, 3)
+    for i in range(2):
+        want = m(image[i].permute(2, 0, 1)).image.float().permute(1, 2, 0).clamp(0, 1)
+        torch.testing.assert_close(out[i], want, rtol=0, atol=0)
+    nodes._cache.clear()

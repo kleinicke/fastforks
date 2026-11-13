@@ -11,11 +11,13 @@ import gc
 import logging
 import os
 from collections import OrderedDict
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import torch
 
 import fastforks
+from fastforks import restoration
 
 from . import convert
 
@@ -31,6 +33,8 @@ BACKENDS = ["auto", "portable", "kernels"]
 DTYPES = ["auto", "float32", "float16", "bfloat16"]
 _TAGS = {"no": " [non-commercial]", "unclear": " [licence unclear]"}
 _MAX_CACHED = 2
+_FILE = "file: "  # dropdown prefix of a checkpoint file of ComfyUI's `models/upscale_models`
+_files: dict[str, tuple[float, str | None]] = {}  # path -> (mtime, `restoration.checkpoint_family`)
 _cache: OrderedDict[tuple[Any, ...], fastforks.Model] = OrderedDict()
 _LICENCE_TIP = (
     " Ids marked [non-commercial] have a non-commercial code or weights licence (research use only; their weights"
@@ -51,8 +55,8 @@ def labels(ids: list[str]) -> list[str]:
 
 
 def model_id(label: str) -> str:
-    """The model id of a dropdown entry (without its licence tag)."""
-    return label.split(" [", 1)[0]
+    """The model id of a dropdown entry (without its licence tag); file entries unchanged."""
+    return label if label.startswith(_FILE) else label.split(" [", 1)[0]
 
 
 def model_input(ids: list[str], default: str) -> tuple[list[str], dict[str, Any]]:
@@ -83,12 +87,38 @@ def _weights_bytes(mid: str) -> int:
     return sum(f.size or 0 for f in variant.weights)
 
 
+def upscale_files() -> list[str]:
+    """Entries for the files of `models/upscale_models` that `restoration.load_file` runs (each checked once)."""
+    import folder_paths  # noqa: PLC0415 - ComfyUI only
+
+    entries = []
+    for name in folder_paths.get_filename_list("upscale_models"):
+        path = folder_paths.get_full_path("upscale_models", name)
+        mtime = Path(path).stat().st_mtime
+        if _files.get(path, (None,))[0] != mtime:
+            _files[path] = (mtime, restoration.checkpoint_family(path))
+        if _files[path][1]:
+            entries.append(_FILE + name)
+    return entries
+
+
+def _file(mid: str) -> Path | None:
+    """The path of a file entry, or None for a model id."""
+    if not mid.startswith(_FILE):
+        return None
+    import folder_paths  # noqa: PLC0415 - ComfyUI only
+
+    return Path(folder_paths.get_full_path_or_raise("upscale_models", mid.removeprefix(_FILE)))
+
+
 def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = None) -> fastforks.Model:
     """The cached model, or load it on ComfyUI's device after asking ComfyUI to free room for it."""
     mm = _mm()
     device = mm.get_torch_device()
     mid = model_id(label)
-    key = (mid, backend, dtype, str(device), tuple(sorted((options or {}).items())))
+    file = _file(mid)
+    version = file.stat().st_mtime if file else None  # a replaced file loads again
+    key = (mid, version, backend, dtype, str(device), tuple(sorted((options or {}).items())))
     if key in _cache:
         _cache.move_to_end(key)
         return _cache[key]
@@ -97,14 +127,9 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
         gc.collect()
         mm.soft_empty_cache()
     # weights + activations: ComfyUI unloads its own models until this much is free (no-op if it already is)
-    mm.free_memory(2 * _weights_bytes(mid) + 2**30, device)
-    model = fastforks.load(
-        mid,
-        mode=backend,  # ty: ignore[invalid-argument-type]
-        device=device,
-        dtype=None if dtype == "auto" else dtype,  # ty: ignore[invalid-argument-type]
-        options=options or None,
-    )
+    mm.free_memory(2 * (file.stat().st_size if file else _weights_bytes(mid)) + 2**30, device)
+    kw: dict[str, Any] = {"mode": backend, "device": device, "dtype": None if dtype == "auto" else dtype}
+    model = restoration.load_file(file, **kw) if file else fastforks.load(mid, options=options or None, **kw)
     log.info("fastforks: loaded %s (%s)", mid, model.backend)
     _cache[key] = model
     return model
@@ -708,6 +733,37 @@ class PointTrack(_Node):
         return convert.to_image(drawn, _out_device()), convert.to_json({"tracks": tracks, "visible": visible})
 
 
+class Upscale(_Node):
+    """Super-resolution / restoration (Real-ESRGAN, SPAN, SwinIR, ...), tiled for large images."""
+
+    DESCRIPTION = (
+        "Upscaled image. Models: fastforks ids, or files of models/upscale_models (file: ...) of the architectures"
+        " fastforks runs (Real-ESRGAN / ESRGAN, SPAN, SwinIR); other files are not listed."
+    )
+    RETURN_TYPES = ("IMAGE",)
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        inputs = common(_ids("restoration"), "realesrgan-x4plus")
+        entries, opts = inputs["model"]
+        inputs["model"] = ([*entries, *upscale_files()], opts)
+        tip = "Tile size in input pixels (overlap 32 px, as ComfyUI's upscaler): less memory. 0: one pass."
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                **inputs,
+                "tile": ("INT", {"default": 512, "min": 0, "max": 8192, "step": 8, "tooltip": tip}),
+            }
+        }
+
+    def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str, tile: int) -> tuple[torch.Tensor]:
+        """Run the model on every image."""
+        m = cast("restoration.RestorationModel", load(model, backend, dtype))
+        maps = each(image.shape[0], lambda i: m(convert.frame(image, i, m.device), tile=tile or None).image)
+        return (convert.to_image(maps, _out_device()),)
+
+
 NODE_CLASS_MAPPINGS = {
     "FastforksDepth": Depth,
     "FastforksNormals": Normals,
@@ -723,6 +779,7 @@ NODE_CLASS_MAPPINGS = {
     "FastforksWarp": Warp,
     "FastforksVideoSegment": VideoSegment,
     "FastforksPointTrack": PointTrack,
+    "FastforksUpscale": Upscale,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FastforksDepth": "Depth (fastforks)",
@@ -739,4 +796,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FastforksWarp": "Warp by flow (fastforks)",
     "FastforksVideoSegment": "Video segment (SAM 2 / SAMURAI, fastforks)",
     "FastforksPointTrack": "Track points (fastforks)",
+    "FastforksUpscale": "Upscale / restore (fastforks)",
 }

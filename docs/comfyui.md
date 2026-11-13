@@ -32,10 +32,15 @@ Once fastforks is on PyPI, ComfyUI-Manager and the Comfy registry install the pa
 | Warp by flow | IMAGE, FASTFORKS_FLOW | IMAGE: image i sampled along flow i (`frames[1:]` -> `frames[:-1]`) |
 | Video segment (SAM 2 / SAMURAI) | IMAGE batch, points / box on frame 0, samurai | MASK batch |
 | Track points | IMAGE batch, grid size or points on frame 0 | IMAGE (tracks drawn on the frames), STRING (JSON tracks) |
+| Upscale / restore | IMAGE, tile (input px, 32 px overlap; 0 = one pass) | IMAGE |
 
 Every node has `model`, `backend` (`auto`: our CUDA kernels where they are faster, else portable PyTorch;
 `portable`; `kernels`) and `dtype` (`auto`: the validated one). Ids marked `[non-commercial]` or `[licence unclear]`
 are not cleared for commercial use; non-commercial weights download only with `FASTFORKS_NONCOMMERCIAL=1`.
+
+Upscale also lists the files in `models/upscale_models` (`file: <name>`) whose architecture fastforks runs, detected
+from the weights: ESRGAN / Real-ESRGAN (RRDBNet, 64 features, x2 / x4, old or new key names), SPAN and SwinIR. Other
+files (e.g. Compact / SRVGG) are not listed; `fastforks.restoration.load_file(path)` names the reason.
 
 Weights and kernels already in the fastforks cache, the Hugging Face or torch hub cache are used in place; missing
 ones download on first use into `models/fastforks` (another location: a `fastforks:` entry in
