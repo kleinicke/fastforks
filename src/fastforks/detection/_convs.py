@@ -59,3 +59,33 @@ class FusedConvs(Convs):
         return torch.cudnn_convolution_add_relu(
             x, c.weight, res, 1.0, c.bias, c.stride, _padding(c), c.dilation, c.groups
         )
+
+
+class DepthwiseConvs(FusedConvs):
+    """`FusedConvs` with the depthwise convolutions (channels % 8 == 0) through the fvm_conv kernel.
+
+    cuDNN runs a grouped fp16 convolution with its direct kernel, well behind ours (fp32 accumulation both; D-FINE:
+    -8 to -32 % per call).
+    """
+
+    def _dw(self, c: nn.Conv2d, x: torch.Tensor, act: int) -> torch.Tensor | None:
+        """`act(c(x))` through the kernel (`act`: `conv_ops` code), or None if `c` is not such a depthwise conv."""
+        from fastforks._optimize.conv_ops import dwconv  # noqa: PLC0415 - loads the fvm_conv kernels (kernels mode only)
+
+        if not (c.groups == c.in_channels == c.out_channels and c.groups % 8 == 0 and c.dilation == (1, 1)):
+            return None
+        w = getattr(c, "w_rsc", None)
+        if w is None:  # the weight as the kernel reads it: [R, S, C]
+            w = c.weight.detach()[:, 0].permute(1, 2, 0).contiguous()
+            c.register_buffer("w_rsc", w, persistent=False)
+        return dwconv(x, w, c.bias, c.stride, _padding(c), act)
+
+    def conv(self, c: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+        """`c(x)`."""
+        y = self._dw(c, x, 0)
+        return super().conv(c, x) if y is None else y
+
+    def conv_relu(self, c: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+        """`relu(c(x))`."""
+        y = self._dw(c, x, 1)
+        return super().conv_relu(c, x) if y is None else y

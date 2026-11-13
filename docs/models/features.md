@@ -261,9 +261,9 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `clip-b16-openai` | 0.0187 / 0.08211 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `clip-b16-openai` | 0.02117 / 0.12801 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 | `clip-l14-openai` | 0.03472 / 0.17675 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `clip-l14-336-openai` | 0.02301 / 0.10567 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `clip-l14-336-openai` | 0.02813 / 0.13835 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 | `clip-b16-laion2b` | 0.01804 / 0.07382 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 | `clip-l14-laion2b` | 0.02455 / 0.13201 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 | `clip-h14-laion2b` | 0.01887 / 0.15276 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |

@@ -110,16 +110,24 @@ class Portable(Runner):
 
 
 class Kernels(Portable):
-    """Half-precision upstream network with packed-QKV fastbb backbone attention and CUDA graph replay."""
+    """Half-precision upstream network: fastbb attention, fvm_conv depthwise, fp16-accumulate GEMMs, CUDA graph."""
 
     module = Runner.module  # custom attention is not an exportable PyTorch operator
 
     def __init__(self, ctx: Context) -> None:
         """Load the same weights, then replace the DINOv2 attention with the declared kernel backend."""
         super().__init__(ctx)
-        from fastforks.shared.rfdetr.kernels import prepare_graph, use_fast_attention  # noqa: PLC0415 - CUDA backend only
+        from fastforks.shared.rfdetr.kernels import (  # noqa: PLC0415 - CUDA backend only
+            prepare_graph,
+            use_fast_attention,
+            use_fast_blocks,
+            use_fp16_accumulate,
+        )
 
         use_fast_attention(self.net)
+        use_fast_blocks(self.net)
+        if not ctx.params.segmentation_head:  # the mask head amplifies the backbone's fp16-accumulation differences
+            use_fp16_accumulate(self.net)
         # The authors offer this fixed-shape inference path and spatial-tensor cache for graph capture.
         prepare_graph(self.net)
         self.graphs = GraphCache(self.net, graphs=1)

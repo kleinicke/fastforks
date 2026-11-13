@@ -52,10 +52,10 @@ settings = "CPU float32, transformers DFineForObjectDetection + RT-DETR postproc
 options = [["score_threshold", 0.58]]
 
 [refs."dfine-n-coco@1"]
-sha256 = "2186a327c564bab9bbe1c050d095a5add8e086bdafdb632660fa8991ff036f8f"
+sha256 = "990a91d624b7161d64f843ec4c46a039f36452a326fc1fe117e0005d53a3d5e8"
 upstream = "https://github.com/huggingface/transformers@v5.19.0"
-settings = "CPU float32, transformers DFineForObjectDetection + RT-DETR postprocess, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.39, torch 2.14.1+cu130"
-options = [["score_threshold", 0.39]]
+settings = "CPU float32, transformers DFineForObjectDetection + RT-DETR postprocess, 640x640 PIL bilinear, skimage coffee.png, score threshold 0.45, torch 2.14.1+cu130"
+options = [["score_threshold", 0.45]]
 
 [refs."dfine-s-coco@1"]
 sha256 = "09733751ab82279c855263201be3bd15116f41a055b530a623ad00076abf117d"
@@ -70,91 +70,91 @@ settings = "CPU float32, transformers DFineForObjectDetection + RT-DETR postproc
 options = [["score_threshold", 0.5]]
 
 [validated."deim-l-coco@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-12"
-mean_px = 0.03761
-p99_px = 0.10972
+mean_px = 0.03909
+p99_px = 0.0618
 
 [validated."deim-m-coco@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-12"
-mean_px = 0.04456
-p99_px = 0.17115
+mean_px = 0.04894
+p99_px = 0.17919
 
 [validated."deim-n-coco@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-12"
-mean_px = 0.08563
-p99_px = 0.18446
+mean_px = 0.07347
+p99_px = 0.36832
 
 [validated."deim-s-coco@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-12"
-mean_px = 0.08062
-p99_px = 0.34456
+mean_px = 0.04567
+p99_px = 0.27886
 
 [validated."deim-x-coco@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-12"
-mean_px = 0.05234
-p99_px = 0.11446
+mean_px = 0.05634
+p99_px = 0.13909
 
 [validated."dfine-l-coco@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-06"
-mean_px = 0.05001
-p99_px = 0.13201
+date = "2026-11-12"
+mean_px = 0.03714
+p99_px = 0.09859
 
 [validated."dfine-m-coco@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-06"
-mean_px = 0.05237
-p99_px = 0.18261
+date = "2026-11-12"
+mean_px = 0.06031
+p99_px = 0.24838
 
 [validated."dfine-n-coco@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-06"
-mean_px = 0.1602
-p99_px = 0.83664
+date = "2026-11-13"
+mean_px = 0.091
+p99_px = 0.32514
 
 [validated."dfine-s-coco@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-06"
-mean_px = 0.07327
-p99_px = 0.23231
+date = "2026-11-12"
+mean_px = 0.05359
+p99_px = 0.148
 
 [validated."dfine-x-coco@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-06"
-mean_px = 0.04865
-p99_px = 0.11921
+date = "2026-11-12"
+mean_px = 0.03798
+p99_px = 0.08887

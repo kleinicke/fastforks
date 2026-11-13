@@ -12,18 +12,18 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`deim-l-coco`](#dfine) | yes | 8.69, 4.2x | 220, 0.68x |
-| [`deim-m-coco`](#dfine) | yes | 6.02, 5.2x | 192, 0.77x |
-| [`deim-n-coco`](#dfine) | yes | 2.73, 9.0x | 122, 0.98x |
-| [`deim-s-coco`](#dfine) | yes | 4.03, 6.6x | 172, 0.96x |
-| [`deim-x-coco`](#dfine) | yes | 14.1, 2.9x | 304, 0.61x |
+| [`deim-l-coco`](#dfine) | yes | 6.60, 5.5x | 220, 0.68x |
+| [`deim-m-coco`](#dfine) | yes | 5.17, 6.1x | 192, 0.77x |
+| [`deim-n-coco`](#dfine) | yes | 2.50, 9.8x | 122, 0.98x |
+| [`deim-s-coco`](#dfine) | yes | 3.79, 7.0x | 172, 0.96x |
+| [`deim-x-coco`](#dfine) | yes | 9.65, 4.3x | 304, 0.61x |
 | [`detr-r101-coco`](#detr) | yes | 13.7, 5.8x | 328, 0.52x |
 | [`detr-r50-coco`](#detr) | yes | 9.93, 5.6x | 272, 0.5x |
-| [`dfine-l-coco`](#dfine) | yes | 8.70, 4.3x | 300, 0.91x |
-| [`dfine-m-coco`](#dfine) | yes | 5.97, 5.2x | 252, 0.98x |
-| [`dfine-n-coco`](#dfine) | yes | 2.72, 8.9x | 202, 1.7x |
-| [`dfine-s-coco`](#dfine) | yes | 4.04, 6.4x | 212, 1.2x |
-| [`dfine-x-coco`](#dfine) | yes | 14.1, 3.2x | 364, 0.75x |
+| [`dfine-l-coco`](#dfine) | yes | 6.64, 5.6x | 220, 0.67x |
+| [`dfine-m-coco`](#dfine) | yes | 5.16, 6.0x | 192, 0.75x |
+| [`dfine-n-coco`](#dfine) | yes | 2.52, 9.7x | 122, 1.0x |
+| [`dfine-s-coco`](#dfine) | yes | 3.83, 6.7x | 172, 0.93x |
+| [`dfine-x-coco`](#dfine) | yes | 9.71, 4.6x | 304, 0.62x |
 | [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.5, 2.1x | 450, 0.64x |
 | [`grounding-dino-base`](#grounding_dino) | yes | – | – |
 | [`grounding-dino-tiny`](#grounding_dino) | yes | – | – |
@@ -37,16 +37,16 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`mm-grounding-dino-tiny`](#grounding_dino) | yes | – | – |
 | [`owlv2-b16`](#owlv2) | yes | 23.8, 3.9x | 732, 0.76x |
 | [`owlv2-l14`](#owlv2) | yes | 110, 1.9x | 1726, 0.66x |
-| [`rf-detr-l-coco`](#rfdetr) | yes | 5.84, 2.0x | 206, 0.86x |
-| [`rf-detr-m-coco`](#rfdetr) | yes | 4.36, 2.7x | 180, 1.0x |
-| [`rf-detr-n-coco`](#rfdetr) | yes | 2.82, 3.7x | 142, 0.89x |
-| [`rf-detr-s-coco`](#rfdetr) | yes | 3.66, 3.0x | 170, 0.71x |
-| [`rf-detr-seg-2xl-coco`](#rfdetr) | yes | 20.3, 1.3x | 332, 0.94x |
-| [`rf-detr-seg-l-coco`](#rfdetr) | yes | 8.28, 1.8x | 208, 0.42x |
-| [`rf-detr-seg-m-coco`](#rfdetr) | yes | 6.46, 2.2x | 204, 0.48x |
-| [`rf-detr-seg-n-coco`](#rfdetr) | yes | 4.18, 3.1x | 170, 0.57x |
-| [`rf-detr-seg-s-coco`](#rfdetr) | yes | 5.00, 2.6x | 176, 0.46x |
-| [`rf-detr-seg-xl-coco`](#rfdetr) | yes | 13.2, 1.4x | 268, 1.1x |
+| [`rf-detr-l-coco`](#rfdetr) | yes | 5.36, 2.2x | 206, 0.86x |
+| [`rf-detr-m-coco`](#rfdetr) | yes | 3.90, 3.0x | 180, 1.0x |
+| [`rf-detr-n-coco`](#rfdetr) | yes | 2.46, 4.2x | 142, 0.89x |
+| [`rf-detr-s-coco`](#rfdetr) | yes | 3.44, 3.2x | 170, 0.71x |
+| [`rf-detr-seg-2xl-coco`](#rfdetr) | yes | 16.0, 1.6x | 332, 0.94x |
+| [`rf-detr-seg-l-coco`](#rfdetr) | yes | 6.75, 2.3x | 228, 0.46x |
+| [`rf-detr-seg-m-coco`](#rfdetr) | yes | 5.36, 2.7x | 204, 0.48x |
+| [`rf-detr-seg-n-coco`](#rfdetr) | yes | 3.75, 3.5x | 190, 0.64x |
+| [`rf-detr-seg-s-coco`](#rfdetr) | yes | 4.34, 3.0x | 198, 0.52x |
+| [`rf-detr-seg-xl-coco`](#rfdetr) | yes | 10.5, 1.8x | 268, 1.1x |
 | [`rtdetrv2-l-coco`](#rtdetrv2) | yes | 6.61, 4.6x | 306, 0.74x |
 | [`rtdetrv2-m-coco`](#rtdetrv2) | yes | 5.27, 3.2x | 274, 1.1x |
 | [`rtdetrv2-ms-coco`](#rtdetrv2) | yes | 5.46, 4.1x | 306, 0.85x |
@@ -70,16 +70,16 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.3<br>29.1<br>10.3<br>2.72<br>5.43<br>0.942 | 91 / 122<br>92 / 126<br>88 / 116<br>124 / 202<br>101 / 118<br>113 / 128 |
-| `dfine-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.7<br>31.9<br>11.1<br>4.04<br>5.63<br>1.65 | 180 / 204<br>152 / 184<br>105 / 128<br>138 / 212<br>131 / 152<br>147 / 160 |
-| `dfine-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 30.8<br>38.2<br>13.5<br>5.97<br>6.79<br>2.49 | 231 / 264<br>209 / 256<br>126 / 142<br>156 / 252<br>149 / 166<br>204 / 232 |
-| `dfine-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 37.1<br>44.9<br>16.2<br>8.70<br>7.91<br>3.19 | 281 / 328<br>278 / 350<br>152 / 172<br>179 / 300<br>175 / 198<br>219 / 256 |
-| `dfine-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.9<br>54.6<br>18.5<br>14.1<br>11.0<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 452 / 488<br>476 / 536<br>227 / 258<br>237 / 364<br>245 / 284<br>– |
-| `deim-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.6<br>10.2<br>2.73<br>5.44<br>1.01 | 93 / 124<br>88 / 116<br>92 / 122<br>101 / 118<br>113 / 128 |
-| `deim-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 26.4<br>11.4<br>4.03<br>5.63<br>1.68 | 154 / 180<br>105 / 128<br>106 / 172<br>131 / 152<br>163 / 176 |
-| `deim-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 31.4<br>13.6<br>6.02<br>6.73<br>2.54 | 210 / 250<br>126 / 142<br>126 / 192<br>149 / 166<br>204 / 232 |
-| `deim-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 36.1<br>16.2<br>8.69<br>7.99<br>3.39 | 264 / 322<br>152 / 172<br>149 / 220<br>175 / 198<br>229 / 266 |
-| `deim-x-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.3<br>18.6<br>14.1<br>11.0<br>5.10 | 462 / 502<br>227 / 258<br>228 / 304<br>245 / 284<br>352 / 394 |
+| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.3<br>29.1<br>10.3<br>2.52<br>5.43<br>0.942 | 91 / 122<br>92 / 126<br>88 / 116<br>93 / 122<br>101 / 118<br>113 / 128 |
+| `dfine-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.7<br>31.9<br>11.1<br>3.83<br>5.63<br>1.65 | 180 / 204<br>152 / 184<br>105 / 128<br>106 / 172<br>131 / 152<br>147 / 160 |
+| `dfine-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 30.8<br>38.2<br>13.5<br>5.16<br>6.79<br>2.49 | 231 / 264<br>209 / 256<br>126 / 142<br>127 / 192<br>149 / 166<br>204 / 232 |
+| `dfine-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 37.1<br>44.9<br>16.2<br>6.64<br>7.91<br>3.19 | 281 / 328<br>278 / 350<br>152 / 172<br>149 / 220<br>175 / 198<br>219 / 256 |
+| `dfine-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.9<br>54.6<br>18.5<br>9.71<br>11.0<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 452 / 488<br>476 / 536<br>227 / 258<br>228 / 304<br>245 / 284<br>– |
+| `deim-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.6<br>10.2<br>2.50<br>5.44<br>1.01 | 93 / 124<br>88 / 116<br>93 / 122<br>101 / 118<br>113 / 128 |
+| `deim-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 26.4<br>11.4<br>3.79<br>5.63<br>1.68 | 154 / 180<br>105 / 128<br>106 / 172<br>131 / 152<br>163 / 176 |
+| `deim-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 31.4<br>13.6<br>5.17<br>6.73<br>2.54 | 210 / 250<br>126 / 142<br>127 / 192<br>149 / 166<br>204 / 232 |
+| `deim-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 36.1<br>16.2<br>6.60<br>7.99<br>3.39 | 264 / 322<br>152 / 172<br>149 / 220<br>175 / 198<br>229 / 266 |
+| `deim-x-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.3<br>18.6<br>9.65<br>11.0<br>5.10 | 462 / 502<br>227 / 258<br>228 / 304<br>245 / 284<br>352 / 394 |
 
 <details><summary>Details</summary>
 
@@ -94,7 +94,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/Peterande/D-FINE/blob/956d1709314c2c6a4df6f34de232054578a7449f/LICENSE>
 - Training data: COCO 2017 (train, instance annotations), ImageNet-1k (ILSVRC 2012 classification) (COCO 2017 train; the HGNetV2 backbones start from ImageNet-1k pretraining)
 - Options: `score_threshold` = 0.05 (0.0 to 1.0), `max_detections` = 100 (>= 1), `cuda_graphs` = True (speed only)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`
 - Variants: `dfine-n-coco`, `dfine-s-coco`, `dfine-m-coco`, `dfine-l-coco`, `dfine-x-coco`, `deim-n-coco`, `deim-s-coco`, `deim-m-coco`, `deim-l-coco`, `deim-x-coco`
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -161,16 +161,16 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `dfine-n-coco` | 0.1602 / 0.83664 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `dfine-s-coco` | 0.07327 / 0.23231 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `dfine-m-coco` | 0.05237 / 0.18261 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `dfine-l-coco` | 0.05001 / 0.13201 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `dfine-x-coco` | 0.04865 / 0.11921 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `deim-n-coco` | 0.08563 / 0.18446 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `deim-s-coco` | 0.08062 / 0.34456 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `deim-m-coco` | 0.04456 / 0.17115 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `deim-l-coco` | 0.03761 / 0.10972 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `deim-x-coco` | 0.05234 / 0.11446 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `dfine-n-coco` | 0.091 / 0.32514 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120` |
+| `dfine-s-coco` | 0.05359 / 0.148 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120` |
+| `dfine-m-coco` | 0.06031 / 0.24838 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120` |
+| `dfine-l-coco` | 0.03714 / 0.09859 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120` |
+| `dfine-x-coco` | 0.03798 / 0.08887 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120` |
+| `deim-n-coco` | 0.07347 / 0.36832 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120` |
+| `deim-s-coco` | 0.04567 / 0.27886 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120` |
+| `deim-m-coco` | 0.04894 / 0.17919 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120` |
+| `deim-l-coco` | 0.03909 / 0.0618 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120` |
+| `deim-x-coco` | 0.05634 / 0.13909 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120` |
 
 ### Limitations
 
@@ -525,16 +525,16 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rf-detr-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>9.43<br>2.82<br>4.58<br>1.15 | 118 / 160<br>114 / 140<br>114 / 142<br>141 / 156<br>179 / 208 |
-| `rf-detr-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.2<br>10.1<br>3.66<br>4.56<br>1.83 | 189 / 238<br>126 / 148<br>125 / 170<br>150 / 162<br>188 / 214 |
-| `rf-detr-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.8<br>12.3<br>4.36<br>4.92<br>2.10 | 140 / 174<br>135 / 154<br>133 / 180<br>156 / 166<br>194 / 216 |
-| `rf-detr-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.8<br>10.7<br>5.84<br>5.32<br>2.87 | 219 / 240<br>148 / 166<br>146 / 206<br>164 / 182<br>203 / 222 |
-| `rf-detr-seg-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>11.9<br>4.18<br>6.59<br>1.52 | 255 / 298<br>123 / 148<br>122 / 170<br>158 / 166<br>189 / 218 |
-| `rf-detr-seg-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>12.0<br>5.00<br>6.55<br>2.00 | 327 / 382<br>130 / 154<br>129 / 176<br>162 / 190<br>197 / 224 |
-| `rf-detr-seg-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.4<br>15.1<br>6.46<br>6.86<br>2.50 | 381 / 424<br>140 / 180<br>138 / 204<br>172 / 194<br>208 / 228 |
-| `rf-detr-seg-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>15.2<br>8.28<br>7.08<br>3.30 | 459 / 492<br>150 / 168<br>147 / 208<br>190 / 208<br>218 / 234 |
-| `rf-detr-seg-xl-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.7<br>19.4<br>13.2<br>10.8<br>5.20 | 182 / 248<br>178 / 188<br>175 / 268<br>212 / 246<br>302 / 326 |
-| `rf-detr-seg-2xl-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.6<br>25.5<br>20.3<br>16.9<br>8.62 | 287 / 352<br>210 / 230<br>206 / 332<br>245 / 308<br>334 / 366 |
+| `rf-detr-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>9.43<br>2.46<br>4.58<br>1.15 | 118 / 160<br>114 / 140<br>114 / 142<br>141 / 156<br>179 / 208 |
+| `rf-detr-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.2<br>10.1<br>3.44<br>4.56<br>1.83 | 189 / 238<br>126 / 148<br>125 / 170<br>150 / 162<br>188 / 214 |
+| `rf-detr-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.8<br>12.3<br>3.90<br>4.92<br>2.10 | 140 / 174<br>135 / 154<br>133 / 180<br>156 / 166<br>194 / 216 |
+| `rf-detr-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.8<br>10.7<br>5.36<br>5.32<br>2.87 | 219 / 240<br>148 / 166<br>146 / 206<br>164 / 182<br>203 / 222 |
+| `rf-detr-seg-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>11.9<br>3.75<br>6.59<br>1.52 | 255 / 298<br>123 / 148<br>126 / 190<br>158 / 166<br>189 / 218 |
+| `rf-detr-seg-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>12.0<br>4.34<br>6.55<br>2.00 | 327 / 382<br>130 / 154<br>129 / 198<br>162 / 190<br>197 / 224 |
+| `rf-detr-seg-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.4<br>15.1<br>5.36<br>6.86<br>2.50 | 381 / 424<br>140 / 180<br>144 / 204<br>172 / 194<br>208 / 228 |
+| `rf-detr-seg-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>15.2<br>6.75<br>7.08<br>3.30 | 459 / 492<br>150 / 168<br>151 / 228<br>190 / 208<br>218 / 234 |
+| `rf-detr-seg-xl-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.7<br>19.4<br>10.5<br>10.8<br>5.20 | 182 / 248<br>178 / 188<br>188 / 268<br>212 / 246<br>302 / 326 |
+| `rf-detr-seg-2xl-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.6<br>25.5<br>16.0<br>16.9<br>8.62 | 287 / 352<br>210 / 230<br>218 / 332<br>245 / 308<br>334 / 366 |
 
 <details><summary>Details</summary>
 
@@ -544,7 +544,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/roboflow/rf-detr/blob/5b22dfc0940697ce1abdfa681a5f7392b3eddbfb/README.md#license>
 - Training data: COCO 2017 (train, instance annotations), Objects365 (train, box annotations), LVD-142M (DINOv2's curated web-image set, not released) (COCO 2017 train (README); the RF-DETR paper (arXiv:2511.09554) pretrains detection on Objects365; the DINOv2-small backbone originates from LVD-142M pretraining. Full intermediate training provenance is not stated.)
 - Options: `score_threshold` = 0.5 (0.0 to 1.0), `max_detections` = 100 (>= 1)
-- Kernel libraries: `fastbb`
+- Kernel libraries: `fastbb`, `fvm_conv`
 - Variants: `rf-detr-n-coco`, `rf-detr-s-coco`, `rf-detr-m-coco`, `rf-detr-l-coco`, `rf-detr-seg-n-coco`, `rf-detr-seg-s-coco`, `rf-detr-seg-m-coco`, `rf-detr-seg-l-coco`, `rf-detr-seg-xl-coco`, `rf-detr-seg-2xl-coco`
 - Outputs: boxes, scores, labels, masks; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -599,16 +599,16 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `rf-detr-n-coco` | 0.05071 / 0.13314 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `rf-detr-s-coco` | 0.06718 / 0.1126 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `rf-detr-m-coco` | 0.08382 / 0.15501 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `rf-detr-l-coco` | 0.1351 / 0.18214 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `rf-detr-seg-n-coco` | 0.21732 / 0.87894 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `rf-detr-n-coco` | 0.04829 / 0.1498 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
+| `rf-detr-s-coco` | 0.06718 / 0.1126 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
+| `rf-detr-m-coco` | 0.09944 / 0.22606 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
+| `rf-detr-l-coco` | 0.15787 / 0.32693 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
+| `rf-detr-seg-n-coco` | 0.25982 / 1.06715 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
 | `rf-detr-seg-s-coco` | 0.12115 / 0.31712 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
 | `rf-detr-seg-m-coco` | 0.13842 / 0.39567 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `rf-detr-seg-l-coco` | 0.34109 / 0.86718 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `rf-detr-seg-xl-coco` | 0.67382 / 2.7521 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `rf-detr-seg-2xl-coco` | 0.29464 / 1.03198 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `rf-detr-seg-l-coco` | 0.26359 / 0.91166 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
+| `rf-detr-seg-xl-coco` | 0.73043 / 2.97183 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
+| `rf-detr-seg-2xl-coco` | 0.37543 / 1.74394 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
 
 ### Limitations
 

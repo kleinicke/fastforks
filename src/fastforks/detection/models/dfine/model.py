@@ -5,7 +5,7 @@ Follows the official deploy script (`references/deploy/dfine_torch.py`): the inp
 from the encoder output -> deformable decoder whose layers refine each box edge as a distribution over distances
 (fine-grained distribution refinement); the postprocess is RT-DETR's, so this family reuses its runner: portable runs
 the backbone, encoder and decoder layers in float16 on CUDA, the query selection, the box refinement and the heads in
-float32; kernels adds the fp16-accumulate convolutions and replays the network from a CUDA graph.
+float32; kernels adds the fp16-accumulate convolutions, our depthwise kernel and replays the network from a CUDA graph.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from fastforks.detection import _rtdetr_runner as base
+from fastforks.detection._convs import DepthwiseConvs
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared.cuda_graphs import GraphCache
 
@@ -44,7 +45,8 @@ class Portable(base.Portable):
     def build(self, ctx: Context) -> torch.nn.Module:
         """The network with the checkpoint loaded (BatchNorm folded, RepVGG merged), in eval mode."""
         net = DFine(ctx.params)
-        key = "model" if ctx.weights()[0].suffix == ".pth" else None  # the authors' (DEIM) training checkpoints
+        name = (ctx.user_weights or ctx.variant.weights)[0].name  # not the resolved path: a cache blob has no suffix
+        key = "model" if name.endswith(".pth") else None  # the authors' (DEIM) training checkpoints
         net.load_state_dict(convert(ctx.state_dict(key=key), ctx.params.dec_layers))
         return net.eval()
 
@@ -65,10 +67,11 @@ class Portable(base.Portable):
 
 
 class Kernels(base.Kernels, Portable):
-    """`cudnn_hacc` convolutions, fp16-accumulate GEMMs and CUDA graph replay (the RT-DETR runner's)."""
+    """The RT-DETR runner's kernels (`cudnn_hacc`, fp16-accumulate GEMMs, CUDA graph); depthwise convs by fvm_conv."""
 
     cudnn_hacc = cudnn_hacc
     GraphCache = GraphCache
+    convs = DepthwiseConvs
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}

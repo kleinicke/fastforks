@@ -49,7 +49,7 @@ cuda_dtype = "float16"  # backbone, encoder and decoder layers; query selection,
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU), fp16-accumulate GEMMs, CUDA graph
+kernels = ["cudnn_hacc", "fvm_conv"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU), our depthwise kernel, fp16-accumulate GEMMs, CUDA graph
 
 [output]
 label_set = "coco-80"

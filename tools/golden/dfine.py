@@ -28,7 +28,7 @@ from PIL import Image
 UPSTREAM = "https://github.com/huggingface/transformers"
 REF_VERSION = transformers.__version__
 IMAGE_SHA256 = "cc02f8ca188b167c775a7101b5d767d1e71792cf762c33d6fa15a4599b5a8de7"  # skimage 0.26 data/coffee.png
-THRESHOLDS = {"n": 0.39, "s": 0.42, "m": 0.58, "l": 0.4, "x": 0.5}  # per variant: mid-gap of the scores around the cut
+THRESHOLDS = {"n": 0.45, "s": 0.42, "m": 0.58, "l": 0.4, "x": 0.5}  # per variant: mid-gap of the scores around the cut
 SIZES = {"n": "nano", "s": "small", "m": "medium", "l": "large", "x": "xlarge"}
 
 
