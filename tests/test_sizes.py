@@ -44,9 +44,7 @@ def test_tested_max_and_not_measured():
 
 
 # refs without a measured largest size, with the reason (cards never say "not measured" for anything else)
-UNMEASURED = {
-    "pe-core-g14-448": "weights 7.0 GB: over the probe machine's free-disk floor (2026-11-12)",
-}
+UNMEASURED: dict[str, str] = {}  # ref: why it has no tested size
 
 
 def test_every_ref_has_a_tested_size():
