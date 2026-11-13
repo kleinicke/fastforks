@@ -17,6 +17,12 @@
   kernels, 18.4 ms portable vs 77.3 ms original fp16; L 69.3 / 125 vs 438 ms; peak 0.35x of the original. Accuracy:
   GPU goldens against upstream (no prompt-depth benchmark data here).
 
+- SegFormer fine-tunes (`segformer-b2-clothes`, 18 clothes / body classes, licence not stated;
+  `segformer-b5-face-parsing`, 19 face classes, non-commercial; segmentation): the checkpoints' processor (fixed
+  512x512 resize, card `resize = ["fixed", 512, 512]`). 512x512: B2 3.6 ms kernels, 8.1 ms portable (2.7 ms
+  TensorRT) vs 18.9 ms original fp32, peak 0.13 GB vs 0.83 GB; B5 face 9.2 ms vs 38.8 ms. Label maps agree with the
+  original fp32 on 99.72 % (B2) / 99.97 % (B5) of the pixels (20 images).
+
 - Tests: no float16 model keeps a batch norm whose running statistics overflow float16 (up to 3e10 in some
   checkpoints: inf, then zeros or NaN). Every golden ref with a float16 CUDA path is checked, portable and kernels
   (`tests/test_fp16_batchnorm.py`).

@@ -209,9 +209,12 @@ def target_size(h: int, w: int, rule: Sequence[Any]) -> tuple[int, int]:
             `("short", short, max_long)`: shorter side to `short`, unless the longer side then exceeds `max_long`
             (detectron2 `ResizeShortestEdge`). Sizes are rounded as both do (`int(x + 0.5)`);
             `("eomt", short)`: shorter side to `short`, sizes rounded with Python `round` (EoMT
-            `scale_img_size_semantic`).
+            `scale_img_size_semantic`); `("fixed", h, w)`: that size whatever the aspect ratio (the Hugging Face
+            `SegformerImageProcessor` of fine-tuned SegFormer checkpoints).
     """
     kind = rule[0]
+    if kind == "fixed":
+        return int(rule[1]), int(rule[2])
     if kind == "mmseg":
         s = min(rule[1] / max(h, w), rule[2] / min(h, w))
     elif kind == "short":

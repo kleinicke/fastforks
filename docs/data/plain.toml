@@ -120,7 +120,7 @@ eomt = "EoMT: a plain vision transformer that also predicts masks, for ADE20K sc
 mask2former = "Mask2Former with a Swin-L backbone for ADE20K scene segmentation. Non-commercial weights."
 oneformer = "OneFormer (SHI Labs): one network for several segmentation tasks, used here for ADE20K scene segmentation."
 sapiens = "Meta's Sapiens: segmentation of human body parts (28 Goliath classes such as face, hair, limbs and clothing). Non-commercial licence."
-segformer = "NVIDIA's SegFormer: a transformer for ADE20K scene segmentation, sizes B0 and B5. Non-commercial weights."
+segformer = "NVIDIA's SegFormer: a transformer for ADE20K scene segmentation (sizes B0 and B5), plus two community fine-tunes: clothes parsing (B2, 18 classes) and face parsing (B5, 19 classes). Non-commercial weights."
 
 # --- promptable segmentation
 efficientvit_sam = "EfficientViT-SAM (MIT Han lab): Segment Anything with a fast convolutional image encoder, in five sizes."
