@@ -369,6 +369,54 @@ def _memfof(a: Any, full: str) -> Any:  # noqa: ANN401
     return call
 
 
+def _memflow(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Upstream MemFlowNet + `InferenceCore.step(end=True)` per pair as `tools/golden/memflow.py` (`FF_MEMFLOW_REPO`).
+
+    A fresh `InferenceCore` per call (empty memory: upstream's first pair of a sequence), the frames padded as upstream
+    `InputPadder` (centred, replicate, multiples of 8) and the flow cropped. Upstream's inference has no
+    mixed-precision path (`mixed_precision` is a training setting): the fp16 tier is autocast. The reference
+    environment supplies yacs, loguru, einops and scipy.
+    """
+    import importlib as il  # noqa: PLC0415
+    import types  # noqa: PLC0415
+
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+    from fastforks._core.checkpoint import load_state_dict  # noqa: PLC0415
+
+    g = _golden("memflow")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_MEMFLOW_REPO")
+        if not repo:
+            msg = "FF_MEMFLOW_REPO: a clone of DQiaole/MemFlow for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+        sys.path[:0] = [str(a.tree), str(a.tree / "core")]
+        sys.modules.setdefault("timm", types.ModuleType("timm"))  # only the Twins-SVT encoders use it
+    from core.Networks import build_network  # noqa: PLC0415  # ty: ignore[unresolved-import]
+    from inference.inference_core_skflow import InferenceCore  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    card, variant = registry.resolve("flow", full)
+    cfg = il.import_module(f"configs.{g.CONFIGS[variant.id]}").get_cfg()
+    net = build_network(cfg).eval()
+    (ckpt,) = registry.weights(card, variant, allow_download=False)
+    net.load_state_dict(load_state_dict(ckpt, key="model", strip=""), strict=True)
+    net = net.cuda()
+    a.note = f"upstream MemFlowNet configs/{g.CONFIGS[variant.id]}.py, InferenceCore.step(end=True) per pair"
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        h, w = im1.shape[-2:]
+        ph, pw = -h % 8, -w % 8
+        pad = (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2)
+        x = torch.stack([F.pad(im[None].float(), pad, mode="replicate")[0] for im in (im1, im2)])[None]
+        _, flow = InferenceCore(net, config=cfg).step(2 * (x / 255.0) - 1.0, end=True)
+        return flow[..., pad[2] : pad[2] + h, pad[0] : pad[0] + w]
+
+    return call
+
+
 def _flowformer(a: Any, full: str) -> Any:  # noqa: ANN401
     """Authors' FlowFormer Small, full-frame inference with their centred padding.
 
@@ -1642,6 +1690,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "raft": _Local("flow", _raft, ((1080, 1920), (375, 1242))),
     "sea_raft": _Local("flow", _sea_raft, ((1080, 1920), (375, 1242))),
     "memfof": _Local("flow", _memfof, ((1080, 1920), (375, 1242))),
+    "memflow": _Local("flow", _memflow, ((1080, 1920), (375, 1242))),
     "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
     "rife": _LocalFp16("interpolation", _rife, ((1080, 1920),)),
     "realesrgan": _LocalFp16("restoration", _realesrgan, ((512, 512),), _hwc01),

@@ -1,0 +1,58 @@
+schema = 2
+name = "MemFlow"
+summary = "MemFlow (Dong & Fu, CVPR 2024): optical flow with a memory of past motion. A RAFT-style network at 1/8 resolution: BasicEncoder feature and context networks, an all-pairs correlation pyramid, a motion encoder and update block of depthwise-separable large-kernel blocks (SKFlow) instead of a GRU, and an attention readout of the motion features of memory frames; convex 8x upsampling. The authors' released weights; the network is ported from DQiaole/MemFlow. A pair (image1, image2) runs as upstream's first frame of a video (empty memory: the readout attends over the pair's own motion features). Paper (video with memory, val_decoder_depth 15): Sintel test EPE 1.05 (clean) / 1.91 (final), KITTI 2015 test Fl-all 4.10 %."
+tier = "experimental"
+outputs = ["flow"]
+uses = []  # fastforks.shared modules this family imports
+limitations = ["Pairs only: the video memory (the keys and values of earlier frames that upstream's inference keeps) is not exposed; each pair runs as the first frame of a video.", "The MemFlow-T checkpoints (Twins-SVT encoders) and MemFlow-P (flow prediction) are not ported."]
+
+[upstream]
+repo = "https://github.com/DQiaole/MemFlow"
+commit = "5486fb88a55b04c2e2b292b3abaa7641d9988831"  # net.py ports core/Networks/MemFlowNet/{MemFlow,cnn,corr,sk2,gma}.py and inference/{inference_core_skflow,memory_manager_skflow}.py
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # GitHub release v1.0.0 assets of the repository, no separate licence: they inherit the code licence
+files = ["LICENSE"]
+training_data = ["flyingchairs", "sceneflow"]
+training_note = "FlyingThings3D (part of SceneFlow), starting from SKFlow's FlyingChairs + FlyingThings3D checkpoint, as upstream's train.sh"
+evidence = "https://github.com/DQiaole/MemFlow/blob/5486fb88a55b04c2e2b292b3abaa7641d9988831/LICENSE"  # weights: https://github.com/DQiaole/MemFlow/releases/tag/v1.0.0
+
+[io]
+input = "mean_std"  # upstream: 2 * (x / 255) - 1, i.e. [0, 1] -> [-1, 1]
+mean = [0.5, 0.5, 0.5]
+std = [0.5, 0.5, 0.5]
+min_size = 128  # 1/8 features with a 4-level pyramid: the coarsest level needs 2 px (the lookup normalises by size - 1)
+pad = { multiple = 8, mode = "centre", fill = "replicate" }  # upstream InputPadder ('sintel' mode)
+
+[options]
+iters = { default = 15, min = 1 }  # flow updates (upstream val_decoder_depth 15 in every config; fewer trade accuracy for speed, its Fig. 1)
+
+[params]
+train_avg_length = 6750.0  # upstream config: (400 * 720 // 64) * 1.5 tokens of the training crop; the attention scale is dim^-0.5 * log(N) / log(train_avg_length) for N tokens
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast for the encoders, the attention and the update block; correlation, lookup and upsampling in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["raft_flow"]  # the correlation windows on the fly (four levels, 256 channels, radius 4) instead of the all-pairs volume; the network stays the portable fp16 one
+
+[[variants]]
+id = "memflow"  # upstream MemFlowNet_things (configs/things_memflownet.py), the general checkpoint
+revision = 1
+weights = [{ name = "MemFlowNet_things.pth", size = 25400354, sha256 = "694cc33c1ac5945798aaf001e7b26a7966a01873879b6d03e5f3d54c97e28d36", url = "https://github.com/DQiaole/MemFlow/releases/download/v1.0.0/MemFlowNet_things.pth" }]
+
+[[variants]]
+id = "memflow-sintel"  # upstream MemFlowNet_sintel (configs/sintel_memflownet.py); Sintel test EPE 1.05 clean / 1.91 final
+revision = 1
+params = { train_avg_length = 6624.0 }  # (368 * 768 // 64) * 1.5
+licence = { training_data = ["flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "as memflow, then fine-tuned on a mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (upstream stage 'sintel')" }
+weights = [{ name = "MemFlowNet_sintel.pth", size = 25400354, sha256 = "47c0ecd567612e518018a278dae5b2cfae5c61d2c720e44dfb63b20cad91daf3", url = "https://github.com/DQiaole/MemFlow/releases/download/v1.0.0/MemFlowNet_sintel.pth" }]
+
+[[variants]]
+id = "memflow-kitti"  # upstream MemFlowNet_kitti (configs/kitti_memflownet.py); KITTI 2015 test Fl-all 4.10 %
+revision = 1
+params = { train_avg_length = 6480.0 }  # (288 * 960 // 64) * 1.5
+licence = { training_data = ["flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "as memflow-sintel, then fine-tuned on KITTI 2015" }
+weights = [{ name = "MemFlowNet_kitti.pth", size = 25400109, sha256 = "c3ecadb24486ad04eaeeb153f88620fbf931c69b3dab48a8f32ef4d6329fef5c", url = "https://github.com/DQiaole/MemFlow/releases/download/v1.0.0/MemFlowNet_kitti.pth" }]
