@@ -48,7 +48,7 @@ Speed and memory not measured for: `aliked-flexglue`.
 - Variants: `aliked-flexglue`
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-flexglue` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-flexglue` 3000x4000 (2.0 GiB peak allocated, 2.5 reserved)
 
 ### Parity
 
@@ -276,7 +276,7 @@ Speed and memory not measured for: `loma-b`.
 - Variants: `loma-b`
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loma-b` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loma-b` 3000x4000 (2.4 GiB peak allocated, 3.6 reserved)
 
 ### Parity
 
