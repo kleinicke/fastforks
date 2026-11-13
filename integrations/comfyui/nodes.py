@@ -560,6 +560,28 @@ class Tag(_Node):
         return ("\n".join(each(image.shape[0], one)),)
 
 
+class NsfwCheck(_Node):
+    """Normal / nsfw classification (Falconsai NSFW ViT)."""
+
+    DESCRIPTION = "The class per image (normal / nsfw, one line each) and the highest nsfw probability of the batch."
+    RETURN_TYPES = ("STRING", "FLOAT")
+    RETURN_NAMES = ("label", "nsfw_score")
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        ids = _ids("classification", lambda m: fastforks.model_card(m).output_info.get("label_set") == "nsfw-2")
+        return {"required": {"image": ("IMAGE",), **common(ids, "falconsai-nsfw-vit")}}
+
+    def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[str, float]:
+        """Classify every image."""
+        m = load(model, backend, dtype)
+        names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
+        probs = each(image.shape[0], lambda i: m(convert.frame(image, i, m.device)).probs.float().cpu())
+        labels = "\n".join(names[int(p.argmax())] for p in probs)
+        return labels, max(float(p[names.index("nsfw")]) for p in probs)
+
+
 _PX = "in pixels of the first frame"
 
 
@@ -832,6 +854,7 @@ NODE_CLASS_MAPPINGS = {
     "FastforksInterpolate": Interpolate,
     "FastforksClassify": Classify,
     "FastforksTag": Tag,
+    "FastforksNsfwCheck": NsfwCheck,
     "FastforksSemanticSegment": SemanticSegment,
     "FastforksStereo": Stereo,
     "FastforksFlow": Flow,
@@ -850,6 +873,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FastforksInterpolate": "Interpolate frames (fastforks)",
     "FastforksClassify": "Classify (fastforks)",
     "FastforksTag": "Tag (WD tagger, fastforks)",
+    "FastforksNsfwCheck": "NSFW check (fastforks)",
     "FastforksSemanticSegment": "Semantic segmentation (fastforks)",
     "FastforksStereo": "Stereo disparity (fastforks)",
     "FastforksFlow": "Optical flow (fastforks)",
