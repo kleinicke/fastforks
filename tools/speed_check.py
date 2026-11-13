@@ -10,16 +10,17 @@
     python tools/speed_check.py run --trace-diff --out trace.jsonl --forks plugin.py; ... trace-diff trace.jsonl
 
 `run` measures one (ref, mode) per subprocess (a timeout or crash becomes an error row), appends JSON rows to `--out`.
-Protocol per input (smallest first, same inputs as the floor rows: real KITTI / Middlebury images where the floor
-names them, else the task's synthetic `bench_inputs`): first call, 3 warm-up calls, peak reset, then 3 rounds of 5
-timed calls (CUDA-synchronised); `ms` = median of the round medians, `noise` = (max - min) / median of the round
-medians, peaks = max over the first and the timed calls. Each (ref, side, mode) runs in a fresh process (`cold`):
-`torch_import_s`, `cuda_init_s`, `import_s` (the fastforks task module), `load_s` (the load call until the model is on
-the GPU; fork side: the fork's own imports included), per input `first_call_s` and its peak (`peak_first_*_mb`;
-`first_call_cold` on the job's first input, later inputs are a new shape in the warm process). Each row also records
-the time of the task runner alone on the tensors the full call passed it (`core_ms`) and a short profile of the full
-call on one input per task (CUDA time share of layout copies / casts, other elementwise kernels, host syncs per call,
-top kernels). `export` turns the library rows into floor rows (the fields of docs/data/speed.jsonl).
+Protocol per input (smallest first, same inputs as the floor rows: real KITTI / Middlebury images where the floor names
+them, else the task's synthetic `bench_inputs`; their build's cached memory released): first call, 3 warm-up calls, peak
+reset, then 3 rounds of 5 timed calls (CUDA-synchronised); `ms` = median of the round medians, `noise` = (max - min) /
+median of the round medians, peaks = max over the first and the timed calls. Each (ref, side, mode) runs in a fresh
+process (`cold`): `torch_import_s`, `cuda_init_s`, `import_s` (the fastforks task module), `load_s` (the load call until
+the model is on the GPU; fork side: the fork's own imports included), per input `first_call_s` and its peak
+(`peak_first_*_mb`; `first_call_cold` on the job's first input, later inputs are a new shape in the warm process). Each
+row also records the time of the task runner alone on the tensors the full call passed it (`core_ms`) and a short
+profile of the full call on one input per task (CUDA time share of layout copies / casts, other elementwise kernels,
+host syncs per call, top kernels). `export` turns the library rows into floor rows (the fields of
+docs/data/speed.jsonl).
 
 `run --modes compile tensorrt --out docs/data/speed_compile.jsonl` measures, per ref of the floor's portable rows at the
 task's standard input (`STANDARD`, else its smallest), `model.compile()` on portable (`compile`: a fresh process
@@ -368,6 +369,7 @@ def _lib_job(
     runner = m._runner  # noqa: SLF001 - the task's own runner contract
     for inp in spec["inputs"]:
         args, kw = lib_inputs(m, spec["task"], spec["ref"], inp)
+        torch.cuda.empty_cache()  # as speed_original after its input prep: peaks of the call, not of the input build
         cap = _Capture(runner)
 
         def full(a: tuple[Any, ...] = args, k: dict[str, Any] = kw) -> Any:  # noqa: ANN401
