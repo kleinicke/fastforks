@@ -1,0 +1,52 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 3.6e-06
+gpu_mean = 0.0012
+gpu_p99 = 0.0044
+
+[refs."dat-2-x4@1"]
+sha256 = "c1053576bab8ff530ee8d27480d25806f4fc175fa4a4319d24bc99ce56aa288e"
+upstream = "https://github.com/zhengchen1999/DAT@1645c64fad7c94d94abd090bd1319eec1f26f7cc"
+settings = "CPU float32, dat_model.py test: net_g(img) (no chop), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."dat-light-x4@1"]
+sha256 = "020d426145f259afc7c1b1ef053db455d1ba2577f79e4a3489ed17fbdc65e968"
+upstream = "https://github.com/zhengchen1999/DAT@1645c64fad7c94d94abd090bd1319eec1f26f7cc"
+settings = "CPU float32, dat_model.py test: net_g(img) (no chop), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."dat-x4@1"]
+sha256 = "121f62c9aa49219606548ae474bbfbf8c491b8f8d6fd3ca7e14de6843a940c0d"
+upstream = "https://github.com/zhengchen1999/DAT@1645c64fad7c94d94abd090bd1319eec1f26f7cc"
+settings = "CPU float32, dat_model.py test: net_g(img) (no chop), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[validated."dat-2-x4@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00065
+p99_px = 0.00241
+
+[validated."dat-light-x4@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00079
+p99_px = 0.00288
+
+[validated."dat-x4@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00051
+p99_px = 0.00191

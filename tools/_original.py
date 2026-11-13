@@ -609,6 +609,22 @@ def _hat(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda x: g.run(net, x, p["scale"])
 
 
+def _dat(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `DAT` as `tools/golden/dat.py` (`FF_DAT_REPO`, `FF_DAT_WEIGHTS`; needs `einops`), float32.
+
+    As `dat_model.py` test (`use_chop` False): `net_g(img)`, clamp.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("dat")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    weights = Path(os.environ["FF_DAT_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(Path(os.environ["FF_DAT_REPO"]), weights, p, device=torch.device("cuda"))
+    a.note = "upstream dat_model.py test, float32, no chop"
+    return lambda x: g.run(net, x, p["scale"])
+
+
 def _bchw01(args: tuple[Any, ...]) -> tuple[Any, ...]:
     """uint8 CUDA CHW -> float32 `[1, 3, H, W]` in [0, 1] (BasicSR's lq)."""
     return ((args[0].float() / 255)[None],)
@@ -1768,6 +1784,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "span": _Local("restoration", _span, ((512, 512),), _bchw01),
     "swinir": _Local("restoration", _swinir, ((512, 512),), _bchw01),
     "hat": _Local("restoration", _hat, ((512, 512),), _bchw01),
+    "dat": _Local("restoration", _dat, ((512, 512),), _bchw01),
     "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
     "flowformer": _Local("flow", _flowformer, ((1080, 1920), (375, 1242))),
     "flowseek": _Local("flow", _flowseek, ((1080, 1920), (375, 1242))),

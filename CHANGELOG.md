@@ -17,6 +17,13 @@
   kernels, 18.4 ms portable vs 77.3 ms original fp16; L 69.3 / 125 vs 438 ms; peak 0.35x of the original. Accuracy:
   GPU goldens against upstream (no prompt-depth benchmark data here).
 
+- DAT super-resolution (`dat-x4`, `dat-2-x4`, `dat-light-x4`, restoration; Apache-2.0 code and weights): attention
+  as one SDPA call (head size padded to 32). 512x512 DAT x4: 1421 ms kernels, 1565 ms portable (1063 ms compile) vs
+  5633 ms original fp32 (9564 ms `.half()`), peak 2.7 GB vs 4.3 GB; DAT-light: 268 ms vs 2246 ms, 1.5 GB vs 2.7 GB.
+  DIV2K validation (every 4th image: 25) PSNR 31.03 / 30.99 (DAT-2) / 30.48 (light) portable, as the original;
+  kernels 0.02 dB lower. The kernels runner routes only convolutions with >= 64 channels through `cudnn_hacc`
+  (narrower ones were slower).
+
 - HAT super-resolution (`hat-x4`, `hat-s-x4`, `real-hat-gan-x4`, restoration; Apache-2.0 code and weights): window
   attention and overlapping cross-attention as one SDPA call each, biases gathered at load; in float16 the last
   group's residual sum is scaled down (overflow). 512x512 HAT x4: 1445 ms kernels, 1596 ms portable (1185 ms compile)
