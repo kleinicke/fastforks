@@ -734,12 +734,13 @@ class PointTrack(_Node):
 
 
 class Upscale(_Node):
-    """Super-resolution / restoration (Real-ESRGAN, SPAN, SwinIR, HAT, ...), tiled for large images."""
+    """Super-resolution / restoration (Real-ESRGAN, SPAN, SwinIR, HAT, DAT, ...), tiled for large images."""
 
     DESCRIPTION = (
-        "Upscaled image. Models: fastforks ids (Real-ESRGAN, SPAN, SwinIR, HAT, ...), or files of models/upscale_models"
-        " (file: ...) of the architectures fastforks runs (Real-ESRGAN / ESRGAN, SPAN, SwinIR); other files are not"
-        " listed. Keep tiling on for HAT: one pass runs out of memory at 2048 x 1024 on 16 GB."
+        "Upscaled image. Models: fastforks ids (Real-ESRGAN, SPAN, SwinIR, HAT, DAT, ...), or files of"
+        " models/upscale_models (file: ...) of the architectures fastforks runs (Real-ESRGAN / ESRGAN, SPAN, SwinIR);"
+        " other files are not listed. Keep tiling on for HAT and DAT: one pass runs out of memory at 2048 x 1024"
+        " on 16 GB."
     )
     RETURN_TYPES = ("IMAGE",)
 
