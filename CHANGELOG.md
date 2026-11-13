@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- IS-Net dichotomous segmentation (`isnet-general-use`, `isnet`, matting; Apache-2.0 code and weights): 1080x1920
+  image (1024x1024 net): 12.1 ms kernels, 21.0 ms portable (13.1 ms compile, 6.7 ms TensorRT) vs 38.5 ms original
+  fp32, peak 0.52 GB vs 1.04 GB. DIS5K validation (235 images) max F-beta 0.962 (general use) / 0.782 in every tier,
+  as the original.
+
 - U²-Net salient object segmentation (`u2net`, `u2netp`, `u2net-human-seg`, matting; Apache-2.0 code and weights):
   batch norms folded into the convolutions (float16 range). 1080x1920 image (320x320 net): 8.8 ms kernels, 14.9 ms
   portable (6.2 ms compile, 3.1 ms TensorRT) vs 16.0 ms original fp32, peak 0.26 GB vs 0.50 GB. DIS5K validation
