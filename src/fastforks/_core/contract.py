@@ -130,10 +130,12 @@ def resolve(card: ModelCard) -> Contract:
     )
 
 
+_EXTRA_INPUT_TASKS = {"multiview", "matting", "depth"}
+"""Tasks whose inputs after the first (cameras, depth prompt) are declared per model by `input_use`."""
+
+
 def _task_inputs(task: str) -> dict[str, str]:
-    main = (
-        spec(task).inputs[:1] if task in {"multiview", "matting"} else spec(task).inputs
-    )  # cameras, trimap: `input_use`
+    main = spec(task).inputs[:1] if task in _EXTRA_INPUT_TASKS else spec(task).inputs
     return dict.fromkeys(main, "required")
 
 
@@ -441,7 +443,7 @@ def _export(card: ModelCard, v: Variant, uses: Mapping[str, Any]) -> dict[str, A
 
     inside, outside = _STAGES[card.task]
     inputs: tuple[str, ...] = spec(card.task).inputs
-    if card.task in {"multiview", "matting"}:  # the image(s), then the cameras / trimap the model requires
+    if card.task in _EXTRA_INPUT_TASKS:  # the image(s), then the cameras / trimap / prompt the model requires
         inputs = (inputs[0], *(k for k in inputs[1:] if uses.get(k) == "required"))
     side = 0  # as `Model.export_size()`: the classification crop, the promptable encoder side, else the task's
     if card.task == "classification":

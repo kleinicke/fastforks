@@ -12,15 +12,15 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`realesrgan-x2plus`](#realesrgan) | yes | 80.0, 1.6x | 394, 0.6x |
-| [`realesrgan-x4plus`](#realesrgan) | yes | 402, 1.6x | 1434, 0.57x |
+| [`realesrgan-x2plus`](#realesrgan) | yes | 80.2, 1.6x | 394, 0.6x |
+| [`realesrgan-x4plus`](#realesrgan) | yes | 403, 1.6x | 1434, 0.57x |
 | [`realesrgan-x4plus-anime-6b`](#realesrgan) | yes | 132, 1.6x | 1410, 0.57x |
 | [`span-x2`](#span) | yes | 14.9, 1.6x | 522, 0.81x |
 | [`span-x4`](#span) | yes | 14.6, 1.8x | 522, 0.81x |
-| [`swinir-l-x4-real`](#swinir) | yes | 2672, 1.4x | 4172, 1.5x |
-| [`swinir-m-x2`](#swinir) | yes | 1384, 2.4x | 3254, 1.8x |
-| [`swinir-m-x4`](#swinir) | yes | 1406, 2.5x | 3254, 1.6x |
-| [`swinir-m-x4-real`](#swinir) | yes | 1414, 1.7x | 3254, 1.1x |
+| [`swinir-l-x4-real`](#swinir) | yes | 1044, 3.6x | 2152, 0.78x |
+| [`swinir-m-x2`](#swinir) | yes | 558, 5.8x | 1754, 0.96x |
+| [`swinir-m-x4`](#swinir) | yes | 580, 6.0x | 1956, 0.95x |
+| [`swinir-m-x4-real`](#swinir) | yes | 588, 4.2x | 1954, 0.66x |
 
 <a id="realesrgan"></a>
 
@@ -32,9 +32,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `realesrgan-x4plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 631<br>632<br>402<br>354<br>273 | 2266 / 2496<br>2245 / 2474<br>1220 / 1434<br>1091 / 1394<br>1546 / 1594 |
-| `realesrgan-x2plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>128<br>80.0<br>85.2<br>59.7 | 592 / 656<br>589 / 654<br>333 / 394<br>323 / 394<br>476 / 500 |
-| `realesrgan-x4plus-anime-6b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>206<br>132<br>114<br>83.1 | 2243 / 2472<br>2221 / 2450<br>1197 / 1410<br>1068 / 1370<br>1505 / 1552 |
+| `realesrgan-x4plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 631<br>471<br>403<br>354<br>273 | 2266 / 2496<br>1220 / 1454<br>1220 / 1434<br>1091 / 1394<br>1546 / 1594 |
+| `realesrgan-x2plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>97.0<br>80.2<br>85.2<br>59.7 | 592 / 656<br>333 / 394<br>333 / 394<br>323 / 394<br>476 / 500 |
+| `realesrgan-x4plus-anime-6b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>155<br>132<br>114<br>83.1 | 2243 / 2472<br>1197 / 1430<br>1197 / 1410<br>1068 / 1370<br>1505 / 1552 |
 
 <details><summary>Details</summary>
 
@@ -54,9 +54,9 @@ Commercial use: yes.
 - `realesrgan-x4plus` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
 - `realesrgan-x2plus` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
 - `realesrgan-x4plus-anime-6b` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
-- `realesrgan-x4plus` load / first call: original 1.62 s / 1.641 s, portable 0.19 s / 0.792 s, kernels 1.32 s / 0.421 s
-- `realesrgan-x2plus` load / first call: original 1.54 s / 0.417 s, portable 0.18 s / 0.212 s, kernels 1.32 s / 0.109 s
-- `realesrgan-x4plus-anime-6b` load / first call: original 1.3 s / 0.497 s, portable 0.06 s / 0.312 s, kernels 2.32 s / 0.184 s
+- `realesrgan-x4plus` load / first call: original 1.62 s / 1.641 s, portable 0.2 s / 0.624 s, kernels 2.43 s / 0.435 s
+- `realesrgan-x2plus` load / first call: original 1.54 s / 0.417 s, portable 0.25 s / 0.259 s, kernels 1.26 s / 0.106 s
+- `realesrgan-x4plus-anime-6b` load / first call: original 1.3 s / 0.497 s, portable 0.1 s / 0.232 s, kernels 1.3 s / 0.148 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -148,10 +148,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `swinir-m-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3497<br>2029<br>1406<br>795<br>727 | 1500 / 2058<br>2884 / 3074<br>3074 / 3254<br>1684 / 1796<br>5525 / 5604 |
-| `swinir-m-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3252<br>2007<br>1384<br>781<br>719 | 1500 / 1818<br>2883 / 3074<br>3074 / 3254<br>1683 / 1796<br>5088 / 5144 |
-| `swinir-m-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2462<br>2057<br>1414<br>807<br>733 | 2321 / 2978<br>2883 / 3074<br>3074 / 3254<br>1683 / 1796<br>5427 / 5506 |
-| `swinir-l-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3709<br>3716<br>2672<br>1426<br>1118 | 2357 / 2746<br>3834 / 4052<br>3868 / 4172<br>2153 / 2876<br>9182 / 9282 |
+| `swinir-m-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3497<br>1215<br>580<br>795<br>727 | 1500 / 2058<br>1496 / 2094<br>1577 / 1956<br>1684 / 1796<br>5525 / 5604 |
+| `swinir-m-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3252<br>1192<br>558<br>781<br>719 | 1500 / 1818<br>1386 / 1574<br>1577 / 1754<br>1683 / 1796<br>5088 / 5144 |
+| `swinir-m-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2462<br>1242<br>588<br>807<br>733 | 2321 / 2978<br>2387 / 3034<br>1577 / 1954<br>1683 / 1796<br>5427 / 5506 |
+| `swinir-l-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3709<br>2099<br>1044<br>1426<br>1118 | 2357 / 2746<br>2425 / 2672<br>1872 / 2152<br>2153 / 2876<br>9182 / 9282 |
 
 <details><summary>Details</summary>
 
@@ -175,10 +175,10 @@ Commercial use: yes.
 - `swinir-m-x2` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
 - `swinir-m-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
 - `swinir-l-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
-- `swinir-m-x4` load / first call: original 2.07 s / 3.272 s, portable 0.22 s / 2.291 s, kernels 3.56 s / 1.589 s
-- `swinir-m-x2` load / first call: original 2.95 s / 4.489 s, portable 0.57 s / 2.133 s, kernels 1.34 s / 1.451 s
-- `swinir-m-x4-real` load / first call: original 2.06 s / 3.326 s, portable 0.49 s / 2.172 s, kernels 1.24 s / 1.49 s
-- `swinir-l-x4-real` load / first call: original 2.15 s / 5.945 s, portable 0.92 s / 3.815 s, kernels 2.81 s / 2.781 s
+- `swinir-m-x4` load / first call: original 2.07 s / 3.272 s, portable 0.44 s / 1.36 s, kernels 1.28 s / 0.646 s
+- `swinir-m-x2` load / first call: original 2.95 s / 4.489 s, portable 0.38 s / 1.342 s, kernels 1.26 s / 0.631 s
+- `swinir-m-x4-real` load / first call: original 2.06 s / 3.326 s, portable 0.4 s / 1.386 s, kernels 1.31 s / 0.697 s
+- `swinir-l-x4-real` load / first call: original 2.15 s / 5.945 s, portable 0.7 s / 2.188 s, kernels 1.46 s / 1.103 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

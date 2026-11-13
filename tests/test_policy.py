@@ -49,8 +49,14 @@ DYNAMIC = {"__init__.py", "_core/registry.py", "_core/tasks/__init__.py"}
 # so the rules stay active for every other file of these tasks; remove an entry when its file is fixed.
 # DPT conversions shared from the DAv2 `fused` module (should move to shared/):
 CROSS_FAMILY_IMPORTS = {
-    f"depth/models/{family}/model.py": "fastforks.depth.models.depth_anything_v2.fused"
-    for family in ("depth_anything_3", "depth_pro", "moge", "unik3d")
+    f"depth/models/{family}/{file}.py": "fastforks.depth.models.depth_anything_v2.fused"
+    for family, file in (
+        ("depth_anything_3", "model"),
+        ("depth_pro", "model"),
+        ("moge", "model"),
+        ("unik3d", "model"),
+        ("prompt_depth_anything", "fused"),
+    )
 }
 TORCH_LOAD = {"depth/models/midas/model.py", "depth/models/zoedepth/model.py"}  # per-family checkpoint loaders
 UNDOCUMENTED_CONSTANTS = {

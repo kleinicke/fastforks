@@ -55,7 +55,7 @@ from fastforks._core.preprocess import resize_crop, scale
 from fastforks._core.tasks import spec
 from fastforks.kernels import cudnn_hacc
 from fastforks.promptable_segmentation._api import _normalised
-from synth import clip, clip_prompts, concepts, image, pair, prompts, scene, size
+from synth import clip, clip_prompts, concepts, image, pair, prompt_depth, prompts, scene, size
 
 FAMILIES = goldens.load_all(registry.TASKS)
 GOLDEN = {ref: e for fam in FAMILIES.values() for ref, e in fam["refs"].items()}
@@ -265,7 +265,8 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         r = m(*pair(*size(m.variant.io.min_size)))
         maps = {"disparity": r.disparity, "confidence": r.confidence, **r.extras}
     elif task == "depth":
-        r = m(img)
+        given = {"prompt_depth": prompt_depth()} if m._runner.prompt_depth == "required" else {}
+        r = m(img, **given)
         maps = {**{k: getattr(r, k) for k in spec("depth").standard}, **r.extras}
     elif task == "multiview":
         r, maps = _scene(m)

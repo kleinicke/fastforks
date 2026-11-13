@@ -100,7 +100,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 
 ## Monocular depth
 
-34 models; size 994x1482.
+36 models; size 994x1482.
 
 - Fastest: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
 - Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.9 ms, error 0.0346).
@@ -120,6 +120,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`distill-any-depth-b`](models/depth.md#depth-anything-v2) | yes | 0.0470 | 59.8 (994x1482) | 18.6 | 10.8 | 5.5x vs original (994x1482) | 349 |
 | [`depth-anything-v2-metric-hypersim-b`](models/depth.md#depth-anything-v2) | yes | 0.0549 | 60.7 (994x1482) | 18.6 | 10.8 | 5.6x vs original (994x1482) | 349 |
 | [`depth-anything-v2-metric-vkitti-b`](models/depth.md#depth-anything-v2) | yes | 0.1089 | 60.6 (994x1482) | 18.6 | 10.8 | 5.6x vs original (994x1482) | 349 |
+| [`prompt-depth-anything-s`](models/depth.md#prompt-depth-anything) | yes | – | – | 18.4 | 11.4 (756x1008) | 1.6x vs portable | 297 |
 | [`da3mono-large`](models/depth.md#depth-anything-3) | yes | 0.0402 | 85.2 (994x1482) | 24.1 | 14.6 | 5.8x vs original (994x1482) | 814 |
 | [`da3metric-large`](models/depth.md#depth-anything-3) | yes | 0.0398 | 85.1 (994x1482) | 24.3 | 14.7 | 5.8x vs original (994x1482) | 811 |
 | [`da3-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0468 | 165.6 (994x1482) | 30.0 | 17.1 | 9.7x vs original (994x1482) | 985 |
@@ -134,6 +135,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`unik3d-vitl`](models/depth.md#unik3d) | no | 0.0346 | 133.7 (994x1482) | 107.8 | 62.9 | 2.1x vs original (994x1482) | 1166 |
 | [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 63.0 | 2.1x vs original (994x1482) | 1166 |
 | [`midas-dpt-beit-large-512`](models/depth.md#midas-v31) | yes | 0.0487 | 333.2 (994x1482) | 78.8 | 63.9 | 5.2x vs original (994x1482) | 1003 |
+| [`prompt-depth-anything-l`](models/depth.md#prompt-depth-anything) | yes | – | – | 124.8 | 69.3 (756x1008) | 1.8x vs portable | 1179 |
 | [`moge-2-vitl-normal`](models/depth.md#moge) | yes | 0.0357 | 170.7 (994x1482) | 144.5 | 73.4 | 2.3x vs original (994x1482) | 1498 |
 | [`zoedepth-nk`](models/depth.md#zoedepth) | yes | 0.0532 | 271.2 (994x1482) | 124.0 | 88.9 | 3.1x vs original (994x1482) | 1771 |
 | [`metric3d-vit-large`](models/depth.md#metric3d-v2) | yes | 0.0546 | 438.5 (994x1482) | 200.3 | 155.2 | 2.8x vs original (994x1482) | 1480 |
@@ -674,10 +676,10 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 |---|---|---|---|---|---|---|
 | [`span-x4`](models/restoration.md#span) | yes | 26.9 (512x512) | 24.2 | 14.6 | 1.8x vs original (512x512) | 487 |
 | [`span-x2`](models/restoration.md#span) | yes | 24.6 (512x512) | 23.5 | 14.9 | 1.6x vs original (512x512) | 487 |
-| [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 127.8 | 80.0 | 1.6x vs original (512x512) | 333 |
-| [`realesrgan-x4plus-anime-6b`](models/restoration.md#real-esrgan) | yes | 205.1 (512x512) | 206.2 | 132.1 | 1.6x vs original (512x512) | 1197 |
-| [`realesrgan-x4plus`](models/restoration.md#real-esrgan) | yes | 631.1 (512x512) | 631.8 | 402.2 | 1.6x vs original (512x512) | 1220 |
-| [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 2007.3 | 1383.8 | 2.4x vs original (512x512) | 3074 |
-| [`swinir-m-x4`](models/restoration.md#swinir) | yes | 3497.4 (512x512) | 2029.4 | 1406.4 | 2.5x vs original (512x512) | 3074 |
-| [`swinir-m-x4-real`](models/restoration.md#swinir) | yes | 2461.6 (512x512) | 2057.2 | 1413.7 | 1.7x vs original (512x512) | 3074 |
-| [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 3716.2 | 2672.1 | 1.4x vs original (512x512) | 3868 |
+| [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 97.0 | 80.2 | 1.6x vs original (512x512) | 333 |
+| [`realesrgan-x4plus-anime-6b`](models/restoration.md#real-esrgan) | yes | 205.1 (512x512) | 154.9 | 131.8 | 1.6x vs original (512x512) | 1197 |
+| [`realesrgan-x4plus`](models/restoration.md#real-esrgan) | yes | 631.1 (512x512) | 471.3 | 402.7 | 1.6x vs original (512x512) | 1220 |
+| [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 1192.3 | 557.8 | 5.8x vs original (512x512) | 1577 |
+| [`swinir-m-x4`](models/restoration.md#swinir) | yes | 3497.4 (512x512) | 1215.0 | 580.4 | 6.0x vs original (512x512) | 1577 |
+| [`swinir-m-x4-real`](models/restoration.md#swinir) | yes | 2461.6 (512x512) | 1241.7 | 588.5 | 4.2x vs original (512x512) | 1577 |
+| [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 2098.7 | 1043.5 | 3.6x vs original (512x512) | 1872 |
