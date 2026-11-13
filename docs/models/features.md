@@ -101,7 +101,7 @@ Commercial use: yes.
 - Variants: `c-radio-v3-b`, `c-radio-v3-l`, `c-radio-v3-h`, `c-radio-v3-g`, `c-radio-v4-so400m`, `c-radio-v4-h`
 - Outputs: last_hidden_state, pooler_output, hidden_states
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `c-radio-v3-b` 3000x4000 (1.7 GiB peak allocated, 2.0 reserved); `c-radio-v3-l` 3000x4000 (2.5 GiB peak allocated, 2.8 reserved); `c-radio-v3-h` 3000x4000 (3.5 GiB peak allocated, 3.9 reserved); `c-radio-v3-g` 3000x4000 (4.8 GiB peak allocated, 5.4 reserved); `c-radio-v4-so400m` not measured yet; `c-radio-v4-h` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `c-radio-v3-b` 3000x4000 (1.7 GiB peak allocated, 2.0 reserved); `c-radio-v3-l` 3000x4000 (2.5 GiB peak allocated, 2.8 reserved); `c-radio-v3-h` 3000x4000 (3.5 GiB peak allocated, 3.9 reserved); `c-radio-v3-g` 3000x4000 (4.8 GiB peak allocated, 5.4 reserved); `c-radio-v4-so400m` 3000x4000 (2.7 GiB peak allocated, 3.3 reserved); `c-radio-v4-h` 3000x4000 (3.4 GiB peak allocated, 4.0 reserved)
 - `c-radio-v3-b` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `c-radio-v3-l` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `c-radio-v3-h` 224x224, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 45 s (ONNX + engine).

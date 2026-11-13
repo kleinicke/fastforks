@@ -772,7 +772,7 @@ Commercial use: yes.
 - Variants: `prompt-depth-anything-s`, `prompt-depth-anything-l`
 - Outputs: depth; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 14)
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `prompt-depth-anything-s` not measured yet; `prompt-depth-anything-l` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `prompt-depth-anything-s` 3000x4000 (0.6 GiB peak allocated, 0.8 reserved); `prompt-depth-anything-l` 3000x4000 (1.4 GiB peak allocated, 1.7 reserved)
 - `prompt-depth-anything-s` original 756x1008: torch.autocast(fp16) around the forward
 - `prompt-depth-anything-l` original 756x1008: torch.autocast(fp16) around the forward
 - `prompt-depth-anything-s` load / first call: original 0.42 s / 0.792 s (756x1008), portable 0.37 s / 0.244 s (756x1008), kernels 1.2 s / 0.181 s (756x1008)

@@ -255,7 +255,7 @@ Commercial use: yes.
 - Variants: `mvsplat-re10k`
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsplat-re10k` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsplat-re10k` 3000x4000 (3.2 GiB peak allocated, 4.4 reserved)
 - `mvsplat-re10k` original 336x518: the authors' mixed-precision option (float16); donydchen/mvsplat@01f9a28edb5e EncoderCostVolume, long side 256
 - `mvsplat-re10k` load / first call: original 1.37 s / 2.817 s (336x518), portable 0.38 s / 1.329 s (336x518), kernels 1.85 s / 1.026 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -356,7 +356,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Variants: `pi3`
 - Outputs: depth, confidence, world_points, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pi3` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pi3` 3000x4000 (4.8 GiB peak allocated, 6.5 reserved)
 - `pi3` original 336x518: the authors' mixed-precision option (bfloat16); yyfz/Pi3@9fa3ddb3f8d5 Pi3.forward, PIXEL_LIMIT 255000
 - `pi3` load / first call: original 10.64 s / 4.059 s (336x518), portable 2.35 s / 1.242 s (336x518), kernels 3.54 s / 0.69 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
