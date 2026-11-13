@@ -1,4 +1,4 @@
-"""Shared parts of the Swin super-resolution networks (SwinIR, HAT).
+"""Shared parts of the Swin super-resolution networks (SwinIR, HAT, DAT).
 
 `DropPath`, `to_2tuple`, `trunc_normal_` replace the timm / BasicSR helpers the vendored networks import (inference
 only). `shift_mask` is SwinIR's `SwinTransformerBlock.calculate_mask` (the 0 / -100 shifted-window mask), made on the
@@ -7,7 +7,9 @@ attention as one `scaled_dot_product_attention` call with that bias (+ the mask)
 zero-pads a block's head dimension to a multiple of 8 in its `qkv` / `proj` weights at load: SwinIR's 30 (180 / 6,
 240 / 8) keeps the fused attention kernels out and SDPA falls back to its math path, which materialises the scores
 (2.1 GB and 28 ms per block of a 520 x 520 image, SwinIR-M; padded: 0.6 GB, 5 ms). The scores are unchanged (zero
-rows of q and k), the extra output channels meet zero columns of `proj`.
+rows of q and k), the extra output channels meet zero columns of `proj`. `attention` is the SDPA call itself, padding
+the head size at run time where the weights are not padded (HAT, DAT) and copying strided inputs. `patch_embed` is
+`PatchEmbed.forward` with contiguous tokens.
 """
 
 from __future__ import annotations
@@ -18,7 +20,17 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-__all__ = ["DropPath", "pad_heads", "relative_bias", "shift_mask", "to_2tuple", "trunc_normal_", "window_attention"]
+__all__ = [
+    "DropPath",
+    "attention",
+    "pad_heads",
+    "patch_embed",
+    "relative_bias",
+    "shift_mask",
+    "to_2tuple",
+    "trunc_normal_",
+    "window_attention",
+]
 
 trunc_normal_ = nn.init.trunc_normal_
 
@@ -99,5 +111,33 @@ def window_attention(  # noqa: PLR0913 - the block's projections, head count, sc
         add = add + mask.to(q.dtype)[:, None]
         if b_ != nw:
             add = add.repeat(b_ // nw, 1, 1, 1)
-    out = F.scaled_dot_product_attention(q, k, v, attn_mask=add.expand(b_, -1, -1, -1), scale=scale)
+    out = attention(q, k, v, add.expand(b_, -1, -1, -1), scale)
     return proj(out.transpose(1, 2).reshape(b_, n, heads * d))
+
+
+def attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor, scale: float) -> torch.Tensor:
+    """`scaled_dot_product_attention(q, k, v, attn_mask=mask, scale=scale)`, head size padded to a multiple of 8 (CUDA).
+
+    Zero q / k columns add nothing to the scores, the zero v columns are cut off. Inputs whose head dimension is
+    strided are copied: the fused kernels need it contiguous, else SDPA falls back to the unfused math path (HAT-S
+    overlapping attention, head size 24: 9.9 GB and 1.7 s instead of 2.0 GB and 1.1 s at 512 x 512).
+    """
+    d = q.shape[-1]
+    pad = -d % 8 if q.is_cuda else 0
+    if pad:
+        q, k, v = (F.pad(t, (0, pad)) for t in (q, k, v))
+    else:
+        q, k, v = (t if t.stride(-1) == 1 else t.contiguous() for t in (q, k, v))
+    out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask, scale=scale)
+    return out[..., :d] if pad else out
+
+
+def patch_embed(m: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    """`PatchEmbed.forward` (`[B, C, H, W]` -> `[B, H * W, C]` tokens, + its norm) with contiguous tokens.
+
+    Upstream returns a transposed view; each group adds its input to it (`patch_embed(...) + x`), and the sum takes
+    the first operand's strides, so the whole residual stream ran transposed and every residual add was a strided
+    kernel (HAT 512 x 512: 0.7 of 2.3 s).
+    """
+    x = x.flatten(2).transpose(1, 2).contiguous()
+    return x if m.norm is None else m.norm(x)  # ty: ignore[call-non-callable]

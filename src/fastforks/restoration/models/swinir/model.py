@@ -5,8 +5,9 @@ window when it is already a multiple; `pad` does the same. Upstream's blocks reb
 for every size but the training one, and gather the relative position bias on every call; here the mask is made on the
 device once per size and the bias once at load, and the window attention is one `scaled_dot_product_attention` with
 the head dimension (30) zero-padded to 32 in the weights so the fused kernel runs (`fastforks.shared.swin_sr`:
-unpadded, SDPA's math path takes 2.1 GB and 5x the time per block at 520 x 520). The input mean is a buffer
-(upstream: a plain attribute, `type_as` per call).
+unpadded, SDPA's math path takes 2.1 GB and 5x the time per block at 520 x 520). `PatchEmbed` returns contiguous
+tokens (upstream: a transposed view, which made every residual add strided). The input mean is a buffer (upstream: a
+plain attribute, `type_as` per call).
 
 float16: the last residual group's output exceeds the float16 range (113 520 on the golden image, SwinIR-M x4), so its
 final conv and its skip input are divided by `_LAST_SCALE`; only the LayerNorm `norm` reads it, its `eps` divided by
@@ -29,10 +30,10 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Crop, Forward, Runner
-from fastforks.shared.swin_sr import pad_heads, relative_bias, shift_mask, window_attention
+from fastforks.shared.swin_sr import pad_heads, patch_embed, relative_bias, shift_mask, window_attention
 
 from .net import SwinIR
-from .net.network_swinir import RSTB, SwinTransformerBlock, WindowAttention
+from .net.network_swinir import RSTB, PatchEmbed, SwinTransformerBlock, WindowAttention
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -112,6 +113,8 @@ class Portable(Runner):
                 override(m, _attention)
             elif isinstance(m, SwinTransformerBlock):
                 override(m, _mask, "calculate_mask")
+            elif isinstance(m, PatchEmbed):
+                override(m, patch_embed)
         mean = self.net.mean
         del self.net.mean
         self.net.register_buffer("mean", mean, persistent=False)
