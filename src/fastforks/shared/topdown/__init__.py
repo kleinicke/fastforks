@@ -71,7 +71,7 @@ def crop(image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor, height: 
     y = fixed(centre[:, 1] - s * (height / 2), s, height)  # [P, h]
     x0, y0 = x.floor(), y.floor()
     fx, fy = x - x0, y - y0  # multiples of 1/32: the tap weights below are exact in float32, as OpenCV's integers
-    pixels = (image[0].float() * 255).round().flatten(1)  # [3, H * W] uint8 levels
+    pixels = image[0].flatten(1)  # [3, H * W]; levels of the gathered taps only (no full-size copy)
     out = torch.zeros(3, centre.shape[0], height, width, device=image.device)
     for dy, ty in ((0, 1 - fy), (1, fy)):
         yy = y0 + dy
@@ -81,5 +81,5 @@ def crop(image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor, height: 
             xx = x0 + dx
             wx = (tx * ((xx >= 0) & (xx < iw)))[:, None, :]
             idx = row + xx.clamp(0, iw - 1).long()[:, None, :]  # [P, h, w]
-            out += pixels[:, idx] * (wy * wx)
+            out += (pixels[:, idx].float() * 255).round_() * (wy * wx)
     return torch.floor(out.transpose(0, 1) + 0.5)  # OpenCV rounds half up to uint8
