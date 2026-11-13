@@ -1030,6 +1030,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | bootstapir | 243 | 240 | 191 | 1.3x | 1.3x | 639 / 774 | 720 / 768 | 769 / 828 |
 | tapir | 187 | 186 | 138 | 1.4x | 1.3x | 498 / 574 | 630 / 690 | 678 / 750 |
 | tapnext | 909 | 529 | 382 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1313 / 1374 |
+| track-on-r | 2022 | 1188 | 1102 | 1.8x | 1.1x | 1801 / 1928 | 1423 / 1632 | 1368 / 1620 |
+| track-on2 | 1953 | 1238 | 1120 | 1.7x | 1.1x | 1403 / 1558 | 1423 / 1632 | 1368 / 1620 |
 
 ### Interpolation, synthetic, 1080x1920
 
@@ -1511,6 +1513,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | bootstapir | 0.60 | 0.15 | 1.19 | 0.90 | 0.79 | 0.53 |
 | tapir | 0.35 | 0.16 | 0.97 | 0.83 | 0.82 | 0.52 |
 | tapnext | 16.92 | 2.72 | 2.63 | 2.17 | 0.69 | 0.56 |
+| track-on-r | 0.88 | 0.24 | 1.11 | 2.91 | 1.99 | 1.72 |
+| track-on2 | 3.77 | 0.46 | 1.17 | 3.63 | 2.64 | 1.75 |
 | rife-4.25 | 1.42 | 0.05 | 1.10 | 0.27 | 0.26 | 0.14 |
 | rife-4.25-lite | 0.18 | 0.05 | 1.14 | 0.12 | 0.26 | 0.14 |
 | rife-4.26 | 0.18 | 0.09 | 1.12 | 0.05 | 0.23 | 0.14 |
@@ -1947,6 +1951,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | bootstapir | 480x854 | 240 ms | 183 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 191 ms | 207 s | – | 720 / 768 | 758 / 832 | 769 / 828 | – |
 | tapir | 480x854 | 186 ms | 131 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 138 ms | 169 s | – | 630 / 690 | 630 / 752 | 678 / 750 | – |
 | tapnext | 480x854 | 529 ms | 398 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 382 ms | 40.5 s | – | 1220 / 1294 | 1164 / 1272 | 1313 / 1374 | – |
+| track-on-r | 480x854 | 1188 ms | fails: worker rc=124 | fails: ValueError: not enough values to unpack (expected 4, got 2) | 1102 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |
+| track-on2 | 480x854 | 1238 ms | fails: worker rc=124 | fails: ValueError: not enough values to unpack (expected 4, got 2) | 1120 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |
 | rife-4.25 | 1080x1920 | 36.0 ms | 44.9 ms | 17.6 ms | 31.4 ms | 36.1 s | 56.3 s | 999 / 1254 | 1094 / 1234 | 1029 / 1516 | 696 / 714 |
 | rife-4.25-lite | 1080x1920 | 32.7 ms | 42.3 ms | 14.1 ms | 28.9 ms | 34.9 s | 49.5 s | 991 / 1174 | 1061 / 1374 | 1024 / 1516 | 696 / 714 |
 | rife-4.26 | 1080x1920 | 35.9 ms | 44.5 ms | 17.6 ms | 31.4 ms | 34.9 s | 54.9 s | 999 / 1254 | 1094 / 1234 | 1029 / 1516 | 696 / 714 |

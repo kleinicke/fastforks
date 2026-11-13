@@ -1479,6 +1479,28 @@ def _alltracker(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 -
     return call
 
 
+def _track_on(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream Track-On2 `Predictor` loop (CUDA, mmcv MSDA as its PyTorch path) via `tools/golden/track_on.py`.
+
+    384 x 512, memory 72, 20 x 20 support grid; fp16: `torch.autocast("cuda", torch.float16)`. Needs `TRACK_ON_SRC`, a
+    gorkaydemir/track_on checkout with the pinned commit, and the DINOv3 ViT-S+ snapshot next to the weights.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("track_on")
+    card, variant = registry.resolve("tracking", full)
+    file = Path(registry.weights(card, variant, allow_download=False)[0])
+    model = g.load(Path(os.environ["TRACK_ON_SRC"]), file, file.parent / g.DINOV3).cuda()
+    a.note = f"gorkaydemir/track_on@{g.COMMIT[:12]} Predictor loop, 384 x 512, memory 72"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        return g.track(model, video.float() / 255, queries, amp=torch.float16 if fp16 else None)
+
+    return call
+
+
 class _Tracking(_LocalFp16):
     """The tracking bench call: the uint8 video `[T, 3, H, W]` and the float32 query grid (not scaled to uint8)."""
 
@@ -1652,6 +1674,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),
     "tapir": _Tracking("tracking", _tapir, ((480, 854),)),
     "alltracker": _Tracking("tracking", _alltracker, ((480, 854),)),
+    "track_on": _Tracking("tracking", _track_on, ((480, 854),)),
 }
 
 
