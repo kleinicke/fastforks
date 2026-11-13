@@ -238,6 +238,7 @@ _RESULTS = {
     "matting": "MattingResult",
     "interpolation": "InterpolationResult",
     "retrieval": "RetrievalResult",
+    "calibration": "CalibrationResult",
     "depth": "DepthResult",
     "features": "FeaturesResult",
     "multiview": "MultiViewResult",

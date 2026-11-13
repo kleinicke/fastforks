@@ -224,6 +224,7 @@ _PIPELINE = {
     "matching": "image-to-image",
     "matting": "image-segmentation",
     "retrieval": "image-feature-extraction",
+    "calibration": "image-feature-extraction",  # no camera-calibration pipeline on the Hub
     "tracking": "keypoint-detection",  # no point-tracking pipeline on the Hub: query points tracked over time
     "interpolation": "image-to-image",  # no frame-interpolation pipeline on the Hub: two frames -> the middle one
 }
@@ -243,6 +244,7 @@ _TASK_TAGS = {
     "tracking": ["point-tracking", "tracking-any-point", "video"],
     "interpolation": ["frame-interpolation", "video-frame-interpolation", "video"],
     "retrieval": ["image-retrieval", "visual-place-recognition", "global-descriptor"],
+    "calibration": ["camera-calibration", "single-image-calibration", "gravity-estimation"],
 }
 _SNIPPET = {
     "stereo": 'result = model("left.png", "right.png")\nresult.{out}  # [H, W] float32 tensor, input resolution',
@@ -270,6 +272,10 @@ _SNIPPET = {
     "retrieval": (
         'result = model("photo.jpg")\nresult.{out}  # [D] float32, unit norm\n'
         "# fastforks.retrieval.top_k(queries, database, k=5): the nearest database images"
+    ),
+    "calibration": (
+        'result = model("photo.jpg")\nresult.{out}  # [3, 3] float32 K in input pixels\n'
+        "# result.roll, result.pitch, result.vfov (radians), result.gravity [3]: where the model estimates them"
     ),
     "tracking": (
         "result = model(frames, [[0, x, y]])  # frames: the video's images in order; queries (t, x, y)\n"

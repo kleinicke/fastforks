@@ -935,6 +935,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | boq-dinov2 | 7.44 | 5.73 | 2.84 | 2.6x | 2.0x | 231 / 256 | 231 / 254 | 227 / 256 |
 | megaloc | 9.68 | 5.29 | 4.26 | 2.3x | 1.2x | 1347 / 1368 | 483 / 508 | 485 / 508 |
 
+### Calibration, synthetic, 1080x1920
+
+| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|
+| geocalib-pinhole | 106 | 82.3 | 82.5 | 1.3x | 1.0x | 502 / 558 | 320 / 378 | 279 / 342 |
+
 ### Multiview, synthetic
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
@@ -1421,6 +1427,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | tipsv2-l14 | 3.10 | 2.91 | 1.44 | 0.02 | 0.08 | 0.11 |
 | boq-dinov2 | 1.22 | 0.24 | 1.09 | 0.04 | 0.23 | 0.13 |
 | megaloc | 2.49 | 0.50 | 1.36 | 0.56 | 0.37 | 0.22 |
+| geocalib-pinhole | 1.80 | 0.27 | 1.25 | 0.84 | 1.73 | 0.92 |
 | anysplat | 8.32 (336x518) | 2.46 (336x518) | 3.98 (336x518) | 3.07 (336x518) | 0.89 (336x518) | 0.73 (336x518) |
 | depthsplat-small-re10k | 1.83 (336x518) | 0.22 (336x518) | 1.47 (336x518) | 2.97 (336x518) | 0.97 (336x518) | 0.71 (336x518) |
 | mapanything-apache | 6.12 (336x518) | 2.89 (336x518) | 0.57† (336x518) | 2.62 (336x518) | 0.66 (336x518) | 0.54 (336x518) |
@@ -1841,6 +1848,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | tipsv2-l14 | 224x224 | 6.15 ms | 6.04 ms | 4.28 ms | 4.58 ms | 12.4 s | 47.9 s | 621 / 624 | 659 / 666 | 624 / 648 | 1236 / 1264 |
 | boq-dinov2 | 480x640 | 5.73 ms | 3.89 ms | 2.73 ms | 2.84 ms | 11.8 s | 46.4 s | 231 / 254 | 269 / 274 | 227 / 256 | 426 / 434 |
 | megaloc | 480x640 | 5.29 ms | 4.27 ms | 3.21 ms | 4.26 ms | 13.2 s | 51.1 s | 483 / 508 | 518 / 530 | 485 / 508 | 937 / 964 |
+| geocalib-pinhole | 1080x1920 | 82.3 ms | 73.1 ms | fails: ONNX export: torch.export failed | 82.5 ms | 28.4 s | – | 320 / 378 | 246 / 300 | 279 / 342 | – |
 | anysplat | 336x518 | 504 ms | 427 ms | 314 ms | 364 ms | 80.3 s | 215 s | 4842 / 4932 | 4137 / 4694 | 4852 / 5192 | 7629 / 7674 |
 | depthsplat-small-re10k | 336x518 | 119 ms | 82.2 ms | 86.4 ms | 120 ms | 80.0 s | 224 s | 5432 / 5606 | 5432 / 5526 | 5479 / 5668 | 3148 / 3194 |
 | mapanything-apache | 336x518 | 636 ms | 596 ms | 367 ms | 544 ms | 46.2 s | 137 s | 3697 / 4092 | 3347 / 3792 | 3697 / 4072 | 6220 / 6248 |

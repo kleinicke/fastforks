@@ -32,6 +32,7 @@ from fastforks._core.instances import Instances
 from fastforks._core.labels import label_set
 from fastforks._core.model import Backend
 from fastforks._core.preprocess import resize_crop
+from fastforks.calibration._runner import Runner as CalibrationRunner
 from fastforks.classification._runner import Runner as ClsRunner
 from fastforks.depth._runner import Runner as DepthRunner
 from fastforks.detection._runner import Runner as DetRunner
@@ -604,6 +605,7 @@ def test_resize_crop_bicubic_stays_in_range():
         "tracking",
         "interpolation",
         "retrieval",
+        "calibration",
     ],
 )
 def test_runner_without_call_cannot_be_built(task):
@@ -618,6 +620,7 @@ def test_runner_without_call_cannot_be_built(task):
     base["tracking"] = TrackingRunner
     base["interpolation"] = InterpolationRunner
     base["retrieval"] = RetrievalRunner
+    base["calibration"] = CalibrationRunner
 
     class NoCall(base[task]):
         pass

@@ -47,6 +47,7 @@ nav:
       - Point tracking: api/tracking.md
       - Frame interpolation: api/interpolation.md
       - Retrieval: api/retrieval.md
+      - Calibration: api/calibration.md
       - Errors: api/errors.md
   - Models:
       - Stereo: models/stereo.md
@@ -64,6 +65,7 @@ nav:
       - Point tracking: models/tracking.md
       - Frame interpolation: models/interpolation.md
       - Retrieval: models/retrieval.md
+      - Calibration: models/calibration.md
   - Contributing: contributing.md
 markdown_extensions:
   - admonition

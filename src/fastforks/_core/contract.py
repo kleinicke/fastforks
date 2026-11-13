@@ -313,6 +313,13 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
     "retrieval": {
         "descriptor": ("[B, D]", "float32", "unit L2 norm (cosine similarity = dot product)", "one per image")
     },
+    "calibration": {
+        "intrinsics": ("[B, 3, 3]", "float32", "pixels of the input image", "K; principal point as the model fits it"),
+        "gravity": ("[B, 3]", "float32", "unit vector, camera frame", "x right, y down, z forward"),
+        "roll": ("[B]", "float32", "radians", "rotation about the optical axis"),
+        "pitch": ("[B]", "float32", "radians", "tilt of the optical axis against the horizon"),
+        "vfov": ("[B]", "float32", "radians", "vertical field of view"),
+    },
     "tracking": {
         "tracks": ("[T, Q, 2]", "float32", "pixels of the input, (x, y)", "every frame, one row per query"),
         "visibility": ("[T, Q]", "float32", "[0, 1] probability that the point is visible", "every frame"),
@@ -409,6 +416,7 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "segmentation": (("input handling", "network", "logits at the input size"), ("image conversion", "argmax")),
     "matting": (("resize to the network size", "normalise", "network", "resize to the input"), ("image conversion",)),
     "retrieval": (("resize to the network size", "normalise", "network"), ("image conversion", "top_k", "pairs")),
+    "calibration": (("resize", "crop", "network", "camera fit", "camera of the input image"), ("image conversion",)),
     "features": (("resize to the patch stride", "network"), ("image conversion", "pooler_output", "hidden_states")),
     "promptable_segmentation": (
         ("resize to the encoder input", "image encoder"),

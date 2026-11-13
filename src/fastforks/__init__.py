@@ -1,7 +1,7 @@
 """fastforks: fast, typed inference for published vision models, one subpackage per task.
 
 Tasks: `fastforks.stereo`, `flow`, `matching`, `depth`, `multiview`, `classification`, `segmentation`, `detection`,
-`promptable_segmentation`, `features`, `pose`, `matting`, `tracking`, `interpolation`, `retrieval`;
+`promptable_segmentation`, `features`, `pose`, `matting`, `tracking`, `interpolation`, `retrieval`, `calibration`;
 `fastforks.list_models()` lists the installed models of every task and `fastforks.load(id)` loads any of them.
 The shared types (`Model`, `Backend`, `ModelCard`, `SizeRange`, `TensorRTEngine`, `ImageLike`) are exported here too.
 `fastforks.patch(model)` speeds up your own timm / torchvision / HF transformers classifier in place (imported on

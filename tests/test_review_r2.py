@@ -15,6 +15,7 @@ from fastforks import InputError
 from fastforks._core import model as core_model
 from fastforks._core import registry
 from fastforks._core.tasks import spec
+from fastforks.calibration import CalibrationResult
 from fastforks.classification import ClassificationResult
 from fastforks.depth import DepthResult
 from fastforks.detection import DetectionResult
@@ -44,6 +45,7 @@ RESULTS = {
     "matting": (MattingResult,),
     "interpolation": (InterpolationResult,),
     "retrieval": (RetrievalResult,),
+    "calibration": (CalibrationResult,),
     "features": (FeaturesResult,),
     "classification": (ClassificationResult,),
     "promptable_segmentation": (PromptableSegmentationResult, ConceptSegmentationResult),

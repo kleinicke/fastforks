@@ -48,6 +48,9 @@ In this order, unless something more useful turns up:
   files in `golden_ports/`. No new weights.
 - ByteTrack multi-object tracking (`tracking.ByteTracker`): CPU numpy, nothing device-specific; optional Mac row of
   `tools/eval_mot.py track` (tracker ms per frame). No weights.
+- GeoCalib (`geocalib-pinhole`, new calibration task): portable float32 MPS goldens and Mac speed rows at 1080x1920;
+  check the LM fit's `cholesky_ex` / `cholesky_solve` on MPS. No Metal kernels runner. Weights: the pinned GitHub
+  release URL of the card (also in `data/ff-weights/geocalib/`).
 - LW-DETR (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection): portable MPS goldens and Mac speed rows
   (800x1344). No Metal kernels runner. Weights: the pinned HF URLs of the card.
 - MM-Grounding-DINO (`mm-grounding-dino-tiny`, `mm-grounding-dino-base`, detection): portable MPS goldens and Mac

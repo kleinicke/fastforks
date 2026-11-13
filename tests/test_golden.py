@@ -30,6 +30,7 @@ import torch
 
 import goldens
 from fastforks import (
+    calibration,
     classification,
     depth,
     detection,
@@ -78,6 +79,7 @@ API: dict[str, Any] = {
     "matting": matting,
     "interpolation": interpolation,
     "retrieval": retrieval,
+    "calibration": calibration,
     "tracking": tracking,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
@@ -314,7 +316,7 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     elif task == "tracking":  # tests/synth.py clip() and the golden's queries
         assert want is not None, "tracking goldens store their queries"
         r = m(clip(), want["queries"])
-        maps = {k: getattr(r, k) for k in spec(task).standard}
+        maps = {k: getattr(r, k) for k in spec(task).standard if getattr(r, k) is not None}
     elif task in {"flow", "matching", "interpolation"}:  # the golden's image pair
         assert want is not None, f"{task} goldens store their image pair"
         r = m(img, want["input2"].round().astype(np.uint8))
@@ -325,6 +327,9 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     elif task == "retrieval":
         r = m(img)
         maps = {"descriptor": r.descriptor}
+    elif task == "calibration":
+        r = m(img)
+        maps = {k: getattr(r, k) for k in spec(task).standard if getattr(r, k) is not None}
     else:
         r = m(img, logits=True)
         assert r.logits is not None

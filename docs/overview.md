@@ -516,6 +516,17 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`boq-dinov2`](models/retrieval.md#boq) | yes | 7.4 (480x640) | 5.7 | 2.8 | 2.6x vs original (480x640) | 227 |
 | [`megaloc`](models/retrieval.md#megaloc) | yes | 9.7 (480x640) | 5.3 | 4.3 | 2.3x vs original (480x640) | 485 |
 
+## Calibration
+
+1 models; size 1080x1920.
+
+- Fastest: [`geocalib-pinhole`](models/calibration.md#geocalib) (82.5 ms).
+- Fastest commercially usable: [`geocalib-pinhole`](models/calibration.md#geocalib) (82.5 ms).
+
+| model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
+|---|---|---|---|---|---|---|
+| [`geocalib-pinhole`](models/calibration.md#geocalib) | yes | 106.2 (1080x1920) | 82.3 | 82.5 | 1.3x vs original (1080x1920) | 279 |
+
 ## Multiview
 
 7 models; each at its own benchmark input (views x size in Benchmarks).

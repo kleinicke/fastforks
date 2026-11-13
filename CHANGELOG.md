@@ -34,6 +34,14 @@
   person detections: identical tracks to the official ByteTrack (0 id differences in 5316 frames, boxes within
   1.2e-4 px; HOTA 39.40 / MOTA 33.05 / IDF1 46.23 both), 1.10 ms per frame on the CPU (official 1.27 ms); with the
   detector 11.5 ms per 1080p frame kernels (20.0 ms portable).
+- New task `fastforks.calibration` (single-image camera calibration): the pinhole intrinsics `[3, 3]` and the
+  vertical field of view, plus gravity, roll and pitch where the model estimates them.
+
+- GeoCalib (`geocalib-pinhole`, calibration; Apache-2.0 code and weights): MSCAN-L encoder with up / latitude field
+  heads and a Levenberg-Marquardt fit of the camera and gravity. 1080x1920 image: 82.5 ms kernels, 82.3 ms portable
+  (73.1 ms compile; TensorRT export fails on the LM fit) vs 124.9 ms original fp32 (106.2 ms autocast), peak 342 MB vs
+  658 MB. LaMAR2k AUC@5 roll / pitch / vFoV 92.6 / 76.8 / 41.6 for all modes and the original. The Hamburger heads'
+  NMF starts from fixed bases (upstream: new random ones per call); no uncertainty estimate.
 
 - LW-DETR real-time detection (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection; Apache-2.0 code and
   weights): ViT encoder with a multi-level projector and a deformable DETR decoder, the authors' PostProcess.

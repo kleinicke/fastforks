@@ -1128,6 +1128,21 @@ def _boq(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda image: g.predict(net, image[None].float() / 255)
 
 
+def _geocalib(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """The authors' `GeoCalib.calibrate` (resize, network, LM fit, camera of the input), as `tools/golden/geocalib.py`.
+
+    `FF_GEOCALIB_REPO`: a cvg/GeoCalib checkout; no precision option of its own (autocast tier).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("geocalib")
+    card, variant = registry.resolve("calibration", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_GEOCALIB_REPO"]), Path(weights)).cuda()
+    a.note = f"cvg/GeoCalib@{g.COMMIT[:12]} GeoCalib.calibrate (pinhole), its kornia resize / crop / LM fit"
+    return lambda image: g.predict(net, image[None].float() / 255)["intrinsics"]
+
+
 class _Local:
     """An original the bench has no adapter for, on the library's own bench inputs as uint8 CUDA tensors.
 
@@ -1507,6 +1522,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "ben2": _LocalFp16("matting", _ben2, ((1080, 1920),)),
     "megaloc": _Local("retrieval", _megaloc, ((480, 640),)),
     "boq": _Local("retrieval", _boq, ((480, 640),)),
+    "geocalib": _Local("calibration", _geocalib, ((1080, 1920),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),

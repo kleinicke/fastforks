@@ -329,3 +329,9 @@ name = "San Francisco eXtra Large (street-view images of San Francisco)"
 licence = "not checked"  # terms not read for the retrieval ports (2026-11-13)
 commercial = "unclear"
 url = "https://github.com/gmberton/CosPlace"
+
+[openpano]
+name = "OpenPano (perspective crops of public 360-degree panoramas: PolyHaven, HDRMaps, AmbientCG, BlenderKit)"
+licence = "mixed"  # per-source terms (PolyHaven / AmbientCG CC0, HDRMaps and BlenderKit their own), not re-read for the calibration ports (2026-11-13)
+commercial = "unclear"
+url = "https://github.com/cvg/GeoCalib/blob/main/siclib/datasets/README.md"

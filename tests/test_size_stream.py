@@ -17,6 +17,7 @@ import pytest
 import torch
 
 from fastforks import (
+    calibration,
     classification,
     depth,
     detection,
@@ -54,6 +55,7 @@ API: dict[str, Any] = {
     "matting": matting,
     "interpolation": interpolation,
     "retrieval": retrieval,
+    "calibration": calibration,
 }
 OUTPUTS = (  # the outputs checked, where a result has them
     "disparity",
@@ -74,6 +76,7 @@ OUTPUTS = (  # the outputs checked, where a result has them
     "keypoint_scores",
     "alpha",
     "descriptor",
+    "intrinsics",
 )
 A, B, C = (243, 333), (307, 451), (259, 397)  # odd sizes off every tile; B > A, both small enough for graphs
 LARGE = (1001, 1497)

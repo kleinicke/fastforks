@@ -92,7 +92,7 @@ features.load("dinov2-vitb14")("cat.jpg").pooler_output  # image embedding; .las
 # MVSAnywhere's code and weights are non-commercial: its weights download only with FASTFORKS_NONCOMMERCIAL=1
 import torch
 
-from fastforks import detection, flow, matting, multiview, pose, promptable_segmentation, retrieval
+from fastforks import calibration, detection, flow, matting, multiview, pose, promptable_segmentation, retrieval
 
 det = detection.load("faster-rcnn-r50-fpn-3x-coco")
 det("street.jpg", score_threshold=0.5).to_list()  # dicts: box, class_name, score
@@ -115,6 +115,9 @@ matting.load("birefnet-lite")("photo.jpg").alpha  # [H, W] in [0, 1]: 1 = foregr
 vpr = retrieval.load("megaloc")
 d = [vpr(p).descriptor for p in paths]  # each [8448], unit norm; any image sizes
 retrieval.pairs(torch.stack(d), k=20)  # [P, 2] image pairs to match (each image with its 20 nearest), e.g. for SfM
+
+cam = calibration.load("geocalib-pinhole")(image)  # one photo: no checkerboard, no EXIF
+cam.intrinsics, cam.roll, cam.pitch, cam.vfov  # [3, 3] (pixels of the input), radians
 ```
 
 How a call runs: the model card (`card.toml`) is resolved to a variant (the id and revision); the variant and `mode` select a
@@ -123,8 +126,8 @@ tensors; calling it returns the typed result, whose `.backend` records what ran.
 
 Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
 `fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation`,
-`fastforks.multiview`, `fastforks.matching`, `fastforks.matting`, `fastforks.tracking`, `fastforks.interpolation` and
-`fastforks.retrieval`.
+`fastforks.multiview`, `fastforks.matching`, `fastforks.matting`, `fastforks.tracking`, `fastforks.interpolation`,
+`fastforks.retrieval` and `fastforks.calibration`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
 PatchmatchNet return the reference view only. AnySplat also returns 3D Gaussians: `result.gaussians.save("scene.ply")`
 writes a standard 3DGS PLY. See the [API pages](api/index.md) for every result's fields.

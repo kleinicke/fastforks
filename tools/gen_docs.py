@@ -95,6 +95,10 @@ _DATASETS = {
         "st-lucia": "St Lucia, all 1464 queries against the 1549 database images, recall@1 / @5 % (25 m)",
         "st-lucia-every5": "St Lucia, every 5th query (293) against the 1549 database images, recall@1 / @5 % (25 m)",
     },
+    "calibration": {
+        "lamar2k": "LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees %",
+        "lamar2k-every10": "LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees %",
+    },
     "tracking": {
         "tapvid-davis-first-every3": "TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA %",
         "tapvid-davis-first": "TAP-Vid DAVIS (query first), AJ / delta_avg / OA %",
@@ -143,6 +147,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
     "retrieval": ((("r1", "{:.2f}", ""), ("r5", "{:.2f}", "")), "n", "queries"),
+    "calibration": (
+        (("roll_auc5", "{:.1f}", "dash"), ("pitch_auc5", "{:.1f}", "dash"), ("vfov_auc5", "{:.1f}", "")),
+        "n",
+        "images",
+    ),
     **{
         ("matting", d): ((("sad", "{:.2f}", ""), ("mse", "{:.3f}", "")), "n", "images")
         for d in ("aim500", "aim500-every5")
@@ -212,6 +221,9 @@ _PROTOCOL = {
     "retrieval": "Every query's descriptor against every database descriptor (cosine similarity, exact top-k on the "
     "GPU); a query counts as found at k when one of its k nearest database images is within 25 m (UTM positions of "
     "the file names), the standard visual place recognition protocol. ",
+    "calibration": "Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the "
+    "fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, "
+    "siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
@@ -717,7 +729,9 @@ def _accuracy(task: str, by: dict[tuple[str, str], dict], mode: str, dataset: st
         raise ValueError(msg)
     m = r.get("metrics") or r
     n, full = r.get(count), by.get(("portable", dataset), r).get(count)
-    cell = " / ".join(fmt.format(m[k]) for k, fmt, opt in metrics if not opt or k in m)
+    cell = " / ".join(  # opt "dash": a dash where the model has no such output (e.g. calibration without gravity)
+        fmt.format(m[k]) if k in m else _DASH for k, fmt, opt in metrics if opt in ("", "dash") or k in m
+    )
     cell += f" ({n} {noun})" if n and full and n < full else ""
     return cell + (" (NaN / inf output)" if err else "")
 
@@ -744,7 +758,7 @@ def _span(days: set[str]) -> str:
 def _suffixes(task: str, dataset: str, rows: list[dict]) -> list[str]:
     """Title suffixes of the optional metrics of `dataset` that one of `rows` has."""
     metrics = (_METRICS.get((task, dataset)) or _METRICS[task])[0]
-    return [opt for k, _, opt in metrics if opt and any(k in (r.get("metrics") or r) for r in rows)]
+    return [opt for k, _, opt in metrics if opt not in ("", "dash") and any(k in (r.get("metrics") or r) for r in rows)]
 
 
 def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[str]:
@@ -966,6 +980,10 @@ TASK_IO = {
         "Input: one RGB image. Output: a global descriptor `[D]` (unit L2 norm) for image retrieval / visual place "
         "recognition; `fastforks.retrieval.top_k` and `pairs` find the nearest images (cosine similarity) on the GPU."
     ),
+    "calibration": (
+        "Input: one RGB image. Output: the camera intrinsics `[3, 3]` and, where the model estimates them, the gravity "
+        "direction in the camera frame, roll, pitch and vertical field of view."
+    ),
     "tracking": (
         "Input: a video (its frames in order) and query points `(t, x, y)`. Output: the position of every query in "
         "every frame and the probability that it is visible there."
@@ -1145,6 +1163,7 @@ _STD_SIZE = {
     "matting": "1080x1920",
     "tracking": "480x854",
     "retrieval": "480x640",
+    "calibration": "1080x1920",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input
