@@ -643,7 +643,7 @@ def _codeformer(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     """
     g = _golden("codeformer")
     card, variant = full_ref("restoration", full)[1:]
-    p = {**card.params, **variant.params}
+    p = {**card.params, **card.options, **variant.params}
     tree = g.reference_tree(Path(os.environ["FF_CODEFORMER_REPO"]), g.REF_COMMIT)
     net = g.build(tree, Path(os.environ["FF_CODEFORMER_WEIGHTS"]) / variant.weights[0].name, p).cuda()
     a.note = f"upstream inference_codeformer.py on the aligned face, float32, w {p['fidelity']}"

@@ -2,7 +2,7 @@
 
 Upstream normalises the aligned 512 x 512 face crop to [-1, 1], runs `net(x, w=w, adain=True)[0]` and maps the output
 from [-1, 1] back (`tensor2img(min_max=(-1, 1))`); face detection, alignment and pasting back are not part of the
-network and not part of this family: the input is the aligned crop. `w` is the card's `fidelity` (upstream's
+network and not part of this family: the input is the aligned crop. `w` is the load option `fidelity` (upstream's
 `--fidelity_weight`, 0.5 by default; 0 = the codebook face, 1 = closer to the input).
 
 Changes: `CodeFormer.forward` without the training branches, the code index as `argmax` of the logits (upstream:
@@ -34,11 +34,11 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class Params:
-    """Card `[params]` (`inference_codeformer.py`'s network and call)."""
+    """Card `[params]` + `[options]` (`inference_codeformer.py`'s network and call)."""
 
     scale: int  # 1: the restored face has the input's size
     size: int  # 512: the aligned face crop (the transformer's 16 x 16 position embedding)
-    fidelity: float  # w: 0.5 (upstream default)
+    fidelity: float  # w (load option): 0.5 by default (upstream default)
     key: str  # checkpoint key ("params_ema")
 
 
