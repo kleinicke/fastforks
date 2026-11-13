@@ -3,7 +3,7 @@ name = "DeDoDe v2"
 summary = "DeDoDe v2 (Edstedt et al., 3DV 2024; detector v2: CVPR Workshops 2024): detect, don't describe, describe, don't detect. A VGG19 network with convolutional refiners finds 10000 keypoints per image (the detector, retrained in v2), a separate descriptor network (VGG19, or VGG19 + a frozen DINOv2 ViT-L/14 for -G) describes them, and the descriptions are matched as mutual maxima of a dual softmax. Returns both keypoint sets, the index pairs of the matches and their probability."
 tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 ViT-L/14 of -G)
+uses = ["dedode", "depth_anything_v2"]  # fastforks.shared modules this family imports (the nets; the DINOv2 ViT-L/14 of -G)
 limitations = [
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
@@ -14,7 +14,7 @@ limitations = [
 
 [upstream]
 repo = "https://github.com/Parskatt/DeDoDe"
-commit = "6d156183f4dc84cd704ae779eebc8350995c5b06"  # net/dedode.py = DeDoDe/{encoder,decoder}.py, detectors/, descriptors/, the model zoo and the inference utils in one file; the DINOv2 of -G is fastforks.shared.depth_anything_v2's
+commit = "6d156183f4dc84cd704ae779eebc8350995c5b06"  # shared/dedode = DeDoDe/{encoder,decoder}.py, detectors/, descriptors/, the model zoo and the inference utils in one file; the DINOv2 of -G is fastforks.shared.depth_anything_v2's
 
 [licence]
 code = "MIT"  # LICENSE; DINOv2 (-G): Apache-2.0, LICENSE_DINOv2

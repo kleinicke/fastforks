@@ -217,6 +217,7 @@ class DISK(nn.Module):
         if unet is None:
             unet = Unet(in_features=3, size=5, down=[16, 32, 64, 64, 64], up=[64, 64, 64, desc_dim + 1])
         self.unet = unet
+        self.half = False  # fastforks: the U-Net under float16 autocast (set by the loader)
 
     def heatmap_and_dense_descriptors(self, images: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         unet_output = self.unet(images)
@@ -246,7 +247,10 @@ class DISK(nn.Module):
             pd_w = 16 - w % 16 if w % 16 > 0 else 0
             images = F.pad(images, (0, pd_w, 0, pd_h), value=0.0)
 
-        heatmaps, descriptors = self.heatmap_and_dense_descriptors(images)
+        # fastforks: the U-Net in float16 when `half`; NMS, top-k and the descriptor lookup stay float32
+        with torch.autocast(images.device.type, dtype=torch.float16, enabled=self.half):
+            heatmaps, descriptors = self.heatmap_and_dense_descriptors(images)
+        heatmaps, descriptors = heatmaps.float(), descriptors.float()
         if pad_if_not_divisible:
             heatmaps = heatmaps[..., :h, :w]
             descriptors = descriptors[..., :h, :w]

@@ -15,14 +15,17 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-VGG19_BN = (64, 64, "M", 128, 128, "M", 256, 256, 256, 256, "M", 512, 512, 512, 512, "M")  # torchvision cfg "E"
+Cfg = tuple[int | str, ...]
+VGG19_BN: Cfg = (64, 64, "M", 128, 128, "M", 256, 256, 256, 256, "M", 512, 512, 512, 512, "M")  # torchvision "E"
+VGG11_BN: Cfg = (64, "M", 128, "M", 256, 256, "M", 512, 512, "M")  # torchvision cfg "A" up to the 4th max-pool
 
 
-def vgg19_bn_features() -> nn.ModuleList:
-    """torchvision `vgg19_bn().features[:40]`: conv-BN-ReLU blocks up to and including the 4th max-pool."""
+def vgg_bn_features(cfg: Cfg = VGG19_BN) -> nn.ModuleList:
+    """torchvision `vgg19_bn().features[:40]` / `vgg11_bn().features[:22]`: conv-BN-ReLU blocks up to and including
+    the 4th max-pool."""
     layers: list[nn.Module] = []
     c = 3
-    for v in VGG19_BN:
+    for v in cfg:
         if v == "M":
             layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
         else:
@@ -39,9 +42,9 @@ def autocast(amp: torch.dtype | None) -> torch.autocast:
 class VGG(nn.Module):
     """The features before each max-pool (strides 1, 2, 4, 8) and their sizes."""
 
-    def __init__(self) -> None:
+    def __init__(self, cfg: Cfg = VGG19_BN) -> None:
         super().__init__()
-        self.layers = vgg19_bn_features()
+        self.layers = vgg_bn_features(cfg)
         self.amp: torch.dtype | None = None
 
     def forward(self, x: torch.Tensor) -> tuple[list[torch.Tensor], list[torch.Size]]:
@@ -98,6 +101,7 @@ class ConvRefiner(nn.Module):
 
 # model zoo: scale -> (in, hidden, out without the prototypes); hidden blocks
 DETECTOR_L = {"8": (512, 512, 256), "4": (512, 256, 128), "2": (256, 128, 64), "1": (128, 64, 1)}, 8
+DETECTOR_S = {"8": (512, 512, 256), "4": (512, 256, 128), "2": (256, 64, 32), "1": (96, 32, 1)}, 3  # DaD (VGG11)
 DESCRIPTOR_B = {"8": (512, 512, 256), "4": (512, 256, 128), "2": (256, 64, 32), "1": (96, 32, 1)}, 5
 DESCRIPTOR_G = {"14": (1024, 768, 512), "8": (1024, 512, 256), "4": (512, 256, 128), "2": (256, 64, 32), "1": (96, 32, 1)}, 5
 
@@ -120,12 +124,13 @@ class Decoder(nn.Module):
 
 
 class Detector(nn.Module):
-    """DeDoDe-L detector: keypoint logits `[B, 1, H, W]` (float32) of a normalised image."""
+    """DeDoDe-L detector (or DaD's `dedode_detector_S`): keypoint logits `[B, 1, H, W]` (float32) of a normalised
+    image."""
 
-    def __init__(self) -> None:
+    def __init__(self, zoo: tuple[dict[str, tuple[int, int, int]], int] = DETECTOR_L, vgg: Cfg = VGG19_BN) -> None:
         super().__init__()
-        layers, blocks = DETECTOR_L
-        self.encoder = VGG()
+        layers, blocks = zoo
+        self.encoder = VGG(vgg)
         self.decoder = Decoder(layers, blocks, num_prototypes=1)
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:

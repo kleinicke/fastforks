@@ -25,9 +25,7 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks.matching._runner import Forward, Runner
-from fastforks.shared.depth_anything_v2 import DINOv2
-
-from .net.dedode import (
+from fastforks.shared.dedode import (
     VGG,
     ConvRefiner,
     Descriptor,
@@ -37,6 +35,7 @@ from .net.dedode import (
     dual_softmax_match,
     sample_keypoints,
 )
+from fastforks.shared.depth_anything_v2 import DINOv2
 
 if TYPE_CHECKING:
     from fastforks.matching._runner import Context

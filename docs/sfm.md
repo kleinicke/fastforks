@@ -7,6 +7,7 @@ GLOMAP) then builds the reconstruction.
 ```bash
 fastforks sfm scene/images scene/database.db            # MegaLoc pairs (k=20), ALIKED + LightGlue, GPU RANSAC
 colmap mapper --database_path scene/database.db --image_path scene/images --output_path scene/sparse
+fastforks sfm scene/images scene/out --reconstruct      # both steps: out/database.db + out/sparse/0 (pycolmap)
 ```
 
 ```python
@@ -14,7 +15,12 @@ from fastforks.matching import sfm
 
 stats = sfm.colmap_database("scene/images", "scene/database.db", matcher="disk-lightglue", k=30)
 print(stats.verified, stats.seconds)  # per stage: retrieval, matching (incl. decoding and verification), database
+rec = sfm.reconstruct("scene/images", "scene/out", k=30)  # + pycolmap's mapper; rec.model = scene/out/sparse/0
+print(rec.registered, rec.points, rec.seconds)
 ```
+
+`reconstruct` and `--reconstruct` need pycolmap (`pip install 'fastforks-core[sfm]'`); `mapper="global"` /
+`--mapper global` uses GLOMAP's global mapper (pycolmap >= 3.12) instead of the incremental one.
 
 - `--retrieval none` matches all pairs (exhaustive); `--k` sets the pairs per image.
 - `--single-camera` shares one camera (intrinsics) among the images of the same size; by default every image gets its
@@ -23,7 +29,9 @@ print(stats.verified, stats.seconds)  # per stage: retrieval, matching (incl. de
   costs <= 0.6 AUC@3 on Mip-NeRF 360 garden/counter and gains 6.6 on ETH3D facade (6048 x 4032 images).
 - `matcher_options` passes load options to the matcher: `{"long_side": 1600}` detects features at up to 1600 px
   instead of 1024 (garden AUC@3 95.1 -> 96.3, counter 95.4 -> 96.2; +16 % front-end time, 2x matching memory).
-- Only sparse matchers fit (keypoints per image); dense ones (RoMa, LoFTR) are refused.
+- Dense matchers (`matcher="romav2"`, `romav1`, `loftr`) work like hloc's `match_dense`: per pair the `dense_matches`
+  (default 4096) most certain pixels of a stride-2 grid and their warp endpoints; per image, endpoints within 1 px
+  merge into one keypoint so matches of different pairs form tracks.
 - The database uses the COLMAP 3 schema; COLMAP 4 / pycolmap 4 read it.
 
 ## Speed (RTX 5060 Ti, front end only)

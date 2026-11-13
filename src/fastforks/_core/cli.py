@@ -871,25 +871,34 @@ def _add_stereo(sub: argparse._SubParsersAction) -> None:
 def _sfm(args: argparse.Namespace) -> None:
     from fastforks.matching import sfm  # noqa: PLC0415 - heavy, only for this command
 
-    stats = sfm.colmap_database(
-        args.images,
-        args.database,
-        matcher=args.matcher,
-        retrieval=None if args.retrieval == "none" else args.retrieval,
-        k=args.k,
-        threshold=args.threshold,
-        single_camera=args.single_camera,
-        mode=args.mode,
-        device=args.device,
-    )
+    options = {
+        "matcher": args.matcher,
+        "retrieval": None if args.retrieval == "none" else args.retrieval,
+        "k": args.k,
+        "threshold": args.threshold,
+        "single_camera": args.single_camera,
+        "mode": args.mode,
+        "device": args.device,
+        "dtype": args.dtype,
+    }
+    if args.reconstruct:
+        rec = sfm.reconstruct(args.images, args.out, mapper=args.mapper, **options)
+        stats, target = rec.database, Path(args.out) / "database.db"
+    else:
+        stats, target = sfm.colmap_database(args.images, args.out, **options), Path(args.out)
     times = ", ".join(f"{name} {s:.1f} s" for name, s in stats.seconds.items())
-    print(f"{stats.images} images, {stats.pairs} pairs, {stats.verified} verified ({times}) -> {args.database}")
+    print(f"{stats.images} images, {stats.pairs} pairs, {stats.verified} verified ({times}) -> {target}")
+    if args.reconstruct:
+        built = f"{rec.registered}/{stats.images} images, {rec.points} points"
+        print(f"{rec.mapper} mapper {rec.seconds:.1f} s: {built} -> {rec.model}")
 
 
 def _add_sfm(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("sfm", help="an image folder -> a COLMAP database (pairs, matches, verified geometries)")
     p.add_argument("images", help="image folder (pass the same folder as the mapper's --image_path)")
-    p.add_argument("database", help="COLMAP database file to write (must not exist)")
+    p.add_argument("out", help="COLMAP database file to write (must not exist); with --reconstruct: the output folder")
+    p.add_argument("--reconstruct", action="store_true", help="also run pycolmap's mapper: out/database.db, out/sparse")
+    p.add_argument("--mapper", choices=("incremental", "global"), default="incremental", help="with --reconstruct")
     p.add_argument("--matcher", default="aliked-lightglue", help="sparse matching model id (default aliked-lightglue)")
     p.add_argument("--retrieval", default="megaloc", help="retrieval model id that picks the pairs, or none: all pairs")
     p.add_argument("--k", type=int, default=20, help="pairs per image (default 20)")
@@ -897,6 +906,7 @@ def _add_sfm(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--single-camera", action="store_true", help="one camera for all images of the same size")
     p.add_argument("--mode", choices=("auto", "portable", "kernels"), default="auto", help="backend (default auto)")
     p.add_argument("--device", help="e.g. cpu, cuda, cuda:1 (default: as `load`)")
+    p.add_argument("--dtype", choices=("float32", "float16", "bfloat16"), help="matcher dtype (default: the card's)")
     p.set_defaults(run=_sfm)
 
 

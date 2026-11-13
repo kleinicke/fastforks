@@ -1,19 +1,22 @@
-"""C-RADIOv3 runners: the checkpoint on timm's `VisionTransformer`, walked by `fastforks.shared.libnet.features`.
+"""C-RADIOv3 / v4 runners: the checkpoint on timm's `VisionTransformer`, walked by `fastforks.shared.libnet.features`.
 
-Upstream (`hf_model.RADIOModel`, `trust_remote_code`) is a timm ViT-B / L / H / g at patch 16 whose patch embedding,
-position table and prefix tokens are replaced by its `ViTPatchGenerator` (CPE, `enable_cpe_support.py`). At eval:
+Upstream (`hf_model.RADIOModel`, `trust_remote_code`) is a timm ViT (v3: B / L / H / g, v4: SO400M / H) at patch 16
+whose patch embedding, position table and prefix tokens are replaced by its `ViTPatchGenerator` (CPE,
+`enable_cpe_support.py`). At eval:
 
 - patch embedding: `Im2Patches` (channel, row, column) then a bias-free `Linear(3 * 16 * 16, C)`, the same as a
   16 x 16 stride-16 convolution with that weight `.view(C, 3, 16, 16)` (bias zero);
 - position table `[1, 128 * 128, C]` (2048 px): used as is at a 128 x 128 grid; otherwise resized bilinearly (float32,
-  `align_corners=False`) to the square `max(h, w)`, cropped top-left to `h x w`; added to the patches only;
-- prefix: 8 learnt tokens (4 summary tokens, one per teacher, then 4 registers) prepended after the position table;
+  `align_corners` per variant) to the square `max(h, w)`, cropped top-left to `h x w`; added to the patches only;
+- prefix: the learnt `cls_token.token` rows (v3: 8 = 4 summary tokens, one per teacher, then 4 registers; v4: 10 = 3
+  summary tokens, then 7 registers) prepended after the position table;
 - blocks: timm's (LayerScale on B / L, stored as `grandma`); no `norm_pre`, no final norm (`model_norm = false`);
 - input: RGB in [0, 1] standardised with the OpenAI CLIP mean / std (`input_conditioner`, the card's `[io]`).
 
-Outputs: `last_hidden_state` = all tokens of the last block (8 prefix tokens, then the patches row-major; upstream's
-`features` are `[:, 8:]`), `pooler_output` = upstream's `summary`: the summary tokens at `summary_idxs` (clip,
-siglip2, dino_v2) concatenated, `[B, 3 * C]`; `hidden_states[0]` = the embeddings (the first block's input).
+Outputs: `last_hidden_state` = all tokens of the last block (the prefix tokens, then the patches row-major; upstream's
+`features` are the patches), `pooler_output` = upstream's `summary`: the summary tokens at `summary_idxs` (v3: clip,
+siglip2, dino_v2; v4: siglip2, dino_v3) concatenated, `[B, len(summary_idxs) * C]`; `hidden_states[0]` = the
+embeddings (the first block's input).
 """
 
 from __future__ import annotations
@@ -31,10 +34,8 @@ from fastforks.shared.libnet import features, timm
 if TYPE_CHECKING:
     from fastforks.features._runner import Context
 
-_PATCH = 16  # fixed: upstream every C-RADIOv3 checkpoint
+_PATCH = 16  # fixed: upstream every C-RADIOv3 / v4 checkpoint
 _GRID = 128  # fixed: upstream position table side (cpe_max_size 2048 / 16)
-_SUMMARY = 4  # fixed: upstream summary tokens (one per teacher: clip, siglip2, dino_v2, sam)
-_PREFIX = 8  # fixed: upstream summary tokens + registers (`cls_token.token` rows)
 _LS_INIT = 1e-5  # fixed: upstream LayerScale init (B / L), overwritten by the checkpoint
 _PREFIX_KEY = "radio_model."
 _MODEL_KEY = "radio_model.model."
@@ -48,6 +49,8 @@ class Params:
     embed_dim: int
     depth: int
     num_heads: int
+    mlp_ratio: float  # MLP width / embed_dim (SO400M: 4304 / 1152)
+    summary_tokens: int  # prefix rows that are summary tokens, one per teacher (v3: 4, v4: 3); the rest are registers
     layer_scale: bool  # B / L: LayerScale in the blocks
     pos_align_corners: bool  # the position-table resampling's `align_corners` (B / H: true, L / g: false; upstream)
     fp16_accumulate: bool  # portable: cuBLAS fp16 accumulation in the GEMMs (option)
@@ -88,9 +91,9 @@ class _Radio(features._TimmFeatures):  # noqa: SLF001 - the shared runner with t
                 msg = f"input_conditioner.{name} is {None if got is None else got.flatten().tolist()}, not {want}"
                 raise CheckpointMismatchError(what, msg)
         idx = sd.pop(f"{_PREFIX_KEY}summary_idxs", None)
-        if idx is None or idx.numel() == 0 or int(idx.max()) >= _SUMMARY:
+        if idx is None or idx.numel() == 0 or int(idx.max()) >= p.summary_tokens:
             raise CheckpointMismatchError(
-                what, f"summary_idxs {idx} (expected indices of the {_SUMMARY} summary tokens)"
+                what, f"summary_idxs {idx} (expected indices of the {p.summary_tokens} summary tokens)"
             )
         self.summary_idxs = [int(i) for i in idx]
         self._idx: dict[torch.device, torch.Tensor] = {}
@@ -105,6 +108,7 @@ class _Radio(features._TimmFeatures):  # noqa: SLF001 - the shared runner with t
                 embed_dim=p.embed_dim,
                 depth=p.depth,
                 num_heads=p.num_heads,
+                mlp_ratio=p.mlp_ratio,
                 init_values=_LS_INIT if p.layer_scale else None,
                 class_token=False,
                 pos_embed="none",
@@ -121,14 +125,19 @@ class _Radio(features._TimmFeatures):  # noqa: SLF001 - the shared runner with t
         tok = state.pop("patch_generator.cls_token.token")
         emb = state.pop("patch_generator.embedder.weight")
         state.pop("reg_token", None)  # B / L: an unused timm register table (the registers are in `cls_token.token`)
-        if tok.shape != (_PREFIX, p.embed_dim) or pos.shape != (1, _GRID * _GRID, p.embed_dim):
+        prefix = tok.shape[0]
+        if (
+            not p.summary_tokens < prefix
+            or tok.shape[1:] != (p.embed_dim,)
+            or pos.shape != (1, _GRID * _GRID, p.embed_dim)
+        ):
             msg = f"prefix tokens {tuple(tok.shape)}, position table {tuple(pos.shape)}"
             raise CheckpointMismatchError(what, msg)
         state["patch_embed.proj.weight"] = emb.view(p.embed_dim, 3, _PATCH, _PATCH)
         state["patch_embed.proj.bias"] = torch.zeros(p.embed_dim)
         load_strict(net, state, what)
         net.cls_token = torch.nn.Parameter(tok[None].clone())
-        net.num_prefix_tokens, net.num_reg_tokens = _PREFIX, _PREFIX - _SUMMARY
+        net.num_prefix_tokens, net.num_reg_tokens = prefix, prefix - p.summary_tokens
         self._pos, self._align = pos, p.pos_align_corners
         return net
 
@@ -139,7 +148,7 @@ class _Radio(features._TimmFeatures):  # noqa: SLF001 - the shared runner with t
         return walk
 
     def pool(self, net: Any, last: torch.Tensor) -> torch.Tensor:  # noqa: ANN401, ARG002 - the optimised network
-        """Upstream's `summary`: the summary tokens at `summary_idxs`, concatenated (`[B, 3 * C]`).
+        """Upstream's `summary`: the summary tokens at `summary_idxs`, concatenated (`[B, len(summary_idxs) * C]`).
 
         The indices as a tensor on the device, made on the first call: indexing with the list would copy it to the
         device on every call, which a CUDA-graph capture refuses (the kernels' graphs).

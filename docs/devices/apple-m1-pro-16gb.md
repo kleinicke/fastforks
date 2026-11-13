@@ -40,7 +40,7 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-06 to 2026-11-13 |
-| rows | 1627 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| rows | 1641 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -204,18 +204,18 @@ Note: the original needs flex_gemm, a CUDA-only extension.
 | [`coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`](../models/classification.md#coatnet) | 52.5 | 51.9 | – | unsupported | – | 2183 | 2204 |
 | [`coatnet_rmlp_2_rw_224.sw_in1k`](../models/classification.md#coatnet) | 51.9 | 51.8 | – | unsupported | – | 2140 | 2197 |
 | [`coatnet_rmlp_nano_rw_224.sw_in1k`](../models/classification.md#coatnet) | 21.9 | 21.2 | – | unsupported | – | 1627 | 1596 |
-| [`convnext_base.fb_in1k`](../models/classification.md#convnext) | 26.7 | 27.7 | – | – | unsupported | 2061 | 2312 |
-| [`convnext_base.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 25.7 | 27.4 | – | – | unsupported | 2092 | 2311 |
-| [`convnext_base.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 51.9 | 50.8 | – | – | unsupported | 2065 | 2310 |
-| [`convnext_large.fb_in1k`](../models/classification.md#convnext) | 42.7 | 41.3 | – | – | unsupported | 2775 | 3491 |
-| [`convnext_large.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 40.8 | 41.3 | – | – | unsupported | 2770 | 3490 |
-| [`convnext_large.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 90.3 | 88.7 | – | – | unsupported | 2942 | 3495 |
-| [`convnext_small.fb_in1k`](../models/classification.md#convnext) | 20.3 | 19.1 | – | – | unsupported | 881 | 1042 |
-| [`convnext_small.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 20.3 | 19.4 | – | – | unsupported | 825 | 1043 |
-| [`convnext_small.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 34.8 | 33.5 | – | – | unsupported | 1890 | 2059 |
+| [`convnext_base.fb_in1k`](../models/classification.md#convnext) | 26.7 | 27.4 | – | – | unsupported | 2061 | 2325 |
+| [`convnext_base.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 25.7 | 27.8 | – | – | unsupported | 2092 | 2324 |
+| [`convnext_base.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 51.9 | 51.2 | – | – | unsupported | 2065 | 2321 |
+| [`convnext_large.fb_in1k`](../models/classification.md#convnext) | 42.7 | 41.7 | – | – | unsupported | 2775 | 3500 |
+| [`convnext_large.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 40.8 | 41.0 | – | – | unsupported | 2770 | 3502 |
+| [`convnext_large.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 90.3 | 89.0 | – | – | unsupported | 2942 | 3503 |
+| [`convnext_small.fb_in1k`](../models/classification.md#convnext) | 20.3 | 19.4 | – | – | unsupported | 881 | 1055 |
+| [`convnext_small.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 20.3 | 20.0 | – | – | unsupported | 825 | 1054 |
+| [`convnext_small.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 34.8 | 33.5 | – | – | unsupported | 1890 | 2071 |
 | [`convnext_tiny.fb_in1k`](../models/classification.md#convnext) | 12.0 | 11.2 | – | – | unsupported | 706 | 740 |
-| [`convnext_tiny.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 11.8 | 11.4 | – | – | unsupported | 697 | 738 |
-| [`convnext_tiny.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 20.7 | 20.4 | – | – | unsupported | 1736 | 1764 |
+| [`convnext_tiny.fb_in22k_ft_in1k`](../models/classification.md#convnext) | 11.8 | 11.6 | – | – | unsupported | 697 | 751 |
+| [`convnext_tiny.fb_in22k_ft_in1k_384`](../models/classification.md#convnext) | 20.7 | 20.2 | – | – | unsupported | 1736 | 1776 |
 | [`convnextv2_base.fcmae_ft_in22k_in1k`](../models/classification.md#convnextv2) | 41.0 | 36.1 | – | – | unsupported | 2066 | 2301 |
 | [`davit_base.msft_in1k`](../models/classification.md#davit) | 34.5 | 34.0 | – | unsupported | – | 2060 | 2314 |
 | [`davit_small.msft_in1k`](../models/classification.md#davit) | 26.4 | 25.4 | – | unsupported | – | 957 | 968 |
@@ -441,13 +441,13 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`rtdetrv2-ms-coco`](../models/detection.md#rtdetrv2) | 122 | 67.9 | – | – | unsupported | 1996 | 1872 |
 | [`rtdetrv2-s-coco`](../models/detection.md#rtdetrv2) | 65.2 | 44.0 | – | – | unsupported | 1768 | 1650 |
 | [`rtdetrv2-x-coco`](../models/detection.md#rtdetrv2) | 238 | 114 | – | – | unsupported | 2356 | 2189 |
-| [`rtmdet-l-coco`](../models/detection.md#rtmdet) | 109 | 83.7 | 75.2 | – | unsupported | 2230 | 1927 |
-| [`rtmdet-m-coco`](../models/detection.md#rtmdet) | 71.9 | 54.8 | 50.9 | – | unsupported | 2155 | 1862 |
-| [`rtmdet-m-person`](../models/detection.md#rtmdet) | 69.8 | 53.0 | 48.5 | – | unsupported | 2022 | 1737 |
-| [`rtmdet-nano-person`](../models/detection.md#rtmdet) | 29.9 | 22.6 | 22.0 | – | unsupported | 1688 | 1403 |
-| [`rtmdet-s-coco`](../models/detection.md#rtmdet) | 42.8 | 33.6 | 30.7 | – | unsupported | 1874 | 1619 |
+| [`rtmdet-l-coco`](../models/detection.md#rtmdet) | 109 | 85.1 | 75.8 | – | unsupported | 2230 | 1941 |
+| [`rtmdet-m-coco`](../models/detection.md#rtmdet) | 71.9 | 56.0 | 51.4 | – | unsupported | 2155 | 1869 |
+| [`rtmdet-m-person`](../models/detection.md#rtmdet) | 69.8 | 53.4 | 48.8 | – | unsupported | 2022 | 1753 |
+| [`rtmdet-nano-person`](../models/detection.md#rtmdet) | 29.9 | 19.3 | 17.8 | – | unsupported | 1688 | 1426 |
+| [`rtmdet-s-coco`](../models/detection.md#rtmdet) | 42.8 | 33.6 | 31.0 | – | unsupported | 1874 | 1636 |
 | [`rtmdet-tiny-coco`](../models/detection.md#rtmdet) | 35.9 | 28.6 | 27.0 | – | unsupported | 1813 | 1545 |
-| [`rtmdet-x-coco`](../models/detection.md#rtmdet) | 155 | 127 | 115 | – | unsupported | 2381 | 2107 |
+| [`rtmdet-x-coco`](../models/detection.md#rtmdet) | 155 | 128 | 116 | – | unsupported | 2381 | 2124 |
 | [`yolox-l`](../models/detection.md#yolox) | 92.9 | 88.7 | 79.4 | – | unsupported | 1738 | 1861 |
 | [`yolox-m`](../models/detection.md#yolox) | 59.9 | 55.2 | 50.0 | – | unsupported | 1673 | 1640 |
 | [`yolox-s`](../models/detection.md#yolox) | 36.7 | 33.4 | 30.7 (golden fail) | – | unsupported | 1537 | 1556 |
@@ -463,11 +463,11 @@ Note: the card has no kernels mode.
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs original | vs portable | peak memory (MiB, process footprint, fastest dtype): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| [`dwpose-l`](../models/pose.md#rtmpose) | 225 | 99.1 | 87.6 | 92.0 | – | 2.4x | 1.0x | 2059 | 1862 | 1917 |
-| [`dwpose-l-384`](../models/pose.md#rtmpose) | 319 | 197 | 173 | 182 | – | 1.8x | 1.0x | 2034 | 1864 | 1916 |
-| [`dwpose-m`](../models/pose.md#rtmpose) | 192 | 69.1 | 59.1 | 57.7 | – | 3.3x | 1.0x | 1991 | 1682 | 1791 |
-| [`dwpose-s`](../models/pose.md#rtmpose) | 164 | 41.6 | 38.3 | 33.2 | – | 5.0x | 1.2x | 1885 | 1527 | 1595 |
-| [`dwpose-t`](../models/pose.md#rtmpose) | 158 | 33.4 | 33.1 | 26.4 | – | 6.0x | 1.3x | 1817 | 1465 | 1539 |
+| [`dwpose-l`](../models/pose.md#rtmpose) | 225 | 84.4 | 76.3 | 80.0 | – | 2.8x | 1.0x | 2059 | 1875 | 1936 |
+| [`dwpose-l-384`](../models/pose.md#rtmpose) | 319 | 167 | 157 | 155 | – | 2.1x | 1.0x | 2034 | 1878 | 1938 |
+| [`dwpose-m`](../models/pose.md#rtmpose) | 192 | 56.1 | 52.4 | 50.9 | – | 3.8x | 1.0x | 1991 | 1698 | 1813 |
+| [`dwpose-s`](../models/pose.md#rtmpose) | 164 | 34.9 | 32.1 | 29.8 | – | 5.5x | 1.1x | 1885 | 1543 | 1614 |
+| [`dwpose-t`](../models/pose.md#rtmpose) | 158 | 29.2 | 28.0 | 23.7 | – | 6.7x | 1.2x | 1817 | 1482 | 1557 |
 | [`hrnet-w32`](../models/pose.md#hrnet) | 304 | 141 | 122 | – | unsupported | – | – | 2014 | 1675 | – |
 | [`hrnet-w32-384`](../models/pose.md#hrnet) | 438 | 256 | 217 | – | unsupported | – | – | 2019 | 1690 | – |
 | [`hrnet-w48`](../models/pose.md#hrnet) | 386 | 215 | 198 | – | unsupported | – | – | 2380 | 2065 | – |
@@ -477,21 +477,21 @@ Note: the card has no kernels mode.
 | [`rtmo-m`](../models/pose.md#rtmo) | 60.4 | 47.6 | 43.9 | – | unsupported | – | – | 2043 | 1802 | – |
 | [`rtmo-s`](../models/pose.md#rtmo) | 37.4 | 32.1 | 31.0 | – | unsupported | – | – | 1870 | 1560 | – |
 | [`rtmo-t`](../models/pose.md#rtmo) | 25.4 | 21.0 | 19.9 | – | unsupported | – | – | 1836 | 1506 | – |
-| [`rtmpose-l`](../models/pose.md#rtmpose) | 216 | 91.7 | 81.3 | 85.0 | – | 2.5x | 1.0x | 2018 | 1849 | 1893 |
-| [`rtmpose-l-384`](../models/pose.md#rtmpose) | 303 | 180 | 158 | 167 | – | 1.8x | 0.9x | 2039 | 1851 | 1893 |
+| [`rtmpose-l`](../models/pose.md#rtmpose) | 216 | 77.6 | 70.0 | 71.8 | – | 3.0x | 1.0x | 2018 | 1866 | 1916 |
+| [`rtmpose-l-384`](../models/pose.md#rtmpose) | 303 | 154 | 136 | 143 | – | 2.1x | 1.0x | 2039 | 1869 | 1913 |
 | [`rtmpose-l-halpe26`](../models/pose.md#rtmpose) | 219 | 97.9 | 83.7 | 88.2 | – | 2.5x | 0.9x | 2014 | 1866 | 1920 |
 | [`rtmpose-l-halpe26-384`](../models/pose.md#rtmpose) | 305 | 185 | 160 | 172 | – | 1.8x | 0.9x | 2039 | 1871 | 1919 |
-| [`rtmpose-m`](../models/pose.md#rtmpose) | 185 | 60.3 | 57.8 | 52.4 | – | 3.5x | 1.1x | 1920 | 1633 | 1740 |
-| [`rtmpose-m-384`](../models/pose.md#rtmpose) | 237 | 112 | 103 | 98.3 | – | 2.4x | 1.0x | 1936 | 1634 | 1738 |
+| [`rtmpose-m`](../models/pose.md#rtmpose) | 185 | 50.2 | 47.5 | 45.1 | – | 4.1x | 1.1x | 1920 | 1645 | 1758 |
+| [`rtmpose-m-384`](../models/pose.md#rtmpose) | 237 | 95.5 | 87.8 | 83.9 | – | 2.8x | 1.0x | 1936 | 1649 | 1761 |
 | [`rtmpose-m-ap10k`](../models/pose.md#rtmpose) | 193 | 72.6 | 65.8 | 71.9 | – | 2.7x | 0.9x | 1935 | 1653 | 1759 |
 | [`rtmpose-m-face6`](../models/pose.md#rtmpose) | 200 | 79.2 | 70.9 | 67.3 | – | 3.0x | 1.1x | 1958 | 1687 | 1800 |
 | [`rtmpose-m-halpe26`](../models/pose.md#rtmpose) | 186 | 60.6 | 55.8 | 54.4 | – | 3.4x | 1.0x | 1918 | 1658 | 1761 |
 | [`rtmpose-m-halpe26-384`](../models/pose.md#rtmpose) | 236 | 118 | 104 | 100 | – | 2.4x | 1.0x | 1935 | 1651 | 1761 |
 | [`rtmpose-m-hand5`](../models/pose.md#rtmpose) | 192 | 57.5 | 55.0 | 50.0 | – | 3.8x | 1.1x | 1936 | 1639 | 1740 |
-| [`rtmpose-s`](../models/pose.md#rtmpose) | 158 | 35.7 | 33.2 | 29.0 | – | 5.4x | 1.1x | 1839 | 1494 | 1559 |
+| [`rtmpose-s`](../models/pose.md#rtmpose) | 158 | 30.2 | 28.3 | 24.9 | – | 6.3x | 1.1x | 1839 | 1514 | 1578 |
 | [`rtmpose-s-face6`](../models/pose.md#rtmpose) | 170 | 39.4 | 38.2 | 31.9 | – | 5.3x | 1.2x | 1861 | 1518 | 1587 |
 | [`rtmpose-s-halpe26`](../models/pose.md#rtmpose) | 160 | 30.9 | 28.4 | 24.9 | – | 6.4x | 1.1x | 1831 | 1500 | 1567 |
-| [`rtmpose-t`](../models/pose.md#rtmpose) | 157 | 25.4 | 24.6 | 20.5 | – | 7.7x | 1.2x | 1804 | 1444 | 1513 |
+| [`rtmpose-t`](../models/pose.md#rtmpose) | 157 | 25.7 | 25.6 | 20.1 | – | 7.8x | 1.3x | 1804 | 1460 | 1532 |
 | [`rtmpose-t-face6`](../models/pose.md#rtmpose) | 162 | 32.6 | 31.3 | 25.2 | – | 6.4x | 1.2x | 1820 | 1461 | 1533 |
 | [`rtmpose-t-halpe26`](../models/pose.md#rtmpose) | 156 | 25.5 | 25.6 | 20.0 | – | 7.8x | 1.3x | 1816 | 1454 | 1513 |
 | [`rtmpose-x-halpe26-384`](../models/pose.md#rtmpose) | 395 | 239 | 213 | 225 | – | 1.8x | 1.0x | 3244 | 2017 | 2130 |
@@ -519,6 +519,8 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`c-radio-v3-g`](../models/features.md#c_radio) | 297 | 180 | 145 | unsupported | – | – | 5681 | 9394 | – |
 | [`c-radio-v3-h`](../models/features.md#c_radio) | 121 | 103 | 85.0 | unsupported | – | – | 3596 | 5806 | – |
 | [`c-radio-v3-l`](../models/features.md#c_radio) | 62.3 | 53.3 | 47.9 | unsupported | – | – | 2561 | 3322 | – |
+| [`c-radio-v4-h`](../models/features.md#c_radio) | 98.2 | 99.0 | 86.6 | unsupported | – | – | 3587 | 5808 | – |
+| [`c-radio-v4-so400m`](../models/features.md#c_radio) | 66.7 | 67.0 | 58.5 | unsupported | – | – | 2561 | 3934 | – |
 | [`clip-b16-laion2b`](../models/features.md#clip) | 19.8 | 16.9 | 15.3 | unsupported | – | – | 1348 | 1480 | – |
 | [`clip-b16-openai`](../models/features.md#clip) | 18.5 | 17.5 | 16.1 | unsupported | – | – | 1592 | 1724 | – |
 | [`clip-h14-378-dfn5b`](../models/features.md#clip) | 232 | 132 | 108 | unsupported | – | – | 7408 | 8090 | – |
@@ -605,12 +607,15 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`anysplat`](../models/multiview.md#anysplat) | unsupported | 33262 | – | – | unsupported | – | – | – | 10705 | – |
 | [`depthsplat-small-re10k`](../models/multiview.md#depthsplat) | unsupported | 670 | – | – | unsupported | – | – | – | 8880 | – |
 | [`mapanything-apache`](../models/multiview.md#mapanything) | 8492 | 7357 | 6369 | – | unsupported | – | – | 11136 | 7218 | – |
+| [`mvsplat-re10k`](../models/multiview.md#mvsplat) | unsupported | 1090 | – | – | unsupported | – | – | – | 4539 | – |
+| [`pi3`](../models/multiview.md#pi3) | 10379 | 10275 | – | – | unsupported | – | – | 6238 | 6202 | – |
 | [`vggt-1b`](../models/multiview.md#vggt) | 7987 | 7209 | – | 7016 | – | 1.1x | 1.0x | 10337 | 10654 | 10692 |
 | [`vggt-omega-1b-512`](../models/multiview.md#vggt_omega) | 7828 | 7938 | 7242 | – | unsupported | – | – | 9079 | 8602 | – |
 
 Note: the authors' code builds its DPT position embedding in float64 (src/model/encoder/vggt/heads/utils.py:48, torch.arange(dtype=torch.double)), which MPS does not support; its vendored VGGT predates VGGT's own MPS fix.
 Note: no Metal kernels for this family (card mps_kernels).
 Note: the authors' spherical-harmonic rotation (src/misc/sh_rotation.py) calls e3nn's wigner_D, which builds complex tensors on the device; MPS cannot concatenate complex tensors (cat_int32_t_float_float2).
+Note: upstream's Gaussian rotation (e3nn Wigner D) builds complex tensors, which MPS cannot concatenate (cat_int32_t_float_float2).
 
 ### Multiview, synthetic, 448x672
 
@@ -686,10 +691,10 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | kernels fp32 | kernels fp16 | kernels bf16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|---|
-| [`aliked-lightglue`](../models/matching.md#lightglue) | 214 | 287 | unsupported | – | – | 2720 | 2587 |
+| [`aliked-lightglue`](../models/matching.md#lightglue) | 214 | 206 | unsupported | – | – | 2720 | 2586 |
 | [`dedode-v2-b`](../models/matching.md#dedode) | 1711 | 1464 | unsupported | – | – | 8024 | 8011 |
 | [`dedode-v2-g`](../models/matching.md#dedode) | 4459 | 3767 | unsupported | – | – | 9577 | 10008 |
-| [`disk-lightglue`](../models/matching.md#lightglue) | 1780 | 1941 | unsupported | – | – | 3679 | 3536 |
+| [`disk-lightglue`](../models/matching.md#lightglue) | 1780 | 1994 | unsupported | – | – | 3679 | 3531 |
 | [`loftr-indoor`](../models/matching.md#loftr) | 994 | 877 | unsupported | – | – | 5973 | 5768 |
 | [`loftr-outdoor`](../models/matching.md#loftr) | 997 | 875 | unsupported | – | – | 6998 | 5767 |
 | [`romav1`](../models/matching.md#romav1) | 12208 | 3050 | – | unsupported | – | 12492 | 7979 |

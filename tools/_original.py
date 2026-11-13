@@ -43,6 +43,7 @@ BF16 = {
     "depth_anything_3",
     "romav2",
     "anysplat",
+    "pi3",
 }  # the authors' mixed precision is bfloat16
 NATIVE_HALF = {
     "depth_pro",
@@ -1805,6 +1806,29 @@ def _anysplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - a
     return call
 
 
+def _pi3(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `Pi3` as `tools/golden/pi3.py` (the runner's resizing, PIXEL_LIMIT 255000).
+
+    `FF_PI3_REPO`: a checkout with the pinned commit. fp16 = the authors' bf16 autocast around the whole forward (their
+    `example.py`).
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("pi3")
+    card, variant = registry.resolve("multiview", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.network(Path(os.environ["FF_PI3_REPO"]), Path(weights)).cuda()
+    a.note = f"yyfz/Pi3@{g.REF_COMMIT[:12]} Pi3.forward, PIXEL_LIMIT {g.PIXEL_LIMIT}"
+
+    def call(images: Any, *_: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 (bench) or float 0-1 (eval); no cameras
+        x = images.float() / 255 if images.dtype == torch.uint8 else images.float()
+        return g.predict(net, x, bf16=fp16)["depth"]
+
+    return call
+
+
 class _LocalCameras(_LocalFp16):
     """A calibrated multiview original: called with the images, intrinsics, cam_to_world and the depth range."""
 
@@ -1874,6 +1898,37 @@ def _prompt_depth_anything(a: Any, full: str) -> Any:  # noqa: ANN401
     @torch.inference_mode()
     def call(image: Any, prompt: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW, [h/8, w/8] metres
         return net(image[None].float() / 255, prompt[None, None].float())
+
+    return call
+
+
+def _mvsplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream MVSplat's `EncoderCostVolume` as `tools/golden/mvsplat.py` (the runner's resizing, long side 256).
+
+    `FF_MVSPLAT_REPO`: a checkout with the pinned commit; `FF_MVSPLAT_SITE`: `einops`, `jaxtyping`, `e3nn`,
+    `omegaconf` (upstream imports them). Upstream has no mixed precision of its own: fp16 = `torch.autocast(float16)`.
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    site = os.environ.get("FF_MVSPLAT_SITE")
+    if site and site not in sys.path:
+        sys.path.append(site)
+    g = _golden("mvsplat")
+    card, variant = registry.resolve("multiview", full)
+    (weights,) = registry.weights(card, variant)
+    enc = g.network(Path(os.environ["FF_MVSPLAT_REPO"]), Path(weights), 2).cuda()
+    a.note = f"donydchen/mvsplat@{g.REF_COMMIT[:12]} EncoderCostVolume, long side {g.LONG_SIDE}"
+
+    def call(images: Any, k: Any, c2w: Any, depth_range: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 or 0-1
+        x = images.float() / 255 if images.dtype == torch.uint8 else images.float()
+        near, far = (float(d) for d in depth_range)
+        with torch.autocast("cuda", torch.float16, enabled=fp16):
+            _, dump, _, sc = g.infer(enc, x, (k.float(), c2w.float(), near, far), g.LONG_SIDE)
+        depth = dump["depth"][0, ..., 0, 0][:, None].float() / sc
+        return F.interpolate(depth, x.shape[2:], mode="bilinear", align_corners=False)[:, 0]
 
     return call
 
@@ -1997,7 +2052,7 @@ def _c_radio(a: Any, full: str) -> Any:  # noqa: ANN401
 
     card, variant = registry.resolve("features", full)
     url = re.match(
-        r"https://huggingface\.co/(nvidia/C-RADIOv3-[A-Za-z]+)/resolve/([0-9a-f]{40})/", variant.weights[0].url
+        r"https://huggingface\.co/(nvidia/C-RADIOv[34]-[A-Za-z0-9]+)/resolve/([0-9a-f]{40})/", variant.weights[0].url
     )
     repo, rev = url[1], url[2]
     snap = Path(snapshot_download(repo, revision=rev, allow_patterns=["*.py", "*.json", "*.md"], local_files_only=True))
@@ -2218,7 +2273,9 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),
+    "pi3": _LocalFp16("multiview", _pi3, ((336, 518),)),
     "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),
+    "mvsplat": _LocalCameras("multiview", _mvsplat, ((336, 518),)),
     "tapir": _Tracking("tracking", _tapir, ((480, 854),)),
     "clip": _Local("features", _timm_features, ((224, 224),)),
     "siglip2": _Local("features", _timm_features, ((224, 224),)),

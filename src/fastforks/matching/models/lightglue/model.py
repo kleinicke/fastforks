@@ -7,7 +7,10 @@ to the input image (pixel centres at integers) and LightGlue matches them with u
 width, match threshold 0.1). Returns both keypoint sets, the index pairs of the matches and their scores.
 
 The LightGlue attention runs in float16 on CUDA, as upstream's (`flash=True`: SDPA on half q, k, v); the rest is
-float32.
+float32. `dtype="float16"` (CUDA, not the default) also runs the extractor's dense network (ALIKED's encoder and
+aggregation, DISK's U-Net) under float16 autocast; detection, sub-pixel refinement, descriptors and the matcher stay
+as in float32 (ALIKED 18.2 -> 14.5 ms, DISK 48.7 -> 38.1 ms per 1024 px image on an RTX 5060 Ti; DISK keypoints
+99.5 % identical, ALIKED 99.8 % within 0.5 px).
 """
 
 from __future__ import annotations
@@ -19,7 +22,7 @@ import torch
 from torch import nn
 
 from fastforks.matching._runner import Forward, Runner
-from fastforks.shared.lightglue import LightGlue, resize_long
+from fastforks.shared.lightglue import LightGlue, match_many, resize_long
 
 from .net.aliked import ALIKED
 from .net.disk import DISK
@@ -105,13 +108,19 @@ def load_matcher(ctx: Context) -> Matcher:
     net.matcher.load_weights(ctx.state_dict(0))
     sd = ctx.state_dict(1, key="extractor" if ctx.params.extractor == "disk" else None)
     net.extractor.load_state_dict(sd, strict=True)
-    return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    net = net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    if ctx.torch_dtype == torch.float16:
+        net.extractor.half = True
+        if ctx.params.extractor == "aliked":  # channels-last convs: 15.5 -> 14.5 ms (DISK: no gain)
+            net.extractor.to(memory_format=torch.channels_last)
+    return net
 
 
 class Portable(Runner):
-    """Plain PyTorch, float32 (LightGlue's attention in float16 on CUDA, as upstream)."""
+    """Plain PyTorch, float32 (LightGlue's attention in float16 on CUDA, as upstream); float16: extractor autocast."""
 
     Params = Params
+    dtypes = ("float32", "float16")
 
     def __init__(self, ctx: Context) -> None:
         """Build the networks."""
@@ -123,7 +132,7 @@ class Portable(Runner):
         return self.net(image1, image2)
 
     match_reads_images = False
-    match_streams = 2  # match_pairs, garden, ALIKED: 15.0 ms per pair instead of 19.0, +128 MB (3: 14.5 ms, +110 MB)
+    matches_many = True
 
     def describe(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The image's keypoints and descriptors: the per-image stage."""
@@ -133,6 +142,19 @@ class Portable(Runner):
         """`__call__` with the two images' `describe` results (the images are not read again)."""
         del image1, image2
         return self.net.match(*described)
+
+    def match_many(self, described: list[tuple[Any, Any]]) -> list[dict[str, torch.Tensor]]:
+        """`match` of many pairs in one packed LightGlue forward (`fastforks.shared.lightglue.match_many`)."""
+        outs = match_many(self.net.matcher, described)
+        return [
+            {
+                "keypoints1": f1["keypoints"][0],
+                "keypoints2": f2["keypoints"][0],
+                "pairs": o["matches"],
+                "scores": o["scores"],
+            }
+            for (f1, f2), o in zip(described, outs, strict=True)
+        ]
 
     def module(self) -> torch.nn.Module:
         """The extractor and matcher (data-dependent keypoint counts: compiles with graph breaks, does not export)."""

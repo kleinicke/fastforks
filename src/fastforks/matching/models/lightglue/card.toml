@@ -31,7 +31,7 @@ max_keypoints = { default = 2048, min = 1 }  # per image (upstream README usage:
 long_side = { default = 1024, min = 0 }  # longest side the features are detected at (upstream extractor resize 1024; 0 = the input size)
 
 [modes.portable]
-cuda_dtype = "float32"  # as upstream: LightGlue's attention casts q, k, v to float16 on CUDA, the rest is float32
+cuda_dtype = "float32"  # as upstream: LightGlue's attention casts q, k, v to float16 on CUDA, the rest is float32; dtype="float16" (opt-in) also runs the extractor's dense network under float16 autocast, detection and descriptors float32
 mps_dtypes = ["float32"]
 
 [modes.kernels]

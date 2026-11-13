@@ -88,6 +88,7 @@ pip install "fastforks-core[torchvision]"
 pip install "fastforks-core[transformers]"
 pip install "fastforks-core[onnx]"               # ONNX export
 pip install "fastforks-core[tensorrt]"           # TensorRT export
+pip install "fastforks-core[sfm]"                # pycolmap: `fastforks sfm --reconstruct` (the COLMAP mapper)
 pip install "fastforks-core[libs]"               # timm, torchvision, transformers and ONNX at once
 ```
 

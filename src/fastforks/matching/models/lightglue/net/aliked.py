@@ -349,7 +349,9 @@ class DeformableConv2d(nn.Module):
         x = modulated_deform_conv(
             x, offset, mask, self.regular_conv.weight, self.regular_conv.bias, 1, self.padding
         )
-        return x
+        # fastforks: the op returns a channels-last view; the NCHW layout keeps the upsample + cat of the four
+        # feature levels on their fast kernels (channels-last cost 2.4x on the cat, 1.4x on the upsample)
+        return x.contiguous()
 
 
 def get_conv(
@@ -674,6 +676,7 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
             _conv3x3(4, 1),
         )
         self.desc_head = SDDH(dim, K, M, gate=self.gate, conv2D=conv2D, mask=mask)
+        self.half = False  # fastforks: dense maps under float16 autocast (set by the loader)
         self.dkd = DKD(
             radius=conf.nms_radius,
             top_k=-1 if conf.detection_threshold > 0 else conf.max_num_keypoints,
@@ -734,7 +737,11 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
 
     def forward(self, data: dict) -> dict:
         image = data["image"]  # fastforks: RGB only (the grayscale conversion removed)
-        feature_map, score_map = self.extract_dense_map(image)
+        # fastforks: the dense maps in float16 when `half` (autocast: the convs in half, the norms and the sigmoid in
+        # float32); detection, sub-pixel refinement and description stay float32
+        with torch.autocast(image.device.type, dtype=torch.float16, enabled=self.half):
+            feature_map, score_map = self.extract_dense_map(image)
+        feature_map, score_map = feature_map.float(), score_map.float()
         keypoints, kptscores, scoredispersitys = self.dkd(
             score_map, image_size=data.get("image_size")
         )
