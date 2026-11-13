@@ -504,6 +504,62 @@ class Classify(_Node):
         return ("\n\n".join(each(image.shape[0], one)),)
 
 
+_WD_GENERAL, _WD_CHARACTERS = 4, 8110  # WD v3 label set: ratings, then general tags, then characters (card)
+
+
+def wd_tags(probs: torch.Tensor, names: tuple[str, ...], general: float, character: float) -> str:
+    """WD tagger probabilities -> the general and character tags at or above their thresholds, most likely first."""
+    thr = torch.full_like(probs, float("inf"))
+    thr[_WD_GENERAL:_WD_CHARACTERS], thr[_WD_CHARACTERS:] = general, character
+    idx = (probs >= thr).nonzero().flatten()
+    return ", ".join(names[j] for j in idx[probs[idx].argsort(descending=True)].tolist())
+
+
+class Tag(_Node):
+    """Danbooru tags of the WD v3 taggers as prompt text."""
+
+    DESCRIPTION = (
+        "Danbooru tags (WD v3 taggers): characters and general tags at or above their thresholds, most likely first,"
+        " comma-separated (one line per image). Ratings are not included."
+    )
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("tags",)
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        ids = _ids("classification", lambda m: fastforks.model_card(m).output_info.get("probs") == "sigmoid")
+        thr = {"min": 0.0, "max": 1.0, "step": 0.01}
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                **common(ids, "wd-eva02-large-tagger-v3"),
+                "general_threshold": ("FLOAT", {"default": 0.35, **thr}),
+                "character_threshold": ("FLOAT", {"default": 0.75, **thr}),
+            }
+        }
+
+    def run(  # noqa: PLR0913 - one argument per input
+        self,
+        *,
+        image: torch.Tensor,
+        model: str,
+        backend: str,
+        dtype: str,
+        general_threshold: float,
+        character_threshold: float,
+    ) -> tuple[str]:
+        """Tag every image."""
+        m = load(model, backend, dtype)
+        names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
+
+        def one(i: int) -> str:
+            probs = m(convert.frame(image, i, m.device)).probs.float().cpu()
+            return wd_tags(probs, names, general_threshold, character_threshold)
+
+        return ("\n".join(each(image.shape[0], one)),)
+
+
 _PX = "in pixels of the first frame"
 
 
@@ -775,6 +831,7 @@ NODE_CLASS_MAPPINGS = {
     "FastforksPose": Pose,
     "FastforksInterpolate": Interpolate,
     "FastforksClassify": Classify,
+    "FastforksTag": Tag,
     "FastforksSemanticSegment": SemanticSegment,
     "FastforksStereo": Stereo,
     "FastforksFlow": Flow,
@@ -792,6 +849,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FastforksPose": "Pose (fastforks)",
     "FastforksInterpolate": "Interpolate frames (fastforks)",
     "FastforksClassify": "Classify (fastforks)",
+    "FastforksTag": "Tag (WD tagger, fastforks)",
     "FastforksSemanticSegment": "Semantic segmentation (fastforks)",
     "FastforksStereo": "Stereo disparity (fastforks)",
     "FastforksFlow": "Optical flow (fastforks)",

@@ -263,3 +263,14 @@ def test_node_model_lists(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         return {nodes.model_id(e) for e in node.INPUT_TYPES()["required"]["model"][0]}
 
     assert {"hat-x4", "hat-s-x4", "real-hat-gan-x4", "dat-x4", "dat-2-x4", "dat-light-x4"} <= ids(nodes.Upscale)
+    tagger = {"wd-vit-tagger-v3", "wd-convnext-tagger-v3", "wd-vit-large-tagger-v3", "wd-eva02-large-tagger-v3"}
+    assert ids(nodes.Tag) == tagger
+
+
+def test_wd_tags(pack: Any) -> None:
+    """Ratings never; general and character tags each by their threshold, most likely first."""
+    names = ("general", "sensitive", "questionable", "explicit", *[f"g{i}" for i in range(4, 8110)], "char_a", "char_b")
+    probs = torch.zeros(len(names))
+    probs[0], probs[4], probs[5], probs[8110], probs[8111] = 0.99, 0.4, 0.9, 0.8, 0.5
+    assert pack.nodes.wd_tags(probs, names, 0.35, 0.75) == "g5, char_a, g4"
+    assert pack.nodes.wd_tags(probs, names, 0.95, 0.95) == ""
