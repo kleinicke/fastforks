@@ -1,0 +1,1 @@
+fastforks-core[timm,transformers]

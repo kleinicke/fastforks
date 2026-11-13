@@ -251,13 +251,14 @@ python-version = "3.11"
 extra-paths = ["tests", "tools", "tools/golden"]  # tests/synth.py (shared with tools/golden), tools imported by tests, `_common`
 
 [tool.ty.src]
-include = ["src", "tests", "tools"]
+include = ["src", "tests", "tools", "integrations"]
 
 [tool.ty.analysis]
 # Optional extras the CI lint job does not install, and upstream reference trees put on sys.path at run time.
 allowed-unresolved-imports = [
   "timm", "timm.**", "transformers", "transformers.**", "scipy", "scipy.**", "onnx", "onnx_ir", "onnxruntime",
   "tensorrt", "laspy", "lazrs", "pycocotools", "pycocotools.**", "depth_anything_v2.**", "s2m2.**",
+  "comfy", "comfy.**",  # ComfyUI (integrations/comfyui runs inside it)
 ]
 
 [tool.ty.rules]
