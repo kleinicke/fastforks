@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules.utils import _pair
-from fastforks.shared.deform_conv import modulated_deform_conv  # fastforks: the plain-PyTorch op, shared with ALIKED
+from fastforks.shared.deform_conv import modulated_deform_conv  # fastforks: the plain-PyTorch op, shared with ALIKED (lightglue)
 
 
 class DeformConv(nn.Module):

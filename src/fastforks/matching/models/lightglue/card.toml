@@ -3,7 +3,7 @@ name = "LightGlue"
 summary = "LightGlue (Lindenberger, Sarlin and Pollefeys 2023): sparse feature matching. A keypoint detector-descriptor (ALIKED or DISK) finds up to 2048 keypoints per image at a 1024-pixel long side, and a transformer with self- and cross-attention, adaptive depth and point pruning matches them. Returns both keypoint sets, the index pairs of the matches and their confidence."
 tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
-uses = ["deform_conv", "lightglue"]  # fastforks.shared modules this family imports
+uses = ["aliked", "deform_conv", "lightglue"]  # fastforks.shared modules this family imports (ALIKED + its deformable conv op; the matcher)
 limitations = [
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.",
@@ -12,10 +12,10 @@ limitations = [
 
 [upstream]
 repo = "https://github.com/cvg/LightGlue"
-commit = "5a650c444718caffc2669dc0094cde908f42dd73"  # net/aliked.py = its lightglue/aliked.py (torchvision deform_conv2d -> shared/deform_conv, no hub download); net/disk.py = kornia 0.8.3 kornia/feature/disk (Apache-2.0, Kornia Team); the matcher is shared/lightglue
+commit = "5a650c444718caffc2669dc0094cde908f42dd73"  # shared/aliked = its lightglue/aliked.py (torchvision deform_conv2d -> shared/deform_conv passed in, no hub download); net/disk.py = kornia 0.8.3 kornia/feature/disk (Apache-2.0, Kornia Team); the matcher is shared/lightglue
 
 [licence]
-code = "Apache-2.0 AND BSD-3-Clause"  # LICENSE (LightGlue, kornia DISK: Apache-2.0); net/aliked.py carries the ALIKED BSD-3-Clause header (LICENSE-ALIKED)
+code = "Apache-2.0 AND BSD-3-Clause"  # LICENSE (LightGlue, kornia DISK: Apache-2.0); shared/aliked carries the ALIKED BSD-3-Clause header (LICENSE-ALIKED)
 weights = "Apache-2.0 AND BSD-3-Clause"  # LightGlue README: "The pre-trained weights of LightGlue and the code provided in this repository are released under the Apache-2.0 license. DISK follows this license as well but SuperPoint follows its own license"; ALIKED weights: its repo's BSD-3-Clause LICENSE
 files = ["LICENSE", "LICENSE-ALIKED"]
 training_data = ["megadepth"]

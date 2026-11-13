@@ -40,8 +40,6 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.modules.utils import _pair
 
-from fastforks.shared.deform_conv import modulated_deform_conv  # fastforks: replaces torchvision.ops.deform_conv2d
-
 
 # fastforks: torchvision.models.resnet.conv1x1 / conv3x3 (bias-free), without the torchvision dependency
 def _conv1x1(in_planes: int, out_planes: int) -> nn.Conv2d:
@@ -345,8 +343,9 @@ class DeformableConv2d(nn.Module):
             offset = out
             mask = None
         offset = offset.clamp(-max_offset, max_offset)
-        # fastforks: the shared plain-PyTorch op (same offset layout and zero padding as torchvision's)
-        x = modulated_deform_conv(
+        # fastforks: `deform_op` (ALIKED's argument; the families pass fastforks.shared.deform_conv's plain-PyTorch op,
+        # same offset layout and zero padding as torchvision.ops.deform_conv2d)
+        x = self.deform_op(
             x, offset, mask, self.regular_conv.weight, self.regular_conv.bias, 1, self.padding
         )
         # fastforks: the op returns a channels-last view; the NCHW layout keeps the upsample + cat of the four
@@ -631,7 +630,7 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         "aliked-n16rot": [16, 32, 64, 128, 128, 3, 16],
         "aliked-n32": [16, 32, 64, 128, 128, 3, 32],
     }
-    def __init__(self, **conf):
+    def __init__(self, deform_op: Callable, **conf):
         super().__init__()
         # fastforks: the Extractor configuration (origin "center": coords_offset 0); the caller resizes
         self.conf = conf = SimpleNamespace(**{**self.default_conf, **conf})
@@ -689,6 +688,9 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         )
 
         # fastforks: no download; the caller loads the weights (strict)
+        for m in self.modules():  # fastforks: the deformable conv op (a plain attribute, not a submodule)
+            if isinstance(m, DeformableConv2d):
+                m.deform_op = deform_op
 
     def get_resblock(self, c_in, c_out, conv_type, mask):
         return ResBlock(
