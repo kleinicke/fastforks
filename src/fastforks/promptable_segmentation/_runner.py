@@ -158,7 +158,8 @@ class Runner(core.Runner):
             masks: `[P, H, W]` float32 binary masks on frame 0 (instead of points / boxes), or `None`.
 
         Returns:
-            `{"masks": [T, P, H, W] bool, "pred_masks": [T, P, h, w], "object_score_logits": [T, P]}`.
+            `{"masks": [T, P, H, W] bool, "pred_masks": [T, P, h, w], "object_score_logits": [T, P]}` on the CPU,
+            filled per frame (device memory must not grow with `T`).
 
         Raises:
             NotImplementedError: The model does not track video.

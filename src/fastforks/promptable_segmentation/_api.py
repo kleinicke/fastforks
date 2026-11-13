@@ -156,7 +156,9 @@ class PromptableSegmentationResult(MapOutputs):
 
 @dataclass(frozen=True)
 class VideoSegmentationResult(NumpyOutputs):
-    """Masks of the objects prompted on frame 0, for every frame of a video (`track`), on the model's device.
+    """Masks of the objects prompted on frame 0, for every frame of a video (`track`), on the CPU.
+
+    The CPU, not the model's device: the result grows with the video length, the device memory does not.
 
     `P` (objects) is present if the prompts had it (`input_points [P, N, 2]`, `input_boxes [P, 4]`,
     `input_masks [P, H, W]`).
