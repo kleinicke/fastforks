@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- MVSplat feed-forward Gaussian splatting (`mvsplat-re10k`, multiview; MIT code and weights): posed, calibrated views
+  with a depth range to depth and `result.gaussians`, the scene scaled to near = 1 as DepthSplat. Window attention as
+  one SDPA call, the cost volume in fp16 chunks of depth candidates. 8 views 336x518: 178 ms kernels, 186 ms portable
+  vs 349 ms original fp32 (279 ms fp16), peak 1.9 GB vs 3.0 GB. DTU (5 scans, calibrated) AbsRel 0.0438 in every tier,
+  as the original.
+
+- π3 (`pi3`, multiview; BSD code, non-commercial weights): cameras, depth and points from unposed views with no
+  reference view. 8 views 336x518: 560 ms kernels, 821 ms portable vs 3610 ms original fp32 (1057 ms bf16), peak
+  2.5 GB vs 4.4 GB. DTU (5 scans, median-scaled) AbsRel 0.0070 kernels and portable vs 0.0070 original fp32.
+
+- Prompt Depth Anything (`prompt-depth-anything-s`, `-l`, depth; Apache-2.0 code, S weights Apache-2.0, L
+  non-commercial): metric depth from an image and a low-resolution depth prompt (`prompt=`). 756x1008: S 11.4 ms
+  kernels, 18.4 ms portable vs 77.3 ms original fp16; L 69.3 / 125 vs 438 ms; peak 0.35x of the original. Accuracy:
+  GPU goldens against upstream (no prompt-depth benchmark data here).
+
 - InSPyReNet background removal (`inspyrenet`, `inspyrenet-fast`, matting; MIT code and weights): transparent-
   background's `Remover` (static resize, no LR/HR blending). 1080x1920 image, size 1024: 159 ms portable (86 ms
   compile, 51 ms TensorRT) vs 241 ms original fp32, peak 1.9 GB vs 3.3 GB; fast (384): 45 ms vs 71 ms. DIS5K
