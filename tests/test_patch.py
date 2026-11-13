@@ -233,9 +233,10 @@ def test_no_exact_type_checks_on_modules():
 
 
 def test_no_bound_method_overrides():
-    """`m.forward = fn.__get__(m)` / `MethodType(fn, m)` keep `del model` from freeing the weights: use `override`."""
+    """`m.forward = fn.__get__(m)` / `MethodType(fn, m)` / `partial(fn, m)` keep `del model` from freeing the weights:
+    use `override`."""
     src = Path(fastforks.__file__).parent
-    pattern = re.compile(r"\.__get__\(|\bMethodType\(")
+    pattern = re.compile(r"\.__get__\(|\bMethodType\(|\.forward = (functools\.)?partial\(")
     bad = [
         f"{p.relative_to(src)}:{i}: {line.strip()}"
         for p in sorted(src.rglob("*.py"))

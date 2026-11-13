@@ -8,7 +8,6 @@ zeros at the right and bottom; the card's `[io] pad` does the same.
 
 from __future__ import annotations
 
-import functools
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -16,6 +15,7 @@ import torch
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.patch import base_type, override
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared.cuda_graphs import GraphCache
@@ -96,13 +96,13 @@ class Kernels(Portable):
                 beta = m.beta.data.view(-1)
                 m.conv.weight.data.mul_(beta.view(-1, 1, 1, 1))
                 m.conv.bias.data.mul_(beta)  # ty: ignore[unresolved-attribute]
-                m.forward = functools.partial(_res_conv, m)  # ty: ignore[invalid-assignment]  # per-instance override
-            elif type(m) is torch.nn.Conv2d:
+                override(m, _res_conv)
+            elif isinstance(m, torch.nn.Conv2d) and base_type(m) is torch.nn.Conv2d:
                 m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last)
-                m.forward = functools.partial(_hacc_conv, m)  # ty: ignore[invalid-assignment]
-            elif type(m) is torch.nn.ConvTranspose2d:
+                override(m, _hacc_conv)
+            elif isinstance(m, torch.nn.ConvTranspose2d) and base_type(m) is torch.nn.ConvTranspose2d:
                 m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last)
-                m.forward = functools.partial(_hacc_deconv, m)  # ty: ignore[invalid-assignment]
+                override(m, _hacc_deconv)
         after = cudnn_hacc.capture_after()
         self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
 
