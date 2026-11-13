@@ -3,8 +3,10 @@
 `main_test_swinir.py` pads the input by mirroring (`cat(x, flip(x))`) to the next multiple of the window size plus one
 window when it is already a multiple; `pad` does the same. Upstream's blocks rebuild the shifted-window mask on the CPU
 for every size but the training one, and gather the relative position bias on every call; here the mask is made on the
-device once per size and the bias once at load, and the window attention is one `scaled_dot_product_attention`
-(`fastforks.shared.swin_sr`). The input mean is a buffer (upstream: a plain attribute, `type_as` per call).
+device once per size and the bias once at load, and the window attention is one `scaled_dot_product_attention` with
+the head dimension (30) zero-padded to 32 in the weights so the fused kernel runs (`fastforks.shared.swin_sr`:
+unpadded, SDPA's math path takes 2.1 GB and 5x the time per block at 520 x 520). The input mean is a buffer
+(upstream: a plain attribute, `type_as` per call).
 
 float16: the last residual group's output exceeds the float16 range (113 520 on the golden image, SwinIR-M x4), so its
 final conv and its skip input are divided by `_LAST_SCALE`; only the LayerNorm `norm` reads it, its `eps` divided by
@@ -27,7 +29,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Crop, Forward, Runner
-from fastforks.shared.swin_sr import relative_bias, shift_mask, window_attention
+from fastforks.shared.swin_sr import pad_heads, relative_bias, shift_mask, window_attention
 
 from .net import SwinIR
 from .net.network_swinir import RSTB, SwinTransformerBlock, WindowAttention
@@ -90,7 +92,7 @@ class Portable(Runner):
     Params = Params
 
     def __init__(self, ctx: Context) -> None:
-        """Build the network, gather the relative position biases, cache the shifted-window masks per size."""
+        """Build the network, gather the relative position biases, pad the heads, cache the masks per size."""
         super().__init__(ctx)
         p = ctx.params
         with warnings.catch_warnings():  # upstream's torch.meshgrid without `indexing` ("ij", the default) warns
@@ -106,6 +108,7 @@ class Portable(Runner):
                 table, index = m.relative_position_bias_table, m.relative_position_index
                 m.register_buffer("bias", relative_bias(table, index))  # ty: ignore[invalid-argument-type]
                 del m.relative_position_bias_table, m.relative_position_index
+                pad_heads(m.qkv, m.proj, m.num_heads)
                 override(m, _attention)
             elif isinstance(m, SwinTransformerBlock):
                 override(m, _mask, "calculate_mask")
