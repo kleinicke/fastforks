@@ -172,3 +172,23 @@ def test_match_pairs_decodes_files_once(monkeypatch, tmp_path, runner, decoded_m
     for result, expected in zip(results, model.match_pairs(arrays, pairs), strict=True):
         for name in ("keypoints1", "keypoints2") if model.sparse else ("warp",):
             assert torch.equal(getattr(result, name), getattr(expected, name))
+
+
+@pytest.mark.parametrize("streams", [2, 3])
+def test_match_pairs_at_once_equals_one_at_a_time(monkeypatch, streams: int):
+    """`Runner.match_streams` pairs at a time (CUDA streams; plain threads here): the same results in pair order."""
+    monkeypatch.setattr(
+        registry, "import_model", lambda _card: types.SimpleNamespace(RUNNERS={"portable": SparseDummy})
+    )
+    model = matching.load("aliked-lightglue", device="cpu", mode="portable")
+    images = [np.full((64 + i, 72, 3), 20 * i, np.uint8) for i in range(5)]
+    pairs = [(0, 1), (1, 2), (0, 2), (3, 4), (2, 0), (4, 4), (0, 3)]
+    expected = list(model.match_pairs(images, pairs, cache_mb=0.0))
+    monkeypatch.setattr(matching_api, "_match_streams", lambda _model, *, lazy: streams if lazy else 1)
+    for cache_mb in (0.0, 512.0):
+        results = list(model.match_pairs(images, pairs, cache_mb=cache_mb))
+        assert len(results) == len(pairs)
+        for result, want in zip(results, expected, strict=True):
+            assert torch.equal(result.keypoints1, want.keypoints1)
+            assert torch.equal(result.keypoints2, want.keypoints2)
+            assert torch.equal(result.pairs, want.pairs)

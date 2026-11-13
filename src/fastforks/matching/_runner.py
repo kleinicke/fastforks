@@ -54,6 +54,11 @@ class Runner(core.Runner):
     match_reads_images = True
     """Whether `match` reads the images; if not, `match_pairs` decodes only images whose `describe` is not kept."""
 
+    match_streams = 1
+    """Pairs `match_pairs` matches at once on CUDA (a `match` that does not read the images), each on its own thread
+    and stream: for a `match` that waits for the GPU often (LightGlue: adaptive depth and width sync every layer),
+    the others launch meanwhile. `match` must be thread-safe."""
+
     def describe(self, image: torch.Tensor) -> object:  # noqa: ARG002 - the default: no per-image stage
         """The part of a call that depends on one image only (`[1, 3, H, W]`, scaled), or `None` if there is none.
 
