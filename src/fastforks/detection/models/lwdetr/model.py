@@ -12,7 +12,6 @@ COCO category ids are mapped to `coco-80` and the unused ids dropped, then `scor
 
 from __future__ import annotations
 
-import functools
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -21,6 +20,7 @@ import torch.nn.functional as F
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.patch import is_base, override
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared.cuda_graphs import GraphCache
@@ -75,7 +75,7 @@ def fold_batch_norms(net: torch.nn.Module) -> int:
     n = 0
     for m in net.modules():
         conv, bn = getattr(m, "conv", None), getattr(m, "norm", None)
-        if type(conv) is torch.nn.Conv2d and type(bn) is torch.nn.BatchNorm2d:
+        if is_base(conv, torch.nn.Conv2d) and is_base(bn, torch.nn.BatchNorm2d):
             m.conv, m.norm = fuse_conv_bn_eval(conv.float(), bn.float()), torch.nn.Identity()
             n += 1
     return n
@@ -209,9 +209,9 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
-            if type(m) is torch.nn.Conv2d and m.groups == 1 and m.padding_mode == "zeros" and m.padding != "same":
+            if is_base(m, torch.nn.Conv2d) and m.groups == 1 and m.padding_mode == "zeros" and m.padding != "same":
                 m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last)
-                m.forward = functools.partial(_hacc_conv, m)  # ty: ignore[invalid-assignment]  # per-instance override
+                override(m, _hacc_conv)
         after = cudnn_hacc.capture_after()
         self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
 
