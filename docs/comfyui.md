@@ -28,7 +28,8 @@ Once fastforks is on PyPI, ComfyUI-Manager and the Comfy registry install the pa
 | Classify | IMAGE, top k | STRING |
 | Tag (WD tagger) | IMAGE, general / character thresholds (0.35 / 0.75) | STRING: Danbooru tags, most likely first |
 | NSFW check | IMAGE | STRING (normal / nsfw per image), FLOAT (highest nsfw probability of the batch) |
-| Semantic segmentation | IMAGE, classes for the mask | IMAGE (class colours), MASK (listed classes), STRING (classes found) |
+| Semantic segmentation | IMAGE, classes for the mask | IMAGE (class colours), MASK (listed classes), STRING (classes found), MASK (one per listed class) |
+| Parse clothes / face (non-commercial) | as Semantic segmentation (SegFormer b2 clothes, b5 face parsing) | as Semantic segmentation |
 | Stereo disparity | left IMAGE, right IMAGE (rectified) | IMAGE: disparity scaled to 0-1 per image (near = white) |
 | Optical flow | IMAGE batch (frames) | IMAGE (colour wheel, one per pair), FASTFORKS_FLOW (pixels, for Warp) |
 | Warp by flow | IMAGE, FASTFORKS_FLOW | IMAGE: image i sampled along flow i (`frames[1:]` -> `frames[:-1]`) |

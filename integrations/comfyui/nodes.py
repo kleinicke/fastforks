@@ -596,9 +596,19 @@ def _prompt_inputs() -> dict[str, Any]:
 class SemanticSegment(_Node):
     """Semantic segmentation: a class colour map, a mask of chosen classes and the classes present."""
 
-    DESCRIPTION = "Class per pixel: colour map (one colour per class), mask of the listed classes, classes present."
-    RETURN_TYPES = ("IMAGE", "MASK", "STRING")
-    RETURN_NAMES = ("colour_map", "mask", "classes_found")
+    DESCRIPTION = (
+        "Class per pixel: colour map (one colour per class), mask of the listed classes, classes present, and one mask"
+        " per listed class (image-major: image 0's classes, then image 1's)."
+    )
+    RETURN_TYPES = ("IMAGE", "MASK", "STRING", "MASK")
+    RETURN_NAMES = ("colour_map", "mask", "classes_found", "class_masks")
+    DEFAULT = "segnext-mscan-t-ade20k"
+    LABEL_SETS: ClassVar[frozenset[str]] = frozenset()  # the label sets of the listed models; empty: all
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """Whether the node lists this segmentation id."""
+        return not cls.LABEL_SETS or fastforks.model_card(mid).output_info.get("label_set") in cls.LABEL_SETS
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -607,24 +617,25 @@ class SemanticSegment(_Node):
         return {
             "required": {
                 "image": ("IMAGE",),
-                **common(_ids("segmentation"), "segnext-mscan-t-ade20k"),
+                **common(_ids("segmentation", cls.lists), cls.DEFAULT),
                 "classes": ("STRING", {"default": "", "tooltip": tip}),
             }
         }
 
     def run(
         self, *, image: torch.Tensor, model: str, backend: str, dtype: str, classes: str
-    ) -> tuple[torch.Tensor, torch.Tensor, str]:
+    ) -> tuple[torch.Tensor, torch.Tensor, str, torch.Tensor]:
         """Segment every image."""
         m = load(model, backend, dtype)
         names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
         wanted = torch.tensor(convert.class_ids(classes, names), dtype=torch.long)
         colours = convert.palette(len(names))
 
-        def one(i: int) -> tuple[torch.Tensor, torch.Tensor, list[str]]:
+        def one(i: int) -> tuple[torch.Tensor, torch.Tensor, list[str], list[torch.Tensor]]:
             lab = m(convert.frame(image, i, m.device)).labels
             present = [names[c] for c in lab.unique().tolist()]
-            return convert.labels_image(lab, colours), torch.isin(lab, wanted.to(lab.device)), present
+            mask = torch.isin(lab, wanted.to(lab.device))
+            return convert.labels_image(lab, colours), mask, present, [lab == c for c in wanted.tolist()] or [mask]
 
         out = each(image.shape[0], one)
         found = "\n".join(", ".join(o[2]) for o in out)
@@ -632,7 +643,19 @@ class SemanticSegment(_Node):
             convert.to_image([o[0] for o in out], _out_device()),
             convert.to_mask([o[1] for o in out], _out_device()),
             found,
+            convert.to_mask([c for o in out for c in o[3]], _out_device()),
         )
+
+
+class Parse(SemanticSegment):
+    """Clothes / face parsing (SegFormer b2 clothes, b5 face parsing): masks per body or face part."""
+
+    DESCRIPTION = (
+        "[non-commercial] Clothes / face parsing (SegFormer b2 clothes, b5 face parsing): research use only. "
+        + SemanticSegment.DESCRIPTION
+    )
+    DEFAULT = "segformer-b2-clothes"
+    LABEL_SETS = frozenset({"atr-18", "celebamask-hq-19"})
 
 
 class Stereo(_Node):
@@ -856,6 +879,7 @@ NODE_CLASS_MAPPINGS = {
     "FastforksTag": Tag,
     "FastforksNsfwCheck": NsfwCheck,
     "FastforksSemanticSegment": SemanticSegment,
+    "FastforksParse": Parse,
     "FastforksStereo": Stereo,
     "FastforksFlow": Flow,
     "FastforksWarp": Warp,
@@ -875,6 +899,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FastforksTag": "Tag (WD tagger, fastforks)",
     "FastforksNsfwCheck": "NSFW check (fastforks)",
     "FastforksSemanticSegment": "Semantic segmentation (fastforks)",
+    "FastforksParse": "Parse clothes / face (fastforks, non-commercial)",
     "FastforksStereo": "Stereo disparity (fastforks)",
     "FastforksFlow": "Optical flow (fastforks)",
     "FastforksWarp": "Warp by flow (fastforks)",

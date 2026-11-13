@@ -266,6 +266,8 @@ def test_node_model_lists(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     tagger = {"wd-vit-tagger-v3", "wd-convnext-tagger-v3", "wd-vit-large-tagger-v3", "wd-eva02-large-tagger-v3"}
     assert ids(nodes.Tag) == tagger
     assert ids(nodes.NsfwCheck) == {"falconsai-nsfw-vit"}
+    assert ids(nodes.Parse) == {"segformer-b2-clothes", "segformer-b5-face-parsing"}
+    assert {"segformer-b2-clothes", "segnext-mscan-t-ade20k"} <= ids(nodes.SemanticSegment)
 
 
 def test_wd_tags(pack: Any) -> None:
