@@ -83,7 +83,7 @@ def test_float16_extractor_keeps_float32_outputs(extractor) -> None:
     image = torch.rand(1, 3, 64, 96)
     with torch.inference_mode():
         ref = net.extract(image)
-        net.extractor.half = True
+        net.extractor.fp16 = True
         out = net.extract(image)  # CPU autocast to float16: the same code path as CUDA
     assert out["keypoints"].dtype == out["descriptors"].dtype == torch.float32
     assert out["keypoints"].shape[1] > 0

@@ -15,7 +15,7 @@ Results agree with the per-pair forward up to float rounding (other GEMM shapes 
 from __future__ import annotations
 
 import itertools
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
@@ -149,7 +149,7 @@ Match = tuple[torch.Tensor, torch.Tensor]  # `[S, 2]` keypoint index pairs, `[S]
 def _head(net: LightGlue, layer: int, s0: _Side, s1: _Side, pairs: list[int]) -> list[Match]:
     """`log_assignment[layer]` + `filter_matches` of the given pairs (positions)."""
     out: list[Match] = []
-    head = net.log_assignment[layer]
+    head: Any = net.log_assignment[layer]  # MatchAssignment
     d = net.conf.descriptor_dim
     off0, off1 = s0.offsets().tolist(), s1.offsets().tolist()
     for start in range(0, len(pairs), _HEAD_PAIRS):
@@ -227,14 +227,15 @@ class _Batch:
         return _Side(desc, _posenc(self.net, kpts), lens)
 
     def layer(self, i: int) -> None:
-        layer = self.net.transformers[i]
+        layer: Any = self.net.transformers[i]  # TransformerLayer
         x0 = _self_block(layer.self_attn, self.s0)
         x1 = _self_block(layer.self_attn, self.s1)
         self.s0.desc, self.s1.desc = _cross_block(layer.cross_attn, x0, x1, self.s0, self.s1)
 
     def stopped(self, i: int, token0: torch.Tensor, token1: torch.Tensor) -> list[int]:
         """Upstream `check_if_stop` per pair: the positions of the pairs that stop after layer `i`."""
-        cth = self.net.confidence_thresholds[i]
+        thresholds: Any = self.net.confidence_thresholds  # buffer [n_layers]
+        cth: torch.Tensor = thresholds[i]
         low = torch.zeros(len(self.active), device=cth.device)
         low.index_add_(0, self.s0.seg(), (token0 < cth).float())
         low.index_add_(0, self.s1.seg(), (token1 < cth).float())
@@ -256,7 +257,8 @@ class _Batch:
         for side, token in zip((self.s0, self.s1), tokens, strict=True):
             keep = torch.ones(side.desc.shape[0], dtype=torch.bool, device=side.desc.device)
             if net.conf.width_confidence > 0 and any(side.lens[k] > pruning_th for k in continuing):
-                keep = net.get_pruning_mask(token, net.log_assignment[i].get_matchability(side.desc), i)
+                head: Any = net.log_assignment[i]  # MatchAssignment
+                keep = net.get_pruning_mask(token, head.get_matchability(side.desc), i)  # ty: ignore[invalid-argument-type] - upstream accepts None
                 big = torch.tensor([n > pruning_th for n in side.lens], device=keep.device)
                 keep |= ~big[side.seg()]
             side.prune(keep, continuing)
