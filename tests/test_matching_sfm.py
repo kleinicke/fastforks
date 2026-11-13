@@ -85,8 +85,10 @@ def test_rejects_existing_database_and_empty_folder(scene):
 def test_matcher_options_reach_load(scene, monkeypatch):
     seen = {}
     monkeypatch.setattr(matching, "load", lambda *_a, **k: seen.update(k) or FakeMatcher())
-    sfm.colmap_database(scene / "img", scene / "db.db", retrieval=None, matcher_options={"long_side": 1600})
-    assert seen["options"] == {"long_side": 1600}
+    sfm.colmap_database(
+        scene / "img", scene / "db.db", retrieval=None, matcher_options={"long_side": 1600}, dtype="float16"
+    )
+    assert (seen["options"], seen["dtype"]) == ({"long_side": 1600}, "float16")
 
 
 class FakeReconstruction:

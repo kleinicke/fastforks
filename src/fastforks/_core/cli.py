@@ -879,6 +879,7 @@ def _sfm(args: argparse.Namespace) -> None:
         "single_camera": args.single_camera,
         "mode": args.mode,
         "device": args.device,
+        "dtype": args.dtype,
     }
     if args.reconstruct:
         rec = sfm.reconstruct(args.images, args.out, mapper=args.mapper, **options)
@@ -905,6 +906,7 @@ def _add_sfm(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--single-camera", action="store_true", help="one camera for all images of the same size")
     p.add_argument("--mode", choices=("auto", "portable", "kernels"), default="auto", help="backend (default auto)")
     p.add_argument("--device", help="e.g. cpu, cuda, cuda:1 (default: as `load`)")
+    p.add_argument("--dtype", choices=("float32", "float16", "bfloat16"), help="matcher dtype (default: the card's)")
     p.set_defaults(run=_sfm)
 
 
