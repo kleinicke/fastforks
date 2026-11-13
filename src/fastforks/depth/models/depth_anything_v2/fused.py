@@ -154,8 +154,11 @@ class FusedViT(FastViT):
         x += k.gemm(hid, m.fc2.weight, m.fc2.bias, scale=g2)
         return x
 
-    def features(self, image: torch.Tensor, size: tuple[int, int], layers: Sequence[int]) -> list[torch.Tensor]:
-        """Normalised patch tokens `[B, gh * gw, C]` (fp16, no cls) of `layers` for float `[B, 3, H, W]` in [0, 1]."""
+    def embed_tokens(self, image: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+        """The ViT's input tokens `[B, 1 + gh * gw, C]` (fp16: cls, patches + positions) of float `[B, 3, H, W]`.
+
+        `image` in [0, 1] is resized to `size` and ImageNet-normalised by the patch kernel.
+        """
         vit, k = self.vit, self.k
         ps = vit.patch_size
         gh, gw = size[0] // ps, size[1] // ps
@@ -166,6 +169,12 @@ class FusedViT(FastViT):
         t[:, 0] = cls
         for i in range(b):
             k.gemm(cols[i], self.w_patch, self.b_patch, res=pos, out=t[i, 1:], acc32=True)
+        return t
+
+    def features(self, image: torch.Tensor, size: tuple[int, int], layers: Sequence[int]) -> list[torch.Tensor]:
+        """Normalised patch tokens `[B, gh * gw, C]` (fp16, no cls) of `layers` for float `[B, 3, H, W]` in [0, 1]."""
+        vit = self.vit
+        t = self.embed_tokens(image, size)
         outs = []
         last = max(layers)
         for i in range(last + 1):

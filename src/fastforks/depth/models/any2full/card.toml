@@ -1,0 +1,57 @@
+schema = 2
+name = "Any2Full"
+summary = "Any2Full (2026): one-stage depth completion that prompts Depth Anything V2 with a sparse depth map of any pattern and density; the depth tokens modulate the ViT features entering the DPT head, the disparity is fitted to the prompt."
+tier = "experimental"
+outputs = ["depth"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the ViT, the DPT head)
+limitations = [
+  "The depth map is required: call the model with `prompt_depth=` a metric map in metres (any size, sparse points or holes as 0 / NaN / inf). The output is fitted to it by scale and shift in disparity, so it needs at least two distinct valid values.",
+  "Export has a fixed input size.",
+]
+
+[output]
+kind = "metric"  # metres, in the scale of the depth input
+
+[upstream]
+repo = "https://github.com/zhiyuandaily/Any2Full"
+commit = "780edf6"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Training data and code not released yet (arXiv 2603.05711); the ViT and head start from Depth Anything V2"
+evidence = "https://github.com/zhiyuandaily/Any2Full/blob/main/LICENSE and the Hugging Face model card zhiyuandaily/Any2Full (license: apache-2.0)"
+
+[io]
+input = "imagenet"  # the runner resizes (bicubic, the shorter side to at least short_side, both sides up to a multiple of 14) and normalises
+pad = "none"
+
+[options]
+short_side = { default = 518, min = 14 }  # the shorter network side is at least this (upstream resize_lower_size)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused"]
+
+[[variants]]
+id = "any2full-s"
+revision = 1
+params = { arch = "vits" }
+weights = [{ name = "Any2Full_vits.pth.tar", size = 204095660, sha256 = "c797e3b93a1b520033cb7d11a9d6a313326dc48c1ead0c4b417ac6570c95a03b", url = "https://huggingface.co/zhiyuandaily/Any2Full/resolve/5c8271e2e38b55abc2fc2292c9d390ed3b443507/checkpoints/Any2Full_vits.pth.tar" }]
+
+[[variants]]
+id = "any2full-b"
+revision = 1
+params = { arch = "vitb" }
+weights = [{ name = "Any2Full_vitb.pth.tar", size = 801227756, sha256 = "5afd2519e061c809d156306e72c25aadcb39cda2d0fc3f7bf63df49a2e9ea7ff", url = "https://huggingface.co/zhiyuandaily/Any2Full/resolve/5c8271e2e38b55abc2fc2292c9d390ed3b443507/checkpoints/Any2Full_vitb.pth.tar" }]
+
+[[variants]]
+id = "any2full-l"
+revision = 1
+params = { arch = "vitl" }
+weights = [{ name = "Any2Full_vitl.pth.tar", size = 2069029116, sha256 = "ea2809c9c490bdf37292f55e773fc5a935bcfc024cbd1eee6268b3ee3b744b41", url = "https://huggingface.co/zhiyuandaily/Any2Full/resolve/5c8271e2e38b55abc2fc2292c9d390ed3b443507/checkpoints/Any2Full_vitl.pth.tar" }]
