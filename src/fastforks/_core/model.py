@@ -1105,6 +1105,8 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
     if mode == "kernels" and device.type == "cuda":
         claim_kernels_device(device)
     adapt_to_device(runner, mode, device)
+    if device.type == "cuda":
+        warmup.wait(device)  # the loaded model starts on a clean device: no warm-up step (cuBLAS workspace) still live
     backend = Backend(
         mode,
         str(device),
