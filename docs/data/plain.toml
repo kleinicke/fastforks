@@ -130,7 +130,7 @@ dfine = "D-FINE (N, S, M, L, X; HGNetV2, COCO) from USTC: real-time end-to-end d
 lwdetr = "LW-DETR (tiny to xlarge; ViT, COCO) from Baidu: real-time end-to-end detector, a plain ViT encoder with a multi-level projector and a DETR decoder with deformable attention, no NMS. Apache-2.0 code and weights."
 rfdetr = "Roboflow RF-DETR (N, S, M, L detection; Seg N to 2XL with instance masks; COCO): real-time end-to-end detector with a windowed DINOv2 backbone and deformable decoder, no NMS. Apache-2.0 code and weights."
 owlv2 = "Google's OWLv2 (CLIP ViT-B/16 and L/14): open-vocabulary detector, finds boxes for any class names given as text at call time (default: the 80 COCO classes). Apache-2.0 code and weights."
-grounding_dino = "IDEA Research's Grounding DINO (tiny, base; Swin backbone, BERT text encoder): open-vocabulary detector, finds boxes for class names given as text at call time (default: the 80 COCO classes). Apache-2.0 code and weights."
+grounding_dino = "IDEA Research's Grounding DINO and OpenMMLab's MM-Grounding-DINO (tiny, base; Swin backbone, BERT text encoder): open-vocabulary detector, finds boxes for class names given as text at call time (default: the 80 COCO classes). Apache-2.0 code and weights."
 
 # --- features
 convnext_features = "Meta's ConvNeXt (tiny, small, base, large) trained on ImageNet-22k, without the classifier: the last stage's feature map as tokens and a pooled image embedding. Apache-2.0 weights."

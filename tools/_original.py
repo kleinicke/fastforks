@@ -902,9 +902,10 @@ def _dfine(a: Any, full: str) -> Any:  # noqa: ANN401
 
     ref = full.split("@", maxsplit=1)[0]
     det = _original_coco.load("detection", ref, "upstream")
-    if ref.startswith("grounding-dino"):
+    if "grounding-dino" in ref:  # also mm-grounding-dino
         a.COMMIT = "transformers-" + importlib.import_module("transformers").__version__
-        a.note = "transformers GroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call"
+        arch = "MMGroundingDino" if ref.startswith("mm-") else "GroundingDino"
+        a.note = f"transformers {arch}ForObjectDetection + processor (CPU), coco-80 caption, text tower per call"
     elif ref.startswith("owlv2"):
         a.COMMIT = "transformers-" + importlib.import_module("transformers").__version__
         a.note = (
@@ -1367,6 +1368,9 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
         "pose", _topdown, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
     ),
     "dfine": _Local("detection", _dfine, ((800, 1344),), lambda a: (a[0].permute(1, 2, 0).contiguous().cpu().numpy(),)),
+    "lwdetr": _Local(
+        "detection", _dfine, ((800, 1344),), lambda a: (a[0].permute(1, 2, 0).contiguous().cpu().numpy(),)
+    ),
     "owlv2": _Local("detection", _dfine, ((800, 1344),), lambda a: (a[0].permute(1, 2, 0).contiguous().cpu().numpy(),)),
     "grounding_dino": _Local(
         "detection", _dfine, ((800, 1344),), lambda a: (a[0].permute(1, 2, 0).contiguous().cpu().numpy(),)

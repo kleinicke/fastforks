@@ -2,13 +2,13 @@
 
 Reference: transformers `COMMIT` (v5.19.0) `GroundingDinoImageProcessor` (short side 800, long side at most 1333,
 ImageNet mean / std), `BertTokenizer` (the card's vocabulary) on the caption `" . ".join(names) + " ."` and
-`GroundingDinoForObjectDetection` with the card's weights, CPU float32, on scikit-image's `coffee.png` (`IMAGE_SHA256`)
-with the 80 `coco-80` class names. Post-processing as the authors' COCO evaluation (`PostProcessCocoGrounding`): the
-sigmoid token scores averaged over each class name's tokens, the best 100 (query, class) pairs, boxes centre / size ->
-corners in image pixels. Pairs with a score above the variant's `THRESHOLDS` entry (mid-gap) are kept, sorted by score;
-stored as in tools/golden/dfine.py.
+`GroundingDinoForObjectDetection` (MM-Grounding-DINO: `MMGroundingDinoForObjectDetection`) with the card's weights,
+CPU float32, on scikit-image's `coffee.png` (`IMAGE_SHA256`) with the 80 `coco-80` class names. Post-processing as
+the authors' COCO evaluation (`PostProcessCocoGrounding`): the sigmoid token scores averaged over each class name's
+tokens, the best 100 (query, class) pairs, boxes centre / size -> corners in image pixels. Pairs with a score above
+the variant's `THRESHOLDS` entry (mid-gap) are kept, sorted by score; stored as in tools/golden/dfine.py.
 
-    FASTFORKS_GOLDEN_PATH=... python tools/golden/grounding_dino.py WEIGHTS_DIR COFFEE_PNG LABELS_TXT [tiny base]
+    FASTFORKS_GOLDEN_PATH=... python tools/golden/grounding_dino.py WEIGHTS_DIR COFFEE_PNG LABELS_TXT [tiny ...]
 
 WEIGHTS_DIR holds the card's weight files; LABELS_TXT is src/fastforks/_core/labels/coco-80.txt.
 """
@@ -24,21 +24,19 @@ import torch
 from _common import goldens, write
 from PIL import Image
 
+from fastforks.shared.seginfer import untie_to_checkpoint
+
 UPSTREAM = "https://github.com/huggingface/transformers"
 COMMIT = "c4c4605f961877852b89b97478536bb3a26b6fd1"
 IMAGE_SHA256 = "cc02f8ca188b167c775a7101b5d767d1e71792cf762c33d6fa15a4599b5a8de7"  # skimage 0.26 data/coffee.png
-THRESHOLDS = {"tiny": 0.4, "base": 0.37}  # per variant: mid-gap of the scores around the cut
+THRESHOLDS = {"tiny": 0.4, "base": 0.37, "mm-tiny": 0.392, "mm-base": 0.363}  # per variant: mid-gap around the cut
 TOP = 100  # the card's default max_detections
 
 
 def main() -> None:
+    import transformers  # noqa: PLC0415
     from safetensors.torch import load_file  # noqa: PLC0415
-    from transformers import (  # noqa: PLC0415
-        BertTokenizer,
-        GroundingDinoConfig,
-        GroundingDinoForObjectDetection,
-        GroundingDinoImageProcessor,
-    )
+    from transformers import BertTokenizer, GroundingDinoImageProcessor  # noqa: PLC0415
 
     weights, png, labels_txt = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
     if hashlib.sha256(png.read_bytes()).hexdigest() != IMAGE_SHA256:
@@ -60,10 +58,18 @@ def main() -> None:
         raise SystemExit(msg)
     pv = GroundingDinoImageProcessor()(images=img, return_tensors="pt")
     for key in sys.argv[4:] or THRESHOLDS:
-        ref = f"grounding-dino-{key}"
-        config = GroundingDinoConfig.from_json_file(str(weights / f"gdino-{key}.config.json"))
-        sd = load_file(str(weights / f"gdino-{key}.model.safetensors"))
-        model = GroundingDinoForObjectDetection.from_pretrained(None, config=config, state_dict=sd).eval()
+        mm = key.startswith("mm-")
+        size = key.removeprefix("mm-")
+        ref, stem, arch = (
+            (f"mm-grounding-dino-{size}", f"mmgdino-{size}", "MMGroundingDino")
+            if mm
+            else (f"grounding-dino-{size}", f"gdino-{size}", "GroundingDino")
+        )
+        config = getattr(transformers, f"{arch}Config").from_json_file(str(weights / f"{stem}.config.json"))
+        sd = load_file(str(weights / f"{stem}.model.safetensors"))
+        cls = getattr(transformers, f"{arch}ForObjectDetection")
+        model = cls.from_pretrained(None, config=config, state_dict=sd).eval()
+        untie_to_checkpoint(model, sd)  # transformers 5.19 ties MM's per-layer heads to layer 0
         with torch.inference_mode():
             out = model(**text, pixel_values=pv["pixel_values"], pixel_mask=pv["pixel_mask"])
         prob = out.logits[0, :, : len(ids)].sigmoid() @ classes.T  # [Q, C]
@@ -86,7 +92,8 @@ def main() -> None:
             family="grounding_dino",
             upstream=f"{UPSTREAM}@{COMMIT}",
             patch=None,
-            settings="CPU float32, transformers GroundingDinoImageProcessor + GroundingDinoForObjectDetection, "
+            settings=f"CPU float32, transformers GroundingDinoImageProcessor + {arch}ForObjectDetection"
+            f"{' with its per-layer heads untied (transformers ties them to layer 0)' if mm else ''}, "
             f"skimage coffee.png, the coco-80 names as one caption, mean token scores, score threshold {threshold}, "
             f"torch {torch.__version__}",
             task="detection",
@@ -95,7 +102,8 @@ def main() -> None:
         store["refs"][f"{ref}@1"]["options"] = [["score_threshold", threshold]]  # the test loads with these
         goldens.dump("grounding_dino", store, "detection")
         n = int(keep.sum())
-        print(f"  {ref}: {n} kept, scores around the cut {np.round(scores[max(0, n - 3) : n + 3].numpy(), 3)}")
+        cut = np.round(scores[max(0, n - 3) : n + 3].numpy(), 3)
+        print(f"  {ref}: {n} kept at {threshold}, scores around the cut {cut}")
 
 
 if __name__ == "__main__":

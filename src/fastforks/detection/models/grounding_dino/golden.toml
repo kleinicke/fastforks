@@ -20,3 +20,21 @@ sha256 = "56c20fde37f67b6c9478a9149d75cbf5619b37d167785d9419e38b2fb08caebf"
 upstream = "https://github.com/huggingface/transformers@c4c4605f961877852b89b97478536bb3a26b6fd1"
 settings = "CPU float32, transformers GroundingDinoImageProcessor + GroundingDinoForObjectDetection, skimage coffee.png, the coco-80 names as one caption, mean token scores, score threshold 0.4, torch 2.14.1+cu130"
 options = [["score_threshold", 0.4]]
+
+[refs."mm-grounding-dino-base@1"]
+gpu_mean = 0.14
+gpu_p99 = 0.36
+gpu_extra = [["labels", 0.001, 0.001], ["scores", 0.021, 0.046]]
+sha256 = "ebe4baf3c2fba7d385e9e95793ee0f584b96de49b7fd2e97c42bb77bcc41c2ec"
+upstream = "https://github.com/huggingface/transformers@c4c4605f961877852b89b97478536bb3a26b6fd1"
+settings = "CPU float32, transformers GroundingDinoImageProcessor + MMGroundingDinoForObjectDetection with its per-layer heads untied (transformers ties them to layer 0), skimage coffee.png, the coco-80 names as one caption, mean token scores, score threshold 0.363, torch 2.14.1+cu130"
+options = [["score_threshold", 0.363]]
+
+[refs."mm-grounding-dino-tiny@1"]
+gpu_mean = 0.15
+gpu_p99 = 0.29
+gpu_extra = [["labels", 0.001, 0.001], ["scores", 0.017, 0.025]]
+sha256 = "6a443e3a5d66427d6a178dbf4f2349b196e0b889fbe00f9c344504d5fd81e0a0"
+upstream = "https://github.com/huggingface/transformers@c4c4605f961877852b89b97478536bb3a26b6fd1"
+settings = "CPU float32, transformers GroundingDinoImageProcessor + MMGroundingDinoForObjectDetection with its per-layer heads untied (transformers ties them to layer 0), skimage coffee.png, the coco-80 names as one caption, mean token scores, score threshold 0.392, torch 2.14.1+cu130"
+options = [["score_threshold", 0.392]]

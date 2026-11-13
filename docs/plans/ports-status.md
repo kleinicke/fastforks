@@ -38,6 +38,8 @@ In this order, unless something more useful turns up:
 
 - LW-DETR (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection): portable MPS goldens and Mac speed rows
   (800x1344). No Metal kernels runner. Weights: the pinned HF URLs of the card.
+- MM-Grounding-DINO (`mm-grounding-dino-tiny`, `mm-grounding-dino-base`, detection): portable MPS goldens and Mac
+  speed rows (800x1344). No kernels. Weights: the pinned HF URLs of the card.
 - StableNormal turbo (`stablenormal-turbo`, depth task, normals): portable MPS goldens and Mac speed rows (994x1482).
   No Metal kernels runner. Weights: the pinned HF URLs of the card.
 - DeDoDe v2 (`dedode-v2-b`, `dedode-v2-g`, matching): portable MPS goldens and Mac speed rows (768x1024 pair). No

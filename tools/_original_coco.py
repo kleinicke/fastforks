@@ -326,28 +326,28 @@ def _deim(ref: str, tier: str) -> _Detector:
 
 
 def _grounding_dino(ref: str, tier: str) -> _Detector:
-    """The golden's transformers `GroundingDinoForObjectDetection` with the card's weights and the coco-80 caption.
+    """The golden's transformers `GroundingDinoForObjectDetection` (MM: the variant's `arch`), card weights, coco-80.
 
     `GroundingDinoImageProcessor` on the CPU, `BertTokenizer` on `" . ".join(names) + " ."` and the text tower on every
     call; the authors' `PostProcessCocoGrounding`: mean sigmoid token score per class name, the 300 best (query, class)
     pairs (as the fastforks tiers of this eval: threshold 0, 300 detections).
     """
     import torch  # noqa: PLC0415
+    import transformers  # noqa: PLC0415
     from safetensors.torch import load_file  # noqa: PLC0415
-    from transformers import (  # noqa: PLC0415
-        BertTokenizer,
-        GroundingDinoConfig,
-        GroundingDinoForObjectDetection,
-        GroundingDinoImageProcessor,
-    )
+    from transformers import BertTokenizer, GroundingDinoImageProcessor  # noqa: PLC0415
 
     from fastforks._core import registry  # noqa: PLC0415
+    from fastforks.shared.seginfer import untie_to_checkpoint  # noqa: PLC0415
 
     card, variant = registry.resolve("detection", ref)
     config_json, weights, vocab = registry.weights(card, variant, allow_download=False)
-    config = GroundingDinoConfig.from_json_file(str(config_json))
+    arch = variant.params.get("arch", "GroundingDinoForObjectDetection")  # MM-Grounding-DINO: its own class
+    config = getattr(transformers, arch.replace("ForObjectDetection", "Config")).from_json_file(str(config_json))
     sd = load_file(str(weights))
-    net = GroundingDinoForObjectDetection.from_pretrained(None, config=config, state_dict=sd).eval().to("cuda")
+    net = getattr(transformers, arch).from_pretrained(None, config=config, state_dict=sd).eval()
+    untie_to_checkpoint(net, sd)  # the checkpoint's per-layer heads, which transformers 5.19 ties for MM
+    net = net.to("cuda")
     proc = GroundingDinoImageProcessor()
     tok = BertTokenizer(str(vocab))
     names = coco_names()
@@ -609,7 +609,7 @@ class _Concept:
         )
 
 
-def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, C901, PLR0911 - one branch per family
+def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, C901, PLR0911, PLR0912 - one branch per family
     """The original of `ref` (id without `@rev`) in `tier`."""
     ref = ref.split("@", maxsplit=1)[0]
     if task == "pose":
@@ -625,7 +625,7 @@ def load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401, C901, PLR0911 
             return _lwdetr(ref, tier)
         if ref.startswith("owlv2"):
             return _owlv2(ref, tier)
-        if ref.startswith("grounding-dino"):
+        if "grounding-dino" in ref:  # also mm-grounding-dino
             return _grounding_dino(ref, tier)
         if ref.startswith("rf-detr"):
             return _RFDETR(ref, tier)

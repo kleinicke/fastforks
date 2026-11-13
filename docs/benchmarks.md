@@ -792,6 +792,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | lw-detr-tiny-coco | – | 16.4 | 7.45 | 2.20 | 7.5x | 3.4x | 114 / 132 | 92 / 112 | 94 / 134 |
 | lw-detr-xlarge-coco | – | 25.5 | 12.1 | 9.44 | 2.7x | 1.3x | 762 / 850 | 344 / 360 | 333 / 408 |
 | mask-rcnn-r50-fpn-3x-coco | 85.4 | 43.5 | 24.6 | 21.0 | 2.1x | 1.2x | 604 / 650 | 352 / 440 | 353 / 400 |
+| mm-grounding-dino-base | – | 232 | 160 | – | – | – | 2895 / 3094 | 1525 / 1624 | – |
+| mm-grounding-dino-tiny | – | 202 | 138 | – | – | – | 2541 / 2716 | 1405 / 1470 | – |
 | owlv2-b16 | – | 92.3 | 31.8 | 23.8 | 3.9x | 1.3x | 921 / 960 | 497 / 570 | 607 / 732 |
 | owlv2-l14 | – | 212 | 155 | 110 | 1.9x | 1.4x | 2550 / 2606 | 1239 / 1282 | 1552 / 1726 |
 | rf-detr-l-coco | – | 11.8 | 10.7 | 5.84 | 2.0x | 1.8x | 219 / 240 | 148 / 166 | 146 / 206 |
@@ -1276,6 +1278,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | lw-detr-tiny-coco | 3.80 | 2.69 | 2.91 | 0.64 | 0.35 | 0.33 |
 | lw-detr-xlarge-coco | 4.72 | 2.91 | 3.05 | 0.71 | 0.37 | 0.34 |
 | mask-rcnn-r50-fpn-3x-coco | 0.97 | 1.50 | 0.22† | 0.84 | 0.42 | 0.04 |
+| mm-grounding-dino-base | 4.10 | 3.33 | – | 1.03 | 0.53 | – |
+| mm-grounding-dino-tiny | 4.17 | 3.26 | – | 0.99 | 0.52 | – |
 | owlv2-b16 | 8.22 | 2.81 | 3.00 | 0.74 | 0.32 | 0.27 |
 | owlv2-l14 | 9.55 | 3.18 | 3.16 | 1.18 | 0.42 | 0.36 |
 | rf-detr-l-coco | 1.10 | 3.11 | 3.31 | 0.02 | 0.38 | 0.36 |
@@ -1705,6 +1709,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | lw-detr-tiny-coco | 800x1344 | 7.45 ms | 2.98 ms | 0.999 ms | 2.20 ms | 21.6 s | 60.3 s | 92 / 112 | 112 / 130 | 94 / 134 | 116 / 128 |
 | lw-detr-xlarge-coco | 800x1344 | 12.1 ms | 10.7 ms | 6.58 ms | 9.44 ms | 30.5 s | 57.5 s | 344 / 360 | 339 / 358 | 333 / 408 | 544 / 566 |
 | mask-rcnn-r50-fpn-3x-coco | 800x1344 | 24.6 ms | 21.5 ms | 5.34 ms (backbone + FPN only) | 21.0 ms | 29.3 s | 18.3 s | 352 / 440 | 333 / 358 | 353 / 400 | 444 / 496 |
+| mm-grounding-dino-base | 800x1344 | 160 ms | 132 ms | fails: ONNX export: conversion failed | – | 105 s | – | 1525 / 1624 | 2669 / 2800 | – | – |
+| mm-grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | fails: ONNX export: conversion failed | – | 71.2 s | – | 1405 / 1470 | 2555 / 2666 | – | – |
 | owlv2-b16 | 800x1344 | 31.8 ms | 28.5 ms | 18.4 ms | 23.8 ms | 10.6 s | 25.9 s | 497 / 570 | 487 / 530 | 607 / 732 | 655 / 726 |
 | owlv2-l14 | 800x1344 | 155 ms | 141 ms | 95.9 ms | 110 ms | 12.4 s | 33.8 s | 1239 / 1282 | 1190 / 1242 | 1552 / 1726 | 1786 / 1820 |
 | rf-detr-l-coco | 800x1344 | 10.7 ms | 5.32 ms | 2.87 ms | 5.84 ms | 28.7 s | 65.7 s | 148 / 166 | 164 / 182 | 146 / 206 | 203 / 222 |

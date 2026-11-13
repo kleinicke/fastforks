@@ -330,7 +330,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Detection
 
-40 models; size 800x1344.
+47 models; size 800x1344.
 
 - Fastest: [`rtmdet-nano-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) (2.1 ms).
 - Fastest commercially usable: [`rtmdet-nano-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) (2.1 ms).
@@ -380,8 +380,10 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`mask-rcnn-r50-fpn-3x-coco`](models/detection.md#detectron2-mask--faster-r-cnn-r50-fpn) | yes | 43.5 (800x1344) | 24.6 | 21.0 | 2.1x vs original (800x1344) | 353 |
 | [`owlv2-b16`](models/detection.md#owlv2-open-vocabulary-clip-b16-and-l14) | yes | 92.3 (800x1344) | 31.8 | 23.8 | 3.9x vs original (800x1344) | 607 |
 | [`owlv2-l14`](models/detection.md#owlv2-open-vocabulary-clip-b16-and-l14) | yes | 211.7 (800x1344) | 154.8 | 109.8 | 1.9x vs original (800x1344) | 1552 |
-| [`grounding-dino-tiny`](models/detection.md#grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 198.9 (800x1344) | 137.8 | – | – | – |
-| [`grounding-dino-base`](models/detection.md#grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 229.8 (800x1344) | 160.2 | – | – | – |
+| [`grounding-dino-tiny`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 198.9 (800x1344) | 137.8 | – | – | – |
+| [`mm-grounding-dino-tiny`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 202.0 (800x1344) | 138.2 | – | – | – |
+| [`grounding-dino-base`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 229.8 (800x1344) | 160.2 | – | – | – |
+| [`mm-grounding-dino-base`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 232.5 (800x1344) | 160.2 | – | – | – |
 
 ## Pose
 

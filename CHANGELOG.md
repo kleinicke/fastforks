@@ -8,6 +8,11 @@
   (16.4 ms fp16); xlarge 9.4 ms kernels vs 45.7 ms. COCO val2017 (every 20th) box mAP tiny 49.0 kernels / 48.8
   portable vs 49.1 original, large 60.7 / 61.0 vs 60.7. BatchNorms are folded before float16 (some overflow it).
 
+- MM-Grounding-DINO open-vocabulary detection (`mm-grounding-dino-tiny`, `mm-grounding-dino-base`, detection;
+  Apache-2.0 code and weights): the Grounding DINO family with a scaled, biased class head and unshared decoder heads.
+  800x1344 image: base 160 ms portable (132 ms compile) vs 345 ms original fp32 (233 ms fp16), peak 1.6 GB vs 2.7 GB;
+  COCO val2017 (every 20th, zero-shot) box mAP tiny 54.9 vs 55.2, base 56.9 vs 57.1 original. TensorRT export fails.
+
 - Checkpoint loads keep the checkpoint's value of every weight a model class ties (`untie_to_checkpoint` in
   `shared/seginfer`): transformers 5.19 ties MM-Grounding-DINO's per-layer decoder heads to layer 0 and silently
   dropped the trained heads of layers 1-5. A load now raises if any loaded value still differs from the checkpoint.

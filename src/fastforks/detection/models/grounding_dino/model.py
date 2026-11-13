@@ -17,6 +17,7 @@ each a box in image pixels.
 
 from __future__ import annotations
 
+import math
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -113,6 +114,8 @@ class Portable(Runner):
         self.head = net.bbox_embed[-1]
         if self.head is m.decoder.bbox_embed[-1] and self.dt != torch.float32:  # shared with the decoder: a float copy
             self.head = _float_copy(self.head)
+        bias = getattr(net.class_embed[-1], "bias", None)  # MM-Grounding-DINO: logits / sqrt(d) + a learned bias
+        self.logit_affine = None if bias is None else (math.sqrt(net.config.d_model), float(bias))
         self.mean = torch.tensor(MEAN, device=ctx.device).view(1, 3, 1, 1)
         self.std = torch.tensor(STD, device=ctx.device).view(1, 3, 1, 1)
         self.tokenizer = BertTokenizer(paths[2])
@@ -253,6 +256,8 @@ class Portable(Runner):
         hid = dec.intermediate_hidden_states[:, -1].float()
         last_ref = dec.intermediate_reference_points[:, -2] if len(m.decoder.layers) > 1 else ref
         logits = hid @ txt_h.float().transpose(-1, -2)
+        if self.logit_affine is not None:
+            logits = logits / self.logit_affine[0] + self.logit_affine[1]
         boxes = (self.head(hid) + torch.special.logit(last_ref.float(), eps=1e-5)).sigmoid()
         return logits, boxes
 
