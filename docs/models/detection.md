@@ -604,8 +604,8 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 | `rf-detr-m-coco` | 0.09944 / 0.22606 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
 | `rf-detr-l-coco` | 0.15787 / 0.32693 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
 | `rf-detr-seg-n-coco` | 0.25982 / 1.06715 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-s-coco` | 0.12115 / 0.31712 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
-| `rf-detr-seg-m-coco` | 0.13842 / 0.39567 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `rf-detr-seg-s-coco` | 0.12115 / 0.31712 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
+| `rf-detr-seg-m-coco` | 0.13842 / 0.39567 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
 | `rf-detr-seg-l-coco` | 0.26359 / 0.91166 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
 | `rf-detr-seg-xl-coco` | 0.73043 / 2.97183 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
 | `rf-detr-seg-2xl-coco` | 0.37543 / 1.74394 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
