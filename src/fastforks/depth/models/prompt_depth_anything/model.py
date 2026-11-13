@@ -17,6 +17,7 @@ import torch.nn.functional as F
 from fastforks._core.half import pure_half
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
+from fastforks.shared.cv2_resize import cv2_resize
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, use_sdpa_attention
 
 from .fused import FusedViT, PromptFusedHead
@@ -61,11 +62,15 @@ def _net(ctx: Context) -> PromptDepthAnything:
 
 
 def _resize(image: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
-    """Area interpolation when shrinking (upstream's `cv2.INTER_AREA`), bicubic for the odd up-rounding."""
+    """Upstream's `cv2.INTER_AREA` when shrinking, bicubic for the odd up-rounding.
+
+    OpenCV's exact box-overlap weights: torch's `area` mode is an adaptive pool, which blurs near-unit scales such as
+    480 -> 476 (6 % worse AbsRel on NYUv2).
+    """
     if tuple(image.shape[-2:]) == size:
         return image
     if size[0] <= image.shape[-2] and size[1] <= image.shape[-1]:
-        return F.interpolate(image, size, mode="area")
+        return cv2_resize(image, *size, "area", levels=False).to(image.dtype)
     return F.interpolate(image, size, mode="bicubic", align_corners=False)
 
 

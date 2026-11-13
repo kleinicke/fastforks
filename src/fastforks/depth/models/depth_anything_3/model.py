@@ -33,6 +33,7 @@ from torch import nn
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.patch import override
 from fastforks.depth._runner import Forward, Runner, scale
+from fastforks.shared.cv2_resize import cv2_resize
 from fastforks.shared.quantile import kth_smallest
 from fastforks.shared.rope2d import rope_forward
 
@@ -42,7 +43,6 @@ from .net.dinov2.layers import Mlp
 from .net.dpt import DPT
 from .net.dualdpt import DualDPT
 from .net.utils.head_utils import create_uv_grid, position_grid_to_embed
-from .resize import cv2_resize
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
