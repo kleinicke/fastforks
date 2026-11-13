@@ -44,7 +44,7 @@ Commercial use: yes.
 - Variants: `alltracker`, `alltracker-tiny`
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `alltracker` not measured yet; `alltracker-tiny` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `alltracker` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `alltracker-tiny` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
 - `alltracker` 480x854, first call: portable + torch.compile 105 s (cold Inductor cache).
 - `alltracker-tiny` 480x854, first call: portable + torch.compile 103 s (cold Inductor cache).
 - `alltracker` original 480x854: the authors' mixed-precision option (float16); aharley/alltracker@e7553135e7b3 Net.forward, 384 x 512, 4 iters

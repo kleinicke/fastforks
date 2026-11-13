@@ -234,7 +234,7 @@ Commercial use: yes.
 - Variants: `romav1`
 - Outputs: warp, certainty
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `romav1` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `romav1` 3000x4000 (1.9 GiB peak allocated, 2.2 reserved)
 - `romav1` original 768x1024: the authors' mixed-precision option (float16); upstream RoMa v1 match, one direction; local correlation: upstream's plain-torch path (use_custom_corr off)
 - `romav1` load / first call: original 6.28 s / 2.57 s, portable 1.09 s / 0.834 s, kernels 1.96 s / 0.862 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
