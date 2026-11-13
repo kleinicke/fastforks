@@ -91,7 +91,7 @@ Commercial use: yes.
 - Variants: `dfine-n-coco`, `dfine-s-coco`, `dfine-m-coco`, `dfine-l-coco`, `dfine-x-coco`, `deim-n-coco`, `deim-s-coco`, `deim-m-coco`, `deim-l-coco`, `deim-x-coco`
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dfine-n-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-l-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `dfine-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved); `deim-n-coco` not measured yet; `deim-s-coco` not measured yet; `deim-m-coco` not measured yet; `deim-l-coco` not measured yet; `deim-x-coco` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dfine-n-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-l-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `dfine-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved); `deim-n-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `deim-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `deim-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `deim-l-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `deim-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.6 reserved)
 - `dfine-n-coco` 800x1344, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
 - `dfine-s-coco` 800x1344, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
 - `dfine-m-coco` 800x1344, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
@@ -314,7 +314,7 @@ Commercial use: yes.
 - Variants: `grounding-dino-tiny`, `grounding-dino-base`
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `grounding-dino-tiny` not measured yet; `grounding-dino-base` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved)
 - `grounding-dino-tiny` 800x1344, first call: portable + torch.compile 73 s (cold Inductor cache).
 - `grounding-dino-base` 800x1344, first call: portable + torch.compile 98 s (cold Inductor cache).
 - `grounding-dino-tiny` original 800x1344: torch.autocast(float16) around the call; transformers GroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
@@ -379,7 +379,7 @@ Commercial use: yes.
 - Variants: `owlv2-b16`, `owlv2-l14`
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `owlv2-b16` not measured yet; `owlv2-l14` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `owlv2-b16` 3000x4000 (1.1 GiB peak allocated, 1.6 reserved); `owlv2-l14` 3000x4000 (1.7 GiB peak allocated, 2.3 reserved)
 - `owlv2-b16` 800x1344, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
 - `owlv2-l14` 800x1344, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `owlv2-b16` original 800x1344: torch.autocast(float16) around the call; transformers Owlv2ForObjectDetection + processor (CPU), coco-80 queries, text tower per call, 300 best
@@ -451,7 +451,7 @@ Commercial use: yes.
 - Variants: `rf-detr-n-coco`, `rf-detr-s-coco`, `rf-detr-m-coco`, `rf-detr-l-coco`, `rf-detr-seg-n-coco`, `rf-detr-seg-s-coco`, `rf-detr-seg-m-coco`, `rf-detr-seg-l-coco`, `rf-detr-seg-xl-coco`, `rf-detr-seg-2xl-coco`
 - Outputs: boxes, scores, labels, masks; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rf-detr-n-coco` not measured yet; `rf-detr-s-coco` not measured yet; `rf-detr-m-coco` not measured yet; `rf-detr-l-coco` not measured yet; `rf-detr-seg-n-coco` not measured yet; `rf-detr-seg-s-coco` not measured yet; `rf-detr-seg-m-coco` not measured yet; `rf-detr-seg-l-coco` not measured yet; `rf-detr-seg-xl-coco` not measured yet; `rf-detr-seg-2xl-coco` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rf-detr-n-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rf-detr-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rf-detr-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rf-detr-l-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rf-detr-seg-n-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rf-detr-seg-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rf-detr-seg-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rf-detr-seg-l-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rf-detr-seg-xl-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rf-detr-seg-2xl-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved)
 - `rf-detr-n-coco` 800x1344, first call: portable + torch.compile 26 s (cold Inductor cache), TensorRT fp16 60 s (ONNX + engine).
 - `rf-detr-s-coco` 800x1344, first call: portable + torch.compile 24 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
 - `rf-detr-m-coco` 800x1344, first call: portable + torch.compile 28 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).

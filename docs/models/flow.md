@@ -340,7 +340,7 @@ Commercial use: yes.
 - Input size:
   - `memfof`, `memfof-spring`: any H x W >= 256, padded to a multiple of 16
   - `memfof-kitti`, `memfof-sintel`: any H x W >= 128, padded to a multiple of 16
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `memfof` not measured yet; `memfof-kitti` not measured yet; `memfof-sintel` not measured yet; `memfof-spring` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `memfof` 1988x2880 (9.0 GiB peak allocated, 10.6 reserved); `memfof-kitti` 1024x1024 (5.2 GiB peak allocated, 6.1 reserved); `memfof-sintel` 1024x1024 (5.2 GiB peak allocated, 6.1 reserved); `memfof-spring` 1988x2880 (9.0 GiB peak allocated, 10.6 reserved)
 - `memfof` 1080x1920, first call: portable + torch.compile 51 s (cold Inductor cache), TensorRT fp16 110 s (ONNX + engine).
 - `memfof-kitti` 375x1242, first call: portable + torch.compile 49 s (cold Inductor cache).
 - `memfof` original 1080x1920: torch.autocast(float16) around the call; upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)

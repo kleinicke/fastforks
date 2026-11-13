@@ -15,6 +15,8 @@ from torch import nn
 
 import fastforks
 from fastforks._core.patch import base_type, override
+from fastforks.depth.models.depth_anything_3.net.dinov2.layers.rope import RotaryPositionEmbedding2D
+from fastforks.shared.rope2d import rope_forward
 
 
 class Net(nn.Module):
@@ -255,3 +257,11 @@ def test_pickle_and_deepcopy_keep_the_override(tmp_path):
         assert type(c) is type(m)
         assert type(c.conv) is type(m.conv)
         torch.testing.assert_close(c(x), m(x))
+
+
+def test_rope_forward_matches_upstream() -> None:
+    rope = RotaryPositionEmbedding2D(frequency=100.0)
+    tokens = torch.randn(2, 3, 12, 64, dtype=torch.float64)
+    positions = torch.stack(torch.meshgrid(torch.arange(3), torch.arange(4), indexing="ij"), -1).view(1, 12, 2) + 1
+    positions = torch.cat([positions, torch.zeros_like(positions)])  # a patch grid, and all tokens at (0, 0)
+    assert torch.allclose(rope_forward(rope, tokens, positions), rope(tokens, positions), rtol=0, atol=1e-12)

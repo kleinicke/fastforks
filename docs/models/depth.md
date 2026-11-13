@@ -56,11 +56,11 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `da3mono-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 127<br>85.2<br>23.9<br>14.6<br>21.2<br>14.4 | 2419 / 2450<br>2997 / 3052<br>818 / 1328<br>814 / 868<br>792 / 828<br>1463 / 1520 |
-| `da3metric-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>85.1<br>24.1<br>14.7<br>21.2<br>14.4 | 2418 / 2450<br>2996 / 3050<br>815 / 1328<br>811 / 868<br>792 / 828<br>1465 / 1502 |
-| `da3-large-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 208<br>166<br>37.4<br>17.1<br>26.5<br>13.8 | 2797 / 2872<br>3374 / 3472<br>992 / 1350<br>985 / 1090<br>841 / 868<br>1562 / 1622 |
-| `da3-giant-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 410<br>227<br>81.8<br>44.2<br>64.3<br>37.2 | 6428 / 6496<br>8590 / 8718<br>2638 / 4608<br>2628 / 2710<br>2487 / 2528<br>4795 / 4842 |
-| `da3nested-giant-large-1.1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 533<br>308<br>108<br>58.2<br>85.4<br>51.9 | 7702 / 7760<br>10332 / 10402<br>3275 / 5914<br>3271 / 3378<br>3124 / 3194<br>6152 / 6226 |
+| `da3mono-large` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 127<br>85.2<br>24.1<br>14.6<br>21.2<br>14.4 | 2419 / 2450<br>2997 / 3052<br>814 / 868<br>814 / 868<br>792 / 828<br>1463 / 1520 |
+| `da3metric-large` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>85.1<br>24.3<br>14.7<br>21.2<br>14.4 | 2418 / 2450<br>2996 / 3050<br>811 / 868<br>811 / 868<br>792 / 828<br>1465 / 1502 |
+| `da3-large-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 208<br>166<br>30.0<br>17.1<br>26.5<br>13.8 | 2797 / 2872<br>3374 / 3472<br>988 / 1088<br>985 / 1090<br>841 / 868<br>1562 / 1622 |
+| `da3-giant-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 410<br>227<br>71.5<br>44.2<br>64.3<br>37.2 | 6428 / 6496<br>8590 / 8718<br>2634 / 2728<br>2628 / 2710<br>2487 / 2528<br>4795 / 4842 |
+| `da3nested-giant-large-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 533<br>308<br>94.9<br>58.2<br>85.4<br>51.9 | 7702 / 7760<br>10332 / 10402<br>3271 / 3374<br>3271 / 3378<br>3124 / 3194<br>6152 / 6226 |
 
 <details><summary>Details</summary>
 
@@ -90,11 +90,11 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 - `da3metric-large` original 994x1482: original default (api.py): torch.autocast(bfloat16)
 - `da3-large-1.1` original (fp32) 994x1482: float32 (the authors' autocast off)
 - `da3-large-1.1` original 994x1482: original default (api.py): torch.autocast(bfloat16)
-- `da3mono-large` load / first call: original 2.96 s / 0.282 s, portable 4.25 s / 0.092 s, kernels 1.44† s / 0.018 s
-- `da3metric-large` load / first call: original 2.7 s / 0.283 s, portable 0.35 s / 0.049 s, kernels 0.3† s / 0.016 s
-- `da3-large-1.1` load / first call: original 3.46 s / 0.45 s, portable 3.65 s / 0.25 s, kernels 0.31† s / 0.027 s
-- `da3-giant-1.1` load / first call: original 12.39 s / 0.684 s, portable 6.29 s / 0.163 s, kernels 0.9† s / 0.061 s
-- `da3nested-giant-large-1.1` load / first call: original 28.67 s / 1.626 s, portable 13.25 s / 0.548 s, kernels 2.73† s / 0.07 s
+- `da3mono-large` load / first call: original 2.96 s / 0.282 s, portable 2.4 s / 0.209 s (504x504), kernels 1.44† s / 0.018 s
+- `da3metric-large` load / first call: original 2.7 s / 0.283 s, portable 4.84 s / 0.243 s (518x770), kernels 0.3† s / 0.016 s
+- `da3-large-1.1` load / first call: original 3.46 s / 0.45 s, portable 1.59 s / 0.408 s (518x770), kernels 0.31† s / 0.027 s
+- `da3-giant-1.1` load / first call: original 12.39 s / 0.684 s, portable 7.21 s / 0.357 s (518x770), kernels 0.9† s / 0.061 s
+- `da3nested-giant-large-1.1` load / first call: original 28.67 s / 1.626 s, portable 18.24 s / 0.455 s (518x770), kernels 2.73† s / 0.07 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -394,7 +394,7 @@ Commercial use: yes.
 - Variants: `lotus-normal-g-v1-1`, `lotus-normal-d-v1-1`
 - Outputs: normals; kind: `none`
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lotus-normal-g-v1-1` not measured yet; `lotus-normal-d-v1-1` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lotus-normal-g-v1-1` 3000x4000 (3.0 GiB peak allocated, 3.7 reserved); `lotus-normal-d-v1-1` 3000x4000 (3.0 GiB peak allocated, 3.7 reserved)
 - `lotus-normal-g-v1-1` 994x1482, first call: portable + torch.compile 63 s (cold Inductor cache), TensorRT fp16 183 s (ONNX + engine).
 - `lotus-normal-d-v1-1` 994x1482, first call: portable + torch.compile 64 s (cold Inductor cache), TensorRT fp16 183 s (ONNX + engine).
 - `lotus-normal-g-v1-1` original 994x1482: the authors' float16 model option; upstream Lotus-G pipeline, diffusers 0.41.0, timestep 999, seed 42
@@ -517,7 +517,7 @@ Commercial use: yes.
 - Variants: `marigold-normals-lcm-v0-1`
 - Outputs: normals; kind: `none`
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-normals-lcm-v0-1` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-normals-lcm-v0-1` 3000x4000 (3.0 GiB peak allocated, 3.8 reserved)
 - `marigold-normals-lcm-v0-1` 994x1482, first call: portable + torch.compile 64 s (cold Inductor cache), TensorRT fp16 182 s (ONNX + engine).
 - `marigold-normals-lcm-v0-1` original 994x1482: the authors' float16 model option; diffusers v0.41.0 MarigoldNormalsPipeline, 1 LCM step, CPU generator seed 2024
 - `marigold-normals-lcm-v0-1` load / first call: original 6.02 s / 2.856 s, portable 4.11 s / 0.617 s, kernels 8.22 s / 0.468 s
@@ -881,7 +881,7 @@ Commercial use: yes.
 - Variants: `video-depth-anything-s`, `video-depth-anything-metric-s`
 - Outputs: inverse_depth, depth; kind: `affine_invariant_inverse`
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `video-depth-anything-s` not measured yet; `video-depth-anything-metric-s` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `video-depth-anything-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved); `video-depth-anything-metric-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved)
 - `video-depth-anything-s` 1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache).
 - `video-depth-anything-s` original 1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
 - `video-depth-anything-s` portable 1080x1920, kernels 1080x1920: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out

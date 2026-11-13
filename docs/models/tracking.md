@@ -41,7 +41,7 @@ Commercial use: yes.
 - Variants: `bootstapir`, `tapir`
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `bootstapir` not measured yet; `tapir` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `bootstapir` 3000x4000 (5.6 GiB peak allocated, 6.1 reserved); `tapir` 3000x4000 (5.5 GiB peak allocated, 6.0 reserved)
 - `bootstapir` 480x854, first call: portable + torch.compile 207 s (cold Inductor cache).
 - `tapir` 480x854, first call: portable + torch.compile 169 s (cold Inductor cache).
 - `bootstapir` original 480x854: the authors' mixed-precision option (float16); upstream BootsTAPIR, offline (whole video); frames resized to 256 x 256
@@ -102,7 +102,7 @@ Commercial use: yes.
 - Variants: `tapnext`, `tapnext-pp`
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `tapnext` not measured yet; `tapnext-pp` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `tapnext` 3000x4000 (4.3 GiB peak allocated, 4.5 reserved); `tapnext-pp` 3000x4000 (4.3 GiB peak allocated, 4.5 reserved)
 - `tapnext` 480x854, first call: portable + torch.compile 41 s (cold Inductor cache).
 - `tapnext` original 480x854: the authors' mixed-precision option (float16); upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)
 - `tapnext` load / first call: original 16.92 s / 2.165 s, portable 2.72 s / 0.692 s, kernels 2.63 s / 0.56 s
