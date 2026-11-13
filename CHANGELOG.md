@@ -17,6 +17,10 @@
   kernels, 18.4 ms portable vs 77.3 ms original fp16; L 69.3 / 125 vs 438 ms; peak 0.35x of the original. Accuracy:
   GPU goldens against upstream (no prompt-depth benchmark data here).
 
+- Swin super-resolution (SwinIR, HAT, DAT): `PatchEmbed` returns contiguous tokens (upstream: a transposed view
+  that made every residual add strided), and attention inputs with a strided head dimension are copied before SDPA
+  (else it fell back to the unfused math path).
+
 - InSPyReNet background removal (`inspyrenet`, `inspyrenet-fast`, matting; MIT code and weights): transparent-
   background's `Remover` (static resize, no LR/HR blending). 1080x1920 image, size 1024: 159 ms portable (86 ms
   compile, 51 ms TensorRT) vs 241 ms original fp32, peak 1.9 GB vs 3.3 GB; fast (384): 45 ms vs 71 ms. DIS5K
