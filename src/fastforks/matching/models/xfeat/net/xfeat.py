@@ -283,18 +283,15 @@ class XFeat(nn.Module):
 	@torch.inference_mode()
 	def match(self, feats1, feats2, min_cossim = 0.82):
 
-		cossim = feats1 @ feats2.t()
-		cossim_t = feats2 @ feats1.t()
-		
-		_, match12 = cossim.max(dim=1)
-		_, match21 = cossim_t.max(dim=1)
+		# fastforks: one [N, M] similarity matrix live at a time (upstream keeps both and takes the row maxima twice)
+		best12, match12 = (feats1 @ feats2.t()).max(dim=1)
+		_, match21 = (feats2 @ feats1.t()).max(dim=1)
 
 		idx0 = torch.arange(len(match12), device=match12.device)
 		mutual = match21[match12] == idx0
 
 		if min_cossim > 0:
-			cossim, _ = cossim.max(dim=1)
-			good = cossim > min_cossim
+			good = best12 > min_cossim
 			idx0 = idx0[mutual & good]
 			idx1 = match12[mutual & good]
 		else:
