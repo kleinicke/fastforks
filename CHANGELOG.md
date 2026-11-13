@@ -48,6 +48,12 @@
   TensorRT export fails) vs 274 ms original fp32 (203 ms fp16), peak 840 MB vs 1018 MB (reserved). TAP-Vid DAVIS
   (first, 10 videos) AJ 67.29 kernels, 67.31 portable vs 67.19 original fp32 (67.31 fp16).
 
+- YOLOX object detection (`yolox-tiny`, `yolox-s`, `yolox-m`, `yolox-l`, `yolox-x`, detection; Apache-2.0 code and
+  weights): anchor-free one-stage CNN with a decoupled head and NMS, 640 x 640 letterbox as upstream. 800x1344 image:
+  `yolox-x` 7.82 ms kernels, 11.8 ms portable (11.3 ms compile, 5.28 ms TensorRT) vs 29.8 ms original fp32 (17.2 ms
+  fp16), peak 358 MB vs 562 MB (reserved). COCO val2017 (200 images) box mAP 54.60 kernels, 54.62 portable vs 54.64
+  original fp32 (54.61 fp16); `yolox-tiny` to `yolox-l` within 0.1 of the original.
+
 - RIFE frame interpolation (`rife-4.25`, `rife-4.26`, `rife-4.25-lite`; new task `interpolation`; MIT code and
   weights): Practical-RIFE `IFNet_HDv3`, any timestep in [0, 1], frames zero-padded to a multiple of 128 as upstream.
   1080x1920 pair: 31.4 ms kernels, 36.0 ms portable (44.5 ms compile, 17.6 ms TensorRT) vs 45.3 ms original fp32

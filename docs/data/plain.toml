@@ -130,6 +130,7 @@ rcnn = "Faster R-CNN and Mask R-CNN from the detectron2 model zoo (ResNet-50 FPN
 detr = "DETR (ResNet-50 and ResNet-101, COCO) from Facebook Research: end-to-end boxes and classes from 100 object queries, no NMS."
 rtdetrv2 = "RT-DETRv2 (S, M, M*, L, X; ResNet-vd, COCO) from the RT-DETR authors: real-time end-to-end detector, 300 queries and deformable attention, no NMS."
 rtmdet = "OpenMMLab's RTMDet (tiny, s, m, l, x on COCO; nano and m person detectors): real-time one-stage box detector, a CSPNeXt CNN with NMS. The person detectors supply the boxes for RTMPose. Apache-2.0."
+yolox = "Megvii's YOLOX (tiny, s, m, l, x on COCO): anchor-free one-stage box detector, a CSPDarknet CNN with a decoupled head and NMS. Apache-2.0 code and weights."
 dfine = "D-FINE (N, S, M, L, X; HGNetV2, COCO) from USTC: real-time end-to-end detector in the RT-DETR style, 300 queries, deformable attention and box edges refined as distributions, no NMS. Also DEIM (N, S, M, L, X): the same network with SiLU decoder MLPs, trained with dense one-to-one matching."
 lwdetr = "LW-DETR (tiny to xlarge; ViT, COCO) from Baidu: real-time end-to-end detector, a plain ViT encoder with a multi-level projector and a DETR decoder with deformable attention, no NMS. Apache-2.0 code and weights."
 rfdetr = "Roboflow RF-DETR (N, S, M, L detection; Seg N to 2XL with instance masks; COCO): real-time end-to-end detector with a windowed DINOv2 backbone and deformable decoder, no NMS. Apache-2.0 code and weights."

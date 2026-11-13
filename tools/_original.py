@@ -696,6 +696,27 @@ def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda bgr: inference_detector(net, bgr)
 
 
+def _yolox(a: Any, full: str) -> Any:  # noqa: ANN401
+    """The reference demo path of `tools/golden/yolox.py` (`ValTransform`, network, `postprocess`) on CUDA.
+
+    Needs `YOLOX_SRC`, a Megvii-BaseDetection/YOLOX checkout at the golden's commit (with loguru, pycocotools and
+    tabulate importable). CPU cv2 resize and pad, network and NMS are in the timed call; the score threshold is the
+    card's default (0.05), as the library's rows; the reference keeps every box after NMS.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("yolox")
+    card, variant = registry.resolve("detection", full)
+    exp, model = g.reference(os.environ["YOLOX_SRC"], card, variant)
+    model = model.cuda()
+    conf = card.options["score_threshold"]
+    a.note = (
+        f"Megvii-BaseDetection/YOLOX@{g.COMMIT[:12]} ValTransform (CPU cv2) + model + postprocess (NMS "
+        f"{exp.nmsthre}), score {conf} (card default), all in the timed call"
+    )
+    return lambda bgr: g.detect(exp, model, bgr, conf)
+
+
 def _segnext(a: Any, full: str) -> Any:  # noqa: ANN401
     """Mmsegmentation `init_model` + the configs' test protocol, as `tools/golden/segnext.py` (NMF bases seeded)."""
     from fastforks._core import registry  # noqa: PLC0415
@@ -1655,6 +1676,9 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     ),
     "rtmdet": _Local(
         "detection", _rtmdet, ((800, 1344),), lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),)
+    ),
+    "yolox": _Local(
+        "detection", _yolox, ((800, 1344),), lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),)
     ),
     "convnext": _Local("classification", _convnext, ((224, 224),)),
     "repvit": _Local("classification", _convnext, ((224, 224),)),
