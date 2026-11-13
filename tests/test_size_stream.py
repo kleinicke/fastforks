@@ -22,6 +22,7 @@ from fastforks import (
     detection,
     features,
     flow,
+    interpolation,
     matching,
     matting,
     multiview,
@@ -50,10 +51,12 @@ API: dict[str, Any] = {
     "flow": flow,
     "matching": matching,
     "matting": matting,
+    "interpolation": interpolation,
 }
 OUTPUTS = (  # the outputs checked, where a result has them
     "disparity",
     "flow",
+    "frame",
     "warp",
     "certainty",
     "depth",
@@ -92,7 +95,7 @@ REFS = _smallest()
 
 def _call(m: Any, task: str, hw: tuple[int, int]) -> dict[str, torch.Tensor]:
     """One call at `hw`: the checked outputs (float tensors)."""
-    if task in ("stereo", "flow", "matching"):
+    if task in ("stereo", "flow", "matching", "interpolation"):
         r = m(*pair(*size(m.variant.io.min_size, *hw)))
     elif task == "tracking":
         r = m(clip(4, *hw), track_queries())

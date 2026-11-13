@@ -38,6 +38,7 @@ from fastforks.detection._runner import Runner as DetRunner
 from fastforks.features._runner import Forward
 from fastforks.features._runner import Runner as FeatRunner
 from fastforks.flow._runner import Runner as FlowRunner
+from fastforks.interpolation._runner import Runner as InterpolationRunner
 from fastforks.matching._runner import Runner as MatchingRunner
 from fastforks.matting._runner import Runner as MattingRunner
 from fastforks.multiview._runner import Runner as MultiViewRunner
@@ -600,6 +601,7 @@ def test_resize_crop_bicubic_stays_in_range():
         "matching",
         "matting",
         "tracking",
+        "interpolation",
     ],
 )
 def test_runner_without_call_cannot_be_built(task):
@@ -612,6 +614,7 @@ def test_runner_without_call_cannot_be_built(task):
     base["matching"] = MatchingRunner
     base["matting"] = MattingRunner
     base["tracking"] = TrackingRunner
+    base["interpolation"] = InterpolationRunner
 
     class NoCall(base[task]):
         pass

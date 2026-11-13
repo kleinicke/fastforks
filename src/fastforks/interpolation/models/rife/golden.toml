@@ -1,0 +1,52 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1e-05
+gpu_mean = 0.00024
+gpu_p99 = 0.0013
+
+[refs."rife-4.25-lite@1"]
+sha256 = "5d94e22bc20cee7fcd5da8f44b2b69e2c317be249c70fca7b1af5c1721de5293"
+upstream = "https://github.com/hzwer/Practical-RIFE@bbfd2ea90910789a860ea3e2b32a240cd577b75e"
+settings = "CPU float32, upstream RIFE_HDv3 Model.inference timestep 0.5 scale 1.0, zero pad to 128 right / bottom, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."rife-4.25@1"]
+sha256 = "dad55d660cd20c87044b0a53c4193b40827d0d09d5e0eb76df340b9a91acc5f9"
+upstream = "https://github.com/hzwer/Practical-RIFE@bbfd2ea90910789a860ea3e2b32a240cd577b75e"
+settings = "CPU float32, upstream RIFE_HDv3 Model.inference timestep 0.5 scale 1.0, zero pad to 128 right / bottom, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."rife-4.26@1"]
+sha256 = "a1ff634a8cc3bc0541a3a01fe028e9e56a5ff05399ec86190fcd2916c8b94735"
+upstream = "https://github.com/hzwer/Practical-RIFE@bbfd2ea90910789a860ea3e2b32a240cd577b75e"
+settings = "CPU float32, upstream RIFE_HDv3 Model.inference timestep 0.5 scale 1.0, zero pad to 128 right / bottom, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[validated."rife-4.25-lite@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00015
+p99_px = 0.00078
+
+[validated."rife-4.25@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00016
+p99_px = 0.00083
+
+[validated."rife-4.26@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00015
+p99_px = 0.00075

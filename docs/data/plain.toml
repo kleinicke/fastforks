@@ -160,6 +160,9 @@ rtmo = "OpenMMLab's RTMO (t, s, m, l): real-time one-stage multi-person 2D pose;
 rtmpose = "OpenMMLab's RTMPose (t, s, m, l; 256x192 and 384x288): real-time top-down 2D human pose, a CSPNeXt CNN with a SimCC head; also the whole-body DWPose and RTMW checkpoints (133 keypoints with feet, face and hands); Halpe (26 keypoints), hand, face and animal checkpoints. Apache-2.0."
 vitpose = "ViTPose and ViTPose++ (base, small, large, huge): top-down 2D human pose with a plain vision transformer, from the weights published by the University of Sydney on Hugging Face. Apache-2.0."
 
+# --- interpolation
+rife = "RIFE (Practical-RIFE 4.25, 4.26 and 4.25 lite, Huang et al.): makes the frame between two video frames from the optical flow it estimates between them, for slow motion and higher frame rates. MIT code and weights."
+
 # --- tracking
 tapir = "TAPIR and BootsTAPIR (Google DeepMind, 2023 / 2024): track any point through a whole video offline: a per-frame match from a cost volume, then four temporal refinement passes; BootsTAPIR adds self-training on real videos. Apache-2.0 code and weights."
 alltracker = "AllTracker (Harley et al., ICCV 2025): track every pixel of a query frame through a whole video offline, as long-range optical flow over 16-frame windows; point queries read the dense result. MIT code and weights."

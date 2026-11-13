@@ -657,7 +657,9 @@ def _export(args: argparse.Namespace) -> None:
         f"wrote {out}: TensorRT engine of {model.variant.ref} at {h}x{w}{_dyn(bounds)}, {model.backend.dtype}"
         f" ({ENGINE_NOTE})"
     )
-    what = {"stereo": "pair", "flow": "pair", "matching": "pair", "tracking": "video"}.get(card.task, "image")
+    what = {"stereo": "pair", "flow": "pair", "matching": "pair", "interpolation": "pair", "tracking": "video"}.get(
+        card.task, "image"
+    )
     stats = _parity(want, got, stereo=card.task == "stereo", scores=getattr(module, "query_scores", None))
     print(f"check vs portable (synthetic {what}): {stats}; {t_trt:.1f} ms TensorRT vs {t_ref:.1f} ms portable")
 

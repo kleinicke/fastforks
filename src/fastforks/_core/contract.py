@@ -309,6 +309,7 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
         "scores": ("[K]", "float32", "[0, 1] match confidence", ""),
     },
     "matting": {"alpha": ("[B, H, W]", "float32", "[0, 1], 1 = foreground", "input pixels")},
+    "interpolation": {"frame": ("[B, 3, H, W]", "float32", "RGB in [0, 1]", "input pixels, at time `timestep`")},
     "tracking": {
         "tracks": ("[T, Q, 2]", "float32", "pixels of the input, (x, y)", "every frame, one row per query"),
         "visibility": ("[T, Q]", "float32", "[0, 1] probability that the point is visible", "every frame"),
@@ -391,6 +392,7 @@ def _d(shape: str, dtype: str, unit: str, frame: str, present: str = _ALWAYS) ->
 _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "stereo": (("scale", "pad", "network", "crop"), ("image conversion", "rig= rectification", "depth / points")),
     "flow": (("scale", "pad", "network", "crop"), ("image conversion",)),
+    "interpolation": (("scale", "pad", "network", "crop"), ("image conversion",)),
     "matching": (("scale", "resize to the network squares", "network", "resize to image1"), ("image conversion",)),
     "tracking": (
         ("resize to the network size", "network (frame by frame)", "scale to the input"),

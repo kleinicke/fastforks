@@ -36,6 +36,9 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- RIFE (`rife-4.25`, `rife-4.26`, `rife-4.25-lite`, interpolation): portable MPS goldens and Mac speed rows
+  (1080x1920 pair). No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
+  `~/scratch_tests/port-p5/w/rife/` on the CUDA machine).
 - LW-DETR (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection): portable MPS goldens and Mac speed rows
   (800x1344). No Metal kernels runner. Weights: the pinned HF URLs of the card.
 - MM-Grounding-DINO (`mm-grounding-dino-tiny`, `mm-grounding-dino-base`, detection): portable MPS goldens and Mac

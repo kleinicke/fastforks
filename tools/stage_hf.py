@@ -224,6 +224,7 @@ _PIPELINE = {
     "matching": "image-to-image",
     "matting": "image-segmentation",
     "tracking": "keypoint-detection",  # no point-tracking pipeline on the Hub: query points tracked over time
+    "interpolation": "image-to-image",  # no frame-interpolation pipeline on the Hub: two frames -> the middle one
 }
 _TASK_TAGS = {
     "stereo": ["stereo", "stereo-matching", "disparity"],
@@ -239,6 +240,7 @@ _TASK_TAGS = {
     "matching": ["dense-matching", "image-matching", "feature-matching"],
     "matting": ["background-removal", "dichotomous-image-segmentation", "matting"],
     "tracking": ["point-tracking", "tracking-any-point", "video"],
+    "interpolation": ["frame-interpolation", "video-frame-interpolation", "video"],
 }
 _SNIPPET = {
     "stereo": 'result = model("left.png", "right.png")\nresult.{out}  # [H, W] float32 tensor, input resolution',
@@ -266,6 +268,10 @@ _SNIPPET = {
     "tracking": (
         "result = model(frames, [[0, x, y]])  # frames: the video's images in order; queries (t, x, y)\n"
         "result.{out}  # [T, Q, 2] float32: x, y in input pixels; result.visible [T, Q] bool"
+    ),
+    "interpolation": (
+        'result = model("frame1.png", "frame2.png")  # timestep=0.5: the middle frame\n'
+        "result.{out}  # [3, H, W] float32 RGB in [0, 1], input resolution"
     ),
     "pose": (
         'result = model("photo.jpg", boxes=[[x0, y0, x1, y1]])  # one box per person, or a fastforks.detection result\n'

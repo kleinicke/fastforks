@@ -7,7 +7,7 @@ measuring scripts are not part of this repository; the protocols are described b
 ## Accuracy: `<task>_eval.jsonl`
 
 One file per task (`stereo`, `depth`, `classification`, `segmentation`, `detection`, `promptable_segmentation`,
-`features`, `multiview`, `pose`, `flow`, `matching`, `matting`, `tracking`), one JSON object per model, tier and dataset. Measured in the 2026-11-05 campaign
+`features`, `multiview`, `pose`, `flow`, `matching`, `matting`, `tracking`, `interpolation`), one JSON object per model, tier and dataset. Measured in the 2026-11-05 campaign
 (`tools/acc_collect.py` builds the files from the raw output of the `tools/eval_*.py` scripts; the older 2026-10-27
 stereo / depth rows were replaced: they predate this repository's history and the current protocol).
 
@@ -74,6 +74,10 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
   tapnet's `evaluation_datasets.py`, errors at 256 x 256; dataset keys `tapvid-davis-first` and
   `tapvid-davis-first-every3` (every 3rd video), measured with `tools/eval_tracking.py`. `ms_frame` is the mean time
   per frame.
+- Frame interpolation: `psnr` (dB) and `ssim` of the middle frame, rounded to uint8, against the true one, on DAVIS
+  2017 trainval 480p: frames 0 and 2 -> 1 and 20 and 22 -> 21 of each of the 90 videos (`davis2017-triplets180`),
+  measured with `tools/eval_interpolation.py`; `ms_per_pair` is the median time of a call. Vimeo-90K and UCF101, the
+  papers' sets, are not used: they are not available locally.
 - Multiview: `absrel`, `d125` (% within 1.25) on DTU scans 1, 9, 24, 33, 75 (reference view 24 + 7 sources, 640x512),
   median-scaled for uncalibrated models; calibrated MVS also `mae_mm`, `le2mm`, `le4mm`. `n` = scans.
 

@@ -606,3 +606,16 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`alltracker-tiny`](models/tracking.md#alltracker) | yes | 424.2 (480x854) | 329.9 | 232.9 | 1.8x vs original (480x854) | 978 |
 | [`tapnext`](models/tracking.md#tapnext) | yes | 908.8 (480x854) | 529.5 | 382.2 | 2.4x vs original (480x854) | 1313 |
 | [`tapnext-pp`](models/tracking.md#tapnext) | yes | – | – | – | – | – |
+
+## Interpolation
+
+3 models; size 1080x1920.
+
+- Fastest: [`rife-4.25-lite`](models/interpolation.md#rife) (28.9 ms).
+- Fastest commercially usable: [`rife-4.25-lite`](models/interpolation.md#rife) (28.9 ms).
+
+| model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
+|---|---|---|---|---|---|---|
+| [`rife-4.25-lite`](models/interpolation.md#rife) | yes | 21.3 (1080x1920) | 32.7 | 28.9 | 0.7x vs original (1080x1920) | 1024 |
+| [`rife-4.26`](models/interpolation.md#rife) | yes | 24.2 (1080x1920) | 35.9 | 31.4 | 0.8x vs original (1080x1920) | 1029 |
+| [`rife-4.25`](models/interpolation.md#rife) | yes | 24.5 (1080x1920) | 36.0 | 31.4 | 0.8x vs original (1080x1920) | 1029 |

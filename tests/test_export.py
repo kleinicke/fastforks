@@ -121,7 +121,7 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
         return (scale(resize_crop(pair[0], io), io),)
     if TASK[ref] in {"multiview", "tracking"}:  # one scene / video: views or frames (+ cameras / queries)
         return model.example_inputs(*_shape(model)[2:], batch=2)
-    return pair if TASK[ref] in {"stereo", "flow", "matching"} else pair[:1]
+    return pair if TASK[ref] in {"stereo", "flow", "matching", "interpolation"} else pair[:1]
 
 
 def _multiview_call(model: Any, inputs: tuple[torch.Tensor, ...]) -> Any:
@@ -192,6 +192,9 @@ def test_module_compile_export(ref):  # noqa: C901 - one branch per task
     elif TASK[ref] == "flow":  # two [B, 3, H, W] in [0, 1] -> [B, 2, H, W], as the model call
         assert want.shape == (1, 2, *inputs[0].shape[2:])
         assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs))))
+    elif TASK[ref] == "interpolation":  # two [B, 3, H, W] in [0, 1] -> the middle frame [B, 3, H, W]
+        assert want.shape == (1, 3, *inputs[0].shape[2:])
+        assert torch.equal(want[0], model(*(x[0] for x in inputs)).frame)
     elif TASK[ref] == "features":  # -> last_hidden_state [B, N, C], as the model call with the default size
         assert torch.equal(want[0], model(inputs[0][0]).last_hidden_state)
     elif TASK[ref] == "classification":  # transformed images -> logits, as the model call on the raw image

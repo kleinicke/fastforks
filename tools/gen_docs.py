@@ -79,6 +79,7 @@ _DATASETS = {
         "coco-val2017-every10-keypoints": "COCO val2017, every 10th image, predicted people, keypoint AP",
     },
     "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
+    "interpolation": {"davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM"},
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
@@ -133,6 +134,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
     "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
+    "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
@@ -184,6 +186,9 @@ _PROTOCOL = {
     "from the camera baselines). ",
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
+    "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
+    "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
+    "output rounded to uint8, on RGB in [0, 1], averaged over the triplets. ",
     "matching": "Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE "
     "sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; "
     "LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean "
@@ -914,6 +919,10 @@ TASK_IO = {
         "Input: two RGB images (consecutive frames). Output: per-pixel motion from the first to the second "
         "(dx, dy in pixels)."
     ),
+    "interpolation": (
+        "Input: two RGB images (consecutive frames). Output: the frame between them at `timestep` (0.5 by default; 0 "
+        "= the first, 1 = the second), RGB in [0, 1]."
+    ),
     "depth": (
         "Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field, `result.kind`) says what "
         "the numbers mean: `metric` = metres; `scale_invariant`, `affine_invariant` and `affine_invariant_inverse` "
@@ -1120,6 +1129,7 @@ _STD_SIZE = {
     "detection": "800x1344",
     "flow": "1080x1920",
     "matching": "768x1024",
+    "interpolation": "1080x1920",
     "matting": "1080x1920",
     "tracking": "480x854",
 }

@@ -293,3 +293,9 @@ name = "RealEstate10K (camera trajectories of YouTube real-estate videos)"
 licence = "CC-BY-4.0"  # the released camera files; the frames are downloaded from YouTube under the videos' own terms
 commercial = "unclear"
 url = "https://google.github.io/realestate10k/"
+
+[vimeo90k]
+name = "Vimeo-90K (septuplets / triplets for frame interpolation)"
+licence = "not stated"  # clips from vimeo.com under their uploaders' terms; the page asks only for a citation
+commercial = "unclear"
+url = "http://toflow.csail.mit.edu/"

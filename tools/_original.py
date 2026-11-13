@@ -454,6 +454,40 @@ def _flowseek(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda im1, im2: g.calc_flow(net, im1[None].float(), im2[None].float())
 
 
+def _rife(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `RIFE_HDv3.Model` as `tools/golden/rife.py`; fp16 = inference_video.py's `--fp16` recipe.
+
+    `FF_RIFE_REPO`: a hzwer/Practical-RIFE clone; `FF_RIFE_RELEASES`: one unpacked release per variant id
+    (`<id>/train_log`). `--fp16` makes half the default tensor type, so the model, its warp grid and the input are
+    half; here `torch.set_default_dtype(torch.float16)` while building and calling. Zero pad right / bottom to 128.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("rife")
+    ref = full.split("@", maxsplit=1)[0]
+    tree = g.reference_tree(Path(os.environ["FF_RIFE_REPO"]), g.REF_COMMIT)
+    dtype = torch.float16 if fp16 else torch.float32
+    before = torch.get_default_dtype()
+    torch.set_default_dtype(dtype)
+    try:
+        model = g.build(tree, Path(os.environ["FF_RIFE_RELEASES"]) / ref)
+    finally:
+        torch.set_default_dtype(before)
+    model.flownet.to(dtype)
+    a.note = "upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128" + (
+        ", inference_video.py --fp16: half default dtype, model and input" * fp16
+    )
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        torch.set_default_dtype(dtype)
+        try:
+            return g.interpolate(model, im1[None].to(dtype) / 255, im2[None].to(dtype) / 255)
+        finally:
+            torch.set_default_dtype(before)
+
+    return call
+
+
 def _neuflow_v2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001
     """Upstream `NeuFlow` as `tools/golden/neuflow_v2.py` (`FF_NEUFLOW_V2_REPO`); fp16 = upstream infer.py's recipe.
 
@@ -1380,6 +1414,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "sea_raft": _Local("flow", _sea_raft, ((1080, 1920), (375, 1242))),
     "memfof": _Local("flow", _memfof, ((1080, 1920), (375, 1242))),
     "neuflow_v2": _LocalFp16("flow", _neuflow_v2, ((1080, 1920), (375, 1242))),
+    "rife": _LocalFp16("interpolation", _rife, ((1080, 1920),)),
     "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
     "flowformer": _Local("flow", _flowformer, ((1080, 1920), (375, 1242))),
     "flowseek": _Local("flow", _flowseek, ((1080, 1920), (375, 1242))),

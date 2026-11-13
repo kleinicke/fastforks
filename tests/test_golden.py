@@ -35,6 +35,7 @@ from fastforks import (
     detection,
     features,
     flow,
+    interpolation,
     matching,
     matting,
     multiview,
@@ -74,6 +75,7 @@ API: dict[str, Any] = {
     "flow": flow,
     "matching": matching,
     "matting": matting,
+    "interpolation": interpolation,
     "tracking": tracking,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
@@ -306,7 +308,7 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         assert want is not None, "tracking goldens store their queries"
         r = m(clip(), want["queries"])
         maps = {k: getattr(r, k) for k in spec(task).standard}
-    elif task in {"flow", "matching"}:  # the golden's image pair
+    elif task in {"flow", "matching", "interpolation"}:  # the golden's image pair
         assert want is not None, f"{task} goldens store their image pair"
         r = m(img, want["input2"].round().astype(np.uint8))
         maps = {k: getattr(r, k, None) for k in spec(task).standard}  # sparse matchers: no warp / certainty

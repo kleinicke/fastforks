@@ -20,6 +20,7 @@ from fastforks.depth import DepthResult
 from fastforks.detection import DetectionResult
 from fastforks.features import FeaturesResult
 from fastforks.flow import FlowResult
+from fastforks.interpolation import InterpolationResult
 from fastforks.matching import MatchingResult, SparseMatchingResult
 from fastforks.matting import MattingResult
 from fastforks.multiview import MultiViewResult
@@ -40,6 +41,7 @@ RESULTS = {
     "flow": (FlowResult,),
     "matching": (MatchingResult, SparseMatchingResult),
     "matting": (MattingResult,),
+    "interpolation": (InterpolationResult,),
     "features": (FeaturesResult,),
     "classification": (ClassificationResult,),
     "promptable_segmentation": (PromptableSegmentationResult, ConceptSegmentationResult),

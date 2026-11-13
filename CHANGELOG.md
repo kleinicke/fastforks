@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- RIFE frame interpolation (`rife-4.25`, `rife-4.26`, `rife-4.25-lite`; new task `interpolation`; MIT code and
+  weights): Practical-RIFE `IFNet_HDv3`, any timestep in [0, 1], frames zero-padded to a multiple of 128 as upstream.
+  1080x1920 pair: 31.4 ms kernels, 36.0 ms portable (44.5 ms compile, 17.6 ms TensorRT) vs 45.3 ms original fp32
+  (24.5 ms fp16), peak 1.0 GB vs 1.9 GB. DAVIS 2017 (180 triplets) PSNR 27.13 kernels / portable vs 27.13 original
+  fp32 (27.03 fp16); the warps sample in float32.
+
 - LW-DETR real-time detection (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection; Apache-2.0 code and
   weights): ViT encoder with a multi-level projector and a deformable DETR decoder, the authors' PostProcess.
   800x1344 image, tiny: 2.2 ms kernels, 7.4 ms portable (3.0 ms compile, 1.0 ms TensorRT) vs 20.4 ms original fp32

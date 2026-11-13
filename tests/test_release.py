@@ -71,7 +71,7 @@ def test_del_frees_cuda_memory_without_gc(ref, mode):
         if task == "tracking":
             r = m(clip(), track_queries())
         else:
-            r = m(*pair()) if task in {"stereo", "flow", "matching"} else m(image())
+            r = m(*pair()) if task in {"stereo", "flow", "matching", "interpolation"} else m(image())
         loaded = torch.cuda.memory_allocated() - base
         weights = _weight_bytes(m)
         del m, r

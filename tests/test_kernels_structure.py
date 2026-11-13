@@ -404,7 +404,7 @@ def load_and_call(ref: str) -> Any:
     if task == "tracking":
         m(clip(4, *hw), track_queries())
     else:
-        m(*pair(*hw)) if task in {"stereo", "flow", "matching"} else m(image(*hw))
+        m(*pair(*hw)) if task in {"stereo", "flow", "matching", "interpolation"} else m(image(*hw))
     return m
 
 
