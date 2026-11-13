@@ -210,8 +210,12 @@ def dual_softmax_match(
     """
     desc_a = desc_a / desc_a.norm(dim=-1, keepdim=True)
     desc_b = desc_b / desc_b.norm(dim=-1, keepdim=True)
-    corr = (desc_a @ desc_b.mT) * inv_temp
-    p = corr.softmax(dim=-2) * corr.softmax(dim=-1)
+    corr = (desc_a @ desc_b.mT).mul_(inv_temp)
+    p = corr.softmax(dim=-2)
+    if corr.device.type == "mps":
+        p *= corr.softmax(dim=-1)
+    else:  # the row softmax in place (exact on CPU / CUDA): two `[N, M]` matrices live instead of four
+        p *= torch.ops.aten._softmax.out(corr, -1, False, out=corr)  # noqa: FBT003 - aten signature
     keep = (p == p.max(dim=-1, keepdim=True).values) & (p == p.max(dim=-2, keepdim=True).values) & (p > threshold)
     pairs = torch.nonzero(keep)
     return pairs, p[pairs[:, 0], pairs[:, 1]]
