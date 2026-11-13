@@ -306,6 +306,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/facebookresearch/sam2/blob/main/README.md (License section: model checkpoints and code under Apache 2.0)
 - Training data: SA-1B and the SA-V video dataset (plus internal data) per the paper; SA-V itself is under CC BY 4.0, SA-1B under its research licence
+- Options: `samurai` = False
 - Kernel libraries: `dpt_fused`
 - Variants: `sam2.1-hiera-tiny`, `sam2.1-hiera-small`, `sam2.1-hiera-base-plus`, `sam2.1-hiera-large`
 - Outputs: pred_masks, iou_scores

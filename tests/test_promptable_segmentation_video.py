@@ -1,4 +1,4 @@
-"""SAM 2 video tracking: hole filling and frame resizing against the references, `track` input errors."""
+"""SAM 2 video tracking: hole filling and frame resizing against the references, SAMURAI motion, `track` errors."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from PIL import Image
 
 from fastforks import InputError, WeightsError, promptable_segmentation
 from fastforks._core import registry
-from fastforks.promptable_segmentation.models.sam2.video import fill_holes, resize_frame
+from fastforks.promptable_segmentation.models.sam2.video import STABLE_FRAMES, Motion, fill_holes, resize_frame
 from synth import clip
 
 
@@ -39,6 +39,37 @@ def test_resize_frame_matches_pil_bicubic() -> None:  # CPU: exact (the GPU path
     want = np.asarray(Image.fromarray(f).resize((128, 128)), np.float32) / 255
     got = resize_frame(torch.from_numpy(f).permute(2, 0, 1)[None].float() / 255, 128)[0].permute(1, 2, 0).numpy()
     np.testing.assert_array_equal(got, want)
+
+
+def _masks(*boxes: tuple[int, int, int, int]) -> torch.Tensor:
+    """`[1, M, 64, 64]` logits, +1 inside each `(x0, y0, x1, y1)` box (inclusive, low-res pixels), -1 outside."""
+    low = -torch.ones(1, len(boxes), 64, 64)
+    for m, (x0, y0, x1, y1) in enumerate(boxes):
+        low[0, m, y0 : y1 + 1, x0 : x1 + 1] = 1.0
+    return low
+
+
+def test_samurai_motion_selects_by_box_once_stable() -> None:
+    motion = Motion(1, 0.25)
+    near, far = (10, 10, 20, 20), (40, 40, 50, 50)
+    for _ in range(STABLE_FRAMES):  # unstable: the best predicted IoU (the filter follows the near box)
+        assert motion.select(_masks(near, far), torch.tensor([[0.9, 0.5]]), 64).item() == 0
+    assert motion.stable.item() == STABLE_FRAMES
+    # stable: the box the filter predicts wins over a higher predicted IoU (0.25 * 1 + 0.75 * 0.8 > 0.75 * 0.9)
+    assert motion.select(_masks(far, near), torch.tensor([[0.9, 0.8]]), 64).item() == 1
+    assert motion.select(_masks(far, near), torch.tensor([[0.2, 0.1]]), 64).item() == 1  # chosen IoU < 0.3: reset
+    assert motion.stable.item() == 0
+
+
+def test_samurai_memory_keeps_confident_frames() -> None:
+    motion = Motion(2, 0.25)
+    for t in range(1, 12):
+        motion.best_iou = np.array([0.9, 0.9 if t % 3 else 0.1], np.float32)  # object 1: weak every third frame
+        kept = motion.kept(t, torch.tensor([[1.0], [1.0 if t != 4 else -1.0]]))  # object 1 absent on frame 4
+    groups = motion.memory(12)
+    assert groups == {(6, 7, 8, 9, 10, 11): [0], (2, 5, 7, 8, 10, 11): [1]}
+    assert kept == {2, 5, 6, 7, 8, 9, 10, 11}
+    assert motion.memory(1) == {(): [0, 1]}
 
 
 @pytest.mark.slow

@@ -297,6 +297,11 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
             for prefix, p in clip_prompts().items():
                 tr = m.track(clip(), **p)
                 maps |= {f"{prefix}pred_masks": tr.pred_masks, f"{prefix}object_score_logits": tr.object_score_logits}
+        if want is not None and "samurai_box_pred_masks" in want:  # SAMURAI: the box prompt on a longer clip
+            b = m.backend
+            sm = API[TASK[ref]].load(ref, mode=b.mode, device=b.device, dtype=b.dtype, options={"samurai": True})
+            tr = sm.track(clip(len(want["samurai_box_object_score_logits"])), **clip_prompts()["video_box_"])
+            maps |= {"samurai_box_pred_masks": tr.pred_masks, "samurai_box_object_score_logits": tr.object_score_logits}
         return {k: v.float().cpu() for k, v in maps.items()}, m.backend
     elif task == "detection":  # instances in score order; labels and masks stored as float
         r = m(img)

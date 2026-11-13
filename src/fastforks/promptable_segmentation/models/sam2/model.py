@@ -55,6 +55,8 @@ class Params:
     global_att_blocks: list[int]  # blocks with global attention
     window_spec: list[int]  # attention window per stage
     pos_embed_size: list[int]  # background position-embedding grid (upstream window_pos_embed_bkg_spatial_size)
+    kf_score_weight: float  # SAMURAI motion weight
+    samurai: bool  # option: `track` as SAMURAI
 
 
 class Sam2Image(torch.nn.Module):
@@ -189,7 +191,7 @@ class _Sam2(Runner):
         boxes: torch.Tensor | None,
         masks: torch.Tensor | None,
     ) -> dict[str, torch.Tensor]:
-        """Upstream `SAM2VideoPredictor`: frame 0 prompts, then `propagate_in_video` (see `video.py`)."""
+        """Upstream `SAM2VideoPredictor`: frame 0 prompts, then `propagate_in_video` (`video.py`; option `samurai`)."""
         tracker, s, dev = self._tracker(), self.ctx.params.image_size, self.ctx.device
         coords = labs = mask = None
         if masks is not None:
@@ -222,7 +224,8 @@ class _Sam2(Runner):
             out["object_score_logits"][t] = obj[:, 0]
 
         feats = (self.embed(resize_frame(frames(t), s)) for t in range(n_frames))
-        tracker.run(feats, n_frames, coords=coords, labels=labs, mask=mask, emit=emit)
+        kf = self.ctx.params.kf_score_weight if self.ctx.params.samurai else None
+        tracker.run(feats, n_frames, coords=coords, labels=labs, mask=mask, emit=emit, kf_weight=kf)
         return out
 
 

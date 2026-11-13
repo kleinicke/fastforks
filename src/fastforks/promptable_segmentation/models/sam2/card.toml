@@ -1,7 +1,8 @@
 schema = 2
 name = "Segment Anything 2.1 (SAM 2.1)"
-summary = "Segment Anything 2.1 (Ravi et al. 2024), image mode: promptable segmentation with a hierarchical Hiera image encoder, an FPN neck and the SAM prompt encoder / mask decoder with high-resolution skip features; masks from points, boxes and mask logits. `track` follows objects prompted on the first frame through a video with the original memory attention / memory encoder (`SAM2VideoPredictor`, forward, memory features in bfloat16 as upstream); the memory side has no fused kernels yet. The portable `module()` is the image encoder only."
+summary = "Segment Anything 2.1 (Ravi et al. 2024), image mode: promptable segmentation with a hierarchical Hiera image encoder, an FPN neck and the SAM prompt encoder / mask decoder with high-resolution skip features; masks from points, boxes and mask logits. `track` follows objects prompted on the first frame through a video with the original memory attention / memory encoder (`SAM2VideoPredictor`, forward, memory features in bfloat16 as upstream); the memory side has no fused kernels yet. Option `samurai` tracks as SAMURAI (Yang et al. 2024: a Kalman filter on the mask box picks among the multimask outputs, and the memory keeps only confident frames); upstream SAMURAI tracks one object, here every object has its own filter and memory. The portable `module()` is the image encoder only."
 tier = "stable"
+uses = ["box_kalman"]  # fastforks.shared modules this family imports (SAMURAI)
 outputs = ["pred_masks", "iou_scores"]
 
 [upstream]
@@ -21,6 +22,10 @@ input = "imagenet"  # original SAM2Transforms: ToTensor (/255), Resize to image_
 
 [params]
 image_size = 1024  # the encoder input is resized to image_size x image_size (no aspect-ratio padding)
+kf_score_weight = 0.25  # SAMURAI: weight of the Kalman box IoU against the predicted mask IoU (samurai configs t / s / b+; large 0.15)
+
+[options]
+samurai = { default = false }  # `track` as SAMURAI (yangchris11/samurai 76ba1959, configs/samurai): motion-aware mask selection and memory
 
 [modes.portable]
 cuda_dtype = "float16"  # image encoder; prompt encoder / mask decoder stay float32
@@ -50,5 +55,5 @@ weights = [{ name = "sam2.1_hiera_base_plus.pt", size = 323606802, sha256 = "a23
 [[variants]]
 id = "sam2.1-hiera-large"
 revision = 1
-params = { embed_dim = 144, num_heads = 2, stages = [2, 6, 36, 4], global_att_blocks = [23, 33, 43], window_spec = [8, 4, 16, 8], pos_embed_size = [7, 7] }
+params = { embed_dim = 144, num_heads = 2, stages = [2, 6, 36, 4], global_att_blocks = [23, 33, 43], window_spec = [8, 4, 16, 8], pos_embed_size = [7, 7], kf_score_weight = 0.15 }
 weights = [{ name = "sam2.1_hiera_large.pt", size = 898083611, sha256 = "2647878d5dfa5098f2f8649825738a9345572bae2d4350a2468587ece47dd318", url = "https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt" }]

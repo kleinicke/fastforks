@@ -43,6 +43,9 @@ In this order, unless something more useful turns up:
   kernels runner. Weights: the pinned HF URL of the card (also in `data/ff-weights/megaloc/`).
 - BoQ (`boq-dinov2`, retrieval): portable float32 MPS goldens and Mac speed rows at 480x640. No Metal kernels runner.
   Weights: the pinned GitHub release URL of the card (also in `data/ff-weights/boq/`).
+- SAMURAI (`samurai` option of the `sam2.1-hiera-*` cards, promptable_segmentation `track`): portable float32 MPS
+  goldens (`samurai_box_*` keys). The sam2 goldens were regenerated, so all sam2 MPS validation is needed again. Golden
+  files in `golden_ports/`. No new weights.
 - ByteTrack multi-object tracking (`tracking.ByteTracker`): CPU numpy, nothing device-specific; optional Mac row of
   `tools/eval_mot.py track` (tracker ms per frame). No weights.
 - LW-DETR (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection): portable MPS goldens and Mac speed rows

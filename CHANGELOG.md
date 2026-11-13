@@ -21,6 +21,13 @@
   vs 13.5 ms original fp32 (7.44 ms `half()`), peak 256 MB vs 430 MB. St Lucia recall@1 99.86 for all modes and the
   original. The ResNet-50 variant is not ported.
 
+- SAMURAI motion-aware tracking (`samurai` option of the `sam2.1-hiera-*` cards, `track`; Apache-2.0 code, the SAM 2.1
+  weights): a Kalman filter on each object's mask box picks among the multimask outputs once stable (weighted with the
+  predicted IoU, `kf_score_weight` 0.25, 0.15 for large) and the memory bank keeps the confident frames; several
+  objects at once. LaSOT subset (6 videos, 10.5k frames, base-plus fp16): AUC 73.58 kernels / 76.93 portable vs 73.73
+  original SAMURAI (portable recovers the target on mouse-8; without it 81.20 / 81.19 vs 81.37), 52.5 ms per frame
+  kernels, 59.2 ms portable vs 90.9 ms original.
+
 - Multi-object tracking (`tracking.ByteTracker`, `tracking.track_objects`; MIT, after ByteTrack): ByteTrack's two-stage
   association of per-frame detections (D-FINE / RT-DETR / RF-DETR results or `[N, 5]` arrays), batched Kalman filter
   (`shared/box_kalman`, also for SAMURAI) and an exact linear assignment without scipy. MOT17 train with D-FINE-X
