@@ -7,8 +7,9 @@ SPEC = TaskSpec(
     extras=False,
     required=frozenset({"logits"}),
     output_keys=LABELS,
-    io_keys=VALUE_KEYS | {"resize", "crop", "interpolation"},
+    io_keys=VALUE_KEYS | {"pad_square", "resize", "stretch", "crop", "interpolation"},
     order=20,
+    optional_output_keys={"probs": ("softmax", "sigmoid")},  # sigmoid: multi-label (taggers)
     inputs=("image",),
     export_size=(224, 224),  # used only if the card has no crop / resize
 )

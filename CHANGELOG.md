@@ -17,6 +17,12 @@
   kernels, 18.4 ms portable vs 77.3 ms original fp16; L 69.3 / 125 vs 438 ms; peak 0.35x of the original. Accuracy:
   GPU goldens against upstream (no prompt-depth benchmark data here).
 
+- WD v3 anime taggers (`wd-vit-tagger-v3`, `wd-convnext-tagger-v3`, `wd-vit-large-tagger-v3`,
+  `wd-eva02-large-tagger-v3`, classification; Apache-2.0 weights): multi-label (`result.probs` is the sigmoid), white
+  square padding (card `[io] pad_square`), BGR swapped into the first convolution at load. 448x448: ViT 4.0 ms
+  portable vs 19.0 ms original fp32 (5.8 ms fp16); EVA-02 large 14.1 ms kernels vs 84.4 ms, peak 0.67 GB vs 1.3 GB.
+  Tags at the reference threshold (0.35) agree with the original fp32 at F1 0.998 to 0.999 (200 images).
+
 - DAT super-resolution (`dat-x4`, `dat-2-x4`, `dat-light-x4`, restoration; Apache-2.0 code and weights): attention
   as one SDPA call (head size padded to 32). 512x512 DAT x4: 1421 ms kernels, 1565 ms portable (1063 ms compile) vs
   5633 ms original fp32 (9564 ms `.half()`), peak 2.7 GB vs 4.3 GB; DAT-light: 268 ms vs 2246 ms, 1.5 GB vs 2.7 GB.

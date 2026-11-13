@@ -813,33 +813,27 @@ def _segnext(a: Any, full: str) -> Any:  # noqa: ANN401
 
 
 def _convnext(a: Any, full: str) -> Any:  # noqa: ANN401
-    """A timm classifier as `tools/golden/libnet_classification.py` builds it, with the card's `[io]` transform on GPU.
+    """A classifier as `tools/golden/libnet_classification.py` builds it, with the card's `[io]` transform on GPU.
 
-    The bench's classification adapter for a family it does not list: antialiased resize of the shorter side, clamp
-    after bicubic, centre crop, normalisation, network, all in the timed call.
+    The bench's classification adapter for a family it does not list: the golden's `prepare` (pad to square,
+    antialiased resize, clamp after bicubic, centre crop, normalisation) and network, all in the timed call.
     """
     from fastforks._core import registry  # noqa: PLC0415
 
     g = _golden("libnet_classification")
     card, variant = registry.resolve("classification", full)
     io = variant.io
-    a.sizes = ((io.crop, io.crop),)  # Benchmark each classifier at its native crop, including 384/512 variants.
-    net = g._timm({**card.params, **variant.params}["arch"]).eval()  # noqa: SLF001 - the golden's builder
+    side = io.crop or io.resize
+    a.sizes = ((side, side),)  # Benchmark each classifier at its native input, including 384/512 variants.
+    net = g.reference(card, variant)[0].eval()
     if card.family == "fastvit":
         from timm.utils import reparameterize_model  # noqa: PLC0415 - authors' inference recipe
 
         net = reparameterize_model(net, inplace=True)
         a.note = "timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call"
     net = net.cuda()
-    tf = g.TF
     a.COMMIT = f"{card.upstream}@{card.upstream_commit}"  # as the bench's classification rows
-
-    def fn(x: Any) -> Any:  # noqa: ANN401 - uint8 CHW
-        t = tf.resize(x[None].float() / 255, [io.resize], interpolation=tf.InterpolationMode.BICUBIC, antialias=True)
-        t = tf.center_crop(t.clamp(0, 1), [io.crop])
-        return net(tf.normalize(t, list(g.IMAGENET_MEAN), list(g.IMAGENET_STD)))[0]
-
-    return fn
+    return lambda x: net(g.prepare(x[None].float() / 255, io))[0]
 
 
 def efficientvit_sam_recipe() -> Any:  # noqa: ANN401 - tools/golden/efficientvit_sam.py with upstream importable
@@ -1831,6 +1825,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "shvit": _Local("classification", _convnext, ((224, 224),)),
     "starnet": _Local("classification", _convnext, ((224, 224),)),
     "fastvit": _Local("classification", _convnext, ((224, 224),)),  # the authors' reparameterized inference
+    "wd_tagger": _Local("classification", _convnext, ((448, 448),)),  # wdv3_timm.py: pad square, BGR
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),

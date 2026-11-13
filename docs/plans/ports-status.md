@@ -36,6 +36,9 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- WD v3 taggers (`wd-vit-tagger-v3`, `wd-convnext-tagger-v3`, `wd-vit-large-tagger-v3`, `wd-eva02-large-tagger-v3`,
+  classification): portable MPS goldens and Mac speed rows (448x448). Weights: the pinned Hugging Face URLs of the
+  card (also in `/home/florian/projects/data/ff-weights/wd_tagger/`).
 - DAT (`dat-x4`, `dat-2-x4`, `dat-light-x4`, restoration): portable MPS goldens and Mac speed rows (512x512; MPS runs
   float32). No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
   `/home/florian/projects/data/ff-weights/dat/`).
