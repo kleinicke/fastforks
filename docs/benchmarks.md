@@ -1044,9 +1044,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
-| rife-4.25 | 24.5 | 36.0 | 31.4 | 0.8x | 1.1x | 987 / 1154 | 999 / 1254 | 1029 / 1516 |
-| rife-4.25-lite | 21.3 | 32.7 | 28.9 | 0.7x | 1.1x | 1012 / 1214 | 991 / 1174 | 1024 / 1516 |
-| rife-4.26 | 24.2 | 35.9 | 31.4 | 0.8x | 1.1x | 1004 / 1154 | 999 / 1254 | 1029 / 1516 |
+| rife-4.25 | 24.5 | 25.0 | 21.5 | 1.1x | 1.2x | 987 / 1154 | 755 / 894 | 967 / 1076 |
+| rife-4.25-lite | 21.3 | 21.1 | 18.3 | 1.2x | 1.2x | 1012 / 1214 | 754 / 854 | 950 / 1056 |
+| rife-4.26 | 24.2 | 25.1 | 21.4 | 1.1x | 1.2x | 1004 / 1154 | 755 / 896 | 967 / 1076 |
 
 ### Restoration, synthetic, 512x512
 
@@ -1529,9 +1529,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | tapnext | 16.92 | 2.72 | 2.63 | 2.17 | 0.69 | 0.56 |
 | track-on-r | 0.88 | 0.24 | 1.11 | 2.91 | 1.99 | 1.72 |
 | track-on2 | 3.77 | 0.46 | 1.17 | 3.63 | 2.64 | 1.75 |
-| rife-4.25 | 1.42 | 0.05 | 1.10 | 0.27 | 0.26 | 0.14 |
-| rife-4.25-lite | 0.18 | 0.05 | 1.14 | 0.12 | 0.26 | 0.14 |
-| rife-4.26 | 0.18 | 0.09 | 1.12 | 0.05 | 0.23 | 0.14 |
+| rife-4.25 | 1.42 | 0.31 | 1.50 | 0.27 | 0.49 | 0.20 |
+| rife-4.25-lite | 0.18 | 1.00 | 1.11 | 0.12 | 0.23 | 0.18 |
+| rife-4.26 | 0.18 | 0.78 | 1.15 | 0.05 | 0.24 | 0.20 |
 | realesrgan-x2plus | 1.54 | 0.18 | 1.32 | 0.42 | 0.21 | 0.11 |
 | realesrgan-x4plus | 1.62 | 0.19 | 1.32 | 1.64 | 0.79 | 0.42 |
 | realesrgan-x4plus-anime-6b | 1.30 | 0.06 | 2.32 | 0.50 | 0.31 | 0.18 |
@@ -1974,9 +1974,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | tapnext | 480x854 | 529 ms | 398 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 382 ms | 40.5 s | – | 1220 / 1294 | 1164 / 1272 | 1313 / 1374 | – |
 | track-on-r | 480x854 | 1188 ms | fails: worker rc=124 | fails: ValueError: not enough values to unpack (expected 4, got 2) | 1102 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |
 | track-on2 | 480x854 | 1238 ms | fails: worker rc=124 | fails: ValueError: not enough values to unpack (expected 4, got 2) | 1120 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |
-| rife-4.25 | 1080x1920 | 36.0 ms | 44.9 ms | 17.6 ms | 31.4 ms | 36.1 s | 56.3 s | 999 / 1254 | 1094 / 1234 | 1029 / 1516 | 696 / 714 |
-| rife-4.25-lite | 1080x1920 | 32.7 ms | 42.3 ms | 14.1 ms | 28.9 ms | 34.9 s | 49.5 s | 991 / 1174 | 1061 / 1374 | 1024 / 1516 | 696 / 714 |
-| rife-4.26 | 1080x1920 | 35.9 ms | 44.5 ms | 17.6 ms | 31.4 ms | 34.9 s | 54.9 s | 999 / 1254 | 1094 / 1234 | 1029 / 1516 | 696 / 714 |
+| rife-4.25 | 1080x1920 | 25.0 ms | 44.9 ms | 17.6 ms | 21.5 ms | 36.1 s | 56.3 s | 755 / 894 | 1094 / 1234 | 967 / 1076 | 696 / 714 |
+| rife-4.25-lite | 1080x1920 | 21.1 ms | 42.3 ms | 14.1 ms | 18.3 ms | 34.9 s | 49.5 s | 754 / 854 | 1061 / 1374 | 950 / 1056 | 696 / 714 |
+| rife-4.26 | 1080x1920 | 25.1 ms | 44.5 ms | 17.6 ms | 21.4 ms | 34.9 s | 54.9 s | 755 / 896 | 1094 / 1234 | 967 / 1076 | 696 / 714 |
 | realesrgan-x2plus | 512x512 | 128 ms | 85.2 ms | 59.7 ms | 80.0 ms | 33.2 s | 40.3 s | 589 / 654 | 323 / 394 | 333 / 394 | 476 / 500 |
 | realesrgan-x4plus | 512x512 | 632 ms | 354 ms | 273 ms | 402 ms | 29.9 s | 55.2 s | 2245 / 2474 | 1091 / 1394 | 1220 / 1434 | 1546 / 1594 |
 | realesrgan-x4plus-anime-6b | 512x512 | 206 ms | 114 ms | 83.1 ms | 132 ms | 10.0 s | 36.7 s | 2221 / 2450 | 1068 / 1370 | 1197 / 1410 | 1505 / 1552 |

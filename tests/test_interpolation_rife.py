@@ -11,6 +11,7 @@ from fastforks import interpolation
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
 from fastforks._core.errors import InputError
+from fastforks.interpolation.models.rife.model import _interpolate
 from fastforks.interpolation.models.rife.net import IFNet
 
 if TYPE_CHECKING:
@@ -56,3 +57,18 @@ def test_bad_timestep_is_rejected(weights: Path, timestep: object) -> None:
     a, b = synthetic_pair(32, 32, torch.device("cpu"))
     with pytest.raises(InputError, match="timestep"):
         model(a, b, timestep=timestep)
+
+
+@pytest.mark.parametrize(("scales", "timestep"), [([16, 8, 4, 2, 1], 0.5), ([32, 16, 8, 4, 1], 0.3)])  # 4.25, lite
+def test_reordered_forward_matches_upstream(scales: list[int], timestep: float) -> None:
+    """The runners' forward (warps and resizes only where the blocks read them) is upstream `IFNet.forward`."""
+    torch.manual_seed(0)
+    net = IFNet().eval()
+    a, b = synthetic_pair(128, 256, torch.device("cpu"), shift=5)
+    x = torch.cat((a, b), 1)
+    with torch.inference_mode():
+        want = net(x, timestep, scales)[2][-1]
+        got = _interpolate(net, x, timestep, scales)
+        got_t = _interpolate(net, x, torch.full((1, 1, 1, 1), timestep), scales)  # the time as a tensor (CUDA graphs)
+    torch.testing.assert_close(got, want, rtol=0, atol=1e-5)
+    torch.testing.assert_close(got_t, got, rtol=0, atol=0)
