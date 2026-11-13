@@ -56,9 +56,9 @@ def test_walk_matches_timm(arch: str, side: tuple[int, int]) -> None:
 
 
 def _radio_reference(
-    sd: dict[str, torch.Tensor], x: torch.Tensor, blocks: Any, *, align_corners: bool
+    sd: dict[str, torch.Tensor], x: torch.Tensor, blocks: Any, *, align_corners: bool, summary: int
 ) -> tuple[Any, Any]:
-    """Upstream C-RADIOv3 eval forward (`RADIOModel.forward`, `ViTPatchGenerator`, CPE mode), restated: (summary, y)."""
+    """Upstream C-RADIO eval forward (`RADIOModel.forward`, `ViTPatchGenerator`, CPE mode), restated: (summary, y)."""
     m = "radio_model.model.patch_generator."
     x = (x - sd["radio_model.input_conditioner.norm_mean"]) / sd["radio_model.input_conditioner.norm_std"]
     b, _, hh, ww = x.shape
@@ -72,12 +72,15 @@ def _radio_reference(
         pos = pos[..., :py, :px]
     y = torch.cat([sd[m + "cls_token.token"][None].expand(b, -1, -1), patches + pos.flatten(2).permute(0, 2, 1)], 1)
     y = blocks(y)
-    return y[:, :4][:, sd["radio_model.summary_idxs"]].flatten(1), y
+    return y[:, :summary][:, sd["radio_model.summary_idxs"]].flatten(1), y
 
 
-@pytest.mark.parametrize("align_corners", [False, True])  # upstream: L / g, B / H
+@pytest.mark.parametrize("align_corners", [False, True])  # upstream: v3 L / g and v4, v3 B / H
 @pytest.mark.parametrize("side", [(64, 80), (48, 48)])
-def test_c_radio_matches_upstream(side: tuple[int, int], *, align_corners: bool) -> None:
+@pytest.mark.parametrize(("summary", "prefix", "mlp_ratio"), [(4, 8, 4.0), (3, 10, 3.5)])  # v3, v4 (SO400M-like MLP)
+def test_c_radio_matches_upstream(
+    side: tuple[int, int], summary: int, prefix: int, mlp_ratio: float, *, align_corners: bool
+) -> None:
     from types import SimpleNamespace  # noqa: PLC0415
 
     from fastforks.features.models.c_radio import model as radio  # noqa: PLC0415
@@ -89,6 +92,7 @@ def test_c_radio_matches_upstream(side: tuple[int, int], *, align_corners: bool)
         embed_dim=d,
         depth=2,
         num_heads=2,
+        mlp_ratio=mlp_ratio,
         init_values=0.1,
         num_classes=0,
         class_token=False,
@@ -102,9 +106,9 @@ def test_c_radio_matches_upstream(side: tuple[int, int], *, align_corners: bool)
     sd |= {
         pg + "embedder.weight": torch.randn(d, 768) * 0.05,
         pg + "pos_embed": torch.randn(1, 128 * 128, d),
-        pg + "cls_token.token": torch.randn(8, d),
-        "radio_model.model.reg_token": torch.randn(1, 4, d),
-        "radio_model.summary_idxs": torch.tensor([0, 1, 2]),
+        pg + "cls_token.token": torch.randn(prefix, d),
+        "radio_model.model.reg_token": torch.randn(1, prefix - summary, d),
+        "radio_model.summary_idxs": torch.tensor([0, 1, 2][: summary - 1]),
         "radio_model.input_conditioner.norm_mean": torch.tensor(mean).view(3, 1, 1),
         "radio_model.input_conditioner.norm_std": torch.tensor(std).view(3, 1, 1),
     }
@@ -113,6 +117,8 @@ def test_c_radio_matches_upstream(side: tuple[int, int], *, align_corners: bool)
         embed_dim=d,
         depth=2,
         num_heads=2,
+        mlp_ratio=mlp_ratio,
+        summary_tokens=summary,
         layer_scale=True,
         pos_align_corners=align_corners,
         fp16_accumulate=False,
@@ -129,11 +135,11 @@ def test_c_radio_matches_upstream(side: tuple[int, int], *, align_corners: bool)
     run = radio.Portable(ctx)  # type: ignore[arg-type] - a stand-in context
     x = torch.rand(2, 3, *side)
     with torch.inference_mode():
-        want_sum, want = _radio_reference(sd, x, ref_net.blocks, align_corners=align_corners)
+        want_sum, want = _radio_reference(sd, x, ref_net.blocks, align_corners=align_corners, summary=summary)
         norm = (x - torch.tensor(mean).view(1, 3, 1, 1)) / torch.tensor(std).view(1, 3, 1, 1)
         got = run(norm, ())
-    assert run.num_prefix_tokens == 8
-    assert run.num_register_tokens == 4
+    assert run.num_prefix_tokens == prefix
+    assert run.num_register_tokens == prefix - summary
     torch.testing.assert_close(got["last_hidden_state"], want, rtol=1e-4, atol=1e-5)
     torch.testing.assert_close(got["pooler_output"], want_sum, rtol=1e-4, atol=1e-5)
 

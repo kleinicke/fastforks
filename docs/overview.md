@@ -454,7 +454,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Features
 
-56 models; size 224x224.
+58 models; size 224x224.
 
 - Fastest: [`pe-spatial-t16-512`](models/features.md#perception-encoder) (0.7 ms).
 - Fastest commercially usable: [`pe-spatial-t16-512`](models/features.md#perception-encoder) (0.7 ms).
@@ -472,7 +472,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`dinov3-convnext-tiny`](models/features.md#dinov3-convnext) | yes | 3.0 (224x224) | 3.0 | 1.2 | 2.5x vs original (224x224) | 86 |
 | [`dinov3-vitb16`](models/features.md#dinov3-vit) | yes | 7.0 (224x224) | 3.7 | 1.3 | 5.5x vs original (224x224) | 168 |
 | [`clip-b16-openai`](models/features.md#clip) | yes | 5.7 (224x224) | 3.4 | 1.4 | 4.2x vs original (224x224) | 324 |
-| [`c-radio-v3-b`](models/features.md#c-radiov3) | yes | 5.8 (224x224) | 3.0 | 1.4 | 4.2x vs original (224x224) | 284 |
+| [`c-radio-v3-b`](models/features.md#c-radiov3--v4) | yes | 5.8 (224x224) | 3.0 | 1.4 | 4.2x vs original (224x224) | 284 |
 | [`clip-b16-laion2b`](models/features.md#clip) | yes | 5.3 (224x224) | 3.1 | 1.4 | 3.9x vs original (224x224) | 270 |
 | [`pe-spatial-b16-512`](models/features.md#perception-encoder) | yes | 7.0 (224x224) | 4.7 | 1.4 | 5.1x vs original (224x224) | 274 |
 | [`siglip2-b16-256`](models/features.md#siglip-2) | yes | 6.1 (224x224) | 3.3 | 1.4 | 4.3x vs original (224x224) | 284 |
@@ -487,12 +487,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`dinov3-convnext-base`](models/features.md#dinov3-convnext) | yes | 7.4 (224x224) | 5.7 | 2.2 | 3.4x vs original (224x224) | 200 |
 | [`dinov3-vitl16`](models/features.md#dinov3-vit) | yes | 17.7 (224x224) | 6.7 | 3.0 | 5.8x vs original (224x224) | 616 |
 | [`convnext_large.fb_in22k`](models/features.md#convnext) | yes | 10.5 (224x224) | 5.5 | 3.2 | 3.3x vs original (224x224) | 413 |
-| [`c-radio-v3-l`](models/features.md#c-radiov3) | yes | 10.7 (224x224) | 5.5 | 3.3 | 3.3x vs original (224x224) | 888 |
+| [`c-radio-v3-l`](models/features.md#c-radiov3--v4) | yes | 10.7 (224x224) | 5.5 | 3.3 | 3.3x vs original (224x224) | 888 |
 | [`siglip2-l16-512`](models/features.md#siglip-2) | yes | 11.1 (224x224) | 5.7 | 3.3 | 3.4x vs original (224x224) | 887 |
 | [`siglip2-l16-256`](models/features.md#siglip-2) | yes | 11.1 (224x224) | 5.7 | 3.3 | 3.3x vs original (224x224) | 883 |
 | [`dinov3-convnext-large`](models/features.md#dinov3-convnext) | yes | 9.6 (224x224) | 5.4 | 3.6 | 2.7x vs original (224x224) | 441 |
 | [`siglip2-so400m16-512`](models/features.md#siglip-2) | yes | 12.4 (224x224) | 6.4 | 4.2 | 3.0x vs original (224x224) | 1185 |
 | [`siglip2-so400m16-256`](models/features.md#siglip-2) | yes | 12.6 (224x224) | 6.4 | 4.2 | 3.0x vs original (224x224) | 1181 |
+| [`c-radio-v4-so400m`](models/features.md#c-radiov3--v4) | yes | 11.5 (224x224) | 6.3 | 4.2 | 2.7x vs original (224x224) | 864 |
 | [`siglip2-so400m14-378`](models/features.md#siglip-2) | yes | 12.5 (224x224) | 6.4 | 4.3 | 2.9x vs original (224x224) | 1185 |
 | [`siglip2-so400m14-224`](models/features.md#siglip-2) | yes | 12.4 (224x224) | 6.4 | 4.3 | 2.9x vs original (224x224) | 1182 |
 | [`tipsv2-l14`](models/features.md#tipsv2) | yes | 14.2 (224x224) | 6.2 | 4.6 | 3.1x vs original (224x224) | 624 |
@@ -505,12 +506,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`clip-l14-datacompxl`](models/features.md#clip) | yes | 10.1 (224x224) | 6.0 | 4.8 | 2.1x vs original (224x224) | 862 |
 | [`pe-spatial-l14-448`](models/features.md#perception-encoder) | yes | 17.2 (224x224) | 8.8 | 4.9 | 3.5x vs original (224x224) | 865 |
 | [`pe-core-l14-336`](models/features.md#perception-encoder) | yes | 17.7 (224x224) | 9.1 | 5.0 | 3.6x vs original (224x224) | 889 |
-| [`c-radio-v3-h`](models/features.md#c-radiov3) | yes | 17.0 (224x224) | 8.9 | 7.4 | 2.3x vs original (224x224) | 1789 |
+| [`c-radio-v4-h`](models/features.md#c-radiov3--v4) | yes | 17.1 (224x224) | 8.9 | 7.4 | 2.3x vs original (224x224) | 1289 |
+| [`c-radio-v3-h`](models/features.md#c-radiov3--v4) | yes | 17.0 (224x224) | 8.9 | 7.4 | 2.3x vs original (224x224) | 1789 |
 | [`clip-h14-378-dfn5b`](models/features.md#clip) | no | 19.5 (224x224) | 11.4 | 8.2 | 2.4x vs original (224x224) | 2153 |
 | [`clip-h14-dfn5b`](models/features.md#clip) | no | 19.4 (224x224) | 11.4 | 8.2 | 2.4x vs original (224x224) | 2150 |
 | [`clip-h14-laion2b`](models/features.md#clip) | yes | 19.3 (224x224) | 11.2 | 8.3 | 2.3x vs original (224x224) | 1750 |
 | [`dinov3-vith16plus`](models/features.md#dinov3-vit) | yes | 25.9 (224x224) | 12.5 | 8.5 | 3.1x vs original (224x224) | 1645 |
-| [`c-radio-v3-g`](models/features.md#c-radiov3) | yes | 29.5 (224x224) | 14.6 | 10.6 | 2.8x vs original (224x224) | 3166 |
+| [`c-radio-v3-g`](models/features.md#c-radiov3--v4) | yes | 29.5 (224x224) | 14.6 | 10.6 | 2.8x vs original (224x224) | 3166 |
 | [`siglip2-g16-256`](models/features.md#siglip-2) | yes | 30.9 (224x224) | 14.7 | 10.6 | 2.9x vs original (224x224) | 3163 |
 | [`siglip2-g16-384`](models/features.md#siglip-2) | yes | 31.0 (224x224) | 14.7 | 10.6 | 2.9x vs original (224x224) | 3165 |
 | [`dinov2-vitg14-reg`](models/features.md#dinov2) | yes | 34.2 (224x224) | 18.7 | 12.7 | 2.7x vs original (224x224) | 2222 |

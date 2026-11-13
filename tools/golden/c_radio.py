@@ -1,11 +1,11 @@
-"""Goldens of C-RADIOv3 (features).
+"""Goldens of C-RADIOv3 / v4 (features).
 
-Reference: NVIDIA's own code, `transformers.AutoModel.from_pretrained("nvidia/C-RADIOv3-<size>", revision=<the
+Reference: NVIDIA's own code, `transformers.AutoModel.from_pretrained("nvidia/C-RADIOv<3|4>-<size>", revision=<the
 variant's weight revision>, trust_remote_code=True)` (`hf_model.RADIOModel`; needs `einops`), CPU float32, eval.
 Input: the synthetic image resized as `fastforks.features` does (shorter side 112, each side the nearest multiple of
 16, antialiased bicubic, clamped) in [0, 1]: upstream standardises it itself. Outputs: `last_hidden_state` = the
-final norm's output (all tokens; upstream's `features` = `[:, 8:]`, checked), `pooler_output` = upstream's
-`summary`, `hidden_states.0` = the first block's input, `.1` = its output (hooks).
+final norm's output (all tokens; upstream's `features` = the patches after the prefix tokens, checked),
+`pooler_output` = upstream's `summary`, `hidden_states.0` = the first block's input, `.1` = its output (hooks).
 
     FASTFORKS_GOLDEN_PATH=... python tools/golden/c_radio.py [REF ...]
 """
@@ -26,7 +26,9 @@ TASK = "features"
 FAMILY = "c_radio"
 SIZE = 112  # tests/test_golden.py FEATURES_SIZE
 LAYERS = (0, 1)  # tests/test_golden.py FEATURES_LAYERS
-_URL = re.compile(r"^https://huggingface\.co/(nvidia/C-RADIOv3-[A-Za-z]+)/resolve/([0-9a-f]{40})/model\.safetensors$")
+_URL = re.compile(
+    r"^https://huggingface\.co/(nvidia/C-RADIOv[34]-[A-Za-z0-9]+)/resolve/([0-9a-f]{40})/model\.safetensors$"
+)
 
 
 def _input(multiple: int) -> torch.Tensor:
@@ -50,7 +52,8 @@ def _reference(model: Any, x: torch.Tensor) -> dict[str, torch.Tensor]:  # noqa:
         out = model(x)
     for h in hooks:
         h.remove()
-    torch.testing.assert_close(out.features, hs[-1][:, 8:], rtol=0, atol=0)  # the token layout we document
+    prefix = vit.patch_generator.num_cls_tokens + vit.patch_generator.num_registers
+    torch.testing.assert_close(out.features, hs[-1][:, prefix:], rtol=0, atol=0)  # the token layout we document
     return {"last_hidden_state": hs[-1], "pooler_output": out.summary} | {f"hidden_states.{i}": hs[i] for i in LAYERS}
 
 
