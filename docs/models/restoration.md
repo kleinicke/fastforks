@@ -26,7 +26,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`span-x4`](#span) | yes | 14.6, 1.8x | 522, 0.81x |
 | [`swinir-l-x4-real`](#swinir) | yes | 1044, 3.6x | 2152, 0.78x |
 | [`swinir-m-x2`](#swinir) | yes | 558, 5.8x | 1754, 0.96x |
-| [`swinir-m-x4`](#swinir) | yes | 730, 4.8x | 1934, 0.94x |
+| [`swinir-m-x4`](#swinir) | yes | 580, 6.0x | 1456, 0.71x |
 | [`swinir-m-x4-real`](#swinir) | yes | 588, 4.2x | 1954, 0.66x |
 
 <a id="codeformer"></a>
@@ -320,7 +320,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `swinir-m-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3497<br>907<br>730<br>795<br>727 | 1500 / 2058<br>1572 / 2074<br>1762 / 1934<br>1684 / 1796<br>5525 / 5604 |
+| `swinir-m-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3497<br>767<br>580<br>795<br>727 | 1500 / 2058<br>1499 / 2054<br>1390 / 1456<br>1684 / 1796<br>5525 / 5604 |
 | `swinir-m-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3252<br>1192<br>558<br>781<br>719 | 1500 / 1818<br>1386 / 1574<br>1577 / 1754<br>1683 / 1796<br>5088 / 5144 |
 | `swinir-m-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2462<br>1242<br>588<br>807<br>733 | 2321 / 2978<br>2387 / 3034<br>1577 / 1954<br>1683 / 1796<br>5427 / 5506 |
 | `swinir-l-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3709<br>2099<br>1044<br>1426<br>1118 | 2357 / 2746<br>2425 / 2672<br>1872 / 2152<br>2153 / 2876<br>9182 / 9282 |

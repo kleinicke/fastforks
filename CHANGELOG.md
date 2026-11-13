@@ -77,11 +77,11 @@
   (every 2nd image: 235) max F-beta 0.527 kernels / portable vs 0.528 original, MAE 0.149 vs 0.148.
 
 - SwinIR super-resolution (`swinir-m-x4`, `swinir-m-x2`, `swinir-m-x4-real`, `swinir-l-x4-real`, restoration;
-  Apache-2.0 code and weights): window attention as one SDPA call with the bias gathered at load; in float16 the
-  last group's residual sum is scaled down (overflow). 512x512 M x4: 1406 ms kernels, 2029 ms portable (795 ms
-  compile, 727 ms TensorRT) vs 3086 ms original fp32 (3497 ms `.half()`), peak 3.3 GB vs 3.2 GB. DIV2K validation
-  (every 2nd image: 50) PSNR M x4 30.89 kernels / 30.90 portable vs 30.90, M x4 real 26.71 vs 26.71, L x4 real
-  27.05 / 27.04 vs 27.04. M x2 has no eval: a whole x2 DIV2K image needs more than 16 GB in every tier.
+  Apache-2.0 code and weights): window attention as one SDPA call with the bias gathered at load; in float16 the last
+  group's residual sum is scaled down (overflow). 512x512 M x4: 580 ms kernels, 767 ms portable (795 ms compile, 727
+  ms TensorRT) vs 3086 ms original fp32 (3497 ms `.half()`), peak 1.4 GB vs 2.8 GB allocated. DIV2K validation (every
+  2nd image: 50) PSNR M x4 30.89 kernels / 30.90 portable vs 30.90, M x4 real 26.71 vs 26.71, L x4 real 27.05 / 27.04
+  vs 27.04. M x2 has no eval: a whole x2 DIV2K image needs more than 16 GB in every tier.
 
 - SPAN efficient super-resolution (`span-x4`, `span-x2`, restoration; Apache-2.0 code and weights): Conv3XC
   re-parameterised at load. 512x512 x4: 14.6 ms kernels, 24.2 ms portable (13.2 ms compile, 8.3 ms TensorRT) vs
