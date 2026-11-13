@@ -112,7 +112,8 @@ class Portable(Runner):
         m.level_embed.data = m.level_embed.data.to(self.dt)
         self.net = net
         self.head = net.bbox_embed[-1]
-        if self.head is m.decoder.bbox_embed[-1] and self.dt != torch.float32:  # shared with the decoder: a float copy
+        # shared with the decoder (the same module, or tied weights since transformers 5.2x): a float copy
+        if any(p.dtype != torch.float32 for p in self.head.parameters()):
             self.head = _float_copy(self.head)
         bias = getattr(net.class_embed[-1], "bias", None)  # MM-Grounding-DINO: logits / sqrt(d) + a learned bias
         self.logit_affine = None if bias is None else (math.sqrt(net.config.d_model), float(bias))
