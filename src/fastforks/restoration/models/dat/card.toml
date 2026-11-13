@@ -1,0 +1,58 @@
+schema = 2
+name = "DAT"
+summary = "DAT (Chen et al., ICCV 2023): image super-resolution with residual groups that alternate spatial window attention (8 x 32 rectangle windows) and channel attention, each with a convolution branch and adaptive interaction, and a spatial-gate feed-forward network. `dat-x4` is the main x4 model, `dat-2-x4` its variant with a 2x feed-forward expansion, `dat-light-x4` the lightweight one (60 channels, one-step upsampler); all trained on DF2K, bicubic x4."
+tier = "experimental"
+outputs = ["image"]
+
+[upstream]
+repo = "https://github.com/zhengchen1999/DAT"
+commit = "1645c64fad7c94d94abd090bd1319eec1f26f7cc"  # basicsr/archs/dat_arch.py; the call is basicsr/models/dat_model.py test (net_g(img), use_chop False)
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # the authors' Google Drive folder linked from the README of the Apache-2.0 repository; no separate weights licence
+files = ["LICENSE"]
+training_data = ["div2k", "flickr2k"]
+training_note = "options/Train/train_DAT_x4.yml: DF2K (DIV2K + Flickr2K), bicubic-downsampled, fine-tuned from the x2 model."
+evidence = "https://github.com/zhengchen1999/DAT/blob/1645c64fad7c94d94abd090bd1319eec1f26f7cc/LICENSE ; https://github.com/zhengchen1999/DAT/blob/1645c64fad7c94d94abd090bd1319eec1f26f7cc/README.md (pretrained models: https://drive.google.com/drive/folders/1iBdf_-LVZuz_PAbFtuxSKd_11RL1YKxM)"
+
+[io]
+input = "0-1"  # the test pipeline reads images in [0, 1]; the network subtracts the DIV2K mean itself (img_range 1)
+
+[params]
+scale = 4
+embed_dim = 180
+depths = [6, 6, 6, 6, 6, 6]
+heads = [6, 6, 6, 6, 6, 6]
+split = [8, 32]
+expansion = 4
+resi = "1conv"
+upsampler = "pixelshuffle"
+img_size = 64
+key = "params"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate GEMMs and dense convolutions
+
+[[variants]]
+id = "dat-x4"
+revision = 1
+weights = [{ name = "DAT_x4.pth", size = 154692051, sha256 = "391a6ce69899dff5ea3214557e9d585608254579217169faf3d4c353caff049e", url = "https://drive.google.com/uc?export=download&id=1pEhXmg--IWHaZOwHUFdh7TEJqt2qeuYg" }]
+
+[[variants]]
+id = "dat-2-x4"
+revision = 1
+params = { expansion = 2 }
+licence = { training_note = "options/Train/train_DAT_2_x4.yml: DF2K (DIV2K + Flickr2K), bicubic-downsampled, fine-tuned from the x2 model." }
+weights = [{ name = "DAT_2_x4.pth", size = 140333139, sha256 = "05b5c17bb5d1939ec0ec6b9368368d82d8c45b80c134e370f798efec0aeec395", url = "https://drive.google.com/uc?export=download&id=1sfB15jklXRjGiZZWgYXZAYc2Ut4TuKOz" }]
+
+[[variants]]
+id = "dat-light-x4"
+revision = 1
+params = { embed_dim = 60, depths = [18], heads = [6], expansion = 2, resi = "3conv", upsampler = "pixelshuffledirect" }
+licence = { training_note = "options/Train/train_DAT_light_x4.yml: DF2K (DIV2K + Flickr2K), bicubic-downsampled, fine-tuned from the x2 model." }
+weights = [{ name = "DAT_light_x4.pth", size = 45819662, sha256 = "e18223fc41500e72e6bd576f2a576eae0818f58fa8cc8646a2233f5faf7d0f74", url = "https://drive.google.com/uc?export=download&id=12m8cZ_vkztI5VsQemoHnbVVBm1ZtQe7J" }]

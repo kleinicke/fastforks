@@ -34,7 +34,7 @@ By default (`mode="auto"`) fastforks uses kernels where they can run and the rec
 | frame interpolation | `fastforks.interpolation` | `model(frame1, frame2, timestep=0.5)` → `frame [3, H, W]` RGB in [0, 1] | `rife-4.25`, `rife-4.26`, `rife-4.25-lite` |
 | [image retrieval / place recognition](https://fastforks.dev/tasks/retrieval) | `fastforks.retrieval` | `model(image)` → descriptor `[D]` (unit norm); `retrieval.top_k(queries, database)`, `retrieval.pairs(descriptors)` | `megaloc` |
 | [camera calibration](https://fastforks.dev/tasks/calibration) | `fastforks.calibration` | `model(image)` → intrinsics `[3, 3]`, gravity `[3]`, roll / pitch / vertical FoV (rad) | `geocalib-pinhole`, `anycalib-pinhole` |
-| image restoration / upscaling | `fastforks.restoration` | `model(image)` (`tile=512` for large images) → `image [3, sH, sW]` RGB in [0, 1], s = `model.scale` | `realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`, `hat-x4` |
+| image restoration / upscaling | `fastforks.restoration` | `model(image)` (`tile=512` for large images) → `image [3, sH, sW]` RGB in [0, 1], s = `model.scale` | `realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`, `hat-x4`, `dat-x4` |
 | [human pose](https://fastforks.dev/tasks/pose) | `fastforks.pose` | `model(image, boxes=person_boxes)` → 17 COCO keypoints (133 whole-body for DWPose) with scores per person | `rtmpose-m`, `vitpose-plus-base`, `rtmpose-l-384` |
 | [feature backbones](https://fastforks.dev/tasks/features) | `fastforks.features` | `model(image)` → token features, image embedding | `dinov2-vitb14`, `dinov3-vitl16`, `dinov3-convnext-small` |
 

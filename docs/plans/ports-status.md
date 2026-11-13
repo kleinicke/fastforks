@@ -36,6 +36,9 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- DAT (`dat-x4`, `dat-2-x4`, `dat-light-x4`, restoration): portable MPS goldens and Mac speed rows (512x512; MPS runs
+  float32). No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
+  `/home/florian/projects/data/ff-weights/dat/`).
 - HAT (`hat-x4`, `hat-s-x4`, `real-hat-gan-x4`, restoration): portable MPS goldens and Mac speed rows (512x512; MPS
   runs float32). No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
   `/home/florian/projects/data/ff-weights/hat/`).
