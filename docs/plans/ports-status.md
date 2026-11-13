@@ -92,6 +92,9 @@ In this order, unless something more useful turns up:
   kernels runner. Weights: the pinned Roboflow URLs of the card (also on CUDA in `~/scratch_tests/port-p1/w/rfdetr/`).
 - RoMa v2 (`romav2`, new matching task): portable float32 MPS goldens (`warp` checked where the golden certainty
   is >= 0.5) and Mac timings at 768x1024. No Metal kernels runner. Weights: the pinned GitHub release URL (1.1 GB).
+- RoMa v1 (`romav1`): portable float32 MPS goldens (`warp` checked where the golden certainty is >= 0.5) and Mac
+  timings at 768x1024. No Metal kernels runner. Weights: the pinned URLs of the card (GitHub release +
+  Meta's DINOv2 ViT-L/14, also in `data/ff-weights/romav1/`).
 - RTMPose zoo (7 Halpe26, hand5, 3 face6, AP-10K): MPS golden checks and portable speed rows.
   COCO accuracy covers Halpe26 body joints; hand, face and animal validation datasets are not staged.
   Weights on CUDA in `~/scratch_tests/port-rtmo/w/`.

@@ -11,10 +11,11 @@ The 1500 pairs of scenes 0015 and 0022 (LoFTR's test split; the glue-factory `me
 
 - `match` (GPU, resumable in chunks): the model matches the pair at full size in both directions (two calls: image1
   -> image2 and image2 -> image1), with the options of upstream's "mega1500" setting (`coarse_size` 800, `fine_size`
-  1024). Upstream's balanced sampling then draws 5000 matches five times (seeded): certainties above 0.05 count as 1
-  (upstream `threshold`), matches with a normalised coordinate beyond 1 - 1 / fine_size are dropped, 20000 are drawn
-  by certainty, then 5000 by the inverse of their kernel density (std 0.1, density < 10 excluded). Keypoints in pixels
-  of the images scaled to 1200 px on the long side (upstream's convention, the intrinsics scaled alike). Writes
+  1024; RoMa v1: 672 and 1344 as its `experiments/eval_roma_outdoor.py`). Upstream's balanced sampling then draws
+  5000 matches five times (seeded): certainties above 0.05 count as 1 (upstream `threshold`), matches with a
+  normalised coordinate beyond 1 - 1 / fine_size are dropped (RoMa v2 only), 20000 are drawn by certainty, then
+  5000 by the inverse of their kernel density (std 0.1, density < 10 excluded). Keypoints in pixels of the images
+  scaled to 1200 px on the long side (upstream's convention, the intrinsics scaled alike). Writes
   `DIR/<ref>-<mode>/<first>.npz` per chunk and, in a JSON next to it, the time of each pair's two calls (upload of the
   uint8 images and the outputs on the GPU included) and their peak torch memory (the model loaded; sampling excluded,
   reserved memory includes what earlier pairs left in the cache).
@@ -32,7 +33,8 @@ Modes: `portable32` (float32), `portable`, `kernels` (card default dtype) throug
 matmul precision "highest" / upstream's `enable_amp=True` bfloat16) through the same two calls and the same sampling;
 `upstreambench`: upstream's own benchmark path (`apply_setting("mega1500")`: one bidirectional bf16 call, upstream
 `sample` on its 1024x1024 output grid), the reference for this protocol. The original needs `FF_ROMAV2_REPO` and
-`FF_DINOV3_REPO` (git checkouts with the pinned commits) and einops.
+`FF_DINOV3_REPO` (git checkouts with the pinned commits) and einops. RoMa v1's original: `tools/golden/romav1.py`
+`build` (`amp_dtype` float32 / upstream's default float16) with `FF_ROMAV1_REPO` and einops.
 """
 
 from __future__ import annotations
@@ -52,6 +54,7 @@ from _data import DATA
 
 DATASET = "megadepth1500"
 OPTIONS = {"coarse_size": 800, "fine_size": 1024}  # upstream setting "mega1500"
+FAMILY_OPTIONS = {"romav1": {"coarse_size": 672, "fine_size": 1344}}  # RoMa v1's experiments/eval_roma_outdoor.py
 N_MATCHES, N_RUNS, LONG_SIDE, THRESHOLD, MIN_DENSITY = 5000, 5, 1200, 0.05, 10
 FIVE = 5  # pose_error: the essential matrix needs 5 correspondences
 SPARSE_OPTIONS = {"long_side": 1600, "max_keypoints": 2048}  # glue-factory's megadepth1500 setting of LightGlue
@@ -132,11 +135,27 @@ def sparse_options(ref: str) -> dict[str, int]:
     return {} if registry.resolve("matching", ref)[0].family in CARD_PROTOCOL else SPARSE_OPTIONS
 
 
+def options_of(ref: str) -> dict[str, int]:
+    """The dense matcher's protocol options: upstream's MegaDepth-1500 sizes of its family."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    return FAMILY_OPTIONS.get(registry.resolve("matching", ref)[0].family, OPTIONS)
+
+
+def border_limit(ref: str) -> float:
+    """RoMa v2's sampling drops matches beyond 1 - 1 / fine_size; RoMa v1's keeps them (its warp is clamped)."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    if registry.resolve("matching", ref)[0].family == "romav1":
+        return float("inf")
+    return 1 - 1 / options_of(ref)["fine_size"]
+
+
 def _fastforks(ref: str, mode: str) -> tuple[Any, str, dict]:
     import fastforks.matching as ff  # noqa: PLC0415
 
     dtype = "float32" if mode == "portable32" else None
-    options = sparse_options(ref) if sparse(ref) else OPTIONS
+    options = sparse_options(ref) if sparse(ref) else options_of(ref)
     model = ff.load(ref, mode=mode.removesuffix("32"), dtype=dtype, options=options)
     backend = {"mode": model.backend.mode, "dtype": str(model.backend.dtype), "kernels": list(model.backend.kernels)}
 
@@ -193,9 +212,8 @@ def _original(ref: str, mode: str) -> tuple[Any, str, dict]:
 
         note = "upstream match_pair + LightGlue" + (", mp=True (fp16)" if fp16 else "")
         return matched, "float16" if fp16 else "float32", {"note": note}
-    g = _golden("romav2")
-
     card, variant = registry.resolve("matching", ref)
+    g = _golden("romav2")
     tree = g.reference_tree(Path(os.environ["FF_ROMAV2_REPO"]), g.REF_COMMIT)
     dino = g.reference_tree(Path(os.environ["FF_DINOV3_REPO"]), g.DINOV3_COMMIT)
     amp = mode != "upstream"
@@ -215,14 +233,42 @@ def _original(ref: str, mode: str) -> tuple[Any, str, dict]:
     return call, "bfloat16" if amp else "float32", {"note": note}
 
 
+def _original_romav1(ref: str, mode: str) -> tuple[Any, str, dict]:
+    """Upstream RoMa v1 `match` (`tools/golden/romav1.py`; one direction per call, `FF_ROMAV1_REPO` checkout)."""
+    import os  # noqa: PLC0415
+
+    from _original import _golden  # noqa: PLC0415  # tools/
+    from fastforks._core import registry  # noqa: PLC0415
+
+    if mode == "upstreambench":
+        msg = "upstreambench is RoMa v2's own benchmark path"
+        raise SystemExit(msg)
+    g = _golden("romav1")
+    card, variant = registry.resolve("matching", ref)
+    tree = g.reference_tree(Path(os.environ["FF_ROMAV1_REPO"]), g.REF_COMMIT)
+    opts = options_of(ref)
+    sizes = (opts["coarse_size"], opts["fine_size"])
+    amp = mode == "upstream16"
+    model = g.build(tree, list(registry.weights(card, variant, allow_download=False)), sizes, "cuda", amp=amp)
+    note = "upstream RoMa v1 match, " + ("amp_dtype float16 (upstream default)" if amp else "amp_dtype float32")
+    note += ", local correlation: upstream's plain-torch path (use_custom_corr=False)"
+
+    def call(a: torch.Tensor, b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        out = g.match(model, a[None].float() / 255, b[None].float() / 255, *sizes)
+        return out["warp"][0], out["certainty"][0]
+
+    return call, "float16" if amp else "float32", {"note": note}
+
+
 def match(a: argparse.Namespace) -> None:  # noqa: C901, PLR0912, PLR0915 - one loop over the pairs
     stop = a.stop if a.stop is not None else sys.maxsize
     pairs = [(i, p) for i, p in enumerate(load_pairs(a.root)) if a.start <= i < stop and i % a.every == 0]
     out = a.work / f"{a.ref}-{a.mode}"
     out.mkdir(parents=True, exist_ok=True)
     original = a.mode in ORIGINAL or a.mode == "upstreambench"
-    call, dtype, extra = (_original if original else _fastforks)(a.ref, a.mode)
-    limit = 1 - 1 / OPTIONS["fine_size"]
+    runner = (_original_romav1 if a.ref == "romav1" else _original) if original else _fastforks
+    call, dtype, extra = runner(a.ref, a.mode)
+    limit = border_limit(a.ref)
     is_sparse = sparse(a.ref)
     # The legacy set (balanced, N_MATCHES) keeps the plain keys and is drawn first; extra sets under "<sampling><n>/".
     sets = [("", "balanced", N_MATCHES)]

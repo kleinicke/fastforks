@@ -777,6 +777,29 @@ def _romav2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the
     return call
 
 
+def _romav1(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream RoMa v1 `match` as `tools/golden/romav1.py` (card sizes, one direction), outputs as the API returns.
+
+    fp16: upstream's default `amp_dtype=torch.float16` (fp16 autocast regions, DINOv2 in fp16); fp32: `amp_dtype`
+    float32. Local correlation: upstream's plain-torch path. Needs `FF_ROMAV1_REPO` (pinned commit) and einops.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("romav1")
+    card, variant = registry.resolve("matching", full)
+    tree = g.reference_tree(Path(os.environ["FF_ROMAV1_REPO"]), g.REF_COMMIT)
+    sizes = (card.options["coarse_size"], card.options["fine_size"])
+    model = g.build(tree, list(registry.weights(card, variant, allow_download=False)), sizes, "cuda", amp=fp16)
+    a.note = (
+        "upstream RoMa v1 match, one direction; local correlation: upstream's plain-torch path (use_custom_corr off)"
+    )
+
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        return g.match(model, img1[None].float() / 255, img2[None].float() / 255, *sizes)
+
+    return call
+
+
 def _xfeat(a: Any, full: str, options: dict[str, Any] | None = None) -> Any:  # noqa: ANN401
     """Upstream `XFeat.detectAndCompute` + `match` / kornia `LighterGlue` as `tools/golden/xfeat.py` (card `options`).
 
@@ -1404,6 +1427,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),
     "romav2": _LocalFp16("matching", _romav2, ((768, 1024),)),
+    "romav1": _LocalFp16("matching", _romav1, ((768, 1024),)),
     "marigold_normals": _LocalFp16("depth", _marigold_normals, ((994, 1482),)),
     "lotus": _LocalFp16("depth", _lotus, ((994, 1482),)),
     "stablenormal": _LocalFp16("depth", _stablenormal, ((994, 1482),)),

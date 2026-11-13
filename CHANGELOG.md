@@ -17,6 +17,12 @@
   `shared/seginfer`): transformers 5.19 ties MM-Grounding-DINO's per-layer decoder heads to layer 0 and silently
   dropped the trained heads of layers 1-5. A load now raises if any loaded value still differs from the checkpoint.
 
+- RoMa dense matching (`romav1`, matching task; MIT code and weights, Apache-2.0 DINOv2 weights): RoMa outdoor,
+  one direction per call, DINOv2 ViT-L/14 coarse features + VGG19 fine features, 560 / 864 squares as upstream's
+  defaults. 768x1024 pair: 356 ms kernels, 376 ms portable (float16) vs 583 ms original fp32 (386 ms fp16), peak 1.7
+  GB vs 4.5 GB; compile times out, the TensorRT export fails. MegaDepth-1500 (672 / 1344, upstream's benchmark)
+  AUC@5/10/20 62.36/76.42/86.21 kernels, 62.61/76.63/86.37 portable vs 62.59/76.61/86.28 original fp16.
+
 - StableNormal turbo surface normals (`stablenormal-turbo`, depth task, normals only; Apache-2.0 code and weights):
   one-step YOSO v0.3 on a Stable Diffusion 2 UNet with a ControlNet image encoder, seeded noise. 994x1482 image:
   180 ms kernels, 289 ms portable (238 ms compile) vs 613 ms original fp32 (299 ms fp16), peak 3.0 GB vs 7.9 GB;
