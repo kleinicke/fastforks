@@ -205,6 +205,8 @@ runtime-evaluated-base-classes = []
 # VGGT (and AnySplat's copy): upstream sets XFORMERS_AVAILABLE = False, so its xformers-only branches name undefined
 # functions (dead code).
 "src/fastforks/multiview/models/{vggt,anysplat}/net/layers/{attention,block}.py" = ["F821"]
+"src/fastforks/multiview/models/pi3/net/layers/{attention,block}.py" = ["F821"]  # same, Pi3 (and its DINOv2)
+"src/fastforks/multiview/models/pi3/net/dinov2/layers/{attention,block}.py" = ["F821"]
 # EfficientViT-SAM: upstream's `EfficientViTBlock` names a `GLUMBConv` it never defines (branch unused by the SAM
 # encoders); `build_kwargs_from_config` loops over dict keys.
 "src/fastforks/promptable_segmentation/models/efficientvit_sam/net/{ops,utils}.py" = ["F821", "PLC0206"]
