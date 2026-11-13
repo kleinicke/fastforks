@@ -212,10 +212,12 @@ class _Sam2(Runner):
                 ls.append(labels)
             coords, labs = torch.cat(cs, 1), torch.cat(ls, 1).int()
             p = coords.shape[0]
+        # On the CPU, filled frame by frame (as the original's offloaded state): device memory stays bounded by the
+        # memory bank instead of growing with the video length x resolution.
         out = {
-            "masks": torch.empty(n_frames, p, *size, dtype=torch.bool, device=dev),
-            "pred_masks": torch.empty(n_frames, p, *self.mask_size, device=dev),
-            "object_score_logits": torch.empty(n_frames, p, device=dev),
+            "masks": torch.empty(n_frames, p, *size, dtype=torch.bool),
+            "pred_masks": torch.empty(n_frames, p, *self.mask_size),
+            "object_score_logits": torch.empty(n_frames, p),
         }
 
         def emit(t: int, low: torch.Tensor, obj: torch.Tensor) -> None:

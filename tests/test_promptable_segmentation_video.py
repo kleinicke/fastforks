@@ -11,7 +11,7 @@ from PIL import Image
 from fastforks import InputError, WeightsError, promptable_segmentation
 from fastforks._core import registry
 from fastforks.promptable_segmentation.models.sam2.video import STABLE_FRAMES, Motion, fill_holes, resize_frame
-from synth import clip
+from synth import clip, clip_prompts
 
 
 def _fill_holes_scipy(low: np.ndarray, max_area: int = 8) -> np.ndarray:
@@ -93,3 +93,31 @@ def test_track_input_errors() -> None:
         m.track(frames, input_masks=np.ones((100, 150)), **point)
     with pytest.raises(InputError, match="frame size"):
         m.track(frames, input_masks=np.ones((50, 150)))
+
+
+@pytest.mark.slow
+@pytest.mark.model
+@pytest.mark.gpu
+@pytest.mark.parametrize("mode", ["portable", "kernels"])
+def test_track_device_memory_is_bounded(mode: str) -> None:
+    """`track` results live on the CPU: device memory does not grow with the video length (only the memory bank)."""
+    if not torch.cuda.is_available():
+        pytest.skip("needs a CUDA GPU")
+    card, variant = registry.resolve("promptable_segmentation", "sam2.1-hiera-tiny")
+    try:
+        registry.weights(card, variant, allow_download=False)
+    except WeightsError as e:
+        pytest.skip(f"sam2.1-hiera-tiny: weights not available locally: {e}")
+    m = promptable_segmentation.load("sam2.1-hiera-tiny", mode=mode, device="cuda")
+    box = clip_prompts()["video_box_"]
+    peaks = []
+    for n in (12, 36):  # the bank is full after 7 frames; 24 more 720p frames were ~30 MB of on-device outputs
+        frames = clip(n, 720, 1280)
+        torch.cuda.synchronize()
+        torch.cuda.reset_peak_memory_stats()
+        r = m.track(frames, **box)
+        peaks.append(torch.cuda.max_memory_allocated())
+        assert {t.device.type for t in (r.masks, r.pred_masks, r.object_score_logits)} == {"cpu"}
+        assert r.masks.shape == (n, 720, 1280)
+        del r
+    assert peaks[1] - peaks[0] < 4 * 2**20, peaks
