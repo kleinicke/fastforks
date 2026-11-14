@@ -34,6 +34,7 @@ from fastforks import (
     classification,
     depth,
     detection,
+    edges,
     features,
     flow,
     interpolation,
@@ -79,6 +80,7 @@ API: dict[str, Any] = {
     "flow": flow,
     "matching": matching,
     "matting": matting,
+    "edges": edges,
     "interpolation": interpolation,
     "retrieval": retrieval,
     "calibration": calibration,
@@ -337,6 +339,9 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         assert want is not None, f"{task} goldens store their image pair"
         r = m(img, want["input2"].round().astype(np.uint8))
         maps = {k: getattr(r, k, None) for k in spec(task).standard}  # sparse matchers: no warp / certainty
+    elif task == "edges":
+        r = m(img)
+        maps = {"edges": r.edges}
     elif task == "matting":  # trimap-guided models: the golden's trimap
         r = m(img, trimap=want["trimap"].round().astype(np.uint8)) if want and "trimap" in want else m(img)
         maps = {"alpha": r.alpha}
@@ -469,6 +474,7 @@ def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tenso
     rows = tol.get("cpu_extra", [])  # optional [key, atol] rows: one output bound looser than cpu_atol
     assert isinstance(rows, list)
     atol, rtol = dict(rows), tol.get("cpu_rtol", 0)
+    outliers = tol.get("cpu_outliers", 0.0)  # optional: the fraction of elements allowed beyond atol (quantized maps)
     if "pairs" in want:  # sparse matchers: keypoint and match sets, not element-wise
         recall, agree, d, ds = sparse_parity(want, got)
         bad = recall < tol["cpu_min_recall"] or agree < tol["cpu_min_match"] or ds > tol["cpu_atol"]
@@ -500,10 +506,11 @@ def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tenso
             ok = (err <= a + rtol * np.abs(v)) | (g == v) | (np.isnan(g) & np.isnan(v))  # as assert_allclose
         fin = np.where(np.isfinite(err), err, -1.0)
         worst = tuple(int(i) for i in np.unravel_index(int(np.argmax(fin)), fin.shape)) if fin.size else ()
+        bad = float((~ok).mean()) > outliers
         lines.append(
-            f"{'FAIL ' * bool((~ok).any())}{k} {v.shape}: max |diff| {fin.max(initial=0):.3g} at {worst}, mean"
+            f"{'FAIL ' * bad}{k} {v.shape}: max |diff| {fin.max(initial=0):.3g} at {worst}, mean"
             f" {fin[fin >= 0].mean() if (fin >= 0).any() else 0:.3g}, {int((~ok).sum())} out of bounds (atol {a},"
-            f" rtol {rtol}), |golden| max {np.abs(v).max(initial=0):.3g}"
+            f" rtol {rtol}, outliers {outliers}), |golden| max {np.abs(v).max(initial=0):.3g}"
         )
     return sorted(lines, key=lambda line: not line.startswith("FAIL"))
 

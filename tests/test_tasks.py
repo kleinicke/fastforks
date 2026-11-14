@@ -38,6 +38,7 @@ from fastforks.calibration._runner import Runner as CalibrationRunner
 from fastforks.classification._runner import Runner as ClsRunner
 from fastforks.depth._runner import Runner as DepthRunner
 from fastforks.detection._runner import Runner as DetRunner
+from fastforks.edges._runner import Runner as EdgesRunner
 from fastforks.features._runner import Forward
 from fastforks.features._runner import Runner as FeatRunner
 from fastforks.flow._runner import Runner as FlowRunner
@@ -664,6 +665,7 @@ def test_resize_crop_bicubic_stays_in_range():
         "flow",
         "matching",
         "matting",
+        "edges",
         "tracking",
         "interpolation",
         "retrieval",
@@ -680,6 +682,7 @@ def test_runner_without_call_cannot_be_built(task):
     base["flow"] = FlowRunner
     base["matching"] = MatchingRunner
     base["matting"] = MattingRunner
+    base["edges"] = EdgesRunner
     base["tracking"] = TrackingRunner
     base["interpolation"] = InterpolationRunner
     base["retrieval"] = RetrievalRunner

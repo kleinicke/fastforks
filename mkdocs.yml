@@ -51,6 +51,7 @@ nav:
       - Calibration: api/calibration.md
       - Image restoration: api/restoration.md
       - Volume segmentation: api/volume.md
+      - Edges / line art: api/edges.md
       - Errors: api/errors.md
   - Models:
       - Stereo: models/stereo.md
@@ -71,6 +72,7 @@ nav:
       - Calibration: models/calibration.md
       - Image restoration: models/restoration.md
       - Volume segmentation: models/volume.md
+      - Edges / line art: models/edges.md
   - Contributing: contributing.md
 markdown_extensions:
   - admonition

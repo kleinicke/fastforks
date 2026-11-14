@@ -1004,6 +1004,10 @@ TASK_IO = {
         "alpha matte `[H, W]` in [0, 1] at the input size: 1 = foreground (background removal, dichotomous / salient "
         "object segmentation)."
     ),
+    "edges": (
+        "Input: one RGB image. Output: a line / edge map `[H, W]` in [0, 1] at the input size (1 = line), the "
+        "ControlNet preprocessors (line art, HED, PiDiNet, TEED / Anyline); M-LSD also returns straight line segments."
+    ),
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
     "volume": (
         "Input: a CT volume `[D, H, W]` in Hounsfield units and its voxel spacing in mm (`volume.read_nifti` reads "

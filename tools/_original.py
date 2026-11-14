@@ -1564,6 +1564,30 @@ def _rsu(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda image: g.predict(net, image[None].float() / 255, p["size"])
 
 
+def _edges(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """controlnet_aux detectors as `tools/golden/_edges.py`: OpenCV `resize_image` on the host.
+
+    Network on CUDA, float post-processing (no 8-bit rounding) and `cv2.INTER_LINEAR` back to the image size, at the
+    card's default resolution.
+
+    `FF_CNAUX_REPO`: a huggingface/controlnet_aux checkout.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    card, variant = registry.resolve("edges", full)
+    (weights,) = registry.weights(card, variant)
+    g = _golden("_edges")
+    build, predict = g.NETS[card.family]
+    net = build(Path(os.environ["FF_CNAUX_REPO"]), Path(weights)).cuda()
+    a.note = f"huggingface/controlnet_aux@{g.COMMIT[:12]} {card.family}, host OpenCV resize, float post-processing"
+
+    def run(image: Any) -> Any:  # noqa: ANN401 - CUDA uint8 CHW
+        img = image.permute(1, 2, 0).cpu().numpy()
+        return predict(net, img, card.options["resolution"])
+
+    return run
+
+
 def _inspyrenet(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     """transparent-background's `InSPyReNet_SwinB` with float pre- and post-processing, as `tools/golden/inspyrenet.py`.
 
@@ -2231,6 +2255,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "geocalib": _Local("calibration", _geocalib, ((1080, 1920),)),
     "anycalib": _Local("calibration", _anycalib, ((1080, 1920),)),
     "u2net": _Local("matting", _rsu, ((1080, 1920),)),
+    "lineart": _Local("edges", _edges, ((1024, 1024), (1080, 1920))),
     "isnet": _Local("matting", _rsu, ((1080, 1920),)),
     "inspyrenet": _Local("matting", _inspyrenet, ((1080, 1920),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),

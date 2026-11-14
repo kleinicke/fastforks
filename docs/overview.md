@@ -326,6 +326,17 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rmbg-2.0`](models/matting.md#birefnet) | no | – | 149.0 (1080x1920) | 131.5 | 121.4 | 1.2x vs original (1080x1920) | 1674 |
 | [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 181.7 | 147.4 | 1.7x vs original (1080x1920) | 1484 |
 
+## Edges
+
+2 models; size 1080x1920.
+
+- No timed model.
+
+| model | commercial use |
+|---|---|
+| [`lineart`](models/edges.md#line-art-informative-drawings) | yes |
+| [`lineart-coarse`](models/edges.md#line-art-informative-drawings) | yes |
+
 ## Promptable segmentation
 
 19 models; size 1024x1024.
