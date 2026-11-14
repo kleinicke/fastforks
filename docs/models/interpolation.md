@@ -81,10 +81,10 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `ema-vfi` | not measured | - | - |
-| `ema-vfi-small` | not measured | - | - |
-| `ema-vfi-t` | not measured | - | - |
-| `ema-vfi-small-t` | not measured | - | - |
+| `ema-vfi` | 0.00018 / 0.00062 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `ema-vfi-small` | 0.00018 / 0.00058 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `ema-vfi-t` | 0.0002 / 0.00082 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `ema-vfi-small-t` | 0.00019 / 0.00065 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 
 </details>
 
@@ -134,7 +134,7 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `film` | not measured | - | - |
+| `film` | 0.00034 / 0.00154 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 
 </details>
 
@@ -185,8 +185,8 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `gimm-vfi-r` | not measured | - | - |
-| `gimm-vfi-r-p` | not measured | - | - |
+| `gimm-vfi-r` | 6e-05 / 0.00045 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `raft_flow@a101a33607b6:sm_120` |
+| `gimm-vfi-r-p` | 5e-05 / 0.00029 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `raft_flow@a101a33607b6:sm_120` |
 
 </details>
 
