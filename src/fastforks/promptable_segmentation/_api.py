@@ -761,7 +761,7 @@ class InContextSegmentationModel(PromptableSegmentationModel):
                 self._checked(i) if isinstance(i, ImageEmbeddings) else self.get_image_embeddings(i) for i in images
             ]
         else:
-            embs = [self.get_image_embeddings(images)]
+            embs = [self.get_image_embeddings(cast("ImageLike", images))]
         sizes = [e.image_size for e in embs for _ in range(len(e))]
         return torch.cat([e.features["features"] for e in embs]), sizes
 
@@ -784,7 +784,7 @@ def _reference_masks(
     if isinstance(masks, list | tuple) and len(masks) == len(sizes) and not all(np.isscalar(m) for m in masks):
         items = [_numeric("reference_masks", m, torch.float32) for m in masks]
     else:
-        t = _numeric("reference_masks", masks, torch.float32)
+        t = _numeric("reference_masks", cast("PromptLike", masks), torch.float32)
         items = [t] if t.ndim == 2 else list(t)  # noqa: PLR2004 - [H, W]
     if len(items) != len(sizes):
         msg = f"reference_masks: {len(items)} mask(s) for {len(sizes)} reference image(s)"

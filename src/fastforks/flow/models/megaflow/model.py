@@ -157,7 +157,7 @@ class _Fast(Runner):
         super().__init__(ctx)
         self.net = net = _net(ctx)
         self.fp16 = ctx.dtype == "float16"
-        a = net.frame_blocks[0].attn
+        a: Any = net.frame_blocks[0].attn  # vendored attention (head_dim, rope)
         u = net.refine
         if (
             a.head_dim != 64  # noqa: PLR2004 - fused qk path

@@ -15,7 +15,7 @@ from __future__ import annotations
 import functools
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 import torch
 import torch.nn.functional as F
@@ -110,7 +110,7 @@ class Portable(Runner):
     Params = Params
     prompts = frozenset({"reference"})
     compiled_methods = ("embed",)
-    encoder_mode = "portable"
+    encoder_mode: ClassVar[Literal["portable", "kernels"]] = "portable"
 
     def __init__(self, ctx: Context) -> None:
         """Estimate the positional subspace with a float32 backbone, then build the backbone of the mode.

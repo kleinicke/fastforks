@@ -21,7 +21,7 @@ input is already scaled to [-1, 1] and padded (the core does both, as the card's
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 
 import torch
 import torch.nn.functional as F
@@ -174,9 +174,9 @@ class MobileNetV3(nn.Module):
 class LayerNorm2d(nn.LayerNorm):
     """torchvision `LayerNorm2d`: LayerNorm over the channels of `[B, C, H, W]`."""
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Normalised `x`."""
-        y = F.layer_norm(x.permute(0, 2, 3, 1), self.normalized_shape, self.weight, self.bias, self.eps)
+    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002 - LayerNorm.forward's parameter name
+        """Normalised `input`."""
+        y = F.layer_norm(input.permute(0, 2, 3, 1), self.normalized_shape, self.weight, self.bias, self.eps)
         return y.permute(0, 3, 1, 2)
 
 
@@ -290,7 +290,7 @@ class BasicMotionEncoder(nn.Module):
         pixels of the border, so a 5 x 5 canvas holds every distinct value: rows / columns 0, 1 and the last two are
         the border ones, the middle one is the interior. The gather is exact (same arithmetic per pixel).
         """
-        c1 = self.convc1.bias
+        c1 = cast("torch.Tensor", self.convc1.bias)
         cor = F.relu(c1).view(1, -1, 1, 1).expand(1, c1.shape[0], 5, 5)
         cor = F.relu(self.convc2(cor))
         wc = self.conv.weight[:, : cor.shape[1]]
@@ -354,8 +354,8 @@ class ReCoVEr(nn.Module):
 
     def delta(self, net: torch.Tensor) -> torch.Tensor:
         """The flow channels of the flow head (its 4 uncertainty channels are not computed)."""
-        head, out = self.flow_head[0], self.flow_head[2]
-        return F.conv2d(F.relu(head(net)), out.weight[:2], out.bias[:2], padding=1)
+        head, out = self.flow_head[0], cast("nn.Conv2d", self.flow_head[2])
+        return F.conv2d(F.relu(head(net)), out.weight[:2], cast("torch.Tensor", out.bias)[:2], padding=1)
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor, iters: int) -> torch.Tensor:
         """Flow after `iters` updates, float32 `[B, 2, H, W]`; runs in the dtype of the weights."""

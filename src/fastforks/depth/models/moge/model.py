@@ -441,7 +441,9 @@ class _MoGeViT(FusedViT):
     def __init__(self, vit: Any, device: torch.device, k: DptFused) -> None:  # noqa: ANN401 - duck-typed DINOv2 module
         """`FusedViT`, plus float32 copies of the LayerNorm parameters the class row uses."""
         super().__init__(vit, device, k)
-        self.ln32 = [(n.weight.float(), n.bias.float()) for n in (*(b.norm2 for b in self.blocks), self.vit.norm)]
+        self.ln32: list[tuple[torch.Tensor, torch.Tensor]] = [
+            (n.weight.float(), n.bias.float()) for n in (*(b.norm2 for b in self.blocks), self.vit.norm)
+        ]
 
     def _cls_block(self, i: int, c32: torch.Tensor, att0: torch.Tensor) -> torch.Tensor:
         """Class-token residual `[B, C]` float32 after block `i`, from its attention output `att0` `[B, C]` (fp16)."""

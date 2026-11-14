@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 import torch
 from torch import nn
@@ -36,10 +36,11 @@ class Params:
 @torch.no_grad()
 def _fold(conv: nn.Conv2d, bn: nn.BatchNorm2d) -> None:
     """`bn(conv(x))` -> `conv'(x)` (inference statistics)."""
-    s = bn.weight / torch.sqrt(bn.running_var + bn.eps)
+    mean, var = cast("torch.Tensor", bn.running_mean), cast("torch.Tensor", bn.running_var)  # eval statistics
+    s = bn.weight / torch.sqrt(var + bn.eps)
     conv.weight.data = conv.weight.data * s.view(-1, 1, 1, 1)
-    b = conv.bias.data if conv.bias is not None else torch.zeros_like(bn.running_mean)
-    conv.bias = nn.Parameter((b - bn.running_mean) * s + bn.bias)
+    b = conv.bias.data if conv.bias is not None else torch.zeros_like(mean)
+    conv.bias = nn.Parameter((b - mean) * s + bn.bias)
 
 
 def fold_batchnorms(net: nn.Module) -> int:
@@ -48,8 +49,9 @@ def fold_batchnorms(net: nn.Module) -> int:
     for m in list(net.modules()):
         if isinstance(m, nn.Sequential):
             for i in range(len(m) - 1):
-                if isinstance(m[i], nn.Conv2d) and isinstance(m[i + 1], nn.BatchNorm2d):
-                    _fold(m[i], m[i + 1])
+                conv, bn = m[i], m[i + 1]
+                if isinstance(conv, nn.Conv2d) and isinstance(bn, nn.BatchNorm2d):
+                    _fold(conv, bn)
                     m[i + 1] = nn.Identity()
                     n += 1
         if isinstance(m, (BasicBlock, ResNetFPN)):
@@ -59,7 +61,7 @@ def fold_batchnorms(net: nn.Module) -> int:
                 setattr(m, b, nn.Identity())
                 n += 1
             if isinstance(m, BasicBlock) and m.downsample is not None:
-                m.bn3 = nn.Identity()  # folded with downsample.0 by the Sequential pass
+                m.bn3 = nn.Identity()  # ty: ignore[invalid-assignment]  # folded with downsample.0 by the Sequential pass
     return n
 
 

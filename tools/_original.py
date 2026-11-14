@@ -261,11 +261,11 @@ def _golden(name: str) -> Any:  # noqa: ANN401 - a tools/golden module
     if key in sys.modules:
         return sys.modules[key]
     spec = importlib.util.spec_from_file_location(key, golden / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)  # ty: ignore[invalid-argument-type]
+    module = importlib.util.module_from_spec(spec)
     sys.path.insert(0, str(golden))  # the recipe's own imports (_common, raft_flow)
     sys.modules[key] = module
     try:
-        spec.loader.exec_module(module)  # ty: ignore[possibly-missing-attribute]
+        spec.loader.exec_module(module)
     except BaseException:
         del sys.modules[key]
         raise
