@@ -33,6 +33,9 @@ In this order, unless something more useful turns up:
    `docs/data/speed_compile.jsonl`.
 2. Next networks, from [model-landscape.md](model-landscape.md): MaxViT, `moge-2-vitl` (no normal head), and more
    flow and pose models. ConvNeXt features, TIPSv2, RepViT and MobileSAM are already merged.
+3. Merged without goldens or floor rows in `docs/data/speed.jsonl`, so the Mac cannot check or survey them yet:
+   `any2full-{s,b,l}`, `depthfm-v1`, `lingbot-depth`, `lingbot-depth-dc`, `omni-dc`, `aliked-flexglue` and
+   `lingbot-map`.
 
 ## Waiting for the Mac
 

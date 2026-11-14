@@ -327,10 +327,10 @@ def _normalise(x: torch.Tensor, norms: Sequence[Norm], mask: torch.Tensor | None
             v = v.clamp(n.lower, n.upper).sub_(n.mean).div_(max(n.std, 1e-8))
         elif n.scheme == "ZScoreNormalization":
             if n.use_mask and mask is not None:
-                sel = v[mask].double()
+                sel = v[mask].cpu().double()  # float64 on the CPU: MPS has none
                 v = torch.where(mask, (v - sel.mean().float()) / max(float(sel.std(correction=0)), 1e-8), v)
             else:
-                d = v.double()
+                d = v.cpu().double()
                 v = (v - d.mean().float()) / max(float(d.std(correction=0)), 1e-8)
         elif n.scheme == "RescaleTo01Normalization":
             v = (v - v.min()) / torch.clamp(v.max() - v.min(), min=1e-8)

@@ -40,7 +40,7 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-06 to 2026-11-14 |
-| rows | 1902 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| rows | 2002 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -235,6 +235,7 @@ Note: the original needs flex_gemm, a CUDA-only extension.
 | [`efficientnet_v2_s.tv_in1k`](../models/classification.md#efficientnetv2) | 45.9 | 34.0 | 36.1 | – | unsupported | 638 | 616 |
 | [`efficientvit_b2.r288_in1k`](../models/classification.md#efficientvit) | 25.7 | 18.6 | 20.6 | – | unsupported | 1695 | 1698 |
 | [`eva02_large_patch14_448.mim_m38m_ft_in22k_in1k`](../models/classification.md#eva02) | 267 | 267 | 235 | – | unsupported | 3515 | 4094 |
+| [`falconsai-nsfw-vit`](../models/classification.md#nsfw_vit) | 18.8 | 17.0 | 15.9 | – | unsupported | 1121 | 1244 |
 | [`focalnet_base_lrf.ms_in1k`](../models/classification.md#focalnet) | 44.7 | 44.3 | 43.2 | unsupported | – | 2225 | 2364 |
 | [`focalnet_base_srf.ms_in1k`](../models/classification.md#focalnet) | 41.8 | 41.0 | 40.1 | unsupported | – | 2222 | 2354 |
 | [`focalnet_small_lrf.ms_in1k`](../models/classification.md#focalnet) | 35.2 | 34.8 | 33.7 | unsupported | – | 921 | 1025 |
@@ -309,6 +310,17 @@ Note: the card has no kernels mode.
 Note: the card has no kernels mode.
 Note: no Metal kernels for this family (card mps_kernels).
 
+### Classification, synthetic, 448x448
+
+| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
+|---|---|---|---|---|---|---|
+| [`wd-convnext-tagger-v3`](../models/classification.md#wd_tagger) | 68.5 | 66.3 | 55.0 | unsupported | 2379 | 2390 |
+| [`wd-eva02-large-tagger-v3`](../models/classification.md#wd_tagger) | 268 | 267 | 235 | unsupported | 3754 | 4195 |
+| [`wd-vit-large-tagger-v3`](../models/classification.md#wd_tagger) | 222 | 221 | 202 | unsupported | 3318 | 4520 |
+| [`wd-vit-tagger-v3`](../models/classification.md#wd_tagger) | 59.6 | 58.9 | 52.5 | unsupported | 2463 | 2438 |
+
+Note: no Metal kernels for this family (card mps_kernels).
+
 ### Classification, synthetic, 512x512
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
@@ -318,6 +330,14 @@ Note: no Metal kernels for this family (card mps_kernels).
 Note: no Metal kernels for this family (card mps_kernels).
 
 ## Segmentation
+
+### Segmentation, synthetic, 512x512
+
+| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): original | portable |
+|---|---|---|---|---|---|---|
+| [`bisenet-face-parsing`](../models/segmentation.md#bisenet) | 23.7 | 15.8 | 13.6 | unsupported | 1466 | 440 |
+
+Note: the card has no kernels mode.
 
 ### Segmentation, synthetic, 1024x2048
 
@@ -380,6 +400,7 @@ Note: the card has no kernels mode.
 | [`efficientvit-sam-l2`](../models/promptable_segmentation.md#efficientvit_sam) | 102 | 91.2 | – | unsupported | 2144 | 2004 |
 | [`efficientvit-sam-xl0`](../models/promptable_segmentation.md#efficientvit_sam) | 157 | 167 | – | unsupported | 3588 | 3032 |
 | [`efficientvit-sam-xl1`](../models/promptable_segmentation.md#efficientvit_sam) | 245 | 259 | – | unsupported | 3671 | 3452 |
+| [`insid3-vitl16`](../models/promptable_segmentation.md#insid3) | 3121 | 2953 | 2510 | unsupported | 3003 | 3414 |
 | [`mobile-sam`](../models/promptable_segmentation.md#mobile_sam) | 121 | 80.8 | 69.9 | unsupported | 1768 | 1504 |
 | [`sam-hq-vit-b`](../models/promptable_segmentation.md#sam_hq) | 745 | 645 | 683 | unsupported | 4909 | 4374 |
 | [`sam-hq-vit-h`](../models/promptable_segmentation.md#sam_hq) | 2758 | 2633 | 2347 | unsupported | 8858 | 7860 |
@@ -472,6 +493,8 @@ Note: the card has no kernels mode.
 | [`hrnet-w32-384`](../models/pose.md#hrnet) | 438 | 256 | 217 | – | unsupported | – | – | 2019 | 1690 | – |
 | [`hrnet-w48`](../models/pose.md#hrnet) | 386 | 215 | 198 | – | unsupported | – | – | 2380 | 2065 | – |
 | [`hrnet-w48-384`](../models/pose.md#hrnet) | 617 | 426 | 369 | – | unsupported | – | – | 2432 | 2067 | – |
+| [`retinaface-mobilenet0.25`](../models/pose.md#retinaface) | 91.0 | 17.5 | 15.3 | – | unsupported | – | – | 1522 | 1423 | – |
+| [`retinaface-resnet50`](../models/pose.md#retinaface) | 256 | 210 | 150 | – | unsupported | – | – | 1871 | 1913 | – |
 | [`rf-detr-keypoint-preview`](../models/pose.md#rfdetr_keypoint) | 148 | 148 | 135 (golden fail) | – | unsupported | – | – | 2074 | 1830 | – |
 | [`rtmo-l`](../models/pose.md#rtmo) | 88.0 | 68.8 | 61.9 | – | unsupported | – | – | 2101 | 1829 | – |
 | [`rtmo-m`](../models/pose.md#rtmo) | 60.4 | 47.6 | 43.9 | – | unsupported | – | – | 2043 | 1802 | – |
@@ -663,6 +686,7 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`gmflow-scale2-regrefine6-things`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
 | [`gmflow-scale2-sintel`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
 | [`gmflow-scale2-things`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
+| [`megaflow`](../models/flow.md#megaflow) | OOM | OOM | 11196 | – | unsupported | – | – | – | 8969 | – |
 | [`memflow`](../models/flow.md#memflow) | OOM | 10016 | – | – | unsupported | – | – | – | 12659 | – |
 | [`memflow-kitti`](../models/flow.md#memflow) | OOM | 9826 | – | – | unsupported | – | – | – | 12656 | – |
 | [`memflow-sintel`](../models/flow.md#memflow) | OOM | 10075 | – | – | unsupported | – | – | – | 12787 | – |
@@ -674,6 +698,9 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`raft-large-kitti`](../models/flow.md#raft) | OOM | 10206 | 2270 | – | 1349 | – | 1.7x | – | 12391 | 4671 |
 | [`raft-large-things`](../models/flow.md#raft) | OOM | 3992 | 1641 | – | 1348 | – | 1.2x | – | 9662 | 4670 |
 | [`raft-small`](../models/flow.md#raft) | OOM | 4513 | 602 | – | 386 | – | 1.6x | – | 7468 | 2482 |
+| [`recover-cx`](../models/flow.md#recover) | 1244 | 1107 | 853 | – | unsupported | – | – | 5112 | 2659 | – |
+| [`recover-mn`](../models/flow.md#recover) | 626 | 463 | 347 | – | unsupported | – | – | 4972 | 2562 | – |
+| [`recover-rn`](../models/flow.md#recover) | 667 | 497 | 405 | – | unsupported | – | – | 3891 | 1519 | – |
 | [`sea-raft-m`](../models/flow.md#sea_raft) | 2637 | 1820 | 1635 | – | 1220 | 2.2x | 1.3x | 12444 | 9732 | 4752 |
 | [`sea-raft-m-kitti`](../models/flow.md#sea_raft) | OOM | 5026 | 1507 | – | 1222 | – | 1.2x | – | 9686 | 4754 |
 | [`sea-raft-m-spring`](../models/flow.md#sea_raft) | 354 | 390 | 350 | – | 340 | 1.0x | 1.0x | 2923 | 2632 | 1621 |
@@ -739,18 +766,41 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 ### Restoration, synthetic, 512x512
 
-| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
-|---|---|---|---|---|---|---|
-| [`realesrgan-x2plus`](../models/restoration.md#realesrgan) | 675 | 709 | 549 | unsupported | 1696 | 1440 |
-| [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 2991 | 3022 | 2066 | unsupported | 4713 | 2466 |
-| [`realesrgan-x4plus-anime-6b`](../models/restoration.md#realesrgan) | 938 | 973 | 664 | unsupported | 4517 | 2351 |
-| [`span-x2`](../models/restoration.md#span) | 115 | 100 | 74.0 | unsupported | 2391 | 1296 |
-| [`span-x4`](../models/restoration.md#span) | 117 | 103 | 89.0 | unsupported | 2388 | 1296 |
-| [`swinir-l-x4-real`](../models/restoration.md#swinir) | 16883 | 12063 | 9874 | unsupported | 10504 | 4561 |
-| [`swinir-m-x2`](../models/restoration.md#swinir) | 8690 | 6260 | 5797 | unsupported | 5520 | 3500 |
-| [`swinir-m-x4`](../models/restoration.md#swinir) | 8782 | 6506 | 5893 | unsupported | 7699 | 5060 |
-| [`swinir-m-x4-real`](../models/restoration.md#swinir) | 8901 | 6622 | 5851 | unsupported | 7694 | 5060 |
+| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
+|---|---|---|---|---|---|---|---|
+| [`codeformer`](../models/restoration.md#codeformer) | 274 | 260 | 196 | unsupported | – | 3182 | 1866 |
+| [`dat-2-x4`](../models/restoration.md#dat) | 89592 | 11525 | 9404 | – | unsupported | 13698 | 10600 |
+| [`dat-light-x4`](../models/restoration.md#dat) | 3668 | 2992 | 2562 | – | unsupported | 6317 | 6851 |
+| [`dat-x4`](../models/restoration.md#dat) | 18351 | 21047 | 10512 | – | unsupported | 13512 | 10620 |
+| [`gfpgan-v1.4`](../models/restoration.md#gfpgan) | 172 | 153 | 138 | – | unsupported | 2871 | 1982 |
+| [`hat-s-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – |
+| [`hat-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – |
+| [`real-hat-gan-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – |
+| [`realesr-general-x4v3`](../models/restoration.md#compact) | 176 | 178 | 132 | – | unsupported | 1302 | 1289 |
+| [`realesrgan-x2plus`](../models/restoration.md#realesrgan) | 675 | 709 | 549 | – | unsupported | 1696 | 1440 |
+| [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 2991 | 3022 | 2066 | – | unsupported | 4713 | 2466 |
+| [`realesrgan-x4plus-anime-6b`](../models/restoration.md#realesrgan) | 938 | 973 | 664 | – | unsupported | 4517 | 2351 |
+| [`realplksr-nomoswebphoto-x4`](../models/restoration.md#realplksr) | 1555 | 1527 | 1092 | – | unsupported | 1407 | 1368 |
+| [`span-x2`](../models/restoration.md#span) | 115 | 100 | 74.0 | – | unsupported | 2391 | 1296 |
+| [`span-x4`](../models/restoration.md#span) | 117 | 103 | 89.0 | – | unsupported | 2388 | 1296 |
+| [`swinir-l-x4-real`](../models/restoration.md#swinir) | 16883 | 12063 | 9874 | – | unsupported | 10504 | 4561 |
+| [`swinir-m-x2`](../models/restoration.md#swinir) | 8690 | 6260 | 5797 | – | unsupported | 5520 | 3500 |
+| [`swinir-m-x4`](../models/restoration.md#swinir) | 8782 | 6506 | 5893 | – | unsupported | 7699 | 5060 |
+| [`swinir-m-x4-real`](../models/restoration.md#swinir) | 8901 | 6622 | 5851 | – | unsupported | 7694 | 5060 |
 
+Note: the card has no kernels mode.
+Note: no Metal kernels for this family (card mps_kernels).
+
+## Volume
+
+### Volume, synthetic, 200x200
+
+| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|---|
+| [`totalsegmentator-total`](../models/volume.md#totalsegmentator) | unsupported | 26959 | 20275 | unsupported | 7099 |
+| [`totalsegmentator-total-3mm`](../models/volume.md#totalsegmentator) | unsupported | 515 | 467 | unsupported | 4345 |
+
+Note: no upstream adapter in tools/_original.py; original needs the nnU-Net/TotalSegmentator package (not in the Mac venv) and its 3D inference does not fit 16 GB here.
 Note: no Metal kernels for this family (card mps_kernels).
 <!-- device:end -->
 

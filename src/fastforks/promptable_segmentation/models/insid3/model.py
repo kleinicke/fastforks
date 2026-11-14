@@ -55,6 +55,8 @@ def average_linkage(x: torch.Tensor, threshold: float) -> torch.Tensor:
     Returns:
         `[N]` int64 labels `0 .. K-1` (numbered by first point).
     """
+    if x.device.type == "mps":  # float64: on the CPU (MPS has none)
+        return average_linkage(x.cpu(), threshold).to(x.device)
     n = x.shape[0]
     dev = x.device
     d = (1.0 - (x @ x.T).clamp(-1, 1)).double()
@@ -141,7 +143,9 @@ class Portable(Runner):
         if not fp32:  # built on the CPU while the device still runs the float32 embed
             self.encoder = encoder(mode=self.encoder_mode, dtype=ctx.dtype if self.encoder_mode == "portable" else None)
         del state
-        u = torch.linalg.svd(e - e.mean(1, keepdim=True), full_matrices=False)[0][:, : p.svd_components]
+        z = e - e.mean(1, keepdim=True)
+        on_cpu = z.device.type == "mps"  # MPS runs an SVD this size on the CPU anyway, with a warning
+        u = torch.linalg.svd(z.cpu() if on_cpu else z, full_matrices=False)[0][:, : p.svd_components].to(z.device)
         self.p_perp = torch.eye(u.shape[0], device=ctx.device) - u @ u.T
 
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:

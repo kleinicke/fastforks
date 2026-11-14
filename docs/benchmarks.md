@@ -44,7 +44,7 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 482 models, 1902 rows, measured 2026-11-06 to 2026-11-14.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 507 models, 2002 rows, measured 2026-11-06 to 2026-11-14.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -213,6 +213,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`efficientnet_v2_s.tv_in1k`](models/classification.md#efficientnetv2) | 2.11 ms · kernels fp16 | 34.0 ms · portable fp32 | 2.43 ms · kernels fp16 | 1.74 ms · kernels fp16 | 2.47 ms · kernels fp16 | 3.29 ms · kernels fp16 | 1.62 ms · kernels fp16 |
 | [`efficientvit_b2.r288_in1k`](models/classification.md#efficientvit) | 1.20 ms · kernels fp16 | 18.6 ms · portable fp32 | 1.55 ms · kernels fp16 | 1.01 ms · kernels fp16 | 1.40 ms · kernels fp16 | 1.89 ms · kernels fp16 | 0.926 ms · kernels fp16 |
 | [`eva02_large_patch14_448.mim_m38m_ft_in22k_in1k`](models/classification.md#eva02) | 14.2 ms · kernels fp16 | 235 ms · portable fp16 | 19.6 ms · kernels fp16 | 6.82 ms · kernels fp16 | 16.9 ms · kernels fp16 | 10.3 ms · kernels fp16 | 5.46 ms · kernels fp16 |
+| [`falconsai-nsfw-vit`](models/classification.md#nsfw_vit) | – | 15.9 ms · portable fp16 | – | – | – | – | – |
 | [`fastvit_sa24.apple_dist_in1k`](models/classification.md#fastvit) | – | – | 1.76 ms · kernels fp16 | 1.27 ms · kernels fp16 | 1.73 ms · kernels fp16 | 2.49 ms · kernels fp16 | 1.31 ms · kernels fp16 |
 | [`focalnet_base_lrf.ms_in1k`](models/classification.md#focalnet) | – | 43.2 ms · portable fp16 | – | – | – | – | – |
 | [`focalnet_base_srf.ms_in1k`](models/classification.md#focalnet) | – | 40.1 ms · portable fp16 | – | – | – | – | – |
@@ -314,6 +315,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`efficientvit-sam-l2`](models/promptable_segmentation.md#efficientvit_sam) | – | 91.2 ms · portable fp32 | – | – | – | – | – |
 | [`efficientvit-sam-xl0`](models/promptable_segmentation.md#efficientvit_sam) | – | 167 ms · portable fp32 | – | – | – | – | – |
 | [`efficientvit-sam-xl1`](models/promptable_segmentation.md#efficientvit_sam) | – | 259 ms · portable fp32 | – | – | – | – | – |
+| [`insid3-vitl16`](models/promptable_segmentation.md#insid3) | – | 2510 ms · portable fp16 | – | – | – | – | – |
 | [`mobile-sam`](models/promptable_segmentation.md#mobile_sam) | – | 69.9 ms · portable fp16 | – | – | – | – | – |
 | [`sam-hq-vit-b`](models/promptable_segmentation.md#sam_hq) | – | 645 ms · portable fp32 | – | – | – | – | – |
 | [`sam-hq-vit-h`](models/promptable_segmentation.md#sam_hq) | – | 2347 ms · portable fp16 | – | – | – | – | – |
@@ -397,6 +399,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`hrnet-w32-384`](models/pose.md#hrnet) | 217 ms · portable fp16 |
 | [`hrnet-w48`](models/pose.md#hrnet) | 198 ms · portable fp16 |
 | [`hrnet-w48-384`](models/pose.md#hrnet) | 369 ms · portable fp16 |
+| [`retinaface-mobilenet0.25`](models/pose.md#retinaface) | 15.3 ms · portable fp16 |
+| [`retinaface-resnet50`](models/pose.md#retinaface) | 150 ms · portable fp16 |
 | [`rf-detr-keypoint-preview`](models/pose.md#rfdetr_keypoint) | 148 ms · portable fp32 |
 | [`rtmo-l`](models/pose.md#rtmo) | 61.9 ms · portable fp16 |
 | [`rtmo-m`](models/pose.md#rtmo) | 43.9 ms · portable fp16 |
@@ -528,6 +532,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | OOM |
 | [`gmflow-scale2-sintel`](models/flow.md#gmflow) | OOM |
 | [`gmflow-scale2-things`](models/flow.md#gmflow) | OOM |
+| [`megaflow`](models/flow.md#megaflow) | 11196 ms · portable fp16 |
 | [`memflow`](models/flow.md#memflow) | 10016 ms · portable fp32 |
 | [`memflow-kitti`](models/flow.md#memflow) | 9826 ms · portable fp32 |
 | [`memflow-sintel`](models/flow.md#memflow) | 10075 ms · portable fp32 |
@@ -539,6 +544,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`raft-large-kitti`](models/flow.md#raft) | 1349 ms · kernels fp16 |
 | [`raft-large-things`](models/flow.md#raft) | 1348 ms · kernels fp16 |
 | [`raft-small`](models/flow.md#raft) | 386 ms · kernels fp16 |
+| [`recover-cx`](models/flow.md#recover) | 853 ms · portable fp16 |
+| [`recover-mn`](models/flow.md#recover) | 347 ms · portable fp16 |
+| [`recover-rn`](models/flow.md#recover) | 405 ms · portable fp16 |
 | [`sea-raft-m`](models/flow.md#sea_raft) | 1220 ms · kernels fp16 |
 | [`sea-raft-m-kitti`](models/flow.md#sea_raft) | 1222 ms · kernels fp16 |
 | [`sea-raft-m-spring`](models/flow.md#sea_raft) | 340 ms · kernels fp16 |
@@ -588,15 +596,32 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB |
 |---|---|
+| [`codeformer`](models/restoration.md#codeformer) | 196 ms · portable fp16 |
+| [`dat-2-x4`](models/restoration.md#dat) | 9404 ms · portable fp16 |
+| [`dat-light-x4`](models/restoration.md#dat) | 2562 ms · portable fp16 |
+| [`dat-x4`](models/restoration.md#dat) | 10512 ms · portable fp16 |
+| [`gfpgan-v1.4`](models/restoration.md#gfpgan) | 138 ms · portable fp16 |
+| [`hat-s-x4`](models/restoration.md#hat) | OOM |
+| [`hat-x4`](models/restoration.md#hat) | OOM |
+| [`real-hat-gan-x4`](models/restoration.md#hat) | OOM |
+| [`realesr-general-x4v3`](models/restoration.md#compact) | 132 ms · portable fp16 |
 | [`realesrgan-x2plus`](models/restoration.md#realesrgan) | 549 ms · portable fp16 |
 | [`realesrgan-x4plus`](models/restoration.md#realesrgan) | 2066 ms · portable fp16 |
 | [`realesrgan-x4plus-anime-6b`](models/restoration.md#realesrgan) | 664 ms · portable fp16 |
+| [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | 1092 ms · portable fp16 |
 | [`span-x2`](models/restoration.md#span) | 74.0 ms · portable fp16 |
 | [`span-x4`](models/restoration.md#span) | 89.0 ms · portable fp16 |
 | [`swinir-l-x4-real`](models/restoration.md#swinir) | 9874 ms · portable fp16 |
 | [`swinir-m-x2`](models/restoration.md#swinir) | 5797 ms · portable fp16 |
 | [`swinir-m-x4`](models/restoration.md#swinir) | 5893 ms · portable fp16 |
 | [`swinir-m-x4-real`](models/restoration.md#swinir) | 5851 ms · portable fp16 |
+
+#### Volume, 200x200
+
+| model | Apple M1 Pro 16 GB |
+|---|---|
+| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | 20275 ms · portable fp16 |
+| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | 467 ms · portable fp16 |
 <!-- devices:end -->
 
 ## RTX 5060 Ti 16 GB (reference)

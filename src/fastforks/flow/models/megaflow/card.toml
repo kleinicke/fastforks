@@ -30,7 +30,7 @@ iters = { default = 8, min = 1 }  # refinement updates (upstream README and demo
 
 [modes.portable]
 cuda_dtype = "float16"  # pure fp16 network (aggregator, head, CNN, update block); global and local correlation sampling and the flow in float32
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc", "raft_flow"]  # flash attention + fast DINOv2, fp16-accumulate convs, the correlation windows on the fly

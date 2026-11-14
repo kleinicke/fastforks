@@ -69,8 +69,9 @@ def weight_names(parts: Sequence[str], folds: Sequence[int]) -> list[str]:
 
 def zoom_linear(x: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
     """`scipy.ndimage.zoom(x, order=1)` to `shape` (corner-aligned) in float64, truncated to integers like `int32`."""
-    y = F.interpolate(x[None, None].double(), size=tuple(shape), mode="trilinear", align_corners=True)[0, 0]
-    return y.trunc_().float()
+    src = x.cpu() if x.device.type == "mps" else x  # MPS has no float64
+    y = F.interpolate(src[None, None].double(), size=tuple(shape), mode="trilinear", align_corners=True)[0, 0]
+    return y.trunc_().float().to(x.device)
 
 
 def zoom_nearest(x: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
@@ -80,8 +81,8 @@ def zoom_nearest(x: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
         if n == m:
             continue
         scale = (n - 1) / (m - 1) if m > 1 else 0.0
-        idx = torch.floor(torch.arange(m, dtype=torch.float64, device=x.device) * scale + 0.5).long().clamp_(0, n - 1)
-        x = x.index_select(axis, idx)
+        idx = torch.floor(torch.arange(m, dtype=torch.float64) * scale + 0.5).long().clamp_(0, n - 1)
+        x = x.index_select(axis, idx.to(x.device))
     return x
 
 
