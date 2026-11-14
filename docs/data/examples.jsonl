@@ -385,3 +385,4 @@
 {"ref": "selective-igev-sceneflow", "task": "stereo", "input": "motorcycle", "date": "2026-11-12", "mode": "kernels", "dtype": "float16", "device": "NVIDIA GeForce RTX 5060 Ti"}
 {"ref": "waft-stereo-b", "task": "stereo", "input": "motorcycle", "date": "2026-11-12", "mode": "kernels", "dtype": "float16", "device": "NVIDIA GeForce RTX 5060 Ti"}
 {"ref": "waft-stereo-s", "task": "stereo", "input": "motorcycle", "date": "2026-11-12", "mode": "kernels", "dtype": "float16", "device": "NVIDIA GeForce RTX 5060 Ti"}
+{"ref": "marigold-v2-depth", "task": "depth", "input": "coffee", "date": "2026-11-14", "mode": "kernels", "dtype": "bfloat16", "kind": "affine_invariant_log", "device": "NVIDIA GeForce RTX 5060 Ti"}
