@@ -1,4 +1,4 @@
-"""`model_card(id).contract()`, option bounds, classification `labels=` and the MPS hook (CPU, no weights)."""
+"""`model_card(id).contract()`, option bounds, classification `class_names=` and the MPS hook (CPU, no weights)."""
 
 from __future__ import annotations
 
@@ -133,21 +133,21 @@ def test_detection_threshold_uses_the_card_bounds():
 
 
 @pytest.mark.parametrize(
-    ("labels", "match"),
+    ("names", "match"),
     [
-        (["cat", "dog"], "labels has 2 names, the classifier head has 1000 classes"),
+        (["cat", "dog"], "class_names has 2 names, the classifier head has 1000 classes"),
         ("cat", "sequence of class-name strings"),
         ([1] * 1000, "sequence of class-name strings"),
         ([], "sequence of class-name strings"),
     ],
 )
-def test_labels_are_checked_before_loading(labels, match, monkeypatch):
-    monkeypatch.setattr(core, "load_model", lambda *_a, **_k: pytest.fail("loaded before the labels check"))
+def test_class_names_are_checked_before_loading(names, match, monkeypatch):
+    monkeypatch.setattr(core, "load_model", lambda *_a, **_k: pytest.fail("loaded before the class_names check"))
     with pytest.raises(OptionsError, match=match):
-        classification.load("resnet50", device="cpu", labels=labels)
+        classification.load("resnet50", device="cpu", class_names=names)
 
 
-def test_labels_rename_the_classes(monkeypatch):
+def test_class_names_rename_the_classes(monkeypatch):
     card, v = registry.resolve("classification", "resnet50")
     names = [*card.params, *v.params, *card.options]
     params = dataclasses.make_dataclass("Params", names, frozen=True)
@@ -161,8 +161,8 @@ def test_labels_rename_the_classes(monkeypatch):
             return {"logits": logits}
 
     monkeypatch.setattr(registry, "import_model", lambda _card: types.SimpleNamespace(RUNNERS={"portable": Dummy}))
-    labels = (f"c{i}" for i in range(1000))  # any iterable of strings
-    m = classification.load("resnet50", mode="portable", device="cpu", labels=labels)
+    names = (f"c{i}" for i in range(1000))  # any iterable of strings
+    m = classification.load("resnet50", mode="portable", device="cpu", class_names=names)
     assert m.class_names[7] == "c7"
     assert m.id2label[999] == "c999"
     r = m(torch.rand(3, 64, 64))

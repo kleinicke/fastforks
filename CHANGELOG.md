@@ -40,6 +40,8 @@ public API from now on):
   fields (the `run_many` ones None / False for a call).
 - `stereo.write_disparity` (`write_disparity(path, d)`) -> `result.save(path)` (`StereoResult` / `StereoView`; a `.png` is the
   KITTI uint16 format, as before).
+- Classification: `labels` (`load(model, labels=[...])`) -> `load(model, class_names=[...])`
+  (`classification.load` and `fastforks.load`; the name of the model and result attribute).
 
 ### Models and fixes
 

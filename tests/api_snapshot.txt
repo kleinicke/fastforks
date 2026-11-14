@@ -179,7 +179,7 @@ def fastforks.classification._api.ClassificationModel.example_inputs(self, heigh
 def fastforks.classification._api.ClassificationModel.export_size(self) -> 'tuple[int, int] | None'
 def fastforks.classification._api.ClassificationResult.top(self, k: 'int' = 5) -> 'list[tuple[str, float]] | list[list[tuple[str, float]]]'
 def fastforks.classification.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
-def fastforks.classification.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, labels: 'Sequence[str] | None' = None, **options: 'object') -> 'ClassificationModel'
+def fastforks.classification.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, class_names: 'Sequence[str] | None' = None, **options: 'object') -> 'ClassificationModel'
 def fastforks.classification.model_card(model: 'str') -> 'ModelCard'
 def fastforks.depth.DepthKind(*args, **kwargs)
 def fastforks.depth._api.DepthModel.__call__(self, image: 'ImageLike', *, intrinsics: 'ArrayLike | None' = None, prompt_depth: 'ArrayLike | None' = None) -> 'DepthResult'
@@ -220,7 +220,7 @@ def fastforks.interpolation.list_models(filter: 'str | Sequence[str]' = '*', *, 
 def fastforks.interpolation.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.interpolation._api.InterpolationModel
 def fastforks.interpolation.model_card(model: 'str') -> 'ModelCard'
 def fastforks.list_models(filter: 'str | Sequence[str]' = '*', *, task: 'str | None' = None, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
-def fastforks.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, labels: 'Sequence[str] | None' = None, **options: 'object') -> 'Model'
+def fastforks.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, class_names: 'Sequence[str] | None' = None, **options: 'object') -> 'Model'
 def fastforks.matching._api.MatchingModel.__call__(self, image1: 'ImageLike', image2: 'ImageLike') -> 'MatchingResult | SparseMatchingResult | list[SparseMatchingResult]'
 def fastforks.matching._api.MatchingModel.match_pairs(self, images: 'Sequence[ImageLike]', pairs: 'Iterable[tuple[int, int]]', *, cache_mb: 'float' = 512.0) -> 'Iterator[MatchingResult | SparseMatchingResult]'
 def fastforks.matching._api.MatchingModel.module(self) -> 'torch.nn.Module'

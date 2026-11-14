@@ -348,7 +348,7 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   them, and a missing or unreadable file (another format, empty, truncated) a `WeightsError` naming it. Floating-point
   tensors in another precision than the original (e.g. a float32 fine-tune of Depth Pro's float16 checkpoint) are
   cast to the model's.
-- `labels=` (classification): `classification.load("resnet50", weights="ft.pth", labels=my_1000_names)` names
+- `class_names=` (classification): `classification.load("resnet50", weights="ft.pth", class_names=my_1000_names)` names
   the classes of a fine-tuned head (a list of non-empty strings, in logit order, one per logit: 1000 for `resnet50`, else
   `OptionsError`, checked before loading; the head size is the family's, fixed).
   Only the names change (`result.class_names`, `top()`); the input handling and what the logits mean stay the

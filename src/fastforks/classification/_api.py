@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastforks._core import model as core
 from fastforks._core.api import task_api
-from fastforks._core.arguments import typo_checked_load
+from fastforks._core.arguments import legacy_labels, typo_checked_load
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
@@ -39,7 +39,7 @@ class ClassificationResult(NumpyOutputs):
     Attributes:
         logits: Class scores `[classes]` float32 (`[B, classes]` for a batch).
         class_names: Name of every class, in logit order (the card's label set, e.g. ImageNet-1k, or
-            `load(labels=)`).
+            `load(class_names=)`).
         model: Versioned model id.
         backend: The backend that produced the result.
         options: Load options that differ from the validated defaults.
@@ -84,7 +84,7 @@ class ClassificationModel(core.Model):
     Besides the attributes of `fastforks.Model`:
 
     Attributes:
-        class_names: Name of every class, in logit order (the card's label set, or `load(labels=)`).
+        class_names: Name of every class, in logit order (the card's label set, or `load(class_names=)`).
         num_classes: Number of classes (timm's `model.num_classes`).
         id2label: Class index -> name (transformers' `config.id2label`).
     """
@@ -100,7 +100,7 @@ class ClassificationModel(core.Model):
 
     @property
     def class_names(self) -> tuple[str, ...]:
-        """Name of every class, in logit order (read-only: `load(labels=)` sets them for your own weights)."""
+        """Name of every class, in logit order (read-only: `load(class_names=)` sets them for your own weights)."""
         return self._class_names
 
     @property
@@ -189,17 +189,17 @@ list_models, model_card, _load = task_api(TASK, ClassificationModel)
 
 
 @typo_checked_load
-def load(  # noqa: PLR0913 - the arguments of every task plus `labels`
+def load(  # noqa: PLR0913 - the arguments of every task plus `class_names`
     model: str,
     *,
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
     weights: str | os.PathLike[str] | None = None,
-    labels: Sequence[str] | None = None,
+    class_names: Sequence[str] | None = None,
     **options: object,
 ) -> ClassificationModel:
-    """Load a classifier; the arguments and errors are those of `fastforks.stereo.load`, plus `labels`.
+    """Load a classifier; the arguments and errors are those of `fastforks.stereo.load`, plus `class_names`.
 
     An untagged timm name (`"resnet50"`) resolves to the installed tag of that architecture (`"resnet50.tv2_in1k"`).
 
@@ -211,31 +211,35 @@ def load(  # noqa: PLR0913 - the arguments of every task plus `labels`
             `fastforks.stereo.load`.
         weights: Your own weights file instead of the recorded one, e.g. a fine-tune; not hash-checked, loaded
             strictly (see `fastforks.stereo.load`), so its head has the card's number of classes.
-        labels: Class names in logit order for such weights (`class_names`, `id2label` and the results use them);
+        class_names: Class names in logit order for such weights (`model.class_names`, `id2label` and the results
+            use them);
             exactly one per logit of the head (`num_classes` of the card's label set). Only the names change: the
             input handling and the meaning of the logits stay those of the family.
         **options: Overrides of the model's load options (card `[options]`).
 
     Raises:
         ModelNotFoundError: Unknown id or revision.
-        OptionsError: Invalid option, mode, dtype or device, or `labels` that are not one string per class.
+        OptionsError: Invalid option, mode, dtype or device, or `class_names` that are not one string per class.
         BackendUnavailableError: `mode="kernels"` cannot run here. Never raised for `"auto"`.
         WeightsError: Weights cannot be found, downloaded or verified, or `weights` does not fit.
     """
-    names = None if labels is None else _labels(labels, len(label_set(model_card(model).output_info["label_set"])))
+    given = legacy_labels(class_names, options)
+    n = None if given is None else len(label_set(model_card(model).output_info["label_set"]))
+    names = None if n is None else _class_names(cast("Sequence[str]", given), n)
     m = _load(model, mode=mode, device=device, dtype=dtype, weights=weights, **options)
     if names is not None:
         m._class_names = names  # noqa: SLF001 - the documented way to set them
     return m
 
 
-def _labels(labels: Sequence[str], n: int) -> tuple[str, ...]:
-    """`labels` as a tuple, checked before anything is loaded: one string per logit of the head."""
-    names = tuple(labels) if isinstance(labels, Iterable) and not isinstance(labels, str | bytes) else ()
+def _class_names(class_names: Sequence[str], n: int) -> tuple[str, ...]:
+    """`class_names` as a tuple, checked before anything is loaded: one string per logit of the head."""
+    ok = isinstance(class_names, Iterable) and not isinstance(class_names, str | bytes)
+    names = tuple(class_names) if ok else ()
     if not names or not all(isinstance(x, str) and x for x in names):
-        msg = f"labels must be a sequence of class-name strings (non-empty), got {type(labels).__name__}"
+        msg = f"class_names must be a sequence of class-name strings (non-empty), got {type(class_names).__name__}"
         raise OptionsError(msg)
     if len(names) != n:
-        msg = f"labels has {len(names)} names, the classifier head has {n} classes"
+        msg = f"class_names has {len(names)} names, the classifier head has {n} classes"
         raise OptionsError(msg)
     return names

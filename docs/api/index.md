@@ -34,7 +34,7 @@ Top-level functions and classes (the exceptions are on the [errors](errors.md) p
 
 ## Task functions
 
-Every task package (`fastforks.stereo`, `fastforks.depth`, ...) has `list_models`, `model_card` and `load` with these signatures. `fastforks.classification.load` also takes `labels=` (class names of a fine-tuned head).
+Every task package (`fastforks.stereo`, `fastforks.depth`, ...) has `list_models`, `model_card` and `load` with these signatures. `fastforks.classification.load` also takes `class_names=` (the class names of a fine-tuned head).
 
 ::: fastforks._core.api.ListModelsFn
 

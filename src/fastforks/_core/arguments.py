@@ -66,6 +66,17 @@ def renamed_attributes(module: str, renames: Mapping[str, tuple[str, object]]) -
     return __getattr__
 
 
+def legacy_labels(class_names: object, options: dict[str, object]) -> object:
+    """`class_names`, or the 0.1.1 `labels=` popped from `options` (warned); both given is an error."""
+    if "labels" not in options:
+        return class_names
+    warn_renamed("load(..., labels=)", "load(..., class_names=)", stacklevel=5)
+    if class_names is not None:
+        msg = "labels= is the old name of class_names=: pass only class_names="
+        raise OptionsError(msg)
+    return options.pop("labels")
+
+
 def _option_kwargs(fn: Callable[..., Any], kwargs: dict[str, Any]) -> dict[str, Any]:
     """`kwargs` of a `load(..., **options)` call with a legacy `options={...}` merged in (warned)."""
     legacy = kwargs.pop("options", None)

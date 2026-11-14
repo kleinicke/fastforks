@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 import fastforks
-from fastforks import OptionsError, stereo
+from fastforks import OptionsError, classification, stereo
 from fastforks._core import registry
 from fastforks._core.arguments import REMOVAL
 from fastforks.stereo._runner import Runner
@@ -70,3 +70,18 @@ def test_write_disparity(tmp_path):
         write = stereo.write_disparity
     write(tmp_path / "d.png", np.ones((3, 4), np.float32))
     assert (tmp_path / "d.png").stat().st_size > 0
+
+
+def test_classification_labels(monkeypatch):
+    from fastforks._core import model as core  # noqa: PLC0415
+
+    seen = {}
+    monkeypatch.setattr(core, "load_model", lambda *_a, **_k: types.SimpleNamespace(_class_names=None))
+    names = [f"c{i}" for i in range(1000)]
+    for load in (classification.load, fastforks.load):
+        with _warns(r"load\(\.\.\., class_names=\)"):
+            m = load("resnet50", device="cpu", labels=names)
+        seen[load] = m._class_names
+    assert all(v == tuple(names) for v in seen.values())
+    with _warns(r"load\(\.\.\., class_names=\)"), pytest.raises(OptionsError, match="pass only class_names"):
+        classification.load("resnet50", device="cpu", labels=names, class_names=names)

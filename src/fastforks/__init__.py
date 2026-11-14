@@ -16,7 +16,7 @@ import importlib.metadata
 from typing import TYPE_CHECKING, Any
 
 from fastforks._core import registry
-from fastforks._core.arguments import typo_checked_load
+from fastforks._core.arguments import legacy_labels, typo_checked_load
 from fastforks._core.errors import (
     ArgumentError,
     BackendUnavailableError,
@@ -146,14 +146,14 @@ def model_card(model: str) -> ModelCard:
 
 
 @typo_checked_load
-def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classification's `labels`
+def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classification's `class_names`
     model: str,
     *,
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
     weights: str | os.PathLike[str] | None = None,
-    labels: Sequence[str] | None = None,
+    class_names: Sequence[str] | None = None,
     **options: object,
 ) -> Model:
     """Load any model by id: the same as `fastforks.<task>.load(model, ...)` for the task that has the model.
@@ -168,7 +168,7 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classifi
         device: Default: `"cuda"` if available, else `"mps"` for a family validated on it, else `"cpu"`.
         dtype: Compute dtype (`None`: the validated one; a string or the torch dtype).
         weights: Your own weights file or directory instead of the downloaded ones.
-        labels: Classification only: class names for your own weights (see `fastforks.classification.load`).
+        class_names: Classification only: class names for your own weights (see `fastforks.classification.load`).
         **options: Model options (see `fastforks info MODEL`), e.g. `iters=16`.
 
     Returns:
@@ -177,8 +177,8 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classifi
     Raises:
         ModelNotFoundError: No task has `model`; the message suggests similar ids.
         ArgumentError: An unknown keyword (the message suggests the closest one, e.g. `mdoe=` -> `mode`).
-        OptionsError: Several tasks have this id (the message names the task loaders), or `labels` for a model that
-            is not a classifier.
+        OptionsError: Several tasks have this id (the message names the task loaders), or `class_names` for a model
+            that is not a classifier.
         FastforksError: Anything the task's `load` raises.
     """
     tasks = [t for t in registry.TASKS if _has(t, model)]
@@ -189,11 +189,12 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classifi
     card, _ = registry.resolve_any(model)
     task = importlib.import_module(f"fastforks.{card.task}")
     extra: dict[str, Any] = {}
-    if labels is not None:
+    given = legacy_labels(class_names, options)
+    if given is not None:
         if card.task != "classification":
-            msg = f"labels= is for classifiers; {model!r} is a {card.task} model"
+            msg = f"class_names= is for classifiers; {model!r} is a {card.task} model"
             raise OptionsError(msg)
-        extra["labels"] = labels
+        extra["class_names"] = given
     return task.load(model, mode=mode, device=device, dtype=dtype, weights=weights, **extra, **options)
 
 

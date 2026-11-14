@@ -291,17 +291,17 @@ def test_arguments_are_checked_before_user_weights(fake_runner, tmp_path, caplog
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]  # no "unverified weights" warning
 
 
-def test_top_level_load_labels(monkeypatch):
+def test_top_level_load_class_names(monkeypatch):
     import fastforks  # noqa: PLC0415
     from fastforks import classification  # noqa: PLC0415
 
-    with pytest.raises(OptionsError, match="labels= is for classifiers; 's2m2-s' is a stereo model"):
-        fastforks.load("s2m2-s", labels=["a"])
+    with pytest.raises(OptionsError, match="class_names= is for classifiers; 's2m2-s' is a stereo model"):
+        fastforks.load("s2m2-s", class_names=["a"])
     seen = {}
     monkeypatch.setattr(classification, "load", lambda model, **kw: seen.update(kw, model=model))
-    fastforks.load("alexnet.tv_in1k", labels=("a", "b"))
+    fastforks.load("alexnet.tv_in1k", class_names=("a", "b"))
     assert seen["model"] == "alexnet.tv_in1k"
-    assert seen["labels"] == ("a", "b")
+    assert seen["class_names"] == ("a", "b")
 
 
 def test_class_names_are_read_only():
