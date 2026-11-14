@@ -19,7 +19,7 @@ import torch
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
-from fastforks._core.patch import override
+from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Forward, Runner
 from fastforks.shared.group_norm import fast_group_norms
@@ -91,7 +91,7 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
-            if type(m) is torch.nn.Conv2d:
+            if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:

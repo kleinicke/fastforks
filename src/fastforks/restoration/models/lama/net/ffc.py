@@ -98,7 +98,7 @@ class FFC(nn.Module):
         self.convg2g = nn.Identity() if in_cg == 0 or out_cg == 0 else SpectralTransform(in_cg, out_cg)
 
     def forward(self, x):
-        x_l, x_g = x if type(x) is tuple else (x, 0)
+        x_l, x_g = x if type(x) is tuple else (x, 0)  # exact type: not a module
         out_xl, out_xg = 0, 0
         p_l = reflect_pad(x_l, self.padding)
         p_g = reflect_pad(x_g, self.padding) if torch.is_tensor(x_g) and isinstance(self.convg2l, nn.Conv2d) else x_g
@@ -134,7 +134,7 @@ class FFCResnetBlock(nn.Module):
         self.conv2 = FFC_BN_ACT(dim, dim, kernel_size=3, ratio_gin=ratio, ratio_gout=ratio, padding=1)
 
     def forward(self, x):
-        x_l, x_g = x if type(x) is tuple else (x, 0)
+        x_l, x_g = x if type(x) is tuple else (x, 0)  # exact type: not a module
         id_l, id_g = x_l, x_g
         x_l, x_g = self.conv1((x_l, x_g))
         x_l, x_g = self.conv2((x_l, x_g))

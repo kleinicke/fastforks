@@ -123,14 +123,21 @@ def _sweep_ref(item: pytest.Item) -> str | None:
 
 
 def pytest_collection_modifyitems(config, items):
-    """Tests marked `slow` are skipped without `--slow`. The ref-parametrized tests of `LOAD_ONCE` modules run as one
-    block, grouped by ref (in collection order within a ref), at the place of the first of them: `sweep_model` then
-    loads each model once. Tests do not depend on order."""
+    """Tests marked `slow` are skipped without `--slow`, tests marked `gpu` without a usable CUDA device. The
+    ref-parametrized tests of `LOAD_ONCE` modules run as one block, grouped by ref (in collection order within a ref),
+    at the place of the first of them: `sweep_model` then loads each model once. Tests do not depend on order."""
     if not config.getoption("--slow"):
         skip = pytest.mark.skip(reason="slow (> 1 s): --slow runs it")
         for item in items:
             if "slow" in item.keywords:
                 item.add_marker(skip)
+    gpu = [i for i in items if i.get_closest_marker("gpu")]
+    if gpu:
+        import torch  # noqa: PLC0415 - only when GPU tests were collected
+
+        if not torch.cuda.is_available():
+            for item in gpu:
+                item.add_marker(pytest.mark.skip(reason="gpu: no usable CUDA device"))
     block = [i for i in items if _sweep_ref(i) is not None]
     if block:
         first = items.index(block[0])

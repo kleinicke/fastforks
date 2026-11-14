@@ -19,7 +19,7 @@ import torch
 
 from fastforks._core.checkpoint import Inert, config_globals, load_strict
 from fastforks._core.half import fp16_accumulate
-from fastforks._core.patch import override
+from fastforks._core.patch import is_base, override
 from fastforks._core.preprocess import Crop, pad_widths
 from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Forward, Runner
@@ -109,7 +109,7 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
-            if type(m) is torch.nn.Conv2d and m.weight.dtype == torch.float16 and m.groups == 1:
+            if is_base(m, torch.nn.Conv2d) and m.weight.dtype == torch.float16 and m.groups == 1:
                 override(m, _hacc_conv)
         after = cudnn_hacc.capture_after()
         self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
