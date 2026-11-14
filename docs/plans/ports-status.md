@@ -112,7 +112,7 @@ In this order, unless something more useful turns up:
 - SAMURAI (`samurai` option of the `sam2.1-hiera-*` cards, promptable_segmentation `track`): portable float32 MPS
   goldens (`samurai_box_*` keys). The sam2 goldens were regenerated, so all sam2 MPS validation is needed again. Golden
   files in `golden_ports/`. No new weights.
-- ByteTrack multi-object tracking (`tracking.ByteTracker`): CPU numpy, nothing device-specific; optional Mac row of
+- ByteTrack multi-object tracking (`detection.ByteTracker`): CPU numpy, nothing device-specific; optional Mac row of
   `tools/eval_mot.py track` (tracker ms per frame). No weights.
 - GeoCalib (`geocalib-pinhole`, new calibration task): portable float32 MPS goldens and Mac speed rows at 1080x1920;
   check the LM fit's `cholesky_ex` / `cholesky_solve` on MPS. No Metal kernels runner. Weights: the pinned GitHub

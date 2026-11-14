@@ -52,8 +52,8 @@ class Runner(core.Runner):
         mask_size: `(h, w)` of the low-resolution masks (`predict` output and `masks` prompt).
         low_res_clamp: If set, the returned `pred_masks` are clamped to `[-c, c]` after `upsample` has seen the
             unclamped logits (SAM 2: 32).
-        video: The runner implements `track` (video object tracking from frame-0 prompts).
-        video_prompts: Prompt kinds `track` takes (`None`: those of `prompts`; SAM 3: points and boxes, as its
+        video: The runner implements `track` (the model's `video`: video object tracking from frame-0 prompts).
+        video_prompts: Prompt kinds `track` (`video`) takes (`None`: those of `prompts`; SAM 3: points and boxes, as its
             tracker, while its image prompts are concepts).
     """
 

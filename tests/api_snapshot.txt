@@ -15,6 +15,8 @@ class fastforks.depth._api.DepthModel(fastforks._core.model.Model)
 class fastforks.depth._api.DepthResult(fastforks._core.outputs.MapOutputs)
 class fastforks.detection._api.DetectionModel(fastforks._core.model.Model)
 class fastforks.detection._api.DetectionResult(fastforks._core.instances.Instances)
+class fastforks.detection._tracks.ByteTracker(builtins.object)
+class fastforks.detection._tracks.ObjectTracks(builtins.object)
 class fastforks.edges._api.EdgesModel(fastforks._core.model.Model)
 class fastforks.edges._api.EdgesResult(fastforks._core.outputs.MapOutputs)
 class fastforks.features._api.FeaturesModel(fastforks._core.model.Model)
@@ -38,6 +40,8 @@ class fastforks.matting._api.VideoMattingResult(fastforks._core.outputs.NumpyOut
 class fastforks.multiview._api.MultiViewModel(fastforks._core.model.Model)
 class fastforks.multiview._api.MultiViewResult(fastforks._core.outputs.MapOutputs)
 class fastforks.multiview._gaussians.Gaussians(builtins.object)
+class fastforks.ocr._api.OCRModel(fastforks._core.model.Model)
+class fastforks.ocr._api.OCRResult(fastforks._core.outputs.NumpyOutputs)
 class fastforks.pose._api.PoseModel(fastforks._core.model.Model)
 class fastforks.pose._api.PoseResult(fastforks._core.instances.Instances)
 class fastforks.promptable_segmentation._api.ConceptSegmentationModel(fastforks.promptable_segmentation._api.PromptableSegmentationModel)
@@ -80,8 +84,6 @@ class fastforks.stereo.geometry.rig.StereoRig(builtins.object)
 class fastforks.stereo.pipeline.PairResult(fastforks.stereo.calibrated.PairViews)
 class fastforks.tracking._api.TrackingModel(fastforks._core.model.Model)
 class fastforks.tracking._api.TrackingResult(fastforks._core.outputs.NumpyOutputs)
-class fastforks.tracking.objects.ByteTracker(builtins.object)
-class fastforks.tracking.objects.ObjectTracks(builtins.object)
 class fastforks.volume._api.VolumeModel(fastforks._core.model.Model)
 class fastforks.volume._api.VolumeResult(fastforks._core.outputs.NumpyOutputs)
 class fastforks.volume._nifti.VolumeMeta(builtins.object)
@@ -184,15 +186,19 @@ def fastforks.classification.model_card(model: 'str') -> 'ModelCard'
 def fastforks.depth.DepthKind(*args, **kwargs)
 def fastforks.depth._api.DepthModel.__call__(self, image: 'ImageLike', *, intrinsics: 'ArrayLike | None' = None, prompt_depth: 'ArrayLike | None' = None) -> 'DepthResult'
 def fastforks.depth._api.DepthModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
+def fastforks.depth._api.DepthModel.video(self, frames: 'Sequence[ImageLike] | np.ndarray | torch.Tensor') -> 'DepthResult'
 def fastforks.depth._api.DepthResult.save(self, path: 'str | Path', key: 'str | None' = None, bits: 'int | None' = None, *, max_depth: 'float | None' = None, axes: 'str' = 'opencv') -> 'None'
 def fastforks.depth.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.depth.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.depth._api.DepthModel
 def fastforks.depth.model_card(model: 'str') -> 'ModelCard'
 def fastforks.describe_models(models: 'Sequence[str] | None' = None, **filters: 'Any') -> 'str'
 def fastforks.detection._api.DetectionModel.__call__(self, image: 'ImageLike', *, score_threshold: 'float | None' = None, text: 'Sequence[str] | None' = None) -> 'DetectionResult | list[DetectionResult]'
+def fastforks.detection._tracks.ByteTracker.reset(self) -> 'None'
+def fastforks.detection._tracks.ByteTracker.update(self, detections: 'Any') -> 'ObjectTracks'
 def fastforks.detection.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.detection.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.detection._api.DetectionModel
 def fastforks.detection.model_card(model: 'str') -> 'ModelCard'
+def fastforks.detection.track_objects(video: 'Iterable[Any]', detector: 'Callable[..., Any] | None' = None, *, classes: 'Sequence[int | str] | None' = None, **tracker: 'float') -> 'list[ObjectTracks]'
 def fastforks.edges._api.EdgesModel.__call__(self, image: 'ImageLike') -> 'EdgesResult'
 def fastforks.edges.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.edges.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.edges._api.EdgesModel
@@ -237,7 +243,7 @@ def fastforks.matching.sfm.colmap_database(images: 'str | os.PathLike[str]', dat
 def fastforks.matching.sfm.reconstruct(images: 'str | os.PathLike[str]', out: 'str | os.PathLike[str]', *, mapper: "Literal['incremental', 'global']" = 'incremental', **options: 'Any') -> 'ReconstructionStats'
 def fastforks.matting._api.MattingModel.__call__(self, image: 'ImageLike', *, trimap: 'ImageLike | None' = None, mask: 'ImageLike | None' = None) -> 'MattingResult'
 def fastforks.matting._api.MattingModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
-def fastforks.matting._api.MattingModel.track(self, video: 'Sequence[ImageLike] | np.ndarray | torch.Tensor', *, mask: 'ImageLike') -> 'VideoMattingResult'
+def fastforks.matting._api.MattingModel.video(self, frames: 'Sequence[ImageLike] | np.ndarray | torch.Tensor', *, mask: 'ImageLike') -> 'VideoMattingResult'
 def fastforks.matting.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.matting.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.matting._api.MattingModel
 def fastforks.matting.model_card(model: 'str') -> 'ModelCard'
@@ -252,6 +258,10 @@ def fastforks.multiview.list_models(filter: 'str | Sequence[str]' = '*', *, excl
 def fastforks.multiview.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.multiview._api.MultiViewModel
 def fastforks.multiview.model_card(model: 'str') -> 'ModelCard'
 def fastforks.multiview.unproject(depth: 'torch.Tensor', intrinsics: 'torch.Tensor', cam_to_world: 'torch.Tensor | None' = None) -> 'torch.Tensor'
+def fastforks.ocr._api.OCRModel.__call__(self, image: 'ImageLike') -> 'OCRResult | list[OCRResult]'
+def fastforks.ocr.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.ocr.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.ocr._api.OCRModel
+def fastforks.ocr.model_card(model: 'str') -> 'ModelCard'
 def fastforks.patch(model: 'nn.Module', *, mode: 'str' = 'auto', device: 'torch.device | str | None' = None, dtype: 'str | torch.dtype | None' = None) -> 'FastModel'
 def fastforks.pose._api.PoseModel.__call__(self, image: 'ImageLike', *, boxes: 'BoxesLike | Sequence[BoxesLike] | None' = None) -> 'PoseResult | list[PoseResult]'
 def fastforks.pose._api.PoseResult.to_list(self) -> 'list[dict[str, Any]]'
@@ -264,7 +274,7 @@ def fastforks.promptable_segmentation._api.ConceptSegmentationModel.__call__(sel
 def fastforks.promptable_segmentation._api.InContextSegmentationModel.__call__(self, image: 'ImageLike | ImageEmbeddings', *, reference_images: 'ImageLike | ImageEmbeddings | Sequence[ImageLike]', reference_masks: 'PromptLike | Sequence[PromptLike]') -> 'InContextSegmentationResult'
 def fastforks.promptable_segmentation._api.PromptableSegmentationModel.__call__(self, image: 'ImageLike | ImageEmbeddings', *, input_points: 'PromptLike | None' = None, input_labels: 'PromptLike | None' = None, input_boxes: 'PromptLike | None' = None, input_masks: 'PromptLike | None' = None, multimask_output: 'bool' = True, text: 'str | None' = None, input_boxes_labels: 'PromptLike | None' = None, threshold: 'float | None' = None) -> 'PromptableSegmentationResult | ConceptSegmentationResult'
 def fastforks.promptable_segmentation._api.PromptableSegmentationModel.get_image_embeddings(self, image: 'ImageLike') -> 'ImageEmbeddings'
-def fastforks.promptable_segmentation._api.PromptableSegmentationModel.track(self, video: 'Sequence[ImageLike] | np.ndarray | torch.Tensor', *, input_points: 'PromptLike | None' = None, input_labels: 'PromptLike | None' = None, input_boxes: 'PromptLike | None' = None, input_masks: 'PromptLike | None' = None) -> 'VideoSegmentationResult'
+def fastforks.promptable_segmentation._api.PromptableSegmentationModel.video(self, frames: 'Sequence[ImageLike] | np.ndarray | torch.Tensor', *, input_points: 'PromptLike | None' = None, input_labels: 'PromptLike | None' = None, input_boxes: 'PromptLike | None' = None, input_masks: 'PromptLike | None' = None) -> 'VideoSegmentationResult'
 def fastforks.promptable_segmentation.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.promptable_segmentation.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> 'PromptableSegmentationModel'
 def fastforks.promptable_segmentation.model_card(model: 'str') -> 'ModelCard'
@@ -342,9 +352,6 @@ def fastforks.tracking._api.TrackingModel.module(self) -> 'torch.nn.Module'
 def fastforks.tracking.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.tracking.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.tracking._api.TrackingModel
 def fastforks.tracking.model_card(model: 'str') -> 'ModelCard'
-def fastforks.tracking.objects.ByteTracker.reset(self) -> 'None'
-def fastforks.tracking.objects.ByteTracker.update(self, detections: 'Any') -> 'ObjectTracks'
-def fastforks.tracking.track_objects(video: 'Iterable[Any]', detector: 'Callable[..., Any] | None' = None, *, labels: 'Sequence[int] | None' = None, **tracker: 'float') -> 'list[ObjectTracks]'
 def fastforks.volume._api.VolumeModel.__call__(self, volume: 'np.ndarray | torch.Tensor', *, spacing: 'Sequence[float] | None' = None, meta: 'VolumeMeta | None' = None) -> 'VolumeResult'
 def fastforks.volume._api.VolumeModel.module(self) -> 'torch.nn.Module'
 def fastforks.volume._api.VolumeModel.networks(self) -> 'tuple[torch.nn.Module, ...]'
@@ -440,6 +447,10 @@ field fastforks.depth._api.DepthResult.model: str
 field fastforks.depth._api.DepthResult.normals: torch.Tensor | None
 field fastforks.depth._api.DepthResult.options: Mapping[str, Any]
 field fastforks.depth._api.DepthResult.points: torch.Tensor | None
+field fastforks.detection._tracks.ObjectTracks.boxes: torch.Tensor
+field fastforks.detection._tracks.ObjectTracks.ids: torch.Tensor
+field fastforks.detection._tracks.ObjectTracks.labels: torch.Tensor | None
+field fastforks.detection._tracks.ObjectTracks.scores: torch.Tensor
 field fastforks.edges._api.EdgesResult.backend: Backend
 field fastforks.edges._api.EdgesResult.edges: torch.Tensor
 field fastforks.edges._api.EdgesResult.lines: torch.Tensor | list[torch.Tensor] | None
@@ -530,6 +541,12 @@ field fastforks.multiview._gaussians.Gaussians.means: torch.Tensor
 field fastforks.multiview._gaussians.Gaussians.opacities: torch.Tensor
 field fastforks.multiview._gaussians.Gaussians.rotations: torch.Tensor
 field fastforks.multiview._gaussians.Gaussians.scales: torch.Tensor
+field fastforks.ocr._api.OCRResult.backend: Backend
+field fastforks.ocr._api.OCRResult.boxes: torch.Tensor
+field fastforks.ocr._api.OCRResult.model: str
+field fastforks.ocr._api.OCRResult.options: Mapping[str, Any]
+field fastforks.ocr._api.OCRResult.scores: torch.Tensor
+field fastforks.ocr._api.OCRResult.texts: list[str]
 field fastforks.pose._api.PoseResult.class_names: tuple[str, ...]
 field fastforks.pose._api.PoseResult.keypoint_names: tuple[str, ...]
 field fastforks.pose._api.PoseResult.keypoint_scores: torch.Tensor
@@ -676,10 +693,6 @@ field fastforks.tracking._api.TrackingResult.model: str
 field fastforks.tracking._api.TrackingResult.options: Mapping[str, Any]
 field fastforks.tracking._api.TrackingResult.tracks: torch.Tensor
 field fastforks.tracking._api.TrackingResult.visibility: torch.Tensor | None
-field fastforks.tracking.objects.ObjectTracks.boxes: torch.Tensor
-field fastforks.tracking.objects.ObjectTracks.ids: torch.Tensor
-field fastforks.tracking.objects.ObjectTracks.labels: torch.Tensor | None
-field fastforks.tracking.objects.ObjectTracks.scores: torch.Tensor
 field fastforks.volume._api.VolumeResult.backend: Backend
 field fastforks.volume._api.VolumeResult.class_names: Mapping[int, str]
 field fastforks.volume._api.VolumeResult.labels: torch.Tensor
@@ -734,10 +747,12 @@ name fastforks.depth.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.depth.SizeRange = class fastforks._core.sizes.SizeRange
 name fastforks.depth.TensorRTEngine = class fastforks._core.export.TensorRTEngine
 name fastforks.detection.Backend = class fastforks._core.model.Backend
+name fastforks.detection.ByteTracker = class fastforks.detection._tracks.ByteTracker
 name fastforks.detection.DetectionModel = class fastforks.detection._api.DetectionModel
 name fastforks.detection.DetectionResult = class fastforks.detection._api.DetectionResult
 name fastforks.detection.ImageLike
 name fastforks.detection.ModelCard = class fastforks._core.cards.ModelCard
+name fastforks.detection.ObjectTracks = class fastforks.detection._tracks.ObjectTracks
 name fastforks.detection.SizeRange = class fastforks._core.sizes.SizeRange
 name fastforks.detection.TensorRTEngine = class fastforks._core.export.TensorRTEngine
 name fastforks.edges.Backend = class fastforks._core.model.Backend
@@ -802,6 +817,13 @@ name fastforks.multiview.MultiViewModel = class fastforks.multiview._api.MultiVi
 name fastforks.multiview.MultiViewResult = class fastforks.multiview._api.MultiViewResult
 name fastforks.multiview.SizeRange = class fastforks._core.sizes.SizeRange
 name fastforks.multiview.TensorRTEngine = class fastforks._core.export.TensorRTEngine
+name fastforks.ocr.Backend = class fastforks._core.model.Backend
+name fastforks.ocr.ImageLike
+name fastforks.ocr.ModelCard = class fastforks._core.cards.ModelCard
+name fastforks.ocr.OCRModel = class fastforks.ocr._api.OCRModel
+name fastforks.ocr.OCRResult = class fastforks.ocr._api.OCRResult
+name fastforks.ocr.SizeRange = class fastforks._core.sizes.SizeRange
+name fastforks.ocr.TensorRTEngine = class fastforks._core.export.TensorRTEngine
 name fastforks.pose.Backend = class fastforks._core.model.Backend
 name fastforks.pose.ImageLike
 name fastforks.pose.ModelCard = class fastforks._core.cards.ModelCard
@@ -876,10 +898,8 @@ name fastforks.stereo.pipeline.Images
 name fastforks.stereo.pipeline.PairResult = class fastforks.stereo.pipeline.PairResult
 name fastforks.stereo.pipeline.Rig
 name fastforks.tracking.Backend = class fastforks._core.model.Backend
-name fastforks.tracking.ByteTracker = class fastforks.tracking.objects.ByteTracker
 name fastforks.tracking.ImageLike
 name fastforks.tracking.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.tracking.ObjectTracks = class fastforks.tracking.objects.ObjectTracks
 name fastforks.tracking.SizeRange = class fastforks._core.sizes.SizeRange
 name fastforks.tracking.TensorRTEngine = class fastforks._core.export.TensorRTEngine
 name fastforks.tracking.TrackingModel = class fastforks.tracking._api.TrackingModel
@@ -1023,6 +1043,8 @@ option multiview.resplat.long_side
 option multiview.resplat.refine
 option multiview.vggt.long_side
 option multiview.vggt_omega.area_side aliases resolution
+option ocr.ppocrv5.box_threshold aliases text_det_box_thresh
+option ocr.ppocrv5.unclip_ratio aliases text_det_unclip_ratio
 option pose.hrnet.flip_test
 option pose.retinaface.score_threshold
 option pose.rfdetr_keypoint.score_threshold

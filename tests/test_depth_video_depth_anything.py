@@ -1,14 +1,17 @@
-"""Video Depth Anything: the card, the input sizes and the windowing / alignment of `infer_video_depth`."""
+"""Video Depth Anything: the card, the input sizes, the windowing / alignment of `infer_video_depth`, `video`."""
 
 from __future__ import annotations
+
+import types
 
 import numpy as np
 import pytest
 import torch
 import torch.nn.functional as F
 
-from fastforks import depth
+from fastforks import InputError, depth
 from fastforks._core import registry
+from fastforks.depth._runner import Runner as DepthRunner
 from fastforks.depth.models.video_depth_anything import model
 from fastforks.depth.models.video_depth_anything.model import INFER_LEN, KEYFRAMES, OVERLAP, Params, network_size
 
@@ -91,3 +94,43 @@ def test_windows_match_upstream(n: int, metric: bool, monkeypatch: pytest.Monkey
     x = F.interpolate(video, (h, w), mode="bicubic", align_corners=False)
     np.testing.assert_allclose(got.numpy(), _upstream(x, (11, 16), metric=metric), rtol=1e-5, atol=1e-5)
     assert runner.encoded == n
+
+
+class _Frames(DepthRunner):
+    """Fake video runner: inverse depth = the frame's mean colour plus its index in the call; logs the call sizes."""
+
+    Params = Params
+    batch = 1
+    video = True
+    calls: list[int] = []  # noqa: RUF012 - test log
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - test stub
+        _Frames.calls.append(image.shape[0])
+        return {"inverse_depth": image.mean(1) + torch.arange(image.shape[0])[:, None, None]}
+
+
+@pytest.mark.usefixtures("card_min_size")
+def test_video_and_batch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`video` runs the frames as one clip, a batch each image as a one-frame video; image models refuse `video`."""
+    monkeypatch.setattr(registry, "import_model", lambda _card: types.SimpleNamespace(RUNNERS={"portable": _Frames}))
+    _Frames.calls = []
+    m = depth.load("video-depth-anything-s", device="cpu")
+    frames = [np.full((16, 20, 3), 10 * t, np.uint8) for t in range(3)]
+    v = m.video(frames)
+    assert _Frames.calls == [3]
+    assert v.inverse_depth.shape == (3, 16, 20)
+    torch.testing.assert_close(v.inverse_depth[:, 0, 0], torch.tensor([0.0, 10 / 255 + 1, 20 / 255 + 2]))
+    torch.testing.assert_close(m.video(np.stack(frames)).inverse_depth, v.inverse_depth)
+    _Frames.calls = []
+    b = m(np.stack(frames))
+    assert _Frames.calls == [1, 1, 1]
+    torch.testing.assert_close(b.inverse_depth[:, 0, 0], torch.tensor([0.0, 10 / 255, 20 / 255]))
+    with pytest.raises(InputError, match="no frames"):
+        m.video([])
+    with pytest.raises(InputError, match="one size"):
+        m.video([frames[0], frames[1][:8]])
+    with pytest.raises(InputError, match="sequence of frames"):
+        m.video("clip.mp4")
+    monkeypatch.setattr(_Frames, "video", False)
+    with pytest.raises(InputError, match="image model"):
+        m.video(frames)

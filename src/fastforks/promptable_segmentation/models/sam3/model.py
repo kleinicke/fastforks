@@ -1,4 +1,4 @@
-"""SAM 3 runners: weights -> network, and the portable / kernels passes (image concepts; `track`: `video.py`).
+"""SAM 3 runners: weights -> network, and the portable / kernels passes (image concepts; `video`: `video.py`).
 
 Both follow upstream `Sam3Processor` / transformers `Sam3Model` (text and exemplar-box prompts) and its
 post-processing:
@@ -20,7 +20,7 @@ the residual streams, norms and MLPs of the geometry encoder and DETR decoder, a
 float32. Kernels (`fast.py`) replaces the trunk and neck by fp16-accumulate
 kernels and runs the heads with fp16 accumulation.
 
-`track` (video, frame-0 points / boxes / masks) loads the tracker on its first call: the frames go through the same
+`video` (frame-0 points / boxes / masks) loads the tracker on its first call: the frames go through the same
 trunk (kernels: the fp16-accumulate trunk) and the tracker's own neck (kernels: the neck kernels), the tracker heads
 in float32 and its memory modules in the compute dtype.
 """
@@ -238,7 +238,7 @@ class _Sam3(Runner):
         return F.interpolate(pred_masks, size, mode="bilinear", align_corners=False)
 
     def _tracker(self) -> tuple[Tracker, object]:
-        """The tracker and its neck, loaded on the first `track` call (image use does not hold them).
+        """The tracker and its neck, loaded on the first `video` call (image use does not hold them).
 
         The heads run in float32, the memory modules and the neck in the compute dtype.
         """

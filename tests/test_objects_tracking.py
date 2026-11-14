@@ -1,4 +1,4 @@
-"""Multi-object tracking (`tracking.ByteTracker`, `shared.box_kalman`): assignment, Kalman filter, reference values."""
+"""Multi-object tracking (`detection.ByteTracker`, `shared.box_kalman`): assignment, Kalman filter, reference values."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ import pytest
 import torch
 
 from fastforks._core.errors import InputError
+from fastforks.detection import ByteTracker, ObjectTracks, track_objects
+from fastforks.detection._tracks import linear_assignment
 from fastforks.shared import box_kalman
-from fastforks.tracking import ByteTracker, ObjectTracks, track_objects
-from fastforks.tracking.objects import linear_assignment
 
 
 def _brute(cost: np.ndarray, limit: float) -> float:
@@ -129,8 +129,10 @@ def test_low_score_detections_extend_tracks() -> None:
     assert len(tracker.update(np.array([[*box, 0.65]]))) == 0  # below track_thresh + 0.1: no new track
 
 
-def test_detection_result_and_labels() -> None:
+def test_detection_result_and_classes() -> None:
     class Dets:
+        class_names = ("person", "bicycle", "car")
+
         def __init__(self, boxes: list, scores: list, labels: list) -> None:
             self.boxes, self.scores, self.labels = torch.tensor(boxes), torch.tensor(scores), torch.tensor(labels)
 
@@ -138,11 +140,14 @@ def test_detection_result_and_labels() -> None:
             return Dets(self.boxes[keep].tolist(), self.scores[keep].tolist(), self.labels[keep].tolist())
 
     frames = [Dets([[0.0, 0, 10, 20], [50, 50, 70, 90]], [0.9, 0.9], [0, 2])] * 3
-    out = track_objects(frames, labels=[2])
-    assert out[-1].labels.tolist() == [2]
-    assert out[-1].boxes.tolist() == [[50.0, 50.0, 70.0, 90.0]]
+    for classes in ([2], ["car"]):
+        out = track_objects(frames, classes=classes)
+        assert out[-1].labels.tolist() == [2]
+        assert out[-1].boxes.tolist() == [[50.0, 50.0, 70.0, 90.0]]
+    with pytest.raises(InputError, match="unknown class 'bus'"):
+        track_objects(frames, classes=["bus"])
     with pytest.raises(InputError):
-        track_objects([np.zeros((0, 5))], labels=[0])
+        track_objects([np.zeros((0, 5))], classes=[0])
 
 
 @pytest.mark.parametrize("bad", [np.zeros((3, 4)), [[0, 0, 1, 1, np.nan]], "boxes"])

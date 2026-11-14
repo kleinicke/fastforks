@@ -88,7 +88,7 @@ def track_queries() -> list[list[float]]:
 
 
 def clip_prompts() -> dict[str, dict[str, Any]]:
-    """Frame-0 prompts of `clip()` for `track`, by golden key prefix: a point, a box, the disk's mask."""
+    """Frame-0 prompts of `clip()` for `video`, by golden key prefix: a point, a box, the disk's mask."""
     yy, xx = np.mgrid[:100, :150]
     return {
         "video_": {"input_points": [[50, 45]], "input_labels": [1]},

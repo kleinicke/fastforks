@@ -151,7 +151,7 @@ def video_predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
     mode = "kernels" if tier == "kernels" else "portable"
     dtype = {"dtype": "float32"} if tier == "portable32" else {}
     m = matting.load(ref, mode=mode, device="cuda", options=YT, **dtype)
-    return lambda frames, mask: np.asarray(m.track(frames, mask=mask).alpha)
+    return lambda frames, mask: np.asarray(m.video(frames, mask=mask).alpha)
 
 
 def main_video(a: argparse.Namespace, commit: str) -> None:

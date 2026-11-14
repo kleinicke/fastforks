@@ -51,7 +51,7 @@ class MattingResult(MapOutputs):
 
 @dataclass(frozen=True)
 class VideoMattingResult(NumpyOutputs):
-    """Alpha of the object masked on frame 0, for every frame of a video (`track`), on the CPU.
+    """Alpha of the object masked on frame 0, for every frame of a video, on the CPU.
 
     The CPU, not the model's device: the result grows with the video length, the device memory does not.
 
@@ -110,13 +110,13 @@ class MattingModel(core.Model):
         maps = unbatch(self._batched(run, x, t), image)
         return MattingResult(maps["alpha"], self.variant.ref, self.backend, self.options)
 
-    def track(self, video: Sequence[ImageLike] | np.ndarray | torch.Tensor, *, mask: ImageLike) -> VideoMattingResult:
+    def video(self, frames: Sequence[ImageLike] | np.ndarray | torch.Tensor, *, mask: ImageLike) -> VideoMattingResult:
         """Matte the object masked on the first frame through a video (models with `video`, MatAnyone).
 
         Frames are read and processed one at a time; the alpha of each frame goes to the CPU.
 
         Args:
-            video: The frames in order: a sequence of images (paths, PIL, numpy HWC, torch CHW; one size), or a
+            frames: The frames in order: a sequence of images (paths, PIL, numpy HWC, torch CHW; one size), or a
                 `[T, H, W, 3]` numpy / `[T, 3, H, W]` torch batch.
             mask: The object on frame 0: a gray image of the frame size, nonzero = the object; read like `image`.
 
@@ -129,18 +129,18 @@ class MattingModel(core.Model):
         if not self._runner.video:
             msg = f"{self.variant.ref} does not matte video"
             raise InputError(msg)
-        if isinstance(video, str | bytes) or not hasattr(video, "__len__") or not hasattr(video, "__getitem__"):
-            msg = f"video must be a sequence of frames or a [T, ...] frame batch, got {type(video).__name__}"
+        if isinstance(frames, str | bytes) or not hasattr(frames, "__len__") or not hasattr(frames, "__getitem__"):
+            msg = f"frames must be a sequence of frames or a [T, ...] frame batch, got {type(frames).__name__}"
             raise InputError(msg)
-        n = len(video)
+        n = len(frames)
         if n == 0:
             msg = "video has no frames"
             raise InputError(msg)
-        first = self._frame(video, 0)
+        first = self._frame(frames, 0)
         size = (int(first.shape[-2]), int(first.shape[-1]))
 
         def frame(t: int) -> torch.Tensor:
-            x = first if t == 0 else self._frame(video, t)
+            x = first if t == 0 else self._frame(frames, t)
             if tuple(x.shape[-2:]) != size:
                 msg = f"video frames must have one size: frame 0 is {size}, frame {t} is {tuple(x.shape[-2:])}"
                 raise InputError(msg)
@@ -148,7 +148,7 @@ class MattingModel(core.Model):
 
         m = self._guide(None, mask, first)
         if m is None or m.shape[0] != 1:
-            msg = "track takes one mask (the object on frame 0)"
+            msg = "video takes one mask (the object on frame 0)"
             raise InputError(msg)
         with self._session():
             out = self._runner.track(frame, n, size, m[0, 0])

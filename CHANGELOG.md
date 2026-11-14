@@ -19,6 +19,11 @@ public API from now on):
 - Pose: `model(image, boxes)` -> `model(image, boxes=...)` (keyword-only).
 - Volume: `model(volume, spacing)` -> `model(volume, spacing=...)` or `model(volume, meta=...)` (keyword-only, one of
   the two; with `meta` from `read_nifti`, `result.save("x.nii.gz")` writes the labels on the file's grid).
+- One video verb: SAM 2 / SAM 3 / MatAnyone `track(video, ...)` -> `video(frames, ...)`; Video Depth Anything
+  `model(frames)` (the batch was one video) -> `model.video(frames)`, and a batch is now independent images.
+- Object tracking moved to detection: `tracking.ByteTracker` / `tracking.ObjectTracks` /
+  `tracking.track_objects(labels=)` -> `detection.ByteTracker` / `detection.ObjectTracks` /
+  `detection.track_objects(classes=)` (class names or ids).
 
 ### Models and fixes
 
@@ -74,7 +79,7 @@ public API from now on):
   identical (the misses are out-of-domain lines). No kernels runner.
 
 - MatAnyone video matting (`matanyone`, matting; NTU S-Lab License 1.0 code and weights: non-commercial): one object
-  from a mask on the first frame (`track`; an image is a one-frame video), the `process_video` loop with its memory,
+  from a mask on the first frame (`video`; an image is a one-frame video), the `process_video` loop with its memory,
   options `warmup` / `dilate` / `erode`. 1080x1920 video: 161 ms per frame portable vs 198 ms original fp16 (261 ms
   fp32), peak 2.8 GB vs 6.2 GB (readout chunked, top-k over the last dim); one image 1204 ms vs 1220 ms. YouTubeMatte 512x288 (every 2nd clip: 32 x 100 frames,
   the authors' settings) MAD x 1000 2.64, MSE x 1000 1.00, dtSSD x 100 1.65, the same as the original in fp16 and
@@ -288,14 +293,14 @@ public API from now on):
   vs 13.5 ms original fp32 (7.44 ms `half()`), peak 256 MB vs 430 MB. St Lucia recall@1 99.86 for all modes and the
   original. The ResNet-50 variant is not ported.
 
-- SAMURAI motion-aware tracking (`samurai` option of the `sam2.1-hiera-*` cards, `track`; Apache-2.0 code, the SAM 2.1
+- SAMURAI motion-aware tracking (`samurai` option of the `sam2.1-hiera-*` cards, `video`; Apache-2.0 code, the SAM 2.1
   weights): a Kalman filter on each object's mask box picks among the multimask outputs once stable (weighted with the
   predicted IoU, `kf_score_weight` 0.25, 0.15 for large) and the memory bank keeps the confident frames; several
   objects at once. LaSOT subset (6 videos, 10.5k frames, base-plus fp16): AUC 73.58 kernels / 76.93 portable vs 73.73
   original SAMURAI (portable recovers the target on mouse-8; without it 81.20 / 81.19 vs 81.37), 52.5 ms per frame
   kernels, 59.2 ms portable vs 90.9 ms original.
 
-- Multi-object tracking (`tracking.ByteTracker`, `tracking.track_objects`; MIT, after ByteTrack): ByteTrack's two-stage
+- Multi-object tracking (`detection.ByteTracker`, `detection.track_objects(classes=)`; MIT, after ByteTrack): ByteTrack's two-stage
   association of per-frame detections (D-FINE / RT-DETR / RF-DETR results or `[N, 5]` arrays), batched Kalman filter
   (`shared/box_kalman`, also for SAMURAI) and an exact linear assignment without scipy. MOT17 train with D-FINE-X
   person detections: identical tracks to the official ByteTrack (0 id differences in 5316 frames, boxes within
@@ -381,7 +386,7 @@ public API from now on):
   as upstream. 24-frame 480x854 video, 256 queries: 382 ms kernels, 529 ms portable vs 1541 ms original fp32;
   TAP-Vid DAVIS (first) AJ 66.56 kernels vs 66.55 original.
 
-- SAM 2.1 video (`track` of `sam2.1-hiera-*`; Apache-2.0 code and weights): objects prompted on the first frame
+- SAM 2.1 video (`video` of `sam2.1-hiera-*`; Apache-2.0 code and weights): objects prompted on the first frame
   (points, boxes or masks) are followed through a video with the original memory attention / memory encoder.
   Tiny on DAVIS 2017 val (480p): 59 ms/frame portable, 63 ms kernels vs 282 ms original fp32 (90 ms fp16), peak
   1.3 GB vs 2.1 GB; J&F 87.53 portable, 87.54 kernels and original.

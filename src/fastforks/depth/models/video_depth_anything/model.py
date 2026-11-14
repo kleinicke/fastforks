@@ -1,6 +1,7 @@
 """Video Depth Anything runners: weights -> network and the portable / kernels forward passes of a whole video.
 
-A call's batch is one video in time order (`[L, 3, H, W]`). Both runners follow upstream `infer_video_depth`:
+A runner call takes one video in time order (`[L, 3, H, W]`; the model's `video`; a batch of the model runs frame by
+frame, `batch = 1`). Both runners follow upstream `infer_video_depth`:
 
 - resize so that both sides are at least `short_side` and multiples of 14 (aspect kept, bicubic; videos wider than
   16:9 lower `short_side` by the aspect ratio, as upstream), normalise with the ImageNet mean / std
@@ -128,7 +129,8 @@ def _scale_shift(p: torch.Tensor, t: torch.Tensor) -> tuple[torch.Tensor, torch.
 class _Video(Runner):
     """The windowing / alignment of `infer_video_depth`; subclasses run the encoder and the head."""
 
-    batch = None
+    batch = 1  # a batch is independent images; `DepthModel.video` passes the whole video
+    video = True
     Params = Params
     compiled_methods = ("_encode", "_window")  # the networks; the windowing loop stays eager
     net: Net

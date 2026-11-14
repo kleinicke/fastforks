@@ -1,4 +1,4 @@
-"""MOT17 train: fastforks `tracking.ByteTracker` vs the official ByteTrack on the same detections, TrackEval metrics.
+"""MOT17 train: fastforks `detection.ByteTracker` vs the official ByteTrack on the same detections, TrackEval metrics.
 
     FASTFORKS_KERNEL_PATH=build/kernels python tools/eval_mot.py detect --model dfine-x-coco --out dets/
     BYTETRACK_SRC=... python tools/eval_mot.py track --dets dets/ --out mot/   # MOT txt per tracker + compare.json
@@ -64,7 +64,7 @@ def _reference(params: dict) -> object | None:
 
 def track(dets: Path, out: Path) -> None:  # noqa: C901, PLR0912
     """Both trackers on the same detections -> MOT txt + `<out>/compare.json`."""
-    from fastforks.tracking import ByteTracker  # noqa: PLC0415
+    from fastforks.detection import ByteTracker  # noqa: PLC0415
 
     res = {}
     for f in sorted(dets.glob("MOT17-*.npy")):

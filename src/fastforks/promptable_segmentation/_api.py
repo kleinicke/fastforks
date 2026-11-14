@@ -161,7 +161,7 @@ class PromptableSegmentationResult(MapOutputs):
 
 @dataclass(frozen=True)
 class VideoSegmentationResult(NumpyOutputs):
-    """Masks of the objects prompted on frame 0, for every frame of a video (`track`), on the CPU.
+    """Masks of the objects prompted on frame 0, for every frame of a video, on the CPU.
 
     The CPU, not the model's device: the result grows with the video length, the device memory does not.
 
@@ -387,9 +387,9 @@ class PromptableSegmentationModel(core.Model):
             maps["masks"], maps["iou_scores"], maps["pred_masks"], self.variant.ref, self.backend, self.options
         )
 
-    def track(  # noqa: C901 - input checks per prompt kind
+    def video(  # noqa: C901 - input checks per prompt kind
         self,
-        video: Sequence[ImageLike] | np.ndarray | torch.Tensor,
+        frames: Sequence[ImageLike] | np.ndarray | torch.Tensor,
         *,
         input_points: PromptLike | None = None,
         input_labels: PromptLike | None = None,
@@ -402,7 +402,7 @@ class PromptableSegmentationModel(core.Model):
         one object per prompt), then `propagate_in_video` forward. Frames are encoded one at a time.
 
         Args:
-            video: The frames in order: a sequence of images (paths, PIL, numpy HWC, torch CHW; one size), or a
+            frames: The frames in order: a sequence of images (paths, PIL, numpy HWC, torch CHW; one size), or a
                 `[T, H, W, 3]` numpy / `[T, 3, H, W]` torch batch.
             input_points: `[P, N, 2]` (or `[N, 2]`) point `(x, y)` in pixels of frame 0.
             input_labels: `[P, N]` (or `[N]`) point labels: 1 foreground, 0 background, -1 padding.
@@ -420,18 +420,18 @@ class PromptableSegmentationModel(core.Model):
         if not self._runner.video:
             msg = f"{self.variant.ref} does not track video"
             raise InputError(msg)
-        if isinstance(video, str | bytes) or not hasattr(video, "__len__") or not hasattr(video, "__getitem__"):
-            msg = f"video must be a sequence of frames or a [T, ...] frame batch, got {type(video).__name__}"
+        if isinstance(frames, str | bytes) or not hasattr(frames, "__len__") or not hasattr(frames, "__getitem__"):
+            msg = f"frames must be a sequence of frames or a [T, ...] frame batch, got {type(frames).__name__}"
             raise InputError(msg)
-        n = len(video)
+        n = len(frames)
         if n == 0:
             msg = "video has no frames"
             raise InputError(msg)
-        first = self._frame(video, 0)
+        first = self._frame(frames, 0)
         size = (int(first.shape[-2]), int(first.shape[-1]))
 
         def frame(t: int) -> torch.Tensor:
-            x = first if t == 0 else self._frame(video, t)
+            x = first if t == 0 else self._frame(frames, t)
             if tuple(x.shape[-2:]) != size:
                 msg = f"video frames must have one size: frame 0 is {size}, frame {t} is {tuple(x.shape[-2:])}"
                 raise InputError(msg)
@@ -439,7 +439,7 @@ class PromptableSegmentationModel(core.Model):
 
         if input_masks is not None:
             if any(v is not None for v in (input_points, input_labels, input_boxes)):
-                msg = "track takes input_masks or input_points / input_boxes, not both"
+                msg = "video takes input_masks or input_points / input_boxes, not both"
                 raise InputError(msg)
             m = _numeric("input_masks", input_masks, torch.float32)
             batched = m.ndim == 3  # noqa: PLR2004 - [P, H, W]
@@ -452,7 +452,7 @@ class PromptableSegmentationModel(core.Model):
             kinds = self._runner.video_prompts or self.prompts
             prompts, batched = self._prompts({k: v for k, v in given.items() if v is not None}, kinds)
         if next(iter(prompts.values())).shape[0] == 0:
-            msg = "track needs at least one object prompt"
+            msg = "video needs at least one object prompt"
             raise InputError(msg)
         with self._session():
             out = self._runner.track(

@@ -435,7 +435,7 @@ Commercial use: yes.
 
 ### Measured
 
-One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Semi-supervised: every object's first-frame mask as `input_masks`, `track` forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as davis2017-evaluation, mean over objects. Original = the original code named under Details, same checkpoint and protocol.
+One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Semi-supervised: every object's first-frame mask as `input_masks`, `video` forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as davis2017-evaluation, mean over objects. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|

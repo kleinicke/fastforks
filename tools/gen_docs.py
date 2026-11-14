@@ -227,7 +227,7 @@ _PROTOCOL = {
     "drawn with seed 0 from the images whose class covers >= 2 %, the class's non-crowd instances as one mask; "
     "foreground IoU summed per class, mean over the 80 classes. ",
     **{
-        ("promptable_segmentation", d): "Semi-supervised: every object's first-frame mask as `input_masks`, `track` "
+        ("promptable_segmentation", d): "Semi-supervised: every object's first-frame mask as `input_masks`, `video` "
         "forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as "
         "davis2017-evaluation, mean over objects. "
         for d in ("davis2017-val-every3", "davis2017-val-every1")

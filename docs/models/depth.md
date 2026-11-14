@@ -1258,8 +1258,8 @@ CPU, float32: max |diff| <= 1.3e-05 vs the original. GPU, float16 (the default),
 
 ### Limitations
 
-- A call's batch is one video in time order: frames are not independent (each window attends over time and is aligned to the previous one), so a batch is not the same as single calls.
-- Every call runs at least one 32-frame window (shorter videos are padded with copies of their last frame): one image costs about as much as 32 frames in the temporal head.
+- `model.video(frames)` runs one video in time order (each window attends over time and is aligned to the previous one); calling the model with an image or a batch runs each image as a one-frame video.
+- Every video runs at least one 32-frame window (shorter videos are padded with copies of their last frame): one image costs about as much as 32 frames in the temporal head.
 - The whole video's depth is kept on the device as float32 (L x H x W); split very long videos.
 
 </details>

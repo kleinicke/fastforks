@@ -322,14 +322,14 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         for prefix, p in prompts().items():
             pr = m(emb, **p)
             maps |= {f"{prefix}pred_masks": pr.pred_masks, f"{prefix}iou_scores": pr.iou_scores}
-        if want is not None and "video_pred_masks" in want:  # video goldens: `track` on the synth clip per prompt
+        if want is not None and "video_pred_masks" in want:  # video goldens: `video` on the synth clip per prompt
             for prefix, p in clip_prompts().items():
-                tr = m.track(clip(), **p)
+                tr = m.video(clip(), **p)
                 maps |= {f"{prefix}pred_masks": tr.pred_masks, f"{prefix}object_score_logits": tr.object_score_logits}
         if want is not None and "samurai_box_pred_masks" in want:  # SAMURAI: the box prompt on a longer clip
             b = m.backend
             sm = API[TASK[ref]].load(ref, mode=b.mode, device=b.device, dtype=b.dtype, options={"samurai": True})
-            tr = sm.track(clip(len(want["samurai_box_object_score_logits"])), **clip_prompts()["video_box_"])
+            tr = sm.video(clip(len(want["samurai_box_object_score_logits"])), **clip_prompts()["video_box_"])
             maps |= {"samurai_box_pred_masks": tr.pred_masks, "samurai_box_object_score_logits": tr.object_score_logits}
         return {k: v.float().cpu() for k, v in maps.items()}, m.backend
     elif task == "detection":  # instances in score order; labels and masks stored as float
@@ -354,12 +354,12 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     elif task == "ocr":  # texts as code points (`goldens.text_codes`)
         r = m(img)
         maps = {"boxes": r.boxes, "scores": r.scores, "texts": torch.from_numpy(goldens.text_codes(r.texts))}
-    elif task == "matting":  # trimap- / mask-guided models: the golden's trimap or mask; video: `track` on the clip
+    elif task == "matting":  # trimap- / mask-guided models: the golden's trimap or mask; video: `video` on the clip
         guide = {k: want[k].round().astype(np.uint8) for k in ("trimap", "mask") if want and k in want}
         r = m(img, **guide)
         maps = {"alpha": r.alpha}
         if want is not None and "video_alpha" in want:
-            maps["video_alpha"] = m.track(clip(), mask=guide["mask"]).alpha
+            maps["video_alpha"] = m.video(clip(), mask=guide["mask"]).alpha
     elif task == "retrieval":
         r = m(img)
         maps = {"descriptor": r.descriptor}

@@ -17,7 +17,7 @@ class Portable(Runner):
 Matting families resize the image to their network size themselves, so a runner gets the raw image and returns the
 alpha at its size. Trimap-guided families set `trimap = "required"` and get the trimap, mask-guided ones (video
 matting) `mask = "required"` and get the mask in the same argument, the others `None`. Video families set `video` and
-implement `track`.
+implement `track` (the model's `video`).
 The core does image conversion and checks, batching, output checks, locking and the device guard.
 """
 
@@ -46,7 +46,7 @@ class Runner(core.Runner):
             `"required"`: it needs a trimap; `__call__` gets it.
         mask: `"required"`: the network takes a binary mask of the object instead of a trimap (video matting from a
             first-frame mask); `__call__` gets it in place of the trimap. `"unused"`: no mask.
-        video: The runner implements `track` (video matting from a first-frame mask).
+        video: The runner implements `track` (the model's `video`: video matting from a first-frame mask).
     """
 
     trimap: ClassVar[Literal["unused", "required"]] = "unused"
