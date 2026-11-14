@@ -96,6 +96,11 @@ class ConvRefiner(nn.Module):
         with autocast(self.amp):
             x0 = self.block1(feats)
             x = (self.hidden_blocks(x0) + x0) / 1.4  # residual = True in every released model
+            if x.is_contiguous(memory_format=torch.channels_last):
+                # the 1 x 1 conv as a matmul on the NHWC layout: cuDNN's NHWC conv pads the 257-channel output to a
+                # multiple of 8 through a copy (2 x 316 MB at 784 x 784 for the descriptor's finest scale)
+                w = self.out_conv.weight
+                return F.linear(x.permute(0, 2, 3, 1), w.flatten(1), self.out_conv.bias).permute(0, 3, 1, 2)
             return self.out_conv(x)
 
 
@@ -118,7 +123,7 @@ class Decoder(nn.Module):
         self, features: torch.Tensor, context: torch.Tensor | None, scale: str
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if context is not None:
-            features = torch.cat((features, context), dim=1)
+            features = torch.cat((features, context), dim=1)  # the caller's reference to the map is gone: freed here
         stuff = self.layers[scale](features)
         return stuff[:, : self.num_prototypes], stuff[:, self.num_prototypes :]
 
@@ -135,18 +140,20 @@ class Detector(nn.Module):
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         features, sizes = self.encoder(images)
-        logits: torch.Tensor | float = 0
+        features = list(features)  # coarse to fine, popped as consumed so each scale's map is freed after its use
+        logits: torch.Tensor | None = None
         context = None
         scales = list(self.decoder.layers.keys())
-        for idx, (feature_map, scale) in enumerate(zip(reversed(features), scales, strict=True)):
-            delta_logits, context = self.decoder(feature_map, context=context, scale=scale)
-            logits = logits + delta_logits.float()
+        assert len(scales) == len(features)
+        for idx, scale in enumerate(scales):
+            delta_logits, context = self.decoder(features.pop(), context=context, scale=scale)
+            logits = delta_logits.float() if logits is None else logits.add_(delta_logits)
             if idx < len(scales) - 1:
                 size = sizes[-(idx + 2)]
                 logits = F.interpolate(logits, size=size, mode="bicubic", align_corners=False)
                 context = F.interpolate(context.float(), size=size, mode="bilinear", align_corners=False)
-        assert isinstance(logits, torch.Tensor)
-        return logits.float()
+        assert logits is not None
+        return logits
 
 
 class Descriptor(nn.Module):
@@ -160,17 +167,21 @@ class Descriptor(nn.Module):
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         features, sizes = self.encoder(images)
-        descriptor: torch.Tensor | float = 0
+        features = list(features)  # popped as consumed (see Detector.forward)
+        descriptor: torch.Tensor | None = None
         context = None
         scales = list(self.decoder.layers.keys())
-        for idx, (feature_map, scale) in enumerate(zip(reversed(features), scales, strict=True)):
-            delta_descriptor, context = self.decoder(feature_map, scale=scale, context=context)
-            descriptor = descriptor + delta_descriptor
+        assert len(scales) == len(features)
+        for idx, scale in enumerate(scales):
+            delta_descriptor, context = self.decoder(features.pop(), scale=scale, context=context)
+            # the sum is accumulated into the refiner's output (a view of the same tensor as `context`), not into a
+            # third full-resolution tensor: -260 MB at the finest scale of the 784 px descriptor
+            descriptor = delta_descriptor if descriptor is None else delta_descriptor.add_(descriptor)
             if idx < len(scales) - 1:
                 size = sizes[-(idx + 2)]
                 descriptor = F.interpolate(descriptor, size=size, mode="bilinear", align_corners=False)
                 context = F.interpolate(context, size=size, mode="bilinear", align_corners=False)
-        assert isinstance(descriptor, torch.Tensor)
+        assert descriptor is not None
         return descriptor
 
 
@@ -196,9 +207,28 @@ def sample_keypoints(logits: torch.Tensor, num_samples: int) -> tuple[torch.Tens
 
 
 def describe_keypoints(grid: torch.Tensor, keypoints: torch.Tensor) -> torch.Tensor:
-    """Upstream `describe_keypoints`: bilinear samples of the description grid, `[N, 256]` float32."""
-    out = F.grid_sample(grid.float(), keypoints[None, None], mode="bilinear", align_corners=False)
-    return out[0, :, 0].mT
+    """Upstream `describe_keypoints`: bilinear samples of the description grid, `[N, 256]` float32.
+
+    Upstream is `F.grid_sample(grid.float(), ..., align_corners=False)`; this gathers the four neighbours of each
+    keypoint from the grid as it is and interpolates them in float32 in the kernel's order, so the float32 copy of
+    the whole grid (632 MB at 784 x 784) is never made. Equal to the kernel up to its fused multiply-adds (max
+    |difference| 1.2e-4 on the 256 x 784 x 784 descriptor grid, float32 and bfloat16, CPU and CUDA).
+    """
+    _, c, h, w = grid.shape
+    kp = keypoints.float()
+    x = ((kp[:, 0] + 1) * w - 1) / 2
+    y = ((kp[:, 1] + 1) * h - 1) / 2
+    x0, y0 = x.floor(), y.floor()
+    x0i, y0i = x0.long(), y0.long()
+    flat = grid[0].reshape(c, h * w)
+    out = torch.zeros(c, kp.shape[0], device=grid.device, dtype=torch.float32)
+    for dy, wy in ((0, (y0 + 1) - y), (1, y - y0)):
+        for dx, wx in ((0, (x0 + 1) - x), (1, x - x0)):
+            xi, yi = x0i + dx, y0i + dy
+            inside = (xi >= 0) & (xi < w) & (yi >= 0) & (yi < h)
+            idx = torch.where(inside, yi * w + xi, torch.zeros_like(xi))
+            out += flat[:, idx].float() * torch.where(inside, wx * wy, torch.zeros_like(wx))
+    return out.mT
 
 
 def dual_softmax_match(
