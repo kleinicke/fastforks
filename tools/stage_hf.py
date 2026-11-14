@@ -228,6 +228,8 @@ _PIPELINE = {
     "tracking": "keypoint-detection",  # no point-tracking pipeline on the Hub: query points tracked over time
     "interpolation": "image-to-image",  # no frame-interpolation pipeline on the Hub: two frames -> the middle one
     "restoration": "image-to-image",
+    "edges": "image-to-image",  # no line-detection pipeline on the Hub
+    "volume": "image-segmentation",
 }
 _TASK_TAGS = {
     "stereo": ["stereo", "stereo-matching", "disparity"],
@@ -247,6 +249,8 @@ _TASK_TAGS = {
     "retrieval": ["image-retrieval", "visual-place-recognition", "global-descriptor"],
     "calibration": ["camera-calibration", "single-image-calibration", "gravity-estimation"],
     "restoration": ["super-resolution", "image-upscaling", "image-restoration"],
+    "edges": ["edge-detection", "line-art", "controlnet-preprocessor"],
+    "volume": ["medical-imaging", "3d-segmentation", "ct-segmentation"],
 }
 _SNIPPET = {
     "stereo": 'result = model("left.png", "right.png")\nresult.{out}  # [H, W] float32 tensor, input resolution',
@@ -270,6 +274,11 @@ _SNIPPET = {
         "result.{out}  # [V, H, W] float32 tensor; result.kind says what the maps mean"
     ),
     "matching": ('result = model("view1.jpg", "view2.jpg")\nresult.{out}  # [2, H1, W1] float32: x, y in view2 pixels'),
+    "edges": 'result = model("photo.jpg")\nresult.{out}  # [H, W] float32 in [0, 1], 1 = line, input resolution',
+    "volume": (
+        "result = model(ct, spacing)  # ct: [D, H, W] float32 HU volume; spacing: (z, y, x) in mm\n"
+        "result.{out}  # [D, H, W] uint8 label per voxel; result.class_names[k] names label k"
+    ),
     "matting": 'result = model("photo.jpg")\nresult.{out}  # [H, W] float32 in [0, 1], input resolution',
     "retrieval": (
         'result = model("photo.jpg")\nresult.{out}  # [D] float32, unit norm\n'
@@ -298,6 +307,10 @@ _SNIPPET = {
 }
 # Families whose call differs from their task's snippet (the family's runner decides, see tests/test_hf_cards.py).
 _SNIPPET_FAMILY = {
+    "insid3": (
+        'result = model("photo.jpg", reference_images="ref.jpg", reference_masks=ref_mask)  # ref_mask [H, W] bool\n'
+        "result.masks  # [M, H, W] bool: the referenced concept in photo.jpg"
+    ),
     "sam3": (
         'result = model("photo.jpg", text="coin")  # a concept: every instance of it; or input_boxes= exemplar boxes\n'
         "result.boxes, result.scores, result.masks  # [N, 4], [N], [N, H, W] bool"

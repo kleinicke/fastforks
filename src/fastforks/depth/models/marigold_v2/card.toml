@@ -28,7 +28,7 @@ weights = "Apache-2.0"
 files = ["LICENSE", "NOTICE"]  # NOTICE: Huawei (Marigold V2) and Alibaba (Qwen-Image-Edit-2509) attributions, the conversion
 training_data = ["unstated"]
 training_note = "Qwen-Image-Edit-2509 (Alibaba, Apache-2.0) fine-tuned (LoRA + VAE decoder) on synthetic depth data per the Marigold V2 paper (arXiv 2609.08084); the training data terms are not checked"
-evidence = "https://huggingface.co/huawei-bayerlab/marigold-v2/blob/main/README.md (license: apache-2.0; base_model Qwen/Qwen-Image-Edit-2509)"
+evidence = "https://huggingface.co/huawei-bayerlab/marigold-v2/blob/main/README.md (license: apache-2.0; base model Qwen/Qwen-Image-Edit-2509)"
 
 [io]
 input = "0-255"  # the runner maps to [-1, 1] and enlarges to multiples of 16 itself
