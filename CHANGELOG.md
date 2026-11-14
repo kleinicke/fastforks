@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- MatAnyone video matting (`matanyone`, matting; NTU S-Lab License 1.0 code and weights: non-commercial): one object
+  from a mask on the first frame (`track`; an image is a one-frame video), the `process_video` loop with its memory,
+  options `warmup` / `dilate` / `erode`. 1080x1920 video: 187 ms per frame portable vs 198 ms original fp16 (261 ms
+  fp32), peak 5.6 GB vs 6.2 GB; one image 1204 ms vs 1220 ms. YouTubeMatte 512x288 (every 2nd clip: 32 x 100 frames,
+  the authors' settings) MAD x 1000 2.64, MSE x 1000 1.00, dtSSD x 100 1.65, the same as the original in fp16 and
+  fp32; parity on CPU exact. No kernels runner.
+
+- DRCT super-resolution (`drct-x4`, `drct-l-x4`, restoration; MIT code and weights): window attention as one SDPA
+  call, the shifted-window masks made on the GPU once per size (original: on the CPU in every call), the
+  relative-position biases gathered at load. 512x512 DRCT x4: 730 ms kernels, 830 ms portable (618 ms compile) vs 8044
+  ms original fp32 (7492 ms `.half()`), peak 2.6 GB vs 6.1 GB; DRCT-L: 1422 / 1607 ms (1210 ms compile) vs 14847 ms,
+  2.7 GB vs 6.3 GB. DIV2K validation (every 2nd image: 50) PSNR 30.76 / SSIM 0.8388 (L: 31.00 / 0.8434) in every tier;
+  the original fp32 runs out of memory on these image sizes (16 GB), parity on CPU within 2e-6. TensorRT fails at
+  512x512 (engine build out of memory / over 290 s).
+
 - BiSeNet face parsing (`bisenet-face-parsing`, segmentation; MIT code and weights): face-parsing.PyTorch's
   19-class model from facexlib, BatchNorms folded, auxiliary heads skipped. 512x512: 2.41 ms portable vs 5.21 ms
   original fp32, peak 51 / 72 MB vs 128 / 152 MB; labels agree with the original on 99.97 % of the pixels (24 faces).
@@ -167,6 +182,27 @@
   1080x1920 pair: 31.4 ms kernels, 36.0 ms portable (44.5 ms compile, 17.6 ms TensorRT) vs 45.3 ms original fp32
   (24.5 ms fp16), peak 1.0 GB vs 1.9 GB. DAVIS 2017 (180 triplets) PSNR 27.13 kernels / portable vs 27.13 original
   fp32 (27.03 fp16); the warps sample in float32.
+
+- GIMM-VFI frame interpolation (`gimm-vfi-r`, `gimm-vfi-r-p`, interpolation; nc: S-Lab License 1.0 code and weights):
+  RAFT flow, a continuous motion field and the softsplat synthesis of upstream `GIMMVFI_R`, any timestep in [0, 1],
+  frames replicate-padded to a multiple of 32 as upstream. 1080x1920 pair: 1.69 s kernels (the correlation windows on
+  the fly, fp16-accumulate decoder convs), 2.79 s portable; the original runs out of memory in fp32 and fp16 (16 GB);
+  peak 8.9 GB kernels, 15.3 GB portable (reserved). 480x854: 301 ms kernels, 505 ms portable vs 657 ms original fp32
+  (498 ms fp16), peak 2.4 GB vs 4.8 GB. DAVIS 2017 (180 triplets) PSNR 28.94 (`-p` 28.81) in every tier as the
+  original.
+
+- EMA-VFI frame interpolation (`ema-vfi`, `ema-vfi-small`, `ema-vfi-t`, `ema-vfi-small-t`, interpolation; Apache-2.0):
+  upstream `MultiScaleFlow` with the inter-frame attention backbone, the `-t` checkpoints for any timestep, frames
+  replicate-padded to a multiple of 32 as upstream; `tta` option as upstream `fast_TTA`. 1080x1920 pair (`ema-vfi`):
+  207 ms kernels, 234 ms portable vs 502 ms original fp32 (296 ms fp16); peak 3.2 GB portable vs 6.4 GB (reserved).
+  DAVIS 2017 (180 triplets) PSNR 27.67 / 27.44 / 29.07 / 28.65 in every tier as the original.
+
+- FILM frame interpolation (`film`, interpolation; Apache-2.0): the Style `film_net` as dajes/frame-interpolation-pytorch
+  ports it (the release TorchScript weights load into plain modules), frames zero-padded to a multiple of 64 as
+  upstream; both directions run in one batch, the flows and warps in float32 (warps as row gathers). 1080x1920 pair:
+  444 ms kernels (fp16-accumulate convs, CUDA graph), 528 ms portable vs 872 ms original fp32 (464 ms fp16, whose
+  float16 warp grid costs 0.17 dB); peak 5.1 GB portable vs 7.2 GB fp32 (reserved). DAVIS 2017 (180 triplets) PSNR
+  27.63 portable / kernels vs 27.63 original fp32 (27.46 fp16).
 
 - New task `fastforks.retrieval` (image retrieval / visual place recognition): one unit-length global descriptor per
   image, `top_k` (exact cosine top-k on the GPU, chunked) and `pairs` (image pairs for 3-D reconstruction).

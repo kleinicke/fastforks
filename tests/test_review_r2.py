@@ -19,6 +19,7 @@ from fastforks.calibration import CalibrationResult
 from fastforks.classification import ClassificationResult
 from fastforks.depth import DepthResult
 from fastforks.detection import DetectionResult
+from fastforks.edges import EdgesResult
 from fastforks.features import FeaturesResult
 from fastforks.flow import FlowResult
 from fastforks.interpolation import InterpolationResult
@@ -45,6 +46,7 @@ RESULTS = {
     "flow": (FlowResult,),
     "matching": (MatchingResult, SparseMatchingResult),
     "matting": (MattingResult,),
+    "edges": (EdgesResult,),
     "interpolation": (InterpolationResult,),
     "retrieval": (RetrievalResult,),
     "calibration": (CalibrationResult,),

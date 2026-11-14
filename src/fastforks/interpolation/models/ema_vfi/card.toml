@@ -1,0 +1,67 @@
+schema = 2
+name = "EMA-VFI"
+summary = "EMA-VFI (Zhang et al., CVPR 2023): video frame interpolation with inter-frame attention. A hybrid CNN and Transformer backbone; in its two window-attention stages (1/16 and 1/32 of the image) each frame attends to the other, and the attention map gives both the appearance features and motion features (the attention-weighted pixel offsets). Two heads estimate the flow to both frames and a fusion mask, a U-Net refines the blend of both warped frames. `ema-vfi` and `ema-vfi-small` are trained for the middle frame, `ema-vfi-t` and `ema-vfi-small-t` for any time in [0, 1]."
+tier = "experimental"
+outputs = ["frame"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/MCG-NJU/EMA-VFI"
+commit = "75b6f6a889e695df875e103374040d47a4cfac7c"  # net/ = model/{feature_extractor, flow_estimation, refine, warplayer}.py; the call is Trainer.py `Model.inference` as benchmark/MiddleBury.py
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # README "License and Acknowledgement": "This project is released under the Apache 2.0 license."; the checkpoints state no other licence
+files = ["LICENSE"]
+training_data = ["vimeo90k"]
+training_note = "README: the fixed-time models train on Vimeo-90K triplets (train.py); the arbitrary-time `_t` models are evaluated on 4x / 8x benchmarks, their training data is not stated (the paper: Vimeo-90K septuplets)."
+evidence = "https://github.com/MCG-NJU/EMA-VFI/blob/75b6f6a889e695df875e103374040d47a4cfac7c/LICENSE ; https://github.com/MCG-NJU/EMA-VFI/blob/75b6f6a889e695df875e103374040d47a4cfac7c/README.md (checkpoints: https://drive.google.com/drive/folders/16jUa3HkQ85Z5lb5gce1yoaWkP-rdCd0o)"
+
+[io]
+input = "0-1"  # the benchmarks divide the cv2.imread frames by 255; the runners flip RGB to BGR (and the frame back)
+min_size = 32
+pad = { multiple = 32, mode = "centre", fill = "replicate" }  # benchmark/utils/padder.py InputPadder(shape, divisor=32)
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network from a CUDA graph (false: eager, no graph pool)
+tta = { default = false }  # true: average with the pair flipped upside down and left to right (upstream's benchmarks for `ema-vfi` / `ema-vfi-t`; two passes)
+
+[params]
+width = 32  # config.init_model_config F
+depths = [2, 2, 2, 4, 4]
+window = 7  # attention window of both transformer stages
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate convs and transposed convs, one CUDA graph per input shape; otherwise the portable float16 network
+
+[[papers]]
+title = "Extracting Motion and Appearance via Inter-Frame Attention for Efficient Video Frame Interpolation"
+url = "https://arxiv.org/abs/2303.00440"
+date = "2023-03-01"
+venue = "CVPR 2023"
+
+[[variants]]
+id = "ema-vfi"  # README: Ours, 2x (fixed-time) benchmarks
+revision = 1
+weights = [{ name = "ema-vfi-ours.pkl", size = 263760209, sha256 = "f9085bb32d8b2eaa70eb1df08cc25bc7e973c50a74d74fb593ebe0d5e100a11f", url = "https://drive.usercontent.google.com/download?id=1XCNoyhA1RX3m8W-XJK8H8inH47l36kxP&export=download&confirm=t" }]
+
+[[variants]]
+id = "ema-vfi-small"  # README: Ours_small
+revision = 1
+params = { width = 16, depths = [2, 2, 2, 2, 2] }
+weights = [{ name = "ema-vfi-ours_small.pkl", size = 58535773, sha256 = "ef0e455a7fe75c24d415bbcd83c29a9c0134ba853942bde0cd4dc4ed01e3f98f", url = "https://drive.usercontent.google.com/download?id=1xam35ckjkepfIK0o8BwqX5-NgwPoR-Dx&export=download&confirm=t" }]
+
+[[variants]]
+id = "ema-vfi-t"  # README: ours_t, arbitrary-time (4x / 8x) benchmarks
+revision = 1
+weights = [{ name = "ema-vfi-ours_t.pkl", size = 263760209, sha256 = "c09e82d193e303d7b91f1e36bf535886b820cb56105574355211d60a6b557a99", url = "https://drive.usercontent.google.com/download?id=1mL4ht5DYFMA1CYiGDFbej-ufh5QoqfwN&export=download&confirm=t" }]
+
+[[variants]]
+id = "ema-vfi-small-t"  # README: ours_small_t
+revision = 1
+params = { width = 16, depths = [2, 2, 2, 2, 2] }
+weights = [{ name = "ema-vfi-ours_small_t.pkl", size = 58535773, sha256 = "ad845671f7250d408937718aca19eaf87aa1ca79215070f7641eea332b703233", url = "https://drive.usercontent.google.com/download?id=1mVC3gZVHibbwvDsw2Z1yuBkMjmDCZyG6&export=download&confirm=t" }]

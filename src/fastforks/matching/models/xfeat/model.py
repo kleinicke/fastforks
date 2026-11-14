@@ -12,7 +12,7 @@ Returns both keypoint sets, the index pairs of the matches and their scores. Flo
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 from torch import nn
@@ -119,7 +119,7 @@ def load_matcher(ctx: Context) -> Matcher:
     net.eval().requires_grad_(requires_grad=False)
     for m in net.xfeat.net.modules():  # BatchNorm (eval statistics) folded into the conv before it
         if isinstance(m, BasicLayer):
-            conv, bn, relu = m.layer
+            conv, bn, relu = cast("tuple[nn.Conv2d, nn.BatchNorm2d, nn.Module]", tuple(m.layer))
             m.layer = nn.Sequential(fuse_conv_bn_eval(conv, bn), relu)
     return net.to(ctx.device)
 

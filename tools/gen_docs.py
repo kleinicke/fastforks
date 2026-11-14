@@ -98,6 +98,8 @@ _DATASETS = {
         "dis-vd-every2": "DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta",
         "aim500": "AIM-500, all 500 images, generated trimaps, SAD / MSE x 1000 (unknown region)",
         "aim500-every5": "AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region)",
+        "youtubematte-512x288-every2": "YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, "
+        "MAD x 1000 / MSE x 1000 / dtSSD x 100",
     },
     "retrieval": {
         "st-lucia": "St Lucia, all 1464 queries against the 1549 database images, recall@1 / @5 % (25 m)",
@@ -166,6 +168,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         ("matting", d): ((("sad", "{:.2f}", ""), ("mse", "{:.3f}", "")), "n", "images")
         for d in ("aim500", "aim500-every5")
     },
+    ("matting", "youtubematte-512x288-every2"): (
+        (("mad", "{:.2f}", ""), ("mse", "{:.2f}", ""), ("dtssd", "{:.2f}", "")),
+        "n",
+        "clips",
+    ),
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
@@ -236,6 +243,10 @@ _PROTOCOL = {
     ("matting", "aim500-every5"): "Trimap-guided models, AIM-500: each image at its own size with a trimap made from "
     "its alpha (alpha 255 / 0 eroded by a 21 px ellipse = foreground / background, the rest unknown); SAD / 1000 and "
     "MSE of the 8-bit alpha in the unknown region (ViTMatte's evaluation). ",
+    ("matting", "youtubematte-512x288-every2"): "Video matting, YouTubeMatte (MatAnyone's benchmark): each clip at "
+    "512 x 288 with the authors' first-frame mask, the authors' evaluation settings (1 warm-up step, mask closing "
+    "4 px); 8-bit alpha against the ground truth: mean absolute and squared difference and the temporal coherence "
+    "error dtSSD (lower is better), averaged over frames, then clips. ",
     "retrieval": "Every query's descriptor against every database descriptor (cosine similarity, exact top-k on the "
     "GPU); a query counts as found at k when one of its k nearest database images is within 25 m (UTM positions of "
     "the file names), the standard visual place recognition protocol. ",
@@ -983,12 +994,17 @@ TASK_IO = {
     "matching": (
         "Input: two RGB images of one scene. Output: for every pixel of the first image its position in the second "
         "(x, y in pixels) and a certainty that the pixel is visible in both. Sparse matchers (LightGlue) return "
-        "the keypoints of both images and the index pairs of the matched ones instead."
+        "the keypoints of both images and the index pairs of the matched ones instead. To reconstruct camera poses "
+        "from an image folder with these matchers, see [structure from motion](../sfm.md)."
     ),
     "matting": (
         "Input: one RGB image (trimap-guided models also a trimap: background / unknown / foreground). Output: an "
         "alpha matte `[H, W]` in [0, 1] at the input size: 1 = foreground (background removal, dichotomous / salient "
         "object segmentation)."
+    ),
+    "edges": (
+        "Input: one RGB image. Output: a line / edge map `[H, W]` in [0, 1] at the input size (1 = line), the "
+        "ControlNet preprocessors (line art, HED, PiDiNet, TEED / Anyline); M-LSD also returns straight line segments."
     ),
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
     "volume": (

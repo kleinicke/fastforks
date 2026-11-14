@@ -47,11 +47,14 @@ class Runner(core.Runner):
 
     Class attributes (besides those of `fastforks._core.runner.Runner`):
         prompts: Prompt kinds the model takes: `"points"`, `"boxes"`, `"masks"` (low-resolution mask logits), or
-            `"text"` (concept models: `segment_concept`; with `"boxes"`: exemplar boxes too).
+            `"text"` (concept models: `segment_concept`; with `"boxes"`: exemplar boxes too), or `"reference"`
+            (in-context models: `segment_reference`).
         mask_size: `(h, w)` of the low-resolution masks (`predict` output and `masks` prompt).
         low_res_clamp: If set, the returned `pred_masks` are clamped to `[-c, c]` after `upsample` has seen the
             unclamped logits (SAM 2: 32).
         video: The runner implements `track` (video object tracking from frame-0 prompts).
+        video_prompts: Prompt kinds `track` takes (`None`: those of `prompts`; SAM 3: points and boxes, as its
+            tracker, while its image prompts are concepts).
     """
 
     prompts: ClassVar[frozenset[str]] = frozenset({"points", "boxes", "masks"})
@@ -59,6 +62,7 @@ class Runner(core.Runner):
     low_res_clamp: ClassVar[float | None] = None
     compiled_methods: ClassVar[tuple[str, ...]] = ("embed", "predict")
     video: ClassVar[bool] = False
+    video_prompts: ClassVar[frozenset[str] | None] = None
 
     @classmethod
     def input_use(cls, params: Any) -> dict[str, Any]:  # noqa: ANN401, ARG003 - the family's `Params`
@@ -132,6 +136,26 @@ class Runner(core.Runner):
             NotImplementedError: The model takes no text prompts.
         """
         msg = f"{type(self).__name__} takes no text prompts"
+        raise NotImplementedError(msg)
+
+    def segment_reference(
+        self, target: torch.Tensor, references: torch.Tensor, masks: list[torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        """The target mask from reference images and masks (models with the `"reference"` prompt kind).
+
+        Args:
+            target: `embed` features of the target `[1, ...]`.
+            references: `embed` features of the references `[S, ...]`.
+            masks: Per reference `[H_s, W_s]` bool at its image size.
+
+        Returns:
+            `{"masks": [h, w], "similarity": [h, w]}`: low-resolution mask logits or bool, and each patch's
+            similarity to the reference prototype. The core upsamples (`upsample`).
+
+        Raises:
+            NotImplementedError: The model takes no reference prompts.
+        """
+        msg = f"{type(self).__name__} takes no reference prompts"
         raise NotImplementedError(msg)
 
     def track(  # noqa: PLR0913 - one argument per prompt kind

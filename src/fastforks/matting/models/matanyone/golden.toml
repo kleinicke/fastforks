@@ -1,0 +1,15 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1e-06
+gpu_mean = 8.3e-05
+gpu_p99 = 0.0001
+
+[refs."matanyone@1"]
+sha256 = "192618418bbb6815c474f5ff19b696b98f20bb248936a1aa3a9efee4a72a8190"
+upstream = "https://github.com/pq-yang/MatAnyone@e5ddc534c1fff9bb9e54cf476095d29071b7cb4f"
+settings = "CPU float32, process_video loop on frames in memory (mask gen_dilate / gen_erosion 10, 10 warm-up frames, float alpha without uint8 rounding); tests/synth.py clip() + disk mask; torch 2.14.1+cu130"

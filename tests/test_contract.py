@@ -236,6 +236,7 @@ _RESULTS = {
     "flow": "FlowResult",
     "matching": "MatchingResult SparseMatchingResult",
     "matting": "MattingResult",
+    "edges": "EdgesResult",
     "interpolation": "InterpolationResult",
     "retrieval": "RetrievalResult",
     "calibration": "CalibrationResult",

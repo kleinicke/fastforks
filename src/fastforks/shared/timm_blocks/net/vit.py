@@ -1,4 +1,4 @@
-"""The two timm pieces WAFT-Stereo uses, written out so `timm` is not a dependency.
+"""The timm ViT pieces WAFT-Stereo and WAFT use, written out so `timm` is not a dependency.
 
 fastforks addition (not upstream code): `Mlp` and the pre-norm ViT `Block` of timm 1.0 (Apache-2.0, Ross Wightman) with
 the same module tree and parameter names, restricted to what WAFT builds: `Mlp` (Linear or 1x1-conv, GELU),

@@ -1,0 +1,24 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1e-05
+gpu_mean = 0.002
+gpu_p99 = 0.01
+
+[refs."big-lama@1"]
+sha256 = "849a615b0ca905f865f835b0f70c66cfb6d7c5e3244e15482e138be8123139c0"
+upstream = "https://github.com/advimman/lama@786f5936b27fb3dacd2b1ad799e4de968ea697e7"
+settings = "CPU float32, upstream FFCResNetGenerator (big-lama config), predict.py padding (symmetric to 8), mask > 0, masked image + mask, paste-back, crop, no uint8 rounding; tests/synth.py image(101, 151) + tools/golden/lama.py mask(); torch 2.14.1+cu130"
+
+[validated."big-lama@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00022
+p99_px = 0.00403

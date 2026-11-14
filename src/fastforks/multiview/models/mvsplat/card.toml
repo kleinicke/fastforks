@@ -2,6 +2,7 @@ schema = 2
 name = "MVSplat"
 summary = "MVSplat (Chen et al. 2024): feed-forward 3D Gaussian splatting and depth from posed, calibrated images. A UniMatch CNN and multi-view swin transformer feed a plane-sweep cost volume (all other views), refined by 2D U-Nets with cross-view attention into every view's depth; a Gaussian head predicts one Gaussian per pixel (opacity, scale, rotation, degree-4 SH) in the given world frame (`result.gaussians`, `.save(\"scene.ply\")`). Forward pass only: no renderer."
 tier = "experimental"
+uses = ["group_norm"]  # fastforks.shared modules this family imports
 outputs = ["depth", "confidence", "gaussians"]  # confidence: largest probability over the depth candidates; gaussians: MultiViewResult.gaussians (not a map)
 
 licence_notes = [

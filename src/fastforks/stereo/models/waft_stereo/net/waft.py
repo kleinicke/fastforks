@@ -4,8 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from copy import deepcopy
-# fastforks: timm's Mlp is a small local copy (_timm.py); the unused einops import is dropped; sibling modules are relative
-from ._timm import Mlp
+# fastforks: timm's Mlp is a small local copy (fastforks.shared.timm_blocks); the unused einops import is dropped; sibling modules are relative
+from fastforks.shared.timm_blocks import Mlp
 
 from .vit import fetch_iterative_module
 from .dav2 import fetch_feature_encoder

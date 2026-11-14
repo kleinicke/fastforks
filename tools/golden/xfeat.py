@@ -44,11 +44,11 @@ def build(
     The reference checkout must be on `sys.path`. `long_side > 0` resizes as the fastforks runner does (upstream XFeat
     does not resize) and maps the keypoints back.
     """
-    from modules.xfeat import XFeat  # noqa: PLC0415  # ty: ignore[unresolved-import]  # reference checkout
+    from modules.xfeat import XFeat  # noqa: PLC0415  # reference checkout
 
     xf = XFeat(weights=str(files["xfeat.pt"]), top_k=max_keypoints)
     if matcher == "lighterglue":
-        from modules.lighterglue import LighterGlue  # noqa: PLC0415  # ty: ignore[unresolved-import]
+        from modules.lighterglue import LighterGlue  # noqa: PLC0415
 
         xf.lighterglue = LighterGlue(weights=str(files["xfeat-lighterglue.pt"]))
 

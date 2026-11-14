@@ -12,6 +12,15 @@ trimap is made from the alpha (`trimap_of`: foreground = alpha 255 eroded, backg
 unknown; 21 px elliptic kernel). Scoring as ViTMatte's evaluation, in the unknown region of the 8-bit alpha: SAD =
 sum |pred - gt| / 1000, MSE = mean (pred - gt)^2 (reported x 1000), with alpha in [0, 1].
 
+YouTubeMatte (`--dataset youtubematte`, video, mask-guided models): the authors' benchmark at 512 x 288,
+`FASTFORKS_DATA`/matting/YouTubeMatte/YouTubeMatte/youtubematte_512x288/youtubematte_{motion,static}/<clip>/{har,pha}
+(64 clips of 100 harmonised composites: 32 foregrounds on moving and on static backgrounds; `--every 2`: every 2nd
+clip), with the authors' first-frame masks YouTubeMatte_first_frame_seg_mask/youtubematte_512x288/<clip>.png (one per
+foreground) and their low-resolution settings (warm-up 1, dilate / erode 4). Scoring as their `eval_yt_lr.py` on the
+8-bit alpha: MAD (x 1e3), MSE (x 1e3) and dtSSD (x 1e2, 0 on the first frame) per frame, averaged per clip, then over
+the clips. Tiers `upstream` / `upstream16` = the authors' `process_video` loop (`tools/golden/matanyone.py`,
+`FF_MATANYONE_REPO`), fp32 / their CUDA fp16 autocast.
+
 Tiers: `upstream` / `upstream16` (the HF `birefnet.py` of the weights, fp32 / the authors' `half()`, with the card's
 pre- and post-processing, `tools/golden/birefnet.py`; `FF_BIREFNET_HF` = a directory with the HF snapshots
 `<ref>/birefnet.py`), `portable32`, `portable`, `kernels`.
@@ -89,6 +98,103 @@ def score(alpha: torch.Tensor, gt: torch.Tensor) -> tuple[float, torch.Tensor]:
     return mae, torch.where(den == 0, 0, (1 + BETA2) * precision * recall / den.clamp(min=1e-300))
 
 
+YT = {"warmup": 1, "dilate": 4, "erode": 4}  # the authors' 512 x 288 settings (evaluation/infer_batch_lr.sh)
+
+
+def clips(every: int) -> list[tuple[Path, Path]]:
+    """(clip dir with har/ + pha/, first-frame mask) of YouTubeMatte 512 x 288, sorted, every `every`-th."""
+    root = Path(os.environ["FASTFORKS_DATA"]) / "matting" / "YouTubeMatte"
+    lr = root / "YouTubeMatte" / "youtubematte_512x288"
+    found = sorted(c for sub in ("youtubematte_motion", "youtubematte_static") for c in (lr / sub).iterdir())
+    masks = root / "YouTubeMatte_first_frame_seg_mask" / "youtubematte_512x288"
+    return [(c, masks / f"{c.name}.png") for c in found[::every]]
+
+
+def read_clip(item: tuple[Path, Path]) -> tuple[list[np.ndarray], np.ndarray, np.ndarray]:
+    """RGB frames, the grey first-frame mask, the alpha `[T, H, W]` float in [0, 1]."""
+    clip, mask = item
+    names = sorted(p.name for p in (clip / "pha").iterdir())
+    frames = [np.ascontiguousarray(cv2.imread(str(clip / "har" / n))[..., ::-1]) for n in names]
+    gt = np.stack([cv2.imread(str(clip / "pha" / n), cv2.IMREAD_GRAYSCALE) for n in names]).astype(np.float32) / 255
+    return frames, cv2.imread(str(mask), cv2.IMREAD_GRAYSCALE), gt
+
+
+def score_video(alpha: np.ndarray, gt: np.ndarray) -> tuple[float, float, float]:
+    """MAD x 1e3, MSE x 1e3, dtSSD x 1e2 of one clip (`eval_yt_lr.py`, 8-bit prediction), the means over frames."""
+    pred = np.round(np.clip(alpha, 0, 1) * 255).astype(np.float32) / 255
+    d = pred - gt
+    dt_ssd = np.sqrt(((d[1:] - d[:-1]) ** 2).mean((1, 2))) * 1e2
+    return float(np.abs(d).mean() * 1e3), float((d**2).mean() * 1e3), float(np.concatenate([[0.0], dt_ssd]).mean())
+
+
+def video_predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
+    """(RGB uint8 frames, uint8 mask) -> alpha `[T, H, W]` float32 numpy of `tier`, the authors' 512 x 288 settings."""
+    if tier.startswith("upstream"):
+        sys.path.insert(0, str(ROOT / "tools"))
+        import _original  # noqa: PLC0415 - tools/_original.py
+        from fastforks._core import registry  # noqa: PLC0415
+
+        g = _original._golden("matanyone")  # noqa: SLF001 - the recipe loader
+        card, variant = registry.resolve("matting", ref)
+        (weights,) = registry.weights(card, variant)
+        net = g.build(g.load_upstream(Path(os.environ["FF_MATANYONE_REPO"])), Path(weights)).cuda()
+
+        def call(frames: list[np.ndarray], mask: np.ndarray) -> np.ndarray:
+            m = g.close(mask, YT["dilate"], YT["erode"]).cuda()
+            v = torch.from_numpy(np.stack(frames)).permute(0, 3, 1, 2)
+            with torch.autocast("cuda", torch.float16, enabled=tier == "upstream16"):
+                return torch.stack(g.run(net, v, m, YT["warmup"])).cpu().numpy()
+
+        return call
+    from fastforks import matting  # noqa: PLC0415
+
+    mode = "kernels" if tier == "kernels" else "portable"
+    dtype = {"dtype": "float32"} if tier == "portable32" else {}
+    m = matting.load(ref, mode=mode, device="cuda", options=YT, **dtype)
+    return lambda frames, mask: np.asarray(m.track(frames, mask=mask).alpha)
+
+
+def main_video(a: argparse.Namespace, commit: str) -> None:
+    """`--dataset youtubematte`: one row per (ref, tier)."""
+    data = clips(a.every)
+    dataset = "youtubematte-512x288" + (f"-every{a.every}" if a.every > 1 else "")
+    for ref in a.refs:
+        for tier in a.tiers.split(","):
+            mode, dtype, how, column = TIERS[tier]
+            if tier == "upstream16":
+                how = "authors' CUDA fp16 autocast"
+            fn = video_predictor(ref, tier)
+            fn([np.zeros((288, 512, 3), np.uint8)] * 2, np.full((288, 512), 255, np.uint8))
+            torch.cuda.reset_peak_memory_stats()
+            scores, n_frames, seconds = [], 0, 0.0
+            with ThreadPoolExecutor(2) as pool:  # decode the next clip while the GPU runs
+                for frames, mask, gt in pool.map(read_clip, data):
+                    torch.cuda.synchronize()
+                    t = time.perf_counter()
+                    alpha = fn(frames, mask)
+                    torch.cuda.synchronize()
+                    seconds += time.perf_counter() - t
+                    n_frames += len(frames)
+                    scores.append(score_video(alpha, gt))
+            mad, mse, dtssd = np.mean(scores, 0)
+            metrics = {"mad": round(float(mad), 3), "mse": round(float(mse), 3), "dtssd": round(float(dtssd), 3)}
+            row = {
+                "ref": ref, "task": "matting", "tier": tier, "mode": mode, "dtype": dtype, "how": how,
+                "commit": commit, "gpu": torch.cuda.get_device_name(), "torch": torch.__version__,
+                "date": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+                "command": "python tools/eval_matting.py " + " ".join(sys.argv[1:]),
+                "dataset": dataset, "n_clips": len(data), "n_frames": n_frames, **metrics, "n": len(data),
+                "metrics": metrics, "options": YT, "ms_per_frame": round(seconds / n_frames * 1e3, 2),
+                "peak_alloc_mb": round(torch.cuda.max_memory_allocated() / 2**20),
+                "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20), "column": column,
+            }  # fmt: skip
+            print(json.dumps(row), flush=True)
+            with (a.out / "rows.jsonl").open("a") as f:
+                f.write(json.dumps(row) + "\n")
+            del fn
+            torch.cuda.empty_cache()
+
+
 def read(item: tuple[Path, Path]) -> tuple[np.ndarray, np.ndarray]:
     """RGB image, grey mask."""
     im, gt = item
@@ -158,16 +264,19 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("refs", nargs="+")
     ap.add_argument("--tiers", default="portable,kernels")
-    ap.add_argument("--dataset", choices=("dis-vd", "aim500"), default="dis-vd")
+    ap.add_argument("--dataset", choices=("dis-vd", "aim500", "youtubematte"), default="dis-vd")
     ap.add_argument("--every", type=int, default=1)
     ap.add_argument("--out", type=Path, required=True)
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
-    data = items(a.dataset, a.every)
-    aim = a.dataset == "aim500"
     commit = subprocess.run(
         ["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True
     )
+    if a.dataset == "youtubematte":
+        main_video(a, commit.stdout.strip())
+        return
+    data = items(a.dataset, a.every)
+    aim = a.dataset == "aim500"
     dataset = f"{a.dataset}-every{a.every}" if a.every > 1 else a.dataset
     for ref in a.refs:
         for tier in a.tiers.split(","):

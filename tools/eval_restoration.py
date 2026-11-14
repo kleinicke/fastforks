@@ -45,6 +45,7 @@ HOW = {  # family -> tier -> `how`, where not Real-ESRGAN's
     "swinir": {"upstream": "main_test_swinir.py, float32"},
     "hat": {"upstream": "hat_model.py test, float32"},
     "dat": {"upstream": "dat_model.py test, float32"},
+    "drct": {"upstream": "drct_model.py test, float32"},
     "realplksr": {"upstream": "neosr test.py (net(lq), clamped), float32"},
     "codeformer": {"upstream": "inference_codeformer.py, float32"},
 }

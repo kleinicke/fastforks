@@ -1,0 +1,124 @@
+diff --git a/src/models/generalizable_INR/configs.py b/src/models/generalizable_INR/configs.py
+index d77d2f5..f815a88 100644
+--- a/src/models/generalizable_INR/configs.py
++++ b/src/models/generalizable_INR/configs.py
+@@ -9,7 +9,7 @@
+ # --------------------------------------------------------
+ 
+ from typing import List, Optional
+-from dataclasses import dataclass
++from dataclasses import dataclass, field  # golden: field (Python >= 3.11 rejects instance defaults)
+ 
+ from omegaconf import OmegaConf, MISSING
+ from .modules.module_config import HypoNetConfig
+@@ -21,7 +21,7 @@ class GIMMConfig:
+     ema: Optional[bool] = None
+     ema_value: Optional[float] = None
+     fwarp_type: str = "linear"
+-    hyponet: HypoNetConfig = HypoNetConfig()
++    hyponet: HypoNetConfig = field(default_factory=HypoNetConfig)
+     coord_range: List[float] = MISSING
+     modulated_layer_idxs: Optional[List[int]] = None
+ 
+@@ -42,7 +42,7 @@ class GIMMVFIConfig:
+     ema_value: Optional[float] = None
+     fwarp_type: str = "linear"
+     rec_weight: float = 0.1
+-    hyponet: HypoNetConfig = HypoNetConfig()
++    hyponet: HypoNetConfig = field(default_factory=HypoNetConfig)
+     raft_iter: int = 20
+     coord_range: List[float] = MISSING
+     modulated_layer_idxs: Optional[List[int]] = None
+diff --git a/src/models/generalizable_INR/modules/module_config.py b/src/models/generalizable_INR/modules/module_config.py
+index c895ad4..141deaa 100644
+--- a/src/models/generalizable_INR/modules/module_config.py
++++ b/src/models/generalizable_INR/modules/module_config.py
+@@ -9,7 +9,7 @@
+ # --------------------------------------------------------
+ 
+ from typing import List, Optional
+-from dataclasses import dataclass
++from dataclasses import dataclass, field  # golden: field (Python >= 3.11 rejects instance defaults)
+ from omegaconf import MISSING
+ 
+ 
+@@ -34,8 +34,8 @@ class HypoNetConfig:
+     input_dim: int = 2
+     output_dim: int = 3
+     output_bias: float = 0.5
+-    activation: HypoNetActivationConfig = HypoNetActivationConfig()
+-    initialization: HypoNetInitConfig = HypoNetInitConfig()
++    activation: HypoNetActivationConfig = field(default_factory=HypoNetActivationConfig)
++    initialization: HypoNetInitConfig = field(default_factory=HypoNetInitConfig)
+ 
+     normalize_weight: bool = True
+     linear_interpo: bool = False
+diff --git a/src/models/generalizable_INR/modules/softsplat.py b/src/models/generalizable_INR/modules/softsplat.py
+index 72453f1..57286b6 100755
+--- a/src/models/generalizable_INR/modules/softsplat.py
++++ b/src/models/generalizable_INR/modules/softsplat.py
+@@ -9,7 +9,10 @@
+ # --------------------------------------------------------
+ 
+ import collections
+-import cupy
++try:
++    import cupy
++except ImportError:  # golden: CPU reference below
++    cupy = None
+ import os
+ import re
+ import torch
+@@ -260,7 +263,7 @@ def cuda_kernel(strFunction: str, strKernel: str, objVariables: typing.Dict):
+ # end
+ 
+ 
+-@cupy.memoize(for_each_device=True)
++@(cupy.memoize(for_each_device=True) if cupy else (lambda f: f))  # golden: no cupy on the CPU
+ def cuda_launch(strKey: str):
+     if "CUDA_HOME" not in os.environ:
+         os.environ["CUDA_HOME"] = cupy.cuda.get_cuda_path()
+@@ -437,7 +440,23 @@ class softsplat_func(torch.autograd.Function):
+             )
+ 
+         elif tenIn.is_cuda != True:
+-            assert False
++            # golden: softsplat_out on the CPU, float64 accumulation (numpy add.at, same weights and checks)
++            import numpy as np
++            inp, flo = tenIn.double().numpy(), tenFlow.double().numpy()
++            out = np.zeros(inp.shape, np.float64)
++            n, c, h, w = inp.shape
++            gy, gx = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
++            for b in range(n):
++                fx, fy = gx + flo[b, 0], gy + flo[b, 1]
++                ok = np.isfinite(fx) & np.isfinite(fy)
++                fx, fy, v = fx[ok], fy[ok], inp[b][:, ok]
++                x0, y0 = np.floor(fx).astype(np.int64), np.floor(fy).astype(np.int64)
++                for cx, cy, wgt in ((x0, y0, (x0 + 1 - fx) * (y0 + 1 - fy)), (x0 + 1, y0, (fx - x0) * (y0 + 1 - fy)),
++                                    (x0, y0 + 1, (x0 + 1 - fx) * (fy - y0)), (x0 + 1, y0 + 1, (fx - x0) * (fy - y0))):
++                    m = (cx >= 0) & (cx < w) & (cy >= 0) & (cy < h)
++                    for ch in range(c):
++                        np.add.at(out[b, ch], (cy[m], cx[m]), v[ch][m] * wgt[m])
++            tenOut = torch.from_numpy(out).to(tenIn.dtype)
+ 
+         # end
+ 
+diff --git a/src/models/generalizable_INR/raft/__init__.py b/src/models/generalizable_INR/raft/__init__.py
+index a733186..e6c04b2 100644
+--- a/src/models/generalizable_INR/raft/__init__.py
++++ b/src/models/generalizable_INR/raft/__init__.py
+@@ -12,13 +12,6 @@ def initialize_RAFT(model_path="pretrained_ckpt/raft-things.pth", device="cuda")
+     args.mixed_precision = False
+     args.alternate_corr = False
+     model = RAFT(args)
+-    ckpt = torch.load(args.raft_model, map_location="cpu")
+-
+-    def convert(param):
+-        return {k.replace("module.", ""): v for k, v in param.items() if "module" in k}
+-
+-    ckpt = convert(ckpt)
+-    model.load_state_dict(ckpt, strict=True)
+-    print("load raft from " + model_path)
++    # golden: the RAFT weights come with the GIMM-VFI checkpoint (flow_estimator.*), no raft-things.pth
+ 
+     return model

@@ -1,0 +1,44 @@
+schema = 2
+name = "TEED edges"
+summary = "Tiny and efficient edge detector (Soria et al., ICCV 2023 workshops; controlnet_aux `TEEDdetector`, ComfyUI's \"TEED Soft-Edge Lines\"): a 58 k-parameter network whose four outputs are averaged into a soft edge map, quantized to a few levels by default."
+tier = "experimental"
+outputs = ["edges"]
+uses = ["teed"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/controlnet_aux"
+commit = "b1aac318b15c4e65a21bc516dc236ad4bf593d46"  # network = src/controlnet_aux/teed (fastforks.shared.teed); the call is TEEDdetector.__call__
+
+[licence]
+code = "MIT"  # xavysp/TEED LICENSE (Xavier Soria Poma), the source of controlnet_aux's teed module
+weights = "MIT"  # the checkpoint is a file of the MIT-licensed xavysp/TEED repository (checkpoints/BIPED/5/5_model.pth)
+files = ["LICENSE"]
+training_data = ["biped"]
+training_note = "BIPED (the repository's checkpoints/BIPED folder and README); the dataset is for non-commercial use."
+evidence = "https://github.com/xavysp/TEED/blob/40fa4b1391dc6424f88989d0ca75d5b592c8681d/LICENSE ; https://github.com/xavysp/TEED/tree/40fa4b1391dc6424f88989d0ca75d5b592c8681d/checkpoints/BIPED/5"
+
+[io]
+input = "0-1"  # the runner resizes to the detect size (OpenCV area / cubic on uint8 levels) and feeds 0..255
+
+[options]
+resolution = { default = 512, min = 64, aliases = ["detect_resolution"] }  # detect resolution: the network input's short side, sides rounded to a multiple of 64 (controlnet_aux detect_resolution)
+safe_steps = { default = 2, min = 0, max = 255 }  # quantize the map as controlnet_aux `safe_step(edge, safe_steps)`; 0 = the soft map
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "a 58 k-parameter CNN that runs in a few ms; no custom kernel measured to pay off"
+
+[[papers]]
+title = "Tiny and Efficient Model for The Edge Detection Generalization"
+url = "https://arxiv.org/abs/2308.06468"
+date = "2023-08-12"
+venue = "ICCV 2023 workshops"
+
+[[variants]]
+id = "teed"
+revision = 1
+weights = [{ name = "teed_5_model.pth", size = 249139, sha256 = "0322caf70f588355aaaf59c2bf5872b21a4b7e9f679971a7a3bb1f69b56a01ba", url = "https://raw.githubusercontent.com/xavysp/TEED/40fa4b1391dc6424f88989d0ca75d5b592c8681d/checkpoints/BIPED/5/5_model.pth" }]

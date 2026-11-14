@@ -36,7 +36,7 @@ device guard.
 from __future__ import annotations
 
 import abc
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from fastforks._core import runner as core
 from fastforks._core.preprocess import Crop, crop, pad_to, scale
@@ -49,7 +49,23 @@ __all__ = ["Context", "Crop", "Forward", "NoParams", "Runner", "crop", "pad_to",
 
 
 class Runner(core.Runner):
-    """One backend of a restoration family."""
+    """One backend of a restoration family.
+
+    Class attributes (besides those of `fastforks._core.runner.Runner`):
+        mask: `"unused"`: the network takes the image only (passing a mask is an error). `"required"` (inpainting):
+            it needs a mask; `__call__` gets it as a 4th input channel.
+    """
+
+    mask: ClassVar[Literal["unused", "required"]] = "unused"
+
+    @classmethod
+    def input_use(cls, params: Any) -> dict[str, Any]:  # noqa: ANN401, ARG003 - the family's `Params`
+        """`{"mask": cls.mask}`.
+
+        Args:
+            params: The variant's `Params`.
+        """
+        return {"mask": cls.mask}
 
     @property
     def scale(self) -> int:
@@ -61,21 +77,22 @@ class Runner(core.Runner):
         """Run a batch.
 
         Args:
-            image: `[B, 3, H, W]` float32 on `ctx.device`, scaled and padded as the card's `[io]` says.
+            image: `[B, 3, H, W]` float32 on `ctx.device`, scaled and padded as the card's `[io]` says; with
+                `mask = "required"` `[B, 4, H, W]`: the RGB channels, then the mask (1 = the region to fill, else 0).
 
         Returns:
             `{"image": [B, 3, scale * H, scale * W]}` (any float dtype) in the input's value range.
         """
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
-        """Pad a scaled `[B, 3, H, W]` batch as the card's `[io] pad` says (fill `family`: override this)."""
+        """Pad a scaled `[B, C, H, W]` batch as the card's `[io] pad` says (fill `family`: override this)."""
         return pad_to(x, self.ctx.io)
 
     def module(self) -> torch.nn.Module:
         """The plain-PyTorch network as an `nn.Module`, as `torch.export` / ONNX export see it.
 
-        It maps a padded and scaled `[B, 3, H, W]` batch to `[B, 3, scale * H, scale * W]`. Portable runners implement
-        it.
+        It maps a padded and scaled `[B, 3, H, W]` batch (`[B, 4, H, W]` with the mask) to
+        `[B, 3, scale * H, scale * W]`. Portable runners implement it.
 
         Raises:
             NotImplementedError: The backend has no exportable module.

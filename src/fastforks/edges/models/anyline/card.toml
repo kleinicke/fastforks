@@ -1,0 +1,49 @@
+schema = 2
+name = "AnyLine line art"
+summary = "AnyLine preprocessor of MistoLine (TheMisto.ai; controlnet_aux `AnylineDetector`, ComfyUI-Anyline): the MTEED edge network (TEED architecture, weights by TheMisto.ai) blended with a Gaussian-difference line art whose small specks are removed; sharp line maps for line-conditioned ControlNets."
+tier = "experimental"
+outputs = ["edges"]
+uses = ["teed"]  # fastforks.shared modules this family imports
+licence_notes = [
+  "The MTEED weights use the OpenRAIL++-M licence: commercial use is allowed but with use restrictions that must be passed on; the training data terms are not checked.",
+]
+limitations = [
+  "Layers are blended in float as TheMistoAI/ComfyUI-Anyline; controlnet_aux's `AnylineDetector` blends uint8 arrays, where `1 - (1 - top) * (1 - base)` wraps around, so its maps differ wherever line art is drawn.",
+]
+
+[upstream]
+repo = "https://github.com/huggingface/controlnet_aux"
+commit = "b1aac318b15c4e65a21bc516dc236ad4bf593d46"  # src/controlnet_aux/anyline (network = fastforks.shared.teed); the blend as TheMistoAI/ComfyUI-Anyline@40d7b290fe829d50e4e12e7f34498c2d30913b53 anyline.py
+
+[licence]
+code = "MIT"  # TheMistoAI/ComfyUI-Anyline LICENSE (TheMisto.ai); the TEED network: xavysp/TEED MIT; controlnet_aux Apache-2.0
+weights = "LicenseRef-CreativeML-OpenRAIL-PlusPlus-M"  # TheMistoAI/MistoLine model card: "license: openrail++"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Not stated for MTEED (TheMistoAI/MistoLine `Anyline/MTEED.pth`, the TEED network)."
+evidence = "https://github.com/TheMistoAI/ComfyUI-Anyline/blob/40d7b290fe829d50e4e12e7f34498c2d30913b53/LICENSE ; https://huggingface.co/TheMistoAI/MistoLine/blob/1d9d0b3d48b295cf70d80a0f839a3055672f8393/README.md"
+
+[io]
+input = "0-1"  # the runner resizes to the detect size (OpenCV area / cubic on uint8 levels) and feeds 0..255
+
+[options]
+resolution = { default = 1280, min = 64, aliases = ["detect_resolution"] }  # detect resolution: the network input's short side, sides rounded to a multiple of 64 (controlnet_aux detect_resolution)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "the MTEED CNN plus a GPU blend, a few ms; no custom kernel measured to pay off"
+
+[[papers]]
+title = "Tiny and Efficient Model for The Edge Detection Generalization"
+url = "https://arxiv.org/abs/2308.06468"
+date = "2023-08-12"
+venue = "ICCV 2023 workshops"
+
+[[variants]]
+id = "anyline"
+revision = 1
+weights = [{ name = "MTEED.pth", size = 248298, sha256 = "a3c2d8a8ce9422555c787160bd46362d761325a565333c0e3f6a53e0bae2abdb", url = "https://huggingface.co/TheMistoAI/MistoLine/resolve/1d9d0b3d48b295cf70d80a0f839a3055672f8393/Anyline/MTEED.pth" }]

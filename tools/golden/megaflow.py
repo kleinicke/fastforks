@@ -41,10 +41,10 @@ def build(tree: Path, ckpt: Path) -> torch.nn.Module:
 
     if str(tree) not in sys.path:
         sys.path.insert(0, str(tree))
-    from megaflow.model import MegaFlow  # noqa: PLC0415  # ty: ignore[unresolved-import]
+    from megaflow.model import MegaFlow  # noqa: PLC0415
 
     real = torchvision.models.resnet34
-    torchvision.models.resnet34 = lambda **_: real(weights=None)  # ty: ignore[invalid-assignment]
+    torchvision.models.resnet34 = lambda **_: real(weights=None)
     try:
         net = MegaFlow(fuse_cnn=True, use_temporal_attn=True, fix_width=True)
     finally:

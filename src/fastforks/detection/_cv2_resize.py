@@ -14,6 +14,7 @@ arithmetic:
 from __future__ import annotations
 
 import functools
+from typing import cast
 
 import numpy as np
 import torch
@@ -69,7 +70,7 @@ def cv2_linear(x: torch.Tensor, h: int, w: int, scale: float = 1.0) -> torch.Ten
     if (hin, win) == (h, w):
         return levels(x).to(torch.uint8)
     if hin == _AREA_FAST * h and win == _AREA_FAST * w:
-        v = sum(levels(x[..., i::2, j::2]).to(torch.int32) for i in (0, 1) for j in (0, 1))
+        v = cast("torch.Tensor", sum(levels(x[..., i::2, j::2]).to(torch.int32) for i in (0, 1) for j in (0, 1)))
         return ((v + 2) >> 2).to(torch.uint8)
     taps = _device_taps.__wrapped__ if torch.compiler.is_compiling() else _device_taps
     x0, x1, a0, a1 = taps(win, w, x.device, rows=False)

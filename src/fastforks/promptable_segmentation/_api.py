@@ -46,7 +46,7 @@ __all__ = [
 TASK = "promptable_segmentation"
 PromptLike = torch.Tensor | np.ndarray | list[Any] | tuple[Any, ...]
 """A prompt array: torch tensor, numpy array or nested lists / tuples of numbers."""
-ConceptModelId = Literal["sam3", "sam3@1"]
+ConceptModelId = Literal["clipseg", "clipseg@1", "sam3", "sam3@1"]
 """Ids of the concept models (text / exemplar prompts): `load` returns a `ConceptSegmentationModel` for them."""
 InContextModelId = Literal["insid3-vitl16", "insid3-vitl16@1"]
 """Ids of the in-context models (reference images + masks): `load` returns an `InContextSegmentationModel` for them."""
@@ -446,7 +446,8 @@ class PromptableSegmentationModel(core.Model):
             prompts = {"input_masks": (m if batched else m[None]).ne(0).float().to(self.device)}
         else:
             given = {"input_points": input_points, "input_labels": input_labels, "input_boxes": input_boxes}
-            prompts, batched = self._prompts({k: v for k, v in given.items() if v is not None})
+            kinds = self._runner.video_prompts or self.prompts
+            prompts, batched = self._prompts({k: v for k, v in given.items() if v is not None}, kinds)
         if next(iter(prompts.values())).shape[0] == 0:
             msg = "track needs at least one object prompt"
             raise InputError(msg)
@@ -599,8 +600,12 @@ class PromptableSegmentationModel(core.Model):
             self.options,
         )
 
-    def _prompts(self, given: dict[str, PromptLike]) -> tuple[dict[str, torch.Tensor], bool]:
+    def _prompts(
+        self, given: dict[str, PromptLike], kinds: frozenset[str] | None = None
+    ) -> tuple[dict[str, torch.Tensor], bool]:
         """Prompt arrays as tensors on the device with a leading `P`, and whether the caller passed `P`.
+
+        `kinds`: the prompt kinds allowed (default: the model's `prompts`).
 
         An empty prompt batch (`P = 0`, e.g. `input_boxes` `[0, 4]`) is kept (the call returns an empty result);
         points with no point per prompt (`[P, 0, 2]`) are dropped, and raise if they were the only prompt.
@@ -611,11 +616,12 @@ class PromptableSegmentationModel(core.Model):
         if ("input_points" in given) != ("input_labels" in given):
             msg = "input_points and input_labels go together"
             raise InputError(msg)
+        kinds = kinds or self.prompts
         out, batched, caller = {}, set(), {}
         for name, value in given.items():
             kind, dims, dtype = _PROMPTS[name]
-            if kind not in self.prompts:
-                msg = f"{self.variant.ref} takes no {kind} prompts (takes: {sorted(self.prompts)})"
+            if kind not in kinds:
+                msg = f"{self.variant.ref} takes no {kind} prompts (takes: {sorted(kinds)})"
                 raise InputError(msg)
             t = _numeric(name, value, dtype)
             if name == "input_boxes":
@@ -654,7 +660,7 @@ class PromptableSegmentationModel(core.Model):
 
 
 class ConceptSegmentationModel(PromptableSegmentationModel):
-    """A loaded concept model (SAM 3, `load` of a `ConceptModelId`): text and / or exemplar boxes -> every instance.
+    """A loaded concept model (SAM 3, CLIPSeg; `load` of a `ConceptModelId`): text and / or exemplar boxes -> instances.
 
     The same model as `PromptableSegmentationModel` with calls typed as `ConceptSegmentationResult`.
     """
@@ -761,7 +767,7 @@ class InContextSegmentationModel(PromptableSegmentationModel):
                 self._checked(i) if isinstance(i, ImageEmbeddings) else self.get_image_embeddings(i) for i in images
             ]
         else:
-            embs = [self.get_image_embeddings(images)]
+            embs = [self.get_image_embeddings(cast("ImageLike", images))]
         sizes = [e.image_size for e in embs for _ in range(len(e))]
         return torch.cat([e.features["features"] for e in embs]), sizes
 
@@ -784,7 +790,7 @@ def _reference_masks(
     if isinstance(masks, list | tuple) and len(masks) == len(sizes) and not all(np.isscalar(m) for m in masks):
         items = [_numeric("reference_masks", m, torch.float32) for m in masks]
     else:
-        t = _numeric("reference_masks", masks, torch.float32)
+        t = _numeric("reference_masks", cast("PromptLike", masks), torch.float32)
         items = [t] if t.ndim == 2 else list(t)  # noqa: PLR2004 - [H, W]
     if len(items) != len(sizes):
         msg = f"reference_masks: {len(items)} mask(s) for {len(sizes)} reference image(s)"

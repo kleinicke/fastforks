@@ -519,8 +519,8 @@ def load_strict(  # noqa: PLR0913 - the exceptions a family may declare
         state = {k: _cast(v, dtype or own[k].dtype) for k, v in state.items()}
     module.load_state_dict(state, strict=not not_in_checkpoint, assign=assign)
     if assign and (meta := [k for k, v in (*module.named_parameters(), *module.named_buffers()) if v.is_meta]):
-        msg = f"{what}: {len(meta)} tensors of the meta-device build were not assigned, e.g. {meta[:3]}"
-        raise CheckpointMismatchError(msg)
+        msg = f"{len(meta)} tensors of the meta-device build were not assigned, e.g. {meta[:3]}"
+        raise CheckpointMismatchError(what, msg)
 
 
 def _fitting(

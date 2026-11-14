@@ -1,0 +1,57 @@
+schema = 2
+name = "WAFT"
+summary = "WAFT (Wang & Deng 2025), version a1: optical flow without a cost volume. A frozen Depth Anything V2 Small and a ResNet18 encoder give half-resolution features; each of 5 iterations warps the second image's features by the current flow and a small ViT-S (patch 8) refines the flow, which is convex-upsampled to full resolution. The authors' released weights; the network is ported from princeton-vl/WAFT. `waft-a1` is the general checkpoint the authors recommend for downstream use (TartanAir, FlyingChairs, FlyingThings3D); `-kitti` and `-sintel` are their benchmark fine-tunes."
+tier = "experimental"
+outputs = ["flow"]
+uses = ["depth_anything_v2", "timm_blocks"]  # fastforks.shared modules this family imports (DINOv2 ViT-S + DPT head, the timm ViT and ResNet blocks)
+
+[upstream]
+repo = "https://github.com/princeton-vl/WAFT"
+commit = "b152ff1cad1af8c185ee7b141997c48ff3334c87"  # net/ ports model/waft_a1.py, model/backbone/waftv1_dav2.py, vit.py, utils/utils.py
+
+[licence]
+code = "BSD-3-Clause"  # LICENSE: Copyright (c) 2025, Princeton Vision & Learning Lab
+weights = "assumed from code"  # the README links the authors' Google Drive files without a separate licence; the Depth Anything V2 Small inside is Apache-2.0
+files = ["LICENSE"]
+training_data = ["tartanair", "flyingchairs", "sceneflow"]
+training_note = "TartanAir pretraining, FlyingChairs, then FlyingThings3D (part of SceneFlow), as the checkpoint name tar-c-t says; the Depth Anything V2 Small inside was trained by its authors on synthetic and pseudo-labelled real images"
+evidence = "https://github.com/princeton-vl/WAFT/blob/b152ff1cad1af8c185ee7b141997c48ff3334c87/README.md#model-zoo"  # the weights' source; code: LICENSE at the same commit; Depth Anything V2 Small: https://huggingface.co/depth-anything/Depth-Anything-V2-Small/blob/03876f8651c73a60fe4c2c48294e09fcb6838fcf/README.md (license: apache-2.0)
+
+[io]
+input = "0-255"  # the network normalises itself (ImageNet mean / std on x / 255)
+min_size = 112  # pads to multiples of 112 (DINOv2 patch 14 x the refinement ViT's patch 8 at half resolution)
+pad = "none"  # the network pads itself after the normalisation (zeros, upstream Padder 'sintel' mode: at least 8 px more, centred)
+
+[options]
+iters = { default = 5, min = 1 }  # warping iterations (upstream config/a1/*.json: 5)
+
+[modes.portable]
+cuda_dtype = "float16"  # autocast for the whole network; the warping coordinates and the flow accumulate in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "no kernels mode was built for it; Depth Anything's fast ViT kernels would fit"
+
+[[papers]]
+title = "WAFT: Warping-Alone Field Transforms for Optical Flow"
+url = "https://arxiv.org/abs/2506.21526"
+date = "2025-06-26"
+venue = "arXiv"
+
+[[variants]]
+id = "waft-a1"  # upstream config/a1/tar-c-t.json, the checkpoint the README recommends for downstream applications
+revision = 1
+weights = [{ mirror = true, name = "waft-a1-tar-c-t.pth", size = 256886970, sha256 = "9f4b24f48b3937eca690a12b73bc3190effde6d4d4c87db01998fe63d846397f", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1CxzBQx0iSg6AyIgt6MF0ROlF_cAeZLPC" }]
+
+[[variants]]
+id = "waft-a1-kitti"  # upstream config/a1/tar-c-t-kitti.json (its KITTI submission)
+revision = 1
+licence = { training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "TartanAir, FlyingChairs, FlyingThings3D, then fine-tuned on KITTI 2015 (5000 steps; the config does not name the starting checkpoint, counted as the TSKH stage as in SEA-RAFT)" }
+weights = [{ mirror = true, name = "waft-a1-tar-c-t-kitti.pth", size = 256890618, sha256 = "b600f7821a529c0ca014efc228e77f32e0e20f4e0a5a88c29bebf0e635e4092b", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1hzpxBe80BmPCXjo9DvSszdCRsio5vLaB" }]
+
+[[variants]]
+id = "waft-a1-sintel"  # upstream config/a1/tar-c-t-sintel.json (its Sintel submission)
+revision = 1
+licence = { training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "TartanAir, FlyingChairs, FlyingThings3D, then the mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH)" }
+weights = [{ mirror = true, name = "waft-a1-tar-c-t-sintel.pth", size = 256889402, sha256 = "e3d95a6df6ec641ef29c766be658aae8698d00b899dc75742d23ff2cd9cf9d4e", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1pAsbH0Orb5mFo4CLCYi4dSm6FjxrOqO3" }]

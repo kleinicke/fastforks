@@ -6,9 +6,10 @@ triplets (0, 2 -> 1) and (20, 22 -> 21), 180 in all (dataset `davis2017-triplets
 [0, 1]; PSNR = -10 log10(MSE) per triplet, SSIM with an 11 x 11 Gaussian window (sigma 1.5, K = 0.01 / 0.03, data
 range 1, valid region) averaged over the channels, both averaged over the triplets.
 
-Tiers: `upstream` / `upstream16` (Practical-RIFE `Model.inference`, fp32 / inference_video.py's `--fp16`, as
-`tools/_original.py` `_rife`: `FF_RIFE_REPO` = a hzwer/Practical-RIFE clone, `FF_RIFE_RELEASES` = one unpacked release
-per variant id), `portable32`, `portable`, `kernels`.
+Tiers: `upstream` / `upstream16` (the family's `tools/_original.py` adapter, fp32 / the authors' fp16 option, or
+`torch.autocast(float16)` where upstream has none; RIFE: Practical-RIFE `Model.inference` and inference_video.py's
+`--fp16`, `FF_RIFE_REPO` = a hzwer/Practical-RIFE clone, `FF_RIFE_RELEASES` = one unpacked release per variant id;
+GIMM-VFI: `FF_GIMM_VFI_REPO`, see `_gimm_vfi`), `portable32`, `portable`, `kernels`.
 
     python tools/eval_interpolation.py rife-4.25 --tiers portable,kernels --out results/raw/x
 """
@@ -78,20 +79,29 @@ def score(pred: torch.Tensor, gt: torch.Tensor) -> tuple[float, float]:
     return psnr, float(ssim.mean())
 
 
-def predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
-    """`[1, 3, H, W]` pair, float CUDA in [0, 1] -> the middle frame `[3, H, W]` of `tier`."""
+def predictor(ref: str, tier: str) -> tuple[Any, str | None]:
+    """`[1, 3, H, W]` pair, float CUDA in [0, 1] -> the middle frame `[3, H, W]` of `tier`; and how fp16 runs."""
     if tier.startswith("upstream"):
         sys.path.insert(0, str(ROOT / "tools"))
         import _original  # noqa: PLC0415 - tools/_original.py
+        from fastforks._core import registry  # noqa: PLC0415
 
-        a = _original.LOCAL["rife"]
-        call = a.build(ref, tier == "upstream16")
-        return lambda x1, x2: call((x1[0] * 255).round().byte(), (x2[0] * 255).round().byte())[0].float()
+        family = registry.resolve("interpolation", ref)[0].family
+        a = _original.LOCAL[family]
+        fp16 = tier == "upstream16"
+        call = a.build(ref, fp16)
+        how = (TIERS[tier][2] if family == "rife" else "authors flag") if a.flag or not fp16 else "autocast"
+
+        def run(x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
+            with torch.autocast("cuda", torch.float16, enabled=fp16 and not a.flag):
+                return call((x1[0] * 255).round().byte(), (x2[0] * 255).round().byte())[0].float()
+
+        return run, how
     from fastforks import interpolation  # noqa: PLC0415
 
     mode = "kernels" if tier == "kernels" else "portable"
     m = interpolation.load(ref, mode=mode, device="cuda", **({"dtype": "float32"} if tier == "portable32" else {}))
-    return lambda x1, x2: m(x1, x2).frame[0]
+    return (lambda x1, x2: m(x1, x2).frame[0]), None
 
 
 def main() -> None:
@@ -108,7 +118,8 @@ def main() -> None:
     for ref in a.refs:
         for tier in a.tiers.split(","):
             mode, dtype, how, column = TIERS[tier]
-            fn = predictor(ref, tier)
+            fn, upstream_how = predictor(ref, tier)
+            how = upstream_how or how
             warm = torch.rand(1, 3, 480, 854, device="cuda")
             fn(warm, warm)
             torch.cuda.reset_peak_memory_stats()
