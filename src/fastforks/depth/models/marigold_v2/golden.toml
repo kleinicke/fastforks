@@ -22,5 +22,5 @@ symbols = {"nf4" = {"nf4_dequant" = "17584816f4ea216a"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-14"
-mean_px = 0.01078
-p99_px = 0.03734
+mean_px = 0.0
+p99_px = 0.0
