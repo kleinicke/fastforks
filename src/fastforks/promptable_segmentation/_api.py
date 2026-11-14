@@ -46,7 +46,7 @@ __all__ = [
 TASK = "promptable_segmentation"
 PromptLike = torch.Tensor | np.ndarray | list[Any] | tuple[Any, ...]
 """A prompt array: torch tensor, numpy array or nested lists / tuples of numbers."""
-ConceptModelId = Literal["sam3", "sam3@1"]
+ConceptModelId = Literal["clipseg", "clipseg@1", "sam3", "sam3@1"]
 """Ids of the concept models (text / exemplar prompts): `load` returns a `ConceptSegmentationModel` for them."""
 InContextModelId = Literal["insid3-vitl16", "insid3-vitl16@1"]
 """Ids of the in-context models (reference images + masks): `load` returns an `InContextSegmentationModel` for them."""
@@ -654,7 +654,7 @@ class PromptableSegmentationModel(core.Model):
 
 
 class ConceptSegmentationModel(PromptableSegmentationModel):
-    """A loaded concept model (SAM 3, `load` of a `ConceptModelId`): text and / or exemplar boxes -> every instance.
+    """A loaded concept model (SAM 3, CLIPSeg; `load` of a `ConceptModelId`): text and / or exemplar boxes -> instances.
 
     The same model as `PromptableSegmentationModel` with calls typed as `ConceptSegmentationResult`.
     """

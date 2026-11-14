@@ -436,3 +436,10 @@ name = "Nomos-v2 (neosr's 6000-image multipurpose super-resolution set)"
 licence = "not stated"  # neosr's readme lists it with a Google Drive link and no terms; sources of the images not named
 commercial = "unclear"
 url = "https://github.com/neosr-project/neosr/blob/31c7022620c682cf0961c8634d60787179145c5b/readme.md#-datasets"
+
+[phrasecut]
+name = "PhraseCut (referring-phrase masks on Visual Genome images)"
+licence = "not stated"  # the dataset repository has no licence file and its README states no terms (read 2026-11-14); the images are Visual Genome's
+commercial = "unclear"
+url = "https://github.com/ChenyunWu/PhraseCutDataset/blob/276470b7773d8a230aee5b5536876fbc485fb04b/README.md"
+

@@ -1382,6 +1382,42 @@ def _dfine(a: Any, full: str) -> Any:  # noqa: ANN401
     return det
 
 
+def _clipseg(a: Any, full: str) -> Any:  # noqa: ANN401
+    """CLIPSeg as the model card's usage: transformers CLIPSegProcessor (CPU) + CLIPSegForImageSegmentation.
+
+    The text tower runs per call; the logits are bilinearly resized to the image and thresholded at 0 (probability
+    0.5). HWC uint8 RGB in.
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+    import transformers  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    card, variant = registry.resolve("promptable_segmentation", full)
+    folder = registry.weights(card, variant, allow_download=False)[1].resolve().parent  # the HF snapshot folder
+    proc = transformers.CLIPSegProcessor.from_pretrained(folder)
+    cls = transformers.CLIPSegForImageSegmentation
+    net = cls.from_pretrained(folder, dtype=torch.float32).cuda().eval()  # ty: ignore[missing-argument] - transformers' from_pretrained decorator is inferred as an unbound method
+    a.COMMIT = "transformers-" + transformers.__version__
+    a.note = (
+        "transformers CLIPSegProcessor (CPU) + CLIPSegForImageSegmentation, text tower per call, masks at logits > 0"
+    )
+
+    @torch.inference_mode()
+    def call(image: Any, text: str) -> Any:  # noqa: ANN401 - uint8 HWC array
+        inputs = proc(images=image, text=[text], return_tensors="pt", padding=True).to("cuda")
+        logits = net(**inputs).logits.reshape(1, 1, 352, 352)
+        return F.interpolate(logits.float(), image.shape[:2], mode="bilinear")[0, 0] > 0
+
+    return call
+
+
+def _hwc_text(a: tuple[Any, ...]) -> tuple[Any, ...]:
+    """(uint8 CUDA CHW, text) of the bench call -> (uint8 HWC array, text)."""
+    return a[0].permute(1, 2, 0).cpu().numpy(), a[1]
+
+
 def _hwc_point(a: tuple[Any, ...]) -> tuple[Any, ...]:
     """(uint8 CUDA CHW, points, labels) of the bench call -> (uint8 HWC array, [1, 2] float array, [1] int array)."""
     import numpy as np  # noqa: PLC0415
@@ -1712,6 +1748,12 @@ class _RFDETR(_RFDETRKeypoint):
 
     def reference(self, g: Any, checkout: Path, full: str, checkpoint: Path) -> Any:  # noqa: ANN401 - upstream wrapper
         return g.reference(checkout, g.CLASSES[full.split("@", maxsplit=1)[0]], checkpoint, "cuda")
+
+
+class _LocalText(_Local):
+    """A text-prompted original: the bench call's text prompt follows the image."""
+
+    prompts = ("text",)
 
 
 class _LocalFp16(_Local):
@@ -2144,6 +2186,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "wd_tagger": _Local("classification", _convnext, ((448, 448),)),  # wdv3_timm.py: pad square, BGR
     "nsfw_vit": _Local("classification", _convnext, ((224, 224),)),  # transformers ViTForImageClassification
     "efficientvit_sam": _Local("promptable_segmentation", _efficientvit_sam, ((1024, 1024),), _hwc_point),
+    "clipseg": _LocalText("promptable_segmentation", _clipseg, ((840, 1297), (1024, 1024)), _hwc_text),
     "sam_hq": _Local("promptable_segmentation", _sam_hq, ((1024, 1024),), _hwc_point),
     "mobile_sam": _Local("promptable_segmentation", _mobile_sam, ((1024, 1024),), _hwc_point),
     "romav2": _LocalFp16("matching", _romav2, ((768, 1024),)),

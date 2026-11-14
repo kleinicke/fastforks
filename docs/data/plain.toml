@@ -138,6 +138,7 @@ sam_hq = "HQ-SAM (ETH Zurich): Segment Anything with an added head for sharper m
 sam2 = "Segment Anything 2.1 in image mode: masks from clicks, boxes or mask prompts, in four sizes."
 sam3 = "Segment Anything 3: masks for every object that matches a text or example prompt, as well as clicks and boxes. Meta's SAM License applies; commercially usable under it."
 insid3 = "INSID3 (2026): finds the object shown in one or more example images with masks in a new image, without training, from Meta's DINOv3 features. Apache-2.0 code; the DINOv3 weights are under the gated DINOv3 licence."
+clipseg = "CLIPSeg (Lüddecke and Ecker, CVPR 2022): one coarse mask for whatever a free-text prompt names, from a frozen CLIP ViT-B/16 and a small decoder. Apache-2.0 code and weights; the PhraseCut training data has no stated terms."
 
 # --- detection
 rcnn = "Faster R-CNN and Mask R-CNN from the detectron2 model zoo (ResNet-50 FPN, COCO): boxes, classes and, for Mask R-CNN, instance masks."

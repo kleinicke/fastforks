@@ -288,6 +288,8 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         emb = m.get_image_embeddings(img)
         maps = {}
         for prefix, p in concepts().items():  # key prefix per prompt (text, exemplar boxes, both)
+            if "input_boxes" in p and "boxes" not in m.prompts:  # text-only concept models (CLIPSeg)
+                continue
             boxes, labels = m._check_exemplars(p.get("input_boxes"), p.get("input_boxes_labels"), p.get("text"))
             boxes = _normalised(boxes, emb.image_size)
             with m._session():
