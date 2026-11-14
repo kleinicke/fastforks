@@ -332,6 +332,9 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
         "pooler_output": ("[B, C]", "float32", "image embedding", ""),
         "hidden_states": ("tuple of [B, N, C]", "float32", "block outputs before the final norm", ""),
     },
+    "volume": {
+        "labels": ("[D, H, W]", "uint8 (int16 above 255 classes)", "class index, 0 = background", "input voxels"),
+    },
     "pose": {
         "keypoints": ("[P, K, 2]", "float32", "pixels of the input image", "(x, y), corner origin"),
         "keypoint_scores": ("[P, K]", "float32", "keypoint confidence (heatmap maximum)", ""),
@@ -431,6 +434,10 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         ("image conversion", "resize", "proposals", "NMS", "score_threshold", "box scaling", "mask pasting"),
     ),
     "multiview": (("resize to the network size", "network", "resize to the input"), ("image conversion",)),
+    "volume": (
+        ("resample to the model spacing", "normalise", "network (sliding windows)", "argmax", "resample to the input"),
+        ("NIfTI reading / writing",),
+    ),
     "pose": (
         ("normalise", "network (person crop -> heatmaps)"),
         ("image conversion", "person crops", "heatmap decoding"),

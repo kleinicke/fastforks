@@ -50,6 +50,7 @@ nav:
       - Retrieval: api/retrieval.md
       - Calibration: api/calibration.md
       - Image restoration: api/restoration.md
+      - Volume segmentation: api/volume.md
       - Errors: api/errors.md
   - Models:
       - Stereo: models/stereo.md
@@ -69,6 +70,7 @@ nav:
       - Retrieval: models/retrieval.md
       - Calibration: models/calibration.md
       - Image restoration: models/restoration.md
+      - Volume segmentation: models/volume.md
   - Contributing: contributing.md
 markdown_extensions:
   - admonition

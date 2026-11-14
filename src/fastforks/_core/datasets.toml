@@ -424,3 +424,9 @@ name = "CelebAMask-HQ (30 000 CelebA-HQ faces, 19 face-part masks)"
 licence = "LicenseRef-noncommercial"  # "available for non-commercial research purposes only"
 commercial = "no"
 url = "https://github.com/switchablenorms/CelebAMask-HQ"
+
+[totalsegmentator-ct]
+name = "TotalSegmentator dataset v2 (1228 CT scans, 117 structures)"
+licence = "CC-BY-4.0"
+commercial = "yes"
+url = "https://zenodo.org/records/10047292"

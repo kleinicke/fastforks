@@ -60,3 +60,4 @@ opaque custom op (compiles, exports for this process only), the other tasks' `ke
 | pose | the network on person crops `[B, 3, h, w]` in `[0, 1]` at the network size -> heatmaps (ViTPose) or SimCC logits (RTMPose) | cropping the boxes, keypoint decoding and mapping back to the image |
 | detection | R-CNN: backbone + FPN -> the pyramid levels; DETR / RT-DETR: the whole net -> class logits and boxes, at the network size | resize, proposals, NMS, `score_threshold`, box scaling, mask pasting |
 | multi-view depth | views `[V, 3, H, W]`, then the cameras (required ones first) -> the dict of maps | image conversion, the result object |
+| volume | not available: `model.networks()` are the patch-sized U-Nets `[B, C, d, h, w]` -> logits | resampling, normalisation, sliding windows, mirroring, fold ensemble, argmax, resampling back |

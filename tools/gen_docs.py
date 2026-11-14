@@ -1004,6 +1004,10 @@ TASK_IO = {
         "object segmentation)."
     ),
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
+    "volume": (
+        "Input: a CT volume `[D, H, W]` in Hounsfield units and its voxel spacing in mm (`volume.read_nifti` reads "
+        "both from a NIfTI file). Output: a class index per voxel `[D, H, W]` on the input grid (0 = background)."
+    ),
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",
     "multiview": (
         "Input: several images of one scene (posed and calibrated for multi-view stereo, unposed otherwise). "
@@ -1202,6 +1206,7 @@ _STD_SIZE = {
     "tracking": "480x854",
     "retrieval": "480x640",
     "calibration": "1080x1920",
+    "volume": "300x300",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input

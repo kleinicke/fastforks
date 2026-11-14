@@ -21,7 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.half import cublas_gemms
 from fastforks._optimize import conv_ops
-from fastforks.kernels import cudnn_hacc, fastbb, seg_up
+from fastforks.kernels import cudnn_hacc, fastbb, seg_up, vol_norm
 from fastforks.shared import cnn_kernels
 from fastforks.stereo.models.las2 import kernels as las2_kernels
 
@@ -389,6 +389,23 @@ def test_cnn_epilogue_instance_norm(dev, seed, record_property):
             ref = F.instance_norm(x.float(), eps=1e-5).relu()
             got = cnn_kernels.instance_norm(x, 1e-5, cnn_kernels.ACT["relu"])
             _cmp(record_property, "igev instance_norm", got, ref, 5e-3, mag=mag, shape=[n, c, h, w])
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_vol_norm(dev, seed, record_property):
+    """`vol_norm.norm_act_` (channels-last 3D, batch 1 and 2) = `leaky_relu(instance_norm(x, w, b))` in fp32."""
+    rng, g, mag = _rng(seed, "vol_norm"), _gen(seed), MAGS[seed % 3]
+    vol_norm.load(dev)
+    for _ in range(3):
+        n, c = rng.choice((1, 2)), 8 * rng.randint(1, 40)
+        d, h, w = rng.randint(1, 19), rng.randint(2, 23), rng.randint(1, 37)
+        x = _randn(g, n, c, d, h, w, mag=mag, offset=rng.choice((0.0, 2.0)))
+        x = x.to(dev).half().contiguous(memory_format=torch.channels_last_3d)
+        wt, b = (_randn(g, c) * 0.5 + 1).to(dev).half(), (_randn(g, c) * 0.3).to(dev).half()
+        ref = F.leaky_relu(F.instance_norm(x.float(), weight=wt.float(), bias=b.float(), eps=1e-5), 0.01)
+        assert vol_norm.supported(x)
+        got = vol_norm.norm_act_(x, wt, b, 1e-5, 0.01)
+        _cmp(record_property, "vol_norm", got, ref, 5e-3, shape=[n, c, d, h, w])
 
 
 # --- cuDNN fp16-accumulate convs (cudnn_hacc) ------------------------------------------------------------------------

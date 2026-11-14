@@ -121,6 +121,19 @@ cam = calibration.load("geocalib-pinhole")(image)  # one photo: no checkerboard,
 cam.intrinsics, cam.roll, cam.pitch, cam.vfov  # [3, 3] (pixels of the input), radians
 ```
 
+3D CT segmentation ([models](models/volume.md), [API](api/volume.md)); also any trained nnU-Net v2 folder via
+`volume.load_nnunet(folder)`:
+
+```python
+# read_nifti / write_nifti need: pip install "fastforks-core[nifti]"
+from fastforks import volume
+
+ct, meta = volume.read_nifti("ct.nii.gz")  # [D, H, W] float32 (RAS-canonical), meta.spacing in mm
+seg = volume.load("totalsegmentator-total-3mm")(ct, meta.spacing)
+seg.labels  # [D, H, W] uint8 class index on the input grid; seg.class_names {1: "spleen", ...}
+volume.write_nifti("seg.nii.gz", seg.labels.cpu().numpy(), meta)  # on the grid of ct.nii.gz
+```
+
 How a call runs: the model card (`card.toml`) is resolved to a variant (the id and revision); the variant and `mode` select a
 runner (portable or kernels backend) with its weights; the task API (`<task>.load`) wraps the runner and turns the input into
 tensors; calling it returns the typed result, whose `.backend` records what ran. The exceptions follow.
@@ -128,7 +141,7 @@ tensors; calling it returns the typed result, whose `.backend` records what ran.
 Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
 `fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation`,
 `fastforks.multiview`, `fastforks.matching`, `fastforks.matting`, `fastforks.tracking`, `fastforks.interpolation`,
-`fastforks.retrieval`, `fastforks.calibration` and `fastforks.restoration`.
+`fastforks.retrieval`, `fastforks.calibration`, `fastforks.restoration` and `fastforks.volume`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
 PatchmatchNet return the reference view only. AnySplat also returns 3D Gaussians: `result.gaussians.save("scene.ply")`
 writes a standard 3DGS PLY. See the [API pages](api/index.md) for every result's fields.

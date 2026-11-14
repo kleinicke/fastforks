@@ -405,6 +405,9 @@ libs = [
     { name = "torchvision", version = "0.29.1+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "(sys_platform != 'darwin' and extra == 'group-14-fastforks-core-cu130') or (extra == 'group-14-fastforks-core-cpu' and extra == 'group-14-fastforks-core-cu130')" },
     { name = "transformers" },
 ]
+nifti = [
+    { name = "nibabel" },
+]
 onnx = [
     { name = "onnx" },
     { name = "onnxruntime" },
@@ -482,6 +485,7 @@ requires-dist = [
     { name = "isal", marker = "(python_full_version < '3.15' and platform_machine == 'arm64' and platform_python_implementation == 'CPython' and sys_platform == 'darwin') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'darwin') or (python_full_version < '3.15' and platform_machine == 'aarch64' and platform_python_implementation == 'CPython' and sys_platform == 'linux') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'linux') or (python_full_version < '3.15' and platform_machine == 'AMD64' and platform_python_implementation == 'CPython' and sys_platform == 'win32') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'win32')", specifier = ">=1.8" },
     { name = "laspy", specifier = ">=2.5" },
     { name = "lazrs", marker = "(python_full_version < '3.15' and platform_machine == 'arm64' and platform_python_implementation == 'CPython' and sys_platform == 'darwin') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'darwin') or (python_full_version < '3.15' and platform_machine == 'aarch64' and platform_python_implementation == 'CPython' and sys_platform == 'linux') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'linux') or (python_full_version < '3.15' and platform_machine == 'AMD64' and platform_python_implementation == 'CPython' and sys_platform == 'win32') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'win32')", specifier = ">=0.6" },
+    { name = "nibabel", marker = "extra == 'nifti'", specifier = ">=5" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "onnx", marker = "extra == 'onnx'", specifier = ">=1.18" },
     { name = "onnxruntime", marker = "extra == 'onnx'", specifier = ">=1.23" },
@@ -497,7 +501,7 @@ requires-dist = [
     { name = "torchvision", marker = "extra == 'torchvision'", specifier = ">=0.23" },
     { name = "transformers", marker = "extra == 'transformers'", specifier = ">=5.19,<6" },
 ]
-provides-extras = ["kernels", "onnx", "tensorrt", "timm", "torchvision", "transformers", "sfm", "libs"]
+provides-extras = ["kernels", "onnx", "tensorrt", "timm", "torchvision", "nifti", "transformers", "sfm", "libs"]
 
 [package.metadata.requires-dev]
 cpu = [
@@ -708,6 +712,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f5/08/8eea9d4b8302028f3abb2c0813953f7aec26d33b7a8960ed760e65ff29fa/idna-3.20.tar.gz", hash = "sha256:a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44", size = 216463, upload-time = "2026-09-17T14:11:04.752Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl", hash = "sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c", size = 69583, upload-time = "2026-09-17T14:11:03.168Z" },
+]
+
+[[package]]
+name = "importlib-resources"
+version = "7.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/06/b56dfa750b44e86157093bc8fca0ab81dccbf5260510de4eaf1cb69b5b99/importlib_resources-7.1.0.tar.gz", hash = "sha256:0722d4c6212489c530f2a145a34c0a7a3b4721bc96a15fada5930e2a0b760708", size = 44985, upload-time = "2026-04-12T16:36:09.232Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/db/55a262f3606bebcae07cc14095338471ad7c0bbcaa37707e6f0ee49725b7/importlib_resources-7.1.0-py3-none-any.whl", hash = "sha256:1bd7b48b4088eddb2cd16382150bb515af0bd2c70128194392725f82ad2c96a1", size = 37232, upload-time = "2026-04-12T16:36:08.219Z" },
 ]
 
 [[package]]
@@ -1196,6 +1209,22 @@ resolution-markers = [
 sdist = { url = "https://files.pythonhosted.org/packages/dc/76/3af777226b63a5e64a6b36b1ec5855c14e2b94a37096d4760e595fc43511/networkx-3.7.tar.gz", hash = "sha256:fd77a511bd90f39f3d016351345b52cf5319b813bdca01de3f755d3cca62e96a", size = 1866482, upload-time = "2026-09-21T16:45:16.974Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7e/cd/fe58041e9011f307c490e3e17dd48cc516448f7c698a3f2d9d9d65d7e6a8/networkx-3.7-py3-none-any.whl", hash = "sha256:e3fd2c13a7814cee3746340d8d7f8598a67f16a58bf47fb7f8793fab6efca1b0", size = 2142205, upload-time = "2026-09-21T16:45:14.609Z" },
+]
+
+[[package]]
+name = "nibabel"
+version = "5.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "importlib-resources", marker = "python_full_version < '3.12' or (extra == 'group-14-fastforks-core-cpu' and extra == 'group-14-fastforks-core-cu130')" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (extra == 'group-14-fastforks-core-cpu' and extra == 'group-14-fastforks-core-cu130')" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'group-14-fastforks-core-cpu' and extra == 'group-14-fastforks-core-cu130')" },
+    { name = "packaging" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'group-14-fastforks-core-cpu' and extra == 'group-14-fastforks-core-cu130')" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e6/6c/73efb70c49d889a166bca4b100b85ac4b9873057e60dc7bd7c9d84e83bdd/nibabel-5.5.0.tar.gz", hash = "sha256:e45480281866dc2a804483d8a1434bfda3b43d2765c21531a0b9965a0dcbc985", size = 4691936, upload-time = "2026-11-09T14:14:58.4Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/6e/f1702e042fa5ab28cfb5822578afd320ed0cf9f25959cb778be865e3a819/nibabel-5.5.0-py3-none-any.whl", hash = "sha256:2be7f9a33750a1af7983d5d067bac96cde4e954ea509a6a8ecd2a16d7a8f4c03", size = 3308048, upload-time = "2026-11-09T14:14:56.302Z" },
 ]
 
 [[package]]

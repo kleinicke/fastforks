@@ -56,6 +56,7 @@ tensorrt = ["tensorrt>=10.13"]
 # build their network with them (we extend timm / torchvision / transformers, we do not re-implement them).
 timm = ["timm>=1.0.30"]  # 1.0.30: the tested version
 torchvision = ["torchvision>=0.23"]
+nifti = ["nibabel>=5"]  # fastforks.volume.read_nifti / write_nifti
 transformers = ["transformers>=5.19,<6", "scipy>=1.10"]  # scipy: transformers builds Mask2Former / OneFormer with it
 # `matching.sfm.reconstruct` / `fastforks sfm --reconstruct`: COLMAP's mapper (3.12: also GLOMAP's global mapper).
 sfm = ["pycolmap>=3.11"]

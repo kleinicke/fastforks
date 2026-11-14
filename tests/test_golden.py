@@ -47,6 +47,7 @@ from fastforks import (
     segmentation,
     stereo,
     tracking,
+    volume,
 )
 from fastforks._core import kernels, registry
 from fastforks._core.errors import BackendUnavailableError, WeightsDownloadError, WeightsError
@@ -83,6 +84,7 @@ API: dict[str, Any] = {
     "calibration": calibration,
     "restoration": restoration,
     "tracking": tracking,
+    "volume": volume,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
 HEAVY_CPU = "FASTFORKS_HEAVY_CPU_TESTS"  # 1: every CPU case, also those left out of the release suite for time / RAM
@@ -261,6 +263,10 @@ def _plans_at_once() -> Any:
 def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901, PLR0912, PLR0915 - one branch per task
     """One call of `m` on the golden's input: its output maps and backend."""
     task = TASK[ref]
+    if task == "volume":  # the golden's CT crop and spacing
+        assert want is not None, "volume goldens store their volume and spacing"
+        r = m(want["input"], tuple(want["spacing"].tolist()))
+        return {"labels": r.labels.float().cpu()}, r.backend
     img = want["input"].round().astype(np.uint8) if want and "input" in want else image()
     if task == "stereo":
         r = m(*pair(*size(m.variant.io.min_size)))
@@ -353,6 +359,7 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
 # per concept prompt, the queries whose masks are kept)
 INPUTS = (
     "input",
+    "spacing",
     "input2",
     "queries",
     "trimap",
@@ -474,6 +481,11 @@ def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tenso
         if g.shape != v.shape:
             lines.append(f"FAIL {k}: shape {g.shape}, golden {v.shape}")
             continue
+        if TASK[ref] == "volume":  # label maps: argmax ties at class borders flip voxels
+            frac = float((g != v).mean())
+            bound = tol["cpu_label_mismatch"]
+            lines.append(f"{'FAIL ' * (frac > bound)}{k} {v.shape}: {frac:.2e} of the voxels differ (bound {bound})")
+            continue
         if k in spec(TASK[ref]).bool_outputs:  # thresholded maps: float noise right at the threshold flips pixels
             frac = float(((g > 0.5) != (v > 0.5)).mean())  # stored as 0 / 1
             bound = tol.get("cpu_mask_mismatch", 0.0)
@@ -560,6 +572,8 @@ def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torc
         return err
     unit = np.median(np.abs(want[key])) if tol.get("relative") else 1.0  # scale-free outputs (relative depth)
     err = np.abs(got[key].numpy() - want[key]) / unit
+    if TASK[ref] == "volume":  # label maps: the share of differing voxels (mean), p99 0 below 1 %
+        err = (err > 0).astype(np.float64)
     if "gpu_min_score" in tol:  # unsure points: pose argmax ties, matching pixels outside the overlap
         sure = sure_mask(want[SCORE[TASK[ref]]] >= tol["gpu_min_score"], err.shape)
         assert sure.mean() >= MIN_SURE, f"{what}{key}: the score mask keeps {sure.mean():.0%} of the points"

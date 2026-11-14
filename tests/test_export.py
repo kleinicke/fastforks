@@ -146,11 +146,17 @@ def _main_map(result: Any) -> torch.Tensor:
     return next(getattr(result, k) for k in spec(TASK[result.model]).standard if getattr(result, k) is not None)
 
 
+def _skip_without_module(ref: str) -> None:
+    if TASK[ref] == "volume":
+        pytest.skip("volume: the sliding-window pipeline is no single module (`model.networks()` are the U-Nets)")
+
+
 @pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_module_in_eval_mode(ref):
     """`module()` is in eval mode, submodules included: export would trace training-mode branches."""
+    _skip_without_module(ref)
     module = _load(ref).module()
     training = [name or type(module).__name__ for name, m in module.named_modules() if m.training]
     assert not training, f"{ref}: module() in training mode: {training[:5]}"
@@ -186,6 +192,7 @@ def _check_export_names(ref: str, model: Any, module: torch.nn.Module, out: Any)
 @pytest.mark.filterwarnings("ignore:The .grad attribute of a Tensor that is not a leaf")  # dynamo reads .grad
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_module_compile_export(ref):  # noqa: C901, PLR0912 - one branch per task
+    _skip_without_module(ref)
     if ref in _NOT_TRACEABLE:
         pytest.xfail(_NOT_TRACEABLE[ref])
     if ref in _CPU_RAM_HEAVY and not os.environ.get("FASTFORKS_HEAVY_CPU_TESTS"):
@@ -560,6 +567,7 @@ def test_model_compile_equals_eager(ref):
     """`model.compile()` keeps the model call: same results as eager within tolerance, the runner runs compiled."""
     from fastforks._core.bench import BenchSize, bench_inputs  # noqa: PLC0415
 
+    _skip_without_module(ref)
     model = _load(ref)
     args, kwargs = bench_inputs(model, BenchSize(*_shape(model)[2:], 2))
     want = model(*args, **kwargs)
