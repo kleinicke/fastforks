@@ -153,7 +153,10 @@ Checklist:
    <id>@<revision>` on a GPU, then `tools/extract_sizes.py sizes.jsonl`, which merges it into
    `src/fastforks/_core/sizes.json`; `tests/test_sizes.py` fails for a ref without it), then `uv run python
    tools/gen_docs.py` (the docs test fails if the model pages are stale).
-9. **Tier.** New models start as `experimental`; `stable` once goldens, GPU parity and a benchmark entry exist.
+9. **API.** A change to public names, signatures, result fields, card options or CLI flags fails
+   `tests/test_api_snapshot.py`; check the diff, then `uv run python tools/api_snapshot.py --update`. Released names are
+   not removed or renamed without an entry in CHANGELOG.md's Unreleased section (add the new name, keep the old one).
+10. **Tier.** New models start as `experimental`; `stable` once goldens, GPU parity and a benchmark entry exist.
 
 ## Speed check
 

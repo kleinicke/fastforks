@@ -706,7 +706,7 @@ A pair or view list given as files in one call (matching, stereo, flow, multivie
 import time
 from fastforks import detection
 
-det = detection.load("rtdetrv2-s-coco", max_detections=30)  # limit set when loading
+det = detection.load("rtdetrv2-s-coco", options={"max_detections": 30})  # limit set when loading
 det(first_frame, score_threshold=0.5)  # warm-up at the real size; the first call also captures CUDA graphs (kernels)
 for frame in frames:  # numpy HWC uint8, torch or PIL; keep the size fixed, call from one thread
     boxes = det(frame, score_threshold=0.5)  # score threshold can be overridden per call

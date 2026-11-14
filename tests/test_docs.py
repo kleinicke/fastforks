@@ -1,8 +1,11 @@
+import ast
+import importlib
 import inspect
 import json
 import re
 import subprocess
 import sys
+import textwrap
 import tomllib
 from pathlib import Path
 
@@ -394,3 +397,201 @@ def test_original_eval_cells_come_from_their_tier():
                 last[r["ref"], r["mode"], r.get("dataset")] = r
         bad = [(*k, r.get("tier")) for k, r in last.items() if "tier" in r and r["tier"] not in want[k[1]]]
         assert not bad, f"{path.name}: {bad}"
+
+
+# Python examples: model ids, load keywords, call / method keywords and result attributes, read with `ast` (nothing
+# runs). Docstring examples count too (the fenced blocks in the package's module docstrings).
+_PY_FENCE = re.compile(r"^( *)```(?:python|py)\n(.*?)^\1```", re.MULTILINE | re.DOTALL)
+_PATH_SUFFIXES = (".pth", ".pt", ".safetensors", ".ckpt", ".bin", ".onnx")
+
+
+def _python_blocks() -> list[tuple[str, int, str]]:
+    """(file, first line, code) of every ```python block of the docs and of the public modules' docstrings."""
+    src = sorted((ROOT / "src" / "fastforks").rglob("*.py"))
+    public = [p for p in src if "models" not in p.parts and (p.stem in {"__init__", "_api"} or p.stem[0] != "_")]
+    blocks = []
+    for path in [*_DOC_FILES, *sorted((ROOT / "docs" / "models").glob("*.md")), *public]:
+        text = path.read_text()
+        blocks += [
+            (path.relative_to(ROOT).as_posix(), text.count("\n", 0, m.start()) + 2, textwrap.dedent(m[2]))
+            for m in _PY_FENCE.finditer(text)
+        ]
+    return blocks
+
+
+def _model_classes(task: str) -> list[type]:
+    mod = importlib.import_module(f"fastforks.{task}")
+    found = [getattr(mod, n) for n in mod.__all__]
+    return [c for c in found if inspect.isclass(c) and issubclass(c, fastforks.Model)] or [fastforks.Model]
+
+
+def _result_classes(fn: object, owner: object) -> list[type]:
+    """The fastforks classes `fn` returns: a class itself, else the names in its return annotation (resolved in the
+    modules of `fn` and `owner`); empty if unresolvable."""
+    if inspect.isclass(fn):
+        return [fn]
+    try:
+        ret = inspect.signature(fn).return_annotation
+    except (TypeError, ValueError):
+        return []
+    names = re.findall(r"[A-Za-z_]\w*", ret) if isinstance(ret, str) else [getattr(ret, "__name__", "")]
+    ns = {**vars(sys.modules[owner.__module__]), **getattr(fn, "__globals__", {})}
+    return [ns[n] for n in names if inspect.isclass(ns.get(n)) and ns[n].__module__.startswith("fastforks")]
+
+
+def _resolve(path: str) -> object:
+    """The object a dotted `fastforks...` path names; `None` if there is none."""
+    module, _, name = path.rpartition(".")
+    try:
+        return getattr(importlib.import_module(module), name, None)
+    except ImportError:
+        return None
+
+
+def _has(classes: list[type], attr: str) -> bool:
+    return any(hasattr(c, attr) or attr in getattr(c, "__dataclass_fields__", {}) for c in classes)
+
+
+def _bind(fn: object, call: ast.Call, *, bound: bool) -> str | None:
+    """Why `call`'s arguments do not fit `fn`'s signature; `None` if they do (or cannot be checked)."""
+    if any(isinstance(a, ast.Starred) for a in call.args) or any(k.arg is None for k in call.keywords):
+        return None
+    try:
+        sig = inspect.signature(fn)
+    except (TypeError, ValueError):
+        return None
+    try:
+        sig.bind(*([None] * (len(call.args) + (not bound))), **{k.arg: None for k in call.keywords if k.arg})
+    except TypeError as e:
+        return str(e)
+    return None
+
+
+class _Examples(ast.NodeVisitor):
+    """Checks one block; `env` maps names to ("module", path) / ("model", task, id) / ("result", classes)."""
+
+    def __init__(self, where: str, line: int, env: dict[str, tuple]) -> None:
+        self.where, self.line, self.env, self.problems = where, line, env, []
+
+    def bad(self, node: ast.AST, msg: str) -> None:
+        self.problems.append(f"{self.where}:{self.line + getattr(node, 'lineno', 1) - 1}: {msg}")
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for a in node.names:
+            if a.name.startswith("fastforks"):
+                self.env[a.asname or a.name.split(".")[0]] = ("module", a.name if a.asname else "fastforks")
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        if node.module and node.module.startswith("fastforks"):
+            for a in node.names:
+                path = f"{node.module}.{a.name}"
+                self.env[a.asname or a.name] = ("module", path) if path.count(".") < 3 else ("other",)
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        self.visit(node.value)
+        kind = self.infer(node.value)
+        for t in node.targets:
+            if isinstance(t, ast.Name):
+                self.env[t.id] = kind
+
+    def infer(self, node: ast.AST) -> tuple:  # noqa: PLR0911 - one case per expression kind
+        if isinstance(node, ast.Name):
+            return self.env.get(node.id, ("other",))
+        if isinstance(node, ast.Attribute):
+            base = self.infer(node.value)
+            if base[0] == "module":
+                path = f"{base[1]}.{node.attr}"
+                return ("module", path) if node.attr in (*registry.TASKS, "geometry") else ("func", path)
+            return ("other",)
+        if not isinstance(node, ast.Call):
+            return ("other",)
+        func = self.infer(node.func)
+        if func[0] == "func" and func[1].rsplit(".", 1)[-1] == "load":
+            return self.load(node, func[1].rsplit(".", 1)[0])
+        if func[0] == "func":
+            obj = _resolve(func[1])
+            return ("result", _result_classes(obj, obj)) if obj is not None else ("other",)
+        if func[0] == "model":
+            return ("result", [r for c in _model_classes(func[1]) for r in _result_classes(c.__call__, c)])
+        if isinstance(node.func, ast.Attribute):
+            owner = self.infer(node.func.value)
+            classes = _model_classes(owner[1]) if owner[0] == "model" else owner[1] if owner[0] == "result" else []
+            fns = [(getattr(c, node.func.attr), c) for c in classes if callable(getattr(c, node.func.attr, None))]
+            if found := [r for f, c in fns for r in _result_classes(f, c)]:
+                return ("result", found)
+        return ("other",)
+
+    def load(self, node: ast.Call, module: str) -> tuple:
+        arg = node.args[0] if node.args else None
+        if not (isinstance(arg, ast.Constant) and isinstance(arg.value, str)):
+            return ("other",)
+        model_id = arg.value
+        if "/" in model_id or "\\" in model_id or model_id.endswith(_PATH_SUFFIXES):
+            return ("model", module.removeprefix("fastforks."), None) if module != "fastforks" else ("other",)
+        task = registry.task_of(model_id.split("@")[0])
+        if task is None or module not in {"fastforks", f"fastforks.{task}"}:
+            self.bad(node, f"{module}.load({model_id!r}): no such model in that task")
+            return ("other",)
+        card, _ = registry.resolve(task, model_id)
+        loader = importlib.import_module(module).load
+        params = set(inspect.signature(loader).parameters)
+        names = set(card.options) | set(card.option_aliases)
+        for k in node.keywords:
+            if k.arg == "options" and isinstance(k.value, ast.Dict):
+                keys = {x.value for x in k.value.keys if isinstance(x, ast.Constant)}
+                if unknown := keys - names:
+                    self.bad(node, f"load({model_id!r}, options=...): {sorted(unknown)} not options of the card")
+            elif k.arg and k.arg not in params:
+                hint = " (pass it in options=)" if k.arg in names else ""
+                self.bad(node, f"load({model_id!r}, {k.arg}=...): not a load argument{hint}")
+        return ("model", task, model_id)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        self.generic_visit(node)
+        func = self.infer(node.func)
+        if func[0] == "func" and not func[1].endswith(".load"):
+            obj = _resolve(func[1])
+            if obj is None:
+                self.bad(node, f"{func[1]}: no such name")
+            elif why := _bind(obj, node, bound=True):
+                self.bad(node, f"{func[1]}(...): {why}")
+            return
+        if func[0] == "model":
+            classes, name, bound = _model_classes(func[1]), "__call__", False
+        elif isinstance(node.func, ast.Attribute) and (owner := self.infer(node.func.value))[0] in {"model", "result"}:
+            classes = _model_classes(owner[1]) if owner[0] == "model" else owner[1]
+            name, bound = node.func.attr, False
+        else:
+            return
+        fns = [getattr(c, name) for c in classes if callable(getattr(c, name, None))]
+        if classes and not fns:
+            self.bad(node, f"{name}: no such method of {[c.__name__ for c in classes]}")
+        elif fns and all(why := [_bind(f, node, bound=bound) for f in fns]):
+            self.bad(node, f"{name}(...): {why[0]}")
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        self.generic_visit(node)
+        owner = self.infer(node.value)
+        if owner[0] == "result" and owner[1] and not _has(owner[1], node.attr):
+            self.bad(node, f".{node.attr}: not a field of {[c.__name__ for c in owner[1]]}")
+
+
+def test_python_examples_use_real_ids_options_and_signatures():
+    """Every ```python block of the docs and docstrings loads ids that exist, with load arguments / card options that
+    exist, and calls models and results with keywords their signatures take (`ast` only; nothing runs)."""
+    problems = []
+    blocks = _python_blocks()
+    assert len(blocks) > 50, "the block pattern no longer matches the docs"
+    env: dict[str, tuple] = {}
+    for i, (where, line, code) in enumerate(blocks):
+        # the blocks of one file share their imports; other names (`model`, ...) are per block
+        env = {k: v for k, v in env.items() if v[0] in {"module", "func"}} if i and blocks[i - 1][0] == where else {}
+        try:
+            tree = ast.parse(code)
+        except SyntaxError as e:
+            problems.append(f"{where}:{line + (e.lineno or 1) - 1}: not valid Python ({e.msg})")
+            continue
+        v = _Examples(where, line, env)
+        v.visit(tree)
+        problems += v.problems
+    assert not problems, "\n".join(sorted(set(problems)))
