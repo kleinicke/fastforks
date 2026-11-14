@@ -430,3 +430,9 @@ name = "TotalSegmentator dataset v2 (1228 CT scans, 117 structures)"
 licence = "CC-BY-4.0"
 commercial = "yes"
 url = "https://zenodo.org/records/10047292"
+
+[nomos-v2]
+name = "Nomos-v2 (neosr's 6000-image multipurpose super-resolution set)"
+licence = "not stated"  # neosr's readme lists it with a Google Drive link and no terms; sources of the images not named
+commercial = "unclear"
+url = "https://github.com/neosr-project/neosr/blob/31c7022620c682cf0961c8634d60787179145c5b/readme.md#-datasets"

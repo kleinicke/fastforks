@@ -593,6 +593,23 @@ def _compact(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - ad
     return lambda img: g.run(up, img)
 
 
+def _realplksr(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Neosr realplksr in eval mode as `tools/golden/realplksr.py` (`FF_REALPLKSR_REPO`, `FF_REALPLKSR_WEIGHTS`).
+
+    As neosr's test: `net(lq)` in float32, clamped.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("realplksr")
+    card, variant = full_ref("restoration", full)[1:]
+    weights = Path(os.environ["FF_REALPLKSR_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(
+        Path(os.environ["FF_REALPLKSR_REPO"]), weights, {**card.params, **variant.params}, device=torch.device("cuda")
+    )
+    a.note = "neosr realplksr eval mode, float32, net(lq) clamped"
+    return lambda x: g.run(net, x)
+
+
 def _span(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     """Upstream `SPAN` in eval mode as `tools/golden/span.py` (`FF_SPAN_REPO`, `FF_SPAN_WEIGHTS`), float32.
 
@@ -2011,6 +2028,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "realesrgan": _LocalFp16("restoration", _realesrgan, ((512, 512),), _hwc01),
     "span": _Local("restoration", _span, ((512, 512),), _bchw01),
     "compact": _LocalFp16("restoration", _compact, ((512, 512),), _hwc01),
+    "realplksr": _Local("restoration", _realplksr, ((512, 512),), _bchw01),
     "swinir": _Local("restoration", _swinir, ((512, 512),), _bchw01),
     "hat": _Local("restoration", _hat, ((512, 512),), _bchw01),
     "dat": _Local("restoration", _dat, ((512, 512),), _bchw01),

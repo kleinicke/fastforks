@@ -1,0 +1,48 @@
+schema = 2
+name = "RealPLKSR"
+summary = "RealPLKSR (neosr; after PLKSR, Lee et al., 2024): a real-world super-resolution CNN of partial large-kernel blocks (3 x 3 channel mixer, a 17 x 17 conv on a quarter of the channels, element-wise attention, GroupNorm) and a pixel-shuffle upsampler. `realplksr-nomoswebphoto-x4` is Philip Hofmann's 4xNomosWebPhoto_RealPLKSR, an x4 model for photos with noise, lens blur and JPEG / WebP compression. `load_file` reads other RealPLKSR checkpoints with the pixel-shuffle upsampler (any scale, width and depth)."
+tier = "experimental"
+outputs = ["image"]
+
+[upstream]
+repo = "https://github.com/neosr-project/neosr"
+commit = "31c7022620c682cf0961c8634d60787179145c5b"  # neosr/archs/realplksr_arch.py; the call is net(lq) in eval mode, clamped (neosr test / spandrel)
+
+[licence]
+code = "Apache-2.0"  # license.txt
+weights = "CC-BY-4.0"  # the release notes: "License: CC-BY-0.4" (sic)
+files = ["LICENSE"]
+training_data = ["nomos-v2"]
+training_note = "Release notes: Nomos-v2 (6000 photos, neosr's dataset) with realistic noise, lens blur, JPEG and WebP degradations; pretrained from neosr's 4x_realplksr_gan_pretrain."
+evidence = "https://github.com/neosr-project/neosr/blob/31c7022620c682cf0961c8634d60787179145c5b/license.txt ; https://github.com/Phhofm/models/releases/tag/4xNomosWebPhoto_RealPLKSR"
+
+[io]
+input = "0-1"
+pad = "none"  # any size: every conv pads itself
+min_size = 1
+
+[params]
+scale = 4
+dim = 64
+n_blocks = 28
+kernel_size = 17
+split_ratio = 0.25
+use_ea = true
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions, channels-last
+
+[[papers]]
+title = "Partial Large Kernel CNNs for Efficient Super-Resolution"
+url = "https://arxiv.org/abs/2404.11848"
+date = "2024-04-18"
+venue = "arXiv"
+
+[[variants]]
+id = "realplksr-nomoswebphoto-x4"
+revision = 1
+weights = [{ name = "4xNomosWebPhoto_RealPLKSR.safetensors", size = 29590440, sha256 = "9be0228f98156a100d6636d99b373ed2785b999723f9adc4cca504329ab157f2", url = "https://github.com/Phhofm/models/releases/download/4xNomosWebPhoto_RealPLKSR/4xNomosWebPhoto_RealPLKSR.safetensors" }]

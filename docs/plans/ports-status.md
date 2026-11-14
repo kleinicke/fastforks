@@ -164,6 +164,9 @@ In this order, unless something more useful turns up:
   Weights on CUDA in `~/scratch_tests/port-rtmo/w/`.
 - Real-ESRGAN Compact (`realesr-general-x4v3`, restoration): portable MPS goldens and Mac speed rows (512x512).
   No Metal kernels runner. Weights: the pinned GitHub release URL of the card (also in `/home/florian/projects/data/ff-weights/compact/`).
+- RealPLKSR (`realplksr-nomoswebphoto-x4`, restoration): portable MPS goldens and Mac speed rows (512x512; check
+  the per-channel GroupNorm statistics in float16 on MPS). No Metal kernels runner. Weights: the pinned GitHub release
+  URL of the card (also in `/home/florian/projects/data/ff-weights/realplksr/`).
 
 - RTMW whole-body (5 variants): MPS golden checks, especially the 384-pixel variants, and portable speed rows.
   Weights on CUDA in `~/scratch_tests/port-rtmo/w/` or its `cache/`, otherwise the pinned upstream URLs.

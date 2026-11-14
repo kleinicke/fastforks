@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- RealPLKSR super-resolution (`realplksr-nomoswebphoto-x4`, restoration; Apache-2.0 code, CC-BY-4.0 weights):
+  neosr's large-kernel CNN; GroupNorm from per-channel statistics (PyTorch's channels-last GroupNorm is slow).
+  512x512: 130 ms kernels, 182 ms portable vs 444 ms original fp32 (267 ms `.half()`), peak 179 / 216 MB vs
+  480 / 630 MB. DIV2K validation (50 images) PSNR 26.99 / SSIM 0.7481 in every tier, as the original. `load_file`
+  reads other RealPLKSR checkpoints (pixel-shuffle upsampler).
+
 - Real-ESRGAN Compact super-resolution (`realesr-general-x4v3`, restoration; BSD-3-Clause code and weights):
   SRVGGNetCompact, `load_file` reads other Compact checkpoints (any scale, width and depth). 512x512: 24.0 ms kernels,
   30.1 ms portable vs 77.6 ms original fp32 (42.1 ms fp16), peak 125 / 164 MB vs 313 / 366 MB. DIV2K validation
