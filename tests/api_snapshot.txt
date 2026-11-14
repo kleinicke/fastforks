@@ -283,10 +283,8 @@ def fastforks.restoration._api.RestorationModel.__call__(self, image: 'ImageLike
 def fastforks.restoration._api.RestorationModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
 def fastforks.restoration._api.RestorationModel.module(self) -> 'torch.nn.Module'
 def fastforks.restoration._api.RestorationResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
-def fastforks.restoration.checkpoint_family(path: 'str | os.PathLike[str]') -> 'str | None'
 def fastforks.restoration.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
-def fastforks.restoration.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.restoration._api.RestorationModel
-def fastforks.restoration.load_file(path: 'str | os.PathLike[str]', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None) -> 'RestorationModel'
+def fastforks.restoration.load(model: 'str | os.PathLike[str]', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.restoration._api.RestorationModel
 def fastforks.restoration.model_card(model: 'str') -> 'ModelCard'
 def fastforks.retrieval._api.RetrievalModel.__call__(self, image: 'ImageLike') -> 'RetrievalResult'
 def fastforks.retrieval.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
@@ -357,8 +355,7 @@ def fastforks.volume._api.VolumeModel.module(self) -> 'torch.nn.Module'
 def fastforks.volume._api.VolumeModel.networks(self) -> 'tuple[torch.nn.Module, ...]'
 def fastforks.volume._api.VolumeResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
 def fastforks.volume.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
-def fastforks.volume.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.volume._api.VolumeModel
-def fastforks.volume.load_nnunet(path: 'str | os.PathLike[str]', *, folds: 'Sequence[int] | None' = None, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, step: 'float' = 0.5, mirror: 'bool' = True, checkpoint: 'str' = 'checkpoint_final.pth') -> 'VolumeModel'
+def fastforks.volume.load(model: 'str | os.PathLike[str]', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None, folds: 'Sequence[int] | None' = None, step: 'float | None' = None, mirror: 'bool | None' = None, checkpoint: 'str | None' = None) -> fastforks.volume._api.VolumeModel
 def fastforks.volume.model_card(model: 'str') -> 'ModelCard'
 def fastforks.volume.read_nifti(path: 'str | os.PathLike[str]') -> 'tuple[np.ndarray, VolumeMeta]'
 def fastforks.volume.write_nifti(path: 'str | os.PathLike[str]', labels: 'np.ndarray | torch.Tensor', meta: 'VolumeMeta') -> 'None'

@@ -122,9 +122,9 @@ def test_zoom_matches_scipy() -> None:
         assert np.array_equal(ts.zoom_nearest(torch.from_numpy(lab), shape).numpy(), ndimage.zoom(lab, zoom, order=0))
 
 
-def test_load_nnunet_labels(folder: Path) -> None:
-    """`load_nnunet`: fold ensemble + mirroring on the input grid, nnU-Net's labels and names, input checks."""
-    model = volume.load_nnunet(folder, device="cpu")
+def test_load_nnunet_folder_labels(folder: Path) -> None:
+    """`load(folder)`: fold ensemble + mirroring on the input grid, nnU-Net's labels and names, input checks."""
+    model = volume.load(folder, device="cpu")
     assert model.class_names == {1: "liver", 2: "spleen"}
     assert model.channels == 1
     assert len(model.networks()) == 2
@@ -152,7 +152,7 @@ def test_load_nnunet_labels(folder: Path) -> None:
 def test_call_meta_and_save(folder: Path, tmp_path: Path) -> None:
     """`meta=` gives the spacing and the grid `save` writes NIfTI on; one of `spacing` / `meta` is required."""
     nib = pytest.importorskip("nibabel")
-    model = volume.load_nnunet(folder, device="cpu", mirror=False, folds=[0])
+    model = volume.load(folder, device="cpu", mirror=False, folds=[0])
     ct = np.random.default_rng(3).normal(0, 400, (12, 14, 10)).astype(np.float32)
     affine = np.diag([1.5, 1.2, 2.5, 1.0])
     nib.save(nib.Nifti1Image(ct.transpose(2, 1, 0), affine), tmp_path / "ct.nii.gz")
@@ -176,7 +176,7 @@ def test_call_meta_and_save(folder: Path, tmp_path: Path) -> None:
 
 def test_label_map_merge(folder: Path) -> None:
     """Parts merge into the card's class list (later parts win); a class missing from the list is an error."""
-    model = volume.load_nnunet(folder, device="cpu", mirror=False, folds=[0])
+    model = volume.load(folder, device="cpu", mirror=False, folds=[0])
     runner = model._runner
     runner._luts = [torch.tensor([0, 5, 0], dtype=torch.int16), torch.tensor([0, 0, 7], dtype=torch.int16)]
     runner.parts = [runner.parts[0], runner.parts[0]]
@@ -296,7 +296,7 @@ def test_2d_configuration(tmp_path: Path) -> None:
     init = {"plans": _plans_2d(), "dataset_json": _DATASET, "configuration": "2d", "fold": 0}
     torch.save({"network_weights": sd2, "init_args": init, "inference_allowed_mirroring_axes": (0, 1)},
                tmp_path / "checkpoint_final.pth")  # fmt: skip
-    model = volume.load_nnunet(tmp_path / "checkpoint_final.pth", device="cpu")
+    model = volume.load(tmp_path / "checkpoint_final.pth", device="cpu")
     assert model._runner.parts[0].mirror_axes == (1, 2)
     assert torch.equal(model(x[0].numpy(), spacing=(3.0, 1.5, 1.5)).labels, full)
 

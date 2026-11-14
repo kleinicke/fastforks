@@ -1,4 +1,4 @@
-"""NAFNet: the card's variants, the folded blocks and the TLC box means against the vendored upstream, `load_file`."""
+"""NAFNet: the card's variants, the folded blocks and the TLC box means against the vendored upstream, `load(path)`."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from fastforks import restoration
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_image
 from fastforks._core.errors import WeightsError
+from fastforks.restoration._api import _checkpoint_family
 from fastforks.restoration.models.nafnet.net import NAFNet, NAFNetLocal
 
 if TYPE_CHECKING:
@@ -38,12 +39,12 @@ def _trained_like(net: torch.nn.Module) -> torch.nn.Module:
 
 @pytest.mark.parametrize("tlc", [0, 32])
 def test_matches_vendored_upstream(tmp_path: Path, tlc: int) -> None:
-    """`load_file` finds the family; the folded blocks (and with `tlc` the local means) match upstream."""
+    """`load(path)` finds the family; the folded blocks (and with `tlc` the local means) match upstream."""
     torch.manual_seed(0)
     net = _trained_like(NAFNetLocal(**KW, train_size=(1, 3, tlc, tlc)) if tlc else NAFNet(**KW))
     torch.save({"params": net.state_dict()}, tmp_path / "w.pth")
-    assert restoration.checkpoint_family(tmp_path / "w.pth") == "nafnet"
-    m = restoration.load_file(tmp_path / "w.pth", mode="portable", device="cpu", dtype="float32")
+    assert _checkpoint_family(tmp_path / "w.pth") == "nafnet"
+    m = restoration.load(tmp_path / "w.pth", mode="portable", device="cpu", dtype="float32")
     assert m.variant.id == "nafnet-sidd"  # not the deblurring structure: global attention
     if tlc:  # the GoPro path (`NAFNetLocal`): the same runner with a small training size
         ctx = m._runner.ctx
@@ -60,4 +61,4 @@ def test_matches_vendored_upstream(tmp_path: Path, tlc: int) -> None:
 def test_rejects_non_rgb(tmp_path: Path) -> None:
     torch.save(NAFNet(img_channel=1, **KW).state_dict(), tmp_path / "w.pth")
     with pytest.raises(WeightsError, match="input channels"):
-        restoration.load_file(tmp_path / "w.pth", mode="portable", device="cpu", dtype="float32")
+        restoration.load(tmp_path / "w.pth", mode="portable", device="cpu", dtype="float32")

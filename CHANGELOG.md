@@ -24,6 +24,9 @@ public API from now on):
 - Object tracking moved to detection: `tracking.ByteTracker` / `tracking.ObjectTracks` /
   `tracking.track_objects(labels=)` -> `detection.ByteTracker` / `detection.ObjectTracks` /
   `detection.track_objects(classes=)` (class names or ids).
+- Loaders: one `load` per task. `restoration.load_file(path)` -> `restoration.load(path)` (`checkpoint_family` is
+  private); `volume.load_nnunet(path, ...)` -> `volume.load(path, folds=, step=, mirror=, checkpoint=)`. A model
+  argument is a path iff it is a `PathLike`, contains `/` or `\`, or ends in `.pth .pt .safetensors .ckpt .bin .onnx`.
 
 ### Models and fixes
 

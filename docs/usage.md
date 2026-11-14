@@ -127,7 +127,7 @@ cam.intrinsics, cam.roll, cam.pitch, cam.vfov  # [3, 3] (pixels of the input), r
 ```
 
 3D CT segmentation ([models](models/volume.md), [API](api/volume.md)); also any trained nnU-Net v2 model folder or
-checkpoint via `volume.load_nnunet(path)`:
+checkpoint via `volume.load(path, folds=..., step=..., mirror=...)`:
 
 ```python
 # read_nifti / write_nifti need: pip install "fastforks-core[nifti]"

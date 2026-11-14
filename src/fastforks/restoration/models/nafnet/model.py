@@ -211,7 +211,7 @@ _BLOCK = re.compile(r"(encoders|decoders)\.(\d+)\.(\d+)\.beta|middle_blks\.(\d+)
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a NAFNet state dict as a variant and its params; keys unchanged.
+    """`load(path)`: a NAFNet state dict as a variant and its params; keys unchanged.
 
     The deblurring structure (encoder `[1, 1, 1, 28]`, one middle block: GoPro, REDS) runs as `NAFNetLocal` with
     training size 256 (upstream's test options), any other as `NAFNet`.

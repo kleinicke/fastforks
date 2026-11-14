@@ -178,7 +178,7 @@ _GROUP = re.compile(r"layers\.(\d+)\.swin1\.attn\.relative_position_bias_table")
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a DRCT state dict as a variant and its params (channels, groups, heads); keys unchanged."""
+    """`load(path)`: a DRCT state dict as a variant and its params (channels, groups, heads); keys unchanged."""
     groups = sorted(int(m.group(1)) for k in sd if (m := _GROUP.match(k)))
     if "conv_first.weight" not in sd or "layers.0.adjust1.weight" not in sd or not groups:
         return None

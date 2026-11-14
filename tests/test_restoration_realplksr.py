@@ -1,4 +1,4 @@
-"""RealPLKSR: the card's variant, `load_file` detection and the network against upstream's forward."""
+"""RealPLKSR: the card's variant, `load(path)` detection and the network against upstream's forward."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def test_load_file_matches_upstream(tmp_path: Path, scale: int, use_ea: bool) ->
     torch.manual_seed(0)
     net = realplksr(dim=16, n_blocks=2, upscaling_factor=scale, kernel_size=7, split_ratio=0.25, use_ea=use_ea).eval()
     save_file(net.state_dict(), tmp_path / "w.safetensors")
-    m = restoration.load_file(tmp_path / "w.safetensors", device="cpu", dtype="float32")
+    m = restoration.load(tmp_path / "w.safetensors", device="cpu", dtype="float32")
     assert m.variant.id == "realplksr-nomoswebphoto-x4"
     img = synthetic_image(17, 23, torch.device("cpu"))
     with torch.inference_mode():

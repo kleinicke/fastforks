@@ -298,7 +298,7 @@ _BLOCK = re.compile(r"layers\.(\d+)\.blocks\.(\d+)\.")
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a DAT state dict as a variant and its params (channels, depths, heads, split, FFN, tail)."""
+    """`load(path)`: a DAT state dict as a variant and its params (channels, depths, heads, split, FFN, tail)."""
     a = "layers.0.blocks.0.attn.attns.0."
     blocks = [(int(m.group(1)), int(m.group(2))) for k in sd if (m := _BLOCK.match(k))]
     if "conv_first.weight" not in sd or "before_RG.1.weight" not in sd or a + "rpe_biases" not in sd:

@@ -15,6 +15,7 @@ import fastforks
 import gen_docs
 from fastforks import ModelNotFoundError, stereo
 from fastforks._core import licences, registry
+from fastforks._core.api import is_path
 from fastforks.stereo import geometry
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,6 +82,8 @@ def test_quoted_model_ids_resolve():
     assert len({model_id for _, _, model_id in quoted}) >= 5, "the id patterns no longer match the docs"
     bad = []
     for where, task, model_id in quoted:
+        if is_path(model_id):  # `restoration.load("4x-UltraSharp.pth")`: a checkpoint file, not an id
+            continue
         if _PENDING.get(model_id) == task and task is not None and registry.task_of(model_id) != task:
             continue
         try:

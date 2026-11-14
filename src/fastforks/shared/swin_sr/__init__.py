@@ -10,7 +10,7 @@ zero-pads a block's head dimension to a multiple of 8 in its `qkv` / `proj` weig
 rows of q and k), the extra output channels meet zero columns of `proj`. `attention` is the SDPA call itself, padding
 the head size at run time where the weights are not padded (HAT, DAT) and copying strided inputs. `patch_embed` is
 `PatchEmbed.forward` with contiguous tokens. `checkpoint_upsampler` reads a checkpoint's reconstruction layers
-(`load_file`).
+(`load(path)`).
 """
 
 from __future__ import annotations

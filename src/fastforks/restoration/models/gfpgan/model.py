@@ -243,7 +243,7 @@ _SHAPES = {  # the clean 512 network of v1.3 / v1.4 (GFPGANer, arch "clean"): ke
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a clean GFPGAN (v1.3 / v1.4 layout) as a variant, params, keys."""
+    """`load(path)`: a clean GFPGAN (v1.3 / v1.4 layout) as a variant, params, keys."""
     if "stylegan_decoder.style_convs.0.modulated_conv.weight" not in sd or "conv_body_first.weight" not in sd:
         return None
     bad = [k for k, dims in _SHAPES.items() if k not in sd or tuple(sd[k].shape[: len(dims)]) != dims]

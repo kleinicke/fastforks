@@ -224,7 +224,7 @@ _BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a Swin2SR state dict as a variant and its params (depths, heads, upsampler); keys unchanged."""
+    """`load(path)`: a Swin2SR state dict as a variant and its params (depths, heads, upsampler); keys unchanged."""
     if "conv_first.weight" not in sd or "layers.0.residual_group.blocks.0.attn.logit_scale" not in sd:
         return None
     blocks = [(int(m.group(1)), int(m.group(2))) for k in sd if (m := _BLOCK.match(k))]

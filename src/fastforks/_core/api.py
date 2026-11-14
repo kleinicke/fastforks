@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
 
 from fastforks._core import model as core
@@ -9,14 +10,15 @@ from fastforks._core.arguments import typo_checked_load
 from fastforks._core.model import M, ModeArg, Model
 
 if TYPE_CHECKING:
-    import os
     from collections.abc import Callable, Mapping, Sequence
 
     import torch
 
     from fastforks._core.cards import Commercial, Dtype, ModelCard, Tier
 
-__all__ = ["ListModelsFn", "LoadFn", "ModelCardFn", "task_api"]
+__all__ = ["ListModelsFn", "LoadFn", "ModelCardFn", "is_path", "task_api"]
+
+CHECKPOINT_SUFFIXES = (".pth", ".pt", ".safetensors", ".ckpt", ".bin", ".onnx")
 
 
 class ListModelsFn(Protocol):
@@ -128,6 +130,16 @@ class LoadFn(Protocol[M_co]):
                 fit the model (the message lists the missing, unexpected and mismatched keys).
         """
         ...
+
+
+def is_path(model: object) -> bool:
+    """`load`'s path rule: `model` is a path (not a model id) iff it is a `PathLike`, has a path separator, or a suffix.
+
+    Separators: slash or backslash. Suffixes: `.pth .pt .safetensors .ckpt .bin .onnx`.
+    """
+    if isinstance(model, os.PathLike):
+        return True
+    return isinstance(model, str) and ("/" in model or "\\" in model or model.lower().endswith(CHECKPOINT_SUFFIXES))
 
 
 def task_api(

@@ -1,4 +1,4 @@
-"""Swin2SR: the card's variants, the folded cosine attention against the vendored upstream network, `load_file`."""
+"""Swin2SR: the card's variants, the folded cosine attention against the vendored upstream network, `load(path)`."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import torch
 from fastforks import restoration
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_image
+from fastforks.restoration._api import _checkpoint_family
 from fastforks.restoration.models.swin2sr.net import Swin2SR
 
 if TYPE_CHECKING:
@@ -46,11 +47,11 @@ def _small(upsampler: str) -> torch.nn.Module:
 
 @pytest.mark.parametrize("upsampler", ["pixelshuffle", "nearest+conv"])
 def test_load_file_matches_vendored_upstream(tmp_path: Path, upsampler: str) -> None:
-    """`load_file` finds the family; padding, the precomputed bias and the SDPA cosine attention match upstream."""
+    """`load(path)` finds the family; padding, the precomputed bias and the SDPA cosine attention match upstream."""
     net = _small(upsampler)
     torch.save(net.state_dict(), tmp_path / "w.pth")
-    assert restoration.checkpoint_family(tmp_path / "w.pth") == "swin2sr"
-    m = restoration.load_file(tmp_path / "w.pth", mode="portable", device="cpu", dtype="float32")
+    assert _checkpoint_family(tmp_path / "w.pth") == "swin2sr"
+    m = restoration.load(tmp_path / "w.pth", mode="portable", device="cpu", dtype="float32")
     assert m.variant.id == ("swin2sr-x2" if upsampler == "pixelshuffle" else "swin2sr-x4-real")
     h, w = 13, 21
     img = synthetic_image(h, w, torch.device("cpu"))

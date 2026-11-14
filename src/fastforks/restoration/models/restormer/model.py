@@ -272,7 +272,7 @@ RUNNERS = {"portable": Portable, "kernels": Kernels}
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a Restormer state dict as a variant and its params; keys unchanged.
+    """`load(path)`: a Restormer state dict as a variant and its params; keys unchanged.
 
     BiasFree norms (no `norm1.body.bias`) are the real-denoising model, WithBias ones the deblurring one (the deraining
     model has the same structure; pick its variant by name).

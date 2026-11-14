@@ -107,7 +107,7 @@ _BLOCK = re.compile(r"feats\.(\d+)\.lk\.conv\.weight")
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a neosr `realplksr` state dict as a variant and its params; keys unchanged."""
+    """`load(path)`: a neosr `realplksr` state dict as a variant and its params; keys unchanged."""
     if "feats.0.weight" not in sd or "feats.1.lk.conv.weight" not in sd or "feats.1.channel_mixer.0.weight" not in sd:
         return None
     first, lk = sd["feats.0.weight"], sd["feats.1.lk.conv.weight"]

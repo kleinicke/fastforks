@@ -1,4 +1,4 @@
-"""3D volume segmentation API: `list_models`, `model_card`, `load`, `load_nnunet`, and the model / result types."""
+"""3D volume segmentation API: `list_models`, `model_card`, `load` (also nnU-Net v2 folders), model / result types."""
 
 from __future__ import annotations
 
@@ -14,8 +14,9 @@ import torch
 
 from fastforks._core import model as core
 from fastforks._core import registry
-from fastforks._core.api import task_api
-from fastforks._core.errors import InputError, WeightsError
+from fastforks._core.api import is_path, task_api
+from fastforks._core.arguments import typo_checked_load
+from fastforks._core.errors import InputError, OptionsError, WeightsError
 from fastforks._core.files import FileSpec
 from fastforks._core.io import atomic_write, check_suffix
 from fastforks._core.model import Backend
@@ -30,7 +31,7 @@ if TYPE_CHECKING:
     from fastforks._core.model import ModeArg
     from fastforks.volume._runner import Runner
 
-__all__ = ["Backend", "VolumeModel", "VolumeResult", "list_models", "load", "load_nnunet", "model_card"]
+__all__ = ["Backend", "VolumeModel", "VolumeResult", "list_models", "load", "model_card"]
 
 TASK = "volume"
 _NDIM = (3, 4)
@@ -161,41 +162,99 @@ def bench_inputs(model: VolumeModel, size: BenchSize) -> BenchInputs:
     return (vol.to(model.device),), {"spacing": (1.5, 1.5, 1.5)}
 
 
-def load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the nnU-Net options
-    path: str | os.PathLike[str],
+list_models, model_card, _load = task_api(TASK, VolumeModel)
+
+
+def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net options
+    model: str | os.PathLike[str],
     *,
-    folds: Sequence[int] | None = None,
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    step: float = 0.5,
-    mirror: bool = True,
-    checkpoint: str = "checkpoint_final.pth",
+    options: Mapping[str, Any] | None = None,
+    weights: str | os.PathLike[str] | None = None,
+    folds: Sequence[int] | None = None,
+    step: float | None = None,
+    mirror: bool | None = None,
+    checkpoint: str | None = None,
 ) -> VolumeModel:
-    """Load a trained nnU-Net v2 model folder or one of its checkpoints.
+    """Load a volume model: a model id, or a trained nnU-Net v2 model folder or one of its checkpoints.
 
-    A model folder (`<dataset>/<trainer>__<plans>__<configuration>`) holds `plans.json`, `dataset.json` and
-    `fold_<k>/<checkpoint>`; a checkpoint `.pth` carries its plans, dataset json and configuration itself. nnU-Net v2's
-    own inference runs on the GPU: its cropping, normalisation and resampling, the Gaussian sliding window, mirroring,
-    the fold ensemble, and the resampling of the logits back. 2D and 3D configurations of `PlainConvUNet` and
-    `ResidualEncoderUNet` (basic blocks), label- and region-based training; no cascade stages. Not hash-checked.
+    A path (`PathLike`, a string with a slash or backslash, or ending in `.pth .pt .safetensors .ckpt .bin .onnx`) is an
+    nnU-Net v2 model folder (`<dataset>/<trainer>__<plans>__<configuration>`: `plans.json`, `dataset.json` and
+    `fold_<k>/<checkpoint>`) or a checkpoint `.pth` (it carries its plans, dataset json and configuration). nnU-Net
+    v2's own inference runs on the GPU: its cropping, normalisation and resampling, the Gaussian sliding window,
+    mirroring, the fold ensemble, and the resampling of the logits back. 2D and 3D configurations of `PlainConvUNet`
+    and `ResidualEncoderUNet` (basic blocks), label- and region-based training; no cascade stages. Not hash-checked.
+    Anything else is a model id (`list_models()`), loaded as by every task's `load` (`help(fastforks.stereo.load)`).
 
     Args:
-        path: The model folder, or one checkpoint file.
-        folds: Folds to ensemble; `None`: every `fold_<k>` with the checkpoint. Not used with a checkpoint file.
-        mode: As `load`.
-        device: As `load`.
-        dtype: As `load`.
-        step: Sliding-window step (fraction of the patch; nnU-Net's default 0.5).
-        mirror: Test-time mirroring along the axes the checkpoint allows (nnU-Net's default).
-        checkpoint: Checkpoint file name in the fold folders (`checkpoint_best.pth`: nnU-Net's best epoch).
+        model: Model id (optionally `@revision`), or the path of an nnU-Net model folder or checkpoint file.
+        mode: `"auto"`, `"portable"` or `"kernels"`, as every task's `load`.
+        device: As every task's `load`.
+        dtype: As every task's `load`.
+        options: Load options of a model id (card `[options]`); not for a path.
+        weights: Your own copy of a model id's weights; not for a path.
+        folds: nnU-Net folder: folds to ensemble; `None`: every `fold_<k>` with the checkpoint.
+        step: nnU-Net path: sliding-window step (fraction of the patch; `None`: nnU-Net's default 0.5).
+        mirror: nnU-Net path: test-time mirroring along the axes the checkpoint allows (`None`: on, nnU-Net's default).
+        checkpoint: nnU-Net folder: checkpoint file name in the fold folders (`None`: `checkpoint_final.pth`;
+            `checkpoint_best.pth`: nnU-Net's best epoch).
+
+    Returns:
+        The loaded model.
 
     Raises:
+        ModelNotFoundError: Unknown id or revision.
+        OptionsError: As every task's `load`; `options` / `weights` with a path, the nnU-Net arguments with a model id,
+            or `folds` / `checkpoint` with a checkpoint file.
         WeightsError: Missing files, or an architecture / configuration the engine does not implement.
     """
+    nnunet = {"folds": folds, "step": step, "mirror": mirror, "checkpoint": checkpoint}
+    if not is_path(model):
+        if given := [k for k, v in nnunet.items() if v is not None]:
+            msg = f"{', '.join(f'{k}=' for k in given)}: for nnU-Net folders and checkpoints, not model ids (options=)"
+            raise OptionsError(msg)
+        return _load(str(model), mode=mode, device=device, dtype=dtype, options=options, weights=weights)
+    if options or weights is not None:
+        msg = f"{str(model)!r} is an nnU-Net path: options= and weights= are for model ids"
+        raise OptionsError(msg)
+    return _load_nnunet(
+        model,
+        mode=mode,
+        device=device,
+        dtype=dtype,
+        folds=folds,
+        step=0.5 if step is None else step,
+        mirror=True if mirror is None else mirror,
+        checkpoint=checkpoint,
+    )
+
+
+load.__module__ = f"fastforks.{TASK}"
+load.__annotations__["return"] = VolumeModel  # resolved, as task_api's load
+load = typo_checked_load(load)  # ty: ignore[invalid-assignment]
+
+
+def _load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the nnU-Net options
+    path: str | os.PathLike[str],
+    *,
+    mode: ModeArg,
+    device: str | torch.device | None,
+    dtype: Dtype | torch.dtype | None,
+    folds: Sequence[int] | None,
+    step: float,
+    mirror: bool,
+    checkpoint: str | None,
+) -> VolumeModel:
+    """`load` of an nnU-Net v2 model folder or checkpoint file."""
     from fastforks.volume._nnunet_runner import weight_names  # noqa: PLC0415 - the runner's layout
 
     p = Path(os.fspath(path)).expanduser().resolve()
+    if p.is_file() and (folds is not None or checkpoint is not None):
+        msg = f"{str(path)!r} is a checkpoint file: folds= and checkpoint= are for model folders"
+        raise OptionsError(msg)
+    checkpoint = checkpoint or "checkpoint_final.pth"
     if p.is_file():
         parts, root, embedded, folds = (p.name,), p.parent, True, ()
     else:
@@ -221,6 +280,3 @@ def load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the nnU-Net option
     weights = tuple(FileSpec(n, "0" * 64) for n in names)
     variant = dataclasses.replace(variant, weights=weights, params=params)
     return core.load_variant(TASK, card, variant, VolumeModel, mode=mode, device=device, dtype=dtype, weights=root)
-
-
-list_models, model_card, load = task_api(TASK, VolumeModel)

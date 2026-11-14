@@ -183,7 +183,7 @@ _BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a SwinIR state dict as a variant and its params (size, depths, heads, upsampler); keys unchanged."""
+    """`load(path)`: a SwinIR state dict as a variant and its params (size, depths, heads, upsampler); same keys."""
     blocks = [(int(m.group(1)), int(m.group(2))) for k in sd if (m := _BLOCK.match(k))]
     if "conv_first.weight" not in sd or not blocks or any(".overlap_attn." in k or ".logit_scale" in k for k in sd):
         return None  # HAT's / Swin2SR's keys

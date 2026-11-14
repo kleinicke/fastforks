@@ -1,4 +1,4 @@
-"""Runners of nnU-Net v2 model folders and checkpoints (`load_nnunet`, TotalSegmentator, the DKFZ families).
+"""Runners of nnU-Net v2 model folders and checkpoints (`load(path)`, TotalSegmentator, the DKFZ families).
 
 A variant lists one or more parts (nnU-Net model folders `<dataset>/<trainer>__<plans>__<configuration>`): every
 part is nnU-Net v2's `predict_single_npy_array` (`fastforks.volume._nnunet`), the fold networks of a part are averaged,

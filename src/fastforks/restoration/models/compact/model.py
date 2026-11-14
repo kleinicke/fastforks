@@ -92,7 +92,7 @@ _BODY = re.compile(r"body\.(\d+)\.(weight|bias)")
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: an `SRVGGNetCompact` state dict (Real-ESRGAN Compact) as a variant and params; keys unchanged."""
+    """`load(path)`: an `SRVGGNetCompact` state dict (Real-ESRGAN Compact) as a variant and params; keys unchanged."""
     first = sd.get("body.0.weight")
     if first is None or first.ndim != 4 or not all(_BODY.fullmatch(k) for k in sd):  # noqa: PLR2004 - a conv
         return None

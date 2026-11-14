@@ -199,7 +199,7 @@ _BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a HAT state dict as a variant and its params (channels, depths, heads, CAB ratios)."""
+    """`load(path)`: a HAT state dict as a variant and its params (channels, depths, heads, CAB ratios)."""
     blocks = [(int(m.group(1)), int(m.group(2))) for k in sd if (m := _BLOCK.match(k))]
     if "conv_first.weight" not in sd or "layers.0.residual_group.overlap_attn.qkv.weight" not in sd or not blocks:
         return None
