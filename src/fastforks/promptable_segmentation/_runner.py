@@ -53,6 +53,8 @@ class Runner(core.Runner):
         low_res_clamp: If set, the returned `pred_masks` are clamped to `[-c, c]` after `upsample` has seen the
             unclamped logits (SAM 2: 32).
         video: The runner implements `track` (video object tracking from frame-0 prompts).
+        video_prompts: Prompt kinds `track` takes (`None`: those of `prompts`; SAM 3: points and boxes, as its
+            tracker, while its image prompts are concepts).
     """
 
     prompts: ClassVar[frozenset[str]] = frozenset({"points", "boxes", "masks"})
@@ -60,6 +62,7 @@ class Runner(core.Runner):
     low_res_clamp: ClassVar[float | None] = None
     compiled_methods: ClassVar[tuple[str, ...]] = ("embed", "predict")
     video: ClassVar[bool] = False
+    video_prompts: ClassVar[frozenset[str] | None] = None
 
     @classmethod
     def input_use(cls, params: Any) -> dict[str, Any]:  # noqa: ANN401, ARG003 - the family's `Params`

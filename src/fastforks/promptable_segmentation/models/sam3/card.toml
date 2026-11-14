@@ -1,6 +1,6 @@
 schema = 2
-name = "Segment Anything 3 (SAM 3), image"
-summary = "Segment Anything 3 (Meta, 2025), image mode: promptable concept segmentation, every instance matching a text and / or exemplar-box prompt (positive / negative boxes; returns boxes, scores, masks). A ViT trunk with an FPN neck, a CLIP text encoder, a geometry encoder, a DETR encoder / decoder with a presence token and a mask decoder (no video tracker). The portable `module()` is the image encoder only."
+name = "Segment Anything 3 (SAM 3), image + video tracker"
+summary = "Segment Anything 3 (Meta, 2025), image mode: promptable concept segmentation, every instance matching a text and / or exemplar-box prompt (positive / negative boxes; returns boxes, scores, masks). A ViT trunk with an FPN neck, a CLIP text encoder, a geometry encoder, a DETR encoder / decoder with a presence token and a mask decoder. `track` follows objects prompted on the first frame (points, boxes or masks) through a video with SAM 3's tracker (transformers `Sam3TrackerVideoModel`: the shared ViT trunk, its own neck, SAM 2-style memory attention with RoPE and memory encoder, forward, memory features in bfloat16 as upstream); the memory side has no fused kernels. The portable `module()` is the image encoder only."
 tier = "stable"
 outputs = ["boxes", "scores", "masks"]  # the `ConceptSegmentationResult` fields
 uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
@@ -15,7 +15,7 @@ commit = "0570b3a"
 [[upstream.official]]
 repo = "https://github.com/facebookresearch/sam3"
 framework = "PyTorch"
-reason = "The benchmarked original is the Hugging Face transformers Sam3Model, which loads the same checkpoint without the repo's training dependencies."
+reason = "The benchmarked original is the Hugging Face transformers Sam3Model (video: Sam3TrackerVideoModel), which loads the same checkpoint without the repo's training dependencies."
 
 [licence]
 code = "LicenseRef-SAM-License AND Apache-2.0"  # LICENSE = SAM License (the sam3 repo code); LICENSE-transformers = Apache-2.0 (the transformers models/sam3 port this code follows)

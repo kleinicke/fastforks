@@ -1,6 +1,14 @@
-"""SAM 2 video tracking: hole filling and frame resizing against the references, SAMURAI motion, `track` errors."""
+"""SAM 2 video tracking: hole filling and frame resizing against the references, SAMURAI motion, `track` errors.
+
+SAM 3 video tracking against its transformers reference (CPU and GPU).
+"""
 
 from __future__ import annotations
+
+import hashlib
+import os
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -121,3 +129,54 @@ def test_track_device_memory_is_bounded(mode: str) -> None:
         assert r.masks.shape == (n, 720, 1280)
         del r
     assert peaks[1] - peaks[0] < 4 * 2**20, peaks
+
+
+# SAM 3 tracker: `tools/golden/sam3_video.py` (transformers Sam3TrackerVideoModel, CPU float32); its own golden file,
+# so the image golden `sam3@1` keeps its hash. Bounds: 1.5 x the worst measured |diff| (CPU, GPU mean / p99).
+SAM3_VIDEO = "sam3-video@1"
+SAM3_VIDEO_SHA256 = "19d1fe1052172fb7df6a8904c8c78d6bbdadc8e99b00e664a096a9eac9df7232"
+SAM3_CPU_ATOL = {"pred_masks": 0.017, "object_score_logits": 1e-4}
+SAM3_GPU = {"portable": (0.19, 0.99), "kernels": (0.2, 1.0)}  # pred_masks |diff| (mean, p99): 1.5x measured, fp16
+
+
+def _sam3_video(mode: str, device: str) -> tuple[Any, dict[str, np.ndarray]]:
+    root = os.environ.get("FASTFORKS_GOLDEN_PATH")
+    path = Path(root or ".") / f"{SAM3_VIDEO}.npz"
+    if not root or not path.is_file():
+        pytest.skip(f"golden {SAM3_VIDEO} not available (set FASTFORKS_GOLDEN_PATH)")
+    data = path.read_bytes()
+    assert hashlib.sha256(data).hexdigest() == SAM3_VIDEO_SHA256, f"{path} does not match SAM3_VIDEO_SHA256"
+    card, variant = registry.resolve("promptable_segmentation", "sam3")
+    try:
+        registry.weights(card, variant, allow_download=False)
+    except WeightsError as e:
+        pytest.skip(f"sam3: gated weights not available locally: {e}")
+    with np.load(path) as z:
+        return promptable_segmentation.load("sam3", mode=mode, device=device), dict(z)
+
+
+@pytest.mark.slow
+@pytest.mark.model
+def test_sam3_track_matches_reference() -> None:
+    m, want = _sam3_video("portable", "cpu")
+    for prefix, p in clip_prompts().items():
+        r = m.track(clip(), **p)
+        for k, atol in SAM3_CPU_ATOL.items():
+            got = getattr(r, k).float().numpy()
+            np.testing.assert_allclose(got, want[prefix + k].reshape(got.shape), rtol=0, atol=atol, err_msg=prefix + k)
+
+
+@pytest.mark.slow
+@pytest.mark.model
+@pytest.mark.gpu
+@pytest.mark.parametrize("mode", ["portable", "kernels"])
+def test_sam3_track_gpu_matches_reference(mode: str) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("needs a CUDA GPU")
+    m, want = _sam3_video(mode, "cuda")
+    mean, p99 = SAM3_GPU[mode]
+    for prefix, p in clip_prompts().items():
+        r = m.track(clip(), **p)
+        d = (r.pred_masks.float() - torch.from_numpy(want[prefix + "pred_masks"]).view(r.pred_masks.shape)).abs()
+        assert d.mean().item() <= mean, (prefix, d.mean().item())
+        assert d.flatten().quantile(0.99).item() <= p99, (prefix, d.flatten().quantile(0.99).item())

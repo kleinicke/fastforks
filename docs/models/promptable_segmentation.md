@@ -466,7 +466,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 <a id="sam3"></a>
 
-## Segment Anything 3 (SAM 3), image
+## Segment Anything 3 (SAM 3), image + video tracker
 
 Segment Anything 3: masks for every object that matches a text or example prompt, as well as clicks and boxes. Meta's SAM License applies; commercially usable under it.
 
@@ -480,7 +480,7 @@ Commercial use: yes.
 
 - Paper: [SAM 3: Segment Anything with Concepts](https://arxiv.org/abs/2511.16719), arXiv, 2025-11-20
 - Original code: <https://github.com/facebookresearch/sam3> at `0570b3a`
-- Authors' code, not used: <https://github.com/facebookresearch/sam3> (PyTorch): The benchmarked original is the Hugging Face transformers Sam3Model, which loads the same checkpoint without the repo's training dependencies.
+- Authors' code, not used: <https://github.com/facebookresearch/sam3> (PyTorch): The benchmarked original is the Hugging Face transformers Sam3Model (video: Sam3TrackerVideoModel), which loads the same checkpoint without the repo's training dependencies.
 - Code licence: LicenseRef-SAM-License AND Apache-2.0 (permissive); files: `LICENSE`, `LICENSE-transformers`
 - Weights licence: LicenseRef-SAM-License
 - Licence evidence: https://huggingface.co/facebook/sam3/blob/main/LICENSE (SAM License, Nov 19 2025); the weights are gated: download them from Meta's Hugging Face repo after accepting the licence and point FASTFORKS_WEIGHTS_PATH at the local copy; fastforks never mirrors them
