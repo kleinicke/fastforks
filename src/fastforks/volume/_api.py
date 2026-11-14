@@ -124,8 +124,8 @@ def bench_inputs(model: VolumeModel, size: BenchSize) -> BenchInputs:
     return (vol.to(model.device), (1.5, 1.5, 1.5)), {}
 
 
-def load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the folds
-    folder: str | os.PathLike[str],
+def load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the nnU-Net options
+    path: str | os.PathLike[str],
     *,
     folds: Sequence[int] | None = None,
     mode: ModeArg = "auto",
@@ -133,41 +133,57 @@ def load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the folds
     dtype: Dtype | torch.dtype | None = None,
     step: float = 0.5,
     mirror: bool = True,
+    checkpoint: str = "checkpoint_final.pth",
 ) -> VolumeModel:
-    """Load a trained nnU-Net v2 model folder (`<dataset>/<trainer>__<plans>__<configuration>`).
+    """Load a trained nnU-Net v2 model folder or one of its checkpoints.
 
-    The folder holds `plans.json`, `dataset.json` and `fold_<k>/checkpoint_final.pth`; nnU-Net v2's own inference
-    (its resampling, normalisation, Gaussian sliding window, mirroring, fold ensemble) runs on the TotalSegmentator
-    engine. Only `PlainConvUNet` 3D configurations with label (not region) training are supported. Not hash-checked.
+    A model folder (`<dataset>/<trainer>__<plans>__<configuration>`) holds `plans.json`, `dataset.json` and
+    `fold_<k>/<checkpoint>`; a checkpoint `.pth` carries its plans, dataset json and configuration itself. nnU-Net v2's
+    own inference runs on the GPU: its cropping, normalisation and resampling, the Gaussian sliding window, mirroring,
+    the fold ensemble, and the resampling of the logits back. 2D and 3D configurations of `PlainConvUNet` and
+    `ResidualEncoderUNet` (basic blocks), label- and region-based training; no cascade stages. Not hash-checked.
 
     Args:
-        folder: The model folder.
-        folds: Folds to ensemble; `None`: every `fold_<k>` with a `checkpoint_final.pth`.
+        path: The model folder, or one checkpoint file.
+        folds: Folds to ensemble; `None`: every `fold_<k>` with the checkpoint. Not used with a checkpoint file.
         mode: As `load`.
         device: As `load`.
         dtype: As `load`.
         step: Sliding-window step (fraction of the patch; nnU-Net's default 0.5).
         mirror: Test-time mirroring along the axes the checkpoint allows (nnU-Net's default).
+        checkpoint: Checkpoint file name in the fold folders (`checkpoint_best.pth`: nnU-Net's best epoch).
 
     Raises:
         WeightsError: Missing files, or an architecture / configuration the engine does not implement.
     """
-    p = Path(os.fspath(folder)).expanduser().resolve()
-    if folds is None:
-        folds = sorted(int(d.name[5:]) for d in p.glob("fold_*") if (d / "checkpoint_final.pth").is_file())
-        if not folds:
-            msg = f"{str(folder)!r}: no fold_<k>/checkpoint_final.pth"
-            raise WeightsError(msg)
-    from fastforks.volume.models.totalsegmentator.model import weight_names  # noqa: PLC0415 - the family's layout
+    from fastforks.volume._nnunet_runner import weight_names  # noqa: PLC0415 - the runner's layout
 
-    part = f"{p.parent.name}/{p.name}"
-    card, variant = registry.resolve(TASK, "totalsegmentator-total-3mm")
-    params = {"parts": (part,), "folds": tuple(folds), "spacing": None, "step": step, "mirror": mirror, "classes": None}
-    weights = tuple(FileSpec(n, "0" * 64) for n in weight_names((part,), tuple(folds)))
+    p = Path(os.fspath(path)).expanduser().resolve()
+    if p.is_file():
+        parts, root, embedded, folds = (p.name,), p.parent, True, ()
+    else:
+        if folds is None:
+            folds = sorted(int(d.name[5:]) for d in p.glob("fold_*") if (d / checkpoint).is_file())
+            if not folds:
+                msg = f"{str(path)!r}: no fold_<k>/{checkpoint}"
+                raise WeightsError(msg)
+        parts, root, embedded = (f"{p.parent.name}/{p.name}",), p.parent.parent, False
+    card, variant = registry.resolve(TASK, "totalsegmentator-total-3mm")  # the nnU-Net runners, other params
+    params = {
+        "parts": parts,
+        "folds": tuple(folds),
+        "spacing": None,
+        "step": step,
+        "mirror": mirror,
+        "classes": None,
+        "configuration": "",
+        "checkpoint": checkpoint,
+        "embedded": embedded,
+    }
+    names = weight_names(parts, tuple(folds), checkpoint, embedded=embedded)
+    weights = tuple(FileSpec(n, "0" * 64) for n in names)
     variant = dataclasses.replace(variant, weights=weights, params=params)
-    return core.load_variant(
-        TASK, card, variant, VolumeModel, mode=mode, device=device, dtype=dtype, weights=p.parent.parent
-    )
+    return core.load_variant(TASK, card, variant, VolumeModel, mode=mode, device=device, dtype=dtype, weights=root)
 
 
 list_models, model_card, load = task_api(TASK, VolumeModel)

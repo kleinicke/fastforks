@@ -10,7 +10,7 @@ result.labels  # [D, H, W] uint8 labels on the input grid; result.class_names[k]
 volume.write_nifti("labels.nii.gz", result.labels, meta)  # back in the file's orientation and affine
 ```
 
-`load_nnunet(folder)` runs any trained nnU-Net v2 model folder (PlainConvUNet, 3D) on the same engine.
+`load_nnunet(path)` runs any trained nnU-Net v2 model folder or checkpoint (plain / residual U-Nets, 2D / 3D).
 """
 
 from fastforks._core.cards import ModelCard

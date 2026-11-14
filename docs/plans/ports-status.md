@@ -36,6 +36,10 @@ In this order, unless something more useful turns up:
 
 ## Waiting for the Mac
 
+- nnU-Net v2 loader (`fastforks.volume.load_nnunet`, volume; shared engine with TotalSegmentator): MPS check of
+  `tests/test_volume.py` and the TotalSegmentator MPS goldens / speed rows again (the engine now accumulates in float16
+  like nnU-Net, also on the CPU). Weights: any nnU-Net v2 results folder (TotalSegmentator's Dataset297 in
+  `/home/florian/projects/data/ff-weights/totalsegmentator/`).
 - CodeFormer (`codeformer`, restoration): portable MPS goldens and Mac speed rows (512x512 aligned face; MPS runs
   float32). No kernels runner. Weights: the pinned GitHub release URL of the card (also in
   `/home/florian/projects/data/ff-weights/codeformer/`).

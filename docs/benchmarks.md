@@ -1148,8 +1148,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
-| totalsegmentator-total | 47779 | 45630 | 1929 | 1743 | 26.2x | 1.1x | 2640 / 2874 | 2605 / 2964 | 2349 / 2704 |
-| totalsegmentator-total-3mm | 7304 | 7270 | 68.7 | 64.2 | 113.3x | 1.1x | 2010 / 2684 | 1092 / 1250 | 1037 / 1410 |
+| totalsegmentator-total | 47779 | 45630 | 1927 | 1740 | 26.2x | 1.1x | 2640 / 2874 | 2605 / 2944 | 2349 / 2704 |
+| totalsegmentator-total-3mm | 7304 | 7270 | 67.1 | 63.5 | 114.4x | 1.1x | 2010 / 2684 | 1092 / 1508 | 1037 / 1410 |
 
 ### Startup and first call
 
@@ -1701,8 +1701,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | swinir-m-x2 | 2.95 | 0.38 | 1.26 | 4.49 | 1.34 | 0.63 |
 | swinir-m-x4 | 2.07 | 0.44 | 1.28 | 3.27 | 1.36 | 0.65 |
 | swinir-m-x4-real | 2.06 | 0.40 | 1.31 | 3.33 | 1.39 | 0.70 |
-| totalsegmentator-total | 0.07 | 0.98 | 0.78 | 54.51 | 2.10 | 1.88 |
-| totalsegmentator-total-3mm | 0.06 | 1.28 | 1.41 | 12.48 | 0.31 | 0.28 |
+| totalsegmentator-total | 0.07 | 0.77 | 0.77 | 54.51 | 2.10 | 1.88 |
+| totalsegmentator-total-3mm | 0.06 | 1.18 | 1.19 | 12.48 | 0.26 | 0.21 |
 
 † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 <!-- tables:end -->
@@ -2183,6 +2183,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | swinir-m-x2 | 512x512 | 1192 ms | 781 ms | 719 ms | 558 ms | 60.3 s | 102 s | 1386 / 1574 | 1683 / 1796 | 1577 / 1754 | 5088 / 5144 |
 | swinir-m-x4 | 512x512 | 767 ms | 795 ms | 727 ms | 580 ms | 61.8 s | 104 s | 1499 / 2054 | 1684 / 1796 | 1390 / 1456 | 5525 / 5604 |
 | swinir-m-x4-real | 512x512 | 1242 ms | 807 ms | 733 ms | 588 ms | 59.6 s | 109 s | 2387 / 3034 | 1683 / 1796 | 1577 / 1954 | 5427 / 5506 |
+| totalsegmentator-total | 200x200 | 1927 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 1740 ms | – | – | 2605 / 2944 | – | 2349 / 2704 | – |
+| totalsegmentator-total-3mm | 200x200 | 67.1 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 63.5 ms | – | – | 1092 / 1508 | – | 1037 / 1410 | – |
 <!-- compile:end -->
 
 ## Original code

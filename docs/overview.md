@@ -775,10 +775,10 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 2 models; size 200x200.
 
-- Fastest: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (64.2 ms).
-- Fastest commercially usable: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (64.2 ms).
+- Fastest: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (63.5 ms).
+- Fastest commercially usable: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (63.5 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes | 7269.8 (200x200) | 68.7 | 64.2 | 113.3x vs original (200x200) | 1037 |
-| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 1929.1 | 1742.7 | 26.2x vs original (200x200) | 2349 |
+| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes | 7269.8 (200x200) | 67.1 | 63.5 | 114.4x vs original (200x200) | 1037 |
+| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 1927.1 | 1739.5 | 26.2x vs original (200x200) | 2349 |

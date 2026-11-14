@@ -12,8 +12,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`totalsegmentator-total`](#totalsegmentator) | yes | 1743, 26.2x | 2704, 0.94x |
-| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 64.2, 113.3x | 1410, 0.53x |
+| [`totalsegmentator-total`](#totalsegmentator) | yes | 1740, 26.2x | 2704, 0.94x |
+| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 63.5, 114.4x | 1410, 0.53x |
 
 <a id="totalsegmentator"></a>
 
@@ -25,8 +25,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels | 47779<br>45630<br>1929<br>1743 | 8150 / 8604<br>2640 / 2874<br>2605 / 2964<br>2349 / 2704 |
-| `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels | 7304<br>7270<br>68.7<br>64.2 | 5358 / 5698<br>2010 / 2684<br>1092 / 1250<br>1037 / 1410 |
+| `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47779<br>45630<br>1927<br>1740<br>fails: no exportable module (multi-network sliding-window pipeline)<br>fails: no exportable module (multi-network sliding-window pipeline; | 8150 / 8604<br>2640 / 2874<br>2605 / 2944<br>2349 / 2704<br>–<br>– |
+| `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7304<br>7270<br>67.1<br>63.5<br>fails: no exportable module (multi-network sliding-window pipeline)<br>fails: no exportable module (multi-network sliding-window pipeline; | 5358 / 5698<br>2010 / 2684<br>1092 / 1508<br>1037 / 1410<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -44,8 +44,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `totalsegmentator-total` 512x512x512 voxels (5.5 GiB peak allocated, 5.8 reserved); `totalsegmentator-total-3mm` 512x512x512 voxels (4.3 GiB peak allocated, 5.1 reserved)
 - `totalsegmentator-total` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=False, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
 - `totalsegmentator-total-3mm` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=True, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
-- `totalsegmentator-total` load / first call: original 0.07 s / 54.51 s, portable 0.98 s / 2.104 s, kernels 0.78 s / 1.88 s
-- `totalsegmentator-total-3mm` load / first call: original 0.06 s / 12.48 s, portable 1.28 s / 0.313 s, kernels 1.41 s / 0.281 s
+- `totalsegmentator-total` load / first call: original 0.07 s / 54.51 s, portable 0.77 s / 2.103 s, kernels 0.77 s / 1.879 s
+- `totalsegmentator-total-3mm` load / first call: original 0.06 s / 12.48 s, portable 1.18 s / 0.259 s, kernels 1.19 s / 0.209 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
