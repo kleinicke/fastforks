@@ -3,7 +3,7 @@
 ```python
 from fastforks.matching import sfm
 
-stats = sfm.colmap_database("scene/images", "scene/database.db")  # MegaLoc pairs, ALIKED + LightGlue, GPU RANSAC
+stats = sfm.colmap_database("scene/images", "scene/database.db")  # MegaLoc pairs, LoMa-B matches, GPU RANSAC
 # then: colmap mapper --database_path scene/database.db --image_path scene/images --output_path scene/sparse
 ```
 
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from fastforks._core.cards import Dtype
     from fastforks.matching._api import SparseMatchingResult
 
-__all__ = ["DatabaseStats", "ReconstructionStats", "colmap_database", "reconstruct"]
+__all__ = ["DEFAULT_MATCHER", "DatabaseStats", "ReconstructionStats", "colmap_database", "reconstruct"]
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")
 """Files of the image folder that are used (case-insensitive, subfolders included)."""
@@ -55,6 +55,9 @@ _PAIR_FACTOR = 2147483647  # COLMAP `kMaxNumImages`: pair_id = id1 * it + id2
 DENSE_STRIDE = 2  # dense matchers: grid of candidate pixels in the first image
 DENSE_CELL = 1.0  # dense matchers: keypoints closer than this (px) merge into one (hloc `max_error` 1)
 _DENSE_MIN_CERTAINTY = 0.1  # dense matchers: candidates below it are never used
+DEFAULT_MATCHER = "loma-b"
+"""The matcher of `colmap_database` and `fastforks sfm`: the most accurate on the scenes of `docs/sfm.md` (2026-11-14);
+`aliked-lightglue` is the fast alternative (1.5x faster, half the memory)."""
 
 
 @dataclass(frozen=True)
@@ -80,7 +83,7 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
     images: str | os.PathLike[str],
     database: str | os.PathLike[str],
     *,
-    matcher: str = "aliked-lightglue",
+    matcher: str = DEFAULT_MATCHER,
     matcher_options: Mapping[str, Any] | None = None,
     retrieval: str | None = "megaloc",
     k: int = 20,
@@ -97,8 +100,9 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
         images: Folder of the images (`IMAGE_SUFFIXES`, subfolders included); the database names them by their path
             relative to it, so pass the same folder as the mapper's `--image_path`.
         database: The COLMAP database file to write (must not exist).
-        matcher: A matching model id (`matching.list_models()`): sparse (`aliked-lightglue`, `disk-lightglue`, ...)
-            or dense (`romav2`, ...: keypoints from the warps, see the module docstring).
+        matcher: A matching model id (`matching.list_models()`): sparse (`loma-b` = `DEFAULT_MATCHER`, the most
+            accurate; `aliked-lightglue`, the fastest and smallest; `disk-lightglue`, ...) or dense (`romav2`, ...:
+            keypoints from the warps, see the module docstring).
         matcher_options: Load options of the matcher (`options` of `load`), e.g. `{"long_side": 1600}`.
         retrieval: The retrieval model that picks the pairs (`retrieval.list_models()`); `None`: all pairs.
         k: Pairs per image (each image with its `k` most similar others); all pairs if `k >= images - 1`.
