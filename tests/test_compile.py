@@ -269,3 +269,45 @@ def test_great_igev_compiled_outlook_attention_matches_eager():
     if tuple(int(v) for v in torch.__version__.split(".")[:2]) > (2, 8):  # torch 2.8's Dynamo takes the eager branch
         assert not [t for t in seen if "softmax" in t]
     torch.testing.assert_close(got, want, rtol=1e-5, atol=1e-6)
+
+
+@pytest.mark.parametrize("scheduler", ["ddim", "lcm"])
+def test_marigold_scheduler_steps_trace_without_cpu_selects(scheduler):
+    """The DDIM / LCM coefficients enter the graph as 0-d constants, inlined as literals: diffusers selects them from
+    the CPU `alphas_cumprod` per step, and Inductor fuses that select into the CUDA kernel with the CPU buffer as a
+    device pointer ("CUDA driver error: invalid argument", torch 2.14). The traced steps hold no select / index and
+    no tensor constant with a dimension."""
+    if scheduler == "ddim":
+        from fastforks.depth.models.marigold.net.ddim import DDIM  # noqa: PLC0415
+
+        ddim = DDIM(4)
+
+        def step(v: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+            for t in ddim.timesteps:
+                x = ddim.step(v, t, x)
+            return x
+
+    else:
+        from fastforks.depth.models.marigold_normals.net.lcm import LCM  # noqa: PLC0415
+
+        lcm = LCM(4)
+
+        def step(v: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+            for t in lcm.timesteps:
+                x = lcm.step(v, t, x, None if t == lcm.timesteps[-1] else v)
+            return x
+
+    graphs = []
+
+    def backend(gm, _inputs):
+        graphs.append(gm)
+        return gm
+
+    v, x = (torch.randn(1, 4, 8, 8, dtype=torch.float16) for _ in range(2))
+    got = torch.compile(step, backend=backend, fullgraph=True)(v, x)
+    assert len(graphs) == 1
+    gm = graphs[0]
+    bad = [n for n in gm.graph.nodes if n.op != "get_attr" and ("select" in str(n.target) or "index" in str(n.target))]
+    bad += [n for n in gm.graph.nodes if n.op == "get_attr" and getattr(gm, n.target).dim() != 0]
+    assert not bad, bad
+    torch.testing.assert_close(got, step(v, x), rtol=0, atol=0)
