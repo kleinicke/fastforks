@@ -6,14 +6,14 @@
 
 Input: a CT volume `[D, H, W]` in Hounsfield units and its voxel spacing in mm (`volume.read_nifti` reads both from a NIfTI file). Output: a class index per voxel `[D, H, W]` on the input grid (0 = background).
 
-Measured on RTX 5060 Ti 16 GB; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 300x300: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.10.0+cu130, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 200x200: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
-| model | commercial |
-|---|---|
-| [`totalsegmentator-total`](#totalsegmentator) | yes |
-| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes |
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
+|---|---|---|---|
+| [`totalsegmentator-total`](#totalsegmentator) | yes | 1743, 26.2x | 2704, 0.94x |
+| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 64.2, 113.3x | 1410, 0.53x |
 
 <a id="totalsegmentator"></a>
 
@@ -23,7 +23,10 @@ TotalSegmentator (University Hospital Basel): nnU-Net v2 networks that label 117
 
 Commercial use: yes.
 
-Speed and memory not measured for: `totalsegmentator-total`, `totalsegmentator-total-3mm`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels | 47779<br>45630<br>1929<br>1743 | 8150 / 8604<br>2640 / 2874<br>2605 / 2964<br>2349 / 2704 |
+| `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels | 7304<br>7270<br>68.7<br>64.2 | 5358 / 5698<br>2010 / 2684<br>1092 / 1250<br>1037 / 1410 |
 
 <details><summary>Details</summary>
 
@@ -37,8 +40,13 @@ Speed and memory not measured for: `totalsegmentator-total`, `totalsegmentator-t
 - Kernel libraries: `vol_norm`
 - Variants: `totalsegmentator-total`, `totalsegmentator-total-3mm`
 - Outputs: labels
-- Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `totalsegmentator-total` not measured yet; `totalsegmentator-total-3mm` not measured yet
+- Input size: any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `totalsegmentator-total` 512x512x512 voxels (5.5 GiB peak allocated, 5.8 reserved); `totalsegmentator-total-3mm` 512x512x512 voxels (4.3 GiB peak allocated, 5.1 reserved)
+- `totalsegmentator-total` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=False, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
+- `totalsegmentator-total-3mm` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=True, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
+- `totalsegmentator-total` load / first call: original 0.07 s / 54.51 s, portable 0.98 s / 2.104 s, kernels 0.78 s / 1.88 s
+- `totalsegmentator-total-3mm` load / first call: original 0.06 s / 12.48 s, portable 1.28 s / 0.313 s, kernels 1.41 s / 0.281 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 

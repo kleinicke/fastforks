@@ -1206,7 +1206,7 @@ _STD_SIZE = {
     "tracking": "480x854",
     "retrieval": "480x640",
     "calibration": "1080x1920",
-    "volume": "300x300",
+    "volume": "200x200",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input

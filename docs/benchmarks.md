@@ -1099,6 +1099,13 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | swinir-m-x4 | 3497 | 767 | 580 | 6.0x | 1.3x | 1500 / 2058 | 1499 / 2054 | 1390 / 1456 |
 | swinir-m-x4-real | 2462 | 1242 | 588 | 4.2x | 2.1x | 2321 / 2978 | 2387 / 3034 | 1577 / 1954 |
 
+### Volume, synthetic, 200x200
+
+| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|---|
+| totalsegmentator-total | 47779 | 45630 | 1929 | 1743 | 26.2x | 1.1x | 2640 / 2874 | 2605 / 2964 | 2349 / 2704 |
+| totalsegmentator-total-3mm | 7304 | 7270 | 68.7 | 64.2 | 113.3x | 1.1x | 2010 / 2684 | 1092 / 1250 | 1037 / 1410 |
+
 ### Startup and first call
 
 load: from the load call until the model is on the GPU; first call: the whole first inference call, including one normal inference (see the speed table for the warm time). Seconds, at each task's standard size (another size is shown in brackets).
@@ -1609,6 +1616,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | swinir-m-x2 | 2.95 | 0.38 | 1.26 | 4.49 | 1.34 | 0.63 |
 | swinir-m-x4 | 2.07 | 0.44 | 1.28 | 3.27 | 1.36 | 0.65 |
 | swinir-m-x4-real | 2.06 | 0.40 | 1.31 | 3.33 | 1.39 | 0.70 |
+| totalsegmentator-total | 0.07 | 0.98 | 0.78 | 54.51 | 2.10 | 1.88 |
+| totalsegmentator-total-3mm | 0.06 | 1.28 | 1.41 | 12.48 | 0.31 | 0.28 |
 
 † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 <!-- tables:end -->

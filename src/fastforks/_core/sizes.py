@@ -111,6 +111,9 @@ def _data() -> dict[str, dict[str, Any]]:
     return json.loads(Path(__file__).with_name("sizes.json").read_text())
 
 
+VOLUME_INPUT = "any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)"
+
+
 def size_range(variant: Variant, card: ModelCard | None = None) -> SizeRange:
     """The `SizeRange` of `variant`.
 
@@ -155,7 +158,8 @@ def card_size_lines(card: ModelCard, variants: list[Variant] | None = None, *, h
     vs = variants or card.variants
     groups: dict[str, list[str]] = {}
     for v in vs:
-        groups.setdefault(size_range(v, card).describe(tested=False), []).append(f"`{v.id}`")
+        text = VOLUME_INPUT if card.task == "volume" else size_range(v, card).describe(tested=False)
+        groups.setdefault(text, []).append(f"`{v.id}`")
     if len(groups) == 1:
         text = next(iter(groups))
         lines = [f"- Input size: {text}" if heading else text]
@@ -168,7 +172,10 @@ def card_size_lines(card: ModelCard, variants: list[Variant] | None = None, *, h
         r = size_range(v, card)
         if r.tested_max:
             mem = f"{r.tested_alloc_mib / 1024:.1f} GiB peak allocated, {r.tested_reserved_mib / 1024:.1f} reserved"
-            tested.append(f"`{v.id}` {r.tested_max[0]}x{r.tested_max[1]} ({mem})")
+            side = f"{r.tested_max[0]}x{r.tested_max[1]}" + (
+                f"x{r.tested_max[1]} voxels" if card.task == "volume" else ""
+            )
+            tested.append(f"`{v.id}` {side} ({mem})")
         else:
             tested.append(f"`{v.id}` not measured yet")
     bullet = (
