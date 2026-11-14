@@ -1,0 +1,45 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+# measured: portable 0.0021 max (1 pixel, mean 3e-6); upstream float32 itself is 0.0029 max off a float64 run (GoPro)
+cpu_atol = 0.003
+# RTX 5060 Ti fp16 (SIDD): mean 0.00027, p99 0.00099; bounds ~5x.
+gpu_mean = 0.0015
+gpu_p99 = 0.005
+
+[refs."nafnet-gopro@1"]
+sha256 = "7845f0f04009bc5e1efee21fde2f6651fd0bd5de5f770a5aeef38d1679efd9bb"
+upstream = "https://github.com/megvii-research/NAFNet@2b4af71ebe098a92a75910c233a3965a3e93ede4"
+settings = "CPU float32, NAFNetLocal (train size 256), net_g(lq), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+# The synthetic image drives the GoPro net's stream to 15000 (5x the GoPro test set's peak); in float16 ~1 % of its
+# pixels then clamp the other way (portable mean 0.0101, p99 0.47; kernels 0.0114, 0.58). Real GoPro frames: p99
+# 0.0006 vs float32, test-set PSNR equal. Bounds 1.5x.
+gpu_mean = 0.018
+gpu_p99 = 0.88
+
+[refs."nafnet-sidd@1"]
+sha256 = "14678a2d8ff428bb364d778ef3a3c3ec7ffced50455fecc2de98b8481a7a0ad6"
+upstream = "https://github.com/megvii-research/NAFNet@2b4af71ebe098a92a75910c233a3965a3e93ede4"
+settings = "CPU float32, NAFNet, net_g(lq), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[validated."nafnet-gopro@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.01098
+p99_px = 0.54652
+
+[validated."nafnet-sidd@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00027
+p99_px = 0.00099

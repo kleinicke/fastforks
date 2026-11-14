@@ -1,0 +1,56 @@
+schema = 2
+name = "NAFNet"
+summary = "NAFNet (Chen et al., ECCV 2022): a nonlinear-activation-free U-Net for image restoration: blocks of channel LayerNorm, 1 x 1 and depthwise 3 x 3 convs, a gate that multiplies two channel halves (SimpleGate) and simplified channel attention, four 2 x down / up levels. `nafnet-gopro` removes motion blur (GoPro, width 64, run with the test-time local converter as upstream's `NAFNetLocal`), `nafnet-sidd` removes smartphone sensor noise (SIDD, width 64)."
+tier = "experimental"
+outputs = ["image"]
+
+[upstream]
+repo = "https://github.com/megvii-research/NAFNet"
+commit = "2b4af71ebe098a92a75910c233a3965a3e93ede4"  # basicsr/models/archs/NAFNet_arch.py + local_arch.py; the call is ImageRestorationModel.test (net_g(lq), no grids) with options/test/GoPro|SIDD/NAFNet-width64.yml
+
+[licence]
+code = "MIT"  # LICENSE
+weights = "MIT"  # the authors' Google Drive files linked from docs/GoPro.md and docs/SIDD.md of the MIT repository; no separate weights licence
+files = ["LICENSE"]
+training_data = ["gopro"]
+training_note = "options/train/GoPro/NAFNet-width64.yml: GoPro train (2103 blurred / sharp pairs), 256 x 256 crops."
+evidence = "https://github.com/megvii-research/NAFNet/blob/2b4af71ebe098a92a75910c233a3965a3e93ede4/LICENSE ; https://github.com/megvii-research/NAFNet/blob/2b4af71ebe098a92a75910c233a3965a3e93ede4/docs/GoPro.md ; https://github.com/megvii-research/NAFNet/blob/2b4af71ebe098a92a75910c233a3965a3e93ede4/docs/SIDD.md"
+
+[io]
+input = "0-1"  # the test pipeline reads images in [0, 1]
+pad = "none"  # the network zero-pads to a multiple of 16 itself and crops its output
+min_size = 1
+
+[params]
+scale = 1
+width = 64
+enc_blocks = [1, 1, 1, 28]
+middle_blocks = 1
+dec_blocks = [1, 1, 1, 1]
+tlc = 256  # NAFNetLocal train_size (1, 3, 256, 256): channel attention over 384 x 384 windows (at full resolution)
+key = "params"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate dense convolutions
+
+[[papers]]
+title = "Simple Baselines for Image Restoration"
+url = "https://arxiv.org/abs/2204.04676"
+date = "2022-04-10"
+venue = "ECCV 2022"
+
+[[variants]]
+id = "nafnet-gopro"
+revision = 1
+weights = [{ name = "NAFNet-GoPro-width64.pth", size = 271778961, sha256 = "329d3ab4077b8d6b7ff61de376e483714667960bf85be027bf4335cda701196f", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1S0PVRbyTakYY9a82kujgZLbMihfNBLfC" }]
+
+[[variants]]
+id = "nafnet-sidd"
+revision = 1
+params = { enc_blocks = [2, 2, 4, 8], middle_blocks = 12, dec_blocks = [2, 2, 2, 2], tlc = 0 }
+weights = [{ name = "NAFNet-SIDD-width64.pth", size = 464154961, sha256 = "cd685efaae01f7c4e9951f2deab05780079c8eb1e49ed664b72f6db04dabb445", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=14Fht1QQJ2gMlk4N1ERCRuElg8JfjrWWR" }]
+licence = { training_data = ["sidd"], training_note = "options/train/SIDD/NAFNet-width64.yml: SIDD-Medium sRGB (320 noisy / clean pairs), 256 x 256 crops." }

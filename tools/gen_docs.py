@@ -88,6 +88,10 @@ _DATASETS = {
         "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every4": "DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x2-every4": "DIV2K validation (every 4th: 25 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
+        "gopro-test-every4": "GoPro test (every 4th: 278 frames), deblurring, PSNR / SSIM (RGB)",
+        "gopro-test-every15": "GoPro test (every 15th: 75 frames), deblurring, PSNR / SSIM (RGB)",
+        "sidd-val": "SIDD validation (1280 crops), denoising, PSNR / SSIM (RGB)",
+        "sidd-val-every2": "SIDD validation (every 2nd: 640 crops), denoising, PSNR / SSIM (RGB)",
     },
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
@@ -221,11 +225,22 @@ _PROTOCOL = {
     "from the camera baselines). ",
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
-    "restoration": "DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), "
-    "one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output "
-    "rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world "
-    "degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with "
-    "PSNR-oriented upscalers. ",
+    **{
+        ("restoration", d): "DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's "
+        "scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the "
+        "output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for "
+        "real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, "
+        "not with PSNR-oriented upscalers. "
+        for d in _DATASETS["restoration"]
+        if d.startswith("div2k")
+    },
+    **{
+        ("restoration", d): "Each degraded image at its own size, one pass without tiles (the model pads internally); "
+        "PSNR and SSIM of the output rounded to uint8 on RGB, no border crop, averaged over the images (the authors' "
+        "test scripts). "
+        for d in _DATASETS["restoration"]
+        if d.startswith(("gopro", "sidd"))
+    },
     "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
     "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
     "output rounded to uint8, on RGB in [0, 1], averaged over the triplets. ",
@@ -824,7 +839,7 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
         "",
         "### Measured",
         "",
-        _PROTOCOL.get(task, "") + "".join(_PROTOCOL.get((task, d), "") for d in sets) + _PROTO,
+        _PROTOCOL.get(task, "") + "".join(dict.fromkeys(_PROTOCOL.get((task, d), "") for d in sets)) + _PROTO,
         "",
         f"| variant | dataset | {' | '.join(_EVAL_LABEL.get(m, m) for m in shown)} | note |",
         f"|---|---|{'---|' * len(shown)}---|",

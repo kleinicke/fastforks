@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- NAFNet deblurring / denoising (`nafnet-gopro`, `nafnet-sidd`, restoration; MIT code and weights): any size (the
+  network pads to 16 itself), GoPro with the TLC local-mean pooling (`NAFNetLocal`, one float32 buffer instead of the
+  four upstream integral images). float16 overflows in the residual stream and the channel attention, so they carry
+  1 / 16 and 1 / 64 (exact: weights and norm epsilons scaled at load). 512x512: GoPro 55.3 ms kernels, 60.4 ms
+  portable (35.4 ms compile) vs 118.3 ms original fp32 (63.7 ms `.half()`), peak allocated 451 MB vs 834 MB (484 MB
+  `.half()`); SIDD 56.9 / 60.6 ms vs 145.7 ms (71.6 ms), 575 MB vs 1081 MB (608 MB). PSNR / SSIM (RGB) as the
+  original fp32: GoPro test every 4th 33.73 / 0.9468, SIDD validation 40.21 / 0.9243.
+
 - Swin2SR super-resolution (`swin2sr-x4`, `swin2sr-x2`, `swin2sr-x4-real`, restoration; Apache-2.0 code and weights):
   the Swin V2 cosine window attention as one SDPA call, the shifted-window masks made on the GPU once per size, the
   last group's output scaled by 1 / 32 before the final norm (float16 overflows there; exact in the weights). The

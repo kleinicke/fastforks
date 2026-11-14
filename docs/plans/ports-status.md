@@ -59,6 +59,9 @@ In this order, unless something more useful turns up:
 - Swin2SR (`swin2sr-x4`, `swin2sr-x2`, `swin2sr-x4-real`, restoration): portable MPS goldens and Mac speed rows
   (512x512; MPS runs float32). No Metal kernels runner. Weights: the pinned GitHub release URLs of the card (also in
   `/home/florian/projects/data/ff-weights/swin2sr/`).
+- NAFNet (`nafnet-gopro`, `nafnet-sidd`, restoration): portable MPS goldens and Mac speed rows (512x512; MPS runs
+  float32). No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
+  `/home/florian/projects/data/ff-weights/nafnet/`).
 - MatAnyone (`matanyone`, matting): portable MPS goldens and Mac speed rows (1080x1920; MPS runs float32). No Metal
   kernels runner. Weights: the pinned GitHub release URL of the card (also in
   `/home/florian/projects/data/ff-weights/matanyone/`).

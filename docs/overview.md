@@ -731,7 +731,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Restoration
 
-25 models; size 512x512.
+27 models; size 512x512.
 
 - Fastest: [`span-x4`](models/restoration.md#span) (14.6 ms).
 - Fastest commercially usable: [`span-x4`](models/restoration.md#span) (14.6 ms).
@@ -744,6 +744,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`big-lama`](models/restoration.md#lama-big-lama-inpainting) | yes | 38.0 (512x512) | 26.0 | 21.2 | 1.8x vs original (512x512) | 219 |
 | [`realesr-general-x4v3`](models/restoration.md#real-esrgan-compact) | yes | 42.1 (512x512) | 30.1 | 24.0 | 1.8x vs original (512x512) | 125 |
 | [`codeformer`](models/restoration.md#codeformer) | no | 85.7 (512x512) | 48.6 | – | – | – |
+| [`nafnet-gopro`](models/restoration.md#nafnet) | yes | 63.7 (512x512) | 60.4 | 55.3 | 1.2x vs original (512x512) | 451 |
+| [`nafnet-sidd`](models/restoration.md#nafnet) | yes | 71.6 (512x512) | 60.6 | 56.9 | 1.3x vs original (512x512) | 575 |
 | [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 97.0 | 80.2 | 1.6x vs original (512x512) | 333 |
 | [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | yes | 267.3 (512x512) | 181.8 | 129.8 | 2.1x vs original (512x512) | 179 |
 | [`realesrgan-x4plus-anime-6b`](models/restoration.md#real-esrgan) | yes | 205.1 (512x512) | 154.9 | 131.8 | 1.6x vs original (512x512) | 1197 |

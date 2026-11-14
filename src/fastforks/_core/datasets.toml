@@ -359,6 +359,18 @@ licence = "academic research only"  # images collected from the Internet, copyri
 commercial = "no"
 url = "https://data.vision.ee.ethz.ch/cvl/DIV2K/"
 
+[gopro]
+name = "GoPro deblurring (GOPRO_Large, Nah et al. 2017: 3214 blurred / sharp frame pairs)"
+licence = "CC-BY-4.0"  # "GOPRO dataset is released under CC BY 4.0 license" (official page, read 2026-11-14)
+commercial = "yes"
+url = "https://seungjunnah.github.io/Datasets/gopro"
+
+[sidd]
+name = "Smartphone Image Denoising Dataset (SIDD, noisy / ground-truth smartphone photos)"
+licence = "MIT"  # "The dataset and the associated code repositories are under the MIT License." (official page, read 2026-11-14)
+commercial = "yes"
+url = "https://abdokamel.github.io/sidd/"
+
 [flickr2k]
 name = "Flickr2K (2650 2K Flickr images, EDSR)"
 licence = "not stated"  # Flickr photos under their uploaders' terms
