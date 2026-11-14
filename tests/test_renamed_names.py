@@ -86,6 +86,12 @@ def test_stereo_result_keeps_maps():
     assert dataclasses.replace(old, options={"a": 1}).options == {"a": 1}
 
 
+def test_from_import_warns_once():
+    with pytest.warns(FutureWarning) as seen:
+        exec("from fastforks.stereo import StereoPairResult")  # noqa: S102 - the import statement is the subject
+    assert len(seen) == 1
+
+
 def test_stereo_pipeline_pairviews():
     from fastforks.stereo import calibrated, pipeline  # noqa: PLC0415
 

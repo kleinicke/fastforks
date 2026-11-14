@@ -5,6 +5,7 @@ from __future__ import annotations
 import difflib
 import functools
 import inspect
+import sys
 import warnings
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
@@ -60,7 +61,9 @@ def renamed_attributes(module: str, renames: Mapping[str, tuple[str, object]]) -
             msg = f"module {module!r} has no attribute {name!r}"
             raise AttributeError(msg)
         new, target = renames[name]
-        warn_renamed(f"{module}.{name}", new)
+        # `from m import name` first probes via `hasattr` in `importlib._handle_fromlist`: warn once, at the real access
+        if not sys._getframe(1).f_code.co_filename.startswith("<frozen importlib"):  # noqa: SLF001
+            warn_renamed(f"{module}.{name}", new)
         return target
 
     return __getattr__
