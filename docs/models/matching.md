@@ -21,7 +21,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`loftr-outdoor`](#loftr) | yes | – | – |
 | [`loma-b`](#loma) | yes | – | – |
 | [`romav1`](#romav1) | yes | 356, 1.1x | 1860, 0.45x |
-| [`romav2`](#romav2) | yes | 406, 1.8x | 2580, 0.25x |
+| [`romav2`](#romav2) | yes | 354, 2.1x | 2300, 0.23x |
 | [`xfeat`](#xfeat) | yes | – | – |
 | [`xfeat-lighterglue`](#xfeat) | yes | – | – |
 
@@ -368,7 +368,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `romav2` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1412<br>741<br>546<br>406<br>576<br>353 | 11159 / 11606<br>9881 / 10124<br>1989 / 2596<br>1909 / 2580<br>3150 / 3386<br>6694 / 6740 |
+| `romav2` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1412<br>741<br>546<br>354<br>576<br>353 | 11159 / 11606<br>9881 / 10124<br>1989 / 2596<br>1909 / 2300<br>3150 / 3386<br>6694 / 6740 |
 
 <details><summary>Details</summary>
 
@@ -388,7 +388,7 @@ Commercial use: yes.
 - `romav2` 768x1024, first call: portable + torch.compile 254 s (cold Inductor cache), TensorRT fp16 185 s (ONNX + engine).
 - `romav2` original (fp32) 768x1024: upstream RoMaV2.match; local correlation: upstream's plain-torch path (no fused-local-corr)
 - `romav2` original 768x1024: the authors' mixed-precision option (bfloat16); upstream RoMaV2.match; local correlation: upstream's plain-torch path (no fused-local-corr)
-- `romav2` load / first call: original 5.45 s / 2.091 s, portable 0.85 s / 0.913 s, kernels 1.5 s / 0.812 s
+- `romav2` load / first call: original 5.45 s / 2.091 s, portable 0.85 s / 0.913 s, kernels 0.96 s / 0.62 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -408,7 +408,7 @@ CPU, float32: max |diff| <= 1.6e-05 vs the original. GPU, bfloat16 (the default)
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `romav2` | 0.00573 / 0.02077 | RTX 5060 Ti, torch 2.14.1+cu130 | `romav2@1c8e19405d40:sm_120` |
+| `romav2` | 0.00573 / 0.02077 | RTX 5060 Ti, torch 2.14.1+cu130 | `romav2@bb29839cee98:sm_120` |
 
 ### Limitations
 

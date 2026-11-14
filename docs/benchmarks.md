@@ -565,7 +565,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | lotus-normal-g-v1-1 | 994x1482 | – | 344 | 267 | 164 | 2.1x | 1.6x | 3836 / 3898 | 2777 / 2940 | 2351 / 2500 |
 | marigold-depth-v1-1 | 518x770 | 962 | 429 | 408 | 384 | 1.1x | 1.1x | 3414 / 3580 | 2800 / 3760 | 2566 / 3762 |
 | marigold-normals-lcm-v0-1 | 994x1482 | – | 280 | 272 | 167 | 1.7x | 1.6x | 3441 / 3640 | 2792 / 2960 | 2361 / 2500 |
-| marigold-v2-depth | 994x1482 | – | OOM | 5609 | 4655 | – | 1.2x | – | 10521 / 11936 | 10612 / 11936 |
+| marigold-v2-depth | 994x1482 | – | OOM | 5054 | 4641 | – | 1.1x | – | 10391 / 11662 | 10482 / 11662 |
 | metric3d-vit-large | 994x1482 | – | – | – | 155 | – | – | – | – | 1480 / 1608 |
 | midas-dpt-beit-large-512 | 518x770 | 399 | 320 | 75.6 | 63.9 | 5.0x | 1.2x | 2759 / 2858 | 975 / 1418 | 986 / 1436 |
 | moge-2-vitb-normal | 994x1482 | – | – | 83.9 | 40.7 | – | 2.1x | – | 1163 / 1312 | 1093 / 1208 |
@@ -1072,7 +1072,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | loftr-indoor | – | 242 | 111 | – | – | – | 1751 / 1910 | 796 / 904 | – |
 | loftr-outdoor | – | 241 | 110 | – | – | – | 1739 / 1870 | 796 / 904 | – |
 | romav1 | – | 386 | 376 | 356 | 1.1x | 1.1x | 3887 / 4094 | 1720 / 1820 | 1720 / 1860 |
-| romav2 | 1412 | 741 | 546 | 406 | 1.8x | 1.3x | 9881 / 10124 | 1989 / 2596 | 1909 / 2580 |
+| romav2 | 1412 | 741 | 546 | 354 | 2.1x | 1.5x | 9881 / 10124 | 1989 / 2596 | 1909 / 2300 |
 | xfeat | – | 8.89 | 7.17 | – | – | – | 128 / 174 | 122 / 154 | – |
 | xfeat-lighterglue | – | 23.6 | 21.6 | – | – | – | 448 / 478 | 445 / 476 | – |
 
@@ -1238,7 +1238,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | lotus-normal-g-v1-1 | 10.43 | 4.37 | 3.49 | 1.15 | 0.59 | 0.38 |
 | marigold-depth-v1-1 | 1.32 | 8.20 | 1.10† | 0.60 | 0.56 | 0.52 |
 | marigold-normals-lcm-v0-1 | 6.02 | 4.11 | 8.22 | 2.86 | 0.62 | 0.47 |
-| marigold-v2-depth | – | 5.30 | 20.92 | – | 6.00 | 4.89 |
+| marigold-v2-depth | – | 3.26 | 5.19 | – | 5.31 | 4.87 |
 | metric3d-vit-large | 9.96 | 3.45 | 2.50 (518x770) | 0.88 | 0.23 | 0.47 (518x770) |
 | midas-dpt-beit-large-512 | 5.16 | 2.49 | 0.28† | 1.14 | 0.09 | 0.07 |
 | moge-2-vitb-normal | 1.26 | 0.49 (518x770) | 1.24 (518x770) | 0.24 | 0.40 (518x770) | 0.28 (518x770) |
@@ -1633,7 +1633,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | loftr-indoor | 1.49 | 0.32 | – | 0.69 | 0.53 | – |
 | loftr-outdoor | 0.35 | 0.24 | – | 0.24 | 0.58 | – |
 | romav1 | 6.28 | 1.09 | 1.96 | 2.57 | 0.83 | 0.86 |
-| romav2 | 5.45 | 0.85 | 1.50 | 2.09 | 0.91 | 0.81 |
+| romav2 | 5.45 | 0.85 | 0.96 | 2.09 | 0.91 | 0.62 |
 | xfeat | 1.51 | 0.16 | – | 0.63 | 0.74 | – |
 | xfeat-lighterglue | 1.46 | 0.25 | – | 0.69 | 0.68 | – |
 | alltracker | 1.68 | 0.22 | 0.98 | 1.31 | 0.85 | 0.45 |
@@ -1765,7 +1765,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | lotus-normal-g-v1-1 | 994x1482 | 267 ms | 222 ms | 107 ms | 164 ms | 63.4 s | 183 s | 2777 / 2940 | 2344 / 2416 | 2351 / 2500 | 4213 / 4240 |
 | marigold-depth-v1-1 | 994x1482 | 408 ms | 342 ms | 172 ms | 383 ms | 127 s | 285 s | 2817 / 3760 | 2341 / 2418 | 2583 / 3762 | 4263 / 4318 |
 | marigold-normals-lcm-v0-1 | 994x1482 | 272 ms | 223 ms | 109 ms | 167 ms | 64.5 s | 182 s | 2792 / 2960 | 2348 / 2436 | 2361 / 2500 | 4220 / 4250 |
-| marigold-v2-depth | 994x1482 | 5609 ms | – | fails: unsupported: 20 B NF4 transformer, weights expanded per line | 4655 ms | – | – | 10521 / 11936 | – | 10612 / 11936 | – |
+| marigold-v2-depth | 994x1482 | 5054 ms | – | fails: unsupported: 20 B NF4 transformer, weights expanded per line | 4641 ms | – | – | 10391 / 11662 | – | 10482 / 11662 | – |
 | metric3d-vit-large | 994x1482 | 200 ms | 149 ms | 91.4 ms | 155 ms | 54.7 s | 96.6 s | 1484 / 1696 | 1126 / 1148 | 1480 / 1608 | 1867 / 1952 |
 | midas-dpt-beit-large-512 | 994x1482 | 78.8 ms | 58.8 ms | 52.2 ms | 63.9 ms | 32.6 s | 53.5 s | 992 / 1418 | 1088 / 1116 | 1003 / 1436 | 1514 / 1592 |
 | moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
@@ -2113,7 +2113,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | disk-lightglue | 768x1024 | 116 ms | 113 ms | fails: ONNX export: torch.export failed | – | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | – | – |
 | loftr-outdoor | 768x1024 | 110 ms | 176 ms | fails: ONNX export: torch.export failed | – | 33.3 s | – | 796 / 904 | 1149 / 1232 | – | – |
 | romav1 | 768x1024 | 376 ms | fails: worker rc=124 | fails: ONNX export: conversion failed | 356 ms | – | – | 1720 / 1820 | – | 1720 / 1860 | – |
-| romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 406 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2580 | 6694 / 6740 |
+| romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 354 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2300 | 6694 / 6740 |
 | xfeat | 768x1024 | 7.17 ms | 5.65 ms | fails: ONNX export: conversion failed | – | 30.8 s | – | 122 / 154 | 186 / 212 | – | – |
 | xfeat-lighterglue | 768x1024 | 21.6 ms | 16.2 ms | fails: ONNX export: torch.export failed | – | 39.7 s | – | 445 / 476 | 262 / 278 | – | – |
 | alltracker | 480x854 | 391 ms | 284 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 221 ms | 105 s | – | 993 / 1238 | 1273 / 1358 | 1076 / 1288 | – |

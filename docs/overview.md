@@ -147,7 +147,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 518.4 | 270.9 | 2.1x vs original (994x1482) | 3667 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 408.1 | 383.2 | 1.1x vs original (994x1482) | 2583 |
 | [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | – | 1434.3 | 1284.0 (1080x1920) | 1.1x vs portable | 8204 |
-| [`marigold-v2-depth`](models/depth.md#marigold-v2) | yes | – | OOM (994x1482) | 5609.2 | 4655.3 | 1.2x vs portable | 10612 |
+| [`marigold-v2-depth`](models/depth.md#marigold-v2) | yes | – | OOM (994x1482) | 5053.6 | 4640.6 | 1.1x vs portable | 10482 |
 | [`any2full-b`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
 | [`any2full-l`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
 | [`any2full-s`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
@@ -681,8 +681,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`loftr-indoor`](models/matching.md#loftr) | yes | 241.6 (768x1024) | 110.6 | – | – | – |
 | [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.4 | – | – | – |
 | [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.5 | – | – | – |
+| [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 353.6 | 2.1x vs original (768x1024) | 1909 |
 | [`romav1`](models/matching.md#roma) | yes | 385.8 (768x1024) | 376.3 | 356.0 | 1.1x vs original (768x1024) | 1720 |
-| [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 405.9 | 1.8x vs original (768x1024) | 1909 |
 | [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 592.5 | – | – | – |
 | [`aliked-flexglue`](models/matching.md#flexglue) | yes | – | – | – | – | – |
 | [`loma-b`](models/matching.md#loma) | yes | – | – | – | – | – |
