@@ -165,6 +165,9 @@ class DepthModel(core.Model):
     Has the attributes of `fastforks.Model`.
     """
 
+    _list_images = 1
+    _per_input = ("intrinsics", "prompt_depth")
+
     _runner: Runner
 
     def __call__(

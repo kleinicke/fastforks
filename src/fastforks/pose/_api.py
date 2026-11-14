@@ -123,6 +123,9 @@ class PoseModel(core.Model):
         needs_boxes: Whether calls need person boxes (top-down models).
     """
 
+    _list_images = 1
+    _per_input = ("boxes",)
+
     _runner: Runner
 
     def __init__(self, runner: Runner, backend: Backend, options: Mapping[str, Any]) -> None:

@@ -58,6 +58,8 @@ class CalibrationResult(NumpyOutputs):
 class CalibrationModel(core.Model):
     """A loaded calibration model. Call it with an image (or a batch)."""
 
+    _list_images = 1
+
     _runner: Runner
 
     def __call__(self, image: ImageLike) -> CalibrationResult:

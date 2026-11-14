@@ -414,7 +414,11 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   q = F.normalize(model(query_images).pooler_output, dim=-1)  # same size as the gallery
   scores = q @ g.T  # cosine similarity [Q, N]; scores.topk(5, dim=-1) for the best matches
   ```
-- Lists are not batches: stack same-size images into one array or tensor (multi-view models take a list of views).
+- A list of images gives a list of results, one call per image (pair tasks: two lists of the same length).
+  Arguments that come one per image (depth `intrinsics` and `prompt_depth`, pose `boxes`, matting `trimap` / `mask`,
+  restoration `mask`, the prompts of promptable segmentation) are then lists of the same length; the others apply to
+  every image. Stack same-size images into one array or tensor for one batched call. Multi-view models, point tracking
+  and volumes take one list (views, frames) as one input.
 - Any size above the model's minimum: resizing or padding to what the network needs and back happen inside the call, so
   dense maps (disparity, depth, labels) have the input's resolution. Classifiers resize and crop as the model expects.
 - Batches: pass `[B, 3, H, W]` tensors (or `BHWC` arrays) to get `[B, H, W]` maps (`[B, classes]` logits).

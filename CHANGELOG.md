@@ -9,6 +9,9 @@ public API from now on):
 
 - Edges option `resolution` -> `short_side` (`resolution` and `detect_resolution` stay accepted as aliases).
 - Matching: `SparseMatchingResult.matches(threshold=)` -> `matches(score_threshold=)` (keyword-only).
+- Lists in, lists out (all single-image and pair tasks, also the 0.1.1 ones, where lists were rejected): a list of
+  images gives a list of results; arguments that come one per image (`intrinsics`, `boxes`, prompts, masks) are then
+  lists of the same length.
 
 ### Models and fixes
 

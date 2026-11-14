@@ -74,6 +74,9 @@ class MattingModel(core.Model):
     Has the attributes of `fastforks.Model`.
     """
 
+    _list_images = 1
+    _per_input = ("trimap", "mask")
+
     _runner: Runner
 
     def __call__(

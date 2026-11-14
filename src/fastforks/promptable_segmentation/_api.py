@@ -230,6 +230,9 @@ class PromptableSegmentationModel(core.Model):
             `"boxes"` are exemplar boxes).
     """
 
+    _list_images = 1
+    _per_input = ("input_points", "input_labels", "input_boxes", "input_masks")
+
     _runner: Runner
 
     def __init__(self, runner: Runner, backend: Backend, options: Mapping[str, Any]) -> None:
@@ -718,6 +721,8 @@ class InContextSegmentationModel(PromptableSegmentationModel):
     The model segments in a target image whatever the reference masks mark in the reference images (one or more
     shots); no point / box / text prompts.
     """
+
+    _per_input = ()  # the references are shared by the images
 
     def __call__(  # ty: ignore[invalid-method-override] - in-context prompts only
         self,

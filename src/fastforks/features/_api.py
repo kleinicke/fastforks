@@ -168,6 +168,8 @@ class FeaturesModel(core.Model):
         pooler_size: Channels of `pooler_output` (`hidden_size`, except C-RADIO: 3 x `hidden_size`).
     """
 
+    _list_images = 1
+
     _runner: Runner
 
     def __init__(self, runner: Runner, backend: Backend, options: Mapping[str, Any]) -> None:

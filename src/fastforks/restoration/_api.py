@@ -74,6 +74,9 @@ class RestorationModel(core.Model):
     Has the attributes of `fastforks.Model`.
     """
 
+    _list_images = 1
+    _per_input = ("mask",)
+
     _runner: Runner
 
     @property

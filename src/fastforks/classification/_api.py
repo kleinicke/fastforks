@@ -89,6 +89,8 @@ class ClassificationModel(core.Model):
         id2label: Class index -> name (transformers' `config.id2label`).
     """
 
+    _list_images = 1
+
     _runner: Runner
 
     def __init__(self, runner: Runner, backend: Backend, options: Mapping[str, Any]) -> None:

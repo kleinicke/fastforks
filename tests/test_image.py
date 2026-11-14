@@ -55,7 +55,7 @@ def test_gray_alpha_uint16_float():
         (np.zeros((2, 2, 3), np.int32), "unsupported image dtype"),
         (np.full((2, 2, 3), 255.0, np.float32), r"finite and in \[0, 1\]"),
         (np.zeros((1, 1, 2, 2, 3), np.uint8), "HW, HWC or BHWC"),
-        ([[0, 1]], "unsupported image type list: lists are not batches; stack"),
+        ([[0, 1]], "unsupported image type list: not an image"),
         ({"a": 1}, r"unsupported image type dict \(path"),
         (torch.zeros(3, 2, 2, 2, 2), "2-4 dimensions"),
         (np.full((2, 2, 3), np.nan, np.float32), "finite and in"),

@@ -14,6 +14,7 @@ import functools
 import importlib
 import importlib.abc
 import importlib.machinery
+import inspect
 import json
 import logging
 import math
@@ -24,7 +25,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast, get_args
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, cast, get_args
 
 import torch
 
@@ -328,6 +329,45 @@ def _kernels_entry_points(runner: Runner) -> None:
     runner.__class__ = type(base.__name__, (base,), names | {name: opaque(name) for name in base.compiled_methods})
 
 
+def _listwise(fn: Callable[..., Any], images: int, per_input: tuple[str, ...]) -> Callable[..., Any]:
+    """`fn` (a model's `__call__`) with list in, list out.
+
+    A list of images (pair tasks: two equal-length lists) runs one call per image and returns the list of results.
+    The `per_input` arguments given with it must be lists of the same length (item `i` goes with image `i`); all
+    others go to every call.
+    """
+    sig = inspect.signature(fn)
+    names = list(sig.parameters)[1 : 1 + images]
+    _seq = (list, tuple)
+
+    @functools.wraps(fn)
+    def call(self: object, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - the signature of `fn`
+        if not any(isinstance(a, _seq) for a in (*args[:images], *(kwargs.get(n) for n in names))):
+            return fn(self, *args, **kwargs)
+        bound = sig.bind(self, *args, **kwargs).arguments
+        lists = [bound.get(n) for n in names]
+        n = len(lists[0]) if isinstance(lists[0], _seq) else -1
+        if not all(isinstance(x, _seq) and len(x) == n for x in lists) or n == 0:
+            got = ", ".join(
+                f"{len(x)} {k}" if isinstance(x, _seq) else f"one {k}" for k, x in zip(names, lists, strict=True)
+            )
+            msg = f"give each image input as one image or all as non-empty lists of the same length (got {got})"
+            raise InputError(msg)
+        split = {}
+        for k in per_input:
+            v = bound.get(k)
+            if v is not None and not (isinstance(v, _seq) and len(v) == n):
+                msg = f"{k}= with a list of {n} images must be a list of {n} (one per image), got {type(v).__name__}"
+                raise InputError(msg + (f" of {len(v)}" if isinstance(v, _seq) else ""))
+            if v is not None:
+                split[k] = v
+        rest = {k: v for k, v in bound.items() if k != "self" and k not in names and k not in split}
+        seqs = cast("list[Sequence[Any]]", lists)
+        return [fn(self, *(x[i] for x in seqs), **rest, **{k: v[i] for k, v in split.items()}) for i in range(n)]
+
+    return call
+
+
 class Model:
     """Base of the loaded-model classes of all tasks (`StereoModel`, `DepthModel`, ...).
 
@@ -348,10 +388,17 @@ class Model:
             `None` for the variant's recorded weights.
     """
 
+    _list_images: ClassVar[int] = 0
+    """Image arguments a list of images may replace (1 single-image, 2 pair tasks; 0: none, see `_listwise`)."""
+    _per_input: ClassVar[tuple[str, ...]] = ()
+    """Call arguments that come one per image (`_listwise`)."""
+
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
-        """Wrap a `__call__` defined by a subclass (see `_typo_checked`)."""
+        """Wrap a `__call__` defined by a subclass (see `_listwise`, `_typo_checked`)."""
         super().__init_subclass__(**kwargs)
         if (fn := cls.__dict__.get("__call__")) is not None:
+            if cls._list_images:
+                fn = _listwise(fn, cls._list_images, cls._per_input)
             cls.__call__ = _typo_checked(fn)  # ty: ignore[invalid-assignment]
 
     def __init__(self, runner: Runner, backend: Backend, options: Mapping[str, Any]) -> None:

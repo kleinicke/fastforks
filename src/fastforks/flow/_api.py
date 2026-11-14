@@ -57,6 +57,8 @@ class FlowModel(core.Model):
     Has the attributes of `fastforks.Model`.
     """
 
+    _list_images = 2
+
     _runner: Runner
 
     def module(self) -> torch.nn.Module:
