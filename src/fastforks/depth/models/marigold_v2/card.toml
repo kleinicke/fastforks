@@ -4,7 +4,7 @@ summary = "Marigold V2 (Pavlovic, Wandel, Obukhov et al. 2026): affine-invariant
 tier = "experimental"
 outputs = ["depth"]
 limitations = [
-  "20 B transformer in 4 bit: 8.4 GB of weights; the resident model needs about 9-11 GB of device memory (16 GB cards: up to ~1024 px); `stream=True` runs it in ~1-3 GB from pinned host memory for 3-10 % more time.",
+  "20 B transformer in 4 bit: 8.4 GB of weights; the resident model needs about 9-11 GB of device memory (16 GB cards: up to ~1024 px); `stream=True` runs it in ~1-4 GB of device memory (8.4 GB of page-locked host memory) for ~1 % more time.",
   "Diffusion model: the VAE posterior sample comes from a CPU generator seeded with `seed` and differs from the original code's (unseeded, device) sample.",
   "The enlargement to a multiple of 16 is bicubic (the original: OpenCV Lanczos); inputs with sides that are multiples of 16 are not resized.",
   "The output is log depth up to scale and shift (`kind = \"affine_invariant_log\"`): align in log space, not with the other families' depth outputs.",
@@ -37,7 +37,8 @@ pad = "none"
 [options]
 seed = 2026  # seed of the VAE posterior sample (CPU generator); the output depends on it
 long_side = { default = 0, min = 0 }  # longest side of the network input (then rounded up to a multiple of 16); 0 = the input size (the original)
-stream = false  # keep the transformer blocks in pinned host memory and upload one at a time (~1-3 GB of device memory instead of ~9.5 GB; printed when on)
+exact_mask = false  # pass the original's all-true attention mask: bit-equal to the authors' code on the same GPU, 3-13 % slower (the default differs by ~0.01 mean |d|)
+stream = false  # keep the transformer blocks in pinned host memory and upload one at a time (~1-4 GB of device memory instead of ~9.5-12 GB, ~1 % slower; 8.4 GB page-locked host RAM; printed when on)
 
 [modes.portable]
 cuda_dtype = "bfloat16"  # as upstream under autocast: bf16 GEMMs and attention, float32 norms, RoPE and gates

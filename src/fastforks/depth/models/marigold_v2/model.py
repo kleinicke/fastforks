@@ -43,7 +43,8 @@ class Params:
 
     seed: int  # seed of the VAE posterior sample
     long_side: int  # longest side of the network input before rounding up to a multiple of 16; 0 = the input size
-    stream: bool  # transformer blocks on the host, uploaded one at a time (small device memory, slower)
+    stream: bool  # transformer blocks on the host, uploaded one at a time (small device memory)
+    exact_mask: bool  # upstream's all-true attention mask (bit-equal to the authors' code, slower)
 
 
 def network_size(h: int, w: int, long_side: int) -> tuple[int, int]:
@@ -114,7 +115,7 @@ class Portable(Runner):
         """Build the network."""
         super().__init__(ctx)
         _announce(ctx)
-        self.net = build_net(ctx, stream=ctx.params.stream)
+        self.net = build_net(ctx, stream=ctx.params.stream, exact_mask=ctx.params.exact_mask)
         self.noise = Noise(ctx.params.seed)
 
     def _run(self, image: torch.Tensor) -> torch.Tensor:
@@ -144,7 +145,7 @@ class Kernels(Runner):
         _announce(ctx)
         nf4.load(ctx.device)
         NF4Linear.dequant = _dequant
-        self.net = build_net(ctx, stream=ctx.params.stream, fused=True)
+        self.net = build_net(ctx, stream=ctx.params.stream, fused=True, exact_mask=ctx.params.exact_mask)
         self.noise = Noise(ctx.params.seed)
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused

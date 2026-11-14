@@ -13,8 +13,8 @@ relative = true
 [refs."marigold-v2-depth@1"]
 sha256 = "9cf3341161da2f67923763e999ede95b04852ba35f1c0a6cc00169c25e0c4e3d"
 upstream = "https://github.com/huawei-bayerlab/marigold-v2@main"
-gpu_mean = 0.017  # measured 0.0108 (portable and kernels) against the exact_mask golden; 1.5 x, rounded up
-settings = "the family's own net on NVIDIA GeForce RTX 5060 Ti (bf16 GEMMs, float32 glue) with Block.exact_mask = True (bit-equal to the authors' code on an RTX 3090), lean checkpoint depth/Log-stage2, 1 step, CPU generator seed 2026, torch 2.14.1+cu130"
+options = [["exact_mask", true]]  # the golden's mode: compared at the family tolerance
+settings = "the family's own net on NVIDIA GeForce RTX 5060 Ti (bf16 GEMMs, float32 glue) with exact_mask = True (bit-equal to the authors' code on an RTX 3090), lean checkpoint depth/Log-stage2, 1 step, CPU generator seed 2026, torch 2.14.1+cu130"
 
 [validated."marigold-v2-depth@1"]
 kernels = ["nf4@1d727b97e0b2:sm_120"]

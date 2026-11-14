@@ -8,17 +8,22 @@ and `proj_out`. The glue (layer norms, RMS norms of q / k, RoPE, gates, GELU) ru
 autocast leaves it in float32, the GEMMs and the attention in bf16; the modulation vectors are applied in bf16 as
 upstream forms `1 + scale` in bf16.
 
-`Block.exact_mask` passes upstream's all-true attention mask to SDPA, which selects another attention kernel (other
+`exact_mask` passes upstream's all-true attention mask to SDPA, which selects another attention kernel (other
 rounding); it reproduces the original bit for bit on the GPU it was recorded on and costs 3-13 % time.
 """
 
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 
 from .nf4 import BF, NF4Linear
+
+if TYPE_CHECKING:
+    from .stream import HostBlocks
 
 HEADS, HEAD_DIM = 24, 128
 AXES = (16, 56, 56)  # RoPE dims of the frame, height and width axes
@@ -53,6 +58,11 @@ def rms_qk(x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
     return x.mul_(torch.rsqrt(v + 1e-6)).mul_(w)
 
 
+def _gelu_bf(x: torch.Tensor) -> torch.Tensor:
+    """tanh GELU of the float32 `x` (in place), then bf16: as `F.gelu(x, approximate="tanh").to(bf16)`."""
+    return torch.ops.aten.gelu_(x, approximate="tanh").to(BF)
+
+
 def _heads(t: torch.Tensor) -> torch.Tensor:
     return t.unflatten(-1, (HEADS, HEAD_DIM))
 
@@ -60,13 +70,15 @@ def _heads(t: torch.Tensor) -> torch.Tensor:
 class Block(nn.Module):
     """One double-stream block; the last block has no text output (upstream drops it)."""
 
-    exact_mask: bool = False
-
-    def __init__(self, t: dict[str, torch.Tensor], index: int, *, last: bool, fused: bool = False) -> None:
-        """Take the block's tensors (`transformer_blocks.{index}.*`) from `t`; `fused`: see `NF4Linear`."""
+    def __init__(
+        self, t: dict[str, torch.Tensor], index: int, *, last: bool, fused: bool = False, exact_mask: bool = False
+    ) -> None:
+        """Take the block's tensors (`transformer_blocks.{index}.*`) from `t`; `fused`: see `NF4Linear`;
+        `exact_mask`: pass upstream's all-true attention mask (see the module docstring)."""
         super().__init__()
         p = f"transformer_blocks.{index}."
         self.last = last
+        self.exact_mask = exact_mask
 
         def lin(n: str) -> NF4Linear:
             return NF4Linear(t, p + n, fused=fused)
@@ -107,16 +119,16 @@ class Block(nn.Module):
         k = k.to(BF).transpose(1, 2)
         v = torch.cat([_heads(self.add_v(xt)), _heads(self.to_v(xi))], dim=1).to(BF).transpose(1, 2)
         del xi, xt
-        mask = torch.ones(1, 1, 1, q.shape[2], dtype=torch.bool, device=q.device) if Block.exact_mask else None
+        mask = torch.ones(1, 1, 1, q.shape[2], dtype=torch.bool, device=q.device) if self.exact_mask else None
         a = F.scaled_dot_product_attention(q, k, v, attn_mask=mask)
         del q, k, v
         a = a.transpose(1, 2).flatten(2, 3)
         img = self.to_out(a[:, n_txt:]).mul_(im[0][2]).add_(img)
-        h = F.gelu(self.img_fc1(self._mod(img, im[1])), approximate="tanh").to(BF)
+        h = _gelu_bf(self.img_fc1(self._mod(img, im[1])))
         img += self.img_fc2(h).mul_(im[1][2])
         if not self.last:
             txt = self.to_add_out(a[:, :n_txt]).mul_(tm[0][2]).add_(txt)
-            h = F.gelu(self.txt_fc1(self._mod(txt, tm[1])), approximate="tanh").to(BF)
+            h = _gelu_bf(self.txt_fc1(self._mod(txt, tm[1])))
             txt += self.txt_fc2(h).mul_(tm[1][2])
         return img, txt
 
@@ -130,18 +142,24 @@ class Transformer(nn.Module):
     """`img_in`, the blocks, the folded output norm and `proj_out`; RoPE tables as buffers.
 
     `blocks` holds the resident blocks; with `host` (streaming) the blocks' tensors stay on the host (pinned) and
-    `run_blocks` uploads one block at a time on a side stream while the previous one computes.
+    `run_blocks` uploads one block ahead into two fixed device buffers while the current one computes.
     """
 
     def __init__(
-        self, t: dict[str, torch.Tensor], *, host: list[dict[str, torch.Tensor]] | None = None, fused: bool = False
+        self,
+        t: dict[str, torch.Tensor],
+        *,
+        host: HostBlocks | None = None,
+        fused: bool = False,
+        exact_mask: bool = False,
     ) -> None:
-        """Build from the checkpoint tensors `t` (without the VAE); `host`: the blocks' tensors per block, pinned.
+        """Build from the checkpoint tensors `t` (without the VAE); `host`: the streamed blocks (see `stream`).
 
-        `fused`: the linears expand their weights with the fused kernel (`NF4Linear.dequant`).
+        `fused`: the linears expand their weights with the fused kernel (`NF4Linear.dequant`); `exact_mask`: see
+        `Block`.
         """
         super().__init__()
-        self.fused = fused
+        self.fused, self.exact_mask = fused, exact_mask
         self.img_in = NF4Linear(t, "img_in", fused=fused)
         self.register_buffer("txt", t["txt"].float()[None])
         scale, shift = t["norm_out.linear"].float().chunk(2)
@@ -158,7 +176,7 @@ class Transformer(nn.Module):
             self.blocks = nn.ModuleList()
         else:
             self.n = 1 + max(int(k.split(".")[1]) for k in t if k.startswith("transformer_blocks."))
-            self.blocks = nn.ModuleList(Block(t, i, last=i == self.n - 1, fused=fused) for i in range(self.n))
+            self.blocks = nn.ModuleList(Block(t, i, last=i == self.n - 1, fused=fused, exact_mask=exact_mask) for i in range(self.n))
 
     def freqs(self, h: int, w: int) -> torch.Tensor:
         """RoPE frequencies of the text tokens then the `h x w` image tokens, `[T, 1, D / 2]` complex."""
@@ -171,32 +189,15 @@ class Transformer(nn.Module):
         m = max(h // 2, w // 2)
         return torch.cat([self.pos[m : m + self.txt.shape[1]], f_img]).unsqueeze(1)
 
-    def _fetch(self, i: int, side: torch.cuda.Stream, device: torch.device) -> dict[str, torch.Tensor] | None:
-        if self.host is None or i >= self.n:
-            return None
-        with torch.cuda.stream(side):
-            return {k: v.to(device, non_blocking=True) for k, v in self.host[i].items()}
-
     def run_blocks(self, img: torch.Tensor, txt: torch.Tensor, f_all: torch.Tensor) -> torch.Tensor:
         """All blocks, resident or streamed."""
         if self.host is None:
             for blk in self.blocks:
                 img, txt = blk(img, txt, f_all)
             return img
-        device, side = img.device, torch.cuda.Stream()
-        main, done = torch.cuda.current_stream(), None
-        nxt = self._fetch(0, side, device)
-        for i in range(self.n):
-            t = nxt
-            main.wait_stream(side)  # block i has arrived
-            if done is not None:
-                done.synchronize()  # block i - 1 finished: its memory may be reused by the next upload
-            nxt = self._fetch(i + 1, side, device)
-            assert t is not None  # noqa: S101 - host has n blocks
-            img, txt = Block(t, i, last=i == self.n - 1, fused=self.fused)(img, txt, f_all)
-            del t
-            done = torch.cuda.Event()
-            done.record(main)
+        for i, t in enumerate(self.host.run(img.device)):
+            blk = Block(t, i, last=i == self.n - 1, fused=self.fused, exact_mask=self.exact_mask)
+            img, txt = blk(img, txt, f_all)
         return img
 
     def forward(self, packed: torch.Tensor, h: int, w: int) -> torch.Tensor:

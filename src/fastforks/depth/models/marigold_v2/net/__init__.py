@@ -1,7 +1,7 @@
 """Marigold V2 depth without diffusers, bitsandbytes and peft: the lean checkpoint's tensors as plain modules.
 
 `load(ctx, stream=...)` reads the one safetensors file straight to the device (no host copy of the 8.4 GB), or, when
-streaming, keeps the transformer blocks pinned on the host. `Net` runs the authors' single-step inference:
+streaming, packs the transformer blocks into one page-locked host buffer (`stream.HostBlocks`). `Net` runs the authors' single-step inference:
 VAE posterior sample -> 2 x 2 patch packing -> one velocity prediction at the fixed timestep -> `latent - velocity` ->
 VAE decode -> mean of the three channels.
 """
@@ -16,9 +16,12 @@ from torch import nn
 
 from .dit import Block, Transformer, block_keys
 from .nf4 import BF, NF4Linear, pair_lut
+from .stream import HostBlocks
 from .vae import VAE2D
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from fastforks.depth._runner import Context
 
 __all__ = ["BF", "Block", "NF4Linear", "Net", "Transformer", "load"]
@@ -31,17 +34,22 @@ class Net(nn.Module):
     """VAE + transformer; `forward(x, noise)` on `[B, 3, H, W]` in `[-1, 1]` (H, W multiples of 16) -> `[B, 1, H, W]`."""
 
     def __init__(
-        self, t: dict[str, torch.Tensor], *, host: list[dict[str, torch.Tensor]] | None = None, fused: bool = False
+        self,
+        t: dict[str, torch.Tensor],
+        *,
+        host: HostBlocks | None = None,
+        fused: bool = False,
+        exact_mask: bool = False,
     ) -> None:
         """Build from the checkpoint tensors.
 
-        `host`: the transformer blocks' tensors (streaming), see `load`; `fused`: expand the NF4 weights with the
-        kernel `NF4Linear.dequant` (the kernels backend sets it).
+        `host`: the streamed transformer blocks, see `load`; `fused`: expand the NF4 weights with the kernel
+        `NF4Linear.dequant` (the kernels backend sets it); `exact_mask`: see `dit.Block`.
         """
         super().__init__()
         self.register_buffer("nf4_code", t["nf4_code"].float())
         self.vae = VAE2D(t)
-        self.dit = Transformer(t, host=host, fused=fused)
+        self.dit = Transformer(t, host=host, fused=fused, exact_mask=exact_mask)
 
     def lut(self) -> None:
         """Set the NF4 code tables of this device (after moving the module)."""
@@ -61,34 +69,50 @@ class Net(nn.Module):
         return self.vae.decode(lat - pred).mean(dim=1, keepdim=True)
 
 
-def _read(ctx: Context, device: torch.device, *, stream: bool) -> tuple[dict[str, torch.Tensor], list[dict] | None]:
+def _block_index(k: str) -> int | None:
+    return int(k.split(".")[1]) if k.startswith("transformer_blocks.") else None
+
+
+def _host_blocks(
+    keys: list[str], meta: dict[str, tuple[torch.dtype, torch.Size]], get: Callable[[str], torch.Tensor]
+) -> HostBlocks:
+    n = 1 + max(i for k in keys if (i := _block_index(k)) is not None)
+    specs = [{k: meta[k] for k in block_keys(keys, i)} for i in range(n)]
+    return HostBlocks(specs, lambda k, dst: dst.copy_(get(k)))
+
+
+def _read(ctx: Context, device: torch.device, *, stream: bool) -> tuple[dict[str, torch.Tensor], HostBlocks | None]:
     if ctx.user_state is not None:
         t = dict(ctx.user_state)
+        host = None
         if stream:
-            host, rest = [], {}
-            n = 1 + max(int(k.split(".")[1]) for k in t if k.startswith("transformer_blocks."))
-            for i in range(n):
-                host.append({k: t[k].pin_memory() for k in block_keys(list(t), i)})
-            rest = {k: v.to(device) for k, v in t.items() if not k.startswith("transformer_blocks.")}
-            return rest, host
-        return {k: v.to(device) for k, v in t.items()}, None
+            keys = list(t)
+            host = _host_blocks(keys, {k: (v.dtype, v.shape) for k, v in t.items()}, t.__getitem__)
+        rest = {k: v.to(device) for k, v in t.items() if not (stream and _block_index(k) is not None)}
+        return rest, host
     path = ctx.weights()[0]
-    t, host = {}, {}
     with safe_open(path, "pt", device="cpu" if stream else str(device)) as f:
-        for k in f.keys():  # noqa: SIM118 - safetensors handle, not a dict
-            if stream and k.startswith("transformer_blocks."):
-                host.setdefault(int(k.split(".")[1]), {})[k] = f.get_tensor(k).pin_memory()
-            else:
-                t[k] = f.get_tensor(k).to(device)
-    return t, [host[i] for i in range(len(host))] if stream else None
+        keys = list(f.keys())
+        t = {k: f.get_tensor(k).to(device) for k in keys if not (stream and _block_index(k) is not None)}
+        if not stream:
+            return t, None
+        meta = {}
+        for k in keys:
+            if _block_index(k) is not None:
+                sl = f.get_slice(k)
+                meta[k] = (_DTYPES[sl.get_dtype()], torch.Size(sl.get_shape()))
+        return t, _host_blocks(keys, meta, f.get_tensor)
 
 
-def load(ctx: Context, *, stream: bool, fused: bool = False) -> Net:
-    """The network on `ctx.device`, in eval mode; `stream` keeps the transformer blocks on the host (pinned)."""
+_DTYPES = {"U8": torch.uint8, "BF16": torch.bfloat16, "F32": torch.float32, "F16": torch.float16}
+
+
+def load(ctx: Context, *, stream: bool, fused: bool = False, exact_mask: bool = False) -> Net:
+    """The network on `ctx.device`, in eval mode; `stream` keeps the transformer blocks on the host (page-locked)."""
     if stream and ctx.device.type != "cuda":
         msg = "stream=True needs a CUDA device"
         raise ValueError(msg)
     t, host = _read(ctx, ctx.device, stream=stream)
-    net = Net(t, host=host, fused=fused).to(ctx.device)
+    net = Net(t, host=host, fused=fused, exact_mask=exact_mask).to(ctx.device)
     del t
     return net.eval()
