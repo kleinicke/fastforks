@@ -122,6 +122,7 @@ DYNAMIC_UNSUPPORTED = {
     "prompt_depth_anything": "the dynamic-shape spec would also resize the depth prompt, which has a size of its own",
     "lingbot_depth": "the dynamic-shape spec would also resize the depth map, which has a size of its own",
     "any2full": "the dynamic-shape spec would also resize the depth map, which has a size of its own",
+    "omni_dc": "the conjugate-gradient solve has a data-dependent step count (no export at all)",
     "depth_anything_v2": "the model rounds a symbolic size (Python `round()`), which torch.export cannot trace",
     "hitnet": "the traced graph fixes the height (the engine would only look dynamic)",
     "moge": "the traced graph fixes the input size (the file would only look dynamic)",

@@ -1,0 +1,62 @@
+diff --git a/src/model/convgru.py b/src/model/convgru.py
+index aed1bb8..a0b4b74 100644
+--- a/src/model/convgru.py
++++ b/src/model/convgru.py
+@@ -235,10 +235,10 @@ class BasicUpdateBlock(nn.Module):
+             weights_depth_grad = self.grad_weights_head(net)
+             weights_depth_grad = weights_depth_grad.reshape(B, self.resolution, 1, 1).repeat(1, 1, H, W).repeat_interleave(2, dim=1)
+         elif self.args.multi_resolution_learnable_gradients_weights == "uniform":
+-            weights_depth_grad = torch.tensor(([1.0] * self.resolution), device='cuda') / float(self.resolution)
++            weights_depth_grad = torch.tensor(([1.0] * self.resolution), device=net.device) / float(self.resolution)
+             weights_depth_grad = weights_depth_grad.reshape(1, self.resolution, 1, 1).repeat(B, 2, H, W)
+         elif self.args.multi_resolution_learnable_gradients_weights == "uniform_area":
+-            weights_depth_grad = torch.tensor(([1.0, 4.0, 16.0]), device='cuda')[:self.resolution]
++            weights_depth_grad = torch.tensor(([1.0, 4.0, 16.0]), device=net.device)[:self.resolution]
+             weights_depth_grad = weights_depth_grad / torch.sum(weights_depth_grad)
+             weights_depth_grad = weights_depth_grad.reshape(1, self.resolution, 1, 1).repeat(B, 2, H, W)
+         else:
+@@ -248,7 +248,7 @@ class BasicUpdateBlock(nn.Module):
+             weights_input = self.inputs_weights_head(net)
+             weights_input = weights_input.reshape(B, self.resolution, 1, 1).repeat(1, 1, H, W)
+         else:
+-            weights_input = torch.tensor(([1.0] + [0.0] * (self.resolution-1)), device='cuda')
++            weights_input = torch.tensor(([1.0] + [0.0] * (self.resolution-1)), device=net.device)
+             weights_input = weights_input.reshape(1, self.resolution, 1, 1).repeat(B, 1, 1, 1)
+ 
+         if self.mask_r > 1:
+diff --git a/src/model/ognidc.py b/src/model/ognidc.py
+index 129332e..b4948c2 100644
+--- a/src/model/ognidc.py
++++ b/src/model/ognidc.py
+@@ -62,9 +62,6 @@ class OGNIDC(nn.Module, PyTorchModelHubMixin):
+         if self.args.load_dav2:
+ 
+             self.depth_module = DepthAnythingV2(**dav2_model_configs[encoder])
+-            self.depth_module.load_state_dict(
+-                torch.load(f'./depth_models/depth_anything_v2/checkpoints/depth_anything_v2_{encoder}.pth',
+-                           map_location='cpu'))
+             self.depth_module = self.depth_module.eval()
+ 
+             # freeze foundation model
+diff --git a/src/model/pvt.py b/src/model/pvt.py
+index bb0abc9..4a57bae 100644
+--- a/src/model/pvt.py
++++ b/src/model/pvt.py
+@@ -5,8 +5,6 @@ from functools import partial
+ import torchvision
+ 
+ from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+-from mmseg.utils import get_root_logger
+-from mmcv.runner import load_checkpoint
+ from resnet_cbam import BasicBlock
+ from pathlib import Path
+ 
+@@ -199,7 +197,7 @@ class PyramidVisionTransformer(nn.Module):
+         else:
+             additional_embedding_dim = 0
+ 
+-        net = get_resnet34(pretrained=True)
++        net = get_resnet34(pretrained=False)
+         setattr(self, "embed_layer1", net.layer1)
+         setattr(self, "embed_layer2", net.layer2)
+         del net

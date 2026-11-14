@@ -1,0 +1,18 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.005
+gpu_mean = 0.015
+gpu_p99 = 0.05
+relative = true
+
+[refs."omni-dc@1"]
+sha256 = "fd2acfed952fee5f84ecc70dcd69e5dcebebc4fbfdddeada904ab0565366788a"
+upstream = "https://github.com/princeton-vl/OMNI-DC@a5ecd35d087ed5e5fcc2be93989d1db3fde194fd"
+patch = "omni-dc-cpu.patch"
+patch_sha256 = "ac8cac97115be6ca8ec421522dfb8259e1e8db2d7b99c052f5b2a7ad34f4c9d6"
+settings = "CPU float32, OGNIDC.forward (demo.sh arguments) on 98x140, torch 2.14.1+cu130"

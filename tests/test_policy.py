@@ -58,6 +58,7 @@ CROSS_FAMILY_IMPORTS: dict[str, str | tuple[str, ...]] = {
         ("unik3d", "model"),
         ("prompt_depth_anything", "fused"),
         ("any2full", "model"),
+        ("omni_dc", "model"),
     )
 }
 # LingBot-Depth reuses MoGe's neck / heads and its kernels-mode helpers (upstream builds on MoGe's modules):

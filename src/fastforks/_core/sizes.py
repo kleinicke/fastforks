@@ -24,6 +24,7 @@ PATCH = {
     "moge": 14,
     "lingbot_depth": 14,
     "any2full": 14,
+    "omni_dc": 16,
     "unik3d": 14,
     "depth_pro": 16,
 }

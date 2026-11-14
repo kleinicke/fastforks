@@ -46,6 +46,7 @@ _ONNX_KNOWN_MISMATCH = {  # open: the export runs, ONNX Runtime disagrees (or re
 _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export captures it: documented
     "aliked-lightglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
     "xfeat@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+    "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
 }
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
     "rf-detr-keypoint-preview@1": "pinned upstream disables Dynamo for positional interpolation to preserve"

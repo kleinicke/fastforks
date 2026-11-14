@@ -1,0 +1,42 @@
+schema = 2
+name = "OMNI-DC"
+summary = "OMNI-DC (ICCV 2025): zero-shot depth completion for any sparse pattern; an RGB-D network predicts log-depth gradients at three resolutions, a conjugate-gradient solve integrates them with the sparse depth, DySPN refines the result. Uses Depth Anything V2 Large as an extra input."
+tier = "experimental"
+outputs = ["depth"]
+uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the ViT, the DPT head)
+limitations = [
+  "The depth map is required: call the model with `prompt_depth=` a metric map in metres at the image size (another size is resized nearest; missing points as 0 / NaN / inf).",
+  "The weights include the frozen Depth Anything V2 Large (CC-BY-NC-4.0), so they are labelled non-commercial although the code and the Hugging Face card are BSD-3-Clause.",
+  "The integration is an iterative solve with a data-dependent step count: no ONNX / TensorRT export.",
+]
+
+[output]
+kind = "metric"  # metres, in the scale of the depth input
+
+[upstream]
+repo = "https://github.com/princeton-vl/OMNI-DC"
+commit = "a5ecd35"
+
+[licence]
+code = "BSD-3-Clause"
+weights = "CC-BY-NC-4.0"  # the file embeds the frozen Depth Anything V2 Large weights (CC-BY-NC-4.0) verbatim
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Synthetic RGB-D datasets with virtual sparse patterns per the paper (arXiv 2411.19278)"
+evidence = "https://github.com/princeton-vl/OMNI-DC/blob/main/LICENSE (BSD-3-Clause, also on the Hugging Face card zuoym15/OMNI-DC); the checkpoint's depth_module is the frozen Depth Anything V2 Large (upstream loads depth_anything_v2_vitl.pth, CC-BY-NC-4.0)"
+
+[io]
+input = "imagenet"  # the runner pads below and on the right to a multiple of 16 and normalises
+pad = "none"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused"]
+
+[[variants]]
+id = "omni-dc"
+revision = 1
+weights = [{ name = "model.safetensors", size = 1683089580, sha256 = "8d43f6ac7b372cf0cb84a0ebfebab4bbacf295cab4c2700d87d10ae1749ce5c0", url = "https://huggingface.co/zuoym15/OMNI-DC/resolve/9ec01f0a9c3060579d26dd9327abd4e07e4abcf0/model.safetensors" }]
