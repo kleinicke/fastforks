@@ -48,7 +48,7 @@ def build(tree: Path, ckpt: Path, variant: str) -> torch.nn.Module:
         import timm  # noqa: PLC0415 - the reference's own dependency
 
         vars(timm)["create_model"] = functools.partial(timm.create_model, pretrained=False)  # no ImageNet download
-    from model import waft_a1  # noqa: PLC0415  # ty: ignore[unresolved-import] - reference checkout on sys.path
+    from model import waft_a1  # noqa: PLC0415 - reference checkout on sys.path
 
     feature = getattr(waft_a1.DepthAnythingFeature, "func", waft_a1.DepthAnythingFeature)
     waft_a1.DepthAnythingFeature = functools.partial(feature, pretrained=False)  # no depth-anything-ckpts/ read
