@@ -74,6 +74,9 @@ def knn_query(k, p, rows=128, pool=4096, margin=16, budget=1 << 25):  # fastfork
     return idx
 
 
+CHUNK = 65536  # fastforks: points per chunk of the per-point attention and MLP (bounds the peak, not the result)
+
+
 class KNNAttention(nn.Module):
     def __init__(self, channels, knn_samples=16,
         num_heads=1,
@@ -109,23 +112,27 @@ class KNNAttention(nn.Module):
         # [N, C]
         x_q, x_k, x_v = torch.chunk(qkv, chunks=3, dim=-1)
 
-        # fastforks: pointops.knn_query_and_group(x, p, o, idx=knn_idx, with_xyz=False) -> x[knn_idx]
-        # [N, K, C]
-        x_k = x_k[knn_idx]
-
-        # [N, K, C]
-        x_v = x_v[knn_idx]
-
-        n, k, c = x_k.shape
-
-        # [N, 1, K]
-        scores = torch.matmul(x_q.unsqueeze(1), x_k.permute(0, 2, 1)) * scale_factor
-        # [N, C]
-        out = torch.matmul(torch.softmax(scores, dim=2), x_v).squeeze(1)
+        # fastforks: pointops.knn_query_and_group(x, p, o, idx=knn_idx, with_xyz=False) -> x[knn_idx], in chunks of
+        # query rows so the [N, K, C] neighbour features never exist for all points at once (8 views OOMed on 16 GB)
+        out = torch.cat([self._attend(x_q[s:s + CHUNK], x_k, x_v, knn_idx[s:s + CHUNK], scale_factor)
+                         for s in range(0, len(x_q), CHUNK)])
 
         out = self.proj(out)
 
         return out
+
+    @staticmethod
+    def _attend(x_q, x_k, x_v, knn_idx, scale_factor):
+        # [n, K, C]
+        x_k = x_k[knn_idx]
+
+        # [n, K, C]
+        x_v = x_v[knn_idx]
+
+        # [n, 1, K]
+        scores = torch.matmul(x_q.unsqueeze(1), x_k.permute(0, 2, 1)) * scale_factor
+        # [n, C]
+        return torch.matmul(torch.softmax(scores, dim=2), x_v).squeeze(1)
 
 
 class MLP(nn.Module):
@@ -167,9 +174,8 @@ class TransformerBlock(nn.Module):
         p, x, o = pxo
 
         x = x + self.attn((p, self.norm1(x), o), knn_idx=knn_idx)
-        x = x + self.mlp(self.norm2(x))
-
-        return x
+        # fastforks: the MLP in chunks of points (its [N, 4C] hidden layer was the 8-view peak); same rows, same math
+        return torch.cat([xs + self.mlp(self.norm2(xs)) for xs in x.split(CHUNK)])
 
 
 class PlainPointTransformer(nn.Module):
