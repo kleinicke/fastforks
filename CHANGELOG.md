@@ -4,8 +4,8 @@
 
 ### API changes
 
-Renames in the tasks and models added since 0.1.1 (the 0.1.1 API is unchanged; `tests/api_snapshot.txt` freezes the
-public API from now on):
+Renames in the tasks and models added since 0.1.1 (0.1.1 names change only as listed under "Renamed 0.1.1 names",
+with a warning; `tests/api_snapshot.txt` freezes the public API from now on):
 
 - Edges option `resolution` -> `short_side` (`resolution` and `detect_resolution` stay accepted as aliases).
 - Matching: `SparseMatchingResult.matches(threshold=)` -> `matches(score_threshold=)` (keyword-only).
