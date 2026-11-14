@@ -44,11 +44,12 @@ class Net(nn.Module):
         """Build from the checkpoint tensors.
 
         `host`: the streamed transformer blocks, see `load`; `fused`: expand the NF4 weights with the kernel
-        `NF4Linear.dequant` (the kernels backend sets it); `exact_mask`: see `dit.Block`.
+        `NF4Linear.dequant` (the kernels backend sets it); `exact_mask`: see `dit.Block` (also keeps the VAE's
+        full-size convolutions, see `VAE2D`).
         """
         super().__init__()
         self.register_buffer("nf4_code", t["nf4_code"].float())
-        self.vae = VAE2D(t)
+        self.vae = VAE2D(t, bands=not exact_mask)
         self.dit = Transformer(t, host=host, fused=fused, exact_mask=exact_mask)
 
     def lut(self) -> None:
