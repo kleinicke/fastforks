@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Shared Swin v1 (BiRefNet, BEN2, InSPyReNet): the window-attention bias mask is contiguous, so SDPA uses its fused
+  kernels instead of the math path. 1080x1920 kernels: BiRefNet 214 -> 121 ms, BiRefNet-lite 59 -> 48 ms, BEN2
+  173 -> 104 ms; portable InSPyReNet 159 -> 109 ms; peak memory unchanged.
+
 - RetinaFace face detection (`retinaface-resnet50`, `retinaface-mobilenet0.25`, pose task; MIT code and weights):
   `model(image)` finds faces with a box and five landmarks (eyes, nose, mouth corners), facexlib's `detect_faces`
   at the image's own size. 1080x1920: ResNet-50 11.7 ms kernels, 24.3 ms portable vs 81.0 ms original fp32

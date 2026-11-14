@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import torch
+import torch.nn.functional as F
 
 from fastforks import matting
 from fastforks._core import registry
 from fastforks.matting.models.birefnet import model
 from fastforks.matting.models.birefnet.net.birefnet import image2patches
 from fastforks.matting.models.birefnet.net.modules.aspp import _ASPPModuleDeformable
+from fastforks.shared.swin_v1 import SwinTransformer
 
 
 def test_card() -> None:
@@ -40,3 +42,24 @@ def test_merged_offset_conv() -> None:
     model._prepare_aspp(m)
     torch.testing.assert_close(m._om(x), want)  # ty: ignore[call-non-callable]
     assert m._w.shape == (9 * 16, 16)
+
+
+def test_swin_sdpa_mask_stride(monkeypatch) -> None:
+    """Shared swin_v1 (BiRefNet, RMBG-2.0, BEN2, InSPyReNet): the bias mask has stride 1 in its last dim.
+
+    CUDA's fused SDPA kernels reject any other mask layout and fall back to the math path (2-10x slower).
+    """
+    seen = []
+    sdpa = F.scaled_dot_product_attention
+
+    def spy(*args, attn_mask=None, **kwargs):
+        seen.append(attn_mask)
+        return sdpa(*args, attn_mask=attn_mask, **kwargs)
+
+    monkeypatch.setattr(F, "scaled_dot_product_attention", spy)
+    net = SwinTransformer(embed_dim=16, depths=[2, 2], num_heads=[2, 4], window_size=4, out_indices=(0, 1))
+    net.eval()  # upstream's `train` returns None
+    with torch.no_grad():
+        net(torch.randn(1, 3, 64, 64))
+    assert len(seen) == 4  # a plain and a shifted-window block per stage
+    assert all(m is not None and m.stride(-1) == 1 for m in seen), [m.stride() for m in seen if m is not None]

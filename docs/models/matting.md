@@ -12,9 +12,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | DIS-VD MAE ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`ben2`](#ben2) | yes | 0.0403 | 173, 1.2x | 2238, 0.81x |
-| [`birefnet`](#birefnet) | yes | 0.0325 | 214, 1.1x | 1916, 0.99x |
-| [`birefnet-lite`](#birefnet) | yes | – | 59.3, 1.3x | 960, 0.99x |
+| [`ben2`](#ben2) | yes | 0.0403 | 104, 1.9x | 2238, 0.81x |
+| [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1916, 0.99x |
+| [`birefnet-lite`](#birefnet) | yes | – | 48.1, 1.6x | 960, 0.99x |
 | [`inspyrenet`](#inspyrenet) | yes | – | – | – |
 | [`inspyrenet-fast`](#inspyrenet) | yes | – | – | – |
 | [`isnet`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
@@ -35,7 +35,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ben2` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 201<br>184<br>173<br>103<br>58.2 | 2466 / 2772<br>1681 / 1976<br>1946 / 2238<br>813 / 916<br>1280 / 1326 |
+| `ben2` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 201<br>110<br>104<br>103<br>58.2 | 2466 / 2772<br>1681 / 1976<br>1942 / 2238<br>813 / 916<br>1280 / 1326 |
 
 <details><summary>Details</summary>
 
@@ -52,7 +52,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `ben2` 3000x4000 (1.8 GiB peak allocated, 2.7 reserved)
 - `ben2` 1080x1920, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp16 140 s (ONNX + engine).
 - `ben2` original 1080x1920: the authors' mixed-precision option (float16); PramaLLC/BEN2@2c99a5da477b BEN2.py, bicubic resize / normalisation / bilinear back / min-max
-- `ben2` load / first call: original 2.29 s / 0.926 s, portable 0.3 s / 0.66 s, kernels 1.4 s / 0.425 s
+- `ben2` load / first call: original 2.29 s / 0.926 s, portable 13.95 s / 0.919 s, kernels 1.12 s / 0.435 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -86,8 +86,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `birefnet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>225<br>214<br>138<br>87.8 | 1666 / 1930<br>1660 / 1888<br>1674 / 1916<br>1874 / 1932<br>1753 / 1814 |
-| `birefnet-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 75.1<br>67.3<br>59.3<br>50.2<br>49.0 | 913 / 974<br>810 / 932<br>754 / 960<br>1469 / 1552<br>874 / 934 |
+| `birefnet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>131<br>121<br>138<br>87.8 | 1666 / 1930<br>1660 / 1908<br>1674 / 1916<br>1874 / 1932<br>1753 / 1814 |
+| `birefnet-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 75.1<br>58.0<br>48.1<br>50.2<br>49.0 | 913 / 974<br>810 / 952<br>754 / 960<br>1469 / 1552<br>874 / 934 |
 
 <details><summary>Details</summary>
 
@@ -106,8 +106,8 @@ Commercial use: yes.
 - `birefnet-lite` 1080x1920, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 156 s (ONNX + engine).
 - `birefnet` original 1080x1920: the authors' float16 model option; HF ZhengPeng7/BiRefNet@e2bf8e4460fc birefnet.py, the card's resize / normalisation / sigmoid / resize back
 - `birefnet-lite` original 1080x1920: the authors' float16 model option; HF ZhengPeng7/BiRefNet_lite@aa62cd87eafb birefnet.py, the card's resize / normalisation / sigmoid / resize back
-- `birefnet` load / first call: original 3.6 s / 0.387 s, portable 0.75 s / 0.565 s, kernels 1.61 s / 0.44 s
-- `birefnet-lite` load / first call: original 8.04 s / 1.104 s, portable 0.26 s / 0.631 s, kernels 1.03 s / 0.316 s
+- `birefnet` load / first call: original 3.6 s / 0.387 s, portable 0.46 s / 0.556 s, kernels 13.58 s / 0.368 s
+- `birefnet-lite` load / first call: original 8.04 s / 1.104 s, portable 0.67 s / 0.42 s, kernels 0.2 s / 0.471 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -143,8 +143,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>159<br>–<br>85.8<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 3240 / 3262<br>1649 / 1854<br>–<br>913 / 1018<br>– |
-| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>45.1<br>–<br>17.7<br>6.99 | 810 / 836<br>432 / 494<br>–<br>345 / 376<br>561 / 600 |
+| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>109<br>–<br>85.8<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 3240 / 3262<br>1649 / 1848<br>–<br>913 / 1018<br>– |
+| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>41.7<br>–<br>17.7<br>6.99 | 810 / 836<br>432 / 488<br>–<br>345 / 376<br>561 / 600 |
 
 <details><summary>Details</summary>
 
@@ -164,8 +164,8 @@ Commercial use: yes.
 - `inspyrenet-fast` 1080x1920, first call: portable + torch.compile 77 s (cold Inductor cache), TensorRT fp16 138 s (ONNX + engine).
 - `inspyrenet` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing
 - `inspyrenet-fast` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing
-- `inspyrenet` load / first call: original 6.68 s / 1.487 s, portable 0.58 s / 0.616 s
-- `inspyrenet-fast` load / first call: original 5.93 s / 1.329 s, portable 0.69 s / 0.735 s
+- `inspyrenet` load / first call: original 6.68 s / 1.487 s, portable 0.78 s / 0.625 s
+- `inspyrenet-fast` load / first call: original 5.93 s / 1.329 s, portable 11.07 s / 0.794 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
