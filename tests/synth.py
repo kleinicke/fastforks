@@ -33,10 +33,21 @@ def prompt_depth(h: int = 12, w: int = 18, seed: int = 0) -> np.ndarray:
     return (1.5 + 2.0 * y + 1.0 * x + 0.3 * np.sin(9 * x + 5 * y) + 0.05 * rng.random((h, w))).astype(np.float32)
 
 
+def sparse_prompt(h: int = 12, w: int = 18, seed: int = 0) -> np.ndarray:
+    """Return `prompt_depth` with fixed holes (0 and NaN; seed > 0: one more block), for depth-completion models."""
+    p = prompt_depth(h, w, seed)
+    p[::2, 1::3] = 0
+    p[1::2, ::3] = np.nan
+    p[: 4 * seed, : 6 * seed] = 0  # a different hole count per seed (batches of unequal token counts)
+    return p
+
+
 def prompt_kwargs(model: object, seed: int = 0) -> dict[str, np.ndarray]:
-    """`{"prompt_depth": ...}` for a depth model that requires a depth prompt, else `{}`."""
+    """`{"prompt_depth": ...}` (with holes if the model takes them) for a depth model that needs one, else `{}`."""
     runner = getattr(model, "_runner", None)
-    return {"prompt_depth": prompt_depth(seed=seed)} if getattr(runner, "prompt_depth", "unused") == "required" else {}
+    if getattr(runner, "prompt_depth", "unused") != "required":
+        return {}
+    return {"prompt_depth": (sparse_prompt if getattr(runner, "prompt_sparse", False) else prompt_depth)(seed=seed)}
 
 
 def size(min_size: int = 1, h: int = 100, w: int = 150) -> tuple[int, int]:

@@ -11,7 +11,7 @@ from PIL import Image
 
 from fastforks import InputError, WeightsError, detection
 from fastforks._core import registry
-from fastforks.detection._resize import pil_bilinear
+from fastforks.shared.pil_resize import pil_bilinear
 from synth import image
 
 if TYPE_CHECKING:

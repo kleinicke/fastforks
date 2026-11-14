@@ -31,6 +31,9 @@ __all__ = [
     "ConceptSegmentationModel",
     "ConceptSegmentationResult",
     "ImageEmbeddings",
+    "InContextModelId",
+    "InContextSegmentationModel",
+    "InContextSegmentationResult",
     "PromptLike",
     "PromptableSegmentationModel",
     "PromptableSegmentationResult",
@@ -45,6 +48,8 @@ PromptLike = torch.Tensor | np.ndarray | list[Any] | tuple[Any, ...]
 """A prompt array: torch tensor, numpy array or nested lists / tuples of numbers."""
 ConceptModelId = Literal["sam3", "sam3@1"]
 """Ids of the concept models (text / exemplar prompts): `load` returns a `ConceptSegmentationModel` for them."""
+InContextModelId = Literal["insid3-vitl16", "insid3-vitl16@1"]
+"""Ids of the in-context models (reference images + masks): `load` returns an `InContextSegmentationModel` for them."""
 _MULTIMASK = 3  # candidate masks per prompt of SAM / SAM 2 with multimask_output (num_multimask_outputs)
 MAX_EXEMPLARS = 256  # fixed: exemplar boxes per call (the box tokens, ROI pooling and attention grow with N)
 
@@ -188,6 +193,28 @@ class ConceptSegmentationResult(Instances):
     are the keys of the Hugging Face transformers SAM 3 `post_process_instance_segmentation` dicts. `masks` are
     `[N, H, W]` bool at the input size.
     """
+
+
+@dataclass(frozen=True)
+class InContextSegmentationResult(MapOutputs):
+    """The target-image mask of an in-context call (INSID3), on the model's device.
+
+    Attributes:
+        masks: `[H, W]` bool mask at the target image size.
+        similarity: `[h, w]` float32 cosine similarity of each target patch to the reference prototype (after the
+            positional debiasing; `> 0` is the forward match), at the backbone's patch grid.
+        model: Versioned model id.
+        backend: The backend that produced the result.
+        options: Load options that differ from the validated defaults.
+    """
+
+    masks: torch.Tensor
+    similarity: torch.Tensor
+    model: str
+    backend: Backend
+    options: Mapping[str, Any] = field(default_factory=dict)
+
+    _save_fields = ("masks",)
 
 
 class PromptableSegmentationModel(core.Model):
@@ -679,14 +706,106 @@ class ConceptSegmentationModel(PromptableSegmentationModel):
         return self._concept(image, text, given, input_boxes_labels, threshold)
 
 
+class InContextSegmentationModel(PromptableSegmentationModel):
+    """A loaded in-context model (INSID3, `load` of an `InContextModelId`): reference images + masks -> target mask.
+
+    The model segments in a target image whatever the reference masks mark in the reference images (one or more
+    shots); no point / box / text prompts.
+    """
+
+    def __call__(  # ty: ignore[invalid-method-override] - in-context prompts only
+        self,
+        image: ImageLike | ImageEmbeddings,
+        *,
+        reference_images: ImageLike | ImageEmbeddings | Sequence[ImageLike],
+        reference_masks: PromptLike | Sequence[PromptLike],
+    ) -> InContextSegmentationResult:
+        """Segment the target `image` like the references.
+
+        Args:
+            image: The target image, or its `get_image_embeddings`.
+            reference_images: One reference image, a list of them, an image batch, or their `get_image_embeddings`.
+            reference_masks: One binary mask per reference (nonzero = the concept), each at its reference's size:
+                `[H, W]` for one reference, else `[S, H, W]` (references of one size) or a list.
+
+        Returns:
+            The target mask.
+
+        Raises:
+            InputError: Unsupported image, no references, a mask count or size that does not fit the references, or
+                embeddings of another model.
+        """
+        emb = self._embedding(image)
+        refs, sizes = self._references(reference_images)
+        masks = _reference_masks(reference_masks, sizes, self.device)
+        with self._session():
+            out = self._runner.segment_reference(emb.features["features"], refs, masks)
+            h, w = out["similarity"].shape
+            self._check_outputs(out, {"masks": (h, w), "similarity": (h, w)})
+            mask = self._runner.upsample(out["masks"], emb.image_size)
+        return InContextSegmentationResult(
+            mask, out["similarity"].float(), self.variant.ref, self.backend, self.options
+        )
+
+    def _references(
+        self, images: ImageLike | ImageEmbeddings | Sequence[ImageLike]
+    ) -> tuple[torch.Tensor, list[tuple[int, int]]]:
+        """Reference features `[S, ...]` and the size of each reference image."""
+        if isinstance(images, ImageEmbeddings):
+            embs = [self._checked(images)]
+        elif isinstance(images, list | tuple):
+            if not images:
+                msg = "reference_images is empty: pass at least one reference image"
+                raise InputError(msg)
+            embs = [
+                self._checked(i) if isinstance(i, ImageEmbeddings) else self.get_image_embeddings(i) for i in images
+            ]
+        else:
+            embs = [self.get_image_embeddings(images)]
+        sizes = [e.image_size for e in embs for _ in range(len(e))]
+        return torch.cat([e.features["features"] for e in embs]), sizes
+
+    def _checked(self, emb: ImageEmbeddings) -> ImageEmbeddings:
+        """Embeddings of this model (any count)."""
+        if emb.model != self.variant.ref or emb.backend != self.backend or dict(emb.options) != dict(self.options):
+            msg = f"reference embeddings of {emb.model} ({emb.backend.mode}) used with {self.variant.ref}; embed here"
+            raise InputError(msg)
+        return emb
+
+
+def _reference_masks(
+    masks: PromptLike | Sequence[PromptLike], sizes: list[tuple[int, int]], device: torch.device
+) -> list[torch.Tensor]:
+    """One `[H, W]` bool mask per reference on `device`.
+
+    Raises:
+        InputError: Not one mask per reference, or a mask not at its reference's size.
+    """
+    if isinstance(masks, list | tuple) and len(masks) == len(sizes) and not all(np.isscalar(m) for m in masks):
+        items = [_numeric("reference_masks", m, torch.float32) for m in masks]
+    else:
+        t = _numeric("reference_masks", masks, torch.float32)
+        items = [t] if t.ndim == 2 else list(t)  # noqa: PLR2004 - [H, W]
+    if len(items) != len(sizes):
+        msg = f"reference_masks: {len(items)} mask(s) for {len(sizes)} reference image(s)"
+        raise InputError(msg)
+    for i, (m, size) in enumerate(zip(items, sizes, strict=True)):
+        if tuple(m.shape) != size:
+            msg = f"reference_masks[{i}] must be [H, W] at its reference's size {size}, got {tuple(m.shape)}"
+            raise InputError(msg)
+    return [m.to(device).ne(0) for m in items]
+
+
 def _model_class(model: str) -> type[PromptableSegmentationModel]:
-    """`ConceptSegmentationModel` for a concept model id, else `PromptableSegmentationModel` (also if unknown)."""
+    """`ConceptSegmentationModel` / `InContextSegmentationModel` by the runner's prompts, else the point / box model."""
     try:
         card = core.model_card(TASK, model)
     except ModelNotFoundError:
         return PromptableSegmentationModel  # `load_model` raises the error
-    concept = "text" in cast("type[Runner]", core.runner_class(card, card.modes[0])).prompts
-    return ConceptSegmentationModel if concept else PromptableSegmentationModel
+    prompts = cast("type[Runner]", core.runner_class(card, card.modes[0])).prompts
+    if "reference" in prompts:
+        return InContextSegmentationModel
+    return ConceptSegmentationModel if "text" in prompts else PromptableSegmentationModel
 
 
 def _exemplar_labels(labels: PromptLike, n: int) -> torch.Tensor:
@@ -757,13 +876,18 @@ def _numeric(name: str, value: PromptLike, dtype: torch.dtype) -> torch.Tensor:
 def bench_inputs(model: PromptableSegmentationModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic image `[3, H, W]` and a foreground point at its centre.
 
-    Text models get the text prompt "object" instead of the point. Times the full call (image encoder + one prompt,
+    Text models get the text prompt "object" instead of the point; in-context models the image itself as the reference
+    with its centre quarter as the mask. Times the full call (image encoder + one prompt,
     three candidate masks); `get_image_embeddings` alone is the encoder.
     """
     h, w = size.height, size.width
     image = synthetic_image(h, w, model.device)[0]
     if "text" in model.prompts:
         return (image,), {"text": "object"}
+    if "reference" in model.prompts:
+        mask = torch.zeros(h, w, dtype=torch.bool)
+        mask[h // 4 : 3 * h // 4, w // 4 : 3 * w // 4] = True
+        return (image,), {"reference_images": image, "reference_masks": mask}
     return (image,), {"input_points": [[(w - 1) / 2, (h - 1) / 2]], "input_labels": [1]}
 
 
@@ -780,6 +904,18 @@ def load(
     options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
 ) -> ConceptSegmentationModel: ...
+
+
+@overload
+def load(
+    model: InContextModelId,
+    *,
+    mode: ModeArg = "auto",
+    device: str | torch.device | None = None,
+    dtype: Dtype | torch.dtype | None = None,
+    options: Mapping[str, Any] | None = None,
+    weights: str | os.PathLike[str] | None = None,
+) -> InContextSegmentationModel: ...
 
 
 @overload

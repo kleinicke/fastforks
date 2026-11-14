@@ -1,0 +1,61 @@
+schema = 2
+name = "DepthFM"
+summary = "DepthFM (Gui et al. 2024): affine-invariant monocular depth by flow matching from the image latent to the depth latent; a Stable Diffusion 2.1 UNet fine-tuned to the flow, a few Euler steps, ensemble of noise samples (v1)."
+tier = "experimental"
+outputs = ["depth"]
+uses = ["pil_resize", "sd2"]  # fastforks.shared modules this family imports
+limitations = [
+  "Flow model on a noised latent: the seeded noise comes from a CPU generator and differs from the original code's device generator for the same seed.",
+  "A traced or exported module reuses the noise of its traced shape.",
+  "The network input sides are rounded to multiples of 64, so the aspect ratio changes slightly.",
+]
+
+licence_notes = [
+  "The UNet is fine-tuned from Stable Diffusion 2.1 (OpenRAIL++-M) and runs with the Stable Diffusion 1.5 VAE (OpenRAIL-M): commercial use is allowed but with use restrictions that must be passed on; the training data terms are not checked.",
+]
+
+[output]
+kind = "affine_invariant"  # depth in [0, 1] (near to far) up to an unknown scale and shift
+
+[upstream]
+repo = "https://github.com/CompVis/depth-fm"
+commit = "da632c8"
+
+[licence]
+code = "MIT"
+weights = "LicenseRef-CreativeML-OpenRAIL-PlusPlus-M AND LicenseRef-CreativeML-OpenRAIL-M"
+files = ["LICENSE", "LICENSE-MODEL", "LICENSE-VAE"]
+training_data = ["unstated"]
+training_note = "Stable Diffusion 2.1 (LAION-5B subsets) fine-tuned on the synthetic Hypersim and Virtual KITTI 2 datasets per the DepthFM paper (arXiv 2403.13788)"
+evidence = "https://github.com/CompVis/depth-fm/blob/da632c8118e41cc64ca191a13314e2db1a7722d9/README.md (fine-tuned from Stable Diffusion v2-1; code MIT); SD2 licence text from https://huggingface.co/sd2-community/stable-diffusion-2/blob/2511124fabf8bf30c0ca9dccd9729e7f0f2fa669/LICENSE-MODEL, SD1.5 VAE licence https://github.com/CompVis/stable-diffusion/blob/21f890f9da3cfbeaba8e2ac3c425ee9e998d5229/LICENSE"
+
+[io]
+input = "0-255"  # the runner resizes (sides rounded to multiples of 64, bilinear, antialiased, rounded) and maps to [-1, 1] itself
+pad = "none"
+
+[options]
+steps = { default = 2, min = 1, max = 1000, aliases = ["num_steps"] }  # Euler steps of the flow (original default 2)
+ensemble = { default = 4, min = 1, aliases = ["ensemble_size"] }  # noise samples averaged (original default 4); 1 is ~4x faster in the UNet
+long_side = { default = 0, min = 0, aliases = ["processing_res"] }  # longest side of the network input before rounding to 64 (original default: the input size); 0 = the input size
+seed = 2024  # seed of the initial noise (CPU generator); the output depends on it
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]
+
+[[papers]]
+title = "DepthFM: Fast Monocular Depth Estimation with Flow Matching"
+url = "https://arxiv.org/abs/2403.13788"
+date = "2024-03-20"
+venue = "AAAI 2025"
+
+[[variants]]
+id = "depthfm-v1"
+revision = 1
+weights = [
+  { name = "depthfm-v1.ckpt", size = 3464382642, sha256 = "8364b475b52584ba31867a88e4b66b56d857f7f54e2772ca5d999417f33fdd3d", url = "https://ommer-lab.com/files/depthfm/depthfm-v1.ckpt" },
+  { name = "vae/diffusion_pytorch_model.safetensors", size = 334643276, sha256 = "a2b5134f4dbc140d9c11f11cba3233099e00af40f262f136c691fb7d38d2194c", url = "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/451f4fe16113bff5a5d2269ed5ad43b0592e9a14/vae/diffusion_pytorch_model.safetensors" },
+]

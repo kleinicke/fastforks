@@ -64,6 +64,7 @@ _DATASETS = {
     "promptable_segmentation": {
         "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
         "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
+        "coco-val2017-oneshot-k3": "COCO val2017, one-shot episodes (3 per class), class mIoU %",
         "davis2017-val-every3": "DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F %",
         "davis2017-val-every1": "DAVIS 2017 val, video tracking, J&F / J / F %",
     },
@@ -85,6 +86,7 @@ _DATASETS = {
         "div2k-val-x4": "DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x4-every4": "DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
     },
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
@@ -135,6 +137,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         "n",
         "images",
     ),
+    ("promptable_segmentation", "coco-val2017-oneshot-k3"): ((("miou", "{:.2f}", ""),), "n", "episodes"),
     **{
         ("promptable_segmentation", d): (
             (("jf", "{:.2f}", ""), ("j", "{:.2f}", ""), ("f", "{:.2f}", "")),
@@ -193,6 +196,9 @@ _PROTOCOL = {
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
     "image; the top 100 instances go to pycocotools COCOeval. ",
+    ("promptable_segmentation", "coco-val2017-oneshot-k3"): "In-context: per COCO class 3 (reference, target) pairs "
+    "drawn with seed 0 from the images whose class covers >= 2 %, the class's non-crowd instances as one mask; "
+    "foreground IoU summed per class, mean over the 80 classes. ",
     **{
         ("promptable_segmentation", d): "Semi-supervised: every object's first-frame mask as `input_masks`, `track` "
         "forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as "
@@ -985,6 +991,10 @@ TASK_IO = {
         "object segmentation)."
     ),
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
+    "volume": (
+        "Input: a CT volume `[D, H, W]` in Hounsfield units and its voxel spacing in mm (`volume.read_nifti` reads "
+        "both from a NIfTI file). Output: a class index per voxel `[D, H, W]` on the input grid (0 = background)."
+    ),
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",
     "multiview": (
         "Input: several images of one scene (posed and calibrated for multi-view stereo, unposed otherwise). "
@@ -1181,6 +1191,7 @@ _STD_SIZE = {
     "tracking": "480x854",
     "retrieval": "480x640",
     "calibration": "1080x1920",
+    "volume": "200x200",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input

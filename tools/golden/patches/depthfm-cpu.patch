@@ -1,0 +1,62 @@
+diff --git a/depthfm/dfm.py b/depthfm/dfm.py
+index 4814650..8e921af 100644
+--- a/depthfm/dfm.py
++++ b/depthfm/dfm.py
+@@ -15,14 +15,22 @@ def exists(val):
+ 
+ 
+ class DepthFM(nn.Module):
+-    def __init__(self, ckpt_path: str):
++    def __init__(self, ckpt_path: str, vae_path: str):  # fastforks: the VAE from a local file (no hub download)
+         super().__init__()
+-        vae_id = "runwayml/stable-diffusion-v1-5"
+-        self.vae = AutoencoderKL.from_pretrained(vae_id, subfolder="vae")
++        from safetensors.torch import load_file
++        self.vae = AutoencoderKL(
++            down_block_types=("DownEncoderBlock2D",) * 4, up_block_types=("UpDecoderBlock2D",) * 4,
++            block_out_channels=(128, 256, 512, 512), layers_per_block=2, latent_channels=4, sample_size=512,
++        )  # runwayml/stable-diffusion-v1-5 vae/config.json
++        old = {".query.": ".to_q.", ".key.": ".to_k.", ".value.": ".to_v.", ".proj_attn.": ".to_out.0."}
++        sd = load_file(vae_path)
++        for o, n in old.items():  # the hub file's pre-0.14 attention names (from_pretrained renames them too)
++            sd = {k.replace(o, n): v for k, v in sd.items()}
++        self.vae.load_state_dict(sd)
+         self.scale_factor = 0.18215
+ 
+         # set with checkpoint
+-        ckpt = torch.load(ckpt_path, map_location="cpu")
++        ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)  # fastforks: torch >= 2.6 default
+         self.noising_step = ckpt['noising_step']
+         self.empty_text_embed = ckpt['empty_text_embedding']
+         self.model = UNetModel(**ckpt['ldm_hparams'])
+@@ -54,7 +62,7 @@ class DepthFM(nn.Module):
+             return ode_results
+         return ode_results[-1]
+     
+-    def forward(self, ims: Tensor, num_steps: int = 4, ensemble_size: int = 1):
++    def forward(self, ims: Tensor, num_steps: int = 4, ensemble_size: int = 1, noise=None):  # fastforks: noise
+         """
+         Args:
+             ims: Tensor of shape (b, 3, h, w) in range [-1, 1]
+@@ -75,7 +83,7 @@ class DepthFM(nn.Module):
+         x_source = ims_z
+ 
+         if self.noising_step > 0:
+-            x_source = q_sample(x_source, self.noising_step)    
++            x_source = q_sample(x_source, self.noising_step, noise=noise)    
+ 
+         # solve ODE
+         depth_z = self.generate(x_source, num_steps=num_steps, context=context, context_ca=conditioning)
+diff --git a/depthfm/unet/attention.py b/depthfm/unet/attention.py
+index 6a30ab1..85e0abb 100644
+--- a/depthfm/unet/attention.py
++++ b/depthfm/unet/attention.py
+@@ -157,7 +157,7 @@ class CrossAttention(nn.Module):
+             nn.Linear(inner_dim, query_dim), nn.Dropout(dropout)
+         )
+ 
+-    def forward(self, x, context=None, mask=None, rescale_attention=True):
++    def forward(self, x, context=None, mask=None, rescale_attention=False):  # fastforks: the xformers path (requirements) has no rescale
+ 
+         is_self_attention = context is None
+ 

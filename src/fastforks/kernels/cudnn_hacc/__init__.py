@@ -44,7 +44,6 @@ import functools
 import logging
 import math
 import threading
-import weakref
 from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -141,16 +140,9 @@ class CudnnHalfConv:
         self._seen: OrderedDict[tuple[Any, ...], list[int]] = OrderedDict()
         self._freed = -1  # the model call that last freed the deferred GEMMs' cuBLAS workspaces
         self._deferred = False  # a geometry ran as a torch convolution since the last free (BUILD_AFTER > 0)
-        # one workspace per stream: plans may run concurrently on several streams (RAFT's motion branch)
-        self._ws: dict[int, torch.Tensor] = {}
         self._stream = -1  # the stream the handle is bound to
-        # the handle's stream binding + execute, and the plan / workspace caches, are shared by all threads
+        # the handle's stream binding + execute, and the plan caches, are shared by all threads
         self._lock = threading.Lock()
-
-    def free_workspaces(self) -> None:
-        """Drop the cached workspaces (the next plan run allocates one again)."""
-        with self._lock:
-            self._ws.clear()
 
     def _build(  # noqa: PLR0913 - one geometry: shapes, output strides, padding, stride, dilation, kind
         self,
@@ -270,14 +262,11 @@ class CudnnHalfConv:
 
     def _execute(self, e: _Plan, x: torch.Tensor, w: torch.Tensor, y: torch.Tensor) -> None:
         stream = current_stream()
+        # The workspace comes from the caching allocator per call (under capture: the graph's pool, alive as long as the
+        # graph). Steady state reuses the same block, so the variant pack still hits; a workspace cached per stream
+        # stayed resident at the largest plan's size and raised the peak (MVSplat 8 views: +360 MB reserved).
+        ws = torch.empty(max(e.workspace, 1), device=x.device, dtype=torch.uint8)
         with self._lock:
-            ws = self._ws.get(stream)
-            if torch.cuda.is_current_stream_capturing():
-                # the graph keeps this pointer: take the workspace from its pool, which lives as long as the graph (a
-                # cached one is freed when a later plan on this stream needs a bigger one, e.g. the next capture)
-                ws = torch.empty(max(e.workspace, 1), device=x.device, dtype=torch.uint8)
-            elif ws is None or ws.numel() < e.workspace or ws.device != x.device:
-                ws = self._ws[stream] = torch.empty(max(e.workspace, 1), device=x.device, dtype=torch.uint8)
             if stream != self._stream:
                 _backend.set_stream(self.handle, stream)
                 self._stream = stream
@@ -458,30 +447,6 @@ def _cl_stride(shape: Sequence[int]) -> list[int]:
         acc *= sp[i]
     st[0] = acc
     return st
-
-
-_users = 0  # live models that run on the process-wide instance
-_users_lock = threading.Lock()
-
-
-def attach(owner: object) -> None:
-    """Count `owner` (a loaded model) as a user; the plan workspace is freed once the last user is collected.
-
-    The workspace grows to the largest plan and stays cached while any user is alive (no allocation per call).
-    """
-    global _users  # noqa: PLW0603 - process-wide count
-    with _users_lock:
-        _users += 1
-    weakref.finalize(owner, _release)
-
-
-def _release() -> None:
-    global _users  # noqa: PLW0603 - process-wide count
-    with _users_lock:
-        _users -= 1
-        if _users > 0 or not _instance.cache_info().currsize:
-            return
-    _instance().free_workspaces()
 
 
 def capture_after() -> int:

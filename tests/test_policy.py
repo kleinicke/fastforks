@@ -42,6 +42,7 @@ OPTIONAL = {
     "laspy": {"stereo/geometry/ply.py"},  # .las / .laz point clouds (dependencies, imported in this module only)
     "lazrs": {"stereo/geometry/ply.py"},
     "pycolmap": {"matching/sfm.py"},  # `sfm.reconstruct` (the `sfm` extra)
+    "nibabel": {"volume/_nifti.py"},  # `read_nifti` / `write_nifti` (the `nifti` extra)
 }
 # Files allowed to import computed module names: the registry imports `fastforks.<task>.models.<family>.model`, the
 # task package its own `<task>` spec modules, the top level the module of each lazily re-exported name.
@@ -49,7 +50,7 @@ DYNAMIC = {"__init__.py", "_core/registry.py", "_core/tasks/__init__.py"}
 # Known violations of three rules on main, open in the depth / features workstreams. Exempt per file (and per name),
 # so the rules stay active for every other file of these tasks; remove an entry when its file is fixed.
 # DPT conversions shared from the DAv2 `fused` module (should move to shared/):
-CROSS_FAMILY_IMPORTS = {
+CROSS_FAMILY_IMPORTS: dict[str, str | tuple[str, ...]] = {
     f"depth/models/{family}/{file}.py": "fastforks.depth.models.depth_anything_v2.fused"
     for family, file in (
         ("depth_anything_3", "model"),
@@ -57,7 +58,21 @@ CROSS_FAMILY_IMPORTS = {
         ("moge", "model"),
         ("unik3d", "model"),
         ("prompt_depth_anything", "fused"),
+        ("any2full", "model"),
+        ("omni_dc", "model"),
     )
+}
+# LingBot-Depth reuses MoGe's neck / heads and its kernels-mode helpers (upstream builds on MoGe's modules):
+CROSS_FAMILY_IMPORTS |= {
+    f"depth/models/lingbot_depth/{file}.py": (
+        "fastforks.depth.models.moge",
+        "fastforks.depth.models.depth_anything_v2.fused",
+    )
+    for file in ("model", "net")
+}
+# LingBot-Map is VGGT's code with a streaming aggregator: it reuses VGGT's modules and fast path.
+CROSS_FAMILY_IMPORTS |= {
+    f"multiview/models/lingbot_map/{file}.py": "fastforks.multiview.models.vggt" for file in ("model", "net")
 }
 TORCH_LOAD = {"depth/models/midas/model.py", "depth/models/zoedepth/model.py"}  # per-family checkpoint loaders
 UNDOCUMENTED_CONSTANTS = {
@@ -197,10 +212,11 @@ def test_families_do_not_import_each_other(task):
         own = models + card.family
         for path in _family_files(task, card.family):
             allowed = CROSS_FAMILY_IMPORTS.get(str(path.relative_to(SRC)), own)
+            prefixes = tuple(p + "." for p in ((allowed,) if isinstance(allowed, str) else allowed))
             bad = {
                 m
                 for m in imported_modules(path)
-                if m.startswith(models) and not (m + ".").startswith((own + ".", allowed + "."))
+                if m.startswith(models) and not (m + ".").startswith((own + ".", *prefixes))
             }
             assert not bad, f"{path.relative_to(SRC)} imports another family: {bad} (move shared code to shared/)"
 
@@ -304,6 +320,19 @@ def _module_file(name: str) -> Path | None:
     return next((f for f in (p.with_suffix(".py"), p / "__init__.py") if f.is_file()), None)
 
 
+def _task_helpers(task: str, files: list[Path]) -> list[Path]:
+    """The task's own helper modules (`fastforks.<task>._*`) that `files` import, transitively."""
+    found: list[Path] = []
+    queue = list(files)
+    while queue:
+        for m in imported_modules(queue.pop()):
+            f = _module_file(m) if m.startswith(f"fastforks.{task}._") else None
+            if f is not None and f not in found and f not in files:
+                found.append(f)
+                queue.append(f)
+    return found
+
+
 def _optimize_imports(files: list[Path]) -> set[str]:
     """Modules imported, transitively, through the `fastforks._optimize` modules that `files` import.
 
@@ -360,6 +389,7 @@ def test_card_kernels_match_imports(task):
         files = family + [
             p for u in card.uses if "kernels" in card.modes for p in sorted((SRC / "shared" / u).rglob("*.py"))
         ]
+        files += _task_helpers(task, files)  # D-FINE: `detection._convs.DepthwiseConvs` loads fvm_conv
         mods = {m for p in files for m in imported_modules(p)} | _optimize_imports(files)
         used = {m.split(".")[2] for m in mods if m.startswith("fastforks.kernels.") and m.split(".")[2] in libs}
         direct = {
@@ -368,9 +398,18 @@ def test_card_kernels_match_imports(task):
             for m in imported_modules(p)
             if m.startswith("fastforks.kernels.") and m.split(".")[2] in libs
         }
+        # A family that loads another task's models through its public API (INSID3: `fastforks.features` DINOv3)
+        # runs that task's kernels, which no static import shows: they bound what it may declare.
+        other = {m.split(".")[1] for m in mods if m.split(".")[:1] == ["fastforks"] and m.count(".") >= 1} - {task}
+        via = {
+            lib
+            for t in sorted(other & set(registry.TASKS))
+            for c, _ in registry.cards(t).values()
+            for lib in c.kernel_libs
+        }
         # The Metal libraries (`*_metal`) are the MPS runner's, the others the CUDA one's: check each list on its own.
         cuda, metal = {u for u in used if not u.endswith("_metal")}, {u for u in used if u.endswith("_metal")}
-        _kernel_import_bounds(card.family, set(card.kernel_libs), direct & cuda, cuda)
+        _kernel_import_bounds(card.family, set(card.kernel_libs), direct & cuda, cuda | via)
         _kernel_import_bounds(card.family, set(card.mps_kernel_libs), direct & metal, metal)
 
 

@@ -65,3 +65,25 @@ weights = [
     { name = "segformer-b5-ade20k.bin", size = 339299397, sha256 = "a3dbf2d7a9912203078f304d88df8cfee9fd752ca2d2413f82036bdb02c5e7df", url = "https://huggingface.co/nvidia/segformer-b5-finetuned-ade-640-640/resolve/739f5d4692954e4a185eac280dec1ba5a7d52f1d/pytorch_model.bin" },
 ]
 params = { resize = ["mmseg", 2048, 640] }
+
+[[variants]]
+id = "segformer-b2-clothes"
+revision = 1
+weights = [
+    { name = "segformer-b2-clothes.config.json", size = 1727, sha256 = "4b5127ca00fe61187b6cc6c232c9e19326ed228683f8f5c221790be9cc196a6e", url = "https://huggingface.co/mattmdjaga/segformer_b2_clothes/resolve/584abc1e1d260e23c0fc627c5217a09b2b461046/config.json" },
+    { name = "segformer-b2-clothes.safetensors", size = 109493236, sha256 = "8f86fd90c567afd4370b3cc3a7e81ed767a632b2832a738331af660acc0c4c68", url = "https://huggingface.co/mattmdjaga/segformer_b2_clothes/resolve/584abc1e1d260e23c0fc627c5217a09b2b461046/model.safetensors" },
+]
+params = { resize = ["fixed", 512, 512] }  # its SegformerImageProcessor: 512 x 512, logits resized to the image
+output = { label_set = "atr-18" }
+licence = { evidence = "https://huggingface.co/mattmdjaga/segformer_b2_clothes/blob/584abc1e1d260e23c0fc627c5217a09b2b461046/README.md", training_data = ["imagenet-1k", "atr"] }  # card: "license: other", linking NVlabs/SegFormer's LICENSE
+
+[[variants]]
+id = "segformer-b5-face-parsing"
+revision = 1
+weights = [
+    { name = "segformer-b5-face-parsing.config.json", size = 1689, sha256 = "01d82e818569beda6aec804642e34ce187bed43326337d52ce370ff015964d68", url = "https://huggingface.co/jonathandinu/face-parsing/resolve/758b82e15a0178c9db39c1ff666a8b56e3a550c8/config.json" },
+    { name = "segformer-b5-face-parsing.safetensors", size = 338580732, sha256 = "c2bec795a8c243db71bd95be538fd62559003566466c71237e45c99b920f4b62", url = "https://huggingface.co/jonathandinu/face-parsing/resolve/758b82e15a0178c9db39c1ff666a8b56e3a550c8/model.safetensors" },
+]
+params = { resize = ["fixed", 512, 512] }  # its SegformerImageProcessor: 512 x 512, logits resized to the image
+output = { label_set = "celebamask-hq-19" }
+licence = { weights = "LicenseRef-noncommercial", evidence = "https://huggingface.co/jonathandinu/face-parsing/blob/758b82e15a0178c9db39c1ff666a8b56e3a550c8/README.md", training_data = ["imagenet-1k", "celebamask-hq"] }  # card: "License: non-commercial research and educational purposes"; fine-tuned from nvidia/mit-b5

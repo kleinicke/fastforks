@@ -19,7 +19,12 @@ commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the
 [[upstream.official]]
 repo = "https://github.com/IDEA-Research/GroundingDINO"
 framework = "PyTorch"
-reason = "transformers carries the architecture and converted authors' checkpoints in its own API."
+reason = "fastforks follows the Hugging Face transformers port, which loads the IDEA-Research/grounding-dino-* weights, instead of the authors' repository."
+
+[[upstream.official]]
+repo = "https://github.com/open-mmlab/mmdetection"
+framework = "PyTorch"
+reason = "The MM-Grounding-DINO authors' code lives in MMDetection; fastforks follows the Hugging Face transformers port that loads the converted weights."
 
 [licence]
 code = "Apache-2.0"  # transformers; the original IDEA-Research/GroundingDINO is Apache-2.0 too
@@ -56,6 +61,13 @@ url = "https://arxiv.org/abs/2303.05499"
 date = "2023-03-09"
 venue = "ECCV 2024"
 variants = ["grounding-dino-tiny", "grounding-dino-base"]
+
+[[papers]]
+title = "An Open and Comprehensive Pipeline for Unified Object Grounding and Detection"
+url = "https://arxiv.org/abs/2401.02361"
+date = "2024-01-04"
+venue = "arXiv"
+variants = ["mm-grounding-dino-tiny", "mm-grounding-dino-base"]
 
 [[variants]]
 id = "grounding-dino-tiny"

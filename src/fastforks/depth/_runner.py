@@ -43,10 +43,13 @@ class Runner(core.Runner):
     Class attributes (besides those of `fastforks._core.runner.Runner`):
         intrinsics: `"unused"`: the network ignores camera intrinsics (passing them is an error). `"optional"`: it
             uses them if given (else it estimates them or assumes a default). `"required"`: it needs them.
+        prompt_depth: `"required"`: the network takes a metric depth map besides the image.
+        prompt_sparse: The depth map may have missing values (0, negative, NaN or inf); else it must be dense.
     """
 
     intrinsics: ClassVar[Literal["unused", "optional", "required"]] = "unused"
     prompt_depth: ClassVar[Literal["unused", "required"]] = "unused"
+    prompt_sparse: ClassVar[bool] = False
 
     @classmethod
     def input_use(cls, params: Any) -> dict[str, Any]:  # noqa: ANN401, ARG003 - the family's `Params`

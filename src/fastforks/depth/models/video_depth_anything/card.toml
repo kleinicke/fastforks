@@ -52,7 +52,6 @@ title = "Video Depth Anything: Consistent Depth Estimation for Super-Long Videos
 url = "https://arxiv.org/abs/2501.12375"
 date = "2025-01-21"
 venue = "CVPR 2025"
-variants = ["video-depth-anything-s", "video-depth-anything-metric-s"]
 
 [[variants]]
 id = "video-depth-anything-s"

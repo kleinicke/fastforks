@@ -2,6 +2,48 @@
 
 ## Unreleased
 
+- BiSeNet face parsing (`bisenet-face-parsing`, segmentation; MIT code and weights): face-parsing.PyTorch's
+  19-class model from facexlib, BatchNorms folded, auxiliary heads skipped. 512x512: 2.41 ms portable vs 5.21 ms
+  original fp32, peak 51 / 72 MB vs 128 / 152 MB; labels agree with the original on 99.97 % of the pixels (24 faces).
+
+- GFPGAN v1.4 face restoration (`gfpgan-v1.4`, restoration; Apache-2.0 code and weights): one aligned 512 x 512
+  face; the checkpoint's stored noise instead of new random noise per call, cheaper skip convolutions. 18.0 ms
+  kernels, 21.2 ms portable (12.5 ms compile) vs 41.1 ms original fp32 (21.9 ms `.half()`), peak 473 / 530 MB vs
+  1084 / 1208 MB. On 24 real faces 57.7 dB PSNR (portable float32) / 53.7 dB (fp16) to the original with the same
+  noise; the original's own random noise gives 47.4 dB.
+
+- RealPLKSR super-resolution (`realplksr-nomoswebphoto-x4`, restoration; Apache-2.0 code, CC-BY-4.0 weights):
+  neosr's large-kernel CNN; GroupNorm from per-channel statistics (PyTorch's channels-last GroupNorm is slow).
+  512x512: 130 ms kernels, 182 ms portable vs 444 ms original fp32 (267 ms `.half()`), peak 179 / 216 MB vs
+  480 / 630 MB. DIV2K validation (50 images) PSNR 26.99 / SSIM 0.7481 in every tier, as the original. `load_file`
+  reads other RealPLKSR checkpoints (pixel-shuffle upsampler).
+
+- Real-ESRGAN Compact super-resolution (`realesr-general-x4v3`, restoration; BSD-3-Clause code and weights):
+  SRVGGNetCompact, `load_file` reads other Compact checkpoints (any scale, width and depth). 512x512: 24.0 ms kernels,
+  30.1 ms portable vs 77.6 ms original fp32 (42.1 ms fp16), peak 125 / 164 MB vs 313 / 366 MB. DIV2K validation
+  (every 2nd image: 50) PSNR 26.70 / SSIM 0.7701 in every tier, as the original.
+
+- Restoration `load_file`: RRDBNet (ESRGAN) checkpoints of any width, growth channels and depth (e.g. 32-block
+  community models) and x1 models (pixel-unshuffled by 4) load; before, only 64 / 32 channels at x4 / x2.
+
+- RMBG-2.0 (`rmbg-2.0`, matting; BiRefNet Swin-L with BRIA's weights, MIT code, CC BY-NC 4.0 weights, gated): a
+  variant of `birefnet`. 1080x1920: 121 ms kernels, 132 ms portable (TensorRT 88 ms) vs 384 ms original fp32 (149 ms
+  fp16), peak 1.7 / 1.9 GB vs 3.3 / 3.8 GB (fp16 1.7 / 2.0). DIS-VD (235 images) MAE 0.0205 in every tier, as the
+  original.
+
+- Shared Swin v1 (BiRefNet, BEN2, InSPyReNet): the window-attention bias mask is contiguous, so SDPA uses its fused
+  kernels instead of the math path. 1080x1920 kernels: BiRefNet 214 -> 121 ms, BiRefNet-lite 59 -> 48 ms, BEN2
+  173 -> 104 ms; portable InSPyReNet 159 -> 109 ms; peak memory unchanged.
+
+- RetinaFace face detection (`retinaface-resnet50`, `retinaface-mobilenet0.25`, pose task; MIT code and weights):
+  `model(image)` finds faces with a box and five landmarks (eyes, nose, mouth corners), facexlib's `detect_faces`
+  at the image's own size. 1080x1920: ResNet-50 11.7 ms kernels, 24.3 ms portable vs 81.0 ms original fp32
+  (79.4 ms autocast), peak 379 / 464 MB vs 545 / 648 MB; MobileNet-0.25 2.7 ms kernels, 3.4 ms portable vs 75.9 ms.
+
+- CodeFormer: the load option `fidelity` (alias `fidelity_weight`, 0..1) replaces the fixed 0.5.
+
+- Restoration `load_file`: HAT and DAT checkpoints are recognised by their keys, as SwinIR's.
+
 - MVSplat feed-forward Gaussian splatting (`mvsplat-re10k`, multiview; MIT code and weights): posed, calibrated views
   with a depth range to depth and `result.gaussians`, the scene scaled to near = 1 as DepthSplat. Window attention as
   one SDPA call, the cost volume in fp16 chunks of depth candidates. 8 views 336x518: 178 ms kernels, 186 ms portable
@@ -16,6 +58,49 @@
   non-commercial): metric depth from an image and a low-resolution depth prompt (`prompt=`). 756x1008: S 11.4 ms
   kernels, 18.4 ms portable vs 77.3 ms original fp16; L 69.3 / 125 vs 438 ms; peak 0.35x of the original. Accuracy:
   GPU goldens against upstream (no prompt-depth benchmark data here).
+
+- CodeFormer face restoration (`codeformer`, restoration; non-commercial, S-Lab License 1.0): an aligned 512x512
+  face crop in, `fidelity` w = 0.5. 48.6 ms portable fp16 (30.8 ms compile, 16.3 ms TensorRT) vs 85.7 ms original
+  fp32 (its `.half()` fails), peak 0.51 GB vs 0.96 GB. Output PSNR vs the original fp32: 50.5 dB (fp16 portable;
+  the original under fp16 autocast: 49.8 dB). Face detection / alignment is not included; no kernels runner.
+
+- SegFormer fine-tunes (`segformer-b2-clothes`, 18 clothes / body classes, licence not stated;
+  `segformer-b5-face-parsing`, 19 face classes, non-commercial; segmentation): the checkpoints' processor (fixed
+  512x512 resize, card `resize = ["fixed", 512, 512]`). 512x512: B2 3.6 ms kernels, 8.1 ms portable (2.7 ms
+  TensorRT) vs 18.9 ms original fp32, peak 0.13 GB vs 0.83 GB; B5 face 9.2 ms vs 38.8 ms. Label maps agree with the
+  original fp32 on 99.72 % (B2) / 99.97 % (B5) of the pixels (20 images).
+
+- Tests: no float16 model keeps a batch norm whose running statistics overflow float16 (up to 3e10 in some
+  checkpoints: inf, then zeros or NaN). Every golden ref with a float16 CUDA path is checked, portable and kernels
+  (`tests/test_fp16_batchnorm.py`).
+
+- Falconsai NSFW detector (`falconsai-nsfw-vit`, classification; Apache-2.0 weights): a Hugging Face ViT-B/16 on
+  timm's `vit_base_patch16_224`. 224x224: 1.6 ms kernels, 2.8 ms portable (1.1 ms TensorRT) vs 6.8 ms original fp32,
+  peak 0.20 GB vs 0.37 GB. Top-1 equal to the original fp32 on 200 of 200 images.
+
+- WD v3 anime taggers (`wd-vit-tagger-v3`, `wd-convnext-tagger-v3`, `wd-vit-large-tagger-v3`,
+  `wd-eva02-large-tagger-v3`, classification; Apache-2.0 weights): multi-label (`result.probs` is the sigmoid), white
+  square padding (card `[io] pad_square`), BGR swapped into the first convolution at load. 448x448: ViT 4.0 ms
+  portable vs 19.0 ms original fp32 (5.8 ms fp16); EVA-02 large 14.1 ms kernels vs 84.4 ms, peak 0.67 GB vs 1.3 GB.
+  Tags at the reference threshold (0.35) agree with the original fp32 at F1 0.998 to 0.999 (200 images).
+
+- DAT super-resolution (`dat-x4`, `dat-2-x4`, `dat-light-x4`, restoration; Apache-2.0 code and weights): attention
+  as one SDPA call (head size padded to 32). 512x512 DAT x4: 1421 ms kernels, 1565 ms portable (1063 ms compile) vs
+  5633 ms original fp32 (9564 ms `.half()`), peak 2.7 GB vs 4.3 GB; DAT-light: 268 ms vs 2246 ms, 1.5 GB vs 2.7 GB.
+  DIV2K validation (every 4th image: 25) PSNR 31.03 / 30.99 (DAT-2) / 30.48 (light) portable, as the original;
+  kernels 0.02 dB lower. The kernels runner routes only convolutions with >= 64 channels through `cudnn_hacc`
+  (narrower ones were slower).
+
+- HAT super-resolution (`hat-x4`, `hat-s-x4`, `real-hat-gan-x4`, restoration; Apache-2.0 code and weights): window
+  attention and overlapping cross-attention as one SDPA call each, biases gathered at load; in float16 the last
+  group's residual sum is scaled down (overflow). 512x512 HAT x4: 1445 ms kernels, 1596 ms portable (1185 ms compile)
+  vs 5152 ms original fp32 (3038 ms `.half()`), peak 2.6 GB vs 10.1 GB; HAT-S: 974 / 1072 ms vs 3872 ms, 2.0 GB vs
+  9.5 GB. DIV2K validation (every 4th image: 25) PSNR 31.01 / 30.90 (S, kernels; portable 30.91) / 27.13 (GAN) in
+  every tier, as the original. TensorRT fails at 512x512.
+
+- Swin super-resolution (SwinIR, HAT, DAT): `PatchEmbed` returns contiguous tokens (upstream: a transposed view
+  that made every residual add strided), and attention inputs with a strided head dimension are copied before SDPA
+  (else it fell back to the unfused math path).
 
 - InSPyReNet background removal (`inspyrenet`, `inspyrenet-fast`, matting; MIT code and weights): transparent-
   background's `Remover` (static resize, no LR/HR blending). 1080x1920 image, size 1024: 159 ms portable (86 ms
@@ -34,11 +119,11 @@
   (every 2nd image: 235) max F-beta 0.527 kernels / portable vs 0.528 original, MAE 0.149 vs 0.148.
 
 - SwinIR super-resolution (`swinir-m-x4`, `swinir-m-x2`, `swinir-m-x4-real`, `swinir-l-x4-real`, restoration;
-  Apache-2.0 code and weights): window attention as one SDPA call with the bias gathered at load; in float16 the
-  last group's residual sum is scaled down (overflow). 512x512 M x4: 1406 ms kernels, 2029 ms portable (795 ms
-  compile, 727 ms TensorRT) vs 3086 ms original fp32 (3497 ms `.half()`), peak 3.3 GB vs 3.2 GB. DIV2K validation
-  (every 2nd image: 50) PSNR M x4 30.89 kernels / 30.90 portable vs 30.90, M x4 real 26.71 vs 26.71, L x4 real
-  27.05 / 27.04 vs 27.04. M x2 has no eval: a whole x2 DIV2K image needs more than 16 GB in every tier.
+  Apache-2.0 code and weights): window attention as one SDPA call with the bias gathered at load; in float16 the last
+  group's residual sum is scaled down (overflow). 512x512 M x4: 580 ms kernels, 767 ms portable (795 ms compile, 727
+  ms TensorRT) vs 3086 ms original fp32 (3497 ms `.half()`), peak 1.4 GB vs 2.8 GB allocated. DIV2K validation (every
+  2nd image: 50) PSNR M x4 30.89 kernels / 30.90 portable vs 30.90, M x4 real 26.71 vs 26.71, L x4 real 27.05 / 27.04
+  vs 27.04. M x2 has no eval: a whole x2 DIV2K image needs more than 16 GB in every tier.
 
 - SPAN efficient super-resolution (`span-x4`, `span-x2`, restoration; Apache-2.0 code and weights): Conv3XC
   re-parameterised at load. 512x512 x4: 14.6 ms kernels, 24.2 ms portable (13.2 ms compile, 8.3 ms TensorRT) vs

@@ -40,8 +40,6 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.modules.utils import _pair
 
-from fastforks.shared.deform_conv import modulated_deform_conv  # fastforks: replaces torchvision.ops.deform_conv2d
-
 
 # fastforks: torchvision.models.resnet.conv1x1 / conv3x3 (bias-free), without the torchvision dependency
 def _conv1x1(in_planes: int, out_planes: int) -> nn.Conv2d:
@@ -345,8 +343,9 @@ class DeformableConv2d(nn.Module):
             offset = out
             mask = None
         offset = offset.clamp(-max_offset, max_offset)
-        # fastforks: the shared plain-PyTorch op (same offset layout and zero padding as torchvision's)
-        x = modulated_deform_conv(
+        # fastforks: `deform_op` (ALIKED's argument; the families pass fastforks.shared.deform_conv's plain-PyTorch op,
+        # same offset layout and zero padding as torchvision.ops.deform_conv2d)
+        x = self.deform_op(
             x, offset, mask, self.regular_conv.weight, self.regular_conv.bias, 1, self.padding
         )
         # fastforks: the op returns a channels-last view; the NCHW layout keeps the upsample + cat of the four
@@ -631,7 +630,7 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         "aliked-n16rot": [16, 32, 64, 128, 128, 3, 16],
         "aliked-n32": [16, 32, 64, 128, 128, 3, 32],
     }
-    def __init__(self, **conf):
+    def __init__(self, deform_op: Callable, **conf):
         super().__init__()
         # fastforks: the Extractor configuration (origin "center": coords_offset 0); the caller resizes
         self.conf = conf = SimpleNamespace(**{**self.default_conf, **conf})
@@ -676,7 +675,8 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
             _conv3x3(4, 1),
         )
         self.desc_head = SDDH(dim, K, M, gate=self.gate, conv2D=conv2D, mask=mask)
-        self.half = False  # fastforks: dense maps under float16 autocast (set by the loader)
+        self.fp16 = False  # fastforks: dense maps under float16 autocast (set by the loader)
+        self.describe = True  # fastforks: SDDH descriptors; False = keypoints and scores only (FlexGlue)
         self.dkd = DKD(
             radius=conf.nms_radius,
             top_k=-1 if conf.detection_threshold > 0 else conf.max_num_keypoints,
@@ -689,6 +689,9 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         )
 
         # fastforks: no download; the caller loads the weights (strict)
+        for m in self.modules():  # fastforks: the deformable conv op (a plain attribute, not a submodule)
+            if isinstance(m, DeformableConv2d):
+                m.deform_op = deform_op
 
     def get_resblock(self, c_in, c_out, conv_type, mask):
         return ResBlock(
@@ -739,21 +742,22 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         image = data["image"]  # fastforks: RGB only (the grayscale conversion removed)
         # fastforks: the dense maps in float16 when `half` (autocast: the convs in half, the norms and the sigmoid in
         # float32); detection, sub-pixel refinement and description stay float32
-        with torch.autocast(image.device.type, dtype=torch.float16, enabled=self.half):
+        with torch.autocast(image.device.type, dtype=torch.float16, enabled=self.fp16):
             feature_map, score_map = self.extract_dense_map(image)
         feature_map, score_map = feature_map.float(), score_map.float()
         keypoints, kptscores, scoredispersitys = self.dkd(
             score_map, image_size=data.get("image_size")
         )
-        descriptors, offsets = self.desc_head(feature_map, keypoints)
-
         _, _, h, w = image.shape
         wh = torch.tensor([w - 1, h - 1], device=image.device)
         # no padding required
         # we can set detection_threshold=-1 and conf.max_num_keypoints > 0
-        return {
+        out = {
             "keypoints": wh * (torch.stack(keypoints) + 1) / 2.0
             + 0.0,  # B x N x 2  # fastforks: coords_offset of origin "center"
-            "descriptors": torch.stack(descriptors),  # B x N x D
             "keypoint_scores": torch.stack(kptscores),  # B x N
         }
+        if self.describe:
+            descriptors, offsets = self.desc_head(feature_map, keypoints)
+            out["descriptors"] = torch.stack(descriptors)  # B x N x D
+        return out

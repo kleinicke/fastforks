@@ -13,6 +13,11 @@ limitations = [
 repo = "https://github.com/huggingface/transformers"
 commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/Atten4Vis/LW-DETR"
+framework = "PyTorch"
+reason = "fastforks follows the Hugging Face transformers port, which loads the AnnaZhang/lwdetr_*_60e_coco weights, instead of the authors' repository."
+
 [licence]
 code = "Apache-2.0"  # transformers; the original Atten4Vis/LW-DETR is Apache-2.0 too
 weights = "Apache-2.0"  # the AnnaZhang/lwdetr_*_60e_coco model cards: license apache-2.0

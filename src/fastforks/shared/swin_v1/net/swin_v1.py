@@ -136,7 +136,7 @@ class WindowAttention(nn.Module):
         q, k, v = qkv.unbind(0)  # [B_, H, N, Dh]
         relative_position_bias = self.relative_position_bias_table[self.relative_position_index.view(-1)].view(
             N, N, -1
-        ).permute(2, 0, 1).unsqueeze(0).to(dtype=q.dtype, device=q.device)
+        ).permute(2, 0, 1).unsqueeze(0).to(dtype=q.dtype, device=q.device).contiguous()  # fastforks: fused SDPA kernels need a stride-1 mask (else the math path)
         if mask is not None:
             mask = mask.to(dtype=q.dtype).unsqueeze(1)
 

@@ -79,7 +79,6 @@ title = "RF-DETR: Neural Architecture Search for Real-Time Detection Transformer
 url = "https://arxiv.org/abs/2511.09554"
 date = "2025-11-12"
 venue = "ICLR 2026"
-variants = ["rf-detr-n-coco", "rf-detr-s-coco", "rf-detr-m-coco", "rf-detr-l-coco", "rf-detr-seg-n-coco", "rf-detr-seg-s-coco", "rf-detr-seg-m-coco", "rf-detr-seg-l-coco", "rf-detr-seg-xl-coco", "rf-detr-seg-2xl-coco"]
 
 [[variants]]
 id = "rf-detr-n-coco"

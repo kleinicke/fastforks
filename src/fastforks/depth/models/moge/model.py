@@ -486,6 +486,36 @@ class _MoGeViT(FusedViT):
         return outs, F.layer_norm(c32, c32.shape[-1:], *self.ln32[-1], vit.norm.eps)
 
 
+def neck_inputs(neck: ConvStack, device: torch.device) -> tuple[torch.Tensor, list[tuple[torch.Tensor, torch.Tensor]]]:
+    """A neck's level-0 input conv without its uv channels, and the uv channels' convs per level.
+
+    Returns the fp16 `[C_out, C_feat]` weight on `device` and per level (weight `[C_out, 2]`, bias) in float32 on the
+    CPU, for `uv_tables`.
+    """
+    ib = neck.input_blocks
+    w0 = ib[0].get_parameter("weight").detach()[:, :, 0, 0]
+    uv = [
+        (m.get_parameter("weight").detach()[:, -2:, 0, 0].float(), m.get_parameter("bias").detach().float()) for m in ib
+    ]
+    return w0[:, :-2].half().contiguous().to(device), uv
+
+
+def uv_tables(
+    neck_uv: Sequence[tuple[torch.Tensor, torch.Tensor]], size: tuple[int, int], a: float, b: int, device: torch.device
+) -> list[torch.Tensor]:
+    """Per level: the neck input conv of the view-plane uv (+ bias) as an fp16 NHWC `[B, h, w, C]` table.
+
+    `size`: the token grid (rows, cols); `a`: the image aspect ratio (width / height); `b`: the batch size.
+    """
+    rows, cols = size
+    out = []
+    for i, (w, bias) in enumerate(neck_uv):
+        uv = view_plane_uv(cols << i, rows << i, a, "cpu")
+        t = torch.addmm(bias, uv.reshape(-1, 2), w.t()).half().view(1, rows << i, cols << i, -1)
+        out.append(t.expand(b, -1, -1, -1).contiguous().to(device))
+    return out
+
+
 _UV_SIZES = 2  # fixed: cache policy, view-plane tables: ~115 MB per input size (3600 tokens); video always hits
 
 
@@ -515,13 +545,7 @@ class Kernels(Runner):
             p.get_parameter("weight").detach()[:, :, 0, 0].half().contiguous().to(dev) for p in enc.output_projections
         ]
         self.proj_b = sum(p.get_parameter("bias").detach().float() for p in enc.output_projections).half().to(dev)  # ty: ignore[unresolved-attribute] - sum of tensors
-        ib = net.neck.input_blocks
-        w0 = ib[0].get_parameter("weight").detach()[:, :, 0, 0]
-        self.neck_wf = w0[:, :-2].half().contiguous().to(dev)
-        self.neck_uv = [
-            (m.get_parameter("weight").detach()[:, -2:, 0, 0].float(), m.get_parameter("bias").detach().float())
-            for m in ib
-        ]  # CPU tables
+        self.neck_wf, self.neck_uv = neck_inputs(net.neck, dev)
         self.neck = _FusedStack(net.neck, k, dev)
         self.heads = {n: _FusedStack(getattr(net, n), k, dev) for n in ("points_head", "mask_head", "normal_head")}
         self.scale_head = net.scale_head.float().to(dev)
@@ -539,12 +563,7 @@ class Kernels(Runner):
         if key not in self._uv:
             if len(self._uv) >= _UV_SIZES:
                 del self._uv[next(iter(self._uv))]
-            out = []
-            for i, (w, bias) in enumerate(self.neck_uv):
-                uv = view_plane_uv(cols << i, rows << i, a, "cpu")
-                t = torch.addmm(bias, uv.reshape(-1, 2), w.t()).half().view(1, rows << i, cols << i, -1)
-                out.append(t.expand(b, -1, -1, -1).contiguous().to(self.ctx.device))
-            self._uv[key] = out
+            self._uv[key] = uv_tables(self.neck_uv, (rows, cols), a, b, self.ctx.device)
         return self._uv[key]
 
     @torch.inference_mode()

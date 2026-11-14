@@ -19,6 +19,12 @@ licence = "CC-BY-NC-SA-4.0"
 commercial = "no"
 url = "https://www.eth3d.net/"
 
+[nyu]
+name = "NYU Depth V2"
+licence = "not stated"  # the official page (read 2026-11-13) states no licence or terms of use
+commercial = "unclear"
+url = "https://cs.nyu.edu/~fergus/datasets/nyu_depth_v2.html"
+
 [middlebury]
 name = "Middlebury stereo (2014)"
 licence = "not stated"  # "We grant permission to use and publish all images and disparity maps on this website."
@@ -282,6 +288,12 @@ licence = "not stated"  # BEN2 card: "our 22K proprietary segmentation dataset"
 commercial = "unclear"
 url = "https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md"
 
+[bria-internal]
+name = "BRIA proprietary background-removal data"
+licence = "not stated"  # RMBG-2.0 card: "over 15,000 high-quality, high-resolution, manually labeled (pixel-wise accuracy), fully licensed images"
+commercial = "unclear"
+url = "https://huggingface.co/briaai/RMBG-2.0/blob/2fd7b4b0f2393ddb39a267fb62df6c010928a6c6/README.md"
+
 [composition-1k]
 name = "Composition-1k (Adobe Deep Image Matting)"
 licence = "Adobe research licence on request"  # the DIM dataset is shared by Adobe on request for non-commercial research
@@ -359,6 +371,12 @@ licence = "CC-BY-NC-SA-4.0"  # the dataset (NVIDIA); the images: their Flickr au
 commercial = "no"
 url = "https://github.com/NVlabs/ffhq-dataset"
 
+[wider-face]
+name = "WIDER FACE (32k images, 394k labelled faces)"
+licence = "LicenseRef-research-only"  # "The WIDER FACE dataset is available for non-commercial research purposes only."
+commercial = "no"
+url = "http://shuoyang1213.me/WIDERFACE/"
+
 [manga109]
 name = "Manga109 (109 Japanese manga volumes)"
 licence = "academic research only"  # Manga109-s is the subset for commercial use
@@ -382,3 +400,39 @@ name = "Supervisely Person Dataset (human segmentation)"
 licence = "not checked"  # terms not read for the U²-Net port (2026-11-13)
 commercial = "unclear"
 url = "https://supervise.ly/explore/projects/supervisely-person-dataset-23304/datasets"
+
+[danbooru]
+name = "Danbooru (anime illustrations with community tags; WD taggers: image ids up to 7 220 105)"
+licence = "not stated"  # images are uploaded artworks under their artists' copyright; the site states no dataset terms
+commercial = "unclear"
+url = "https://danbooru.donmai.us/"
+
+[falconsai-nsfw]
+name = "Falconsai proprietary NSFW data (about 80 000 images, normal / nsfw)"
+licence = "not stated"  # Falconsai/nsfw_image_detection card: "a proprietary dataset"
+commercial = "unclear"
+url = "https://huggingface.co/Falconsai/nsfw_image_detection/blob/96cb0d0342c7afb80cab76ecc58b265fa44da256/README.md"
+
+[atr]
+name = "ATR human parsing dataset (18 clothes / body-part classes; SegFormer-B2 clothes: Hugging Face mirror mattmdjaga/human_parsing_dataset)"
+licence = "not stated"  # the README only asks for a citation "for acadamic and commercial research"; no licence
+commercial = "unclear"
+url = "https://github.com/lemondan/HumanParsing-Dataset"
+
+[celebamask-hq]
+name = "CelebAMask-HQ (30 000 CelebA-HQ faces, 19 face-part masks)"
+licence = "LicenseRef-noncommercial"  # "available for non-commercial research purposes only"
+commercial = "no"
+url = "https://github.com/switchablenorms/CelebAMask-HQ"
+
+[totalsegmentator-ct]
+name = "TotalSegmentator dataset v2 (1228 CT scans, 117 structures)"
+licence = "CC-BY-4.0"
+commercial = "yes"
+url = "https://zenodo.org/records/10047292"
+
+[nomos-v2]
+name = "Nomos-v2 (neosr's 6000-image multipurpose super-resolution set)"
+licence = "not stated"  # neosr's readme lists it with a Google Drive link and no terms; sources of the images not named
+commercial = "unclear"
+url = "https://github.com/neosr-project/neosr/blob/31c7022620c682cf0961c8634d60787179145c5b/readme.md#-datasets"

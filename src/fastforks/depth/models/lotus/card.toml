@@ -2,6 +2,7 @@ schema = 2
 name = "Lotus normals"
 summary = "Lotus (He et al., ICLR 2025): surface normals by a Stable Diffusion 2 UNet fine-tuned to predict the normals latent in one step; Lotus-G (generative: also denoises a noise latent) and Lotus-D (deterministic), v1.1 (aligned normals)."
 tier = "experimental"
+uses = ["sd2"]  # fastforks.shared modules this family imports
 outputs = ["normals"]
 limitations = [
   "Normals only: no depth.",
@@ -44,7 +45,6 @@ title = "Lotus: Diffusion-based Visual Foundation Model for High-quality Dense P
 url = "https://arxiv.org/abs/2409.18124"
 date = "2024-09-26"
 venue = "ICLR 2025"
-variants = ["lotus-normal-g-v1-1", "lotus-normal-d-v1-1"]
 
 [[variants]]
 id = "lotus-normal-g-v1-1"  # upstream jingheya/lotus-normal-g-v1-1 (generation mode)

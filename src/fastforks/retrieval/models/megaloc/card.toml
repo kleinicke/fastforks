@@ -35,7 +35,7 @@ kernels = ["fastbb", "dpt_fused"]
 title = "MegaLoc: One Retrieval to Place Them All"
 url = "https://arxiv.org/abs/2502.17237"
 date = "2025-02-24"
-venue = "CVPR 2025 Workshops"
+venue = "CVPRW 2025"
 
 [[variants]]
 id = "megaloc"

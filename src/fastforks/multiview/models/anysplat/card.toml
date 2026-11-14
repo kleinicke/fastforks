@@ -44,7 +44,7 @@ kernels = ["fastbb", "cudnn_hacc"]
 title = "AnySplat: Feed-forward 3D Gaussian Splatting from Unconstrained Views"
 url = "https://arxiv.org/abs/2505.23716"
 date = "2025-05-29"
-venue = "SIGGRAPH Asia 2025"
+venue = "arXiv"
 
 [[variants]]
 id = "anysplat"

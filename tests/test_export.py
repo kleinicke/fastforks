@@ -46,6 +46,7 @@ _ONNX_KNOWN_MISMATCH = {  # open: the export runs, ONNX Runtime disagrees (or re
 _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export captures it: documented
     "aliked-lightglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
     "xfeat@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+    "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
 }
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
     "rf-detr-keypoint-preview@1": "pinned upstream disables Dynamo for positional interpolation to preserve"
@@ -54,6 +55,10 @@ _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.
     " non-strict torch.export still captures this fixed-shape inference",
     "zoedepth-nk@1": "the NK model routes each image to the NYU or KITTI head by the argmax of its domain logits"
     " (.item(); the export runs both heads and selects)",
+}
+
+_SHORTER_EAGER = {  # eager drops tokens module() keeps masked (static shapes): same math, another summation order
+    "lingbot-depth@1": "the model call drops the depth patches without depth; module() masks them",
 }
 
 
@@ -71,6 +76,8 @@ _CPU_RAM_HEAVY = {  # compile + torch.export on the CPU need more RAM than the s
     " with FASTFORKS_HEAVY_CPU_TESTS=1",
     "stablenormal-turbo@1": "the Stable Diffusion UNet + VAE of Marigold depth plus a ControlNet encoder; run it alone"
     " in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
+    "depthfm-v1@1": "the Stable Diffusion UNet + VAE of Marigold depth; run it alone in a larger cgroup with"
+    " FASTFORKS_HEAVY_CPU_TESTS=1",
     "depth-pro@1": "CPU dynamo explain + torch.export of the two DINOv2-L encoders at 1536 px is OOM-killed at 20 GB"
     " RAM (after a 7.5 GB load); run it alone in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
     "sam3@1": "CPU dynamo explain + torch.export peak at 13.2 GB RSS, above the suite's 13 GB cap; run it alone in a"
@@ -82,6 +89,7 @@ _ONNX_SKIP_DEPTH = {  # exports, but too big for the CPU suite
     "marigold-normals-lcm-v0-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
     "lotus-normal-d-v1-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
     "stablenormal-turbo@1": "Stable Diffusion UNet + ControlNet + VAE (> 2 GB graph); checked on the GPU",
+    "depthfm-v1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
 }
 _HAS_ONNX = bool(importlib.util.find_spec("onnxscript") and importlib.util.find_spec("onnxruntime"))
 ONNX_TESTS = "FASTFORKS_ONNX_TESTS"  # 1: the ONNX export + ONNX Runtime checks (release only: ~27 min of the CPU suite)
@@ -138,11 +146,17 @@ def _main_map(result: Any) -> torch.Tensor:
     return next(getattr(result, k) for k in spec(TASK[result.model]).standard if getattr(result, k) is not None)
 
 
+def _skip_without_module(ref: str) -> None:
+    if TASK[ref] == "volume":
+        pytest.skip("volume: the sliding-window pipeline is no single module (`model.networks()` are the U-Nets)")
+
+
 @pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_module_in_eval_mode(ref):
     """`module()` is in eval mode, submodules included: export would trace training-mode branches."""
+    _skip_without_module(ref)
     module = _load(ref).module()
     training = [name or type(module).__name__ for name, m in module.named_modules() if m.training]
     assert not training, f"{ref}: module() in training mode: {training[:5]}"
@@ -177,7 +191,8 @@ def _check_export_names(ref: str, model: Any, module: torch.nn.Module, out: Any)
 @pytest.mark.model
 @pytest.mark.filterwarnings("ignore:The .grad attribute of a Tensor that is not a leaf")  # dynamo reads .grad
 @pytest.mark.parametrize("ref", SMALLEST)
-def test_module_compile_export(ref):  # noqa: C901 - one branch per task
+def test_module_compile_export(ref):  # noqa: C901, PLR0912 - one branch per task
+    _skip_without_module(ref)
     if ref in _NOT_TRACEABLE:
         pytest.xfail(_NOT_TRACEABLE[ref])
     if ref in _CPU_RAM_HEAVY and not os.environ.get("FASTFORKS_HEAVY_CPU_TESTS"):
@@ -193,7 +208,11 @@ def test_module_compile_export(ref):  # noqa: C901 - one branch per task
         assert want.shape == (1, *inputs[0].shape[2:], *channels)
         kw = {k: v[0, 0] for k, v in zip(prompt_kwargs(model), inputs[1:], strict=False)}
         n = 2 if TASK[ref] == "stereo" else 1
-        assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs[:n]), **kw)))
+        got = _main_map(model(*(x[0] for x in inputs[:n]), **kw))
+        if ref in _SHORTER_EAGER:
+            torch.testing.assert_close(want[0], got, rtol=1e-4, atol=1e-4)
+        else:
+            assert torch.equal(want[0], got)
     elif TASK[ref] == "flow":  # two [B, 3, H, W] in [0, 1] -> [B, 2, H, W], as the model call
         assert want.shape == (1, 2, *inputs[0].shape[2:])
         assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs))))
@@ -548,6 +567,7 @@ def test_model_compile_equals_eager(ref):
     """`model.compile()` keeps the model call: same results as eager within tolerance, the runner runs compiled."""
     from fastforks._core.bench import BenchSize, bench_inputs  # noqa: PLC0415
 
+    _skip_without_module(ref)
     model = _load(ref)
     args, kwargs = bench_inputs(model, BenchSize(*_shape(model)[2:], 2))
     want = model(*args, **kwargs)

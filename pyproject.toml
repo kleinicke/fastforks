@@ -56,6 +56,7 @@ tensorrt = ["tensorrt>=10.13"]
 # build their network with them (we extend timm / torchvision / transformers, we do not re-implement them).
 timm = ["timm>=1.0.30"]  # 1.0.30: the tested version
 torchvision = ["torchvision>=0.23"]
+nifti = ["nibabel>=5"]  # fastforks.volume.read_nifti / write_nifti
 transformers = ["transformers>=5.19,<6", "scipy>=1.10"]  # scipy: transformers builds Mask2Former / OneFormer with it
 # `matching.sfm.reconstruct` / `fastforks sfm --reconstruct`: COLMAP's mapper (3.12: also GLOMAP's global mapper).
 sfm = ["pycolmap>=3.11"]
@@ -214,6 +215,7 @@ runtime-evaluated-base-classes = []
 # VGGT (and AnySplat's copy): upstream sets XFORMERS_AVAILABLE = False, so its xformers-only branches name undefined
 # functions (dead code).
 "src/fastforks/multiview/models/{vggt,anysplat}/net/layers/{attention,block}.py" = ["F821"]
+"src/fastforks/flow/models/megaflow/net/layers/{attention,block}.py" = ["F821"]
 "src/fastforks/multiview/models/pi3/net/layers/{attention,block}.py" = ["F821"]  # same, Pi3 (and its DINOv2)
 "src/fastforks/multiview/models/pi3/net/dinov2/layers/{attention,block}.py" = ["F821"]
 "src/fastforks/multiview/models/mvsplat/net/costvolume/ldm_unet/unet.py" = ["PLW0127"]  # upstream self-assignment
@@ -232,6 +234,15 @@ runtime-evaluated-base-classes = []
 "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py" = ["ISC002", "B023"]
 # SwinIR: upstream implicitly concatenated `extra_repr` string over two lines and `math.log(scale, 2)`.
 "src/fastforks/restoration/models/swinir/net/network_swinir.py" = ["ISC002", "FURB163"]
+# HAT / DAT: upstream `math.log(scale, 2)`; HAT's `attn_mask = attn_mask` (`HAB.forward`).
+"src/fastforks/restoration/models/hat/net/hat_arch.py" = ["FURB163", "PLW0127"]
+"src/fastforks/restoration/models/dat/net/dat_arch.py" = ["FURB163"]
+# GFPGAN: upstream `math.log(out_size, 2)` and `random.random()` (StyleGAN2 style mixing, training only).
+"src/fastforks/restoration/models/gfpgan/net/*.py" = ["FURB163", "S311"]
+# SRVGGNetCompact: upstream `from torch import nn as nn` and `range(0, num_conv)`.
+"src/fastforks/restoration/models/compact/net/srvgg_arch.py" = ["PLC0414", "PIE808"]
+# CodeFormer: upstream f-string logging calls (the VQGAN checkpoint loader).
+"src/fastforks/restoration/models/codeformer/net/vqgan_arch.py" = ["G004", "F541"]
 "src/fastforks/shared/*/net/**" = [
   "PGH004",  # upstream blanket `# noqa` (SAM)
   "PLW2901", "FLY", "TD", "FIX", "PGH003", "RUF013", "RUF012", "RUF100", "B008", "RUF046",  # more upstream (DINOv2 / DPT / EdgeNeXt) style

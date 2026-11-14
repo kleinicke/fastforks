@@ -48,7 +48,7 @@ reason = "not implemented yet"
 title = "LoMa: Local Feature Matching Revisited"
 url = "https://arxiv.org/abs/2604.04931"
 date = "2026-04-06"
-venue = "arXiv"
+venue = "ECCV 2026"
 
 [[variants]]
 id = "loma-b"  # DaD detector + DeDoDe-G descriptor + the 256-d, 4-head, 9-layer matcher (upstream README default `loma_B`)

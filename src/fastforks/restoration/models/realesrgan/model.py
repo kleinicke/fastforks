@@ -33,8 +33,10 @@ if TYPE_CHECKING:
 class Params:
     """Card `[params]` + variant `params`."""
 
-    scale: int  # 4 or 2 (x2: the input is pixel-unshuffled)
+    scale: int  # 4, 2 or 1 (x2 / x1: the input is pixel-unshuffled by 2 / 4)
     num_block: int  # RRDB blocks: 23, 6 in the anime model
+    num_feat: int  # trunk channels (64 in the release models)
+    num_grow: int  # dense-block growth channels (32 in the release models)
 
 
 class Portable(Runner):
@@ -51,16 +53,17 @@ class Portable(Runner):
         """Build the network."""
         super().__init__(ctx)
         p = ctx.params
-        self.net = RRDBNet(num_in_ch=3, num_out_ch=3, scale=p.scale, num_feat=64, num_block=p.num_block, num_grow_ch=32)
+        self.net = RRDBNet(3, 3, scale=p.scale, num_feat=p.num_feat, num_block=p.num_block, num_grow_ch=p.num_grow)
         load_strict(self.net, ctx.state_dict(key="params_ema"), f"{ctx.variant.ref} checkpoint")
         self.fmt = torch.channels_last if torch.device(ctx.device).type == "cuda" else torch.contiguous_format
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype)).to(memory_format=self.fmt)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
-        """x2: reflect padding at the bottom and right to even sizes (`RealESRGANer.pre_process`); x4: none."""
+        """x2 / x1: reflect padding at the bottom and right to multiples of 2 / 4 (`RealESRGANer.pre_process`)."""
         h, w = x.shape[-2:]
-        if self.ctx.params.scale == 2 and (h % 2 or w % 2):  # noqa: PLR2004 - x2 pixel-unshuffles
-            x = F.pad(x, (0, w % 2, 0, h % 2), mode="reflect")
+        mod = {2: 2, 1: 4}.get(self.ctx.params.scale)
+        if mod and (h % mod or w % mod):
+            x = F.pad(x, (0, -w % mod, 0, -h % mod), mode="reflect")
         return x, Crop(0, 0, h, w)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -102,7 +105,7 @@ RUNNERS = {"portable": Portable, "kernels": Kernels}
 # ESRGAN's original `model.N` layout (old-arch ESRGAN files, e.g. 4x-UltraSharp) -> BasicSR's RRDBNet names
 _OLD = {"model.0.": "conv_first.", "model.3.": "conv_up1.", "model.6.": "conv_up2.", "model.8.": "conv_hr."}
 _OLD_RDB = re.compile(r"model\.1\.sub\.(\d+)\.RDB(\d)\.conv(\d)\.0\.")
-_SCALES = {3: 4, 12: 2}  # conv_first input channels -> scale (x2: pixel-unshuffled input)
+_SCALES = {3: 4, 12: 2, 48: 1}  # conv_first input channels -> scale (x2, x1: pixel-unshuffled input)
 _VARIANTS = {4: "realesrgan-x4plus", 2: "realesrgan-x2plus"}
 
 
@@ -132,19 +135,16 @@ def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any]
     last = sd.get("conv_last.weight")
     problems = [
         f"{what} {got} (fastforks: {want})"
-        for what, got, want in (
-            ("features", first.shape[0], 64),
-            ("growth channels", grow.shape[0], 32),
-            ("output channels", None if last is None else last.shape[0], 3),
-        )
+        for what, got, want in (("output channels", None if last is None else last.shape[0], 3),)
         if got != want
     ]
     if first.shape[1] not in _SCALES:
-        problems.append(f"input channels {first.shape[1]} (fastforks: 3 for x4, 12 for x2)")
+        problems.append(f"input channels {first.shape[1]} (fastforks: 3 for x4, 12 for x2, 48 for x1)")
     if "conv_up2.weight" not in sd or any(k.startswith("model.") for k in sd):
-        problems.append("not two x2 upsampling stages (fastforks: x4, or x2 with a pixel-unshuffled input)")
+        problems.append("not two x2 upsampling stages (fastforks: x4, or x2 / x1 with a pixel-unshuffled input)")
     if problems:
         msg = f"RRDBNet (ESRGAN) checkpoint with {', '.join(problems)}: not supported"
         raise WeightsError(msg)
     scale = _SCALES[first.shape[1]]
-    return _VARIANTS[scale], {"scale": scale, "num_block": blocks}, dict(sd)
+    params = {"scale": scale, "num_block": blocks, "num_feat": first.shape[0], "num_grow": grow.shape[0]}
+    return _VARIANTS.get(scale, "realesrgan-x4plus"), params, dict(sd)

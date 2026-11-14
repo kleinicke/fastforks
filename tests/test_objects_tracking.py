@@ -53,6 +53,19 @@ def test_kalman_follows_constant_velocity() -> None:
     np.testing.assert_allclose(box_kalman.to_xyxy(box_kalman.to_xyah(xyxy)), xyxy)
 
 
+def test_kalman_torch_matches_numpy() -> None:  # SAMURAI runs the filter on torch tensors (its device)
+    r = np.random.default_rng(0)
+    meas = np.concatenate([r.uniform(0, 500, (5, 2)), r.uniform(0.3, 3, (5, 1)), r.uniform(10, 200, (5, 1))], 1)
+    ref = box_kalman.initiate(meas)
+    got = box_kalman.initiate(torch.from_numpy(meas))
+    for k in range(10):
+        z = meas + k + r.normal(0, 2, meas.shape)
+        ref = box_kalman.update(*box_kalman.predict(*ref), z)
+        got = box_kalman.update(*box_kalman.predict(*got), torch.from_numpy(z))
+    for a, b in zip(ref, got, strict=True):
+        np.testing.assert_allclose(b.numpy(), a, rtol=1e-10, atol=1e-10)
+
+
 def _scene(seed: int, frames: int = 120, n: int = 12) -> list[np.ndarray]:
     """Random walks with misses, noise, low scores and false positives (as the reference parity run)."""
     r = np.random.default_rng(seed)

@@ -43,7 +43,6 @@ title = "MEMFOF: High-Resolution Training for Memory-Efficient Multi-Frame Optic
 url = "https://arxiv.org/abs/2506.23151"
 date = "2025-06-29"
 venue = "ICCV 2025"
-variants = ["memfof", "memfof-kitti", "memfof-sintel", "memfof-spring"]
 
 [[variants]]
 id = "memfof"  # upstream MEMFOF-Tartan-T-TSKH (the general checkpoint of its demo)

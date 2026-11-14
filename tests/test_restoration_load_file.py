@@ -13,11 +13,14 @@ from safetensors.torch import save_file
 from fastforks import restoration
 from fastforks._core.bench import synthetic_image
 from fastforks._core.checkpoint import WeightsError
+from fastforks.restoration.models.dat.net import DAT
+from fastforks.restoration.models.hat.net import HAT
 from fastforks.restoration.models.realesrgan.net import RRDBNet
 from fastforks.restoration.models.span.net import SPAN
 from fastforks.restoration.models.swinir.net import SwinIR
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 _NEW = {"conv_first.": "model.0.", "conv_up1.": "model.3.", "conv_up2.": "model.6.", "conv_hr.": "model.8."}
@@ -78,15 +81,58 @@ def test_swinir_small(tmp_path: Path) -> None:
     _check(m, net, 2)
 
 
+def _hat() -> torch.nn.Module:
+    return HAT(
+        upscale=2, in_chans=3, img_size=16, window_size=8, compress_ratio=3, squeeze_factor=6, conv_scale=0.01,
+        overlap_ratio=0.5, img_range=1.0, depths=[2], embed_dim=24, num_heads=[2], mlp_ratio=2,
+        upsampler="pixelshuffle", resi_connection="1conv",
+    )  # fmt: skip
+
+
+def _dat() -> torch.nn.Module:
+    return DAT(
+        upscale=3, in_chans=3, img_size=16, img_range=1.0, split_size=[2, 4], depth=[3], embed_dim=32,
+        num_heads=[2], expansion_factor=2, resi_connection="3conv", upsampler="pixelshuffledirect",
+    )  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    ("build", "family", "variant", "scale"), [(_hat, "hat", "hat-s-x4", 2), (_dat, "dat", "dat-light-x4", 3)]
+)
+def test_swin_families(
+    tmp_path: Path, build: Callable[[], torch.nn.Module], family: str, variant: str, scale: int
+) -> None:
+    """HAT and DAT files (their keys also match SwinIR's block pattern) load as their own family, any size."""
+    torch.manual_seed(0)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", "torch.meshgrid", UserWarning)
+        net = build().eval()
+    torch.save({"params_ema": net.state_dict()}, tmp_path / "net.pth")
+    assert restoration.checkpoint_family(tmp_path / "net.pth") == family
+    m = restoration.load_file(tmp_path / "net.pth", mode="portable", device="cpu", dtype="float32")
+    assert m.variant.id == variant
+    _check(m, net, scale)
+
+
+@pytest.mark.parametrize("scale", [4, 1])
+def test_rrdb_any_width_and_depth(tmp_path: Path, scale: int) -> None:
+    torch.manual_seed(0)
+    net = RRDBNet(num_in_ch=3, num_out_ch=3, scale=scale, num_feat=16, num_block=32, num_grow_ch=8).eval()
+    torch.save(net.state_dict(), tmp_path / "narrow.pth")
+    m = restoration.load_file(tmp_path / "narrow.pth", mode="portable", device="cpu", dtype="float32")
+    assert m.variant.params["num_block"] == 32
+    _check(m, net, scale)
+    assert m(synthetic_image(17, 23, torch.device("cpu"))).image.shape == (1, 3, 17 * scale, 23 * scale)
+
+
 def test_unsupported(tmp_path: Path) -> None:
-    srvgg = {f"body.{i}.weight": torch.zeros(64, 3 if i == 0 else 64, 3, 3) for i in range(0, 6, 2)}
-    torch.save(srvgg, tmp_path / "compact.pth")
-    assert restoration.checkpoint_family(tmp_path / "compact.pth") is None
-    with pytest.raises(WeightsError, match=r"compact\.pth: unsupported architecture"):
-        restoration.load_file(tmp_path / "compact.pth")
-    narrow = RRDBNet(num_in_ch=3, num_out_ch=3, scale=4, num_feat=32, num_block=1, num_grow_ch=16)
-    torch.save(narrow.state_dict(), tmp_path / "narrow.pth")
-    with pytest.raises(WeightsError, match=r"features 32 \(fastforks: 64\).*not supported"):
-        restoration.load_file(tmp_path / "narrow.pth")
+    torch.save({"head.weight": torch.zeros(64, 3, 3, 3)}, tmp_path / "other.pth")
+    assert restoration.checkpoint_family(tmp_path / "other.pth") is None
+    with pytest.raises(WeightsError, match=r"other\.pth: unsupported architecture"):
+        restoration.load_file(tmp_path / "other.pth")
+    gray = RRDBNet(num_in_ch=3, num_out_ch=1, scale=4, num_feat=8, num_block=1, num_grow_ch=4)
+    torch.save(gray.state_dict(), tmp_path / "gray.pth")
+    with pytest.raises(WeightsError, match=r"output channels 1 \(fastforks: 3\).*not supported"):
+        restoration.load_file(tmp_path / "gray.pth")
     with pytest.raises(WeightsError, match="no such file"):
         restoration.load_file(tmp_path / "missing.pth")

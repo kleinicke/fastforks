@@ -22,9 +22,10 @@ import torch
 from torch import nn
 
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared.aliked import ALIKED
+from fastforks.shared.deform_conv import modulated_deform_conv
 from fastforks.shared.lightglue import LightGlue, match_many, resize_long
 
-from .net.aliked import ALIKED
 from .net.disk import DISK
 
 if TYPE_CHECKING:
@@ -54,6 +55,7 @@ class Matcher(nn.Module):
         p = params
         if p.extractor == "aliked":
             self.extractor = ALIKED(
+                modulated_deform_conv,
                 model_name="aliked-n16",
                 max_num_keypoints=p.max_keypoints,
                 detection_threshold=p.detection_threshold,
@@ -110,7 +112,7 @@ def load_matcher(ctx: Context) -> Matcher:
     net.extractor.load_state_dict(sd, strict=True)
     net = net.eval().requires_grad_(requires_grad=False).to(ctx.device)
     if ctx.torch_dtype == torch.float16:
-        net.extractor.half = True
+        net.extractor.fp16 = True
         if ctx.params.extractor == "aliked":  # channels-last convs: 15.5 -> 14.5 ms (DISK: no gain)
             net.extractor.to(memory_format=torch.channels_last)
     return net

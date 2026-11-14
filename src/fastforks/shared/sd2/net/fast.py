@@ -28,6 +28,8 @@ from .unet import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from .vae import AttentionBlock, AutoencoderKL
 
 
@@ -52,9 +54,12 @@ class Fast:
     """The fp16 channels-last network plus the per-timestep and per-prompt constants."""
 
     def __init__(
-        self, unet: UNet2DConditionModel, text: torch.Tensor, timesteps: list[int], labels: torch.Tensor | None = None
+        self, unet: UNet2DConditionModel, text: torch.Tensor, timesteps: Sequence[float], labels: torch.Tensor | None = None
     ) -> None:
-        """`labels`: the `[1, class_embed]` class labels of a UNet with a class embedding (constant)."""
+        """`timesteps`: the UNet's timesteps (diffusion steps, or flow-matching times in [0, 1]).
+
+        `labels`: the `[1, class_embed]` class labels of a UNet with a class embedding (constant).
+        """
         self.unet = unet
         self.kv: dict[BasicTransformerBlock, tuple[torch.Tensor, torch.Tensor]] = {}
         for m in unet.modules():
@@ -64,7 +69,7 @@ class Fast:
                 v = a.to_v(text).view(1, text.shape[1], a.heads, -1).transpose(1, 2)
                 self.kv[m] = (k, v)
         resnets = [m for m in unet.modules() if isinstance(m, ResnetBlock2D) and m.time_emb_proj is not None]
-        self.temb: dict[int, dict[ResnetBlock2D, torch.Tensor]] = {}
+        self.temb: dict[float, dict[ResnetBlock2D, torch.Tensor]] = {}
         for t in timesteps:
             tf = timestep_features(torch.tensor([t], device=text.device), unet.conv_in.out_channels).to(text.dtype)
             e = unet.time_embedding(tf)
@@ -138,7 +143,7 @@ class Fast:
         x = self.transformer(blk.attentions[0], x)
         return self.resnet(blk.resnets[1], x, temb[blk.resnets[1]])
 
-    def encode(self, x: torch.Tensor, t: int) -> tuple[torch.Tensor, list[torch.Tensor]]:
+    def encode(self, x: torch.Tensor, t: float) -> tuple[torch.Tensor, list[torch.Tensor]]:
         """`UNet2DConditionModel.encode` (mid output, skips) for one of the load-time timesteps."""
         u, temb = self.unet, self.temb[t]
         x = self.conv(x.contiguous(memory_format=torch.channels_last), u.conv_in)
@@ -149,7 +154,7 @@ class Fast:
         return self.mid(u.mid_block, x, temb), skips
 
     def unet_forward(
-        self, x: torch.Tensor, t: int, residuals: tuple[list[torch.Tensor], torch.Tensor] | None = None
+        self, x: torch.Tensor, t: float, residuals: tuple[list[torch.Tensor], torch.Tensor] | None = None
     ) -> torch.Tensor:
         """`UNet2DConditionModel.forward(x, t, empty prompt, residuals=...)` for one of the load-time timesteps."""
         u, temb = self.unet, self.temb[t]
@@ -165,7 +170,7 @@ class Fast:
             x = self.up(blk, x, mine, temb, size)
         return self.conv(group_norm(x, u.conv_norm_out, silu=True), u.conv_out)
 
-    def control(self, x: torch.Tensor, t: int) -> tuple[list[torch.Tensor], torch.Tensor]:
+    def control(self, x: torch.Tensor, t: float) -> tuple[list[torch.Tensor], torch.Tensor]:
         """`ControlNetEncoder.forward` (this `Fast` holds the ControlNet as `unet`)."""
         x, skips = self.encode(x, t)
         return skips, x

@@ -7,6 +7,8 @@ import numbers
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+import torch
+
 from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
@@ -18,8 +20,6 @@ from fastforks._core.model import Backend
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
-
-    import torch
 
     from fastforks.detection._runner import Runner
 
@@ -81,7 +81,7 @@ class DetectionModel(core.Model):
         """
         threshold = self._threshold(score_threshold)
         names = self._queries(text)
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self.device, keep_uint8=self._runner.uint8_input)
         self._check_size(x)
         changed = score_threshold is not None
         options = core.ReadOnlyDict(self.options, score_threshold=threshold) if changed else self.options
@@ -142,8 +142,8 @@ class DetectionModel(core.Model):
 
 
 def bench_inputs(model: DetectionModel, size: BenchSize) -> BenchInputs:
-    """`fastforks bench` call: one synthetic image `[3, H, W]` (resized by the model as usual; one result)."""
-    return (synthetic_image(size.height, size.width, model.device)[0],), {}
+    """`fastforks bench` call: one synthetic uint8 image `[3, H, W]` (a photo's type; resized by the model as usual)."""
+    return ((synthetic_image(size.height, size.width, model.device)[0] * 255).round().to(torch.uint8),), {}
 
 
 list_models, model_card, load = task_api(

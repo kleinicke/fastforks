@@ -47,6 +47,7 @@ from fastforks import (
     segmentation,
     stereo,
     tracking,
+    volume,
 )
 from fastforks._core import kernels, registry
 from fastforks._core.errors import BackendUnavailableError, WeightsDownloadError, WeightsError
@@ -55,7 +56,7 @@ from fastforks._core.preprocess import resize_crop, scale
 from fastforks._core.tasks import spec
 from fastforks.kernels import cudnn_hacc
 from fastforks.promptable_segmentation._api import _normalised
-from synth import clip, clip_prompts, concepts, image, pair, prompt_depth, prompts, scene, size
+from synth import clip, clip_prompts, concepts, image, pair, prompt_kwargs, prompts, scene, size
 
 FAMILIES = goldens.load_all(registry.TASKS)
 GOLDEN = {ref: e for fam in FAMILIES.values() for ref, e in fam["refs"].items()}
@@ -83,6 +84,7 @@ API: dict[str, Any] = {
     "calibration": calibration,
     "restoration": restoration,
     "tracking": tracking,
+    "volume": volume,
 }
 SCENE_INPUTS = ("intrinsics", "cam_to_world", "depth_range")  # multiview: passed only where the model requires them
 HEAVY_CPU = "FASTFORKS_HEAVY_CPU_TESTS"  # 1: every CPU case, also those left out of the release suite for time / RAM
@@ -117,6 +119,7 @@ CPU_ALSO = {
     "mask-rcnn-r50-fpn-3x-coco@1": "mask head (smallest: Faster R-CNN, boxes only)",
     "mocha-v2-sceneflow@1": "mccv = false (smallest: true)",
     "raft-large@1": "residual blocks, convex upsampling, two GRUs (smallest: bottleneck, bilinear, one)",
+    "retinaface-resnet50@1": "ResNet-50 backbone, ReLU FPN / SSH (smallest: MobileNet-0.25, LeakyReLU)",
     "rtmo-l@1": "CSPRep blocks without the 1 x 1 output conv (smallest: with it)",
     "rtmpose-t-face6@1": "1 : 1 crop, 106 keypoints (smallest: 3 : 4 crop, 17)",
     "rtmw-m@1": "RTMW: PAFPN neck and two-scale head (smallest: backbone and SimCC head only)",
@@ -260,13 +263,16 @@ def _plans_at_once() -> Any:
 def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901, PLR0912, PLR0915 - one branch per task
     """One call of `m` on the golden's input: its output maps and backend."""
     task = TASK[ref]
+    if task == "volume":  # the golden's CT crop and spacing
+        assert want is not None, "volume goldens store their volume and spacing"
+        r = m(want["input"], tuple(want["spacing"].tolist()))
+        return {"labels": r.labels.float().cpu()}, r.backend
     img = want["input"].round().astype(np.uint8) if want and "input" in want else image()
     if task == "stereo":
         r = m(*pair(*size(m.variant.io.min_size)))
         maps = {"disparity": r.disparity, "confidence": r.confidence, **r.extras}
     elif task == "depth":
-        given = {"prompt_depth": prompt_depth()} if m._runner.prompt_depth == "required" else {}
-        r = m(img, **given)
+        r = m(img, **prompt_kwargs(m))
         maps = {**{k: getattr(r, k) for k in spec("depth").standard}, **r.extras}
     elif task == "multiview":
         r, maps = _scene(m)
@@ -291,6 +297,11 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
                 f"{prefix}pred_masks": out["pred_masks"][q]
             }
         return {k: v.float().cpu() for k, v in maps.items()}, m.backend
+    elif task == "promptable_segmentation" and "reference" in m.prompts:  # in-context: the golden's reference + mask
+        assert want is not None, "in-context goldens store their reference image and mask"
+        ref_img = want["reference"].round().astype(np.uint8)
+        r = m(img, reference_images=ref_img, reference_masks=want["reference_mask"] > 0.5)
+        maps = {"similarity": r.similarity, "masks": r.masks}
     elif task == "promptable_segmentation":  # one embedding, the fixed prompts (key prefix per prompt)
         emb = m.get_image_embeddings(img)
         assert isinstance(emb, promptable_segmentation.ImageEmbeddings)
@@ -344,9 +355,18 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     return {k: v.float().cpu() for k, v in maps.items() if v is not None}, r.backend
 
 
-# stored inputs of a golden (the image(s); tracking queries; a matting trimap; per concept prompt, the queries
-# whose masks are kept)
-INPUTS = ("input", "input2", "queries", "trimap", *(f"{prefix}mask_query" for prefix in concepts()))
+# stored inputs of a golden (the image(s); tracking queries; a matting trimap; an in-context reference and its mask;
+# per concept prompt, the queries whose masks are kept)
+INPUTS = (
+    "input",
+    "spacing",
+    "input2",
+    "queries",
+    "trimap",
+    "reference",
+    "reference_mask",
+    *(f"{prefix}mask_query" for prefix in concepts()),
+)
 
 
 def primary(ref: str, maps: dict[str, np.ndarray]) -> str:
@@ -461,6 +481,11 @@ def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tenso
         if g.shape != v.shape:
             lines.append(f"FAIL {k}: shape {g.shape}, golden {v.shape}")
             continue
+        if TASK[ref] == "volume":  # label maps: argmax ties at class borders flip voxels
+            frac = float((g != v).mean())
+            bound = tol["cpu_label_mismatch"]
+            lines.append(f"{'FAIL ' * (frac > bound)}{k} {v.shape}: {frac:.2e} of the voxels differ (bound {bound})")
+            continue
         if k in spec(TASK[ref]).bool_outputs:  # thresholded maps: float noise right at the threshold flips pixels
             frac = float(((g > 0.5) != (v > 0.5)).mean())  # stored as 0 / 1
             bound = tol.get("cpu_mask_mismatch", 0.0)
@@ -547,6 +572,8 @@ def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torc
         return err
     unit = np.median(np.abs(want[key])) if tol.get("relative") else 1.0  # scale-free outputs (relative depth)
     err = np.abs(got[key].numpy() - want[key]) / unit
+    if TASK[ref] == "volume":  # label maps: the share of differing voxels (mean), p99 0 below 1 %
+        err = (err > 0).astype(np.float64)
     if "gpu_min_score" in tol:  # unsure points: pose argmax ties, matching pixels outside the overlap
         sure = sure_mask(want[SCORE[TASK[ref]]] >= tol["gpu_min_score"], err.shape)
         assert sure.mean() >= MIN_SURE, f"{what}{key}: the score mask keeps {sure.mean():.0%} of the points"

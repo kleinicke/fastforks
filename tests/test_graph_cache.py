@@ -50,3 +50,42 @@ def test_capture_failure_falls_back_to_eager():
     assert cache.run("k", x) is None
     assert calls["capturing"] == 1  # not retried
     assert torch.equal(forward(x), x * 2)  # the device is usable after the failed capture
+
+
+_PAGE = 20 * 2**20  # the allocator's large-pool page (expandable segments) / small-buffer segment size
+
+
+@pytest.mark.parametrize(
+    "forward",
+    [
+        lambda x: (x * 2).relu() + 1,  # small intermediates
+        lambda x: (x.repeat(4, 1) * 3).sum(0),  # large intermediates (32 MiB)
+        lambda x: (x[:1024] @ x[:1024].T).softmax(-1),  # cuBLAS (its workspace moves into the graph pool)
+    ],
+    ids=["small", "large", "matmul"],
+)
+def test_graph_pool_adds_only_the_intermediates(forward):
+    """Steady reserved memory of the replays <= eager reserved + the graph's intermediates in pages.
+
+    A graph's private pool keeps its intermediates reserved (one page at least); anything above that is the eager or
+    warm-up blocks kept next to it (igev++ once reserved twice its eager memory).
+    """
+    x = torch.rand(2048, 1024, device="cuda")
+    torch.cuda.synchronize()
+    torch.cuda.empty_cache()
+    base = torch.cuda.memory_allocated()
+    torch.cuda.reset_peak_memory_stats()
+    forward(x)
+    torch.cuda.synchronize()
+    inter, eager = torch.cuda.max_memory_allocated() - base, torch.cuda.max_memory_reserved()
+    cache = GraphCache(forward)
+    for _ in range(3):  # eager, capture, replay
+        cache.run("k", x)
+    torch.cuda.synchronize()
+    torch.cuda.reset_peak_memory_stats()
+    for _ in range(3):
+        cache.run("k", x)
+    torch.cuda.synchronize()
+    pages = -(-inter // _PAGE) * _PAGE + 2 * 2**20  # large pages + one small segment
+    assert torch.cuda.max_memory_reserved() <= eager + pages, (inter, eager, torch.cuda.max_memory_reserved())
+    cache.release()

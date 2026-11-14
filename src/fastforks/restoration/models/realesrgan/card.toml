@@ -23,6 +23,8 @@ min_size = 4
 [params]
 scale = 4
 num_block = 23
+num_feat = 64
+num_grow = 32
 
 [modes.portable]
 cuda_dtype = "float16"  # inference_realesrgan.py default (`--fp32` for float32)

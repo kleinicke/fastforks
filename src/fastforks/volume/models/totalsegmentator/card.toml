@@ -1,0 +1,74 @@
+schema = 2
+name = "TotalSegmentator"
+summary = "TotalSegmentator (Wasserthal et al., Radiology: AI 2023): 117 anatomical structures (organs, bones, muscles, vessels) in CT, from nnU-Net v2 3D U-Nets. `total` merges five 1.5 mm part networks, `total-3mm` is the single fast 3 mm network. Gives one integer label volume on the input grid plus the label names."
+tier = "experimental"
+outputs = ["labels"]
+
+[upstream]
+repo = "https://github.com/wasserth/TotalSegmentator"
+commit = "184fa4765456492b2ab81a981cc387465906b003"  # v2.18.0: totalsegmentator/{nnunet,resampling,map_to_binary}.py; the network and sliding window of nnU-Net v2.8.1 (MIC-DKFZ/nnUNet 468cf803df9b267150ae2b6c0c59b8ac84f16227, Apache-2.0) in fastforks/volume/_nnunet.py
+
+[licence]
+code = "Apache-2.0"  # LICENSE (TotalSegmentator and nnU-Net)
+weights = "Apache-2.0"  # the open tasks' weights (GitHub release v2.0.0-weights); the licensed tasks are not included
+files = ["LICENSE"]
+training_data = ["totalsegmentator-ct"]
+training_note = "1559 CT scans of the TotalSegmentator dataset v2 (CC BY 4.0). Only the weights licence counts for the commercial flag."
+evidence = "https://github.com/wasserth/TotalSegmentator/blob/184fa4765456492b2ab81a981cc387465906b003/LICENSE ; https://github.com/wasserth/TotalSegmentator/blob/184fa4765456492b2ab81a981cc387465906b003/README.md"
+
+[params]
+folds = [0]
+step = 0.8  # TotalSegmentator's sliding-window step
+mirror = false
+classes = "classes_total.txt"
+
+[modes.portable]
+cuda_dtype = "float16"  # float16 networks (nnU-Net: float16 autocast), channels-last 3D; resampling in float32 / float64
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["vol_norm"]  # portable + InstanceNorm + LeakyReLU as one in-place kernel
+
+[[papers]]
+title = "TotalSegmentator: Robust Segmentation of 104 Anatomic Structures in CT Images"
+url = "https://doi.org/10.1148/ryai.230024"
+date = "2023-07-05"
+venue = "Radiology: Artificial Intelligence 2023"
+
+[[papers]]
+title = "nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation"
+url = "https://doi.org/10.1038/s41592-020-01008-z"
+date = "2020-12-07"
+venue = "Nature Methods 2021"
+
+[[variants]]
+id = "totalsegmentator-total"
+revision = 1
+params = { parts = ["Dataset291_TotalSegmentator_part1_organs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres", "Dataset292_TotalSegmentator_part2_vertebrae_1532subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres", "Dataset293_TotalSegmentator_part3_cardiac_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres", "Dataset294_TotalSegmentator_part4_muscles_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres", "Dataset295_TotalSegmentator_part5_ribs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres"], spacing = 1.5 }
+weights = [
+  { name = "Dataset291_TotalSegmentator_part1_organs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json", size = 11186, sha256 = "d77d815eb2bd11ec79b623161561dab4cef3def17dec0a0fe0f8d8dee3a761d5", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset291_TotalSegmentator_part1_organs_1559subj.zip", member = "Dataset291_TotalSegmentator_part1_organs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json", archive = { size = 233742255, sha256 = "2cde8e6bcfb5b6a02183648a7036c3d6b28bc854576f8e1c34fbd6b4dd5c6c5b" } },
+  { name = "Dataset291_TotalSegmentator_part1_organs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/dataset.json", size = 1035, sha256 = "09089590277fe1e62e73857145617c2392f449fe98a6c752a67aa6dc2023b1e2", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset291_TotalSegmentator_part1_organs_1559subj.zip", member = "Dataset291_TotalSegmentator_part1_organs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/dataset.json", archive = { size = 233742255, sha256 = "2cde8e6bcfb5b6a02183648a7036c3d6b28bc854576f8e1c34fbd6b4dd5c6c5b" } },
+  { name = "Dataset291_TotalSegmentator_part1_organs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", size = 251697787, sha256 = "98c429f89fd9b3b08890fbb2b4c08c365ad4655fdcadb45efaa29380129fd890", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset291_TotalSegmentator_part1_organs_1559subj.zip", member = "Dataset291_TotalSegmentator_part1_organs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", archive = { size = 233742255, sha256 = "2cde8e6bcfb5b6a02183648a7036c3d6b28bc854576f8e1c34fbd6b4dd5c6c5b" } },
+  { name = "Dataset292_TotalSegmentator_part2_vertebrae_1532subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json", size = 11188, sha256 = "72fcde2fa59183f65b92fc86a12467acd81511d93d8d2577608550ad0c1938cd", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset292_TotalSegmentator_part2_vertebrae_1532subj.zip", member = "Dataset292_TotalSegmentator_part2_vertebrae_1532subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json", archive = { size = 234050721, sha256 = "60606af6777eaa7c4fc923d24d9cc7defcd1037ee7bacdb4af9eccfabab9c90a" } },
+  { name = "Dataset292_TotalSegmentator_part2_vertebrae_1532subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/dataset.json", size = 1066, sha256 = "5c967bfe82c846a6491473706e3c5d322f470ed4fce2eb5047a22c702ae64c79", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset292_TotalSegmentator_part2_vertebrae_1532subj.zip", member = "Dataset292_TotalSegmentator_part2_vertebrae_1532subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/dataset.json", archive = { size = 234050721, sha256 = "60606af6777eaa7c4fc923d24d9cc7defcd1037ee7bacdb4af9eccfabab9c90a" } },
+  { name = "Dataset292_TotalSegmentator_part2_vertebrae_1532subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", size = 251848251, sha256 = "7022f71829ef00aa14d790a7667bc18eb1691f2fe5b0a38c475862abc84c2457", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset292_TotalSegmentator_part2_vertebrae_1532subj.zip", member = "Dataset292_TotalSegmentator_part2_vertebrae_1532subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", archive = { size = 234050721, sha256 = "60606af6777eaa7c4fc923d24d9cc7defcd1037ee7bacdb4af9eccfabab9c90a" } },
+  { name = "Dataset293_TotalSegmentator_part3_cardiac_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json", size = 11184, sha256 = "a048b27bfe30ca72a7a76f16cc5145ecc15f28911c6897793b93e6bea4b0e4a3", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset293_TotalSegmentator_part3_cardiac_1559subj.zip", member = "Dataset293_TotalSegmentator_part3_cardiac_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json", archive = { size = 234190318, sha256 = "efd6398f73cbcc86d42e1e676009b924b00ccb601a6d82eb8e9a54560c6e7259" } },
+  { name = "Dataset293_TotalSegmentator_part3_cardiac_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/dataset.json", size = 974, sha256 = "ac8ee8e6d0040938a0e621b025fddd9fb82d15842b427ef1e590e84c6bb390c5", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset293_TotalSegmentator_part3_cardiac_1559subj.zip", member = "Dataset293_TotalSegmentator_part3_cardiac_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/dataset.json", archive = { size = 234190318, sha256 = "efd6398f73cbcc86d42e1e676009b924b00ccb601a6d82eb8e9a54560c6e7259" } },
+  { name = "Dataset293_TotalSegmentator_part3_cardiac_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", size = 251268859, sha256 = "189010ac67fec3f1704df7547306d0067eabaaf620e0a46a1bdd183afa0800e4", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset293_TotalSegmentator_part3_cardiac_1559subj.zip", member = "Dataset293_TotalSegmentator_part3_cardiac_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", archive = { size = 234190318, sha256 = "efd6398f73cbcc86d42e1e676009b924b00ccb601a6d82eb8e9a54560c6e7259" } },
+  { name = "Dataset294_TotalSegmentator_part4_muscles_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json", size = 11185, sha256 = "63c9175c2f3fdff5e67ae55ea56250fb44ba53034335f1781081da9b9bdea709", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset294_TotalSegmentator_part4_muscles_1559subj.zip", member = "Dataset294_TotalSegmentator_part4_muscles_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json", archive = { size = 233625081, sha256 = "e28029d73a3f0cbb3dd21b86c42725262533dc28da22a522d77f8df2a4c87036" } },
+  { name = "Dataset294_TotalSegmentator_part4_muscles_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/dataset.json", size = 1028, sha256 = "3c0002bc06677197f1597a5143ccfebd556508563edd9282a46f057d5a0d5965", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset294_TotalSegmentator_part4_muscles_1559subj.zip", member = "Dataset294_TotalSegmentator_part4_muscles_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/dataset.json", archive = { size = 233625081, sha256 = "e28029d73a3f0cbb3dd21b86c42725262533dc28da22a522d77f8df2a4c87036" } },
+  { name = "Dataset294_TotalSegmentator_part4_muscles_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", size = 251633339, sha256 = "655eb40de03aa3de7348b69d7569a1cc3a2dc7969a11c0d60a7331e07df11c28", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset294_TotalSegmentator_part4_muscles_1559subj.zip", member = "Dataset294_TotalSegmentator_part4_muscles_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", archive = { size = 233625081, sha256 = "e28029d73a3f0cbb3dd21b86c42725262533dc28da22a522d77f8df2a4c87036" } },
+  { name = "Dataset295_TotalSegmentator_part5_ribs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json", size = 11184, sha256 = "241fa585e763462a7f4ab593d34e466a58cbce17c87b64d260a7ee5010416132", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset295_TotalSegmentator_part5_ribs_1559subj.zip", member = "Dataset295_TotalSegmentator_part5_ribs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json", archive = { size = 234016576, sha256 = "95f208a7da99cd4671c94a1025d95d95cc58b33adcf053a287a8b46dc91edb5e" } },
+  { name = "Dataset295_TotalSegmentator_part5_ribs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/dataset.json", size = 1039, sha256 = "71228770dbcb9d303e6943dd1017b19346857b3fbc30e912dba30a704d1ac8f6", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset295_TotalSegmentator_part5_ribs_1559subj.zip", member = "Dataset295_TotalSegmentator_part5_ribs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/dataset.json", archive = { size = 234016576, sha256 = "95f208a7da99cd4671c94a1025d95d95cc58b33adcf053a287a8b46dc91edb5e" } },
+  { name = "Dataset295_TotalSegmentator_part5_ribs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", size = 251846011, sha256 = "a674364c60b304fbd56feccdd95f8d0fe0c45a5bfa1ef25815516e4dde04d3fc", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset295_TotalSegmentator_part5_ribs_1559subj.zip", member = "Dataset295_TotalSegmentator_part5_ribs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", archive = { size = 234016576, sha256 = "95f208a7da99cd4671c94a1025d95d95cc58b33adcf053a287a8b46dc91edb5e" } },
+]
+
+[[variants]]
+id = "totalsegmentator-total-3mm"
+revision = 1
+params = { parts = ["Dataset297_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres"], spacing = 3.0 }
+weights = [
+  { name = "Dataset297_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres/plans.json", size = 7110, sha256 = "d1cb3c15f53dc36fdb618e0f9082573d1f50b74a9b5fa73094ac8680845839f1", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset297_TotalSegmentator_total_3mm_1559subj.zip", member = "Dataset297_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres/plans.json", archive = { size = 135386075, sha256 = "0baa2c8de2975600eb31801dd5c1825cd2b356f794498659cf3348714c073394" } },
+  { name = "Dataset297_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres/dataset.json", size = 3796, sha256 = "e804e08ad8912e3a6f541741c8c78799d75acbd3f4f3f18ff5f211bbd3da961a", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset297_TotalSegmentator_total_3mm_1559subj.zip", member = "Dataset297_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres/dataset.json", archive = { size = 135386075, sha256 = "0baa2c8de2975600eb31801dd5c1825cd2b356f794498659cf3348714c073394" } },
+  { name = "Dataset297_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", size = 164939235, sha256 = "1e38e40356adc2706a662e365405a97f862d62a7da65f6bf81d025aee1b979ac", url = "https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset297_TotalSegmentator_total_3mm_1559subj.zip", member = "Dataset297_TotalSegmentator_total_3mm_1559subj/nnUNetTrainer_4000epochs_NoMirroring__nnUNetPlans__3d_fullres/fold_0/checkpoint_final.pth", archive = { size = 135386075, sha256 = "0baa2c8de2975600eb31801dd5c1825cd2b356f794498659cf3348714c073394" } },
+]

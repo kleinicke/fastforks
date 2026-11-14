@@ -44,7 +44,6 @@ title = "XFeat: Accelerated Features for Lightweight Image Matching"
 url = "https://arxiv.org/abs/2404.19174"
 date = "2024-04-30"
 venue = "CVPR 2024"
-variants = ["xfeat", "xfeat-lighterglue"]
 
 [[variants]]
 id = "xfeat"  # XFeat + mutual nearest neighbours (upstream match_xfeat, min_cossim -1)

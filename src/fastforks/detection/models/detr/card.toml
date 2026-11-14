@@ -2,6 +2,7 @@ schema = 2
 name = "DETR (ResNet-50 / ResNet-101)"
 summary = "DETR (Carion et al. 2020, Facebook): end-to-end detection with a ResNet backbone and a 6+6 layer transformer encoder-decoder over 100 object queries, no NMS; boxes, scores and COCO classes at the input size. The portable `module()` is the whole network (class logits and normalised boxes)."
 tier = "stable"
+uses = ["pil_resize"]  # fastforks.shared modules this family imports
 outputs = ["boxes", "scores", "labels"]
 
 [upstream]

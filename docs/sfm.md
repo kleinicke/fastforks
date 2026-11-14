@@ -42,5 +42,14 @@ Mip-NeRF 360 garden (185 images, 1/4 resolution), image folder to database, incl
 |---|---|---|
 | fastforks (MegaLoc, ALIKED + LightGlue, GPU RANSAC) | 30 s | 185/185, 95.1 |
 | fastforks, `matcher_options={"long_side": 1600}` | 35 s | 185/185, 96.3 |
+| fastforks, `matcher="disk-lightglue"` | 41 s | 185/185, 97.6 |
+| fastforks, `matcher="loma-b"` | 94 s | 185/185, 97.7 |
+| fastforks, `matcher="aliked-flexglue"` | 193 s | 185/185, 95.2 |
+| fastforks, `matcher="romav1"` (dense, 4096 matches per pair) | 791 s (+ 45 min mapping) | 185/185, 98.0 |
 | hloc original (NetVLAD, SuperPoint + LightGlue, COLMAP verification) | 81 s | 185/185, 97.6 |
 | COLMAP original (CPU SIFT, exhaustive) | 589 s | 185/185, 97.8 |
+
+On ETH3D facade (76 images of 6048 x 4032, 1042 pairs) the same pipelines reach AUC@3 62.6 (ALIKED + LightGlue),
+44.2 (DISK), 58.9 (LoMa-B), 71.0 (FlexGlue), 39.0 / 44.8 (RoMa v1 / v2) against hloc 53.7 and COLMAP 70.0; the
+extractors' `dtype="float16"` mode and COLMAP's own verification (`pycolmap.verify_matches`) of our matches change
+these by less than the run-to-run noise (details: `results/2026-11-13_sfm_lightglue.md`, section 4).

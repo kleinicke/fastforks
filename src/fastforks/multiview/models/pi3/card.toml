@@ -39,10 +39,10 @@ mps_dtypes = ["float32", "float16"]
 kernels = ["fastbb"]
 
 [[papers]]
-title = "π³: Scalable Permutation-Equivariant Visual Geometry Learning"
+title = "π³: Permutation-Equivariant Visual Geometry Learning"
 url = "https://arxiv.org/abs/2507.13347"
 date = "2025-07-17"
-venue = "arXiv"
+venue = "ICLR 2026"
 
 [[variants]]
 id = "pi3"

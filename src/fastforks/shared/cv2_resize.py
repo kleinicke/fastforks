@@ -1,7 +1,7 @@
-"""OpenCV's `cv2.resize` of uint8 images (`INTER_CUBIC`, `INTER_AREA`) on the device, as upstream DA3 preprocesses.
+"""OpenCV's `cv2.resize` (`INTER_CUBIC`, `INTER_AREA`) on the device, for upstreams that preprocess with OpenCV.
 
-Upstream resizes the uint8 image on the CPU with OpenCV; this reproduces it on any device as two separable tap
-gathers with OpenCV's weights:
+Upstreams (DA3: uint8, Prompt Depth Anything: float32) resize on the CPU with OpenCV; this reproduces it on any
+device as two separable tap gathers with OpenCV's weights:
 
 - `INTER_CUBIC`: Keys kernel a = -0.75, replicated borders
 - `INTER_AREA` (shrinking): OpenCV's `computeResizeAreaTab` box-overlap weights
@@ -75,10 +75,11 @@ def _gather(x: torch.Tensor, idx: torch.Tensor, wts: torch.Tensor) -> torch.Tens
     return (x[..., idx.to(x.device)] * wts.to(x.device, x.dtype)).sum(-1)
 
 
-def cv2_resize(x: torch.Tensor, h: int, w: int, kind: Kind) -> torch.Tensor:
-    """`cv2.resize` of `[B, C, H, W]` uint8 levels (any float / int dtype, values 0..255) to `h x w`; float32 levels.
+def cv2_resize(x: torch.Tensor, h: int, w: int, kind: Kind, *, levels: bool = True) -> torch.Tensor:
+    """`cv2.resize` of `[B, C, H, W]` to `h x w`; float32.
 
-    `kind` applies to both axes, as OpenCV's interpolation flag does.
+    `levels`: `x` holds uint8 levels (any dtype, values 0..255), rounded and clamped as OpenCV's uint8 path; else a
+    float32 image, resized without rounding as OpenCV's float path. `kind` applies to both axes, as OpenCV's flag does.
     """
     taps, dtype = (_cubic, torch.float64) if kind == "cubic" else (_area, torch.float32)
     if x.device.type == "mps":  # no float64 there; 4 taps of levels <= 255 differ by ~1e-5, only exact ties round apart
@@ -87,4 +88,8 @@ def cv2_resize(x: torch.Tensor, h: int, w: int, kind: Kind) -> torch.Tensor:
         taps = taps.__wrapped__
     (ix, wx), (iy, wy) = taps(x.shape[-1], w), taps(x.shape[-2], h)
     v = _gather(_gather(x.to(dtype), ix, wx).transpose(-1, -2), iy, wy).transpose(-1, -2)
+    if not levels:
+        return v.float()
+    if kind == "area" and x.shape[-1] % w == 0 and x.shape[-2] % h == 0:  # OpenCV's integer-factor path: ties round up
+        return v.add_(0.5).floor_().clamp_(0, 255).float()
     return v.round_().clamp_(0, 255).float()

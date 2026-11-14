@@ -56,5 +56,5 @@ weights = [{ mirror = true, name = "raftstereo-sceneflow.pth", size = 44617876, 
 [[variants]]
 id = "raft-stereo-eth3d"
 revision = 1
-licence = { training_data = ["unstated"], training_note = "ETH3D submission model" }
+licence = { training_data = ["eth3d", "unstated"], training_note = "ETH3D submission model: fine-tuned on ETH3D; the rest of its training is not stated" }
 weights = [{ mirror = true, name = "raftstereo-eth3d.pth", size = 44617748, sha256 = "9ea862904b5bf097a5265ca0469d06a7c3ad33c27e94cb45935109562e0a80ec", url = "https://www.dropbox.com/scl/fi/5khx1bhz84dapi8vtwapg/models.zip?rlkey=ggddrn1du1iiq6mgc2dsdpmwi&dl=1", member = "raftstereo-eth3d.pth", archive = { size = 201799175, sha256 = "95c5dbbbbb6dd49e71c3fbe42d9e2252f9898666cfffb7ae2c9b68e5e8aa6455" } }]

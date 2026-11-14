@@ -16,10 +16,12 @@ from typing import TYPE_CHECKING
 
 import torch
 from torch import nn
+from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared.lightglue import LightGlue, resize_long
 
+from .net.model import BasicLayer
 from .net.xfeat import XFeat
 
 if TYPE_CHECKING:
@@ -114,7 +116,12 @@ def load_matcher(ctx: Context) -> Matcher:
         net.matcher.load_weights(
             {k.replace("matcher.", ""): v for k, v in sd.items() if not k.startswith("extractor.")}
         )
-    return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    net.eval().requires_grad_(requires_grad=False)
+    for m in net.xfeat.net.modules():  # BatchNorm (eval statistics) folded into the conv before it
+        if isinstance(m, BasicLayer):
+            conv, bn, relu = m.layer
+            m.layer = nn.Sequential(fuse_conv_bn_eval(conv, bn), relu)
+    return net.to(ctx.device)
 
 
 class Portable(Runner):

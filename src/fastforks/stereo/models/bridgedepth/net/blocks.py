@@ -287,7 +287,7 @@ class Alignment(nn.Module):
         self.num_blocks = num_blocks
         self.return_intermediate = return_intermediate
 
-        dpr = [x.item() for x in torch.linspace(0, drop_path, num_blocks)]
+        dpr = [x.item() for x in torch.linspace(0, drop_path, num_blocks, device="cpu")]
         self.layers = nn.ModuleList([
             AlignmentLayer(embed_dim, window_size, shift_size=0 if i % 2 == 0 else window_size // 2,
                            num_heads=num_heads, mlp_ratio=mlp_ratio, drop=drop,

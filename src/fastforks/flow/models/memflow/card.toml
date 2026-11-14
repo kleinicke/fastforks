@@ -43,7 +43,6 @@ title = "MemFlow: Optical Flow Estimation and Prediction with Memory"
 url = "https://arxiv.org/abs/2404.04808"
 date = "2024-04-07"
 venue = "CVPR 2024"
-variants = ["memflow", "memflow-sintel", "memflow-kitti"]
 
 [[variants]]
 id = "memflow"  # upstream MemFlowNet_things (configs/things_memflownet.py), the general checkpoint

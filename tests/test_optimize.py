@@ -233,6 +233,33 @@ def test_patch_auto_cuda():
         torch.testing.assert_close(fast(x).float(), ref(x), rtol=2e-2, atol=2e-2)
 
 
+@pytest.mark.gpu
+@pytest.mark.parametrize("act", ["gelu", "gelu_tanh"])
+@pytest.mark.parametrize("arch", ["convnext", "swin"])
+def test_kernels_cover_timm_blocks_with_either_gelu(arch, act):
+    """ConvNeXt / Swin blocks with exact or tanh GELU (WD ConvNeXt tagger) take the kernel path and match fp32."""
+    if not torch.cuda.is_available():
+        pytest.skip("needs CUDA")
+    timm = pytest.importorskip("timm")
+    torch.manual_seed(0)
+    if arch == "convnext":
+        m = timm.models.convnext.ConvNeXt(depths=(1, 1, 1, 1), dims=(32, 64, 96, 128), num_classes=10, act_layer=act)
+    else:
+        m = timm.models.swin_transformer.SwinTransformer(
+            img_size=64, patch_size=4, window_size=4, embed_dim=32, depths=(2, 2), num_heads=(2, 4), num_classes=10
+        )
+        for blk in m.modules():  # timm's Swin builds its MLP with exact GELU only
+            if isinstance(blk, timm.layers.Mlp) and act == "gelu_tanh":
+                blk.act = timm.layers.activations.GELUTanh()
+    m = m.eval()
+    ref = copy.deepcopy(m).cuda()
+    fast = optimize(m, mode="kernels", device="cuda")
+    assert fast.backend.mode == "kernels"
+    x = torch.randn(2, 3, 64, 64, device="cuda")
+    with torch.no_grad():
+        torch.testing.assert_close(fast(x).float(), ref(x), rtol=3e-2, atol=3e-2)
+
+
 def test_cpu_conv_net_runs_channels_last_with_identical_output():
     """CPU: a convolution net gets channels_last weights once at load (oneDNN is faster); outputs match NCHW."""
     m = _tiny()

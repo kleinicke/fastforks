@@ -510,7 +510,7 @@ class TinyViT(nn.Module):
 
         # stochastic depth
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate,
-                                                sum(depths))]  # stochastic depth decay rule
+                                                sum(depths), device="cpu")]  # stochastic depth decay rule
 
         # build layers
         self.layers = nn.ModuleList()

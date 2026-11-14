@@ -17,9 +17,9 @@ repo = "https://github.com/huggingface/transformers"
 commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
 
 [[upstream.official]]
-repo = "https://github.com/google-research/scenic/tree/main/scenic/projects/owl_vit"
+repo = "https://github.com/google-research/scenic"
 framework = "JAX"
-reason = "The authors' code is JAX (Scenic); transformers carries a PyTorch port with converted checkpoints."
+reason = "The official OWLv2 code is JAX (Scenic); fastforks follows the PyTorch transformers port that loads the google/owlv2-* weights."
 
 [licence]
 code = "Apache-2.0"  # transformers; the original google-research/scenic is Apache-2.0 too
@@ -55,7 +55,6 @@ title = "Scaling Open-Vocabulary Object Detection"
 url = "https://arxiv.org/abs/2306.09683"
 date = "2023-06-16"
 venue = "NeurIPS 2023"
-variants = ["owlv2-b16", "owlv2-l14"]
 
 [[variants]]
 id = "owlv2-b16"

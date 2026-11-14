@@ -90,7 +90,8 @@ class _Vit(DinoVisionTransformer):
 
 
 def _network(ctx: Context) -> Any:  # noqa: ANN401 - vendored DinoVisionTransformer
-    with mock.patch.object(DinoVisionTransformer, "init_weights", return_value=None):  # every tensor is assigned
+    # every tensor is assigned: built on the meta device (no allocation), without upstream's initialisation
+    with torch.device("meta"), mock.patch.object(DinoVisionTransformer, "init_weights", return_value=None):
         vit = _vit(ctx.params)
     load_strict(vit, ctx.state_dict(), f"{ctx.variant.ref} checkpoint", assign=True)
     vit.__class__ = _Vit  # not a bound method on the instance: that reference cycle kept the GPU weights after `del`

@@ -11,7 +11,8 @@ Keypoints are mapped back to input pixels (pixel centres at integers: upstream's
 
 On CUDA the validated dtype is float16 as upstream: the VGG encoders and the refiners under float16 autocast, the
 DINOv2 of -G with float16 weights and input; logits, keypoint sampling and matching stay float32. On CUDA the eval
-BatchNorms are folded into their convs and the convolutions run channels-last (cuDNN's depthwise 5 x 5).
+BatchNorms are folded into their convs and the convolutions run channels-last (cuDNN's depthwise 5 x 5); the DINOv2
+of -G runs fused `scaled_dot_product_attention` (upstream: xFormers) with its LayerScales folded into the linears.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ from fastforks.shared.dedode import (
     dual_softmax_match,
     sample_keypoints,
 )
-from fastforks.shared.depth_anything_v2 import DINOv2
+from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, sdpa_attention
 
 if TYPE_CHECKING:
     from fastforks.matching._runner import Context
@@ -137,7 +138,11 @@ def load_matcher(ctx: Context) -> Matcher:
     if net.dinov2 is not None:
         net.dinov2.load_state_dict(ctx.state_dict(2), strict=True)
     net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    if net.dinov2 is not None:
+        sdpa_attention(net.dinov2)  # upstream's DINOv2 attention is `scaled_dot_product_attention`
     if ctx.device.type == "cuda":  # not on CPU: the float32 reference parity
+        if net.dinov2 is not None:
+            fold_layer_scale(net.dinov2)
         fold_batch_norms(net)
         for m in net.modules():
             if isinstance(m, ConvRefiner):

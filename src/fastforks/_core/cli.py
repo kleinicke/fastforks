@@ -871,7 +871,7 @@ def _add_stereo(sub: argparse._SubParsersAction) -> None:
 def _sfm(args: argparse.Namespace) -> None:
     from fastforks.matching import sfm  # noqa: PLC0415 - heavy, only for this command
 
-    options = {
+    options: dict[str, Any] = {
         "matcher": args.matcher,
         "retrieval": None if args.retrieval == "none" else args.retrieval,
         "k": args.k,
@@ -881,14 +881,14 @@ def _sfm(args: argparse.Namespace) -> None:
         "device": args.device,
         "dtype": args.dtype,
     }
-    if args.reconstruct:
-        rec = sfm.reconstruct(args.images, args.out, mapper=args.mapper, **options)
+    rec = sfm.reconstruct(args.images, args.out, mapper=args.mapper, **options) if args.reconstruct else None
+    if rec is not None:
         stats, target = rec.database, Path(args.out) / "database.db"
     else:
         stats, target = sfm.colmap_database(args.images, args.out, **options), Path(args.out)
     times = ", ".join(f"{name} {s:.1f} s" for name, s in stats.seconds.items())
     print(f"{stats.images} images, {stats.pairs} pairs, {stats.verified} verified ({times}) -> {target}")
-    if args.reconstruct:
+    if rec is not None:
         built = f"{rec.registered}/{stats.images} images, {rec.points} points"
         print(f"{rec.mapper} mapper {rec.seconds:.1f} s: {built} -> {rec.model}")
 

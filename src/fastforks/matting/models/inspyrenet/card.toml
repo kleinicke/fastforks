@@ -9,6 +9,11 @@ uses = ["swin_v1"]  # fastforks.shared modules this family imports
 repo = "https://github.com/plemeri/transparent-background"
 commit = "f0fa91701a98cfc8e955c554e84522f365ec6da3"  # 1.3.4; net/ = InSPyReNet.py + modules/ (plemeri/InSPyReNet 692ad8a5 lib/, inference only); Swin-B: shared/swin_v1; the call is Remover.process (static resize, threshold None)
 
+[[upstream.official]]
+repo = "https://github.com/plemeri/InSPyReNet"
+framework = "PyTorch"
+reason = "fastforks follows the authors' transparent-background package, which ships the released InSPyReNet weights (Plus_Ultra) and the inference call that ComfyUI nodes use, rather than the research repository."
+
 [licence]
 code = "MIT"  # LICENSE (transparent-background; plemeri/InSPyReNet is MIT as well)
 weights = "MIT"  # release 1.2.12 assets of the MIT repository (= InSPyReNet's Plus_Ultra / Plus_Ultra_LR, same md5); no separate weights licence

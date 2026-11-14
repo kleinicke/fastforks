@@ -1,0 +1,61 @@
+schema = 2
+name = "FlexGlue"
+summary = "FlexGlue (Lindenberger, Sarlin, Miksik and Pollefeys 2026): sparse feature matching from dense features. ALIKED finds up to 2048 keypoints per image at a 1024-pixel long side, a DINOv3 ConvNeXt-B describes each image at 512 x 512, nine transformer layers (rotary self-attention, cross-attention) relate both feature maps, and a head predicts where each keypoint lands in the other image; mutual nearest neighbours of keypoints and predictions are the matches. Returns both keypoint sets, the index pairs of the matches and their confidence."
+tier = "experimental"
+outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
+uses = ["aliked", "deform_conv", "lightglue"]  # fastforks.shared modules this family imports (ALIKED + its deformable conv op; LightGlue's long-side resize)
+limitations = [
+  "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
+  "One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.",
+  "No exportable module: the keypoint and match counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
+  "Upstream's sparse mode only: no RoMa v2 refiner, no dense or sampled matches and no covisibility score.",
+  "Two resizes per image as upstream: ALIKED sees a long side of `long_side` (aspect kept), the descriptor a `size` x `size` square whatever the aspect ratio.",
+]
+licence_notes = [
+  "The checkpoint includes the DINOv3 ConvNeXt-B backbone weights (`extractor.backbone.*`): the DINOv3 License (Meta: attribution and conditions apply) covers them; read it before commercial use.",
+]
+
+[upstream]
+repo = "https://github.com/cvg/FlexGlue"
+commit = "99920296d082c9405ebfd612d674efe288e74881"  # net/descriptor.py = flexglue/descriptor.py, net/flexglue.py = flexglue/flexglue.py sparse mode + utils/{modules,ops}.py; ALIKED = fastforks.shared.aliked (LightGlue's lightglue/aliked.py)
+
+[licence]
+code = "MIT AND BSD-3-Clause"  # LICENSE (FlexGlue, MIT); shared/aliked carries the ALIKED BSD-3-Clause header (LICENSE-ALIKED)
+weights = "MIT AND LicenseRef-DINOv3-License AND BSD-3-Clause"  # FlexGlue README: the backbone `extractor.backbone.*` under the DINOv3 License (LICENSE-DINOv3), the matcher and descriptor heads MIT; ALIKED weights: its repo's BSD-3-Clause LICENSE
+files = ["LICENSE", "LICENSE-ALIKED", "LICENSE-DINOv3"]
+training_data = ["unstated"]
+training_note = "FlexGlue: the README states no training data and the training code is not released (see the paper). The DINOv3 ConvNeXt-B backbone was pretrained on LVD-1689M (Meta, not released); ALIKED was trained on MegaDepth."
+evidence = "https://github.com/cvg/FlexGlue/blob/99920296d082c9405ebfd612d674efe288e74881/README.md#license ; https://github.com/Shiaoming/ALIKED/blob/683d7c65197395c0b3f01ebe76e1084a27e73a65/LICENSE"
+
+[io]
+input = "0-1"  # resized twice by the runner (ALIKED: kornia long-side resize; descriptor: bilinear square, ImageNet-normalised), keypoints mapped back
+min_size = 32
+
+[options]
+max_keypoints = { default = 2048, min = 1 }  # ALIKED keypoints per image (upstream README usage: max_num_keypoints=2048)
+long_side = { default = 1024, min = 0 }  # ALIKED's image: long side, aspect kept (LightGlue extractor resize 1024; 0 = the input size)
+size = { default = 512, min = 32 }  # the descriptor's image: side of the square (upstream `describe_resize`), a multiple of 32
+
+[params]
+threshold = 0.1  # confidence (geometric mean of both directions) a match needs (upstream `filter_threshold`)
+max_distance_px = 3.0  # mean distance of the two predictions to their keypoints, descriptor input pixels (upstream `max_distance_px`)
+
+[modes.portable]
+cuda_dtype = "float16"  # upstream `mp="float16"` (transformer layers) plus the descriptor under float16 autocast; ALIKED, the head and the match filter float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not implemented: data-dependent keypoint and match counts"
+
+[[papers]]
+title = "FlexGlue: Sparse-to-Dense Feature Matching and Visual Disambiguation"
+url = "https://arxiv.org/abs/2610.32976"
+date = "2026-10-23"
+venue = "arXiv"
+
+[[variants]]
+id = "aliked-flexglue"  # ALIKED-n16 (threshold 0.2) + FlexGlue v0.1 (sparse mode)
+revision = 1
+params = {}
+weights = [{ name = "flexglue.pth", size = 567328059, sha256 = "d7371f743b8cdc4adf723c2aa05b181587fe4bc177fced139697975dff790068", url = "https://github.com/cvg/FlexGlue/releases/download/v0.1/flexglue.pth" }, { name = "aliked-n16.pth", size = 2738091, sha256 = "5be8704840ed662d9d8c561bf7279c222092674e7eb05fd0feab94899e9d82f2", url = "https://raw.githubusercontent.com/Shiaoming/ALIKED/683d7c65197395c0b3f01ebe76e1084a27e73a65/models/aliked-n16.pth" }]
