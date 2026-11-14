@@ -719,3 +719,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`dat-x4`](models/restoration.md#dat) | yes | 9563.6 (512x512) | 1565.0 | 1421.1 | 6.7x vs original (512x512) | 2737 |
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1444.6 | 2.1x vs original (512x512) | 2610 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1596.7 | 1444.7 | 2.1x vs original (512x512) | 2610 |
+
+## Volume
+
+2 models; size 300x300.
+
+- No timed model.
+
+| model | commercial use |
+|---|---|
+| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes |
+| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes |

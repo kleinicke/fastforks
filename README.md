@@ -36,6 +36,7 @@ By default (`mode="auto"`) fastforks uses kernels where they can run and the rec
 | [camera calibration](https://fastforks.dev/tasks/calibration) | `fastforks.calibration` | `model(image)` → intrinsics `[3, 3]`, gravity `[3]`, roll / pitch / vertical FoV (rad) | `geocalib-pinhole`, `anycalib-pinhole` |
 | image restoration / upscaling | `fastforks.restoration` | `model(image)` (`tile=512` for large images) → `image [3, sH, sW]` RGB in [0, 1], s = `model.scale` | `realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`, `hat-x4`, `dat-x4`, `codeformer` |
 | [human pose](https://fastforks.dev/tasks/pose) | `fastforks.pose` | `model(image, boxes=person_boxes)` → 17 COCO keypoints (133 whole-body for DWPose) with scores per person | `rtmpose-m`, `vitpose-plus-base`, `rtmpose-l-384` |
+| 3D medical segmentation | `fastforks.volume` | `model(ct, spacing)` (e.g. from `volume.read_nifti`) → `labels [D, H, W]` per voxel (117 TotalSegmentator classes); `volume.load_nnunet(folder)` for any nnU-Net v2 export | `totalsegmentator-total`, `totalsegmentator-total-3mm` |
 | [feature backbones](https://fastforks.dev/tasks/features) | `fastforks.features` | `model(image)` → token features, image embedding | `dinov2-vitb14`, `dinov3-vitl16`, `dinov3-convnext-small` |
 
 The task links go to the model pages, which list every model of the task with its licences, accuracy, speed and
@@ -89,6 +90,7 @@ pip install "fastforks-core[transformers]"
 pip install "fastforks-core[onnx]"               # ONNX export
 pip install "fastforks-core[tensorrt]"           # TensorRT export
 pip install "fastforks-core[sfm]"                # pycolmap: `fastforks sfm --reconstruct` (the COLMAP mapper)
+pip install "fastforks-core[nifti]"              # nibabel: `fastforks.volume.read_nifti` / `write_nifti`
 pip install "fastforks-core[libs]"               # timm, torchvision, transformers and ONNX at once
 ```
 
@@ -99,6 +101,7 @@ Without an extra, every task works except these (`MissingDependencyError` names 
 | classification | `[timm]` (11 models) or `[torchvision]` (15 models) |
 | segmentation | `[transformers]` (SegFormer, Mask2Former, ...); the other 10 models need none |
 | detection | `[torchvision]` for the R-CNN models |
+| volume | `[nifti]` for `read_nifti` / `write_nifti` only |
 | stereo, depth, features, promptable segmentation, multi-view | none |
 | ONNX / TensorRT export | `[onnx]` / `[tensorrt]` |
 

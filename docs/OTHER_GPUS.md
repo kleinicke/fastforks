@@ -59,7 +59,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 <!-- capabilities:begin (tools/gen_docs.py, from the model cards) -->
 | families | CUDA portable | CUDA kernels | MPS portable (validated) | MPS kernels (libraries, dtype) |
 |---|---|---|---|---|
-| alltracker, any2full, anycalib, anysplat, ben2, birefnet, boq, c_foundationstereo, convnext, convnext_features, convnextv2, dat, deit, densenet, depth_anything_v2, depthsplat, detr, dfine, dinov2_linear, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, fast_acvnet, fastvit, geocalib, gwcnet, hat, inception_v3, isnet, lingbot_depth, locotrack, lwdetr, megaflow, megaloc, memflow, memfof, metric3d, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, mvsplat, neuflow_v2, nsfw_vit, omni_dc, owlv2, patchmatchnet, prompt_depth_anything, psmnet, rcnn, realesrgan, recover, repvit, resnet, rife, romav1, rt_monster_plusplus, rtdetrv2, sam, sam2, sam_hq, segformer, shufflenetv2, span, starnet, swin, swinir, tapir, tapnext, tinyvit, track_on, u2net, unidepth_v2, unik3d, video_depth_anything, vit, vitmatte, waft_stereo, wd_tagger | fp16 | fp16 | fp32 | - |
+| alltracker, any2full, anycalib, anysplat, ben2, birefnet, boq, c_foundationstereo, convnext, convnext_features, convnextv2, dat, deit, densenet, depth_anything_v2, depthsplat, detr, dfine, dinov2_linear, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, fast_acvnet, fastvit, geocalib, gwcnet, hat, inception_v3, isnet, lingbot_depth, locotrack, lwdetr, megaflow, megaloc, memflow, memfof, metric3d, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, mvsplat, neuflow_v2, nsfw_vit, omni_dc, owlv2, patchmatchnet, prompt_depth_anything, psmnet, rcnn, realesrgan, recover, repvit, resnet, rife, romav1, rt_monster_plusplus, rtdetrv2, sam, sam2, sam_hq, segformer, shufflenetv2, span, starnet, swin, swinir, tapir, tapnext, tinyvit, totalsegmentator, track_on, u2net, unidepth_v2, unik3d, video_depth_anything, vit, vitmatte, waft_stereo, wd_tagger | fp16 | fp16 | fp32 | - |
 | alexnet, c_radio, cas_gwcnet, clip, coex, depth_anything_3, depth_pro, depthfm, dinov2, dinov3, dinov3_convnext, dlnr, eomt, eva02, hrnet, lotus, mapanything, marigold, marigold_normals, mask2former, midas, mmseg, oneformer, regnet, retinaface, rfdetr, rfdetr_keypoint, rtmdet, rtmo, s2m2, sam3, sapiens, segnext, siglip, siglip2, squeezenet, stablenormal, tipsv2, vgg, vggt_omega, yolox, zoedepth | fp16 | fp16 | fp32/fp16 | - |
 | coatnet, codeformer, davit, dedode, efficientformer, efficientformerv2, flexglue, flowseek, focalnet, gmflow, grounding_dino, hgnetv2, inspyrenet, loftr, shvit | fp16 | - | fp32 | - |
 | cfnet, crestereo, foundationstereo, great_igev, hitnet, igev_plusplus, mocha_stereo, monster, monster_plusplus, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 |
@@ -126,6 +126,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `sparse_conv` | moge |
 | `stereo_ops` | coex, las2 |
 | `vggt_omega` | vggt_omega |
+| `vol_norm` | totalsegmentator |
 <!-- libraries:end -->
 
 ## Check your setup
