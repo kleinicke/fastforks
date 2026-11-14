@@ -769,6 +769,19 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | vitmatte-b | 257 | 182 | 147 | 1.7x | 1.2x | 5070 / 5128 | 1548 / 1692 | 1484 / 1710 |
 | vitmatte-s | 140 | 102 | 83.8 | 1.7x | 1.2x | 2536 / 2582 | 1401 / 1524 | 1337 / 1444 |
 
+### Edges, synthetic, 1080x1920
+
+| model | time (ms): original | portable | peak memory (MiB, allocated / reserved): original | portable |
+|---|---|---|---|---|
+| anyline | 585 | 50.7 | 909 / 1002 | 654 / 722 |
+| hed | 38.5 | 11.3 | 300 / 324 | 187 / 224 |
+| lineart | 29.8 | 18.3 | 221 / 264 | 222 / 284 |
+| lineart-anime | 25.2 | 8.36 | 407 / 448 | 241 / 284 |
+| lineart-coarse | 30.4 | 18.3 | 221 / 264 | 222 / 284 |
+| mlsd | 35.6 | 9.33 | 185 / 212 | 127 / 170 |
+| pidinet | 35.9 | 13.1 | 339 / 368 | 328 / 372 |
+| teed | 29.6 | 4.09 | 149 / 184 | 122 / 146 |
+
 ### Promptable segmentation, synthetic, 1024x1024
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
@@ -1033,6 +1046,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | sea-raft-s | 1080x1920 | 365 | 300 | 211 | 50.4 | 6.0x | 4.2x | 7323 / 8502 | 6019 / 6136 | 415 / 492 |
 | sea-raft-s-kitti | 1080x1920 | 365 | 299 | 210 | 50.5 | 5.9x | 4.2x | 7323 / 8502 | 6019 / 6136 | 415 / 492 |
 | sea-raft-s-spring | 1080x1920 | 67.1 | 42.4 | 32.8 | 16.0 | 2.6x | 2.0x | 699 / 764 | 611 / 656 | 160 / 192 |
+| waft-a1 | 1080x1920 | – | 1533 | 790 | – | – | – | 5537 / 5916 | 3553 / 4076 | – |
+| waft-a1-kitti | 1080x1920 | – | 1533 | 791 | – | – | – | 5537 / 5936 | 3553 / 4196 | – |
+| waft-a1-sintel | 1080x1920 | – | 1533 | 791 | – | – | – | 5537 / 5916 | 3553 / 4076 | – |
 
 ### Flow, KITTI 2015, 375x1242
 
@@ -1361,6 +1377,14 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | u2netp | 0.18 | 0.11 | 1.28 | 0.47 | 0.26 | 0.11 |
 | vitmatte-b | 0.21 | 0.52 | 1.32 | 0.56 | 0.35 | 0.25 |
 | vitmatte-s | 2.85 | 0.16 | 1.30 | 0.72 | 0.41 | 0.20 |
+| anyline | 0.11 | 0.17 | – | 0.62 | 0.05 | – |
+| hed | 0.24 | 0.18 | – | 0.06 | 0.01 | – |
+| lineart | 0.65 | 0.16 | – | 0.05 | 0.02 | – |
+| lineart-anime | 0.74 | 0.82 | – | 0.04 | 0.01 | – |
+| lineart-coarse | 0.16 | 0.16 | – | 0.05 | 0.02 | – |
+| mlsd | 0.21 | 0.17 | – | 0.06 | 0.01 | – |
+| pidinet | 0.28 | 0.16 | – | 0.06 | 0.01 | – |
+| teed | 0.13 | 0.16 | – | 0.08 | 0.01 | – |
 | clipseg | 3.05 | 3.01 | 2.77 | 0.02 | 0.37 | 0.28 |
 | efficientvit-sam-l0 | 0.35 | 0.83 | 1.63 | 0.82 | 0.72 | 0.25 |
 | efficientvit-sam-l1 | 0.31 | 0.76 | 1.64 | 0.03 | 0.69 | 0.25 |
@@ -1586,6 +1610,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | sea-raft-s | 0.30 | 0.18 | 1.10 | 0.30 | 0.21 | 0.05 |
 | sea-raft-s-kitti | 0.30 | 0.27 | 1.10 | 0.30 | 0.21 | 0.05 |
 | sea-raft-s-spring | 0.31 | 0.34 | 1.11 | 0.04 | 0.04 | 0.02 |
+| waft-a1 | 5.87 | 0.51 | – | 3.41 | 0.79 | – |
+| waft-a1-kitti | 4.06 | 0.54 | – | 2.87 | 0.79 | – |
+| waft-a1-sintel | 2.93 | 0.51 | – | 2.87 | 0.79 | – |
 | aliked-lightglue | 1.49 | 0.20 | – | 0.73 | 0.75 | – |
 | dedode-v2-b | 3.73 | 0.67 | – | 1.10 | 0.75 | – |
 | dedode-v2-g | 6.36 | 1.12 | – | 1.51 | 1.04 | – |

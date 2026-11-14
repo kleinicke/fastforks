@@ -52,7 +52,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`sea-raft-s`](#sea_raft) | yes | 1.054 † | 50.4, 6.0x | 492, 0.058x |
 | [`sea-raft-s-kitti`](#sea_raft) | yes | 0.935 † | 50.5, 5.9x | 492, 0.058x |
 | [`sea-raft-s-spring`](#sea_raft) | yes | 7.757 † | 16.0, 2.6x | 192, 0.25x |
-| [`waft-a1`](#waft) | yes | – | – | – |
+| [`waft-a1`](#waft) | yes | 2.315 | – | – |
 | [`waft-a1-kitti`](#waft) | yes | – | – | – |
 | [`waft-a1-sintel`](#waft) | yes | – | – | – |
 
@@ -828,7 +828,11 @@ WAFT a1 (Princeton, 2025): optical flow without a cost volume. Each step warps t
 
 Commercial use: yes.
 
-Speed and memory not measured for: `waft-a1`, `waft-a1-kitti`, `waft-a1-sintel`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>790<br>– | 5537 / 5916<br>3553 / 4076<br>– |
+| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>– | 5537 / 5936<br>3553 / 4196<br>– |
+| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>– | 5537 / 5916<br>3553 / 4076<br>– |
 
 <details><summary>Details</summary>
 
@@ -845,7 +849,24 @@ Speed and memory not measured for: `waft-a1`, `waft-a1-kitti`, `waft-a1-sintel`.
 - Variants: `waft-a1`, `waft-a1-kitti`, `waft-a1-sintel`
 - Outputs: flow
 - Input size: any H x W >= 112, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `waft-a1` not measured yet; `waft-a1-kitti` not measured yet; `waft-a1-sintel` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `waft-a1` 1080x1920 (3.5 GiB peak allocated, 4.0 reserved); `waft-a1-kitti` 1080x1920 (3.5 GiB peak allocated, 4.1 reserved); `waft-a1-sintel` 1080x1920 (3.5 GiB peak allocated, 4.0 reserved)
+- `waft-a1` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t.json), iters=5
+- `waft-a1-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-kitti.json), iters=5
+- `waft-a1-sintel` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-sintel.json), iters=5
+- `waft-a1` load / first call: original 5.87 s / 3.409 s, portable 0.51 s / 0.79 s
+- `waft-a1-kitti` load / first call: original 4.06 s / 2.874 s, portable 0.54 s / 0.79 s
+- `waft-a1-sintel` load / first call: original 2.93 s / 2.873 s, portable 0.51 s / 0.79 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | note |
+|---|---|---|---|---|---|
+| `waft-a1` | KITTI 2015 train, EPE / Fl-all % | 2.395 / 8.52 | 2.375 / 8.52 | 2.315 / 8.51 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec1d48ea, 2026-11-14.
 
 ### Parity
 

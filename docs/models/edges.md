@@ -6,7 +6,7 @@
 
 Input: one RGB image. Output: a line / edge map `[H, W]` in [0, 1] at the input size (1 = line), the ControlNet preprocessors (line art, HED, PiDiNet, TEED / Anyline); M-LSD also returns straight line segments.
 
-Measured on RTX 5060 Ti 16 GB; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -29,7 +29,9 @@ AnyLine (TheMisto.ai): sharp line maps for line-conditioned ControlNets such as 
 
 Commercial use: yes.
 
-Speed and memory not measured for: `anyline`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `anyline` | synthetic (1080x1920) | original<br>portable<br>kernels | 585<br>50.7<br>– | 909 / 1002<br>654 / 722<br>– |
 
 <details><summary>Details</summary>
 
@@ -45,7 +47,10 @@ Speed and memory not measured for: `anyline`.
 - Variants: `anyline`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anyline` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anyline` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved)
+- `anyline` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c anyline, host OpenCV resize, float post-processing
+- `anyline` load / first call: original 0.11 s / 0.622 s, portable 0.17 s / 0.053 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 
@@ -69,7 +74,9 @@ HED edges (Xie and Tu, ICCV 2015; ControlNet's Apache-2.0 re-implementation): so
 
 Commercial use: yes.
 
-Speed and memory not measured for: `hed`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `hed` | synthetic (1080x1920) | original<br>portable<br>kernels | 38.5<br>11.3<br>– | 300 / 324<br>187 / 224<br>– |
 
 <details><summary>Details</summary>
 
@@ -85,7 +92,10 @@ Speed and memory not measured for: `hed`.
 - Variants: `hed`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hed` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hed` 1080x1920 (0.2 GiB peak allocated, 0.2 reserved)
+- `hed` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c hed, host OpenCV resize, float post-processing
+- `hed` load / first call: original 0.24 s / 0.057 s, portable 0.18 s / 0.012 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 
@@ -105,7 +115,10 @@ Informative-drawings line art (MIT CSAIL, CVPR 2022), as packaged for ControlNet
 
 Commercial use: yes.
 
-Speed and memory not measured for: `lineart`, `lineart-coarse`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `lineart` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.8<br>18.3<br>– | 221 / 264<br>222 / 284<br>– |
+| `lineart-coarse` | synthetic (1080x1920) | original<br>portable<br>kernels | 30.4<br>18.3<br>– | 221 / 264<br>222 / 284<br>– |
 
 <details><summary>Details</summary>
 
@@ -121,7 +134,12 @@ Speed and memory not measured for: `lineart`, `lineart-coarse`.
 - Variants: `lineart`, `lineart-coarse`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lineart` not measured yet; `lineart-coarse` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lineart` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved); `lineart-coarse` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved)
+- `lineart` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
+- `lineart-coarse` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
+- `lineart` load / first call: original 0.65 s / 0.049 s, portable 0.16 s / 0.019 s
+- `lineart-coarse` load / first call: original 0.16 s / 0.048 s, portable 0.16 s / 0.019 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 
@@ -142,7 +160,9 @@ Anime line art (a pix2pix U-Net, as packaged for ControlNet by lllyasviel): draw
 
 Commercial use: yes.
 
-Speed and memory not measured for: `lineart-anime`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `lineart-anime` | synthetic (1080x1920) | original<br>portable<br>kernels | 25.2<br>8.36<br>– | 407 / 448<br>241 / 284<br>– |
 
 <details><summary>Details</summary>
 
@@ -158,7 +178,10 @@ Speed and memory not measured for: `lineart-anime`.
 - Variants: `lineart-anime`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lineart-anime` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lineart-anime` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved)
+- `lineart-anime` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart_anime, host OpenCV resize, float post-processing
+- `lineart-anime` load / first call: original 0.74 s / 0.037 s, portable 0.82 s / 0.009 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 
@@ -178,7 +201,9 @@ M-LSD (NAVER, AAAI 2022): finds the straight line segments of a photo (rooms, bu
 
 Commercial use: yes.
 
-Speed and memory not measured for: `mlsd`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `mlsd` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.6<br>9.33<br>– | 185 / 212<br>127 / 170<br>– |
 
 <details><summary>Details</summary>
 
@@ -193,7 +218,10 @@ Speed and memory not measured for: `mlsd`.
 - Variants: `mlsd`
 - Outputs: edges, lines
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mlsd` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mlsd` 1080x1920 (0.1 GiB peak allocated, 0.2 reserved)
+- `mlsd` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c mlsd, host OpenCV resize, float post-processing
+- `mlsd` load / first call: original 0.21 s / 0.057 s, portable 0.17 s / 0.011 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 
@@ -213,7 +241,9 @@ PiDiNet (Su et al., ICCV 2021): a small, fast edge detector with pixel-differenc
 
 Commercial use: **no** (code: LicenseRef-research-only (noncommercial); weights: LicenseRef-research-only (assumed from code)).
 
-Speed and memory not measured for: `pidinet`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `pidinet` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.9<br>13.1<br>– | 339 / 368<br>328 / 372<br>– |
 
 <details><summary>Details</summary>
 
@@ -229,7 +259,10 @@ Speed and memory not measured for: `pidinet`.
 - Variants: `pidinet`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pidinet` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pidinet` 1080x1920 (0.3 GiB peak allocated, 0.4 reserved)
+- `pidinet` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c pidinet, host OpenCV resize, float post-processing
+- `pidinet` load / first call: original 0.28 s / 0.058 s, portable 0.16 s / 0.014 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 
@@ -249,7 +282,9 @@ TEED (Soria et al., 2023): a tiny edge detector (58 k parameters) that draws sof
 
 Commercial use: yes.
 
-Speed and memory not measured for: `teed`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `teed` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.6<br>4.09<br>– | 149 / 184<br>122 / 146<br>– |
 
 <details><summary>Details</summary>
 
@@ -264,7 +299,10 @@ Speed and memory not measured for: `teed`.
 - Variants: `teed`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `teed` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `teed` 1080x1920 (0.1 GiB peak allocated, 0.1 reserved)
+- `teed` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c teed, host OpenCV resize, float post-processing
+- `teed` load / first call: original 0.13 s / 0.083 s, portable 0.16 s / 0.005 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 

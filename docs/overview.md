@@ -330,18 +330,19 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 8 models; size 1080x1920.
 
-- No timed model.
+- Fastest: [`teed`](models/edges.md#teed-edges) (4.1 ms).
+- Fastest commercially usable: [`teed`](models/edges.md#teed-edges) (4.1 ms).
 
-| model | commercial use |
-|---|---|
-| [`anyline`](models/edges.md#anyline-line-art) | yes |
-| [`hed`](models/edges.md#hed-soft-edges-controlnet-11) | yes |
-| [`lineart`](models/edges.md#line-art-informative-drawings) | yes |
-| [`lineart-anime`](models/edges.md#anime-line-art) | yes |
-| [`lineart-coarse`](models/edges.md#line-art-informative-drawings) | yes |
-| [`mlsd`](models/edges.md#m-lsd-line-segments) | yes |
-| [`pidinet`](models/edges.md#pidinet-soft-edges) | no |
-| [`teed`](models/edges.md#teed-edges) | yes |
+| model | commercial use | original time (ms, its size) | portable time (ms) |
+|---|---|---|---|
+| [`teed`](models/edges.md#teed-edges) | yes | 29.6 (1080x1920) | 4.1 |
+| [`lineart-anime`](models/edges.md#anime-line-art) | yes | 25.2 (1080x1920) | 8.4 |
+| [`mlsd`](models/edges.md#m-lsd-line-segments) | yes | 35.6 (1080x1920) | 9.3 |
+| [`hed`](models/edges.md#hed-soft-edges-controlnet-11) | yes | 38.5 (1080x1920) | 11.3 |
+| [`pidinet`](models/edges.md#pidinet-soft-edges) | no | 35.9 (1080x1920) | 13.1 |
+| [`lineart`](models/edges.md#line-art-informative-drawings) | yes | 29.8 (1080x1920) | 18.3 |
+| [`lineart-coarse`](models/edges.md#line-art-informative-drawings) | yes | 30.4 (1080x1920) | 18.3 |
+| [`anyline`](models/edges.md#anyline-line-art) | yes | 585.1 (1080x1920) | 50.7 |
 
 ## Promptable segmentation
 
@@ -606,10 +607,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 43 models; size 1080x1920.
 
 - Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
-- Most accurate: [`flowseek-t-things-notartan`](models/flow.md#flowseek) (395.6 ms, error 3.933).
-- Best trade-off: [`neuflow-v2-things`](models/flow.md#neuflow-v2) (58.9 ms, error 4.095).
+- Most accurate: [`waft-a1`](models/flow.md#waft) (790.2 ms, error 2.315).
 - Fastest commercially usable: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
-- Most accurate commercially usable: [`flowseek-t-things-notartan`](models/flow.md#flowseek) (395.6 ms, error 3.933).
+- Most accurate commercially usable: [`waft-a1`](models/flow.md#waft) (790.2 ms, error 2.315).
 
 | model | commercial use | KITTI 2015 train EPE (px) | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
@@ -636,6 +636,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | – | – | – |
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 427.4 | 1.2x vs original (1080x1920) | 1301 |
 | [`megaflow`](models/flow.md#megaflow) | yes | 1.714 † | 1588.5 (1080x1920) | 1109.0 | 733.5 | 2.2x vs original (1080x1920) | 2866 |
+| [`waft-a1`](models/flow.md#waft) | yes | 2.315 | 1533.1 (1080x1920) | 790.2 | – | – | – |
+| [`waft-a1-sintel`](models/flow.md#waft) | yes | – | 1532.7 (1080x1920) | 790.5 | – | – | – |
+| [`waft-a1-kitti`](models/flow.md#waft) | yes | – | 1533.3 (1080x1920) | 790.8 | – | – | – |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 800.4 | – | – | – |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 800.8 | – | – | – |
 | [`memflow-sintel`](models/flow.md#memflow) | yes | – | 3214.2 (1080x1920) | 964.5 | 864.5 | 3.7x vs original (1080x1920) | 968 |
@@ -653,9 +656,6 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | – | – | – | – |
 | [`memfof-sintel`](models/flow.md#memfof) | yes | – | – | – | – | – | – |
 | [`memfof-spring`](models/flow.md#memfof) | yes | – | – | – | – | – | – |
-| [`waft-a1`](models/flow.md#waft) | yes | – | – | – | – | – | – |
-| [`waft-a1-kitti`](models/flow.md#waft) | yes | – | – | – | – | – | – |
-| [`waft-a1-sintel`](models/flow.md#waft) | yes | – | – | – | – | – | – |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
