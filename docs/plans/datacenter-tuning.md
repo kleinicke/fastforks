@@ -524,3 +524,21 @@ fuses. TensorRT has no bf16 ConvTranspose: the export rewrites the DPT head's st
 
 Source: the RoMa v2 rows in `docs/data/speed.jsonl`, `docs/data/speed_compile.jsonl` and
 `results/raw/2026-11-11_port_romav2/` (profile/ has the per-step trials).
+
+**RTX 3090 (sm_86, GeForce, rented 2026-11-14), same pair and options.** Survey rows, golden pass
+(`docs/data/speed/rtx-3090-24gb.jsonl`): kernels 298 ms (peak 1883 MiB allocated / 2340 reserved), portable 560 ms
+(1965 / 2356). Lab numbers of the same session: original bf16 without its `fused_local_corr` extension 445 ms
+(9863 / 12356 MiB); settings turbo 46 ms, fast 75 ms, base 110 ms; `matches(5000)` 0.45 ms; `estimate_pose` 4.3 ms
+with kernels and 42 ms portable; the whole chain 302 ms. Stages of the kernels run: DINOv3 80, matcher 49, VGG 50,
+refiners 45 / 41 / 33 ms. The GPU is busy the whole call, so nothing is left on the host side.
+
+- **Fused depthwise 5x5 conv + bias + ReLU, measured.** An exact fused kernel (Triton prototype, output bit-identical)
+  took 16 ms off the call (5.5 %). To ship it, it has to be written as a CUDA kernel of the `romav2` library.
+- **`PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`** lowers peak reserved by 376 MiB at the same speed.
+- **Rejected on this card:** `cudnn.benchmark` (no gain), cuDNN's conv + ReLU (3.2x slower, as on sm_120), TF32
+  (5.6 ms for a changed output).
+- **Not measured, estimates only:** RoPE and layer scale fused into the DINOv3 blocks (15 to 20 ms guessed), the fp32
+  heads in bf16, `grid_sample` fused into the local correlation, bias and activation in the GEMM epilogue.
+
+Source: `~/projects/experiments/017-fastforks-lib/results/2026-11-14_marigold_v2_3090/roma_exp/` on the Ubuntu box
+(scripts and logs; `dwtriton.py` is the fused depthwise prototype).
