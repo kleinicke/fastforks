@@ -328,12 +328,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Edges
 
-3 models; size 1080x1920.
+4 models; size 1080x1920.
 
 - No timed model.
 
 | model | commercial use |
 |---|---|
+| [`hed`](models/edges.md#hed-soft-edges-controlnet-11) | yes |
 | [`lineart`](models/edges.md#line-art-informative-drawings) | yes |
 | [`lineart-anime`](models/edges.md#anime-line-art) | yes |
 | [`lineart-coarse`](models/edges.md#line-art-informative-drawings) | yes |
