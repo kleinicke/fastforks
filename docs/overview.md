@@ -705,7 +705,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Interpolation
 
-9 models; size 1080x1920.
+10 models; size 1080x1920.
 
 - Fastest: [`rife-4.25-lite`](models/interpolation.md#rife) (18.3 ms).
 - Fastest commercially usable: [`rife-4.25-lite`](models/interpolation.md#rife) (18.3 ms).
@@ -719,6 +719,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`ema-vfi-small`](models/interpolation.md#ema-vfi) | yes | 121.4 (1080x1920) | 89.5 | 84.5 | 1.4x vs original (1080x1920) | 1660 |
 | [`ema-vfi-t`](models/interpolation.md#ema-vfi) | yes | 286.9 (1080x1920) | 232.9 | 206.7 | 1.4x vs original (1080x1920) | 3129 |
 | [`ema-vfi`](models/interpolation.md#ema-vfi) | yes | 296.2 (1080x1920) | 233.7 | 206.8 | 1.4x vs original (1080x1920) | 3129 |
+| [`film`](models/interpolation.md#film) | yes | 463.8 (1080x1920) | 527.6 | 444.3 | 1.0x vs original (1080x1920) | 4763 |
 | [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2791.2 | 1694.7 | 1.6x vs portable | 7860 |
 | [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2796.9 | 1695.0 | 1.7x vs portable | 7860 |
 

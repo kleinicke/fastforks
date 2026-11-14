@@ -182,6 +182,13 @@
   207 ms kernels, 234 ms portable vs 502 ms original fp32 (296 ms fp16); peak 3.2 GB portable vs 6.4 GB (reserved).
   DAVIS 2017 (180 triplets) PSNR 27.67 / 27.44 / 29.07 / 28.65 in every tier as the original.
 
+- FILM frame interpolation (`film`, interpolation; Apache-2.0): the Style `film_net` as dajes/frame-interpolation-pytorch
+  ports it (the release TorchScript weights load into plain modules), frames zero-padded to a multiple of 64 as
+  upstream; both directions run in one batch, the flows and warps in float32 (warps as row gathers). 1080x1920 pair:
+  444 ms kernels (fp16-accumulate convs, CUDA graph), 528 ms portable vs 872 ms original fp32 (464 ms fp16, whose
+  float16 warp grid costs 0.17 dB); peak 5.1 GB portable vs 7.2 GB fp32 (reserved). DAVIS 2017 (180 triplets) PSNR
+  27.63 portable / kernels vs 27.63 original fp32 (27.46 fp16).
+
 - New task `fastforks.retrieval` (image retrieval / visual place recognition): one unit-length global descriptor per
   image, `top_k` (exact cosine top-k on the GPU, chunked) and `pairs` (image pairs for 3-D reconstruction).
 

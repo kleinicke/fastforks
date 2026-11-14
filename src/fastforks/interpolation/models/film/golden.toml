@@ -1,0 +1,15 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 5e-05  # measured 3.0e-06 (128x192, vs the TorchScript release)
+gpu_mean = 0.001  # measured fp16 1.3e-04 portable, 3.0e-04 kernels (fp16-accumulate convs)
+gpu_p99 = 0.005  # measured fp16 5.5e-04 portable, 1.3e-03 kernels
+
+[refs."film@1"]
+sha256 = "fc81fdb197a477068cabc27d3de129f61c22ca34d39ee5e4b95f81da1af74c7d"
+upstream = "https://github.com/dajes/frame-interpolation-pytorch@33bf477ea2c65a2ed1b5f2280ee1f02be06910e8"
+settings = "CPU float32, the TorchScript release as inference.py, dt 0.5, zero pad to 64 centred (util.pad_batch), clamp [0, 1], skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"

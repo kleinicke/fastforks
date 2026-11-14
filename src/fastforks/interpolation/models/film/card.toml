@@ -1,0 +1,54 @@
+schema = 2
+name = "FILM"
+summary = "FILM (Reda et al., ECCV 2022): frame interpolation for large motion, the authors' film_net with the Style weights (the published default) as dajes/frame-interpolation-pytorch ports it. A 7-level image pyramid of both frames, cascaded features (one convolutional sub-tree extractor shared by all levels, so the coarse levels learn from fine training samples), a residual flow pyramid in both directions with one predictor shared by the coarse levels, both frames' images and features warped to the time on the 5 finest levels, and a U-Net-like decoder. Trained for the middle frame; other times run as upstream allows."
+tier = "experimental"
+outputs = ["frame"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/dajes/frame-interpolation-pytorch"
+commit = "33bf477ea2c65a2ed1b5f2280ee1f02be06910e8"  # net/ = feature_extractor, fusion, interpolator, pyramid_flow_estimator, util .py; the call is inference.py; a port of google-research/frame-interpolation (TensorFlow) @ 69f8708f
+# the weights are the release v1.0.2 TorchScript export of the authors' Style SavedModel (export.py)
+
+[licence]
+code = "Apache-2.0"  # LICENSE (also the original google-research/frame-interpolation)
+weights = "Apache-2.0"  # the release asset and the authors' SavedModels state no licence of their own: they inherit the code licence
+files = ["LICENSE"]
+training_data = ["vimeo90k"]
+training_note = "google-research/frame-interpolation README \"Datasets\": Vimeo-90K triplets are the training set (film_net-Style.gin)."
+evidence = "https://github.com/dajes/frame-interpolation-pytorch/blob/33bf477ea2c65a2ed1b5f2280ee1f02be06910e8/LICENSE ; https://github.com/dajes/frame-interpolation-pytorch/releases/tag/v1.0.2 ; https://github.com/google-research/frame-interpolation/blob/69f8708f08e62c2edf46a27616a4bfcf083e2076/README.md"
+
+[io]
+input = "0-1"  # util.load_image divides the frames by 255 (RGB)
+min_size = 64
+pad = { multiple = 64, mode = "centre", fill = "zero" }  # util.load_image(align=64) pad_batch: zeros, centred
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network from a CUDA graph (false: eager, no graph pool)
+
+[params]
+pyramid_levels = 7  # Interpolator defaults = film_net-Style.gin
+fusion_levels = 5
+specialized_levels = 3
+sub_levels = 4
+filters = 64
+flow_convs = [3, 3, 3, 3]
+flow_filters = [32, 64, 128, 256]
+
+[modes.portable]
+cuda_dtype = "float16"  # inference.py --fp16 (`model.half()`; the flows and warps run in float32 here)
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate convs, one CUDA graph per input shape; otherwise the portable float16 network
+
+[[papers]]
+title = "FILM: Frame Interpolation for Large Motion"
+url = "https://arxiv.org/abs/2202.04901"
+date = "2022-02-10"
+venue = "ECCV 2022"
+
+[[variants]]
+id = "film"  # the Style model (README: the default `--model_path .../film_net/Style/saved_model`)
+revision = 1
+weights = [{ name = "film-net-style-fp32.pt", size = 137922129, sha256 = "f810cada26d0c288e50a27eac43af74446eb84b857ccbc77a22bb006f4d27240", url = "https://github.com/dajes/frame-interpolation-pytorch/releases/download/v1.0.2/film_net_fp32.pt" }]

@@ -609,6 +609,36 @@ def _ema_vfi(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda im1, im2: g.interpolate(net, im1[None].float() / 255, im2[None].float() / 255)
 
 
+def _film(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """The TorchScript release as `tools/golden/film.py`; fp16 = inference.py's `--fp16` (`model.half()`).
+
+    Zero pad to 64 (centred, as `util.pad_batch`) on the GPU, `dt` 0.5, the frame clamped to [0, 1] and cropped.
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    card, variant = registry.resolve("interpolation", full)
+    file = registry.weights(card, variant, allow_download=False)[0]
+    dtype = torch.float16 if fp16 else torch.float32
+    model = torch.jit.load(file, map_location="cpu").eval().to("cuda", dtype)
+    a.note = (
+        "the TorchScript release as inference.py, dt 0.5, zero pad to 64 (centred)" + ", --fp16: model.half()" * fp16
+    )
+
+    def call(im1: Any, im2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW
+        h, w = im1.shape[-2:]
+        ph, pw = -h % 64, -w % 64
+        pad = [pw >> 1, pw - (pw >> 1), ph >> 1, ph - (ph >> 1)]
+        x0, x1 = (F.pad(x[None].to(dtype) / 255, pad) for x in (im1, im2))
+        with torch.no_grad():
+            pred = model(x0, x1, x0.new_full((1, 1), 0.5)).clamp(0, 1)
+        return pred[..., pad[2] : pad[2] + h, pad[0] : pad[0] + w].float()
+
+    return call
+
+
 def _realesrgan(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
     """Upstream `RealESRGANer` as `tools/golden/realesrgan.py`; fp16 = inference_realesrgan.py's default (`half`).
 
@@ -2231,6 +2261,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "rife": _LocalFp16("interpolation", _rife, ((1080, 1920),)),
     "gimm_vfi": _Local("interpolation", _gimm_vfi, ((480, 854), (1080, 1920))),
     "ema_vfi": _Local("interpolation", _ema_vfi, ((480, 854), (1080, 1920))),
+    "film": _LocalFp16("interpolation", _film, ((480, 854), (1080, 1920))),
     "realesrgan": _LocalFp16("restoration", _realesrgan, ((512, 512),), _hwc01),
     "span": _Local("restoration", _span, ((512, 512),), _bchw01),
     "compact": _LocalFp16("restoration", _compact, ((512, 512),), _hwc01),

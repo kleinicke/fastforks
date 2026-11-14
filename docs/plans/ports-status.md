@@ -75,6 +75,8 @@ In this order, unless something more useful turns up:
 - EMA-VFI (`ema-vfi`, `ema-vfi-small`, `ema-vfi-t`, `ema-vfi-small-t`, interpolation, Apache-2.0): portable MPS goldens
   and Mac speed rows (480x854 pair). No Metal kernels runner. Weights: Google Drive URLs of the card (also in
   `data/ff-weights/ema_vfi/`); mirror them to HF at release.
+- FILM (`film`, interpolation, Apache-2.0): portable MPS goldens and Mac speed rows (480x854 pair). No Metal kernels
+  runner. Weights: the pinned GitHub release URL of the card (also in `data/ff-weights/film/`).
 - MegaLoc (`megaloc`, new retrieval task): portable float32 MPS goldens and Mac speed rows at 480x640. No Metal
   kernels runner. Weights: the pinned HF URL of the card (also in `data/ff-weights/megaloc/`).
 - BoQ (`boq-dinov2`, retrieval): portable float32 MPS goldens and Mac speed rows at 480x640. No Metal kernels runner.
