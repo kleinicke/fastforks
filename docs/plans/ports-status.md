@@ -269,4 +269,6 @@ exist) and the MPS goldens, all passing. Still open:
   release time.
 - The `romav2` build `bb29839cee98` (fused depthwise conv) is not on Hugging Face yet; local copy in
   `wt-roma-dw/build/kernels` on the Ubuntu box.
+- The `gsraster` build `be9d99ba7071` (ReSplat rasteriser + exact kNN) is not on Hugging Face yet; local copy in
+  `wt-p39knn/build/kernels` on the Ubuntu box.
 - Licence questions still open: the Depth Anything V2 Metric B / L weights and Distill-Any-Depth L.
