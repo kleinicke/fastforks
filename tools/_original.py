@@ -2261,6 +2261,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "pidinet": _Local("edges", _edges, ((1024, 1024), (1080, 1920))),
     "teed": _Local("edges", _edges, ((1024, 1024), (1080, 1920))),
     "anyline": _Local("edges", _edges, ((1024, 1024), (1080, 1920))),
+    "mlsd": _Local("edges", _edges, ((1024, 1024), (1080, 1920))),
     "isnet": _Local("matting", _rsu, ((1080, 1920),)),
     "inspyrenet": _Local("matting", _inspyrenet, ((1080, 1920),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
