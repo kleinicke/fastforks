@@ -238,6 +238,7 @@ runtime-evaluated-base-classes = []
 "src/fastforks/restoration/models/codeformer/net/vqgan_arch.py" = ["G004", "F541"]
 "src/fastforks/shared/*/net/**" = [
   "PGH004",  # upstream blanket `# noqa` (SAM)
+  "A001",  # upstream `input = ...` in TEED's `__main__` block
   "PLW2901", "FLY", "TD", "FIX", "PGH003", "RUF013", "RUF012", "RUF100", "B008", "RUF046",  # more upstream (DINOv2 / DPT / EdgeNeXt) style
   "D", "Q", "UP", "I", "E", "W", "N", "ANN", "C4", "C90", "COM", "ERA", "FBT", "ARG", "TRY", "EM", "SIM", "RET",
   "PLR", "PERF", "TID252", "RUF005", "RUF059", "B007", "B905", "E741", "PLC0415", "INP001",

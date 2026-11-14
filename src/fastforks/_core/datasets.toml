@@ -448,3 +448,9 @@ name = "Places365-Challenge (8 M scene images, 365 categories)"
 licence = "non-commercial research and educational use"  # terms of use on the download page; the images are Flickr / web photos
 commercial = "no"
 url = "http://places2.csail.mit.edu/download.html"
+
+[biped]
+name = "BIPED (Barcelona Images for Perceptual Edge Detection)"
+licence = "LicenseRef-research-only"  # "freely available ... for non-commercial purposes such as academic research"
+commercial = "no"
+url = "https://github.com/xavysp/MBIPED"

@@ -1,0 +1,4 @@
+summary = "TEED (tiny and efficient edge detector) network, vendored from controlnet_aux; used by the TEED and AnyLine edge families."
+licence = "MIT"
+files = ["LICENSE"]
+derived_from = "https://github.com/huggingface/controlnet_aux (b1aac318, src/controlnet_aux/teed, from https://github.com/xavysp/TEED, MIT). Weights are NOT part of this module: each family's card carries its weights' licence."
