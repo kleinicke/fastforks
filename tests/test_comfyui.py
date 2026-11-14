@@ -216,7 +216,7 @@ def test_tracks(pack: Any) -> None:
 
 
 def test_upscale_files(pack: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """models/upscale_models lists only files fastforks runs; the node output equals `restoration.load_file`."""
+    """models/upscale_models lists only files fastforks runs; the node output equals `restoration.load(path)`."""
     from fastforks import restoration  # noqa: PLC0415
     from fastforks.restoration.models.span.net import SPAN  # noqa: PLC0415
 
@@ -246,7 +246,7 @@ def test_upscale_files(pack: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     image = torch.rand(2, 16, 24, 3)
     (out,) = nodes.Upscale().run(image=image, model="file: 2x-span.pth", backend="portable", dtype="float32", tile=0)
-    m = restoration.load_file(tmp_path / "2x-span.pth", mode="portable", device="cpu", dtype="float32")
+    m = restoration.load(tmp_path / "2x-span.pth", mode="portable", device="cpu", dtype="float32")
     assert out.shape == (2, 32, 48, 3)
     for i in range(2):
         want = m(image[i].permute(2, 0, 1)).image.float().permute(1, 2, 0).clamp(0, 1)

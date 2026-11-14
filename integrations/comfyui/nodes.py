@@ -34,7 +34,7 @@ DTYPES = ["auto", "float32", "float16", "bfloat16"]
 _TAGS = {"no": " [non-commercial]", "unclear": " [licence unclear]"}
 _MAX_CACHED = 2
 _FILE = "file: "  # dropdown prefix of a checkpoint file of ComfyUI's `models/upscale_models`
-_files: dict[str, tuple[float, str | None]] = {}  # path -> (mtime, `restoration.checkpoint_family`)
+_files: dict[str, tuple[float, str | None]] = {}  # path -> (mtime, `restoration._api._checkpoint_family`)
 _cache: OrderedDict[tuple[Any, ...], fastforks.Model] = OrderedDict()
 _LICENCE_TIP = (
     " Ids marked [non-commercial] have a non-commercial code or weights licence (research use only; their weights"
@@ -88,7 +88,7 @@ def _weights_bytes(mid: str) -> int:
 
 
 def upscale_files() -> list[str]:
-    """Entries for the files of `models/upscale_models` that `restoration.load_file` runs (each checked once)."""
+    """Entries for the files of `models/upscale_models` that `restoration.load` runs (each checked once)."""
     import folder_paths  # noqa: PLC0415 - ComfyUI only
 
     entries = []
@@ -96,7 +96,7 @@ def upscale_files() -> list[str]:
         path = folder_paths.get_full_path("upscale_models", name)
         mtime = Path(path).stat().st_mtime
         if _files.get(path, (None,))[0] != mtime:
-            _files[path] = (mtime, restoration.checkpoint_family(path))
+            _files[path] = (mtime, restoration._api._checkpoint_family(path))
         if _files[path][1]:
             entries.append(_FILE + name)
     return entries
@@ -129,7 +129,7 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
     # weights + activations: ComfyUI unloads its own models until this much is free (no-op if it already is)
     mm.free_memory(2 * (file.stat().st_size if file else _weights_bytes(mid)) + 2**30, device)
     kw: dict[str, Any] = {"mode": backend, "device": device, "dtype": None if dtype == "auto" else dtype}
-    model = restoration.load_file(file, **kw) if file else fastforks.load(mid, options=options or None, **kw)
+    model = restoration.load(file, **kw) if file else fastforks.load(mid, **(options or {}), **kw)
     log.info("fastforks: loaded %s (%s)", mid, model.backend)
     _cache[key] = model
     return model
@@ -779,7 +779,7 @@ class VideoSegment(_Node):
         m = load(model, backend, dtype, {"samurai": True} if samurai else None)
         _mm().throw_exception_if_processing_interrupted()
         video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
-        masks = m.track(video, **kwargs).masks  # ty: ignore[unresolved-attribute]
+        masks = m.video(video, **kwargs).masks  # ty: ignore[unresolved-attribute]
         return (convert.to_mask(list(masks), _out_device()),)
 
 
