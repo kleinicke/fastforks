@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Swin2SR super-resolution (`swin2sr-x4`, `swin2sr-x2`, `swin2sr-x4-real`, restoration; Apache-2.0 code and weights):
+  the Swin V2 cosine window attention as one SDPA call, the shifted-window masks made on the GPU once per size, the
+  last group's output scaled by 1 / 32 before the final norm (float16 overflows there; exact in the weights). The
+  shared shifted-window mask (also SwinIR, HAT, DRCT) is now cached in the attention's dtype. 512x512 x4: 745 ms
+  kernels, 932 ms portable vs 3304 ms original fp32 (2922 ms `.half()`), peak allocated 1459 MB vs 2798 MB (1488 MB
+  `.half()`); x2: 720 / 909 ms (482 ms compile) vs 3407 ms (2565 ms); x4-real: 752 / 958 ms (508 ms compile) vs
+  3316 ms (2527 ms), 1459 MB vs 4596 MB (2321 MB). DIV2K validation PSNR / SSIM (Y) as the original fp32: x4 30.89 /
+  0.842 (every 2nd), x2 36.43 / 0.9423 (every 4th), x4-real 29.04 / 0.8021. torch.compile of x4 runs over 290 s.
+
 - MatAnyone video matting (`matanyone`, matting; NTU S-Lab License 1.0 code and weights: non-commercial): one object
   from a mask on the first frame (`track`; an image is a one-frame video), the `process_video` loop with its memory,
   options `warmup` / `dilate` / `erode`. 1080x1920 video: 161 ms per frame portable vs 198 ms original fp16 (261 ms

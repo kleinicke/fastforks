@@ -65,7 +65,7 @@ class Params:
 
 def _mask(m: HAT, x_size: tuple[int, int]) -> torch.Tensor:
     """`HAT.calculate_mask` made on the device, once per size."""
-    return shift_mask(*x_size, m.window_size, m.shift_size, m.conv_first.weight.device)
+    return shift_mask(*x_size, m.window_size, m.shift_size, m.conv_first.weight.device, dtype=m.conv_first.weight.dtype)
 
 
 def _attention(

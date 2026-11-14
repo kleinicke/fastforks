@@ -719,7 +719,7 @@ Commercial use: yes.
 - Variants: `marigold-v2-depth`
 - Outputs: depth; kind: `affine_invariant_log`
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-v2-depth` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-v2-depth` 1988x2880 (12.8 GiB peak allocated, 13.5 reserved)
 - `marigold-v2-depth` load / first call: portable 3.28 s / 5.295 s, kernels 3.47 s / 4.085 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

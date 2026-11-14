@@ -229,6 +229,7 @@ runtime-evaluated-base-classes = []
 "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py" = ["ISC002", "B023"]
 # SwinIR: upstream implicitly concatenated `extra_repr` string over two lines and `math.log(scale, 2)`.
 "src/fastforks/restoration/models/swinir/net/network_swinir.py" = ["ISC002", "FURB163"]
+"src/fastforks/restoration/models/swin2sr/net/network_swin2sr.py" = ["ISC002", "FURB163"]  # as SwinIR (its fork)
 # HAT / DAT: upstream `math.log(scale, 2)`; HAT's `attn_mask = attn_mask` (`HAB.forward`).
 "src/fastforks/restoration/models/hat/net/hat_arch.py" = ["FURB163", "PLW0127"]
 "src/fastforks/restoration/models/dat/net/dat_arch.py" = ["FURB163"]
@@ -332,13 +333,14 @@ markers = [
   "slow: takes > 1 s; skipped without --slow (release suite, the tests of changed code)",
 ]
 
-# VGGT pose_enc: `H, W = image_size_hw` on an argument typed Optional upstream. TinyViT, MVSplat: Module containers.
+# VGGT pose_enc, Swin2SR flops: unpacking an argument typed Optional upstream. TinyViT, MVSplat: Module containers.
 [[tool.ty.overrides]]
 include = [
   "src/fastforks/multiview/models/vggt/net/utils/pose_enc.py",
   "src/fastforks/multiview/models/anysplat/net/utils/pose_enc.py",
   "src/fastforks/promptable_segmentation/models/mobile_sam/net/tiny_vit_sam.py",  # `for block in layer.blocks`
   "src/fastforks/multiview/models/mvsplat/net/costvolume/ldm_unet/unet.py",  # `for submodule in module` (Sequential)
+  "src/fastforks/restoration/models/swin2sr/net/network_swin2sr.py",  # `H, W = self.input_resolution` (flops)
 ]
 
 [tool.ty.overrides.rules]

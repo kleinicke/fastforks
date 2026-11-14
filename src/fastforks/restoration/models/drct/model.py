@@ -73,7 +73,7 @@ def _mask(m: SwinTransformerBlock, x_size: tuple[int, int]) -> torch.Tensor | _N
     """`SwinTransformerBlock.calculate_mask` made on the device, once per size (upstream: all zeros if unshifted)."""
     if not m.shift_size:
         return _NO_MASK
-    return shift_mask(*x_size, m.window_size, m.shift_size, m.norm1.weight.device)
+    return shift_mask(*x_size, m.window_size, m.shift_size, m.norm1.weight.device, dtype=m.norm1.weight.dtype)
 
 
 def _attention(m: WindowAttention, x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:

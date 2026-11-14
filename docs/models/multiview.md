@@ -457,7 +457,7 @@ Speed and memory not measured for: `resplat-small-dl3dv`, `resplat-base-re10k`.
 - Variants: `resplat-small-dl3dv`, `resplat-base-re10k`
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resplat-small-dl3dv` not measured yet; `resplat-base-re10k` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resplat-small-dl3dv` 3000x4000 (5.9 GiB peak allocated, 7.0 reserved); `resplat-base-re10k` 3000x4000 (7.8 GiB peak allocated, 11.2 reserved)
 
 ### Parity
 
@@ -465,8 +465,8 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `resplat-small-dl3dv` | 0.00302 / 0.00738 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `gsraster@e1e5e630344a:sm_120` |
-| `resplat-base-re10k` | 0.00424 / 0.01598 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `gsraster@e1e5e630344a:sm_120` |
+| `resplat-small-dl3dv` | 0.00302 / 0.00738 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120` |
+| `resplat-base-re10k` | 0.00424 / 0.01598 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120` |
 
 </details>
 

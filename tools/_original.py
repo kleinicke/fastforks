@@ -758,6 +758,22 @@ def _swinir(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda x: g.run(net, x, p["scale"])
 
 
+def _swin2sr(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `Swin2SR` as `tools/golden/swin2sr.py` (`FF_SWIN2SR_REPO`, `FF_SWIN2SR_WEIGHTS`), float32.
+
+    As `main_test_swin2sr.py`: mirror padding, `model(lq)` (no tile), crop, clamp.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("swin2sr")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    weights = Path(os.environ["FF_SWIN2SR_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(Path(os.environ["FF_SWIN2SR_REPO"]), weights, p, device=torch.device("cuda"))
+    a.note = "upstream main_test_swin2sr.py, float32, no tile"
+    return lambda x: g.run(net, x, p["scale"])
+
+
 def _hat(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     """Upstream `HAT` as `tools/golden/hat.py` (`FF_HAT_REPO`, `FF_HAT_WEIGHTS`; needs `einops`), float32.
 
@@ -2344,6 +2360,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "lama": _LocalMask("restoration", _lama, ((512, 512),)),
     "realplksr": _Local("restoration", _realplksr, ((512, 512),), _bchw01),
     "swinir": _Local("restoration", _swinir, ((512, 512),), _bchw01),
+    "swin2sr": _Local("restoration", _swin2sr, ((512, 512),), _bchw01),
     "hat": _Local("restoration", _hat, ((512, 512),), _bchw01),
     "dat": _Local("restoration", _dat, ((512, 512),), _bchw01),
     "drct": _Local("restoration", _drct, ((512, 512),), _bchw01),
