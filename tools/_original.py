@@ -2023,7 +2023,7 @@ def _insid3(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, ARG001, FBT0
                 return super().get_intermediate_layers(x.float(), n, reshape)
 
     path = Path(os.environ["FF_INSID3_WEIGHTS"]) / "dinov3-vitl16-pretrain-lvd1689m"
-    net = DINOv3ViTModel.from_pretrained(path, dtype=torch.float32).cuda().eval()
+    net = DINOv3ViTModel.from_pretrained(path, dtype=torch.float32).cuda().eval()  # ty: ignore[missing-argument] - transformers' from_pretrained decorator is inferred as an unbound method
     model = INSID3((g.HubShim if fp16 else Fp32)(net), device="cuda").eval()
     a.note = f"visinf/INSID3@{g.REF_COMMIT[:12]} set_reference + set_target + segment" + (
         ", bf16 autocast (as shipped)" if fp16 else ", its encoder autocast off"
