@@ -336,6 +336,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [MegaFlow: Zero-Shot Large Displacement Optical Flow](https://arxiv.org/abs/2603.25739), ECCV 2026, 2026-03-26
 - Original code: <https://github.com/cvg/megaflow> at `2328f8bb2690`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -671,6 +672,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Removing Cost Volumes from Optical Flow Estimators](https://arxiv.org/abs/2510.13317), ICCV 2025, 2025-10-15
 - Original code: <https://github.com/visinf/ReCoVEr> at `503a27e38bad`
 - Code licence: BSD-3-Clause (permissive); files: `LICENSE`
 - Weights licence: BSD-3-Clause

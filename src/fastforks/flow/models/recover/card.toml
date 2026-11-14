@@ -37,6 +37,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions (+ fp16-accumulate cuBLAS GEMMs)
 
+[[papers]]
+title = "Removing Cost Volumes from Optical Flow Estimators"
+url = "https://arxiv.org/abs/2510.13317"
+date = "2025-10-15"
+venue = "ICCV 2025"
+
 [[variants]]
 id = "recover-cx"  # upstream ReCoVEr_CX, ckpt/recover_cx.pth
 revision = 1
