@@ -6,7 +6,7 @@
 
 Input: a CT volume `[D, H, W]` in Hounsfield units and its voxel spacing in mm (`volume.read_nifti` reads both from a NIfTI file). Output: a class index per voxel `[D, H, W]` on the input grid (0 = background).
 
-Measured on RTX 5060 Ti, torch 2.10.0+cu130, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 200x200: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.10.0+cu130, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 200x200: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -47,6 +47,17 @@ Commercial use: yes.
 - `totalsegmentator-total` load / first call: original 0.07 s / 54.51 s, portable 0.98 s / 2.104 s, kernels 0.78 s / 1.88 s
 - `totalsegmentator-total-3mm` load / first call: original 0.06 s / 12.48 s, portable 1.28 s / 0.313 s, kernels 1.41 s / 0.281 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `totalsegmentator-total` | TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice | 0.9365 | 0.9365 | 0.9365 |  |
+| `totalsegmentator-total-3mm` | TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice | 0.8285 | 0.8285 | 0.8285 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180, 2026-11-14.
 
 ### Parity
 

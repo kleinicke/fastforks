@@ -6,14 +6,14 @@
 
 Input: one RGB image. Output: the restored (upscaled) image, `model.scale` x the input size, RGB in [0, 1]. `tile=` runs large images in overlapping tiles (as ComfyUI).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 512x512: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 512x512: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`big-lama`](#lama) | yes | 21.2, 1.8x | 284, 0.99x |
-| [`codeformer`](#codeformer) | no | – | – |
+| [`codeformer`](#codeformer) | no | no kernels | no kernels |
 | [`dat-2-x4`](#dat) | yes | 1247, 3.9x | 2858, 1.1x |
 | [`dat-light-x4`](#dat) | yes | 268, 8.2x | 1572, 0.95x |
 | [`dat-x4`](#dat) | yes | 1421, 6.7x | 2864, 1.1x |
@@ -98,7 +98,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `codeformer` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>48.6<br>–<br>30.8<br>16.3 | 959 / 1090<br>512 / 638<br>–<br>407 / 458<br>593 / 642 |
+| `codeformer` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>48.6<br>no kernels<br>30.8<br>16.3 | 959 / 1090<br>512 / 638<br>no kernels<br>407 / 458<br>593 / 642 |
 
 <details><summary>Details</summary>
 
@@ -114,6 +114,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Outputs: image
 - Input size: any H x W >= 512, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `codeformer` 512x512 (0.5 GiB peak allocated, 0.7 reserved)
+- no kernels: not built yet: a VQGAN of 3x3 convolutions with GroupNorm around a 16 x 16 transformer; fp16-accumulate convolutions (`cudnn_hacc`) are the next step.
 - `codeformer` 512x512, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 65 s (ONNX + engine).
 - `codeformer` original 512x512: upstream inference_codeformer.py on the aligned face, float32, w 0.5
 - `codeformer` load / first call: original 1.24 s / 0.406 s, portable 0.69 s / 0.228 s

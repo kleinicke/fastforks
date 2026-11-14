@@ -82,6 +82,10 @@ _DATASETS = {
         "widerface-val-every4": "WIDER FACE val, every 4th image (807), face box AP easy / medium / hard",
     },
     "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
+    "volume": {
+        "totalseg-subset-3mm": "TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice",
+        "totalseg-subset-1.5mm": "TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice",
+    },
     "interpolation": {"davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM"},
     "restoration": {
         "div2k-val-x4": "DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
@@ -167,6 +171,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     ),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
     "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
+    "volume": ((("dice", "{:.4f}", ""),), "n", "cases"),
     "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
@@ -258,6 +263,10 @@ _PROTOCOL = {
         for d in _DATASETS["restoration"]
         if d.startswith("rain")
     },
+    "volume": "A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at "
+    "its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over "
+    "the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and "
+    "is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. ",
     "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
     "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
     "output rounded to uint8, on RGB in [0, 1], averaged over the triplets. ",
@@ -351,6 +360,7 @@ def _oom() -> frozenset[tuple[str, str, str]]:
 
 
 NM = "not measured"
+_NOK = "no kernels"  # kernels cell of a card without a kernels mode; the card's reason is a note under the table
 DASH = "\u2013"
 _SPEED_MODES = ("upstream-default", "upstream", "portable", "kernels")  # fixed line order inside a table cell
 
@@ -647,6 +657,9 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
     ]
     measured_all = list(card.variants)
     notes = []
+    nok = "kernels" not in card.modes
+    if nok and card.no_kernels_reason:
+        notes.append(f"- {_NOK}: {card.no_kernels_reason.rstrip('.')}.")
     given: dict[tuple[str, str], list[str]] = {}
     dups = same_as(
         [v.id for v in measured],
@@ -668,10 +681,23 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
             extra, setup = _compile_lines(v.id, size)
             names = "<br>".join([*(_label(m) for m in modes), *(e[0] for e in extra)])
             ms = "<br>".join(
-                [*(_ms_str(r["ms"]) if r else "OOM" if m in oom else DASH for m, r in zip(modes, cells, strict=True))]
+                [
+                    *(
+                        _ms_str(r["ms"]) if r else "OOM" if m in oom else _NOK if m == "kernels" and nok else DASH
+                        for m, r in zip(modes, cells, strict=True)
+                    )
+                ]
                 + [e[1] for e in extra]
             )
-            mem = "<br>".join([*(_peak(r) for r in cells), *(e[2] for e in extra)])
+            mem = "<br>".join(
+                [
+                    *(
+                        _NOK if m == "kernels" and nok and r is None else _peak(r)
+                        for m, r in zip(modes, cells, strict=True)
+                    ),
+                    *(e[2] for e in extra),
+                ]
+            )
             lines.append(f"| {labelled(measured_all, v)} | {inp} | {names} | {ms} | {mem} |")
             if setup:
                 notes.append(f"- `{v.id}` {size}, first call: {', '.join(setup)}.")
@@ -993,7 +1019,7 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
         elif isinstance(cell, tuple):
             ms, mem = cell[0], cell[2]
         else:
-            ms, mem = _DASH, _DASH
+            ms, mem = (_NOK, _NOK) if "kernels" not in card.modes else (_DASH, _DASH)
         speedup = f", {orig['ms'] / mx['ms']:.1f}x" if mx and orig else ""
         mem = f"{mem}{_mem_ratio(mem, by.get('upstream'), by.get('upstream-default'))}"
         cells = [
@@ -1115,7 +1141,7 @@ def render(task: str) -> str:
             "Where measured (one variant per family), a variant's table also lists portable under `torch.compile` "
             "and the fp16 TensorRT engine of portable ([export](../export.md); "
             "memory: the engine's device memory + torch's peak). "
-            f"{_DASH} = not measured."
+            f"{_DASH} = not measured; no kernels = the family has no kernels backend (reason under its table)."
             + (f" The accuracy column is lower-is-better ({_OVERVIEW_ACC[task][2]})." if task in _OVERVIEW_ACC else "")
         ),
         "",

@@ -6,20 +6,20 @@
 
 Input: one RGB image. Output: a line / edge map `[H, W]` in [0, 1] at the input size (1 = line), the ControlNet preprocessors (line art, HED, PiDiNet, TEED / Anyline); M-LSD also returns straight line segments.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
-| model | commercial |
-|---|---|
-| [`anyline`](#anyline) | yes |
-| [`hed`](#hed) | yes |
-| [`lineart`](#lineart) | yes |
-| [`lineart-anime`](#lineart_anime) | yes |
-| [`lineart-coarse`](#lineart) | yes |
-| [`mlsd`](#mlsd) | yes |
-| [`pidinet`](#pidinet) | no |
-| [`teed`](#teed) | yes |
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
+|---|---|---|---|
+| [`anyline`](#anyline) | yes | no kernels | no kernels |
+| [`hed`](#hed) | yes | no kernels | no kernels |
+| [`lineart`](#lineart) | yes | no kernels | no kernels |
+| [`lineart-anime`](#lineart_anime) | yes | no kernels | no kernels |
+| [`lineart-coarse`](#lineart) | yes | no kernels | no kernels |
+| [`mlsd`](#mlsd) | yes | no kernels | no kernels |
+| [`pidinet`](#pidinet) | no | no kernels | no kernels |
+| [`teed`](#teed) | yes | no kernels | no kernels |
 
 <a id="anyline"></a>
 
@@ -31,7 +31,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anyline` | synthetic (1080x1920) | original<br>portable<br>kernels | 585<br>50.7<br>– | 909 / 1002<br>654 / 722<br>– |
+| `anyline` | synthetic (1080x1920) | original<br>portable<br>kernels | 585<br>50.7<br>no kernels | 909 / 1002<br>654 / 722<br>no kernels |
 
 <details><summary>Details</summary>
 
@@ -48,6 +48,7 @@ Commercial use: yes.
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anyline` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved)
+- no kernels: the MTEED CNN plus a GPU blend, a few ms; no custom kernel measured to pay off.
 - `anyline` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c anyline, host OpenCV resize, float post-processing
 - `anyline` load / first call: original 0.11 s / 0.622 s, portable 0.17 s / 0.053 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -76,7 +77,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hed` | synthetic (1080x1920) | original<br>portable<br>kernels | 38.5<br>11.3<br>– | 300 / 324<br>187 / 224<br>– |
+| `hed` | synthetic (1080x1920) | original<br>portable<br>kernels | 38.5<br>11.3<br>no kernels | 300 / 324<br>187 / 224<br>no kernels |
 
 <details><summary>Details</summary>
 
@@ -93,6 +94,7 @@ Commercial use: yes.
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hed` 1080x1920 (0.2 GiB peak allocated, 0.2 reserved)
+- no kernels: a VGG-style CNN: cuDNN convolutions are the whole time; no custom kernel measured to pay off.
 - `hed` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c hed, host OpenCV resize, float post-processing
 - `hed` load / first call: original 0.24 s / 0.057 s, portable 0.18 s / 0.012 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -117,8 +119,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lineart` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.8<br>18.3<br>– | 221 / 264<br>222 / 284<br>– |
-| `lineart-coarse` | synthetic (1080x1920) | original<br>portable<br>kernels | 30.4<br>18.3<br>– | 221 / 264<br>222 / 284<br>– |
+| `lineart` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.8<br>18.3<br>no kernels | 221 / 264<br>222 / 284<br>no kernels |
+| `lineart-coarse` | synthetic (1080x1920) | original<br>portable<br>kernels | 30.4<br>18.3<br>no kernels | 221 / 264<br>222 / 284<br>no kernels |
 
 <details><summary>Details</summary>
 
@@ -135,6 +137,7 @@ Commercial use: yes.
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lineart` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved); `lineart-coarse` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved)
+- no kernels: a small conv generator: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off.
 - `lineart` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
 - `lineart-coarse` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
 - `lineart` load / first call: original 0.65 s / 0.049 s, portable 0.16 s / 0.019 s
@@ -162,7 +165,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lineart-anime` | synthetic (1080x1920) | original<br>portable<br>kernels | 25.2<br>8.36<br>– | 407 / 448<br>241 / 284<br>– |
+| `lineart-anime` | synthetic (1080x1920) | original<br>portable<br>kernels | 25.2<br>8.36<br>no kernels | 407 / 448<br>241 / 284<br>no kernels |
 
 <details><summary>Details</summary>
 
@@ -179,6 +182,7 @@ Commercial use: yes.
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lineart-anime` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved)
+- no kernels: a pix2pix U-Net: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off.
 - `lineart-anime` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart_anime, host OpenCV resize, float post-processing
 - `lineart-anime` load / first call: original 0.74 s / 0.037 s, portable 0.82 s / 0.009 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -203,7 +207,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mlsd` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.6<br>9.33<br>– | 185 / 212<br>127 / 170<br>– |
+| `mlsd` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.6<br>9.33<br>no kernels | 185 / 212<br>127 / 170<br>no kernels |
 
 <details><summary>Details</summary>
 
@@ -219,6 +223,7 @@ Commercial use: yes.
 - Outputs: edges, lines
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mlsd` 1080x1920 (0.1 GiB peak allocated, 0.2 reserved)
+- no kernels: a MobileNetV2 CNN (cuDNN); decoding is a few small ops; no custom kernel measured to pay off.
 - `mlsd` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c mlsd, host OpenCV resize, float post-processing
 - `mlsd` load / first call: original 0.21 s / 0.057 s, portable 0.17 s / 0.011 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -243,7 +248,7 @@ Commercial use: **no** (code: LicenseRef-research-only (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `pidinet` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.9<br>13.1<br>– | 339 / 368<br>328 / 372<br>– |
+| `pidinet` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.9<br>13.1<br>no kernels | 339 / 368<br>328 / 372<br>no kernels |
 
 <details><summary>Details</summary>
 
@@ -260,6 +265,7 @@ Commercial use: **no** (code: LicenseRef-research-only (noncommercial); weights:
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pidinet` 1080x1920 (0.3 GiB peak allocated, 0.4 reserved)
+- no kernels: the converted network is plain convolutions (cuDNN); no custom kernel measured to pay off.
 - `pidinet` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c pidinet, host OpenCV resize, float post-processing
 - `pidinet` load / first call: original 0.28 s / 0.058 s, portable 0.16 s / 0.014 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -284,7 +290,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `teed` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.6<br>4.09<br>– | 149 / 184<br>122 / 146<br>– |
+| `teed` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.6<br>4.09<br>no kernels | 149 / 184<br>122 / 146<br>no kernels |
 
 <details><summary>Details</summary>
 
@@ -300,6 +306,7 @@ Commercial use: yes.
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `teed` 1080x1920 (0.1 GiB peak allocated, 0.1 reserved)
+- no kernels: a 58 k-parameter CNN that runs in a few ms; no custom kernel measured to pay off.
 - `teed` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c teed, host OpenCV resize, float post-processing
 - `teed` load / first call: original 0.13 s / 0.083 s, portable 0.16 s / 0.005 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

@@ -6,7 +6,7 @@
 
 Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field, `result.kind`) says what the numbers mean: `metric` = metres; `scale_invariant`, `affine_invariant`, `affine_invariant_log` (log depth) and `affine_invariant_inverse` are relative (unknown scale or shift, not metres). Metric models that use the focal length take `model(image, intrinsics=K)` (K `[3, 3]`, pixels of the input): `metric3d-vit-large` and `da3metric-large` need it for correct metres (`da3metric-large`: metres = output x focal / 300; without `intrinsics=` a 300 px focal length is assumed, wrong for a real camera). `unidepth-v2-vitl14`, `unik3d-vitl`, `depth-pro` and MoGe estimate the camera themselves (given `intrinsics=` replace `fx`); `zoedepth-nk` and the relative models (`da3mono-large` too) take none. Normals-only models (`kind` `none`) return `result.normals` `[B, H, W, 3]` (unit vectors, camera frame: x right, y down, z forward).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured. The accuracy column is lower-is-better (NYUv2 AbsRel (scale+shift aligned)).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). The accuracy column is lower-is-better (NYUv2 AbsRel (scale+shift aligned)).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -711,7 +711,7 @@ Commercial use: yes.
 - Original code: <https://github.com/huawei-bayerlab/marigold-v2> at `main`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`, `NOTICE`
 - Weights licence: Apache-2.0
-- Licence evidence: https://huggingface.co/huawei-bayerlab/marigold-v2/blob/main/README.md (license: apache-2.0; base_model Qwen/Qwen-Image-Edit-2509)
+- Licence evidence: https://huggingface.co/huawei-bayerlab/marigold-v2/blob/main/README.md (license: apache-2.0; base model Qwen/Qwen-Image-Edit-2509)
 - Training data: Qwen-Image-Edit-2509 (Alibaba, Apache-2.0) fine-tuned (LoRA + VAE decoder) on synthetic depth data per the Marigold V2 paper (arXiv 2609.08084); the training data terms are not checked
 - Licence note: The converted weight file (NF4 transformer, LoRA, folded constants, 2-D VAE) is hosted by fastforks under the originals' Apache-2.0 licence; NOTICE keeps both attributions and lists the changes.
 - Options: `seed` = 2026, `long_side` = 0 (>= 0), `exact_mask` = False, `stream` = False
