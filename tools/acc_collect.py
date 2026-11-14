@@ -267,7 +267,7 @@ def write(rows: dict[str, list[dict[str, Any]]], sp: list[dict[str, Any]], tasks
     """Update docs/data/<task>_eval.jsonl (only collected (ref, mode, dataset) rows are replaced), add speed rows."""
     for t in tasks:
         f = ROOT / "docs/data" / f"{t}_eval.jsonl"
-        f.write_text("".join(merge_lines(f.read_text().splitlines(True) if f.exists() else [], rows[t])))
+        f.write_text("".join(merge_lines(f.read_text().splitlines(keepends=True) if f.exists() else [], rows[t])))
     sj = ROOT / "docs/data/speed.jsonl"
     key = ("ref", "mode", "tier", "input", "date")
     have_sp = {tuple(r.get(k) for k in key) for r in _jl(sj)}
