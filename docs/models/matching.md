@@ -4,7 +4,7 @@
 
 12 matching models. Each section says what the model is, whether it may be used commercially and how fast it is; licences and checks are under Details.
 
-Input: two RGB images of one scene. Output: for every pixel of the first image its position in the second (x, y in pixels) and a certainty that the pixel is visible in both. Sparse matchers (LightGlue) return the keypoints of both images and the index pairs of the matched ones instead.
+Input: two RGB images of one scene. Output: for every pixel of the first image its position in the second (x, y in pixels) and a certainty that the pixel is visible in both. Sparse matchers (LightGlue) return the keypoints of both images and the index pairs of the matched ones instead. To reconstruct camera poses from an image folder with these matchers, see [structure from motion](../sfm.md).
 
 Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 768x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
 

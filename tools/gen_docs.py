@@ -996,7 +996,8 @@ TASK_IO = {
     "matching": (
         "Input: two RGB images of one scene. Output: for every pixel of the first image its position in the second "
         "(x, y in pixels) and a certainty that the pixel is visible in both. Sparse matchers (LightGlue) return "
-        "the keypoints of both images and the index pairs of the matched ones instead."
+        "the keypoints of both images and the index pairs of the matched ones instead. To reconstruct camera poses "
+        "from an image folder with these matchers, see [structure from motion](../sfm.md)."
     ),
     "matting": (
         "Input: one RGB image (trimap-guided models also a trimap: background / unknown / foreground). Output: an "
