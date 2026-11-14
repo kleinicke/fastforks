@@ -64,6 +64,9 @@ _SIDD = ("sidd-val", "sidd/val", False)
 SETS = {  # scale-1 variant -> [(dataset, directory under restoration/, Y channel)]
     "nafnet-gopro": [_GOPRO],
     "nafnet-sidd": [_SIDD],
+    "restormer-deblur": [_GOPRO],
+    "restormer-sidd": [_SIDD],
+    "restormer-derain": [("rain100l", "rain/test/Rain100L", True), ("rain100h", "rain/test/Rain100H", True)],
 }
 
 

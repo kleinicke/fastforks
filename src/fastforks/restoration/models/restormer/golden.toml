@@ -1,0 +1,54 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+# measured: portable 4e-7 max (deblur; the float32 norms and softmax are exact folds)
+cpu_atol = 0.0001
+# RTX 5060 Ti fp16 kernels: mean <= 0.00022, p99 <= 0.00087 (derain); bounds ~5x.
+gpu_mean = 0.001
+gpu_p99 = 0.005
+
+[refs."restormer-deblur@1"]
+sha256 = "7abdc5e02ceef7805a66ad166488e5dd1f8e74726143679319dfffd4121f3610"
+upstream = "https://github.com/swz30/Restormer@68dc6ac472db26f16361150cb7a96a1bc87da93f"
+settings = "CPU float32, WithBias LayerNorm, reflect padding to a multiple of 8, model(input_), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."restormer-derain@1"]
+sha256 = "660bd67be1cca235b9d0734fef99a7f6b20bc3ab9503888dcf34384ab763f07d"
+upstream = "https://github.com/swz30/Restormer@68dc6ac472db26f16361150cb7a96a1bc87da93f"
+settings = "CPU float32, WithBias LayerNorm, reflect padding to a multiple of 8, model(input_), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."restormer-sidd@1"]
+sha256 = "781416e52ae89ffc5353b7fcc0fd6764f70850c2d533a3d0bb297d26c0b44bb0"
+upstream = "https://github.com/swz30/Restormer@68dc6ac472db26f16361150cb7a96a1bc87da93f"
+settings = "CPU float32, BiasFree LayerNorm, reflect padding to a multiple of 8, model(input_), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[validated."restormer-deblur@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00016
+p99_px = 0.00054
+
+[validated."restormer-derain@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00022
+p99_px = 0.00087
+
+[validated."restormer-sidd@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00019
+p99_px = 0.00071

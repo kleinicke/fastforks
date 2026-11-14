@@ -92,6 +92,8 @@ _DATASETS = {
         "gopro-test-every15": "GoPro test (every 15th: 75 frames), deblurring, PSNR / SSIM (RGB)",
         "sidd-val": "SIDD validation (1280 crops), denoising, PSNR / SSIM (RGB)",
         "sidd-val-every2": "SIDD validation (every 2nd: 640 crops), denoising, PSNR / SSIM (RGB)",
+        "rain100l": "Rain100L test (100 images), deraining, PSNR / SSIM (Y)",
+        "rain100h": "Rain100H test (100 images), deraining, PSNR / SSIM (Y)",
     },
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
@@ -240,6 +242,13 @@ _PROTOCOL = {
         "test scripts). "
         for d in _DATASETS["restoration"]
         if d.startswith(("gopro", "sidd"))
+    },
+    **{
+        ("restoration", d): "Each rainy image at its own size, one pass without tiles; PSNR and SSIM of the output "
+        "rounded to uint8 on the Y channel (BT.601), no border crop, averaged over the images (Restormer's MATLAB "
+        "evaluation). "
+        for d in _DATASETS["restoration"]
+        if d.startswith("rain")
     },
     "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
     "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "

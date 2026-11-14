@@ -371,6 +371,12 @@ licence = "MIT"  # "The dataset and the associated code repositories are under t
 commercial = "yes"
 url = "https://abdokamel.github.io/sidd/"
 
+[rain13k]
+name = "Rain13K (13712 synthetic rainy / clean pairs merged from Rain14000, Rain1800, Rain800, Rain12; MPRNet's training set)"
+licence = "not stated"  # the source sets state no terms; collected images of mixed origin
+commercial = "unclear"
+url = "https://github.com/swz30/Restormer/blob/68dc6ac472db26f16361150cb7a96a1bc87da93f/Deraining/README.md"
+
 [flickr2k]
 name = "Flickr2K (2650 2K Flickr images, EDSR)"
 licence = "not stated"  # Flickr photos under their uploaders' terms

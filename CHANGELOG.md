@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Restormer deblurring / deraining / denoising (`restormer-deblur`, `restormer-derain`, `restormer-sidd`, restoration;
+  MIT code and weights): the transposed (channel) attention of all heads as one block-masked float32 Gram matrix and
+  softmax (upstream normalises q and k in the input dtype, which overflows in float16), float32 LayerNorms. 512x512:
+  225 ms kernels, 228 ms portable (143 ms compile) vs 528 ms original fp32 (234 ms `.half()`; SIDD 495 / 218 ms),
+  peak allocated 850 MB vs 2400 MB (1221 MB `.half()`). PSNR / SSIM as the original fp32: GoPro test every 15th
+  32.85 / 0.9405 (RGB), SIDD validation every 2nd 39.98 / 0.9226 (RGB), Rain100L 39.08 / 0.9785 and Rain100H 31.48 /
+  0.9054 (Y). Rain13K training data: no stated terms (labelled).
+
 - NAFNet deblurring / denoising (`nafnet-gopro`, `nafnet-sidd`, restoration; MIT code and weights): any size (the
   network pads to 16 itself), GoPro with the TLC local-mean pooling (`NAFNetLocal`, one float32 buffer instead of the
   four upstream integral images). float16 overflows in the residual stream and the channel attention, so they carry

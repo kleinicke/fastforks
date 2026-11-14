@@ -790,6 +790,22 @@ def _nafnet(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda x: g.run(net, x)
 
 
+def _restormer(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `Restormer` as `tools/golden/restormer.py` (`FF_RESTORMER_REPO`, `FF_RESTORMER_WEIGHTS`, `einops`).
+
+    As `Motion_Deblurring/test.py`: reflect padding to a multiple of 8, `model(input_)` (no tile), crop, clamp; float32.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("restormer")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    weights = Path(os.environ["FF_RESTORMER_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(Path(os.environ["FF_RESTORMER_REPO"]), weights, p, device=torch.device("cuda"))
+    a.note = "upstream test.py, float32, no tile"
+    return lambda x: g.run(net, x)
+
+
 def _hat(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     """Upstream `HAT` as `tools/golden/hat.py` (`FF_HAT_REPO`, `FF_HAT_WEIGHTS`; needs `einops`), float32.
 
@@ -2379,6 +2395,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "swin2sr": _Local("restoration", _swin2sr, ((512, 512),), _bchw01),
     "hat": _Local("restoration", _hat, ((512, 512),), _bchw01),
     "nafnet": _Local("restoration", _nafnet, ((512, 512),), _bchw01),
+    "restormer": _Local("restoration", _restormer, ((512, 512),), _bchw01),
     "dat": _Local("restoration", _dat, ((512, 512),), _bchw01),
     "drct": _Local("restoration", _drct, ((512, 512),), _bchw01),
     "codeformer": _Local("restoration", _codeformer, ((512, 512),), _bchw01),
