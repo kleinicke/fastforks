@@ -33,7 +33,6 @@ from fastforks.matting._runner import Runner
 from .net.inference.inference_core import InferenceCore
 from .net.inference.memory_manager import MemoryManager
 from .net.model.matanyone import MatAnyone
-from .net.model.utils.memory_utils import do_softmax, get_similarity
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -174,11 +173,24 @@ def _read(  # noqa: PLR0913, PLR0917 - upstream's signature
     for bucket_id, bucket in mem.work_mem.buckets.items():
         mk, ms = mem.work_mem.key[bucket_id], mem.work_mem.shrinkage[bucket_id]
         v = mem._get_visual_values_by_ids(bucket).flatten(1, 2)  # noqa: SLF001 - upstream's helpers  # bs x (objects C) x N
+        ck, ms_t, vt, mk_sq = mk.shape[1], ms.flatten(1)[:, None], v.transpose(1, 2), mk.pow(2)
         reads = []
-        for s in range(0, h * w, READ_TOKENS):
-            sim = get_similarity(mk, ms, query_key[:, :, s : s + READ_TOKENS], selection[:, :, s : s + READ_TOKENS])
-            reads.append(v @ do_softmax(sim, top_k=mem.top_k, inplace=True))  # ty: ignore[unsupported-operator]
-        visual_readout = torch.cat(reads, -1).view(bs, len(bucket), v.shape[1] // len(bucket), h, w)
+        for s in range(0, h * w, READ_TOKENS):  # similarity as [B, chunk, N]: top-k over the last dim is faster
+            qk, qe = query_key[:, :, s : s + READ_TOKENS], selection[:, :, s : s + READ_TOKENS]
+            sim = (
+                (
+                    (2 * ((qk * qe).transpose(1, 2) @ mk))
+                    - (qe.transpose(1, 2) @ mk_sq)
+                    - (qe * qk.pow(2)).sum(1).unsqueeze(2)
+                )
+                * ms_t
+                / math.sqrt(ck)
+            )
+            val, idx = torch.topk(sim, k=mem.top_k, dim=2)
+            val = val.exp_()
+            val /= val.sum(2, keepdim=True)
+            reads.append(sim.zero_().scatter_(2, idx, val) @ vt)  # [B, chunk, objects C]
+        visual_readout = torch.cat(reads, 1).transpose(1, 2).reshape(bs, len(bucket), v.shape[1] // len(bucket), h, w)
         uncert_output = network.pred_uncertainty(
             last_pix_feat, pix_feat, last_pred_mask, visual_readout[:, 0] - last_msk_value[:, 0]
         )

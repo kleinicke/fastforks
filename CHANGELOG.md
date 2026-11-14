@@ -4,8 +4,8 @@
 
 - MatAnyone video matting (`matanyone`, matting; NTU S-Lab License 1.0 code and weights: non-commercial): one object
   from a mask on the first frame (`track`; an image is a one-frame video), the `process_video` loop with its memory,
-  options `warmup` / `dilate` / `erode`. 1080x1920 video: 195 ms per frame portable vs 198 ms original fp16 (261 ms
-  fp32), peak 2.9 GB vs 6.2 GB (readout chunked); one image 1204 ms vs 1220 ms. YouTubeMatte 512x288 (every 2nd clip: 32 x 100 frames,
+  options `warmup` / `dilate` / `erode`. 1080x1920 video: 161 ms per frame portable vs 198 ms original fp16 (261 ms
+  fp32), peak 2.8 GB vs 6.2 GB (readout chunked, top-k over the last dim); one image 1204 ms vs 1220 ms. YouTubeMatte 512x288 (every 2nd clip: 32 x 100 frames,
   the authors' settings) MAD x 1000 2.64, MSE x 1000 1.00, dtSSD x 100 1.65, the same as the original in fp16 and
   fp32; parity on CPU exact. No kernels runner.
 
