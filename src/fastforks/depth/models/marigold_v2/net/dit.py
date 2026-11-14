@@ -58,11 +58,6 @@ def rms_qk(x: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
     return x.mul_(torch.rsqrt(v + 1e-6)).mul_(w)
 
 
-def _gelu_bf(x: torch.Tensor) -> torch.Tensor:
-    """tanh GELU of the float32 `x` (in place), then bf16: as `F.gelu(x, approximate="tanh").to(bf16)`."""
-    return torch.ops.aten.gelu_(x, approximate="tanh").to(BF)
-
-
 def _heads(t: torch.Tensor) -> torch.Tensor:
     return t.unflatten(-1, (HEADS, HEAD_DIM))
 
@@ -77,8 +72,7 @@ class Block(nn.Module):
         `exact_mask`: pass upstream's all-true attention mask (see the module docstring)."""
         super().__init__()
         p = f"transformer_blocks.{index}."
-        self.last = last
-        self.exact_mask = exact_mask
+        self.last, self.fused, self.exact_mask = last, fused, exact_mask
 
         def lin(n: str) -> NF4Linear:
             return NF4Linear(t, p + n, fused=fused)
@@ -103,13 +97,14 @@ class Block(nn.Module):
             out.append((shift, 1 + scale, gate))
         return out
 
-    @staticmethod
-    def _mod(x: torch.Tensor, m: tuple[torch.Tensor, torch.Tensor, torch.Tensor]) -> torch.Tensor:
-        y = F.layer_norm(x.float(), x.shape[-1:], eps=1e-6)
+    def _mod(self, x: torch.Tensor, m: tuple[torch.Tensor, torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        y = F.layer_norm(x, x.shape[-1:], eps=1e-6)
+        if self.fused and NF4Linear.epi is not None:
+            return NF4Linear.epi.mod_bf16(y, m[1], m[0])
         return y.mul_(m[1]).add_(m[0]).to(BF)
 
     def forward(self, img: torch.Tensor, txt: torch.Tensor, f_all: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """`img [B, T_img, dim]`, `txt [B, T_txt, dim]` (float32) -> the same after the block."""
+        """`img [B, T_img, dim]`, `txt [B, T_txt, dim]` (float32, updated in place) -> the same after the block."""
         im, tm = self._mods(self.img_mod), self._mods(self.txt_mod)
         n_txt = txt.shape[1]
         xi, xt = self._mod(img, im[0]), self._mod(txt, tm[0])
@@ -117,19 +112,17 @@ class Block(nn.Module):
         q = q.to(BF).transpose(1, 2)
         k = rope(torch.cat([rms_qk(_heads(self.add_k(xt)), self.nak), rms_qk(_heads(self.to_k(xi)), self.nk)], 1), f_all)
         k = k.to(BF).transpose(1, 2)
-        v = torch.cat([_heads(self.add_v(xt)), _heads(self.to_v(xi))], dim=1).to(BF).transpose(1, 2)
+        v = torch.cat([_heads(self.add_v.bf(xt)), _heads(self.to_v.bf(xi))], dim=1).transpose(1, 2)
         del xi, xt
         mask = torch.ones(1, 1, 1, q.shape[2], dtype=torch.bool, device=q.device) if self.exact_mask else None
         a = F.scaled_dot_product_attention(q, k, v, attn_mask=mask)
         del q, k, v
         a = a.transpose(1, 2).flatten(2, 3)
-        img = self.to_out(a[:, n_txt:]).mul_(im[0][2]).add_(img)
-        h = _gelu_bf(self.img_fc1(self._mod(img, im[1])))
-        img += self.img_fc2(h).mul_(im[1][2])
+        self.to_out.gate_res(a[:, n_txt:], im[0][2], img)
+        self.img_fc2.gate_res(self.img_fc1.gelu(self._mod(img, im[1])), im[1][2], img)
         if not self.last:
-            txt = self.to_add_out(a[:, :n_txt]).mul_(tm[0][2]).add_(txt)
-            h = _gelu_bf(self.txt_fc1(self._mod(txt, tm[1])))
-            txt += self.txt_fc2(h).mul_(tm[1][2])
+            self.to_add_out.gate_res(a[:, :n_txt], tm[0][2], txt)
+            self.txt_fc2.gate_res(self.txt_fc1.gelu(self._mod(txt, tm[1])), tm[1][2], txt)
         return img, txt
 
 
@@ -203,8 +196,8 @@ class Transformer(nn.Module):
     def forward(self, packed: torch.Tensor, h: int, w: int) -> torch.Tensor:
         """Packed latent tokens `[B, h * w, 64]` -> the predicted packed velocity (bf16)."""
         f_all = self.freqs(h, w)
-        img = self.img_in(packed.to(BF), keep_bf=True)
-        txt = self.txt.expand(packed.shape[0], -1, -1)
+        img = self.img_in(packed.to(BF), keep_bf=True).float()  # exact; the blocks add into it in place
+        txt = self.txt.expand(packed.shape[0], -1, -1).clone()
         img = self.run_blocks(img, txt, f_all)
         x = F.layer_norm(img.float(), img.shape[-1:], eps=1e-6) * self.out_scale1p + self.out_shift
         return F.linear(x.to(BF), self.proj_w, self.proj_b)

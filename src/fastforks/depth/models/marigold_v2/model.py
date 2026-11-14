@@ -144,7 +144,7 @@ class Kernels(Runner):
         super().__init__(ctx)
         _announce(ctx)
         nf4.load(ctx.device)
-        NF4Linear.dequant = _dequant
+        NF4Linear.dequant, NF4Linear.epi = _dequant, nf4
         self.net = build_net(ctx, stream=ctx.params.stream, fused=True, exact_mask=ctx.params.exact_mask)
         self.noise = Noise(ctx.params.seed)
 

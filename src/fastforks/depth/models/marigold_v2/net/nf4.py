@@ -7,16 +7,21 @@ dropped again, so the resident model is the packed size. The expansion is a gath
 (`lut`) in plain PyTorch; the kernels backend sets `NF4Linear.dequant` to a fused kernel (`fastforks.kernels.nf4`).
 
 The dtype choreography is upstream's under autocast: a bf16 GEMM with the bf16 bias (cuBLAS), the LoRA term as two
-bf16 GEMMs, both summed in float32 (`keep_bf` keeps the sum in bf16, as `img_in` does).
+bf16 GEMMs, both summed in float32 (`keep_bf` keeps the sum in bf16, as `img_in` does). `bf`, `gelu` and `gate_res`
+consume that sum directly (to bf16, tanh-GELU to bf16, gated residual add); with the kernels backend each is one fused
+epilogue kernel (`NF4Linear.epi`), bit-equal to the PyTorch chain.
 """
 
 from __future__ import annotations
 
-from typing import Callable, ClassVar
+from typing import Callable, ClassVar, TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
 from torch import nn
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 BF = torch.bfloat16
 BLOCK = 64  # weights per absmax
@@ -46,6 +51,7 @@ class NF4Linear(nn.Module):
     lut: ClassVar[torch.Tensor | None] = None  # pair table of the device (set by the network)
     code: ClassVar[torch.Tensor | None] = None  # the 16 code values, float32, on the device
     dequant: ClassVar[Callable[[NF4Linear], torch.Tensor] | None] = None  # fused kernel: self -> bf16 weight
+    epi: ClassVar[ModuleType | None] = None  # fused LoRA epilogues (`fastforks.kernels.nf4`), kernels backend
 
     def __init__(self, t: dict[str, torch.Tensor], name: str, *, fused: bool = False) -> None:
         """Take the tensors `name.q`, `.absmax`, `.bias` and, if present, `.lora_A`, `.lora_B` from `t`.
@@ -70,14 +76,49 @@ class NF4Linear(nn.Module):
             raise RuntimeError(msg)
         return dequant_lut(self.q, self.absmax, lut, self.bias.numel())
 
+    def _parts(self, xb: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """The bf16 GEMM output (with bias) and the bf16 LoRA term (None without LoRA)."""
+        y = F.linear(xb, self.weight(), self.bias)
+        return y, None if self.lora_a is None else F.linear(F.linear(xb, self.lora_a), self.lora_b)
+
+    def _epi(self, lora: torch.Tensor | None) -> ModuleType | None:
+        """The fused epilogue kernels, if this layer uses them."""
+        return NF4Linear.epi if self.fused and lora is not None else None
+
     def forward(self, xb: torch.Tensor, *, keep_bf: bool = False) -> torch.Tensor:
         """bf16 `xb` -> float32 (bf16 GEMM + bf16 LoRA term summed in float32), or bf16 with `keep_bf`."""
-        y = F.linear(xb, self.weight(), self.bias)
-        if self.lora_a is None:
+        y, lora = self._parts(xb)
+        if lora is None:
             return y if keep_bf else y.float()
-        lora = F.linear(F.linear(xb, self.lora_a), self.lora_b)
+        if (e := self._epi(lora)) is not None:
+            return e.lora_bf16(y, lora) if keep_bf else e.lora_f32(y, lora)
         if keep_bf:
             return y + lora
         out = y.float()
         del y
         return out.add_(lora)  # float32 + bf16 in float32, as `y.float() + lora`, without a second float32 copy
+
+    def bf(self, xb: torch.Tensor) -> torch.Tensor:
+        """`self(xb).to(bfloat16)`."""
+        y, lora = self._parts(xb)
+        if (e := self._epi(lora)) is not None:
+            return e.lora_bf16(y, lora)
+        return (y.float() + lora if lora is not None else y.float()).to(BF)
+
+    def gelu(self, xb: torch.Tensor) -> torch.Tensor:
+        """`F.gelu(self(xb), approximate="tanh").to(bfloat16)`."""
+        y, lora = self._parts(xb)
+        if (e := self._epi(lora)) is not None:
+            return e.lora_gelu_bf16(y, lora)
+        x = y.float() if lora is None else y.float().add_(lora)
+        del y
+        return torch.ops.aten.gelu_(x, approximate="tanh").to(BF)
+
+    def gate_res(self, xb: torch.Tensor, gate: torch.Tensor, res: torch.Tensor) -> torch.Tensor:
+        """`res += self(xb) * gate` in place (`res` float32, `gate` bf16 over the last dim)."""
+        y, lora = self._parts(xb)
+        if (e := self._epi(lora)) is not None:
+            return e.lora_gate_res(y, lora, gate, res)
+        x = y.float() if lora is None else y.float().add_(lora)
+        del y
+        return res.add_(x.mul_(gate))
