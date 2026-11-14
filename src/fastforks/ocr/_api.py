@@ -63,6 +63,7 @@ class OCRModel(core.Model):
     Has the attributes of `fastforks.Model`.
     """
 
+    _list_images = 1
     _runner: Runner
 
     def __call__(self, image: ImageLike) -> OCRResult | list[OCRResult]:
@@ -72,7 +73,7 @@ class OCRModel(core.Model):
             image: Image (path, PIL, numpy HWC / BHWC, or torch CHW / BCHW; see `fastforks._core.image`).
 
         Returns:
-            One `OCRResult`; a batch (BHWC / BCHW) gives a list with one per image.
+            One `OCRResult`; a batch (BHWC / BCHW) or a list of images gives a list with one per image.
 
         Raises:
             InputError: Unsupported or too small image.
