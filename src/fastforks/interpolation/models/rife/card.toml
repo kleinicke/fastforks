@@ -31,7 +31,7 @@ c4 = 32  # width of the last IFBlock
 
 [modes.portable]
 cuda_dtype = "float16"  # inference_video.py --fp16 (the warps sample in float32 here)
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulate convs and transposed convs, the residual scales folded, one CUDA graph per input shape

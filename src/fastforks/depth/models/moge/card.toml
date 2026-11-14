@@ -30,7 +30,7 @@ normals = false  # also run the normal head
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 # Kernels keeps the class token (the only source of the metric scale) in a float32 residual. Its golden error (synthetic
 # test image, vs CPU float32: ~1e-3..4e-3 relative depth) is fp16-stream noise, not the model's error: on 16 real images

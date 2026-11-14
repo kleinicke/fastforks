@@ -32,7 +32,7 @@ max_size = { default = 1008, min = 14 }  # longest network side (upstream load_i
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]

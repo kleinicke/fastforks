@@ -38,7 +38,7 @@ library = "timm"
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fvm_conv", "fvm_seg"]  # shared.convnext_trunk: _optimize.conv_ops (fvm_conv) + fvm_seg

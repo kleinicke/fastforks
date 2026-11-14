@@ -36,7 +36,7 @@ library = "timm"
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 # Own runner (model.py) from existing kernels only: fused convolutions and GEMMs (bias, GELU, residual in the

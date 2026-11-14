@@ -38,7 +38,7 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the networ
 
 [modes.portable]
 cuda_dtype = "float16"  # backbone, encoder and decoder layers; query selection, box refinement and heads stay float32
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU / conv-add-ReLU), fp16-accumulate GEMMs, CUDA graph

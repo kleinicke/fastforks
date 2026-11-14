@@ -42,7 +42,7 @@ metric = false  # metric checkpoints: depth in metres, windows not scale + shift
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb"]

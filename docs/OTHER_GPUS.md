@@ -59,21 +59,22 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 <!-- capabilities:begin (tools/gen_docs.py, from the model cards) -->
 | families | CUDA portable | CUDA kernels | MPS portable (validated) | MPS kernels (libraries, dtype) |
 |---|---|---|---|---|
-| alltracker, anycalib, anysplat, ben2, birefnet, boq, c_foundationstereo, convnext, convnext_features, convnextv2, deit, densenet, depth_anything_v2, depthsplat, detr, dfine, dinov2_linear, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, fast_acvnet, fastvit, geocalib, gwcnet, inception_v3, isnet, locotrack, lwdetr, megaloc, memflow, memfof, metric3d, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, mvsplat, neuflow_v2, owlv2, patchmatchnet, pi3, prompt_depth_anything, psmnet, rcnn, realesrgan, repvit, resnet, rife, romav1, rt_monster_plusplus, rtdetrv2, sam, sam2, sam_hq, segformer, shufflenetv2, span, starnet, swin, swinir, tapir, tapnext, tinyvit, track_on, u2net, unidepth_v2, unik3d, video_depth_anything, vit, vitmatte, waft_stereo | fp16 | fp16 | fp32 | - |
-| alexnet, c_radio, cas_gwcnet, clip, coex, depth_anything_3, depth_pro, dinov2, dinov3, dinov3_convnext, dlnr, eomt, eva02, hrnet, lotus, mapanything, marigold, marigold_normals, mask2former, midas, mmseg, oneformer, regnet, rfdetr, rfdetr_keypoint, rtmdet, rtmo, s2m2, sam3, sapiens, segnext, siglip, siglip2, squeezenet, stablenormal, tipsv2, vgg, vggt_omega, yolox, zoedepth | fp16 | fp16 | fp32/fp16 | - |
-| coatnet, davit, dedode, efficientformer, efficientformerv2, flowseek, focalnet, gmflow, grounding_dino, hgnetv2, inspyrenet, loftr, shvit | fp16 | - | fp32 | - |
-| cfnet, crestereo, foundationstereo, great_igev, hitnet, igev_plusplus, mocha_stereo, monster, monster_plusplus, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 |
+| alexnet, alltracker, anysplat, birefnet, boq, c_foundationstereo, c_radio, cas_gwcnet, clip, coex, convnext, convnext_features, convnextv2, deit, densenet, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, detr, dfine, dinov2, dinov2_linear, dinov2_linear_cls, dinov3, dinov3_convnext, dlnr, efficientnet, efficientnetv2, efficientvit, eomt, eva02, fast_acvnet, fastvit, geocalib, gwcnet, hrnet, inception_v3, isnet, locotrack, lotus, lwdetr, mapanything, marigold, marigold_normals, mask2former, megaloc, metric3d, midas, mmseg, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, mvsplat, neuflow_v2, oneformer, patchmatchnet, pi3, prompt_depth_anything, psmnet, rcnn, realesrgan, regnet, repvit, resnet, rfdetr, rfdetr_keypoint, rife, rt_monster_plusplus, rtdetrv2, rtmdet, rtmo, s2m2, sam, sam2, sam3, sam_hq, sapiens, segformer, segnext, shufflenetv2, siglip, siglip2, span, squeezenet, stablenormal, starnet, swin, swinir, tapir, tapnext, tinyvit, tipsv2, u2net, unik3d, vgg, vggt_omega, video_depth_anything, vit, vitmatte, waft_stereo, yolox, zoedepth | fp16 | fp16 | fp32/fp16 | - |
+| coatnet, davit, efficientformer, efficientformerv2, flowseek, focalnet, gmflow, hgnetv2, inspyrenet, loftr, shvit | fp16 | - | fp32/fp16 | - |
+| aanet, bridgedepth, cfnet, crestereo, foundationstereo, great_igev, hitnet, igev_plusplus, igev_stereo, las2, mocha_stereo, monster, monster_plusplus, nmrf, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 |
 | rtmpose | fp16 | fp16 | fp32/fp16 | pose_metal fp32 |
-| aanet, bridgedepth, igev_stereo, las2, nmrf | fp16 | fp16 | fp32 | stereo_metal fp16 |
-| raft, sea_raft | fp16 | fp16 | fp32 | flow_metal fp16 |
+| anycalib, ben2, efficientvit_sam, memflow, memfof, owlv2, romav1, track_on, unidepth_v2 | fp16 | fp16 | fp32 | - |
+| raft, sea_raft | fp16 | fp16 | fp32/fp16 | flow_metal fp16 |
 | perception_encoder | fp16 | fp16 | fp32/fp16 | vit_metal fp16 |
-| flowformer, lightglue, xfeat | fp32 | - | fp32 | - |
+| dedode, grounding_dino | fp16 | - | fp32 | - |
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 |
-| moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
+| flowformer, xfeat | fp32 | - | fp32/fp16 | - |
+| moge | fp16 | fp16 | fp32/fp16 | sparse_metal fp32 |
+| lightglue | fp32 | - | fp32 | - |
 | loma | bf16 | - | fp32 | - |
-| romav2 | bf16 | bf16 | fp32 | - |
-| defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
-| vggt | fp16 | fp16 | fp32 | vggt_metal fp32 |
+| romav2 | bf16 | bf16 | fp32/fp16 | - |
+| defom_stereo | bf16 | fp16 | fp32/fp16 | stereo_metal fp16 |
+| vggt | fp16 | fp16 | fp32/fp16 | vggt_metal fp32 |
 <!-- capabilities:end -->
 
 On MPS (Apple silicon), `portable` works for every validated family and `mode="auto"` picks the Metal `kernels` where the card lists

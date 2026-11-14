@@ -28,7 +28,7 @@ min_size = 16
 
 [modes.portable]
 cuda_dtype = "float16"  # autocast; TAP-Vid DAVIS every3 AJ 65.56 vs 65.49 float32 (OA 92.44 vs 92.58)
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fvm_conv"]  # the PIPs mixer: depthwise temporal convs (GELU-tanh epilogue) and GEMMs with fused GELU-tanh / residual epilogues, fp16 accumulation

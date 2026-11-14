@@ -29,7 +29,7 @@ samurai = { default = false }  # `track` as SAMURAI (yangchris11/samurai 76ba195
 
 [modes.portable]
 cuda_dtype = "float16"  # image encoder; prompt encoder / mask decoder stay float32
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["dpt_fused"]
