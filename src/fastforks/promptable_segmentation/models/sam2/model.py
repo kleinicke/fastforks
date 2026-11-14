@@ -28,7 +28,7 @@ from .net.mask_decoder import MaskDecoder
 from .net.position_encoding import PositionEmbeddingSine
 from .net.prompt_encoder import PromptEncoder
 from .net.transformer import TwoWayTransformer
-from .video import VIDEO_KEYS, Tracker, VideoModules, resize_frame
+from .video import VIDEO_KEYS, Tracker, VideoModules, prefetch, resize_frame
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -225,7 +225,7 @@ class _Sam2(Runner):
             out["pred_masks"][t] = low[:, 0]
             out["object_score_logits"][t] = obj[:, 0]
 
-        feats = (self.embed(resize_frame(frames(t), s)) for t in range(n_frames))
+        feats = (self.embed(resize_frame(x, s)) for x in prefetch(frames, n_frames))
         kf = self.ctx.params.kf_score_weight if self.ctx.params.samurai else None
         tracker.run(feats, n_frames, coords=coords, labels=labs, mask=mask, emit=emit, kf_weight=kf)
         return out

@@ -29,6 +29,7 @@ one object; here every object has its own filter and memory, objects with the sa
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -46,7 +47,7 @@ from .net.sam2_utils import MLP, get_1d_sine_pe
 from .net.transformer import RoPEAttention
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Callable, Iterable, Iterator
 
     from .net.mask_decoder import MaskDecoder
     from .net.prompt_encoder import PromptEncoder
@@ -166,6 +167,21 @@ def resize_frame(frame: torch.Tensor, size: int) -> torch.Tensor:
         return torch.from_numpy(np.asarray(img, np.float32) / 255).permute(2, 0, 1)[None]
     x = F.interpolate(x, (size, size), mode="bicubic", align_corners=False, antialias=True)
     return x.round().clamp(0, 255) / 255
+
+
+def prefetch(load: Callable[[int], torch.Tensor], n: int) -> Iterator[torch.Tensor]:
+    """`load(0) ... load(n - 1)`, each loaded in a worker thread while the caller works on the previous one.
+
+    Frame decoding (PIL releases the GIL) overlaps the GPU work of the previous frame, as upstream
+    `async_loading_frames`.
+    """
+    with ThreadPoolExecutor(1) as pool:
+        nxt = pool.submit(load, 0)
+        for t in range(n):
+            x = nxt.result()
+            if t + 1 < n:
+                nxt = pool.submit(load, t + 1)
+            yield x
 
 
 class Tracker:
