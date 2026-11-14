@@ -74,6 +74,11 @@ CROSS_FAMILY_IMPORTS |= {
 CROSS_FAMILY_IMPORTS |= {
     f"multiview/models/lingbot_map/{file}.py": "fastforks.multiview.models.vggt" for file in ("model", "net")
 }
+# ReSplat builds on DepthSplat's code (same authors): it reuses its depth network modules and kernels-mode helpers.
+CROSS_FAMILY_IMPORTS |= {
+    f"multiview/models/resplat/{file}.py": "fastforks.multiview.models.depthsplat"
+    for file in ("model", "net/mv_unimatch")
+}
 TORCH_LOAD = {"depth/models/midas/model.py", "depth/models/zoedepth/model.py"}  # per-family checkpoint loaders
 UNDOCUMENTED_CONSTANTS = {
     ("depth/models/depth_anything_3/model.py", "PATCH"),

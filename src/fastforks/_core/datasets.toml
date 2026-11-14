@@ -306,6 +306,12 @@ licence = "CC-BY-4.0"  # the released camera files; the frames are downloaded fr
 commercial = "unclear"
 url = "https://google.github.io/realestate10k/"
 
+[dl3dv]
+name = "DL3DV-10K (multi-view real-world scenes for 3D vision)"
+licence = "CC-BY-NC-4.0"  # the dataset's terms of use: non-commercial research and education
+commercial = "no"
+url = "https://dl3dv-10k.github.io/DL3DV-10K/"
+
 [vimeo90k]
 name = "Vimeo-90K (septuplets / triplets for frame interpolation)"
 licence = "not stated"  # clips from vimeo.com under their uploaders' terms; the page asks only for a citation

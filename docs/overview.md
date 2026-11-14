@@ -585,7 +585,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Multiview
 
-10 models; each at its own benchmark input (views x size in Benchmarks).
+12 models; each at its own benchmark input (views x size in Benchmarks).
 
 - Fastest: [`patchmatchnet`](models/multiview.md#patchmatchnet) (29.6 ms).
 - Fastest commercially usable: [`patchmatchnet`](models/multiview.md#patchmatchnet) (29.6 ms).
@@ -602,6 +602,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 820.7 | 559.7 | 1.9x vs original (336x518) | 2367 |
 | [`lingbot-map`](models/multiview.md#lingbot-map) | yes | – | – | – | – | – |
+| [`resplat-base-re10k`](models/multiview.md#resplat) | no | – | – | – | – | – |
+| [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | – | – | – | – | – |
 
 ## Flow
 

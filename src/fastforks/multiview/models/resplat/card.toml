@@ -1,0 +1,63 @@
+schema = 2
+name = "ReSplat"
+summary = "ReSplat (Xu et al. 2025): feed-forward 3D Gaussian splatting from posed, calibrated images with recurrent refinement. DepthSplat's multi-view depth network (cost volume + DINOv2) and a kNN point transformer predict latent Gaussians (SH degree 3); refinement steps render the input views, compare them with the images (ResNet-18 features + colour) and update every Gaussian with a second point transformer. Returns every view's depth and the Gaussians in the given world frame (`result.gaussians`, `.save(\"scene.ply\")`)."
+tier = "experimental"
+uses = ["depth_anything_v2"]  # shared modules imported directly by this family (DINOv2, its attention block)
+outputs = ["depth", "confidence", "gaussians"]  # confidence: largest match probability over the depth candidates; gaussians: MultiViewResult.gaussians (not a map)
+
+licence_notes = [
+  "Code and checkpoints are MIT. The Base RealEstate10K checkpoint's monocular branch is initialised from Depth Anything V2 Base (CC-BY-NC-4.0) and is labelled non-commercial; the Small DL3DV checkpoint builds on Depth Anything V2 Small (Apache-2.0).",
+]
+
+[output]
+kind = "metric"  # in the units of the given cam_to_world and depth_range (the network is not scale invariant: RealEstate10K / DL3DV scene scale)
+
+[upstream]
+repo = "https://github.com/cvg/resplat"
+commit = "cae7ddc"
+
+[licence]
+code = "MIT"  # LICENSE (Haofei Xu)
+weights = "MIT"  # the repository licence covers the released checkpoints (Hugging Face model card: mit)
+files = ["LICENSE"]
+training_data = ["dl3dv"]
+training_note = "DL3DV-10K (non-commercial research licence), from DepthSplat / Depth Anything V2 Small depth initialisations."
+evidence = "https://github.com/cvg/resplat/blob/cae7ddc/LICENSE and https://github.com/cvg/resplat/blob/cae7ddc/MODEL_ZOO.md and https://huggingface.co/haofeixu/resplat/tree/c69ad72a49b8358ac46599cf74468090425ed9c7"
+
+[io]
+input = "0-1"  # the runner resizes (long side long_side, multiples of size_multiple, bicubic antialiased; upstream: resize + centre crop)
+pad = "none"
+
+[params]
+near = 0.01  # upstream's fixed depth bounds when no depth_range is given
+size_multiple = 32
+
+[options]
+long_side = { default = 0, min = 0 }  # network long side; 0: the checkpoint's training size (256 x 256 / 256 x 448)
+refine = { default = 2, min = 0 }  # recurrent refinement steps (upstream evaluation: 2)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["fastbb", "cudnn_hacc"]
+
+[[papers]]
+title = "ReSplat: Learning Recurrent Gaussian Splats"
+url = "https://arxiv.org/abs/2510.08575"
+date = "2025-10-09"
+venue = "arXiv"
+
+[[variants]]
+id = "resplat-small-dl3dv"
+revision = 1
+params = { vit = "vits", channels = 256, latent = 4, fixed_latent = true, gaussians_per_point = 1, same_points = false, lowest = 8, train_size = [256, 448], far = 200.0 }
+weights = [{ name = "resplat-small-dl3dv-256x448-view8-548993fe.pth", size = 306905193, sha256 = "548993fede0d9536d2d914cbe51e0ebea0ad6f88c898c909e02127d59bb2be9a", url = "https://huggingface.co/haofeixu/resplat/resolve/c69ad72a49b8358ac46599cf74468090425ed9c7/resplat-small-dl3dv-256x448-view8-548993fe.pth" }]
+
+[[variants]]
+id = "resplat-base-re10k"
+revision = 1
+params = { vit = "vitb", channels = 512, latent = 2, fixed_latent = false, gaussians_per_point = 4, same_points = true, lowest = 4, size_multiple = 16, train_size = [256, 256], far = 100.0 }
+licence = { weights = "CC-BY-NC-4.0", training_data = ["realestate10k"], training_note = "RealEstate10K (YouTube videos, camera poses from ORB-SLAM; research use per its release), from a DepthSplat / Depth Anything V2 Base (CC-BY-NC-4.0) depth initialisation." }
+weights = [{ name = "resplat-base-re10k-256x256-view2-b90d1b53.pth", size = 888960026, sha256 = "b90d1b530042df1c7a40dcd926ea2308004de6c26c75699a79e061e3fc208db8", url = "https://huggingface.co/haofeixu/resplat/resolve/c69ad72a49b8358ac46599cf74468090425ed9c7/resplat-base-re10k-256x256-view2-b90d1b53.pth" }]
