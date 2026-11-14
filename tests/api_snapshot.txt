@@ -941,6 +941,9 @@ option promptable_segmentation.clipseg.cuda_graphs
 option promptable_segmentation.sam2.samurai
 option restoration.codeformer.fidelity aliases fidelity_weight
 option restoration.lama.cuda_graphs
+option restoration.seedvr2.quant
+option restoration.seedvr2.seed
+option restoration.seedvr2.stream
 option stereo.c_foundationstereo.iters
 option stereo.coex.cuda_graphs
 option stereo.crestereo.iters
