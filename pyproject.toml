@@ -230,6 +230,9 @@ runtime-evaluated-base-classes = []
 # HAT / DAT: upstream `math.log(scale, 2)`; HAT's `attn_mask = attn_mask` (`HAB.forward`).
 "src/fastforks/restoration/models/hat/net/hat_arch.py" = ["FURB163", "PLW0127"]
 "src/fastforks/restoration/models/dat/net/dat_arch.py" = ["FURB163"]
+# DRCT: upstream `extra_repr` string over two lines, `PatchMerging` defined twice, Chinese comments with full-width
+# commas and `math.log(scale, 2)`.
+"src/fastforks/restoration/models/drct/net/drct_arch.py" = ["ISC002", "F811", "RUF002", "RUF003", "FURB163"]
 # GFPGAN: upstream `math.log(out_size, 2)` and `random.random()` (StyleGAN2 style mixing, training only).
 "src/fastforks/restoration/models/gfpgan/net/*.py" = ["FURB163", "S311"]
 # SRVGGNetCompact: upstream `from torch import nn as nn` and `range(0, num_conv)`.

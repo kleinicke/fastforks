@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- DRCT super-resolution (`drct-x4`, `drct-l-x4`, restoration; MIT code and weights): window attention as one SDPA
+  call, the shifted-window masks made on the GPU once per size (original: on the CPU in every call), the
+  relative-position biases gathered at load. 512x512 DRCT x4: 730 ms kernels, 830 ms portable (618 ms compile) vs 8044
+  ms original fp32 (7492 ms `.half()`), peak 2.6 GB vs 6.1 GB; DRCT-L: 1422 / 1607 ms (1210 ms compile) vs 14847 ms,
+  2.7 GB vs 6.3 GB. DIV2K validation (every 2nd image: 50) PSNR 30.76 / SSIM 0.8388 (L: 31.00 / 0.8434) in every tier;
+  the original fp32 runs out of memory on these image sizes (16 GB), parity on CPU within 2e-6. TensorRT fails at
+  512x512 (engine build out of memory / over 290 s).
+
 - BiSeNet face parsing (`bisenet-face-parsing`, segmentation; MIT code and weights): face-parsing.PyTorch's
   19-class model from facexlib, BatchNorms folded, auxiliary heads skipped. 512x512: 2.41 ms portable vs 5.21 ms
   original fp32, peak 51 / 72 MB vs 128 / 152 MB; labels agree with the original on 99.97 % of the pixels (24 faces).

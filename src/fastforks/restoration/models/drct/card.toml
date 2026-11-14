@@ -1,0 +1,54 @@
+schema = 2
+name = "DRCT"
+summary = "DRCT (Hsu et al., CVPRW 2024): image super-resolution with residual dense groups of Swin Transformer layers (16 x 16 window attention, shifted every second layer) whose inputs grow by 32 channels per layer (dense connections). `drct-x4` is the classical x4 model (6 groups), `drct-l-x4` the large one (12 groups); both bicubic, PSNR-trained."
+tier = "experimental"
+uses = ["swin_sr"]  # fastforks.shared modules this family imports
+outputs = ["image"]
+
+[upstream]
+repo = "https://github.com/ming053l/DRCT"
+commit = "c0a8b51e69241cf7f8ae598053235ff498517935"  # drct/archs/DRCT_arch.py; the call is drct/models/drct_model.py test (reflect padding to a multiple of 16, net_g_ema(img), no tile)
+
+[licence]
+code = "MIT"  # LICENSE
+weights = "MIT"  # the authors' Google Drive model zoo linked from the README of the MIT repository; no separate weights licence
+files = ["LICENSE"]
+training_data = ["imagenet-1k", "div2k", "flickr2k"]
+training_note = "Paper / options/train/train_DRCT_SRx4_finetune_from_ImageNet_pretrain.yml: pretrained on ImageNet, fine-tuned on DF2K (DIV2K + Flickr2K), bicubic-downsampled. The README does not say which training option produced the released files."
+evidence = "https://github.com/ming053l/DRCT/blob/c0a8b51e69241cf7f8ae598053235ff498517935/LICENSE ; https://github.com/ming053l/DRCT/blob/c0a8b51e69241cf7f8ae598053235ff498517935/README.md (model zoo: https://drive.google.com/drive/folders/1QJHdSfo-0eFNb96i8qzMJAPw31u9qZ7U)"
+
+[io]
+input = "0-1"  # the test pipeline reads images in [0, 1]; the network subtracts the DIV2K mean itself (img_range 1)
+min_size = 9  # reflect padding to a multiple of 16 needs pad < size
+
+[params]
+scale = 4
+embed_dim = 180
+heads = [6, 6, 6, 6, 6, 6]  # one entry per residual dense group
+img_size = 64
+window = 16
+key = "params_ema"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate GEMMs and convolutions
+
+[[papers]]
+title = "DRCT: Saving Image Super-resolution away from Information Bottleneck"
+url = "https://arxiv.org/abs/2404.00722"
+date = "2024-03-31"
+venue = "CVPR 2024 Workshops (NTIRE)"
+
+[[variants]]
+id = "drct-x4"
+revision = 1
+weights = [{ name = "DRCT_X4.pth", size = 245582817, sha256 = "fe104903aa8fe897b85605a733c8c7907e40c02f066e53c6cbac2f3f0c838dd9", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1jw2UWAersWZecPq-c_g5RM3mDOoc_cbd" }]
+
+[[variants]]
+id = "drct-l-x4"
+revision = 1
+params = { heads = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6] }
+weights = [{ name = "DRCT-L_X4.pth", size = 485570697, sha256 = "a99044c0275699d1a296ae21b8f322fa8c65d7b9be2213ee2a3dcc280ab8d64b", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1bVxvA6QFbne2se0CQJ-jyHFy94UOi3h5" }]

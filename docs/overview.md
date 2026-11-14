@@ -725,7 +725,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Restoration
 
-20 models; size 512x512.
+22 models; size 512x512.
 
 - Fastest: [`span-x4`](models/restoration.md#span) (14.6 ms).
 - Fastest commercially usable: [`span-x4`](models/restoration.md#span) (14.6 ms).
@@ -746,10 +746,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 1192.3 | 557.8 | 5.8x vs original (512x512) | 1577 |
 | [`swinir-m-x4`](models/restoration.md#swinir) | yes | 3497.4 (512x512) | 767.5 | 580.4 | 6.0x vs original (512x512) | 1390 |
 | [`swinir-m-x4-real`](models/restoration.md#swinir) | yes | 2461.6 (512x512) | 1241.7 | 588.5 | 4.2x vs original (512x512) | 1577 |
+| [`drct-x4`](models/restoration.md#drct) | yes | 7491.7 (512x512) | 829.8 | 730.2 | 10.3x vs original (512x512) | 2626 |
 | [`hat-s-x4`](models/restoration.md#hat) | yes | 2401.8 (512x512) | 1072.2 | 974.4 | 2.5x vs original (512x512) | 1985 |
 | [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 2098.7 | 1043.5 | 3.6x vs original (512x512) | 1872 |
 | [`dat-2-x4`](models/restoration.md#dat) | yes | 4880.3 (512x512) | 1338.0 | 1246.7 | 3.9x vs original (512x512) | 2730 |
 | [`dat-x4`](models/restoration.md#dat) | yes | 9563.6 (512x512) | 1565.0 | 1421.1 | 6.7x vs original (512x512) | 2737 |
+| [`drct-l-x4`](models/restoration.md#drct) | yes | 14651.1 (512x512) | 1606.9 | 1422.5 | 10.3x vs original (512x512) | 2692 |
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1444.6 | 2.1x vs original (512x512) | 2610 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1596.7 | 1444.7 | 2.1x vs original (512x512) | 2610 |
 

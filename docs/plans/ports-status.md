@@ -53,6 +53,9 @@ In this order, unless something more useful turns up:
 - HAT (`hat-x4`, `hat-s-x4`, `real-hat-gan-x4`, restoration): portable MPS goldens and Mac speed rows (512x512; MPS
   runs float32). No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
   `/home/florian/projects/data/ff-weights/hat/`).
+- DRCT (`drct-x4`, `drct-l-x4`, restoration): portable MPS goldens and Mac speed rows (512x512; MPS runs float32). No
+  Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
+  `/home/florian/projects/data/ff-weights/drct/`).
 - InSPyReNet (`inspyrenet`, `inspyrenet-fast`, matting): portable MPS goldens and Mac speed rows (1080x1920; check
   float16 on MPS: the context sums need float32). Weights: the pinned GitHub release URLs of the card.
 - IS-Net (`isnet-general-use`, `isnet`, matting): portable MPS goldens and Mac speed rows (1080x1920). No Metal

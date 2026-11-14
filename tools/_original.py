@@ -774,6 +774,22 @@ def _hat(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda x: g.run(net, x, p["scale"])
 
 
+def _drct(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `DRCT` as `tools/golden/drct.py` (`FF_DRCT_REPO`, `FF_DRCT_WEIGHTS`), float32.
+
+    As `drct_model.py` test: reflect padding to a multiple of 16, `net_g_ema(img)` (no tile), crop, clamp.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("drct")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    weights = Path(os.environ["FF_DRCT_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(Path(os.environ["FF_DRCT_REPO"]), weights, p, device=torch.device("cuda"))
+    a.note = "upstream drct_model.py test, float32, no tile"
+    return lambda x: g.run(net, x, p["scale"])
+
+
 def _dat(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     """Upstream `DAT` as `tools/golden/dat.py` (`FF_DAT_REPO`, `FF_DAT_WEIGHTS`; needs `einops`), float32.
 
@@ -2270,6 +2286,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "swinir": _Local("restoration", _swinir, ((512, 512),), _bchw01),
     "hat": _Local("restoration", _hat, ((512, 512),), _bchw01),
     "dat": _Local("restoration", _dat, ((512, 512),), _bchw01),
+    "drct": _Local("restoration", _drct, ((512, 512),), _bchw01),
     "codeformer": _Local("restoration", _codeformer, ((512, 512),), _bchw01),
     "gfpgan": _Local("restoration", _gfpgan, ((512, 512),), _bchw01),
     "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
