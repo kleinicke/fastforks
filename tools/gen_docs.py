@@ -993,8 +993,9 @@ TASK_IO = {
     ),
     "depth": (
         "Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field, `result.kind`) says what "
-        "the numbers mean: `metric` = metres; `scale_invariant`, `affine_invariant` and `affine_invariant_inverse` "
-        "are relative (unknown scale or shift, not metres). Metric models that use the focal length take "
+        "the numbers mean: `metric` = metres; `scale_invariant`, `affine_invariant`, `affine_invariant_log` (log "
+        "depth) and `affine_invariant_inverse` are relative (unknown scale or shift, not metres). Metric models that "
+        "use the focal length take "
         "`model(image, intrinsics=K)` (K `[3, 3]`, pixels of the input): `metric3d-vit-large` and `da3metric-large` "
         "need it for correct metres (`da3metric-large`: metres = output x focal / 300; without `intrinsics=` a 300 px "
         "focal length is assumed, wrong for a real camera). `unidepth-v2-vitl14`, `unik3d-vitl`, `depth-pro` and "

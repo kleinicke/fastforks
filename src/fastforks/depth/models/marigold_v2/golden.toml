@@ -1,0 +1,16 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.02
+gpu_mean = 0.01
+gpu_p99 = 0.05
+relative = true
+
+[refs."marigold-v2-depth@1"]
+sha256 = "9cf3341161da2f67923763e999ede95b04852ba35f1c0a6cc00169c25e0c4e3d"
+upstream = "https://github.com/huawei-bayerlab/marigold-v2@main"
+settings = "the family's own net on NVIDIA GeForce RTX 5060 Ti (bf16 GEMMs, float32 glue) with Block.exact_mask = True (bit-equal to the authors' code on an RTX 3090), lean checkpoint depth/Log-stage2, 1 step, CPU generator seed 2026, torch 2.14.1+cu130"

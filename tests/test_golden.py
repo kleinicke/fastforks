@@ -141,6 +141,7 @@ CPU_HEAVY = {
     "lotus-normal-d-v1-1@1": "Stable Diffusion UNet, 1 step at 768 px (CPU ~20 s)",
     "stablenormal-turbo@1": "Stable Diffusion UNet + ControlNet encoder, 1 step at 768 px (CPU ~25 s)",
     "romav2@1": "DINOv3 ViT-L at 800 px + two-view ViT + refiners at 1280 px (CPU ~60 s)",
+    "marigold-v2-depth@1": "20 B NF4 transformer expanded per linear in bf16 (8.4 GB of weights; CPU many minutes)",
 }
 CPU_REFS = set(SMALLEST) - set(CPU_HEAVY) | set(CPU_ALSO)
 # The CPU sweeps outside the goldens run with fewer iterations and smaller network inputs: the same code, less work
@@ -163,6 +164,7 @@ _SWEEP_OPTIONS: dict[str, dict[str, Any]] = {
     "depth_anything_3": {"long_side": 252},
     "defom_stereo": {"iters": 2, "scale_iters": 1},
     "romav2": {"coarse_size": 256, "fine_size": 384},
+    "marigold_v2": {"long_side": 128},
 }
 # Refs left out of the CPU sweeps (batch, sizes, export, ...) for time: a fixed large network input, so the sweep
 # options cannot shrink the work; only with FASTFORKS_HEAVY_CPU_TESTS=1. test_cpu_portable still runs.
@@ -170,6 +172,7 @@ SWEEP_HEAVY = {
     "depth-pro@1": "two DINOv2-L encoders at a fixed 1536 px (CPU ~65 s per forward; the sweeps took ~560 s)",
     "metric3d-vit-large@1": "ViT-L at a fixed network input (the sweeps took ~260 s; compile + export > 13 GB RSS)",
     "sapiens-seg-0.3b-goliath@1": "a fixed 1024 x 768 network input (the sweeps took ~105 s)",
+    "marigold-v2-depth@1": "a 20 B transformer: every forward expands 8.4 GB of NF4 weights (CPU minutes per call)",
 }
 
 

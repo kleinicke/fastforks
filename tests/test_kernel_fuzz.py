@@ -21,7 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.half import cublas_gemms
 from fastforks._optimize import conv_ops
-from fastforks.kernels import cudnn_hacc, fastbb, seg_up, vol_norm
+from fastforks.kernels import cudnn_hacc, fastbb, nf4, seg_up, vol_norm
 from fastforks.shared import cnn_kernels
 from fastforks.stereo.models.las2 import kernels as las2_kernels
 
@@ -406,6 +406,26 @@ def test_vol_norm(dev, seed, record_property):
         assert vol_norm.supported(x)
         got = vol_norm.norm_act_(x, wt, b, 1e-5, 0.01)
         _cmp(record_property, "vol_norm", got, ref, 5e-3, shape=[n, c, d, h, w])
+
+
+# --- NF4 dequantization (nf4) ---------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_nf4_dequant(dev, seed):
+    """`nf4.dequant` on random bytes and scales = the portable decode `(code[nibble] * absmax).to(bf16)`, bit-exact."""
+    rng, g = _rng(seed, "nf4"), _gen(seed)
+    nf4.load(dev)
+    code = torch.tensor([-1.0, -0.6962, -0.5251, -0.3949, -0.2844, -0.1848, -0.0911, 0.0], device=dev)
+    code = torch.cat([code, torch.tensor([0.0796, 0.1609, 0.2461, 0.3379, 0.4407, 0.5626, 0.7230, 1.0], device=dev)])
+    for _ in range(3):
+        n = 32 * rng.randint(1, 4096)  # bytes: 64 weights = 32 bytes per absmax
+        q = torch.randint(0, 256, (n,), generator=g, dtype=torch.int32).to(torch.uint8).to(dev)
+        absmax = (torch.rand(n // 32, generator=g) * MAGS[seed % 3]).to(dev).bfloat16()
+        idx = torch.stack([q >> 4, q & 15], dim=1).reshape(-1).long()
+        ref = (code[idx].view(-1, 64) * absmax.float()[:, None]).to(torch.bfloat16).reshape(-1)
+        got = nf4.dequant(q, absmax, code, torch.empty(2 * n, dtype=torch.bfloat16, device=dev))
+        assert torch.equal(got, ref), n
 
 
 # --- cuDNN fp16-accumulate convs (cudnn_hacc) ------------------------------------------------------------------------

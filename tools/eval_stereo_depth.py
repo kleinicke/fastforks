@@ -168,14 +168,19 @@ def _metrics(p: Any, g: Any, m: Any) -> tuple[float, float]:  # noqa: ANN401
 
 
 def _align(pred: Any, gt: Any, m: Any, space: str) -> Any:  # noqa: ANN401
-    """Least-squares scale + shift in the prediction's space, then clamp to the GT depth range (004 protocol)."""
+    """Least-squares scale + shift in the prediction's space (depth, log depth or inverse depth), then clamp to the GT.
+
+    The clamp is to the GT depth range (004 protocol).
+    """
     import torch  # noqa: PLC0415
 
     p, g = pred[m].double(), gt[m].double()
-    t = g if space == "depth" else 1.0 / g
+    t = g if space == "depth" else g.log() if space == "log" else 1.0 / g
     sol = torch.linalg.lstsq(torch.stack([p, torch.ones_like(p)], 1), t[:, None]).solution[:, 0]
     a = pred.double() * sol[0] + sol[1]
     lo, hi = g.min(), g.max()
+    if space == "log":
+        return a.clamp(lo.log(), hi.log()).exp().float()
     return (a.clamp(lo, hi) if space == "depth" else 1.0 / a.clamp(1.0 / hi, 1.0 / lo)).float()
 
 
@@ -236,7 +241,7 @@ class Predictor:
         if r.inverse_depth is not None:
             return r.inverse_depth, "disparity"
         if r.depth is not None:
-            return r.depth, "depth"
+            return r.depth, "log" if self.kind == "affine_invariant_log" else "depth"
         return r.points[..., 2], "depth"
 
 

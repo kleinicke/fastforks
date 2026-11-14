@@ -1,8 +1,8 @@
-# Marigold V2: lean port (lab result, not in the library yet)
+# Marigold V2: lean port (RTX 3090 lab notes; in the library since 2026-11-14 as family `marigold_v2`)
 
 Marigold V2 (huawei-bayerlab/marigold-v2, Apache-2.0) is Qwen-Image-Edit-2509's 20 B image transformer, quantised to
 4 bit (NF4, bitsandbytes), with a rank-128 LoRA and a fine-tuned Qwen VAE, run for one rectified-flow step. With the
-authors' code it did not fit the 16 GB reference card. This note records a lean re-implementation that was built and
+authors' code it did not fit the 16 GB reference card. This note records the lean re-implementation as it was built and
 measured on a rented RTX 3090 (24 GB, sm_86) on 2026-11-14: it needs 9 to 11 GiB with the weights on the GPU, or 1 to
 3 GiB with the weights streamed from host memory, and is faster than the original. Depth variant only (stage 2
 checkpoint); normals, albedo and the layered variant use the same network with other LoRA / VAE files.
@@ -54,15 +54,15 @@ Median of 5 warm calls; memory is torch's peak allocated / reserved in GiB.
 
 ## What is left for the library
 
-- **Weights.** The NF4 packing is reproducible in plain torch from the authors' bf16 Qwen files (scale = max |w| per
-  64 values, nearest code; bytes and scales equal bitsandbytes' for the five layers tested), so the converter needs
-  no bitsandbytes, diffusers or peft. Open: convert at first load from the authors' files (41 GB download) or host
-  the 8.4 GiB file.
-- Family `depth/models/marigold_v2` (card, runners `Portable` and `Kernels`, golden from the authors' code), kernel
-  library `nf4`, speed and accuracy rows on the reference card. The lean model fits its 16 GB.
+Done 2026-11-14 (results/2026-11-14_marigold_v2_port.md): converter `tools/convert_marigold_v2.py` without the
+authors' stack (bit-equal to the lab file except two cuBLAS-bf16 folded constants, see the results file), family
+`depth/models/marigold_v2` (`portable`, `kernels`, `stream` option), kernel library `nf4`, golden (the lean net in
+`exact_mask` mode), speed / memory / accuracy rows on the reference card. The 8.4 GiB file is to be hosted
+(`fastforks/marigold-v2-depth`, upload pending the user's OK).
+
 - More speed: at 1024² the matrix products (about 60 TFLOP) and the attention run near the 3090's bf16 peak. Left
   are the glue steps (norms, modulation, RoPE, GELU, casts: about 15 % of the transformer) as fused kernels.
-- Rectangular inputs and the other modalities are untested.
+- The other modalities (normals, albedo, layered) are untested; same network, other LoRA / VAE files.
 
 ## Sources
 

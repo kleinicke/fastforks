@@ -34,6 +34,7 @@ _DEPTH_UNIT = {
     "metric": "metres",
     "scale_invariant": "unknown scale",
     "affine_invariant": "unknown scale and shift",
+    "affine_invariant_log": "log depth up to an unknown scale and shift (log metres = a * depth + b)",
     "affine_invariant_inverse": "unknown scale and shift (inverse depth; depth and points are not defined)",
     "none": "no depth (normals only)",
 }
