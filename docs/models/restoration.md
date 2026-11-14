@@ -652,6 +652,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2281<br>2281<br>fails: timeout after 290 s<br>fails: not run: onnx is not installed in the test venv | 7598 / 15268<br>11957 / 15348<br>11957 / 15348<br>–<br>– |
+| `seedvr2-7b` | 512x512 | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>OOM<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>fails: timeout after 290 s | –<br>–<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -671,7 +672,6 @@ Commercial use: yes.
 - `seedvr2-3b` original 512x512: load: the authors' fp32 .pth files from the page cache (read once before)
 - `seedvr2-3b` load / first call: original 96.2 s / 13.89 s, portable 8.09 s / 2.508 s, kernels 5.29 s / 2.453 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
-- Speed and memory not measured for: `seedvr2-7b`.
 
 ### Parity
 
@@ -680,7 +680,7 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `seedvr2-3b` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `nf4@e236d80ba78b:sm_120` |
-| `seedvr2-7b` | not measured | - | - |
+| `seedvr2-7b` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `nf4@e236d80ba78b:sm_120` |
 
 ### Limitations
 

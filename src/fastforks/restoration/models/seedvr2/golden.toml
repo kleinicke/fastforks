@@ -28,3 +28,12 @@ torch = "2.14.1+cu130"
 date = "2026-11-14"
 mean_px = 0.0
 p99_px = 0.0
+
+[validated."seedvr2-7b@1"]
+kernels = ["nf4@e236d80ba78b:sm_120"]
+symbols = {"nf4" = {"nf4_dequant" = "23393b55e79218e1", "nf4_lora_bf16" = "17e82888454fc734", "nf4_lora_f32" = "14a94cda6125102e", "nf4_lora_gate_res" = "31c8a40d1918bb0b", "nf4_lora_gelu_bf16" = "5b007f568cd7b5b1", "nf4_mod_bf16" = "60e54c9b32f92af9", "nf4_rms_rope_bf16" = "c995756eab4e2141"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.0
+p99_px = 0.0

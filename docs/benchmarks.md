@@ -2194,6 +2194,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 225 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 850 / 980 | 757 / 774 |
 | restormer-sidd | 512x512 | 227 ms | 142 ms | 162 ms | 224 ms | 35.5 s | 59.7 s | 850 / 960 | 660 / 778 | 850 / 980 | 757 / 774 |
 | seedvr2-3b | 512x512 | 2281 ms | fails: timeout after 290 s | fails: not run: onnx is not installed in the test venv | 2281 ms | – | – | 11957 / 15348 | – | 11957 / 15348 | – |
+| seedvr2-7b | 512x512 | – | fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat | fails: timeout after 290 s | – | – | – | – | – | – | – |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
 | span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |
 | swin2sr-x2 | 512x512 | 909 ms | 482 ms | 547 ms | 720 ms | 43.7 s | 112 s | 1459 / 1554 | 1308 / 1516 | 1459 / 1636 | 4941 / 4997 |

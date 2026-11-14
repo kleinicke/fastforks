@@ -44,7 +44,9 @@ def test_tested_max_and_not_measured():
 
 
 # refs without a measured largest size, with the reason (cards never say "not measured" for anything else)
-UNMEASURED: dict[str, str] = {}  # ref: why it has no tested size
+UNMEASURED: dict[str, str] = {  # ref: why it has no tested size
+    "seedvr2-7b": "the 16.5 GB bf16 transformer does not load on 16 GB; it runs with the stream / nf4 options",
+}
 
 
 def test_every_ref_has_a_tested_size():
