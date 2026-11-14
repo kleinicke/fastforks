@@ -437,6 +437,20 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`grounding-dino-base`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 229.8 (800x1344) | 160.2 | – | – | – |
 | [`mm-grounding-dino-base`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 232.5 (800x1344) | 160.2 | – | – | – |
 
+## Ocr
+
+4 models; size 1080x1920.
+
+- Fastest: [`ppocrv5-mobile`](models/ocr.md#pp-ocrv5-server--mobile) (152.9 ms).
+- Fastest commercially usable: [`ppocrv5-mobile`](models/ocr.md#pp-ocrv5-server--mobile) (152.9 ms).
+
+| model | commercial use | original time (ms, its size) | portable time (ms) |
+|---|---|---|---|
+| [`ppocrv5-mobile`](models/ocr.md#pp-ocrv5-server--mobile) | yes | 418.3 (1080x1920) | 152.9 |
+| [`ppocrv5-server`](models/ocr.md#pp-ocrv5-server--mobile) | yes | 762.4 (1080x1920) | 276.5 |
+| [`parseq`](models/ocr.md#parseq-scene-text-recognition) | yes | – | – |
+| [`parseq-tiny`](models/ocr.md#parseq-scene-text-recognition) | yes | – | – |
+
 ## Pose
 
 47 models; size 1080x1920.

@@ -36,6 +36,23 @@
   3316 ms (2527 ms), 1459 MB vs 4596 MB (2321 MB). DIV2K validation PSNR / SSIM (Y) as the original fp32: x4 30.89 /
   0.842 (every 2nd), x2 36.43 / 0.9423 (every 4th), x4-real 29.04 / 0.8021. torch.compile of x4 runs over 290 s.
 
+- PP-OCRv5 text detection + recognition (`ppocrv5-server`, `ppocrv5-mobile`, new `fastforks.ocr` task; Apache-2.0
+  code and weights): image -> text-line quads, texts and scores, as PaddleOCR 3's `PaddleOCR` pipeline without the
+  document and line orientation steps; the Paddle inference weights read without Paddle, DB boxes and CTC decoding
+  exact (OpenCV resizes, contours and pyclipper re-done in NumPy / torch), connected components on the GPU. 1080x1920
+  text page: server 277 ms portable fp16 vs 762 ms original fp32 (PaddlePaddle's float16 server detector overflows and
+  reads nothing), peak 1.4 / 1.5 GB vs 2.4 / 2.9 GB; mobile 153 ms (115 ms compile) vs 418 ms original fp16 (619 ms
+  fp32), 289 / 448 MB vs 393 / 1005 MB; TensorRT of the detector alone 25 / 2.7 ms. 13 PaddleOCR sample images:
+  CPU float32 texts and boxes identical to PaddleOCR (526 / 474 lines); GPU float16 character error 0.13 % / 0.43 %
+  (PaddleOCR's own GPU vs CPU difference: 0.65 % / 0.12 %). No kernels runner.
+
+- PARSeq scene-text recognition (`parseq`, `parseq-tiny`, ocr; Apache-2.0 code and weights): one word crop -> text and
+  confidence, as upstream `read` (32x128 PIL bicubic resize, autoregressive decoding with refinement). 32x128 crop:
+  12.6 ms portable fp16 vs 15.9 ms original fp32 / 19.6 ms fp16, peak 79 / 98 MB vs 125 / 144 MB; tiny 11.6 ms vs
+  14.6 / 18.0 ms, 44 / 54 MB vs 56 / 58 MB; compile 8.8 / 8.1 ms, TensorRT 1.67 / 1.68 ms. 204 crops (6 upstream demo
+  images + 198 PP-OCRv5 line crops): float32 texts identical to upstream on CPU and GPU; float16 199 / 204 and 195 / 204
+  identical (the misses are out-of-domain lines). No kernels runner.
+
 - MatAnyone video matting (`matanyone`, matting; NTU S-Lab License 1.0 code and weights: non-commercial): one object
   from a mask on the first frame (`track`; an image is a one-frame video), the `process_video` loop with its memory,
   options `warmup` / `dilate` / `erode`. 1080x1920 video: 161 ms per frame portable vs 198 ms original fp16 (261 ms

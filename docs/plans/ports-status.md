@@ -40,6 +40,10 @@ In this order, unless something more useful turns up:
   `tests/test_volume.py` and the TotalSegmentator MPS goldens / speed rows again (the engine now accumulates in float16
   like nnU-Net, also on the CPU). Weights: any nnU-Net v2 results folder (TotalSegmentator's Dataset297 in
   `/home/florian/projects/data/ff-weights/totalsegmentator/`).
+- PP-OCRv5 and PARSeq (`ppocrv5-server`, `ppocrv5-mobile`, `parseq`, `parseq-tiny`, ocr): portable MPS goldens
+  and Mac speed rows (1080x1920 page, 32x128 crop). No kernels runner. Weights: the pinned Hugging Face (PP-OCRv5) and
+  GitHub release (PARSeq) URLs of the cards (also in `/home/florian/projects/data/ff-weights/ppocrv5/` and
+  `/home/florian/projects/data/ff-weights/parseq/`).
 - CodeFormer (`codeformer`, restoration): portable MPS goldens and Mac speed rows (512x512 aligned face; MPS runs
   float32). No kernels runner. Weights: the pinned GitHub release URL of the card (also in
   `/home/florian/projects/data/ff-weights/codeformer/`).

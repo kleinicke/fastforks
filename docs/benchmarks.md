@@ -865,6 +865,15 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | yolox-tiny | – | 9.79 | 5.58 | 2.02 | 4.9x | 2.8x | 32 / 58 | 60 / 92 | 62 / 108 |
 | yolox-x | – | 17.2 | 11.8 | 7.82 | 2.2x | 1.5x | 450 / 504 | 255 / 300 | 258 / 358 |
 
+### Ocr, synthetic
+
+| model | input | time (ms): original fp32 | original | portable | peak memory (MiB, allocated / reserved): original | portable |
+|---|---|---|---|---|---|---|
+| parseq | 32x128 | 15.9 | 19.6 | 12.6 | 126 / 144 | 79 / 98 |
+| parseq-tiny | 32x128 | 14.6 | 18.0 | 11.6 | 56 / 58 | 44 / 54 |
+| ppocrv5-mobile | 1080x1920 | 619 | 418 | 153 | 393 / 1005 | 289 / 448 |
+| ppocrv5-server | 1080x1920 | – | 762 (fp32) | 277 | 2355 / 2901 | 1357 / 1452 |
+
 ### Pose, synthetic, 1080x1920
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
@@ -1481,6 +1490,10 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | yolox-s | 0.22 | 0.15 | 1.55 | 0.03 | 1.35 | 0.30 |
 | yolox-tiny | 1.55 | 0.18 | 1.58 | 0.52 | 1.31 | 0.31 |
 | yolox-x | 0.76 | 0.59 | 2.06 | 0.08 | 0.21 | 0.26 |
+| parseq | 0.53 (32x128) | 1.13 (32x128) | – | 1.04 (32x128) | 0.25 (32x128) | – |
+| parseq-tiny | 0.34 (32x128) | 1.81 (32x128) | – | 0.95 (32x128) | 0.29 (32x128) | – |
+| ppocrv5-mobile | 1.51 | 0.27 | – | 1.82 | 2.82 | – |
+| ppocrv5-server | 2.07 | 0.56 | – | 2.03 | 1.87 | – |
 | dwpose-l | 0.50 | 0.88 | 1.64 | 1.14 | 1.83 | 0.28 |
 | dwpose-l-384 | 0.42 | 0.58 | 1.67 | 0.42 | 1.10 | 0.28 |
 | dwpose-m | 0.26 | 0.24 | 1.51 | 0.60 | 1.10 | 0.29 |
@@ -2001,6 +2014,10 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | yolox-s | 800x1344 | 5.55 ms | 2.95 ms | 1.02 ms | 2.64 ms | 12.7 s | 17.2 s | 79 / 100 | 74 / 96 | 84 / 134 | 86 / 126 |
 | yolox-tiny | 800x1344 | 5.58 ms | 2.87 ms | 0.561 ms | 2.02 ms | 13.1 s | 23.7 s | 60 / 92 | 58 / 94 | 62 / 108 | 62 / 90 |
 | yolox-x | 800x1344 | 11.8 ms | 11.3 ms | 5.28 ms | 7.82 ms | 15.8 s | 24.1 s | 255 / 300 | 265 / 296 | 258 / 358 | 432 / 478 |
+| parseq | 32x128 | 12.6 ms | 8.80 ms | 1.67 ms | – | 19.9 s | 114 s | 79 / 98 | 111 / 118 | – | 148 / 168 |
+| parseq-tiny | 32x128 | 11.6 ms | 8.09 ms | 1.68 ms | – | 17.2 s | 96.8 s | 44 / 54 | 76 / 94 | – | 80 / 88 |
+| ppocrv5-mobile | 1080x1920 | 153 ms | 115 ms | 2.68 ms | – | 75.0 s | 156 s | 289 / 448 | 292 / 448 | – | 241 / 268 |
+| ppocrv5-server | 1080x1920 | 277 ms | 277 ms | 25.1 ms | – | 105 s | 40.6 s | 1357 / 1452 | 958 / 1132 | – | 1131 / 1146 |
 | dwpose-l | 1080x1920 | 10.2 ms | 5.75 ms | 3.33 ms (network on person crops only) | 6.20 ms | 14.8 s | 20.0 s | 222 / 280 | 197 / 216 | 186 / 306 | 277 / 294 |
 | dwpose-l-384 | 1080x1920 | 21.2 ms | 11.9 ms | 7.46 ms (network on person crops only) | 12.5 ms | 14.9 s | 20.6 s | 351 / 460 | 253 / 296 | 240 / 424 | 347 / 370 |
 | dwpose-m | 1080x1920 | 7.25 ms | 3.80 ms | 2.13 ms (network on person crops only) | 4.86 ms | 12.9 s | 18.9 s | 162 / 196 | 156 / 174 | 157 / 220 | 203 / 228 |

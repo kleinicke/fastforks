@@ -93,7 +93,9 @@ features.load("dinov2-vitb14")("cat.jpg").pooler_output  # image embedding; .las
 # MVSAnywhere's code and weights are non-commercial: its weights download only with FASTFORKS_NONCOMMERCIAL=1
 import torch
 
-from fastforks import calibration, detection, edges, flow, matting, multiview, pose, promptable_segmentation, retrieval
+from fastforks import (
+    calibration, detection, edges, flow, matting, multiview, ocr, pose, promptable_segmentation, retrieval,
+)
 
 det = detection.load("faster-rcnn-r50-fpn-3x-coco")
 det("street.jpg", score_threshold=0.5).to_list()  # dicts: box, class_name, score
@@ -114,6 +116,8 @@ people.keypoints, people.keypoint_scores  # [P, 17, 2] pixels of the input, [P, 
 flow.load("raft-large")("frame1.png", "frame2.png").flow  # [2, H, W]: dx, dy in pixels, frame 1 -> frame 2
 matting.load("birefnet-lite")("photo.jpg").alpha  # [H, W] in [0, 1]: 1 = foreground (background removal)
 edges.load("lineart")("photo.jpg").edges  # [H, W] in [0, 1]: 1 = line (ControlNet preprocessor)
+lines = ocr.load("ppocrv5-server")("receipt.jpg")
+lines.texts, lines.boxes, lines.scores  # N strings in reading order, [N, 4, 2] quads in pixels, [N]
 vpr = retrieval.load("megaloc")
 d = [vpr(p).descriptor for p in paths]  # each [8448], unit norm; any image sizes
 retrieval.pairs(torch.stack(d), k=20)  # [P, 2] image pairs to match (each image with its 20 nearest), e.g. for SfM
@@ -142,7 +146,7 @@ tensors; calling it returns the typed result, whose `.backend` records what ran.
 Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
 `fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation`,
 `fastforks.multiview`, `fastforks.matching`, `fastforks.matting`, `fastforks.tracking`, `fastforks.interpolation`,
-`fastforks.retrieval`, `fastforks.calibration`, `fastforks.restoration`, `fastforks.volume` and `fastforks.edges`.
+`fastforks.retrieval`, `fastforks.calibration`, `fastforks.restoration`, `fastforks.volume`, `fastforks.edges` and `fastforks.ocr`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
 PatchmatchNet return the reference view only. AnySplat also returns 3D Gaussians: `result.gaussians.save("scene.ply")`
 writes a standard 3DGS PLY. See the [API pages](api/index.md) for every result's fields.
