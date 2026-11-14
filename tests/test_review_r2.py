@@ -33,13 +33,12 @@ from fastforks.restoration import RestorationResult
 from fastforks.retrieval import RetrievalResult
 from fastforks.segmentation import SegmentationResult
 from fastforks.stereo import StereoResult
-from fastforks.stereo.calibrated import PairViews, StereoPairResult, StereoView
-from fastforks.stereo.pipeline import PairResult
+from fastforks.stereo.calibrated import PairViews, StereoView
 from fastforks.tracking import TrackingResult
 from fastforks.volume import VolumeResult
 
 RESULTS = {
-    "stereo": (StereoResult, StereoView, PairViews, StereoPairResult, PairResult),
+    "stereo": (StereoResult, StereoView, PairViews),
     "depth": (DepthResult,),
     "multiview": (MultiViewResult,),
     "detection": (DetectionResult,),

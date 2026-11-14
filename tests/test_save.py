@@ -11,7 +11,7 @@ from fastforks import InputError, OptionsError
 from fastforks._core import io as ffio
 from fastforks.depth import DepthResult
 from fastforks.multiview import MultiViewResult
-from fastforks.stereo import StereoResult
+from fastforks.stereo.calibrated import plain_result
 
 RNG = np.random.default_rng(0)
 
@@ -98,9 +98,7 @@ def test_write_map_formats_and_errors(tmp_path):
 
 def stereo(*, batch=False):
     d = torch.rand(2, 5, 6) * 100 if batch else torch.rand(5, 6) * 100
-    return StereoResult(
-        disparity=d, confidence=torch.rand_like(d), extras={"occlusion": d > 50}, model="m", backend="portable"
-    )
+    return plain_result(d, torch.rand_like(d), {"occlusion": d > 50}, "m", "portable")
 
 
 def test_stereo_save(tmp_path):
@@ -160,13 +158,13 @@ def test_multiview_save(tmp_path):
 
 
 def test_save_transfers_only_the_requested_map(tmp_path, monkeypatch):
-    from fastforks._core import outputs  # noqa: PLC0415
+    from fastforks.stereo import calibrated  # noqa: PLC0415 - the views' own copy-out
 
     r = stereo()
     want = r.disparity.numpy().copy()
     seen: list[tuple[int, ...]] = []
-    real = outputs._array
-    monkeypatch.setattr(outputs, "_array", lambda t: (seen.append(tuple(t.shape)), real(t))[1])
+    real = calibrated._array
+    monkeypatch.setattr(calibrated, "_array", lambda t: (seen.append(tuple(t.shape)), real(t))[1])
     r.save(tmp_path / "d.npy")
     assert len(seen) == 1
     seen.clear()

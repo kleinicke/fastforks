@@ -17,13 +17,14 @@ import numpy as np
 import torch
 from PIL import Image
 
+from fastforks._core.arguments import renamed_attributes
 from fastforks._core.errors import InputError
 from fastforks._core.image import _as_tensor, is_batch, is_url
 from fastforks._core.io import atomic_write, write_map
 from fastforks._core.pipeline import Done, OnError, Pipeline, default_prefetch, default_workers
 from fastforks.stereo.calibrated import (
-    PairViews,
     Rig,
+    StereoResult,
     Views,
     depth_of,
     load_rig,
@@ -53,36 +54,6 @@ _MAGIC = re.compile(r"[*?[]")
 _DIGITS = re.compile(r"(\d+)")
 _FORMATS = (".tif", ".tiff", ".npy", ".pfm", ".png")
 _BATCH = 4
-
-
-@dataclasses.dataclass(frozen=True, eq=False)
-class PairResult(PairViews):
-    """One pair of `StereoModel.run_many`, yielded in input order.
-
-    The maps are read as for a single call (`StereoPairResult`): `r.left` / `r.right` are `StereoView`s,
-    `r.disparity`, `r.depth()`, `r.points()`, ... those of the main view `r.view`. They are numpy arrays (tensors on
-    the model's device for tensor inputs); point clouds have no colours (no images are kept). With `save_to`, a
-    skipped output or an error there are no maps: `r.left`, `r.right` and `r.disparity` are None.
-
-    Attributes:
-        index: Position of the pair in the input.
-        left_path: Path of the left image, or None for an array.
-        right_path: Path of the right image, or None for an array.
-        path: The file written with `save_to` (also for an output that `skip_existing` found).
-        error: The error of this pair with `on_error="skip"`.
-        existing: The output already existed and `skip_existing` left it alone (nothing was computed).
-        views: The views that were run (`"left"`, `"right"` or `"both"`).
-        calibrated: Whether `rig` was given (`depth()` then works).
-    """
-
-    index: int
-    left_path: Path | None
-    right_path: Path | None
-    path: Path | None = None
-    error: Exception | None = None
-    views: str = "left"
-    calibrated: bool = False
-    existing: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -354,7 +325,7 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
     writers: int | None = None,
     warmup: bool = False,
     _overlap: bool = True,
-) -> Pipeline[PairResult]:
+) -> Pipeline[StereoResult]:
     """See `StereoModel.run_many`."""
     if on_error not in ("raise", "skip"):
         msg = f"on_error must be 'raise' or 'skip', got {on_error!r}"
@@ -395,6 +366,10 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
         raise InputError(msg)
     device = model.device
 
+    def result(**fields: Any) -> StereoResult:  # noqa: ANN401 - the run_many fields of StereoResult
+        calibrated = loaded is not None
+        return StereoResult(model.variant.ref, model.backend, model.options, views, calibrated=calibrated, **fields)
+
     def targets(pair: _Pair) -> list[Path]:
         """The files of one pair, one per view (the right view as `<name>_right.<suffix>`)."""
         assert pair.out is not None  # noqa: S101 - only called with save_to
@@ -409,13 +384,11 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
     def read(pair: _Pair) -> object:
         if skip_existing and pair.out is not None and all(p.is_file() for p in targets(pair)):  # not a dir (TM-7)
             return Done(
-                PairResult(
-                    pair.index,
-                    _path(pair.left),
-                    _path(pair.right),
+                result(
+                    index=pair.index,
+                    left_path=_path(pair.left),
+                    right_path=_path(pair.right),
                     path=targets(pair)[0],
-                    views=views,
-                    calibrated=loaded is not None,
                     existing=True,
                 )
             )
@@ -445,7 +418,7 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
         packed, spec = _pack(flat)
         return pair, (copies.download(packed), spec), geometry  # one download per pair: the host slots are few
 
-    def finish(payload: tuple[_Pair, Any, Geometry | None]) -> PairResult:
+    def finish(payload: tuple[_Pair, Any, Geometry | None]) -> StereoResult:
         pair, outs, geometry = payload
         left, right = _path(pair.left), _path(pair.right)
         if pair.out is None:
@@ -454,9 +427,9 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
             for v in view_list:
                 m = {k: t for (view, k), t in flat.items() if view == v}
                 by_view[v] = make_view(v, m, geometry, device=device, depth=m.pop("depth", None))
-            result = PairResult(pair.index, left, right, views=views, calibrated=loaded is not None)
-            object.__setattr__(result, "_by_view", by_view)
-            return result
+            kept = result(rectification=geometry, index=pair.index, left_path=left, right_path=right)
+            object.__setattr__(kept, "_by_view", by_view)
+            return kept
         paths = targets(pair)
         if (bad := next((p for p in paths if p.is_dir()), None)) is not None:
             for out in outs:
@@ -471,12 +444,10 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
         finally:
             for out in outs:
                 out.release()
-        return PairResult(pair.index, left, right, path=paths[0], views=views, calibrated=loaded is not None)
+        return result(rectification=geometry, index=pair.index, left_path=left, right_path=right, path=paths[0])
 
-    def on_skip(index: int, pair: _Pair, e: Exception) -> PairResult:
-        return PairResult(
-            index, _path(pair.left), _path(pair.right), error=e, views=views, calibrated=loaded is not None
-        )
+    def on_skip(index: int, pair: _Pair, e: Exception) -> StereoResult:
+        return result(index=index, left_path=_path(pair.left), right_path=_path(pair.right), error=e)
 
     def describe(index: int, pair: _Pair) -> str:
         return f"pair {index} ({_name(pair.left)}, {_name(pair.right)})"
@@ -509,4 +480,6 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
     )
 
 
-__all__ = ["IMAGE_SUFFIXES", "Images", "PairResult", "Rig", "natural_key", "run_many"]
+__all__ = ["IMAGE_SUFFIXES", "Images", "Rig", "natural_key", "run_many"]
+
+__getattr__ = renamed_attributes(__name__, {"PairResult": ("fastforks.stereo.StereoResult", StereoResult)})

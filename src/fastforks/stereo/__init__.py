@@ -15,23 +15,21 @@ r.left.depth(), r.right.points()  # StereoView per camera
 ```
 """
 
+from fastforks._core.arguments import renamed_attributes
 from fastforks._core.cards import ModelCard
 from fastforks._core.export import TensorRTEngine
 from fastforks._core.image import ImageLike
 from fastforks._core.sizes import SizeRange
 from fastforks.stereo._api import Backend, StereoModel, StereoResult, list_models, load, model_card
-from fastforks.stereo.calibrated import StereoPairResult, StereoView
+from fastforks.stereo.calibrated import StereoView
 from fastforks.stereo.io import write_disparity
-from fastforks.stereo.pipeline import PairResult
 
 __all__ = [
     "Backend",
     "ImageLike",
     "ModelCard",
-    "PairResult",
     "SizeRange",
     "StereoModel",
-    "StereoPairResult",
     "StereoResult",
     "StereoView",
     "TensorRTEngine",
@@ -40,3 +38,6 @@ __all__ = [
     "model_card",
     "write_disparity",
 ]
+
+_RESULT = ("fastforks.stereo.StereoResult", StereoResult)
+__getattr__ = renamed_attributes(__name__, {"PairResult": _RESULT, "StereoPairResult": _RESULT})

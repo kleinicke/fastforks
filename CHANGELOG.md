@@ -32,6 +32,12 @@ public API from now on):
 
 - `load(model, options={"iters": 16})` -> `load(model, iters=16)` (every task and `fastforks.load`). `mode`, `device`,
   `dtype`, `weights` (and the task's own arguments) stay explicit; no card option may use one of these names.
+- Stereo: one result type, `StereoResult`, for a plain call, a calibrated call (`rig=`, `views=`) and each pair of
+  `run_many`: `stereo.StereoPairResult` / `stereo.PairResult` -> `stereo.StereoResult` (`r.left` / `r.right` are the
+  `StereoView`s, `r.disparity`, `r.depth()`, ... the main view's). `disparity` / `confidence` / `extras` are
+  properties now, not constructor fields. The fields of the old types (`rectification`, `views`, `backend`,
+  `options`, `calibrated`, `index`, `left_path`, `right_path`, `path`, `error`, `existing`) are `StereoResult`
+  fields (the `run_many` ones None / False for a call).
 
 ### Models and fixes
 

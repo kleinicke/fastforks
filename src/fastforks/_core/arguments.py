@@ -52,6 +52,20 @@ def warn_renamed(old: str, new: str, *, stacklevel: int = 3) -> None:
     warnings.warn(f"{old} is renamed to {new}; the old name is removed after {REMOVAL}", FutureWarning, stacklevel)
 
 
+def renamed_attributes(module: str, renames: Mapping[str, tuple[str, object]]) -> Callable[[str], Any]:
+    """A module `__getattr__` that serves the old names `renames` (old -> (new name shown, the object)), warned."""
+
+    def __getattr__(name: str) -> Any:  # noqa: ANN401, N807 - any attribute
+        if name not in renames:
+            msg = f"module {module!r} has no attribute {name!r}"
+            raise AttributeError(msg)
+        new, target = renames[name]
+        warn_renamed(f"{module}.{name}", new)
+        return target
+
+    return __getattr__
+
+
 def _option_kwargs(fn: Callable[..., Any], kwargs: dict[str, Any]) -> dict[str, Any]:
     """`kwargs` of a `load(..., **options)` call with a legacy `options={...}` merged in (warned)."""
     legacy = kwargs.pop("options", None)

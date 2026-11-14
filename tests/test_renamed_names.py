@@ -51,3 +51,15 @@ def test_load_options_dict(iters_runner):
         stereo.load("raft-stereo-sceneflow", device="cpu", options={"mode": "portable"})
     with _warns(r"load\(\.\.\., \*\*options\)"), pytest.raises(OptionsError, match="also given"):
         stereo.load("raft-stereo-sceneflow", device="cpu", iters=3, options={"iters": 7})
+
+
+def test_stereo_result_types():
+    from fastforks.stereo import calibrated, pipeline  # noqa: PLC0415
+
+    for module, old in ((stereo, "PairResult"), (stereo, "StereoPairResult"), (pipeline, "PairResult")):
+        with _warns(r"fastforks\.stereo\.StereoResult"):
+            assert getattr(module, old) is stereo.StereoResult
+    with _warns(r"fastforks\.stereo\.StereoResult"):
+        assert calibrated.StereoPairResult is stereo.StereoResult
+    with pytest.raises(AttributeError):
+        _ = stereo.NoSuchName

@@ -16,7 +16,7 @@ from fastforks.features import FeaturesResult
 from fastforks.multiview import MultiViewResult
 from fastforks.promptable_segmentation import PromptableSegmentationResult
 from fastforks.segmentation import SegmentationResult
-from fastforks.stereo import StereoResult
+from fastforks.stereo.calibrated import plain_result
 
 B = None  # backend is not touched by the methods
 
@@ -29,7 +29,7 @@ def _results():
     mv = MultiViewResult(
         t(1, 4, 5), None, None, None, torch.eye(3).expand(1, 3, 3), None, {"r": t(1, 4, 5)}, (0,), "metric", "m@1", B
     )
-    st = StereoResult(t(4, 5), t(4, 5), {"occlusion": t(4, 5)}, "m@1", B)
+    st = plain_result(t(4, 5), t(4, 5), {"occlusion": t(4, 5)}, "m@1", B)
     feats = FeaturesResult(t(7, 3), t(3), (None, t(7, 3)), (1,), (2, 3), 1, 0, "m@1", B)
     cls = ClassificationResult(t(10), tuple(f"c{i}" for i in range(10)), "m@1", B)
     seg = SegmentationResult(torch.zeros(4, 5, dtype=torch.long), t(3, 4, 5), ("a", "b", "c"), "m@1", B)

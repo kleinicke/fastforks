@@ -230,6 +230,7 @@ _NOT_OUTPUTS = {  # result fields that are metadata, not outputs
     "model", "backend", "options", "class_names", "kind", "extras", "views", "layers", "grid",
     "num_prefix_tokens", "num_register_tokens", "labels", "keypoint_names", "skeleton", "to_list", "multi_label",
 }  # fmt: skip
+_RUN_MANY = {"index", "left_path", "right_path", "path", "error", "existing"}  # per-pair fields
 _RESULTS = {
     "detection": "DetectionResult",
     "pose": "PoseResult",
@@ -264,6 +265,8 @@ def test_contract_lists_every_result_field():
         }
         listed = {k for mid in registry.cards(task) for k in model_card(task, mid).contract().outputs}
         keep = names - _NOT_OUTPUTS - {"save", "save_scene", "depth"}  # writers; StereoResult.depth raises (no rig)
+        if name == "StereoResult":  # the maps are the main view's (`PairViews`); the fields say how it was run
+            keep = (keep | {"disparity", "confidence"}) - {"rectification", "calibrated", *_RUN_MANY}
         if name == "PoseResult":
             keep -= {"masks"}  # an `Instances` field pose leaves `None`
         assert keep <= listed, (task, keep - listed)

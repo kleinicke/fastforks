@@ -59,9 +59,8 @@ class fastforks.retrieval._api.RetrievalResult(fastforks._core.outputs.NumpyOutp
 class fastforks.segmentation._api.SegmentationModel(fastforks._core.model.Model)
 class fastforks.segmentation._api.SegmentationResult(fastforks._core.outputs.MapOutputs)
 class fastforks.stereo._api.StereoModel(fastforks._core.model.Model)
-class fastforks.stereo._api.StereoResult(fastforks._core.outputs.MapOutputs)
 class fastforks.stereo.calibrated.PairViews(builtins.object)
-class fastforks.stereo.calibrated.StereoPairResult(fastforks.stereo.calibrated.PairViews)
+class fastforks.stereo.calibrated.StereoResult(fastforks.stereo.calibrated.PairViews)
 class fastforks.stereo.calibrated.StereoView(fastforks._core.outputs.MapOutputs)
 class fastforks.stereo.geometry.cameras.Camera(typing.Protocol)
 class fastforks.stereo.geometry.cameras.DoubleSphere(fastforks.stereo.geometry.cameras._Base)
@@ -81,7 +80,6 @@ class fastforks.stereo.geometry.rectify.Rectification(builtins.object)
 class fastforks.stereo.geometry.rig.PointCloud(builtins.tuple)
 class fastforks.stereo.geometry.rig.RectifiedRig(builtins.object)
 class fastforks.stereo.geometry.rig.StereoRig(builtins.object)
-class fastforks.stereo.pipeline.PairResult(fastforks.stereo.calibrated.PairViews)
 class fastforks.tracking._api.TrackingModel(fastforks._core.model.Model)
 class fastforks.tracking._api.TrackingResult(fastforks._core.outputs.NumpyOutputs)
 class fastforks.volume._api.VolumeModel(fastforks._core.model.Model)
@@ -297,11 +295,9 @@ def fastforks.segmentation._api.SegmentationModel.__call__(self, image: 'ImageLi
 def fastforks.segmentation.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.segmentation.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.segmentation._api.SegmentationModel
 def fastforks.segmentation.model_card(model: 'str') -> 'ModelCard'
-def fastforks.stereo._api.StereoModel.__call__(self, left: 'ImageLike', right: 'ImageLike', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None) -> 'StereoResult | StereoPairResult'
+def fastforks.stereo._api.StereoModel.__call__(self, left: 'ImageLike', right: 'ImageLike', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None) -> 'StereoResult'
 def fastforks.stereo._api.StereoModel.module(self) -> 'torch.nn.Module'
-def fastforks.stereo._api.StereoModel.run_many(self, lefts: 'Images', rights: 'Images', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None, save_to: 'str | os.PathLike[str] | None' = None, save_format: 'str' = '.tif', bits: 'int | None' = None, max_depth: 'float | None' = None, skip_existing: 'bool' = False, on_error: 'OnError' = 'raise', prefetch: 'int | None' = None, readers: 'int | None' = None, writers: 'int | None' = None, warmup: 'bool' = False) -> 'Pipeline[PairResult]'
-def fastforks.stereo._api.StereoResult.depth(self, *, euclidean: 'bool' = False) -> 'NoReturn'
-def fastforks.stereo._api.StereoResult.save(self, path: 'str | Path', key: 'str | None' = None, bits: 'int | None' = None) -> 'None'
+def fastforks.stereo._api.StereoModel.run_many(self, lefts: 'Images', rights: 'Images', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None, save_to: 'str | os.PathLike[str] | None' = None, save_format: 'str' = '.tif', bits: 'int | None' = None, max_depth: 'float | None' = None, skip_existing: 'bool' = False, on_error: 'OnError' = 'raise', prefetch: 'int | None' = None, readers: 'int | None' = None, writers: 'int | None' = None, warmup: 'bool' = False) -> 'Pipeline[StereoResult]'
 def fastforks.stereo.calibrated.PairViews.cpu(self) -> 'Self'
 def fastforks.stereo.calibrated.PairViews.depth(self, *, euclidean: 'bool' = False) -> 'Map'
 def fastforks.stereo.calibrated.PairViews.numpy(self) -> 'dict[str, Any]'
@@ -342,7 +338,7 @@ def fastforks.stereo.list_models(filter: 'str | Sequence[str]' = '*', *, exclude
 def fastforks.stereo.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.stereo._api.StereoModel
 def fastforks.stereo.model_card(model: 'str') -> 'ModelCard'
 def fastforks.stereo.pipeline.natural_key(text: 'str') -> 'tuple[list[int | str], str]'
-def fastforks.stereo.pipeline.run_many(model: 'StereoModel', lefts: 'Images', rights: 'Images', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None, save_to: 'str | os.PathLike[str] | None' = None, save_format: 'str' = '.tif', bits: 'int | None' = None, max_depth: 'float | None' = None, skip_existing: 'bool' = False, on_error: 'OnError' = 'raise', prefetch: 'int | None' = None, readers: 'int | None' = None, writers: 'int | None' = None, warmup: 'bool' = False, _overlap: 'bool' = True) -> 'Pipeline[PairResult]'
+def fastforks.stereo.pipeline.run_many(model: 'StereoModel', lefts: 'Images', rights: 'Images', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None, save_to: 'str | os.PathLike[str] | None' = None, save_format: 'str' = '.tif', bits: 'int | None' = None, max_depth: 'float | None' = None, skip_existing: 'bool' = False, on_error: 'OnError' = 'raise', prefetch: 'int | None' = None, readers: 'int | None' = None, writers: 'int | None' = None, warmup: 'bool' = False, _overlap: 'bool' = True) -> 'Pipeline[StereoResult]'
 def fastforks.stereo.write_disparity(path: 'str | Path', disparity: 'torch.Tensor | np.ndarray', bits: 'int | None' = None) -> 'None'
 def fastforks.tracking._api.TrackingModel.__call__(self, video: 'Sequence[ImageLike] | np.ndarray | torch.Tensor', queries: 'Any') -> 'TrackingResult'
 def fastforks.tracking._api.TrackingModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
@@ -587,17 +583,18 @@ field fastforks.segmentation._api.SegmentationResult.labels: torch.Tensor
 field fastforks.segmentation._api.SegmentationResult.logits: torch.Tensor | None
 field fastforks.segmentation._api.SegmentationResult.model: str
 field fastforks.segmentation._api.SegmentationResult.options: Mapping[str, Any]
-field fastforks.stereo._api.StereoResult.backend: Backend
-field fastforks.stereo._api.StereoResult.confidence: torch.Tensor | None
-field fastforks.stereo._api.StereoResult.disparity: torch.Tensor
-field fastforks.stereo._api.StereoResult.extras: Mapping[str, torch.Tensor]
-field fastforks.stereo._api.StereoResult.model: str
-field fastforks.stereo._api.StereoResult.options: Mapping[str, Any]
-field fastforks.stereo.calibrated.StereoPairResult.backend: Backend
-field fastforks.stereo.calibrated.StereoPairResult.model: str
-field fastforks.stereo.calibrated.StereoPairResult.options: Mapping[str, Any]
-field fastforks.stereo.calibrated.StereoPairResult.rectification: Geometry | None
-field fastforks.stereo.calibrated.StereoPairResult.views: str
+field fastforks.stereo.calibrated.StereoResult.backend: Backend
+field fastforks.stereo.calibrated.StereoResult.calibrated: bool
+field fastforks.stereo.calibrated.StereoResult.error: Exception | None
+field fastforks.stereo.calibrated.StereoResult.existing: bool
+field fastforks.stereo.calibrated.StereoResult.index: int | None
+field fastforks.stereo.calibrated.StereoResult.left_path: Path | None
+field fastforks.stereo.calibrated.StereoResult.model: str
+field fastforks.stereo.calibrated.StereoResult.options: Mapping[str, Any]
+field fastforks.stereo.calibrated.StereoResult.path: Path | None
+field fastforks.stereo.calibrated.StereoResult.rectification: Geometry | None
+field fastforks.stereo.calibrated.StereoResult.right_path: Path | None
+field fastforks.stereo.calibrated.StereoResult.views: str
 field fastforks.stereo.calibrated.StereoView.confidence: Map | None
 field fastforks.stereo.calibrated.StereoView.disparity: Map
 field fastforks.stereo.calibrated.StereoView.extras: Mapping[str, Map]
@@ -677,14 +674,6 @@ field fastforks.stereo.geometry.rig.StereoRig.R: np.ndarray
 field fastforks.stereo.geometry.rig.StereoRig.T: np.ndarray
 field fastforks.stereo.geometry.rig.StereoRig.left: Camera
 field fastforks.stereo.geometry.rig.StereoRig.right: Camera
-field fastforks.stereo.pipeline.PairResult.calibrated: bool
-field fastforks.stereo.pipeline.PairResult.error: Exception | None
-field fastforks.stereo.pipeline.PairResult.existing: bool
-field fastforks.stereo.pipeline.PairResult.index: int
-field fastforks.stereo.pipeline.PairResult.left_path: Path | None
-field fastforks.stereo.pipeline.PairResult.path: Path | None
-field fastforks.stereo.pipeline.PairResult.right_path: Path | None
-field fastforks.stereo.pipeline.PairResult.views: str
 field fastforks.tracking._api.TrackingResult.backend: Backend
 field fastforks.tracking._api.TrackingResult.model: str
 field fastforks.tracking._api.TrackingResult.options: Mapping[str, Any]
@@ -866,11 +855,9 @@ name fastforks.segmentation.TensorRTEngine = class fastforks._core.export.Tensor
 name fastforks.stereo.Backend = class fastforks._core.model.Backend
 name fastforks.stereo.ImageLike
 name fastforks.stereo.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.stereo.PairResult = class fastforks.stereo.pipeline.PairResult
 name fastforks.stereo.SizeRange = class fastforks._core.sizes.SizeRange
 name fastforks.stereo.StereoModel = class fastforks.stereo._api.StereoModel
-name fastforks.stereo.StereoPairResult = class fastforks.stereo.calibrated.StereoPairResult
-name fastforks.stereo.StereoResult = class fastforks.stereo._api.StereoResult
+name fastforks.stereo.StereoResult = class fastforks.stereo.calibrated.StereoResult
 name fastforks.stereo.StereoView = class fastforks.stereo.calibrated.StereoView
 name fastforks.stereo.TensorRTEngine = class fastforks._core.export.TensorRTEngine
 name fastforks.stereo.geometry.Camera = class fastforks.stereo.geometry.cameras.Camera
@@ -892,7 +879,6 @@ name fastforks.stereo.geometry.ThinPrismFisheye = class fastforks.stereo.geometr
 name fastforks.stereo.geometry.UCM = class fastforks.stereo.geometry.cameras.UCM
 name fastforks.stereo.pipeline.IMAGE_SUFFIXES
 name fastforks.stereo.pipeline.Images
-name fastforks.stereo.pipeline.PairResult = class fastforks.stereo.pipeline.PairResult
 name fastforks.stereo.pipeline.Rig
 name fastforks.tracking.Backend = class fastforks._core.model.Backend
 name fastforks.tracking.ImageLike
