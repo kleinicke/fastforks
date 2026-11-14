@@ -48,6 +48,10 @@ with a warning; `tests/api_snapshot.txt` freezes the public API from now on):
   `score_threshold=` (as detection); `result.options["score_threshold"]` records the one used (was `"threshold"`).
 - The shared types are only top level: `fastforks.depth.ModelCard` (and `Backend`, `ImageLike`, `SizeRange`,
   `TensorRTEngine` in every task package) -> `fastforks.ModelCard` etc.
+- Lists in, lists out: an argument that comes one per image (`boxes`, `intrinsics`, `mask`, prompts) is split only when it
+  is a `list`; a tuple, array or tensor is one value shared by every image (before, a tuple of the same length was split).
+- One error class for a typo among the `load` keywords: `UnknownOptionError` (an `OptionsError` and an `ArgumentError`).
+  A model argument that is a bare name of a local file or folder, or a missing path, says how a path is written.
 - `export_size` (`model.export_size()`) -> `model.size_range().export_size` (a `SizeRange` field).
 
 ### Models and fixes

@@ -42,6 +42,7 @@ from fastforks._core.errors import (
     InputError,
     KernelUnavailableError,
     OptionsError,
+    UnknownOptionError,
     WeightsError,
 )
 from fastforks._core.kernels import begin_call, checked, cuda_device
@@ -333,8 +334,9 @@ def _listwise(fn: Callable[..., Any], images: int, per_input: tuple[str, ...]) -
     """`fn` (a model's `__call__`) with list in, list out.
 
     A list of images (pair tasks: two equal-length lists) runs one call per image and returns the list of results.
-    The `per_input` arguments given with it must be lists of the same length (item `i` goes with image `i`); all
-    others go to every call.
+    A `per_input` argument given as a `list` is one item per image (the same length; item `i` goes with image `i`);
+    given as anything else (a tuple, an array, a tensor) it is one value shared by every call, as are all other
+    arguments. So `boxes=[b0, b1]` is per image, `boxes=(b0, b1)` is shared.
     """
     sig = inspect.signature(fn)
     names = list(sig.parameters)[1 : 1 + images]
@@ -356,10 +358,10 @@ def _listwise(fn: Callable[..., Any], images: int, per_input: tuple[str, ...]) -
         split = {}
         for k in per_input:
             v = bound.get(k)
-            if v is not None and not (isinstance(v, _seq) and len(v) == n):
-                msg = f"{k}= with a list of {n} images must be a list of {n} (one per image), got {type(v).__name__}"
-                raise InputError(msg + (f" of {len(v)}" if isinstance(v, _seq) else ""))
-            if v is not None:
+            if isinstance(v, list):
+                if len(v) != n:
+                    msg = f"{k}= as a list needs {n} items, one per image (a tuple is shared), got {len(v)}"
+                    raise InputError(msg)
                 split[k] = v
         rest = {k: v for k, v in bound.items() if k != "self" and k not in names and k not in split}
         seqs = cast("list[Sequence[Any]]", lists)
@@ -1011,7 +1013,7 @@ def check_options(card: ModelCard, options: Mapping[str, Any], model: str | None
             f"unknown option(s) {', '.join(hints)} for {model or card.family}; "
             f"valid options: {', '.join(card.options) or 'none'} (defaults {dict(card.options)})"
         )
-        raise OptionsError(msg)
+        raise UnknownOptionError(msg)
     renamed = {card.option_aliases.get(k, k): v for k, v in options.items()}
     if len(renamed) < len(options):
         both = sorted(k for k in options if k in card.option_aliases and card.option_aliases[k] in options)

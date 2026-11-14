@@ -416,8 +416,8 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   ```
 - A list of images gives a list of results, one call per image (pair tasks: two lists of the same length).
   Arguments that come one per image (depth `intrinsics` and `prompt_depth`, pose `boxes`, matting `trimap` / `mask`,
-  restoration `mask`, the prompts of promptable segmentation) are then lists of the same length; the others apply to
-  every image. Stack same-size images into one array or tensor for one batched call. Multi-view models, point tracking
+  restoration `mask`, the prompts of promptable segmentation) are then `list`s of the same length (a tuple, array or tensor is
+  one value shared by every image, as are all other arguments). Stack same-size images into one array or tensor for one batched call. Multi-view models, point tracking
   and volumes take one list (views, frames) as one input.
 - Any size above the model's minimum: resizing or padding to what the network needs and back happen inside the call, so
   dense maps (disparity, depth, labels) have the input's resolution. Classifiers resize and crop as the model expects.

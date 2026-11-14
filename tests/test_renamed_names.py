@@ -76,7 +76,7 @@ def test_stereo_result_keeps_maps():
     with _warns(r"a result from a model call"):
         old = stereo.StereoResult(d, None, {"occlusion": d}, "m@1", "portable")
     with _warns(r"a result from a model call"):
-        kw = stereo.StereoResult(disparity=d, confidence=None, extras={}, model="m@1", backend="portable")
+        kw = stereo.StereoResult(disparity=d, confidence=None, extras={}, model="m@1", backend="portable")  # ty: ignore[unknown-argument]
     assert old.disparity is not None
     assert old.extras["occlusion"].shape == (4, 5)
     assert kw.model == "m@1"
@@ -147,3 +147,23 @@ def test_export_size(fake):  # noqa: F811 - the fixture
     m = promptable_segmentation.load("fake", device="cpu")
     with _warns(r"model\.size_range\(\)\.export_size"):
         assert m.export_size() == m.size_range().export_size is not None
+
+
+def test_load_errors_name_the_path_rule(tmp_path, monkeypatch):
+    from fastforks import ArgumentError, ModelNotFoundError  # noqa: PLC0415
+    from fastforks._core.errors import UnknownOptionError  # noqa: PLC0415
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "weights_dir").mkdir()
+    with pytest.raises(ModelNotFoundError, match=r"pass './weights_dir'"):
+        fastforks.load("weights_dir")
+    with pytest.raises(ModelNotFoundError, match=r"no such file or directory: '/no/such/dir'.*is a path"):
+        fastforks.load("/no/such/dir")
+    # one error class for a typo among the load arguments or the options
+    for load in (stereo.load, fastforks.load):
+        with pytest.raises(UnknownOptionError, match="unknown option"):
+            load("raft-stereo-sceneflow", device="cpu", iter=7)
+    with pytest.raises(ArgumentError):
+        stereo.load("raft-stereo-sceneflow", device="cpu", mdoe="portable")
+    with pytest.raises(OptionsError):
+        stereo.load("raft-stereo-sceneflow", device="cpu", mdoe="portable")

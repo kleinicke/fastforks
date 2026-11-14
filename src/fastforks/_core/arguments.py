@@ -10,7 +10,7 @@ import warnings
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
-from fastforks._core.errors import ArgumentError, OptionsError
+from fastforks._core.errors import ArgumentError, OptionsError, UnknownOptionError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -96,8 +96,8 @@ def _option_kwargs(fn: Callable[..., Any], kwargs: dict[str, Any]) -> dict[str, 
     return {**kwargs, **legacy}
 
 
-def _typo(fn: Callable[..., Any], kwargs: dict[str, Any]) -> ArgumentError | None:
-    """An `ArgumentError` for an option keyword close to a `load` argument (`mdoe=`) that no card has as an option."""
+def _typo(fn: Callable[..., Any], kwargs: dict[str, Any]) -> UnknownOptionError | None:
+    """An `UnknownOptionError` for an option keyword close to a `load` argument (`mdoe=`) that is no card option."""
     params = [n for n, p in inspect.signature(fn).parameters.items() if p.kind is inspect.Parameter.KEYWORD_ONLY]
     for k in kwargs:
         if k in params or not (close := difflib.get_close_matches(k, params, n=1, cutoff=0.7)):
@@ -105,7 +105,7 @@ def _typo(fn: Callable[..., Any], kwargs: dict[str, Any]) -> ArgumentError | Non
         from fastforks._core import registry  # noqa: PLC0415 - only on a near miss
 
         if k not in registry.option_names():
-            return ArgumentError(
+            return UnknownOptionError(
                 f"{fn.__module__}.load(...) got an unexpected keyword argument {k!r} (did you mean {close[0]!r}?); "
                 f"valid: {', '.join(params)}, or the model's options"
             )

@@ -670,7 +670,7 @@ def _init_compat(self: StereoResult, *args: Any, **kwargs: Any) -> None:  # noqa
     object.__setattr__(self, "_by_view", {"left": make_view("left", maps, None)})
 
 
-StereoResult.__init__ = _init_compat  # type: ignore[method-assign]
+StereoResult.__init__ = _init_compat  # ty: ignore[invalid-assignment]
 
 
 def plain_result(  # noqa: PLR0913, PLR0917 - the maps, then what every result names

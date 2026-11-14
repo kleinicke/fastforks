@@ -260,7 +260,7 @@ def test_contract_lists_every_result_field():
 
     for task, name in ((t, n) for t, names in _RESULTS.items() for n in names.split()):
         cls = getattr(importlib.import_module(f"fastforks.{task}._api"), name)
-        names = {f.name for f in dataclasses.fields(cls)} | {
+        names = {f.name for f in dataclasses.fields(cls) if not f.name.startswith("_")} | {
             n for n, v in vars(cls).items() if not n.startswith("_") and (isinstance(v, property) or callable(v))
         }
         listed = {k for mid in registry.cards(task) for k in model_card(task, mid).contract().outputs}
