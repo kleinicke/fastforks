@@ -11,7 +11,7 @@ import torch
 
 from fastforks._core import model as core
 from fastforks._core.api import task_api
-from fastforks._core.arguments import typo_checked_load
+from fastforks._core.arguments import typo_checked_load, warn_renamed
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError, ModelNotFoundError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
@@ -57,10 +57,21 @@ MAX_EXEMPLARS = 256  # fixed: exemplar boxes per call (the box tokens, ROI pooli
 CONCEPT_THRESHOLD = 0.5  # fixed: SAM 3's default instance score threshold (scores are in [0, 1])
 
 
+def _legacy_threshold(score_threshold: float | None, threshold: float | None) -> float | None:
+    """`score_threshold`, or the old name `threshold=` (warned)."""
+    if threshold is None:
+        return score_threshold
+    warn_renamed("threshold=", "score_threshold=", stacklevel=4)
+    if score_threshold is not None:
+        msg = "threshold= is the old name of score_threshold=: pass only score_threshold="
+        raise InputError(msg)
+    return threshold
+
+
 def _threshold(value: object) -> float:
-    """The concept threshold: a number in [0, 1] (the score range; as detection's `score_threshold`)."""
+    """The concept score threshold: a number in [0, 1] (the score range; as detection's `score_threshold`)."""
     if not isinstance(value, numbers.Real) or isinstance(value, bool) or not 0 <= float(value) <= 1:
-        msg = f"threshold must be a number in [0, 1] (scores are probabilities), got {value!r}"
+        msg = f"score_threshold must be a number in [0, 1] (scores are probabilities), got {value!r}"
         raise InputError(msg)
     return float(value)
 
@@ -289,7 +300,7 @@ class PromptableSegmentationModel(core.Model):
         text: str,
         input_boxes: PromptLike | None = None,
         input_boxes_labels: PromptLike | None = None,
-        threshold: float | None = None,
+        score_threshold: float | None = None,
     ) -> ConceptSegmentationResult: ...
 
     @overload
@@ -299,7 +310,7 @@ class PromptableSegmentationModel(core.Model):
         *,
         input_boxes: PromptLike,
         input_boxes_labels: PromptLike,
-        threshold: float | None = None,
+        score_threshold: float | None = None,
     ) -> ConceptSegmentationResult: ...
 
     def __call__(  # noqa: PLR0913 - one argument per prompt kind (HF names)
@@ -313,6 +324,7 @@ class PromptableSegmentationModel(core.Model):
         multimask_output: bool = True,
         text: str | None = None,
         input_boxes_labels: PromptLike | None = None,
+        score_threshold: float | None = None,
         threshold: float | None = None,
     ) -> PromptableSegmentationResult | ConceptSegmentationResult:
         """Segment one image with prompts (HF `SamModel` / `Sam3Model` argument names, one image).
@@ -332,8 +344,9 @@ class PromptableSegmentationModel(core.Model):
             text: Concept prompt (SAM 3, the original `set_text_prompt`), e.g. `"yellow school bus"`.
             input_boxes_labels: Concept models: `[N]` (or a scalar) exemplar labels, 1 positive, 0 negative
                 (default: all positive).
-            threshold: Concept models: keep instances scoring above this, in [0, 1] (default 0.5, as the original
-                `confidence_threshold`); `result.options["threshold"]` records the one used.
+            score_threshold: Concept models: keep instances scoring above this, in [0, 1] (default 0.5, as the
+                original `confidence_threshold`); `result.options["score_threshold"]` records the one used.
+            threshold: The old name of `score_threshold` (warns; removed after 2026-12-15).
 
         Returns:
             The masks; `P` is dropped if no prompt had it, and an empty prompt batch (`P = 0`, e.g. boxes `[0, 4]`)
@@ -350,9 +363,10 @@ class PromptableSegmentationModel(core.Model):
             "input_masks": input_masks,
         }
         given = {k: v for k, v in given.items() if v is not None}
+        score_threshold = _legacy_threshold(score_threshold, threshold)
         if "text" in self.prompts:
-            return self._concept(image, text, given, input_boxes_labels, threshold)
-        concept = {"text": text, "input_boxes_labels": input_boxes_labels, "threshold": threshold}
+            return self._concept(image, text, given, input_boxes_labels, score_threshold)
+        concept = {"text": text, "input_boxes_labels": input_boxes_labels, "score_threshold": score_threshold}
         if text is not None:
             msg = f"{self.variant.ref} takes no text prompts (takes: {sorted(self.prompts)})"
             raise InputError(msg)
@@ -484,7 +498,7 @@ class PromptableSegmentationModel(core.Model):
         text: str | None,
         given: dict[str, PromptLike],
         labels: PromptLike | None,
-        threshold: float | None,
+        score_threshold: float | None,
     ) -> ConceptSegmentationResult:
         if other := sorted(set(given) - {"input_boxes"}):
             msg = f"{self.variant.ref} takes text and / or exemplar input_boxes, not {other}"
@@ -499,8 +513,8 @@ class PromptableSegmentationModel(core.Model):
         if boxes is None and labels is not None:
             msg = "input_boxes_labels needs input_boxes"
             raise InputError(msg)
-        threshold = CONCEPT_THRESHOLD if threshold is None else _threshold(threshold)
-        options = core.ReadOnlyDict(self.options, threshold=threshold)  # the threshold used, also the default
+        threshold = CONCEPT_THRESHOLD if score_threshold is None else _threshold(score_threshold)
+        options = core.ReadOnlyDict(self.options, score_threshold=threshold)  # the one used, also the default
         ex_boxes, ex_labels = self._check_exemplars(boxes, labels, text)  # before the (expensive) image encoder
         x = None
         if isinstance(image, ImageEmbeddings):
@@ -676,7 +690,7 @@ class ConceptSegmentationModel(PromptableSegmentationModel):
         text: str,
         input_boxes: PromptLike | None = None,
         input_boxes_labels: PromptLike | None = None,
-        threshold: float | None = None,
+        score_threshold: float | None = None,
     ) -> ConceptSegmentationResult: ...
 
     @overload
@@ -686,7 +700,7 @@ class ConceptSegmentationModel(PromptableSegmentationModel):
         *,
         input_boxes: PromptLike,
         input_boxes_labels: PromptLike | None = None,
-        threshold: float | None = None,
+        score_threshold: float | None = None,
     ) -> ConceptSegmentationResult: ...
 
     def __call__(  # noqa: PLR0913  # ty: ignore[invalid-method-override] - typed for concept prompts only
@@ -700,7 +714,8 @@ class ConceptSegmentationModel(PromptableSegmentationModel):
         multimask_output: bool = True,  # noqa: ARG002 - accepted like the base class; no effect on concept prompts
         text: str | None = None,
         input_boxes_labels: PromptLike | None = None,
-        threshold: float | None = None,
+        score_threshold: float | None = None,
+        threshold: float | None = None,  # the old name of score_threshold (warns; removed after 2026-12-15)
     ) -> ConceptSegmentationResult:
         """Segment every instance of a concept: `text` and / or exemplar `input_boxes` (+ `input_boxes_labels`).
 
@@ -712,7 +727,8 @@ class ConceptSegmentationModel(PromptableSegmentationModel):
         """
         given = {"input_points": input_points, "input_labels": input_labels, "input_boxes": input_boxes}
         given = {k: v for k, v in (given | {"input_masks": input_masks}).items() if v is not None}
-        return self._concept(image, text, given, input_boxes_labels, threshold)
+        score_threshold = _legacy_threshold(score_threshold, threshold)
+        return self._concept(image, text, given, input_boxes_labels, score_threshold)
 
 
 class InContextSegmentationModel(PromptableSegmentationModel):

@@ -481,7 +481,7 @@ def test_concept_segmentation(fake):
     assert r.masks[0, :, :3].all()
     assert not r.masks[0, :, 3:].any()
     assert r.masks[1, :, :9].all()
-    assert len(m(m.get_image_embeddings(img), text="coin", threshold=0.1)) == 3
+    assert len(m(m.get_image_embeddings(img), text="coin", score_threshold=0.1)) == 3
     none = m(img, text="giraffe")  # nothing found: empty, well-shaped
     assert len(none) == 0
     assert none.masks is not None
@@ -617,7 +617,7 @@ def test_concept_model_ids():
     ("kwargs", "match"),
     [
         ({"text": "coin"}, "takes no text"),
-        ({"input_boxes": [0, 0, 1, 1], "threshold": 0.3}, "not a concept model"),
+        ({"input_boxes": [0, 0, 1, 1], "score_threshold": 0.3}, "not a concept model"),
         ({"input_boxes": [0, 0, 1, 1], "input_boxes_labels": [1]}, "not a concept model"),
     ],
 )
@@ -1256,8 +1256,8 @@ def test_concept_threshold_validated_and_recorded(fake):
     m = promptable_segmentation.load("fake", device="cpu")
     img = np.zeros((8, 12, 3), np.uint8)
     for bad in (float("nan"), float("inf"), -0.1, 1.5, True, "0.5"):  # R2-15: scores are in [0, 1]
-        with pytest.raises(InputError, match="threshold"):
-            m(img, text="coin", threshold=bad)
-    assert m(img, text="coin").options["threshold"] == 0.5  # R2-15: the default is recorded too
-    assert len(m(img, text="coin", threshold=1)) == 0  # the bounds are allowed
-    assert m(img, text="coin", threshold=0.1).options["threshold"] == 0.1
+        with pytest.raises(InputError, match="score_threshold"):
+            m(img, text="coin", score_threshold=bad)
+    assert m(img, text="coin").options["score_threshold"] == 0.5  # R2-15: the default is recorded too
+    assert len(m(img, text="coin", score_threshold=1)) == 0  # the bounds are allowed
+    assert m(img, text="coin", score_threshold=0.1).options["score_threshold"] == 0.1

@@ -212,7 +212,7 @@ def _concept(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> t
         tp = 0.0
         for c in cats:
             t2 = _sync()
-            r = model(emb, text=names[c], threshold=CONCEPT_THRESHOLD)
+            r = model(emb, text=names[c], score_threshold=CONCEPT_THRESHOLD)
             tp += _sync() - t2
             k = min(100, len(r.scores))
             b, s = r.boxes[:k].float().cpu().numpy(), r.scores[:k].float().cpu().numpy()

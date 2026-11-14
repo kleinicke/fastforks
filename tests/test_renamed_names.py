@@ -7,9 +7,10 @@ import types
 
 import numpy as np
 import pytest
+from tests.test_tasks import Concept, fake  # noqa: F401 - the fixture
 
 import fastforks
-from fastforks import OptionsError, classification, stereo
+from fastforks import InputError, OptionsError, classification, promptable_segmentation, stereo
 from fastforks._core import registry
 from fastforks._core.arguments import REMOVAL
 from fastforks.stereo._runner import Runner
@@ -85,3 +86,15 @@ def test_classification_labels(monkeypatch):
     assert all(v == tuple(names) for v in seen.values())
     with _warns(r"load\(\.\.\., class_names=\)"), pytest.raises(OptionsError, match="pass only class_names"):
         classification.load("resnet50", device="cpu", labels=names, class_names=names)
+
+
+def test_sam_threshold(fake):  # noqa: F811 - the fixture
+    fake("promptable_segmentation", Concept, ["boxes", "scores", "masks"], {})
+    m = promptable_segmentation.load("fake", device="cpu")
+    img = np.zeros((8, 12, 3), np.uint8)
+    with _warns("score_threshold="):
+        r = m(img, text="coin", threshold=0.1)
+    assert len(r) == 3
+    assert r.options["score_threshold"] == 0.1
+    with _warns("score_threshold="), pytest.raises(InputError, match="pass only score_threshold"):
+        m(img, text="coin", threshold=0.1, score_threshold=0.2)

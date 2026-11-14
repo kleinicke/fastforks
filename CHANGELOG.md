@@ -42,6 +42,8 @@ public API from now on):
   KITTI uint16 format, as before).
 - Classification: `labels` (`load(model, labels=[...])`) -> `load(model, class_names=[...])`
   (`classification.load` and `fastforks.load`; the name of the model and result attribute).
+- Promptable segmentation (SAM 3 concept prompts): `threshold` (`model(image, text=..., threshold=0.3)`) ->
+  `score_threshold=` (as detection); `result.options["score_threshold"]` records the one used (was `"threshold"`).
 
 ### Models and fixes
 
