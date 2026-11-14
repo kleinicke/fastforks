@@ -100,7 +100,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 
 ## Monocular depth
 
-38 models; size 994x1482.
+43 models; size 994x1482.
 
 - Fastest: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
 - Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.9 ms, error 0.0346).
@@ -147,8 +147,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 518.4 | 270.9 | 2.1x vs original (994x1482) | 3667 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 408.1 | 383.2 | 1.1x vs original (994x1482) | 2583 |
 | [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | – | 1434.3 | 1284.0 (1080x1920) | 1.1x vs portable | 8204 |
+| [`any2full-b`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
+| [`any2full-l`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
+| [`any2full-s`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
+| [`depthfm-v1`](models/depth.md#depthfm) | yes | – | – | – | – | – | – |
 | [`lingbot-depth`](models/depth.md#lingbot-depth) | yes | – | – | – | – | – | – |
 | [`lingbot-depth-dc`](models/depth.md#lingbot-depth) | yes | – | – | – | – | – | – |
+| [`omni-dc`](models/depth.md#omni-dc) | no | – | – | – | – | – | – |
 | [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | – | – | – | – |
 
 ## Classification
@@ -558,7 +563,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Multiview
 
-9 models; each at its own benchmark input (views x size in Benchmarks).
+10 models; each at its own benchmark input (views x size in Benchmarks).
 
 - Fastest: [`patchmatchnet`](models/multiview.md#patchmatchnet) (29.6 ms).
 - Fastest commercially usable: [`patchmatchnet`](models/multiview.md#patchmatchnet) (29.6 ms).
@@ -574,6 +579,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 464.4 | 2.0x vs original (336x518) | 3422 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 820.7 | 559.7 | 1.9x vs original (336x518) | 2367 |
+| [`lingbot-map`](models/multiview.md#lingbot-map) | yes | – | – | – | – | – |
 
 ## Flow
 

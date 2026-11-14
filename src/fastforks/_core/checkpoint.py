@@ -17,7 +17,7 @@ import pickle
 import re
 import types
 import zipfile
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
@@ -128,6 +128,23 @@ class Inert:
 
     def __setstate__(self, _: object) -> None:
         """Accept and drop the saved state."""
+
+
+def config_globals() -> dict[tuple[str, str], object]:
+    """Allowed globals of checkpoints that pickle an OmegaConf config and numpy scalars next to the tensors.
+
+    The config objects load as `Inert` (nothing kept, nothing run); numpy scalars only of numeric dtypes;
+    `_codecs.encode` only to latin-1 (how numpy pickles the scalar bytes).
+    """
+    configs = "base.ContainerMetadata base.Metadata dictconfig.DictConfig listconfig.ListConfig nodes.AnyNode"
+    extra: dict[tuple[str, str], object] = {
+        ("omegaconf." + c.rpartition(".")[0], c.rpartition(".")[2]): Inert for c in configs.split()
+    }
+    extra.update({("typing", "Any"): Any, ("collections", "defaultdict"): defaultdict})
+    extra.update({("_codecs", "encode"): latin1_encode, ("numpy", "dtype"): np.dtype})
+    for numpy in ("numpy._core", "numpy.core"):  # numpy 2 / numpy 1 spellings
+        extra[(f"{numpy}.multiarray", "scalar")] = numeric_scalar
+    return extra
 
 
 def _module(table: Mapping[tuple[str, str], object], path: Path) -> types.SimpleNamespace:

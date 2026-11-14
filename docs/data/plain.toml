@@ -71,6 +71,7 @@ lingbot_depth = "LingBot-Depth (Robbyant, 2026): metric depth completion from an
 depth_pro = "Apple's single-image model for metric depth and the camera focal length, at 1536x1536 internal resolution. Research-only licence."
 lotus = "Lotus from HKUST (Guangzhou): surface normals from one image in one step on a Stable Diffusion UNet, generative (G) or direct (D). Apache-2.0 code and weights."
 marigold = "Marigold from ETH Zurich (PRS): depth from one image by diffusion on a Stable Diffusion UNet. Commercially usable under an OpenRAIL licence."
+depthfm = "DepthFM (CompVis, LMU Munich): relative depth from one image by flow matching on a Stable Diffusion UNet, in two steps. MIT code; OpenRAIL weights (commercially usable with use restrictions)."
 marigold_normals = "Marigold normals LCM from ETH Zurich (PRS): surface normals from one image in one diffusion step on a Stable Diffusion UNet. Apache-2.0 code and weights."
 metric3d = "Metric3D v2 (Wei Yin and Mu Hu et al.): metric depth and surface normals from one image, given the focal length. Commercially usable; the authors ask commercial users to contact them."
 midas = "MiDaS v3.1 from Intel ISL, with a BEiT-L encoder: relative depth from one image."

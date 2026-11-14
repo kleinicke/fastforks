@@ -32,9 +32,9 @@ from fastforks._core.checkpoint import NUMPY_ARRAYS
 from fastforks._core.half import fp16_accumulate
 from fastforks.detection._convs import Convs, FusedConvs
 from fastforks.detection._ops import ops
-from fastforks.detection._resize import pil_bilinear
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared.pil_resize import pil_bilinear
 
 from .net import Arch, Rcnn, fold_frozen_bn
 

@@ -14,9 +14,9 @@ import torch
 from fastforks._core.errors import InputError
 from fastforks._core.half import fp16_accumulate
 from fastforks.detection._convs import FusedConvs
-from fastforks.detection._resize import pil_bilinear
 from fastforks.detection._rtdetr import ConvBn, RepVgg
 from fastforks.detection._runner import Forward, Runner
+from fastforks.shared.pil_resize import pil_bilinear
 
 if TYPE_CHECKING:
     from types import ModuleType

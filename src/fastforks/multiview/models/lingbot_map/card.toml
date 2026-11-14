@@ -38,6 +38,12 @@ cuda_dtype = "float16"
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc"]
 
+[[papers]]
+title = "LingBot-Map: Geometric Context Transformer for Streaming 3D Reconstruction"
+url = "https://arxiv.org/abs/2604.14141"
+date = "2026-04-15"
+venue = "ECCV 2026"
+
 [[variants]]
 id = "lingbot-map"
 revision = 1

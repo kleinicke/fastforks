@@ -47,6 +47,11 @@ CLASSES: dict[str, CodeClass] = {
     # the licence.
     # https://huggingface.co/stabilityai/stable-diffusion-2/blob/main/LICENSE-MODEL (read 2026-10-27).
     "LicenseRef-CreativeML-OpenRAIL-PlusPlus-M": "permissive",
+    # CreativeML Open RAIL-M (Stable Diffusion 1.x, e.g. its VAE in DepthFM): the same terms as RAIL++-M for this
+    # purpose (commercial use allowed, Attachment A use restrictions passed on, licence included on redistribution).
+    # https://github.com/CompVis/stable-diffusion/blob/21f890f9da3cfbeaba8e2ac3c425ee9e998d5229/LICENSE
+    # (read 2026-11-13).
+    "LicenseRef-CreativeML-OpenRAIL-M": "permissive",
     # DINOv3 License (Meta, 2025-08-19; DINOv3 code and weights): royalty-free grant to use, reproduce, distribute and
     # modify, commercial use not excluded; redistribution must include the licence, use must follow its acceptable-use
     # and trade-control terms. https://ai.meta.com/resources/models-and-libraries/dinov3-license/ (read 2026-10-27).

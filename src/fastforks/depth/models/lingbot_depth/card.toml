@@ -41,7 +41,7 @@ kernels = ["fastbb", "dpt_fused"]
 title = "Masked Depth Modeling for Spatial Perception"
 url = "https://arxiv.org/abs/2601.17895"
 date = "2026-01-25"
-venue = "arXiv"
+venue = "ECCV 2026"
 
 [[variants]]
 id = "lingbot-depth"

@@ -1,4 +1,4 @@
-"""Pillow-exact bilinear resize shared by the detection families."""
+"""Pillow-exact bilinear resize (8-bit images), bit-exact on any device."""
 
 from __future__ import annotations
 

@@ -36,6 +36,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]
 
+[[papers]]
+title = "OMNI-DC: Highly Robust Depth Completion with Multiresolution Depth Integration"
+url = "https://arxiv.org/abs/2411.19278"
+date = "2024-11-28"
+venue = "ICCV 2025"
+
 [[variants]]
 id = "omni-dc"
 revision = 1

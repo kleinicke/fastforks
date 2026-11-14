@@ -2,6 +2,7 @@ schema = 2
 name = "detectron2 Mask / Faster R-CNN (R50-FPN)"
 summary = "Mask R-CNN (He et al. 2017) and Faster R-CNN (Ren et al. 2015) from the detectron2 model zoo, COCO, ResNet-50 + FPN backbone, RPN proposals, ROIAlign box head (+ mask head); returns boxes, classes and instance masks at the input size. The portable `module()` is backbone + FPN."
 tier = "stable"
+uses = ["pil_resize"]  # fastforks.shared modules this family imports
 outputs = ["boxes", "scores", "labels", "masks"]
 licence_notes = [
   "The detectron2 model-zoo weights are CC-BY-SA-3.0 (share-alike), and the COCO images carry their own licences.",

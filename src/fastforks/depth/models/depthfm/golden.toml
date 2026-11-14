@@ -1,0 +1,25 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.0001
+gpu_mean = 0.01
+gpu_p99 = 0.03
+relative = true
+
+[refs."depthfm-v1@1"]
+sha256 = "fa794105327417b9407c4a4573ffda08b8a0200043a7edacd589877b9bea5df1"
+upstream = "https://github.com/CompVis/depth-fm@da632c8118e41cc64ca191a13314e2db1a7722d9"
+patch = "depthfm-cpu.patch"
+patch_sha256 = "00371d3a7db7bafda4b18112ed5ee5d301b68980f4ca3d25a53238864d122d63"
+settings = "CPU float32, 2 Euler steps, ensemble 4, network input 128x128, CPU generator seed 2024, torch 2.14.1+cu130"
+# fp16 drift through 2 Euler steps and the min-max normalisation, measured 2026-11-14 on the GPU (mean / p99):
+# upstream fp32 0.0037 / 0.0077, upstream fp16 autocast 0.0098 / 0.026, portable fp16 0.016 / 0.033, kernels
+# 0.012 / 0.030 (NYUv2 AbsRel of all of them within 0.0001)
+gpu_mean_portable = 0.025
+gpu_p99_portable = 0.05
+gpu_mean_kernels = 0.02
+gpu_p99_kernels = 0.045

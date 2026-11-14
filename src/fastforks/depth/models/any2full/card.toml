@@ -38,6 +38,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]
 
+[[papers]]
+title = "Any to Full: Prompting Depth Anything for Depth Completion in One Stage"
+url = "https://arxiv.org/abs/2603.05711"
+date = "2026-03-05"
+venue = "ECCV 2026"
+
 [[variants]]
 id = "any2full-s"
 revision = 1
