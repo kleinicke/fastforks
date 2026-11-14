@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Restoration `load_file`: RRDBNet (ESRGAN) checkpoints of any width, growth channels and depth (e.g. 32-block
+  community models) and x1 models (pixel-unshuffled by 4) load; before, only 64 / 32 channels at x4 / x2.
+
 - RMBG-2.0 (`rmbg-2.0`, matting; BiRefNet Swin-L with BRIA's weights, MIT code, CC BY-NC 4.0 weights, gated): a
   variant of `birefnet`. 1080x1920: 121 ms kernels, 132 ms portable (TensorRT 88 ms) vs 384 ms original fp32 (149 ms
   fp16), peak 1.7 / 1.9 GB vs 3.3 / 3.8 GB (fp16 1.7 / 2.0). DIS-VD (235 images) MAE 0.0205 in every tier, as the

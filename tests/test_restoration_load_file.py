@@ -114,15 +114,25 @@ def test_swin_families(
     _check(m, net, scale)
 
 
+@pytest.mark.parametrize("scale", [4, 1])
+def test_rrdb_any_width_and_depth(tmp_path: Path, scale: int) -> None:
+    torch.manual_seed(0)
+    net = RRDBNet(num_in_ch=3, num_out_ch=3, scale=scale, num_feat=16, num_block=32, num_grow_ch=8).eval()
+    torch.save(net.state_dict(), tmp_path / "narrow.pth")
+    m = restoration.load_file(tmp_path / "narrow.pth", mode="portable", device="cpu", dtype="float32")
+    assert m.variant.params["num_block"] == 32
+    _check(m, net, scale)
+    assert m(synthetic_image(17, 23, torch.device("cpu"))).image.shape == (1, 3, 17 * scale, 23 * scale)
+
+
 def test_unsupported(tmp_path: Path) -> None:
-    srvgg = {f"body.{i}.weight": torch.zeros(64, 3 if i == 0 else 64, 3, 3) for i in range(0, 6, 2)}
-    torch.save(srvgg, tmp_path / "compact.pth")
-    assert restoration.checkpoint_family(tmp_path / "compact.pth") is None
-    with pytest.raises(WeightsError, match=r"compact\.pth: unsupported architecture"):
-        restoration.load_file(tmp_path / "compact.pth")
-    narrow = RRDBNet(num_in_ch=3, num_out_ch=3, scale=4, num_feat=32, num_block=1, num_grow_ch=16)
-    torch.save(narrow.state_dict(), tmp_path / "narrow.pth")
-    with pytest.raises(WeightsError, match=r"features 32 \(fastforks: 64\).*not supported"):
-        restoration.load_file(tmp_path / "narrow.pth")
+    torch.save({"head.weight": torch.zeros(64, 3, 3, 3)}, tmp_path / "other.pth")
+    assert restoration.checkpoint_family(tmp_path / "other.pth") is None
+    with pytest.raises(WeightsError, match=r"other\.pth: unsupported architecture"):
+        restoration.load_file(tmp_path / "other.pth")
+    gray = RRDBNet(num_in_ch=3, num_out_ch=1, scale=4, num_feat=8, num_block=1, num_grow_ch=4)
+    torch.save(gray.state_dict(), tmp_path / "gray.pth")
+    with pytest.raises(WeightsError, match=r"output channels 1 \(fastforks: 3\).*not supported"):
+        restoration.load_file(tmp_path / "gray.pth")
     with pytest.raises(WeightsError, match="no such file"):
         restoration.load_file(tmp_path / "missing.pth")
