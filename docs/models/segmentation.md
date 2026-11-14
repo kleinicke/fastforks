@@ -499,7 +499,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/open-mmlab/mmsegmentation/blob/c685fe6767c4cadf6b051983ca6208f1b9d1ccb8/README.md#license>
 - Training data: ImageNet-1k (ILSVRC 2012 classification), ADE20K (SceneParsing, 150 classes)
-- Kernel libraries: `seg_conv`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`, `seg_up`
+- Kernel libraries: `seg_conv`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`, `seg_up`
 - Variants: `segnext-mscan-t-ade20k`, `segnext-mscan-s-ade20k`, `segnext-mscan-b-ade20k`, `segnext-mscan-l-ade20k`
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model

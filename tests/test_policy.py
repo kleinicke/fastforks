@@ -319,6 +319,19 @@ def _module_file(name: str) -> Path | None:
     return next((f for f in (p.with_suffix(".py"), p / "__init__.py") if f.is_file()), None)
 
 
+def _task_helpers(task: str, files: list[Path]) -> list[Path]:
+    """The task's own helper modules (`fastforks.<task>._*`) that `files` import, transitively."""
+    found: list[Path] = []
+    queue = list(files)
+    while queue:
+        for m in imported_modules(queue.pop()):
+            f = _module_file(m) if m.startswith(f"fastforks.{task}._") else None
+            if f is not None and f not in found and f not in files:
+                found.append(f)
+                queue.append(f)
+    return found
+
+
 def _optimize_imports(files: list[Path]) -> set[str]:
     """Modules imported, transitively, through the `fastforks._optimize` modules that `files` import.
 
@@ -375,6 +388,7 @@ def test_card_kernels_match_imports(task):
         files = family + [
             p for u in card.uses if "kernels" in card.modes for p in sorted((SRC / "shared" / u).rglob("*.py"))
         ]
+        files += _task_helpers(task, files)  # D-FINE: `detection._convs.DepthwiseConvs` loads fvm_conv
         mods = {m for p in files for m in imported_modules(p)} | _optimize_imports(files)
         used = {m.split(".")[2] for m in mods if m.startswith("fastforks.kernels.") and m.split(".")[2] in libs}
         direct = {

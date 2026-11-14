@@ -347,7 +347,7 @@ Commercial use: yes.
 - Variants: `megaflow`
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `megaflow` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `megaflow` 1080x1920 (3.0 GiB peak allocated, 3.2 reserved)
 - `megaflow` original 1080x1920: the authors' mixed-precision option (bfloat16); upstream MegaFlow, num_reg_refine=8, README recipe: bf16 autocast
 - `megaflow` load / first call: original 9.56 s / 6.769 s, portable 1.96 s / 0.758 s (375x1242), kernels 7.1 s / 0.668 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -683,7 +683,7 @@ Commercial use: yes.
 - Variants: `recover-cx`, `recover-rn`, `recover-mn`
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `recover-cx` not measured yet; `recover-rn` not measured yet; `recover-mn` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `recover-cx` 1080x1920 (0.7 GiB peak allocated, 0.9 reserved); `recover-rn` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved); `recover-mn` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved)
 - `recover-cx` original 1080x1920: torch.autocast(float16) around the call; upstream ReCoVEr_CX, iters=4, test_mode
 - `recover-rn` original 1080x1920: torch.autocast(float16) around the call; upstream ReCoVEr_RN, iters=4, test_mode
 - `recover-mn` original 1080x1920: torch.autocast(float16) around the call; upstream ReCoVEr_MN, iters=4, test_mode

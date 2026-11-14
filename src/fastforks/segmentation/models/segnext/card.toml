@@ -34,7 +34,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["seg_conv", "cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3", "seg_up"]  # fastforks._optimize.ops loads the fvm five; SegNeXt runs seg_conv (strip / 5x5 depthwise) and fvm_conv (MLP 3x3 + GELU)
+kernels = ["seg_conv", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3", "seg_up"]  # fastforks._optimize.ops loads the fvm five; SegNeXt runs seg_conv (strip / 5x5 depthwise) and fvm_conv (MLP 3x3 + GELU)
 # Every depthwise conv of the blocks as one direct NHWC kernel (cuDNN's channels-last depthwise convs are 2.5-5x
 # slower than PyTorch's NCHW one, which the portable runner uses), the 1x1 convs as fp16-accumulate cuBLAS GEMMs with
 # the bias fused, the two logits resizes as one `seg_up` pass, a CUDA graph per repeated input shape up to 512x512.

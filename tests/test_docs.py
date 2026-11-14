@@ -185,7 +185,8 @@ def test_eval_overlap_marked_in_measured_columns():
     assert rows["raft-stereo-middlebury", "ETH3D"] == ""
     assert "trained on" in rows["hitnet-eth3d", "ETH3D"]
     assert "trained on" in rows["selective-igev-middlebury-finetune", "Middlebury"]
-    assert rows["igev-stereo-eth3d", "ETH3D"] == "possibly in the training data"
+    assert "trained on" in rows["igev-stereo-eth3d", "ETH3D"]  # the card lists ETH3D (submission model)
+    assert rows["bridgedepth-rvc-pretrain", "ETH3D"] == "possibly in the training data"
     assert rows["aanet-sceneflow", "Middlebury"] == ""
 
 
