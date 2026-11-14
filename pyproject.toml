@@ -221,6 +221,8 @@ runtime-evaluated-base-classes = []
 ]
 # GeoCalib: upstream logging f-strings, lambdas over loop variables (called in the loop), `int | float` hints.
 "src/fastforks/calibration/models/geocalib/net/*.py" = ["G003", "G004", "B023", "RUF015", "PYI041"]
+# MatAnyone: upstream logging f-strings / `log.warn` and a `__del__` leak warning without stacklevel.
+"src/fastforks/matting/models/matanyone/net/**" = ["G004", "G010", "B028"]
 # AnyCalib: upstream `None | T` hints.
 "src/fastforks/calibration/models/anycalib/net/gauss_newton.py" = ["RUF036"]
 # MobileSAM's TinyViT: upstream backslash-continued f-string and lambdas over a loop variable (called in the loop).
@@ -341,6 +343,15 @@ include = [
 
 [tool.ty.overrides.rules]
 not-iterable = "ignore"
+
+# MatAnyone: upstream tuple-literal return annotations (`-> (Tensor, Tensor)`) and `Logger.warn`.
+[[tool.ty.overrides]]
+include = ["src/fastforks/matting/models/matanyone/net/**"]
+
+[tool.ty.overrides.rules]
+invalid-type-form = "ignore"
+deprecated = "ignore"
+unused-type-ignore-comment = "ignore"  # upstream `# type: ignore` on those annotations
 
 # Kernel wrappers patch the forward of vendored `nn.Module` trees (free functions taking `self`, `block.conv1.weight`
 # on `Tensor | Module` attributes, `nn.Sequential` indexing). The signatures are annotated (ruff ANN is enforced);

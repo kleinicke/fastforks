@@ -1723,6 +1723,35 @@ def _vitmatte(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - a
     return lambda image, trimap: g.predict(net, image[None].float() / 255, trimap)
 
 
+def _matanyone(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `MatAnyone` and `process_video`'s loop (cv2 mask closing, warm-up), as `tools/golden/matanyone.py`.
+
+    `FF_MATANYONE_REPO`: a pq-yang/MatAnyone checkout; fp16 = process_video's CUDA fp16 autocast (its default on a GPU).
+    An image is a one-frame video; the mask is closed on the CPU (cv2), as upstream.
+    """
+    import contextlib  # noqa: PLC0415
+
+    import numpy as np  # noqa: PLC0415
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("matanyone")
+    card, variant = registry.resolve("matting", full)
+    (weights,) = registry.weights(card, variant)
+    root = g.load_upstream(Path(os.environ["FF_MATANYONE_REPO"]))
+    net = g.build(root, Path(weights)).cuda()
+    a.note = f"pq-yang/MatAnyone@{g.REF_COMMIT[:12]} process_video loop on frames in memory, cv2 mask closing"
+
+    def call(image: Any, mask: Any) -> Any:  # noqa: ANN401 - uint8 CHW CUDA image, [1, 1, H, W] mask
+        m = g.close((mask[0, 0].cpu().numpy() * 255).astype(np.uint8)).cuda()
+        amp = torch.autocast("cuda", torch.float16) if fp16 else contextlib.nullcontext()
+        with amp:
+            return g.run(net, image[None], m)[0]
+
+    return call
+
+
 def _megaloc(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     """The authors' `megaloc_model.py` with the README's resize / normalisation, as `tools/golden/megaloc.py`.
 
@@ -2262,6 +2291,12 @@ class _LocalTrimap(_LocalFp16):
     trimap = "required"
 
 
+class _LocalMatteMask(_LocalFp16):
+    """A mask-guided (video) matting original: called with the image and the bench's synthetic object mask."""
+
+    mask = "required"
+
+
 def _xywh(boxes: Any) -> list[list[float]]:  # noqa: ANN401 - [P, 4] xyxy tensor
     return [[x0, y0, x1 - x0, y1 - y0] for x0, y0, x1, y1 in boxes.tolist()]
 
@@ -2377,6 +2412,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "inspyrenet": _Local("matting", _inspyrenet, ((1080, 1920),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
+    "matanyone": _LocalMatteMask("matting", _matanyone, ((1080, 1920),)),
     "anysplat": _LocalFp16("multiview", _anysplat, ((336, 518),)),
     "pi3": _LocalFp16("multiview", _pi3, ((336, 518),)),
     "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),

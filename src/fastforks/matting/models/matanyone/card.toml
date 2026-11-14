@@ -1,0 +1,46 @@
+schema = 2
+name = "MatAnyone"
+summary = "MatAnyone (Yang et al., NTU S-Lab, CVPR 2025): video matting of one object from a mask on the first frame. A Cutie-style memory network (ResNet-50 frame encoder, ResNet-18 mask encoder, object transformer) reads the alpha and features of earlier frames with consistent memory propagation: each region updates its memory only where the alpha changes. Takes a video and the first-frame mask (`track`); a single image is a one-frame video."
+tier = "experimental"
+outputs = ["alpha"]
+uses = []  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/pq-yang/MatAnyone"
+commit = "e5ddc534c1fff9bb9e54cf476095d29071b7cb4f"  # matanyone/model, inference (InferenceCore, memory), utils; the loop is InferenceCore.process_video
+
+[licence]
+code = "LicenseRef-noncommercial"  # NTU S-Lab License 1.0: redistribution and use for non-commercial purposes; no share-alike clause
+weights = "LicenseRef-noncommercial"  # the v1.0.0 GitHub release of the same repository, under its S-Lab License 1.0
+files = ["LICENSE"]
+training_data = ["vm800", "composition-1k", "distinctions-646", "bg20k", "dvm-background", "coco", "youtube-vis-2021", "supervisely-person"]
+training_note = "doc/TRAIN.md: matting on VM800 (not released) and ImageMatte (Distinctions-646 + Adobe Image Matting), backgrounds from BG-20k and DVM, segmentation on COCO, YouTube-VIS 2021 and Supervisely Person."
+evidence = "https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/LICENSE ; https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/README.md (weights: https://github.com/pq-yang/MatAnyone/releases/tag/v1.0.0)"
+
+[io]
+input = "imagenet"  # the network normalises itself (pixel_mean / pixel_std buffers); frames are padded to a multiple of 16 (centred) inside each step
+
+[options]
+warmup = { default = 10, min = 0, aliases = ["n_warmup"] }  # copies of frame 0 run first (process_video n_warmup; the authors' 512 x 288 eval: 1)
+dilate = { default = 10, min = 0, aliases = ["r_dilate"] }  # the first-frame mask is dilated by this kernel side, then eroded (the authors' 512 x 288 eval: 4)
+erode = { default = 10, min = 0, aliases = ["r_erode"] }  # erosion kernel side after the dilation (the authors' 512 x 288 eval: 4)
+
+[modes.portable]
+cuda_dtype = "float16"  # CUDA fp16 autocast over fp32 weights, as upstream
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable already runs 6 % faster than the original fp16"
+
+[[papers]]
+title = "MatAnyone: Stable Video Matting with Consistent Memory Propagation"
+url = "https://arxiv.org/abs/2501.14677"
+date = "2025-01-24"
+venue = "CVPR 2025"
+
+[[variants]]
+id = "matanyone"  # the v1.0.0 release
+revision = 1
+params = {}
+weights = [{ name = "matanyone.pth", size = 141429992, sha256 = "dd26b991d020ed5eb4be50996f97354c45cfdfc0f59958e8983ac6a198f4809d", url = "https://github.com/pq-yang/MatAnyone/releases/download/v1.0.0/matanyone.pth" }]

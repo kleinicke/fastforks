@@ -342,9 +342,12 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     elif task == "edges":
         r = m(img)
         maps = {"edges": r.edges}
-    elif task == "matting":  # trimap-guided models: the golden's trimap
-        r = m(img, trimap=want["trimap"].round().astype(np.uint8)) if want and "trimap" in want else m(img)
+    elif task == "matting":  # trimap- / mask-guided models: the golden's trimap or mask; video: `track` on the clip
+        guide = {k: want[k].round().astype(np.uint8) for k in ("trimap", "mask") if want and k in want}
+        r = m(img, **guide)
         maps = {"alpha": r.alpha}
+        if want is not None and "video_alpha" in want:
+            maps["video_alpha"] = m.track(clip(), mask=guide["mask"]).alpha
     elif task == "retrieval":
         r = m(img)
         maps = {"descriptor": r.descriptor}

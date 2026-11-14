@@ -762,6 +762,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | inspyrenet-fast | 71.1 | 41.7 | – | – | – | 810 / 836 | 432 / 488 | – |
 | isnet | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
 | isnet-general-use | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
+| matanyone | 1220 | 1208 | – | – | – | 2978 / 3208 | 2719 / 2908 | – |
 | rmbg-2.0 | 149 | 132 | 121 | 1.2x | 1.1x | 1672 / 1990 | 1660 / 1908 | 1674 / 1936 |
 | u2net | 15.9 | 14.9 | 8.83 | 1.8x | 1.7x | 476 / 502 | 248 / 278 | 237 / 260 |
 | u2net-human-seg | 16.0 | 14.6 | 9.05 | 1.8x | 1.6x | 476 / 502 | 248 / 278 | 237 / 260 |
@@ -1380,6 +1381,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | inspyrenet-fast | 5.93 | 11.07 | – | 1.33 | 0.79 | – |
 | isnet | 1.58 | 0.23 | 1.54 | 0.41 | 0.34 | 0.12 |
 | isnet-general-use | 1.58 | 0.24 | 1.32 | 0.41 | 0.29 | 0.09 |
+| matanyone | 3.39 | 0.54 | – | 2.37 | 2.95 | – |
 | rmbg-2.0 | 6.42 | 0.94 | 0.64 | 0.94 | 0.49 | 0.47 |
 | u2net | 0.64 | 0.49 | 1.37 | 0.40 | 0.21 | 0.11 |
 | u2net-human-seg | 0.54 | 0.32 | 1.37 | 0.38 | 0.30 | 0.11 |

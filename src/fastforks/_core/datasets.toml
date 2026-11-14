@@ -454,3 +454,33 @@ name = "BIPED (Barcelona Images for Perceptual Edge Detection)"
 licence = "LicenseRef-research-only"  # "freely available ... for non-commercial purposes such as academic research"
 commercial = "no"
 url = "https://github.com/xavysp/MBIPED"
+
+[vm800]
+name = "VM800 (MatAnyone video matting foregrounds)"
+licence = "not released"  # MatAnyone doc/TRAIN.md: "Due to licensing restrictions, the VM800 dataset cannot be publicly released"
+commercial = "no"
+url = "https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/doc/TRAIN.md"
+
+[distinctions-646]
+name = "Distinctions-646 (image matting)"
+licence = "not checked"  # terms not read for the MatAnyone port (2026-11-14); shared on request
+commercial = "unclear"
+url = "https://wukaoliu.github.io/HAttMatting/"
+
+[bg20k]
+name = "BG-20k (background images)"
+licence = "not checked"  # terms not read for the MatAnyone port (2026-11-14)
+commercial = "unclear"
+url = "https://github.com/JizhiziLi/GFM"
+
+[dvm-background]
+name = "DVM background set (video backgrounds)"
+licence = "not checked"  # terms not read for the MatAnyone port (2026-11-14)
+commercial = "unclear"
+url = "https://github.com/nowsyn/DVM"
+
+[youtube-vis-2021]
+name = "YouTube-VIS 2021 (video instance segmentation)"
+licence = "not checked"  # terms not read for the MatAnyone port (2026-11-14)
+commercial = "unclear"
+url = "https://youtube-vos.org/dataset/vis/"
