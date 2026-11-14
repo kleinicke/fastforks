@@ -516,9 +516,9 @@ Measured on the RTX 5060 Ti, 768x1024 pair, card options 800 / 1280, bf16: kerne
 torch.compile 576 ms (first call 254 s), TensorRT 353 ms (engine build 109 s + ONNX export 76 s), original bf16
 741 ms and fp32 1412 ms. Peak reserved: kernels 2944, portable 3160, original bf16 10124 MiB.
 On CUDA the eval BatchNorms are folded (VGG and refiner depthwise convs), the VGG runs channels-last and the
-refiners' 1x1 convs run as GEMMs with the bias in the epilogue (-17 % vs the unfolded NCHW path). Kernels stays
-1.17x TensorRT: the remaining gap is the depthwise-conv bias + ReLU and the feature concatenations, which TensorRT
-fuses. TensorRT has no bf16 ConvTranspose: the export rewrites the DPT head's stride == kernel deconvolutions as a
+refiners' 1x1 convs run as GEMMs with the bias in the epilogue (-17 % vs the unfolded NCHW path). Since 2026-11-14
+the kernels mode runs the refiner blocks' depthwise 5x5 conv + bias + ReLU as one `romav2` kernel (bit-identical to
+cuDNN's three ops, 3.5x faster than cuDNN's depthwise conv alone): kernels 407 -> 354 ms, on par with TensorRT. TensorRT has no bf16 ConvTranspose: the export rewrites the DPT head's stride == kernel deconvolutions as a
 1x1 conv + DepthToSpace. Untested for datacenter GPUs: a fused depthwise conv + bias + ReLU (cuDNN's
 `cudnn_convolution_relu` made the whole call 1177 instead of 412 ms on sm_120 for these depthwise shapes).
 
@@ -533,7 +533,8 @@ with kernels and 42 ms portable; the whole chain 302 ms. Stages of the kernels r
 refiners 45 / 41 / 33 ms. The GPU is busy the whole call, so nothing is left on the host side.
 
 - **Fused depthwise 5x5 conv + bias + ReLU, measured.** An exact fused kernel (Triton prototype, output bit-identical)
-  took 16 ms off the call (5.5 %). To ship it, it has to be written as a CUDA kernel of the `romav2` library.
+  took 16 ms off the call (5.5 %). Shipped as the CUDA kernel `romav2_dw5_bias_relu_bf16` (2026-11-14, -13 % on the
+  5060 Ti); not re-measured on the 3090.
 - **`PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`** lowers peak reserved by 376 MiB at the same speed.
 - **Rejected on this card:** `cudnn.benchmark` (no gain), cuDNN's conv + ReLU (3.2x slower, as on sm_120), TF32
   (5.6 ms for a changed output).

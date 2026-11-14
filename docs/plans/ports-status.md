@@ -267,4 +267,6 @@ exist) and the MPS goldens, all passing. Still open:
 
 - The `dpt_fused` build `48e0065bb7cf` for `sm_120` is not on Hugging Face yet; kernel builds are uploaded at
   release time.
+- The `romav2` build `bb29839cee98` (fused depthwise conv) is not on Hugging Face yet; local copy in
+  `wt-roma-dw/build/kernels` on the Ubuntu box.
 - Licence questions still open: the Depth Anything V2 Metric B / L weights and Distill-Any-Depth L.

@@ -101,3 +101,21 @@ def test_kernel_local_correlation_matches_portable(c: int, radius: int, height: 
     assert got.shape == want.shape
     # the reference rounds warp + offset in normalised units (about 1e-7 * width / 2 px): up to 5e-5 here at width 96
     torch.testing.assert_close(got, want, rtol=0, atol=1e-4)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("c", "height", "width", "batch"), [(512, 13, 22, 2), (128, 9, 7, 1), (32, 6, 33, 1)])
+def test_kernel_depthwise_matches_cudnn(c: int, height: int, width: int, batch: int) -> None:
+    """The fused depthwise 5x5 + bias + ReLU equals cuDNN's bf16 conv, bias add and ReLU (borders, ragged widths)."""
+    if not torch.cuda.is_available():
+        pytest.skip("needs CUDA")
+    torch.manual_seed(0)
+    x = torch.randn(batch, c, height, width, device="cuda", dtype=torch.bfloat16)
+    weight = torch.randn(c, 1, 5, 5, device="cuda", dtype=torch.bfloat16) / 5
+    bias = torch.randn(c, device="cuda", dtype=torch.bfloat16)
+    want = torch.nn.functional.conv2d(x.to(memory_format=torch.channels_last), weight, bias, padding=2, groups=c).relu()
+    wt = weight.reshape(c, 25).t().contiguous()
+    for layout in (torch.contiguous_format, torch.channels_last):  # the first block's input is NCHW
+        got = family._kernel_depthwise(lib.load(torch.device("cuda")), wt, bias, x.contiguous(memory_format=layout))
+        assert got.is_contiguous(memory_format=torch.channels_last)
+        torch.testing.assert_close(got, want, rtol=0, atol=0)
