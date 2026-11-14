@@ -36,3 +36,39 @@ upstream = "https://github.com/MCG-NJU/EMA-VFI@75b6f6a889e695df875e103374040d47a
 patch = "ema_vfi-cpu.patch"
 patch_sha256 = "00830582f8b4730ecdf31098c3f30f8f1017b61c382961d40b448d5fe118d793"
 settings = "CPU float32, upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32 centred, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[validated."ema-vfi-small-t@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00019
+p99_px = 0.00065
+
+[validated."ema-vfi-small@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00018
+p99_px = 0.00058
+
+[validated."ema-vfi-t@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.0002
+p99_px = 0.00082
+
+[validated."ema-vfi@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00018
+p99_px = 0.00062
