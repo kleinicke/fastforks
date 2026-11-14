@@ -2256,6 +2256,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "anycalib": _Local("calibration", _anycalib, ((1080, 1920),)),
     "u2net": _Local("matting", _rsu, ((1080, 1920),)),
     "lineart": _Local("edges", _edges, ((1024, 1024), (1080, 1920))),
+    "lineart_anime": _Local("edges", _edges, ((1024, 1024), (1080, 1920))),
     "isnet": _Local("matting", _rsu, ((1080, 1920),)),
     "inspyrenet": _Local("matting", _inspyrenet, ((1080, 1920),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),

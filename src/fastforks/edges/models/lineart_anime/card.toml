@@ -1,0 +1,49 @@
+schema = 2
+name = "Anime line art"
+summary = "Anime line art preprocessor of ControlNet 1.1 (controlnet_aux `LineartAnimeDetector`, ComfyUI's \"Anime Lineart\"): a pix2pix U-Net (8 levels, instance norm, 54 M parameters) turns an anime-style image into a clean line drawing at a multiple of 256 px."
+tier = "experimental"
+outputs = ["edges"]
+uses = ["cv2_resize"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/controlnet_aux"
+commit = "b1aac318b15c4e65a21bc516dc236ad4bf593d46"  # net/unet.py = src/controlnet_aux/lineart_anime/__init__.py (network classes); the call is LineartAnimeDetector.__call__
+
+[licence]
+code = "MIT"  # src/controlnet_aux/lineart_anime/LICENSE (MIT, Caroline Chan; the U-Net is pix2pix / CycleGAN code, BSD)
+weights = "assumed from code"  # lllyasviel/Annotators states "license: other" and no terms; the model card is empty
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1); ControlNet 1.1 describes the anime line art model as trained on anime illustrations and their line drawings."
+evidence = "https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/lineart_anime/LICENSE ; https://huggingface.co/lllyasviel/Annotators"
+
+[io]
+input = "0-1"  # the runner resizes to the detect size (OpenCV area / cubic on uint8 levels), then to a multiple of 256, and scales to [-1, 1]
+
+[options]
+resolution = { default = 512, min = 64, aliases = ["detect_resolution"] }  # detect resolution: the network input's short side, sides rounded to a multiple of 64 (controlnet_aux detect_resolution)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "a pix2pix U-Net: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off"
+
+[[papers]]
+title = "Image-to-Image Translation with Conditional Adversarial Networks"
+url = "https://arxiv.org/abs/1611.07004"
+date = "2016-11-21"
+venue = "CVPR 2017"
+
+[[papers]]
+title = "Adding Conditional Control to Text-to-Image Diffusion Models"
+url = "https://arxiv.org/abs/2302.05543"
+date = "2023-02-10"
+venue = "ICCV 2023"
+
+[[variants]]
+id = "lineart-anime"
+revision = 1
+weights = [{ name = "netG.pth", size = 217631959, sha256 = "ccabdcc3f5cf3c07cf65d58776acb21df7dfda825cdc70c9766a93fd62bfc488", url = "https://huggingface.co/lllyasviel/Annotators/resolve/982e7edaec38759d914a963c48c4726685de7d96/netG.pth" }]
