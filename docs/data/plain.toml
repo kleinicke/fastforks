@@ -194,6 +194,7 @@ vitpose = "ViTPose and ViTPose++ (base, small, large, huge): top-down 2D human p
 # --- interpolation
 rife = "RIFE (Practical-RIFE 4.25, 4.26 and 4.25 lite, Huang et al.): makes the frame between two video frames from the optical flow it estimates between them, for slow motion and higher frame rates. MIT code and weights."
 gimm_vfi = "GIMM-VFI (GIMM-VFI-R and its perceptual GIMM-VFI-R-P, Guo et al., NeurIPS 2024): makes the frame at any time between two video frames from a learned continuous motion field (RAFT flow), for slow motion and higher frame rates. Non-commercial code and weights (S-Lab License 1.0)."
+ema_vfi = "EMA-VFI (Zhang et al., CVPR 2023; large and small, for the middle frame or any time): makes the frame between two video frames from motion and appearance features that inter-frame attention extracts together, for slow motion and higher frame rates. Apache-2.0 code and weights."
 
 # --- restoration
 realesrgan = "Real-ESRGAN (Wang et al., Tencent ARC, 2021): upscales real-world photos (x4, x2) and anime images (x4) with an RRDB network trained on synthetic degradations (blur, noise, JPEG); the classic ComfyUI upscaler. BSD-3-Clause code and weights."

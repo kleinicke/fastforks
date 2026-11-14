@@ -591,6 +591,24 @@ def _gimm_vfi(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda im1, im2: g.interpolate(model, im1[None].float() / 255, im2[None].float() / 255)
 
 
+def _ema_vfi(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `MultiScaleFlow` as `tools/golden/ema_vfi.py` (`Model.inference` without TTA, timestep 0.5).
+
+    `FF_EMA_VFI_REPO`: an MCG-NJU/EMA-VFI clone (needs timm). BGR in and out, replicate pad to 32 (centred).
+    Upstream has no fp16 option (fp16 tier = autocast).
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("ema_vfi")
+    tree = g.reference_tree(Path(os.environ["FF_EMA_VFI_REPO"]), g.REF_COMMIT)
+    card, variant = registry.resolve("interpolation", full)
+    p = {**card.params, **variant.params}
+    file = registry.weights(card, variant, allow_download=False)[0]
+    net = g.build(tree, file, p["width"], list(p["depths"]), device="cuda")
+    a.note = "upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32"
+    return lambda im1, im2: g.interpolate(net, im1[None].float() / 255, im2[None].float() / 255)
+
+
 def _realesrgan(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
     """Upstream `RealESRGANer` as `tools/golden/realesrgan.py`; fp16 = inference_realesrgan.py's default (`half`).
 
@@ -2212,6 +2230,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "recover": _Local("flow", _recover, ((1080, 1920), (375, 1242))),
     "rife": _LocalFp16("interpolation", _rife, ((1080, 1920),)),
     "gimm_vfi": _Local("interpolation", _gimm_vfi, ((480, 854), (1080, 1920))),
+    "ema_vfi": _Local("interpolation", _ema_vfi, ((480, 854), (1080, 1920))),
     "realesrgan": _LocalFp16("restoration", _realesrgan, ((512, 512),), _hwc01),
     "span": _Local("restoration", _span, ((512, 512),), _bchw01),
     "compact": _LocalFp16("restoration", _compact, ((512, 512),), _hwc01),

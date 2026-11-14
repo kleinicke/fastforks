@@ -1,0 +1,38 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 5e-05  # measured 8.5e-06 (ema-vfi-t), 6.2e-06 (ema-vfi), 1.2e-07 (small)
+gpu_mean = 0.001  # measured fp16 1.8e-04 portable, 2.0e-04 kernels (fp16-accumulate convs)
+gpu_p99 = 0.005  # measured fp16 5.4e-04 portable, 8.2e-04 kernels
+
+[refs."ema-vfi-small-t@1"]
+sha256 = "2e51ac6135c6e51853f315e5a7914cf4e447844b91c991de6a42e66319ff2724"
+upstream = "https://github.com/MCG-NJU/EMA-VFI@75b6f6a889e695df875e103374040d47a4cfac7c"
+patch = "ema_vfi-cpu.patch"
+patch_sha256 = "00830582f8b4730ecdf31098c3f30f8f1017b61c382961d40b448d5fe118d793"
+settings = "CPU float32, upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32 centred, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."ema-vfi-small@1"]
+sha256 = "610a2ec16e091df49944c21ee5df4cea3b05e59af264a5a4d9e83b7af5b380fe"
+upstream = "https://github.com/MCG-NJU/EMA-VFI@75b6f6a889e695df875e103374040d47a4cfac7c"
+patch = "ema_vfi-cpu.patch"
+patch_sha256 = "00830582f8b4730ecdf31098c3f30f8f1017b61c382961d40b448d5fe118d793"
+settings = "CPU float32, upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32 centred, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."ema-vfi-t@1"]
+sha256 = "996b1113452becf5335a2df37db2cfede03b86425d9dd951306ea223eae06e3c"
+upstream = "https://github.com/MCG-NJU/EMA-VFI@75b6f6a889e695df875e103374040d47a4cfac7c"
+patch = "ema_vfi-cpu.patch"
+patch_sha256 = "00830582f8b4730ecdf31098c3f30f8f1017b61c382961d40b448d5fe118d793"
+settings = "CPU float32, upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32 centred, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."ema-vfi@1"]
+sha256 = "63847b87273cd607fc9f3bf00ce9647a742c143d66193ead19e5a0e2fa6607c5"
+upstream = "https://github.com/MCG-NJU/EMA-VFI@75b6f6a889e695df875e103374040d47a4cfac7c"
+patch = "ema_vfi-cpu.patch"
+patch_sha256 = "00830582f8b4730ecdf31098c3f30f8f1017b61c382961d40b448d5fe118d793"
+settings = "CPU float32, upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32 centred, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"

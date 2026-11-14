@@ -176,6 +176,12 @@
   (498 ms fp16), peak 2.4 GB vs 4.8 GB. DAVIS 2017 (180 triplets) PSNR 28.94 (`-p` 28.81) in every tier as the
   original.
 
+- EMA-VFI frame interpolation (`ema-vfi`, `ema-vfi-small`, `ema-vfi-t`, `ema-vfi-small-t`, interpolation; Apache-2.0):
+  upstream `MultiScaleFlow` with the inter-frame attention backbone, the `-t` checkpoints for any timestep, frames
+  replicate-padded to a multiple of 32 as upstream; `tta` option as upstream `fast_TTA`. 1080x1920 pair (`ema-vfi`):
+  207 ms kernels, 234 ms portable vs 502 ms original fp32 (296 ms fp16); peak 3.2 GB portable vs 6.4 GB (reserved).
+  DAVIS 2017 (180 triplets) PSNR 27.67 / 27.44 / 29.07 / 28.65 in every tier as the original.
+
 - New task `fastforks.retrieval` (image retrieval / visual place recognition): one unit-length global descriptor per
   image, `top_k` (exact cosine top-k on the GPU, chunked) and `pairs` (image pairs for 3-D reconstruction).
 
