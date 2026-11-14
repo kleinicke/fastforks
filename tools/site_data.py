@@ -249,7 +249,7 @@ def _quality(card: ModelCard, v: Variant, rows: dict[str, list[dict]]) -> list[d
     task = card.task
     mine = rows.get(v.id, [])
     out = []
-    for d, title in g._DATASETS[task].items():  # noqa: SLF001
+    for d, title in g._DATASETS.get(task, {}).items():  # noqa: SLF001
         ds = [r for r in mine if r["dataset"] == d]
         if not ds:
             continue
