@@ -23,3 +23,12 @@ gpu_mean_portable = 0.025
 gpu_p99_portable = 0.05
 gpu_mean_kernels = 0.02
 gpu_p99_kernels = 0.045
+
+[validated."depthfm-v1@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.01169
+p99_px = 0.02968
