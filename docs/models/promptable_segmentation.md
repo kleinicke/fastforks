@@ -58,7 +58,7 @@ Commercial use: yes.
 - Variants: `clipseg`
 - Outputs: boxes, scores, masks
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `clipseg` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `clipseg` 3000x4000 (0.7 GiB peak allocated, 0.9 reserved)
 - `clipseg` original 1024x1024: .half() on 1 modules, fp16 inputs; transformers CLIPSegProcessor (CPU) + CLIPSegForImageSegmentation, text tower per call, masks at logits > 0
 - `clipseg` load / first call: original 3.05 s / 0.021 s, portable 3.01 s / 0.374 s, kernels 2.77 s / 0.278 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

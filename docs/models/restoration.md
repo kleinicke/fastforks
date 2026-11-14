@@ -58,7 +58,7 @@ Commercial use: yes.
 - Variants: `big-lama`
 - Outputs: image
 - Input size: any H x W >= 16, padded to a multiple of 8
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `big-lama` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `big-lama` 3000x4000 (5.1 GiB peak allocated, 6.8 reserved)
 - `big-lama` original 512x512: .half() on 1 modules, fp16 inputs; advimman/lama@786f5936b27f FFCResNetGenerator, predict.py padding / masking / paste-back
 - `big-lama` load / first call: original 0.52 s / 0.327 s, portable 0.31 s / 0.267 s, kernels 0.65 s / 0.122 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

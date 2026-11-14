@@ -1063,7 +1063,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
-| aliked-lightglue | – | 41.8 | 48.4 | – | – | – | 1305 / 1364 | 1300 / 1406 | – |
+| aliked-lightglue | – | 41.8 | 40.6 | – | – | – | 1305 / 1364 | 1300 / 1404 | – |
 | dedode-v2-b | – | 318 | 246 | – | – | – | 1734 / 1992 | 1535 / 1654 | – |
 | dedode-v2-g | – | 666 | 592 | – | – | – | 2335 / 2472 | 2142 / 2334 | – |
 | disk-lightglue | – | 117 | 116 | – | – | – | 1955 / 2412 | 1950 / 2398 | – |
@@ -1613,7 +1613,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | waft-a1 | 5.87 | 0.51 | – | 3.41 | 0.79 | – |
 | waft-a1-kitti | 4.06 | 0.54 | – | 2.87 | 0.79 | – |
 | waft-a1-sintel | 2.93 | 0.51 | – | 2.87 | 0.79 | – |
-| aliked-lightglue | 1.49 | 0.20 | – | 0.73 | 0.75 | – |
+| aliked-lightglue | 1.49 | 0.17 | – | 0.73 | 0.79 | – |
 | dedode-v2-b | 3.73 | 0.67 | – | 1.10 | 0.75 | – |
 | dedode-v2-g | 6.36 | 1.12 | – | 1.51 | 1.04 | – |
 | disk-lightglue | 1.43 | 0.20 | – | 0.64 | 0.63 | – |
@@ -2085,7 +2085,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | sea-raft-s | 1080x1920 | 211 ms | 150 ms | 108 ms | 50.4 ms | 35.4 s | 68.0 s | 6019 / 6136 | 5828 / 5876 | 415 / 492 | 11043 / 11078 |
 | sea-raft-s-kitti | 1080x1920 | 210 ms | 150 ms | 108 ms | 50.5 ms | 31.8 s | 67.3 s | 6019 / 6136 | 5828 / 5876 | 415 / 492 | 11043 / 11078 |
 | sea-raft-s-spring | 1080x1920 | 32.8 ms | 23.8 ms | 3.01 ms | 16.0 ms | 21.9 s | 38.8 s | 611 / 656 | 582 / 596 | 160 / 192 | 215 / 278 |
-| aliked-lightglue | 768x1024 | 48.4 ms | 29.5 ms | fails: ONNX export: torch.export failed | – | 30.8 s | – | 1300 / 1406 | 1653 / 1680 | – | – |
+| aliked-lightglue | 768x1024 | 40.6 ms | 29.5 ms | fails: ONNX export: torch.export failed | – | 30.8 s | – | 1300 / 1404 | 1653 / 1680 | – | – |
 | dedode-v2-b | 768x1024 | 246 ms | 164 ms | fails: timeout after 298 s | – | 50.5 s | – | 1535 / 1654 | 1893 / 2434 | – | – |
 | disk-lightglue | 768x1024 | 116 ms | 113 ms | fails: ONNX export: torch.export failed | – | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | – | – |
 | loftr-outdoor | 768x1024 | 110 ms | 176 ms | fails: ONNX export: torch.export failed | – | 33.3 s | – | 796 / 904 | 1149 / 1232 | – | – |

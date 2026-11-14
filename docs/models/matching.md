@@ -79,7 +79,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.8<br>48.4<br>–<br>29.5<br>fails: ONNX export: torch.export failed | 1305 / 1364<br>1300 / 1406<br>–<br>1653 / 1680<br>– |
+| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.8<br>40.6<br>–<br>29.5<br>fails: ONNX export: torch.export failed | 1305 / 1364<br>1300 / 1404<br>–<br>1653 / 1680<br>– |
 | `disk-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 117<br>116<br>–<br>113<br>fails: ONNX export: torch.export failed | 1955 / 2412<br>1950 / 2398<br>–<br>1375 / 1502<br>– |
 
 <details><summary>Details</summary>
@@ -100,7 +100,7 @@ Commercial use: yes.
 - `disk-lightglue` 768x1024, first call: portable + torch.compile 21 s (cold Inductor cache).
 - `aliked-lightglue` original 768x1024: the authors' mixed-precision option (float16); upstream match_pair aliked + LightGlue, resize 1024
 - `disk-lightglue` original 768x1024: the authors' mixed-precision option (float16); upstream match_pair disk + LightGlue, resize 1024
-- `aliked-lightglue` load / first call: original 1.49 s / 0.732 s, portable 0.2 s / 0.748 s
+- `aliked-lightglue` load / first call: original 1.49 s / 0.732 s, portable 0.17 s / 0.79 s
 - `disk-lightglue` load / first call: original 1.43 s / 0.642 s, portable 0.2 s / 0.633 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
