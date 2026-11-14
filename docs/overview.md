@@ -439,13 +439,15 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Pose
 
-45 models; size 1080x1920.
+47 models; size 1080x1920.
 
-- Fastest: [`retinaface-mobilenet0.25`](models/pose.md#retinaface) (2.7 ms).
-- Fastest commercially usable: [`retinaface-mobilenet0.25`](models/pose.md#retinaface) (2.7 ms).
+- Fastest: [`yunet-s`](models/pose.md#yunet) (2.0 ms).
+- Fastest commercially usable: [`yunet-s`](models/pose.md#yunet) (2.0 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
+| [`yunet-s`](models/pose.md#yunet) | yes | 5.5 (1080x1920) | 2.7 | 2.0 | 2.8x vs original (1080x1920) | 84 |
+| [`yunet-n`](models/pose.md#yunet) | yes | 6.0 (1080x1920) | 2.9 | 2.2 | 2.7x vs original (1080x1920) | 84 |
 | [`retinaface-mobilenet0.25`](models/pose.md#retinaface) | yes | 75.9 (1080x1920) | 3.4 | 2.7 | 27.7x vs original (1080x1920) | 105 |
 | [`rtmpose-t`](models/pose.md#rtmpose) | yes | 150.9 (1080x1920) | 4.5 | 2.9 | 52.0x vs original (1080x1920) | 129 |
 | [`rtmpose-t-halpe26`](models/pose.md#rtmpose) | yes | 171.7 (1080x1920) | 4.5 | 2.9 | 59.1x vs original (1080x1920) | 129 |

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- YuNet face detection (`yunet-n`, `yunet-s`, pose with RetinaFace; BSD-3-Clause code and weights): boxes, scores
+  and five landmarks for the whole image at its own size (padded to 32), decoding and NMS on the GPU (RetinaFace's
+  NMS), the kernels runner through `optimize` (fused conv kernels). 1080x1920 incl. upload and NMS: yunet-n 2.22 ms kernels, 2.95 ms
+  portable (0.79 ms TensorRT network) vs 7.9 ms original fp32 (6.04 ms autocast), peak allocated 84 MB vs 181 MB
+  (134 MB); yunet-s 2.00 / 2.67 ms vs 6.56 ms (5.55 ms), 84 MB vs 149 MB (118 MB). WIDER FACE val every 4th image
+  (807) AP easy / medium / hard as the original fp32: yunet-n 0.894 / 0.884 / 0.810, yunet-s 0.885 / 0.868 / 0.764
+  (`tools/eval_widerface.py`). RetinaFace's NMS builds the pair IoUs in 256-row blocks (low eval thresholds made
+  the n x n matrix hundreds of MB).
+
 - Restormer deblurring / deraining / denoising (`restormer-deblur`, `restormer-derain`, `restormer-sidd`, restoration;
   MIT code and weights): the transposed (channel) attention of all heads as one block-masked float32 Gram matrix and
   softmax (upstream normalises q and k in the input dtype, which overflows in float16), float32 LayerNorms. 512x512:

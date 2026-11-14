@@ -79,6 +79,7 @@ _DATASETS = {
         "coco-val2017-every1-keypoints-gtbox": "COCO val2017, ground-truth person boxes, keypoint AP",
         "coco-val2017-every1-keypoints": "COCO val2017, predicted people, keypoint AP",
         "coco-val2017-every10-keypoints": "COCO val2017, every 10th image, predicted people, keypoint AP",
+        "widerface-val-every4": "WIDER FACE val, every 4th image (807), face box AP easy / medium / hard",
     },
     "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
     "interpolation": {"davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM"},
@@ -159,6 +160,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
     "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
+    ("pose", "widerface-val-every4"): (
+        (("ap_easy", "{:.3f}", ""), ("ap_medium", "{:.3f}", ""), ("ap_hard", "{:.3f}", "")),
+        "n",
+        "images",
+    ),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
     "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
     "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
@@ -199,6 +205,8 @@ _PROTOCOL = {
     ): "Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; "
     "people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' "
     "AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. ",
+    ("pose", "widerface-val-every4"): "Each image at its own size, score threshold 0.02 and NMS IoU 0.45 (the "
+    "authors' evaluation settings), the official toolkit's AP at IoU 0.5 over the subset's faces. ",
     ("pose", "coco-val2017-every10-keypoints-gtbox"): "Top-down on the same every-tenth-image subset for all modes, "
     "ground-truth person boxes, no flip test; people ranked by the mean of their first 17 keypoint scores; "
     "pycocotools OKS AP on COCO body joints. ",
@@ -416,6 +424,8 @@ _ENGINE_PART = {
     "promptable_segmentation": "image encoder",
     "rcnn": "backbone + FPN",
     "pose": "network on person crops",
+    "retinaface": "network",  # face detectors: the whole image, decoding and NMS outside
+    "yunet": "network",
 }  # task / family: `module()`
 
 

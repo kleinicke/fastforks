@@ -1140,6 +1140,28 @@ def _retinaface(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda bgr: g.run(net, bgr, p["score_threshold"], p["nms_iou"])
 
 
+def _yunet(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """libfacedetection.train `build_yunet` + `YuNetPostprocessor` (`FF_YUNET_REPO`, `FF_YUNET_WEIGHTS`).
+
+    float32 on CUDA, `eval_widerface --mode origin` input (BGR 0..255 float, padded to 32), card thresholds; BGR uint8
+    in, the upload, padding and postprocessing in the timed call.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("yunet")
+    card, variant = full_ref("pose", full)[1:]
+    p = {**card.params, **card.options, **variant.params}
+    tree = g.reference_tree(Path(os.environ["FF_YUNET_REPO"]), g.REF_COMMIT)
+    net = g.build(tree, Path(os.environ["FF_YUNET_WEIGHTS"]) / variant.weights[0].name, variant.id, "cuda")
+    a.note = "libfacedetection.train build_yunet + YuNetPostprocessor (origin size, float32): upload, pad, network, NMS"
+
+    def call(bgr: Any) -> Any:  # noqa: ANN401 - numpy image
+        x = torch.from_numpy(bgr).cuda().permute(2, 0, 1)[None].float()
+        return g.run(tree, net, x, p["score_threshold"], p["nms_iou"])
+
+    return call
+
+
 def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401
     """`inference_detector` of mmdet on the `tools/golden/rtmdet.py` model (`FF_MMDET_SITE`), card thresholds.
 
@@ -2431,6 +2453,13 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "retinaface": _Local(
         "pose",
         _retinaface,
+        ((1080, 1920),),
+        lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),),
+        needs_boxes=False,
+    ),
+    "yunet": _Local(
+        "pose",
+        _yunet,
         ((1080, 1920),),
         lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),),
         needs_boxes=False,

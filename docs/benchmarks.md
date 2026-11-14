@@ -914,6 +914,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | vitpose-plus-huge | 610 | 242 | 104 | 64.1 | 3.8x | 1.6x | 5732 / 5846 | 1641 / 1704 | 1618 / 1766 |
 | vitpose-plus-large | 331 | 165 | 53.7 | 34.9 | 4.7x | 1.5x | 2873 / 3004 | 1014 / 1062 | 991 / 1124 |
 | vitpose-plus-small | 120 | 104 | 7.83 | 6.05 | 17.2x | 1.3x | 312 / 376 | 164 / 196 | 145 / 198 |
+| yunet-n | – | 6.04 | 2.95 | 2.22 | 2.7x | 1.3x | 134 / 168 | 96 / 124 | 84 / 104 |
+| yunet-s | – | 5.55 | 2.67 | 2.00 | 2.8x | 1.3x | 118 / 148 | 96 / 124 | 84 / 104 |
 
 ### Features, synthetic, 224x224
 
@@ -1524,6 +1526,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | vitpose-plus-huge | 0.65 | 2.69 | 2.26 | 0.25 | 0.44 | 0.40 |
 | vitpose-plus-large | 0.41 | 1.50 | 1.63 | 0.17 | 0.41 | 0.41 |
 | vitpose-plus-small | 0.15 | 0.81 | 1.09 | 0.12 | 0.46 | 0.50 |
+| yunet-n | 0.49 | 0.61 | 1.91 | 0.48 | 0.23 | 0.07 |
+| yunet-s | 0.19 | 0.57 | 0.59 | 0.01 | 0.28 | 0.06 |
 | c-radio-v3-b | – | – | – | 0.14 | 0.08 | 0.06 |
 | c-radio-v3-g | – | – | – | 0.17 | 0.08 | 0.07 |
 | c-radio-v3-h | – | – | – | 0.16 | 0.07 | 0.07 |
@@ -2040,6 +2044,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | vitpose-plus-huge | 1080x1920 | 104 ms | 92.9 ms | 58.7 ms (network on person crops only) | 64.1 ms | 21.2 s | 47.3 s | 1641 / 1704 | 1641 / 1682 | 1618 / 1766 | 2595 / 2654 |
 | vitpose-plus-large | 1080x1920 | 53.7 ms | 46.9 ms | 29.3 ms (network on person crops only) | 34.9 ms | 17.9 s | 39.0 s | 1014 / 1062 | 1014 / 1062 | 991 / 1124 | 1312 / 1338 |
 | vitpose-plus-small | 1080x1920 | 7.83 ms | 7.54 ms | 3.39 ms (network on person crops only) | 6.05 ms | 10.6 s | 37.5 s | 164 / 196 | 472 / 496 | 145 / 198 | 214 / 256 |
+| yunet-n | 1080x1920 | 2.95 ms | 1.79 ms | 0.794 ms (network only) | 2.22 ms | 8.40 s | 12.1 s | 96 / 124 | 124 / 144 | 84 / 104 | 119 / 150 |
+| yunet-s | 1080x1920 | 2.67 ms | 1.65 ms | 0.680 ms (network only) | 2.00 ms | 7.92 s | 13.4 s | 96 / 124 | 124 / 144 | 84 / 104 | 114 / 146 |
 | c-radio-v3-b | 224x224 | 3.04 ms | 7.33 ms | 1.19 ms | 1.35 ms | 8.29 s | 37.4 s | 217 / 246 | 278 / 306 | 284 / 326 | 427 / 454 |
 | c-radio-v3-g | 224x224 | 14.6 ms | 25.5 ms | 10.3 ms | 10.6 ms | 16.5 s | 57.1 s | 2266 / 2308 | 2329 / 2368 | 3166 / 3230 | 4483 / 4530 |
 | c-radio-v3-h | 224x224 | 8.90 ms | 18.1 ms | 6.62 ms | 7.42 ms | 14.7 s | 44.7 s | 1289 / 1308 | 1350 / 1386 | 1789 / 1828 | 2558 / 2586 |

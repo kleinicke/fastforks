@@ -58,9 +58,13 @@ def anchors(h: int, w: int, device: torch.device) -> torch.Tensor:
 def nms(boxes: torch.Tensor, iou: float) -> torch.Tensor:
     """Indices greedy NMS keeps of `[n, 4]` boxes sorted best first (a box goes if a kept one overlaps it > `iou`)."""
     area = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
-    wh = torch.minimum(boxes[:, None, 2:], boxes[None, :, 2:]) - torch.maximum(boxes[:, None, :2], boxes[None, :, :2])
-    overlap = wh.clamp(min=0).prod(-1)
-    over = (overlap / (area[:, None] + area[None] - overlap) > iou).cpu()
+    rows = [torch.zeros(0, boxes.shape[0], dtype=torch.bool)]
+    for s in range(0, boxes.shape[0], 256):  # row blocks: n x n float pairs at low thresholds are 100s of MB
+        b, a = boxes[s : s + 256], area[s : s + 256, None]
+        wh = torch.minimum(b[:, None, 2:], boxes[None, :, 2:]) - torch.maximum(b[:, None, :2], boxes[None, :, :2])
+        overlap = wh.clamp(min=0).prod(-1)
+        rows.append((overlap / (a + area[None] - overlap) > iou).cpu())
+    over = torch.cat(rows)
     gone = torch.zeros(boxes.shape[0], dtype=torch.bool)
     keep = []
     for i in range(boxes.shape[0]):

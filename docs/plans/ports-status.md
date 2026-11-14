@@ -65,6 +65,8 @@ In this order, unless something more useful turns up:
 - Restormer (`restormer-deblur`, `restormer-derain`, `restormer-sidd`, restoration): portable MPS goldens and Mac
   speed rows (512x512; MPS runs float32). No Metal kernels runner. Weights: the pinned GitHub release URLs of the card
   (also in `/home/florian/projects/data/ff-weights/restormer/`).
+- YuNet (`yunet-n`, `yunet-s`, pose): portable MPS goldens and Mac speed rows (1080x1920; MPS runs float32). No Metal
+  kernels runner. Weights: the pinned GitHub URLs of the card (also in `/home/florian/projects/data/ff-weights/yunet/`).
 - MatAnyone (`matanyone`, matting): portable MPS goldens and Mac speed rows (1080x1920; MPS runs float32). No Metal
   kernels runner. Weights: the pinned GitHub release URL of the card (also in
   `/home/florian/projects/data/ff-weights/matanyone/`).
