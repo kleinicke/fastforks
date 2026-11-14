@@ -1,0 +1,51 @@
+schema = 2
+name = "PiDiNet soft edges"
+summary = "Soft edge preprocessor of ControlNet 1.1 (controlnet_aux `PidiNetDetector`, ComfyUI's \"PiDiNet Soft-Edge Lines\"): pixel difference networks (Su et al., ICCV 2021), a 0.7 M-parameter edge detector of difference convolutions, here converted to plain depthwise convolutions (the authors' re-parameterization). Research use only."
+tier = "experimental"
+outputs = ["edges"]
+uses = []  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/huggingface/controlnet_aux"
+commit = "b1aac318b15c4e65a21bc516dc236ad4bf593d46"  # net/pidinet.py = src/controlnet_aux/pidi/model.py; the call is PidiNetDetector.__call__
+
+[licence]
+code = "LicenseRef-research-only"  # src/controlnet_aux/pidi/LICENSE: "It is just for research purpose, and commercial use should be contacted with authors first." above an MIT text (Zhuo Su); hellozhuo/pidinet has the same LICENSE
+weights = "assumed from code"  # lllyasviel/Annotators: "license: other", no terms; the checkpoint is the authors' table5_pidinet.pth
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1). The file name matches the paper's table 5 BSDS500 model."
+evidence = "https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/pidi/LICENSE ; https://github.com/hellozhuo/pidinet/blob/master/LICENSE ; https://huggingface.co/lllyasviel/Annotators"
+
+[io]
+input = "0-1"  # the runner resizes to the detect size (OpenCV area / cubic on uint8 levels), flips to BGR and divides by 255
+
+[options]
+resolution = { default = 512, min = 64, aliases = ["detect_resolution"] }  # detect resolution: the network input's short side, sides rounded to a multiple of 64 (controlnet_aux detect_resolution)
+apply_filter = false  # true: threshold the map at 0.5 (controlnet_aux `apply_filter=True`)
+safe = false  # true: quantize the map to 3 levels (controlnet_aux `safe=True`, `safe_step`)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "the converted network is plain convolutions (cuDNN); no custom kernel measured to pay off"
+
+[[papers]]
+title = "Pixel Difference Networks for Efficient Edge Detection"
+url = "https://arxiv.org/abs/2108.07009"
+date = "2021-08-16"
+venue = "ICCV 2021"
+
+[[papers]]
+title = "Adding Conditional Control to Text-to-Image Diffusion Models"
+url = "https://arxiv.org/abs/2302.05543"
+date = "2023-02-10"
+venue = "ICCV 2023"
+
+[[variants]]
+id = "pidinet"
+revision = 1
+weights = [{ name = "table5_pidinet.pth", size = 2871148, sha256 = "80860ac267258b5f27486e0ef152a211d0b08120f62aeb185a050acc30da486c", url = "https://huggingface.co/lllyasviel/Annotators/resolve/982e7edaec38759d914a963c48c4726685de7d96/table5_pidinet.pth" }]

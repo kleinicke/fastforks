@@ -328,7 +328,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Edges
 
-4 models; size 1080x1920.
+5 models; size 1080x1920.
 
 - No timed model.
 
@@ -338,6 +338,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`lineart`](models/edges.md#line-art-informative-drawings) | yes |
 | [`lineart-anime`](models/edges.md#anime-line-art) | yes |
 | [`lineart-coarse`](models/edges.md#line-art-informative-drawings) | yes |
+| [`pidinet`](models/edges.md#pidinet-soft-edges) | no |
 
 ## Promptable segmentation
 
