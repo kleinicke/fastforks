@@ -21,7 +21,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`coatnet_rmlp_1_rw_224`](#coatnet) | yes | – | – |
 | [`coatnet_rmlp_2_rw_224`](#coatnet) | yes | – | – |
 | [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | – | – |
+| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | – (384x384) | – |
 | [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | – | – |
 | [`convnext_base.fb_in1k`](#convnext) | yes | 2.01, 3.9x | 236, 0.59x |
 | [`convnext_base`](#convnext) | yes | 2.00, 3.9x | 236, 0.59x |
@@ -94,7 +94,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`shvit_s1`](#shvit) | yes | – | – |
 | [`shvit_s2`](#shvit) | yes | – | – |
 | [`shvit_s3`](#shvit) | yes | – | – |
-| [`shvit_s4`](#shvit) | yes | – | – |
+| [`shvit_s4`](#shvit) | yes | – (256x256) | – |
 | [`squeezenet1_1`](#squeezenet) | yes | 0.359, 4.8x | 12, 0.43x |
 | [`starnet_s1`](#starnet) | yes | 0.683, 6.7x | 56, 0.97x |
 | [`starnet_s2`](#starnet) | yes | 0.578, 6.3x | 58, 0.91x |

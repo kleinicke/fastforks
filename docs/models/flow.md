@@ -12,9 +12,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | KITTI 2015 train EPE (px) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | – | – |
-| [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | – | – |
-| [`flowformer-small-things`](#flowformer) | yes | 6.884 | – | – |
+| [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | – (375x1242) | – |
+| [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | – (375x1242) | – |
+| [`flowformer-small-things`](#flowformer) | yes | 6.884 | – (375x1242) | – |
 | [`flowseek-t`](#flowseek) | yes | 1.348 † | – | – |
 | [`flowseek-t-things`](#flowseek) | yes | 4.143 | – | – |
 | [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | – | – |

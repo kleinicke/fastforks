@@ -920,8 +920,8 @@ def _std_input(task: str, _speed: dict[str, list[dict]] | None = None) -> str:
 
 
 def _at(rows: list[dict], size: str) -> str:
-    """The input to show for one model: the standard size, else the largest input its kernels row has."""
-    ins = {r["input"] for r in rows if r["mode"] == "kernels"}
+    """The input to show for one model: the standard size, else the largest input its kernels (or, without a kernels build, portable) row has."""
+    ins = {r["input"] for r in rows if r["mode"] == "kernels"} or {r["input"] for r in rows if r["mode"] == "portable"}
     return size if size in ins or not ins else max(ins, key=_pixels)
 
 
@@ -1309,6 +1309,12 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
             # Multiview has no shared size: each model's original run is at its own input, the one its kernels row has.
             osz = at if size == _OWN else orig_size
             orig = _orig(mine.get(("upstream", osz)), mine.get(("upstream-default", osz)))
+            if orig is None and not (v.id, "upstream", osz) in _oom():
+                # No original at the task's size: show the one at the model's own largest upstream input.
+                own = {i for m, i in mine if m in ("upstream", "upstream-default")}
+                if own:
+                    osz = max(own, key=_pixels)
+                    orig = _orig(mine.get(("upstream", osz)), mine.get(("upstream-default", osz)))
             max_o = mine.get(("kernels", osz))
             if orig and max_o:
                 speedup = (orig["ms"] / max_o["ms"], f"original ({osz})")

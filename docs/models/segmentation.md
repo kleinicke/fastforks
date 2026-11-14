@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`bisenet-face-parsing`](#bisenet) | yes | – | – |
+| [`bisenet-face-parsing`](#bisenet) | yes | – (512x512) | – |
 | [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.1, 2.7x | 518, 0.24x |
 | [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 18.0, 3.0x | 560, 0.28x |
 | [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 20.1, 2.0x | 884, 0.4x |
