@@ -103,7 +103,7 @@ class VAE2D(nn.Module):
             for r in range(3):
                 x = self.res(x, f"{p}.resnets.{r}")
             if p + ".upsamplers.0.resample.1.weight" in self.keys:
-                x = F.interpolate(x.float(), scale_factor=2.0, mode="nearest-exact").to(x.dtype)
+                x = F.interpolate(x, scale_factor=2.0, mode="nearest-exact")  # bf16: a copy, equal to upstream's float32
                 x = self.conv(x, p + ".upsamplers.0.resample.1")
         x = self.conv(F.silu(self.norm(x, "decoder.norm_out")), "decoder.conv_out")
         return x.clamp(-1.0, 1.0)

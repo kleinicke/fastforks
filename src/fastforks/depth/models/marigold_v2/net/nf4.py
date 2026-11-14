@@ -31,12 +31,13 @@ def pair_lut(code: torch.Tensor) -> torch.Tensor:
 def dequant_lut(q: torch.Tensor, absmax: torch.Tensor, lut: torch.Tensor, n_out: int) -> torch.Tensor:
     """Packed bytes `[N * K / 2]` + `absmax [N * K / 64]` -> bf16 weight `[N, K]` (plain PyTorch).
 
-    The `int()` cast is the cheapest exact path measured (index tensors must be int32 or int64; per-block product
-    tables with a nibble gather were ~2x slower).
+    An embedding lookup of the byte in the pair table (float32), then one multiply by the absmax that rounds straight
+    to bf16 (computed in float32, as `(code * absmax).to(bfloat16)`). Index tensors must be int32 or int64; the
+    embedding is ~2x faster than advanced indexing, per-block product tables were slower still.
     """
-    w = lut[q.int()].view(-1, BLOCK)
-    w *= absmax.float()[:, None]
-    return w.to(BF).view(n_out, -1)
+    g = F.embedding(q.int(), lut).view(-1, BLOCK)
+    w = torch.empty(g.shape, dtype=BF, device=g.device)
+    return torch.mul(g, absmax[:, None], out=w).view(n_out, -1)
 
 
 class NF4Linear(nn.Module):
@@ -75,4 +76,8 @@ class NF4Linear(nn.Module):
         if self.lora_a is None:
             return y if keep_bf else y.float()
         lora = F.linear(F.linear(xb, self.lora_a), self.lora_b)
-        return y + lora if keep_bf else y.float() + lora
+        if keep_bf:
+            return y + lora
+        out = y.float()
+        del y
+        return out.add_(lora)  # float32 + bf16 in float32, as `y.float() + lora`, without a second float32 copy
