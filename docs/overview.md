@@ -328,13 +328,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Promptable segmentation
 
-18 models; size 1024x1024.
+19 models; size 1024x1024.
 
-- Fastest: [`efficientvit-sam-l0`](models/promptable_segmentation.md#efficientvit-sam) (4.4 ms).
-- Fastest commercially usable: [`efficientvit-sam-l0`](models/promptable_segmentation.md#efficientvit-sam) (4.4 ms).
+- Fastest: [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) (2.7 ms).
+- Fastest commercially usable: [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) (2.7 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
+| [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) | yes | 15.3 (1024x1024) | 4.4 | 2.7 | 5.6x vs original (1024x1024) | 458 |
 | [`efficientvit-sam-l0`](models/promptable_segmentation.md#efficientvit-sam) | yes | 26.3 (1024x1024) | 12.7 | 4.4 | 5.9x vs original (1024x1024) | 176 |
 | [`efficientvit-sam-l1`](models/promptable_segmentation.md#efficientvit-sam) | yes | 29.9 (1024x1024) | 14.4 | 5.8 | 5.2x vs original (1024x1024) | 203 |
 | [`efficientvit-sam-l2`](models/promptable_segmentation.md#efficientvit-sam) | yes | 34.4 (1024x1024) | 17.8 | 6.8 | 5.0x vs original (1024x1024) | 232 |
@@ -379,7 +380,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`deim-s-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 26.4 (800x1344) | 11.4 | 3.8 | 7.0x vs original (800x1344) | 106 |
 | [`dfine-s-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 25.7 (800x1344) | 11.1 | 3.8 | 6.7x vs original (800x1344) | 106 |
 | [`lw-detr-medium-coco`](models/detection.md#lw-detr-vit-tiny--small--medium--large--xlarge) | yes | 23.3 (800x1344) | 8.9 | 3.8 | 6.1x vs original (800x1344) | 128 |
-| [`rf-detr-m-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 11.8 (800x1344) | 12.3 | 3.9 | 3.0x vs original (800x1344) | 133 |
+| [`rf-detr-m-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 11.8 (800x1344) | 11.3 | 3.9 | 3.0x vs original (800x1344) | 133 |
 | [`rtmdet-m-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 14.1 (800x1344) | 7.4 | 4.1 | 3.4x vs original (800x1344) | 119 |
 | [`rtdetrv2-s-coco`](models/detection.md#rt-detrv2-resnet-vd-s--m--m--l--x) | yes | 14.1 (800x1344) | 8.0 | 4.2 | 3.4x vs original (800x1344) | 155 |
 | [`rf-detr-seg-s-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 13.0 (800x1344) | 12.0 | 4.3 | 3.0x vs original (800x1344) | 129 |
@@ -389,7 +390,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`yolox-l`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 15.1 (800x1344) | 8.1 | 5.2 | 2.9x vs original (800x1344) | 170 |
 | [`rtdetrv2-m-coco`](models/detection.md#rt-detrv2-resnet-vd-s--m--m--l--x) | yes | 17.1 (800x1344) | 10.4 | 5.3 | 3.2x vs original (800x1344) | 177 |
 | [`rf-detr-l-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 11.8 (800x1344) | 10.7 | 5.4 | 2.2x vs original (800x1344) | 146 |
-| [`rf-detr-seg-m-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 14.4 (800x1344) | 15.1 | 5.4 | 2.7x vs original (800x1344) | 144 |
+| [`rf-detr-seg-m-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 14.4 (800x1344) | 13.2 | 5.4 | 2.7x vs original (800x1344) | 144 |
 | [`rtdetrv2-ms-coco`](models/detection.md#rt-detrv2-resnet-vd-s--m--m--l--x) | yes | 22.5 (800x1344) | 9.6 | 5.5 | 4.1x vs original (800x1344) | 189 |
 | [`lw-detr-large-coco`](models/detection.md#lw-detr-vit-tiny--small--medium--large--xlarge) | yes | 22.8 (800x1344) | 10.2 | 5.6 | 4.0x vs original (800x1344) | 192 |
 | [`rtmdet-l-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 19.5 (800x1344) | 9.6 | 5.7 | 3.4x vs original (800x1344) | 178 |
@@ -404,7 +405,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`deim-x-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 41.3 (800x1344) | 18.6 | 9.6 | 4.3x vs original (800x1344) | 228 |
 | [`dfine-x-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 44.9 (800x1344) | 18.5 | 9.7 | 4.6x vs original (800x1344) | 228 |
 | [`detr-r50-coco`](models/detection.md#detr-resnet-50--resnet-101) | yes | 55.5 (800x1344) | 12.4 | 9.9 | 5.6x vs original (800x1344) | 218 |
-| [`rf-detr-seg-xl-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 18.7 (800x1344) | 19.4 | 10.5 | 1.8x vs original (800x1344) | 188 |
+| [`rf-detr-seg-xl-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 18.7 (800x1344) | 17.9 | 10.5 | 1.8x vs original (800x1344) | 188 |
 | [`detr-r101-coco`](models/detection.md#detr-resnet-50--resnet-101) | yes | 78.9 (800x1344) | 18.7 | 13.7 | 5.8x vs original (800x1344) | 254 |
 | [`rf-detr-seg-2xl-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 25.6 (800x1344) | 25.5 | 16.0 | 1.6x vs original (800x1344) | 218 |
 | [`faster-rcnn-r50-fpn-3x-coco`](models/detection.md#detectron2-mask--faster-r-cnn-r50-fpn) | yes | 41.4 (800x1344) | 22.8 | 19.5 | 2.1x vs original (800x1344) | 391 |
@@ -697,7 +698,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Restoration
 
-19 models; size 512x512.
+20 models; size 512x512.
 
 - Fastest: [`span-x4`](models/restoration.md#span) (14.6 ms).
 - Fastest commercially usable: [`span-x4`](models/restoration.md#span) (14.6 ms).
@@ -707,6 +708,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`span-x4`](models/restoration.md#span) | yes | 26.9 (512x512) | 24.2 | 14.6 | 1.8x vs original (512x512) | 487 |
 | [`span-x2`](models/restoration.md#span) | yes | 24.6 (512x512) | 23.5 | 14.9 | 1.6x vs original (512x512) | 487 |
 | [`gfpgan-v1.4`](models/restoration.md#gfpgan) | yes | 21.9 (512x512) | 21.2 | 18.0 | 1.2x vs original (512x512) | 473 |
+| [`big-lama`](models/restoration.md#lama-big-lama-inpainting) | yes | 38.0 (512x512) | 26.0 | 21.2 | 1.8x vs original (512x512) | 219 |
 | [`realesr-general-x4v3`](models/restoration.md#real-esrgan-compact) | yes | 42.1 (512x512) | 30.1 | 24.0 | 1.8x vs original (512x512) | 125 |
 | [`codeformer`](models/restoration.md#codeformer) | no | 85.7 (512x512) | 48.6 | – | – | – |
 | [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 97.0 | 80.2 | 1.6x vs original (512x512) | 333 |

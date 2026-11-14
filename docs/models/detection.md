@@ -546,13 +546,13 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `rf-detr-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>9.43<br>2.46<br>4.58<br>1.15 | 118 / 160<br>114 / 140<br>114 / 142<br>141 / 156<br>179 / 208 |
 | `rf-detr-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.2<br>10.1<br>3.44<br>4.56<br>1.83 | 189 / 238<br>126 / 148<br>125 / 170<br>150 / 162<br>188 / 214 |
-| `rf-detr-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.8<br>12.3<br>3.90<br>4.92<br>2.10 | 140 / 174<br>135 / 154<br>133 / 180<br>156 / 166<br>194 / 216 |
+| `rf-detr-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.8<br>11.3<br>3.90<br>4.92<br>2.10 | 140 / 174<br>136 / 156<br>133 / 180<br>156 / 166<br>194 / 216 |
 | `rf-detr-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.8<br>10.7<br>5.36<br>5.32<br>2.87 | 219 / 240<br>148 / 166<br>146 / 206<br>164 / 182<br>203 / 222 |
 | `rf-detr-seg-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>11.9<br>3.75<br>6.59<br>1.52 | 255 / 298<br>123 / 148<br>126 / 190<br>158 / 166<br>189 / 218 |
 | `rf-detr-seg-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>12.0<br>4.34<br>6.55<br>2.00 | 327 / 382<br>130 / 154<br>129 / 198<br>162 / 190<br>197 / 224 |
-| `rf-detr-seg-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.4<br>15.1<br>5.36<br>6.86<br>2.50 | 381 / 424<br>140 / 180<br>144 / 204<br>172 / 194<br>208 / 228 |
+| `rf-detr-seg-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.4<br>13.2<br>5.36<br>6.86<br>2.50 | 381 / 424<br>141 / 180<br>144 / 204<br>172 / 194<br>208 / 228 |
 | `rf-detr-seg-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>15.2<br>6.75<br>7.08<br>3.30 | 459 / 492<br>150 / 168<br>151 / 228<br>190 / 208<br>218 / 234 |
-| `rf-detr-seg-xl-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.7<br>19.4<br>10.5<br>10.8<br>5.20 | 182 / 248<br>178 / 188<br>188 / 268<br>212 / 246<br>302 / 326 |
+| `rf-detr-seg-xl-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.7<br>17.9<br>10.5<br>10.8<br>5.20 | 182 / 248<br>177 / 206<br>188 / 268<br>212 / 246<br>302 / 326 |
 | `rf-detr-seg-2xl-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.6<br>25.5<br>16.0<br>16.9<br>8.62 | 287 / 352<br>210 / 230<br>218 / 332<br>245 / 308<br>334 / 366 |
 
 <details><summary>Details</summary>
@@ -591,13 +591,13 @@ Commercial use: yes.
 - `rf-detr-seg-2xl-coco` original 800x1344: the authors' float16 model option; pinned RF-DETR torchvision resize/normalize, original network and PostProcess; authors inference(compile=False, dtype=float16, inplace=True)
 - `rf-detr-n-coco` load / first call: original 5.93 s / 0.557 s, portable 2.59 s / 0.351 s, kernels 2.67 s / 0.346 s
 - `rf-detr-s-coco` load / first call: original 2.74 s / 0.016 s, portable 2.61 s / 0.349 s, kernels 2.65 s / 0.345 s
-- `rf-detr-m-coco` load / first call: original 2.77 s / 0.016 s, portable 2.98 s / 0.359 s, kernels 2.96 s / 0.346 s
+- `rf-detr-m-coco` load / first call: original 2.77 s / 0.016 s, portable 3.59 s / 0.425 s, kernels 2.96 s / 0.346 s
 - `rf-detr-l-coco` load / first call: original 1.1 s / 0.019 s, portable 3.11 s / 0.379 s, kernels 3.31 s / 0.364 s
 - `rf-detr-seg-n-coco` load / first call: original 0.43 s / 0.026 s, portable 2.78 s / 0.362 s, kernels 2.62 s / 0.327 s
 - `rf-detr-seg-s-coco` load / first call: original 0.42 s / 0.017 s, portable 2.72 s / 0.347 s, kernels 2.62 s / 0.341 s
-- `rf-detr-seg-m-coco` load / first call: original 0.44 s / 0.018 s, portable 2.81 s / 0.359 s, kernels 2.74 s / 0.344 s
+- `rf-detr-seg-m-coco` load / first call: original 0.44 s / 0.018 s, portable 3.95 s / 0.399 s, kernels 2.74 s / 0.344 s
 - `rf-detr-seg-l-coco` load / first call: original 0.44 s / 0.021 s, portable 3.13 s / 0.363 s, kernels 2.89 s / 0.343 s
-- `rf-detr-seg-xl-coco` load / first call: original 0.61 s / 0.036 s, portable 2.92 s / 0.334 s, kernels 2.68 s / 0.352 s
+- `rf-detr-seg-xl-coco` load / first call: original 0.61 s / 0.036 s, portable 2.92 s / 0.337 s, kernels 2.68 s / 0.352 s
 - `rf-detr-seg-2xl-coco` load / first call: original 0.47 s / 0.06 s, portable 2.82 s / 0.336 s, kernels 2.63 s / 0.328 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

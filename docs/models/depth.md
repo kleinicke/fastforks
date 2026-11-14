@@ -87,9 +87,9 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `any2full-s` | not measured | - | - |
-| `any2full-b` | not measured | - | - |
-| `any2full-l` | not measured | - | - |
+| `any2full-s` | 0.00015 / 0.00057 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `any2full-b` | 0.00035 / 0.0014 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `any2full-l` | 0.00028 / 0.00098 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 
@@ -457,7 +457,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `depthfm-v1` | not measured | - | - |
+| `depthfm-v1` | 0.01169 / 0.02968 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 
 ### Limitations
 
@@ -498,8 +498,8 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `lingbot-depth` | not measured | - | - |
-| `lingbot-depth-dc` | not measured | - | - |
+| `lingbot-depth` | 0.00046 / 0.00254 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `lingbot-depth-dc` | 0.00058 / 0.00365 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 
@@ -920,7 +920,7 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `omni-dc` | not measured | - | - |
+| `omni-dc` | 0.00021 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 

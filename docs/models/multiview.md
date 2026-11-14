@@ -159,7 +159,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `lingbot-map` | not measured | - | - |
+| `lingbot-map` | 0.00042 / 0.00121 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
 
 ### Limitations
 
