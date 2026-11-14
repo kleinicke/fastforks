@@ -8,10 +8,17 @@ import numpy as np
 import pytest
 import torch
 
-from fastforks import BackendUnavailableError, CardError, InputError, KernelUnavailableError, OptionsError, stereo
+from fastforks import (
+    Backend,
+    BackendUnavailableError,
+    CardError,
+    InputError,
+    KernelUnavailableError,
+    OptionsError,
+    stereo,
+)
 from fastforks._core import model as core_model
 from fastforks._core import registry
-from fastforks.stereo import Backend
 from fastforks.stereo._runner import Runner
 
 pytestmark = pytest.mark.usefixtures("card_min_size")  # tiny images through fake runners

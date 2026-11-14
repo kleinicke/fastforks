@@ -98,3 +98,12 @@ def test_sam_threshold(fake):  # noqa: F811 - the fixture
     assert r.options["score_threshold"] == 0.1
     with _warns("score_threshold="), pytest.raises(InputError, match="pass only score_threshold"):
         m(img, text="coin", threshold=0.1, score_threshold=0.2)
+
+
+@pytest.mark.parametrize("task", registry.TASKS)
+def test_shared_types_in_tasks(task):
+    module = getattr(fastforks, task)
+    for name in ("Backend", "ImageLike", "ModelCard", "SizeRange", "TensorRTEngine"):
+        assert name not in module.__all__
+        with _warns(rf"fastforks\.{name}"):
+            assert getattr(module, name) is getattr(fastforks, name)

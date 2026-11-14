@@ -623,7 +623,7 @@ Or keep the high-level API and compile in place (`kernels` raises `BackendUnavai
 ```python
 model.compile()  # every task call now runs compiled; again with other arguments replaces it
 model.export_onnx("m.onnx", 384, 1248)
-model.export_tensorrt("m.engine", 384, 1248)  # on the target GPU; then stereo.TensorRTEngine("m.engine")(left, right)
+model.export_tensorrt("m.engine", 384, 1248)  # on the target GPU; then fastforks.TensorRTEngine("m.engine")(left, right)
 ```
 
 ```
@@ -635,7 +635,7 @@ fastforks export depth-anything-v2-s --format trt --fp16 --size 518x770
 ```
 
 From Python: `model.export_onnx(path[, height, width])` and `model.export_tensorrt(path[, height, width])`; run an
-engine with `stereo.TensorRTEngine(path)(left, right)` (`depth.TensorRTEngine(path)(image)`). Exports have one fixed
+engine with `fastforks.TensorRTEngine(path)(left, right)` (or `(image)`). Exports have one fixed
 size and batch by default (size ranges: see [export](export.md)); the size must lie in `model.size_range()` (stereo, depth, segmentation and detection have no default size;
 classification and features default to `model.export_size()`). **A TensorRT engine only runs on the GPU model and
 TensorRT version it was built with: build it on the target machine.** Install the exporters with

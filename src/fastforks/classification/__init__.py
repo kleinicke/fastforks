@@ -9,12 +9,9 @@ result.top(3)  # [("tabby", 0.62), ("tiger cat", 0.21), ("Egyptian cat", 0.09)]
 ```
 """
 
-from fastforks._core.cards import ModelCard
-from fastforks._core.export import TensorRTEngine
-from fastforks._core.image import ImageLike
-from fastforks._core.sizes import SizeRange
+from fastforks._core.arguments import renamed_attributes
+from fastforks._core.shared_types import OLD_TASK_NAMES
 from fastforks.classification._api import (
-    Backend,
     ClassificationModel,
     ClassificationResult,
     list_models,
@@ -23,14 +20,11 @@ from fastforks.classification._api import (
 )
 
 __all__ = [
-    "Backend",
     "ClassificationModel",
     "ClassificationResult",
-    "ImageLike",
-    "ModelCard",
-    "SizeRange",
-    "TensorRTEngine",
     "list_models",
     "load",
     "model_card",
 ]
+
+__getattr__ = renamed_attributes(__name__, OLD_TASK_NAMES)  # the shared types: `fastforks.<Name>`

@@ -42,12 +42,9 @@ r.masks  # [T, 2, H, W] bool; or input_boxes=[[x0, y0, x1, y1]], input_masks=fra
 prompt side.
 """
 
-from fastforks._core.cards import ModelCard
-from fastforks._core.export import TensorRTEngine
-from fastforks._core.image import ImageLike
-from fastforks._core.sizes import SizeRange
+from fastforks._core.arguments import renamed_attributes
+from fastforks._core.shared_types import OLD_TASK_NAMES
 from fastforks.promptable_segmentation._api import (
-    Backend,
     ConceptModelId,
     ConceptSegmentationModel,
     ConceptSegmentationResult,
@@ -65,23 +62,20 @@ from fastforks.promptable_segmentation._api import (
 )
 
 __all__ = [
-    "Backend",
     "ConceptModelId",
     "ConceptSegmentationModel",
     "ConceptSegmentationResult",
     "ImageEmbeddings",
-    "ImageLike",
     "InContextModelId",
     "InContextSegmentationModel",
     "InContextSegmentationResult",
-    "ModelCard",
     "PromptLike",
     "PromptableSegmentationModel",
     "PromptableSegmentationResult",
-    "SizeRange",
-    "TensorRTEngine",
     "VideoSegmentationResult",
     "list_models",
     "load",
     "model_card",
 ]
+
+__getattr__ = renamed_attributes(__name__, OLD_TASK_NAMES)  # the shared types: `fastforks.<Name>`

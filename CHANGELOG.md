@@ -44,6 +44,8 @@ public API from now on):
   (`classification.load` and `fastforks.load`; the name of the model and result attribute).
 - Promptable segmentation (SAM 3 concept prompts): `threshold` (`model(image, text=..., threshold=0.3)`) ->
   `score_threshold=` (as detection); `result.options["score_threshold"]` records the one used (was `"threshold"`).
+- The shared types are only top level: `fastforks.depth.ModelCard` (and `Backend`, `ImageLike`, `SizeRange`,
+  `TensorRTEngine` in every task package) -> `fastforks.ModelCard` etc.
 
 ### Models and fixes
 

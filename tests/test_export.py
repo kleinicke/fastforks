@@ -17,7 +17,7 @@ import pytest
 import torch
 from torch._subclasses.fake_tensor import FakeTensorMode
 
-from fastforks import stereo
+from fastforks import Backend
 from fastforks._core import model as core_model
 from fastforks._core import registry
 from fastforks._core.errors import BackendUnavailableError, InputError
@@ -424,7 +424,7 @@ def test_export_defaults_per_task():
 @pytest.mark.model
 def test_depth_export_rejects_kernels(tmp_path, monkeypatch):
     model = _load(DEPTH[0])
-    monkeypatch.setattr(model, "backend", stereo.Backend("kernels", "cuda:0", "float16"))
+    monkeypatch.setattr(model, "backend", Backend("kernels", "cuda:0", "float16"))
     with pytest.raises(BackendUnavailableError, match="cannot run"):
         model.export_onnx(tmp_path / "m.onnx", 64, 64)
     with pytest.raises(InputError, match="both height and width"):
@@ -518,7 +518,7 @@ def test_export_rejects_kernels_and_small_sizes(tmp_path, monkeypatch):
         InputError, match=rf"export size {low - 1}x64 .*outside the supported range: any H x W >= {low}"
     ):
         model.export_onnx(tmp_path / "m.onnx", low - 1, 64)
-    monkeypatch.setattr(model, "backend", stereo.Backend("kernels", "cuda:0", "float16"))
+    monkeypatch.setattr(model, "backend", Backend("kernels", "cuda:0", "float16"))
     with pytest.raises(BackendUnavailableError, match="cannot run"):
         model.export_onnx(tmp_path / "m.onnx", 64, 64)
 
@@ -587,7 +587,7 @@ def test_model_compile_equals_eager(ref):
 @pytest.mark.slow
 def test_compile_rejects_kernels(monkeypatch):
     model = _load("hitnet-eth3d@1")
-    monkeypatch.setattr(model, "backend", stereo.Backend("kernels", "cuda:0", "float16"))
+    monkeypatch.setattr(model, "backend", Backend("kernels", "cuda:0", "float16"))
     with pytest.raises(BackendUnavailableError, match="only the portable backend"):
         model.compile()
 

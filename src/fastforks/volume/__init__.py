@@ -14,9 +14,9 @@ result.save("labels.nii.gz")  # back in the file's orientation and affine (volum
 `volume.load("nnUNet_results/Dataset001/nnUNetTrainer__nnUNetPlans__3d_fullres", folds=[0], step=0.5, mirror=True)`.
 """
 
-from fastforks._core.cards import ModelCard
+from fastforks._core.arguments import renamed_attributes
+from fastforks._core.shared_types import OLD_TASK_NAMES
 from fastforks.volume._api import (
-    Backend,
     VolumeModel,
     VolumeResult,
     list_models,
@@ -26,8 +26,6 @@ from fastforks.volume._api import (
 from fastforks.volume._nifti import VolumeMeta, read_nifti, write_nifti
 
 __all__ = [
-    "Backend",
-    "ModelCard",
     "VolumeMeta",
     "VolumeModel",
     "VolumeResult",
@@ -37,3 +35,5 @@ __all__ = [
     "read_nifti",
     "write_nifti",
 ]
+
+__getattr__ = renamed_attributes(__name__, OLD_TASK_NAMES)  # the shared types: `fastforks.<Name>`

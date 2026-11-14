@@ -13,21 +13,16 @@ edges.load("mlsd")("room.jpg").lines  # [N, 4] float32 segments (x0, y0, x1, y1)
 ```
 """
 
-from fastforks._core.cards import ModelCard
-from fastforks._core.export import TensorRTEngine
-from fastforks._core.image import ImageLike
-from fastforks._core.sizes import SizeRange
-from fastforks.edges._api import Backend, EdgesModel, EdgesResult, list_models, load, model_card
+from fastforks._core.arguments import renamed_attributes
+from fastforks._core.shared_types import OLD_TASK_NAMES
+from fastforks.edges._api import EdgesModel, EdgesResult, list_models, load, model_card
 
 __all__ = [
-    "Backend",
     "EdgesModel",
     "EdgesResult",
-    "ImageLike",
-    "ModelCard",
-    "SizeRange",
-    "TensorRTEngine",
     "list_models",
     "load",
     "model_card",
 ]
+
+__getattr__ = renamed_attributes(__name__, OLD_TASK_NAMES)  # the shared types: `fastforks.<Name>`

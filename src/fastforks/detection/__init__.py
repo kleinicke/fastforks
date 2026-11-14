@@ -25,12 +25,9 @@ tracks = tracker.update(detector(frame))  # a DetectionResult, or [N, 5] (x0, y0
 ```
 """
 
-from fastforks._core.cards import ModelCard
-from fastforks._core.export import TensorRTEngine
-from fastforks._core.image import ImageLike
-from fastforks._core.sizes import SizeRange
+from fastforks._core.arguments import renamed_attributes
+from fastforks._core.shared_types import OLD_TASK_NAMES
 from fastforks.detection._api import (
-    Backend,
     DetectionModel,
     DetectionResult,
     list_models,
@@ -40,17 +37,14 @@ from fastforks.detection._api import (
 from fastforks.detection._tracks import ByteTracker, ObjectTracks, track_objects
 
 __all__ = [
-    "Backend",
     "ByteTracker",
     "DetectionModel",
     "DetectionResult",
-    "ImageLike",
-    "ModelCard",
     "ObjectTracks",
-    "SizeRange",
-    "TensorRTEngine",
     "list_models",
     "load",
     "model_card",
     "track_objects",
 ]
+
+__getattr__ = renamed_attributes(__name__, OLD_TASK_NAMES)  # the shared types: `fastforks.<Name>`

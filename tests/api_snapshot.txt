@@ -710,75 +710,30 @@ name fastforks.WeightsDownloadError = class fastforks._core.errors.WeightsDownlo
 name fastforks.WeightsError = class fastforks._core.errors.WeightsError
 name fastforks.WeightsHashError = class fastforks._core.errors.WeightsHashError
 name fastforks.__version__
-name fastforks.calibration.Backend = class fastforks._core.model.Backend
 name fastforks.calibration.CalibrationModel = class fastforks.calibration._api.CalibrationModel
 name fastforks.calibration.CalibrationResult = class fastforks.calibration._api.CalibrationResult
-name fastforks.calibration.ImageLike
-name fastforks.calibration.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.calibration.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.calibration.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.classification.Backend = class fastforks._core.model.Backend
 name fastforks.classification.ClassificationModel = class fastforks.classification._api.ClassificationModel
 name fastforks.classification.ClassificationResult = class fastforks.classification._api.ClassificationResult
-name fastforks.classification.ImageLike
-name fastforks.classification.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.classification.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.classification.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.depth.Backend = class fastforks._core.model.Backend
 name fastforks.depth.DepthModel = class fastforks.depth._api.DepthModel
 name fastforks.depth.DepthResult = class fastforks.depth._api.DepthResult
-name fastforks.depth.ImageLike
-name fastforks.depth.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.depth.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.depth.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.detection.Backend = class fastforks._core.model.Backend
 name fastforks.detection.ByteTracker = class fastforks.detection._tracks.ByteTracker
 name fastforks.detection.DetectionModel = class fastforks.detection._api.DetectionModel
 name fastforks.detection.DetectionResult = class fastforks.detection._api.DetectionResult
-name fastforks.detection.ImageLike
-name fastforks.detection.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.detection.ObjectTracks = class fastforks.detection._tracks.ObjectTracks
-name fastforks.detection.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.detection.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.edges.Backend = class fastforks._core.model.Backend
 name fastforks.edges.EdgesModel = class fastforks.edges._api.EdgesModel
 name fastforks.edges.EdgesResult = class fastforks.edges._api.EdgesResult
-name fastforks.edges.ImageLike
-name fastforks.edges.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.edges.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.edges.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.features.Backend = class fastforks._core.model.Backend
 name fastforks.features.FeaturesModel = class fastforks.features._api.FeaturesModel
 name fastforks.features.FeaturesResult = class fastforks.features._api.FeaturesResult
-name fastforks.features.ImageLike
-name fastforks.features.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.features.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.features.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.flow.Backend = class fastforks._core.model.Backend
 name fastforks.flow.FlowModel = class fastforks.flow._api.FlowModel
 name fastforks.flow.FlowResult = class fastforks.flow._api.FlowResult
-name fastforks.flow.ImageLike
-name fastforks.flow.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.flow.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.flow.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.interpolation.Backend = class fastforks._core.model.Backend
-name fastforks.interpolation.ImageLike
 name fastforks.interpolation.InterpolationModel = class fastforks.interpolation._api.InterpolationModel
 name fastforks.interpolation.InterpolationResult = class fastforks.interpolation._api.InterpolationResult
-name fastforks.interpolation.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.interpolation.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.interpolation.TensorRTEngine = class fastforks._core.export.TensorRTEngine
 name fastforks.matching.AbsolutePose = class fastforks.matching.absolute_pose.AbsolutePose
-name fastforks.matching.Backend = class fastforks._core.model.Backend
 name fastforks.matching.FundamentalMatrix = class fastforks.matching.relative_pose.FundamentalMatrix
-name fastforks.matching.ImageLike
 name fastforks.matching.MatchingModel = class fastforks.matching._api.MatchingModel
 name fastforks.matching.MatchingResult = class fastforks.matching._api.MatchingResult
-name fastforks.matching.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.matching.RelativePose = class fastforks.matching.relative_pose.RelativePose
-name fastforks.matching.SizeRange = class fastforks._core.sizes.SizeRange
 name fastforks.matching.SparseMatchingResult = class fastforks.matching._api.SparseMatchingResult
-name fastforks.matching.TensorRTEngine = class fastforks._core.export.TensorRTEngine
 name fastforks.matching.VerifiedMatches = class fastforks.matching._api.VerifiedMatches
 name fastforks.matching.absolute_pose.AbsolutePose = class fastforks.matching.absolute_pose.AbsolutePose
 name fastforks.matching.relative_pose.FundamentalMatrix = class fastforks.matching.relative_pose.FundamentalMatrix
@@ -786,79 +741,34 @@ name fastforks.matching.relative_pose.RelativePose = class fastforks.matching.re
 name fastforks.matching.sfm.DEFAULT_MATCHER
 name fastforks.matching.sfm.DatabaseStats = class fastforks.matching.sfm.DatabaseStats
 name fastforks.matching.sfm.ReconstructionStats = class fastforks.matching.sfm.ReconstructionStats
-name fastforks.matting.Backend = class fastforks._core.model.Backend
-name fastforks.matting.ImageLike
 name fastforks.matting.MattingModel = class fastforks.matting._api.MattingModel
 name fastforks.matting.MattingResult = class fastforks.matting._api.MattingResult
-name fastforks.matting.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.matting.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.matting.TensorRTEngine = class fastforks._core.export.TensorRTEngine
 name fastforks.matting.VideoMattingResult = class fastforks.matting._api.VideoMattingResult
-name fastforks.multiview.Backend = class fastforks._core.model.Backend
 name fastforks.multiview.Gaussians = class fastforks.multiview._gaussians.Gaussians
-name fastforks.multiview.ImageLike
-name fastforks.multiview.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.multiview.MultiViewModel = class fastforks.multiview._api.MultiViewModel
 name fastforks.multiview.MultiViewResult = class fastforks.multiview._api.MultiViewResult
-name fastforks.multiview.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.multiview.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.ocr.Backend = class fastforks._core.model.Backend
-name fastforks.ocr.ImageLike
-name fastforks.ocr.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.ocr.OCRModel = class fastforks.ocr._api.OCRModel
 name fastforks.ocr.OCRResult = class fastforks.ocr._api.OCRResult
-name fastforks.ocr.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.ocr.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.pose.Backend = class fastforks._core.model.Backend
-name fastforks.pose.ImageLike
-name fastforks.pose.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.pose.PoseModel = class fastforks.pose._api.PoseModel
 name fastforks.pose.PoseResult = class fastforks.pose._api.PoseResult
-name fastforks.pose.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.pose.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.promptable_segmentation.Backend = class fastforks._core.model.Backend
 name fastforks.promptable_segmentation.ConceptSegmentationModel = class fastforks.promptable_segmentation._api.ConceptSegmentationModel
 name fastforks.promptable_segmentation.ConceptSegmentationResult = class fastforks.promptable_segmentation._api.ConceptSegmentationResult
 name fastforks.promptable_segmentation.ImageEmbeddings = class fastforks.promptable_segmentation._api.ImageEmbeddings
-name fastforks.promptable_segmentation.ImageLike
 name fastforks.promptable_segmentation.InContextSegmentationModel = class fastforks.promptable_segmentation._api.InContextSegmentationModel
 name fastforks.promptable_segmentation.InContextSegmentationResult = class fastforks.promptable_segmentation._api.InContextSegmentationResult
-name fastforks.promptable_segmentation.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.promptable_segmentation.PromptLike
 name fastforks.promptable_segmentation.PromptableSegmentationModel = class fastforks.promptable_segmentation._api.PromptableSegmentationModel
 name fastforks.promptable_segmentation.PromptableSegmentationResult = class fastforks.promptable_segmentation._api.PromptableSegmentationResult
-name fastforks.promptable_segmentation.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.promptable_segmentation.TensorRTEngine = class fastforks._core.export.TensorRTEngine
 name fastforks.promptable_segmentation.VideoSegmentationResult = class fastforks.promptable_segmentation._api.VideoSegmentationResult
-name fastforks.restoration.Backend = class fastforks._core.model.Backend
-name fastforks.restoration.ImageLike
-name fastforks.restoration.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.restoration.RestorationModel = class fastforks.restoration._api.RestorationModel
 name fastforks.restoration.RestorationResult = class fastforks.restoration._api.RestorationResult
-name fastforks.restoration.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.restoration.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.retrieval.Backend = class fastforks._core.model.Backend
-name fastforks.retrieval.ImageLike
-name fastforks.retrieval.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.retrieval.RetrievalModel = class fastforks.retrieval._api.RetrievalModel
 name fastforks.retrieval.RetrievalResult = class fastforks.retrieval._api.RetrievalResult
-name fastforks.retrieval.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.retrieval.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.segmentation.Backend = class fastforks._core.model.Backend
-name fastforks.segmentation.ImageLike
-name fastforks.segmentation.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.segmentation.SegmentationModel = class fastforks.segmentation._api.SegmentationModel
 name fastforks.segmentation.SegmentationResult = class fastforks.segmentation._api.SegmentationResult
-name fastforks.segmentation.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.segmentation.TensorRTEngine = class fastforks._core.export.TensorRTEngine
-name fastforks.stereo.Backend = class fastforks._core.model.Backend
-name fastforks.stereo.ImageLike
-name fastforks.stereo.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.stereo.SizeRange = class fastforks._core.sizes.SizeRange
 name fastforks.stereo.StereoModel = class fastforks.stereo._api.StereoModel
 name fastforks.stereo.StereoResult = class fastforks.stereo.calibrated.StereoResult
 name fastforks.stereo.StereoView = class fastforks.stereo.calibrated.StereoView
-name fastforks.stereo.TensorRTEngine = class fastforks._core.export.TensorRTEngine
 name fastforks.stereo.geometry.Camera = class fastforks.stereo.geometry.cameras.Camera
 name fastforks.stereo.geometry.DoubleSphere = class fastforks.stereo.geometry.cameras.DoubleSphere
 name fastforks.stereo.geometry.E57Cylindrical = class fastforks.stereo.geometry.cameras.E57Cylindrical
@@ -879,15 +789,8 @@ name fastforks.stereo.geometry.UCM = class fastforks.stereo.geometry.cameras.UCM
 name fastforks.stereo.pipeline.IMAGE_SUFFIXES
 name fastforks.stereo.pipeline.Images
 name fastforks.stereo.pipeline.Rig
-name fastforks.tracking.Backend = class fastforks._core.model.Backend
-name fastforks.tracking.ImageLike
-name fastforks.tracking.ModelCard = class fastforks._core.cards.ModelCard
-name fastforks.tracking.SizeRange = class fastforks._core.sizes.SizeRange
-name fastforks.tracking.TensorRTEngine = class fastforks._core.export.TensorRTEngine
 name fastforks.tracking.TrackingModel = class fastforks.tracking._api.TrackingModel
 name fastforks.tracking.TrackingResult = class fastforks.tracking._api.TrackingResult
-name fastforks.volume.Backend = class fastforks._core.model.Backend
-name fastforks.volume.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.volume.VolumeMeta = class fastforks.volume._nifti.VolumeMeta
 name fastforks.volume.VolumeModel = class fastforks.volume._api.VolumeModel
 name fastforks.volume.VolumeResult = class fastforks.volume._api.VolumeResult
