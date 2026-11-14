@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fastforks._core.errors import MissingDependencyError, install_hint
+from fastforks._core.patch import base_type, override
 
 if TYPE_CHECKING:
     import torch
@@ -72,3 +73,16 @@ def network(a: Arch) -> torch.nn.Module:
     }
     args = {k: list(v) if isinstance(v, tuple) else v for k, v in args.items()}
     return cast("torch.nn.Module", build_model(SimpleNamespace(**args)))
+
+
+def export_path(net: Any) -> None:  # noqa: ANN401 - lazy vendored LWDETR API
+    """Select the authors' inference path (`export()`: tuple outputs, precomputed position encodings), once."""
+    if net._export:  # noqa: SLF001 - upstream flag
+        return
+    net.export()
+    for module in net.modules():
+        if "_forward_origin" in module.__dict__:
+            # Upstream export saves its bound forward and installs a bound forward_export.
+            # In inference no code restores that saved method; class overrides preserve eager destruction.
+            override(module, base_type(module).forward_export)
+            del module.__dict__["_forward_origin"]

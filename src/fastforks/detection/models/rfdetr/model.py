@@ -15,7 +15,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import Inert
 from fastforks.detection._runner import Forward, Runner
 from fastforks.shared.cuda_graphs import GraphCache
-from fastforks.shared.rfdetr.build import Arch, network
+from fastforks.shared.rfdetr.build import Arch, export_path, network
 
 if TYPE_CHECKING:
     from fastforks.detection._runner import Context
@@ -66,6 +66,7 @@ class Portable(Runner):
                 state[k] = w.view(p.group_detr, -1, w.shape[-1])[:, : p.num_queries].reshape(-1, w.shape[-1])
         self.net.load_state_dict(state)
         self.net = self.net.eval().to(ctx.device, ctx.torch_dtype)
+        export_path(self.net)  # the authors' inference path (their float16 benchmark row uses it)
         from fastforks.shared.rfdetr.net.models.postprocess import PostProcess  # noqa: PLC0415 - after optional dependencies
 
         self.postprocess = PostProcess(num_select=ctx.params.num_select)
@@ -80,7 +81,7 @@ class Portable(Runner):
         return ((resized - self.mean) / self.std).to(self.ctx.torch_dtype)
 
     def _raw(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
-        return {k: v for k, v in self.net(self._prepare(image)).items() if k in RAW}
+        return dict(zip(RAW, self.net(self._prepare(image)), strict=False))
 
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """Every detection above the threshold (best first, at most `max_detections`), in input pixels."""
