@@ -428,6 +428,37 @@ def test_nf4_dequant(dev, seed):
         assert torch.equal(got, ref), n
 
 
+@pytest.mark.parametrize("seed", SEEDS)
+def test_nf4_epilogues(dev, seed):
+    """The fused LoRA / modulation / RMS-RoPE epilogues = their PyTorch chains (Marigold V2 `NF4Linear`), bit-exact."""
+    rng, g, mag = _rng(seed, "nf4epi"), _gen(seed), MAGS[seed % 3]
+    nf4.load(dev)
+    bf = torch.bfloat16
+    t, n = rng.randint(1, 300), 8 * rng.randint(1, 64)
+    y, lo = (_randn(g, 1, t, n, mag=mag).to(dev).to(bf) for _ in range(2))
+    gate, scale, shift = (_randn(g, n).to(dev).to(bf) for _ in range(3))
+    res, x = (_randn(g, 1, t, n, mag=mag).to(dev) for _ in range(2))
+    s = y.float() + lo
+    assert torch.equal(nf4.lora_f32(y, lo), s)
+    assert torch.equal(nf4.lora_bf16(y, lo), s.to(bf))
+    assert torch.equal(nf4.lora_gelu_bf16(y, lo), F.gelu(s, approximate="tanh").to(bf))
+    assert torch.equal(nf4.lora_gate_res(y, lo, gate, res.clone()), res + s * gate)
+    assert torch.equal(nf4.mod_bf16(x, scale, shift), (x * scale + shift).to(bf))
+    heads, d, t2 = rng.randint(1, 4), 2 * rng.randint(1, 64), rng.randint(1, 50)
+    xa, xb = _randn(g, 1, t2, heads, d, mag=mag).to(dev), _randn(g, 1, t, heads, d, mag=mag).to(dev)
+    wa, wb = torch.rand(d, generator=g).to(dev), torch.rand(d, generator=g).to(dev)
+    f = torch.polar(torch.ones(t2 + t, 1, d // 2), torch.rand(t2 + t, 1, d // 2, generator=g) * 100).to(dev)
+
+    def rms(v, w):
+        return v * torch.rsqrt(v.pow(2).mean(-1, keepdim=True) + 1e-6) * w
+
+    xc = torch.view_as_complex(torch.cat([rms(xa, wa), rms(xb, wb)], 1).reshape(1, t2 + t, heads, -1, 2))
+    ref = torch.view_as_real(xc * f).flatten(3).to(bf)
+    out = torch.empty(1, t2 + t, heads, d, dtype=bf, device=dev)
+    nf4.rms_rope_bf16(xa, wa, f, out, 0)
+    assert torch.equal(nf4.rms_rope_bf16(xb, wb, f, out, t2), ref)
+
+
 # --- cuDNN fp16-accumulate convs (cudnn_hacc) ------------------------------------------------------------------------
 
 

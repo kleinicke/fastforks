@@ -103,15 +103,23 @@ class Block(nn.Module):
             return NF4Linear.epi.mod_bf16(y, m[1], m[0])
         return y.mul_(m[1]).add_(m[0]).to(BF)
 
+    def _qk(self, yt: torch.Tensor, yi: torch.Tensor, wt: torch.Tensor, wi: torch.Tensor, f: torch.Tensor) -> torch.Tensor:
+        """Joint q or k `[B, H, T, D]` bf16: RMS norm of each stream's projection, concatenated, RoPE."""
+        xt, xi = _heads(yt), _heads(yi)
+        if self.fused and NF4Linear.epi is not None and xt.shape[0] == 1:  # one fused kernel per stream, bit-equal
+            out = torch.empty(1, xt.shape[1] + xi.shape[1], HEADS, HEAD_DIM, dtype=BF, device=xt.device)
+            NF4Linear.epi.rms_rope_bf16(xt, wt, f, out, 0)
+            NF4Linear.epi.rms_rope_bf16(xi, wi, f, out, xt.shape[1])
+            return out.transpose(1, 2)
+        return rope(torch.cat([rms_qk(xt, wt), rms_qk(xi, wi)], 1), f).to(BF).transpose(1, 2)
+
     def forward(self, img: torch.Tensor, txt: torch.Tensor, f_all: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """`img [B, T_img, dim]`, `txt [B, T_txt, dim]` (float32, updated in place) -> the same after the block."""
         im, tm = self._mods(self.img_mod), self._mods(self.txt_mod)
         n_txt = txt.shape[1]
         xi, xt = self._mod(img, im[0]), self._mod(txt, tm[0])
-        q = rope(torch.cat([rms_qk(_heads(self.add_q(xt)), self.naq), rms_qk(_heads(self.to_q(xi)), self.nq)], 1), f_all)
-        q = q.to(BF).transpose(1, 2)
-        k = rope(torch.cat([rms_qk(_heads(self.add_k(xt)), self.nak), rms_qk(_heads(self.to_k(xi)), self.nk)], 1), f_all)
-        k = k.to(BF).transpose(1, 2)
+        q = self._qk(self.add_q(xt), self.to_q(xi), self.naq, self.nq, f_all)
+        k = self._qk(self.add_k(xt), self.to_k(xi), self.nak, self.nk, f_all)
         v = torch.cat([_heads(self.add_v.bf(xt)), _heads(self.to_v.bf(xi))], dim=1).transpose(1, 2)
         del xi, xt
         mask = torch.ones(1, 1, 1, q.shape[2], dtype=torch.bool, device=q.device) if self.exact_mask else None

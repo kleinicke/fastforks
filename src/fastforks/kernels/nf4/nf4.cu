@@ -135,3 +135,22 @@ extern "C" __global__ void nf4_mod_bf16(const float4* __restrict__ x, const uint
         out[i] = pack8(s);
     }
 }
+
+// out[t0 + t] (bf16 [T, H, D]) = bf16(rope(x * rsqrt(v + 1e-6) * w, f[t0 + t]))   (x fp32 [Ts, H, D], v fp32
+// [Ts, H] = mean(x^2), w fp32 [D], f complex64 [T, D / 2]): RMS-normed, rotated q / k of one stream, written into
+// its token range of the joint sequence. One thread per (re, im) pair; the complex product contracts as PyTorch's
+// (c10::complex) does, so the result is bit-equal to the PyTorch chain.
+extern "C" __global__ void nf4_rms_rope_bf16(const float2* __restrict__ x, const float* __restrict__ v,
+                                             const float2* __restrict__ w, const float2* __restrict__ f,
+                                             __nv_bfloat162* __restrict__ out, long long n2, int heads, int half,
+                                             long long t0) {
+    GRID_LOOP(p, n2) {
+        const long long row = p / half, t = row / heads;
+        const int d = (int)(p % half);
+        const float r = rsqrtf(__fadd_rn(v[row], 1e-6f));
+        const float2 xv = x[p], wv = w[d], fv = f[(t0 + t) * half + d];
+        const float a = __fmul_rn(__fmul_rn(xv.x, r), wv.x), b = __fmul_rn(__fmul_rn(xv.y, r), wv.y);
+        const float re = __fmaf_rn(a, fv.x, -__fmul_rn(b, fv.y)), im = __fmaf_rn(b, fv.x, __fmul_rn(a, fv.y));
+        out[t0 * heads * half + p] = __floats2bfloat162_rn(re, im);
+    }
+}

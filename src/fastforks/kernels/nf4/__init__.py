@@ -25,6 +25,7 @@ SIGNATURES = {
     "nf4_lora_gelu_bf16": "pppl",
     "nf4_lora_gate_res": "ppppll",
     "nf4_mod_bf16": "ppppll",
+    "nf4_rms_rope_bf16": "pppppliil",
 }
 _WORD = 8  # bytes per 64-bit word (16 codes)
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
@@ -96,4 +97,19 @@ def mod_bf16(x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor) -> torch
     n8 = _n8(x)
     out = torch.empty_like(x, dtype=torch.bfloat16)
     _run("nf4_mod_bf16", n8, x, _vec(scale, x), _vec(shift, x), out, n8, x.shape[-1] // 8)
+    return out
+
+
+def rms_rope_bf16(x: torch.Tensor, w: torch.Tensor, f: torch.Tensor, out: torch.Tensor, t0: int) -> torch.Tensor:
+    """`out[:, t0 : t0 + T] = rope(x * rsqrt(x.pow(2).mean(-1) + 1e-6) * w, f).to(bfloat16)`: RMS norm + RoPE of q / k.
+
+    `x` fp32 `[1, T, H, D]`, `w` fp32 `[D]`, `f` complex64 `[T_all, 1, D / 2]` (the joint sequence), `out` bf16
+    `[1, T_all, H, D]`; all contiguous. The mean stays PyTorch's (its reduction order), the rest is one kernel.
+    """
+    if not all(t.is_contiguous() for t in (x, w, f, out)) or x.shape[0] != 1 or out.shape[2:] != x.shape[2:]:
+        msg = "rms_rope_bf16 needs contiguous tensors, batch 1, matching heads"
+        raise ValueError(msg)
+    n2, half = x.numel() // 2, x.shape[-1] // 2
+    v = x.pow(2).mean(-1)
+    _run("nf4_rms_rope_bf16", n2, x, v, w, torch.view_as_real(f), out, n2, x.shape[2], half, t0)
     return out
