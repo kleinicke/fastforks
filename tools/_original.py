@@ -1606,6 +1606,7 @@ class _Local:
     trimap = "unused"  # matting: "required" adds the bench's synthetic trimap to the call
     cameras = "unused"  # multiview: "required" adds the bench rig's intrinsics, cam_to_world and depth range
     prompts: tuple[str, ...] = ()  # promptable segmentation: ("reference",) adds the bench's reference image and mask
+    mask = "unused"  # restoration: "required" adds the bench's synthetic inpainting mask
 
     def __init__(
         self,
@@ -1644,7 +1645,11 @@ class _Local:
             needs_boxes=self.needs_boxes,
             prompts=self.prompts,
             _runner=types.SimpleNamespace(
-                intrinsics=self.cameras, cam_to_world=self.cameras, depth_range=self.cameras, trimap=self.trimap
+                intrinsics=self.cameras,
+                cam_to_world=self.cameras,
+                depth_range=self.cameras,
+                trimap=self.trimap,
+                mask=self.mask,
             ),
         )
         out = []
@@ -2046,6 +2051,12 @@ class _LocalReference(_LocalFp16):
     """An in-context segmentation original: called with the image, the reference image and its mask."""
 
     prompts = ("reference",)
+
+
+class _LocalMask(_Local):
+    """An inpainting original: called with the image and the bench's synthetic mask (fp16 tier: autocast)."""
+
+    mask = "required"
 
 
 class _LocalTrimap(_LocalFp16):

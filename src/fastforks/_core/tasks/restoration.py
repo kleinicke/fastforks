@@ -9,4 +9,5 @@ SPEC = TaskSpec(
     output_keys={},
     io_keys=VALUE_KEYS | {"pad"},
     order=79,
+    inputs=("image", "mask"),  # mask: only inpainting runners require it (`input_use`)
 )

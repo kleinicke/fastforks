@@ -344,8 +344,8 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     elif task == "calibration":
         r = m(img)
         maps = {k: getattr(r, k) for k in spec(task).standard if getattr(r, k) is not None}
-    elif task == "restoration":
-        r = m(img)
+    elif task == "restoration":  # inpainting models: the golden's mask
+        r = m(img, mask=want["mask"].round().astype(np.uint8)) if want and "mask" in want else m(img)
         maps = {"image": r.image}
     else:
         r = m(img, logits=True)
@@ -355,14 +355,15 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     return {k: v.float().cpu() for k, v in maps.items() if v is not None}, r.backend
 
 
-# stored inputs of a golden (the image(s); tracking queries; a matting trimap; an in-context reference and its mask;
-# per concept prompt, the queries whose masks are kept)
+# stored inputs of a golden (the image(s); tracking queries; a matting trimap; an inpainting mask; an in-context
+# reference and its mask; per concept prompt, the queries whose masks are kept)
 INPUTS = (
     "input",
     "spacing",
     "input2",
     "queries",
     "trimap",
+    "mask",
     "reference",
     "reference_mask",
     *(f"{prefix}mask_query" for prefix in concepts()),

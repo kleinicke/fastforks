@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import types
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, assert_type, get_args
 
 import numpy as np
@@ -23,6 +24,7 @@ from fastforks import (
     matting,
     multiview,
     promptable_segmentation,
+    restoration,
     segmentation,
 )
 from fastforks._core import registry, tasks
@@ -57,7 +59,7 @@ W0 = {"name": "w.pth", "size": 1, "sha256": "0" * 64, "url": "https://example.co
 pytestmark = pytest.mark.usefixtures("card_min_size")  # tiny images through fake runners
 
 
-def card_data(outputs, output, io=None):
+def card_data(outputs, output, io=None, params=None):
     return {
         "schema": 2,
         "name": "Fake",
@@ -71,15 +73,16 @@ def card_data(outputs, output, io=None):
         "io": io or {"input": "0-1"},
         "modes": {"portable": {"cuda_dtype": "float32"}},
         "variants": [{"id": "fake", "revision": 1, "weights": [W0]}],
+        **({"params": params} if params else {}),
     }
 
 
 @pytest.fixture
 def fake(monkeypatch):
-    """`fake(task, runner, outputs, output, io)`: make `<task>.load("fake")` build `runner`."""
+    """`fake(task, runner, outputs, output, io, params)`: make `<task>.load("fake")` build `runner`."""
 
-    def install(task, runner, outputs, output, io=None):
-        card = parse_card(card_data(outputs, output, io), family="fake", task=task, where="fake card")
+    def install(task, runner, outputs, output, io=None, params=None):  # noqa: PLR0913, PLR0917 - the card fields
+        card = parse_card(card_data(outputs, output, io, params), family="fake", task=task, where="fake card")
         monkeypatch.setattr(registry, "resolve", lambda t, _m: (card, card.variants[0]) if t == task else None)
         monkeypatch.setattr(registry, "import_model", lambda _c: types.SimpleNamespace(RUNNERS={"portable": runner}))
 
@@ -182,6 +185,63 @@ def test_matting_trimap(fake):
         plain(img, trimap=tri)
     assert matting.model_card("fake").contract().inputs == {"image": "required", "trimap": "unused"}
     assert matting.model_card("fake").contract().export["inputs"] == ("image",)
+    assert len(plain.example_inputs(32, 48)) == 1
+
+
+@dataclass(frozen=True)
+class ScaleOne:
+    scale: int
+
+
+class Inpaint(RestorationRunner):
+    batch = 1
+    mask = "required"
+    Params = ScaleOne
+
+    def __call__(self, image):
+        assert image.shape[1] == 4  # RGB + the mask channel
+        return {"image": image[:, :3] * (1 - image[:, 3:])}
+
+    def module(self):
+        return Forward(torch.nn.Identity(), lambda _net, image: self(image)["image"])
+
+
+def test_restoration_mask(fake):
+    """Inpainting: the mask is required, binarised (nonzero = fill), one for a batch, size checked; others refuse it."""
+    fake("restoration", Inpaint, ["image"], {}, params={"scale": 1})
+    m = restoration.load("fake", device="cpu")
+    img = np.full((2, 4, 5, 3), 255, np.uint8)
+    mask = np.zeros((4, 5), np.uint8)
+    mask[1:3, 1:3] = 7  # any nonzero value marks the hole
+    r = m(img, mask=mask)  # one mask for both images, chunked one image per call
+    want = torch.ones(2, 3, 4, 5)
+    want[..., 1:3, 1:3] = 0
+    torch.testing.assert_close(r.image, want)
+    torch.testing.assert_close(m(img, mask=mask, tile=33).image, want)
+    with pytest.raises(InputError, match="needs a mask"):
+        m(img)
+    with pytest.raises(InputError, match="do not match"):
+        m(img, mask=np.zeros((4, 6), np.uint8))
+    assert restoration.model_card("fake").contract().inputs == {"image": "required", "mask": "required"}
+    assert restoration.model_card("fake").contract().export["inputs"] == ("image", "mask")
+    image, m_in = m.example_inputs(32, 48, batch=2)
+    assert m_in.shape == (2, 1, 32, 48)
+    torch.testing.assert_close(m.module()(image, m_in), image * (1 - m_in))
+    args, kwargs = bench_inputs(m, BenchSize(32, 48))
+    assert len(args) == 1
+    assert kwargs["mask"].shape == (1, 1, 32, 48)
+
+    class Plain(RestorationRunner):
+        Params = ScaleOne
+
+        def __call__(self, image):
+            return {"image": image}
+
+    fake("restoration", Plain, ["image"], {}, params={"scale": 1})
+    plain = restoration.load("fake", device="cpu")
+    with pytest.raises(InputError, match="does not use a mask"):
+        plain(img, mask=mask)
+    assert restoration.model_card("fake").contract().inputs == {"image": "required", "mask": "unused"}
     assert len(plain.example_inputs(32, 48)) == 1
 
 
