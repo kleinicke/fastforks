@@ -134,6 +134,17 @@ class Context:
             raise WeightsError(msg) from e
 
 
+def host(fn: Any) -> Any:  # noqa: ANN401 - any function
+    """Mark an entry-point override as host code that `Model.compile()` leaves eager.
+
+    For overrides that are not one graph: loops over the networks (video windows, tracking), tokenizers and text
+    caches, data-dependent solvers (RANSAC, intrinsics fitting). The family lists the methods they call in
+    `compiled_methods`; the policy test checks that every other override of a task entry point is compiled.
+    """
+    fn.ff_host = True
+    return fn
+
+
 class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each task's Runner
     """One backend of a model family (task-agnostic part).
 
@@ -149,7 +160,8 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
             float32 copy is made (detection).
         compiled_methods: The methods the task API calls, which `Model.compile()` wraps in `torch.compile` (one
             calling another runs inside the caller's graph). A family whose API path calls other methods (a
-            multi-view `scene` override) lists those.
+            multi-view `scene` override) lists those; an override that is host code (`@host`) lists the methods it
+            calls instead.
     """
 
     dtypes: ClassVar[tuple[Dtype, ...]] = ("float32",)

@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch import nn
 
+from fastforks._core.runner import host
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared.aliked import ALIKED
 from fastforks.shared.deform_conv import modulated_deform_conv
@@ -145,6 +146,7 @@ class Portable(Runner):
         del image1, image2
         return self.net.match(*described)
 
+    @host
     def match_many(self, described: list[tuple[Any, Any]]) -> list[dict[str, torch.Tensor]]:
         """`match` of many pairs in one packed LightGlue forward (`fastforks.shared.lightglue.match_many`)."""
         outs = match_many(self.net.matcher, described)

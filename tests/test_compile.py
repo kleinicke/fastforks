@@ -1,7 +1,8 @@
 """`Model.compile()` on stub runners (CPU, no weights): every task's default call path runs the compiled entry points,
 nested entry points trace inline, a failed first compiled call leaves the model eager, a repeat compile replaces.
 
-Real families: `test_export.test_model_compile_equals_eager`; here, every runner's `compiled_methods` exist.
+Real families: `test_export.test_model_compile_equals_eager`; here, every runner's `compiled_methods` exist and every
+override of a task entry point is compiled or marked `@host`.
 """
 
 from __future__ import annotations
@@ -202,11 +203,17 @@ def test_compiled_methods_exist(task):
 HELPERS = {"module", "input_use", "pad", "resize", "restore", "upsample", "scene", "segment_concept"}
 
 
+def _is_host(cls: type, name: str) -> bool:
+    return bool(getattr(getattr(cls, name), "ff_host", False))
+
+
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_overridden_entry_points_are_compiled(task):
-    """A family override of a task entry point (`__call__`, segmentation `labels`, ...) is in `compiled_methods`.
+    """A family override of a task entry point (`__call__`, segmentation `labels`, ...) is in `compiled_methods`,
+    unless it is marked `@host` (loops, tokenizers, solvers: it lists the methods it calls instead).
 
-    The 2026-11-04 segmentation compile rows timed eager code: the default call ran `labels` overrides, not `__call__`.
+    The 2026-11-04 segmentation compile rows timed eager code: the default call ran `labels` overrides, not `__call__`;
+    the 2026-11-14 ports listed private network methods (or the `net` attribute: `compile()` raised) instead.
     """
     for card, _ in registry.cards(task).values():
         try:
@@ -217,10 +224,13 @@ def test_overridden_entry_points_are_compiled(task):
             continue
         base = importlib.import_module(f"fastforks.{task}._runner").Runner
         names = {n for n, v in vars(base).items() if callable(v) and (n == "__call__" or not n.startswith("_"))}
-        if "text" in getattr(cls, "prompts", ()):  # concept models: `predict` only raises, `segment_concept` runs
-            names.discard("predict")
-        missed = {n for n in names - HELPERS if getattr(cls, n) is not getattr(base, n)} - set(cls.compiled_methods)
+        if set(getattr(cls, "prompts", ())) - {"points", "boxes", "masks"}:  # concept / reference models: all
+            names.discard("predict")  # prompts go to `segment_concept` / `segment_reference`, `predict` only raises
+        overridden = {n for n in names - HELPERS if getattr(cls, n) is not getattr(base, n)}
+        missed = {n for n in overridden if not _is_host(cls, n)} - set(cls.compiled_methods)
         assert not missed, (card.family, missed)
+        hosts = {n for n in cls.compiled_methods if _is_host(cls, n)}
+        assert not hosts, (card.family, hosts)  # host code is not compiled
 
 
 @pytest.mark.parametrize(

@@ -26,6 +26,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.runner import host
 from fastforks.calibration._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared.cuda_graphs import GraphCache
@@ -138,6 +139,7 @@ class _GeoCalib(Runner):
         """Up / latitude fields and confidences (float32) of the network input `x`."""
         raise NotImplementedError
 
+    @host
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Camera and gravity of `[B, 3, H, W]` RGB in `[0, 1]`."""
         p = self.ctx.params

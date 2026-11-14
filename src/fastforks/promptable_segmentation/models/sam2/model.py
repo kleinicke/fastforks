@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.runner import host
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.promptable_segmentation._runner import Forward, Runner
 
@@ -180,6 +181,7 @@ class _Sam2(Runner):
             )
         return self._video
 
+    @host
     def track(  # noqa: PLR0913 - one argument per prompt kind
         self,
         frames: Callable[[int], torch.Tensor],

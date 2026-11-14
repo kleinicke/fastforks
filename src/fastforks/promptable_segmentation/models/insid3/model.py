@@ -24,6 +24,7 @@ from fastforks._core import registry
 from fastforks._core.checkpoint import load_state_dict
 from fastforks._core.image import checked_ranges
 from fastforks._core.model import load_variant
+from fastforks._core.runner import host
 from fastforks.features._api import TASK, FeaturesModel
 from fastforks.promptable_segmentation._runner import Forward, Runner
 
@@ -161,6 +162,7 @@ class Portable(Runner):
         b, c, h, w = f.shape
         return F.normalize((self.p_perp @ f.reshape(b, c, h * w)).reshape(b, c, h, w), dim=1)
 
+    @host
     def segment_reference(
         self, target: torch.Tensor, references: torch.Tensor, masks: list[torch.Tensor]
     ) -> dict[str, torch.Tensor]:

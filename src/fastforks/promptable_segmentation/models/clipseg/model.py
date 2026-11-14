@@ -101,6 +101,7 @@ class Portable(Runner):
                 bqkv = torch.cat([a.q_proj.bias, a.k_proj.bias, a.v_proj.bias])
             lay.register_buffer("ff_wqkv", qkv.detach(), persistent=False)
             lay.register_buffer("ff_bqkv", bqkv.detach(), persistent=False)
+            del a.q_proj, a.k_proj, a.v_proj  # the merged qkv replaces them
         self.tokenizer = ClipTokenizer(paths[2], paths[3], context=CONTEXT)
         self._text: OrderedDict[str, torch.Tensor] = OrderedDict()
         self._lock = threading.Lock()
@@ -262,9 +263,11 @@ class Kernels(Portable):
             bufs |= {"ff_k_b1": b1.half(), "ff_k_2": _w4(w2)}
             for k, v in bufs.items():
                 lay.register_buffer(k, v.detach(), persistent=False)
-            del lay.ff_wqkv  # the fused filter replaces it
-        graphs = ctx.params.cuda_graphs
-        self.graphs = (GraphCache(self._encode, graphs=1), GraphCache(self._decode16, graphs=1)) if graphs else None
+            del lay.ff_wqkv  # the fused filters replace the Linear weights (the biases stay)
+            for mod, name in ((a.out_proj, "weight"), (m.fc1, "weight"), (m.fc1, "bias"), (m.fc2, "weight")):
+                mod.register_parameter(name, None)
+        # one cache for both graphs: they share one memory pool (replayed in turn on the caller's stream)
+        self.graphs = GraphCache(self._graphed, graphs=2) if ctx.params.cuda_graphs else None
 
     def layer(self, lay: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - a CLIPSegEncoderLayer
         """`CLIPSegEncoderLayer.forward` with fused GEMM epilogues."""
@@ -289,14 +292,17 @@ class Kernels(Portable):
         with fp16_accumulate():
             return self.decode(args[:-1], args[-1])
 
+    def _graphed(self, *args: torch.Tensor) -> Any:  # noqa: ANN401 - the encoder's tuple or the decoder's tensor
+        return self._encode(*args) if len(args) == 1 else self._decode16(*args)
+
     def encode(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """`Portable.encode` with fused GEMMs, from the CUDA graph when on."""
-        out = self.graphs[0].run(x.device, x) if self.graphs is not None and x.is_cuda else None
+        out = self.graphs.run(("encode", x.device), x) if self.graphs is not None and x.is_cuda else None
         return self._encode(x) if out is None else tuple(out)
 
     def _decode(self, features: dict[str, torch.Tensor], cond: torch.Tensor) -> torch.Tensor:
         args = (*(features[f"layer{i}"] for i in self.extract), cond)
-        out = self.graphs[1].run(cond.device, *args) if self.graphs is not None and cond.is_cuda else None
+        out = self.graphs.run(("decode", cond.device), *args) if self.graphs is not None and cond.is_cuda else None
         return self._decode16(*args) if out is None else out
 
     def module(self) -> torch.nn.Module:
@@ -315,8 +321,7 @@ class Kernels(Portable):
     def release_graphs(self) -> None:
         """Free the CUDA graphs and their memory pools."""
         if self.graphs is not None:
-            for g in self.graphs:
-                g.release()
+            self.graphs.release()
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}

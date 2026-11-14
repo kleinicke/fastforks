@@ -48,7 +48,6 @@ class _Matting(Runner):
     """Resize, normalise, network, sigmoid, resize back, min-max."""
 
     Params = Params
-    compiled_methods = ("_net",)
     net: BEN_Base
     dtype: torch.dtype
 

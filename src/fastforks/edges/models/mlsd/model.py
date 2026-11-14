@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.runner import host
 from fastforks.edges._runner import Forward, Runner, to_detect, to_input
 
 from .net import MobileV2_MLSD_Large
@@ -139,7 +140,7 @@ class Portable(Runner):
 
     Params = Params
     dtypes = ("float32", "float16")
-    compiled_methods = ("net",)
+    compiled_methods = ("_net",)  # the line decoding (data-dependent segment counts) stays eager
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -151,6 +152,10 @@ class Portable(Runner):
         fmt = torch.channels_last if self.cl else torch.contiguous_format
         self.net = net.eval().to(ctx.device, self.dtype).to(memory_format=fmt)
 
+    def _net(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+    @host
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[torch.Tensor]]:
         """Line map `[B, H, W]` and segments (`B` x `[N, 4]`, input pixels) of `[B, 3, H, W]` RGB in `[0, 1]`."""
         p = self.ctx.params
@@ -159,7 +164,7 @@ class Portable(Runner):
         x = torch.cat((x, torch.ones_like(x[:, :1])), 1) / 127.5 - 1
         if self.cl:
             x = x.contiguous(memory_format=torch.channels_last)
-        seg, keep = decode(self.net(x.to(self.dtype)), p.thr_v, p.thr_d)
+        seg, keep = decode(self._net(x.to(self.dtype)), p.thr_v, p.thr_d)
         edges = draw(seg.trunc().long(), keep, hd, wd)
         scale = seg.new_tensor([image.shape[-1] / wd, image.shape[-2] / hd]).repeat(2)
         lines = [(s[k] * scale).float() for s, k in zip(seg, keep, strict=True)]

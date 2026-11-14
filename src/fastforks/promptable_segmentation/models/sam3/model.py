@@ -36,6 +36,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError
+from fastforks._core.runner import host
 from fastforks.promptable_segmentation._runner import Context, Forward, NoParams, Runner, scale
 from fastforks.shared.cuda_graphs import GraphCache
 
@@ -258,6 +259,7 @@ class _Sam3(Runner):
         """Frame `[1, 3, H, W]` -> the tracker neck's levels 288 / 144 / 72."""
         raise NotImplementedError
 
+    @host
     def track(  # noqa: PLR0913 - one argument per prompt kind
         self,
         frames: Callable[[int], torch.Tensor],
