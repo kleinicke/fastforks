@@ -131,7 +131,7 @@ def test_load_nnunet_labels(folder: Path) -> None:
     rng = np.random.default_rng(1)
     ct = rng.normal(0, 400, (20, 30, 25)).astype(np.float32)
     ct[:3] = 0  # outside the nonzero box: background
-    out = model(ct, (2.5, 1.2, 1.5))
+    out = model(ct, spacing=(2.5, 1.2, 1.5))
     assert out.labels.shape == ct.shape
     assert out.labels.dtype == torch.uint8
     assert int(out.labels[:3].max()) == 0
@@ -144,9 +144,34 @@ def test_load_nnunet_labels(folder: Path) -> None:
         want = pred(torch.from_numpy(ct)[None], (2.5, 1.2, 1.5))
     assert (out.labels != want).float().mean() < 1e-3
     with pytest.raises(InputError, match="spacing"):
-        model(ct, (1.0, 0.0, 1.0))
+        model(ct, spacing=(1.0, 0.0, 1.0))
     with pytest.raises(InputError, match="channel"):
-        model(np.stack([ct, ct]), (1.0, 1.0, 1.0))
+        model(np.stack([ct, ct]), spacing=(1.0, 1.0, 1.0))
+
+
+def test_call_meta_and_save(folder: Path, tmp_path: Path) -> None:
+    """`meta=` gives the spacing and the grid `save` writes NIfTI on; one of `spacing` / `meta` is required."""
+    nib = pytest.importorskip("nibabel")
+    model = volume.load_nnunet(folder, device="cpu", mirror=False, folds=[0])
+    ct = np.random.default_rng(3).normal(0, 400, (12, 14, 10)).astype(np.float32)
+    affine = np.diag([1.5, 1.2, 2.5, 1.0])
+    nib.save(nib.Nifti1Image(ct.transpose(2, 1, 0), affine), tmp_path / "ct.nii.gz")
+    data, meta = volume.read_nifti(tmp_path / "ct.nii.gz")
+    out = model(data, meta=meta)
+    assert torch.equal(out.labels, model(data, spacing=meta.spacing).labels)
+    out.save(tmp_path / "seg.nii.gz")
+    back, _ = volume.read_nifti(tmp_path / "seg.nii.gz")
+    assert np.array_equal(back, out.labels.numpy())
+    out.save(tmp_path / "seg.npy")
+    assert np.array_equal(np.load(tmp_path / "seg.npy"), out.labels.numpy())
+    with pytest.raises(InputError, match="meta="):
+        model(data, spacing=meta.spacing).save(tmp_path / "x.nii.gz")
+    with pytest.raises(InputError, match="one of the two"):
+        model(data)
+    with pytest.raises(InputError, match="one of the two"):
+        model(data, spacing=meta.spacing, meta=meta)
+    with pytest.raises(InputError, match="grid of meta"):
+        model(data[1:], meta=meta)
 
 
 def test_label_map_merge(folder: Path) -> None:
@@ -273,7 +298,7 @@ def test_2d_configuration(tmp_path: Path) -> None:
                tmp_path / "checkpoint_final.pth")  # fmt: skip
     model = volume.load_nnunet(tmp_path / "checkpoint_final.pth", device="cpu")
     assert model._runner.parts[0].mirror_axes == (1, 2)
-    assert torch.equal(model(x[0].numpy(), (3.0, 1.5, 1.5)).labels, full)
+    assert torch.equal(model(x[0].numpy(), spacing=(3.0, 1.5, 1.5)).labels, full)
 
 
 def test_nifti_round_trip(tmp_path: Path) -> None:

@@ -276,7 +276,7 @@ _SNIPPET = {
     "matching": ('result = model("view1.jpg", "view2.jpg")\nresult.{out}  # [2, H1, W1] float32: x, y in view2 pixels'),
     "edges": 'result = model("photo.jpg")\nresult.{out}  # [H, W] float32 in [0, 1], 1 = line, input resolution',
     "volume": (
-        "result = model(ct, spacing)  # ct: [D, H, W] float32 HU volume; spacing: (z, y, x) in mm\n"
+        "result = model(ct, spacing=spacing)  # ct: [D, H, W] float32 HU volume; spacing: (z, y, x) in mm\n"
         "result.{out}  # [D, H, W] uint8 label per voxel; result.class_names[k] names label k"
     ),
     "matting": 'result = model("photo.jpg")\nresult.{out}  # [H, W] float32 in [0, 1], input resolution',

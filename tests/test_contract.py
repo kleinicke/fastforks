@@ -264,6 +264,8 @@ def test_contract_lists_every_result_field():
         }
         listed = {k for mid in registry.cards(task) for k in model_card(task, mid).contract().outputs}
         keep = names - _NOT_OUTPUTS - {"save", "save_scene", "depth"}  # writers; StereoResult.depth raises (no rig)
+        if name == "PoseResult":
+            keep -= {"masks"}  # an `Instances` field pose leaves `None`
         assert keep <= listed, (task, keep - listed)
 
 

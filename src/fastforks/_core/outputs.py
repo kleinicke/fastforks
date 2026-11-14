@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
@@ -10,7 +11,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 import torch
 
 from fastforks._core.errors import InputError
-from fastforks._core.io import MAP_SUFFIXES, check_suffix, write_map
+from fastforks._core.io import MAP_SUFFIXES, atomic_write, check_suffix, write_map
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -165,3 +166,27 @@ class MapOutputs(NumpyOutputs):
         """
         check_suffix(path, self._save_suffixes, type(self).__name__)
         write_map(Path(path), self._map(key), bits, self._description(key))
+
+
+def save_images(
+    path: str | os.PathLike[str],
+    t: torch.Tensor,
+    what: str,
+    suffixes: tuple[str, ...],
+    write: Callable[[Path, np.ndarray], None],
+) -> None:
+    """`write` one `[C, H, W]` tensor to `path`, or each of a batch `[B, C, H, W]` to `path` with `{i}` = the index.
+
+    Raises:
+        InputError: Unknown suffix, or a batch and a path without `{i}`.
+    """
+    check_suffix(path, suffixes, what)
+    a = _array(t)
+    if a.ndim == 3:  # noqa: PLR2004 - one image
+        atomic_write(path, lambda tmp: write(tmp, a))
+        return
+    if "{i}" not in os.fspath(path):
+        msg = f"{what} holds a batch of {a.shape[0]}: put {{i}} in the path (e.g. 'out_{{i}}.png'), one file per image"
+        raise InputError(msg)
+    for i, item in enumerate(a):
+        atomic_write(os.fspath(path).replace("{i}", str(i)), lambda tmp, item=item: write(tmp, item))

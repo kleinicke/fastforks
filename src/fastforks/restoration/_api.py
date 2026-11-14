@@ -18,8 +18,9 @@ from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.checkpoint import load_state_dict
 from fastforks._core.errors import InputError, WeightsError
 from fastforks._core.image import ImageLike, to_rgb_batch, unbatch
+from fastforks._core.io import IMAGE_SUFFIXES, write_rgb
 from fastforks._core.model import Backend
-from fastforks._core.outputs import NumpyOutputs
+from fastforks._core.outputs import NumpyOutputs, save_images
 from fastforks.restoration._runner import Crop, crop, scale
 
 if TYPE_CHECKING:
@@ -59,6 +60,16 @@ class RestorationResult(NumpyOutputs):
     model: str
     backend: Backend
     options: Mapping[str, Any] = field(default_factory=dict)
+
+    def save(self, path: str | os.PathLike[str]) -> None:
+        """Write `image` as `.png` / `.jpg` (8-bit) or `.npy` (float32 `[3, H, W]`); the suffix selects the format.
+
+        A batch writes one file per image: put `{i}` in the path (`"out_{i}.png"`).
+
+        Raises:
+            InputError: Unknown suffix, or a batch and a path without `{i}`.
+        """
+        save_images(path, self.image, type(self).__name__, IMAGE_SUFFIXES, write_rgb)
 
 
 class RestorationModel(core.Model):

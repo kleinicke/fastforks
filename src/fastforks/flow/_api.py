@@ -11,11 +11,13 @@ from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_pair
 from fastforks._core.image import ImageLike, to_rgb_pair, unbatch
+from fastforks._core.io import FLOW_SUFFIXES, write_flow
 from fastforks._core.model import Backend
-from fastforks._core.outputs import NumpyOutputs
+from fastforks._core.outputs import NumpyOutputs, save_images
 from fastforks.flow._runner import crop, scale
 
 if TYPE_CHECKING:
+    import os
     from collections.abc import Mapping
 
     from fastforks.flow._runner import Runner
@@ -42,6 +44,16 @@ class FlowResult(NumpyOutputs):
     model: str
     backend: Backend
     options: Mapping[str, Any] = field(default_factory=dict)
+
+    def save(self, path: str | os.PathLike[str]) -> None:
+        """Write the flow as `.flo` (Middlebury, `[H, W, 2]` float32) or `.npy` (float32 `[2, H, W]`).
+
+        A batch writes one file per pair: put `{i}` in the path (`"flow_{i}.flo"`).
+
+        Raises:
+            InputError: Unknown suffix, or a batch and a path without `{i}`.
+        """
+        save_images(path, self.flow, type(self).__name__, FLOW_SUFFIXES, write_flow)
 
 
 class FlowModel(core.Model):

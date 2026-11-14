@@ -13,7 +13,15 @@ from fastforks._core.cards import ModelCard
 from fastforks._core.export import TensorRTEngine
 from fastforks._core.image import ImageLike
 from fastforks._core.sizes import SizeRange
-from fastforks.matting._api import Backend, MattingModel, MattingResult, list_models, load, model_card
+from fastforks.matting._api import (
+    Backend,
+    MattingModel,
+    MattingResult,
+    VideoMattingResult,
+    list_models,
+    load,
+    model_card,
+)
 
 __all__ = [
     "Backend",
@@ -23,6 +31,7 @@ __all__ = [
     "ModelCard",
     "SizeRange",
     "TensorRTEngine",
+    "VideoMattingResult",
     "list_models",
     "load",
     "model_card",

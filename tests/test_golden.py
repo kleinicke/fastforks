@@ -276,7 +276,7 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     task = TASK[ref]
     if task == "volume":  # the golden's CT crop and spacing
         assert want is not None, "volume goldens store their volume and spacing"
-        r = m(want["input"], tuple(want["spacing"].tolist()))
+        r = m(want["input"], spacing=tuple(want["spacing"].tolist()))
         return {"labels": r.labels.float().cpu()}, r.backend
     img = want["input"].round().astype(np.uint8) if want and "input" in want else image()
     if task == "stereo":

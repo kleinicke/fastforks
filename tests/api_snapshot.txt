@@ -34,11 +34,12 @@ class fastforks.matching.sfm.DatabaseStats(builtins.object)
 class fastforks.matching.sfm.ReconstructionStats(builtins.object)
 class fastforks.matting._api.MattingModel(fastforks._core.model.Model)
 class fastforks.matting._api.MattingResult(fastforks._core.outputs.MapOutputs)
+class fastforks.matting._api.VideoMattingResult(fastforks._core.outputs.NumpyOutputs)
 class fastforks.multiview._api.MultiViewModel(fastforks._core.model.Model)
 class fastforks.multiview._api.MultiViewResult(fastforks._core.outputs.MapOutputs)
 class fastforks.multiview._gaussians.Gaussians(builtins.object)
 class fastforks.pose._api.PoseModel(fastforks._core.model.Model)
-class fastforks.pose._api.PoseResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.pose._api.PoseResult(fastforks._core.instances.Instances)
 class fastforks.promptable_segmentation._api.ConceptSegmentationModel(fastforks.promptable_segmentation._api.PromptableSegmentationModel)
 class fastforks.promptable_segmentation._api.ConceptSegmentationResult(fastforks._core.instances.Instances)
 class fastforks.promptable_segmentation._api.ImageEmbeddings(builtins.object)
@@ -148,6 +149,7 @@ def fastforks._core.cards.ModelCard.variant_licence(self, variant: 'Variant') ->
 def fastforks._core.export.TensorRTEngine.__call__(self, *inputs: 'torch.Tensor', **named: 'torch.Tensor') -> 'torch.Tensor'
 def fastforks._core.export.TensorRTEngine.run(self, *inputs: 'torch.Tensor', **named: 'torch.Tensor') -> 'dict[str, torch.Tensor]'
 def fastforks._core.instances.Instances.cpu(self) -> 'Self'
+def fastforks._core.instances.Instances.save(self, path: 'str | Path') -> 'None'
 def fastforks._core.instances.Instances.to_list(self) -> 'list[dict[str, Any]]'
 def fastforks._core.model.Model.compile(self, **kwargs: 'Any') -> 'Self'
 def fastforks._core.model.Model.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
@@ -203,11 +205,13 @@ def fastforks.features.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: '
 def fastforks.features.model_card(model: 'str') -> 'ModelCard'
 def fastforks.flow._api.FlowModel.__call__(self, image1: 'ImageLike', image2: 'ImageLike') -> 'FlowResult'
 def fastforks.flow._api.FlowModel.module(self) -> 'torch.nn.Module'
+def fastforks.flow._api.FlowResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
 def fastforks.flow.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.flow.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.flow._api.FlowModel
 def fastforks.flow.model_card(model: 'str') -> 'ModelCard'
 def fastforks.interpolation._api.InterpolationModel.__call__(self, image1: 'ImageLike', image2: 'ImageLike', *, timestep: 'float' = 0.5) -> 'InterpolationResult'
 def fastforks.interpolation._api.InterpolationModel.module(self) -> 'torch.nn.Module'
+def fastforks.interpolation._api.InterpolationResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
 def fastforks.interpolation.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.interpolation.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.interpolation._api.InterpolationModel
 def fastforks.interpolation.model_card(model: 'str') -> 'ModelCard'
@@ -249,7 +253,7 @@ def fastforks.multiview.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 
 def fastforks.multiview.model_card(model: 'str') -> 'ModelCard'
 def fastforks.multiview.unproject(depth: 'torch.Tensor', intrinsics: 'torch.Tensor', cam_to_world: 'torch.Tensor | None' = None) -> 'torch.Tensor'
 def fastforks.patch(model: 'nn.Module', *, mode: 'str' = 'auto', device: 'torch.device | str | None' = None, dtype: 'str | torch.dtype | None' = None) -> 'FastModel'
-def fastforks.pose._api.PoseModel.__call__(self, image: 'ImageLike', boxes: 'BoxesLike | Sequence[BoxesLike] | None' = None) -> 'PoseResult | list[PoseResult]'
+def fastforks.pose._api.PoseModel.__call__(self, image: 'ImageLike', *, boxes: 'BoxesLike | Sequence[BoxesLike] | None' = None) -> 'PoseResult | list[PoseResult]'
 def fastforks.pose._api.PoseResult.to_list(self) -> 'list[dict[str, Any]]'
 def fastforks.pose.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.pose.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.pose._api.PoseModel
@@ -268,6 +272,7 @@ def fastforks.read_images(sources: 'Iterable[str | os.PathLike[str] | bytes | by
 def fastforks.restoration._api.RestorationModel.__call__(self, image: 'ImageLike', *, mask: 'ImageLike | None' = None, tile: 'int | None' = None) -> 'RestorationResult'
 def fastforks.restoration._api.RestorationModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
 def fastforks.restoration._api.RestorationModel.module(self) -> 'torch.nn.Module'
+def fastforks.restoration._api.RestorationResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
 def fastforks.restoration.checkpoint_family(path: 'str | os.PathLike[str]') -> 'str | None'
 def fastforks.restoration.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.restoration.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.restoration._api.RestorationModel
@@ -340,9 +345,10 @@ def fastforks.tracking.model_card(model: 'str') -> 'ModelCard'
 def fastforks.tracking.objects.ByteTracker.reset(self) -> 'None'
 def fastforks.tracking.objects.ByteTracker.update(self, detections: 'Any') -> 'ObjectTracks'
 def fastforks.tracking.track_objects(video: 'Iterable[Any]', detector: 'Callable[..., Any] | None' = None, *, labels: 'Sequence[int] | None' = None, **tracker: 'float') -> 'list[ObjectTracks]'
-def fastforks.volume._api.VolumeModel.__call__(self, volume: 'np.ndarray | torch.Tensor', spacing: 'Sequence[float]') -> 'VolumeResult'
+def fastforks.volume._api.VolumeModel.__call__(self, volume: 'np.ndarray | torch.Tensor', *, spacing: 'Sequence[float] | None' = None, meta: 'VolumeMeta | None' = None) -> 'VolumeResult'
 def fastforks.volume._api.VolumeModel.module(self) -> 'torch.nn.Module'
 def fastforks.volume._api.VolumeModel.networks(self) -> 'tuple[torch.nn.Module, ...]'
+def fastforks.volume._api.VolumeResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
 def fastforks.volume.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.volume.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, options: 'Mapping[str, Any] | None' = None, weights: 'str | os.PathLike[str] | None' = None) -> fastforks.volume._api.VolumeModel
 def fastforks.volume.load_nnunet(path: 'str | os.PathLike[str]', *, folds: 'Sequence[int] | None' = None, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, step: 'float' = 0.5, mirror: 'bool' = True, checkpoint: 'str' = 'checkpoint_final.pth') -> 'VolumeModel'
@@ -502,6 +508,10 @@ field fastforks.matting._api.MattingResult.alpha: torch.Tensor
 field fastforks.matting._api.MattingResult.backend: Backend
 field fastforks.matting._api.MattingResult.model: str
 field fastforks.matting._api.MattingResult.options: Mapping[str, Any]
+field fastforks.matting._api.VideoMattingResult.alpha: torch.Tensor
+field fastforks.matting._api.VideoMattingResult.backend: Backend
+field fastforks.matting._api.VideoMattingResult.model: str
+field fastforks.matting._api.VideoMattingResult.options: Mapping[str, Any]
 field fastforks.multiview._api.MultiViewResult.backend: Backend
 field fastforks.multiview._api.MultiViewResult.cam_to_world: torch.Tensor | None
 field fastforks.multiview._api.MultiViewResult.confidence: torch.Tensor | None
@@ -520,14 +530,12 @@ field fastforks.multiview._gaussians.Gaussians.means: torch.Tensor
 field fastforks.multiview._gaussians.Gaussians.opacities: torch.Tensor
 field fastforks.multiview._gaussians.Gaussians.rotations: torch.Tensor
 field fastforks.multiview._gaussians.Gaussians.scales: torch.Tensor
-field fastforks.pose._api.PoseResult.backend: Backend
-field fastforks.pose._api.PoseResult.boxes: torch.Tensor
+field fastforks.pose._api.PoseResult.class_names: tuple[str, ...]
 field fastforks.pose._api.PoseResult.keypoint_names: tuple[str, ...]
 field fastforks.pose._api.PoseResult.keypoint_scores: torch.Tensor
 field fastforks.pose._api.PoseResult.keypoints: torch.Tensor
-field fastforks.pose._api.PoseResult.model: str
-field fastforks.pose._api.PoseResult.options: Mapping[str, Any]
-field fastforks.pose._api.PoseResult.scores: torch.Tensor
+field fastforks.pose._api.PoseResult.labels: torch.Tensor | None
+field fastforks.pose._api.PoseResult.masks: torch.Tensor | None
 field fastforks.pose._api.PoseResult.skeleton: tuple[tuple[int, int], ...]
 field fastforks.promptable_segmentation._api.ImageEmbeddings.backend: Backend
 field fastforks.promptable_segmentation._api.ImageEmbeddings.features: Mapping[str, torch.Tensor]
@@ -675,6 +683,7 @@ field fastforks.tracking.objects.ObjectTracks.scores: torch.Tensor
 field fastforks.volume._api.VolumeResult.backend: Backend
 field fastforks.volume._api.VolumeResult.class_names: Mapping[int, str]
 field fastforks.volume._api.VolumeResult.labels: torch.Tensor
+field fastforks.volume._api.VolumeResult.meta: VolumeMeta | None
 field fastforks.volume._api.VolumeResult.model: str
 field fastforks.volume._api.VolumeResult.options: Mapping[str, Any]
 field fastforks.volume._nifti.VolumeMeta.affine: np.ndarray
@@ -784,6 +793,7 @@ name fastforks.matting.MattingResult = class fastforks.matting._api.MattingResul
 name fastforks.matting.ModelCard = class fastforks._core.cards.ModelCard
 name fastforks.matting.SizeRange = class fastforks._core.sizes.SizeRange
 name fastforks.matting.TensorRTEngine = class fastforks._core.export.TensorRTEngine
+name fastforks.matting.VideoMattingResult = class fastforks.matting._api.VideoMattingResult
 name fastforks.multiview.Backend = class fastforks._core.model.Backend
 name fastforks.multiview.Gaussians = class fastforks.multiview._gaussians.Gaussians
 name fastforks.multiview.ImageLike

@@ -134,7 +134,7 @@ checkpoint via `volume.load_nnunet(path)`:
 from fastforks import volume
 
 ct, meta = volume.read_nifti("ct.nii.gz")  # [D, H, W] float32 (RAS-canonical), meta.spacing in mm
-seg = volume.load("totalsegmentator-total-3mm")(ct, meta.spacing)
+seg = volume.load("totalsegmentator-total-3mm")(ct, meta=meta)  # or spacing=(d, h, w); seg.save("seg.nii.gz")
 seg.labels  # [D, H, W] uint8 class index on the input grid; seg.class_names {1: "spleen", ...}
 volume.write_nifti("seg.nii.gz", seg.labels.cpu().numpy(), meta)  # on the grid of ct.nii.gz
 ```
@@ -444,9 +444,12 @@ nerfstudio): `cx_colmap = cx_opencv + 0.5` (same for `cy`); `read_calib(..., "co
 
 ### Saving maps
 
-`save` exists on results that hold dense maps: stereo, depth, multi-view, segmentation (`labels`) and promptable
-segmentation (`masks`); classification, features, pose and detection results have none (use `result.numpy()` or the
-fields). `result.save(path)` writes the primary map (`disparity`, `depth` or `inverse_depth`, `labels`, `masks`;
+`save` exists on results that hold dense maps: stereo, depth, multi-view, segmentation (`labels`), promptable
+segmentation (`masks`), matting and edges; classification and features results have none (use `result.numpy()` or the
+fields). Restoration and interpolation results write their image (`.png` / `.jpg` 8-bit, `.npy` float32), flow results
+`.flo` (Middlebury) or `.npy`, volume results `.nii.gz` (on the input file's grid: call with `meta=`) or `.npy`; a
+batch of these takes `{i}` in the path (`"out_{i}.png"`). Instance results (detection, concept segmentation, pose:
+`PoseResult` is an `Instances` with keypoints) write `to_list()` as `.json` (masks left out). `result.save(path)` writes the primary map (`disparity`, `depth` or `inverse_depth`, `labels`, `masks`;
 `key="confidence"` or an `extras` name picks another) as one `[H, W]` file; the suffix selects the format, and an
 unknown suffix raises with the list this result accepts. Batches are not split (pass one image per call; leading
 dimensions of size 1 are dropped; for several masks write one, `fastforks.save("m.png", r.masks[i])`); a multi-view

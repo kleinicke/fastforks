@@ -12,6 +12,13 @@ public API from now on):
 - Lists in, lists out (all single-image and pair tasks, also the 0.1.1 ones, where lists were rejected): a list of
   images gives a list of results; arguments that come one per image (`intrinsics`, `boxes`, prompts, masks) are then
   lists of the same length.
+- Results: `save(path)` on restoration / interpolation (`.png` / `.jpg` / `.npy`), flow (`.flo` / `.npy`), volume
+  (`.nii.gz` / `.npy`) results and on `Instances` (detection, concept segmentation, pose: `to_list()` as `.json`); a
+  batch takes `{i}` in the path. `PoseResult` is an `Instances` (indexing selects people with their keypoints).
+  `fastforks.matting.VideoMattingResult` is exported.
+- Pose: `model(image, boxes)` -> `model(image, boxes=...)` (keyword-only).
+- Volume: `model(volume, spacing)` -> `model(volume, spacing=...)` or `model(volume, meta=...)` (keyword-only, one of
+  the two; with `meta` from `read_nifti`, `result.save("x.nii.gz")` writes the labels on the file's grid).
 
 ### Models and fixes
 

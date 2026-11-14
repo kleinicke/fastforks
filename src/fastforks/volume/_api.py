@@ -7,7 +7,7 @@ import math
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import torch
@@ -17,8 +17,10 @@ from fastforks._core import registry
 from fastforks._core.api import task_api
 from fastforks._core.errors import InputError, WeightsError
 from fastforks._core.files import FileSpec
+from fastforks._core.io import atomic_write, check_suffix
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs
+from fastforks.volume._nifti import VolumeMeta, write_nifti
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -44,6 +46,7 @@ class VolumeResult(NumpyOutputs):
         model: Versioned model id.
         backend: The backend that produced the result.
         options: Load options that differ from the validated defaults.
+        meta: The `meta=` of the call (the input file's grid), else `None`.
     """
 
     labels: torch.Tensor
@@ -51,6 +54,23 @@ class VolumeResult(NumpyOutputs):
     model: str
     backend: Backend
     options: Mapping[str, Any] = field(default_factory=dict)
+    meta: VolumeMeta | None = None
+
+    def save(self, path: str | os.PathLike[str]) -> None:
+        """Write the labels: `.nii.gz` / `.nii` on the input file's grid (needs the call's `meta=`), or `.npy` as is.
+
+        Raises:
+            InputError: Unknown suffix, or a NIfTI path and a call without `meta=`.
+        """
+        name = os.fspath(path).lower()
+        if name.endswith((".nii.gz", ".nii")):
+            if self.meta is None:
+                msg = "VolumeResult.save writes NIfTI on the input file's grid: call the model with meta= (read_nifti)"
+                raise InputError(msg)
+            write_nifti(path, self.labels, self.meta)
+            return
+        check_suffix(path, (".nii.gz", ".nii", ".npy"), type(self).__name__)
+        atomic_write(path, lambda tmp: np.save(tmp, self.labels.detach().cpu().numpy()))
 
 
 class VolumeModel(core.Model):
@@ -83,19 +103,28 @@ class VolumeModel(core.Model):
         """The networks (every fold of every part), e.g. to inspect or export one patch-sized U-Net."""
         return self._runner.networks()
 
-    def __call__(self, volume: np.ndarray | torch.Tensor, spacing: Sequence[float]) -> VolumeResult:
+    def __call__(
+        self,
+        volume: np.ndarray | torch.Tensor,
+        *,
+        spacing: Sequence[float] | None = None,
+        meta: VolumeMeta | None = None,
+    ) -> VolumeResult:
         """Label every voxel of a volume.
 
         Args:
             volume: `[D, H, W]` or `[C, D, H, W]` (numpy or torch; CT in Hounsfield units), e.g. from
                 `fastforks.volume.read_nifti`, whose `[D, H, W]` is the RAS-canonical `(z, y, x)` order.
-            spacing: Voxel size in mm along `D`, `H`, `W` (`meta.spacing` of `read_nifti`).
+            spacing: Voxel size in mm along `D`, `H`, `W`.
+            meta: The `VolumeMeta` of `read_nifti` instead of `spacing`: its spacing, and `result.save("x.nii.gz")`
+                writes the labels on that file's grid. Give one of the two.
 
         Returns:
             The labels on the input grid.
 
         Raises:
-            InputError: Wrong number of dimensions or channels, or a spacing that is not three positive numbers.
+            InputError: Wrong number of dimensions or channels, neither or both of `spacing` and `meta`, a spacing that
+                is not three positive numbers, or a volume not on the grid of `meta`.
         """
         x = torch.as_tensor(np.ascontiguousarray(volume) if isinstance(volume, np.ndarray) else volume)
         if x.ndim not in _NDIM or x.is_complex() or x.dtype == torch.bool:
@@ -106,7 +135,15 @@ class VolumeModel(core.Model):
         if x.shape[0] != self.channels:
             msg = f"{self.variant.ref} takes {self.channels} channel(s), got {x.shape[0]} ({tuple(x.shape)})"
             raise InputError(msg)
-        sp = tuple(float(s) for s in spacing)
+        if (spacing is None) == (meta is None):
+            msg = "give the voxel size as spacing=(d, h, w) in mm or meta= (from read_nifti), one of the two"
+            raise InputError(msg)
+        if meta is not None:
+            if tuple(x.shape[1:]) != tuple(meta.shape):
+                msg = f"volume {tuple(x.shape[1:])} is not on the grid of meta {tuple(meta.shape)}"
+                raise InputError(msg)
+            spacing = meta.spacing
+        sp = tuple(float(s) for s in cast("Sequence[float]", spacing))
         if len(sp) != 3 or not all(math.isfinite(s) and s > 0 for s in sp):  # noqa: PLR2004
             msg = f"spacing must be three positive voxel sizes in mm (D, H, W), got {spacing!r}"
             raise InputError(msg)
@@ -114,14 +151,14 @@ class VolumeModel(core.Model):
             x = x.to(self.device, torch.float32, non_blocking=True)
             out = self._runner(x, sp)
             labels = self._check_outputs(out, {"labels": tuple(x.shape[1:])}, cast=False)["labels"]
-        return VolumeResult(labels, self.class_names, self.variant.ref, self.backend, self.options)
+        return VolumeResult(labels, self.class_names, self.variant.ref, self.backend, self.options, meta)
 
 
 def bench_inputs(model: VolumeModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: a synthetic CT-like volume `[H, W, W]` at 1.5 mm (H slices of W x W voxels)."""
     g = torch.Generator().manual_seed(0)
     vol = torch.randn((model.channels, size.height, size.width, size.width), generator=g) * 300.0
-    return (vol.to(model.device), (1.5, 1.5, 1.5)), {}
+    return (vol.to(model.device),), {"spacing": (1.5, 1.5, 1.5)}
 
 
 def load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the nnU-Net options
