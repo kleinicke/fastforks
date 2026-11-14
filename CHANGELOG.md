@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- GFPGAN v1.4 face restoration (`gfpgan-v1.4`, restoration; Apache-2.0 code and weights): one aligned 512 x 512
+  face; the checkpoint's stored noise instead of new random noise per call, cheaper skip convolutions. 18.0 ms
+  kernels, 21.2 ms portable (12.5 ms compile) vs 41.1 ms original fp32 (21.9 ms `.half()`), peak 473 / 530 MB vs
+  1084 / 1208 MB. On 24 real faces 57.7 dB PSNR (portable float32) / 53.7 dB (fp16) to the original with the same
+  noise; the original's own random noise gives 47.4 dB.
+
 - RealPLKSR super-resolution (`realplksr-nomoswebphoto-x4`, restoration; Apache-2.0 code, CC-BY-4.0 weights):
   neosr's large-kernel CNN; GroupNorm from per-channel statistics (PyTorch's channels-last GroupNorm is slow).
   512x512: 130 ms kernels, 182 ms portable vs 444 ms original fp32 (267 ms `.half()`), peak 179 / 216 MB vs

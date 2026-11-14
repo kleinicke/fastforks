@@ -689,6 +689,21 @@ def _codeformer(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda x: g.run(net, x, p["fidelity"])
 
 
+def _gfpgan(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `GFPGANv1Clean` as `tools/golden/gfpgan.py` (`FF_GFPGAN_REPO`, `FF_GFPGAN_WEIGHTS`), float32.
+
+    As `GFPGANer.enhance` on one aligned 512 x 512 face: [-1, 1], `net(x, return_rgb=False)[0]` (random noise per
+    call, upstream's default), back to [0, 1].
+    """
+    g = _golden("gfpgan")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    tree = g.reference_tree(Path(os.environ["FF_GFPGAN_REPO"]), g.REF_COMMIT)
+    net = g.build(tree, Path(os.environ["FF_GFPGAN_WEIGHTS"]) / variant.weights[0].name, p).cuda()
+    a.note = "upstream GFPGANer.enhance on the aligned face, float32, random noise per call"
+    return lambda x: g.run(net, x, randomize_noise=True)
+
+
 def _bchw01(args: tuple[Any, ...]) -> tuple[Any, ...]:
     """uint8 CUDA CHW -> float32 `[1, 3, H, W]` in [0, 1] (BasicSR's lq)."""
     return ((args[0].float() / 255)[None],)
@@ -2033,6 +2048,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "hat": _Local("restoration", _hat, ((512, 512),), _bchw01),
     "dat": _Local("restoration", _dat, ((512, 512),), _bchw01),
     "codeformer": _Local("restoration", _codeformer, ((512, 512),), _bchw01),
+    "gfpgan": _Local("restoration", _gfpgan, ((512, 512),), _bchw01),
     "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
     "flowformer": _Local("flow", _flowformer, ((1080, 1920), (375, 1242))),
     "flowseek": _Local("flow", _flowseek, ((1080, 1920), (375, 1242))),
