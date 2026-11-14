@@ -1,6 +1,6 @@
 schema = 2
 name = "BiRefNet"
-summary = "BiRefNet (Zheng et al., CAAI AIR 2024): bilateral reference network for high-resolution dichotomous image segmentation and background removal. A Swin Transformer v1 encoder at full and half resolution feeds a decoder with deformable ASPP blocks, image patches as reference and gradient attention; one foreground mask per image."
+summary = "BiRefNet (Zheng et al., CAAI AIR 2024): bilateral reference network for high-resolution dichotomous image segmentation and background removal. A Swin Transformer v1 encoder at full and half resolution feeds a decoder with deformable ASPP blocks, image patches as reference and gradient attention; one foreground mask per image. `rmbg-2.0`: BRIA's RMBG-2.0 weights for this network (non-commercial, gated)."
 tier = "experimental"
 outputs = ["alpha"]
 uses = ["cnn_kernels", "deform_conv", "swin_v1"]  # fastforks.shared modules this family imports
@@ -47,3 +47,10 @@ id = "birefnet-lite"  # general use, Swin-T (ZhengPeng7/BiRefNet_lite)
 revision = 1
 params = { backbone = "swin_v1_t" }
 weights = [{ name = "birefnet_lite.safetensors", size = 177634392, sha256 = "4417d89795250e698c3cb0ae8df15743810065f646f48a694fdfa7ca052d0815", url = "https://huggingface.co/ZhengPeng7/BiRefNet_lite/resolve/aa62cd87eafb9cc43056d08ef3615a14628b831d/model.safetensors" }]
+
+[[variants]]
+id = "rmbg-2.0"  # BRIA RMBG-2.0 (briaai/RMBG-2.0): BiRefNet Swin-L trained by BRIA on licensed images; gated weights
+revision = 1
+params = { backbone = "swin_v1_l" }
+licence = { weights = "CC-BY-NC-4.0", training_data = ["bria-internal"], training_note = "BRIA's own data: over 15,000 manually labelled images it says are fully licensed (HF model card).", evidence = "https://huggingface.co/briaai/RMBG-2.0/blob/2fd7b4b0f2393ddb39a267fb62df6c010928a6c6/README.md (license_link: CC BY-NC 4.0). The weights are gated: download model.safetensors from BRIA's Hugging Face repo after accepting its terms and put it on FASTFORKS_WEIGHTS_PATH as birefnet/rmbg-2.0.safetensors; fastforks never mirrors it" }
+weights = [{ name = "rmbg-2.0.safetensors", size = 884878856, sha256 = "566ed80c3d95f87ada6864d4cbe2290a1c5eb1c7bb0b123e984f60f76b02c3a7", url = "https://huggingface.co/briaai/RMBG-2.0/resolve/2fd7b4b0f2393ddb39a267fb62df6c010928a6c6/model.safetensors" }]

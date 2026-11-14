@@ -301,7 +301,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Matting
 
-12 models; size 1080x1920.
+13 models; size 1080x1920.
 
 - Fastest: [`u2net`](models/matting.md#u²-net) (8.8 ms).
 - Most accurate: [`birefnet`](models/matting.md#birefnet) (121.1 ms, error 0.0325).
@@ -322,6 +322,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`ben2`](models/matting.md#ben2) | yes | 0.0403 | 200.6 (1080x1920) | 110.3 | 103.5 | 1.9x vs original (1080x1920) | 1942 |
 | [`inspyrenet`](models/matting.md#inspyrenet) | yes | – | 240.9 (1080x1920) | 108.5 | – | – | – |
 | [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 131.4 | 121.1 | 1.9x vs original (1080x1920) | 1674 |
+| [`rmbg-2.0`](models/matting.md#birefnet) | no | – | 149.0 (1080x1920) | 131.5 | 121.4 | 1.2x vs original (1080x1920) | 1674 |
 | [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 181.7 | 147.4 | 1.7x vs original (1080x1920) | 1484 |
 
 ## Promptable segmentation

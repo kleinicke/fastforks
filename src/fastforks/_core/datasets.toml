@@ -288,6 +288,12 @@ licence = "not stated"  # BEN2 card: "our 22K proprietary segmentation dataset"
 commercial = "unclear"
 url = "https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md"
 
+[bria-internal]
+name = "BRIA proprietary background-removal data"
+licence = "not stated"  # RMBG-2.0 card: "over 15,000 high-quality, high-resolution, manually labeled (pixel-wise accuracy), fully licensed images"
+commercial = "unclear"
+url = "https://huggingface.co/briaai/RMBG-2.0/blob/2fd7b4b0f2393ddb39a267fb62df6c010928a6c6/README.md"
+
 [composition-1k]
 name = "Composition-1k (Adobe Deep Image Matting)"
 licence = "Adobe research licence on request"  # the DIM dataset is shared by Adobe on request for non-commercial research

@@ -20,6 +20,10 @@ def test_card() -> None:
         assert variant.params["backbone"] == backbone
         assert card.licence.code == card.licence.weights == "MIT"
         assert name in matting.list_models()
+    card, variant = registry.cards("matting")["rmbg-2.0"]  # BRIA's BiRefNet Swin-L weights, non-commercial
+    assert variant.params["backbone"] == "swin_v1_l"
+    assert card.variant_licence(variant).weights == "CC-BY-NC-4.0"
+    assert card.status(variant).commercial == "no"
 
 
 def test_image2patches() -> None:

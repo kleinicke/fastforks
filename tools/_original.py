@@ -1385,7 +1385,7 @@ def _birefnet(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - a
     if fp16:
         net = net.half()
     repo, rev = g.HF_REVISION[ref]
-    a.note = f"HF ZhengPeng7/{repo}@{rev[:12]} birefnet.py, the card's resize / normalisation / sigmoid / resize back"
+    a.note = f"HF {repo}@{rev[:12]} birefnet.py, the card's resize / normalisation / sigmoid / resize back"
     return lambda image: g.predict(net, image[None].float() / 255)
 
 
