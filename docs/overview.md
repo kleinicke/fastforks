@@ -696,7 +696,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Restoration
 
-16 models; size 512x512.
+17 models; size 512x512.
 
 - Fastest: [`span-x4`](models/restoration.md#span) (14.6 ms).
 - Fastest commercially usable: [`span-x4`](models/restoration.md#span) (14.6 ms).
@@ -705,6 +705,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 |---|---|---|---|---|---|---|
 | [`span-x4`](models/restoration.md#span) | yes | 26.9 (512x512) | 24.2 | 14.6 | 1.8x vs original (512x512) | 487 |
 | [`span-x2`](models/restoration.md#span) | yes | 24.6 (512x512) | 23.5 | 14.9 | 1.6x vs original (512x512) | 487 |
+| [`realesr-general-x4v3`](models/restoration.md#real-esrgan-compact) | yes | 42.1 (512x512) | 30.1 | 24.0 | 1.8x vs original (512x512) | 125 |
 | [`codeformer`](models/restoration.md#codeformer) | no | 85.7 (512x512) | 48.6 | – | – | – |
 | [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 97.0 | 80.2 | 1.6x vs original (512x512) | 333 |
 | [`realesrgan-x4plus-anime-6b`](models/restoration.md#real-esrgan) | yes | 205.1 (512x512) | 154.9 | 131.8 | 1.6x vs original (512x512) | 1197 |

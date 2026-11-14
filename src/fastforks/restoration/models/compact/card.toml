@@ -1,0 +1,45 @@
+schema = 2
+name = "Real-ESRGAN Compact"
+summary = "Real-ESRGAN Compact (SRVGGNetCompact, Wang et al.): a small VGG-style blind super-resolution network: 3 x 3 convs with PReLU at the input size, one pixel-shuffle to the output size, plus the nearest-upsampled input. `realesr-general-x4v3` is Real-ESRGAN's general x4 model (32 convs, 64 channels, about 1.2 M parameters), trained like Real-ESRGAN on synthetic real-world degradations. `load_file` reads other Compact checkpoints (any scale, channels and depth)."
+tier = "experimental"
+outputs = ["image"]
+
+[upstream]
+repo = "https://github.com/xinntao/Real-ESRGAN"
+commit = "a4abfb2979a7bbff3f69f58f58ae324608821e27"  # realesrgan/archs/srvgg_arch.py; the call is realesrgan/utils.py RealESRGANer.enhance (no tile, pre_pad 0), as inference_realesrgan.py -dn 1
+
+[licence]
+code = "BSD-3-Clause"  # LICENSE
+weights = "BSD-3-Clause"  # release assets of the BSD-3-Clause repository; no separate weights licence
+files = ["LICENSE"]
+training_data = ["div2k", "flickr2k", "ost"]
+training_note = "docs/Training.md: DF2K (DIV2K + Flickr2K) + OST HR images with Real-ESRGAN's synthetic degradations; the general v3 model's data is not named further."
+evidence = "https://github.com/xinntao/Real-ESRGAN/blob/a4abfb2979a7bbff3f69f58f58ae324608821e27/LICENSE ; https://github.com/xinntao/Real-ESRGAN/releases/tag/v0.2.5.0"
+
+[io]
+input = "0-1"  # RealESRGANer divides by 255
+pad = "none"  # any size: every conv pads itself (upstream runs the raw size)
+min_size = 1
+
+[params]
+scale = 4
+num_feat = 64
+num_conv = 32
+
+[modes.portable]
+cuda_dtype = "float16"  # inference_realesrgan.py default (`--fp32` for float32)
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions, channels-last
+
+[[papers]]
+title = "Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data"
+url = "https://arxiv.org/abs/2107.10833"
+date = "2021-07-22"
+venue = "ICCVW 2021"
+
+[[variants]]
+id = "realesr-general-x4v3"
+revision = 1
+weights = [{ name = "realesr-general-x4v3.pth", size = 4885111, sha256 = "8dc7edb9ac80ccdc30c3a5dca6616509367f05fbc184ad95b731f05bece96292", url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth" }]

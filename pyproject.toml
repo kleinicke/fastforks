@@ -230,6 +230,8 @@ runtime-evaluated-base-classes = []
 # HAT / DAT: upstream `math.log(scale, 2)`; HAT's `attn_mask = attn_mask` (`HAB.forward`).
 "src/fastforks/restoration/models/hat/net/hat_arch.py" = ["FURB163", "PLW0127"]
 "src/fastforks/restoration/models/dat/net/dat_arch.py" = ["FURB163"]
+# SRVGGNetCompact: upstream `from torch import nn as nn` and `range(0, num_conv)`.
+"src/fastforks/restoration/models/compact/net/srvgg_arch.py" = ["PLC0414", "PIE808"]
 # CodeFormer: upstream f-string logging calls (the VQGAN checkpoint loader).
 "src/fastforks/restoration/models/codeformer/net/vqgan_arch.py" = ["G004", "F541"]
 "src/fastforks/shared/*/net/**" = [

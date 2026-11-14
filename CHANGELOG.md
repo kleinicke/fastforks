@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Real-ESRGAN Compact super-resolution (`realesr-general-x4v3`, restoration; BSD-3-Clause code and weights):
+  SRVGGNetCompact, `load_file` reads other Compact checkpoints (any scale, width and depth). 512x512: 24.0 ms kernels,
+  30.1 ms portable vs 77.6 ms original fp32 (42.1 ms fp16), peak 125 / 164 MB vs 313 / 366 MB. DIV2K validation
+  (every 2nd image: 50) PSNR 26.70 / SSIM 0.7701 in every tier, as the original.
+
 - Restoration `load_file`: RRDBNet (ESRGAN) checkpoints of any width, growth channels and depth (e.g. 32-block
   community models) and x1 models (pixel-unshuffled by 4) load; before, only 64 / 32 channels at x4 / x2.
 

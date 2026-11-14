@@ -572,6 +572,27 @@ def _realesrgan(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 -
     return lambda img: g.run(up, img)
 
 
+def _compact(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `RealESRGANer` on `SRVGGNetCompact` as `tools/golden/compact.py`; fp16 = upstream's default (`half`).
+
+    `FF_COMPACT_REPO`: an xinntao/Real-ESRGAN clone; `FF_COMPACT_WEIGHTS`: the release `.pth` files. `pre_pad` 0, no
+    tile, `-dn 1` (no denoise interpolation); timed as `_realesrgan`.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("compact")
+    card, variant = full_ref("restoration", full)[1:]
+    up = g.build(
+        Path(os.environ["FF_COMPACT_REPO"]),
+        Path(os.environ["FF_COMPACT_WEIGHTS"]) / variant.weights[0].name,
+        {**card.params, **variant.params},
+        half=fp16,
+        device=torch.device("cuda"),
+    )
+    a.note = "upstream RealESRGANer pre_pad 0, no tile, -dn 1, on the float image" + (", half (the default)" * fp16)
+    return lambda img: g.run(up, img)
+
+
 def _span(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     """Upstream `SPAN` in eval mode as `tools/golden/span.py` (`FF_SPAN_REPO`, `FF_SPAN_WEIGHTS`), float32.
 
@@ -1989,6 +2010,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "rife": _LocalFp16("interpolation", _rife, ((1080, 1920),)),
     "realesrgan": _LocalFp16("restoration", _realesrgan, ((512, 512),), _hwc01),
     "span": _Local("restoration", _span, ((512, 512),), _bchw01),
+    "compact": _LocalFp16("restoration", _compact, ((512, 512),), _hwc01),
     "swinir": _Local("restoration", _swinir, ((512, 512),), _bchw01),
     "hat": _Local("restoration", _hat, ((512, 512),), _bchw01),
     "dat": _Local("restoration", _dat, ((512, 512),), _bchw01),

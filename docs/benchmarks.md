@@ -1089,6 +1089,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | hat-s-x4 | 2402 | 1072 | 974 | 2.5x | 1.1x | 5018 / 5644 | 1984 / 2148 | 1985 / 2088 |
 | hat-x4 | 3038 | 1596 | 1445 | 2.1x | 1.1x | 5318 / 6106 | 2426 / 2590 | 2610 / 2790 |
 | real-hat-gan-x4 | 3038 | 1597 | 1445 | 2.1x | 1.1x | 5318 / 6106 | 2426 / 2610 | 2610 / 2770 |
+| realesr-general-x4v3 | 42.1 | 30.1 | 24.0 | 1.8x | 1.3x | 157 / 206 | 125 / 164 | 125 / 164 |
 | realesrgan-x2plus | 128 | 97.0 | 80.2 | 1.6x | 1.2x | 592 / 656 | 333 / 394 | 333 / 394 |
 | realesrgan-x4plus | 631 | 471 | 403 | 1.6x | 1.2x | 2266 / 2496 | 1220 / 1454 | 1220 / 1434 |
 | realesrgan-x4plus-anime-6b | 205 | 155 | 132 | 1.6x | 1.2x | 2243 / 2472 | 1197 / 1430 | 1197 / 1410 |
@@ -1607,6 +1608,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | hat-s-x4 | 3.14 | 0.35 | 1.58 | 4.41 | 1.27 | 1.07 |
 | hat-x4 | 1.75 | 0.47 | 1.36 | 5.42 | 1.81 | 1.57 |
 | real-hat-gan-x4 | 1.96 | 1.24 | 1.49 | 5.41 | 1.77 | 1.56 |
+| realesr-general-x4v3 | 0.16 | 0.40 | 0.31 | 0.20 | 0.29 | 0.05 |
 | realesrgan-x2plus | 1.54 | 0.25 | 1.26 | 0.42 | 0.26 | 0.11 |
 | realesrgan-x4plus | 1.62 | 0.20 | 2.43 | 1.64 | 0.62 | 0.43 |
 | realesrgan-x4plus-anime-6b | 1.30 | 0.10 | 1.30 | 0.50 | 0.23 | 0.15 |
@@ -2072,6 +2074,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | hat-s-x4 | 512x512 | 1072 ms | 750 ms | – | 974 ms | 41.9 s | – | 1984 / 2148 | 2352 / 3068 | 1985 / 2088 | – |
 | hat-x4 | 512x512 | 1596 ms | 1185 ms | – | 1445 ms | 53.4 s | – | 2426 / 2590 | 1811 / 2750 | 2610 / 2790 | – |
 | real-hat-gan-x4 | 512x512 | 1597 ms | 1185 ms | – | 1445 ms | 54.3 s | – | 2426 / 2610 | 1811 / 2750 | 2610 / 2770 | – |
+| realesr-general-x4v3 | 512x512 | 30.1 ms | 22.6 ms | 11.9 ms | 24.0 ms | 3.89 s | 15.3 s | 125 / 164 | 125 / 144 | 125 / 164 | 220 / 228 |
 | realesrgan-x2plus | 512x512 | 97.0 ms | 85.2 ms | 59.7 ms | 80.2 ms | 33.2 s | 40.3 s | 333 / 394 | 323 / 394 | 333 / 394 | 476 / 500 |
 | realesrgan-x4plus | 512x512 | 471 ms | 354 ms | 273 ms | 403 ms | 29.9 s | 55.2 s | 1220 / 1454 | 1091 / 1394 | 1220 / 1434 | 1546 / 1594 |
 | realesrgan-x4plus-anime-6b | 512x512 | 155 ms | 114 ms | 83.1 ms | 132 ms | 10.0 s | 36.7 s | 1197 / 1430 | 1068 / 1370 | 1197 / 1410 | 1505 / 1552 |
