@@ -66,6 +66,33 @@ def test_stereo_result_types():
         _ = stereo.NoSuchName
 
 
+def test_stereo_result_keeps_maps():
+    """`replace` / `copy` keep the maps; the 0.1.1 constructor (positional or keyword) still builds a result."""
+    import copy  # noqa: PLC0415
+
+    import torch  # noqa: PLC0415
+
+    d = torch.ones(4, 5)
+    with _warns(r"a result from a model call"):
+        old = stereo.StereoResult(d, None, {"occlusion": d}, "m@1", "portable")
+    with _warns(r"a result from a model call"):
+        kw = stereo.StereoResult(disparity=d, confidence=None, extras={}, model="m@1", backend="portable")
+    assert old.disparity is not None
+    assert old.extras["occlusion"].shape == (4, 5)
+    assert kw.model == "m@1"
+    for new in (dataclasses.replace(old, options={"a": 1}), copy.copy(old), old.cpu()):
+        assert new.disparity is not None
+        assert new.disparity.shape == (4, 5)
+    assert dataclasses.replace(old, options={"a": 1}).options == {"a": 1}
+
+
+def test_stereo_pipeline_pairviews():
+    from fastforks.stereo import calibrated, pipeline  # noqa: PLC0415
+
+    with _warns(r"fastforks\.stereo\.calibrated\.PairViews"):
+        assert pipeline.PairViews is calibrated.PairViews
+
+
 def test_write_disparity(tmp_path):
     with _warns(r"StereoResult\.save"):
         write = stereo.write_disparity

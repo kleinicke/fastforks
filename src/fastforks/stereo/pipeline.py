@@ -22,6 +22,7 @@ from fastforks._core.errors import InputError
 from fastforks._core.image import _as_tensor, is_batch, is_url
 from fastforks._core.io import atomic_write, write_map
 from fastforks._core.pipeline import Done, OnError, Pipeline, default_prefetch, default_workers
+from fastforks.stereo import calibrated as _calibrated
 from fastforks.stereo.calibrated import (
     Rig,
     StereoResult,
@@ -482,4 +483,10 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
 
 __all__ = ["IMAGE_SUFFIXES", "Images", "Rig", "natural_key", "run_many"]
 
-__getattr__ = renamed_attributes(__name__, {"PairResult": ("fastforks.stereo.StereoResult", StereoResult)})
+__getattr__ = renamed_attributes(
+    __name__,
+    {
+        "PairResult": ("fastforks.stereo.StereoResult", StereoResult),
+        "PairViews": ("fastforks.stereo.calibrated.PairViews", _calibrated.PairViews),
+    },
+)

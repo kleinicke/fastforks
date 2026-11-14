@@ -582,6 +582,7 @@ field fastforks.segmentation._api.SegmentationResult.labels: torch.Tensor
 field fastforks.segmentation._api.SegmentationResult.logits: torch.Tensor | None
 field fastforks.segmentation._api.SegmentationResult.model: str
 field fastforks.segmentation._api.SegmentationResult.options: Mapping[str, Any]
+field fastforks.stereo.calibrated.StereoResult._by_view: Mapping[str, StereoView] | None
 field fastforks.stereo.calibrated.StereoResult.backend: Backend
 field fastforks.stereo.calibrated.StereoResult.calibrated: bool
 field fastforks.stereo.calibrated.StereoResult.error: Exception | None

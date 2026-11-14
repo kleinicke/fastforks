@@ -35,7 +35,9 @@ with a warning; `tests/api_snapshot.txt` freezes the public API from now on):
 - Stereo: one result type, `StereoResult`, for a plain call, a calibrated call (`rig=`, `views=`) and each pair of
   `run_many`: `stereo.StereoPairResult` / `stereo.PairResult` -> `stereo.StereoResult` (`r.left` / `r.right` are the
   `StereoView`s, `r.disparity`, `r.depth()`, ... the main view's). `disparity` / `confidence` / `extras` are
-  properties now, not constructor fields. The fields of the old types (`rectification`, `views`, `backend`,
+  properties now, not constructor fields; the 0.1.1 constructor `StereoResult(disparity, confidence, extras, model,
+  backend, options)` still works with a `FutureWarning`. `stereo.pipeline.PairViews` is
+  `stereo.calibrated.PairViews`. The fields of the old types (`rectification`, `views`, `backend`,
   `options`, `calibrated`, `index`, `left_path`, `right_path`, `path`, `error`, `existing`) are `StereoResult`
   fields (the `run_many` ones None / False for a call).
 - `stereo.write_disparity` (`write_disparity(path, d)`) -> `result.save(path)` (`StereoResult` / `StereoView`; a `.png` is the

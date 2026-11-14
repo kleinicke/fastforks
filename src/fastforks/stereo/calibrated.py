@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import functools
 import logging
 import os
 import threading
@@ -17,7 +18,7 @@ from typing import TYPE_CHECKING, Literal, Self, TypeAlias, cast
 import numpy as np
 import torch
 
-from fastforks._core.arguments import renamed_attributes
+from fastforks._core.arguments import renamed_attributes, warn_renamed
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.image import checked_ranges
 from fastforks._core.io import MAP_SUFFIXES, check_suffix
@@ -579,11 +580,9 @@ class PairViews:
         return self._moved_views(lambda v: v.cpu())
 
     def _moved_views(self, move: Callable[[StereoView], StereoView]) -> Self:
-        new = dataclasses.replace(cast("Any", self))
         by_view = self.__dict__.get("_by_view")
-        if by_view is not None:
-            object.__setattr__(new, "_by_view", {n: move(v) for n, v in by_view.items()})
-        return new
+        moved = None if by_view is None else {n: move(v) for n, v in by_view.items()}
+        return dataclasses.replace(cast("Any", self), _by_view=moved)
 
     def numpy(self) -> dict[str, Any]:
         """The main view's maps as arrays (`StereoView.numpy`); `result.right.numpy()` for the other one."""
@@ -648,6 +647,30 @@ class StereoResult(PairViews):
     path: Path | None = None
     error: Exception | None = None
     existing: bool = False
+    _by_view: Mapping[str, StereoView] | None = dataclasses.field(default=None, repr=False, kw_only=True)
+
+
+_new_init = StereoResult.__init__
+
+
+@functools.wraps(_new_init)
+def _init_compat(self: StereoResult, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401 - both signatures
+    """The 0.1.1 `StereoResult(disparity, confidence, extras, model, backend, options)` still builds a result."""
+    if "disparity" not in kwargs and not (args and not isinstance(args[0], str)):
+        _new_init(self, *args, **kwargs)
+        return
+    warn_renamed(
+        "StereoResult(disparity=, confidence=, extras=, ...)",
+        "a result from a model call (maps are held in `StereoView`s: `result.left`)",
+    )
+    names = ("disparity", "confidence", "extras", "model", "backend", "options")
+    given = {**dict(zip(names, args, strict=False)), **kwargs}
+    maps = {"disparity": given.pop("disparity"), "confidence": given.pop("confidence", None), **given.pop("extras", {})}
+    _new_init(self, **given)
+    object.__setattr__(self, "_by_view", {"left": make_view("left", maps, None)})
+
+
+StereoResult.__init__ = _init_compat  # type: ignore[method-assign]
 
 
 def plain_result(  # noqa: PLR0913, PLR0917 - the maps, then what every result names
