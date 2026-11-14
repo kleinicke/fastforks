@@ -38,10 +38,10 @@ class Params:
     """Card `[params]` + `[options]`.
 
     Attributes:
-        resolution: Detect resolution: the short side of the network input (rounded to a multiple of 64).
+        short_side: The short side of the network input (controlnet_aux detect resolution; rounded to a multiple of 64).
     """
 
-    resolution: int
+    short_side: int
 
 
 def gaussian_blur(x: torch.Tensor) -> torch.Tensor:
@@ -124,7 +124,7 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """AnyLine map `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
-        x = to_detect(image, self.ctx.params.resolution)
+        x = to_detect(image, self.ctx.params.short_side)
         return {"edges": to_input(anyline(self.net(x.to(self.dtype)), x), image)}
 
     def module(self) -> torch.nn.Module:

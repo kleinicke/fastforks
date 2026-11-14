@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### API changes
+
+Renames in the tasks and models added since 0.1.1 (the 0.1.1 API is unchanged; `tests/api_snapshot.txt` freezes the
+public API from now on):
+
+- Edges option `resolution` -> `short_side` (`resolution` and `detect_resolution` stay accepted as aliases).
+- Matching: `SparseMatchingResult.matches(threshold=)` -> `matches(score_threshold=)` (keyword-only).
+
+### Models and fixes
+
 - YuNet face detection (`yunet-n`, `yunet-s`, pose with RetinaFace; BSD-3-Clause code and weights): boxes, scores
   and five landmarks for the whole image at its own size (padded to 32), decoding and NMS on the GPU (RetinaFace's
   NMS), the kernels runner through `optimize` (fused conv kernels). 1080x1920 incl. upload and NMS: yunet-n 2.22 ms kernels, 2.95 ms

@@ -21,7 +21,7 @@ def test_card() -> None:
     assert sorted(cards) == ["lineart", "lineart-coarse"]
     card = cards["lineart"][0]
     assert card.licence.code == "MIT"
-    assert card.options["resolution"] == 512
+    assert card.options["short_side"] == 512
 
 
 @pytest.mark.slow
@@ -30,7 +30,7 @@ def test_matches_lineart_detector(tmp_path: Path) -> None:
     torch.manual_seed(0)
     net = Generator(3, 1, 3).eval()
     torch.save(net.state_dict(), tmp_path / "w.pth")
-    m = edges.load("lineart", weights=tmp_path / "w.pth", device="cpu", dtype="float32", options={"resolution": 64})
+    m = edges.load("lineart", weights=tmp_path / "w.pth", device="cpu", dtype="float32", options={"short_side": 64})
     img = synthetic_image(64, 128, torch.device("cpu"))
     with torch.inference_mode():
         want = 1 - net((img * 255).round() / 255)[0, 0]

@@ -21,7 +21,7 @@ evidence = "https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a
 input = "0-1"  # the runner resizes to the detect size (OpenCV area / cubic on uint8 levels) and divides by 255
 
 [options]
-resolution = { default = 512, min = 64, aliases = ["detect_resolution"] }  # detect resolution: the network input's short side, sides rounded to a multiple of 64 (controlnet_aux detect_resolution)
+short_side = { default = 512, min = 64, aliases = ["resolution", "detect_resolution"] }  # the network input's short side, sides rounded to a multiple of 64 (controlnet_aux detect_resolution)
 
 [modes.portable]
 cuda_dtype = "float16"

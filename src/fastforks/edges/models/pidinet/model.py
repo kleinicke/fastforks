@@ -32,12 +32,12 @@ class Params:
     """Card `[params]` + `[options]`.
 
     Attributes:
-        resolution: Detect resolution: the short side of the network input (rounded to a multiple of 64).
+        short_side: The short side of the network input (controlnet_aux detect resolution; rounded to a multiple of 64).
         safe: Quantize the map to 3 levels as controlnet_aux's `safe=True` (`safe_step`).
         apply_filter: Threshold the map at 0.5 as controlnet_aux's `apply_filter=True`.
     """
 
-    resolution: int
+    short_side: int
     safe: bool
     apply_filter: bool
 
@@ -88,7 +88,7 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Soft edge map `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
-        x = to_detect(image, self.ctx.params.resolution).flip(1) / 255  # upstream feeds BGR
+        x = to_detect(image, self.ctx.params.short_side).flip(1) / 255  # upstream feeds BGR
         if self.cl:
             x = x.contiguous(memory_format=torch.channels_last)
         edge = self.net(x.to(self.dtype))[-1][:, 0].float()

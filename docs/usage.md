@@ -277,7 +277,7 @@ One name per concept across families; the old (upstream) names are accepted as a
 | Concept | Option | Old names |
 |---|---|---|
 | Longer side of the network input, px | `long_side` | `process_res` (Depth Anything 3), `processing_res` (Marigold), `resolution` (MapAnything) |
-| Shorter side (lower bound) of the network input, px | `short_side` | `input_size` (Depth Anything V2) |
+| Shorter side (lower bound) of the network input, px | `short_side` | `input_size` (Depth Anything V2), `resolution` and `detect_resolution` (edges) |
 | Side of a square with the network input's area, px | `area_side` | `resolution` (VGGT-Omega) |
 | Resolution level 0 to 9 (not pixels) | `resolution_level` | |
 | Recurrent refinement iterations | `iters` | |

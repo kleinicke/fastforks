@@ -1759,7 +1759,7 @@ def _edges(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
 
     def run(image: Any) -> Any:  # noqa: ANN401 - CUDA uint8 CHW
         img = image.permute(1, 2, 0).cpu().numpy()
-        return predict(net, img, card.options["resolution"])
+        return predict(net, img, card.options["short_side"])
 
     return run
 

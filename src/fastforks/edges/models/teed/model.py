@@ -27,11 +27,11 @@ class Params:
     """Card `[params]` + `[options]`.
 
     Attributes:
-        resolution: Detect resolution: the short side of the network input (rounded to a multiple of 64).
+        short_side: The short side of the network input (controlnet_aux detect resolution; rounded to a multiple of 64).
         safe_steps: Quantization steps of the map (controlnet_aux `safe_step`); 0 = the soft map.
     """
 
-    resolution: int
+    short_side: int
     safe_steps: int
 
 
@@ -52,7 +52,7 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Soft edge map `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
-        x = to_detect(image, self.ctx.params.resolution)
+        x = to_detect(image, self.ctx.params.short_side)
         edge = edge_map(self.net(x.to(self.dtype)))
         if self.ctx.params.safe_steps:
             edge = safe_step(edge, self.ctx.params.safe_steps)

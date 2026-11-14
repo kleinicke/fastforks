@@ -35,12 +35,12 @@ class Params:
     """Card `[params]` + `[options]`.
 
     Attributes:
-        resolution: Detect resolution: the short side of the network input (rounded to a multiple of 64).
+        short_side: The short side of the network input (controlnet_aux detect resolution; rounded to a multiple of 64).
         thr_v: Center score threshold (kept if above).
         thr_d: Segment length threshold in half-resolution pixels (kept if above).
     """
 
-    resolution: int
+    short_side: int
     thr_v: float
     thr_d: float
 
@@ -159,7 +159,7 @@ class Portable(Runner):
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[torch.Tensor]]:
         """Line map `[B, H, W]` and segments (`B` x `[N, 4]`, input pixels) of `[B, 3, H, W]` RGB in `[0, 1]`."""
         p = self.ctx.params
-        x = to_detect(image, p.resolution)
+        x = to_detect(image, p.short_side)
         hd, wd = x.shape[-2:]
         x = torch.cat((x, torch.ones_like(x[:, :1])), 1) / 127.5 - 1
         if self.cl:

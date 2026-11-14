@@ -42,7 +42,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/TheMistoAI/ComfyUI-Anyline/blob/40d7b290fe829d50e4e12e7f34498c2d30913b53/LICENSE ; https://huggingface.co/TheMistoAI/MistoLine/blob/1d9d0b3d48b295cf70d80a0f839a3055672f8393/README.md
 - Training data: Not stated for MTEED (TheMistoAI/MistoLine `Anyline/MTEED.pth`, the TEED network).
 - Licence note: The MTEED weights use the OpenRAIL++-M licence: commercial use is allowed but with use restrictions that must be passed on; the training data terms are not checked.
-- Options: `resolution` = 1280 (>= 64; also `detect_resolution`)
+- Options: `short_side` = 1280 (>= 64; also `resolution`; also `detect_resolution`)
 - Kernel libraries: none (the MTEED CNN plus a GPU blend, a few ms; no custom kernel measured to pay off)
 - Variants: `anyline`
 - Outputs: edges
@@ -88,7 +88,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/hed/__init__.py ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1); HED (Xie and Tu) trains on BSDS500; this re-trained model states no data.
-- Options: `resolution` = 512 (>= 64; also `detect_resolution`), `safe` = False
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `safe` = False
 - Kernel libraries: none (a VGG-style CNN: cuDNN convolutions are the whole time; no custom kernel measured to pay off)
 - Variants: `hed`
 - Outputs: edges
@@ -131,7 +131,7 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/lineart/LICENSE ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1); informative-drawings trains on unpaired photographs and line drawings.
-- Options: `resolution` = 512 (>= 64; also `detect_resolution`)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`)
 - Kernel libraries: none (a small conv generator: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off)
 - Variants: `lineart`, `lineart-coarse`
 - Outputs: edges
@@ -176,7 +176,7 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/lineart_anime/LICENSE ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1); ControlNet 1.1 describes the anime line art model as trained on anime illustrations and their line drawings.
-- Options: `resolution` = 512 (>= 64; also `detect_resolution`)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`)
 - Kernel libraries: none (a pix2pix U-Net: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off)
 - Variants: `lineart-anime`
 - Outputs: edges
@@ -217,7 +217,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/lhwcv/mlsd_pytorch/blob/2312205254e66911703decf775f626995d260f17/LICENSE ; https://github.com/lhwcv/mlsd_pytorch/tree/2312205254e66911703decf775f626995d260f17/models
 - Training data: Not stated for this checkpoint; the M-LSD paper trains on the Wireframe dataset (Huang et al. 2018, no licence stated).
-- Options: `resolution` = 512 (>= 64; also `detect_resolution`), `thr_v` = 0.1 (0.0 to 1.0), `thr_d` = 0.1 (>= 0.0)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `thr_v` = 0.1 (0.0 to 1.0), `thr_d` = 0.1 (>= 0.0)
 - Kernel libraries: none (a MobileNetV2 CNN (cuDNN); decoding is a few small ops; no custom kernel measured to pay off)
 - Variants: `mlsd`
 - Outputs: edges, lines
@@ -259,7 +259,7 @@ Commercial use: **no** (code: LicenseRef-research-only (noncommercial); weights:
 - Weights licence: LicenseRef-research-only (assumed from code)
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/pidi/LICENSE ; https://github.com/hellozhuo/pidinet/blob/master/LICENSE ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1). The file name matches the paper's table 5 BSDS500 model.
-- Options: `resolution` = 512 (>= 64; also `detect_resolution`), `apply_filter` = False, `safe` = False
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `apply_filter` = False, `safe` = False
 - Kernel libraries: none (the converted network is plain convolutions (cuDNN); no custom kernel measured to pay off)
 - Variants: `pidinet`
 - Outputs: edges
@@ -300,7 +300,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/xavysp/TEED/blob/40fa4b1391dc6424f88989d0ca75d5b592c8681d/LICENSE ; https://github.com/xavysp/TEED/tree/40fa4b1391dc6424f88989d0ca75d5b592c8681d/checkpoints/BIPED/5
 - Training data: BIPED (Barcelona Images for Perceptual Edge Detection) (BIPED (the repository's checkpoints/BIPED folder and README); the dataset is for non-commercial use.)
-- Options: `resolution` = 512 (>= 64; also `detect_resolution`), `safe_steps` = 2 (0 to 255)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `safe_steps` = 2 (0 to 255)
 - Kernel libraries: none (a 58 k-parameter CNN that runs in a few ms; no custom kernel measured to pay off)
 - Variants: `teed`
 - Outputs: edges

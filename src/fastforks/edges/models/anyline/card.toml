@@ -27,7 +27,7 @@ evidence = "https://github.com/TheMistoAI/ComfyUI-Anyline/blob/40d7b290fe829d50e
 input = "0-1"  # the runner resizes to the detect size (OpenCV area / cubic on uint8 levels) and feeds 0..255
 
 [options]
-resolution = { default = 1280, min = 64, aliases = ["detect_resolution"] }  # detect resolution: the network input's short side, sides rounded to a multiple of 64 (controlnet_aux detect_resolution)
+short_side = { default = 1280, min = 64, aliases = ["resolution", "detect_resolution"] }  # the network input's short side, sides rounded to a multiple of 64 (controlnet_aux detect_resolution)
 
 [modes.portable]
 cuda_dtype = "float16"

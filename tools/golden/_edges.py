@@ -229,7 +229,7 @@ def main(family: str) -> None:
     for card, variant in registry.cards("edges").values():
         if card.family != family:
             continue
-        res = card.options["resolution"]
+        res = card.options["short_side"]
         net = build(checkout, wdir / variant.weights[0].name)
         edges = predict(net, img, res)
         write(

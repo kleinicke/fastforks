@@ -218,7 +218,7 @@ def fastforks.matching._api.MatchingModel.match_pairs(self, images: 'Sequence[Im
 def fastforks.matching._api.MatchingModel.module(self) -> 'torch.nn.Module'
 def fastforks.matching._api.MatchingResult.matches(self, n: 'int' = 5000, *, threshold: 'float' = 0.05, seed: 'int' = 0, balanced: 'bool' = True) -> 'tuple[torch.Tensor, torch.Tensor]'
 def fastforks.matching._api.MatchingResult.verify(self, k1: 'torch.Tensor | None' = None, k2: 'torch.Tensor | None' = None, *, n: 'int' = 5000, seed: 'int' = 0, threshold: 'float | None' = None, mode: 'Mode' = 'auto') -> 'VerifiedMatches'
-def fastforks.matching._api.SparseMatchingResult.matches(self, threshold: 'float' = 0.0) -> 'tuple[torch.Tensor, torch.Tensor]'
+def fastforks.matching._api.SparseMatchingResult.matches(self, *, score_threshold: 'float' = 0.0) -> 'tuple[torch.Tensor, torch.Tensor]'
 def fastforks.matching._api.SparseMatchingResult.verify(self, k1: 'torch.Tensor | None' = None, k2: 'torch.Tensor | None' = None, *, threshold: 'float | None' = None, mode: 'Mode' = 'auto') -> 'VerifiedMatches'
 def fastforks.matching.absolute_pose.estimate_absolute_pose(points2d: 'torch.Tensor', points3d: 'torch.Tensor', k: 'torch.Tensor', *, threshold: 'float' = 2.0, mask: 'torch.Tensor | None' = None, mode: "Literal['auto', 'portable', 'kernels']" = 'auto') -> 'AbsolutePose'
 def fastforks.matching.estimate_absolute_pose(points2d: 'torch.Tensor', points3d: 'torch.Tensor', k: 'torch.Tensor', *, threshold: 'float' = 2.0, mask: 'torch.Tensor | None' = None, mode: "Literal['auto', 'portable', 'kernels']" = 'auto') -> 'AbsolutePose'
@@ -939,19 +939,19 @@ option detection.rtmdet.score_threshold
 option detection.yolox.cuda_graphs
 option detection.yolox.max_detections
 option detection.yolox.score_threshold
-option edges.anyline.resolution aliases detect_resolution
-option edges.hed.resolution aliases detect_resolution
+option edges.anyline.short_side aliases detect_resolution,resolution
 option edges.hed.safe
-option edges.lineart.resolution aliases detect_resolution
-option edges.lineart_anime.resolution aliases detect_resolution
-option edges.mlsd.resolution aliases detect_resolution
+option edges.hed.short_side aliases detect_resolution,resolution
+option edges.lineart.short_side aliases detect_resolution,resolution
+option edges.lineart_anime.short_side aliases detect_resolution,resolution
+option edges.mlsd.short_side aliases detect_resolution,resolution
 option edges.mlsd.thr_d
 option edges.mlsd.thr_v
 option edges.pidinet.apply_filter
-option edges.pidinet.resolution aliases detect_resolution
 option edges.pidinet.safe
-option edges.teed.resolution aliases detect_resolution
+option edges.pidinet.short_side aliases detect_resolution,resolution
 option edges.teed.safe_steps
+option edges.teed.short_side aliases detect_resolution,resolution
 option features.c_radio.fp16_accumulate
 option features.c_radio.fp32_accumulate
 option features.clip.fp16_accumulate
