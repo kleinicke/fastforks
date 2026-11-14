@@ -593,6 +593,31 @@ def _compact(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - ad
     return lambda img: g.run(up, img)
 
 
+def _lama(a: Any, full: str) -> Any:  # noqa: ANN401, ARG001 - adapter signature (one variant)
+    """Upstream `FFCResNetGenerator` called as `bin/predict.py` (`tools/golden/lama.py`), float32 as upstream.
+
+    `FF_LAMA_REPO`: an advimman/lama clone; `FF_LAMA_WEIGHTS`: the unpacked big-lama.zip. The dataset step (/ 255,
+    symmetric padding to 8) is untimed `prep`; timed: mask > 0, masked image + mask, generator, paste-back, crop.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("lama")
+    net, pad = g.build(
+        Path(os.environ["FF_LAMA_REPO"]),
+        Path(os.environ["FF_LAMA_WEIGHTS"]) / "models" / "best.ckpt",
+        torch.device("cuda"),
+    )
+    a.note = f"advimman/lama@{g.REF_COMMIT[:12]} FFCResNetGenerator, predict.py padding / masking / paste-back"
+
+    def prep(args: tuple[Any, ...]) -> tuple[Any, ...]:
+        img, m = args[0], args[1][0, 0]
+        x, mk = g.pad_inputs(pad, img.cpu().numpy(), (m * 255).byte().cpu().numpy())
+        return torch.from_numpy(x)[None].cuda(), torch.from_numpy(mk)[None].cuda(), tuple(img.shape[-2:])
+
+    a._prep = prep  # noqa: SLF001 - the pad function comes with the build
+    return lambda x, mk, size: g.run(net, x, mk, size)
+
+
 def _realplksr(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     """Neosr realplksr in eval mode as `tools/golden/realplksr.py` (`FF_REALPLKSR_REPO`, `FF_REALPLKSR_WEIGHTS`).
 
@@ -2123,6 +2148,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "realesrgan": _LocalFp16("restoration", _realesrgan, ((512, 512),), _hwc01),
     "span": _Local("restoration", _span, ((512, 512),), _bchw01),
     "compact": _LocalFp16("restoration", _compact, ((512, 512),), _hwc01),
+    "lama": _LocalMask("restoration", _lama, ((512, 512),)),
     "realplksr": _Local("restoration", _realplksr, ((512, 512),), _bchw01),
     "swinir": _Local("restoration", _swinir, ((512, 512),), _bchw01),
     "hat": _Local("restoration", _hat, ((512, 512),), _bchw01),

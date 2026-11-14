@@ -1,0 +1,51 @@
+schema = 2
+name = "LaMa (big-lama inpainting)"
+summary = "LaMa (Suvorov et al., WACV 2022): resolution-robust large-mask inpainting with fast Fourier convolutions: an encoder of three strided convs, 18 FFC residual blocks whose global branch convolves in the frequency domain (an image-wide receptive field from the first block) and a transposed-conv decoder. big-lama (51 M parameters) is the authors' best model, trained on Places365 at 256 x 256 and works at higher resolutions. Pass `mask=` (nonzero = the region to fill); the rest of the image is kept unchanged."
+tier = "experimental"
+outputs = ["image"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+limitations = [
+  "Fills the masked region from the surrounding image; it does not take a text prompt. The authors' refinement step (`refine=True`, an iterative multi-scale optimisation) is not implemented.",
+  "Any nonzero mask pixel is a hole (upstream binarises with `mask > 0`): anti-aliased or JPEG masks grow; threshold them first.",
+]
+
+[upstream]
+repo = "https://github.com/advimman/lama"
+commit = "786f5936b27fb3dacd2b1ad799e4de968ea697e7"  # saicinpainting/training/modules/ffc.py (FFCResNetGenerator); the call is bin/predict.py with configs/prediction/default.yaml (pad_out_to_modulo 8, no refinement)
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # the README's big-lama download is the smartywu/big-lama Hugging Face mirror, model card license: apache-2.0
+files = ["LICENSE"]
+training_data = ["places365"]
+training_note = "big-lama: Places365-Challenge (about 4.5 M images used) with LaMa's random wide / box masks, 256 x 256 crops (paper Sec. 4 and README)."
+evidence = "https://github.com/advimman/lama/blob/786f5936b27fb3dacd2b1ad799e4de968ea697e7/LICENSE ; https://github.com/advimman/lama/blob/786f5936b27fb3dacd2b1ad799e4de968ea697e7/README.md ; https://huggingface.co/smartywu/big-lama/blob/05cb2be7f8dbe6ca7c6e78f4fc827a4b2baaa4a9/README.md"
+
+[io]
+input = "0-1"  # predict.py: the image / 255, the mask / 255 > 0
+pad = { multiple = 8, mode = "bottom_right", fill = "family" }  # numpy symmetric padding (pad_img_to_modulo)
+min_size = 16  # the 18 blocks reflect-pad at 1 / 8 of the size, which needs 2 px
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network from a CUDA graph per input size (false: eager, no graph pool)
+
+[params]
+scale = 1
+
+[modes.portable]
+cuda_dtype = "float16"  # convolutions; the Fourier units float32 (upstream: float32 throughout)
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions, channels-last, CUDA graphs
+
+[[papers]]
+title = "Resolution-robust Large Mask Inpainting with Fourier Convolutions"
+url = "https://arxiv.org/abs/2109.07161"
+date = "2021-09-15"
+venue = "WACV 2022"
+
+[[variants]]
+id = "big-lama"
+revision = 1
+weights = [{ name = "big-lama.ckpt", size = 410046389, sha256 = "fccb7adffd53ec0974ee5503c3731c2c2f1e7e07856fd9228cdcc0b46fd5d423", url = "https://huggingface.co/smartywu/big-lama/resolve/05cb2be7f8dbe6ca7c6e78f4fc827a4b2baaa4a9/big-lama.zip", member = "big-lama/models/best.ckpt", archive = { size = 381428720, sha256 = "f1b358ca24093b93a106183b98a3dea6e8ed09f3b43ea7251eb2c81e7b4575f6" } }]

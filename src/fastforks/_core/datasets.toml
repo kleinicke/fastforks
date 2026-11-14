@@ -443,3 +443,8 @@ licence = "not stated"  # the dataset repository has no licence file and its REA
 commercial = "unclear"
 url = "https://github.com/ChenyunWu/PhraseCutDataset/blob/276470b7773d8a230aee5b5536876fbc485fb04b/README.md"
 
+[places365]
+name = "Places365-Challenge (8 M scene images, 365 categories)"
+licence = "non-commercial research and educational use"  # terms of use on the download page; the images are Flickr / web photos
+commercial = "no"
+url = "http://places2.csail.mit.edu/download.html"
