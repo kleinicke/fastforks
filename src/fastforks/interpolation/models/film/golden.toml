@@ -20,5 +20,5 @@ symbols = {}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-14"
-mean_px = 0.0003
-p99_px = 0.00134
+mean_px = 0.00034
+p99_px = 0.00154
