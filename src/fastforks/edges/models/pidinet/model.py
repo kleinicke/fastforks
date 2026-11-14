@@ -75,7 +75,6 @@ class Portable(Runner):
 
     Params = Params
     dtypes = ("float32", "float16")
-    compiled_methods = ("net",)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network (`convert=True`) from the PDC checkpoint."""

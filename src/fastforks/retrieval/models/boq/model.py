@@ -123,7 +123,6 @@ class Portable(_BoQ):
     """Plain PyTorch, float32 or float16 (SDPA attention)."""
 
     dtypes = ("float32", "float16")
-    compiled_methods = ("_descriptor",)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""

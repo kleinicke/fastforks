@@ -117,7 +117,6 @@ class Portable(_MegaLoc):
     """Plain PyTorch, float32 or float16 (SDPA attention; Sinkhorn in float32)."""
 
     dtypes = ("float32", "float16")
-    compiled_methods = ("_descriptor",)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""

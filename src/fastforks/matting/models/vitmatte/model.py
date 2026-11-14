@@ -153,7 +153,6 @@ class _Matting(Runner):
 
     Params = Params
     trimap: ClassVar = "required"
-    compiled_methods = ("_net",)
     net: VitMatteForImageMatting
     dtype: torch.dtype
 

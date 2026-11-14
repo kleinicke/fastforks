@@ -24,6 +24,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.patch import override
+from fastforks._core.runner import host
 from fastforks.matting._runner import Runner
 
 from .net.inference.inference_core import InferenceCore
@@ -178,6 +179,7 @@ class Portable(Runner):
         out = [next(iter(self._alphas(lambda _t, x=x: x[None], 1, m[0]))) for x, m in zip(image, trimap, strict=True)]
         return {"alpha": torch.stack(out)}
 
+    @host
     def track(
         self, frames: Callable[[int], torch.Tensor], n_frames: int, size: tuple[int, int], mask: torch.Tensor
     ) -> dict[str, torch.Tensor]:
