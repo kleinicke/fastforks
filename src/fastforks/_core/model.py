@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, cast, get_arg
 import torch
 
 from fastforks._core import mps, registry, warmup
-from fastforks._core.arguments import bind_error
+from fastforks._core.arguments import bind_error, warn_renamed
 from fastforks._core.cards import Dtype  # noqa: TC001 - re-exported to the task APIs, which annotate with it
 from fastforks._core.checkpoint import mismatch_details, torch_mismatch
 from fastforks._core.deferred_init import deferred_init, float32_default
@@ -510,13 +510,9 @@ class Model:
         return self
 
     def export_size(self) -> tuple[int, int] | None:
-        """Default `(height, width)` of `export_onnx` / `export_tensorrt`, or `None` if the task has none.
-
-        Classification (the card's crop), features (224) and promptable segmentation (the encoder side: 1024, SAM 3
-        1008) have one; stereo, depth, segmentation and detection do not: give a size inside `size_range()`.
-        """
-        side = size_range(self.variant, self.card).encoder if self.card.task == "promptable_segmentation" else 0
-        return (side, side) if side else spec(self.card.task).export_size
+        """The old name of `size_range().export_size` (warns; removed after 2026-12-15)."""
+        warn_renamed("model.export_size()", "model.size_range().export_size")
+        return self.size_range().export_size
 
     def size_range(self) -> SizeRange:
         """Input sizes this model accepts: min size, pad multiple, fixed size, and the largest size measured."""
@@ -538,7 +534,7 @@ class Model:
         override this.
 
         Args:
-            height: Image height in pixels; default (with `width`): `export_size()` where the task has one.
+            height: Image height in pixels; default (with `width`): `size_range().export_size` where the task has one.
             width: Image width in pixels.
             batch: Batch size.
 
@@ -580,8 +576,9 @@ class Model:
 
         Args:
             path: ONNX file to write.
-            height: Input height of the exported graph (fixed); default: `export_size()`; required if the task has none.
-            width: Input width (fixed); default: `export_size()`; required if the task has none.
+            height: Input height of the exported graph (fixed); default: `size_range().export_size`; required if the
+                task has none.
+            width: Input width (fixed); default: `size_range().export_size`; required if the task has none.
             batch: Batch size (fixed).
             size_range: `((min_h, min_w), (max_h, max_w))`: make height and width dynamic axes within these bounds
                 (traced at `(height, width)`); default: the fixed size.
@@ -613,8 +610,9 @@ class Model:
 
         Args:
             path: Engine file to write.
-            height: Input height of the engine (fixed); default: `export_size()`; required if the task has none.
-            width: Input width (fixed); default: `export_size()`; required if the task has none.
+            height: Input height of the engine (fixed); default: `size_range().export_size`; required if the task
+                has none.
+            width: Input width (fixed); default: `size_range().export_size`; required if the task has none.
             batch: Batch size (fixed).
             size_range: `((min_h, min_w), (max_h, max_w))`: a dynamic-shape engine with an optimization profile (min,
                 opt = `(height, width)`, max); not faster than a fixed engine, see export.md.

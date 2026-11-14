@@ -472,11 +472,6 @@ def _export(card: ModelCard, v: Variant, uses: Mapping[str, Any]) -> dict[str, A
     inputs: tuple[str, ...] = spec(card.task).inputs
     if card.task in _EXTRA_INPUT_TASKS:  # the image(s), then the cameras / trimap / mask / prompt the model requires
         inputs = (inputs[0], *(k for k in inputs[1:] if uses.get(k) == "required"))
-    side = 0  # as `Model.export_size()`: the classification crop, the promptable encoder side, else the task's
-    if card.task == "classification":
-        side = v.io.crop or v.io.resize
-    elif card.task == "promptable_segmentation":
-        side = size_range(v, card).encoder
     reason = fixed_size_reason(card, size_range(v, card))
     return {
         "mode": "portable",
@@ -485,5 +480,5 @@ def _export(card: ModelCard, v: Variant, uses: Mapping[str, Any]) -> dict[str, A
         "outside": outside,
         "dynamic": not reason,
         "fixed_reason": reason,
-        "default_size": (side, side) if side else spec(card.task).export_size,
+        "default_size": size_range(v, card).export_size,
     }

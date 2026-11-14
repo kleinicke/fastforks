@@ -107,3 +107,10 @@ def test_shared_types_in_tasks(task):
         assert name not in module.__all__
         with _warns(rf"fastforks\.{name}"):
             assert getattr(module, name) is getattr(fastforks, name)
+
+
+def test_export_size(fake):  # noqa: F811 - the fixture
+    fake("promptable_segmentation", Concept, ["boxes", "scores", "masks"], {})
+    m = promptable_segmentation.load("fake", device="cpu")
+    with _warns(r"model\.size_range\(\)\.export_size"):
+        assert m.export_size() == m.size_range().export_size is not None

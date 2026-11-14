@@ -176,7 +176,6 @@ def fastforks.calibration.load(model: 'str', *, mode: 'ModeArg' = 'auto', device
 def fastforks.calibration.model_card(model: 'str') -> 'ModelCard'
 def fastforks.classification._api.ClassificationModel.__call__(self, image: 'ImageLike') -> 'ClassificationResult'
 def fastforks.classification._api.ClassificationModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
-def fastforks.classification._api.ClassificationModel.export_size(self) -> 'tuple[int, int] | None'
 def fastforks.classification._api.ClassificationResult.top(self, k: 'int' = 5) -> 'list[tuple[str, float]] | list[list[tuple[str, float]]]'
 def fastforks.classification.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.classification.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, class_names: 'Sequence[str] | None' = None, **options: 'object') -> 'ClassificationModel'
@@ -403,6 +402,7 @@ field fastforks._core.model.Backend.library: str
 field fastforks._core.model.Backend.mode: Literal['portable', 'kernels']
 field fastforks._core.model.Backend.weights: tuple[str, ...]
 field fastforks._core.sizes.SizeRange.encoder: int
+field fastforks._core.sizes.SizeRange.export_size: tuple[int, int] | None
 field fastforks._core.sizes.SizeRange.min_size: int
 field fastforks._core.sizes.SizeRange.multiple: int
 field fastforks._core.sizes.SizeRange.native: tuple[int, int] | None

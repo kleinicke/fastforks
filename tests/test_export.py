@@ -308,7 +308,7 @@ def test_onnx_features(ref, tmp_path):
     import onnxruntime as ort  # noqa: PLC0415 - optional
 
     model = _load(ref)
-    size = model.export_size()
+    size = model.size_range().export_size
     assert all(s % model.stride == 0 for s in size)  # the exported graph runs at export_size, not a snapped size
     (image,) = model.example_inputs(*size)
     path = model.export_onnx(tmp_path / "m.onnx")
@@ -378,15 +378,17 @@ def test_classification_export_overrides():
     from fastforks.classification._api import ClassificationModel  # noqa: PLC0415
 
     model: Any = object.__new__(ClassificationModel)  # a stub: only what the overrides read
-    model.card = SimpleNamespace(task="classification")
+    model.card = SimpleNamespace(task="classification", family="x", params={})
     model.device = "cpu"
-    io = SimpleNamespace(crop=0, resize=0, input="imagenet", mean=(), std=())
-    model.variant = SimpleNamespace(io=io)
-    assert model.export_size() == spec("classification").export_size == (224, 224)  # no crop / resize: the task default
+    io = SimpleNamespace(crop=0, resize=0, input="imagenet", mean=(), std=(), min_size=1, pad_mode="none")
+    model.variant = SimpleNamespace(io=io, ref="x@1")
+    assert (
+        model.size_range().export_size == spec("classification").export_size == (224, 224)
+    )  # no crop / resize: the task default
     io.resize = 256
-    assert model.export_size() == (256, 256)
+    assert model.size_range().export_size == (256, 256)
     io.crop = 224
-    assert model.export_size() == (224, 224)
+    assert model.size_range().export_size == (224, 224)
     (x,) = model.example_inputs(32, 48, batch=2)
     assert x.shape == (2, 3, 32, 48)
     assert x.min() < 0  # ImageNet-normalised, not [0, 1]

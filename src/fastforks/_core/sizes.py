@@ -8,6 +8,8 @@ from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from fastforks._core.tasks import spec
+
 if TYPE_CHECKING:
     from fastforks._core.cards import ModelCard, Variant
 
@@ -52,6 +54,9 @@ class SizeRange:
         tested_max: Largest `(H, W)` measured, or `None` (not measured yet).
         tested_alloc_mib: Peak allocated GPU memory at `tested_max`, MiB.
         tested_reserved_mib: Peak reserved GPU memory at `tested_max`, MiB.
+        export_size: Default `(H, W)` of `export_onnx` / `export_tensorrt`, or `None`: give a size (stereo, depth,
+            segmentation, detection). Classification: the card's crop; promptable segmentation: the encoder side;
+            else the task's (features 224).
     """
 
     min_size: int
@@ -64,6 +69,7 @@ class SizeRange:
     tested_alloc_mib: int = 0
     tested_reserved_mib: int = 0
     reject_below: int = 0
+    export_size: tuple[int, int] | None = None
 
     def example(self) -> tuple[int, int]:
         """`EXAMPLE_SIZE` rounded up to the pad multiple and not below the minimum: a size that exports."""
@@ -134,6 +140,9 @@ def size_range(variant: Variant, card: ModelCard | None = None) -> SizeRange:
         encoder = int(card.params.get("image_size", ENCODER_SIDE.get(card.family, 0)))
     multiple = 1 if encoder or io.pad_mode == "none" else io.pad_multiple
     hard = max(io.min_size, 0 if encoder else probed)
+    export = spec(card.task).export_size if card else None
+    if encoder or (side and card and card.task == "classification"):
+        export = (encoder or side, encoder or side)
     return SizeRange(
         min_size=max(hard, multiple),
         reject_below=hard,
@@ -142,6 +151,7 @@ def size_range(variant: Variant, card: ModelCard | None = None) -> SizeRange:
         patch=0 if encoder or side else PATCH.get(card.family, 0) if card else 0,
         native=(side, side) if side else None,
         resize=io.resize,
+        export_size=export,
         **kw,
     )
 

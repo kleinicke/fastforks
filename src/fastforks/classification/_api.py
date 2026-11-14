@@ -139,11 +139,6 @@ class ClassificationModel(core.Model):
             "crop_mode": "center",
         }
 
-    def export_size(self) -> tuple[int, int] | None:
-        """The transformed crop `module()` takes (`data_config["input_size"]`), the default export size."""
-        side = self.variant.io.crop or self.variant.io.resize
-        return (side, side) if side else super().export_size()
-
     def example_inputs(
         self, height: int | None = None, width: int | None = None, *, batch: int = 1
     ) -> tuple[torch.Tensor, ...]:

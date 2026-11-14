@@ -637,7 +637,7 @@ fastforks export depth-anything-v2-s --format trt --fp16 --size 518x770
 From Python: `model.export_onnx(path[, height, width])` and `model.export_tensorrt(path[, height, width])`; run an
 engine with `fastforks.TensorRTEngine(path)(left, right)` (or `(image)`). Exports have one fixed
 size and batch by default (size ranges: see [export](export.md)); the size must lie in `model.size_range()` (stereo, depth, segmentation and detection have no default size;
-classification and features default to `model.export_size()`). **A TensorRT engine only runs on the GPU model and
+classification and features default to `model.size_range().export_size`). **A TensorRT engine only runs on the GPU model and
 TensorRT version it was built with: build it on the target machine.** Install the exporters with
 `pip install "fastforks-core[onnx]"` / `"fastforks-core[tensorrt]"`. See [export](export.md) for inputs and outputs per task,
 what works per model and how TensorRT compares with `kernels`.

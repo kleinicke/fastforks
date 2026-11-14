@@ -46,6 +46,7 @@ public API from now on):
   `score_threshold=` (as detection); `result.options["score_threshold"]` records the one used (was `"threshold"`).
 - The shared types are only top level: `fastforks.depth.ModelCard` (and `Backend`, `ImageLike`, `SizeRange`,
   `TensorRTEngine` in every task package) -> `fastforks.ModelCard` etc.
+- `export_size` (`model.export_size()`) -> `model.size_range().export_size` (a `SizeRange` field).
 
 ### Models and fixes
 

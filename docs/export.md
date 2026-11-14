@@ -41,7 +41,7 @@ fastforks export s2m2-s --format trt --size 384x1248 --fp16       # the model's 
 | multi-view depth | `images` `[V, 3, H, W]`: the V views of one scene, RGB in `[0, 1]`; then the cameras the model requires (`intrinsics` `[V, 3, 3]`, `cam_to_world` `[V, 4, 4]`, `depth_range` `[2]`) | the model's main output (`depth`, ...); a model returning several outputs keeps their names (PatchmatchNet: `depth`, `confidence`) | one fixed size per export (no size range); no default, `--size` is required |
 
 `model.example_inputs(H, W)` gives synthetic inputs of exactly this form (what the export traces and checks with);
-`model.export_size()` is the default size where the task has one (classification: the crop; features: 224; promptable
+`model.size_range().export_size` is the default size where the task has one (classification: the crop; features: 224; promptable
 segmentation: the encoder side) and `None` otherwise; stereo, depth, segmentation, detection and multi-view depth have no default size: `export_onnx`, `export_tensorrt` and `fastforks export` without a size raise
 `InputError` naming the model's range and an example (`--size 704x1280`). `model.size_range()` returns a `SizeRange`
 (`min_size`: the smallest size that runs, from the model definition and a probe of every family; `multiple`; `native`; `encoder`;
