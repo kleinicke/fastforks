@@ -168,6 +168,14 @@
   (24.5 ms fp16), peak 1.0 GB vs 1.9 GB. DAVIS 2017 (180 triplets) PSNR 27.13 kernels / portable vs 27.13 original
   fp32 (27.03 fp16); the warps sample in float32.
 
+- GIMM-VFI frame interpolation (`gimm-vfi-r`, `gimm-vfi-r-p`, interpolation; nc: S-Lab License 1.0 code and weights):
+  RAFT flow, a continuous motion field and the softsplat synthesis of upstream `GIMMVFI_R`, any timestep in [0, 1],
+  frames replicate-padded to a multiple of 32 as upstream. 1080x1920 pair: 1.69 s kernels (the correlation windows on
+  the fly, fp16-accumulate decoder convs), 2.79 s portable; the original runs out of memory in fp32 and fp16 (16 GB);
+  peak 8.9 GB kernels, 15.3 GB portable (reserved). 480x854: 301 ms kernels, 505 ms portable vs 657 ms original fp32
+  (498 ms fp16), peak 2.4 GB vs 4.8 GB. DAVIS 2017 (180 triplets) PSNR 28.94 (`-p` 28.81) in every tier as the
+  original.
+
 - New task `fastforks.retrieval` (image retrieval / visual place recognition): one unit-length global descriptor per
   image, `top_k` (exact cosine top-k on the GPU, chunked) and `pairs` (image pairs for 3-D reconstruction).
 

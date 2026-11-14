@@ -1,0 +1,24 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 5e-05  # measured 7.3e-06 (gimm-vfi-r), 6.1e-06 (-p)
+gpu_mean = 0.0003  # measured fp16 4.1e-05 portable, 6.2e-05 kernels (fp16-accumulate decoder convs)
+gpu_p99 = 0.003  # measured fp16 3.4e-04 portable, 4.5e-04 kernels
+
+[refs."gimm-vfi-r-p@1"]
+sha256 = "6949db2b9b858364477203fb6f836c704a436195293acaea067c9e2703dbc488"
+upstream = "https://github.com/GSeanCDAT/GIMM-VFI@dbc56449994a3c2e045d46fd46bed570239913f8"
+patch = "gimm_vfi-cpu-softsplat.patch"
+patch_sha256 = "2a4ab1aa8c9421ce02a632b3d66938be7ef39e756d8043a2a9a156577be6bc11"
+settings = "CPU float32, upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32 centred, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."gimm-vfi-r@1"]
+sha256 = "ed277d101989ba9c1b86c8aa2cc9216b456a5c5bfa6470bc9571a20d60d61bc5"
+upstream = "https://github.com/GSeanCDAT/GIMM-VFI@dbc56449994a3c2e045d46fd46bed570239913f8"
+patch = "gimm_vfi-cpu-softsplat.patch"
+patch_sha256 = "2a4ab1aa8c9421ce02a632b3d66938be7ef39e756d8043a2a9a156577be6bc11"
+settings = "CPU float32, upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32 centred, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"

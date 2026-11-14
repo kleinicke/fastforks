@@ -570,6 +570,27 @@ def _rife(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapt
     return call
 
 
+def _gimm_vfi(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `GIMMVFI_R` as `tools/golden/gimm_vfi.py` (video_Nx.py: pad 32, one time 0.5, `ds_factor` 1).
+
+    `FF_GIMM_VFI_REPO`: a GSeanCDAT/GIMM-VFI clone; its imports (omegaconf, einops, easydict) and cupy (the authors'
+    CUDA softsplat) come from PYTHONPATH, `CUDA_HOME` its include path. Upstream has no fp16 option (fp16 tier =
+    autocast).
+    """
+    import cupy  # noqa: PLC0415  # ty: ignore[unresolved-import]  # the authors' softsplat kernel
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    if not hasattr(cupy.cuda, "compile_with_cache"):  # removed in cupy 14 (the CUDA 13 builds): its RawModule
+        cupy.cuda.compile_with_cache = lambda code, options=(): cupy.RawModule(code=code, options=options)
+    g = _golden("gimm_vfi")
+    tree = g.reference_tree(Path(os.environ["FF_GIMM_VFI_REPO"]), g.REF_COMMIT, g.PATCH)
+    card, variant = registry.resolve("interpolation", full)
+    model = g.build(tree, registry.weights(card, variant, allow_download=False)[0]).cuda()
+    a.note = "upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat"
+    return lambda im1, im2: g.interpolate(model, im1[None].float() / 255, im2[None].float() / 255)
+
+
 def _realesrgan(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
     """Upstream `RealESRGANer` as `tools/golden/realesrgan.py`; fp16 = inference_realesrgan.py's default (`half`).
 
@@ -2190,6 +2211,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "megaflow": _LocalFp16("flow", _megaflow, ((1080, 1920), (375, 1242))),
     "recover": _Local("flow", _recover, ((1080, 1920), (375, 1242))),
     "rife": _LocalFp16("interpolation", _rife, ((1080, 1920),)),
+    "gimm_vfi": _Local("interpolation", _gimm_vfi, ((480, 854), (1080, 1920))),
     "realesrgan": _LocalFp16("restoration", _realesrgan, ((512, 512),), _hwc01),
     "span": _Local("restoration", _span, ((512, 512),), _bchw01),
     "compact": _LocalFp16("restoration", _compact, ((512, 512),), _hwc01),

@@ -69,6 +69,9 @@ In this order, unless something more useful turns up:
 - RIFE (`rife-4.25`, `rife-4.26`, `rife-4.25-lite`, interpolation): portable MPS goldens and Mac speed rows
   (1080x1920 pair). No Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
   `~/scratch_tests/port-p5/w/rife/` on the CUDA machine).
+- GIMM-VFI (`gimm-vfi-r`, `gimm-vfi-r-p`, interpolation, nc weights): portable MPS goldens and Mac speed rows
+  (480x854 pair; the splatting is plain torch `scatter_add`, check its speed on MPS). No Metal kernels runner. Weights:
+  the pinned HF URLs of the card (also in `data/ff-weights/gimm_vfi/`).
 - MegaLoc (`megaloc`, new retrieval task): portable float32 MPS goldens and Mac speed rows at 480x640. No Metal
   kernels runner. Weights: the pinned HF URL of the card (also in `data/ff-weights/megaloc/`).
 - BoQ (`boq-dinov2`, retrieval): portable float32 MPS goldens and Mac speed rows at 480x640. No Metal kernels runner.

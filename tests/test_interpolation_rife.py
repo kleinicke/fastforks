@@ -26,7 +26,7 @@ def test_card_variants() -> None:
     for vid, c4 in VARIANTS.items():
         card, variant = cards[vid]
         assert {**card.params, **variant.params}["c4"] == c4, vid
-    assert interpolation.list_models()[0] == "rife-4.25"  # the default: upstream's recommended release
+    assert interpolation.list_models(family="rife")[0] == "rife-4.25"  # upstream's recommended release first
 
 
 @pytest.fixture(scope="module")

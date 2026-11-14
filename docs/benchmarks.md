@@ -1092,6 +1092,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
+| gimm-vfi-r | OOM | 2791 | 1695 | – | 1.6x | – | 13698 / 15340 | 7860 / 8942 |
+| gimm-vfi-r-p | OOM | 2797 | 1695 | – | 1.7x | – | 13698 / 15180 | 7860 / 8882 |
 | rife-4.25 | 24.5 | 25.0 | 21.5 | 1.1x | 1.2x | 987 / 1154 | 755 / 894 | 967 / 1076 |
 | rife-4.25-lite | 21.3 | 21.1 | 18.3 | 1.2x | 1.2x | 1012 / 1214 | 754 / 854 | 950 / 1056 |
 | rife-4.26 | 24.2 | 25.1 | 21.4 | 1.1x | 1.2x | 1004 / 1154 | 755 / 896 | 967 / 1076 |
@@ -1632,6 +1634,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | tapnext | 16.92 | 2.72 | 2.63 | 2.17 | 0.69 | 0.56 |
 | track-on-r | 0.88 | 0.24 | 1.11 | 2.91 | 1.99 | 1.72 |
 | track-on2 | 3.77 | 0.46 | 1.17 | 3.63 | 2.64 | 1.75 |
+| gimm-vfi-r | 2.05 (480x854) | 0.17 | 0.75 | 1.34 (480x854) | 2.79 | 1.69 |
+| gimm-vfi-r-p | 2.96 (480x854) | 0.56 (480x854) | 0.81 (480x854) | 1.44 (480x854) | 1.13 (480x854) | 0.69 (480x854) |
 | rife-4.25 | 1.42 | 0.31 | 1.50 | 0.27 | 0.49 | 0.20 |
 | rife-4.25-lite | 0.18 | 1.00 | 1.11 | 0.12 | 0.23 | 0.18 |
 | rife-4.26 | 0.18 | 0.78 | 1.15 | 0.05 | 0.24 | 0.20 |

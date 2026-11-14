@@ -705,7 +705,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Interpolation
 
-3 models; size 1080x1920.
+5 models; size 1080x1920.
 
 - Fastest: [`rife-4.25-lite`](models/interpolation.md#rife) (18.3 ms).
 - Fastest commercially usable: [`rife-4.25-lite`](models/interpolation.md#rife) (18.3 ms).
@@ -715,6 +715,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rife-4.25-lite`](models/interpolation.md#rife) | yes | 21.3 (1080x1920) | 21.1 | 18.3 | 1.2x vs original (1080x1920) | 950 |
 | [`rife-4.26`](models/interpolation.md#rife) | yes | 24.2 (1080x1920) | 25.1 | 21.4 | 1.1x vs original (1080x1920) | 967 |
 | [`rife-4.25`](models/interpolation.md#rife) | yes | 24.5 (1080x1920) | 25.0 | 21.5 | 1.1x vs original (1080x1920) | 967 |
+| [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2791.2 | 1694.7 | 1.6x vs portable | 7860 |
+| [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2796.9 | 1695.0 | 1.7x vs portable | 7860 |
 
 ## Restoration
 
