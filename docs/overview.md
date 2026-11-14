@@ -689,7 +689,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Tracking
 
-10 models; size 480x854.
+12 models; size 480x854.
 
 - Fastest: [`tapir`](models/tracking.md#tapir) (140.8 ms).
 - Fastest commercially usable: [`tapir`](models/tracking.md#tapir) (140.8 ms).
@@ -698,6 +698,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 |---|---|---|---|---|---|---|
 | [`tapir`](models/tracking.md#tapir) | yes | 186.9 (480x854) | 181.8 | 140.8 | 1.3x vs original (480x854) | 463 |
 | [`locotrack-s`](models/tracking.md#locotrack) | yes | 192.8 (480x854) | 179.5 | 151.1 | 1.3x vs original (480x854) | 764 |
+| [`cotracker3-offline`](models/tracking.md#cotracker3) | no | 243.5 (480x854) | 162.1 | 154.2 | 1.6x vs original (480x854) | 799 |
+| [`cotracker3-online`](models/tracking.md#cotracker3) | no | 327.7 (480x854) | 184.0 | 176.3 | 1.9x vs original (480x854) | 798 |
 | [`locotrack-b`](models/tracking.md#locotrack) | yes | 203.3 (480x854) | 190.1 | 177.6 | 1.1x vs original (480x854) | 782 |
 | [`bootstapir`](models/tracking.md#tapir) | yes | 242.5 (480x854) | 233.7 | 192.5 | 1.3x vs original (480x854) | 508 |
 | [`alltracker`](models/tracking.md#alltracker) | yes | 485.3 (480x854) | 391.2 | 221.3 | 2.2x vs original (480x854) | 1076 |

@@ -2091,6 +2091,31 @@ def _locotrack(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - 
     return call
 
 
+def _cotracker(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream CoTracker3 (CUDA, unpatched) driven as its predictor via `tools/golden/cotracker.py`, 384 x 512.
+
+    Offline: the whole video with a 6 x 6 support grid; online: 16-frame windows, step 8. fp16:
+    `torch.autocast("cuda", torch.float16)`. Needs `COTRACKER_SRC`, a facebookresearch/co-tracker checkout with the
+    pinned commit.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("cotracker")
+    card, variant = registry.resolve("tracking", full)
+    file = Path(registry.weights(card, variant, allow_download=False)[0])
+    online = g.MODELS[f"{variant.id}@1"][1]
+    model = g.load(Path(os.environ["COTRACKER_SRC"]), file, online).cuda()
+    how = "online (16-frame windows, step 8)" if online else "offline (whole video, 6 x 6 support grid)"
+    a.note = f"facebookresearch/co-tracker@{g.COMMIT[:12]} as its predictor, {how}, frames resized to 384 x 512"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        return g.track(model, video.float() / 255, queries, amp=torch.float16 if fp16 else None)
+
+    return call
+
+
 class _Tracking(_LocalFp16):
     """The tracking bench call: the uint8 video `[T, 3, H, W]` and the float32 query grid (not scaled to uint8)."""
 
@@ -2422,6 +2447,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "alltracker": _Tracking("tracking", _alltracker, ((480, 854),)),
     "track_on": _Tracking("tracking", _track_on, ((480, 854),)),
     "locotrack": _Tracking("tracking", _locotrack, ((480, 854),)),
+    "cotracker": _Tracking("tracking", _cotracker, ((480, 854),)),
 }
 
 

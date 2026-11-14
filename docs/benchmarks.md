@@ -1083,6 +1083,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | alltracker | 485 | 391 | 221 | 2.2x | 1.8x | 2100 / 2318 | 993 / 1238 | 1076 / 1288 |
 | alltracker-tiny | 424 | 330 | 233 | 1.8x | 1.4x | 1995 / 2200 | 919 / 1178 | 978 / 1166 |
 | bootstapir | 243 | 234 | 192 | 1.3x | 1.2x | 639 / 774 | 508 / 628 | 508 / 628 |
+| cotracker3-offline | 244 | 162 | 154 | 1.6x | 1.1x | 2221 / 2480 | 755 / 882 | 799 / 916 |
+| cotracker3-online | 328 | 184 | 176 | 1.9x | 1.0x | 1659 / 1886 | 755 / 906 | 798 / 922 |
 | locotrack-b | 203 | 190 | 178 | 1.1x | 1.1x | 719 / 784 | 771 / 856 | 782 / 840 |
 | locotrack-s | 193 | 180 | 151 | 1.3x | 1.2x | 706 / 812 | 759 / 842 | 764 / 822 |
 | tapir | 187 | 182 | 141 | 1.3x | 1.3x | 498 / 574 | 463 / 548 | 463 / 548 |
@@ -1639,6 +1641,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | alltracker | 1.68 | 0.22 | 0.98 | 1.31 | 0.85 | 0.45 |
 | alltracker-tiny | 1.22 | 0.06 | 0.96 | 1.40 | 0.73 | 0.54 |
 | bootstapir | 0.60 | 0.32 | 1.14 | 0.90 | 0.80 | 0.66 |
+| cotracker3-offline | 0.65 | 0.28 | 0.19 | 0.87 | 0.42 | 0.52 |
+| cotracker3-online | 0.54 | 0.65 | 0.18 | 0.54 | 0.39 | 0.54 |
 | locotrack-b | 0.79 | 0.06 | 1.00 | 1.06 | 0.64 | 0.69 |
 | locotrack-s | 0.29 | 0.06 | 1.13 | 0.23 | 0.65 | 0.66 |
 | tapir | 0.35 | 0.19 | 1.13 | 0.83 | 0.84 | 0.69 |

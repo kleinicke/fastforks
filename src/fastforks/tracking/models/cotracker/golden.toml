@@ -1,0 +1,21 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 6e-05
+# CPU measured max 1.5e-5; GPU worst mean / p99 (px, portable and kernels, offline and online): 0.0018 / 0.0095 (x1.5)
+gpu_mean = 0.0027
+gpu_p99 = 0.014
+
+[refs."cotracker3-offline@1"]
+sha256 = "5d9f0f425ddde02c57c46035f7f8a45ca61d58824a31bd628b601bac9fafba28"
+upstream = "https://github.com/facebookresearch/co-tracker@82e02e8029753ad4ef13cf06be7f4fc5facdda4d"
+settings = "CPU float32, upstream CoTracker3 offline (whole clip, 6 x 6 support grid) as its predictor, 6 iterations, tests/synth.py clip() 6 x 100 x 150 bilinear (align_corners) to 384 x 512, torch 2.14.1+cu130"
+
+[refs."cotracker3-online@1"]
+sha256 = "0c5e82630f0d8e567a19309dd660801a5b7ec058af77c2330dd52b0ce748d725"
+upstream = "https://github.com/facebookresearch/co-tracker@82e02e8029753ad4ef13cf06be7f4fc5facdda4d"
+settings = "CPU float32, upstream CoTracker3 online (is_online windows of 16, step 8) as its predictor, 6 iterations, tests/synth.py clip() 6 x 100 x 150 bilinear (align_corners) to 384 x 512, torch 2.14.1+cu130"
