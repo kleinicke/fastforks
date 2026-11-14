@@ -798,6 +798,20 @@ def test_dump_writes_valid_toml(tmp_path, monkeypatch):
     assert goldens.load("fam") == store
 
 
+def test_dump_keeps_notes(tmp_path, monkeypatch):
+    """A `--record` rewrite keeps hand-written comments and the lines of unchanged values (format, trailing note)."""
+    monkeypatch.setattr(goldens, "SRC", tmp_path)
+    (tmp_path / "stereo" / "models" / "fam").mkdir(parents=True)
+    goldens.path("fam").write_text("[tolerance]\n# measured on X\ncpu_atol = 0.0010  # why\ngpu_mean = 0.5\n")
+    store = goldens.load("fam")
+    store["tolerance"]["gpu_mean"] = 0.25
+    store["validated"]["fam-a@1"] = {"mean_px": 0.01}
+    goldens.dump("fam", store)
+    text = goldens.path("fam").read_text()
+    assert "# measured on X\ncpu_atol = 0.0010  # why\ngpu_mean = 0.25\n" in text
+    assert goldens.load("fam") == store
+
+
 def test_min_score_tasks():
     """`gpu_min_score` only in tasks with a confidence output, which masks both output layouts along the right axis."""
     for ref in GOLDEN:
