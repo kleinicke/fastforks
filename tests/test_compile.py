@@ -311,3 +311,57 @@ def test_marigold_scheduler_steps_trace_without_cpu_selects(scheduler):
     bad += [n for n in gm.graph.nodes if n.op == "get_attr" and getattr(gm, n.target).dim() != 0]
     assert not bad, bad
     torch.testing.assert_close(got, step(v, x), rtol=0, atol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_triton_scaled_softmax_rows_bitcast_bug_still_present():
+    """Sentinel for the GREAT-IGEV outlook workaround: Inductor's `softmax(x * scale)` lowering (a masked boolean
+    any-reduction beside two max-reductions and an exp; `_partial_softmax_pattern`) aborts Triton 3.8's LLVM on
+    49-wide rows with XBLOCK=8 / 2 warps ("Cannot BITCAST between types of different sizes!"). The kernel runs in a
+    subprocess (the assertion aborts the process). When it compiles, Triton fixed it: drop the `is_compiling` branch
+    of `OutlookAttentionLayer.forward` and this test."""
+    import subprocess  # noqa: PLC0415
+    import sys  # noqa: PLC0415
+    import textwrap  # noqa: PLC0415
+
+    src = textwrap.dedent(
+        """
+        import torch, triton, triton.language as tl
+
+        @triton.jit
+        def _or(a, b):
+            return a | b
+
+        @triton.jit
+        def _max(a, b):
+            return tl.maximum(a, b)
+
+        @triton.jit
+        def k(in0, in1, out, xnumel, XBLOCK: tl.constexpr):
+            xindex = tl.program_id(0) * XBLOCK + tl.arange(0, XBLOCK)[:, None]
+            r = tl.arange(0, 64)[None, :]
+            mask = (r < 49) & (xindex < xnumel)
+            x = tl.load(in0 + (r + 49 * xindex), mask, other=0.0).to(tl.float32)
+            x = x + tl.load(in1 + xindex // 49, mask, other=0.0).to(tl.float32)
+            s = x * 0.3535533905932738
+            bad = ((s == s) & (tl.abs(s) != float("inf"))) == 0
+            nonfinite = tl.reduce(tl.where(mask, bad, False), 1, _or)[:, None]
+            m1 = tl.reduce(tl.where(mask, x, float("-inf")), 1, _max)[:, None]
+            m2 = tl.reduce(tl.where(mask, s, float("-inf")), 1, _max)[:, None]
+            e = tl.where(nonfinite == 0, (x - m1) * 0.3535533905932738, s - m2)
+            tl.store(out + (r + 49 * xindex), tl.exp(e), mask)
+
+        n = 265825
+        a = torch.randn(n * 49, device="cuda", dtype=torch.float16)
+        b = torch.randn(n, device="cuda", dtype=torch.float16)
+        out = torch.zeros(n * 49, device="cuda")
+        k[(triton.cdiv(n, 8),)](a, b, out, n, 8, num_warps=2)
+        torch.cuda.synchronize()
+        print("compiled")
+        """
+    )
+    r = subprocess.run([sys.executable, "-c", src], capture_output=True, text=True, timeout=600, check=False)
+    if r.returncode == 0:
+        pytest.fail("Triton compiles the softmax(x * scale) kernel: remove the GREAT-IGEV outlook workaround")
+    assert "BITCAST" in r.stderr, r.stderr[-2000:]
