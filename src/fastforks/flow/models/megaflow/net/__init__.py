@@ -5,7 +5,7 @@ Changes:
   `imgs / 255` ImageNet normalisation and `InputPadderMF` padding; the flow is cropped by the runner);
   `from_pretrained` (huggingface_hub download), the tracking forwards and the unpadding are removed; the ResNet CNN is
   built with `init_weight=False` (upstream downloads torchvision's ResNet-34 weights, which the checkpoint overwrites).
-- `refine.py`: the same `init_weight` note.
+- `refine.py`: upstream's `init_weight` branch (torchvision ImageNet download) removed.
 - `layers/attention.py`: no xFormers / FlashAttention-3 imports (upstream's plain PyTorch path without them).
 - `layers/vision_transformer.py`: the stochastic-depth `linspace` on the CPU (no default-device dependence) and
   `trunc_normal_` from `fastforks._core.deferred_init` (deferred past the checkpoint load).

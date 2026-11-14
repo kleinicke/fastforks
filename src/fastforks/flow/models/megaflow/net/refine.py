@@ -53,21 +53,9 @@ class ResNetFPN(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
-        if self.init_weight:  # fastforks: never (the checkpoint holds the backbone; no torchvision download)
-            from torchvision.models import resnet18, ResNet18_Weights, resnet34, ResNet34_Weights
-            if self.pretrain == 'resnet18':
-                pretrained_dict = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1).state_dict()
-            else:
-                pretrained_dict = resnet34(weights=ResNet34_Weights.IMAGENET1K_V1).state_dict()
-            model_dict = self.state_dict()
-            pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-            if self.input_dim == 6:
-                for k, v in pretrained_dict.items():
-                    if k == 'conv1.weight':
-                        pretrained_dict[k] = torch.cat((v, v), dim=1)
-            model_dict.update(pretrained_dict)
-            self.load_state_dict(model_dict, strict=False)
-        
+        # fastforks: upstream's `init_weight` branch (a torchvision ImageNet ResNet download the checkpoint
+        # overwrites) is removed; `init_weight` must be False.
+        assert not self.init_weight
 
     def _make_layer(self, block, dim, stride=1, norm_layer=nn.BatchNorm2d, num=2):
         layers = []

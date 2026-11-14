@@ -577,7 +577,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Flow
 
-37 models; size 1080x1920.
+40 models; size 1080x1920.
 
 - Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
 - Most accurate: [`flowseek-t-things-notartan`](models/flow.md#flowseek) (395.6 ms, error 3.933).
@@ -590,8 +590,10 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`sea-raft-s-spring`](models/flow.md#sea-raft) | yes | 7.757 † | 42.4 (1080x1920) | 32.8 | 16.0 | 2.6x vs original (1080x1920) | 160 |
 | [`sea-raft-m-spring`](models/flow.md#sea-raft) | yes | 6.783 † | 56.7 (1080x1920) | 46.8 | 23.2 | 2.4x vs original (1080x1920) | 181 |
 | [`raft-small`](models/flow.md#raft) | yes | 7.834 | 196.1 (1080x1920) | 144.2 | 36.3 | 5.4x vs original (1080x1920) | 197 |
+| [`recover-mn`](models/flow.md#recover) | yes | 1.681 † | 102.7 (1080x1920) | 45.5 | 41.8 | 2.5x vs original (1080x1920) | 580 |
 | [`sea-raft-s`](models/flow.md#sea-raft) | yes | 1.054 † | 299.6 (1080x1920) | 210.6 | 50.4 | 6.0x vs original (1080x1920) | 415 |
 | [`sea-raft-s-kitti`](models/flow.md#sea-raft) | yes | 0.935 † | 299.0 (1080x1920) | 210.4 | 50.5 | 5.9x vs original (1080x1920) | 415 |
+| [`recover-rn`](models/flow.md#recover) | yes | 1.292 † | 130.3 (1080x1920) | 64.1 | 51.3 | 2.5x vs original (1080x1920) | 590 |
 | [`neuflow-v2-things`](models/flow.md#neuflow-v2) | yes | 4.095 | 75.8 (1080x1920) | 71.2 | 58.9 | 1.3x vs original (1080x1920) | 790 |
 | [`neuflow-v2-sintel`](models/flow.md#neuflow-v2) | yes | 1.566 † | 75.7 (1080x1920) | 71.2 | 58.9 | 1.3x vs original (1080x1920) | 790 |
 | [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.577 † | 75.6 (1080x1920) | 71.3 | 59.1 | 1.3x vs original (1080x1920) | 790 |
@@ -601,11 +603,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 291.5 | 83.1 | 5.8x vs original (1080x1920) | 333 |
 | [`raft-large`](models/flow.md#raft) | yes | 1.526 † | 479.5 (1080x1920) | 290.9 | 83.5 | 5.7x vs original (1080x1920) | 342 |
 | [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 291.0 | 83.6 | 5.7x vs original (1080x1920) | 333 |
+| [`recover-cx`](models/flow.md#recover) | yes | 1.043 † | 178.6 (1080x1920) | 107.2 | 89.8 | 2.0x vs original (1080x1920) | 733 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | – | – | 385.6 | 380.0 (375x1242) | 1.0x vs portable | 1137 |
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | – | – | – |
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 395.3 | – | – | – |
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | – | – | – |
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 427.4 | 1.2x vs original (1080x1920) | 1301 |
+| [`megaflow`](models/flow.md#megaflow) | yes | 1.714 † | 1588.5 (1080x1920) | 1109.0 | 733.5 | 2.2x vs original (1080x1920) | 2866 |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 800.4 | – | – | – |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 800.8 | – | – | – |
 | [`memflow-sintel`](models/flow.md#memflow) | yes | – | 3214.2 (1080x1920) | 964.5 | 864.5 | 3.7x vs original (1080x1920) | 968 |
@@ -621,7 +625,6 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | – | – | – | – |
 | [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | – | – | – | – |
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | – | – | – | – |
-| [`megaflow`](models/flow.md#megaflow) | yes | – | – | – | – | – | – |
 | [`memfof-sintel`](models/flow.md#memfof) | yes | – | – | – | – | – | – |
 | [`memfof-spring`](models/flow.md#memfof) | yes | – | – | – | – | – | – |
 

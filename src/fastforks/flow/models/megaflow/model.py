@@ -42,11 +42,11 @@ if TYPE_CHECKING:
     from fastforks.flow._runner import Context
 
 PATCH = 14  # fixed: the ViT patch size
-WIDTH = 952  # upstream `fix_width`: the aggregator's input width
-LAYERS = (4, 11, 17, 23)  # the aggregator layers the flow head reads
-RADIUS = 4  # local correlation window 9 x 9
-UP = 4  # refinement at 1/4 resolution, convex 4x upsampling
-CHUNK = 8192  # pixels per local-correlation chunk of the portable fp16 path
+WIDTH = 952  # fixed: upstream `fix_width`, the aggregator's trained input width
+LAYERS = (4, 11, 17, 23)  # fixed: the aggregator layers the flow head reads
+RADIUS = 4  # fixed: trained with a local correlation window 9 x 9
+UP = 4  # fixed: trained with refinement at 1/4 resolution, convex 4x upsampling
+CHUNK = 8192  # fixed: memory bound; pixels per local-correlation chunk of the portable fp16 path
 
 
 @dataclass(frozen=True)
@@ -414,7 +414,6 @@ def _kernel_lookup(k: CubinModule, f0: torch.Tensor, f1: torch.Tensor) -> Callab
 class Kernels(_Fast):
     """`fastbb` flash attention + fast DINOv2, fp16-accumulate GEMMs and convs, on-the-fly correlation windows."""
 
-    dtypes = ("float16",)
     gacc = True
 
     def __init__(self, ctx: Context) -> None:
