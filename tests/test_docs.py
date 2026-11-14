@@ -7,6 +7,8 @@ import subprocess
 import sys
 import textwrap
 import tomllib
+import types
+import typing
 from pathlib import Path
 
 import pytest
@@ -467,6 +469,30 @@ def _bind(fn: object, call: ast.Call, *, bound: bool) -> str | None:
         sig.bind(*([None] * (len(call.args) + (not bound))), **{k.arg: None for k in call.keywords if k.arg})
     except TypeError as e:
         return str(e)
+    return _bad_literal(fn, call)
+
+
+def _literals(tp: object) -> set[object] | None:
+    """The values of a `Literal[...]` (also inside a union); `None` if any member is another type."""
+    if typing.get_origin(tp) is typing.Literal:
+        return set(typing.get_args(tp))
+    if typing.get_origin(tp) in (typing.Union, types.UnionType):
+        parts = [_literals(a) if a is not type(None) else set() for a in typing.get_args(tp)]
+        return None if any(p is None for p in parts) else set().union(*parts)
+    return None
+
+
+def _bad_literal(fn: object, call: ast.Call) -> str | None:
+    """A literal keyword value that the parameter's `Literal[...]` annotation does not allow (placeholders pass)."""
+    try:
+        hints = typing.get_type_hints(fn)
+    except Exception:  # noqa: BLE001 - unresolvable forward references: nothing to check
+        return None
+    for k in call.keywords:
+        if k.arg in hints and isinstance(k.value, ast.Constant) and k.value.value is not None:
+            allowed = _literals(hints[k.arg])
+            if allowed is not None and k.value.value not in allowed:
+                return f"{k.arg}={k.value.value!r} is not one of {sorted(map(repr, allowed))}"
     return None
 
 
@@ -595,3 +621,12 @@ def test_python_examples_use_real_ids_options_and_signatures():
         v.visit(tree)
         problems += v.problems
     assert not problems, "\n".join(sorted(set(problems)))
+
+
+def test_example_check_rejects_a_literal_outside_the_annotation():
+    def fn(*, mode: typing.Literal["a", "b"] | None = None, n: int = 1) -> None: ...
+
+    bad = ast.parse("fn(mode='c', n=3)").body[0].value
+    good = ast.parse("fn(mode='a', n=x)").body[0].value
+    assert "mode='c'" in (_bind(fn, bad, bound=True) or "")
+    assert _bind(fn, good, bound=True) is None
