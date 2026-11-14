@@ -4,8 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-# fastforks: timm (Mlp, the ViT blocks) -> _timm.py, peft -> _lora.py, sibling modules relative; unused imports dropped
-from ._timm import Mlp, create_vit_blocks
+# fastforks: timm (Mlp, the ViT blocks) -> fastforks.shared.timm_blocks, peft -> _lora.py, sibling modules relative; unused imports dropped
+from fastforks.shared.timm_blocks import Mlp, create_vit_blocks
 from ._lora import LoraConfig, get_peft_model
 from .dpt import UpsampleFeats, ProjFeats
 from .block import resconv, conv3x3

@@ -1,0 +1,25 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.005  # measured fp16 0.0015 px (fp32 0.0005), RTX 5060 Ti
+gpu_p99 = 0.02  # measured fp16 0.0058 px
+
+[refs."waft-a1-kitti@1"]
+sha256 = "bb92df78d3b24ddcbfe7add5b12d7dc382117f03ef945db42cbb27a0871c63a1"
+upstream = "https://github.com/princeton-vl/WAFT@b152ff1cad1af8c185ee7b141997c48ff3334c87"
+settings = "CPU float32, upstream ViTWarpV8 (config/a1/tar-c-t-kitti.json) iters=5, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."waft-a1-sintel@1"]
+sha256 = "4c86e21f425e94b5eee9dda2f8f8a35cfdc0be9fa0b8f9adfc5897c141e681e4"
+upstream = "https://github.com/princeton-vl/WAFT@b152ff1cad1af8c185ee7b141997c48ff3334c87"
+settings = "CPU float32, upstream ViTWarpV8 (config/a1/tar-c-t-sintel.json) iters=5, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."waft-a1@1"]
+sha256 = "7d32070c847ce41320a89b8c51273174622198caa5d02b7fadda2710d27bff33"
+upstream = "https://github.com/princeton-vl/WAFT@b152ff1cad1af8c185ee7b141997c48ff3334c87"
+settings = "CPU float32, upstream ViTWarpV8 (config/a1/tar-c-t.json) iters=5, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"

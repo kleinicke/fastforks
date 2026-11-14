@@ -6,7 +6,8 @@ import torch.nn.functional as F
 # the runners do their own preprocessing.
 # fastforks: DPTHead.forward(normalize_output=True) additionally returns the fusion paths and the max-normalised inverse
 # of the head's depth (FoundationStereo / C-FoundationStereo use the head as a feature extractor; the former copies of
-# this head are removed).
+# this head are removed). DPTHead.forward(return_intermediate=True) returns the output_conv1 features (before
+# output_conv2) and the fusion paths, as WAFT's copy of the head (optical-flow WAFT uses the head as a feature extractor).
 from .dinov2 import DINOv2
 from .util.blocks import FeatureFusionBlock, _make_scratch
 
@@ -116,7 +117,7 @@ class DPTHead(nn.Module):
             nn.Identity(),
         )
     
-    def forward(self, out_features, patch_h, patch_w, normalize_output=False):
+    def forward(self, out_features, patch_h, patch_w, normalize_output=False, return_intermediate=False):
         out = []
         for i, x in enumerate(out_features):
             if self.use_clstoken:
@@ -147,6 +148,8 @@ class DPTHead(nn.Module):
         
         out = self.scratch.output_conv1(path_1)
         out = F.interpolate(out, (int(patch_h * 14), int(patch_w * 14)), mode="bilinear", align_corners=True)
+        if return_intermediate:
+            return out, path_1, path_2, path_3, path_4
         if normalize_output:
             depth = self.scratch.output_conv2(out)
             depth = F.relu(depth)

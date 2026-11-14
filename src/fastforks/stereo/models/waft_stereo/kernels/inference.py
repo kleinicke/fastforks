@@ -26,9 +26,9 @@ from fastforks.kernels import dpt_fused
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep
 from fastforks.shared.depth_anything_v2 import use_fast_vit
+from fastforks.shared.timm_blocks import Mlp
 
 from ..net._lora import PeftModel
-from ..net._timm import Mlp
 from ..net.block import resconv
 from ..net.utils import Padder, disp_warp
 

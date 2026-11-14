@@ -1,0 +1,4 @@
+summary = "timm's Mlp, pre-norm ViT Block and ResNet BasicBlock stages with timm's module names (timm checkpoints load unchanged), without the timm dependency."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/huggingface/pytorch-image-models (timm 1.0: layers/mlp.py, models/vision_transformer.py Attention / Block, models/resnet.py BasicBlock; re-implemented for inference). Used by WAFT-Stereo and WAFT (optical flow)."

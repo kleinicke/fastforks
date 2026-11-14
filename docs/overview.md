@@ -603,7 +603,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Flow
 
-40 models; size 1080x1920.
+43 models; size 1080x1920.
 
 - Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
 - Most accurate: [`flowseek-t-things-notartan`](models/flow.md#flowseek) (395.6 ms, error 3.933).
@@ -653,6 +653,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | – | – | – | – |
 | [`memfof-sintel`](models/flow.md#memfof) | yes | – | – | – | – | – | – |
 | [`memfof-spring`](models/flow.md#memfof) | yes | – | – | – | – | – | – |
+| [`waft-a1`](models/flow.md#waft) | yes | – | – | – | – | – | – |
+| [`waft-a1-kitti`](models/flow.md#waft) | yes | – | – | – | – | – | – |
+| [`waft-a1-sintel`](models/flow.md#waft) | yes | – | – | – | – | – | – |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 

@@ -64,6 +64,7 @@ u2net = "U²-Net (University of Alberta, Pattern Recognition 2020): finds the ma
 isnet = "IS-Net (ECCV 2022, the DIS benchmark's authors): cuts the foreground out of a photo as a fine mask at 1024 x 1024 (background removal); the authors' general-use model and the academic DIS5K one. Apache-2.0 code and weights."
 inspyrenet = "InSPyReNet (Kim et al., ACCV 2022) as transparent-background ships it: cuts the foreground out of a photo as a soft mask at 1024 x 1024 (384 x 384 fast); a Swin-B encoder with an image-pyramid decoder. MIT code and weights."
 flowseek = "FlowSeek (University of Bologna, 2025), size T: SEA-RAFT optical flow that also uses a frozen Depth Anything V2 Small: its features help the matching and its depth tells which flow a camera motion would cause. Apache-2.0 code; the authors' weights carry no separate licence."
+waft = "WAFT a1 (Princeton, 2025): optical flow without a cost volume. Each step warps the second image's features by the current flow and a small vision transformer refines it; uses a frozen Depth Anything V2 Small. BSD-3-Clause code; the authors' weights carry no separate licence."
 
 flowformer = "FlowFormer Small (ECCV 2022): convolutional features and a latent cost-memory transformer for optical flow. Apache-2.0 code; the authors provide no separate checkpoint licence."
 

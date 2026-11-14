@@ -515,6 +515,27 @@ def _flowseek(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda im1, im2: g.calc_flow(net, im1[None].float(), im2[None].float())
 
 
+def _waft(a: Any, full: str) -> Any:  # noqa: ANN401
+    """Upstream WAFT `ViTWarpV8` (a1) as `tools/golden/waft.py` builds it (`FF_WAFT_REPO`), on CUDA.
+
+    Upstream evaluates in fp32 (no mixed-precision option); it normalises and pads the pair itself. `iters` is its
+    config's 5; the last iteration's flow.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("waft")
+    if not hasattr(a, "tree"):
+        repo = os.environ.get("FF_WAFT_REPO")
+        if not repo:
+            msg = "FF_WAFT_REPO: a clone of princeton-vl/WAFT for the original-code tiers"
+            raise RuntimeError(msg)
+        a.tree = g.reference_tree(Path(repo), g.REF_COMMIT)
+    card, variant = registry.resolve("flow", full)
+    net = g.build(a.tree, registry.weights(card, variant, allow_download=False)[0], variant.id).cuda()
+    a.note = f"upstream ViTWarpV8 (config/a1/{g.CONFIG[variant.id]}), iters={g.ITERS}"
+    return lambda im1, im2: net(im1[None].float(), im2[None].float(), iters=g.ITERS)["flow"][-1]
+
+
 def _rife(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
     """Upstream `RIFE_HDv3.Model` as `tools/golden/rife.py`; fp16 = inference_video.py's `--fp16` recipe.
 
@@ -2182,6 +2203,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "gmflow": _Local("flow", _gmflow, ((1080, 1920), (375, 1242))),
     "flowformer": _Local("flow", _flowformer, ((1080, 1920), (375, 1242))),
     "flowseek": _Local("flow", _flowseek, ((1080, 1920), (375, 1242))),
+    "waft": _Local("flow", _waft, ((1080, 1920), (375, 1242))),
     "vitpose": _Local("pose", _vitpose, ((1080, 1920),), lambda a: (a[0].permute(1, 2, 0).cpu().numpy(), _xywh(a[1]))),
     "rtmpose": _Local(
         "pose", _topdown, ((1080, 1920),), lambda a: (a[0].flip(0).permute(1, 2, 0).cpu().numpy(), a[1].cpu().numpy())
