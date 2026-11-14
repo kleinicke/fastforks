@@ -1,5 +1,7 @@
-"""Streamed transformer blocks: all blocks in one page-locked host buffer, uploaded one block ahead into two fixed
-device buffers (ping-pong) on a side stream while the current block computes.
+"""Streamed transformer blocks: one page-locked host buffer, uploaded one block ahead into two device buffers.
+
+All blocks live in the host buffer; each is uploaded into one of two fixed device buffers (ping-pong) on a side stream
+while the current block computes.
 
 Each block's tensors are packed contiguously (one copy per block). The host buffer is ordinary memory registered with
 `cudaHostRegister`: torch's pinned allocator rounds each allocation up to a power of two (8.4 GB of blocks would pin
@@ -10,9 +12,9 @@ memory stays at the first call's.
 from __future__ import annotations
 
 import weakref
+from typing import TYPE_CHECKING
 
 import torch
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -29,10 +31,11 @@ def _unregister(ptr: int) -> None:
 
 
 class HostBlocks:
-    """The blocks' tensors, packed per block in one registered host buffer; `run` streams them through two device
-    buffers."""
+    """The blocks' tensors, packed per block in one registered host buffer; `run` streams them to the device."""
 
-    def __init__(self, blocks: list[dict[str, tuple[torch.dtype, torch.Size]]], fill: Callable[[str, torch.Tensor], None]) -> None:
+    def __init__(
+        self, blocks: list[dict[str, tuple[torch.dtype, torch.Size]]], fill: Callable[[str, torch.Tensor], None]
+    ) -> None:
         """`blocks`: per block the checkpoint key -> (dtype, shape); `fill(key, dst)` copies that tensor into `dst`."""
         self.layout: list[list[tuple[str, torch.dtype, torch.Size, int, int]]] = []
         self.starts: list[int] = []

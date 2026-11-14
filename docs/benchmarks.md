@@ -1143,6 +1143,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | restormer-deblur | 234 | 228 | 225 | 1.0x | 1.0x | 1221 / 1418 | 850 / 1000 | 850 / 980 |
 | restormer-derain | 234 | 228 | 225 | 1.0x | 1.0x | 1221 / 1418 | 850 / 1000 | 850 / 980 |
 | restormer-sidd | 218 | 227 | 224 | 1.0x | 1.0x | 1221 / 1416 | 850 / 960 | 850 / 980 |
+| seedvr2-3b | 13150 | 2281 | 2281 | 5.8x | 1.0x | 7598 / 15268 | 11957 / 15348 | 11957 / 15348 |
 | span-x2 | 24.6 | 23.5 | 14.9 | 1.6x | 1.6x | 611 / 648 | 607 / 662 | 487 / 522 |
 | span-x4 | 26.9 | 24.2 | 14.6 | 1.8x | 1.7x | 611 / 648 | 607 / 662 | 487 / 522 |
 | swin2sr-x2 | 2565 | 909 | 720 | 3.6x | 1.3x | 1488 / 1578 | 1459 / 1554 | 1459 / 1636 |
@@ -1705,6 +1706,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | restormer-deblur | 0.36 | 0.28 | 0.60 | 0.90 | 0.71 | 0.53 |
 | restormer-derain | 0.34 | 0.29 | 0.58 | 0.90 | 0.72 | 0.53 |
 | restormer-sidd | 0.34 | 0.29 | 0.60 | 0.89 | 0.73 | 0.56 |
+| seedvr2-3b | 96.20 | 8.09 | 5.29 | 13.89 | 2.51 | 2.45 |
 | span-x2 | 0.23 | 0.10 | 2.88 | 0.32 | 0.26 | 0.10 |
 | span-x4 | 0.45 | 0.10 | 1.11 | 0.58 | 0.26 | 0.05 |
 | swin2sr-x2 | 1.81 | 0.37 | 0.56 | 4.12 | 1.23 | 0.84 |
@@ -2191,6 +2193,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | restormer-deblur | 512x512 | 228 ms | 143 ms | 162 ms | 225 ms | 44.1 s | 58.3 s | 850 / 1000 | 660 / 778 | 850 / 980 | 757 / 774 |
 | restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 225 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 850 / 980 | 757 / 774 |
 | restormer-sidd | 512x512 | 227 ms | 142 ms | 162 ms | 224 ms | 35.5 s | 59.7 s | 850 / 960 | 660 / 778 | 850 / 980 | 757 / 774 |
+| seedvr2-3b | 512x512 | 2281 ms | fails: timeout after 290 s | fails: not run: onnx is not installed in the test venv | 2281 ms | – | – | 11957 / 15348 | – | 11957 / 15348 | – |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
 | span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |
 | swin2sr-x2 | 512x512 | 909 ms | 482 ms | 547 ms | 720 ms | 43.7 s | 112 s | 1459 / 1554 | 1308 / 1516 | 1459 / 1636 | 4941 / 4997 |

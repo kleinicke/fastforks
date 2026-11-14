@@ -1,7 +1,7 @@
 """Marigold V2 depth without diffusers, bitsandbytes and peft: the lean checkpoint's tensors as plain modules.
 
 `load(ctx, stream=...)` reads the one safetensors file straight to the device (no host copy of the 8.4 GB), or, when
-streaming, packs the transformer blocks into one page-locked host buffer (`stream.HostBlocks`). `Net` runs the authors' single-step inference:
+streaming, packs the transformer blocks into one page-locked host buffer (`fastforks.shared.host_blocks.HostBlocks`). `Net` runs the authors' single-step inference:
 VAE posterior sample -> 2 x 2 patch packing -> one velocity prediction at the fixed timestep -> `latent - velocity` ->
 VAE decode -> mean of the three channels.
 """
@@ -16,7 +16,7 @@ from torch import nn
 
 from .dit import Block, Transformer, block_keys
 from .nf4 import BF, NF4Linear, pair_lut
-from .stream import HostBlocks
+from fastforks.shared.host_blocks import HostBlocks
 from .vae import VAE2D
 
 if TYPE_CHECKING:

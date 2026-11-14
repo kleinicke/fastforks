@@ -144,6 +144,8 @@ CPU_HEAVY = {
     "stablenormal-turbo@1": "Stable Diffusion UNet + ControlNet encoder, 1 step at 768 px (CPU ~25 s)",
     "romav2@1": "DINOv3 ViT-L at 800 px + two-view ViT + refiners at 1280 px (CPU ~60 s)",
     "marigold-v2-depth@1": "20 B NF4 transformer expanded per linear in bf16 (8.4 GB of weights; CPU many minutes)",
+    "seedvr2-3b@1": "3 B bf16 transformer + 3-D VAE (bf16 only, 6.8 GB of weights; CPU minutes per call)",
+    "seedvr2-7b@1": "7 B bf16 transformer + 3-D VAE (bf16 only, 16 GB of weights; CPU many minutes per call)",
 }
 CPU_REFS = set(SMALLEST) - set(CPU_HEAVY) | set(CPU_ALSO)
 # The CPU sweeps outside the goldens run with fewer iterations and smaller network inputs: the same code, less work
@@ -175,6 +177,8 @@ SWEEP_HEAVY = {
     "metric3d-vit-large@1": "ViT-L at a fixed network input (the sweeps took ~260 s; compile + export > 13 GB RSS)",
     "sapiens-seg-0.3b-goliath@1": "a fixed 1024 x 768 network input (the sweeps took ~105 s)",
     "marigold-v2-depth@1": "a 20 B transformer: every forward expands 8.4 GB of NF4 weights (CPU minutes per call)",
+    "seedvr2-3b@1": "a 3 B transformer in bf16 (CPU minutes per call)",
+    "seedvr2-7b@1": "a 7 B transformer in bf16 (CPU many minutes per call)",
 }
 
 

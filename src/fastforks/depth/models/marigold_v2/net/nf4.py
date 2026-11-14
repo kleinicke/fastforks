@@ -20,29 +20,12 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks.shared.nf4 import BF, BLOCK, dequant_lut, pair_lut
+
 if TYPE_CHECKING:
     from types import ModuleType
 
-BF = torch.bfloat16
-BLOCK = 64  # weights per absmax
-
-
-def pair_lut(code: torch.Tensor) -> torch.Tensor:
-    """`[256, 2]` float32: the two code values of each packed byte (high nibble first)."""
-    b = torch.arange(256, device=code.device)
-    return torch.stack([code[b >> 4], code[b & 15]], dim=1)
-
-
-def dequant_lut(q: torch.Tensor, absmax: torch.Tensor, lut: torch.Tensor, n_out: int) -> torch.Tensor:
-    """Packed bytes `[N * K / 2]` + `absmax [N * K / 64]` -> bf16 weight `[N, K]` (plain PyTorch).
-
-    An embedding lookup of the byte in the pair table (float32), then one multiply by the absmax that rounds straight
-    to bf16 (computed in float32, as `(code * absmax).to(bfloat16)`). Index tensors must be int32 or int64; the
-    embedding is ~2x faster than advanced indexing, per-block product tables were slower still.
-    """
-    g = F.embedding(q.int(), lut).view(-1, BLOCK)
-    w = torch.empty(g.shape, dtype=BF, device=g.device)
-    return torch.mul(g, absmax[:, None], out=w).view(n_out, -1)
+__all__ = ["BF", "BLOCK", "NF4Linear", "dequant_lut", "pair_lut"]
 
 
 class NF4Linear(nn.Module):

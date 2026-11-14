@@ -1,0 +1,70 @@
+"""SeedVR2: the card, the NF4 quantiser, the frame-wise causal convolution and its chunked memory (CPU)."""
+
+from __future__ import annotations
+
+import pytest
+import torch
+import torch.nn.functional as F
+
+from fastforks._core import registry
+from fastforks.restoration.models.seedvr2.net.vae import CausalConv3d, State
+from fastforks.shared import nf4
+
+
+def test_card_variants() -> None:
+    cards = {v.id: (c, v) for c, v in registry.cards("restoration").values() if c.family == "seedvr2"}
+    assert sorted(cards) == ["seedvr2-3b", "seedvr2-7b"]
+    for vid, (card, variant) in cards.items():
+        p = {**card.params, **variant.params}
+        assert (p["scale"], p["variant"]) == (2, vid.removeprefix("seedvr2-"))
+        assert 16 % p["scale"] == 0
+        assert card.io.pad_multiple * p["scale"] % 16 == 0  # the padded, scaled frame is a multiple of 16
+
+
+def test_nf4_quantize_picks_the_nearest_code() -> None:
+    torch.manual_seed(0)
+    w = torch.randn(48, 256).bfloat16()
+    q, absmax = nf4.quantize(w, rows=20)  # several row chunks
+    assert q.dtype == torch.uint8
+    assert q.shape == (48 * 256 // 2,)
+    assert absmax.shape == (48, 4)
+    lut = nf4.pair_lut(nf4.code(torch.device("cpu")))
+    got = nf4.dequant_lut(q, absmax, lut, 48).float()
+    blocks = w.float().view(48, 4, 64)
+    torch.testing.assert_close(absmax.float(), blocks.abs().amax(-1).bfloat16().float())
+    cand = (nf4.code(torch.device("cpu")) * absmax.float()[..., None, None]).bfloat16().float()  # [48, 4, 1, 16]
+    best = (blocks[..., None] - cand).abs().amin(-1).view(48, 256)
+    assert torch.allclose((got - w.float()).abs(), best, atol=1e-2 * float(absmax.float().max()))
+    exact = (nf4.code(torch.device("cpu"))[torch.randint(16, (8, 64))] * 2.0).bfloat16()  # code values x absmax 2
+    exact[:, 0] = 2.0  # each block's absmax
+    q, absmax = nf4.quantize(exact)
+    assert torch.equal(nf4.dequant_lut(q, absmax, lut, 8), exact)
+
+
+def test_nf4_quantize_needs_blocks_of_64() -> None:
+    with pytest.raises(ValueError, match="multiple of 64"):
+        nf4.quantize(torch.zeros(4, 96))
+
+
+def _conv(kernel: int, stride: int, padding: int) -> CausalConv3d:
+    torch.manual_seed(1)
+    c = CausalConv3d(3, 5, kernel, stride, padding).to_empty(device="cpu")
+    torch.nn.init.normal_(c.weight, std=0.2)
+    torch.nn.init.normal_(c.bias)
+    return c
+
+
+@pytest.mark.parametrize(("kernel", "stride", "padding"), [(3, 1, 1), (3, 2, 0), (1, 1, 0)])
+def test_causal_conv_framewise_and_chunked(kernel: int, stride: int, padding: int) -> None:
+    """Frame-by-frame = one Conv3d over the replicate-padded clip; chunks with memory = the whole clip."""
+    c = _conv(kernel, stride, padding)
+    x = torch.randn(1, 3, 9, 6, 7)
+    head = x[:, :, :1].expand(-1, -1, 2 * padding, -1, -1)
+    want = F.conv3d(torch.cat([head, x], 2), c.weight, c.bias, (stride,) * 3, (0, padding, padding))
+    with torch.no_grad():
+        whole = c(x, State.DISABLED)
+        first = c(x[:, :, :5], State.INITIALIZING)
+        rest = c(x[:, :, 5:], State.ACTIVE)
+    torch.testing.assert_close(whole, want)
+    if stride == 1:
+        torch.testing.assert_close(torch.cat([first, rest], 2), want)

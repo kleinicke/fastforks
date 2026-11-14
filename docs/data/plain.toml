@@ -216,6 +216,7 @@ nafnet = "NAFNet (Chen et al., ECCV 2022): a nonlinear-activation-free U-Net tha
 restormer = "Restormer (Zamir et al., CVPR 2022): a transposed-attention U-Net transformer that removes motion blur (GoPro), rain streaks (Rain13K) or real camera noise (SIDD). MIT code and weights."
 hat = "HAT (Chen et al., CVPR 2023): a x4 upscaler mixing window attention, channel attention and overlapping cross-attention: two models for clean (bicubic) images (large and small) and a GAN model for real-world photos. Apache-2.0 code and weights."
 swinir = "SwinIR (Liang et al., ICCVW 2021): a Swin Transformer upscaler: x4 / x2 for clean (bicubic) images and x4 for real-world photos (medium and large). Apache-2.0 code and weights."
+seedvr2 = "SeedVR2 (Wang et al., ByteDance Seed, 2025): upscales and restores photos and video frames x2 with a large diffusion transformer run for a single step; 3 B and 7 B versions, the 7 B with the stream or 4-bit option on 16 GB. Apache-2.0 code and weights."
 lama = "LaMa big-lama (Suvorov et al., Samsung AI, WACV 2022): fills the masked hole of an image (object removal) with a fast-Fourier-convolution network trained on scene photos. Apache-2.0 code and weights; the Places365 training images are for research use only (see the card)."
 
 # --- tracking

@@ -648,7 +648,8 @@ def _env_note(rows: dict[str, list[dict]]) -> str:
 
 def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], list[str]]:
     """Speed and peak memory: (the table, the notes); one table row per variant and input, backends as cell lines."""
-    measured = [v for v in card.variants if v.id in rows]
+    oom_at = {v.id: {size for ref, _, size in _oom() if ref == v.id} for v in card.variants}
+    measured = [v for v in card.variants if v.id in rows or oom_at[v.id]]  # out of memory in every mode is a result
     if not measured:
         return [f"Speed and memory {NM} for: {_ids_of([v.id for v in card.variants])}."], []
     lines = [
@@ -662,21 +663,21 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
         notes.append(f"- {_NOK}: {card.no_kernels_reason.rstrip('.')}.")
     given: dict[tuple[str, str], list[str]] = {}
     dups = same_as(
-        [v.id for v in measured],
-        {v.id: sorted((r["mode"], r["input"], r["ms"]) for r in rows[v.id]) for v in measured},
+        [v.id for v in measured if v.id in rows],
+        {v.id: sorted((r["mode"], r["input"], r["ms"]) for r in rows[v.id]) for v in measured if v.id in rows},
     )
     notes += _same_note(dups)
     for v in measured:
         if v.id in dups:
             continue
-        sizes = sorted({r["input"] for r in rows[v.id]}, key=_pixels)
+        sizes = sorted({r["input"] for r in rows[v.id]} if v.id in rows else oom_at[v.id], key=_pixels)
         std = _std_input(card.task, {})
         for size in [std] if std in sizes else sizes[-1:] if std != _OWN else sizes:
-            by = {r["mode"]: r for r in rows[v.id] if r["input"] == size}
+            by = {r["mode"]: r for r in rows.get(v.id, []) if r["input"] == size}
             oom = {m for m in _SPEED_MODES if (v.id, m, size) in _oom()}
             modes = [m for m in _SPEED_MODES if m in by or m in oom or m in ("upstream", "portable", "kernels")]
             cells = [by.get(m) for m in modes]
-            scene = _scene(next(iter(by.values())).get("scene", ""))
+            scene = _scene(next(iter(by.values())).get("scene", "")) if by else ""
             inp = f"{scene} ({size})" if scene else size
             extra, setup = _compile_lines(v.id, size)
             names = "<br>".join([*(_label(m) for m in modes), *(e[0] for e in extra)])
@@ -705,8 +706,8 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
                 if (r := by.get(m)) and _note(r):
                     given.setdefault((v.id, _note(r)), []).append(f"{_label(m)} {size}")
     notes += [f"- `{vid}` {', '.join(where)}: {text}" for (vid, text), where in given.items()]
-    notes += _startup_notes(card.task, measured, rows)
-    missing = [v.id for v in card.variants if v.id not in rows]
+    notes += _startup_notes(card.task, [v for v in measured if v.id in rows], rows)
+    missing = [v.id for v in card.variants if v not in measured]
     if missing:
         notes.append(f"- Speed and memory {NM} for: {_ids_of(missing)}.")
     return lines, notes

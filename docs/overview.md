@@ -747,7 +747,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Restoration
 
-30 models; size 512x512.
+32 models; size 512x512.
 
 - Fastest: [`span-x4`](models/restoration.md#span) (14.6 ms).
 - Fastest commercially usable: [`span-x4`](models/restoration.md#span) (14.6 ms).
@@ -784,6 +784,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`drct-l-x4`](models/restoration.md#drct) | yes | 14651.1 (512x512) | 1606.9 | 1422.5 | 10.3x vs original (512x512) | 2692 |
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1444.6 | 2.1x vs original (512x512) | 2610 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1596.7 | 1444.7 | 2.1x vs original (512x512) | 2610 |
+| [`seedvr2-3b`](models/restoration.md#seedvr2) | yes | 13150.0 (512x512) | 2281.5 | 2281.2 | 5.8x vs original (512x512) | 11957 |
+| [`seedvr2-7b`](models/restoration.md#seedvr2) | yes | – | – | – | – | – |
 
 ## Volume
 

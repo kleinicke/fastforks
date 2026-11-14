@@ -23,7 +23,7 @@ from torch import nn
 from .nf4 import BF, NF4Linear
 
 if TYPE_CHECKING:
-    from .stream import HostBlocks
+    from fastforks.shared.host_blocks import HostBlocks
 
 HEADS, HEAD_DIM = 24, 128
 AXES = (16, 56, 56)  # RoPE dims of the frame, height and width axes

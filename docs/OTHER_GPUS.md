@@ -71,9 +71,9 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 |
 | parseq, ppocrv5 | fp16 | - | fp32/fp16 | - |
 | moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
+| marigold_v2, seedvr2 | bf16 | bf16 | - | - |
 | insid3, lingbot_map, pi3 | fp16 | fp16 | - | - |
 | loma | bf16 | - | fp32 | - |
-| marigold_v2 | bf16 | bf16 | - | - |
 | romav2 | bf16 | bf16 | fp32 | - |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
 | vggt | fp16 | fp16 | fp32 | vggt_metal fp32 |
@@ -118,7 +118,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `igevpp` | great_igev, igev_plusplus, monster_plusplus |
 | `mocha` | mocha_stereo |
 | `mvsanywhere` | mvsanywhere |
-| `nf4` | marigold_v2 |
+| `nf4` | marigold_v2, seedvr2 |
 | `patchmatchnet` | patchmatchnet |
 | `raft` | dlnr, raft_stereo |
 | `raft_flow` | gimm_vfi, megaflow, memflow, memfof, neuflow_v2, raft, sea_raft |
