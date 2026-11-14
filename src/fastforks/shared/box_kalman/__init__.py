@@ -27,9 +27,19 @@ def _xp(x: A) -> Any:  # noqa: ANN401 - numpy or torch, the array module of `x`
     return torch if isinstance(x, torch.Tensor) else np
 
 
-def _like(x: A, a: np.ndarray) -> Any:  # noqa: ANN401 - an array of `x`'s kind
-    """The constant `a` as an array of `x`'s kind (dtype, device)."""
-    return torch.as_tensor(a, dtype=x.dtype, device=x.device) if isinstance(x, torch.Tensor) else a
+_CONST = {"F": _F, "eye4": np.eye(4), "eye8": np.eye(8)}
+_on_device: dict[tuple[str, torch.dtype, torch.device], torch.Tensor] = {}
+
+
+def _like(x: A, name: str) -> Any:  # noqa: ANN401 - an array of `x`'s kind
+    """The constant `name` as an array of `x`'s kind (dtype, device); copied to a device once (no sync per call)."""
+    a = _CONST[name]
+    if not isinstance(x, torch.Tensor):
+        return a
+    key = (name, x.dtype, x.device)
+    if (c := _on_device.get(key)) is None:
+        c = _on_device[key] = torch.as_tensor(a, dtype=x.dtype, device=x.device)
+    return c
 
 
 def to_xyah(xyxy: A) -> A:
@@ -49,7 +59,7 @@ def to_xyxy(state: A) -> A:
 
 def _diag(std: A) -> A:
     """`[N, k]` standard deviations -> `[N, k, k]` diagonal covariances."""
-    return (std * std)[:, :, None] * _like(std, np.eye(std.shape[1]))
+    return (std * std)[:, :, None] * _like(std, f"eye{std.shape[1]}")
 
 
 def _std(h: A, pos: float, aspect: float) -> A:
@@ -70,7 +80,7 @@ def predict(mean: A, cov: A) -> tuple[A, A]:
     """One frame ahead: `x = F x`, `P = F P F^T + Q` with the noise of the current heights."""
     h = mean[:, 3]
     q = _diag(_xp(h).concatenate((_std(h, POSITION, 1e-2), _std(h, VELOCITY, 1e-5)), 1))
-    f = _like(mean, _F)
+    f = _like(mean, "F")
     return mean @ f.T, f @ cov @ f.T + q
 
 

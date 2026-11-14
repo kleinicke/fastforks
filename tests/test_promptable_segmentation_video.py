@@ -64,11 +64,11 @@ def test_samurai_motion_selects_by_box_once_stable() -> None:
 def test_samurai_memory_keeps_confident_frames() -> None:
     motion = Motion(2, 0.25)
     for t in range(1, 12):
-        motion.best_iou = np.array([0.9, 0.9 if t % 3 else 0.1], np.float32)  # object 1: weak every third frame
+        motion.best_iou = torch.tensor([0.9, 0.9 if t % 3 else 0.1])  # object 1: weak every third frame
         kept = motion.kept(t, torch.tensor([[1.0], [1.0 if t != 4 else -1.0]]))  # object 1 absent on frame 4
     groups = motion.memory(12)
     assert groups == {(6, 7, 8, 9, 10, 11): [0], (2, 5, 7, 8, 10, 11): [1]}
-    assert kept == {2, 5, 6, 7, 8, 9, 10, 11}
+    assert kept == {2, 5, 6, 7, 8, 9, 10}  # frame 11's flags are read one frame later (frame 11 is never pruned at 11)
     assert motion.memory(1) == {(): [0, 1]}
 
 

@@ -28,7 +28,7 @@ from .net.mask_decoder import MaskDecoder
 from .net.position_encoding import PositionEmbeddingSine
 from .net.prompt_encoder import PromptEncoder
 from .net.transformer import TwoWayTransformer
-from .video import VIDEO_KEYS, Tracker, VideoModules, prefetch, resize_frame
+from .video import VIDEO_KEYS, HostCopies, Tracker, VideoModules, prefetch, resize_frame
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -220,14 +220,15 @@ class _Sam2(Runner):
             "object_score_logits": torch.empty(n_frames, p),
         }
 
+        host = HostCopies(out)  # no host sync per frame
+
         def emit(t: int, low: torch.Tensor, obj: torch.Tensor) -> None:
-            out["masks"][t] = self.upsample(low, size)[:, 0] > 0
-            out["pred_masks"][t] = low[:, 0]
-            out["object_score_logits"][t] = obj[:, 0]
+            host.put(t, masks=self.upsample(low, size)[:, 0] > 0, pred_masks=low[:, 0], object_score_logits=obj[:, 0])
 
         feats = (self.embed(resize_frame(x, s)) for x in prefetch(frames, n_frames))
         kf = self.ctx.params.kf_score_weight if self.ctx.params.samurai else None
         tracker.run(feats, n_frames, coords=coords, labels=labs, mask=mask, emit=emit, kf_weight=kf)
+        host.flush()
         return out
 
 

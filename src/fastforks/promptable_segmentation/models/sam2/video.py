@@ -144,13 +144,24 @@ def fill_holes(low: torch.Tensor, max_area: int = FILL_HOLE_AREA) -> torch.Tenso
         lab = torch.where(bg, -F.max_pool2d(-lab, 3, 1, 1), big)
     lo = -F.max_pool2d(-lab, 3, 1, 1)  # neighbours outside the background are `big`, never below a label
     hi = F.max_pool2d(torch.where(bg, lab, -1.0), 3, 1, 1)
-    key = (torch.arange(p, device=low.device).view(p, 1, 1, 1) * (h * w) + lab.clamp(max=h * w - 1).long())[bg]
+    # Per-label pixel count and "touches another label" flag; scatter_add into a fixed size (no host sync).
     n = p * h * w
-    count = torch.bincount(key, minlength=n)
-    open_ = torch.bincount(key, weights=((lo != lab) | (hi != lab))[bg].float(), minlength=n) > 0
-    hole = torch.zeros_like(bg)
-    hole[bg] = (count[key] <= max_area) & ~open_[key]
-    return torch.where(hole, torch.tensor(HOLE_SCORE, dtype=low.dtype, device=low.device), low)
+    key = (torch.arange(p, device=low.device).view(p, 1, 1, 1) * (h * w) + lab.clamp(max=h * w - 1).long()).view(-1)
+    key = torch.where(bg.view(-1), key, n)  # background pixels -> their label; the rest -> a dump slot
+    count = torch.zeros(n + 1, device=low.device).scatter_add_(0, key, torch.ones_like(key, dtype=torch.float32))
+    touch = ((lo != lab) | (hi != lab)).view(-1).float()
+    open_ = torch.zeros(n + 1, device=low.device).scatter_add_(0, key, touch) > 0
+    hole = (bg.view(-1) & (count[key] <= max_area) & ~open_[key]).view_as(bg)
+    return torch.where(hole, HOLE_SCORE, low)
+
+
+def to_device(values: list[int], device: torch.device) -> torch.Tensor:
+    """A small int64 tensor of `values` on `device`.
+
+    On a GPU via pinned memory: no host sync (a pageable copy, `torch.tensor(..., device=cuda)`, waits for the stream).
+    """
+    x = torch.tensor(values)
+    return x.pin_memory().to(device, non_blocking=True) if device.type == "cuda" else x.to(device)
 
 
 def resize_frame(frame: torch.Tensor, size: int) -> torch.Tensor:
@@ -182,6 +193,51 @@ def prefetch(load: Callable[[int], torch.Tensor], n: int) -> Iterator[torch.Tens
             if t + 1 < n:
                 nxt = pool.submit(load, t + 1)
             yield x
+
+
+class HostCopies:
+    """Device tensors -> host tensors `out[name][t]` without blocking the host.
+
+    Through a ring of pinned buffers, each drained (its copy waited for) when it is reused; `flush` drains all. CPU
+    tensors are copied at once.
+    """
+
+    def __init__(self, out: dict[str, torch.Tensor], depth: int = 2) -> None:
+        """Targets `out` (name -> `[T, ...]` host tensor); `depth` frames in flight."""
+        self.out = out
+        self.ring: list[tuple[int, dict[str, torch.Tensor], torch.cuda.Event] | None] = [None] * depth
+        self.bufs: list[dict[str, torch.Tensor]] = [{} for _ in range(depth)]
+        self.n = 0
+
+    def put(self, t: int, **xs: torch.Tensor) -> None:
+        """`out[name][t] = x` for each `name=x`, once the copy is done (at the latest at `flush`)."""
+        if not next(iter(xs.values())).is_cuda:
+            for k, x in xs.items():
+                self.out[k][t] = x
+            return
+        i, self.n = self.n % len(self.ring), self.n + 1
+        self._drain(i)
+        bufs = self.bufs[i]
+        for k, x in xs.items():
+            if k not in bufs or bufs[k].shape != x.shape or bufs[k].dtype != x.dtype:
+                bufs[k] = torch.empty(x.shape, dtype=x.dtype, pin_memory=True)
+            bufs[k].copy_(x, non_blocking=True)
+        done = torch.cuda.Event()
+        done.record()
+        self.ring[i] = (t, bufs, done)
+
+    def _drain(self, i: int) -> None:
+        if (slot := self.ring[i]) is not None:
+            t, bufs, done = slot
+            done.synchronize()
+            for k, b in bufs.items():
+                self.out[k][t] = b
+            self.ring[i] = None
+
+    def flush(self) -> None:
+        """Wait for the copies in flight and write them."""
+        for j in range(len(self.ring)):
+            self._drain((self.n + j) % len(self.ring))
 
 
 class Tracker:
@@ -282,12 +338,12 @@ class Tracker:
         n_frames: int,
         bank: dict[int, tuple[torch.Tensor, torch.Tensor]],
         memory: list[int] | None = None,
-        objects: list[int] | None = None,
+        objects: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Upstream `_prepare_memory_conditioned_features` for frame `t >= 1` (frame 0: the only conditioning frame).
 
         `memory`: the earlier frames in the bank (oldest first; SAMURAI's selection, the last one gets the nearest
-        temporal encoding) instead of the previous 6; `objects`: the rows of the bank to use (all by default).
+        temporal encoding) instead of the previous 6; `objects`: the bank rows to use (index tensor; default all).
         """
         p, c, h, w = raw.shape
         dt = self.dtype
@@ -305,7 +361,7 @@ class Tracker:
             poss.append(self.mem_pos.expand(-1, p, -1) + tpos[age - 1])
         max_ptrs = min(n_frames, MAX_PTRS)
         ptr_frames = [0, *(t - d for d in range(1, max_ptrs) if t - d >= 1)]  # frame 0, then the most recent first
-        rel = torch.tensor([t - k for k in ptr_frames], device=raw.device)
+        rel = to_device([t - k for k in ptr_frames], raw.device)
         ptrs = torch.stack([bank[k][1][rows] for k in ptr_frames])  # [n, P, 256]
         pos = self.m.obj_ptr_tpos_proj(get_1d_sine_pe(rel / (max_ptrs - 1), dim=DIM))
         split = c // MEM_DIM
@@ -340,7 +396,7 @@ class Tracker:
         """
         bank: dict[int, tuple[torch.Tensor, torch.Tensor]] = {}
         p = next(x for x in (coords, mask) if x is not None).shape[0]
-        motion = None if kf_weight is None else Motion(p, kf_weight)
+        motion = None if kf_weight is None else Motion(p, kf_weight, self.no_mem.device)
         for t, f in enumerate(frames):
             pix = f["image_embed"].expand(p, -1, -1, -1)
             raw = pix - self.no_mem
@@ -358,10 +414,14 @@ class Tracker:
                 if motion is None:
                     cond = self.condition(raw, t, n_frames, bank)
                 else:
-                    cond = torch.empty_like(raw)
-                    for memory, rows in motion.memory(t).items():
-                        sub = raw[rows]
-                        cond[rows] = self.condition(sub, t, n_frames, bank, list(memory), rows)
+                    groups = motion.memory(t)
+                    if len(groups) == 1:  # all objects use the same frames
+                        cond = self.condition(raw, t, n_frames, bank, list(next(iter(groups))))
+                    else:
+                        cond = torch.empty_like(raw)
+                        for memory, rows in groups.items():
+                            idx = to_device(rows, raw.device)
+                            cond[idx] = self.condition(raw[idx], t, n_frames, bank, list(memory), idx)
                 low, high, ptr, obj = self.heads(cond, hr, None, None, None, True, motion)  # noqa: FBT003
                 bank[t] = (self.encode(raw, high, obj, binarize=False), ptr)
                 keep = set() if motion is None else motion.kept(t, obj)
@@ -372,19 +432,25 @@ class Tracker:
 
 
 class Motion:
-    """SAMURAI's per-object state: Kalman filter of the mask box, stable-frame count, memory-bank frames."""
+    """SAMURAI's per-object state: Kalman filter of the mask box, stable-frame count, memory-bank frames.
 
-    def __init__(self, objects: int, weight: float) -> None:
-        """`objects` tracks with motion weight `weight` (`kf_score_weight`)."""
+    The filter and the mask choice stay on the device (float64, as the float64 numpy reference): no host round trip
+    per frame. Only the memory-frame flags go to the host, copied without blocking and read one frame later (the
+    next frame's encoder is queued by then).
+    """
+
+    def __init__(self, objects: int, weight: float, device: torch.device | str = "cpu") -> None:
+        """`objects` tracks with motion weight `weight` (`kf_score_weight`) on `device`."""
         self.weight = weight
-        self.mean = np.zeros((objects, 8))
-        self.cov = np.zeros((objects, 8, 8))
-        self.stable = np.zeros(objects, dtype=np.int64)
-        self.best_iou = np.zeros(objects, dtype=np.float32)  # predicted IoU of the chosen mask (this frame)
+        self.mean = torch.zeros(objects, 8, dtype=torch.float64, device=device)
+        self.cov = torch.zeros(objects, 8, 8, dtype=torch.float64, device=device)
+        self.stable = torch.zeros(objects, dtype=torch.int64, device=device)
+        self.best_iou = torch.zeros(objects, device=device)  # predicted IoU of the chosen mask (this frame)
         self.valid: list[list[int]] = [[] for _ in range(objects)]  # the last memory frames that passed, per object
+        self._flags: tuple[int, torch.Tensor, torch.cuda.Event | None] | None = None  # frame t's flags, in flight
 
     @staticmethod
-    def boxes(low: torch.Tensor, size: int) -> np.ndarray:
+    def boxes(low: torch.Tensor, size: int) -> torch.Tensor:
         """`[P, M, 256, 256]` logits -> `[P, M, 4]` float64 boxes `(x0, y0, x1, y1)` of the `> 0` pixels at `size`."""
         fg = F.interpolate(low, (size, size), mode="bilinear", align_corners=False) > 0
         idx = torch.arange(size, device=low.device)
@@ -398,47 +464,61 @@ class Motion:
             ),
             -1,
         )
-        return torch.where(cols.any(-1, keepdim=True), box, 0).cpu().numpy().astype(np.float64)
+        return torch.where(cols.any(-1, keepdim=True), box, 0).double()
 
     @staticmethod
-    def xyah(box: np.ndarray) -> np.ndarray:
+    def xyah(box: torch.Tensor) -> torch.Tensor:
         """SAMURAI `xyxy_to_xyah` of `[N, 4]` boxes (a zero height counts as 1)."""
         w, h = box[:, 2] - box[:, 0], box[:, 3] - box[:, 1]
-        h = np.where(h == 0, 1.0, h)
-        return np.stack(((box[:, 0] + box[:, 2]) / 2, (box[:, 1] + box[:, 3]) / 2, w / h, h), 1)
+        h = torch.where(h == 0, 1.0, h)
+        return torch.stack(((box[:, 0] + box[:, 2]) / 2, (box[:, 1] + box[:, 3]) / 2, w / h, h), 1)
 
     def select(self, low: torch.Tensor, iou: torch.Tensor, size: int) -> torch.Tensor:
-        """Index `[P]` of the multimask output to keep (upstream `_forward_sam_heads` with `samurai_mode`)."""
+        """Index `[P]` of the multimask output to keep (upstream `_forward_sam_heads` with `samurai_mode`).
+
+        Every object runs every step; `torch.where` keeps the steps that apply to it (upstream branches per object).
+        """
         boxes = self.boxes(low, size)  # [P, M, 4]
-        ious = iou.float().cpu().numpy()  # [P, M]
-        p = np.arange(len(ious))
-        best = ious.argmax(1)
+        ious = iou.float()  # [P, M]
         new, scored = self.stable == 0, self.stable >= STABLE_FRAMES
         run = ~new
-        if run.any():
-            self.mean[run], self.cov[run] = box_kalman.predict(self.mean[run], self.cov[run])
-        if scored.any():
-            pred = box_kalman.to_xyxy(self.mean[scored])[:, None]  # [S, 1, 4]
-            b = boxes[scored]
-            iw = np.clip(np.minimum(pred[..., 2], b[..., 2]) - np.maximum(pred[..., 0], b[..., 0]), 0, None)
-            ih = np.clip(np.minimum(pred[..., 3], b[..., 3]) - np.maximum(pred[..., 1], b[..., 1]), 0, None)
-            inter = iw * ih
-            area = (pred[..., 2] - pred[..., 0]) * (pred[..., 3] - pred[..., 1])
-            union = area + (b[..., 2] - b[..., 0]) * (b[..., 3] - b[..., 1]) - inter
-            kf = np.where((union != 0) & b.any(-1), inter / np.where(union == 0, 1, union), 0.0)
-            best[scored] = (self.weight * kf + (1 - self.weight) * ious[scored].astype(np.float64)).argmax(1)  # float64
-        chosen = ious[p, best]
-        ok = np.where(scored, chosen >= STABLE_IOU, chosen > STABLE_IOU)
+        mean, cov = box_kalman.predict(self.mean, self.cov)
+        mean = torch.where(run[:, None], mean, self.mean)
+        cov = torch.where(run[:, None, None], cov, self.cov)
+        pred = box_kalman.to_xyxy(mean)[:, None]  # [P, 1, 4]
+        iw = (torch.minimum(pred[..., 2], boxes[..., 2]) - torch.maximum(pred[..., 0], boxes[..., 0])).clamp(min=0)
+        ih = (torch.minimum(pred[..., 3], boxes[..., 3]) - torch.maximum(pred[..., 1], boxes[..., 1])).clamp(min=0)
+        inter = iw * ih
+        area = (pred[..., 2] - pred[..., 0]) * (pred[..., 3] - pred[..., 1])
+        union = area + (boxes[..., 2] - boxes[..., 0]) * (boxes[..., 3] - boxes[..., 1]) - inter
+        ok_box = (union != 0) & boxes.ne(0).any(-1)
+        kf = torch.where(ok_box, inter / torch.where(union == 0, 1.0, union), 0.0)
+        score = self.weight * kf + (1 - self.weight) * ious.double()  # float64, as upstream
+        best = torch.where(scored, score.argmax(1), ious.argmax(1))
+        chosen = ious.gather(1, best[:, None])[:, 0]
+        ok = torch.where(scored, chosen >= STABLE_IOU, chosen > STABLE_IOU)
+        meas = self.xyah(boxes.gather(1, best[:, None, None].expand(-1, 1, 4))[:, 0])
+        um, uc = box_kalman.update(mean, cov, meas)
+        im, ic = box_kalman.initiate(meas)
         upd = run & ok
-        if upd.any():
-            self.mean[upd], self.cov[upd] = box_kalman.update(
-                self.mean[upd], self.cov[upd], self.xyah(boxes[upd, best[upd]])
-            )
-        if new.any():
-            self.mean[new], self.cov[new] = box_kalman.initiate(self.xyah(boxes[new, best[new]]))
-        self.stable = np.where(new, 1, np.where(ok, np.where(scored, self.stable, self.stable + 1), 0))
+        self.mean = torch.where(new[:, None], im, torch.where(upd[:, None], um, mean))
+        self.cov = torch.where(new[:, None, None], ic, torch.where(upd[:, None, None], uc, cov))
+        self.stable = torch.where(new, 1, torch.where(ok, torch.where(scored, self.stable, self.stable + 1), 0))
         self.best_iou = chosen
-        return torch.from_numpy(best).to(low.device)
+        return best
+
+    def _read_flags(self) -> None:
+        """Add the frame whose flags are in flight to the memory frames of the objects it passed for."""
+        if self._flags is None:
+            return
+        t, flags, done = self._flags
+        if done is not None:
+            done.synchronize()
+        for valid, ok in zip(self.valid, flags.tolist(), strict=True):
+            if ok:
+                valid.append(t)
+                del valid[: -(NUM_MASKMEM - 1)]
+        self._flags = None
 
     def memory(self, t: int) -> dict[tuple[int, ...], list[int]]:
         """The memory frames of frame `t` (oldest first) -> the objects that use them.
@@ -446,6 +526,7 @@ class Motion:
         Upstream: the valid frames among `t - 1 ... 2` (frame 1 only as the previous frame), the previous frame always,
         the last `NUM_MASKMEM - 1` of them (frame 0 is the conditioning frame and comes separately).
         """
+        self._read_flags()
         groups: dict[tuple[int, ...], list[int]] = {}
         for i, valid in enumerate(self.valid):
             frames = [k for k in valid if k < t - 1]
@@ -454,10 +535,19 @@ class Motion:
         return groups
 
     def kept(self, t: int, obj: torch.Tensor) -> set[int]:
-        """Record whether frame `t` may be a memory frame per object; the frames the memory can still select."""
-        present = (obj[:, 0] > 0).cpu().numpy()
-        for i, valid in enumerate(self.valid):
-            if t >= 2 and self.best_iou[i] > MEMORY_IOU and present[i]:  # noqa: PLR2004 - upstream skips frame 1
-                valid.append(t)
-                del valid[: -(NUM_MASKMEM - 1)]
+        """Flag whether frame `t` may be a memory frame per object; the frames the memory can still select.
+
+        The flags are read with the next `memory` (frame `t` itself is never pruned at `t`).
+        """
+        self._read_flags()
+        if t >= 2:  # noqa: PLR2004 - upstream skips frame 1
+            ok = (self.best_iou > MEMORY_IOU) & (obj[:, 0] > 0)
+            if ok.is_cuda:
+                host = torch.empty(ok.shape, dtype=torch.bool, pin_memory=True)
+                host.copy_(ok, non_blocking=True)
+                done = torch.cuda.Event()
+                done.record()
+                self._flags = (t, host, done)
+            else:
+                self._flags = (t, ok.cpu(), None)
         return {k for valid in self.valid for k in valid}
