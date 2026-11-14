@@ -237,6 +237,7 @@ _RESULTS = {
     "matching": "MatchingResult SparseMatchingResult",
     "matting": "MattingResult",
     "edges": "EdgesResult",
+    "ocr": "OCRResult",
     "interpolation": "InterpolationResult",
     "retrieval": "RetrievalResult",
     "calibration": "CalibrationResult",

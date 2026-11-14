@@ -41,6 +41,7 @@ from fastforks import (
     matching,
     matting,
     multiview,
+    ocr,
     pose,
     promptable_segmentation,
     restoration,
@@ -81,6 +82,7 @@ API: dict[str, Any] = {
     "matching": matching,
     "matting": matting,
     "edges": edges,
+    "ocr": ocr,
     "interpolation": interpolation,
     "retrieval": retrieval,
     "calibration": calibration,
@@ -345,6 +347,9 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     elif task == "edges":
         r = m(img)
         maps = {"edges": r.edges}
+    elif task == "ocr":  # texts as code points (`goldens.text_codes`)
+        r = m(img)
+        maps = {"boxes": r.boxes, "scores": r.scores, "texts": torch.from_numpy(goldens.text_codes(r.texts))}
     elif task == "matting":  # trimap- / mask-guided models: the golden's trimap or mask; video: `track` on the clip
         guide = {k: want[k].round().astype(np.uint8) for k in ("trimap", "mask") if want and k in want}
         r = m(img, **guide)

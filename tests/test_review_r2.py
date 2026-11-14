@@ -26,6 +26,7 @@ from fastforks.interpolation import InterpolationResult
 from fastforks.matching import MatchingResult, SparseMatchingResult
 from fastforks.matting import MattingResult
 from fastforks.multiview import MultiViewResult
+from fastforks.ocr import OCRResult
 from fastforks.pose import PoseResult
 from fastforks.promptable_segmentation._api import ConceptSegmentationResult, PromptableSegmentationResult
 from fastforks.restoration import RestorationResult
@@ -47,6 +48,7 @@ RESULTS = {
     "matching": (MatchingResult, SparseMatchingResult),
     "matting": (MattingResult,),
     "edges": (EdgesResult,),
+    "ocr": (OCRResult,),
     "interpolation": (InterpolationResult,),
     "retrieval": (RetrievalResult,),
     "calibration": (CalibrationResult,),

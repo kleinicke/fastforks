@@ -46,6 +46,7 @@ from fastforks.interpolation._runner import Runner as InterpolationRunner
 from fastforks.matching._runner import Runner as MatchingRunner
 from fastforks.matting._runner import Runner as MattingRunner
 from fastforks.multiview._runner import Runner as MultiViewRunner
+from fastforks.ocr._runner import Runner as OCRRunner
 from fastforks.pose._runner import Runner as PoseRunner
 from fastforks.promptable_segmentation._api import MAX_EXEMPLARS, ConceptModelId, _model_class
 from fastforks.promptable_segmentation._runner import Runner as PromptRunner
@@ -666,6 +667,7 @@ def test_resize_crop_bicubic_stays_in_range():
         "matching",
         "matting",
         "edges",
+        "ocr",
         "tracking",
         "interpolation",
         "retrieval",
@@ -683,6 +685,7 @@ def test_runner_without_call_cannot_be_built(task):
     base["matching"] = MatchingRunner
     base["matting"] = MattingRunner
     base["edges"] = EdgesRunner
+    base["ocr"] = OCRRunner
     base["tracking"] = TrackingRunner
     base["interpolation"] = InterpolationRunner
     base["retrieval"] = RetrievalRunner

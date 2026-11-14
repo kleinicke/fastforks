@@ -343,7 +343,7 @@ def _speed_rows() -> dict[str, list[dict]]:
     rows: dict[str, list[dict]] = {}
     for line in path.read_text().splitlines() if path.is_file() else []:
         row = json.loads(line)
-        if row.get("status") == "oom":  # no time: read by _oom
+        if row.get("status") == "oom" or "error" in row:  # no time: OOM rows are read by _oom, errors stay in results/
             continue
         if not row.get("cold") or "ms" in row:  # speed_check rows: a fresh process, warm timings included
             rows.setdefault(row["ref"], []).append(row)
@@ -1080,6 +1080,10 @@ TASK_IO = {
     "edges": (
         "Input: one RGB image. Output: a line / edge map `[H, W]` in [0, 1] at the input size (1 = line), the "
         "ControlNet preprocessors (line art, HED, PiDiNet, TEED / Anyline); M-LSD also returns straight line segments."
+    ),
+    "ocr": (
+        "Input: one RGB image. Output: the text lines in reading order: a quad `[N, 4, 2]` per line, its text and a "
+        "confidence `[N]` (text detector + recogniser; recognisers alone read the whole image as one line)."
     ),
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
     "volume": (

@@ -52,6 +52,7 @@ nav:
       - Image restoration: api/restoration.md
       - Volume segmentation: api/volume.md
       - Edges / line art: api/edges.md
+      - Text recognition (OCR): api/ocr.md
       - Errors: api/errors.md
   - Models:
       - Stereo: models/stereo.md
@@ -73,6 +74,7 @@ nav:
       - Image restoration: models/restoration.md
       - Volume segmentation: models/volume.md
       - Edges / line art: models/edges.md
+      - Text recognition (OCR): models/ocr.md
   - Contributing: contributing.md
 markdown_extensions:
   - admonition

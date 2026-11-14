@@ -10,6 +10,8 @@ import json
 import tomllib
 from pathlib import Path
 
+import numpy as np
+
 SRC = Path(__file__).resolve().parents[1] / "src" / "fastforks"
 SECTIONS = ("tolerance", "refs", "validated")
 HEADER = """\
@@ -20,6 +22,14 @@ HEADER = """\
 # passed with (`pytest -m gpu --record`). Not shipped in wheels.
 """
 DEFAULT_TOLERANCE = {"cpu_atol": 2e-3, "gpu_mean": 0.02, "gpu_p99": 0.25}
+
+
+def text_codes(texts: list[str]) -> np.ndarray:
+    """OCR goldens store texts as `[N, L]` float32 Unicode code points, zero-padded (exact up to 2^24)."""
+    out = np.zeros((len(texts), max(map(len, texts), default=0)), np.float32)
+    for i, t in enumerate(texts):
+        out[i, : len(t)] = [ord(c) for c in t]
+    return out
 
 
 def path(family: str, task: str = "stereo") -> Path:

@@ -321,6 +321,11 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
             "input pixels",
         ),
     },
+    "ocr": {
+        "boxes": ("[N, 4, 2]", "float32", "quad corners (x, y), clockwise from the top-left", "input pixels"),
+        "texts": ("N strings", "str", "recognised text, reading order", ""),
+        "scores": ("[N]", "float32", "[0, 1] mean character probability", ""),
+    },
     "interpolation": {"frame": ("[B, 3, H, W]", "float32", "RGB in [0, 1]", "input pixels, at time `timestep`")},
     "retrieval": {
         "descriptor": ("[B, D]", "float32", "unit L2 norm (cosine similarity = dot product)", "one per image")
@@ -433,6 +438,10 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "segmentation": (("input handling", "network", "logits at the input size"), ("image conversion", "argmax")),
     "matting": (("resize to the network size", "normalise", "network", "resize to the input"), ("image conversion",)),
     "edges": (("resize to the detect size", "normalise", "network", "resize to the input"), ("image conversion",)),
+    "ocr": (
+        ("normalise", "detector"),
+        ("image conversion", "resize", "box extraction", "reading order", "line crops", "recogniser", "decoding"),
+    ),
     "retrieval": (("resize to the network size", "normalise", "network"), ("image conversion", "top_k", "pairs")),
     "calibration": (("resize", "crop", "network", "camera fit", "camera of the input image"), ("image conversion",)),
     "features": (("resize to the patch stride", "network"), ("image conversion", "pooler_output", "hidden_states")),
