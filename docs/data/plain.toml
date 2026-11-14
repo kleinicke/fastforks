@@ -128,6 +128,7 @@ mask2former = "Mask2Former with a Swin-L backbone for ADE20K scene segmentation.
 oneformer = "OneFormer (SHI Labs): one network for several segmentation tasks, used here for ADE20K scene segmentation."
 sapiens = "Meta's Sapiens: segmentation of human body parts (28 Goliath classes such as face, hair, limbs and clothing). Non-commercial licence."
 segformer = "NVIDIA's SegFormer: a transformer for ADE20K scene segmentation (sizes B0 and B5), plus two community fine-tunes: clothes parsing (B2, 18 classes) and face parsing (B5, 19 classes). Non-commercial weights."
+bisenet = "BiSeNet face parsing (Yu et al., ECCV 2018; zllrunning's face-parsing.PyTorch checkpoint as shipped by facexlib): labels skin, brows, eyes, glasses, ears, nose, mouth, lips, neck, cloth, hair and hat in a face crop (19 classes, CelebAMask-HQ). MIT code and weights."
 
 # --- promptable segmentation
 efficientvit_sam = "EfficientViT-SAM (MIT Han lab): Segment Anything with a fast convolutional image encoder, in five sizes."

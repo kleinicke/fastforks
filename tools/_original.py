@@ -1025,6 +1025,33 @@ def _segnext(a: Any, full: str) -> Any:  # noqa: ANN401
     return lambda x: g.whole(model, x[None].float() / 255)[0]
 
 
+def _bisenet(a: Any, full: str) -> Any:  # noqa: ANN401
+    """face-parsing.PyTorch's test.py on facexlib's network (`FF_BISENET_REPO`: a facexlib clone), float32.
+
+    The timed call is test.py's: the uint8 image to PIL, `resize((512, 512), BILINEAR)`, `ToTensor` + `Normalize`, to
+    the GPU, `net(x)[0]` (512 x 512 logits; test.py does not resize them back).
+    """
+    import numpy as np  # noqa: PLC0415
+    import torch  # noqa: PLC0415
+    from PIL import Image  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("bisenet")
+    card, variant = registry.resolve("segmentation", full)
+    (weights,) = registry.weights(card, variant)
+    net = g.build(Path(os.environ["FF_BISENET_REPO"]), weights).cuda()
+    mean, std = (torch.tensor(v, device="cuda")[:, None, None] for v in (g.MEAN, g.STD))
+    a.note = "face-parsing.PyTorch test.py: PIL resize 512 x 512 on the CPU, Normalize, net(x)[0], float32"
+
+    def call(x: Any) -> Any:  # noqa: ANN401
+        im = Image.fromarray(x.permute(1, 2, 0).cpu().numpy()).resize((g.SIZE, g.SIZE), Image.BILINEAR)
+        t = torch.from_numpy(np.asarray(im)).cuda().permute(2, 0, 1).float() / 255
+        return net(((t - mean) / std)[None])[0]
+
+    return call
+
+
 def _convnext(a: Any, full: str) -> Any:  # noqa: ANN401
     """A classifier as `tools/golden/libnet_classification.py` builds it, with the card's `[io]` transform on GPU.
 
@@ -2099,6 +2126,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "focalnet": _Local("classification", _convnext, ((224, 224),)),
     "davit": _Local("classification", _convnext, ((224, 224),)),
     "segnext": _Local("segmentation", _segnext, ((512, 512), (1024, 2048))),
+    "bisenet": _Local("segmentation", _bisenet, ((512, 512),)),
     "shvit": _Local("classification", _convnext, ((224, 224),)),
     "starnet": _Local("classification", _convnext, ((224, 224),)),
     "fastvit": _Local("classification", _convnext, ((224, 224),)),  # the authors' reparameterized inference

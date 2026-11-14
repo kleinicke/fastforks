@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- BiSeNet face parsing (`bisenet-face-parsing`, segmentation; MIT code and weights): face-parsing.PyTorch's
+  19-class model from facexlib, BatchNorms folded, auxiliary heads skipped. 512x512: 2.41 ms portable vs 5.21 ms
+  original fp32, peak 51 / 72 MB vs 128 / 152 MB; labels agree with the original on 99.97 % of the pixels (24 faces).
+
 - GFPGAN v1.4 face restoration (`gfpgan-v1.4`, restoration; Apache-2.0 code and weights): one aligned 512 x 512
   face; the checkpoint's stored noise instead of new random noise per call, cheaper skip convolutions. 18.0 ms
   kernels, 21.2 ms portable (12.5 ms compile) vs 41.1 ms original fp32 (21.9 ms `.half()`), peak 473 / 530 MB vs

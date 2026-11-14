@@ -727,6 +727,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
+| bisenet-face-parsing | 512x512 | – | 5.94 | 2.41 | – | – | – | 69 / 94 | 51 / 72 | – |
 | deeplabv3-r101-d8-ade20k | 1024x2048 | 108 | 54.8 | 47.9 | 20.1 | 2.7x | 2.4x | 2031 / 2162 | 453 / 532 | 362 / 518 |
 | deeplabv3plus-r101-d8-ade20k | 1024x2048 | 104 | 53.4 | 47.1 | 18.0 | 3.0x | 2.6x | 1891 / 2024 | 413 / 492 | 365 / 560 |
 | dinov2-b-linear-ade20k | 1024x2048 | 115 | 40.1 | 33.3 | 20.1 | 2.0x | 1.7x | 2063 / 2426 | 765 / 884 | 771 / 884 |
@@ -1322,6 +1323,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | wd-eva02-large-tagger-v3 | 4.82 (448x448) | 5.38 (448x448) | 3.61 (448x448) | 0.35 (448x448) | 0.06 (448x448) | 0.08 (448x448) |
 | wd-vit-large-tagger-v3 | 4.74 (448x448) | 5.54 (448x448) | 4.68 (448x448) | 0.44 (448x448) | 0.09 (448x448) | 0.06 (448x448) |
 | wd-vit-tagger-v3 | 2.33 (448x448) | 2.44 (448x448) | 2.28 (448x448) | 0.32 (448x448) | 0.09 (448x448) | 0.09 (448x448) |
+| bisenet-face-parsing | 0.31 (512x512) | 0.20 (512x512) | – | 0.41 (512x512) | 0.28 (512x512) | – |
 | deeplabv3-r101-d8-ade20k | 1.64 (512x512) | 0.73 | 0.91† | 0.03 (512x512) | 0.08 | 0.02† |
 | deeplabv3plus-r101-d8-ade20k | 4.72 (512x512) | 0.62 | 0.75† | 0.66 (512x512) | 0.10 | 0.02† |
 | dinov2-b-linear-ade20k | 12.01 (512x512) | 0.27 | 1.11 | 0.02 (512x512) | 0.10 | 0.07 |
@@ -1821,6 +1823,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | wd-eva02-large-tagger-v3 | 448x448 | 18.3 ms | 15.7 ms | fails: timeout after 290 s | 14.1 ms | 22.4 s | – | 669 / 684 | 714 / 724 | 673 / 806 | – |
 | wd-vit-large-tagger-v3 | 448x448 | 12.9 ms | 13.3 ms | 11.2 ms | 12.5 ms | 13.5 s | 36.2 s | 669 / 682 | 713 / 742 | 667 / 724 | 1266 / 1290 |
 | wd-vit-tagger-v3 | 448x448 | 3.98 ms | 5.33 ms | fails: timeout after 290 s | 4.05 ms | 9.55 s | – | 235 / 242 | 282 / 302 | 234 / 284 | – |
+| bisenet-face-parsing | 512x512 | 2.41 ms | 1.34 ms | 0.678 ms | – | 5.79 s | 12.9 s | 51 / 72 | 76 / 110 | – | 85 / 110 |
 | deeplabv3-r101-d8-ade20k | 1024x2048 | 47.9 ms | 42.1 ms | 30.6 ms | 20.1 ms | 9.60 s | 25.7 s | 453 / 532 | 450 / 512 | 362 / 518 | 1764 / 1826 |
 | deeplabv3plus-r101-d8-ade20k | 1024x2048 | 47.1 ms | 44.6 ms | 30.9 ms | 18.0 ms | 10.9 s | 23.3 s | 413 / 492 | 410 / 432 | 365 / 560 | 1683 / 1732 |
 | dinov2-b-linear-ade20k | 1024x2048 | 33.3 ms | 35.8 ms | 49.5 ms | 20.1 ms | 10.8 s | 40.6 s | 765 / 884 | 1455 / 1504 | 771 / 884 | 3367 / 3424 |

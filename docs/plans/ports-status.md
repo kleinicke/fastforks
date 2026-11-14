@@ -169,6 +169,8 @@ In this order, unless something more useful turns up:
   URL of the card (also in `/home/florian/projects/data/ff-weights/realplksr/`).
 - GFPGAN v1.4 (`gfpgan-v1.4`, restoration): portable MPS goldens and Mac speed rows (512x512 aligned face; MPS runs
   float32). No Metal kernels runner. Weights: the pinned GitHub release URL of the card (also in `/home/florian/projects/data/ff-weights/gfpgan/`).
+- BiSeNet face parsing (`bisenet-face-parsing`, segmentation): portable MPS goldens and Mac speed rows (512x512
+  face). No kernels runner. Weights: the pinned GitHub release URL of the card (also in `/home/florian/projects/data/ff-weights/bisenet/`).
 
 - RTMW whole-body (5 variants): MPS golden checks, especially the 384-pixel variants, and portable speed rows.
   Weights on CUDA in `~/scratch_tests/port-rtmo/w/` or its `cache/`, otherwise the pinned upstream URLs.

@@ -269,7 +269,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Segmentation
 
-22 models; size 1024x2048.
+23 models; size 1024x2048.
 
 - Fastest: [`segformer-b0-ade20k`](models/segmentation.md#segformer) (3.5 ms).
 - Fastest commercially usable: [`segnext-mscan-s-ade20k`](models/segmentation.md#segnext) (8.0 ms).
@@ -298,6 +298,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`sapiens-seg-0.3b-goliath`](models/segmentation.md#sapiens-segmentation) | no | 173.2 (1024x2048) | 131.9 | 92.6 | 1.9x vs original (1024x2048) | 1643 |
 | [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | yes | 205.1 (1024x2048) | 139.1 | 100.0 | 2.1x vs original (1024x2048) | 2054 |
 | [`sapiens-seg-1b-goliath`](models/segmentation.md#sapiens-segmentation) | no | 354.4 (1024x2048) | 275.1 | 185.2 | 1.9x vs original (1024x2048) | 3259 |
+| [`bisenet-face-parsing`](models/segmentation.md#bisenet-face-parsing) | yes | – | – | – | – | – |
 
 ## Matting
 
