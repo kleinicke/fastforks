@@ -109,6 +109,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `fvm_mb` | alexnet, c_radio, clip, convnextv2, deit, densenet, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, hrnet, inception_v3, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, perception_encoder, regnet, repvit, resnet, retinaface, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, siglip, siglip2, squeezenet, starnet, swin, vgg, vit, wd_tagger, yolox |
 | `fvm_r3` | alexnet, c_radio, clip, convnextv2, deit, densenet, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, hrnet, inception_v3, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, perception_encoder, regnet, repvit, resnet, retinaface, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, siglip, siglip2, squeezenet, starnet, swin, vgg, vit, wd_tagger, yolox |
 | `fvm_seg` | convnext, convnext_features, dinov3_convnext, mask2former, oneformer |
+| `gsraster` | resplat |
 | `hitnet` | hitnet |
 | `hitnet_conv` | hitnet |
 | `igev` | aanet, ben2, c_foundationstereo, cas_gwcnet, cfnet, coex, crestereo, defom_stereo, dlnr, fast_acvnet, great_igev, gwcnet, igev_plusplus, igev_stereo, isnet, las2, mmseg, mocha_stereo, monster, monster_plusplus, mvsanywhere, psmnet, rt_monster_plusplus, selective_igev, u2net, vitmatte, waft_stereo |

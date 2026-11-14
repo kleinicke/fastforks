@@ -18,11 +18,12 @@ upstream's training bounds (`near`, `far`); the network is not scale invariant (
 
 fp16 and kernels: fp16 weights under autocast (upstream evaluates under bf16 autocast); Gaussian activations, the
 renderer and the refinement bookkeeping run in fp32. kernels adds the `fastbb` DINOv2 (flash attention,
-fp16-accumulate GEMMs) and cuDNN fp16-accumulate convs.
+fp16-accumulate GEMMs), cuDNN fp16-accumulate convs and the `gsraster` CUDA rasteriser in place of `render.py`.
 """
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -48,6 +49,7 @@ from .render import render, sh_basis
 
 if TYPE_CHECKING:
     import contextlib
+    from collections.abc import Callable
 
     from fastforks.multiview._runner import Context
 
@@ -150,10 +152,12 @@ class Net(nn.Module):
 
     mean: torch.Tensor
     std: torch.Tensor
+    render: Callable[..., torch.Tensor]
 
     def __init__(self, p: Params) -> None:  # noqa: D107
         super().__init__()
         self.p = p
+        self.render = render  # the kernels runner installs `fastforks.kernels.gsraster.render`
         m = p.gaussians_per_point
         self.depth_predictor = MultiViewUniMatch(
             num_scales=1, upsample_factor=p.lowest, lowest_feature_resolution=p.lowest, num_depth_candidates=128,
@@ -286,7 +290,7 @@ class Net(nn.Module):
                 near: float, far: float) -> torch.Tensor:  # fmt: skip
         rot = g["rotations"] / (g["rotations"].norm(dim=-1, keepdim=True) + 1e-8)
         cov = covariance(g["scales"], rot, c2w[:, :3, :3].float()).flatten(0, 1)
-        return render(
+        return self.render(
             g["means"].flatten(0, 1), cov, g["opacities"].flatten(), g["harmonics"].flatten(0, 1), c2w, k, *size, near,
             far,
         )  # fmt: skip
@@ -490,14 +494,15 @@ class Portable(_Base):
 
 
 class Kernels(_Base):
-    """fp16: the `fastbb` DINOv2 (flash attention, fp16-accumulate GEMMs), cuDNN fp16-accumulate convs."""
+    """fp16: `fastbb` DINOv2, cuDNN fp16-accumulate convs, the `gsraster` CUDA rasteriser for the refinement renders."""
 
     def __init__(self, ctx: Context) -> None:  # noqa: D107
         super().__init__(ctx)
-        from fastforks.kernels import cudnn_hacc, fastbb  # noqa: PLC0415 - kernels only
+        from fastforks.kernels import cudnn_hacc, fastbb, gsraster  # noqa: PLC0415 - kernels only
 
         fastbb.load(ctx.device)
         cudnn_hacc.load(ctx.device)
+        self.net.render = functools.partial(gsraster.render, gsraster.load(ctx.device))
         use_fast_vit(self.net.depth_predictor.pretrained)
         if _hacc_convs(self.net) == 0:
             msg = "ReSplat kernels: no conv routed through cudnn_hacc"

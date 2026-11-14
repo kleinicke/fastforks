@@ -41,7 +41,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["fastbb", "cudnn_hacc"]
+kernels = ["fastbb", "cudnn_hacc", "gsraster"]
 
 [[papers]]
 title = "ReSplat: Learning Recurrent Gaussian Splats"

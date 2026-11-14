@@ -453,7 +453,7 @@ Speed and memory not measured for: `resplat-small-dl3dv`, `resplat-base-re10k`.
   - `resplat-base-re10k`: RealEstate10K (camera trajectories of YouTube real-estate videos) (RealEstate10K (YouTube videos, camera poses from ORB-SLAM; research use per its release), from a DepthSplat / Depth Anything V2 Base (CC-BY-NC-4.0) depth initialisation.)
 - Licence note: Code and checkpoints are MIT. The Base RealEstate10K checkpoint's monocular branch is initialised from Depth Anything V2 Base (CC-BY-NC-4.0) and is labelled non-commercial; the Small DL3DV checkpoint builds on Depth Anything V2 Small (Apache-2.0).
 - Options: `long_side` = 0 (>= 0), `refine` = 2 (>= 0)
-- Kernel libraries: `fastbb`, `cudnn_hacc`
+- Kernel libraries: `fastbb`, `cudnn_hacc`, `gsraster`
 - Variants: `resplat-small-dl3dv`, `resplat-base-re10k`
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -465,8 +465,8 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `resplat-small-dl3dv` | 0.00302 / 0.00738 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
-| `resplat-base-re10k` | 0.00424 / 0.01598 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
+| `resplat-small-dl3dv` | 0.00302 / 0.00738 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `gsraster@e1e5e630344a:sm_120` |
+| `resplat-base-re10k` | 0.00424 / 0.01598 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `gsraster@e1e5e630344a:sm_120` |
 
 </details>
 
