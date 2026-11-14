@@ -1915,6 +1915,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | efficientvit-sam-l2 | 1024x1024 | 17.8 ms | 10.8 ms | 9.65 ms, fp32 engine (image encoder only) | 6.83 ms | 26.1 s | 24.1 s | 221 / 260 | 238 / 278 | 232 / 312 | 633 / 690 |
 | efficientvit-sam-xl0 | 1024x1024 | 19.0 ms | 14.2 ms | 22.7 ms, fp32 engine (image encoder only) | 9.75 ms | 24.0 s | 29.8 s | 433 / 506 | 397 / 424 | 401 / 492 | 1288 / 1328 |
 | efficientvit-sam-xl1 | 1024x1024 | 28.9 ms | 22.9 ms | 38.4 ms, fp32 engine (image encoder only) | 15.3 ms | 26.7 s | 36.6 s | 598 / 676 | 562 / 616 | 582 / 728 | 1894 / 1960 |
+| insid3-vitl16 | 1024x1024 | 255 ms | 236 ms | 64.8 ms (image encoder only) | 157 ms | 20.3 s | – | 986 / 1228 | 985 / 1086 | 987 / 1228 | unknown |
 | mobile-sam | 1024x1024 | 10.5 ms | 6.22 ms | 4.99 ms (image encoder only) | 6.86 ms | 25.5 s | 60.9 s | 183 / 210 | 203 / 232 | 215 / 296 | 219 / 252 |
 | sam-hq-vit-b | 1024x1024 | 49.7 ms | 39.4 ms | 28.0 ms (image encoder only) | 36.8 ms | 32.8 s | 39.0 s | 388 / 422 | 372 / 422 | 433 / 564 | 609 / 642 |
 | sam-hq-vit-h | 1024x1024 | 217 ms | 187 ms | 125 ms (image encoder only) | 144 ms | 42.3 s | 69.1 s | 1500 / 1566 | 1476 / 1526 | 1541 / 1708 | 2790 / 2818 |
@@ -2086,6 +2087,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale2-regrefine6-things | 1080x1920 | 2183 ms | 1116 ms | fails: TensorRT bug: Myelin internal error | – | 58.2 s | – | 6443 / 7250 | 10875 / 10972 | – | – |
 | gmflow-scale2-sintel | 1080x1920 | 1644 ms | 765 ms | fails: TensorRT bug: Myelin internal error | – | 46.6 s | – | 6433 / 7244 | 10865 / 10904 | – | – |
 | gmflow-scale2-things | 1080x1920 | 1636 ms | 765 ms | fails: TensorRT bug: Myelin internal error | – | 46.7 s | – | 6433 / 7244 | 10865 / 10904 | – | – |
+| megaflow | 1080x1920 | 1109 ms | 917 ms | 679 ms | 734 ms | 103 s | – | 3035 / 3246 | 2611 / 2886 | 2866 / 3066 | unknown |
 | memflow | 1080x1920 | 964 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
 | memflow-kitti | 1080x1920 | 965 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
 | memflow-sintel | 1080x1920 | 964 ms | 1640 ms | fails: TensorRT engine build failed | 865 ms | 76.0 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
@@ -2098,6 +2100,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | raft-large-kitti | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.6 ms | 39.3 s | – | 5930 / 6058 | 5886 / 5924 | 333 / 352 | – |
 | raft-large-things | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.1 ms | 39.4 s | – | 5930 / 6058 | 5886 / 5924 | 333 / 352 | – |
 | raft-small | 1080x1920 | 144 ms | 110 ms | fails: TensorRT engine build failed | 36.3 ms | 37.0 s | – | 5669 / 5706 | 5704 / 5728 | 197 / 224 | – |
+| recover-cx | 1080x1920 | 107 ms | 89.9 ms | 48.0 ms | 89.8 ms | 15.4 s | – | 733 / 892 | 504 / 552 | 733 / 892 | unknown |
+| recover-mn | 1080x1920 | 45.5 ms | 33.4 ms | 21.2 ms | 41.8 ms | 14.9 s | – | 580 / 676 | 365 / 416 | 580 / 676 | unknown |
+| recover-rn | 1080x1920 | 64.1 ms | 48.7 ms | 29.1 ms | 51.3 ms | 10.4 s | – | 590 / 672 | 375 / 432 | 590 / 672 | unknown |
 | sea-raft-m | 1080x1920 | 270 ms | 191 ms | 132 ms | 73.1 ms | 34.3 s | 70.0 s | 6060 / 6180 | 5869 / 5920 | 435 / 514 | 11110 / 11130 |
 | sea-raft-m-kitti | 1080x1920 | 270 ms | 191 ms | 132 ms | 73.1 ms | 34.9 s | 69.7 s | 6060 / 6180 | 5869 / 5920 | 435 / 514 | 11110 / 11130 |
 | sea-raft-m-spring | 1080x1920 | 46.8 ms | 34.6 ms | 4.43 ms | 23.2 ms | 23.2 s | 47.1 s | 652 / 700 | 624 / 640 | 181 / 214 | 291 / 318 |

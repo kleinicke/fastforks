@@ -335,7 +335,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `megaflow` | synthetic (1080x1920) | original<br>portable<br>kernels | 1588<br>1109<br>734 | 8230 / 8786<br>3035 / 3246<br>2866 / 3066 |
+| `megaflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1588<br>1109<br>734<br>917<br>679 | 8230 / 8786<br>3035 / 3246<br>2866 / 3066<br>2611 / 2886<br>unknown |
 
 <details><summary>Details</summary>
 
@@ -351,6 +351,7 @@ Commercial use: yes.
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `megaflow` 1080x1920 (3.0 GiB peak allocated, 3.2 reserved)
+- `megaflow` 1080x1920, first call: portable + torch.compile 103 s (cold Inductor cache).
 - `megaflow` original 1080x1920: the authors' mixed-precision option (bfloat16); upstream MegaFlow, num_reg_refine=8, README recipe: bf16 autocast
 - `megaflow` load / first call: original 9.56 s / 6.769 s, portable 1.96 s / 0.758 s (375x1242), kernels 7.1 s / 0.668 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -669,9 +670,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `recover-cx` | synthetic (1080x1920) | original<br>portable<br>kernels | 179<br>107<br>89.8 | 1066 / 1168<br>733 / 892<br>733 / 892 |
-| `recover-rn` | synthetic (1080x1920) | original<br>portable<br>kernels | 130<br>64.1<br>51.3 | 950 / 1046<br>590 / 672<br>590 / 672 |
-| `recover-mn` | synthetic (1080x1920) | original<br>portable<br>kernels | 103<br>45.5<br>41.8 | 921 / 1036<br>580 / 676<br>580 / 676 |
+| `recover-cx` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 179<br>107<br>89.8<br>89.9<br>48.0 | 1066 / 1168<br>733 / 892<br>733 / 892<br>504 / 552<br>unknown |
+| `recover-rn` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 130<br>64.1<br>51.3<br>48.7<br>29.1 | 950 / 1046<br>590 / 672<br>590 / 672<br>375 / 432<br>unknown |
+| `recover-mn` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 103<br>45.5<br>41.8<br>33.4<br>21.2 | 921 / 1036<br>580 / 676<br>580 / 676<br>365 / 416<br>unknown |
 
 <details><summary>Details</summary>
 
@@ -687,6 +688,9 @@ Commercial use: yes.
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `recover-cx` 1080x1920 (0.7 GiB peak allocated, 0.9 reserved); `recover-rn` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved); `recover-mn` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved)
+- `recover-cx` 1080x1920, first call: portable + torch.compile 15 s (cold Inductor cache).
+- `recover-rn` 1080x1920, first call: portable + torch.compile 10 s (cold Inductor cache).
+- `recover-mn` 1080x1920, first call: portable + torch.compile 15 s (cold Inductor cache).
 - `recover-cx` original 1080x1920: torch.autocast(float16) around the call; upstream ReCoVEr_CX, iters=4, test_mode
 - `recover-rn` original 1080x1920: torch.autocast(float16) around the call; upstream ReCoVEr_RN, iters=4, test_mode
 - `recover-mn` original 1080x1920: torch.autocast(float16) around the call; upstream ReCoVEr_MN, iters=4, test_mode

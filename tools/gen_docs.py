@@ -406,9 +406,29 @@ def _engine_part(model_id: str) -> str:
 
 @functools.cache
 def _compile_rows() -> dict[tuple[str, str], dict]:
-    """docs/data/speed_compile.jsonl: the latest row per (model id, mode)."""
+    """docs/data/speed_compile.jsonl: the latest row per (model id, mode).
+
+    Ports measured with `speed_check` only have compile / tensorrt rows in speed.jsonl (no preparation times):
+    those fill the (model, mode) pairs speed_compile.jsonl has no row for.
+    """
     path = ROOT / "docs" / "data" / "speed_compile.jsonl"
-    return {(r["ref"], r["mode"]): r for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])}
+    rows = {(r["ref"], r["mode"]): r for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])}
+    for ref, mine in _speed_rows().items():
+        for r in mine:
+            if r["mode"] in _COMPILE_LABEL and "ms" in r:
+                rows.setdefault((ref, r["mode"]), r)
+    return rows
+
+
+def _prep_s(r: dict | None) -> float | None:
+    """One-time setup of a compile / tensorrt row in s: compile (cold first call) or ONNX export + engine build."""
+    if r is None or "fails" in r:
+        return None
+    if r["mode"] == "compile":
+        return r.get("compile_s", r.get("first_call_s"))
+    if "onnx_export_s" in r and "engine_build_s" in r:
+        return r["onnx_export_s"] + r["engine_build_s"]
+    return None
 
 
 def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]], list[str]]:
@@ -424,8 +444,9 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
         name = "TensorRT fp32" if r.get("engine_dtype") == "float32" else label
         ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
         lines.append((name, ms, _trt_peak(r) if mode == "tensorrt" else _peak(r)))
-        first = r["compile_s"] if mode == "compile" else r["onnx_export_s"] + r["engine_build_s"]
-        setup.append(f"{name} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
+        first = _prep_s(r)
+        if first is not None:
+            setup.append(f"{name} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
     return lines, setup
 
 
@@ -1630,8 +1651,8 @@ def _compile_block() -> str:
             _compile_ms(comp),
             _compile_ms(trt),
             ms["kernels"],
-            DASH if comp is None or "fails" in comp else f"{_ms_str(comp['compile_s'])} s",
-            f"{_ms_str(trt['onnx_export_s'] + trt['engine_build_s'])} s" if built else DASH,
+            DASH if _prep_s(comp) is None else f"{_ms_str(_prep_s(comp))} s",
+            f"{_ms_str(_prep_s(trt))} s" if built and _prep_s(trt) is not None else DASH,
             _peak(at.get("portable")),
             _peak(comp) if comp and "fails" not in comp else DASH,
             _peak(at.get("kernels")),
