@@ -38,6 +38,8 @@ public API from now on):
   properties now, not constructor fields. The fields of the old types (`rectification`, `views`, `backend`,
   `options`, `calibrated`, `index`, `left_path`, `right_path`, `path`, `error`, `existing`) are `StereoResult`
   fields (the `run_many` ones None / False for a call).
+- `stereo.write_disparity` (`write_disparity(path, d)`) -> `result.save(path)` (`StereoResult` / `StereoView`; a `.png` is the
+  KITTI uint16 format, as before).
 
 ### Models and fixes
 

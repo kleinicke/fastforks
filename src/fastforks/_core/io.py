@@ -203,7 +203,7 @@ def write_map(
     - `.pfm`: float32 (Middlebury / SceneFlow convention, bottom row first).
     - `.png`: integer and bool maps only, exact: a bool mask as a 1-bit black / white PNG, an integer map (labels) in
       0..255 as 8-bit, in 0..65535 as 16-bit. Float maps are refused (a stereo disparity `.png` is KITTI's format:
-      `fastforks.stereo.io.write_disparity`).
+      `StereoResult.save`).
 
     Raises:
         InputError: Unknown suffix, not a 2-D map, a `.png` of a float map or of values outside 0..65535, or `bits`

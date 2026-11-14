@@ -63,3 +63,10 @@ def test_stereo_result_types():
         assert calibrated.StereoPairResult is stereo.StereoResult
     with pytest.raises(AttributeError):
         _ = stereo.NoSuchName
+
+
+def test_write_disparity(tmp_path):
+    with _warns(r"StereoResult\.save"):
+        write = stereo.write_disparity
+    write(tmp_path / "d.png", np.ones((3, 4), np.float32))
+    assert (tmp_path / "d.png").stat().st_size > 0

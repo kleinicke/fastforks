@@ -339,7 +339,6 @@ def fastforks.stereo.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'st
 def fastforks.stereo.model_card(model: 'str') -> 'ModelCard'
 def fastforks.stereo.pipeline.natural_key(text: 'str') -> 'tuple[list[int | str], str]'
 def fastforks.stereo.pipeline.run_many(model: 'StereoModel', lefts: 'Images', rights: 'Images', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None, save_to: 'str | os.PathLike[str] | None' = None, save_format: 'str' = '.tif', bits: 'int | None' = None, max_depth: 'float | None' = None, skip_existing: 'bool' = False, on_error: 'OnError' = 'raise', prefetch: 'int | None' = None, readers: 'int | None' = None, writers: 'int | None' = None, warmup: 'bool' = False, _overlap: 'bool' = True) -> 'Pipeline[StereoResult]'
-def fastforks.stereo.write_disparity(path: 'str | Path', disparity: 'torch.Tensor | np.ndarray', bits: 'int | None' = None) -> 'None'
 def fastforks.tracking._api.TrackingModel.__call__(self, video: 'Sequence[ImageLike] | np.ndarray | torch.Tensor', queries: 'Any') -> 'TrackingResult'
 def fastforks.tracking._api.TrackingModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
 def fastforks.tracking._api.TrackingModel.module(self) -> 'torch.nn.Module'
