@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`clipseg`](#clipseg) | yes | 2.74, 5.6x | 544, 1.3x |
+| [`clipseg`](#clipseg) | yes | 2.75, 5.6x | 362, 0.9x |
 | [`efficientvit-sam-l0`](#efficientvit_sam) | yes | 4.45, 5.9x | 256, 1.1x |
 | [`efficientvit-sam-l1`](#efficientvit_sam) | yes | 5.79, 5.2x | 284, 1.0x |
 | [`efficientvit-sam-l2`](#efficientvit_sam) | yes | 6.83, 5.0x | 312, 0.91x |
@@ -42,7 +42,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels | 15.3<br>4.36<br>2.74 | 346 / 404<br>362 / 376<br>458 / 544 |
+| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels | 15.3<br>4.45<br>2.75 | 346 / 404<br>328 / 356<br>335 / 362 |
 
 <details><summary>Details</summary>
 
@@ -60,7 +60,7 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `clipseg` 3000x4000 (0.7 GiB peak allocated, 0.9 reserved)
 - `clipseg` original 1024x1024: .half() on 1 modules, fp16 inputs; transformers CLIPSegProcessor (CPU) + CLIPSegForImageSegmentation, text tower per call, masks at logits > 0
-- `clipseg` load / first call: original 3.05 s / 0.021 s, portable 3.01 s / 0.374 s, kernels 2.77 s / 0.278 s
+- `clipseg` load / first call: original 3.05 s / 0.021 s, portable 3.9 s / 0.264 s, kernels 3.64 s / 0.26 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity

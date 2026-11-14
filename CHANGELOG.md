@@ -4,8 +4,8 @@
 
 - MatAnyone video matting (`matanyone`, matting; NTU S-Lab License 1.0 code and weights: non-commercial): one object
   from a mask on the first frame (`track`; an image is a one-frame video), the `process_video` loop with its memory,
-  options `warmup` / `dilate` / `erode`. 1080x1920 video: 187 ms per frame portable vs 198 ms original fp16 (261 ms
-  fp32), peak 5.6 GB vs 6.2 GB; one image 1204 ms vs 1220 ms. YouTubeMatte 512x288 (every 2nd clip: 32 x 100 frames,
+  options `warmup` / `dilate` / `erode`. 1080x1920 video: 195 ms per frame portable vs 198 ms original fp16 (261 ms
+  fp32), peak 2.9 GB vs 6.2 GB (readout chunked); one image 1204 ms vs 1220 ms. YouTubeMatte 512x288 (every 2nd clip: 32 x 100 frames,
   the authors' settings) MAD x 1000 2.64, MSE x 1000 1.00, dtSSD x 100 1.65, the same as the original in fp16 and
   fp32; parity on CPU exact. No kernels runner.
 
@@ -185,10 +185,10 @@
 
 - GIMM-VFI frame interpolation (`gimm-vfi-r`, `gimm-vfi-r-p`, interpolation; nc: S-Lab License 1.0 code and weights):
   RAFT flow, a continuous motion field and the softsplat synthesis of upstream `GIMMVFI_R`, any timestep in [0, 1],
-  frames replicate-padded to a multiple of 32 as upstream. 1080x1920 pair: 1.69 s kernels (the correlation windows on
-  the fly, fp16-accumulate decoder convs), 2.79 s portable; the original runs out of memory in fp32 and fp16 (16 GB);
-  peak 8.9 GB kernels, 15.3 GB portable (reserved). 480x854: 301 ms kernels, 505 ms portable vs 657 ms original fp32
-  (498 ms fp16), peak 2.4 GB vs 4.8 GB. DAVIS 2017 (180 triplets) PSNR 28.94 (`-p` 28.81) in every tier as the
+  frames replicate-padded to a multiple of 32 as upstream. 1080x1920 pair: 1.63 s kernels (the correlation windows on
+  the fly, fp16-accumulate decoder convs), 2.62 s portable; the original runs out of memory in fp32 and fp16 (16 GB);
+  peak 5.4 GB kernels, 10.4 GB portable (reserved). 480x854: 289 ms kernels, 468 ms portable vs 657 ms original fp32
+  (498 ms fp16), peak 1.6 GB vs 4.8 GB. DAVIS 2017 (180 triplets) PSNR 28.94 (`-p` 28.81) in every tier as the
   original.
 
 - EMA-VFI frame interpolation (`ema-vfi`, `ema-vfi-small`, `ema-vfi-t`, `ema-vfi-small-t`, interpolation; Apache-2.0):

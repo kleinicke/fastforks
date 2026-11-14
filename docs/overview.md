@@ -326,7 +326,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 131.4 | 121.1 | 1.9x vs original (1080x1920) | 1674 |
 | [`rmbg-2.0`](models/matting.md#birefnet) | no | – | 149.0 (1080x1920) | 131.5 | 121.4 | 1.2x vs original (1080x1920) | 1674 |
 | [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 181.7 | 147.4 | 1.7x vs original (1080x1920) | 1484 |
-| [`matanyone`](models/matting.md#matanyone) | no | – | 1219.9 (1080x1920) | 1208.1 | – | – | – |
+| [`matanyone`](models/matting.md#matanyone) | no | – | 1219.9 (1080x1920) | 1209.5 | – | – | – |
 
 ## Edges
 
@@ -350,12 +350,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 19 models; size 1024x1024.
 
-- Fastest: [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) (2.7 ms).
-- Fastest commercially usable: [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) (2.7 ms).
+- Fastest: [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) (2.8 ms).
+- Fastest commercially usable: [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) (2.8 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) | yes | 15.3 (1024x1024) | 4.4 | 2.7 | 5.6x vs original (1024x1024) | 458 |
+| [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) | yes | 15.3 (1024x1024) | 4.5 | 2.8 | 5.6x vs original (1024x1024) | 335 |
 | [`efficientvit-sam-l0`](models/promptable_segmentation.md#efficientvit-sam) | yes | 26.3 (1024x1024) | 12.7 | 4.4 | 5.9x vs original (1024x1024) | 176 |
 | [`efficientvit-sam-l1`](models/promptable_segmentation.md#efficientvit-sam) | yes | 29.9 (1024x1024) | 14.4 | 5.8 | 5.2x vs original (1024x1024) | 203 |
 | [`efficientvit-sam-l2`](models/promptable_segmentation.md#efficientvit-sam) | yes | 34.4 (1024x1024) | 17.8 | 6.8 | 5.0x vs original (1024x1024) | 232 |
@@ -724,8 +724,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`ema-vfi-t`](models/interpolation.md#ema-vfi) | yes | 286.9 (1080x1920) | 232.9 | 206.7 | 1.4x vs original (1080x1920) | 3129 |
 | [`ema-vfi`](models/interpolation.md#ema-vfi) | yes | 296.2 (1080x1920) | 233.7 | 206.8 | 1.4x vs original (1080x1920) | 3129 |
 | [`film`](models/interpolation.md#film) | yes | 463.8 (1080x1920) | 527.6 | 444.3 | 1.0x vs original (1080x1920) | 4763 |
-| [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2791.2 | 1694.7 | 1.6x vs portable | 7860 |
-| [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2796.9 | 1695.0 | 1.7x vs portable | 7860 |
+| [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2621.8 | 1627.6 | 1.6x vs portable | 4587 |
+| [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2622.0 | 1629.3 | 1.6x vs portable | 4587 |
 
 ## Restoration
 

@@ -266,7 +266,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels | 1220<br>1208<br>– | 2978 / 3208<br>2719 / 2908<br>– |
+| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels | 1220<br>1209<br>– | 2978 / 3208<br>2953 / 3186<br>– |
 
 <details><summary>Details</summary>
 
@@ -283,7 +283,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `matanyone` 3000x4000 (14.5 GiB peak allocated, 15.1 reserved)
 - `matanyone` original 1080x1920: the authors' mixed-precision option (float16); pq-yang/MatAnyone@e5ddc534c1ff process_video loop on frames in memory, cv2 mask closing
-- `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.54 s / 2.947 s
+- `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.42 s / 1.968 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -294,7 +294,7 @@ Video matting, YouTubeMatte (MatAnyone's benchmark): each clip at 512 x 288 with
 |---|---|---|---|---|---|
 | `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 706c6828, 2026-11-14.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14.
 
 ### Parity
 
