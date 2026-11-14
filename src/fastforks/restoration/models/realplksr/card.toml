@@ -2,6 +2,7 @@ schema = 2
 name = "RealPLKSR"
 summary = "RealPLKSR (neosr; after PLKSR, Lee et al., 2024): a real-world super-resolution CNN of partial large-kernel blocks (3 x 3 channel mixer, a 17 x 17 conv on a quarter of the channels, element-wise attention, GroupNorm) and a pixel-shuffle upsampler. `realplksr-nomoswebphoto-x4` is Philip Hofmann's 4xNomosWebPhoto_RealPLKSR, an x4 model for photos with noise, lens blur and JPEG / WebP compression. `load_file` reads other RealPLKSR checkpoints with the pixel-shuffle upsampler (any scale, width and depth)."
 tier = "experimental"
+uses = ["group_norm"]  # fastforks.shared modules this family imports
 outputs = ["image"]
 
 [upstream]

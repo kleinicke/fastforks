@@ -3,9 +3,9 @@
 The network is upstream's (eval path: the large-kernel conv writes into the first channels in place); on CUDA it runs
 channels-last. GroupNorm's group count is not stored in a checkpoint: 4, neosr's and spandrel's default.
 
-GroupNorm runs as per-channel `var_mean` (float32 accumulation), the group statistics from those (law of total
-variance) and one multiply-add: PyTorch's channels-last GroupNorm took 4.2 ms per block at 512 x 512 (40 % of the
-network), this 0.6 ms; the result is within fp16 rounding of float32 GroupNorm.
+GroupNorm runs through `fastforks.shared.group_norm.group_norm_stats` at every size (it also wins at 128-192 px):
+PyTorch's channels-last GroupNorm took 4.2 ms per block at 512 x 512 (40 % of the network), this 0.6 ms; the result
+is within fp16 rounding of float32 GroupNorm.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Forward, Runner
+from fastforks.shared.group_norm import fast_group_norms
 
 from .net import realplksr
 
@@ -41,19 +42,6 @@ class Params:
     kernel_size: int  # the partial large-kernel conv
     split_ratio: float  # share of the channels the large kernel convolves
     use_ea: bool  # element-wise attention in each block
-
-
-def _group_norm(norm: torch.nn.GroupNorm, x: torch.Tensor) -> torch.Tensor:
-    """`norm(x)` from per-channel statistics (fast in channels-last; float32 group statistics)."""
-    b, c = x.shape[:2]
-    g = norm.num_groups
-    var, mean = torch.var_mean(x, dim=(2, 3), correction=0)
-    var, mean = var.float().view(b, g, -1), mean.float().view(b, g, -1)
-    mg = mean.mean(2, keepdim=True)
-    vg = (var + (mean - mg) ** 2).mean(2, keepdim=True)
-    a = torch.rsqrt(vg + norm.eps) * norm.weight.float().view(1, g, -1)
-    shift = norm.bias.float().view(1, g, -1) - mg * a
-    return torch.addcmul(shift.view(b, c, 1, 1).to(x.dtype), x, a.view(b, c, 1, 1).to(x.dtype))
 
 
 class Portable(Runner):
@@ -77,9 +65,7 @@ class Portable(Runner):
         load_strict(self.net, ctx.state_dict(), f"{ctx.variant.ref} checkpoint")
         self.fmt = torch.channels_last if torch.device(ctx.device).type == "cuda" else torch.contiguous_format
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype)).to(memory_format=self.fmt)
-        for m in self.net.modules():
-            if isinstance(m, torch.nn.GroupNorm):
-                override(m, _group_norm)
+        fast_group_norms(self.net, always=True)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""
