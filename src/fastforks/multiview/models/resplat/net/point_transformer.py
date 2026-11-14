@@ -183,6 +183,7 @@ class PlainPointTransformer(nn.Module):
         super().__init__()
 
         self.knn_samples = knn_samples
+        self.knn = knn_query  # fastforks: the kernels runner installs `fastforks.kernels.gsraster.knn`
 
         self.with_mv_attn = with_mv_attn
 
@@ -207,7 +208,7 @@ class PlainPointTransformer(nn.Module):
     def forward(self, pxo, b=None, v=None, h=None, w=None):
         p, x, o = pxo
         # compute knn idx once and reuse across blocks (positions don't change)
-        knn_idx = knn_query(self.knn_samples, p)  # fastforks: was pointops.knn_query(k, p, o, p, o)
+        knn_idx = self.knn(self.knn_samples, p)  # fastforks: was pointops.knn_query(k, p, o, p, o)
 
         if self.with_mv_attn:
             assert b is not None and v is not None and h is not None and w is not None

@@ -18,7 +18,8 @@ upstream's training bounds (`near`, `far`); the network is not scale invariant (
 
 fp16 and kernels: fp16 weights under autocast (upstream evaluates under bf16 autocast); Gaussian activations, the
 renderer and the refinement bookkeeping run in fp32. kernels adds the `fastbb` DINOv2 (flash attention,
-fp16-accumulate GEMMs), cuDNN fp16-accumulate convs and the `gsraster` CUDA rasteriser in place of `render.py`.
+fp16-accumulate GEMMs), cuDNN fp16-accumulate convs, and `gsraster`'s CUDA rasteriser and exact kNN in place of
+`render.py` and the pooled torch kNN.
 """
 
 from __future__ import annotations
@@ -494,7 +495,7 @@ class Portable(_Base):
 
 
 class Kernels(_Base):
-    """fp16: `fastbb` DINOv2, cuDNN fp16-accumulate convs, the `gsraster` CUDA rasteriser for the refinement renders."""
+    """fp16: `fastbb` DINOv2, cuDNN fp16-accumulate convs, `gsraster`'s CUDA rasteriser (refinement renders) and kNN."""
 
     def __init__(self, ctx: Context) -> None:  # noqa: D107
         super().__init__(ctx)
@@ -502,7 +503,11 @@ class Kernels(_Base):
 
         fastbb.load(ctx.device)
         cudnn_hacc.load(ctx.device)
-        self.net.render = functools.partial(gsraster.render, gsraster.load(ctx.device))
+        mod = gsraster.load(ctx.device)
+        self.net.render = functools.partial(gsraster.render, mod)
+        for m in self.net.modules():
+            if isinstance(m, PlainPointTransformer):
+                m.knn = functools.partial(gsraster.knn, mod)
         use_fast_vit(self.net.depth_predictor.pretrained)
         if _hacc_convs(self.net) == 0:
             msg = "ReSplat kernels: no conv routed through cudnn_hacc"

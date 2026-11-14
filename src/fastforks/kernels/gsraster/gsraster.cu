@@ -254,3 +254,112 @@ extern "C" __global__ void __launch_bounds__(CTA) gsr_rasterize(
         o[2 * plane + pix] = acc[p][2];
     }
 }
+
+// Exact kNN of a point cloud with itself (the point transformers' neighbourhoods; was pointops.knn_query, then the
+// pooled torch search of resplat's point_transformer.knn_query). The host sorts the points in z-order, packs them as
+// (x, y, z, original index) and gives the bounding box of every KNN_TILE consecutive points. A block takes KNN_TILE
+// consecutive queries (KNN_Q per thread, sorted lists of K in registers), scans its own tile and then the others
+// alternately to the left and right, and skips a tile when its box is farther than every thread's current k-th
+// distance. Squared distances are rounded like torch's (p - q).square().sum(-1) (no FMA contraction); rounding is
+// monotonic, so the box bound never exceeds the rounded distance of a point inside and the skip is exact. Order is
+// (distance, original index): the result is the unique k smallest, independent of the scan order.
+#define KNN_Q 2
+#define KNN_THREADS 128
+#define KNN_TILE (KNN_Q * KNN_THREADS)
+
+__device__ __forceinline__ float knn_d2(float dx, float dy, float dz) {
+    return __fadd_rn(__fadd_rn(__fmul_rn(dx, dx), __fmul_rn(dy, dy)), __fmul_rn(dz, dz));
+}
+
+__device__ __forceinline__ float knn_gap(float q, float lo, float hi) {  // >= 0, rounded like the point differences
+    return q < lo ? __fsub_rn(lo, q) : (q > hi ? __fsub_rn(q, hi) : 0.f);
+}
+
+template <int K>
+__device__ __forceinline__ void knn_impl(
+    const float4* __restrict__ pts,  // [N] z-ordered (x, y, z, original index as int bits)
+    const float* __restrict__ box,   // [T, 6] lo xyz, hi xyz of each tile
+    long long* __restrict__ idx,     // [N, K] by original index, nearest first
+    int n) {
+    __shared__ float4 sp[KNN_TILE];
+    const int nt = (n + KNN_TILE - 1) / KNN_TILE, b = blockIdx.x;
+    const int q0 = b * KNN_TILE + threadIdx.x;  // queries q0 + a * KNN_THREADS (coalesced)
+    float qx[KNN_Q], qy[KNN_Q], qz[KNN_Q], bd[KNN_Q][K], worst[KNN_Q];
+    int bi[KNN_Q][K], wi[KNN_Q];
+#pragma unroll
+    for (int a = 0; a < KNN_Q; a++) {
+        const float4 q = pts[min(q0 + a * KNN_THREADS, n - 1)];
+        qx[a] = q.x;
+        qy[a] = q.y;
+        qz[a] = q.z;
+        worst[a] = __int_as_float(0x7f800000);
+        wi[a] = 0x7fffffff;
+#pragma unroll
+        for (int s = 0; s < K; s++) {
+            bd[a][s] = worst[a];
+            bi[a][s] = 0x7fffffff;
+        }
+    }
+    for (int step = 0; step < 2 * nt; step++) {  // b, b - 1, b + 1, b - 2, b + 2, ...
+        const int t = (step & 1) ? b - (step + 1) / 2 : b + step / 2;
+        if (t < 0 || t >= nt) continue;  // uniform over the block
+        const float* bx = box + 6 * t;
+        bool need = false;
+#pragma unroll
+        for (int a = 0; a < KNN_Q; a++) {
+            const float g = knn_d2(knn_gap(qx[a], bx[0], bx[3]), knn_gap(qy[a], bx[1], bx[4]), knn_gap(qz[a], bx[2], bx[5]));
+            need |= g <= worst[a];
+        }
+        if (!__syncthreads_or(need)) continue;
+        const int t0 = t * KNN_TILE, m = min(KNN_TILE, n - t0);
+        for (int j = threadIdx.x; j < m; j += KNN_THREADS) sp[j] = pts[t0 + j];
+        __syncthreads();
+        for (int j = 0; j < m; j++) {
+            const float4 c = sp[j];
+            const int ci = __float_as_int(c.w);
+#pragma unroll
+            for (int a = 0; a < KNN_Q; a++) {
+                const float d = knn_d2(__fsub_rn(c.x, qx[a]), __fsub_rn(c.y, qy[a]), __fsub_rn(c.z, qz[a]));
+                if (d < worst[a] || (d == worst[a] && ci < wi[a])) {
+#pragma unroll
+                    for (int s = K - 1; s > 0; s--) {
+                        const bool after = bd[a][s - 1] > d || (bd[a][s - 1] == d && bi[a][s - 1] > ci);
+                        const bool here = !after && (bd[a][s] > d || (bd[a][s] == d && bi[a][s] > ci));
+                        if (after) {
+                            bd[a][s] = bd[a][s - 1];
+                            bi[a][s] = bi[a][s - 1];
+                        } else if (here) {
+                            bd[a][s] = d;
+                            bi[a][s] = ci;
+                        }
+                    }
+                    if (bd[a][0] > d || (bd[a][0] == d && bi[a][0] > ci)) {
+                        bd[a][0] = d;
+                        bi[a][0] = ci;
+                    }
+                    worst[a] = bd[a][K - 1];
+                    wi[a] = bi[a][K - 1];
+                }
+            }
+        }
+        __syncthreads();
+    }
+#pragma unroll
+    for (int a = 0; a < KNN_Q; a++) {
+        const int q = q0 + a * KNN_THREADS;
+        if (q >= n) continue;
+        long long* o = idx + (long long)__float_as_int(pts[q].w) * K;
+#pragma unroll
+        for (int s = 0; s < K; s++) o[s] = bi[a][s];
+    }
+}
+
+extern "C" __global__ void __launch_bounds__(KNN_THREADS) gsr_knn8(
+    const float4* __restrict__ pts, const float* __restrict__ box, long long* __restrict__ idx, int n) {
+    knn_impl<8>(pts, box, idx, n);
+}
+
+extern "C" __global__ void __launch_bounds__(KNN_THREADS) gsr_knn16(
+    const float4* __restrict__ pts, const float* __restrict__ box, long long* __restrict__ idx, int n) {
+    knn_impl<16>(pts, box, idx, n);
+}

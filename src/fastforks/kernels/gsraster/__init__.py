@@ -1,8 +1,9 @@
-"""Forward 3D Gaussian splatting rasteriser for the feed-forward Gaussian families (`gsraster.cu`).
+"""Forward 3D Gaussian splatting rasteriser and exact point-cloud kNN for the feed-forward Gaussian families.
 
 `render` is the kernels twin of `fastforks.multiview.models.resplat.render.render` (upstream's
 `gsplat.rasterization(..., rasterize_mode="antialiased", eps2d=0.1, sh_degree=3, covars=...)`, forward only): the
-projection and the tile compositing run in CUDA, the intersection sort and the per-tile offsets in torch.
+projection and the tile compositing run in CUDA, the intersection sort and the per-tile offsets in torch. `knn` is the
+kernels twin of `resplat.net.point_transformer.knn_query` (exact, ties to the lower index).
 """
 
 from __future__ import annotations
@@ -15,12 +16,15 @@ from fastforks._core.kernels import CubinModule, cubin_library, linear
 
 TILE = 16  # fixed: gsplat's tile size, TILE in gsraster.cu
 CTA = 64  # threads per tile block, CTA in gsraster.cu
+KNN_TILE = 256  # points per kNN tile = queries per block, KNN_TILE in gsraster.cu
 
 # p: pointer, i: int32, l: int64, f: float32 (must match the extern "C" kernels in gsraster.cu)
 SIGNATURES = {
     "gsr_project": "ppppppp" + "ppppppp" + "iiiiff",
     "gsr_isect": "ppppp" + "iiii",
     "gsr_rasterize": "ppppppp" + "liiii",
+    "gsr_knn8": "ppp" + "i",
+    "gsr_knn16": "ppp" + "i",
 }
 
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
@@ -78,3 +82,34 @@ def render(  # noqa: PLR0913, PLR0917 - the renderer's signature
         tw, h, w,
     )  # fmt: skip
     return out
+
+
+def _zorder(p: torch.Tensor) -> torch.Tensor:
+    """Z-order (Morton) codes of 10-bit cells of the bounding box of `p` `[N, 3]`."""
+    lo, hi = p.amin(0), p.amax(0)
+    v = ((p - lo) / (hi - lo).clamp_min(1e-12) * 1023).long()
+    for shift, mask in ((16, 0x030000FF), (8, 0x0300F00F), (4, 0x030C30C3), (2, 0x09249249)):
+        v = (v | (v << shift)) & mask
+    return v[:, 0] | (v[:, 1] << 1) | (v[:, 2] << 2)
+
+
+def knn(mod: CubinModule, k: int, p: torch.Tensor) -> torch.Tensor:
+    """Indices `[N, k]` (int64, nearest first) of the `k` nearest points (including the point itself) of every point.
+
+    The kernels twin of `resplat.net.point_transformer.knn_query`: exact float32 squared distances (rounded as
+    `(p - q).square().sum(-1)`), ties to the lower index, so the result is deterministic; `p`: `[N, 3]`, `k <= 16`.
+    """
+    n = p.shape[0]
+    if not 0 < k <= min(n, 16):
+        msg = f"gsraster.knn: k={k} needs 0 < k <= min(points={n}, 16)"
+        raise ValueError(msg)
+    big = 8 if k <= 8 else 16  # noqa: PLR2004 - the two kernel instances
+    p = p.detach().float()
+    order = _zorder(p).argsort()
+    packed = torch.cat((p[order], order.int().view(torch.float32)[:, None]), 1).contiguous()  # (x, y, z, index bits)
+    nt = -(-n // KNN_TILE)
+    tiles = torch.cat((packed[:, :3], packed[-1:, :3].expand(nt * KNN_TILE - n, 3))).view(nt, KNN_TILE, 3)
+    box = torch.cat((tiles.amin(1), tiles.amax(1)), 1).contiguous()
+    idx = torch.empty(n, big, dtype=torch.int64, device=p.device)
+    mod.launch(f"gsr_knn{big}", (nt, 1, 1), (KNN_TILE // 2, 1, 1), packed, box, idx, n)
+    return idx if big == k else idx[:, :k]
