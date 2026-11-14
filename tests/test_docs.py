@@ -540,13 +540,10 @@ class _Examples(ast.NodeVisitor):
         params = set(inspect.signature(loader).parameters)
         names = set(card.options) | set(card.option_aliases)
         for k in node.keywords:
-            if k.arg == "options" and isinstance(k.value, ast.Dict):
-                keys = {x.value for x in k.value.keys if isinstance(x, ast.Constant)}
-                if unknown := keys - names:
-                    self.bad(node, f"load({model_id!r}, options=...): {sorted(unknown)} not options of the card")
-            elif k.arg and k.arg not in params:
-                hint = " (pass it in options=)" if k.arg in names else ""
-                self.bad(node, f"load({model_id!r}, {k.arg}=...): not a load argument{hint}")
+            if k.arg == "options":
+                self.bad(node, f"load({model_id!r}, options=...): the 0.1.1 form; pass options as keywords")
+            elif k.arg and k.arg not in params and k.arg not in names:
+                self.bad(node, f"load({model_id!r}, {k.arg}=...): not a load argument or an option of the card")
         return ("model", task, model_id)
 
     def visit_Call(self, node: ast.Call) -> None:

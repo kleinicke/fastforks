@@ -144,7 +144,7 @@ def colmap_database(  # noqa: PLR0913 - the stages' options
     pair_list = [(int(i), int(j)) for i, j in pairs]
     sizes = [_size(p) for p in paths]
     with _stage("matching", seconds, peak):
-        model = matching.load(matcher, mode=mode, device=device, dtype=dtype, options=matcher_options)
+        model = matching.load(matcher, mode=mode, device=device, dtype=dtype, **(matcher_options or {}))
         results = model.match_pairs(paths, pair_list)
         if model.sparse:
             keypoints, raw, verified = _sparse(pair_list, results, threshold, mode)

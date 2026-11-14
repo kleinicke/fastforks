@@ -45,7 +45,7 @@ mps_kernels = ["stereo_metal"]
 # CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 1M (up to 1280x720)
 # replays a CUDA graph, captured on a shape's 4th call (below), at most 2 shapes per model (LAS2-M 640x480 4.0 ms,
 # before the `stereo_ops` kernels 8.7 ms; eager 18.7 ms). The graph pool stays reserved (up to ~2x eager reserved memory) until `model.release_graphs()`;
-# `options={"cuda_graphs": False}` turns it off. Larger inputs are GPU-bound and run eagerly
+# `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly
 # New sizes (`cudnn_hacc` per-shape dispatch): a new padded size builds its fp16-accumulate cuDNN plans on its first
 # call (all calls give the same output) and captures its CUDA graph on the 4th (time after 4 warm-up calls per size); a
 # stream of new sizes around 640x480 costs LAS2-S 20.8 ms per call (with the deferral below 17.5).

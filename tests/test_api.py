@@ -171,21 +171,21 @@ def test_options(monkeypatch):
     r = stereo.load("raft-stereo-sceneflow", device="cpu")(img, img)
     assert r.options == {}
     assert float(r.disparity[0, 0]) == 32
-    r = stereo.load("raft-stereo-sceneflow", device="cpu", options={"iters": 7})(img, img)
+    r = stereo.load("raft-stereo-sceneflow", device="cpu", iters=7)(img, img)
     assert r.options == {"iters": 7}
     assert float(r.disparity[0, 0]) == 7
-    assert stereo.load("raft-stereo-sceneflow", device="cpu", options={"iters": 32}).options == {}
+    assert stereo.load("raft-stereo-sceneflow", device="cpu", iters=32).options == {}
     with pytest.raises(OptionsError, match="unknown option"):
-        stereo.load("raft-stereo-sceneflow", device="cpu", options={"iter": 7})
+        stereo.load("raft-stereo-sceneflow", device="cpu", iter=7)
     with pytest.raises(OptionsError) as e:
-        stereo.load("raft-stereo-sceneflow", device="cpu", options={"iter": 7})
+        stereo.load("raft-stereo-sceneflow", device="cpu", iter=7)
     assert "raft-stereo-sceneflow" in str(e.value)
     assert "did you mean 'iters'" in str(e.value)
     assert "valid options: iters" in str(e.value)
     with pytest.raises(OptionsError, match="must be int"):
-        stereo.load("raft-stereo-sceneflow", device="cpu", options={"iters": "7"})
+        stereo.load("raft-stereo-sceneflow", device="cpu", iters="7")
     with pytest.raises(OptionsError, match="must be >= 1, got -3"):
-        stereo.load("raft-stereo-sceneflow", device="cpu", options={"iters": -3})
+        stereo.load("raft-stereo-sceneflow", device="cpu", iters=-3)
 
 
 def test_params_must_match_card(monkeypatch):
@@ -280,9 +280,12 @@ def test_device_index_out_of_range(monkeypatch):
 def test_arguments_are_checked_before_user_weights(fake_runner, tmp_path, caplog):
     weights = tmp_path / "w.pt"
     weights.write_bytes(b"0")
-    for bad in ({"mode": "bogus"}, {"dtype": "int3"}, {"options": {"nope": 1}}, {"options": []}, {"options": 0}):
+    for bad in ({"mode": "bogus"}, {"dtype": "int3"}, {"nope": 1}):
         with caplog.at_level(logging.WARNING), pytest.raises(OptionsError):
             stereo.load("s2m2-s", device="cpu", weights=weights, **bad)
+    for legacy in ({"nope": 1}, [], 0):  # the 0.1.1 `options=` (warned)
+        with caplog.at_level(logging.WARNING), pytest.raises(OptionsError), pytest.warns(FutureWarning):
+            stereo.load("s2m2-s", device="cpu", weights=weights, options=legacy)
     with caplog.at_level(logging.WARNING), pytest.raises(OptionsError):
         stereo.load("s2m2-s", device="bogus", weights=weights)
     assert not [r for r in caplog.records if r.levelno >= logging.WARNING]  # no "unverified weights" warning

@@ -3,7 +3,7 @@
 ```python
 from fastforks import detection
 
-detector = detection.load("dfine-x-coco", options={"score_threshold": 0.1})  # ByteTrack also uses low-score boxes
+detector = detection.load("dfine-x-coco", score_threshold=0.1)  # ByteTrack also uses low-score boxes
 frames = detection.track_objects(video, detector, classes=["person"])  # one ObjectTracks per frame
 frames[10].ids, frames[10].boxes  # [K] int64 track ids, [K, 4] (x0, y0, x1, y1) pixels
 

@@ -62,6 +62,14 @@ def cards(task: str) -> Mapping[str, tuple[ModelCard, Variant]]:
     return MappingProxyType(dict(sorted(found.items())))  # cached: read-only for callers
 
 
+@functools.cache
+def option_names() -> frozenset[str]:
+    """Every option name (and alias) of every installed card: `load` keywords that are not typos."""
+    return frozenset(
+        name for task in TASKS for card, _ in cards(task).values() for name in (*card.options, *card.option_aliases)
+    )
+
+
 def list_models(  # noqa: PLR0913 - the filters of every `list_models`
     tasks: Sequence[str],
     filter: str | Sequence[str] = "*",  # noqa: A002 - mirrors timm.list_models

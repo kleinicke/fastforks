@@ -54,7 +54,7 @@ mps_kernels = ["stereo_metal"]
 # CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 500k (up to KITTI
 # 375x1242) replays a CUDA graph, captured on a shape's second call, at most 2 shapes per model 
 # The graph pool stays reserved (up to ~2x eager reserved memory) until
-# `model.release_graphs()`; `options={"cuda_graphs": False}` turns it off. Larger inputs are GPU-bound and run eagerly
+# `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly
 
 # Weights: the authors' frozen graphs, unmodified, from the PINTO model zoo archive 142_HITNET. The authors' own bucket
 # (storage.googleapis.com/tensorflow-graphics/models/hitnet) is no longer public. The archive (pinned in `archive`, read

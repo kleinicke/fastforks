@@ -229,7 +229,7 @@ def test_forced_overflow_reruns_the_model_call(ref, monkeypatch):
         registry.weights(card, variant, allow_download=False)
     except WeightsError as e:
         pytest.skip(f"weights of {ref} not available locally: {e}")
-    model = API[TASK[ref]].load(ref, mode="kernels", device="cuda", options=options(ref, want))
+    model = API[TASK[ref]].load(ref, mode="kernels", device="cuda", **(options(ref, want) or {}))
     monkeypatch.setattr(Flash64, "_run", staticmethod(run))
     monkeypatch.setattr(Flash64, "__call__", spy)
     outputs = {k: v for k, v in want.items() if k not in INPUTS}

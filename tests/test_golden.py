@@ -208,7 +208,7 @@ def sweep_model(ref: str) -> Any:
             registry.weights(card, variant, allow_download=False)
         except WeightsError as e:
             pytest.skip(f"weights of {ref} not available locally: {e}")
-        SWEEP[ref] = API[TASK[ref]].load(ref, device="cpu", options=sweep_options(ref))
+        SWEEP[ref] = API[TASK[ref]].load(ref, device="cpu", **(sweep_options(ref) or {}))
     return SWEEP[ref]
 
 
@@ -237,7 +237,7 @@ def run(  # noqa: PLR0913 - the golden run's settings
     `built`: a second call with every `cudnn_hacc` plan built at once (the first call of a new size runs torch
     convolutions; see `fastforks.kernels.cudnn_hacc`).
     """
-    m = API[TASK[ref]].load(ref, mode=mode, device=device, dtype=dtype, options=opts)
+    m = API[TASK[ref]].load(ref, mode=mode, device=device, dtype=dtype, **(opts or {}))
     return calls_of(m, ref, want, built=built)
 
 
@@ -328,7 +328,7 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
                 maps |= {f"{prefix}pred_masks": tr.pred_masks, f"{prefix}object_score_logits": tr.object_score_logits}
         if want is not None and "samurai_box_pred_masks" in want:  # SAMURAI: the box prompt on a longer clip
             b = m.backend
-            sm = API[TASK[ref]].load(ref, mode=b.mode, device=b.device, dtype=b.dtype, options={"samurai": True})
+            sm = API[TASK[ref]].load(ref, mode=b.mode, device=b.device, dtype=b.dtype, samurai=True)
             tr = sm.video(clip(len(want["samurai_box_object_score_logits"])), **clip_prompts()["video_box_"])
             maps |= {"samurai_box_pred_masks": tr.pred_masks, "samurai_box_object_score_logits": tr.object_score_logits}
         return {k: v.float().cpu() for k, v in maps.items()}, m.backend

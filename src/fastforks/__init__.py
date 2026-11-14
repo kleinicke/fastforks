@@ -38,7 +38,7 @@ from fastforks._core.save import save
 
 if TYPE_CHECKING:
     import os
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Sequence
 
     import torch
 
@@ -152,9 +152,9 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classifi
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
     labels: Sequence[str] | None = None,
+    **options: object,
 ) -> Model:
     """Load any model by id: the same as `fastforks.<task>.load(model, ...)` for the task that has the model.
 
@@ -167,9 +167,9 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classifi
         mode: `"auto"` (default), `"portable"` or `"kernels"`, as in the task loaders.
         device: Default: `"cuda"` if available, else `"mps"` for a family validated on it, else `"cpu"`.
         dtype: Compute dtype (`None`: the validated one; a string or the torch dtype).
-        options: Model options (see `fastforks info MODEL`).
         weights: Your own weights file or directory instead of the downloaded ones.
         labels: Classification only: class names for your own weights (see `fastforks.classification.load`).
+        **options: Model options (see `fastforks info MODEL`), e.g. `iters=16`.
 
     Returns:
         The model of the task that has `model` (`StereoModel`, `DepthModel`, ...).
@@ -194,7 +194,7 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classifi
             msg = f"labels= is for classifiers; {model!r} is a {card.task} model"
             raise OptionsError(msg)
         extra["labels"] = labels
-    return task.load(model, mode=mode, device=device, dtype=dtype, options=options, weights=weights, **extra)
+    return task.load(model, mode=mode, device=device, dtype=dtype, weights=weights, **extra, **options)
 
 
 def _has(task: str, model: str) -> bool:

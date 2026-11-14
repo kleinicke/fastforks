@@ -312,14 +312,14 @@ def _checkpoint_family(path: str | os.PathLike[str]) -> str | None:
         return None
 
 
-def load(  # noqa: PLR0913 - the arguments of every task's `load`
+def load(
     model: str | os.PathLike[str],
     *,
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
+    **options: object,
 ) -> RestorationModel:
     """Load a restoration model: a model id, or an upscaler checkpoint file of a supported architecture.
 
@@ -335,7 +335,7 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`
         mode: `"auto"`, `"portable"` or `"kernels"`, as every task's `load`.
         device: As every task's `load`.
         dtype: As every task's `load`.
-        options: Load options of a model id (card `[options]`); not for a checkpoint file.
+        **options: Load options of a model id (card `[options]`, e.g. `tile=256`); not for a checkpoint file.
         weights: Your own copy of a model id's weights; not for a checkpoint file (that is the weights).
 
     Returns:
@@ -343,14 +343,14 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`
 
     Raises:
         ModelNotFoundError: Unknown id or revision.
-        OptionsError: As every task's `load`; `options` or `weights` with a checkpoint file.
+        OptionsError: As every task's `load`; options or `weights` with a checkpoint file.
         WeightsError: Missing or unreadable file, or an architecture or configuration fastforks does not implement
             (the message says which).
     """
     if not is_path(model):
-        return _load(str(model), mode=mode, device=device, dtype=dtype, options=options, weights=weights)
+        return _load(str(model), mode=mode, device=device, dtype=dtype, weights=weights, **options)
     if options or weights is not None:
-        msg = f"{str(model)!r} is a checkpoint file: options= and weights= are for model ids"
+        msg = f"{str(model)!r} is a checkpoint file: options and weights= are for model ids"
         raise OptionsError(msg)
     p = Path(os.fspath(model)).expanduser()
     if not p.is_file():

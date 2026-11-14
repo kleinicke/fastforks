@@ -16,7 +16,7 @@ need torchvision's NMS / ROIAlign operators: `pip install 'fastforks-core[torchv
 Multi-object tracking by detection (ByteTrack, on any detector; CPU):
 
 ```python
-detector = detection.load("dfine-x-coco", options={"score_threshold": 0.1})  # ByteTrack also uses low-score boxes
+detector = detection.load("dfine-x-coco", score_threshold=0.1)  # ByteTrack also uses low-score boxes
 per_frame = detection.track_objects(video, detector, classes=["person"])  # one ObjectTracks per frame
 per_frame[10].ids, per_frame[10].boxes  # [K] int64 track ids, [K, 4] (x0, y0, x1, y1) pixels
 

@@ -912,8 +912,8 @@ def load(
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
+    **options: object,
 ) -> ConceptSegmentationModel: ...
 
 
@@ -924,8 +924,8 @@ def load(
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
+    **options: object,
 ) -> InContextSegmentationModel: ...
 
 
@@ -936,20 +936,20 @@ def load(
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
+    **options: object,
 ) -> PromptableSegmentationModel: ...
 
 
 @typo_checked_load
-def load(  # noqa: PLR0913 - the same arguments in every task
+def load(
     model: str,
     *,
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
+    **options: object,
 ) -> PromptableSegmentationModel:
     """Load a promptable segmentation model; the arguments and errors are those of `fastforks.stereo.load`.
 
@@ -959,9 +959,9 @@ def load(  # noqa: PLR0913 - the same arguments in every task
         device: Default: `"cuda"` if available, else `"mps"` for a family validated on it, else `"cpu"`.
         dtype: `None` (the validated one), `"float32"` (portable only), `"float16"` or `"bfloat16"`; see
             `fastforks.stereo.load`.
-        options: Overrides of the model's load options (card `[options]`).
         weights: Your own weights file (or directory) instead of the recorded ones, e.g. a fine-tune; not
             hash-checked, loaded strictly (see `fastforks.stereo.load`).
+        **options: Overrides of the model's load options (card `[options]`, e.g. `samurai=True`).
 
     Raises:
         ModelNotFoundError: Unknown id or revision.

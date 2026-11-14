@@ -39,7 +39,7 @@ mps_kernels = ["stereo_metal"]
 # CUDA graphs (kernels): batch x padded H x W <= 500k replays a CUDA graph, captured on a shape's 4th call (`cudnn_hacc`
 # plans first), at most 2 shapes per model (graph vs eager, interleaved: 126.4 vs 144.7 ms at KITTI 384x1248, reserved
 # 1774 vs 694 MiB). Larger shapes run eagerly: the gain falls to 7.7 % at 544x960 and 2.1 % at 736x1280 for 1.1-1.8 GB
-# more reserved memory. The graph pool stays reserved until `model.release_graphs()`; `options={"cuda_graphs": False}`
+# more reserved memory. The graph pool stays reserved until `model.release_graphs()`; `cuda_graphs=False`
 # turns it off.
 
 # Upstream also publishes RT-IGEV++ weights (another architecture): not part of this family. All variants run with

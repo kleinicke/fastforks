@@ -23,7 +23,7 @@ REF = "marigold-v2-depth@1"
 
 
 def main() -> None:
-    model = fastforks.depth.load(REF, mode="portable", device="cuda", options={"exact_mask": True})
+    model = fastforks.depth.load(REF, mode="portable", device="cuda", exact_mask=True)
     depth = model(image()).depth.float().cpu().numpy()
     seed = model.card.options["seed"]
     write(

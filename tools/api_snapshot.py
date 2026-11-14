@@ -138,6 +138,8 @@ def removed_items(old: str, new: str) -> list[str]:
 
     def params(line: str) -> set[str]:
         sig = line[line.find("(") + 1 : line.rfind(")")] if "(" in line else ""
+        while (s := re.sub(r"\[[^\[\]]*\]", "", sig)) != sig:  # drop subscripts: `Mapping[str, Any]` has no params
+            sig = s
         return {m.group(1) for m in re.finditer(r"(?:^|, )\*{0,2}(\w+)", sig)}
 
     new_by_key = {key(x): x for x in new.splitlines() if x.startswith(("def ", "option "))}

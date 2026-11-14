@@ -28,6 +28,11 @@ public API from now on):
   private); `volume.load_nnunet(path, ...)` -> `volume.load(path, folds=, step=, mirror=, checkpoint=)`. A model
   argument is a path iff it is a `PathLike`, contains `/` or `\`, or ends in `.pth .pt .safetensors .ckpt .bin .onnx`.
 
+### Renamed 0.1.1 names (the old names keep working with a `FutureWarning` until 2026-12-15, then they are removed)
+
+- `load(model, options={"iters": 16})` -> `load(model, iters=16)` (every task and `fastforks.load`). `mode`, `device`,
+  `dtype`, `weights` (and the task's own arguments) stay explicit; no card option may use one of these names.
+
 ### Models and fixes
 
 - YuNet face detection (`yunet-n`, `yunet-s`, pose with RetinaFace; BSD-3-Clause code and weights): boxes, scores

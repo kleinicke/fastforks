@@ -82,7 +82,7 @@ def test_keep_descriptors_reuses_the_last_images() -> None:
 
 def test_sizes_must_be_multiples() -> None:
     with pytest.raises(ValueError, match="multiples of 16"):
-        matching.load("romav2", device="cpu", options={"coarse_size": 100})
+        matching.load("romav2", device="cpu", coarse_size=100)
 
 
 @pytest.mark.gpu

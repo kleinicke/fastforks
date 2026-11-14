@@ -56,7 +56,7 @@ def weights(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.mark.slow
 def test_batch_odd_size_scale_and_export(weights: Path) -> None:
-    model = flow.load("memfof", weights=weights, device="cpu", options={"iters": 1})
+    model = flow.load("memfof", weights=weights, device="cpu", iters=1)
     a, b = _pair(259, 275, batch=2)  # the 256 px minimum, neither a multiple of 16: replicate padding, cropped again
     out = model(a, b).flow
     assert out.shape == (2, 2, 259, 275)
@@ -66,7 +66,7 @@ def test_batch_odd_size_scale_and_export(weights: Path) -> None:
     with torch.inference_mode():
         exported = model.module()(a, b)  # export does what the call does
     torch.testing.assert_close(exported, model(a, b).flow, rtol=0, atol=1e-5)
-    up = flow.load("memfof-kitti", weights=weights, device="cpu", options={"iters": 1})  # frames upsampled 2x
+    up = flow.load("memfof-kitti", weights=weights, device="cpu", iters=1)  # frames upsampled 2x
     assert up(a, b).flow.shape == (1, 2, 256, 288)
 
 

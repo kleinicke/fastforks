@@ -89,7 +89,7 @@ def test_matcher_options_reach_load(scene, monkeypatch):
     sfm.colmap_database(
         scene / "img", scene / "db.db", retrieval=None, matcher_options={"long_side": 1600}, dtype="float16"
     )
-    assert (seen["options"], seen["dtype"]) == ({"long_side": 1600}, "float16")
+    assert (seen["long_side"], seen["dtype"]) == (1600, "float16")
 
 
 class FakeReconstruction:

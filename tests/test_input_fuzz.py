@@ -265,7 +265,7 @@ def real(request):
     except WeightsError as e:
         pytest.skip(f"weights of {ref} not available locally: {e}")
     options = {"iters": 2} if "iters" in card.options else {}
-    return task, API[task].load(ref, device="cpu", options=options)
+    return task, API[task].load(ref, device="cpu", **(options or {}))
 
 
 def _go(real, make: Any, base: np.ndarray) -> torch.Tensor:

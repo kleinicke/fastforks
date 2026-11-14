@@ -37,7 +37,7 @@ def detect(model: str, out: Path) -> None:
     from fastforks import detection  # noqa: PLC0415
 
     out.mkdir(parents=True, exist_ok=True)
-    m = detection.load(model, options={"score_threshold": 0.05, "max_detections": 300})
+    m = detection.load(model, score_threshold=0.05, max_detections=300)
     for seq in sorted(p.name for p in FRAMES.iterdir()):
         rows = []
         for k, f in enumerate(sorted((FRAMES / seq / "img1").glob("*.jpg")), 1):

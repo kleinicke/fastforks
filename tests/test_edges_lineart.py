@@ -30,7 +30,7 @@ def test_matches_lineart_detector(tmp_path: Path) -> None:
     torch.manual_seed(0)
     net = Generator(3, 1, 3).eval()
     torch.save(net.state_dict(), tmp_path / "w.pth")
-    m = edges.load("lineart", weights=tmp_path / "w.pth", device="cpu", dtype="float32", options={"short_side": 64})
+    m = edges.load("lineart", weights=tmp_path / "w.pth", device="cpu", dtype="float32", short_side=64)
     img = synthetic_image(64, 128, torch.device("cpu"))
     with torch.inference_mode():
         want = 1 - net((img * 255).round() / 255)[0, 0]

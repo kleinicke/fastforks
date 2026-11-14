@@ -146,7 +146,7 @@ def test_load_path_rule(tmp_path: Path) -> None:
     assert not any(map(is_path, ["realesrgan-x4plus", "realesrgan-x4plus@1", "x.png", 3]))
     with pytest.raises(WeightsError, match="no such file"):
         restoration.load("missing.pth")
-    with pytest.raises(OptionsError, match="options= and weights= are for model ids"):
-        restoration.load(tmp_path / "w.pth", options={"tile": 64})
+    with pytest.raises(OptionsError, match="options and weights= are for model ids"):
+        restoration.load(tmp_path / "w.pth", tile=64)
     with pytest.raises(ModelNotFoundError):
         restoration.load("no-such-model")

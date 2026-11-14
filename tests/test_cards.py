@@ -86,6 +86,7 @@ def test_parses(data):
         (lambda d: d.update(options={"m": {"default": 1, "choices": [1, 2], "max": 2}}), "list holding the default"),
         (lambda d: d.update(options={"m": {"default": 1, "choices": [1, "2"]}}), "the default's type int"),
         (lambda d: d.update(options={"m": {"default": True, "effect": "fast"}}), "`effect` must be output"),
+        (lambda d: d.update(options={"mode": {"default": 1}}), r"is a load\(\) argument"),
     ],
 )
 def test_rejects(data, edit, match):
@@ -245,22 +246,22 @@ def test_option_bounds_parse(data):
         "level": {"default": 9, "min": 0, "max": 9},
         "steps": {"default": 4, "min": 1},
         "cap": {"default": 0.5, "max": 1.0},
-        "mode": {"default": "a", "choices": ["a", "b"]},
+        "kind": {"default": "a", "choices": ["a", "b"]},
         "graphs": {"default": True, "effect": "speed"},
         "plain": 3,
     }
     card = parse(d)
-    assert dict(card.options) == {"level": 9, "steps": 4, "cap": 0.5, "mode": "a", "graphs": True, "plain": 3}
+    assert dict(card.options) == {"level": 9, "steps": 4, "cap": 0.5, "kind": "a", "graphs": True, "plain": 3}
     assert dict(card.option_min) == {"level": 0, "steps": 1}
     assert dict(card.option_max) == {"level": 9, "cap": 1.0}
-    assert dict(card.option_choices) == {"mode": ("a", "b")}
+    assert dict(card.option_choices) == {"kind": ("a", "b")}
     assert dict(card.option_effect) == {"graphs": "speed"}  # "output" (the default) is not stored
     words = {k: card.option_bounds(k) for k in card.options}
     assert words == {
         "level": "0 to 9",
         "steps": ">= 1",
         "cap": "<= 1.0",
-        "mode": "one of 'a', 'b'",
+        "kind": "one of 'a', 'b'",
         "graphs": "",
         "plain": "",
     }

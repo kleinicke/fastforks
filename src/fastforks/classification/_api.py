@@ -195,9 +195,9 @@ def load(  # noqa: PLR0913 - the arguments of every task plus `labels`
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
     labels: Sequence[str] | None = None,
+    **options: object,
 ) -> ClassificationModel:
     """Load a classifier; the arguments and errors are those of `fastforks.stereo.load`, plus `labels`.
 
@@ -209,12 +209,12 @@ def load(  # noqa: PLR0913 - the arguments of every task plus `labels`
         device: Default: `"cuda"` if available, else `"mps"` for a family validated on it, else `"cpu"`.
         dtype: `None` (the validated one), `"float32"` (portable only), `"float16"` or `"bfloat16"`; see
             `fastforks.stereo.load`.
-        options: Overrides of the model's load options (card `[options]`).
         weights: Your own weights file instead of the recorded one, e.g. a fine-tune; not hash-checked, loaded
             strictly (see `fastforks.stereo.load`), so its head has the card's number of classes.
         labels: Class names in logit order for such weights (`class_names`, `id2label` and the results use them);
             exactly one per logit of the head (`num_classes` of the card's label set). Only the names change: the
             input handling and the meaning of the logits stay those of the family.
+        **options: Overrides of the model's load options (card `[options]`).
 
     Raises:
         ModelNotFoundError: Unknown id or revision.
@@ -223,7 +223,7 @@ def load(  # noqa: PLR0913 - the arguments of every task plus `labels`
         WeightsError: Weights cannot be found, downloaded or verified, or `weights` does not fit.
     """
     names = None if labels is None else _labels(labels, len(label_set(model_card(model).output_info["label_set"])))
-    m = _load(model, mode=mode, device=device, dtype=dtype, options=options, weights=weights)
+    m = _load(model, mode=mode, device=device, dtype=dtype, weights=weights, **options)
     if names is not None:
         m._class_names = names  # noqa: SLF001 - the documented way to set them
     return m

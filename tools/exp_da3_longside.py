@@ -86,7 +86,7 @@ def check(ref: str, model: Any, image: Any) -> None:  # noqa: ANN401
 
     from fastforks import depth  # noqa: PLC0415
 
-    other = depth.load(ref, mode="kernels", device="cuda", options={"long_side": 756})
+    other = depth.load(ref, mode="kernels", device="cuda", long_side=756)
     set_long_side(model, 756)
     a, b = (r.inverse_depth if r.inverse_depth is not None else r.depth for r in (model(image), other(image)))
     if not torch.equal(a, b):

@@ -69,7 +69,7 @@ def weights(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.mark.slow
 def test_odd_size_batch_and_export(weights: Path) -> None:
-    model = flow.load("waft-a1", weights=weights, device="cpu", options={"iters": 1})
+    model = flow.load("waft-a1", weights=weights, device="cpu", iters=1)
     a, b = _pair(115, 130, batch=2)  # not multiples of 112: the network pads and crops
     out = model(a, b).flow
     assert out.shape == (2, 2, 115, 130)

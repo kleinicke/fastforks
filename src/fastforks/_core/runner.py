@@ -6,7 +6,7 @@ the input handling of its task (see the `_runner.py` of each task); families sub
 ```python
 # <task>/models/<family>/model.py
 @dataclass(frozen=True)
-class Params:  # card [params] + variant params + [options] (+ load(options=)), checked at load
+class Params:  # card [params] + variant params + [options] (+ load(**options)), checked at load
     iters: int
 
 

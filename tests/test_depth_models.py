@@ -33,7 +33,7 @@ def _load(ref: str, **options: object) -> depth.DepthModel:
         registry.weights(card, variant, allow_download=False)
     except WeightsError as e:
         pytest.skip(f"weights of {ref} not available locally: {e}")
-    return depth.load(ref, device="cpu", options=options)
+    return depth.load(ref, device="cpu", **(options or {}))
 
 
 def _map(result: depth.DepthResult) -> torch.Tensor:

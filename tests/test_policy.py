@@ -609,7 +609,7 @@ def test_task_load_is_generated_by_task_api(task):
         # mode / dtype / device / options / weights to `_load` unchanged
         forwarded = [c for c in calls if getattr(c.func, "id", "") == "_load"]
         assert len(forwarded) == 1, f"{task}: load() must forward to the task_api `_load`"
-        kw = {k.arg for k in forwarded[0].keywords}
+        kw = {k.arg or "options" for k in forwarded[0].keywords}  # `**options`
         assert kw == {"mode", "device", "dtype", "options", "weights"}, f"{task}: load() forwards {sorted(kw)}"
         return
     assert len(body) == 1, f"{task}: load() does more than forward"

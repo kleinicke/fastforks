@@ -171,12 +171,12 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
     folds: Sequence[int] | None = None,
     step: float | None = None,
     mirror: bool | None = None,
     checkpoint: str | None = None,
+    **options: object,
 ) -> VolumeModel:
     """Load a volume model: a model id, or a trained nnU-Net v2 model folder or one of its checkpoints.
 
@@ -193,7 +193,7 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
         mode: `"auto"`, `"portable"` or `"kernels"`, as every task's `load`.
         device: As every task's `load`.
         dtype: As every task's `load`.
-        options: Load options of a model id (card `[options]`); not for a path.
+        **options: Load options of a model id (card `[options]`); not for a path.
         weights: Your own copy of a model id's weights; not for a path.
         folds: nnU-Net folder: folds to ensemble; `None`: every `fold_<k>` with the checkpoint.
         step: nnU-Net path: sliding-window step (fraction of the patch; `None`: nnU-Net's default 0.5).
@@ -206,18 +206,18 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
 
     Raises:
         ModelNotFoundError: Unknown id or revision.
-        OptionsError: As every task's `load`; `options` / `weights` with a path, the nnU-Net arguments with a model id,
+        OptionsError: As every task's `load`; options / `weights` with a path, the nnU-Net arguments with a model id,
             or `folds` / `checkpoint` with a checkpoint file.
         WeightsError: Missing files, or an architecture / configuration the engine does not implement.
     """
     nnunet = {"folds": folds, "step": step, "mirror": mirror, "checkpoint": checkpoint}
     if not is_path(model):
         if given := [k for k, v in nnunet.items() if v is not None]:
-            msg = f"{', '.join(f'{k}=' for k in given)}: for nnU-Net folders and checkpoints, not model ids (options=)"
+            msg = f"{', '.join(f'{k}=' for k in given)}: for nnU-Net folders and checkpoints, not model ids"
             raise OptionsError(msg)
-        return _load(str(model), mode=mode, device=device, dtype=dtype, options=options, weights=weights)
+        return _load(str(model), mode=mode, device=device, dtype=dtype, weights=weights, **options)
     if options or weights is not None:
-        msg = f"{str(model)!r} is an nnU-Net path: options= and weights= are for model ids"
+        msg = f"{str(model)!r} is an nnU-Net path: options and weights= are for model ids"
         raise OptionsError(msg)
     return _load_nnunet(
         model,
