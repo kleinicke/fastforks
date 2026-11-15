@@ -5,7 +5,9 @@ Inference as upstream `read.py` (`strhub`, `SceneTextDataModule.get_transform`):
 autoregressive decoding with one refinement pass, softmax, the text up to the first end token.
 The 94-character charset: digits, Latin letters, ASCII punctuation (no space).
 
-`portable`: the network in plain PyTorch, float32 or float16.
+`portable`: the network in plain PyTorch, float32 or float16. On CUDA the second call of a batch size replays the
+decoding loop (26 launch-bound steps) as one CUDA graph (`cuda_graphs`, speed only: the same logits as the eager early
+exit); `module()` is the plain network and exports unchanged.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from fastforks.ocr._runner import Forward, Runner, levels
+from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.pil_resize import pil_bicubic
 
 from .net import IMAGE, PARSeq
@@ -39,6 +42,7 @@ class Params:
     dim: int
     enc_heads: int
     dec_heads: int
+    cuda_graphs: bool  # option: replay the full 26-step decoding from a CUDA graph on CUDA (speed only)
 
 
 def to_input(image: torch.Tensor) -> torch.Tensor:
@@ -62,10 +66,28 @@ class Portable(Runner):
         net = PARSeq(p.dim, p.enc_heads, p.dec_heads)
         net.load_state_dict(ctx.state_dict())
         self.net = net.eval().to(ctx.device, self.dtype)
+        self._graphs = GraphCache(self._decode, graphs=2) if p.cuda_graphs and ctx.device.type == "cuda" else None
+
+    def _decode(self, x: torch.Tensor) -> torch.Tensor:
+        """All 26 decoding steps (no early exit: a graph has no data-dependent control flow), float32 logits."""
+        return self.net(x, stop=False).float()
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        if self._graphs is not None:
+            self._graphs.release()
+
+    def _logits(self, image: torch.Tensor) -> torch.Tensor:
+        x = to_input(image).to(self.dtype)
+        if self._graphs is not None:
+            out = self._graphs.run((x.device, x.dtype, tuple(x.shape)), x)
+            if out is not None:
+                return out
+        return self.net(x).float()
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[str]]:
         """The text of a `[1, 3, H, W]` RGB crop (one line), as one quad over the whole image."""
-        probs = self.net(to_input(image).to(self.dtype)).float().softmax(-1)[0]
+        probs = self._logits(image).softmax(-1)[0]
         p, ids = probs.max(-1)
         ids_l = ids.tolist()
         end = ids_l.index(0) if 0 in ids_l else len(ids_l)  # the text stops at the first end token

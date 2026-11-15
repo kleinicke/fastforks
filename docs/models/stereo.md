@@ -1723,7 +1723,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `selective-igev-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp16 | 2201<br>1455<br>998<br>349<br>463 | 2888 / 3216<br>2013 / 2152<br>1238 / 1488<br>1109 / 1390<br>1278 / 1334 |
+| `selective-igev-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2201<br>1455<br>998<br>349<br>692<br>463 | 2888 / 3216<br>2013 / 2152<br>1238 / 1488<br>1109 / 1390<br>915 / 1028<br>1278 / 1334 |
 
 <details><summary>Details</summary>
 
@@ -1746,7 +1746,7 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `selective-igev-sceneflow` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-kitti12` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-kitti15` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-middlebury-finetune` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-middlebury-train` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-eth3d-finetune` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-eth3d-train` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved)
 - `selective-igev-kitti12`, `selective-igev-kitti15`, `selective-igev-middlebury-finetune`, `selective-igev-middlebury-train`, `selective-igev-eth3d-finetune`, `selective-igev-eth3d-train`: same network and settings as `selective-igev-sceneflow`, measured once (rows not repeated).
-- `selective-igev-sceneflow` 994x1482, first call: TensorRT fp16 255 s (ONNX + engine).
+- `selective-igev-sceneflow` 994x1482, first call: portable + torch.compile 127 s (cold Inductor cache), TensorRT fp16 255 s (ONNX + engine).
 - `selective-igev-sceneflow` original (fp32) 994x1482, original 994x1482: timed with selective-igev-eth3d-finetune (same network, other weights)
 - `selective-igev-sceneflow` portable 994x1482, kernels 994x1482: measured on selective-igev-eth3d-finetune (same architecture, other checkpoint)
 - `selective-igev-sceneflow` load / first call: original 0.36 s / 2.251 s (375x1242), portable 0.5 s / 1.016† s, kernels 0.14† s / 0.35† s

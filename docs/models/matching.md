@@ -14,11 +14,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 |---|---|---|---|
 | [`aliked-flexglue`](#flexglue) | yes | no kernels | no kernels |
 | [`aliked-lightglue`](#lightglue) | yes | 35.1, 1.2x | 1324, 0.97x |
-| [`dedode-v2-b`](#dedode) | yes | no kernels | no kernels |
-| [`dedode-v2-g`](#dedode) | yes | no kernels | no kernels |
+| [`dedode-v2-b`](#dedode) | yes | – | – |
+| [`dedode-v2-g`](#dedode) | yes | – | – |
 | [`disk-lightglue`](#lightglue) | yes | 52.1, 2.2x | 778, 0.32x |
-| [`loftr-indoor`](#loftr) | yes | no kernels | no kernels |
-| [`loftr-outdoor`](#loftr) | yes | no kernels | no kernels |
+| [`loftr-indoor`](#loftr) | yes | – | – |
+| [`loftr-outdoor`](#loftr) | yes | – | – |
 | [`loma-b`](#loma) | yes | no kernels | no kernels |
 | [`romav1`](#romav1) | yes | 356, 1.1x | 1860, 0.45x |
 | [`romav2`](#romav2) | yes | 354, 2.1x | 2300, 0.23x |
@@ -122,8 +122,8 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, portable float32 and ker
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `aliked-lightglue` | not measured | - | - |
-| `disk-lightglue` | not measured | - | - |
+| `aliked-lightglue` | 0.00297 / 0.00889 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `disk-lightglue` | 0.00909 / 0.5 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 
@@ -143,8 +143,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>no kernels<br>164<br>fails: unsupported: TensorRT ITopK supports K <= 3840 only; the key | 1734 / 1992<br>1535 / 1654<br>no kernels<br>1893 / 2434<br>– |
-| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 666<br>592<br>no kernels<br>330<br>fails: TensorRT engine build failed | 2335 / 2472<br>2142 / 2334<br>no kernels<br>2881 / 3316<br>– |
+| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>–<br>164<br>fails: unsupported: TensorRT ITopK supports K <= 3840 only; the key | 1734 / 1992<br>1535 / 1654<br>–<br>1893 / 2434<br>– |
+| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 666<br>592<br>–<br>330<br>fails: TensorRT engine build failed | 2335 / 2472<br>2142 / 2334<br>–<br>2881 / 3316<br>– |
 
 <details><summary>Details</summary>
 
@@ -155,12 +155,11 @@ Commercial use: yes.
 - Licence evidence: https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/README.md#license ; https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/LICENSE
 - Training data: MegaDepth (Internet photo collections with SfM / MVS depth) (Detector v2 and descriptors: MegaDepth (README training section, papers); DINOv2 (-G, frozen): LVD-142M (Meta).)
 - Options: `size` = 784 (>= 56), `max_keypoints` = 10000 (>= 1)
-- Kernel libraries: none (not implemented yet)
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `dedode-v2-b`, `dedode-v2-g`
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dedode-v2-b` 3000x4000 (1.9 GiB peak allocated, 3.8 reserved); `dedode-v2-g` 3000x4000 (2.5 GiB peak allocated, 4.5 reserved)
-- no kernels: not implemented yet.
 - `dedode-v2-b` 768x1024, first call: portable + torch.compile 50 s (cold Inductor cache).
 - `dedode-v2-g` 768x1024, first call: portable + torch.compile 86 s (cold Inductor cache).
 - `dedode-v2-b` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor B, 10000 keypoints
@@ -185,8 +184,8 @@ CPU, float32: max |diff| <= 0.011 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `dedode-v2-b` | no kernels backend | - | - |
-| `dedode-v2-g` | no kernels backend | - | - |
+| `dedode-v2-b` | 0.002 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `dedode-v2-g` | 0.002 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 
@@ -208,8 +207,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>no kernels<br>176<br>fails: unsupported: torch.export: data-dependent guard in loftr.py: | 1739 / 1870<br>796 / 904<br>no kernels<br>1149 / 1232<br>– |
-| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>111<br>no kernels<br>71.0<br>fails: ONNX export: torch.export failed | 1751 / 1910<br>796 / 904<br>no kernels<br>634 / 684<br>– |
+| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>–<br>176<br>fails: unsupported: torch.export: data-dependent guard in loftr.py: | 1739 / 1870<br>796 / 904<br>–<br>1149 / 1232<br>– |
+| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>111<br>–<br>71.0<br>fails: ONNX export: torch.export failed | 1751 / 1910<br>796 / 904<br>–<br>634 / 684<br>– |
 
 <details><summary>Details</summary>
 
@@ -220,12 +219,11 @@ Commercial use: yes.
 - Licence evidence: https://github.com/zju3dv/LoFTR/blob/df7ca80f917334b94cfbe32cc2901e09a80e70a8/LICENSE ; https://huggingface.co/kornia/loftr/tree/0fb3b456cf176746709c38fa9cf80695a1c82dac
 - Training data: MegaDepth (Internet photo collections with SfM / MVS depth) (loftr-outdoor: MegaDepth. loftr-indoor: ScanNet (ScanNet terms of use: non-commercial research), README training section.)
 - Options: `long_side` = 840 (>= 0)
-- Kernel libraries: none (not implemented yet: data-dependent match counts (mutual nearest neighbours above a threshold))
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `loftr-outdoor`, `loftr-indoor`
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loftr-outdoor` 3000x4000 (1.9 GiB peak allocated, 2.8 reserved); `loftr-indoor` 3000x4000 (2.0 GiB peak allocated, 2.8 reserved)
-- no kernels: not implemented yet: data-dependent match counts (mutual nearest neighbours above a threshold).
 - `loftr-outdoor` 768x1024, first call: portable + torch.compile 33 s (cold Inductor cache).
 - `loftr-indoor` 768x1024, first call: portable + torch.compile 30 s (cold Inductor cache).
 - `loftr-outdoor` original 768x1024: upstream LoFTR default_cfg, temp_bug_fix False, long side 840
@@ -250,8 +248,8 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `loftr-outdoor` | no kernels backend | - | - |
-| `loftr-indoor` | no kernels backend | - | - |
+| `loftr-outdoor` | 0.00211 / 0.01445 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `loftr-indoor` | 0.00174 / 0.01007 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 
@@ -498,11 +496,11 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 |---|---|---|---|---|---|---|
 | [`aliked-flexglue`](#flexglue) | portable | MIT AND BSD-3-Clause | MIT AND LicenseRef-DINOv3-License AND BSD-3-Clause | unstated | yes | keypoints1, keypoints2, pairs, scores |
 | [`aliked-lightglue`](#lightglue) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause | megadepth | yes | keypoints1, keypoints2, pairs, scores |
-| [`dedode-v2-b`](#dedode) | portable | MIT | MIT | megadepth | yes | keypoints1, keypoints2, pairs, scores |
-| [`dedode-v2-g`](#dedode) | portable | MIT | MIT | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`dedode-v2-b`](#dedode) | portable, kernels | MIT | MIT | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`dedode-v2-g`](#dedode) | portable, kernels | MIT | MIT | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`disk-lightglue`](#lightglue) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause | megadepth | yes | keypoints1, keypoints2, pairs, scores |
-| [`loftr-indoor`](#loftr) | portable | Apache-2.0 | Apache-2.0 | megadepth | yes | keypoints1, keypoints2, pairs, scores |
-| [`loftr-outdoor`](#loftr) | portable | Apache-2.0 | Apache-2.0 | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`loftr-indoor`](#loftr) | portable, kernels | Apache-2.0 | Apache-2.0 | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`loftr-outdoor`](#loftr) | portable, kernels | Apache-2.0 | Apache-2.0 | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`loma-b`](#loma) | portable | MIT | MIT | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`romav1`](#romav1) | portable, kernels | MIT | MIT AND Apache-2.0 | megadepth | yes | warp, certainty |
 | [`romav2`](#romav2) | portable, kernels | MIT AND LicenseRef-DINOv3-License | MIT AND LicenseRef-DINOv3-License | unstated | yes | warp, certainty |

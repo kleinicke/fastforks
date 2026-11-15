@@ -875,8 +875,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | input | time (ms): original fp32 | original | portable | peak memory (MiB, allocated / reserved): original | portable |
 |---|---|---|---|---|---|---|
-| parseq | 32x128 | 15.9 | 19.6 | 12.6 | 126 / 144 | 79 / 98 |
-| parseq-tiny | 32x128 | 14.6 | 18.0 | 11.6 | 56 / 58 | 44 / 54 |
+| parseq | 32x128 | 15.9 | 19.6 | 3.62 | 126 / 144 | 79 / 100 |
+| parseq-tiny | 32x128 | 14.6 | 18.0 | 2.10 | 56 / 58 | 44 / 54 |
 | ppocrv5-mobile | 1080x1920 | 619 | 418 | 153 | 393 / 1005 | 289 / 448 |
 | ppocrv5-server | 1080x1920 | – | 762 (fp32) | 277 | 2355 / 2901 | 1357 / 1452 |
 
@@ -1047,10 +1047,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | memflow-kitti | 1080x1920 | – | 3247 | 965 | 865 | 3.8x | 1.1x | 15061 / 15594 | 8265 / 8382 | 968 / 1022 |
 | memflow-sintel | 1080x1920 | – | 3214 | 964 | 865 | 3.7x | 1.1x | 15061 / 15634 | 8265 / 8382 | 968 / 1022 |
 | memfof | 1080x1920 | – | 531 | 433 | 427 | 1.2x | 1.0x | 2003 / 2144 | 1911 / 2196 | 1301 / 1418 |
-| memfof-kitti | 375x1242 | – | – | 386 | 380 | – | 1.0x | – | 1619 / 1856 | 1137 / 1218 |
+| memfof-kitti | 375x1242 | – | 927 | 386 | 380 | 2.4x | 1.0x | 1968 / 2276 | 1619 / 1856 | 1137 / 1218 |
+| memfof-sintel | 375x1242 | – | 894 | – | – | – | – | 1968 / 2176 | – | – |
+| memfof-spring | 1080x1920 | – | 1035 | – | – | – | – | 2340 / 2676 | – | – |
 | neuflow-v2 | 1080x1920 | 171 | 75.6 | 71.2 | 59.1 | 1.3x | 1.2x | 4367 / 4556 | 2366 / 2398 | 790 / 896 |
 | neuflow-v2-sintel | 1080x1920 | 171 | 75.7 | 71.2 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2435 / 2478 | 790 / 896 |
-| neuflow-v2-things | 1080x1920 | 172 | 75.8 | 71.2 | 58.9 | 1.3x | 1.2x | 4374 / 4720 | 2435 / 2478 | 790 / 896 |
+| neuflow-v2-things | 1080x1920 | 172 | 75.8 | 71.4 | 58.9 | 1.3x | 1.2x | 4374 / 4720 | 2366 / 2398 | 779 / 896 |
 | raft-large | 1080x1920 | 480 | 567 | 291 | 83.5 | 5.7x | 3.5x | 7164 / 10928 | 5930 / 6058 | 342 / 372 |
 | raft-large-kitti | 1080x1920 | 480 | 567 | 291 | 83.6 | 5.7x | 3.5x | 7164 / 10928 | 5930 / 6058 | 333 / 352 |
 | raft-large-things | 1080x1920 | 481 | 566 | 291 | 83.1 | 5.8x | 3.5x | 7164 / 10928 | 5930 / 6058 | 333 / 352 |
@@ -1502,8 +1504,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | yolox-s | 0.22 | 0.15 | 1.55 | 0.03 | 1.35 | 0.30 |
 | yolox-tiny | 1.55 | 0.18 | 1.58 | 0.52 | 1.31 | 0.31 |
 | yolox-x | 0.76 | 0.59 | 2.06 | 0.08 | 0.21 | 0.26 |
-| parseq | 0.53 (32x128) | 1.13 (32x128) | – | 1.04 (32x128) | 0.25 (32x128) | – |
-| parseq-tiny | 0.34 (32x128) | 1.81 (32x128) | – | 0.95 (32x128) | 0.29 (32x128) | – |
+| parseq | 0.53 (32x128) | 1.44 (32x128) | – | 1.04 (32x128) | 0.26 (32x128) | – |
+| parseq-tiny | 0.34 (32x128) | 0.74 (32x128) | – | 0.95 (32x128) | 0.20 (32x128) | – |
 | ppocrv5-mobile | 1.51 | 0.27 | – | 1.82 | 2.82 | – |
 | ppocrv5-server | 2.07 | 0.56 | – | 2.03 | 1.87 | – |
 | dwpose-l | 0.50 | 0.88 | 1.64 | 1.14 | 1.83 | 0.28 |
@@ -1644,10 +1646,12 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | memflow-kitti | 0.14 | 0.14 | 0.97 | 3.06 | 0.98 | 0.88 |
 | memflow-sintel | 0.14 | 0.10 | 0.95 | 3.06 | 0.98 | 0.88 |
 | memfof | 2.06 | 0.22 (375x1242) | 1.84 (375x1242) | 1.29 | 0.41 (375x1242) | 0.29 (375x1242) |
-| memfof-kitti | – | 0.21 (375x1242) | 1.07 (375x1242) | – | 0.65 (375x1242) | 0.56 (375x1242) |
+| memfof-kitti | 2.59 (375x1242) | 0.21 (375x1242) | 1.07 (375x1242) | 0.96 (375x1242) | 0.65 (375x1242) | 0.56 (375x1242) |
+| memfof-sintel | 1.30 (375x1242) | – | – | 0.90 (375x1242) | – | – |
+| memfof-spring | 1.12 | – | – | 1.04 | – | – |
 | neuflow-v2 | 0.20 | 0.26 | 0.96 (375x1242) | 0.22 | 0.07 | 0.18 (375x1242) |
 | neuflow-v2-sintel | 0.17 | 0.07 (375x1242) | 0.95 (375x1242) | 0.08 | 0.28 (375x1242) | 0.18 (375x1242) |
-| neuflow-v2-things | 0.17 | 0.06 (375x1242) | 0.92 (375x1242) | 0.08 | 0.30 (375x1242) | 0.18 (375x1242) |
+| neuflow-v2-things | 0.17 | 0.21 | 0.26 | 0.08 | 0.07 | 0.06 |
 | raft-large | 0.14 | 0.17 | 1.07 | 0.76 | 0.30 | 0.11 |
 | raft-large-kitti | 0.14 | 0.17 | 1.06 | 0.58 | 0.30 | 0.11 |
 | raft-large-things | 0.13 | 0.25 | 1.07 | 0.58 | 0.30 | 0.11 |
@@ -1810,10 +1814,10 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | selective-igev-eth3d-finetune | 994x1482 | 998 ms | 691 ms | 461 ms | 349 ms | 126 s | 256 s | 1238 / 1488 | 919 / 1088 | 1109 / 1390 | 1279 / 1316 |
 | selective-igev-eth3d-train | 994x1482 | 998 ms | 691 ms | 462 ms | 349 ms | 127 s | 260 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | selective-igev-kitti12 | 994x1482 | 998 ms | 691 ms | 462 ms | 349 ms | 125 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
-| selective-igev-kitti15 | 994x1482 | 998 ms | – | 462 ms | 349 ms | – | 256 s | 1238 / 1488 | – | 1109 / 1390 | 1278 / 1334 |
-| selective-igev-middlebury-finetune | 994x1482 | 998 ms | – | 462 ms | 349 ms | – | 258 s | 1238 / 1488 | – | 1109 / 1390 | 1280 / 1316 |
-| selective-igev-middlebury-train | 994x1482 | 998 ms | – | 462 ms | 349 ms | – | 256 s | 1238 / 1488 | – | 1109 / 1390 | 1278 / 1334 |
-| selective-igev-sceneflow | 994x1482 | 998 ms | – | 463 ms | 349 ms | – | 255 s | 1238 / 1488 | – | 1109 / 1390 | 1278 / 1334 |
+| selective-igev-kitti15 | 994x1482 | 998 ms | 691 ms | 462 ms | 349 ms | 127 s | 256 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
+| selective-igev-middlebury-finetune | 994x1482 | 998 ms | 692 ms | 462 ms | 349 ms | 127 s | 258 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1280 / 1316 |
+| selective-igev-middlebury-train | 994x1482 | 998 ms | 692 ms | 462 ms | 349 ms | 128 s | 256 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
+| selective-igev-sceneflow | 994x1482 | 998 ms | 692 ms | 463 ms | 349 ms | 127 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | waft-stereo-b | 994x1482 | 1137 ms | 571 ms | fails: unsupported: fp16 engine output is all NaN (strongly-typed f | 385 ms | 104 s | – | 5775 / 5852 | 3908 / 3936 | 1906 / 2152 | – |
 | waft-stereo-s | 994x1482 | 689 ms | 357 ms | 170 ms | 281 ms | 95.1 s | 152 s | 3293 / 3456 | 2024 / 2058 | 1113 / 1282 | 1061 / 1114 |
 | da3-giant-1.1 | 994x1482 | 71.5 ms | 64.3 ms | 37.2 ms | 44.2 ms | 47.2 s | 84.1 s | 2634 / 2728 | 2487 / 2528 | 2628 / 2710 | 4795 / 4842 |
@@ -2056,8 +2060,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | yolox-s | 800x1344 | 5.55 ms | 2.95 ms | 1.02 ms | 2.64 ms | 12.7 s | 17.2 s | 79 / 100 | 74 / 96 | 84 / 134 | 86 / 126 |
 | yolox-tiny | 800x1344 | 5.58 ms | 2.87 ms | 0.561 ms | 2.02 ms | 13.1 s | 23.7 s | 60 / 92 | 58 / 94 | 62 / 108 | 62 / 90 |
 | yolox-x | 800x1344 | 11.8 ms | 11.3 ms | 5.28 ms | 7.82 ms | 15.8 s | 24.1 s | 255 / 300 | 265 / 296 | 258 / 358 | 432 / 478 |
-| parseq | 32x128 | 12.6 ms | 8.80 ms | 1.67 ms | – | 19.9 s | 114 s | 79 / 98 | 111 / 118 | – | 148 / 168 |
-| parseq-tiny | 32x128 | 11.6 ms | 8.09 ms | 1.68 ms | – | 17.2 s | 96.8 s | 44 / 54 | 76 / 94 | – | 80 / 88 |
+| parseq | 32x128 | 3.62 ms | 8.80 ms | 1.67 ms | – | 19.9 s | 114 s | 79 / 100 | 111 / 118 | – | 148 / 168 |
+| parseq-tiny | 32x128 | 2.10 ms | 8.09 ms | 1.68 ms | – | 17.2 s | 96.8 s | 44 / 54 | 76 / 94 | – | 80 / 88 |
 | ppocrv5-mobile | 1080x1920 | 153 ms | 115 ms | 2.68 ms | – | 75.0 s | 156 s | 289 / 448 | 292 / 448 | – | 241 / 268 |
 | ppocrv5-server | 1080x1920 | 277 ms | 277 ms | 25.1 ms | – | 105 s | 40.6 s | 1357 / 1452 | 958 / 1132 | – | 1131 / 1146 |
 | dwpose-l | 1080x1920 | 10.2 ms | 5.75 ms | 3.33 ms (network on person crops only) | 6.20 ms | 14.8 s | 20.0 s | 222 / 280 | 197 / 216 | 186 / 306 | 277 / 294 |
@@ -2187,7 +2191,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 380 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 1137 / 1218 | – |
 | neuflow-v2 | 1080x1920 | 71.2 ms | 91.4 ms | 65.0 ms | 59.1 ms | 28.5 s | 104 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-sintel | 1080x1920 | 71.2 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2435 / 2478 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
-| neuflow-v2-things | 1080x1920 | 71.2 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2435 / 2478 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
+| neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
 | raft-large | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 41.3 s | – | 5930 / 6058 | 5886 / 5924 | 342 / 372 | – |
 | raft-large-kitti | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.6 ms | 39.3 s | – | 5930 / 6058 | 5886 / 5924 | 333 / 352 | – |
 | raft-large-things | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.1 ms | 39.4 s | – | 5930 / 6058 | 5886 / 5924 | 333 / 352 | – |

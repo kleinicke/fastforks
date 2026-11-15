@@ -3,7 +3,7 @@ name = "PARSeq (scene text recognition)"
 summary = "PARSeq (Bautista and Atienza, ECCV 2022): a ViT encoder over the word crop (32 x 128) and one two-stream Transformer decoder layer trained with permuted autoregressive sequence modelling; reads one cropped word or short line (94 characters: Latin letters, digits, ASCII punctuation; no space). Greedy autoregressive decoding plus one refinement pass, as upstream `read.py`. A recogniser only: the whole input is one line (one quad over the image); pair it with a detector (e.g. `ppocrv5-mobile` boxes) for full pages."
 tier = "experimental"
 outputs = ["boxes", "texts", "scores"]
-uses = ["pil_resize"]
+uses = ["cuda_graphs", "pil_resize"]
 
 [upstream]
 repo = "https://github.com/baudm/parseq"
@@ -20,13 +20,16 @@ evidence = "https://github.com/baudm/parseq/blob/1902db043c029a7e03a3818c616c066
 [io]
 input = "0-255"  # the runner resizes to 32 x 128 (antialiased bicubic, 8-bit levels as PIL) and normalises to [-1, 1]
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # CUDA: replay the 26-step decoding loop from a CUDA graph (second call of a batch size; false: eager, no graph pool)
+
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 status = "none"
-reason = "the 26-step decoding loop is launch-bound, not kernel-bound: replaying it as a CUDA graph takes the forward from 29.8 to 3.4 ms (parseq) and 29.8 to 1.9 ms (parseq-tiny) with identical logits, but that is a graph, not a kernel (no library in the manifests helps; SDPA / cuBLAS are already the compute), so it is a portable-mode candidate, not a kernels mode (2026-11-15, results/2026-11-15_kernel_slower_remeasure.md)"
+reason = "the 26-step decoding loop is launch-bound, not kernel-bound, and portable already replays it as one CUDA graph (`cuda_graphs`, exports unchanged: `module()` is the plain network): 12.6 -> 3.6 ms (parseq) and 11.6 -> 2.1 ms (parseq-tiny) vs the original 19.6 / 18.0 ms fp16, same logits and memory; SDPA / cuBLAS are already the compute and no library in the manifests helps, so a kernels mode would only repeat the graph (2026-11-15, results/2026-11-15_parseq_graph.md)"
 
 [[papers]]
 title = "Scene Text Recognition with Permuted Autoregressive Sequence Models"

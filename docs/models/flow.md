@@ -32,7 +32,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`memflow-kitti`](#memflow) | yes | 0.600 † | 865, 3.8x | 1022, 0.066x |
 | [`memflow-sintel`](#memflow) | yes | – | 865, 3.7x | 1022, 0.065x |
 | [`memfof`](#memfof) | yes | 10.891 † | 427, 1.2x | 1418, 0.66x |
-| [`memfof-kitti`](#memfof) | yes | – | 380 (375x1242) | 1218 |
+| [`memfof-kitti`](#memfof) | yes | – | 380, 2.4x (375x1242) | 1218, 0.54x |
 | [`memfof-sintel`](#memfof) | yes | – | – | – |
 | [`memfof-spring`](#memfof) | yes | – | – | – |
 | [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.1, 1.3x | 896, 0.2x |
@@ -463,7 +463,9 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `memfof` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 531<br>433<br>427<br>291<br>160 | 2003 / 2144<br>1911 / 2196<br>1301 / 1418<br>2452 / 2666<br>2070 / 2132 |
-| `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>386<br>380<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | –<br>1619 / 1856<br>1137 / 1218<br>2041 / 2226<br>– |
+| `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 927<br>386<br>380<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | 1968 / 2276<br>1619 / 1856<br>1137 / 1218<br>2041 / 2226<br>– |
+| `memfof-sintel` | synthetic (375x1242) | original<br>portable<br>kernels | 894<br>–<br>– | 1968 / 2176<br>–<br>– |
+| `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels | 1035<br>–<br>– | 2340 / 2676<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -487,10 +489,15 @@ Commercial use: yes.
 - `memfof` 1080x1920, first call: portable + torch.compile 51 s (cold Inductor cache), TensorRT fp16 110 s (ONNX + engine).
 - `memfof-kitti` 375x1242, first call: portable + torch.compile 49 s (cold Inductor cache).
 - `memfof` original 1080x1920: torch.autocast(float16) around the call; upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)
+- `memfof-kitti` original 375x1242: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=1, frames (image1, image1, image2)
+- `memfof-sintel` original 375x1242: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=1, frames (image1, image1, image2)
+- `memfof-spring` original 1080x1920: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)
 - `memfof` load / first call: original 2.06 s / 1.293 s, portable 0.22 s / 0.415 s (375x1242), kernels 1.84 s / 0.286 s (375x1242)
-- `memfof-kitti` load / first call: portable 0.21 s / 0.651 s (375x1242), kernels 1.07 s / 0.565 s (375x1242)
-- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
-- Speed and memory not measured for: `memfof-sintel`, `memfof-spring`.
+- `memfof-kitti` load / first call: original 2.59 s / 0.961 s (375x1242), portable 0.21 s / 0.651 s (375x1242), kernels 1.07 s / 0.565 s (375x1242)
+- `memfof-sintel` load / first call: original 1.3 s / 0.897 s (375x1242)
+- `memfof-spring` load / first call: original 1.12 s / 1.037 s
+- Protocol, `memfof`, `memfof-kitti`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+- Protocol, `memfof-sintel`, `memfof-spring`: median of 5 after 3 warm-up, uint8 CUDA input, original code at the pinned commit, torch.no_grad; peak = max over the first call and the timed calls
 
 ### Measured
 
@@ -531,7 +538,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>71.2<br>59.1<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>2366 / 2398<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
 | `neuflow-v2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.7<br>71.2<br>58.9<br>91.4<br>64.9 | 8694 / 9020<br>4367 / 4576<br>2435 / 2478<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
-| `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>71.2<br>58.9<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>2435 / 2478<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
+| `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>71.4<br>58.9<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>2366 / 2398<br>779 / 896<br>4529 / 4558<br>8710 / 8748 |
 
 <details><summary>Details</summary>
 
@@ -560,7 +567,7 @@ Commercial use: yes.
 - `neuflow-v2-things` original 1080x1920: the authors' mixed-precision option (float16); upstream NeuFlow, iters_s8=8, infer.py recipe: conv-bn folded, model.half()
 - `neuflow-v2` load / first call: original 0.2 s / 0.223 s, portable 0.26 s / 0.072 s, kernels 0.96 s / 0.179 s (375x1242)
 - `neuflow-v2-sintel` load / first call: original 0.17 s / 0.076 s, portable 0.07 s / 0.283 s (375x1242), kernels 0.95 s / 0.178 s (375x1242)
-- `neuflow-v2-things` load / first call: original 0.17 s / 0.076 s, portable 0.06 s / 0.297 s (375x1242), kernels 0.92 s / 0.182 s (375x1242)
+- `neuflow-v2-things` load / first call: original 0.17 s / 0.076 s, portable 0.21 s / 0.072 s, kernels 0.26 s / 0.059 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -878,9 +885,9 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `waft-a1` | not measured | - | - |
-| `waft-a1-kitti` | not measured | - | - |
-| `waft-a1-sintel` | not measured | - | - |
+| `waft-a1` | 0.00414 / 0.01608 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `waft-a1-kitti` | 0.00557 / 0.02456 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `waft-a1-sintel` | 0.00336 / 0.01352 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
 
 </details>
 
