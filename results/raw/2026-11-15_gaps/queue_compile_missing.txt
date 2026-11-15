@@ -36,6 +36,7 @@ retinaface-mobilenet0.25
 retinaface-resnet50
 swin2sr-x4
 teed
+video-depth-anything-metric-s
 waft-a1
 waft-a1-kitti
 waft-a1-sintel

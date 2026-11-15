@@ -3,6 +3,7 @@ alexnet.tv_in1k
 aliked-lightglue
 alltracker
 alltracker-tiny
+any2full-l
 anycalib-pinhole
 anysplat
 ben2
@@ -209,6 +210,7 @@ las2-s
 locotrack-b
 locotrack-s
 loftr-outdoor
+loma-b
 lotus-normal-d-v1-1
 lotus-normal-g-v1-1
 lw-detr-large-coco

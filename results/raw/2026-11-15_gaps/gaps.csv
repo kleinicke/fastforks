@@ -2,18 +2,18 @@ ref,task,family,upstream,upstream-default,portable,kernels,orig_ms,orig_mem,comp
 aanet-plus-sceneflow,stereo,aanet,ok,ok,ok,ok,True,True,ok,True,ok,True,True,True
 aanet-sceneflow,stereo,aanet,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 alexnet.tv_in1k,classification,alexnet,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
-aliked-flexglue,matching,flexglue,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
+aliked-flexglue,matching,flexglue,missing,missing,error: worker rc=timeout,missing,False,False,error: timeout after 190 s,False,error: timeout after 190 s,False,False,False
 aliked-lightglue,matching,lightglue,ok,missing,ok,ok,True,True,ok,True,error: unsupported: torch.export: data-dependent guard (masks.sum() == 0 branch),False,False,False
 alltracker,tracking,alltracker,ok,missing,ok,ok,True,True,ok,True,error: TorchExportError: Failed to export the model with torch.export. [96mThis is step 1/3[0m ,False,False,False
 alltracker-tiny,tracking,alltracker,ok,missing,ok,ok,True,True,ok,True,error: TorchExportError: Failed to export the model with torch.export. [96mThis is step 1/3[0m ,False,False,False
-any2full-b,depth,any2full,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
-any2full-l,depth,any2full,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
-any2full-s,depth,any2full,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
+any2full-b,depth,any2full,missing,missing,ok,missing,False,False,ok,True,error: timeout after 190 s,False,False,True
+any2full-l,depth,any2full,missing,missing,error: worker rc=timeout,missing,False,False,ok,True,error: timeout after 190 s,False,False,False
+any2full-s,depth,any2full,missing,missing,error: worker rc=timeout,missing,False,False,error: timeout after 190 s,False,error: timeout after 190 s,False,False,False
 anycalib-pinhole,calibration,anycalib,ok,missing,ok,ok,True,True,ok,True,error: ConversionError: Failed to decompose the FX graph for ONNX compatibility. [96mThis is ste,False,False,False
-anyline,edges,anyline,ok,missing,ok,missing,True,True,missing,False,missing,False,False,False
+anyline,edges,anyline,ok,missing,ok,missing,True,True,missing,False,error: RuntimeError: TensorRT cannot parse /tmp/ff-trt-rip3cnmx/model.onnx: In node 404 with name,False,False,False
 anysplat,multiview,anysplat,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
 ben2,matting,ben2,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
-big-lama,restoration,lama,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
+big-lama,restoration,lama,ok,missing,ok,ok,True,True,missing,False,error: RuntimeError: TensorRT cannot parse /tmp/ff-trt-cslif_do/model.onnx: In node 188 with name,False,False,False
 birefnet,matting,birefnet,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
 birefnet-lite,matting,birefnet,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
 bisenet-face-parsing,segmentation,bisenet,ok,missing,ok,missing,True,True,ok,True,ok,True,False,False
@@ -42,7 +42,7 @@ clip-l14-datacompxl,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,False,Fa
 clip-l14-dfn2b,features,clip,ok,ok,ok,ok,True,True,missing,False,missing,False,False,False
 clip-l14-laion2b,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 clip-l14-openai,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
-clipseg,promptable_segmentation,clipseg,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
+clipseg,promptable_segmentation,clipseg,ok,missing,ok,ok,True,True,missing,False,error: TypeError: Portable.module.<locals>.<lambda>() missing 1 required positional argument: 'co,False,False,False
 coatnet_0_rw_224.sw_in1k,classification,coatnet,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
 coatnet_1_rw_224.sw_in1k,classification,coatnet,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
 coatnet_2_rw_224.sw_in12k_ft_in1k,classification,coatnet,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
@@ -72,8 +72,8 @@ convnext_tiny.fb_in22k,features,convnext_features,ok,ok,ok,ok,True,True,ok,True,
 convnext_tiny.fb_in22k_ft_in1k,classification,convnext,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 convnext_tiny.fb_in22k_ft_in1k_384,classification,convnext,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 convnextv2_base.fcmae_ft_in22k_in1k,classification,convnextv2,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
-cotracker3-offline,tracking,cotracker,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
-cotracker3-online,tracking,cotracker,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
+cotracker3-offline,tracking,cotracker,ok,missing,ok,ok,True,True,missing,False,ok,True,True,False
+cotracker3-online,tracking,cotracker,ok,missing,ok,ok,True,True,missing,False,error: TorchExportError: Failed to export the model with torch.export. [96mThis is step 1/3[0m ,False,False,False
 crestereo-eth3d,stereo,crestereo,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 da3-giant-1.1,depth,depth_anything_3,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 da3-large-1.1,depth,depth_anything_3,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
@@ -108,7 +108,7 @@ depth-anything-v2-metric-vkitti-l,depth,depth_anything_v2,ok,ok,ok,ok,True,True,
 depth-anything-v2-metric-vkitti-s,depth,depth_anything_v2,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 depth-anything-v2-s,depth,depth_anything_v2,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 depth-pro,depth,depth_pro,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
-depthfm-v1,depth,depthfm,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
+depthfm-v1,depth,depthfm,missing,missing,ok,missing,False,False,error: timeout after 190 s,False,error: timeout after 190 s,False,False,False
 depthsplat-small-re10k,multiview,depthsplat,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
 detr-r101-coco,detection,detr,ok,ok,ok,ok,True,True,ok,True,ok,True,True,True
 detr-r50-coco,detection,detr,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
@@ -144,7 +144,7 @@ distill-any-depth-s,depth,depth_anything_v2,ok,ok,ok,ok,True,True,ok,True,ok,Tru
 dlnr-middlebury,stereo,dlnr,ok,ok,ok,ok,True,True,ok,True,ok,True,True,True
 dlnr-sceneflow,stereo,dlnr,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 drct-l-x4,restoration,drct,ok,missing,ok,ok,True,True,ok,True,missing,False,False,False
-drct-x4,restoration,drct,ok,missing,ok,ok,True,True,ok,True,missing,False,False,False
+drct-x4,restoration,drct,ok,missing,ok,ok,True,True,ok,True,error: worker rc=124,False,False,False
 dwpose-l,pose,rtmpose,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 dwpose-l-384,pose,rtmpose,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 dwpose-m,pose,rtmpose,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
@@ -166,10 +166,10 @@ efficientvit-sam-l2,promptable_segmentation,efficientvit_sam,ok,ok,ok,ok,True,Tr
 efficientvit-sam-xl0,promptable_segmentation,efficientvit_sam,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 efficientvit-sam-xl1,promptable_segmentation,efficientvit_sam,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 efficientvit_b2.r288_in1k,classification,efficientvit,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
-ema-vfi,interpolation,ema_vfi,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
-ema-vfi-small,interpolation,ema_vfi,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
-ema-vfi-small-t,interpolation,ema_vfi,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
-ema-vfi-t,interpolation,ema_vfi,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
+ema-vfi,interpolation,ema_vfi,ok,missing,ok,ok,True,True,missing,False,ok,True,True,False
+ema-vfi-small,interpolation,ema_vfi,ok,missing,ok,ok,True,True,missing,False,ok,True,True,False
+ema-vfi-small-t,interpolation,ema_vfi,ok,missing,ok,ok,True,True,missing,False,ok,True,True,False
+ema-vfi-t,interpolation,ema_vfi,ok,missing,ok,ok,True,True,missing,False,ok,True,True,False
 eomt-l-dinov2-ade20k,segmentation,eomt,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 eomt-l-dinov3-ade20k,segmentation,eomt,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 eva02_large_patch14_448.mim_m38m_ft_in22k_in1k,classification,eva02,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
@@ -188,7 +188,7 @@ fastvit_sa24.apple_dist_in1k,classification,fastvit,ok,ok,ok,ok,True,True,ok,Tru
 fastvit_t12.apple_dist_in1k,classification,fastvit,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 fastvit_t8.apple_dist_in1k,classification,fastvit,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 fcn-r101-d8-ade20k,segmentation,mmseg,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
-film,interpolation,film,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
+film,interpolation,film,ok,missing,ok,ok,True,True,missing,False,error: RuntimeError: TensorRT cannot parse /tmp/ff-trt-set7aplz/model.onnx: In node 187 with name,False,False,False
 flowformer-small-chairs,flow,flowformer,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
 flowformer-small-sintel,flow,flowformer,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
 flowformer-small-things,flow,flowformer,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
@@ -205,8 +205,8 @@ foundationstereo-vit-l,stereo,foundationstereo,ok,ok,ok,ok,True,True,missing,Fal
 foundationstereo-vit-s,stereo,foundationstereo,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 geocalib-pinhole,calibration,geocalib,ok,missing,ok,ok,True,True,ok,True,error: unsupported: torch.export: data-dependent guard ((norm_x == 0).any()),False,False,False
 gfpgan-v1.4,restoration,gfpgan,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
-gimm-vfi-r,interpolation,gimm_vfi,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
-gimm-vfi-r-p,interpolation,gimm_vfi,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
+gimm-vfi-r,interpolation,gimm_vfi,ok,missing,ok,ok,True,True,missing,False,error: worker rc=124,False,False,False
+gimm-vfi-r-p,interpolation,gimm_vfi,ok,missing,ok,ok,True,True,missing,False,error: worker rc=124,False,False,False
 gmflow-scale1-mixdata,flow,gmflow,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
 gmflow-scale1-things,flow,gmflow,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
 gmflow-scale2-mixdata,flow,gmflow,ok,ok,ok,missing,True,True,ok,True,error: BackendUnavailableError: TensorRT engine build failed: IBuilder::buildSerializedNetwork: E,False,False,False
@@ -224,7 +224,7 @@ grounding-dino-base,detection,grounding_dino,ok,missing,ok,missing,True,True,ok,
 grounding-dino-tiny,detection,grounding_dino,ok,missing,ok,missing,True,True,ok,True,error: unsupported: ONNX export: aten._is_all_true has no ONNX decomposition,False,False,False
 gwcnet-g-sceneflow,stereo,gwcnet,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 gwcnet-gc-sceneflow,stereo,gwcnet,ok,ok,ok,ok,True,True,ok,True,ok,True,True,True
-hat-s-x4,restoration,hat,ok,missing,ok,ok,True,True,ok,True,missing,False,False,False
+hat-s-x4,restoration,hat,ok,missing,ok,ok,True,True,ok,True,error: BackendUnavailableError: TensorRT engine build failed: [resizingAllocator.cpp::allocateImp,False,False,False
 hat-x4,restoration,hat,ok,missing,ok,ok,True,True,ok,True,missing,False,False,False
 hed,edges,hed,ok,missing,ok,missing,True,True,missing,False,missing,False,False,False
 hgnetv2_b0.ssld_stage2_ft_in1k,classification,hgnetv2,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
@@ -264,14 +264,14 @@ las2-s,stereo,las2,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 lineart,edges,lineart,ok,missing,ok,missing,True,True,missing,False,missing,False,False,False
 lineart-anime,edges,lineart_anime,ok,missing,ok,missing,True,True,missing,False,missing,False,False,False
 lineart-coarse,edges,lineart,ok,missing,ok,missing,True,True,missing,False,missing,False,False,False
-lingbot-depth,depth,lingbot_depth,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
-lingbot-depth-dc,depth,lingbot_depth,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
-lingbot-map,multiview,lingbot_map,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
+lingbot-depth,depth,lingbot_depth,missing,missing,error: worker rc=timeout,missing,False,False,error: timeout after 190 s,False,ok,True,True,False
+lingbot-depth-dc,depth,lingbot_depth,missing,missing,error: worker rc=timeout,missing,False,False,ok,True,ok,True,True,True
+lingbot-map,multiview,lingbot_map,missing,missing,ok,missing,False,False,error: run: InductorError: SubprocException: An exception occurred in a subprocess: Name=triton_p,False,error: timeout after 190 s,False,False,False
 locotrack-b,tracking,locotrack,ok,missing,ok,ok,True,True,ok,True,"error: ValueError: not enough values to unpack (expected 4, got 2)",False,False,False
 locotrack-s,tracking,locotrack,ok,missing,ok,ok,True,True,ok,True,"error: ValueError: not enough values to unpack (expected 4, got 2)",False,False,False
 loftr-indoor,matching,loftr,ok,missing,ok,missing,True,True,ok,True,error: TorchExportError: Failed to export the model with torch.export. [96mThis is step 1/3[0m ,False,False,True
 loftr-outdoor,matching,loftr,ok,missing,ok,missing,True,True,ok,True,error: unsupported: torch.export: data-dependent guard in loftr.py:190,False,False,False
-loma-b,matching,loma,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
+loma-b,matching,loma,missing,missing,ok,missing,False,False,ok,True,"error: RuntimeError: Trying to create tensor with negative dimension -1: [-1, 2]",False,False,False
 lotus-normal-d-v1-1,depth,lotus,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
 lotus-normal-g-v1-1,depth,lotus,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
 lw-detr-large-coco,detection,lwdetr,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
@@ -325,7 +325,7 @@ nmrf-sceneflow,stereo,nmrf,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 nnfoundation-cnn,volume,nnfoundation,ok,ok,ok,ok,True,True,ok,True,error: RuntimeError: required rank 5 tensor to use channels_last_3d format,False,False,False
 nnfoundation-vit,volume,nnfoundation,ok,OOM,ok,ok,True,True,ok,True,error: RuntimeError: Calculated padded input size per channel: (3 x 192 x 192). Kernel size: (8 x,False,False,False
 nninteractive,volume,nninteractive,ok,ok,ok,ok,True,True,error: run: TypeError: cannot unpack non-iterable NoneType object,False,error: TypeError: 'NoneType' object is not subscriptable,False,False,False
-omni-dc,depth,omni_dc,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
+omni-dc,depth,omni_dc,missing,missing,ok,missing,False,False,error: timeout after 190 s,False,error: TorchExportError: Failed to export the model with torch.export. [96mThis is step 1/3[0m ,False,False,False
 oneformer-swinl-ade20k,segmentation,oneformer,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 owlv2-b16,detection,owlv2,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
 owlv2-l14,detection,owlv2,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
@@ -383,7 +383,7 @@ resnet152.tv2_in1k,classification,resnet,ok,ok,ok,ok,True,True,ok,True,ok,True,F
 resnet18.tv_in1k,classification,resnet,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 resnet50.tv2_in1k,classification,resnet,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 resplat-base-re10k,multiview,resplat,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
-resplat-small-dl3dv,multiview,resplat,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
+resplat-small-dl3dv,multiview,resplat,missing,missing,error: worker rc=timeout,missing,False,False,error: timeout after 190 s,False,error: TypeError: _Base.forward() missing 1 required positional argument: 'depth_range',False,False,False
 restormer-deblur,restoration,restormer,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
 restormer-derain,restoration,restormer,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
 restormer-sidd,restoration,restormer,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
@@ -520,7 +520,7 @@ swinir-m-x4,restoration,swinir,ok,missing,ok,ok,True,True,ok,True,ok,True,False,
 swinir-m-x4-real,restoration,swinir,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
 tapir,tracking,tapir,ok,missing,ok,ok,True,True,ok,True,ok,True,True,False
 tapnext,tracking,tapnext,ok,missing,ok,ok,True,True,ok,True,error: unsupported: engine build exceeds 5 min lock rule (cold ONNX export + build still running ,False,False,False
-tapnext-pp,tracking,tapnext,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
+tapnext-pp,tracking,tapnext,ok,missing,ok,missing,True,True,error: run: InductorError: SubprocException: An exception occurred in a subprocess: Name=triton_p,False,missing,False,False,False
 teed,edges,teed,ok,missing,ok,missing,True,True,missing,False,missing,False,False,False
 tiny_vit_11m_224.dist_in22k_ft_in1k,classification,tinyvit,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 tiny_vit_21m_224.dist_in22k_ft_in1k,classification,tinyvit,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
@@ -541,7 +541,7 @@ unik3d-vitl,depth,unik3d,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 vgg16.tv_in1k,classification,vgg,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 vggt-1b,multiview,vggt,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 vggt-omega-1b-512,multiview,vggt_omega,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
-video-depth-anything-metric-s,depth,video_depth_anything,missing,missing,missing,missing,False,False,missing,False,missing,False,False,False
+video-depth-anything-metric-s,depth,video_depth_anything,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
 video-depth-anything-s,depth,video_depth_anything,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
 vit_base_patch16_224.augreg2_in21k_ft_in1k,classification,vit,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 vit_so400m_patch14_siglip_378.webli_ft_in1k,classification,siglip,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False

@@ -49,3 +49,5 @@
 2026-11-15_11:37:49 start tensorrt hat-s-x4
 2026-11-15_11:41:03 end tensorrt hat-s-x4 rc=0
 2026-11-15_11:41:03 start tensorrt hat-x4
+2026-11-15_11:44:09 end tensorrt hat-x4 rc=0
+2026-11-15_11:44:09 start tensorrt hed

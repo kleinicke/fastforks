@@ -2725,3 +2725,4 @@ FAIL (full): RuntimeError: TensorRT cannot parse /tmp/ff-trt-set7aplz/model.onnx
 FAIL (full): BackendUnavailableError: TensorRT engine build failed: [resizingAllocator.cpp::allocateImpl::100] Error Code 1: Cuda Runtime (In allocateImpl at /_src/optimizer/builder/resizingAllocator.cpp:100 (cudaError 2: out of memory)). Try float32 (no --fp16), or export the ONNX file (--format onnx) and build it with another TensorRT version
 {"side": "lib", "ref": "hat-s-x4", "task": "restoration", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s": 0.
 == lib hat-x4 tensorrt 11:41:03
+== lib hed tensorrt 11:44:09

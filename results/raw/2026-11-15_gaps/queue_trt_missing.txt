@@ -1,10 +1,5 @@
-anyline
-big-lama
 c-radio-v4-h
 c-radio-v4-so400m
-clipseg
-cotracker3-offline
-cotracker3-online
 dat-2-x4
 dat-light-x4
 dat-x4
@@ -13,15 +8,6 @@ dinov2-vitl14-reg
 dinov3-vith16plus
 dinov3-vitl16
 drct-l-x4
-drct-x4
-ema-vfi
-ema-vfi-small
-ema-vfi-small-t
-ema-vfi-t
-film
-gimm-vfi-r
-gimm-vfi-r-p
-hat-s-x4
 hat-x4
 hed
 insid3-vitl16
@@ -40,7 +26,9 @@ recover-mn
 recover-rn
 retinaface-mobilenet0.25
 retinaface-resnet50
+tapnext-pp
 teed
+video-depth-anything-metric-s
 waft-a1
 waft-a1-kitti
 waft-a1-sintel
