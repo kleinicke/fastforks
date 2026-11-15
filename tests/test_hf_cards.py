@@ -162,3 +162,7 @@ def test_sd2_derived_cards_carry_the_openrail_note(staged):
         text = (out / stage_hf.repo_name(fam) / "README.md").read_text()
         assert 'license: "openrail++"' in text
         assert "OpenRAIL++-M use restrictions" in text, fam
+
+
+def test_goldens_exclude_copyleft_outputs():
+    assert "coex-sceneflow@1" in stage_hf.EXCLUDED_GOLDENS

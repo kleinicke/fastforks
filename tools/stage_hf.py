@@ -101,6 +101,10 @@ def stage_kernels(src: Path, out: Path) -> list[str]:
     return rows
 
 
+# Outputs left out of the public dataset: coex is GPL-3.0 code (policy: no copyleft).
+EXCLUDED_GOLDENS = frozenset({"coex-sceneflow@1"})
+
+
 def _find_golden(srcs: list[Path], ref: str, sha256: str) -> Path | None:
     """First `<ref>.npz` in the source directories whose SHA-256 matches, else None."""
     return next((p for d in srcs if (p := d / f"{ref}.npz").is_file() and sha256_of(p) == sha256), None)
@@ -117,6 +121,8 @@ def stage_goldens(srcs: list[Path], out: Path, skip_missing: bool = False) -> li
         for ref, entry in sorted(refs.items()):
             if ref not in cards:
                 sys.exit(f"{ref}: no card variant (a stale golden ref?)")
+            if ref in EXCLUDED_GOLDENS:
+                continue
             src = _find_golden(srcs, ref, entry["sha256"])
             if src is None:
                 if skip_missing:
