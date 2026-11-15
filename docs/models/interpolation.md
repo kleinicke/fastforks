@@ -278,4 +278,4 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 
 | id | dataset | licence | commercial use |
 |---|---|---|---|
-| `vimeo90k` | [Vimeo-90K (septuplets / triplets for frame interpolation)](https://toflow.csail.mit.edu/) | not stated | unclear |
+| `vimeo90k` | [Vimeo-90K (septuplets / triplets for frame interpolation)](http://toflow.csail.mit.edu/) | not stated | unclear |

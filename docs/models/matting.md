@@ -458,18 +458,18 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | id | dataset | licence | commercial use |
 |---|---|---|---|
 | `coco` | [COCO 2017 (train, instance annotations)](https://cocodataset.org/#termsofuse) | CC-BY-4.0 | unclear |
-| `dis5k` | [DIS5K (dichotomous image segmentation)](https://github.com/xuebinqin/DIS/blob/b6764e20381f6f42a70f83fa3324181529ed1403/DIS5K-Dataset-Terms-of-Use.pdf) | LicenseRef-noncommercial | no |
-| `duts` | [DUTS (salient object detection)](https://saliencydetection.net/duts/) | not stated | unclear |
-| `hrsod` | [HRSOD (high-resolution salient object detection)](https://github.com/yi94code/HRSOD/blob/166e6d7f433277c1f55c08d145732b7219f675e5/README.md) | not stated | unclear |
-| `uhrsd` | [UHRSD (ultra-high-resolution salient object detection)](https://github.com/iCVTEAM/PGNet/blob/fe79ada06f2f957b17dd3eaac176b6aed8de7be3/README.md) | not stated | unclear |
-| `hrs10k` | [HRS10K (high-resolution salient object detection)](https://openaccess.thecvf.com/content/ICCV2021/html/Tang_Disentangled_High_Quality_Salient_Object_Detection_ICCV_2021_paper.html) | not stated | unclear |
-| `p3m-10k` | [P3M-10k (privacy-preserving portrait matting)](https://jizhizili.github.io/files/p3m_dataset_agreement/P3M-10k_Dataset_Release_Agreement.pdf) | MIT | yes |
+| `dis5k` | [DIS5K (dichotomous image segmentation)](https://github.com/xuebinqin/DIS) | not checked | unclear |
+| `duts` | [DUTS (salient object detection)](http://saliencydetection.net/duts/) | not checked | unclear |
+| `hrsod` | [HRSOD (high-resolution salient object detection)](https://github.com/yi94code/HRSOD) | not checked | unclear |
+| `uhrsd` | [UHRSD (ultra-high-resolution salient object detection)](https://github.com/iCVTEAM/PGNet) | not checked | unclear |
+| `hrs10k` | [HRS10K (high-resolution salient object detection)](https://github.com/DrowsyMon/HRS10K) | not checked | unclear |
+| `p3m-10k` | [P3M-10k (privacy-preserving portrait matting)](https://github.com/JizhiziLi/P3M) | not checked | unclear |
 | `prama-internal` | [Prama LLC proprietary segmentation data](https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md) | not stated | unclear |
 | `bria-internal` | [BRIA proprietary background-removal data](https://huggingface.co/briaai/RMBG-2.0/blob/2fd7b4b0f2393ddb39a267fb62df6c010928a6c6/README.md) | not stated | unclear |
-| `composition-1k` | [Composition-1k (Adobe Deep Image Matting)](https://sites.google.com/view/deepimagematting) | LicenseRef-research-only | no |
-| `supervisely-person` | [Supervisely Person Dataset (human segmentation)](https://ecosystem.supervisely.com/projects/persons) | LicenseRef-noncommercial | no |
-| `vm800` | [VM800 (MatAnyone video matting foregrounds)](https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/doc/TRAIN.md) | not stated | no |
-| `distinctions-646` | [Distinctions-646 (image matting)](https://wukaoliu.github.io/HAttMatting/) | not stated | unclear |
-| `bg20k` | [BG-20k (background images)](https://jizhizili.github.io/files/gfm_datasets_agreements/BG-20k_Dataset_Release_Agreement.pdf) | MIT | yes |
-| `dvm-background` | [DVM background set (video backgrounds)](https://github.com/nowsyn/DVM/blob/c045693867c9397ed3eb635cea7c6f2cba6c02c3/README.md) | not stated | unclear |
-| `youtube-vis-2021` | [YouTube-VIS 2021 (video instance segmentation)](https://youtube-vos.org/dataset/vis/) | not stated | unclear |
+| `composition-1k` | [Composition-1k (Adobe Deep Image Matting)](https://sites.google.com/view/deepimagematting) | Adobe research licence on request | no |
+| `supervisely-person` | [Supervisely Person Dataset (human segmentation)](https://supervise.ly/explore/projects/supervisely-person-dataset-23304/datasets) | not checked | unclear |
+| `vm800` | [VM800 (MatAnyone video matting foregrounds)](https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/doc/TRAIN.md) | not released | no |
+| `distinctions-646` | [Distinctions-646 (image matting)](https://wukaoliu.github.io/HAttMatting/) | not checked | unclear |
+| `bg20k` | [BG-20k (background images)](https://github.com/JizhiziLi/GFM) | not checked | unclear |
+| `dvm-background` | [DVM background set (video backgrounds)](https://github.com/nowsyn/DVM) | not checked | unclear |
+| `youtube-vis-2021` | [YouTube-VIS 2021 (video instance segmentation)](https://youtube-vos.org/dataset/vis/) | not checked | unclear |

@@ -135,8 +135,8 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | id | dataset | licence | commercial use |
 |---|---|---|---|
 | `lvd-142m` | [LVD-142M (DINOv2's curated web-image set, not released)](https://arxiv.org/abs/2304.07193) | not stated | unclear |
-| `gsv-cities` | [GSV-Cities (Google Street View images of 62k places in 40 cities)](https://github.com/amaralibey/gsv-cities/blob/77ffffc23115e5ba966e108895343693ec49cbb2/README.md) | not stated | unclear |
+| `gsv-cities` | [GSV-Cities (Google Street View images of 62k places in 40 cities)](https://github.com/amaralibey/gsv-cities) | not checked | unclear |
 | `msls` | [Mapillary Street-Level Sequences](https://www.mapillary.com/dataset/places) | CC-BY-NC-SA-4.0 | no |
-| `megascenes` | [MegaScenes (Internet photo collections of scenes from Wikimedia Commons)](https://megascenes.github.io/) | not stated | unclear |
-| `scannet` | [ScanNet (RGB-D scans of indoor scenes)](https://web.archive.org/web/20261110140340/http://www.scan-net.org/) | LicenseRef-noncommercial | no |
-| `sf-xl` | [San Francisco eXtra Large (street-view images of San Francisco)](https://github.com/gmberton/CosPlace/blob/52b56e95ea62245281281f3bafd7b9390d19a0fd/README.md) | not stated | unclear |
+| `megascenes` | [MegaScenes (Internet photo collections of scenes from Wikimedia Commons)](https://megascenes.github.io/) | not checked | unclear |
+| `scannet` | [ScanNet (RGB-D scans of indoor scenes)](http://www.scan-net.org/) | ScanNet Terms of Use | no |
+| `sf-xl` | [San Francisco eXtra Large (street-view images of San Francisco)](https://github.com/gmberton/CosPlace) | not checked | unclear |

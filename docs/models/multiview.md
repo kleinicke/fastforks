@@ -338,7 +338,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `patchmatchnet` | synthetic (1536x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 248<br>220<br>202<br>29.5<br>175<br>51.0 | 1330 / 1412<br>1228 / 1272<br>1714 / 1892<br>648 / 772<br>1798 / 1888<br>1073 / 1106 |
+| `patchmatchnet` | synthetic (1536x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 248<br>220<br>201<br>29.5<br>175<br>51.0 | 1330 / 1412<br>1228 / 1272<br>1039 / 1212<br>648 / 772<br>1798 / 1888<br>1073 / 1106 |
 
 <details><summary>Details</summary>
 
@@ -356,7 +356,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `patchmatchnet` 1988x2880 (7.9 GiB peak allocated, 9.4 reserved)
 - `patchmatchnet` 1536x1024, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
 - `patchmatchnet` original 1536x1024: torch.autocast(fp16) around the forward
-- `patchmatchnet` load / first call: original 0.04 s / 0.917 s (1536x1024), portable 0.17 s / 1.1 s (1536x1024), kernels 0.16 s / 0.568 s (1536x1024)
+- `patchmatchnet` load / first call: original 0.04 s / 0.917 s (1536x1024), portable 0.16 s / 0.861 s (1536x1024), kernels 0.17 s / 0.562 s (1536x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

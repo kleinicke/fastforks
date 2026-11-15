@@ -17,7 +17,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`bootstapir`](#tapir) | yes | 192, 1.3x | 628, 0.81x |
 | [`cotracker3-offline`](#cotracker) | no | 154, 1.6x | 916, 0.37x |
 | [`cotracker3-online`](#cotracker) | no | 176, 1.9x | 922, 0.49x |
-| [`locotrack-b`](#locotrack) | yes | 173, 1.2x | 840, 1.1x |
+| [`locotrack-b`](#locotrack) | yes | 173, 1.2x | 660, 0.84x |
 | [`locotrack-s`](#locotrack) | yes | 151, 1.3x | 822, 1.0x |
 | [`tapir`](#tapir) | yes | 141, 1.3x | 548, 0.95x |
 | [`tapnext`](#tapnext) | yes | 382, 2.4x | 1374, 0.72x |
@@ -203,8 +203,8 @@ CPU, float32: max |diff| <= 6e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `cotracker3-offline` | not measured | - | - |
-| `cotracker3-online` | not measured | - | - |
+| `cotracker3-offline` | 0.00177 / 0.00952 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
+| `cotracker3-online` | 0.00149 / 0.00738 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
 
 ### Limitations
 
@@ -225,7 +225,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>187<br>173<br>82.6<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 719 / 784<br>771 / 816<br>782 / 840<br>1117 / 1140<br>– |
+| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>188<br>173<br>82.6<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 719 / 784<br>603 / 656<br>614 / 660<br>1117 / 1140<br>– |
 | `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 706 / 812<br>759 / 842<br>764 / 822<br>1000 / 1034<br>– |
 
 <details><summary>Details</summary>
@@ -245,7 +245,7 @@ Commercial use: yes.
 - `locotrack-s` 480x854, first call: portable + torch.compile 140 s (cold Inductor cache).
 - `locotrack-b` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
 - `locotrack-s` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
-- `locotrack-b` load / first call: original 0.79 s / 1.058 s, portable 0.25 s / 0.634 s, kernels 0.16 s / 0.77 s
+- `locotrack-b` load / first call: original 0.79 s / 1.058 s, portable 0.35 s / 0.718 s, kernels 0.18 s / 0.872 s
 - `locotrack-s` load / first call: original 0.29 s / 0.229 s, portable 0.06 s / 0.653 s, kernels 1.13 s / 0.655 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

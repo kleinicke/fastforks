@@ -40,7 +40,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`lotus-normal-g-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
 | [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 261, 1.7x | 2500, 0.7x |
 | [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167, 1.7x | 2500, 0.69x |
-| [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3868 | 10548 |
+| [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3886 | 1780 |
 | [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 155, 2.8x | 1608, 0.52x |
 | [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.9, 5.2x | 1436, 0.5x |
 | [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7, 2.5x | 1208, 0.76x |
@@ -705,7 +705,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>TensorRT fp16 | OOM<br>5071<br>3868<br>fails: unsupported: 20 B NF4 transformer, weights expanded per line | –<br>9696 / 10250<br>9785 / 10548<br>– |
+| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>TensorRT fp16 | OOM<br>5093<br>3886<br>fails: unsupported: 20 B NF4 transformer, weights expanded per line | –<br>1408 / 1698<br>1498 / 1780<br>– |
 
 <details><summary>Details</summary>
 
@@ -722,7 +722,7 @@ Commercial use: yes.
 - Outputs: depth; kind: `affine_invariant_log`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-v2-depth` 1988x2880 (12.8 GiB peak allocated, 13.5 reserved)
-- `marigold-v2-depth` load / first call: portable 3.28 s / 5.295 s, kernels 3.47 s / 4.085 s
+- `marigold-v2-depth` load / first call: portable 7.8 s / 5.094 s, kernels 6.2 s / 3.887 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

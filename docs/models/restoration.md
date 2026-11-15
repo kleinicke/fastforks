@@ -14,7 +14,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 |---|---|---|---|
 | [`big-lama`](#lama) | yes | 21.2, 1.8x | 284, 0.99x |
 | [`codeformer`](#codeformer) | no | 40.4, 2.1x | 496, 0.46x |
-| [`dat-2-x4`](#dat) | yes | 1247, 3.9x | 2858, 1.1x |
+| [`dat-2-x4`](#dat) | yes | 1221, 4.0x | 2378, 0.94x |
 | [`dat-light-x4`](#dat) | yes | 268, 8.2x | 1572, 0.95x |
 | [`dat-x4`](#dat) | yes | 1417, 6.7x | 2604, 1.0x |
 | [`drct-l-x4`](#drct) | yes | 1422, 10.3x | 3010, 0.43x |
@@ -33,7 +33,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`restormer-deblur`](#restormer) | yes | 225, 1.0x | 980, 0.69x |
 | [`restormer-derain`](#restormer) | yes | 225, 1.0x | 980, 0.69x |
 | [`restormer-sidd`](#restormer) | yes | 179, 1.2x | 940, 0.66x |
-| [`seedvr2-3b`](#seedvr2) | yes | 2281, 5.8x | 15348, 1.0x |
+| [`seedvr2-3b`](#seedvr2) | yes | 2295, 5.7x | 6772, 0.44x |
 | [`seedvr2-7b`](#seedvr2) | yes | – | – |
 | [`span-x2`](#span) | yes | 14.9, 1.6x | 522, 0.81x |
 | [`span-x4`](#span) | yes | 14.6, 1.8x | 522, 0.81x |
@@ -111,11 +111,12 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/LICENSE ; https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/README.md (weights: https://github.com/sczhou/CodeFormer/releases/tag/v0.1.0)
 - Training data: Flickr-Faces-HQ (FFHQ, 70k face images) (Paper Sec. 4.1: FFHQ (70 000 faces, resized to 512 x 512) with synthetic degradations (blur, downsampling, noise, JPEG).)
 - Options: `fidelity` = 0.5 (0.0 to 1.0; also `fidelity_weight`)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
+- Kernel libraries: none (not built yet: a VQGAN of 3x3 convolutions with GroupNorm around a 16 x 16 transformer; fp16-accumulate convolutions (`cudnn_hacc`) are the next step)
 - Variants: `codeformer`
 - Outputs: image
 - Input size: any H x W >= 512, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `codeformer` 512x512 (0.5 GiB peak allocated, 0.7 reserved)
+- no kernels: not built yet: a VQGAN of 3x3 convolutions with GroupNorm around a 16 x 16 transformer; fp16-accumulate convolutions (`cudnn_hacc`) are the next step.
 - `codeformer` 512x512, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 65 s (ONNX + engine).
 - `codeformer` original 512x512: upstream inference_codeformer.py on the aligned face, float32, w 0.5
 - `codeformer` load / first call: original 1.24 s / 0.406 s, portable 0.69 s / 0.228 s, kernels 0.65 s / 0.23 s
@@ -127,7 +128,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `codeformer` | 0.0017 / 0.01817 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `codeformer` | no kernels backend | - | - |
 
 </details>
 
@@ -142,7 +143,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 9564<br>1565<br>1417<br>1063 | 2443 / 2528<br>2552 / 2624<br>2552 / 2604<br>2552 / 2606 |
-| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 4880<br>1338<br>1247<br>964 | 2436 / 2518<br>2546 / 2618<br>2730 / 2858<br>2546 / 2598 |
+| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 4880<br>1312<br>1221<br>964 | 2436 / 2518<br>2276 / 2378<br>2276 / 2378<br>2546 / 2598 |
 | `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 2204<br>268<br>268<br>158 | 1606 / 1656<br>1535 / 1552<br>1535 / 1572<br>1385 / 1412 |
 
 <details><summary>Details</summary>
@@ -167,7 +168,7 @@ Commercial use: yes.
 - `dat-2-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-light-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-x4` load / first call: original 2.2 s / 6.13 s, portable 2.99 s / 2.307 s, kernels 0.71 s / 2.149 s
-- `dat-2-x4` load / first call: original 2.04 s / 5.516 s, portable 14.55 s / 2.72 s, kernels 1.61 s / 2.031 s
+- `dat-2-x4` load / first call: original 2.04 s / 5.516 s, portable 0.71 s / 2.136 s, kernels 0.72 s / 2.006 s
 - `dat-light-x4` load / first call: original 3.48 s / 2.721 s, portable 0.21 s / 1.304 s, kernels 1.25 s / 1.152 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -650,7 +651,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2281<br>2281<br>fails: timeout after 290 s<br>fails: not run: onnx is not installed in the test venv | 7598 / 15268<br>11957 / 15348<br>11957 / 15348<br>–<br>– |
+| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2295<br>fails: timeout after 290 s<br>fails: not run: onnx is not installed in the test venv | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>–<br>– |
 | `seedvr2-7b` | 512x512 | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>OOM<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>fails: timeout after 290 s | –<br>–<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
@@ -669,7 +670,7 @@ Commercial use: yes.
 - Input size: any H x W >= 8, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `seedvr2-3b` 512x512 (11.7 GiB peak allocated, 15.0 reserved); `seedvr2-7b` 512x512 (6.3 GiB peak allocated, 8.7 reserved)
 - `seedvr2-3b` original 512x512: load: the authors' fp32 .pth files from the page cache (read once before)
-- `seedvr2-3b` load / first call: original 96.2 s / 13.89 s, portable 8.09 s / 2.508 s, kernels 5.29 s / 2.453 s
+- `seedvr2-3b` load / first call: original 96.2 s / 13.89 s, portable 4.88 s / 2.494 s, kernels 4.9 s / 2.499 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
@@ -889,7 +890,7 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
 | [`big-lama`](#lama) | portable, kernels | Apache-2.0 | Apache-2.0 | places365 | yes | image |
-| [`codeformer`](#codeformer) | portable, kernels | LicenseRef-noncommercial | LicenseRef-noncommercial | ffhq | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial) | image |
+| [`codeformer`](#codeformer) | portable | LicenseRef-noncommercial | LicenseRef-noncommercial | ffhq | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial) | image |
 | [`dat-2-x4`](#dat) | portable, kernels | Apache-2.0 | Apache-2.0 | div2k, flickr2k | yes | image |
 | [`dat-light-x4`](#dat) | portable, kernels | Apache-2.0 | Apache-2.0 | div2k, flickr2k | yes | image |
 | [`dat-x4`](#dat) | portable, kernels | Apache-2.0 | Apache-2.0 | div2k, flickr2k | yes | image |
@@ -928,15 +929,15 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | id | dataset | licence | commercial use |
 |---|---|---|---|
 | `imagenet-1k` | [ImageNet-1k (ILSVRC 2012 classification)](https://image-net.org/download.php) | LicenseRef-noncommercial | no |
-| `div2k` | [DIV2K (NTIRE 2017 super-resolution, 1000 2K images)](https://data.vision.ee.ethz.ch/cvl/DIV2K/) | LicenseRef-research-only | no |
+| `div2k` | [DIV2K (NTIRE 2017 super-resolution, 1000 2K images)](https://data.vision.ee.ethz.ch/cvl/DIV2K/) | academic research only | no |
 | `gopro` | [GoPro deblurring (GOPRO_Large, Nah et al. 2017: 3214 blurred / sharp frame pairs)](https://seungjunnah.github.io/Datasets/gopro) | CC-BY-4.0 | yes |
 | `sidd` | [Smartphone Image Denoising Dataset (SIDD, noisy / ground-truth smartphone photos)](https://abdokamel.github.io/sidd/) | MIT | yes |
 | `rain13k` | [Rain13K (13712 synthetic rainy / clean pairs merged from Rain14000, Rain1800, Rain800, Rain12; MPRNet's training set)](https://github.com/swz30/Restormer/blob/68dc6ac472db26f16361150cb7a96a1bc87da93f/Deraining/README.md) | not stated | unclear |
-| `flickr2k` | [Flickr2K (2650 2K Flickr images, EDSR)](https://github.com/limbee/NTIRE2017/blob/db34606c2844e89317aac8728a2de562ef1f8aba/README.md) | not stated | unclear |
-| `ost` | [OutdoorSceneTraining (OST, SFTGAN)](https://github.com/xinntao/SFTGAN/blob/d98889e9f94e44a788cc0ffeaaca77ca76556638/README.md) | not stated | unclear |
-| `ffhq` | [Flickr-Faces-HQ (FFHQ, 70k face images)](https://github.com/NVlabs/ffhq-dataset/blob/4826aa6ea77aa7f1a7802b938ed7c40afb985cda/README.md) | CC-BY-NC-SA-4.0 | no |
-| `manga109` | [Manga109 (109 Japanese manga volumes)](https://web.archive.org/web/20261022181634/https://manga109.github.io/manga109-project-website/en/index.html) | LicenseRef-research-only | no |
+| `flickr2k` | [Flickr2K (2650 2K Flickr images, EDSR)](https://github.com/limbee/NTIRE2017) | not stated | unclear |
+| `ost` | [OutdoorSceneTraining (OST, SFTGAN)](https://github.com/xinntao/SFTGAN) | not stated | unclear |
+| `ffhq` | [Flickr-Faces-HQ (FFHQ, 70k face images)](https://github.com/NVlabs/ffhq-dataset) | CC-BY-NC-SA-4.0 | no |
+| `manga109` | [Manga109 (109 Japanese manga volumes)](http://www.manga109.org/en/) | academic research only | no |
 | `wed` | [Waterloo Exploration Database (4744 natural images)](https://ece.uwaterloo.ca/~k29ma/exploration/) | not stated | unclear |
-| `scut-ctw1500` | [SCUT-CTW1500 (curved scene text)](https://github.com/Yuliang-Liu/Curve-Text-Detector/blob/2126a660d3baf3e84a76e77352597576519c35a2/README.md) | not stated | unclear |
+| `scut-ctw1500` | [SCUT-CTW1500 (curved scene text)](https://github.com/Yuliang-Liu/Curve-Text-Detector) | not stated | unclear |
 | `nomos-v2` | [Nomos-v2 (neosr's 6000-image multipurpose super-resolution set)](https://github.com/neosr-project/neosr/blob/31c7022620c682cf0961c8634d60787179145c5b/readme.md#-datasets) | not stated | unclear |
-| `places365` | [Places365-Challenge (8 M scene images, 365 categories)](https://web.archive.org/web/20261105071009/http://places2.csail.mit.edu/download.html) | LicenseRef-noncommercial | no |
+| `places365` | [Places365-Challenge (8 M scene images, 365 categories)](http://places2.csail.mit.edu/download.html) | non-commercial research and educational use | no |

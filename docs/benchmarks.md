@@ -102,7 +102,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`igev-stereo-kitti15`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4008 ms · kernels fp16 | – | – | – | – | 72.3 ms · kernels fp16 |
 | [`igev-stereo-middlebury`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4007 ms · kernels fp16 | – | – | – | – | 72.6 ms · kernels fp16 |
 | [`igev-stereo-sceneflow`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4001 ms · kernels fp16 | 430 ms · kernels fp16 | 134 ms · kernels fp16 | 349 ms · kernels fp16 | 137 ms · kernels fp16 | 72.6 ms · kernels fp16 |
-| [`las2-h`](models/stereo.md#las2) | 53.3 ms · kernels fp16 | 734 ms · kernels fp16 | 77.0 ms · kernels fp16 | 36.3 ms · kernels fp16 | 65.1 ms · kernels fp16 | 38.3 ms · kernels fp16 | 15.5 ms · kernels fp16 |
+| [`las2-h`](models/stereo.md#las2) | – | 734 ms · kernels fp16 | 77.0 ms · kernels fp16 | 36.3 ms · kernels fp16 | 65.1 ms · kernels fp16 | 38.3 ms · kernels fp16 | 15.5 ms · kernels fp16 |
 | [`las2-l`](models/stereo.md#las2) | 29.9 ms · kernels fp16 | 519 ms · kernels fp16 | – | – | – | – | 8.96 ms · kernels fp16 |
 | [`las2-m`](models/stereo.md#las2) | 18.3 ms · kernels fp16 | 281 ms · kernels fp16 | – | – | – | – | 6.91 ms · kernels fp16 |
 | [`las2-s`](models/stereo.md#las2) | 14.3 ms · kernels fp16 | 198 ms · kernels fp16 | 23.0 ms · kernels fp16 | 15.3 ms · kernels fp16 | 16.9 ms · kernels fp16 | 15.7 ms · kernels fp16 | 4.99 ms · kernels fp16 |
@@ -187,8 +187,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`efficientnet_b0.tv_in1k`](models/classification.md#efficientnet) | 0.870 ms · kernels fp16 | 13.0 ms · portable fp32 | 1.14 ms · kernels fp16 | 0.844 ms · kernels fp16 | 1.09 ms · kernels fp16 | 1.51 ms · kernels fp16 | 0.736 ms · kernels fp16 |
 | [`efficientnet_b4.tv_in1k`](models/classification.md#efficientnet) | 2.19 ms · kernels fp16 | 38.3 ms · portable fp32 | 2.45 ms · kernels fp16 | 1.70 ms · kernels fp16 | 2.55 ms · kernels fp16 | 3.30 ms · kernels fp16 | 1.61 ms · kernels fp16 |
 | [`efficientnet_v2_s.tv_in1k`](models/classification.md#efficientnetv2) | 2.11 ms · kernels fp16 | 34.0 ms · portable fp32 | 2.43 ms · kernels fp16 | 1.74 ms · kernels fp16 | 2.47 ms · kernels fp16 | 3.29 ms · kernels fp16 | 1.62 ms · kernels fp16 |
-| [`efficientvit_b2.r288_in1k`](models/classification.md#efficientvit) | 1.20 ms · kernels fp16 | 18.6 ms · portable fp32 | 1.55 ms · kernels fp16 | 1.01 ms · kernels fp16 | 1.40 ms · kernels fp16 | 1.89 ms · kernels fp16 | 0.926 ms · kernels fp16 |
-| [`eva02_large_patch14_448.mim_m38m_ft_in22k_in1k`](models/classification.md#eva02) | 14.2 ms · kernels fp16 | 235 ms · portable fp16 | 19.6 ms · kernels fp16 | 6.82 ms · kernels fp16 | 16.9 ms · kernels fp16 | 10.3 ms · kernels fp16 | 5.46 ms · kernels fp16 |
+| [`efficientvit_b2.r288_in1k`](models/classification.md#efficientvit) | – | 18.6 ms · portable fp32 | 1.55 ms · kernels fp16 | 1.01 ms · kernels fp16 | 1.40 ms · kernels fp16 | 1.89 ms · kernels fp16 | 0.926 ms · kernels fp16 |
+| [`eva02_large_patch14_448.mim_m38m_ft_in22k_in1k`](models/classification.md#eva02) | – | 235 ms · portable fp16 | 19.6 ms · kernels fp16 | 6.82 ms · kernels fp16 | 16.9 ms · kernels fp16 | 10.3 ms · kernels fp16 | 5.46 ms · kernels fp16 |
 | [`fastvit_sa24.apple_dist_in1k`](models/classification.md#fastvit) | – | 16.8 ms · portable fp32 | 1.76 ms · kernels fp16 | 1.27 ms · kernels fp16 | 1.73 ms · kernels fp16 | 2.49 ms · kernels fp16 | 1.31 ms · kernels fp16 |
 | [`inception_v3.tv_in1k`](models/classification.md#inception_v3) | 1.56 ms · kernels fp16 | 17.4 ms · portable fp32 | 1.76 ms · kernels fp16 | 1.31 ms · kernels fp16 | 1.74 ms · kernels fp16 | 2.40 ms · kernels fp16 | 1.26 ms · kernels fp16 |
 | [`mobilenet_v2.tv2_in1k`](models/classification.md#mobilenetv2) | 0.520 ms · kernels fp16 | 6.48 ms · portable fp32 | 0.695 ms · kernels fp16 | 0.506 ms · kernels fp16 | 0.580 ms · kernels fp16 | 0.768 ms · kernels fp16 | 0.346 ms · kernels fp16 |
@@ -199,8 +199,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`resnet152.tv2_in1k`](models/classification.md#resnet) | 2.17 ms · kernels fp16 | 25.7 ms · portable fp32 | 2.32 ms · kernels fp16 | 1.84 ms · kernels fp16 | 2.48 ms · kernels fp16 | 3.42 ms · kernels fp16 | 1.82 ms · kernels fp16 |
 | [`resnet18.tv_in1k`](models/classification.md#resnet) | 0.550 ms · kernels fp16 | 4.67 ms · portable fp32 | 0.718 ms · kernels fp16 | 0.519 ms · kernels fp16 | 0.609 ms · kernels fp16 | 0.797 ms · kernels fp16 | 0.370 ms · kernels fp16 |
 | [`resnet50.tv2_in1k`](models/classification.md#resnet) | 0.990 ms · kernels fp16 | 11.2 ms · portable fp32 | – | – | – | – | 0.666 ms · kernels fp16 |
-| [`shufflenet_v2_x1_0.tv_in1k`](models/classification.md#shufflenetv2) | 0.840 ms · kernels fp16 | 6.33 ms · portable fp32 | 1.13 ms · kernels fp16 | 0.874 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.63 ms · kernels fp16 | 0.811 ms · kernels fp16 |
-| [`squeezenet1_1.tv_in1k`](models/classification.md#squeezenet) | 0.420 ms · kernels fp16 | 3.72 ms · portable fp16 | 0.590 ms · kernels fp16 | 0.437 ms · kernels fp16 | 0.461 ms · kernels fp16 | 0.592 ms · kernels fp16 | 0.269 ms · kernels fp16 |
+| [`shufflenet_v2_x1_0.tv_in1k`](models/classification.md#shufflenetv2) | – | 6.33 ms · portable fp32 | 1.13 ms · kernels fp16 | 0.874 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.63 ms · kernels fp16 | 0.811 ms · kernels fp16 |
+| [`squeezenet1_1.tv_in1k`](models/classification.md#squeezenet) | – | 3.72 ms · portable fp16 | 0.590 ms · kernels fp16 | 0.437 ms · kernels fp16 | 0.461 ms · kernels fp16 | 0.592 ms · kernels fp16 | 0.269 ms · kernels fp16 |
 | [`swin_base_patch4_window7_224.ms_in22k_ft_in1k`](models/classification.md#swin) | 2.45 ms · kernels fp16 | 28.2 ms · portable fp32 | 2.92 ms · kernels fp16 | 2.02 ms · kernels fp16 | 2.80 ms · kernels fp16 | 3.79 ms · kernels fp16 | 1.91 ms · kernels fp16 |
 | [`vgg16.tv_in1k`](models/classification.md#vgg) | 1.56 ms · kernels fp16 | 11.7 ms · portable fp16 | 2.10 ms · kernels fp16 | 1.03 ms · kernels fp16 | 1.47 ms · kernels fp16 | 1.15 ms · kernels fp16 | 0.622 ms · kernels fp16 |
 | [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](models/classification.md#vit) | 1.78 ms · kernels fp16 | 16.9 ms · portable fp32 | 1.92 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.77 ms · kernels fp16 | 2.21 ms · kernels fp16 | 1.02 ms · kernels fp16 |
@@ -419,7 +419,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | igev-stereo-kitti15 | 449 | 279 | 213 | 96.4 | 2.9x | 2.2x | 626 / 702 | 426 / 532 | 393 / 494 |
 | igev-stereo-middlebury | 449 | 279 | 213 | 96.4 | 2.9x | 2.2x | 626 / 702 | 426 / 532 | 393 / 494 |
 | igev-stereo-sceneflow | 449 | 279 | 213 | 96.4 | 2.9x | 2.2x | 626 / 702 | 426 / 532 | 393 / 494 |
-| las2-h | 51.1 | 36.4 | – | 14.9 | 2.4x | – | 352 / 386 | – | 311 / 528 |
+| las2-h | 51.1 | 36.4 | – | – | – | – | 352 / 386 | – | – |
 | las2-l | 46.9 | 30.1 | 30.9 | 8.96 | 3.4x | 3.4x | 422 / 488 | 424 / 458 | 169 / 380 |
 | las2-m | 23.9 | 20.0 | 23.2 | 5.28 | 3.8x | 4.4x | 360 / 404 | 360 / 386 | 136 / 332 |
 | las2-s | 19.3 | 17.3 | 20.5 | 3.90 | 4.4x | 5.3x | 345 / 382 | 343 / 368 | 128 / 338 |
@@ -495,7 +495,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | igev-stereo-kitti15 | 1518 | 941 | 763 | 288 | 3.3x | 2.6x | 1789 / 1936 | 1237 / 1492 | 1113 / 1374 |
 | igev-stereo-middlebury | 1518 | 941 | 763 | 288 | 3.3x | 2.6x | 1789 / 1936 | 1237 / 1492 | 1113 / 1374 |
 | igev-stereo-sceneflow | 1518 | 941 | 763 | 288 | 3.3x | 2.6x | 1789 / 1936 | 1237 / 1492 | 1113 / 1374 |
-| las2-h | 205 | 135 | – | 53.3 | 2.5x | – | 1022 / 1084 | – | 1021 / 1388 |
+| las2-h | 205 | 135 | – | – | – | – | 1022 / 1084 | – | – |
 | las2-l | 154 | 90.8 | 80.3 | 29.9 | 3.0x | 2.7x | 1010 / 1082 | 1036 / 1098 | 397 / 600 |
 | las2-m | 79.1 | 52.4 | 54.1 | 18.3 | 2.9x | 3.0x | 948 / 1000 | 972 / 1026 | 329 / 572 |
 | las2-s | 62.0 | 43.5 | 46.9 | 14.3 | 3.0x | 3.3x | 933 / 978 | 955 / 988 | 320 / 558 |
@@ -528,9 +528,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original fp32 | portable | kernels | kernels speed-up: vs portable | peak memory (MiB, allocated / reserved): portable | kernels |
 |---|---|---|---|---|---|---|
-| c-foundationstereo-s | OOM | 3652 | 1366 | 2.7x | 6301 / 6430 | 3058 / 4408 |
+| c-foundationstereo-s | OOM | 3633 | 1366 | 2.7x | 6301 / 6430 | 3058 / 4408 |
 | defom-stereo-vitl-sceneflow | – | – | 642 | – | – | 3154 / 3522 |
-| las2-h | – | 113 | – | – | 1002 / 1046 | – |
+| las2-h | – | 113 | 53.8 | 2.1x | 1002 / 1046 | 917 / 1248 |
 | las2-l | – | 75.7 | – | – | 648 / 716 | – |
 | las2-m | – | 37.1 | – | – | 584 / 664 | – |
 | las2-s | – | 27.8 | – | – | 568 / 648 | – |
@@ -567,7 +567,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | lotus-normal-g-v1-1 | 994x1482 | – | 344 | 267 | 164 | 2.1x | 1.6x | 3836 / 3898 | 2777 / 2940 | 2351 / 2500 |
 | marigold-depth-v1-1 | 994x1482 | – | – | 410 | 261 | – | 1.6x | – | 2776 / 2938 | 2343 / 2500 |
 | marigold-normals-lcm-v0-1 | 994x1482 | – | 280 | 272 | 167 | 1.7x | 1.6x | 3441 / 3640 | 2792 / 2960 | 2361 / 2500 |
-| marigold-v2-depth | 994x1482 | – | OOM | 5071 | 3868 | – | 1.3x | – | 9696 / 10250 | 9785 / 10548 |
+| marigold-v2-depth | 994x1482 | – | OOM | 5093 | 3886 | – | 1.3x | – | 1408 / 1698 | 1498 / 1780 |
 | metric3d-vit-large | 994x1482 | – | – | – | 155 | – | – | – | – | 1480 / 1608 |
 | midas-dpt-beit-large-512 | 518x770 | 399 | 320 | 75.6 | 63.9 | 5.0x | 1.2x | 2759 / 2858 | 975 / 1418 | 986 / 1436 |
 | moge-2-vitb-normal | 994x1482 | – | – | 83.9 | 40.7 | – | 2.1x | – | 1163 / 1312 | 1093 / 1208 |
@@ -668,12 +668,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | efficientnet_b0.tv_in1k | 224x224 | 5.64 | 7.91 | 4.98 | 0.769 | 7.3x | 6.5x | 64 / 84 | 48 / 96 | 78 / 118 |
 | efficientnet_b4.tv_in1k | 224x224 | 11.1 | 15.7 | 10.0 | 2.00 | 5.5x | 5.0x | 147 / 174 | 89 / 114 | 111 / 180 |
 | efficientnet_v2_s.tv_in1k | 224x224 | 12.1 | 16.6 | 10.2 | 1.89 | 6.4x | 5.4x | 159 / 176 | 81 / 106 | 114 / 188 |
-| efficientvit_b2.r288_in1k | 224x224 | 10.7 | 14.7 | 11.8 | 1.10 | 9.7x | 10.7x | 173 / 194 | 85 / 144 | 120 / 212 |
-| eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 83.7 | 32.1 | 18.0 | 14.1 | 2.3x | 1.3x | 1819 / 1864 | 648 / 1206 | 1236 / 1386 |
+| efficientvit_b2.r288_in1k | 224x224 | 10.7 | 14.7 | 13.6 | 1.12 | 9.5x | 12.1x | 173 / 194 | 85 / 144 | 88 / 170 |
+| eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 83.7 | 32.1 | 18.7 | 14.1 | 2.3x | 1.3x | 1819 / 1864 | 648 / 664 | 652 / 786 |
 | falconsai-nsfw-vit | 224x224 | 6.76 | 5.74 | 2.83 | 1.61 | 3.6x | 1.8x | 200 / 226 | 201 / 226 | 198 / 228 |
 | fastvit_sa24.apple_dist_in1k | 256x256 | 7.10 | 10.9 | 6.05 | 1.40 | 5.1x | 4.3x | 157 / 176 | 81 / 110 | 80 / 150 |
 | fastvit_t12.apple_dist_in1k | 256x256 | 3.61 | 5.66 | 3.27 | 0.781 | 4.6x | 4.2x | 77 / 84 | 54 / 76 | 52 / 76 |
-| fastvit_t8.apple_dist_in1k | 256x256 | 3.07 | 4.91 | 3.30 | 0.703 | 4.4x | 4.7x | 57 / 76 | 45 / 72 | 45 / 76 |
+| fastvit_t8.apple_dist_in1k | 256x256 | 3.07 | 4.91 | 3.31 | 0.706 | 4.3x | 4.7x | 57 / 76 | 45 / 72 | 45 / 76 |
 | focalnet_base_lrf.ms_in1k | 224x224 | 18.0 | 22.1 | 15.5 | – | – | – | 546 / 560 | 212 / 234 | – |
 | focalnet_base_srf.ms_in1k | 224x224 | 17.1 | 20.0 | 14.2 | – | – | – | 542 / 558 | 211 / 234 | – |
 | focalnet_small_lrf.ms_in1k | 224x224 | 16.8 | 22.0 | 15.8 | – | – | – | 323 / 338 | 136 / 152 | – |
@@ -706,12 +706,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | resnet152.tv2_in1k | 224x224 | 12.8 | 16.3 | 8.36 | 1.83 | 7.0x | 4.6x | 378 / 390 | 155 / 186 | 182 / 266 |
 | resnet18.tv_in1k | 224x224 | 1.91 | 2.44 | 1.48 | 0.459 | 4.2x | 3.2x | 105 / 130 | 61 / 90 | 90 / 150 |
 | resnet50.tv2_in1k | 224x224 | 4.74 | 5.84 | 3.15 | 0.826 | 5.7x | 3.8x | 180 / 192 | 89 / 142 | 116 / 162 |
-| shufflenet_v2_x1_0.tv_in1k | 224x224 | 4.79 | 6.53 | 3.71 | 0.787 | 6.1x | 4.7x | 47 / 48 | 41 / 72 | 87 / 116 |
+| shufflenet_v2_x1_0.tv_in1k | 224x224 | 4.79 | 6.53 | 5.01 | 0.804 | 6.0x | 6.2x | 47 / 48 | 39 / 48 | 55 / 76 |
 | shvit_s1.in1k | 224x224 | 8.41 | 11.1 | 6.75 | – | – | – | 70 / 76 | 47 / 58 | – |
 | shvit_s2.in1k | 224x224 | 8.37 | 11.1 | 6.76 | – | – | – | 99 / 120 | 56 / 88 | – |
 | shvit_s3.in1k | 224x224 | 9.40 | 12.5 | 8.11 | – | – | – | 115 / 134 | 62 / 112 | – |
 | shvit_s4.in1k | 256x256 | 11.5 | 14.6 | 9.31 | – | – | – | 129 / 146 | 67 / 118 | – |
-| squeezenet1_1.tv_in1k | 224x224 | 1.72 | 2.63 | 1.82 | 0.359 | 4.8x | 5.1x | 10 / 30 | 41 / 72 | 8 / 12 |
+| squeezenet1_1.tv_in1k | 224x224 | 1.72 | 2.63 | 1.82 | 0.377 | 4.6x | 4.8x | 10 / 30 | 7 / 28 | 8 / 12 |
 | starnet_s1.in1k | 224x224 | 4.57 | 7.29 | 3.88 | 0.683 | 6.7x | 5.7x | 51 / 60 | 41 / 52 | 41 / 56 |
 | starnet_s2.in1k | 224x224 | 3.64 | 5.63 | 3.02 | 0.578 | 6.3x | 5.2x | 55 / 64 | 43 / 54 | 43 / 58 |
 | starnet_s3.in1k | 224x224 | 4.96 | 7.67 | 4.19 | 0.715 | 6.9x | 5.9x | 67 / 76 | 47 / 60 | 47 / 64 |
@@ -1018,7 +1018,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | mapanything-apache | 336x518 | 2875 | 1967 | 636 | 544 | 3.6x | 1.2x | 10227 / 10952 | 3697 / 4092 | 3697 / 4072 |
 | mvsanywhere | 448x672 | 273 | 219 | 93.2 | 35.2 | 6.2x | 2.7x | 1504 / 1576 | 931 / 1226 | 702 / 760 |
 | mvsplat-re10k | 336x518 | – | 279 | 181 | 172 | 1.6x | 1.0x | 2889 / 4160 | 1239 / 1532 | 1239 / 1532 |
-| patchmatchnet | 1536x1024 | 248 | 220 | 202 | 29.5 | 7.4x | 6.8x | 1228 / 1272 | 1714 / 1892 | 648 / 772 |
+| patchmatchnet | 1536x1024 | 248 | 220 | 201 | 29.5 | 7.4x | 6.8x | 1228 / 1272 | 1039 / 1212 | 648 / 772 |
 | pi3 | 336x518 | – | 1057 | 821 | 560 | 1.9x | 1.5x | 5926 / 6016 | 2360 / 2416 | 2367 / 2456 |
 | vggt-1b | 336x518 | 2502 | 965 | 651 | 458 | 2.1x | 1.4x | 8688 / 9158 | 3691 / 4674 | 3702 / 4654 |
 | vggt-omega-1b-512 | 336x518 | 2650 | 906 | 726 | 464 | 2.0x | 1.6x | 7495 / 7654 | 3421 / 3518 | 3422 / 3518 |
@@ -1033,7 +1033,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | flowseek-t | 1080x1920 | 650 | 457 | 395 | – | – | – | 8693 / 9880 | 8671 / 8712 | – |
 | flowseek-t-things | 1080x1920 | 650 | 458 | 395 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
 | flowseek-t-things-notartan | 1080x1920 | 651 | 458 | 396 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
-| gmflow-scale1-mixdata | 1080x1920 | 1246 | 750 | 556 | – | – | – | 8360 / 8448 | 4496 / 4642 | – |
+| gmflow-scale1-mixdata | 1080x1920 | 1246 | 750 | 802 | – | – | – | 8360 / 8448 | 5512 / 5660 | – |
 | gmflow-scale1-things | 1080x1920 | 1245 | 750 | 556 | – | – | – | 8360 / 8468 | 4496 / 4642 | – |
 | gmflow-scale2-mixdata | 1080x1920 | 2544 | 1608 | 1139 | – | – | – | 8425 / 8572 | 6017 / 6224 | – |
 | gmflow-scale2-regrefine6-kitti | 1080x1920 | 3255 | 2188 | 1678 | – | – | – | 8537 / 8822 | 6080 / 6230 | – |
@@ -1051,7 +1051,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | memfof-sintel | 375x1242 | – | 894 | – | – | – | – | 1968 / 2176 | – | – |
 | memfof-spring | 1080x1920 | – | 1035 | – | – | – | – | 2340 / 2676 | – | – |
 | neuflow-v2 | 1080x1920 | 171 | 75.6 | 71.2 | 59.1 | 1.3x | 1.2x | 4367 / 4556 | 2366 / 2398 | 790 / 896 |
-| neuflow-v2-sintel | 1080x1920 | 171 | 75.7 | 71.2 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2435 / 2478 | 790 / 896 |
+| neuflow-v2-sintel | 1080x1920 | 171 | 75.7 | 71.3 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2366 / 2398 | 790 / 896 |
 | neuflow-v2-things | 1080x1920 | 172 | 75.8 | 71.4 | 58.9 | 1.3x | 1.2x | 4374 / 4720 | 2366 / 2398 | 779 / 896 |
 | raft-large | 1080x1920 | 480 | 567 | 291 | 83.5 | 5.7x | 3.5x | 7164 / 10928 | 5930 / 6058 | 342 / 372 |
 | raft-large-kitti | 1080x1920 | 480 | 567 | 291 | 83.6 | 5.7x | 3.5x | 7164 / 10928 | 5930 / 6058 | 333 / 352 |
@@ -1104,7 +1104,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | bootstapir | 243 | 234 | 192 | 1.3x | 1.2x | 639 / 774 | 508 / 628 | 508 / 628 |
 | cotracker3-offline | 244 | 162 | 154 | 1.6x | 1.1x | 2221 / 2480 | 755 / 882 | 799 / 916 |
 | cotracker3-online | 328 | 184 | 176 | 1.9x | 1.0x | 1659 / 1886 | 755 / 906 | 798 / 922 |
-| locotrack-b | 203 | 187 | 173 | 1.2x | 1.1x | 719 / 784 | 771 / 816 | 782 / 840 |
+| locotrack-b | 203 | 188 | 173 | 1.2x | 1.1x | 719 / 784 | 603 / 656 | 614 / 660 |
 | locotrack-s | 193 | 180 | 151 | 1.3x | 1.2x | 706 / 812 | 759 / 842 | 764 / 822 |
 | tapir | 187 | 182 | 141 | 1.3x | 1.3x | 498 / 574 | 463 / 548 | 463 / 548 |
 | tapnext | 909 | 529 | 382 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1313 / 1374 |
@@ -1132,7 +1132,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|---|
 | big-lama | 38.0 | 26.0 | 21.2 | 1.8x | 1.2x | 239 / 286 | 219 / 242 | 219 / 284 |
 | codeformer | 85.7 | 48.6 | 40.4 | 2.1x | 1.2x | 959 / 1090 | 512 / 638 | 432 / 496 |
-| dat-2-x4 | 4880 | 1338 | 1247 | 3.9x | 1.1x | 2436 / 2518 | 2546 / 2618 | 2730 / 2858 |
+| dat-2-x4 | 4880 | 1312 | 1221 | 4.0x | 1.1x | 2436 / 2518 | 2276 / 2378 | 2276 / 2378 |
 | dat-light-x4 | 2204 | 268 | 268 | 8.2x | 1.0x | 1606 / 1656 | 1535 / 1552 | 1535 / 1572 |
 | dat-x4 | 9564 | 1565 | 1417 | 6.7x | 1.1x | 2443 / 2528 | 2552 / 2624 | 2552 / 2604 |
 | drct-l-x4 | 14651 | 1607 | 1422 | 10.3x | 1.1x | 5574 / 6926 | 2692 / 3110 | 2692 / 3010 |
@@ -1151,7 +1151,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | restormer-deblur | 234 | 228 | 225 | 1.0x | 1.0x | 1221 / 1418 | 850 / 1000 | 850 / 980 |
 | restormer-derain | 234 | 228 | 225 | 1.0x | 1.0x | 1221 / 1418 | 850 / 1000 | 850 / 980 |
 | restormer-sidd | 218 | 181 | 179 | 1.2x | 1.0x | 1221 / 1416 | 850 / 920 | 850 / 940 |
-| seedvr2-3b | 13150 | 2281 | 2281 | 5.8x | 1.0x | 7598 / 15268 | 11957 / 15348 | 11957 / 15348 |
+| seedvr2-3b | 13150 | 2295 | 2295 | 5.7x | 1.0x | 7598 / 15268 | 6140 / 6772 | 6140 / 6772 |
 | span-x2 | 24.6 | 23.5 | 14.9 | 1.6x | 1.6x | 611 / 648 | 607 / 662 | 487 / 522 |
 | span-x4 | 26.9 | 24.2 | 14.6 | 1.8x | 1.7x | 611 / 648 | 607 / 662 | 487 / 522 |
 | swin2sr-x2 | 2565 | 909 | 720 | 3.6x | 1.3x | 1488 / 1578 | 1459 / 1554 | 1459 / 1636 |
@@ -1183,7 +1183,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | bridgedepth-rvc-pretrain | 5.87 (375x1242) | 1.84 | 0.76† | 1.36 (375x1242) | 0.45† | 0.36† |
 | bridgedepth-sf | 4.86 (375x1242) | 1.53 | 0.72† | 0.12 (375x1242) | 0.44† | 0.35† |
 | c-fast-foundationstereo | 0.17 (375x1242) | 0.24 | 0.16† | 0.17 (375x1242) | 0.33† | 0.14† |
-| c-foundationstereo-s | 1.67 (375x1242) | 0.85 (375x1242) | 1.12 (375x1242) | 2.73 (375x1242) | 2.63 (375x1242) | 1.40 (375x1242) |
+| c-foundationstereo-s | 1.67 (375x1242) | 0.96 (375x1242) | 0.81 (375x1242) | 2.73 (375x1242) | 2.09 (375x1242) | 1.38 (375x1242) |
 | cas-gwcnet-c-sceneflow | 0.48 (375x1242) | 1.29 | 0.18† | 0.41 (375x1242) | 0.33† | 0.23† |
 | cas-gwcnet-gc-sceneflow | 0.39 | 0.97 | 0.17† | 0.64 | 0.47† | 0.36† |
 | cfnet-sceneflow | 0.55 | 0.94 | 0.21† | 0.56 | 0.48† | 0.40† |
@@ -1221,7 +1221,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | igev-stereo-kitti15 | 0.32 (375x1242) | 0.47 | 0.15† | 2.56 (375x1242) | 0.76† | 0.29† |
 | igev-stereo-middlebury | 0.32 (375x1242) | 0.47 | 0.15† | 2.56 (375x1242) | 0.76† | 0.29† |
 | igev-stereo-sceneflow | 0.32 (375x1242) | 0.47 | 0.15† | 2.56 (375x1242) | 0.76† | 0.29† |
-| las2-h | 0.26 (375x1242) | 0.39 (375x1242) | 0.13† | 1.21 (375x1242) | 0.41 (375x1242) | 0.06† |
+| las2-h | 0.26 (375x1242) | 0.27 (375x1242) | 0.78 (375x1242) | 1.21 (375x1242) | 0.39 (375x1242) | 0.26 (375x1242) |
 | las2-l | 0.39 (375x1242) | 0.53 (375x1242) | 0.18† | 0.04 (375x1242) | 0.33 (375x1242) | 0.03† |
 | las2-m | 0.17 (375x1242) | 0.25 (375x1242) | 0.10† | 0.02 (375x1242) | 0.40 (375x1242) | 0.02† |
 | las2-s | 0.11 (375x1242) | 0.27 (375x1242) | 0.07† | 0.02 (375x1242) | 0.47 (375x1242) | 0.01† |
@@ -1271,7 +1271,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | lotus-normal-g-v1-1 | 10.43 | 4.37 | 3.49 | 1.15 | 0.59 | 0.38 |
 | marigold-depth-v1-1 | 1.32 | 11.04 (518x770) | 2.49 (518x770) | 0.60 | 0.89 (518x770) | 0.50 (518x770) |
 | marigold-normals-lcm-v0-1 | 6.02 | 4.11 | 8.22 | 2.86 | 0.62 | 0.47 |
-| marigold-v2-depth | – | 3.28 | 3.47 | – | 5.29 | 4.08 |
+| marigold-v2-depth | – | 7.80 | 6.20 | – | 5.09 | 3.89 |
 | metric3d-vit-large | 9.96 | 3.45 | 2.50 (518x770) | 0.88 | 0.23 | 0.47 (518x770) |
 | midas-dpt-beit-large-512 | 5.16 | 2.49 | 0.28† | 1.14 | 0.09 | 0.07 |
 | moge-2-vitb-normal | 1.26 | 0.49 (518x770) | 1.24 (518x770) | 0.24 | 0.40 (518x770) | 0.28 (518x770) |
@@ -1327,12 +1327,12 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | efficientnet_b0.tv_in1k | 1.25 | 0.17 | 1.53 | 2.86 | 0.38 | 0.06 |
 | efficientnet_b4.tv_in1k | 0.41 | 0.37 | 1.94 | 1.72 | 0.06 | 0.07 |
 | efficientnet_v2_s.tv_in1k | 1.48 | 0.35 | 1.90 | 0.97 | 0.04 | 0.05 |
-| efficientvit_b2.r288_in1k | 1.84 | 2.31 | 1.92 | 1.89 | 0.72 | 0.05 |
-| eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 6.98 | 2.80 | 3.61 | 0.39 | 0.02 | 0.10 |
+| efficientvit_b2.r288_in1k | 1.84 | 1.59 | 2.43 | 1.89 | 0.67 | 0.07 |
+| eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 6.98 | 5.51 | 3.53 | 0.39 | 0.23 | 0.12 |
 | falconsai-nsfw-vit | 2.95 | 2.63 | 2.42 | 0.27 | 0.09 | 0.09 |
 | fastvit_sa24.apple_dist_in1k | 0.31 (256x256) | 3.40 (256x256) | 2.30 (256x256) | 0.03 (256x256) | 0.58 (256x256) | 0.00 (256x256) |
 | fastvit_t12.apple_dist_in1k | 0.14 (256x256) | 1.81 (256x256) | 2.01 (256x256) | 0.71 (256x256) | 0.41 (256x256) | 0.04 (256x256) |
-| fastvit_t8.apple_dist_in1k | 0.21 (256x256) | 1.76 (256x256) | 1.95 (256x256) | 0.98 (256x256) | 0.55 (256x256) | 0.04 (256x256) |
+| fastvit_t8.apple_dist_in1k | 0.21 (256x256) | 1.63 (256x256) | 1.83 (256x256) | 0.98 (256x256) | 0.55 (256x256) | 0.05 (256x256) |
 | focalnet_base_lrf.ms_in1k | 0.91 | 1.89 | – | 0.03 | 0.62 | – |
 | focalnet_base_srf.ms_in1k | 0.89 | 1.92 | – | 0.05 | 0.49 | – |
 | focalnet_small_lrf.ms_in1k | 0.54 | 1.86 | – | 0.03 | 0.69 | – |
@@ -1365,12 +1365,12 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | resnet152.tv2_in1k | 2.34 | 0.43 | 1.88 | 0.24 | 0.02 | 0.04 |
 | resnet18.tv_in1k | 0.27 | 0.07 | 1.48 | 0.00 | 0.00 | 0.04 |
 | resnet50.tv2_in1k | 0.51 | 0.16 | 1.48 | 0.01 | 0.00 | 0.04 |
-| shufflenet_v2_x1_0.tv_in1k | 1.13 | 0.14 | 1.55 | 1.15 | 0.02 | 0.08 |
+| shufflenet_v2_x1_0.tv_in1k | 1.13 | 1.54 | 1.30 | 1.15 | 0.46 | 0.11 |
 | shvit_s1.in1k | 0.31 | 2.16 | – | 0.92 | 0.41 | – |
 | shvit_s2.in1k | 0.20 | 2.32 | – | 0.30 | 0.48 | – |
 | shvit_s3.in1k | 0.21 | 2.80 | – | 0.57 | 0.54 | – |
 | shvit_s4.in1k | 0.23 (256x256) | 2.49 (256x256) | – | 0.31 (256x256) | 0.44 (256x256) | – |
-| squeezenet1_1.tv_in1k | 1.09 | 0.05 | 1.44 | 0.37 | 0.02 | 0.03 |
+| squeezenet1_1.tv_in1k | 1.09 | 1.33 | 1.33 | 0.37 | 0.06 | 0.08 |
 | starnet_s1.in1k | 0.18 | 1.60 | 2.20 | 0.26 | 0.24 | 0.21 |
 | starnet_s2.in1k | 0.17 | 1.62 | 1.86 | 0.02 | 0.24 | 0.06 |
 | starnet_s3.in1k | 0.30 | 1.60 | 1.82 | 0.01 | 0.24 | 0.05 |
@@ -1622,7 +1622,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | mapanything-apache | 6.12 (336x518) | 2.89 (336x518) | 0.57† (336x518) | 2.62 (336x518) | 0.66 (336x518) | 0.54 (336x518) |
 | mvsanywhere | 3.21 (448x672) | 1.88 (448x672) | 1.76 (448x672) | 1.04 (448x672) | 0.22 (448x672) | 0.48 (448x672) |
 | mvsplat-re10k | 1.37 (336x518) | 0.15 (336x518) | 1.27 (336x518) | 2.82 (336x518) | 1.02 (336x518) | 0.69 (336x518) |
-| patchmatchnet | 0.04 (1536x1024) | 0.17 (1536x1024) | 0.16 (1536x1024) | 0.92 (1536x1024) | 1.10 (1536x1024) | 0.57 (1536x1024) |
+| patchmatchnet | 0.04 (1536x1024) | 0.16 (1536x1024) | 0.17 (1536x1024) | 0.92 (1536x1024) | 0.86 (1536x1024) | 0.56 (1536x1024) |
 | pi3 | 10.64 (336x518) | 2.35 (336x518) | 3.54 (336x518) | 4.06 (336x518) | 1.24 (336x518) | 0.69 (336x518) |
 | vggt-1b | 19.37 (336x518) | 4.98 (336x518) | 5.99† (336x518) | 1.29 (336x518) | 0.69 (336x518) | 0.46 (336x518) |
 | vggt-omega-1b-512 | 16.31 (336x518) | 3.31 (336x518) | 2.27† (336x518) | 1.10 (336x518) | 0.73 (336x518) | 0.46 (336x518) |
@@ -1632,7 +1632,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | flowseek-t | 0.87 | 0.18 (375x1242) | – | 0.63 | 0.46 (375x1242) | – |
 | flowseek-t-things | 0.78 | 0.18 (375x1242) | – | 0.46 | 0.47 (375x1242) | – |
 | flowseek-t-things-notartan | 0.81 | 0.18 (375x1242) | – | 0.46 | 0.46 (375x1242) | – |
-| gmflow-scale1-mixdata | 0.13 | 0.16 | – | 0.76 | 0.56 | – |
+| gmflow-scale1-mixdata | 0.13 | 0.16 | – | 0.76 | 0.80 | – |
 | gmflow-scale1-things | 0.14 | 0.16 | – | 0.94 | 0.56 | – |
 | gmflow-scale2-mixdata | 0.13 | 0.16 | – | 1.62 | 1.14 | – |
 | gmflow-scale2-regrefine6-kitti | 0.15 | 0.46 | – | 2.20 | 1.68 | – |
@@ -1650,8 +1650,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | memfof-sintel | 1.30 (375x1242) | – | – | 0.90 (375x1242) | – | – |
 | memfof-spring | 1.12 | – | – | 1.04 | – | – |
 | neuflow-v2 | 0.20 | 0.26 | 0.96 (375x1242) | 0.22 | 0.07 | 0.18 (375x1242) |
-| neuflow-v2-sintel | 0.17 | 0.07 (375x1242) | 0.95 (375x1242) | 0.08 | 0.28 (375x1242) | 0.18 (375x1242) |
-| neuflow-v2-things | 0.17 | 0.21 | 0.26 | 0.08 | 0.07 | 0.06 |
+| neuflow-v2-sintel | 0.17 | 1.29 (375x1242) | 0.95 (375x1242) | 0.08 | 0.81 (375x1242) | 0.18 (375x1242) |
+| neuflow-v2-things | 0.17 | 0.38 | 0.26 | 0.08 | 0.07 | 0.06 |
 | raft-large | 0.14 | 0.17 | 1.07 | 0.76 | 0.30 | 0.11 |
 | raft-large-kitti | 0.14 | 0.17 | 1.06 | 0.58 | 0.30 | 0.11 |
 | raft-large-things | 0.13 | 0.25 | 1.07 | 0.58 | 0.30 | 0.11 |
@@ -1684,7 +1684,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | bootstapir | 0.60 | 0.32 | 1.14 | 0.90 | 0.80 | 0.66 |
 | cotracker3-offline | 0.65 | 0.28 | 0.19 | 0.87 | 0.42 | 0.52 |
 | cotracker3-online | 0.54 | 0.65 | 0.18 | 0.54 | 0.39 | 0.54 |
-| locotrack-b | 0.79 | 0.25 | 0.16 | 1.06 | 0.63 | 0.77 |
+| locotrack-b | 0.79 | 0.35 | 0.18 | 1.06 | 0.72 | 0.87 |
 | locotrack-s | 0.29 | 0.06 | 1.13 | 0.23 | 0.65 | 0.66 |
 | tapir | 0.35 | 0.19 | 1.13 | 0.83 | 0.84 | 0.69 |
 | tapnext | 16.92 | 2.72 | 2.63 | 2.17 | 0.69 | 0.56 |
@@ -1702,7 +1702,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | rife-4.26 | 0.18 | 0.15 | 0.29 | 0.05 | 0.34 | 0.21 |
 | big-lama | 0.52 | 0.31 | 0.65 | 0.33 | 0.27 | 0.12 |
 | codeformer | 1.24 | 0.69 | 0.65 | 0.41 | 0.23 | 0.23 |
-| dat-2-x4 | 2.04 | 14.55 | 1.61 | 5.52 | 2.72 | 2.03 |
+| dat-2-x4 | 2.04 | 0.71 | 0.72 | 5.52 | 2.14 | 2.01 |
 | dat-light-x4 | 3.48 | 0.21 | 1.25 | 2.72 | 1.30 | 1.15 |
 | dat-x4 | 2.20 | 2.99 | 0.71 | 6.13 | 2.31 | 2.15 |
 | drct-l-x4 | 2.09 | 0.79 | 1.84 | 15.38 | 1.70 | 1.45 |
@@ -1721,7 +1721,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | restormer-deblur | 0.36 | 0.28 | 0.60 | 0.90 | 0.71 | 0.53 |
 | restormer-derain | 0.34 | 0.29 | 0.58 | 0.90 | 0.72 | 0.53 |
 | restormer-sidd | 0.34 | 0.29 | 0.59 | 0.89 | 0.89 | 0.53 |
-| seedvr2-3b | 96.20 | 8.09 | 5.29 | 13.89 | 2.51 | 2.45 |
+| seedvr2-3b | 96.20 | 4.88 | 4.90 | 13.89 | 2.49 | 2.50 |
 | span-x2 | 0.23 | 0.10 | 2.88 | 0.32 | 0.26 | 0.10 |
 | span-x4 | 0.45 | 0.10 | 1.11 | 0.58 | 0.26 | 0.05 |
 | swin2sr-x2 | 1.81 | 0.37 | 0.56 | 4.12 | 1.23 | 0.84 |
@@ -1756,7 +1756,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | aanet-sceneflow | 994x1482 | 140 ms | 91.8 ms | 91.2 ms | 101 ms | 79.9 s | 211 s | 845 / 986 | 754 / 928 | 536 / 644 | 602 / 620 |
 | bridgedepth-sf | 994x1482 | 437 ms | 325 ms | fails: unsupported: TensorRT 10 Myelin tactic check fails during th | 348 ms | 111 s | – | 2916 / 3214 | 2280 / 2308 | 2310 / 2634 | – |
 | c-fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 451 ms | 135 ms | 75.4 s | 240 s | 2109 / 2336 | 1649 / 1792 | 1196 / 1516 | 1425 / 1462 |
-| c-foundationstereo-s | 994x1482 | 3652 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 6301 / 6430 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
+| c-foundationstereo-s | 994x1482 | 3633 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 6301 / 6430 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
 | cas-gwcnet-c-sceneflow | 994x1482 | 327 ms | 295 ms | 220 ms | 225 ms | 61.7 s | 131 s | 2006 / 2474 | 2098 / 2448 | 1725 / 1930 | 1533 / 1548 |
 | cas-gwcnet-gc-sceneflow | 994x1482 | 472 ms | 383 ms | 307 ms | 358 ms | 63.7 s | 98.6 s | 2338 / 2794 | 6592 / 6670 | 2272 / 2514 | 4142 / 4194 |
 | cfnet-sceneflow | 994x1482 | 484 ms | 249 ms | 171 ms | 401 ms | 53.0 s | 139 s | 3441 / 4376 | 1026 / 1398 | 3662 / 4718 | 1357 / 1410 |
@@ -1793,7 +1793,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | igev-stereo-kitti15 | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 110 s | 214 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1315 / 1374 |
 | igev-stereo-middlebury | 994x1482 | 763 ms | 527 ms | 338 ms | 288 ms | 110 s | 214 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1317 / 1376 |
 | igev-stereo-sceneflow | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 111 s | 216 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1317 / 1376 |
-| las2-h | 994x1482 | 113 ms | 75.0 ms | fails: unsupported: TensorRT 10 Myelin autotuner exception (all tac | 53.3 ms | 37.5 s | – | 1002 / 1046 | 579 / 724 | 1021 / 1388 | – |
+| las2-h | 994x1482 | 113 ms | 75.0 ms | fails: unsupported: TensorRT 10 Myelin autotuner exception (all tac | 53.8 ms | 37.5 s | – | 1002 / 1046 | 579 / 724 | 917 / 1248 | – |
 | las2-l | 994x1482 | 75.7 ms | 46.6 ms | 23.4 ms | 29.9 ms | 30.5 s | 97.5 s | 648 / 716 | 385 / 432 | 397 / 600 | 393 / 424 |
 | las2-m | 994x1482 | 37.1 ms | 28.6 ms | 13.2 ms | 18.3 ms | 24.0 s | 98.3 s | 584 / 664 | 252 / 300 | 329 / 572 | 343 / 386 |
 | las2-s | 994x1482 | 27.8 ms | 23.7 ms | 10.3 ms | 14.3 ms | 22.4 s | 86.9 s | 568 / 648 | 238 / 264 | 320 / 558 | 258 / 304 |
@@ -1842,7 +1842,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | lotus-normal-g-v1-1 | 994x1482 | 267 ms | 222 ms | 107 ms | 164 ms | 63.4 s | 183 s | 2777 / 2940 | 2344 / 2416 | 2351 / 2500 | 4213 / 4240 |
 | marigold-depth-v1-1 | 994x1482 | 410 ms | 342 ms | 172 ms | 261 ms | 127 s | 285 s | 2776 / 2938 | 2341 / 2418 | 2343 / 2500 | 4263 / 4318 |
 | marigold-normals-lcm-v0-1 | 994x1482 | 272 ms | 223 ms | 109 ms | 167 ms | 64.5 s | 182 s | 2792 / 2960 | 2348 / 2436 | 2361 / 2500 | 4220 / 4250 |
-| marigold-v2-depth | 994x1482 | 5071 ms | – | fails: unsupported: 20 B NF4 transformer, weights expanded per line | 3868 ms | – | – | 9696 / 10250 | – | 9785 / 10548 | – |
+| marigold-v2-depth | 994x1482 | 5093 ms | – | fails: unsupported: 20 B NF4 transformer, weights expanded per line | 3886 ms | – | – | 1408 / 1698 | – | 1498 / 1780 | – |
 | metric3d-vit-large | 994x1482 | 200 ms | 149 ms | 91.4 ms | 155 ms | 54.7 s | 96.6 s | 1484 / 1696 | 1126 / 1148 | 1480 / 1608 | 1867 / 1952 |
 | midas-dpt-beit-large-512 | 994x1482 | 78.8 ms | 58.8 ms | 52.2 ms | 63.9 ms | 32.6 s | 53.5 s | 992 / 1418 | 1088 / 1116 | 1003 / 1436 | 1514 / 1592 |
 | moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
@@ -1894,12 +1894,12 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | efficientnet_b0.tv_in1k | 224x224 | 4.98 ms | 2.88 ms | 0.536 ms | 0.769 ms | 9.12 s | 25.8 s | 48 / 96 | 80 / 96 | 78 / 118 | 81 / 92 |
 | efficientnet_b4.tv_in1k | 224x224 | 10.0 ms | 5.39 ms | 1.63 ms | 2.00 ms | 13.8 s | 34.9 s | 89 / 114 | 124 / 154 | 111 / 180 | 157 / 200 |
 | efficientnet_v2_s.tv_in1k | 224x224 | 10.2 ms | 5.39 ms | 1.35 ms | 1.89 ms | 12.1 s | 32.0 s | 81 / 106 | 116 / 146 | 114 / 188 | 149 / 198 |
-| efficientvit_b2.r288_in1k | 224x224 | 11.8 ms | 6.91 ms | 0.790 ms | 1.10 ms | 11.0 s | 35.3 s | 85 / 144 | 120 / 164 | 120 / 212 | 154 / 216 |
-| eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 18.0 ms | 14.9 ms | 12.4 ms | 14.1 ms | 21.0 s | 43.5 s | 648 / 1206 | 674 / 684 | 1236 / 1386 | 1259 / 1286 |
+| efficientvit_b2.r288_in1k | 224x224 | 13.6 ms | 6.91 ms | 0.790 ms | 1.12 ms | 11.0 s | 35.3 s | 85 / 144 | 120 / 164 | 88 / 170 | 154 / 216 |
+| eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 18.7 ms | 14.9 ms | 12.4 ms | 14.1 ms | 21.0 s | 43.5 s | 648 / 664 | 674 / 684 | 652 / 786 | 1259 / 1286 |
 | falconsai-nsfw-vit | 224x224 | 2.83 ms | fails: timeout after 290 s | 1.12 ms | 1.61 ms | – | 27.4 s | 201 / 226 | – | 198 / 228 | 393 / 420 |
 | fastvit_sa24.apple_dist_in1k | 256x256 | 6.05 ms | 3.97 ms | 0.818 ms | 1.40 ms | 8.44 s | 54.5 s | 81 / 110 | 113 / 148 | 80 / 150 | 148 / 200 |
 | fastvit_t12.apple_dist_in1k | 256x256 | 3.27 ms | 2.32 ms | 0.431 ms | 0.781 ms | 7.39 s | 39.7 s | 54 / 76 | 86 / 94 | 52 / 76 | 89 / 114 |
-| fastvit_t8.apple_dist_in1k | 256x256 | 3.30 ms | 2.55 ms | 0.368 ms | 0.703 ms | 6.81 s | 30.8 s | 45 / 72 | 77 / 92 | 45 / 76 | 78 / 108 |
+| fastvit_t8.apple_dist_in1k | 256x256 | 3.31 ms | 2.55 ms | 0.368 ms | 0.706 ms | 6.81 s | 30.8 s | 45 / 72 | 77 / 92 | 45 / 76 | 78 / 108 |
 | focalnet_base_lrf.ms_in1k | 224x224 | 15.5 ms | 7.47 ms | 2.08 ms | – | 19.7 s | 63.9 s | 212 / 234 | 235 / 274 | – | 404 / 432 |
 | focalnet_base_srf.ms_in1k | 224x224 | 14.2 ms | 6.94 ms | 1.74 ms | – | 17.8 s | 63.8 s | 211 / 234 | 234 / 272 | – | 401 / 430 |
 | focalnet_small_lrf.ms_in1k | 224x224 | 15.8 ms | 7.28 ms | 1.70 ms | – | 19.5 s | 62.5 s | 136 / 152 | 162 / 192 | – | 265 / 286 |
@@ -1932,12 +1932,12 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | resnet152.tv2_in1k | 224x224 | 8.36 ms | 4.55 ms | 1.09 ms | 1.83 ms | 8.82 s | 22.7 s | 155 / 186 | 185 / 240 | 182 / 266 | 282 / 334 |
 | resnet18.tv_in1k | 224x224 | 1.48 ms | 1.04 ms | 0.220 ms | 0.459 ms | 4.31 s | 14.0 s | 61 / 90 | 91 / 108 | 90 / 150 | 89 / 120 |
 | resnet50.tv2_in1k | 224x224 | 3.15 ms | 2.10 ms | 0.466 ms | 0.826 ms | 8.31 s | 24.0 s | 89 / 142 | 119 / 138 | 116 / 162 | 152 / 166 |
-| shufflenet_v2_x1_0.tv_in1k | 224x224 | 3.71 ms | 1.98 ms | 0.329 ms | 0.787 ms | 7.73 s | 16.9 s | 41 / 72 | 71 / 88 | 87 / 116 | 70 / 80 |
+| shufflenet_v2_x1_0.tv_in1k | 224x224 | 5.01 ms | 1.98 ms | 0.329 ms | 0.804 ms | 7.73 s | 16.9 s | 39 / 48 | 71 / 88 | 55 / 76 | 70 / 80 |
 | shvit_s1.in1k | 224x224 | 6.75 ms | 3.11 ms | 0.510 ms | – | 10.2 s | 23.3 s | 47 / 58 | 78 / 98 | – | 77 / 90 |
 | shvit_s2.in1k | 224x224 | 6.76 ms | 3.90 ms | 0.533 ms | – | 10.1 s | 24.0 s | 56 / 88 | 88 / 128 | – | 87 / 120 |
 | shvit_s3.in1k | 224x224 | 8.11 ms | 3.64 ms | 0.575 ms | – | 10.9 s | 24.6 s | 62 / 112 | 94 / 132 | – | 92 / 144 |
 | shvit_s4.in1k | 256x256 | 9.31 ms | 4.11 ms | 0.658 ms | – | 11.3 s | 26.3 s | 67 / 118 | 99 / 138 | – | 101 / 154 |
-| squeezenet1_1.tv_in1k | 224x224 | 1.82 ms | 1.13 ms | 0.214 ms | 0.359 ms | 4.49 s | 9.10 s | 41 / 72 | 39 / 48 | 8 / 12 | 38 / 40 |
+| squeezenet1_1.tv_in1k | 224x224 | 1.82 ms | 1.13 ms | 0.214 ms | 0.377 ms | 4.49 s | 9.10 s | 7 / 28 | 39 / 48 | 8 / 12 | 38 / 40 |
 | starnet_s1.in1k | 224x224 | 3.88 ms | 2.41 ms | 0.774 ms | 0.683 ms | 6.23 s | 24.4 s | 41 / 52 | 73 / 92 | 41 / 56 | 73 / 86 |
 | starnet_s2.in1k | 224x224 | 3.02 ms | 1.96 ms | 0.622 ms | 0.578 ms | 5.71 s | 24.7 s | 43 / 54 | 75 / 94 | 43 / 58 | 74 / 88 |
 | starnet_s3.in1k | 224x224 | 4.19 ms | 2.60 ms | 0.878 ms | 0.715 ms | 6.03 s | 27.5 s | 47 / 60 | 79 / 100 | 47 / 64 | 80 / 96 |
@@ -2166,7 +2166,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | depthsplat-small-re10k | 336x518 | 119 ms | 82.2 ms | 86.4 ms | 120 ms | 80.0 s | 224 s | 5432 / 5606 | 5432 / 5526 | 5479 / 5668 | 3148 / 3194 |
 | mapanything-apache | 336x518 | 636 ms | 596 ms | 367 ms | 544 ms | 46.2 s | 137 s | 3697 / 4092 | 3347 / 3792 | 3697 / 4072 | 6220 / 6248 |
 | mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | fails: unsupported: fp16 engine output is all NaN (strongly-typed f | 35.2 ms | 153 s | – | 931 / 1226 | 818 / 860 | 702 / 760 | – |
-| patchmatchnet | 1536x1024 | 202 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1714 / 1892 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
+| patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
 | vggt-1b | 336x518 | 651 ms | 557 ms | 424 ms | 458 ms | 74.3 s | 199 s | 3691 / 4674 | 3611 / 3856 | 3702 / 4654 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 464 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3422 / 3518 | 5657 / 5766 |
 | flowformer-small-chairs | 375x1242 | 351 ms | 250 ms | 202 ms | – | 98.7 s | 118 s | 3165 / 3638 | 2438 / 3196 | – | 2087 / 2138 |
@@ -2175,7 +2175,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | flowseek-t | 1080x1920 | 395 ms | 258 ms | 168 ms | – | 54.2 s | 107 s | 8671 / 8712 | 6126 / 6212 | – | 11328 / 11350 |
 | flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | – | 54.6 s | 102 s | 8671 / 8712 | 6126 / 6212 | – | 11330 / 11352 |
 | flowseek-t-things-notartan | 1080x1920 | 396 ms | 258 ms | 168 ms | – | 54.3 s | 97.5 s | 8671 / 8712 | 6126 / 6212 | – | 11328 / 11350 |
-| gmflow-scale1-mixdata | 1080x1920 | 556 ms | 382 ms | 187 ms | – | 29.1 s | 67.3 s | 4496 / 4642 | 4293 / 4558 | – | 4333 / 4390 |
+| gmflow-scale1-mixdata | 1080x1920 | 802 ms | 382 ms | 187 ms | – | 29.1 s | 67.3 s | 5512 / 5660 | 4293 / 4558 | – | 4333 / 4390 |
 | gmflow-scale1-things | 1080x1920 | 556 ms | 382 ms | 187 ms | – | 35.3 s | 69.3 s | 4496 / 4642 | 4293 / 4558 | – | 4333 / 4390 |
 | gmflow-scale2-mixdata | 1080x1920 | 1139 ms | 765 ms | fails: TensorRT bug: Myelin internal error | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
 | gmflow-scale2-regrefine6-kitti | 1080x1920 | 1678 ms | 1116 ms | fails: TensorRT bug: Myelin internal error | – | 58.4 s | – | 6080 / 6230 | 10875 / 10972 | – | – |
@@ -2190,7 +2190,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 427 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 1301 / 1418 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 380 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 1137 / 1218 | – |
 | neuflow-v2 | 1080x1920 | 71.2 ms | 91.4 ms | 65.0 ms | 59.1 ms | 28.5 s | 104 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
-| neuflow-v2-sintel | 1080x1920 | 71.2 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2435 / 2478 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
+| neuflow-v2-sintel | 1080x1920 | 71.3 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
 | raft-large | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 41.3 s | – | 5930 / 6058 | 5886 / 5924 | 342 / 372 | – |
 | raft-large-kitti | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.6 ms | 39.3 s | – | 5930 / 6058 | 5886 / 5924 | 333 / 352 | – |
@@ -2216,7 +2216,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | alltracker | 480x854 | 391 ms | 284 ms | fails: ONNX export: torch.export failed | 221 ms | 105 s | – | 993 / 1238 | 1273 / 1358 | 1076 / 1288 | – |
 | alltracker-tiny | 480x854 | 330 ms | 229 ms | fails: ONNX export: torch.export failed | 233 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
 | bootstapir | 480x854 | 234 ms | 183 ms | 13.2 ms | 192 ms | 207 s | 65.0 s | 508 / 628 | 758 / 832 | 508 / 628 | 492 / 532 |
-| locotrack-b | 480x854 | 187 ms | 82.6 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 173 ms | 146 s | – | 771 / 816 | 1117 / 1140 | 782 / 840 | – |
+| locotrack-b | 480x854 | 188 ms | 82.6 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 173 ms | 146 s | – | 603 / 656 | 1117 / 1140 | 614 / 660 | – |
 | locotrack-s | 480x854 | 180 ms | 74.1 ms | fails: ValueError: not enough values to unpack (expected 4, got 2) | 151 ms | 140 s | – | 759 / 842 | 1000 / 1034 | 764 / 822 | – |
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 529 ms | 398 ms | fails: unsupported: engine build exceeds 5 min lock rule (cold ONNX | 382 ms | 40.5 s | – | 1220 / 1294 | 1164 / 1272 | 1313 / 1374 | – |
@@ -2226,7 +2226,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | rife-4.25-lite | 1080x1920 | 21.1 ms | 42.3 ms | 14.1 ms | 18.3 ms | 34.9 s | 49.5 s | 754 / 854 | 1061 / 1374 | 950 / 1056 | 696 / 714 |
 | rife-4.26 | 1080x1920 | 25.1 ms | 44.5 ms | 17.6 ms | 21.4 ms | 34.9 s | 54.9 s | 755 / 894 | 1094 / 1234 | 848 / 916 | 696 / 714 |
 | codeformer | 512x512 | 48.6 ms | 30.8 ms | 16.3 ms | 40.4 ms | 34.1 s | 64.8 s | 512 / 638 | 407 / 458 | 432 / 496 | 593 / 642 |
-| dat-2-x4 | 512x512 | 1338 ms | 964 ms | – | 1247 ms | 44.3 s | – | 2546 / 2618 | 2546 / 2598 | 2730 / 2858 | – |
+| dat-2-x4 | 512x512 | 1312 ms | 964 ms | – | 1221 ms | 44.3 s | – | 2276 / 2378 | 2546 / 2598 | 2276 / 2378 | – |
 | dat-light-x4 | 512x512 | 268 ms | 158 ms | – | 268 ms | 36.7 s | – | 1535 / 1552 | 1385 / 1412 | 1535 / 1572 | – |
 | dat-x4 | 512x512 | 1565 ms | 1063 ms | – | 1417 ms | 43.1 s | – | 2552 / 2624 | 2552 / 2606 | 2552 / 2604 | – |
 | drct-l-x4 | 512x512 | 1607 ms | 1210 ms | – | 1422 ms | 67.2 s | – | 2692 / 3110 | 2005 / 2410 | 2692 / 3010 | – |
@@ -2245,7 +2245,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | restormer-deblur | 512x512 | 228 ms | 143 ms | 162 ms | 225 ms | 44.1 s | 58.3 s | 850 / 1000 | 660 / 778 | 850 / 980 | 757 / 774 |
 | restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 225 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 850 / 980 | 757 / 774 |
 | restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 179 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 850 / 940 | 757 / 774 |
-| seedvr2-3b | 512x512 | 2281 ms | fails: timeout after 290 s | fails: not run: onnx is not installed in the test venv | 2281 ms | – | – | 11957 / 15348 | – | 11957 / 15348 | – |
+| seedvr2-3b | 512x512 | 2295 ms | fails: timeout after 290 s | fails: not run: onnx is not installed in the test venv | 2295 ms | – | – | 6140 / 6772 | – | 6140 / 6772 | – |
 | seedvr2-7b | 512x512 | – | fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat | fails: timeout after 290 s | – | – | – | – | – | – | – |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
 | span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |

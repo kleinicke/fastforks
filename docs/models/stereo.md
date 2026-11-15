@@ -55,7 +55,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`igev-stereo-kitti15`](#igev_stereo) | yes | 24.63 | 288, 3.3x | 1374, 0.71x |
 | [`igev-stereo-middlebury`](#igev_stereo) | yes | 19.80 ? | 288, 3.3x | 1374, 0.71x |
 | [`igev-stereo-sceneflow`](#igev_stereo) | yes | 4.04 | 288, 3.3x | 1374, 0.71x |
-| [`las2-h`](#las2) | yes | 2.14 ? | 53.3, 2.5x | 1388, 1.3x |
+| [`las2-h`](#las2) | yes | 2.14 ? | 53.8, 2.5x | 1248, 1.2x |
 | [`las2-l`](#las2) | yes | 2.24 ? | 29.9, 3.0x | 600, 0.55x |
 | [`las2-m`](#las2) | yes | 2.98 ? | 18.3, 2.9x | 572, 0.57x |
 | [`las2-s`](#las2) | yes | 4.10 ? | 14.3, 3.0x | 558, 0.57x |
@@ -228,7 +228,7 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `c-foundationstereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>3874<br>3652<br>1366<br>2773<br>2229 | –<br>8338 / 12870<br>6301 / 6430<br>3058 / 4408<br>7298 / 7624<br>10027 / 10108 |
+| `c-foundationstereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>3874<br>3633<br>1366<br>2773<br>2229 | –<br>8338 / 12870<br>6301 / 6430<br>3058 / 4408<br>7298 / 7624<br>10027 / 10108 |
 | `c-fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>527<br>330<br>135<br>339<br>451 | 4569 / 5358<br>2892 / 2996<br>2109 / 2336<br>1196 / 1516<br>1649 / 1792<br>1425 / 1462 |
 | `fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>527<br>330<br>135<br>339<br>156 | 4616 / 5408<br>2939 / 3306<br>2109 / 2256<br>1196 / 1576<br>1613 / 1752<br>1342 / 1398 |
 
@@ -259,7 +259,7 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 - `c-fast-foundationstereo` 994x1482, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 240 s (ONNX + engine).
 - `fast-foundationstereo` 994x1482, first call: portable + torch.compile 78 s (cold Inductor cache), TensorRT fp16 157 s (ONNX + engine).
 - `c-foundationstereo-s` original 994x1482: reference implementation (FoundationStereo repo code) with the C-FS-S checkpoint, AMP; NVIDIA's TAO code OOMs (fp32) or errors (AMP) in the same harness
-- `c-foundationstereo-s` load / first call: original 1.67 s / 2.731 s (375x1242), portable 0.85 s / 2.63 s (375x1242), kernels 1.12 s / 1.398 s (375x1242)
+- `c-foundationstereo-s` load / first call: original 1.67 s / 2.731 s (375x1242), portable 0.96 s / 2.087 s (375x1242), kernels 0.81 s / 1.376 s (375x1242)
 - `c-fast-foundationstereo` load / first call: original 0.17 s / 0.172 s (375x1242), portable 0.24 s / 0.332† s, kernels 0.16† s / 0.136† s
 - `fast-foundationstereo` load / first call: original 0.16 s / 0.144 s (375x1242), portable 0.25 s / 0.33† s, kernels 0.14† s / 0.135† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -1175,7 +1175,7 @@ Commercial use: yes.
 | `las2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 62.0<br>43.5<br>27.8<br>14.3<br>23.7<br>10.3 | 1676 / 1746<br>933 / 978<br>568 / 648<br>320 / 558<br>238 / 264<br>258 / 304 |
 | `las2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 79.1<br>52.4<br>37.1<br>18.3<br>28.6<br>13.2 | 1691 / 1762<br>948 / 1000<br>584 / 664<br>329 / 572<br>252 / 300<br>343 / 386 |
 | `las2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 154<br>90.8<br>75.7<br>29.9<br>46.6<br>23.4 | 1753 / 1812<br>1010 / 1082<br>648 / 716<br>397 / 600<br>385 / 432<br>393 / 424 |
-| `las2-h` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>135<br>113<br>53.3<br>75.0<br>fails: unsupported: TensorRT 10 Myelin autotuner exception (all tac | 1839 / 1884<br>1022 / 1084<br>1002 / 1046<br>1021 / 1388<br>579 / 724<br>– |
+| `las2-h` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>135<br>113<br>53.8<br>75.0<br>fails: unsupported: TensorRT 10 Myelin autotuner exception (all tac | 1839 / 1884<br>1022 / 1084<br>1002 / 1046<br>917 / 1248<br>579 / 724<br>– |
 
 <details><summary>Details</summary>
 
@@ -1203,10 +1203,10 @@ Commercial use: yes.
 - `las2-s` load / first call: original 0.11 s / 0.019 s (375x1242), portable 0.27 s / 0.465 s (375x1242), kernels 0.07† s / 0.015† s
 - `las2-m` load / first call: original 0.17 s / 0.023 s (375x1242), portable 0.25 s / 0.402 s (375x1242), kernels 0.1† s / 0.02† s
 - `las2-l` load / first call: original 0.39 s / 0.044 s (375x1242), portable 0.53 s / 0.329 s (375x1242), kernels 0.18† s / 0.031† s
-- `las2-h` load / first call: original 0.26 s / 1.212 s (375x1242), portable 0.39 s / 0.407 s (375x1242), kernels 0.13† s / 0.062† s
+- `las2-h` load / first call: original 0.26 s / 1.212 s (375x1242), portable 0.27 s / 0.391 s (375x1242), kernels 0.78 s / 0.26 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, `las2-s`, `las2-m`, `las2-l`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
-- Protocol, `las2-h`: median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- Protocol, `las2-h`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
