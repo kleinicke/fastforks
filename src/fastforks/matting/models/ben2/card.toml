@@ -5,6 +5,10 @@ tier = "experimental"
 outputs = ["alpha"]
 uses = ["swin_v1", "cnn_kernels"]  # fastforks.shared modules this family imports
 
+limitations = [
+  "Kernels at 1080 x 1920 peak 1942 MB vs 1681 MB portable (original 2466 MB), 7 % faster than portable (103.6 vs 111.4 ms); the extra memory was not isolated further.",
+]
+
 [upstream]
 repo = "https://github.com/PramaLLC/BEN2"
 commit = "2c99a5da477b5523585bfa5c893888a6e818a8f6"  # net/ben2.py = BEN2.py (BEN_Base, MCLM, MCRM; the HF repo's BEN2.py is the same code); Swin: shared/swin_v1

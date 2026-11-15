@@ -38,7 +38,7 @@ pad = "none"
 seed = 2026  # seed of the VAE posterior sample (CPU generator); the output depends on it
 long_side = { default = 0, min = 0 }  # longest side of the network input (then rounded up to a multiple of 16); 0 = the input size (the original)
 exact_mask = false  # pass the original's all-true attention mask: bit-equal to the authors' code on the same GPU, 3-13 % slower (the default differs by ~0.01 mean |d|)
-stream = true  # transformer blocks in pinned host memory, uploaded one at a time (~1-4 GB of device memory instead of ~9.5-12 GB, ~0.4 % slower; needs 8.4 GB free host RAM, load fails with a clear error otherwise; CUDA only). Switch off with stream=false when host RAM is short or for tiny inputs where it costs more
+stream = true  # transformer blocks in pinned host memory, uploaded one at a time (~1-4 GB of device memory instead of ~9.5-12 GB, ~1 % slower (1683 vs 1664 ms at 518 x 770); needs 8.4 GB free host RAM, load fails with a clear error otherwise; CUDA only). Switch off with stream=false when host RAM is short or for tiny inputs where it costs more
 
 [modes.portable]
 cuda_dtype = "bfloat16"  # as upstream under autocast: bf16 GEMMs and attention, float32 norms, RoPE and gates

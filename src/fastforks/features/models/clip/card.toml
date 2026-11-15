@@ -10,6 +10,7 @@ limitations = [
   "`fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).",
   "fp16 error against the fp32 original is higher than for the other ViTs on L/14 DataComp (mean 2.8 % portable, 4.8 % kernels): one residual channel sits near 120, where fp16 steps are 0.06, about 10 % of the median activation. No overflow; float32 portable gives 0.3 %.",
   "DFN weights: the relative error (mean 1.3-3.9 % portable, 3.9-6.5 % kernels) is measured against a median |output| of only 0.015-0.021 (other weights: 0.5-0.6) with values up to 0.7; `fp32_accumulate = true` lowers kernels to about 1.5 %.",
+  "Kernels at 224 x 224 peak above portable (B/16 257 vs 204 MB, L/14 814 vs 623 MB; original 544 / 1779 MB): the QuickGELU fold keeps a folded copy of each fc2 weight next to the original parameter, and the second call's CUDA-graph capture adds ~30 MB.",
 ]
 
 [upstream]
