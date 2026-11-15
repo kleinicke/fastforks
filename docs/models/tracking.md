@@ -13,12 +13,12 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`alltracker`](#alltracker) | yes | 221, 2.2x | 1288, 0.56x |
-| [`alltracker-tiny`](#alltracker) | yes | 233, 1.8x | 1166, 0.53x |
+| [`alltracker-tiny`](#alltracker) | yes | 217, 2.0x | 1166, 0.53x |
 | [`bootstapir`](#tapir) | yes | 192, 1.3x | 628, 0.81x |
 | [`cotracker3-offline`](#cotracker) | no | 154, 1.6x | 916, 0.37x |
 | [`cotracker3-online`](#cotracker) | no | 176, 1.9x | 922, 0.49x |
 | [`locotrack-b`](#locotrack) | yes | 173, 1.2x | 660, 0.84x |
-| [`locotrack-s`](#locotrack) | yes | 151, 1.3x | 822, 1.0x |
+| [`locotrack-s`](#locotrack) | yes | 151, 1.3x | 642, 0.79x |
 | [`tapir`](#tapir) | yes | 141, 1.3x | 548, 0.95x |
 | [`tapnext`](#tapnext) | yes | 382, 2.4x | 1374, 0.72x |
 | [`tapnext-pp`](#tapnext) | yes | – | – |
@@ -36,7 +36,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>391<br>221<br>284<br>fails: ONNX export: torch.export failed | 2100 / 2318<br>993 / 1238<br>1076 / 1288<br>1273 / 1358<br>– |
-| `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>233<br>229<br>fails: ONNX export: torch.export failed | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
+| `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>217<br>229<br>fails: ONNX export: torch.export failed | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
 
 <details><summary>Details</summary>
 
@@ -228,7 +228,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>188<br>173<br>82.6<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 719 / 784<br>603 / 656<br>614 / 660<br>1117 / 1140<br>– |
-| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 706 / 812<br>759 / 842<br>764 / 822<br>1000 / 1034<br>– |
+| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 706 / 812<br>759 / 842<br>596 / 642<br>1000 / 1034<br>– |
 
 <details><summary>Details</summary>
 

@@ -59,10 +59,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`rtmdet-s-coco`](#rtmdet) | yes | 2.97, 4.1x | 96, 1.0x |
 | [`rtmdet-tiny-coco`](#rtmdet) | yes | 2.74, 3.9x | 84, 1.3x |
 | [`rtmdet-x-coco`](#rtmdet) | yes | 8.55, 2.8x | 378, 0.73x |
-| [`yolox-l`](#yolox) | yes | 5.24, 2.9x | 304, 1.0x |
-| [`yolox-m`](#yolox) | yes | 3.68, 3.4x | 182, 1.1x |
-| [`yolox-s`](#yolox) | yes | 2.64, 3.9x | 134, 1.5x |
-| [`yolox-tiny`](#yolox) | yes | 2.02, 4.9x | 108, 1.9x |
+| [`yolox-l`](#yolox) | yes | 5.02, 3.0x | 250, 0.84x |
+| [`yolox-m`](#yolox) | yes | 3.45, 3.6x | 184, 1.1x |
+| [`yolox-s`](#yolox) | yes | 2.43, 4.3x | 92, 1.0x |
+| [`yolox-tiny`](#yolox) | yes | 1.80, 5.4x | 88, 1.5x |
 | [`yolox-x`](#yolox) | yes | 7.82, 2.2x | 358, 0.71x |
 
 <a id="dfine"></a>
@@ -833,10 +833,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `yolox-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.79<br>5.58<br>2.02<br>2.87<br>0.561 | 32 / 58<br>60 / 92<br>62 / 108<br>58 / 94<br>62 / 90 |
-| `yolox-s` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.4<br>5.55<br>2.64<br>2.95<br>1.02 | 67 / 90<br>79 / 100<br>84 / 134<br>74 / 96<br>86 / 126 |
-| `yolox-m` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.4<br>6.42<br>3.68<br>3.70<br>2.03 | 142 / 160<br>110 / 132<br>115 / 182<br>111 / 132<br>152 / 194 |
-| `yolox-l` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.1<br>8.13<br>5.24<br>6.15<br>3.10 | 265 / 298<br>165 / 206<br>170 / 304<br>173 / 208<br>279 / 324 |
+| `yolox-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.79<br>5.58<br>1.80<br>2.87<br>0.561 | 32 / 58<br>60 / 92<br>22 / 88<br>58 / 94<br>62 / 90 |
+| `yolox-s` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.4<br>5.55<br>2.43<br>2.95<br>1.02 | 67 / 90<br>79 / 100<br>40 / 92<br>74 / 96<br>86 / 126 |
+| `yolox-m` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.4<br>6.42<br>3.45<br>3.70<br>2.03 | 142 / 160<br>110 / 132<br>77 / 184<br>111 / 132<br>152 / 194 |
+| `yolox-l` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.1<br>8.13<br>5.02<br>6.15<br>3.10 | 265 / 298<br>165 / 206<br>139 / 250<br>173 / 208<br>279 / 324 |
 | `yolox-x` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.2<br>11.8<br>7.82<br>11.3<br>5.28 | 450 / 504<br>255 / 300<br>258 / 358<br>265 / 296<br>432 / 478 |
 
 <details><summary>Details</summary>

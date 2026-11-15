@@ -13,7 +13,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`anysplat`](#anysplat) | yes | 364, 2.0x | 5192, 0.55x |
-| [`depthsplat-small-re10k`](#depthsplat) | yes | 120, 1.1x | 5668, 0.96x |
+| [`depthsplat-small-re10k`](#depthsplat) | yes | 112, 1.1x | 5606, 0.95x |
 | [`lingbot-map`](#lingbot_map) | yes | – | – |
 | [`mapanything-apache`](#mapanything) | yes | 544, 3.6x | 4072, 0.47x |
 | [`mvsanywhere`](#mvsanywhere) | no | 35.2, 6.2x | 760, 0.51x |
@@ -88,7 +88,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depthsplat-small-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 126<br>119<br>120<br>82.2<br>86.4 | 5694 / 5892<br>5432 / 5606<br>5479 / 5668<br>5432 / 5526<br>3148 / 3194 |
+| `depthsplat-small-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 126<br>119<br>112<br>82.2<br>86.4 | 5694 / 5892<br>5432 / 5606<br>5434 / 5606<br>5432 / 5526<br>3148 / 3194 |
 
 <details><summary>Details</summary>
 

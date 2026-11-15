@@ -55,7 +55,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`stablenormal-turbo`](#stablenormal) | yes | – | 180, 1.7x | 3172, 0.73x |
 | [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 63.0, 2.1x | 1252, 0.36x |
 | [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.9, 2.1x | 1266, 0.35x |
-| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 1848, 5.8x (1080x1920) | 8630, 0.72x |
+| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 200, 53.8x (1080x1920) | 2206, 0.19x |
 | [`video-depth-anything-s`](#video_depth_anything) | yes | – | 1284, 9.1x (1080x1920) | 8782, 0.74x |
 | [`zoedepth-nk`](#zoedepth) | yes | 0.0532 | 88.9, 3.1x | 1960, 0.91x |
 
@@ -1307,7 +1307,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `video-depth-anything-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile | 11626<br>1434<br>1284<br>1314 | 8263 / 11890<br>8201 / 8652<br>8204 / 8782<br>7762 / 8530 |
-| `video-depth-anything-metric-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels | 10776<br>2005<br>1848 | 8264 / 11916<br>8203 / 8848<br>8208 / 8630 |
+| `video-depth-anything-metric-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels | 10776<br>2005<br>200 | 8264 / 11916<br>8203 / 8848<br>1967 / 2206 |
 
 <details><summary>Details</summary>
 
@@ -1330,7 +1330,7 @@ Commercial use: yes.
 - `video-depth-anything-s` portable 1080x1920, kernels 1080x1920: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out
 - `video-depth-anything-metric-s` original 1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
 - `video-depth-anything-s` load / first call: original 0.26 s / 14.043 s (1080x1920), portable 0.18 s / 1.455 s (1080x1920), kernels 0.12† s / 1.301 s (1080x1920)
-- `video-depth-anything-metric-s` load / first call: original 3.85 s / 17.094 s (1080x1920), portable 0.51 s / 2.325 s (1080x1920), kernels 1.04† s / 2.286 s (1080x1920)
+- `video-depth-anything-metric-s` load / first call: original 3.85 s / 17.094 s (1080x1920), portable 0.51 s / 2.325 s (1080x1920), kernels 0.3 s / 0.434 s (480x640)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, one video per call (4 windows of 32 frames), first call, 1 warm-up, peak reset, median of 3; ms per video
 

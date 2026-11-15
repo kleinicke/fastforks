@@ -15,23 +15,23 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`big-lama`](#lama) | yes | 21.2, 1.8x | 284, 0.99x |
 | [`codeformer`](#codeformer) | no | 40.4, 2.1x | 496, 0.46x |
 | [`dat-2-x4`](#dat) | yes | 1221, 4.0x | 2378, 0.94x |
-| [`dat-light-x4`](#dat) | yes | 268, 8.2x | 1572, 0.95x |
-| [`dat-x4`](#dat) | yes | 1417, 6.7x | 2604, 1.0x |
-| [`drct-l-x4`](#drct) | yes | 1422, 10.3x | 3010, 0.43x |
-| [`drct-x4`](#drct) | yes | 730, 10.3x | 2946, 0.75x |
+| [`dat-light-x4`](#dat) | yes | 264, 8.3x | 1472, 0.89x |
+| [`dat-x4`](#dat) | yes | 1391, 6.9x | 2384, 0.94x |
+| [`drct-l-x4`](#drct) | yes | 1399, 10.5x | 2850, 0.41x |
+| [`drct-x4`](#drct) | yes | 718, 10.4x | 2766, 0.7x |
 | [`gfpgan-v1.4`](#gfpgan) | yes | 18.0, 1.2x | 530, 0.79x |
-| [`hat-s-x4`](#hat) | yes | 974, 2.5x | 2088, 0.37x |
-| [`hat-x4`](#hat) | yes | 1445, 2.1x | 2790, 0.46x |
+| [`hat-s-x4`](#hat) | yes | 956, 2.5x | 1888, 0.33x |
+| [`hat-x4`](#hat) | yes | 1427, 2.1x | 2470, 0.4x |
 | [`nafnet-gopro`](#nafnet) | yes | 55.3, 1.2x | 550, 0.9x |
 | [`nafnet-sidd`](#nafnet) | yes | 56.9, 1.3x | 650, 0.89x |
-| [`real-hat-gan-x4`](#hat) | yes | 1445, 2.1x | 2770, 0.45x |
+| [`real-hat-gan-x4`](#hat) | yes | 1427, 2.1x | 2470, 0.4x |
 | [`realesr-general-x4v3`](#compact) | yes | 24.0, 1.8x | 164, 0.8x |
 | [`realesrgan-x2plus`](#realesrgan) | yes | 80.2, 1.6x | 394, 0.6x |
 | [`realesrgan-x4plus`](#realesrgan) | yes | 403, 1.6x | 1434, 0.57x |
 | [`realesrgan-x4plus-anime-6b`](#realesrgan) | yes | 132, 1.6x | 1410, 0.57x |
 | [`realplksr-nomoswebphoto-x4`](#realplksr) | yes | 130, 2.1x | 216, 0.68x |
-| [`restormer-deblur`](#restormer) | yes | 225, 1.0x | 980, 0.69x |
-| [`restormer-derain`](#restormer) | yes | 225, 1.0x | 980, 0.69x |
+| [`restormer-deblur`](#restormer) | yes | 180, 1.3x | 918, 0.65x |
+| [`restormer-derain`](#restormer) | yes | 180, 1.3x | 920, 0.65x |
 | [`restormer-sidd`](#restormer) | yes | 179, 1.2x | 940, 0.66x |
 | [`seedvr2-3b`](#seedvr2) | yes | 2295, 5.7x | 6772, 0.44x |
 | [`seedvr2-7b`](#seedvr2) | yes | – | – |
@@ -40,10 +40,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`swin2sr-x2`](#swin2sr) | yes | 720, 3.6x | 1636, 1.0x |
 | [`swin2sr-x4`](#swin2sr) | yes | 745, 3.9x | 1736, 0.8x |
 | [`swin2sr-x4-real`](#swin2sr) | yes | 751, 3.4x | 1734, 0.65x |
-| [`swinir-l-x4-real`](#swinir) | yes | 1044, 3.6x | 2152, 0.78x |
+| [`swinir-l-x4-real`](#swinir) | yes | 1036, 3.6x | 1934, 0.7x |
 | [`swinir-m-x2`](#swinir) | yes | 553, 5.9x | 1454, 0.8x |
-| [`swinir-m-x4`](#swinir) | yes | 580, 6.0x | 1456, 0.71x |
-| [`swinir-m-x4-real`](#swinir) | yes | 588, 4.2x | 1954, 0.66x |
+| [`swinir-m-x4`](#swinir) | yes | 576, 6.1x | 1456, 0.71x |
+| [`swinir-m-x4-real`](#swinir) | yes | 584, 4.2x | 1814, 0.61x |
 
 <a id="lama"></a>
 
@@ -142,9 +142,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1565<br>1417<br>1063<br>fails: worker rc=124 | 2443 / 2528<br>2552 / 2624<br>2552 / 2604<br>2552 / 2606<br>– |
+| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1565<br>1391<br>1063<br>fails: worker rc=124 | 2443 / 2528<br>2552 / 2624<br>2282 / 2384<br>2552 / 2606<br>– |
 | `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1312<br>1221<br>964<br>fails: worker rc=124 | 2436 / 2518<br>2276 / 2378<br>2276 / 2378<br>2546 / 2598<br>– |
-| `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2204<br>268<br>268<br>158<br>136 | 1606 / 1656<br>1535 / 1552<br>1535 / 1572<br>1385 / 1412<br>4144 / 4192 |
+| `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2204<br>268<br>264<br>158<br>136 | 1606 / 1656<br>1535 / 1552<br>1445 / 1472<br>1385 / 1412<br>4144 / 4192 |
 
 <details><summary>Details</summary>
 
@@ -206,8 +206,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>830<br>730<br>618<br>fails: worker rc=124 | 3359 / 3944<br>2626 / 3048<br>2626 / 2946<br>1938 / 2348<br>– |
-| `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14651<br>1607<br>1422<br>1210<br>fails: worker rc=124 | 5574 / 6926<br>2692 / 3110<br>2692 / 3010<br>2005 / 2410<br>– |
+| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>830<br>718<br>618<br>fails: worker rc=124 | 3359 / 3944<br>2626 / 3048<br>2498 / 2766<br>1938 / 2348<br>– |
+| `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14651<br>1607<br>1399<br>1210<br>fails: worker rc=124 | 5574 / 6926<br>2692 / 3110<br>2564 / 2850<br>2005 / 2410<br>– |
 
 <details><summary>Details</summary>
 
@@ -302,9 +302,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1596<br>1445<br>1185<br>fails: worker rc=124 | 5318 / 6106<br>2426 / 2590<br>2610 / 2790<br>1811 / 2750<br>– |
-| `hat-s-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2402<br>1072<br>974<br>750<br>fails: TensorRT engine build failed | 5018 / 5644<br>1984 / 2148<br>1985 / 2088<br>2352 / 3068<br>– |
-| `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1597<br>1445<br>1185<br>fails: worker rc=124 | 5318 / 6106<br>2426 / 2610<br>2610 / 2770<br>1811 / 2750<br>– |
+| `hat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1596<br>1427<br>1185<br>fails: worker rc=124 | 5318 / 6106<br>2426 / 2590<br>2298 / 2470<br>1811 / 2750<br>– |
+| `hat-s-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2402<br>1072<br>956<br>750<br>fails: TensorRT engine build failed | 5018 / 5644<br>1984 / 2148<br>1856 / 1888<br>2352 / 3068<br>– |
+| `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1597<br>1427<br>1185<br>fails: worker rc=124 | 5318 / 6106<br>2426 / 2610<br>2298 / 2470<br>1811 / 2750<br>– |
 
 <details><summary>Details</summary>
 
@@ -586,8 +586,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>225<br>143<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 980<br>660 / 778<br>757 / 774 |
-| `restormer-derain` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>225<br>144<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 980<br>660 / 778<br>757 / 774 |
+| `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>180<br>143<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 918<br>660 / 778<br>757 / 774 |
+| `restormer-derain` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>180<br>144<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 920<br>660 / 778<br>757 / 774 |
 | `restormer-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>181<br>179<br>142<br>162 | 1221 / 1416<br>850 / 920<br>850 / 940<br>660 / 778<br>757 / 774 |
 
 <details><summary>Details</summary>
@@ -822,10 +822,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `swinir-m-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3497<br>767<br>580<br>795<br>727 | 1500 / 2058<br>1499 / 2054<br>1390 / 1456<br>1684 / 1796<br>5525 / 5604 |
+| `swinir-m-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3497<br>767<br>576<br>795<br>727 | 1500 / 2058<br>1499 / 2054<br>1354 / 1456<br>1684 / 1796<br>5525 / 5604 |
 | `swinir-m-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3252<br>739<br>553<br>781<br>719 | 1500 / 1818<br>1353 / 1454<br>1353 / 1454<br>1683 / 1796<br>5088 / 5144 |
-| `swinir-m-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2462<br>1242<br>588<br>807<br>733 | 2321 / 2978<br>2387 / 3034<br>1577 / 1954<br>1683 / 1796<br>5427 / 5506 |
-| `swinir-l-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3709<br>2099<br>1044<br>1426<br>1118 | 2357 / 2746<br>2425 / 2672<br>1872 / 2152<br>2153 / 2876<br>9182 / 9282 |
+| `swinir-m-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2462<br>1242<br>584<br>807<br>733 | 2321 / 2978<br>2387 / 3034<br>1353 / 1814<br>1683 / 1796<br>5427 / 5506 |
+| `swinir-l-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3709<br>2099<br>1036<br>1426<br>1118 | 2357 / 2746<br>2425 / 2672<br>1806 / 1934<br>2153 / 2876<br>9182 / 9282 |
 
 <details><summary>Details</summary>
 

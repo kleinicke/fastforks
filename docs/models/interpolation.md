@@ -19,8 +19,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`film`](#film) | yes | 333, 1.4x | 3060, 0.86x |
 | [`gimm-vfi-r`](#gimm_vfi) | no | 1629 | 5362 |
 | [`gimm-vfi-r-p`](#gimm_vfi) | no | 1628 | 5282 |
-| [`rife-4.25`](#rife) | yes | 21.5, 1.1x | 1076, 0.93x |
-| [`rife-4.25-lite`](#rife) | yes | 18.3, 1.2x | 1056, 0.87x |
+| [`rife-4.25`](#rife) | yes | 21.4, 1.1x | 916, 0.79x |
+| [`rife-4.25-lite`](#rife) | yes | 18.3, 1.2x | 896, 0.74x |
 | [`rife-4.26`](#rife) | yes | 21.4, 1.1x | 916, 0.79x |
 
 <a id="ema_vfi"></a>
@@ -205,9 +205,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rife-4.25` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.5<br>25.0<br>21.5<br>44.9<br>17.6 | 987 / 1154<br>755 / 894<br>967 / 1076<br>1094 / 1234<br>696 / 714 |
+| `rife-4.25` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.5<br>25.0<br>21.4<br>44.9<br>17.6 | 987 / 1154<br>755 / 894<br>848 / 916<br>1094 / 1234<br>696 / 714 |
 | `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.1<br>21.4<br>44.5<br>17.6 | 1004 / 1154<br>755 / 894<br>848 / 916<br>1094 / 1234<br>696 / 714 |
-| `rife-4.25-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.3<br>21.1<br>18.3<br>42.3<br>14.1 | 1012 / 1214<br>754 / 854<br>950 / 1056<br>1061 / 1374<br>696 / 714 |
+| `rife-4.25-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.3<br>21.1<br>18.3<br>42.3<br>14.1 | 1012 / 1214<br>754 / 854<br>834 / 896<br>1061 / 1374<br>696 / 714 |
 
 <details><summary>Details</summary>
 

@@ -24,8 +24,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`u2net`](#u2net) | yes | – | 8.83, 1.8x | 260, 0.52x |
 | [`u2net-human-seg`](#u2net) | yes | – | 9.05, 1.8x | 260, 0.52x |
 | [`u2netp`](#u2net) | yes | – | 9.80, 1.5x | 172, 0.55x |
-| [`vitmatte-b`](#vitmatte) | yes | – | 147, 1.7x | 1710, 0.33x |
-| [`vitmatte-s`](#vitmatte) | yes | – | 83.8, 1.7x | 1444, 0.56x |
+| [`vitmatte-b`](#vitmatte) | yes | – | 148, 1.7x | 1552, 0.3x |
+| [`vitmatte-s`](#vitmatte) | yes | – | 84.1, 1.7x | 1404, 0.54x |
 
 <a id="ben2"></a>
 
@@ -381,8 +381,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vitmatte-s` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 140<br>102<br>83.8<br>81.9<br>54.6 | 2536 / 2582<br>1401 / 1524<br>1337 / 1444<br>1025 / 1284<br>876 / 920 |
-| `vitmatte-b` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 257<br>182<br>147<br>157<br>108 | 5070 / 5128<br>1548 / 1692<br>1484 / 1710<br>1166 / 1472<br>1233 / 1262 |
+| `vitmatte-s` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 140<br>102<br>84.1<br>81.9<br>54.6 | 2536 / 2582<br>1401 / 1524<br>1305 / 1404<br>1025 / 1284<br>876 / 920 |
+| `vitmatte-b` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 257<br>182<br>148<br>157<br>108 | 5070 / 5128<br>1548 / 1692<br>1452 / 1552<br>1166 / 1472<br>1233 / 1262 |
 
 <details><summary>Details</summary>
 
