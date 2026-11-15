@@ -527,7 +527,8 @@ def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tenso
         if g.shape != v.shape:
             lines.append(f"FAIL {k}: shape {g.shape}, golden {v.shape}")
             continue
-        if k in {"labels", "mask"}:  # volume label maps / masks: argmax ties at class borders flip voxels
+        if k in {"labels", "mask"} and "cpu_label_mismatch" in tol:  # volume label maps / masks: argmax ties at class
+            # borders flip voxels (detection class labels compare like any output)
             frac = float((g != v).mean())
             bound = tol["cpu_label_mismatch"]
             lines.append(f"{'FAIL ' * (frac > bound)}{k} {v.shape}: {frac:.2e} of the voxels differ (bound {bound})")
