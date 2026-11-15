@@ -1285,8 +1285,7 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `unik3d-vitl` 3000x4000 (2.2 GiB peak allocated, 2.4 reserved)
 - `unik3d-vitl` 994x1482, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 105 s (ONNX + engine).
 - `unik3d-vitl` original 994x1482: torch.autocast(fp16) around the forward
-- `unik3d-vitl` load / first call: original 7.28 s / 0.575 s, portable 4.16 s / 0.136 s, kernels 0.84† s / 0.067 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `unik3d-vitl` load / first call: original 7.28 s / 0.575 s, portable 4.16 s / 0.136 s, kernels 3.77 s / 0.298 s (518x770)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured

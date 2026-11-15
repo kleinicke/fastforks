@@ -52,10 +52,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`rtmw-x`](#rtmpose) | yes | 14.3, 14.5x | 394, 0.62x |
 | [`rtmw-x-384`](#rtmpose) | yes | 50.8, 5.7x | 674, 0.37x |
 | [`vitpose-base`](#vitpose) | yes | 12.0, 8.8x | 364, 0.6x |
-| [`vitpose-base-simple`](#vitpose) | yes | 14.1, 7.7x | 684, 0.97x |
-| [`vitpose-plus-base`](#vitpose) | yes | 13.9, 8.1x | 704, 0.95x |
-| [`vitpose-plus-huge`](#vitpose) | yes | 64.1, 3.8x | 1766, 0.43x |
-| [`vitpose-plus-large`](#vitpose) | yes | 34.9, 4.7x | 1124, 0.52x |
+| [`vitpose-base-simple`](#vitpose) | yes | 12.1, 9.0x | 344, 0.49x |
+| [`vitpose-plus-base`](#vitpose) | yes | 11.9, 9.5x | 344, 0.46x |
+| [`vitpose-plus-huge`](#vitpose) | yes | 62.5, 3.9x | 1406, 0.34x |
+| [`vitpose-plus-large`](#vitpose) | yes | 33.2, 5.0x | 764, 0.36x |
 | [`vitpose-plus-small`](#vitpose) | yes | 6.05, 17.2x | 198, 0.64x |
 | [`yunet-n`](#yunet) | yes | 2.22, 2.7x | 104, 0.62x |
 | [`yunet-s`](#yunet) | yes | 2.00, 2.8x | 104, 0.7x |
@@ -604,12 +604,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vitpose-base-simple` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 145<br>109<br>20.1<br>14.1<br>16.0<br>9.36 (network on person crops only) | 667 / 702<br>828 / 962<br>590 / 642<br>567 / 684<br>590 / 622<br>499 / 550 |
+| `vitpose-base-simple` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 145<br>109<br>20.1<br>12.1<br>16.0<br>9.36 (network on person crops only) | 667 / 702<br>828 / 962<br>590 / 642<br>295 / 344<br>590 / 622<br>499 / 550 |
 | `vitpose-base` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 139<br>105<br>17.8<br>12.0<br>16.4<br>8.88 (network on person crops only) | 592 / 602<br>713 / 762<br>299 / 322<br>274 / 364<br>597 / 622<br>473 / 516 |
 | `vitpose-plus-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 120<br>104<br>7.83<br>6.05<br>7.54<br>3.39 (network on person crops only) | 298 / 310<br>312 / 376<br>164 / 196<br>145 / 198<br>472 / 496<br>214 / 256 |
-| `vitpose-plus-base` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>113<br>19.9<br>13.9<br>16.4<br>8.87 (network on person crops only) | 729 / 742<br>918 / 1002<br>597 / 642<br>574 / 704<br>597 / 622<br>473 / 516 |
-| `vitpose-plus-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 331<br>165<br>53.7<br>34.9<br>46.9<br>29.3 (network on person crops only) | 2111 / 2144<br>2873 / 3004<br>1014 / 1062<br>991 / 1124<br>1014 / 1062<br>1312 / 1338 |
-| `vitpose-plus-huge` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 610<br>242<br>104<br>64.1<br>92.9<br>58.7 (network on person crops only) | 4100 / 4124<br>5732 / 5846<br>1641 / 1704<br>1618 / 1766<br>1641 / 1682<br>2595 / 2654 |
+| `vitpose-plus-base` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>113<br>19.9<br>11.9<br>16.4<br>8.87 (network on person crops only) | 729 / 742<br>918 / 1002<br>597 / 642<br>274 / 344<br>597 / 622<br>473 / 516 |
+| `vitpose-plus-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 331<br>165<br>53.7<br>33.2<br>46.9<br>29.3 (network on person crops only) | 2111 / 2144<br>2873 / 3004<br>1014 / 1062<br>706 / 764<br>1014 / 1062<br>1312 / 1338 |
+| `vitpose-plus-huge` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 610<br>242<br>104<br>62.5<br>92.9<br>58.7 (network on person crops only) | 4100 / 4124<br>5732 / 5846<br>1641 / 1704<br>1351 / 1406<br>1641 / 1682<br>2595 / 2654 |
 
 <details><summary>Details</summary>
 

@@ -16,7 +16,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`aanet-sceneflow`](#aanet) | yes | 14.64 | 101, 1.8x | 644, 0.57x |
 | [`bridgedepth-rvc-pretrain`](#bridgedepth) | no | 1.22 ? | 354, 1.3x | 2686, 0.85x |
 | [`bridgedepth-sf`](#bridgedepth) | no | 1.24 | 348, 1.3x | 2634, 0.84x |
-| [`c-fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | yes | 2.20 | 135, 3.9x | 1516, 0.51x |
+| [`c-fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | yes | 2.20 | 135, 3.9x | 1236, 0.41x |
 | [`c-foundationstereo-s`](#c_foundationstereo) | yes | 1.24 | 1366, 2.8x | 4408, 0.34x |
 | [`cas-gwcnet-c-sceneflow`](#cas_gwcnet) | yes | 7.85 | 225, 1.7x | 1930, 0.65x |
 | [`cas-gwcnet-gc-sceneflow`](#cas_gwcnet) | yes | 8.09 | 358, 1.6x | 2514, 0.29x |
@@ -34,7 +34,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`fast-acvnet-plus-kitti15`](#fast_acvnet) | yes | 21.63 | 46.4, 1.7x | 1120, 0.74x |
 | [`fast-acvnet-plus-sceneflow`](#fast_acvnet) | yes | 12.62 | 46.4, 1.7x | 1120, 0.74x |
 | [`fast-acvnet-sceneflow`](#fast_acvnet) | yes | 8.43 | 38.2, 1.6x | 1042, 0.69x |
-| [`fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | no | 1.72 | 135, 3.9x | 1576, 0.48x |
+| [`fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | no | 1.72 | 135, 3.9x | 1236, 0.37x |
 | [`foundationstereo-vit-l`](#foundationstereo) | no | 0.65 ? | 1513, 2.8x | 3300, 0.38x |
 | [`foundationstereo-vit-s`](#foundationstereo) | no | 1.10 ? | 1120, 3.2x | 2470, 0.34x |
 | [`great-igev-eth3d`](#great_igev) | yes | 0.49 † | 393, 3.7x | 1564, 0.17x |
@@ -231,8 +231,8 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `c-foundationstereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>3874<br>3633<br>1366<br>2773<br>2229 | –<br>8338 / 12870<br>6301 / 6430<br>3058 / 4408<br>7298 / 7624<br>10027 / 10108 |
-| `c-fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>527<br>330<br>135<br>339<br>451 | 4569 / 5358<br>2892 / 2996<br>2109 / 2336<br>1196 / 1516<br>1649 / 1792<br>1425 / 1462 |
-| `fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>527<br>330<br>135<br>339<br>156 | 4616 / 5408<br>2939 / 3306<br>2109 / 2256<br>1196 / 1576<br>1613 / 1752<br>1342 / 1398 |
+| `c-fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>527<br>330<br>135<br>339<br>451 | 4569 / 5358<br>2892 / 2996<br>2109 / 2336<br>1120 / 1236<br>1649 / 1792<br>1425 / 1462 |
+| `fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>527<br>330<br>135<br>339<br>156 | 4616 / 5408<br>2939 / 3306<br>2109 / 2256<br>1120 / 1236<br>1613 / 1752<br>1342 / 1398 |
 
 <details><summary>Details</summary>
 
@@ -262,8 +262,8 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 - `fast-foundationstereo` 994x1482, first call: portable + torch.compile 78 s (cold Inductor cache), TensorRT fp16 157 s (ONNX + engine).
 - `c-foundationstereo-s` original 994x1482: reference implementation (FoundationStereo repo code) with the C-FS-S checkpoint, AMP; NVIDIA's TAO code OOMs (fp32) or errors (AMP) in the same harness
 - `c-foundationstereo-s` load / first call: original 1.67 s / 2.731 s (375x1242), portable 0.96 s / 2.087 s (375x1242), kernels 0.81 s / 1.376 s (375x1242)
-- `c-fast-foundationstereo` load / first call: original 0.17 s / 0.172 s (375x1242), portable 0.24 s / 0.332† s, kernels 0.16† s / 0.136† s
-- `fast-foundationstereo` load / first call: original 0.16 s / 0.144 s (375x1242), portable 0.25 s / 0.33† s, kernels 0.14† s / 0.135† s
+- `c-fast-foundationstereo` load / first call: original 0.17 s / 0.172 s (375x1242), portable 0.24 s / 0.332† s, kernels 0.72 s / 0.552 s (375x1242)
+- `fast-foundationstereo` load / first call: original 0.16 s / 0.144 s (375x1242), portable 0.25 s / 0.33† s, kernels 0.6 s / 0.493 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, `c-foundationstereo-s`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 - Protocol, `c-fast-foundationstereo`, `fast-foundationstereo`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls

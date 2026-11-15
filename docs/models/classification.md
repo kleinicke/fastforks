@@ -41,7 +41,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`davit_tiny`](#davit) | yes | no kernels | no kernels |
 | [`deit_base_patch16_224`](#deit) | yes | 1.64, 3.3x | 370, 0.96x |
 | [`densenet121`](#densenet) | yes | 1.28, 8.4x | 132, 1.4x |
-| [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.93, 2.2x | 950, 0.78x |
+| [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.95, 2.2x | 672, 0.55x |
 | [`efficientformer_l1`](#efficientformer) | yes | no kernels | no kernels |
 | [`efficientformer_l3`](#efficientformer) | yes | no kernels | no kernels |
 | [`efficientformer_l7`](#efficientformer) | yes | no kernels | no kernels |
@@ -107,8 +107,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`tiny_vit_21m_512`](#tinyvit) | yes | 3.13, 2.6x (512x512) | 258, 0.45x |
 | [`tiny_vit_5m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.846, 7.0x | 78, 0.93x |
 | [`vgg16`](#vgg) | yes | 1.50, 2.4x | 388, 0.62x |
-| [`vit_base_patch16_224`](#vit) | yes | 1.65, 3.3x | 370, 0.96x |
-| [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.8, 2.0x | 1346, 0.77x |
+| [`vit_base_patch16_224`](#vit) | yes | 1.66, 3.3x | 248, 0.64x |
+| [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.9, 2.0x | 926, 0.53x |
 | [`wd-convnext-tagger-v3`](#wd_tagger) | yes | 4.46, 2.2x (448x448) | 276, 0.95x |
 | [`wd-eva02-large-tagger-v3`](#wd_tagger) | yes | 14.1, 1.9x (448x448) | 806, 1.2x |
 | [`wd-vit-large-tagger-v3`](#wd_tagger) | yes | 12.5, 1.6x (448x448) | 724, 1.1x |
@@ -639,7 +639,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov2_vitl14_lc` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.4<br>10.8<br>5.43<br>4.93<br>5.09<br>4.22 | 1210 / 1224<br>1782 / 1806<br>623 / 1228<br>890 / 950<br>660 / 688<br>1233 / 1262 |
+| `dinov2_vitl14_lc` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.4<br>10.8<br>5.43<br>4.95<br>5.09<br>4.22 | 1210 / 1224<br>1782 / 1806<br>623 / 1228<br>623 / 672<br>660 / 688<br>1233 / 1262 |
 
 <details><summary>Details</summary>
 
@@ -2224,7 +2224,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vit_base_patch16_224.augreg2_in21k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.33<br>5.48<br>3.02<br>1.65<br>2.10<br>1.14 | 371 / 386<br>531 / 548<br>205 / 390<br>300 / 370<br>238 / 266<br>394 / 420 |
+| `vit_base_patch16_224.augreg2_in21k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.33<br>5.48<br>3.02<br>1.66<br>2.10<br>1.14 | 371 / 386<br>531 / 548<br>205 / 390<br>200 / 248<br>238 / 266<br>394 / 420 |
 
 <details><summary>Details</summary>
 
@@ -2276,7 +2276,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vit_so400m_patch14_siglip_378.webli_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.9<br>25.8<br>13.1<br>12.8<br>13.3<br>11.4 | 1710 / 1744<br>2495 / 2564<br>879 / 1708<br>1216 / 1346<br>909 / 944<br>1701 / 1752 |
+| `vit_so400m_patch14_siglip_378.webli_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.9<br>25.8<br>13.1<br>12.9<br>13.3<br>11.4 | 1710 / 1744<br>2495 / 2564<br>879 / 1708<br>876 / 926<br>909 / 944<br>1701 / 1752 |
 
 <details><summary>Details</summary>
 
