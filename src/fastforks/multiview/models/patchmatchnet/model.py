@@ -85,8 +85,8 @@ def _mlp(m: Any, last: Any) -> tuple[torch.Tensor, list[Conv]]:  # noqa: ANN401 
 def _mlp2d(x: torch.Tensor, convs: list[Conv]) -> torch.Tensor:
     """`[B, G, D, H, W]` -> `[B, D, H, W]` through the 1x1x1 nets as 1x1 Conv2d over a `[B, G, D*H, W]` view."""
     b, g, d, h, w = x.shape
-    y = F.relu(F.conv2d(x.reshape(b, g, d * h, w), *convs[0]))
-    y = F.relu(F.conv2d(y, *convs[1]))
+    y = F.relu_(F.conv2d(x.reshape(b, g, d * h, w), *convs[0]))  # in place: the conv outputs are fresh (peak memory)
+    y = F.relu_(F.conv2d(y, *convs[1]))
     return F.conv2d(y, *convs[2]).view(b, d, h, w)
 
 
@@ -494,8 +494,10 @@ class Portable(_Base):
             dw = torch.sigmoid(
                 4.0 - 2.0 * (torch.abs(x1.view(1, d, ne, h, w) - xn.unsqueeze(2)) / st.scale).clamp(0, 4)
             )
-            weight = dw * fweight.unsqueeze(1)
-            weight = weight / weight.sum(2, keepdim=True)
+            del x1
+            weight = dw.mul_(fweight.unsqueeze(1))  # in place, one [1, D, NE, h, w] buffer (peak memory)
+            del dw
+            weight.div_(weight.sum(2, keepdim=True))
             dflat = ds.view(1, 1, d, h * w)
             new_vw = vw is None
             vws = []
@@ -510,6 +512,7 @@ class Portable(_Base):
                 gx = (px / pz) / ((w - 1) / 2) - 1
                 gy = (py / pz) / ((h - 1) / 2) - 1
                 grid = torch.stack((gx[:, 0], gy[:, 0]), 3).view(1, d * h, w, 2)
+                del p, neg, px, py, pz, gx, gy  # not held during the warp (peak memory: ~290 MB at 1536x1024)
                 with _no_cudnn():  # the native sampler is 10-25 % faster than cuDNN's
                     warped = grid_sample(
                         src[s : s + 1], grid, mode="bilinear", padding_mode="zeros", align_corners=True
@@ -519,6 +522,7 @@ class Portable(_Base):
                 for j in range(1, c // g):
                     sim.addcmul_(wv[:, j], rv[:, j])
                 sim = sim.mul_(g / c).view(1, g, d, h, w)
+                del wv, warped, grid
                 if new_vw:
                     v = torch.sigmoid(_mlp2d(sim, st.pw2d)).amax(1, keepdim=True)  # [1, 1, h, w]
                     vws.append(v)
@@ -528,7 +532,7 @@ class Portable(_Base):
                 wsum += v.unsqueeze(1)
             if new_vw:
                 vw = torch.cat(vws, 1)
-            cost = _mlp2d(sim_sum / wsum, st.sim2d)  # [1, D, h, w]
+            cost = _mlp2d(sim_sum.div_(wsum), st.sim2d)  # [1, D, h, w]
             cost = F.grid_sample(cost, egrid, mode="bilinear", padding_mode="border", align_corners=False)
             score = torch.softmax((cost.view(1, d, ne, h, w) * weight).sum(2), 1)
             if final:
