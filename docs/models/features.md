@@ -49,12 +49,12 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`dinov3-vitl16`](#dinov3) | yes | 3.03, 5.8x | 652, 0.54x |
 | [`dinov3-vits16`](#dinov3) | yes | 0.792, 8.2x | 62, 0.47x |
 | [`pe-core-b16-224`](#perception_encoder) | yes | 1.47, 4.9x | 268, 0.61x |
-| [`pe-core-g14-448`](#perception_encoder) | yes | 17.0, 3.1x | 5256, 0.7x |
+| [`pe-core-g14-448`](#perception_encoder) | yes | 17.1, 3.1x | 3696, 0.49x |
 | [`pe-core-l14-336`](#perception_encoder) | yes | 4.97, 3.6x | 672, 0.53x |
 | [`pe-core-s16-384`](#perception_encoder) | yes | 0.957, 7.3x | 104, 0.71x |
 | [`pe-core-t16-384`](#perception_encoder) | yes | 0.683, 9.9x | 82, 1.2x |
 | [`pe-spatial-b16-512`](#perception_encoder) | yes | 1.40, 5.0x | 248, 0.59x |
-| [`pe-spatial-g14-448`](#perception_encoder) | yes | 16.9, 3.1x | 5156, 0.7x |
+| [`pe-spatial-g14-448`](#perception_encoder) | yes | 16.9, 3.1x | 3676, 0.5x |
 | [`pe-spatial-l14-448`](#perception_encoder) | yes | 4.87, 3.5x | 672, 0.55x |
 | [`pe-spatial-s16-512`](#perception_encoder) | yes | 0.922, 7.3x | 104, 0.72x |
 | [`pe-spatial-t16-512`](#perception_encoder) | yes | 0.666, 9.8x | 82, 1.2x |
@@ -636,12 +636,12 @@ Commercial use: yes.
 | `pe-core-s16-384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.02<br>9.28<br>4.80<br>0.957<br>2.39<br>0.581 | 128 / 146<br>171 / 180<br>83 / 102<br>82 / 104<br>113 / 122<br>145 / 166 |
 | `pe-core-b16-224` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.14<br>9.35<br>4.97<br>1.47<br>2.50<br>1.17 | 397 / 440<br>584 / 620<br>218 / 266<br>218 / 268<br>251 / 286<br>409 / 460 |
 | `pe-core-l14-336` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.3<br>17.7<br>9.09<br>4.97<br>6.53<br>4.34 | 1255 / 1266<br>1848 / 1888<br>650 / 668<br>648 / 672<br>683 / 706<br>1260 / 1286 |
-| `pe-core-g14-448` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 97.7<br>52.4<br>25.4<br>17.0<br>24.5<br>15.0 | 7286 / 7490<br>10848 / 11330<br>3642 / 3670<br>5180 / 5256<br>3667 / 3690<br>7189 / 7230 |
+| `pe-core-g14-448` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 97.7<br>52.4<br>25.8<br>17.1<br>24.5<br>15.0 | 7286 / 7490<br>10848 / 11330<br>3640 / 3670<br>3640 / 3696<br>3667 / 3690<br>7189 / 7230 |
 | `pe-spatial-t16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.56<br>8.73<br>4.48<br>0.666<br>2.12<br>0.426 | 56 / 78<br>66 / 68<br>49 / 56<br>53 / 82<br>77 / 96<br>78 / 88 |
 | `pe-spatial-s16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.70<br>8.79<br>4.51<br>0.922<br>2.67<br>0.580 | 121 / 144<br>161 / 178<br>81 / 100<br>78 / 104<br>110 / 120<br>142 / 144 |
 | `pe-spatial-b16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.02<br>8.79<br>4.74<br>1.40<br>2.67<br>1.20 | 369 / 418<br>544 / 580<br>207 / 226<br>204 / 248<br>237 / 266<br>397 / 422 |
 | `pe-spatial-l14-448` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.0<br>17.2<br>8.84<br>4.87<br>6.59<br>4.35 | 1206 / 1216<br>1780 / 1816<br>626 / 668<br>623 / 672<br>658 / 686<br>1235 / 1284 |
-| `pe-spatial-g14-448` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 97.9<br>52.7<br>25.5<br>16.9<br>24.3<br>14.9 | 7171 / 7380<br>10688 / 11178<br>3584 / 3612<br>5123 / 5156<br>3608 / 3630<br>7136 / 7156 |
+| `pe-spatial-g14-448` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 97.9<br>52.7<br>25.8<br>16.9<br>24.3<br>14.9 | 7171 / 7380<br>10688 / 11178<br>3582 / 3592<br>3583 / 3676<br>3608 / 3630<br>7136 / 7156 |
 
 <details><summary>Details</summary>
 
@@ -692,12 +692,12 @@ Commercial use: yes.
 - `pe-core-s16-384` load / first call: original 5.7 s / 0.184 s, portable – s / 0.096 s, kernels – s / 0.044 s
 - `pe-core-b16-224` load / first call: original 14.55 s / 0.191 s, portable – s / 0.292 s, kernels – s / 0.07 s
 - `pe-core-l14-336` load / first call: original 41.39 s / 0.205 s, portable – s / 0.113 s, kernels – s / 0.051 s
-- `pe-core-g14-448` load / first call: original 232.98 s / 0.281 s, portable – s / 0.2 s, kernels – s / 0.126 s
+- `pe-core-g14-448` load / first call: original 232.98 s / 0.281 s, portable 20.38 s / 0.345 s, kernels 15.76 s / 0.15 s
 - `pe-spatial-t16-512` load / first call: original 3.09 s / 0.157 s, portable – s / 0.1 s, kernels – s / 0.077 s
 - `pe-spatial-s16-512` load / first call: original 5.4 s / 0.163 s, portable – s / 0.084 s, kernels – s / 0.057 s
 - `pe-spatial-b16-512` load / first call: original 13.65 s / 0.158 s, portable – s / 0.095 s, kernels – s / 0.071 s
 - `pe-spatial-l14-448` load / first call: original 44.48 s / 0.17 s, portable – s / 0.089 s, kernels – s / 0.06 s
-- `pe-spatial-g14-448` load / first call: original 227.9 s / 0.358 s, portable – s / 0.219 s, kernels – s / 0.32 s
+- `pe-spatial-g14-448` load / first call: original 227.9 s / 0.358 s, portable 17.06 s / 0.261 s, kernels 32.11 s / 0.179 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

@@ -1,0 +1,199 @@
+23:32:53 queue start 6e48c99e all
+23:32:53 start portable kernels wd-vit-tagger-v3
+23:33:08 end rc=0
+23:33:08 start portable kernels rtmw-x-384
+23:33:19 end rc=0
+23:33:19 start portable kernels geocalib-pinhole
+23:33:33 end rc=0
+23:33:33 start portable kernels seedvr2-3b
+23:33:39 end rc=0
+23:33:39 start portable kernels owlv2-l14
+23:34:01 end rc=0
+23:34:01 start portable kernels pe-spatial-g14-448
+23:34:05 end rc=0
+23:34:05 start portable kernels pe-core-g14-448
+23:34:09 end rc=0
+23:34:09 start portable flowformer-small-sintel
+23:34:24 end rc=0
+23:34:24 start portable flowformer-small-things
+23:34:38 end rc=0
+23:34:38 start portable flowformer-small-chairs
+23:34:53 end rc=0
+23:34:53 start portable kernels seedvr2-3b
+23:34:59 end rc=0
+23:34:59 start portable kernels geocalib-pinhole
+23:35:11 end rc=0
+23:35:11 start portable kernels rtmw-x-384
+23:35:22 end rc=0
+23:35:22 start portable kernels wd-vit-tagger-v3
+23:35:33 end rc=0
+23:35:33 start portable efficientvit_b2.r288_in1k
+23:35:39 end rc=0
+23:35:39 start portable fastvit_t8.apple_dist_in1k
+23:35:45 end rc=0
+23:35:45 start portable squeezenet1_1.tv_in1k
+23:35:49 end rc=0
+23:35:49 start portable shufflenet_v2_x1_0.tv_in1k
+23:35:54 end rc=0
+23:35:54 start portable pspnet-r101-d8-ade20k
+23:36:00 end rc=0
+23:36:00 start portable rife-4.25
+23:36:04 end rc=0
+23:36:04 start portable rife-4.26
+23:36:07 end rc=0
+23:36:07 start portable s2m2-m
+23:36:40 end rc=0
+23:36:40 start portable s2m2-l
+23:37:32 end rc=0
+23:37:32 start portable s2m2-xl
+23:38:57 end rc=0
+23:38:57 queue done
+23:38:58 queue start 6e48c99e all
+23:38:58 start portable kernels pe-spatial-g14-448
+23:40:08 end rc=0
+23:40:08 start portable kernels pe-core-g14-448
+23:41:05 end rc=0
+23:41:05 start portable kernels seedvr2-3b
+23:43:29 end rc=0
+23:43:29 start kernels portable seedvr2-3b
+23:45:52 end rc=0
+23:45:52 queue done
+23:46:50 queue3 start 6e48c99e all
+23:46:51 start ab owlv2-l14
+23:47:21 end rc=0
+23:47:21 start ab owlv2-b16
+23:47:35 end rc=0
+23:47:35 start owlv2 goldens
+23:47:38 end rc=0
+23:47:42 start memtest results/raw/2026-11-15_consistency/memtest_chunk_00
+23:47:49 end rc=0
+23:47:49 start memtest results/raw/2026-11-15_consistency/memtest_chunk_01
+23:47:56 end rc=0
+23:47:56 start memtest results/raw/2026-11-15_consistency/memtest_chunk_02
+23:48:04 end rc=0
+23:48:04 start memtest results/raw/2026-11-15_consistency/memtest_chunk_03
+23:48:12 end rc=0
+23:48:12 start memtest results/raw/2026-11-15_consistency/memtest_chunk_04
+23:48:21 end rc=0
+23:48:21 start memtest results/raw/2026-11-15_consistency/memtest_chunk_05
+23:48:27 end rc=0
+23:48:27 start memtest results/raw/2026-11-15_consistency/memtest_chunk_06
+23:48:34 end rc=0
+23:48:34 start memtest results/raw/2026-11-15_consistency/memtest_chunk_07
+23:48:43 end rc=0
+23:48:43 start memtest results/raw/2026-11-15_consistency/memtest_chunk_08
+23:48:54 end rc=0
+23:48:54 start memtest results/raw/2026-11-15_consistency/memtest_chunk_09
+23:49:02 end rc=0
+23:49:02 start memtest results/raw/2026-11-15_consistency/memtest_chunk_10
+23:49:13 end rc=0
+23:49:13 start memtest results/raw/2026-11-15_consistency/memtest_chunk_11
+23:49:20 end rc=0
+23:49:20 start memtest results/raw/2026-11-15_consistency/memtest_chunk_12
+23:49:30 end rc=0
+23:49:30 start memtest results/raw/2026-11-15_consistency/memtest_chunk_13
+23:49:52 end rc=0
+23:49:52 start memtest results/raw/2026-11-15_consistency/memtest_chunk_14
+23:50:00 end rc=0
+23:50:00 start memtest results/raw/2026-11-15_consistency/memtest_chunk_15
+23:50:09 end rc=0
+23:50:09 start memtest results/raw/2026-11-15_consistency/memtest_chunk_16
+23:50:17 end rc=0
+23:50:17 start memtest results/raw/2026-11-15_consistency/memtest_chunk_17
+23:50:22 end rc=0
+23:50:22 queue3 done
+23:50:26 queue4 start 6e48c99e
+23:50:30 goldens rc=0
+23:50:35 queue4 done rc=0
+23:51:45 queue4 start 6e48c99e
+23:52:05 goldens rc=0
+23:52:12 queue4 done rc=0
+23:52:12 queue3 start 6e48c99e 2
+23:52:16 start memtest results/raw/2026-11-15_consistency/memtest_chunk_00
+23:52:29 end rc=0
+23:52:29 start memtest results/raw/2026-11-15_consistency/memtest_chunk_01
+23:52:51 end rc=0
+23:52:51 start memtest results/raw/2026-11-15_consistency/memtest_chunk_02
+23:53:11 end rc=0
+23:53:11 start memtest results/raw/2026-11-15_consistency/memtest_chunk_03
+23:53:29 end rc=0
+23:53:29 start memtest results/raw/2026-11-15_consistency/memtest_chunk_04
+23:53:41 end rc=0
+23:53:41 start memtest results/raw/2026-11-15_consistency/memtest_chunk_05
+23:53:57 end rc=0
+23:53:57 start memtest results/raw/2026-11-15_consistency/memtest_chunk_06
+23:54:06 end rc=0
+23:54:06 start memtest results/raw/2026-11-15_consistency/memtest_chunk_07
+23:54:34 end rc=0
+23:54:34 start memtest results/raw/2026-11-15_consistency/memtest_chunk_08
+23:55:52 end rc=0
+23:55:52 start memtest results/raw/2026-11-15_consistency/memtest_chunk_09
+23:56:17 end rc=0
+23:56:17 start memtest results/raw/2026-11-15_consistency/memtest_chunk_10
+23:56:40 end rc=0
+23:56:40 start memtest results/raw/2026-11-15_consistency/memtest_chunk_11
+23:56:52 end rc=0
+23:56:52 start memtest results/raw/2026-11-15_consistency/memtest_chunk_12
+23:57:14 end rc=0
+23:57:14 start memtest results/raw/2026-11-15_consistency/memtest_chunk_13
+23:57:55 end rc=0
+23:57:55 start memtest results/raw/2026-11-15_consistency/memtest_chunk_14
+23:58:16 end rc=0
+23:58:16 start memtest results/raw/2026-11-15_consistency/memtest_chunk_15
+23:58:37 end rc=0
+23:58:37 start memtest results/raw/2026-11-15_consistency/memtest_chunk_16
+23:59:03 end rc=0
+23:59:03 start memtest results/raw/2026-11-15_consistency/memtest_chunk_17
+23:59:13 end rc=0
+23:59:13 queue3 done
+00:00:38 queue4 start 6e48c99e
+00:00:59 goldens rc=0
+00:01:05 queue4 done rc=0
+00:01:05 queue3 start 6e48c99e 2
+00:01:09 start memtest results/raw/2026-11-15_consistency/memtest_chunk_00
+00:01:24 end rc=0
+00:01:24 start memtest results/raw/2026-11-15_consistency/memtest_chunk_01
+00:01:51 end rc=0
+00:01:51 start memtest results/raw/2026-11-15_consistency/memtest_chunk_02
+00:02:12 end rc=0
+00:02:12 start memtest results/raw/2026-11-15_consistency/memtest_chunk_03
+00:02:32 end rc=0
+00:02:32 start memtest results/raw/2026-11-15_consistency/memtest_chunk_04
+00:02:45 end rc=0
+00:02:45 start memtest results/raw/2026-11-15_consistency/memtest_chunk_05
+00:03:00 end rc=0
+00:03:00 start memtest results/raw/2026-11-15_consistency/memtest_chunk_06
+00:03:10 end rc=0
+00:03:10 start memtest results/raw/2026-11-15_consistency/memtest_chunk_07
+00:03:36 end rc=0
+00:03:36 start memtest results/raw/2026-11-15_consistency/memtest_chunk_08
+00:07:01 end rc=0
+00:07:01 start memtest results/raw/2026-11-15_consistency/memtest_chunk_09
+00:07:32 end rc=0
+00:07:32 start memtest results/raw/2026-11-15_consistency/memtest_chunk_10
+00:08:04 end rc=0
+00:08:04 start memtest results/raw/2026-11-15_consistency/memtest_chunk_11
+00:08:17 end rc=0
+00:08:17 start memtest results/raw/2026-11-15_consistency/memtest_chunk_12
+00:08:40 end rc=0
+00:08:40 start memtest results/raw/2026-11-15_consistency/memtest_chunk_13
+00:09:18 end rc=0
+00:09:18 start memtest results/raw/2026-11-15_consistency/memtest_chunk_14
+00:09:37 end rc=0
+00:09:37 start memtest results/raw/2026-11-15_consistency/memtest_chunk_15
+00:10:01 end rc=0
+00:10:01 start memtest results/raw/2026-11-15_consistency/memtest_chunk_16
+00:10:32 end rc=0
+00:10:32 start memtest results/raw/2026-11-15_consistency/memtest_chunk_17
+00:10:42 end rc=0
+00:10:42 queue3 done
+00:11:26 queue start 6e48c99e all
+00:11:26 start portable kernels tapnext
+00:12:04 end rc=0
+00:12:04 start portable kernels cotracker3-online
+00:12:20 end rc=0
+00:12:20 start portable kernels metric3d-vit-large
+00:12:49 end rc=0
+00:12:49 start portable kernels selective-igev-eth3d-finetune
+00:13:54 end rc=0
+00:13:54 queue done

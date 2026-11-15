@@ -1,0 +1,615 @@
+Fs.F.F..                                                                 [100%]
+=================================== FAILURES ===================================
+________________________ test_cpu_portable[owlv2-b16@1] ________________________
+
+ref = 'owlv2-b16@1'
+record_property = <function record_property.<locals>.append_property at 0x705d02952980>
+
+    @pytest.mark.slow
+    @pytest.mark.model
+    @pytest.mark.parametrize("ref", sorted(GOLDEN))
+    def test_cpu_portable(ref, record_property):
+        """Portable float32 on the CPU matches the golden within `cpu_atol`. Release suite: the refs in `CPU_REFS`; every
+        output's error is recorded (`record_property("parity", ...)`, in JUnit XML) and listed on a failure."""
+        if ref not in CPU_REFS and not os.environ.get(HEAVY_CPU):
+            why = CPU_HEAVY.get(ref, "same code as a CPU-checked variant (size / weights only); the GPU goldens check it")
+            pytest.skip(f"{why}; {HEAVY_CPU}=1 runs it")
+        want = golden(ref)
+        (got,), _ = run_or_skip(ref, device="cpu", opts=options(ref, want), want=want)
+        want = outputs(ref, want)
+        assert set(got) == set(want), f"outputs {sorted(got)}, golden {sorted(want)}"
+>       lines = cpu_parity(ref, want, got)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_golden.py:568: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ref = 'owlv2-b16@1'
+want = {'boxes': array([[ 3.2564243e+02,  6.6535172e+01,  4.2330829e+02,  3.2633093e+02],
+       [ 1.7032607e+02,  1.6556025e... 'scores': array([0.89677125, 0.4454521 , 0.29670697], dtype=float32), 'labels': array([44., 41., 60.], dtype=float32)}
+got = {'boxes': tensor([[ 3.2564e+02,  6.6535e+01,  4.2331e+02,  3.2633e+02],
+        [ 1.7033e+02,  1.6556e+01,  4.0909e+02...1.5012e+00,  5.9202e+02,  3.9969e+02]]), 'scores': tensor([0.8968, 0.4455, 0.2967]), 'labels': tensor([44., 41., 60.])}
+
+    def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tensor]) -> list[str]:
+        """Per output: shape, max / mean |diff| against the golden and the bound (masks: the fraction of differing pixels);
+        the rows of the outputs out of bounds come first, marked `FAIL`."""
+        tol = tolerance(ref)  # optional cpu_rtol: maps with huge values (DINOv3 ViT-L hidden states ~1e5: 1 ulp > atol)
+        rows = tol.get("cpu_extra", [])  # optional [key, atol] rows: one output bound looser than cpu_atol
+        assert isinstance(rows, list)
+        atol, rtol = dict(rows), tol.get("cpu_rtol", 0)
+        outliers = tol.get("cpu_outliers", 0.0)  # optional: the fraction of elements allowed beyond atol (quantized maps)
+        if "pairs" in want:  # sparse matchers: keypoint and match sets, not element-wise
+            recall, agree, d, ds = sparse_parity(want, got)
+            bad = recall < tol["cpu_min_recall"] or agree < tol["cpu_min_match"] or ds > tol["cpu_atol"]
+            line = (
+                f"{'FAIL ' * bad}keypoints recall {recall:.4f} (min {tol['cpu_min_recall']}), matches {agree:.4f} (min"
+                f" {tol['cpu_min_match']}), max |keypoint diff| {d.max(initial=0):.3g}, max |score diff| {ds:.3g} (atol"
+                f" {tol['cpu_atol']})"
+            )
+            return [line]
+        lines = []
+        for k, v in sorted(want.items()):
+            g = got[k].numpy()
+            if g.shape != v.shape:
+                lines.append(f"FAIL {k}: shape {g.shape}, golden {v.shape}")
+                continue
+            if k in {"labels", "mask"}:  # volume label maps / masks: argmax ties at class borders flip voxels
+                frac = float((g != v).mean())
+>               bound = tol["cpu_label_mismatch"]
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+E               KeyError: 'cpu_label_mismatch'
+
+tests/test_golden.py:532: KeyError
+________________________ test_gpu[owlv2-b16@1-kernels] _________________________
+
+manifest = KernelManifest(name='fvm_conv', build_id='f1d064e539e1', toolkit=(13, 0), kind='shared', files={'sm_80': FileSpec(name..._input_nhwc8': 'c054563ceaad6c3a', 'fvm_maxpool': '3ef2b7bee1be9d5c', 'fvm_stem_c8': 'a4e0c7ebfb97f669'}, compat=None))
+device = device(type='cuda', index=0)
+
+    def binary(manifest: KernelManifest, device: torch.device) -> tuple[Path, str]:
+        """Return the verified binary of `manifest` for `device` and its target.
+    
+        Raises:
+            KernelUnavailableError: CPU device, ROCm or CPU-only torch, not Linux x86-64, no or too old NVIDIA driver,
+                unsupported arch or missing binary;
+                the message names the reason and the remedy.
+        """
+        name = manifest.name
+        if device.type != "cuda":
+            raise KernelUnavailableError(name, f"needs a CUDA device, got {device}")
+        if torch.version.hip:
+            raise KernelUnavailableError(name, f"the kernels are NVIDIA CUDA only; torch {torch.__version__} is ROCm/HIP")
+        if sys.platform != "linux" or platform.machine() != "x86_64":
+            raise KernelUnavailableError(
+                name, f"the kernels are built for Linux x86-64, not {sys.platform} {platform.machine()}"
+            )
+        if not torch.cuda.is_available():
+            raise KernelUnavailableError(name, f"torch {torch.__version__} has no usable CUDA")
+        try:
+            drv = driver_version()
+        except OSError as e:
+            raise KernelUnavailableError(name, f"cannot load the NVIDIA driver library libcuda.so.1 ({e})") from e
+        if drv < manifest.toolkit:
+            need = ".".join(map(str, manifest.toolkit))
+            driver = _MIN_DRIVER.get(manifest.toolkit)
+            remedy = f"; update the NVIDIA driver to >= {driver}" if driver else ""
+            msg = f"driver supports CUDA {drv[0]}.{drv[1]}, kernels need >= {need}{remedy}"
+            raise KernelUnavailableError(name, msg)
+        arch = torch.cuda.get_device_capability(device)
+        target = select_target(manifest.files, arch)
+        if target is None:
+            have = ", ".join(sorted(manifest.files))
+            raise KernelUnavailableError(name, f"no binary for sm_{arch[0]}{arch[1]} (built: {have})")
+        try:
+            hint = f"fastforks download MODEL --kernels --arch sm_{arch[0]}{arch[1]}"
+>           path = locate(manifest.files[target], group=name, env_var=KERNEL_PATH_ENV, hint=hint, burst=_call)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/fastforks/_core/kernels.py:269: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+spec = FileSpec(name='fvm_conv-f1d064e539e1-sm_120.so', sha256='86543339e510756defcc3a0ccaabba037c4a2fbff1ad9025564183804a09f...solve/main/fvm_conv/fvm_conv-f1d064e539e1-sm_120.so', member=None, archive_sha256=None, archive_size=None, mirror=None)
+group = 'fvm_conv', env_var = 'FASTFORKS_KERNEL_PATH', allow_download = False
+siblings = (), hint = 'fastforks download MODEL --kernels --arch sm_120'
+burst = 2, model = None
+
+    def locate(  # noqa: PLR0913 - the arguments of the fetch choke point
+        spec: FileSpec,
+        *,
+        group: str,
+        env_var: str,
+        allow_download: bool = True,
+        siblings: Sequence[FileSpec] = (),
+        hint: str = "fastforks download MODEL",
+        burst: int | None = None,
+        model: str | None = None,
+    ) -> Path:
+        """Return a verified local path for `spec`, downloading it into the cache if needed.
+    
+        Args:
+            spec: The file.
+            group: Model family or kernel library (sub-directory in the search path).
+            env_var: Name of the search-path environment variable.
+            allow_download: If false, only local copies are considered (always so in offline mode, see `offline`).
+            siblings: Other files that may come from the same zip archive (e.g. every variant of a family); those
+                not cached yet are extracted from the same fetch.
+            hint: The command that fetches `spec`, named in the error of offline mode.
+            burst: Downloads with the same id log one line together (kernel files of one call); `None`: one line each.
+            model: The requested model id, named in the "not found" error (default: `group`).
+    
+        Returns:
+            Path to a file whose SHA-256 matches `spec`.
+    
+        Raises:
+            WeightsDownloadError: The file is not available locally and cannot be downloaded (from `url` or the mirror).
+            WeightsHashError: A downloaded copy has the wrong hash, or the only local copies do (and no download is
+                possible).
+        """
+        is_offline = offline()
+        allow_download = allow_download and not is_offline
+        found, mismatched = _search(spec, group, env_var)
+        if found is not None:
+            return found
+        cached = blob_path(spec.sha256)
+        corrupt = _corrupt(cached, spec)
+        if cached.is_file() and corrupt is None:
+            return cached
+        other = _from_other_caches(spec)  # also after a corrupt blob: another tool's verified copy still serves (TM-6)
+        if other is not None:
+            if corrupt is not None:
+                log.warning("not using %s (it does not match its SHA-256); using %s", cached, other)
+            return other
+        if corrupt is not None:
+            if spec.url is None or not allow_download:
+                raise corrupt
+            log.warning("re-downloading %s: cached copy does not match its SHA-256", cached)
+        if spec.url is None or not allow_download:
+>           raise _not_local(spec, model or group, env_var, mismatched, hint=hint if is_offline else None)
+E           fastforks._core.errors.WeightsDownloadError: fvm_conv: fvm_conv-f1d064e539e1-sm_120.so not found in FASTFORKS_KERNEL_PATH or the cache (/tmp/pytest-of-florian/pytest-1927/test_gpu_owlv2_b16_1_kernels_0/cache) (FASTFORKS_KERNEL_PATH is not set), and offline mode (FASTFORKS_OFFLINE / HF_HUB_OFFLINE) forbids downloads. On a machine with network access run `fastforks download MODEL --kernels --arch sm_120` with the same FASTFORKS_CACHE, then copy that cache here
+
+src/fastforks/_core/files.py:680: WeightsDownloadError
+
+The above exception was the direct cause of the following exception:
+
+card = ModelCard(detection/owlv2, tier=experimental, variants=['owlv2-b16', 'owlv2-l14'])
+variant = Variant(id='owlv2-b16', revision=1, weights=(FileSpec(name='owlv2-b16.config.json', sha256='ba9df8c25a4b8461887dd0a93d..., 'scores', 'labels'), output_info=mappingproxy({'label_set': 'coco-80'}), default_tag=False, planned=mappingproxy({}))
+device = device(type='cuda', index=0)
+
+    def _kernel_tags(card: ModelCard, variant: Variant, device: torch.device) -> tuple[str, ...]:
+        """Load the kernel libraries of the kernels backend on `device`; their tags."""
+        libs = card.kernel_libs_on(device)
+        if not libs:  # a family with CUDA kernels only, on MPS
+            msg = f"{variant.ref} (mode='kernels'): no Metal kernels for Apple MPS; use mode='portable'"
+            raise BackendUnavailableError(msg)
+        try:
+>           return tuple(importlib.import_module(f"fastforks.kernels.{n}").load(device).tag for n in libs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/fastforks/_core/model.py:1156: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/fastforks/_core/model.py:1156: in <genexpr>
+    return tuple(importlib.import_module(f"fastforks.kernels.{n}").load(device).tag for n in libs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/kernels/fvm_conv/__init__.py:78: in load
+    return _load(cuda_device(device))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/kernels/fvm_conv/__init__.py:69: in _load
+    return FvmLibrary(Path(__file__).with_name("manifest.toml"), device, SIGNATURES)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/kernels/fvm_conv/__init__.py:55: in __init__
+    self.lib, self.tag = shared_library(manifest, device)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/_core/kernels.py:488: in shared_library
+    image, path, target = verified_binary(m, device)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/_core/kernels.py:332: in verified_binary
+    path, target = binary(manifest, device)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+manifest = KernelManifest(name='fvm_conv', build_id='f1d064e539e1', toolkit=(13, 0), kind='shared', files={'sm_80': FileSpec(name..._input_nhwc8': 'c054563ceaad6c3a', 'fvm_maxpool': '3ef2b7bee1be9d5c', 'fvm_stem_c8': 'a4e0c7ebfb97f669'}, compat=None))
+device = device(type='cuda', index=0)
+
+    def binary(manifest: KernelManifest, device: torch.device) -> tuple[Path, str]:
+        """Return the verified binary of `manifest` for `device` and its target.
+    
+        Raises:
+            KernelUnavailableError: CPU device, ROCm or CPU-only torch, not Linux x86-64, no or too old NVIDIA driver,
+                unsupported arch or missing binary;
+                the message names the reason and the remedy.
+        """
+        name = manifest.name
+        if device.type != "cuda":
+            raise KernelUnavailableError(name, f"needs a CUDA device, got {device}")
+        if torch.version.hip:
+            raise KernelUnavailableError(name, f"the kernels are NVIDIA CUDA only; torch {torch.__version__} is ROCm/HIP")
+        if sys.platform != "linux" or platform.machine() != "x86_64":
+            raise KernelUnavailableError(
+                name, f"the kernels are built for Linux x86-64, not {sys.platform} {platform.machine()}"
+            )
+        if not torch.cuda.is_available():
+            raise KernelUnavailableError(name, f"torch {torch.__version__} has no usable CUDA")
+        try:
+            drv = driver_version()
+        except OSError as e:
+            raise KernelUnavailableError(name, f"cannot load the NVIDIA driver library libcuda.so.1 ({e})") from e
+        if drv < manifest.toolkit:
+            need = ".".join(map(str, manifest.toolkit))
+            driver = _MIN_DRIVER.get(manifest.toolkit)
+            remedy = f"; update the NVIDIA driver to >= {driver}" if driver else ""
+            msg = f"driver supports CUDA {drv[0]}.{drv[1]}, kernels need >= {need}{remedy}"
+            raise KernelUnavailableError(name, msg)
+        arch = torch.cuda.get_device_capability(device)
+        target = select_target(manifest.files, arch)
+        if target is None:
+            have = ", ".join(sorted(manifest.files))
+            raise KernelUnavailableError(name, f"no binary for sm_{arch[0]}{arch[1]} (built: {have})")
+        try:
+            hint = f"fastforks download MODEL --kernels --arch sm_{arch[0]}{arch[1]}"
+            path = locate(manifest.files[target], group=name, env_var=KERNEL_PATH_ENV, hint=hint, burst=_call)
+        except WeightsError as e:
+            advice = "" if "offline mode" in str(e) else f" (run `fastforks download --kernels` or set {KERNEL_PATH_ENV})"
+>           raise KernelUnavailableError(name, f"{e}{advice}") from e
+E           fastforks._core.errors.KernelUnavailableError: kernel library 'fvm_conv' unavailable: fvm_conv: fvm_conv-f1d064e539e1-sm_120.so not found in FASTFORKS_KERNEL_PATH or the cache (/tmp/pytest-of-florian/pytest-1927/test_gpu_owlv2_b16_1_kernels_0/cache) (FASTFORKS_KERNEL_PATH is not set), and offline mode (FASTFORKS_OFFLINE / HF_HUB_OFFLINE) forbids downloads. On a machine with network access run `fastforks download MODEL --kernels --arch sm_120` with the same FASTFORKS_CACHE, then copy that cache here; use mode='auto' to fall back to portable
+
+src/fastforks/_core/kernels.py:272: KernelUnavailableError
+
+The above exception was the direct cause of the following exception:
+
+ref = 'owlv2-b16@1', mode = 'kernels'
+request = <FixtureRequest for <Function test_gpu[owlv2-b16@1-kernels]>>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705abc0bb620>
+
+    @pytest.mark.model
+    @pytest.mark.gpu
+    @pytest.mark.parametrize("mode", ["portable", "kernels"])
+    @pytest.mark.parametrize("ref", sorted(GOLDEN))
+    def test_gpu(ref, mode, request, monkeypatch):
+        if not torch.cuda.is_available():
+            pytest.skip("no CUDA")
+        want = golden(ref)
+        if mode not in API[TASK[ref]].model_card(ref).modes:
+            pytest.skip(f"{ref} has no {mode}")
+        kernels.reset_fallbacks()
+        launched: set[str] = set()
+        used_libraries: set[str] = set()
+        record = mode == "kernels" and request.config.getoption("--record")
+        if mode == "kernels":  # test-only hooks: actual calls, including model loading and CUDA graph capture
+            from fastforks.kernels.cudnn_hacc import _backend  # noqa: PLC0415 - cuDNN is not a CubinModule
+    
+            real = kernels.CubinModule.launch
+            execute = _backend.execute
+    
+            def spy(self, kernel, *a, **kw):
+                library = self.tag.split("@")[0]
+                launched.add(f"{library}:{kernel}")
+                used_libraries.add(library)
+                return real(self, kernel, *a, **kw)
+    
+            def spy_cudnn(*a, **kw):
+                used_libraries.add("cudnn_hacc")
+                return execute(*a, **kw)
+    
+            monkeypatch.setattr(kernels.CubinModule, "launch", spy)
+            monkeypatch.setattr(_backend, "execute", spy_cudnn)
+>       calls, backend = run_or_skip(
+            ref, mode=mode, device="cuda", opts=options(ref, want), want=want, built=gpu_built(ref, mode)
+        )
+
+tests/test_golden.py:695: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_golden.py:462: in run_or_skip
+    return run(ref, **kw)
+           ^^^^^^^^^^^^^^
+tests/test_golden.py:242: in run
+    m = API[TASK[ref]].load(ref, mode=mode, device=device, dtype=dtype, **(opts or {}))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/_core/arguments.py:128: in load
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+src/fastforks/_core/api.py:186: in load
+    return core.load_model(
+src/fastforks/_core/model.py:849: in load_model
+    return load_variant(
+src/fastforks/_core/model.py:910: in load_variant
+    return _build(
+src/fastforks/_core/model.py:1186: in _build
+    tags = _kernel_tags(card, variant, device) if mode == "kernels" else ()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+card = ModelCard(detection/owlv2, tier=experimental, variants=['owlv2-b16', 'owlv2-l14'])
+variant = Variant(id='owlv2-b16', revision=1, weights=(FileSpec(name='owlv2-b16.config.json', sha256='ba9df8c25a4b8461887dd0a93d..., 'scores', 'labels'), output_info=mappingproxy({'label_set': 'coco-80'}), default_tag=False, planned=mappingproxy({}))
+device = device(type='cuda', index=0)
+
+    def _kernel_tags(card: ModelCard, variant: Variant, device: torch.device) -> tuple[str, ...]:
+        """Load the kernel libraries of the kernels backend on `device`; their tags."""
+        libs = card.kernel_libs_on(device)
+        if not libs:  # a family with CUDA kernels only, on MPS
+            msg = f"{variant.ref} (mode='kernels'): no Metal kernels for Apple MPS; use mode='portable'"
+            raise BackendUnavailableError(msg)
+        try:
+            return tuple(importlib.import_module(f"fastforks.kernels.{n}").load(device).tag for n in libs)
+        except KernelUnavailableError as e:
+>           raise KernelUnavailableError(e.library, e.reason, model=variant.ref) from e
+E           fastforks._core.errors.KernelUnavailableError: owlv2-b16@1 (mode='kernels'): kernel library 'fvm_conv' unavailable: fvm_conv: fvm_conv-f1d064e539e1-sm_120.so not found in FASTFORKS_KERNEL_PATH or the cache (/tmp/pytest-of-florian/pytest-1927/test_gpu_owlv2_b16_1_kernels_0/cache) (FASTFORKS_KERNEL_PATH is not set), and offline mode (FASTFORKS_OFFLINE / HF_HUB_OFFLINE) forbids downloads. On a machine with network access run `fastforks download MODEL --kernels --arch sm_120` with the same FASTFORKS_CACHE, then copy that cache here; use mode='auto' to fall back to portable
+
+src/fastforks/_core/model.py:1158: KernelUnavailableError
+________________________ test_gpu[owlv2-l14@1-kernels] _________________________
+
+manifest = KernelManifest(name='fvm_conv', build_id='f1d064e539e1', toolkit=(13, 0), kind='shared', files={'sm_80': FileSpec(name..._input_nhwc8': 'c054563ceaad6c3a', 'fvm_maxpool': '3ef2b7bee1be9d5c', 'fvm_stem_c8': 'a4e0c7ebfb97f669'}, compat=None))
+device = device(type='cuda', index=0)
+
+    def binary(manifest: KernelManifest, device: torch.device) -> tuple[Path, str]:
+        """Return the verified binary of `manifest` for `device` and its target.
+    
+        Raises:
+            KernelUnavailableError: CPU device, ROCm or CPU-only torch, not Linux x86-64, no or too old NVIDIA driver,
+                unsupported arch or missing binary;
+                the message names the reason and the remedy.
+        """
+        name = manifest.name
+        if device.type != "cuda":
+            raise KernelUnavailableError(name, f"needs a CUDA device, got {device}")
+        if torch.version.hip:
+            raise KernelUnavailableError(name, f"the kernels are NVIDIA CUDA only; torch {torch.__version__} is ROCm/HIP")
+        if sys.platform != "linux" or platform.machine() != "x86_64":
+            raise KernelUnavailableError(
+                name, f"the kernels are built for Linux x86-64, not {sys.platform} {platform.machine()}"
+            )
+        if not torch.cuda.is_available():
+            raise KernelUnavailableError(name, f"torch {torch.__version__} has no usable CUDA")
+        try:
+            drv = driver_version()
+        except OSError as e:
+            raise KernelUnavailableError(name, f"cannot load the NVIDIA driver library libcuda.so.1 ({e})") from e
+        if drv < manifest.toolkit:
+            need = ".".join(map(str, manifest.toolkit))
+            driver = _MIN_DRIVER.get(manifest.toolkit)
+            remedy = f"; update the NVIDIA driver to >= {driver}" if driver else ""
+            msg = f"driver supports CUDA {drv[0]}.{drv[1]}, kernels need >= {need}{remedy}"
+            raise KernelUnavailableError(name, msg)
+        arch = torch.cuda.get_device_capability(device)
+        target = select_target(manifest.files, arch)
+        if target is None:
+            have = ", ".join(sorted(manifest.files))
+            raise KernelUnavailableError(name, f"no binary for sm_{arch[0]}{arch[1]} (built: {have})")
+        try:
+            hint = f"fastforks download MODEL --kernels --arch sm_{arch[0]}{arch[1]}"
+>           path = locate(manifest.files[target], group=name, env_var=KERNEL_PATH_ENV, hint=hint, burst=_call)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/fastforks/_core/kernels.py:269: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+spec = FileSpec(name='fvm_conv-f1d064e539e1-sm_120.so', sha256='86543339e510756defcc3a0ccaabba037c4a2fbff1ad9025564183804a09f...solve/main/fvm_conv/fvm_conv-f1d064e539e1-sm_120.so', member=None, archive_sha256=None, archive_size=None, mirror=None)
+group = 'fvm_conv', env_var = 'FASTFORKS_KERNEL_PATH', allow_download = False
+siblings = (), hint = 'fastforks download MODEL --kernels --arch sm_120'
+burst = 3, model = None
+
+    def locate(  # noqa: PLR0913 - the arguments of the fetch choke point
+        spec: FileSpec,
+        *,
+        group: str,
+        env_var: str,
+        allow_download: bool = True,
+        siblings: Sequence[FileSpec] = (),
+        hint: str = "fastforks download MODEL",
+        burst: int | None = None,
+        model: str | None = None,
+    ) -> Path:
+        """Return a verified local path for `spec`, downloading it into the cache if needed.
+    
+        Args:
+            spec: The file.
+            group: Model family or kernel library (sub-directory in the search path).
+            env_var: Name of the search-path environment variable.
+            allow_download: If false, only local copies are considered (always so in offline mode, see `offline`).
+            siblings: Other files that may come from the same zip archive (e.g. every variant of a family); those
+                not cached yet are extracted from the same fetch.
+            hint: The command that fetches `spec`, named in the error of offline mode.
+            burst: Downloads with the same id log one line together (kernel files of one call); `None`: one line each.
+            model: The requested model id, named in the "not found" error (default: `group`).
+    
+        Returns:
+            Path to a file whose SHA-256 matches `spec`.
+    
+        Raises:
+            WeightsDownloadError: The file is not available locally and cannot be downloaded (from `url` or the mirror).
+            WeightsHashError: A downloaded copy has the wrong hash, or the only local copies do (and no download is
+                possible).
+        """
+        is_offline = offline()
+        allow_download = allow_download and not is_offline
+        found, mismatched = _search(spec, group, env_var)
+        if found is not None:
+            return found
+        cached = blob_path(spec.sha256)
+        corrupt = _corrupt(cached, spec)
+        if cached.is_file() and corrupt is None:
+            return cached
+        other = _from_other_caches(spec)  # also after a corrupt blob: another tool's verified copy still serves (TM-6)
+        if other is not None:
+            if corrupt is not None:
+                log.warning("not using %s (it does not match its SHA-256); using %s", cached, other)
+            return other
+        if corrupt is not None:
+            if spec.url is None or not allow_download:
+                raise corrupt
+            log.warning("re-downloading %s: cached copy does not match its SHA-256", cached)
+        if spec.url is None or not allow_download:
+>           raise _not_local(spec, model or group, env_var, mismatched, hint=hint if is_offline else None)
+E           fastforks._core.errors.WeightsDownloadError: fvm_conv: fvm_conv-f1d064e539e1-sm_120.so not found in FASTFORKS_KERNEL_PATH or the cache (/tmp/pytest-of-florian/pytest-1927/test_gpu_owlv2_l14_1_kernels_0/cache) (FASTFORKS_KERNEL_PATH is not set), and offline mode (FASTFORKS_OFFLINE / HF_HUB_OFFLINE) forbids downloads. On a machine with network access run `fastforks download MODEL --kernels --arch sm_120` with the same FASTFORKS_CACHE, then copy that cache here
+
+src/fastforks/_core/files.py:680: WeightsDownloadError
+
+The above exception was the direct cause of the following exception:
+
+card = ModelCard(detection/owlv2, tier=experimental, variants=['owlv2-b16', 'owlv2-l14'])
+variant = Variant(id='owlv2-l14', revision=1, weights=(FileSpec(name='owlv2-l14.config.json', sha256='3d45ac1f2698c5d824aef0a0da..., 'scores', 'labels'), output_info=mappingproxy({'label_set': 'coco-80'}), default_tag=False, planned=mappingproxy({}))
+device = device(type='cuda', index=0)
+
+    def _kernel_tags(card: ModelCard, variant: Variant, device: torch.device) -> tuple[str, ...]:
+        """Load the kernel libraries of the kernels backend on `device`; their tags."""
+        libs = card.kernel_libs_on(device)
+        if not libs:  # a family with CUDA kernels only, on MPS
+            msg = f"{variant.ref} (mode='kernels'): no Metal kernels for Apple MPS; use mode='portable'"
+            raise BackendUnavailableError(msg)
+        try:
+>           return tuple(importlib.import_module(f"fastforks.kernels.{n}").load(device).tag for n in libs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+src/fastforks/_core/model.py:1156: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/fastforks/_core/model.py:1156: in <genexpr>
+    return tuple(importlib.import_module(f"fastforks.kernels.{n}").load(device).tag for n in libs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/kernels/fvm_conv/__init__.py:78: in load
+    return _load(cuda_device(device))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/kernels/fvm_conv/__init__.py:69: in _load
+    return FvmLibrary(Path(__file__).with_name("manifest.toml"), device, SIGNATURES)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/kernels/fvm_conv/__init__.py:55: in __init__
+    self.lib, self.tag = shared_library(manifest, device)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/_core/kernels.py:488: in shared_library
+    image, path, target = verified_binary(m, device)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/_core/kernels.py:332: in verified_binary
+    path, target = binary(manifest, device)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+manifest = KernelManifest(name='fvm_conv', build_id='f1d064e539e1', toolkit=(13, 0), kind='shared', files={'sm_80': FileSpec(name..._input_nhwc8': 'c054563ceaad6c3a', 'fvm_maxpool': '3ef2b7bee1be9d5c', 'fvm_stem_c8': 'a4e0c7ebfb97f669'}, compat=None))
+device = device(type='cuda', index=0)
+
+    def binary(manifest: KernelManifest, device: torch.device) -> tuple[Path, str]:
+        """Return the verified binary of `manifest` for `device` and its target.
+    
+        Raises:
+            KernelUnavailableError: CPU device, ROCm or CPU-only torch, not Linux x86-64, no or too old NVIDIA driver,
+                unsupported arch or missing binary;
+                the message names the reason and the remedy.
+        """
+        name = manifest.name
+        if device.type != "cuda":
+            raise KernelUnavailableError(name, f"needs a CUDA device, got {device}")
+        if torch.version.hip:
+            raise KernelUnavailableError(name, f"the kernels are NVIDIA CUDA only; torch {torch.__version__} is ROCm/HIP")
+        if sys.platform != "linux" or platform.machine() != "x86_64":
+            raise KernelUnavailableError(
+                name, f"the kernels are built for Linux x86-64, not {sys.platform} {platform.machine()}"
+            )
+        if not torch.cuda.is_available():
+            raise KernelUnavailableError(name, f"torch {torch.__version__} has no usable CUDA")
+        try:
+            drv = driver_version()
+        except OSError as e:
+            raise KernelUnavailableError(name, f"cannot load the NVIDIA driver library libcuda.so.1 ({e})") from e
+        if drv < manifest.toolkit:
+            need = ".".join(map(str, manifest.toolkit))
+            driver = _MIN_DRIVER.get(manifest.toolkit)
+            remedy = f"; update the NVIDIA driver to >= {driver}" if driver else ""
+            msg = f"driver supports CUDA {drv[0]}.{drv[1]}, kernels need >= {need}{remedy}"
+            raise KernelUnavailableError(name, msg)
+        arch = torch.cuda.get_device_capability(device)
+        target = select_target(manifest.files, arch)
+        if target is None:
+            have = ", ".join(sorted(manifest.files))
+            raise KernelUnavailableError(name, f"no binary for sm_{arch[0]}{arch[1]} (built: {have})")
+        try:
+            hint = f"fastforks download MODEL --kernels --arch sm_{arch[0]}{arch[1]}"
+            path = locate(manifest.files[target], group=name, env_var=KERNEL_PATH_ENV, hint=hint, burst=_call)
+        except WeightsError as e:
+            advice = "" if "offline mode" in str(e) else f" (run `fastforks download --kernels` or set {KERNEL_PATH_ENV})"
+>           raise KernelUnavailableError(name, f"{e}{advice}") from e
+E           fastforks._core.errors.KernelUnavailableError: kernel library 'fvm_conv' unavailable: fvm_conv: fvm_conv-f1d064e539e1-sm_120.so not found in FASTFORKS_KERNEL_PATH or the cache (/tmp/pytest-of-florian/pytest-1927/test_gpu_owlv2_l14_1_kernels_0/cache) (FASTFORKS_KERNEL_PATH is not set), and offline mode (FASTFORKS_OFFLINE / HF_HUB_OFFLINE) forbids downloads. On a machine with network access run `fastforks download MODEL --kernels --arch sm_120` with the same FASTFORKS_CACHE, then copy that cache here; use mode='auto' to fall back to portable
+
+src/fastforks/_core/kernels.py:272: KernelUnavailableError
+
+The above exception was the direct cause of the following exception:
+
+ref = 'owlv2-l14@1', mode = 'kernels'
+request = <FixtureRequest for <Function test_gpu[owlv2-l14@1-kernels]>>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705a9a2e3f80>
+
+    @pytest.mark.model
+    @pytest.mark.gpu
+    @pytest.mark.parametrize("mode", ["portable", "kernels"])
+    @pytest.mark.parametrize("ref", sorted(GOLDEN))
+    def test_gpu(ref, mode, request, monkeypatch):
+        if not torch.cuda.is_available():
+            pytest.skip("no CUDA")
+        want = golden(ref)
+        if mode not in API[TASK[ref]].model_card(ref).modes:
+            pytest.skip(f"{ref} has no {mode}")
+        kernels.reset_fallbacks()
+        launched: set[str] = set()
+        used_libraries: set[str] = set()
+        record = mode == "kernels" and request.config.getoption("--record")
+        if mode == "kernels":  # test-only hooks: actual calls, including model loading and CUDA graph capture
+            from fastforks.kernels.cudnn_hacc import _backend  # noqa: PLC0415 - cuDNN is not a CubinModule
+    
+            real = kernels.CubinModule.launch
+            execute = _backend.execute
+    
+            def spy(self, kernel, *a, **kw):
+                library = self.tag.split("@")[0]
+                launched.add(f"{library}:{kernel}")
+                used_libraries.add(library)
+                return real(self, kernel, *a, **kw)
+    
+            def spy_cudnn(*a, **kw):
+                used_libraries.add("cudnn_hacc")
+                return execute(*a, **kw)
+    
+            monkeypatch.setattr(kernels.CubinModule, "launch", spy)
+            monkeypatch.setattr(_backend, "execute", spy_cudnn)
+>       calls, backend = run_or_skip(
+            ref, mode=mode, device="cuda", opts=options(ref, want), want=want, built=gpu_built(ref, mode)
+        )
+
+tests/test_golden.py:695: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_golden.py:462: in run_or_skip
+    return run(ref, **kw)
+           ^^^^^^^^^^^^^^
+tests/test_golden.py:242: in run
+    m = API[TASK[ref]].load(ref, mode=mode, device=device, dtype=dtype, **(opts or {}))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/fastforks/_core/arguments.py:128: in load
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+src/fastforks/_core/api.py:186: in load
+    return core.load_model(
+src/fastforks/_core/model.py:849: in load_model
+    return load_variant(
+src/fastforks/_core/model.py:910: in load_variant
+    return _build(
+src/fastforks/_core/model.py:1186: in _build
+    tags = _kernel_tags(card, variant, device) if mode == "kernels" else ()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+card = ModelCard(detection/owlv2, tier=experimental, variants=['owlv2-b16', 'owlv2-l14'])
+variant = Variant(id='owlv2-l14', revision=1, weights=(FileSpec(name='owlv2-l14.config.json', sha256='3d45ac1f2698c5d824aef0a0da..., 'scores', 'labels'), output_info=mappingproxy({'label_set': 'coco-80'}), default_tag=False, planned=mappingproxy({}))
+device = device(type='cuda', index=0)
+
+    def _kernel_tags(card: ModelCard, variant: Variant, device: torch.device) -> tuple[str, ...]:
+        """Load the kernel libraries of the kernels backend on `device`; their tags."""
+        libs = card.kernel_libs_on(device)
+        if not libs:  # a family with CUDA kernels only, on MPS
+            msg = f"{variant.ref} (mode='kernels'): no Metal kernels for Apple MPS; use mode='portable'"
+            raise BackendUnavailableError(msg)
+        try:
+            return tuple(importlib.import_module(f"fastforks.kernels.{n}").load(device).tag for n in libs)
+        except KernelUnavailableError as e:
+>           raise KernelUnavailableError(e.library, e.reason, model=variant.ref) from e
+E           fastforks._core.errors.KernelUnavailableError: owlv2-l14@1 (mode='kernels'): kernel library 'fvm_conv' unavailable: fvm_conv: fvm_conv-f1d064e539e1-sm_120.so not found in FASTFORKS_KERNEL_PATH or the cache (/tmp/pytest-of-florian/pytest-1927/test_gpu_owlv2_l14_1_kernels_0/cache) (FASTFORKS_KERNEL_PATH is not set), and offline mode (FASTFORKS_OFFLINE / HF_HUB_OFFLINE) forbids downloads. On a machine with network access run `fastforks download MODEL --kernels --arch sm_120` with the same FASTFORKS_CACHE, then copy that cache here; use mode='auto' to fall back to portable
+
+src/fastforks/_core/model.py:1158: KernelUnavailableError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_golden.py:563: same code as a CPU-checked variant (size / weights only); the GPU goldens check it; FASTFORKS_HEAVY_CPU_TESTS=1 runs it
+3 failed, 4 passed, 1 skipped, 2962 deselected in 18.41s
+......                                                                   [100%]
+6 passed in 5.71s

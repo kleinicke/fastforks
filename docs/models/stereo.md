@@ -74,7 +74,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`s2m2-m`](#s2m2) | no | 0.95 ? | 248, 2.7x | 1162, 0.4x |
 | [`s2m2-s`](#s2m2) | no | 1.10 ? | 113, 3.1x | 820, 0.41x |
 | [`s2m2-xl`](#s2m2) | no | 0.52 ? | 682, 2.6x | 2274, 0.37x |
-| [`selective-igev-eth3d-finetune`](#selective_igev) | yes | 0.32 † | 349, 4.2x | 1390, 0.65x |
+| [`selective-igev-eth3d-finetune`](#selective_igev) | yes | 0.32 † | 351, 4.1x | 1190, 0.55x |
 | [`selective-igev-eth3d-train`](#selective_igev) | yes | 0.78 † | 349, 4.2x | 1390, 0.65x |
 | [`selective-igev-kitti12`](#selective_igev) | yes | 24.07 | 349, 4.2x | 1390, 0.65x |
 | [`selective-igev-kitti15`](#selective_igev) | yes | 24.26 | 349, 4.2x | 1390, 0.65x |
@@ -1660,9 +1660,9 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `s2m2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 582<br>350<br>348<br>113<br>186<br>137 | 2775 / 3008<br>1759 / 1986<br>1733 / 1930<br>686 / 820<br>1579 / 1710<br>1186 / 1240 |
-| `s2m2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1242<br>666<br>670<br>248<br>420<br>deferred (build >5 min) | 3399 / 3704<br>2371 / 2920<br>2300 / 2786<br>876 / 1162<br>2197 / 2572<br>– |
-| `s2m2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1934<br>1005<br>1015<br>376<br>650<br>497 | 4333 / 5252<br>3248 / 4090<br>3245 / 3838<br>1249 / 1568<br>3169 / 3514<br>2910 / 2982 |
-| `s2m2-xl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3510<br>1796<br>1815<br>682<br>1298<br>753 | 6940 / 8254<br>5606 / 6080<br>5228 / 6016<br>2092 / 2274<br>5594 / 6014<br>5283 / 5338 |
+| `s2m2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1242<br>666<br>670<br>248<br>420<br>deferred (build >5 min) | 3399 / 3704<br>2371 / 2920<br>2289 / 2766<br>876 / 1162<br>2197 / 2572<br>– |
+| `s2m2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1934<br>1005<br>1017<br>376<br>650<br>497 | 4333 / 5252<br>3248 / 4090<br>3234 / 3816<br>1249 / 1568<br>3169 / 3514<br>2910 / 2982 |
+| `s2m2-xl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3510<br>1796<br>1818<br>682<br>1298<br>753 | 6940 / 8254<br>5606 / 6080<br>5217 / 6014<br>2092 / 2274<br>5594 / 6014<br>5283 / 5338 |
 
 <details><summary>Details</summary>
 
@@ -1686,9 +1686,9 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - `s2m2-l` original 994x1482: torch.autocast(float16) around the call
 - `s2m2-xl` original 994x1482: torch.autocast(fp16) around the forward
 - `s2m2-s` load / first call: original 0.22 s / 0.143 s (375x1242), portable 0.22 s / 0.352† s, kernels 0.2† s / 0.114† s
-- `s2m2-m` load / first call: original 3.95 s / 0.268 s (375x1242), portable 0.5 s / 0.675† s, kernels 0.31† s / 0.249† s
-- `s2m2-l` load / first call: original 1.38 s / 1.007 s, portable 0.99 s / 1.015† s, kernels 0.58† s / 0.374† s
-- `s2m2-xl` load / first call: original 4.5 s / 0.529 s (375x1242), portable 2.73 s / 1.814† s, kernels 0.9† s / 0.681† s
+- `s2m2-m` load / first call: original 3.95 s / 0.268 s (375x1242), portable 1.21 s / 0.699 s (375x1242), kernels 0.31† s / 0.249† s
+- `s2m2-l` load / first call: original 1.38 s / 1.007 s, portable 2.61 s / 0.755 s (375x1242), kernels 0.58† s / 0.374† s
+- `s2m2-xl` load / first call: original 4.5 s / 0.529 s (375x1242), portable 2.64 s / 0.888 s (375x1242), kernels 0.9† s / 0.681† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -1737,6 +1737,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `selective-igev-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2201<br>1455<br>998<br>349<br>692<br>463 | 2888 / 3216<br>2013 / 2152<br>1238 / 1488<br>1109 / 1390<br>915 / 1028<br>1278 / 1334 |
+| `selective-igev-eth3d-finetune` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2201<br>1455<br>996<br>351<br>691<br>461 | 2888 / 3216<br>2013 / 2152<br>1227 / 1448<br>1051 / 1190<br>919 / 1088<br>1279 / 1316 |
 
 <details><summary>Details</summary>
 
@@ -1758,8 +1759,9 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `selective-igev-sceneflow` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-kitti12` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-kitti15` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-middlebury-finetune` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-middlebury-train` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-eth3d-finetune` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved); `selective-igev-eth3d-train` 3000x4000 (10.3 GiB peak allocated, 14.0 reserved)
-- `selective-igev-kitti12`, `selective-igev-kitti15`, `selective-igev-middlebury-finetune`, `selective-igev-middlebury-train`, `selective-igev-eth3d-finetune`, `selective-igev-eth3d-train`: same network and settings as `selective-igev-sceneflow`, measured once (rows not repeated).
+- `selective-igev-kitti12`, `selective-igev-kitti15`, `selective-igev-middlebury-finetune`, `selective-igev-middlebury-train`, `selective-igev-eth3d-train`: same network and settings as `selective-igev-sceneflow`, measured once (rows not repeated).
 - `selective-igev-sceneflow` 994x1482, first call: portable + torch.compile 127 s (cold Inductor cache), TensorRT fp16 255 s (ONNX + engine).
+- `selective-igev-eth3d-finetune` 994x1482, first call: portable + torch.compile 126 s (cold Inductor cache), TensorRT fp16 256 s (ONNX + engine).
 - `selective-igev-sceneflow` original (fp32) 994x1482, original 994x1482: timed with selective-igev-eth3d-finetune (same network, other weights)
 - `selective-igev-sceneflow` portable 994x1482, kernels 994x1482: measured on selective-igev-eth3d-finetune (same architecture, other checkpoint)
 - `selective-igev-sceneflow` load / first call: original 0.36 s / 2.251 s (375x1242), portable 0.5 s / 1.016† s, kernels 0.14† s / 0.35† s
@@ -1767,10 +1769,11 @@ Commercial use: yes.
 - `selective-igev-kitti15` load / first call: original 0.36 s / 2.251 s (375x1242), portable 0.5 s / 1.016† s, kernels 0.14† s / 0.35† s
 - `selective-igev-middlebury-finetune` load / first call: original 0.36 s / 2.251 s (375x1242), portable 0.5 s / 1.016† s, kernels 0.14† s / 0.35† s
 - `selective-igev-middlebury-train` load / first call: original 0.36 s / 2.251 s (375x1242), portable 0.5 s / 1.016† s, kernels 0.14† s / 0.35† s
-- `selective-igev-eth3d-finetune` load / first call: original 0.36 s / 2.251 s (375x1242), portable 0.5 s / 1.016† s, kernels 0.14† s / 0.35† s
+- `selective-igev-eth3d-finetune` load / first call: original 0.36 s / 2.251 s (375x1242), portable 0.68 s / 1.017 s (375x1242), kernels 0.6 s / 0.57 s (375x1242)
 - `selective-igev-eth3d-train` load / first call: original 0.36 s / 2.251 s (375x1242), portable 0.5 s / 1.016† s, kernels 0.14† s / 0.35† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
-- Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- Protocol, `selective-igev-sceneflow`, `selective-igev-kitti12`, `selective-igev-kitti15`, `selective-igev-middlebury-finetune`, `selective-igev-middlebury-train`, `selective-igev-eth3d-train`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- Protocol, `selective-igev-eth3d-finetune`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 

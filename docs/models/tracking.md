@@ -187,7 +187,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - `cotracker3-offline` original 480x854: the authors' mixed-precision option (float16); facebookresearch/co-tracker@82e02e802975 as its predictor, offline (whole video, 6 x 6 support grid), frames resized to 384 x 512
 - `cotracker3-online` original 480x854: the authors' mixed-precision option (float16); facebookresearch/co-tracker@82e02e802975 as its predictor, online (16-frame windows, step 8), frames resized to 384 x 512
 - `cotracker3-offline` load / first call: original 0.65 s / 0.866 s, portable 0.28 s / 0.416 s, kernels 0.19 s / 0.52 s
-- `cotracker3-online` load / first call: original 0.54 s / 0.536 s, portable 0.65 s / 0.39 s, kernels 0.18 s / 0.537 s
+- `cotracker3-online` load / first call: original 0.54 s / 0.536 s, portable 0.27 s / 0.472 s, kernels 0.18 s / 0.515 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -291,7 +291,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>529<br>382<br>398<br>deferred (build >5 min) | 1721 / 1902<br>1220 / 1294<br>1313 / 1374<br>1164 / 1272<br>– |
+| `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>531<br>382<br>398<br>deferred (build >5 min) | 1721 / 1902<br>1220 / 1294<br>1313 / 1374<br>1164 / 1272<br>– |
 | `tapnext-pp` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile | 1493<br>529<br>–<br>planned for 0.2.1 | 1527 / 1718<br>1220 / 1294<br>–<br>– |
 
 <details><summary>Details</summary>
@@ -312,7 +312,7 @@ Commercial use: yes.
 - `tapnext` 480x854, first call: portable + torch.compile 41 s (cold Inductor cache).
 - `tapnext` original 480x854: the authors' mixed-precision option (float16); upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)
 - `tapnext-pp` original 480x854: upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)
-- `tapnext` load / first call: original 16.92 s / 2.165 s, portable 2.72 s / 0.692 s, kernels 2.63 s / 0.56 s
+- `tapnext` load / first call: original 16.92 s / 2.165 s, portable 2.71 s / 0.715 s, kernels 2.56 s / 0.593 s
 - `tapnext-pp` load / first call: original 4.83 s / 1.802 s, portable 1.34 s / 0.772 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

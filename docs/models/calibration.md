@@ -13,7 +13,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`anycalib-pinhole`](#anycalib) | yes | 21.3, 1.8x | 816, 0.6x |
-| [`geocalib-pinhole`](#geocalib) | yes | 82.5, 1.3x | 342, 0.61x |
+| [`geocalib-pinhole`](#geocalib) | yes | 81.8, 1.3x | 338, 0.61x |
 
 <a id="anycalib"></a>
 
@@ -78,7 +78,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>82.3<br>82.5<br>73.1<br>planned for 0.2.1 | 502 / 558<br>320 / 378<br>279 / 342<br>246 / 300<br>– |
+| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>81.2<br>81.8<br>73.1<br>planned for 0.2.1 | 502 / 558<br>320 / 378<br>277 / 338<br>246 / 300<br>– |
 
 <details><summary>Details</summary>
 
@@ -97,7 +97,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `geocalib-pinhole` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
 - `geocalib-pinhole` 1080x1920, first call: portable + torch.compile 28 s (cold Inductor cache).
 - `geocalib-pinhole` original 1080x1920: torch.autocast(float16) around the call; cvg/GeoCalibdedb29f94fc GeoCalib.calibrate (pinhole), its kornia resize / crop / LM fit
-- `geocalib-pinhole` load / first call: original 1.8 s / 0.841 s, portable 0.27 s / 1.725 s, kernels 1.25 s / 0.924 s
+- `geocalib-pinhole` load / first call: original 1.8 s / 0.841 s, portable 0.27 s / 1.837 s, kernels 0.44 s / 0.745 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

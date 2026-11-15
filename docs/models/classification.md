@@ -112,7 +112,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`wd-convnext-tagger-v3`](#wd_tagger) | yes | 4.46, 2.2x (448x448) | 276, 0.95x |
 | [`wd-eva02-large-tagger-v3`](#wd_tagger) | yes | 14.1, 1.9x (448x448) | 806, 1.2x |
 | [`wd-vit-large-tagger-v3`](#wd_tagger) | yes | 12.5, 1.6x (448x448) | 724, 1.1x |
-| [`wd-vit-tagger-v3`](#wd_tagger) | yes | 4.05, 1.4x (448x448) | 284, 1.2x |
+| [`wd-vit-tagger-v3`](#wd_tagger) | yes | 4.09, 1.4x (448x448) | 284, 1.2x |
 
 <a id="alexnet"></a>
 
@@ -934,7 +934,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientvit_b2.r288_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.7<br>12.0<br>1.12<br>6.91<br>0.790 | 144 / 160<br>173 / 194<br>85 / 144<br>88 / 170<br>120 / 164<br>154 / 216 |
+| `efficientvit_b2.r288_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.7<br>12.9<br>1.12<br>6.91<br>0.790 | 144 / 160<br>173 / 194<br>85 / 144<br>88 / 170<br>120 / 164<br>154 / 216 |
 
 <details><summary>Details</summary>
 
@@ -952,7 +952,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientvit_b2.r288_in1k` 288x288 (0.1 GiB peak allocated, 0.1 reserved)
 - `efficientvit_b2.r288_in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `efficientvit_b2.r288_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `efficientvit_b2.r288_in1k` load / first call: original 1.84 s / 1.888 s, portable 1.59 s / 0.668 s, kernels 2.43 s / 0.072 s
+- `efficientvit_b2.r288_in1k` load / first call: original 1.84 s / 1.888 s, portable 2.31 s / 0.726 s, kernels 2.43 s / 0.072 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -972,6 +972,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `efficientvit_b2.r288_in1k` | 0.01737 / 0.06142 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+
+### Limitations
+
+- Portable float16 at batch 1 is launch-bound: timm's linear attention casts q, k, v to float32 and back in every LiteMLA block (needed for a stable division), so 224x224 runs 12-13 ms against 10.7 ms for the float32 original and 14.7 ms for the fp16-autocast original; the kernels mode runs 1.1 ms.
 
 </details>
 
@@ -1081,7 +1085,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `fastvit_sa24.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.10<br>10.9<br>6.05<br>1.40<br>3.97<br>0.818 | 129 / 142<br>157 / 176<br>81 / 110<br>80 / 150<br>113 / 148<br>148 / 200 |
-| `fastvit_t8.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.07<br>4.91<br>3.30<br>0.709<br>2.55<br>0.368 | 56 / 72<br>57 / 76<br>45 / 72<br>45 / 76<br>77 / 92<br>78 / 108 |
+| `fastvit_t8.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.07<br>4.91<br>3.25<br>0.709<br>2.55<br>0.368 | 56 / 72<br>57 / 76<br>45 / 72<br>45 / 76<br>77 / 92<br>78 / 108 |
 | `fastvit_t12.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.61<br>5.66<br>3.27<br>0.781<br>2.32<br>0.431 | 74 / 80<br>77 / 84<br>54 / 76<br>52 / 76<br>86 / 94<br>89 / 114 |
 
 <details><summary>Details</summary>
@@ -1109,7 +1113,7 @@ Commercial use: yes.
 - `fastvit_t12.apple_dist_in1k` original (fp32) 256x256: timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
 - `fastvit_t12.apple_dist_in1k` original 256x256: torch.autocast(float16) around the call; timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
 - `fastvit_sa24.apple_dist_in1k` load / first call: original 0.31 s / 0.028 s (256x256), portable 3.4 s / 0.585 s (256x256), kernels 2.3 s / 0.002 s (256x256)
-- `fastvit_t8.apple_dist_in1k` load / first call: original 0.21 s / 0.976 s (256x256), portable 1.63 s / 0.552 s (256x256), kernels 1.83 s / 0.047 s (256x256)
+- `fastvit_t8.apple_dist_in1k` load / first call: original 0.21 s / 0.976 s (256x256), portable 2.1 s / 0.851 s (256x256), kernels 1.83 s / 0.047 s (256x256)
 - `fastvit_t12.apple_dist_in1k` load / first call: original 0.14 s / 0.708 s (256x256), portable 1.81 s / 0.406 s (256x256), kernels 2.01 s / 0.044 s (256x256)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -1797,7 +1801,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `shufflenet_v2_x1_0.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.79<br>6.53<br>5.01<br>0.804<br>1.98<br>0.329 | 45 / 68<br>47 / 48<br>39 / 48<br>55 / 76<br>71 / 88<br>70 / 80 |
+| `shufflenet_v2_x1_0.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.79<br>6.53<br>3.72<br>0.804<br>1.98<br>0.329 | 45 / 68<br>47 / 48<br>39 / 48<br>55 / 76<br>71 / 88<br>70 / 80 |
 
 <details><summary>Details</summary>
 
@@ -1815,7 +1819,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `shufflenet_v2_x1_0.tv_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved)
 - `shufflenet_v2_x1_0.tv_in1k` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 17 s (ONNX + engine).
 - `shufflenet_v2_x1_0.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `shufflenet_v2_x1_0.tv_in1k` load / first call: original 1.13 s / 1.146 s, portable 1.54 s / 0.459 s, kernels 1.3 s / 0.106 s
+- `shufflenet_v2_x1_0.tv_in1k` load / first call: original 1.13 s / 1.146 s, portable 1.44 s / 0.36 s, kernels 1.3 s / 0.106 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -1924,7 +1928,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `squeezenet1_1.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.72<br>2.63<br>1.81<br>0.376<br>1.13<br>0.214 | 11 / 28<br>10 / 30<br>7 / 28<br>8 / 12<br>39 / 48<br>38 / 40 |
+| `squeezenet1_1.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.72<br>2.63<br>1.78<br>0.376<br>1.13<br>0.214 | 11 / 28<br>10 / 30<br>7 / 28<br>8 / 12<br>39 / 48<br>38 / 40 |
 
 <details><summary>Details</summary>
 
@@ -1942,7 +1946,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `squeezenet1_1.tv_in1k` 224x224 (0.0 GiB peak allocated, 0.0 reserved)
 - `squeezenet1_1.tv_in1k` 224x224, first call: portable + torch.compile 4 s (cold Inductor cache), TensorRT fp16 9 s (ONNX + engine).
 - `squeezenet1_1.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `squeezenet1_1.tv_in1k` load / first call: original 1.09 s / 0.374 s, portable 1.33 s / 0.057 s, kernels 1.33 s / 0.081 s
+- `squeezenet1_1.tv_in1k` load / first call: original 1.09 s / 0.374 s, portable 1.19 s / 0.059 s, kernels 1.33 s / 0.081 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -2327,7 +2331,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>3.98<br>4.05<br>5.33<br>deferred (build >5 min) | 426 / 442<br>231 / 242<br>235 / 242<br>234 / 284<br>282 / 302<br>– |
+| `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>4.00<br>4.09<br>5.33<br>deferred (build >5 min) | 426 / 442<br>231 / 242<br>235 / 242<br>234 / 284<br>282 / 302<br>– |
 | `wd-convnext-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>9.60<br>5.59<br>4.46<br>4.45<br>3.10 | 481 / 516<br>259 / 292<br>260 / 292<br>238 / 276<br>380 / 392<br>521 / 548 |
 | `wd-vit-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.8<br>19.9<br>12.9<br>12.5<br>13.3<br>11.2 | 1287 / 1302<br>662 / 682<br>669 / 682<br>667 / 724<br>713 / 742<br>1266 / 1290 |
 | `wd-eva02-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 84.4<br>26.6<br>18.3<br>14.1<br>15.7<br>deferred (build >5 min) | 1299 / 1324<br>668 / 684<br>669 / 684<br>673 / 806<br>714 / 724<br>– |
@@ -2353,7 +2357,7 @@ Commercial use: yes.
 - `wd-convnext-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
 - `wd-vit-large-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
 - `wd-eva02-large-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
-- `wd-vit-tagger-v3` load / first call: original 2.33 s / 0.318 s (448x448), portable 2.44 s / 0.09 s (448x448), kernels 2.28 s / 0.092 s (448x448)
+- `wd-vit-tagger-v3` load / first call: original 2.33 s / 0.318 s (448x448), portable 2.07 s / 0.087 s (448x448), kernels 2.48 s / 0.068 s (448x448)
 - `wd-convnext-tagger-v3` load / first call: original 2.92 s / 0.484 s (448x448), portable 2.34 s / 0.236 s (448x448), kernels 2.5 s / 0.066 s (448x448)
 - `wd-vit-large-tagger-v3` load / first call: original 4.74 s / 0.439 s (448x448), portable 5.54 s / 0.091 s (448x448), kernels 4.68 s / 0.063 s (448x448)
 - `wd-eva02-large-tagger-v3` load / first call: original 4.82 s / 0.352 s (448x448), portable 5.38 s / 0.064 s (448x448), kernels 3.61 s / 0.076 s (448x448)

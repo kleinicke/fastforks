@@ -70,9 +70,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>351<br>no kernels<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>3165 / 3638<br>no kernels<br>2438 / 3196<br>2087 / 2138 |
-| `flowformer-small-things` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>351<br>no kernels<br>250<br>202 | 3122 / 3678<br>2382 / 3010<br>3165 / 3638<br>no kernels<br>2438 / 3196<br>2087 / 2138 |
-| `flowformer-small-sintel` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>351<br>no kernels<br>250<br>202 | 3122 / 3718<br>2382 / 2990<br>3165 / 3638<br>no kernels<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>no kernels<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>1404 / 1698<br>no kernels<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-things` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>no kernels<br>250<br>202 | 3122 / 3678<br>2382 / 3010<br>1404 / 1698<br>no kernels<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-sintel` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>336<br>no kernels<br>250<br>202 | 3122 / 3718<br>2382 / 2990<br>1404 / 1698<br>no kernels<br>2438 / 3196<br>2087 / 2138 |
 
 <details><summary>Details</summary>
 
@@ -101,9 +101,9 @@ Commercial use: yes.
 - `flowformer-small-things` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-sintel` original (fp32) 375x1242: upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-sintel` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
-- `flowformer-small-chairs` load / first call: original 0.16 s / 0.366 s (375x1242), portable 1.31 s / 0.57 s (375x1242)
-- `flowformer-small-things` load / first call: original 0.15 s / 0.304 s (375x1242), portable 1.31 s / 0.569 s (375x1242)
-- `flowformer-small-sintel` load / first call: original 0.15 s / 0.304 s (375x1242), portable 1.3 s / 0.568 s (375x1242)
+- `flowformer-small-chairs` load / first call: original 0.16 s / 0.366 s (375x1242), portable 1.59 s / 0.561 s (375x1242)
+- `flowformer-small-things` load / first call: original 0.15 s / 0.304 s (375x1242), portable 1.42 s / 0.559 s (375x1242)
+- `flowformer-small-sintel` load / first call: original 0.15 s / 0.304 s (375x1242), portable 1.56 s / 0.581 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

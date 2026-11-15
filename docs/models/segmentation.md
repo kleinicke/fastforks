@@ -89,7 +89,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `fcn-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 94.2<br>47.0<br>40.7<br>16.6<br>35.6<br>27.4 | 1799 / 2074<br>1925 / 2102<br>417 / 492<br>294 / 478<br>414 / 472<br>1656 / 1734 |
-| `pspnet-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 92.5<br>47.2<br>48.8<br>24.9<br>41.3<br>29.8 | 1797 / 2074<br>1922 / 2222<br>414 / 492<br>338 / 516<br>414 / 472<br>1859 / 1898 |
+| `pspnet-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 92.5<br>47.2<br>49.2<br>24.9<br>41.3<br>29.8 | 1797 / 2074<br>1922 / 2222<br>414 / 472<br>338 / 516<br>414 / 472<br>1859 / 1898 |
 | `deeplabv3-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 108<br>54.8<br>47.9<br>20.1<br>42.1<br>30.6 | 1870 / 2134<br>2031 / 2162<br>453 / 532<br>362 / 518<br>450 / 512<br>1764 / 1826 |
 | `deeplabv3plus-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 104<br>53.4<br>47.1<br>18.0<br>44.6<br>30.9 | 1776 / 2036<br>1891 / 2024<br>413 / 492<br>365 / 560<br>410 / 432<br>1683 / 1732 |
 | `hrnet-w48-fcn-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.1<br>54.8<br>26.9<br>11.9<br>23.9<br>20.9 | 1789 / 1870<br>1915 / 2010<br>424 / 490<br>274 / 430<br>421 / 448<br>1662 / 1712 |
@@ -126,7 +126,7 @@ Commercial use: yes.
 - `deeplabv3plus-r101-d8-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `hrnet-w48-fcn-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `fcn-r101-d8-ade20k` load / first call: original 4.72 s / 0.393 s (512x512), portable 0.53 s / 0.073 s, kernels 0.91† s / 0.018† s
-- `pspnet-r101-d8-ade20k` load / first call: original 1.35 s / 0.092 s (512x512), portable 1.08 s / 0.049 s, kernels 0.71 s / 0.025 s
+- `pspnet-r101-d8-ade20k` load / first call: original 1.35 s / 0.092 s (512x512), portable 1.33 s / 0.134 s (512x512), kernels 0.71 s / 0.025 s
 - `deeplabv3-r101-d8-ade20k` load / first call: original 1.64 s / 0.031 s (512x512), portable 0.73 s / 0.081 s, kernels 0.91† s / 0.021† s
 - `deeplabv3plus-r101-d8-ade20k` load / first call: original 4.72 s / 0.662 s (512x512), portable 0.62 s / 0.095 s, kernels 0.75† s / 0.019† s
 - `hrnet-w48-fcn-ade20k` load / first call: original 1.48 s / 0.079 s (512x512), portable 0.62 s / 0.071 s, kernels 0.85† s / 0.014† s

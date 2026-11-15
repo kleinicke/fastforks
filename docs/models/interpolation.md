@@ -230,8 +230,8 @@ Commercial use: yes.
 - `rife-4.25` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
 - `rife-4.26` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
 - `rife-4.25-lite` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
-- `rife-4.25` load / first call: original 1.42 s / 0.265 s, portable 0.31 s / 0.491 s, kernels 1.5 s / 0.203 s
-- `rife-4.26` load / first call: original 0.18 s / 0.046 s, portable 0.15 s / 0.344 s, kernels 0.29 s / 0.215 s
+- `rife-4.25` load / first call: original 1.42 s / 0.265 s, portable 0.16 s / 0.447 s, kernels 1.5 s / 0.203 s
+- `rife-4.26` load / first call: original 0.18 s / 0.046 s, portable 0.16 s / 0.334 s, kernels 0.29 s / 0.215 s
 - `rife-4.25-lite` load / first call: original 0.18 s / 0.12 s, portable 1.0 s / 0.229 s, kernels 1.11 s / 0.183 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
