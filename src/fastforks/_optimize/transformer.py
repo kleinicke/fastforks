@@ -197,17 +197,21 @@ def patch_convnext(model: nn.Module, mode: str) -> int:
 
 def _cnx_kprep(blk: _Blk) -> None:
     fc2, g = blk.mlp.fc2, blk.gamma
-    w2, b2 = fc2.weight.detach(), fc2.bias.detach()
-    if g is not None:  # the kernels' fc2 copy carries the layer scale (its GEMM epilogue adds the residual)
-        gf = g.detach().float()
-        w2, b2 = (w2.float() * gf[:, None]).to(w2.dtype), (b2.float() * gf).to(b2.dtype)
+    if g is not None:
+        # the kernels' GEMM epilogue adds the residual, so the layer scale is folded into fc2 itself and set to 1 (the
+        # portable fallback stays exact; a separate folded copy of every fc2 weight cost ~40 % of the model). The
+        # kernels path has no autograd, so the parameters may change here (portable keeps them as loaded).
+        with torch.no_grad():
+            gf = g.float()
+            w2, b2 = (fc2.weight.float() * gf[:, None]).to(fc2.weight.dtype), (fc2.bias.float() * gf).to(fc2.bias.dtype)
+            fc2.weight.data, fc2.bias.data, g.data = w2.contiguous(), b2, torch.ones_like(g)
     _reg(
         blk,
         {
             "_w_rsc": blk.conv_dw.weight.data[:, 0].permute(1, 2, 0).contiguous(),
             "_w1": _w4(blk.mlp.fc1.weight),
-            "_w2_4": _w4(w2),
-            "_b2_g": b2.contiguous(),
+            "_w2_4": _w4(fc2.weight),
+            "_b2_g": fc2.bias,
         },
     )
     blk._act = _gelu(blk.mlp.act)
