@@ -216,7 +216,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>556<br>no kernels<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>4496 / 4642<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
-| `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>802<br>no kernels<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>5512 / 5660<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
+| `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>556<br>no kernels<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>4496 / 4642<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
 | `gmflow-scale2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2537<br>1599<br>1139<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
 | `gmflow-scale2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2541<br>1607<br>1139<br>no kernels<br>765<br>fails: unsupported: TensorRT 10 Myelin compiler error CHECK(is_cons | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
 | `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>1139<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8722<br>8425 / 8572<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
@@ -277,7 +277,7 @@ Commercial use: yes.
 - `gmflow-scale2-regrefine6-mixdata` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.16 s / 0.558 s
-- `gmflow-scale1-mixdata` load / first call: original 0.13 s / 0.76 s, portable 0.16 s / 0.803 s
+- `gmflow-scale1-mixdata` load / first call: original 0.13 s / 0.76 s, portable 0.16 s / 0.558 s
 - `gmflow-scale2-things` load / first call: original 0.14 s / 1.61 s, portable 0.17 s / 1.141 s
 - `gmflow-scale2-sintel` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s
 - `gmflow-scale2-mixdata` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s
