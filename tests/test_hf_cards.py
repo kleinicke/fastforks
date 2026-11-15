@@ -68,7 +68,7 @@ def test_assumed_weights_licence_is_not_firm(staged):
     out, _ = staged
     text = (out / "psmnet" / "README.md").read_text()
     assert 'license: "other"' in text
-    assert 'license_name: "mit-code-weights-unstated"' in text
+    assert 'license_name: "see-model-card"' in text
     assert "the authors do not state a separate weights licence" in text
 
 
@@ -138,3 +138,23 @@ def test_quickstarts_match_the_call_contract():
                 assert not given & {"input_points", "input_labels"}
             nc = licences.weights_commercial(card.variant_licence(first).weights_licence) == "no"
             assert nc == (registry.NONCOMMERCIAL_ENV in text), card.family
+
+
+def test_licence_headers_are_valid_hf_ids(staged):
+    out, _ = staged
+    ids = set(stage_hf._HF_LICENCES.values()) | {"other"}
+    for readme in out.glob("*/README.md"):
+        front = yaml.safe_load(readme.read_text().split("---")[1])
+        assert front["license"] in ids, readme
+        if front["license"] == "other":
+            assert not re.search(r"weights-unstated|licenseref", front["license_name"]), readme
+        assert "Files: ." not in readme.read_text(), readme
+    assert 'license: "cc-by-sa-4.0"' in (out / "nnfoundation" / "README.md").read_text()
+
+
+def test_sd2_derived_cards_carry_the_openrail_note(staged):
+    out, _ = staged
+    for fam in stage_hf.SD2_DERIVED:
+        text = (out / stage_hf.repo_name(fam) / "README.md").read_text()
+        assert 'license: "openrail++"' in text
+        assert "OpenRAIL++-M use restrictions" in text, fam

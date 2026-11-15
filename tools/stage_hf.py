@@ -656,6 +656,16 @@ def render_card(card: ModelCard, variants: list[Variant]) -> str:
             if assumed_weights(card, variants)
             else []
         ),
+        *(
+            [
+                "Derived from Stable Diffusion 2: the CreativeML OpenRAIL++-M use restrictions (Attachment A, "
+                "<https://huggingface.co/stabilityai/stable-diffusion-2/blob/main/LICENSE-MODEL>) apply to these "
+                "weights and to their redistribution, in addition to the terms above.",
+                "",
+            ]
+            if card.family in SD2_DERIVED
+            else []
+        ),
         f"Training data: {gen_docs.data_text(lic.training_data, lic.training_note)}.",
         *(["", *(f"- Licence note: {n}" for n in card.licence_notes)] if card.licence_notes else []),
     ]
