@@ -4,6 +4,7 @@
 """Extractor module consists of various encoder architectures"""
 
 from typing import Optional
+import math
 import numpy as np
 import torch
 from torch import nn
@@ -785,7 +786,7 @@ class Feature(nn.Module):
 
         if self.use_vit_backbone:
             # Resize input image for DepthAnythingV2, keeping aspect ratio
-            divider = np.lcm(self.patch_size, 16)
+            divider = math.lcm(self.patch_size, 16)
             h_resize, w_resize = utils.get_resize_keep_aspect_ratio(
                 height, width, divider=divider, max_h=1344, max_w=1344)
             x_in_ = F.interpolate(x, size=(h_resize, w_resize), mode='bicubic', align_corners=False)

@@ -21,15 +21,37 @@ UNSUP = {
  "c-foundationstereo-s": None,
 }
 def merge(dst, rows, src, cmd):
-    d = Path(dst); have = {(r["ref"], r["mode"], r.get("side")) for r in rd(d)}; new = {}
+    """Append rows of new keys; a stale failing row (`fails`, e.g. an old timeout) of the same key is replaced."""
+    d = Path(dst); old = rd(d)
+    ok = {(r["ref"], r["mode"], r.get("side")) for r in old if not r.get("fails")}
+    failing = {(r["ref"], r["mode"], r.get("side")): r for r in old if r.get("fails")}
+    new = {}
     for r in rows:
         k = (r["ref"], r["mode"], r.get("side"))
-        if k in have or str(r.get("fails", "")).startswith(("load: Weights", "load: Licence", "OSError")): continue
-        r["source"] = src; r["command"] = cmd; new[k] = r
-    with d.open("a") as f:
-        for r in new.values(): f.write(json.dumps(r) + "\n")
-    print(dst, "appended", len(new))
-C = rd(SV / "rows_compile.jsonl"); P = rd(SV / "rows_portable.jsonl")
+        if k in ok or str(r.get("fails", "")).startswith(("load: Weights", "load: Licence", "OSError")): continue
+        if k in failing and r.get("fails") and r["fails"] == failing[k]["fails"]: continue
+        sub = r.pop("_src", None)
+        r["source"] = src if not sub else f"results/raw/2026-11-15_gaps/solve/rows_{'cold' if sub == 'cold.sh' else 'special'}.jsonl"
+        r["command"] = cmd if not sub else f"tools/speed_check.py run --sides lib --no-profile --prefix 'gpulock timeout 295' ({sub}, results/raw/2026-11-15_gaps/solve/)"
+        new[k] = r
+    keep = [r for r in old if (r["ref"], r["mode"], r.get("side")) not in new]
+    with d.open("w") as f:
+        for r in keep + list(new.values()): f.write(json.dumps(r) + "\n")
+    print(dst, "appended/replaced", len(new), "dropped stale", len(old) - len(keep))
+C = rd(SV / "rows_compile.jsonl") + [dict(r, _src="cold.sh") for r in rd(SV / "rows_cold.jsonl")] + [dict(r, _src="special2.sh") for r in rd(SV / "rows_special.jsonl")]
+_last = {}
+for r in C: _last[(r["ref"], r["mode"], r.get("side"))] = r  # later rows (cold builds, special fixes) override
+C = list(_last.values())
+def _reason(r):  # cold-build / NaN / Myelin failures after the plain-gpulock retries (cold.sh): documented `unsupported:`
+    f = str(r.get("fails", ""))
+    if f == "worker rc=124":
+        return "engine build exceeds 5 min lock rule (cold ONNX export + build still running at the 295 s slice of gpulock)"
+    if "all NaN" in f: return "fp16 engine output is all NaN (strongly-typed fp16 overflow); no fp32 island implemented"
+    if "Myelin" in f or "myelin" in f: return "TensorRT 10 Myelin tactic check fails during the engine build"
+for r in C:
+    if r.get("mode") == "tensorrt" and r.get("fails") and not str(r["fails"]).startswith("unsupported") and _reason(r):
+        r["fails"] = "unsupported: " + _reason(r)
+P = rd(SV / "rows_portable.jsonl")
 # a successful retry replaces a diagnosis failure: keep only the last row per key
 diag = [r for r in rd(SV / "diag1.jsonl") if r["mode"] == "tensorrt" and r["ref"] in UNSUP and UNSUP[r["ref"]]]
 good = {(r["ref"], r["mode"]) for r in C if not r.get("fails")}
