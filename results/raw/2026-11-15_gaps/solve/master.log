@@ -140,3 +140,113 @@
 2026-11-15_08:28:03 start compile selective-igev-kitti12
 2026-11-15_08:36:42 end compile selective-igev-kitti12 rc=0
 2026-11-15_08:36:42 start compile selective-igev-kitti15
+2026-11-15_08:43:35 end compile selective-igev-kitti15 rc=0
+2026-11-15_08:43:35 start compile selective-igev-middlebury-finetune
+2026-11-15_08:56:08 end compile selective-igev-middlebury-finetune rc=0
+2026-11-15_08:56:08 start compile selective-igev-middlebury-train
+2026-11-15_08:59:06 end compile selective-igev-middlebury-train rc=0
+2026-11-15_08:59:06 start compile selective-igev-sceneflow
+2026-11-15_09:14:56 end compile selective-igev-sceneflow rc=0
+2026-11-15_09:14:56 start kernels coatnet_0_rw_224.sw_in1k
+2026-11-15_09:14:56 end kernels coatnet_0_rw_224.sw_in1k rc=0
+2026-11-15_09:14:56 start kernels coatnet_1_rw_224.sw_in1k
+2026-11-15_09:14:56 end kernels coatnet_1_rw_224.sw_in1k rc=0
+2026-11-15_09:14:56 start kernels coatnet_2_rw_224.sw_in12k_ft_in1k
+2026-11-15_09:14:56 end kernels coatnet_2_rw_224.sw_in12k_ft_in1k rc=0
+2026-11-15_09:14:56 start kernels coatnet_nano_rw_224.sw_in1k
+2026-11-15_09:14:56 end kernels coatnet_nano_rw_224.sw_in1k rc=0
+2026-11-15_09:14:56 start kernels coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k
+2026-11-15_09:14:56 end kernels coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k rc=0
+2026-11-15_09:14:56 start kernels coatnet_rmlp_1_rw_224.sw_in1k
+2026-11-15_09:14:56 end kernels coatnet_rmlp_1_rw_224.sw_in1k rc=0
+2026-11-15_09:14:56 start kernels coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k
+2026-11-15_09:14:57 end kernels coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k rc=0
+2026-11-15_09:14:57 start kernels coatnet_rmlp_2_rw_224.sw_in1k
+2026-11-15_09:14:57 end kernels coatnet_rmlp_2_rw_224.sw_in1k rc=0
+2026-11-15_09:14:57 start kernels coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k
+2026-11-15_09:14:57 end kernels coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k rc=0
+2026-11-15_09:14:57 start kernels coatnet_rmlp_nano_rw_224.sw_in1k
+2026-11-15_09:14:57 end kernels coatnet_rmlp_nano_rw_224.sw_in1k rc=0
+2026-11-15_09:14:57 start kernels davit_base.msft_in1k
+2026-11-15_09:14:57 end kernels davit_base.msft_in1k rc=0
+2026-11-15_09:14:57 start kernels davit_small.msft_in1k
+2026-11-15_09:14:57 end kernels davit_small.msft_in1k rc=0
+2026-11-15_09:14:57 start kernels davit_tiny.msft_in1k
+2026-11-15_09:14:57 end kernels davit_tiny.msft_in1k rc=0
+2026-11-15_09:14:57 start kernels efficientformer_l1.snap_dist_in1k
+2026-11-15_09:14:57 end kernels efficientformer_l1.snap_dist_in1k rc=0
+2026-11-15_09:14:57 start kernels efficientformer_l3.snap_dist_in1k
+2026-11-15_09:14:58 end kernels efficientformer_l3.snap_dist_in1k rc=0
+2026-11-15_09:14:58 start kernels efficientformer_l7.snap_dist_in1k
+2026-11-15_09:14:58 end kernels efficientformer_l7.snap_dist_in1k rc=0
+2026-11-15_09:14:58 start kernels efficientformerv2_l.snap_dist_in1k
+2026-11-15_09:14:58 end kernels efficientformerv2_l.snap_dist_in1k rc=0
+2026-11-15_09:14:58 start kernels efficientformerv2_s0.snap_dist_in1k
+2026-11-15_09:14:58 end kernels efficientformerv2_s0.snap_dist_in1k rc=0
+2026-11-15_09:14:58 start kernels efficientformerv2_s1.snap_dist_in1k
+2026-11-15_09:14:58 end kernels efficientformerv2_s1.snap_dist_in1k rc=0
+2026-11-15_09:14:58 start kernels efficientformerv2_s2.snap_dist_in1k
+2026-11-15_09:14:58 end kernels efficientformerv2_s2.snap_dist_in1k rc=0
+2026-11-15_09:14:58 start kernels flowseek-t
+2026-11-15_09:14:58 end kernels flowseek-t rc=0
+2026-11-15_09:14:58 start kernels flowseek-t-things
+2026-11-15_09:14:59 end kernels flowseek-t-things rc=0
+2026-11-15_09:14:59 start kernels flowseek-t-things-notartan
+2026-11-15_09:14:59 end kernels flowseek-t-things-notartan rc=0
+2026-11-15_09:14:59 start kernels focalnet_base_lrf.ms_in1k
+2026-11-15_09:14:59 end kernels focalnet_base_lrf.ms_in1k rc=0
+2026-11-15_09:14:59 start kernels focalnet_base_srf.ms_in1k
+2026-11-15_09:14:59 end kernels focalnet_base_srf.ms_in1k rc=0
+2026-11-15_09:14:59 start kernels focalnet_small_lrf.ms_in1k
+2026-11-15_09:14:59 end kernels focalnet_small_lrf.ms_in1k rc=0
+2026-11-15_09:14:59 start kernels focalnet_small_srf.ms_in1k
+2026-11-15_09:14:59 end kernels focalnet_small_srf.ms_in1k rc=0
+2026-11-15_09:14:59 start kernels focalnet_tiny_lrf.ms_in1k
+2026-11-15_09:14:59 end kernels focalnet_tiny_lrf.ms_in1k rc=0
+2026-11-15_09:14:59 start kernels focalnet_tiny_srf.ms_in1k
+2026-11-15_09:15:00 end kernels focalnet_tiny_srf.ms_in1k rc=0
+2026-11-15_09:15:00 start kernels gmflow-scale1-mixdata
+2026-11-15_09:15:00 end kernels gmflow-scale1-mixdata rc=0
+2026-11-15_09:15:00 start kernels gmflow-scale1-things
+2026-11-15_09:15:00 end kernels gmflow-scale1-things rc=0
+2026-11-15_09:15:00 start kernels gmflow-scale2-mixdata
+2026-11-15_09:15:00 end kernels gmflow-scale2-mixdata rc=0
+2026-11-15_09:15:00 start kernels gmflow-scale2-regrefine6-kitti
+2026-11-15_09:15:00 end kernels gmflow-scale2-regrefine6-kitti rc=0
+2026-11-15_09:15:00 start kernels gmflow-scale2-regrefine6-mixdata
+2026-11-15_09:15:00 end kernels gmflow-scale2-regrefine6-mixdata rc=0
+2026-11-15_09:15:00 start kernels gmflow-scale2-regrefine6-sintelft
+2026-11-15_09:15:00 end kernels gmflow-scale2-regrefine6-sintelft rc=0
+2026-11-15_09:15:00 start kernels gmflow-scale2-regrefine6-things
+2026-11-15_09:15:00 end kernels gmflow-scale2-regrefine6-things rc=0
+2026-11-15_09:15:00 start kernels gmflow-scale2-sintel
+2026-11-15_09:15:01 end kernels gmflow-scale2-sintel rc=0
+2026-11-15_09:15:01 start kernels gmflow-scale2-things
+2026-11-15_09:15:01 end kernels gmflow-scale2-things rc=0
+2026-11-15_09:15:01 start kernels hgnetv2_b0.ssld_stage2_ft_in1k
+2026-11-15_09:15:01 end kernels hgnetv2_b0.ssld_stage2_ft_in1k rc=0
+2026-11-15_09:15:01 start kernels hgnetv2_b1.ssld_stage2_ft_in1k
+2026-11-15_09:15:01 end kernels hgnetv2_b1.ssld_stage2_ft_in1k rc=0
+2026-11-15_09:15:01 start kernels hgnetv2_b2.ssld_stage2_ft_in1k
+2026-11-15_09:15:01 end kernels hgnetv2_b2.ssld_stage2_ft_in1k rc=0
+2026-11-15_09:15:01 start kernels hgnetv2_b3.ssld_stage2_ft_in1k
+2026-11-15_09:15:01 end kernels hgnetv2_b3.ssld_stage2_ft_in1k rc=0
+2026-11-15_09:15:01 start kernels hgnetv2_b4.ssld_stage2_ft_in1k
+2026-11-15_09:15:01 end kernels hgnetv2_b4.ssld_stage2_ft_in1k rc=0
+2026-11-15_09:15:01 start kernels hgnetv2_b5.ssld_stage2_ft_in1k
+2026-11-15_09:15:02 end kernels hgnetv2_b5.ssld_stage2_ft_in1k rc=0
+2026-11-15_09:15:02 start kernels hgnetv2_b6.ssld_stage2_ft_in1k
+2026-11-15_09:15:02 end kernels hgnetv2_b6.ssld_stage2_ft_in1k rc=0
+2026-11-15_09:15:02 start kernels mm-grounding-dino-tiny
+2026-11-15_09:15:02 end kernels mm-grounding-dino-tiny rc=0
+2026-11-15_09:15:02 start kernels shvit_s1.in1k
+2026-11-15_09:15:02 end kernels shvit_s1.in1k rc=0
+2026-11-15_09:15:02 start kernels shvit_s2.in1k
+2026-11-15_09:15:02 end kernels shvit_s2.in1k rc=0
+2026-11-15_09:15:02 start kernels shvit_s3.in1k
+2026-11-15_09:15:02 end kernels shvit_s3.in1k rc=0
+2026-11-15_09:15:02 start kernels shvit_s4.in1k
+2026-11-15_09:15:02 end kernels shvit_s4.in1k rc=0
+2026-11-15_09:15:41 original optical_flow:memfof-kitti,memfof-sintel,memfof-spring rc=1
+2026-11-15_09:15:43 original tracking:tapnext-pp rc=0
+2026-11-15_09:15:43 master done
