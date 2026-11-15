@@ -42,7 +42,7 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 status = "none"
-reason = "not implemented: data-dependent keypoint and match counts. Portable is 308.1 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1767 vs 1843 MB, matches 1038-1039 for the originals"
+reason = "not implemented: data-dependent keypoint and match counts. Portable is 307.9 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1790 vs 1843 MB (reserved 2562 vs 3398), matches 1030 vs 1038-1039"
 
 [[papers]]
 title = "LoMa: Local Feature Matching Revisited"
