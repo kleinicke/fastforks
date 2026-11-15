@@ -109,7 +109,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`vgg16`](#vgg) | yes | 1.50, 2.4x | 388, 0.62x |
 | [`vit_base_patch16_224`](#vit) | yes | 1.65, 3.3x | 370, 0.96x |
 | [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.8, 2.0x | 1346, 0.77x |
-| [`wd-convnext-tagger-v3`](#wd_tagger) | yes | 4.45, 2.2x (448x448) | 358, 1.2x |
+| [`wd-convnext-tagger-v3`](#wd_tagger) | yes | 4.46, 2.2x (448x448) | 276, 0.95x |
 | [`wd-eva02-large-tagger-v3`](#wd_tagger) | yes | 14.1, 1.9x (448x448) | 806, 1.2x |
 | [`wd-vit-large-tagger-v3`](#wd_tagger) | yes | 12.5, 1.6x (448x448) | 724, 1.1x |
 | [`wd-vit-tagger-v3`](#wd_tagger) | yes | 4.05, 1.4x (448x448) | 284, 1.2x |
@@ -2324,7 +2324,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>3.98<br>4.05<br>5.33<br>fails: timeout after 290 s | 426 / 442<br>231 / 242<br>235 / 242<br>234 / 284<br>282 / 302<br>– |
-| `wd-convnext-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>9.60<br>5.58<br>4.45<br>4.45<br>3.10 | 481 / 516<br>259 / 292<br>340 / 374<br>318 / 358<br>380 / 392<br>521 / 548 |
+| `wd-convnext-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>9.60<br>5.59<br>4.46<br>4.45<br>3.10 | 481 / 516<br>259 / 292<br>260 / 292<br>238 / 276<br>380 / 392<br>521 / 548 |
 | `wd-vit-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.8<br>19.9<br>12.9<br>12.5<br>13.3<br>11.2 | 1287 / 1302<br>662 / 682<br>669 / 682<br>667 / 724<br>713 / 742<br>1266 / 1290 |
 | `wd-eva02-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 84.4<br>26.6<br>18.3<br>14.1<br>15.7<br>fails: timeout after 290 s | 1299 / 1324<br>668 / 684<br>669 / 684<br>673 / 806<br>714 / 724<br>– |
 
@@ -2350,7 +2350,7 @@ Commercial use: yes.
 - `wd-vit-large-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
 - `wd-eva02-large-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
 - `wd-vit-tagger-v3` load / first call: original 2.33 s / 0.318 s (448x448), portable 2.44 s / 0.09 s (448x448), kernels 2.28 s / 0.092 s (448x448)
-- `wd-convnext-tagger-v3` load / first call: original 2.92 s / 0.484 s (448x448), portable 2.93 s / 0.252 s (448x448), kernels 2.37 s / 0.066 s (448x448)
+- `wd-convnext-tagger-v3` load / first call: original 2.92 s / 0.484 s (448x448), portable 2.34 s / 0.236 s (448x448), kernels 2.5 s / 0.066 s (448x448)
 - `wd-vit-large-tagger-v3` load / first call: original 4.74 s / 0.439 s (448x448), portable 5.54 s / 0.091 s (448x448), kernels 4.68 s / 0.063 s (448x448)
 - `wd-eva02-large-tagger-v3` load / first call: original 4.82 s / 0.352 s (448x448), portable 5.38 s / 0.064 s (448x448), kernels 3.61 s / 0.076 s (448x448)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

@@ -725,7 +725,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | vgg16.tv_in1k | 224x224 | 3.62 | 4.09 | 1.99 | 1.50 | 2.4x | 1.3x | 825 / 846 | 313 / 372 | 332 / 388 |
 | vit_base_patch16_224.augreg2_in21k_ft_in1k | 224x224 | 6.33 | 5.48 | 3.02 | 1.65 | 3.3x | 1.8x | 531 / 548 | 205 / 390 | 300 / 370 |
 | vit_so400m_patch14_siglip_378.webli_ft_in1k | 224x224 | 76.9 | 25.8 | 13.1 | 12.8 | 2.0x | 1.0x | 2495 / 2564 | 879 / 1708 | 1216 / 1346 |
-| wd-convnext-tagger-v3 | 448x448 | 15.3 | 9.60 | 5.58 | 4.45 | 2.2x | 1.3x | 259 / 292 | 340 / 374 | 318 / 358 |
+| wd-convnext-tagger-v3 | 448x448 | 15.3 | 9.60 | 5.59 | 4.46 | 2.2x | 1.3x | 259 / 292 | 260 / 292 | 238 / 276 |
 | wd-eva02-large-tagger-v3 | 448x448 | 84.4 | 26.6 | 18.3 | 14.1 | 1.9x | 1.3x | 668 / 684 | 669 / 684 | 673 / 806 |
 | wd-vit-large-tagger-v3 | 448x448 | 76.8 | 19.9 | 12.9 | 12.5 | 1.6x | 1.0x | 662 / 682 | 669 / 682 | 667 / 724 |
 | wd-vit-tagger-v3 | 448x448 | 19.0 | 5.78 | 3.98 | 4.05 | 1.4x | 1.0x | 231 / 242 | 235 / 242 | 234 / 284 |
@@ -1382,7 +1382,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | vgg16.tv_in1k | 3.22 | 1.74 | 1.90 | 0.30 | 0.00 | 0.06 |
 | vit_base_patch16_224.augreg2_in21k_ft_in1k | 2.49 | 0.73 | 2.05 | 0.28 | 0.00 | 0.07 |
 | vit_so400m_patch14_siglip_378.webli_ft_in1k | 7.52 | 7.29 | 5.82 | 0.35 | 0.07 | 0.09 |
-| wd-convnext-tagger-v3 | 2.92 (448x448) | 2.93 (448x448) | 2.37 (448x448) | 0.48 (448x448) | 0.25 (448x448) | 0.07 (448x448) |
+| wd-convnext-tagger-v3 | 2.92 (448x448) | 2.34 (448x448) | 2.50 (448x448) | 0.48 (448x448) | 0.24 (448x448) | 0.07 (448x448) |
 | wd-eva02-large-tagger-v3 | 4.82 (448x448) | 5.38 (448x448) | 3.61 (448x448) | 0.35 (448x448) | 0.06 (448x448) | 0.08 (448x448) |
 | wd-vit-large-tagger-v3 | 4.74 (448x448) | 5.54 (448x448) | 4.68 (448x448) | 0.44 (448x448) | 0.09 (448x448) | 0.06 (448x448) |
 | wd-vit-tagger-v3 | 2.33 (448x448) | 2.44 (448x448) | 2.28 (448x448) | 0.32 (448x448) | 0.09 (448x448) | 0.09 (448x448) |
@@ -1767,7 +1767,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | fast-acvnet-plus-generalization | 994x1482 | 70.6 ms | 42.0 ms | 40.8 ms | 46.4 ms | 40.9 s | 74.1 s | 662 / 756 | 549 / 830 | 790 / 1120 | 1127 / 1178 |
 | fast-acvnet-plus-kitti12 | 994x1482 | 70.6 ms | 42.1 ms | 40.6 ms | 46.4 ms | 41.9 s | 71.9 s | 662 / 756 | 549 / 830 | 790 / 1120 | 1127 / 1178 |
 | fast-acvnet-plus-kitti15 | 994x1482 | 70.6 ms | – | 40.7 ms | 46.4 ms | – | 73.9 s | 662 / 756 | – | 790 / 1120 | 1127 / 1178 |
-| fast-acvnet-plus-sceneflow | 994x1482 | 70.6 ms | – | 40.9 ms | 46.4 ms | – | 72.8 s | 662 / 756 | – | 790 / 1120 | 1127 / 1178 |
+| fast-acvnet-plus-sceneflow | 994x1482 | 70.6 ms | 41.9 ms | 40.9 ms | 46.4 ms | 40.6 s | 72.8 s | 662 / 756 | 549 / 830 | 790 / 1120 | 1127 / 1178 |
 | fast-acvnet-sceneflow | 994x1482 | 54.7 ms | 36.2 ms | 36.7 ms | 38.2 ms | 41.8 s | 71.3 s | 664 / 736 | 584 / 698 | 739 / 1042 | 563 / 576 |
 | fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 156 ms | 135 ms | 78.4 s | 157 s | 2109 / 2256 | 1613 / 1752 | 1196 / 1576 | 1342 / 1398 |
 | foundationstereo-vit-s | 994x1482 | 2514 ms | 2044 ms | 1196 ms | 1120 ms | 212 s | 545 s | 2493 / 2606 | 2822 / 3646 | 2169 / 2470 | 2794 / 2872 |
@@ -1776,7 +1776,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | great-igev-middlebury | 994x1482 | 1785 ms | 1676 ms | fails: unsupported: engine build exceeds 5 min lock rule (cold ONNX | 579 ms | 326 s | – | 1875 / 2078 | 5228 / 5720 | 1553 / 1744 | – |
 | great-igev-sceneflow | 994x1482 | 1085 ms | 830 ms | 944 ms | 393 ms | 224 s | 675 s | 1402 / 1678 | 2831 / 3362 | 1192 / 1564 | 6155 / 6234 |
 | gwcnet-g-sceneflow | 994x1482 | 344 ms | 417 ms | 275 ms | 238 ms | 52.6 s | 66.0 s | 2081 / 2402 | 1527 / 1864 | 1799 / 2102 | 3634 / 3648 |
-| gwcnet-gc-sceneflow | 994x1482 | 353 ms | – | 669 ms | 257 ms | – | 117 s | 2082 / 2402 | – | 1768 / 1962 | 2732 / 2786 |
+| gwcnet-gc-sceneflow | 994x1482 | 353 ms | 420 ms | 669 ms | 257 ms | 83.8 s | 117 s | 2082 / 2402 | 1774 / 2246 | 1768 / 1962 | 2732 / 2786 |
 | hitnet-eth3d | 994x1482 | 67.8 ms | 27.7 ms | 31.1 ms | 23.2 ms | 39.1 s | 136 s | 860 / 1090 | 719 / 728 | 647 / 1248 | 912 / 920 |
 | hitnet-middlebury-d400 | 994x1482 | 176 ms | 71.5 ms | 74.9 ms | 52.7 ms | 55.4 s | 166 s | 1744 / 2414 | 1296 / 1332 | 1263 / 2368 | 1985 / 2014 |
 | igev-plusplus-eth3d | 994x1482 | 1081 ms | 716 ms | 494 ms | 393 ms | 159 s | 425 s | 1594 / 1840 | 952 / 1074 | 1389 / 2302 | 3765 / 3786 |
@@ -1785,15 +1785,15 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | igev-plusplus-middlebury | 994x1482 | 1081 ms | 718 ms | 494 ms | 393 ms | 157 s | 436 s | 1594 / 1840 | 917 / 1054 | 1389 / 2302 | 3821 / 3900 |
 | igev-plusplus-sceneflow | 994x1482 | 1081 ms | 718 ms | 495 ms | 393 ms | 158 s | 426 s | 1594 / 1840 | 917 / 1054 | 1389 / 2302 | 3821 / 3900 |
 | igev-stereo-eth3d | 994x1482 | 763 ms | 527 ms | 339 ms | 288 ms | 111 s | 213 s | 1237 / 1492 | 807 / 1052 | 1113 / 1374 | 1350 / 1370 |
-| igev-stereo-kitti12 | 994x1482 | 763 ms | – | 340 ms | 288 ms | – | 215 s | 1237 / 1492 | – | 1113 / 1374 | 1313 / 1372 |
-| igev-stereo-kitti15 | 994x1482 | 763 ms | – | 340 ms | 288 ms | – | 214 s | 1237 / 1492 | – | 1113 / 1374 | 1315 / 1374 |
+| igev-stereo-kitti12 | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 112 s | 215 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1313 / 1372 |
+| igev-stereo-kitti15 | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 110 s | 214 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1315 / 1374 |
 | igev-stereo-middlebury | 994x1482 | 763 ms | 527 ms | 338 ms | 288 ms | 110 s | 214 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1317 / 1376 |
 | igev-stereo-sceneflow | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 111 s | 216 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1317 / 1376 |
 | las2-h | 994x1482 | 113 ms | 75.0 ms | fails: unsupported: TensorRT 10 Myelin autotuner exception (all tac | 53.3 ms | 37.5 s | – | 1002 / 1046 | 579 / 724 | 1021 / 1388 | – |
 | las2-l | 994x1482 | 75.7 ms | 46.6 ms | 23.4 ms | 29.9 ms | 30.5 s | 97.5 s | 648 / 716 | 385 / 432 | 397 / 600 | 393 / 424 |
 | las2-m | 994x1482 | 37.1 ms | 28.6 ms | 13.2 ms | 18.3 ms | 24.0 s | 98.3 s | 584 / 664 | 252 / 300 | 329 / 572 | 343 / 386 |
 | las2-s | 994x1482 | 27.8 ms | 23.7 ms | 10.3 ms | 14.3 ms | 22.4 s | 86.9 s | 568 / 648 | 238 / 264 | 320 / 558 | 258 / 304 |
-| mocha-v1-sceneflow | 994x1482 | 1057 ms | – | fails: unsupported: engine build exceeds 5 min lock rule (cold ONNX | 455 ms | – | – | 1632 / 1770 | – | 1588 / 1730 | – |
+| mocha-v1-sceneflow | 994x1482 | 1057 ms | fails: worker rc=124 | fails: unsupported: engine build exceeds 5 min lock rule (cold ONNX | 455 ms | – | – | 1632 / 1770 | – | 1588 / 1730 | – |
 | mocha-v2-sceneflow | 994x1482 | 1033 ms | 713 ms | 437 ms | 448 ms | 148 s | 361 s | 1632 / 1770 | 1122 / 1308 | 1587 / 1790 | 1400 / 1486 |
 | monster-mix-all | 994x1482 | 1585 ms | 1098 ms | 674 ms | 653 ms | 105 s | 391 s | 2336 / 2494 | 2081 / 2272 | 2356 / 2734 | 2898 / 2960 |
 | monster-plusplus-mix-all | 994x1482 | 1633 ms | 1126 ms | 697 ms | 657 ms | 109 s | 416 s | 2583 / 2918 | 2328 / 2532 | 2438 / 2754 | 3489 / 3552 |
@@ -1808,8 +1808,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | s2m2-s | 994x1482 | 348 ms | 186 ms | 137 ms | 113 ms | 95.9 s | 363 s | 1733 / 1930 | 1579 / 1710 | 686 / 820 | 1186 / 1240 |
 | s2m2-xl | 994x1482 | 1815 ms | 1298 ms | 753 ms | 682 ms | 153 s | 408 s | 5228 / 6016 | 5594 / 6014 | 2092 / 2274 | 5283 / 5338 |
 | selective-igev-eth3d-finetune | 994x1482 | 998 ms | 691 ms | 461 ms | 349 ms | 126 s | 256 s | 1238 / 1488 | 919 / 1088 | 1109 / 1390 | 1279 / 1316 |
-| selective-igev-eth3d-train | 994x1482 | 998 ms | – | 462 ms | 349 ms | – | 260 s | 1238 / 1488 | – | 1109 / 1390 | 1278 / 1334 |
-| selective-igev-kitti12 | 994x1482 | 998 ms | – | 462 ms | 349 ms | – | 255 s | 1238 / 1488 | – | 1109 / 1390 | 1278 / 1334 |
+| selective-igev-eth3d-train | 994x1482 | 998 ms | 691 ms | 462 ms | 349 ms | 127 s | 260 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
+| selective-igev-kitti12 | 994x1482 | 998 ms | 691 ms | 462 ms | 349 ms | 125 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | selective-igev-kitti15 | 994x1482 | 998 ms | – | 462 ms | 349 ms | – | 256 s | 1238 / 1488 | – | 1109 / 1390 | 1278 / 1334 |
 | selective-igev-middlebury-finetune | 994x1482 | 998 ms | – | 462 ms | 349 ms | – | 258 s | 1238 / 1488 | – | 1109 / 1390 | 1280 / 1316 |
 | selective-igev-middlebury-train | 994x1482 | 998 ms | – | 462 ms | 349 ms | – | 256 s | 1238 / 1488 | – | 1109 / 1390 | 1278 / 1334 |
@@ -1947,7 +1947,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | vgg16.tv_in1k | 224x224 | 1.99 ms | 1.86 ms | 1.17 ms | 1.50 ms | 4.08 s | 15.9 s | 313 / 372 | 342 / 368 | 332 / 388 | 599 / 628 |
 | vit_base_patch16_224.augreg2_in21k_ft_in1k | 224x224 | 3.02 ms | 2.10 ms | 1.14 ms | 1.65 ms | 7.26 s | 28.6 s | 205 / 390 | 238 / 266 | 300 / 370 | 394 / 420 |
 | vit_so400m_patch14_siglip_378.webli_ft_in1k | 224x224 | 13.1 ms | 13.3 ms | 11.4 ms | 12.8 ms | 14.2 s | 60.7 s | 879 / 1708 | 909 / 944 | 1216 / 1346 | 1701 / 1752 |
-| wd-convnext-tagger-v3 | 448x448 | 5.58 ms | 4.45 ms | 3.10 ms | 4.45 ms | 12.2 s | 39.7 s | 340 / 374 | 380 / 392 | 318 / 358 | 521 / 548 |
+| wd-convnext-tagger-v3 | 448x448 | 5.59 ms | 4.45 ms | 3.10 ms | 4.46 ms | 12.2 s | 39.7 s | 260 / 292 | 380 / 392 | 238 / 276 | 521 / 548 |
 | wd-eva02-large-tagger-v3 | 448x448 | 18.3 ms | 15.7 ms | fails: timeout after 290 s | 14.1 ms | 22.4 s | – | 669 / 684 | 714 / 724 | 673 / 806 | – |
 | wd-vit-large-tagger-v3 | 448x448 | 12.9 ms | 13.3 ms | 11.2 ms | 12.5 ms | 13.5 s | 36.2 s | 669 / 682 | 713 / 742 | 667 / 724 | 1266 / 1290 |
 | wd-vit-tagger-v3 | 448x448 | 3.98 ms | 5.33 ms | fails: timeout after 290 s | 4.05 ms | 9.55 s | – | 235 / 242 | 282 / 302 | 234 / 284 | – |
@@ -2039,11 +2039,11 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | rf-detr-seg-n-coco | 800x1344 | 11.9 ms | 6.59 ms | 1.52 ms | 3.75 ms | 31.2 s | 54.0 s | 123 / 148 | 158 / 166 | 126 / 190 | 189 / 218 |
 | rf-detr-seg-s-coco | 800x1344 | 12.0 ms | 6.55 ms | 2.00 ms | 4.34 ms | 29.8 s | 63.6 s | 130 / 154 | 162 / 190 | 129 / 198 | 197 / 224 |
 | rf-detr-seg-xl-coco | 800x1344 | 17.9 ms | 10.8 ms | 5.20 ms | 10.5 ms | 35.3 s | 92.5 s | 177 / 206 | 212 / 246 | 188 / 268 | 302 / 326 |
-| rtdetrv2-l-coco | 800x1344 | 12.1 ms | – | 3.32 ms | 6.61 ms | – | 48.3 s | 177 / 200 | – | 200 / 306 | 255 / 286 |
-| rtdetrv2-m-coco | 800x1344 | 10.4 ms | – | 2.42 ms | 5.27 ms | – | 43.7 s | 156 / 170 | – | 177 / 274 | 199 / 222 |
-| rtdetrv2-ms-coco | 800x1344 | 9.60 ms | – | 2.62 ms | 5.46 ms | – | 44.2 s | 166 / 182 | – | 189 / 306 | 244 / 288 |
+| rtdetrv2-l-coco | 800x1344 | 12.1 ms | 7.29 ms | 3.32 ms | 6.61 ms | 41.6 s | 48.3 s | 177 / 200 | 204 / 238 | 200 / 306 | 255 / 286 |
+| rtdetrv2-m-coco | 800x1344 | 10.4 ms | 5.35 ms | 2.42 ms | 5.27 ms | 31.5 s | 43.7 s | 156 / 170 | 177 / 206 | 177 / 274 | 199 / 222 |
+| rtdetrv2-ms-coco | 800x1344 | 9.60 ms | 5.82 ms | 2.62 ms | 5.46 ms | 28.3 s | 44.2 s | 166 / 182 | 193 / 220 | 189 / 306 | 244 / 288 |
 | rtdetrv2-s-coco | 800x1344 | 8.04 ms | 4.22 ms | 1.81 ms | 4.19 ms | 37.0 s | 42.2 s | 134 / 166 | 152 / 182 | 155 / 250 | 187 / 218 |
-| rtdetrv2-x-coco | 800x1344 | 14.6 ms | – | 5.23 ms | 9.24 ms | – | 54.6 s | 244 / 278 | – | 262 / 384 | 381 / 430 |
+| rtdetrv2-x-coco | 800x1344 | 14.6 ms | 10.9 ms | 5.23 ms | 9.24 ms | 44.2 s | 54.6 s | 244 / 278 | 269 / 296 | 262 / 384 | 381 / 430 |
 | rtmdet-l-coco | 800x1344 | 9.60 ms | 10.6 ms | 3.59 ms | 5.74 ms | 17.2 s | 25.0 s | 183 / 230 | 178 / 226 | 178 / 284 | 283 / 318 |
 | rtmdet-m-coco | 800x1344 | 7.69 ms | 4.78 ms | 2.39 ms | 4.49 ms | 15.7 s | 22.4 s | 114 / 148 | 115 / 130 | 122 / 200 | 156 / 212 |
 | rtmdet-m-person | 800x1344 | 7.39 ms | 4.44 ms | 2.38 ms | 4.12 ms | 15.5 s | 24.8 s | 114 / 146 | 115 / 128 | 119 / 202 | 153 / 190 |

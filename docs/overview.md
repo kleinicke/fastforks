@@ -228,7 +228,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`hgnetv2_b1`](models/classification.md#hgnetv2) | yes | 4.6 (224x224) | 3.5 | – | – | – |
 | [`efficientformer_l1`](models/classification.md#efficientformer) | yes | 4.9 (224x224) | 3.7 | – | – | – |
 | [`wd-vit-tagger-v3`](models/classification.md#wd-tagger-v3) | yes | – | 4.0 | 4.1 (448x448) | 1.0x vs portable | 234 |
-| [`wd-convnext-tagger-v3`](models/classification.md#wd-tagger-v3) | yes | – | 5.6 | 4.5 (448x448) | 1.3x vs portable | 318 |
+| [`wd-convnext-tagger-v3`](models/classification.md#wd-tagger-v3) | yes | – | 5.6 | 4.5 (448x448) | 1.3x vs portable | 238 |
 | [`hgnetv2_b4`](models/classification.md#hgnetv2) | yes | 7.1 (224x224) | 4.5 | – | – | – |
 | [`hgnetv2_b2`](models/classification.md#hgnetv2) | yes | 6.2 (224x224) | 4.6 | – | – | – |
 | [`dinov2_vitl14_lc`](models/classification.md#dinov2-linear) | yes | 10.8 (224x224) | 5.4 | 4.9 | 2.2x vs original (224x224) | 890 |

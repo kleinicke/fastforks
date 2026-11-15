@@ -880,7 +880,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gwcnet-gc-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp16 | 632<br>365<br>353<br>257<br>669 | 8252 / 8822<br>5887 / 6214<br>2082 / 2402<br>1768 / 1962<br>2732 / 2786 |
+| `gwcnet-gc-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 632<br>365<br>353<br>257<br>420<br>669 | 8252 / 8822<br>5887 / 6214<br>2082 / 2402<br>1768 / 1962<br>1774 / 2246<br>2732 / 2786 |
 | `gwcnet-g-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 604<br>352<br>344<br>238<br>417<br>275 | 6691 / 7280<br>5105 / 5414<br>2081 / 2402<br>1799 / 2102<br>1527 / 1864<br>3634 / 3648 |
 
 <details><summary>Details</summary>
@@ -896,7 +896,7 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gwcnet-gc-sceneflow` 3000x4000 (13.6 GiB peak allocated, 13.7 reserved); `gwcnet-g-sceneflow` 3000x4000 (13.3 GiB peak allocated, 14.8 reserved)
-- `gwcnet-gc-sceneflow` 994x1482, first call: TensorRT fp16 117 s (ONNX + engine).
+- `gwcnet-gc-sceneflow` 994x1482, first call: portable + torch.compile 84 s (cold Inductor cache), TensorRT fp16 117 s (ONNX + engine).
 - `gwcnet-g-sceneflow` 994x1482, first call: portable + torch.compile 53 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
 - `gwcnet-gc-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
 - `gwcnet-g-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
@@ -1253,7 +1253,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mocha-v1-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp16 | 2148<br>1456<br>1057<br>455<br>fails: unsupported: engine build exceeds 5 min lock rule (cold ONNX | 4140 / 4598<br>3637 / 3982<br>1632 / 1770<br>1588 / 1730<br>– |
+| `mocha-v1-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2148<br>1456<br>1057<br>455<br>fails: worker rc=124<br>fails: unsupported: engine build exceeds 5 min lock rule (cold ONNX | 4140 / 4598<br>3637 / 3982<br>1632 / 1770<br>1588 / 1730<br>–<br>– |
 | `mocha-v2-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2054<br>1295<br>1033<br>448<br>713<br>437 | 4017 / 4418<br>3576 / 3982<br>1632 / 1770<br>1587 / 1790<br>1122 / 1308<br>1400 / 1486 |
 
 <details><summary>Details</summary>

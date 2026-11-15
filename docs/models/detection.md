@@ -651,10 +651,10 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `rtdetrv2-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.1<br>16.8<br>8.04<br>4.19<br>4.22<br>1.81 | 196 / 226<br>192 / 220<br>134 / 166<br>155 / 250<br>152 / 182<br>187 / 218 |
-| `rtdetrv2-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp16 | 17.1<br>20.9<br>10.4<br>5.27<br>2.42 | 239 / 254<br>254 / 270<br>156 / 170<br>177 / 274<br>199 / 222 |
-| `rtdetrv2-ms-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp16 | 24.7<br>22.5<br>9.60<br>5.46<br>2.62 | 322 / 374<br>309 / 358<br>166 / 182<br>189 / 306<br>244 / 288 |
-| `rtdetrv2-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp16 | 30.3<br>38.4<br>12.1<br>6.61<br>3.32 | 366 / 424<br>354 / 412<br>177 / 200<br>200 / 306<br>255 / 286 |
-| `rtdetrv2-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp16 | 36.3<br>46.8<br>14.6<br>9.24<br>5.23 | 529 / 596<br>589 / 622<br>244 / 278<br>262 / 384<br>381 / 430 |
+| `rtdetrv2-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>20.9<br>10.4<br>5.27<br>5.35<br>2.42 | 239 / 254<br>254 / 270<br>156 / 170<br>177 / 274<br>177 / 206<br>199 / 222 |
+| `rtdetrv2-ms-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.7<br>22.5<br>9.60<br>5.46<br>5.82<br>2.62 | 322 / 374<br>309 / 358<br>166 / 182<br>189 / 306<br>193 / 220<br>244 / 288 |
+| `rtdetrv2-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 30.3<br>38.4<br>12.1<br>6.61<br>7.29<br>3.32 | 366 / 424<br>354 / 412<br>177 / 200<br>200 / 306<br>204 / 238<br>255 / 286 |
+| `rtdetrv2-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 36.3<br>46.8<br>14.6<br>9.24<br>10.9<br>5.23 | 529 / 596<br>589 / 622<br>244 / 278<br>262 / 384<br>269 / 296<br>381 / 430 |
 
 <details><summary>Details</summary>
 
@@ -671,10 +671,10 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtdetrv2-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `rtdetrv2-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `rtdetrv2-ms-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `rtdetrv2-l-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved); `rtdetrv2-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.8 reserved)
 - `rtdetrv2-s-coco` 800x1344, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
-- `rtdetrv2-m-coco` 800x1344, first call: TensorRT fp16 44 s (ONNX + engine).
-- `rtdetrv2-ms-coco` 800x1344, first call: TensorRT fp16 44 s (ONNX + engine).
-- `rtdetrv2-l-coco` 800x1344, first call: TensorRT fp16 48 s (ONNX + engine).
-- `rtdetrv2-x-coco` 800x1344, first call: TensorRT fp16 55 s (ONNX + engine).
+- `rtdetrv2-m-coco` 800x1344, first call: portable + torch.compile 32 s (cold Inductor cache), TensorRT fp16 44 s (ONNX + engine).
+- `rtdetrv2-ms-coco` 800x1344, first call: portable + torch.compile 28 s (cold Inductor cache), TensorRT fp16 44 s (ONNX + engine).
+- `rtdetrv2-l-coco` 800x1344, first call: portable + torch.compile 42 s (cold Inductor cache), TensorRT fp16 48 s (ONNX + engine).
+- `rtdetrv2-x-coco` 800x1344, first call: portable + torch.compile 44 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `rtdetrv2-s-coco` original (fp32) 800x1344: incl. CPU resize + host copy (official pipeline)
 - `rtdetrv2-s-coco` original 800x1344: torch.autocast(fp16) around the forward; incl. CPU resize + host copy (official pipeline)
 - `rtdetrv2-m-coco` original (fp32) 800x1344: incl. CPU resize + host copy (official pipeline)
