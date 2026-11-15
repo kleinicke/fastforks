@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from fastforks import volume
 from fastforks._core.errors import InputError, WeightsError
 from fastforks.volume import _nnunet, _resample
+from fastforks.volume._api import _volume
 from fastforks.volume.models.nninteractive import model as nni
 from fastforks.volume.models.totalsegmentator import model as ts
 
@@ -360,3 +361,10 @@ def test_nninteractive_cover_boxes() -> None:
         for box in nni.cover_boxes(m, (24, 24, 24), np.random.RandomState(0)):
             covered[tuple(slice(max(0, a), b) for a, b in box)] = True
         assert bool(covered[m].all())
+
+
+@pytest.mark.parametrize("bad", ["ct.nii.gz", [[1.0]]])
+def test_volume_path_input_names_read_nifti(bad: object) -> None:
+    with pytest.raises(InputError, match="numpy array or torch tensor") as e:
+        _volume(bad, 1, "x")
+    assert ("read_nifti" in str(e.value)) == isinstance(bad, str)

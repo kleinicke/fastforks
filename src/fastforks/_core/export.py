@@ -267,6 +267,7 @@ def export_onnx(  # noqa: PLR0913 - the size, the batch and the optional dynamic
     (`probe_sizes`) and must match eager `module()` there (`DYNAMIC_TOLERANCE`); a file that fails is removed
     (`InputError`). A size range is refused up front for families outside `DYNAMIC_VERIFIED` (`fixed_size_reason`).
     """
+    require_available(model.variant, "onnx")  # before the size: a gated export says so first
     return _export_onnx(model, path, height, width, batch=batch, size_range=size_range, run=True)
 
 
@@ -678,6 +679,7 @@ def export_tensorrt(  # noqa: PLR0913 - export_onnx's arguments plus the build w
     bound, opt = `(height, width)`, max = upper bound); dynamic engines are not faster than fixed ones, see export.md.
     The engine is run once on `example_inputs`: an all-NaN output removes it and raises `BackendUnavailableError`.
     """
+    require_available(model.variant, "tensorrt")  # before the size: a gated export says so first
     height, width = resolve_size(model, height, width)
     check_exportable(model, height, width, batch, "tensorrt")
     _bounds(model, height, width, size_range, batch)

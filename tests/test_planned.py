@@ -14,7 +14,7 @@ import torch
 from fastforks import BackendUnavailableError, CardError
 from fastforks._core import registry
 from fastforks._core.cards import parse_card, planned_reason, require_available
-from fastforks._core.export import check_exportable
+from fastforks._core.export import check_exportable, export_onnx, export_tensorrt
 from fastforks._core.model import Model, _no_auto_kernels
 
 S2M2 = Path(__file__).parents[1] / "src/fastforks/stereo/models/s2m2/card.toml"
@@ -67,10 +67,13 @@ def test_hooks_raise_before_any_work() -> None:
     fake = SimpleNamespace(variant=v, backend=SimpleNamespace(mode="portable"))
     with pytest.raises(BackendUnavailableError, match="export_onnx is not available"):
         check_exportable(fake, 64, 64, 1)
-    with pytest.raises(BackendUnavailableError, match="export_tensorrt is not available.*: o"):
+    with pytest.raises(BackendUnavailableError, match=r"export_tensorrt is not available.*: o"):
         check_exportable(fake, 64, 64, 1, "tensorrt")
     with pytest.raises(BackendUnavailableError, match=r"compile\(\) is not available"):
         Model.compile(fake)
+    for export in (export_onnx, export_tensorrt):  # the gate comes before "give an export size"
+        with pytest.raises(BackendUnavailableError, match=r"is not available.*: o"):
+            export(fake, "x.onnx")
 
 
 def test_auto_skips_planned_kernels() -> None:

@@ -124,6 +124,14 @@ class VolumeMask(NumpyOutputs):
 
 def _volume(volume: np.ndarray | torch.Tensor, channels: int, ref: str) -> torch.Tensor:
     """`[C, D, H, W]` of a `[D, H, W]` / `[C, D, H, W]` numpy or torch volume (not yet on the device)."""
+    if not isinstance(volume, (np.ndarray, torch.Tensor)):
+        hint = (
+            "; read a file with `vol, meta = fastforks.volume.read_nifti(path)` and pass `model(vol, meta=meta)`"
+            if isinstance(volume, (str, os.PathLike))
+            else ""
+        )
+        msg = f"volume must be a numpy array or torch tensor, got {type(volume).__name__}{hint}"
+        raise InputError(msg)
     x = torch.as_tensor(np.ascontiguousarray(volume) if isinstance(volume, np.ndarray) else volume)
     if x.ndim not in _NDIM or x.is_complex() or x.dtype == torch.bool:
         msg = f"volume must be a real [D, H, W] or [C, D, H, W] array, got {x.dtype} {tuple(x.shape)}"
