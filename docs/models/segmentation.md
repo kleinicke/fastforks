@@ -633,5 +633,5 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | `imagenet-21k` | [ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release)](https://image-net.org/download.php) | LicenseRef-noncommercial | no |
 | `lvd-142m` | [LVD-142M (DINOv2's curated web-image set, not released)](https://arxiv.org/abs/2304.07193) | not stated | unclear |
 | `ade20k` | [ADE20K (SceneParsing, 150 classes)](https://ade20k.csail.mit.edu/terms/) | LicenseRef-noncommercial | no |
-| `atr` | [ATR human parsing dataset (18 clothes / body-part classes; SegFormer-B2 clothes: Hugging Face mirror mattmdjaga/human_parsing_dataset)](https://github.com/lemondan/HumanParsing-Dataset) | not stated | unclear |
-| `celebamask-hq` | [CelebAMask-HQ (30 000 CelebA-HQ faces, 19 face-part masks)](https://github.com/switchablenorms/CelebAMask-HQ) | LicenseRef-noncommercial | no |
+| `atr` | [ATR human parsing dataset (18 clothes / body-part classes; SegFormer-B2 clothes: Hugging Face mirror mattmdjaga/human_parsing_dataset)](https://github.com/lemondan/HumanParsing-Dataset/blob/837a281e75fae55ad42afed432533cf3cb2ce347/README.md) | not stated | unclear |
+| `celebamask-hq` | [CelebAMask-HQ (30 000 CelebA-HQ faces, 19 face-part masks)](https://github.com/switchablenorms/CelebAMask-HQ/blob/3f6c45df5e67130568f9459f24f8d6a5ff836d30/README.md) | LicenseRef-noncommercial | no |

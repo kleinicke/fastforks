@@ -929,15 +929,15 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | id | dataset | licence | commercial use |
 |---|---|---|---|
 | `imagenet-1k` | [ImageNet-1k (ILSVRC 2012 classification)](https://image-net.org/download.php) | LicenseRef-noncommercial | no |
-| `div2k` | [DIV2K (NTIRE 2017 super-resolution, 1000 2K images)](https://data.vision.ee.ethz.ch/cvl/DIV2K/) | academic research only | no |
+| `div2k` | [DIV2K (NTIRE 2017 super-resolution, 1000 2K images)](https://data.vision.ee.ethz.ch/cvl/DIV2K/) | LicenseRef-research-only | no |
 | `gopro` | [GoPro deblurring (GOPRO_Large, Nah et al. 2017: 3214 blurred / sharp frame pairs)](https://seungjunnah.github.io/Datasets/gopro) | CC-BY-4.0 | yes |
 | `sidd` | [Smartphone Image Denoising Dataset (SIDD, noisy / ground-truth smartphone photos)](https://abdokamel.github.io/sidd/) | MIT | yes |
 | `rain13k` | [Rain13K (13712 synthetic rainy / clean pairs merged from Rain14000, Rain1800, Rain800, Rain12; MPRNet's training set)](https://github.com/swz30/Restormer/blob/68dc6ac472db26f16361150cb7a96a1bc87da93f/Deraining/README.md) | not stated | unclear |
-| `flickr2k` | [Flickr2K (2650 2K Flickr images, EDSR)](https://github.com/limbee/NTIRE2017) | not stated | unclear |
-| `ost` | [OutdoorSceneTraining (OST, SFTGAN)](https://github.com/xinntao/SFTGAN) | not stated | unclear |
-| `ffhq` | [Flickr-Faces-HQ (FFHQ, 70k face images)](https://github.com/NVlabs/ffhq-dataset) | CC-BY-NC-SA-4.0 | no |
-| `manga109` | [Manga109 (109 Japanese manga volumes)](http://www.manga109.org/en/) | academic research only | no |
+| `flickr2k` | [Flickr2K (2650 2K Flickr images, EDSR)](https://github.com/limbee/NTIRE2017/blob/db34606c2844e89317aac8728a2de562ef1f8aba/README.md) | not stated | unclear |
+| `ost` | [OutdoorSceneTraining (OST, SFTGAN)](https://github.com/xinntao/SFTGAN/blob/d98889e9f94e44a788cc0ffeaaca77ca76556638/README.md) | not stated | unclear |
+| `ffhq` | [Flickr-Faces-HQ (FFHQ, 70k face images)](https://github.com/NVlabs/ffhq-dataset/blob/4826aa6ea77aa7f1a7802b938ed7c40afb985cda/README.md) | CC-BY-NC-SA-4.0 | no |
+| `manga109` | [Manga109 (109 Japanese manga volumes)](https://web.archive.org/web/20261022181634/https://manga109.github.io/manga109-project-website/en/index.html) | LicenseRef-research-only | no |
 | `wed` | [Waterloo Exploration Database (4744 natural images)](https://ece.uwaterloo.ca/~k29ma/exploration/) | not stated | unclear |
-| `scut-ctw1500` | [SCUT-CTW1500 (curved scene text)](https://github.com/Yuliang-Liu/Curve-Text-Detector) | not stated | unclear |
+| `scut-ctw1500` | [SCUT-CTW1500 (curved scene text)](https://github.com/Yuliang-Liu/Curve-Text-Detector/blob/2126a660d3baf3e84a76e77352597576519c35a2/README.md) | not stated | unclear |
 | `nomos-v2` | [Nomos-v2 (neosr's 6000-image multipurpose super-resolution set)](https://github.com/neosr-project/neosr/blob/31c7022620c682cf0961c8634d60787179145c5b/readme.md#-datasets) | not stated | unclear |
-| `places365` | [Places365-Challenge (8 M scene images, 365 categories)](http://places2.csail.mit.edu/download.html) | non-commercial research and educational use | no |
+| `places365` | [Places365-Challenge (8 M scene images, 365 categories)](https://web.archive.org/web/20261105071009/http://places2.csail.mit.edu/download.html) | LicenseRef-noncommercial | no |

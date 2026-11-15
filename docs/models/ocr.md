@@ -42,7 +42,7 @@ Commercial use: yes.
 - Variants: `parseq`, `parseq-tiny`
 - Outputs: boxes, texts, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `parseq` not measured yet; `parseq-tiny` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `parseq` 3000x4000 (0.3 GiB peak allocated, 0.3 reserved); `parseq-tiny` 3000x4000 (0.3 GiB peak allocated, 0.3 reserved)
 - no kernels: a 12-layer ViT on 128 tokens and a 26-step decoder: SDPA / cuBLAS and the decoding loop's launches are the time.
 - `parseq` 32x128, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 114 s (ONNX + engine).
 - `parseq-tiny` 32x128, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 97 s (ONNX + engine).
@@ -90,7 +90,7 @@ Commercial use: yes.
 - Variants: `ppocrv5-server`, `ppocrv5-mobile`
 - Outputs: boxes, texts, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `ppocrv5-server` not measured yet; `ppocrv5-mobile` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `ppocrv5-server` 3000x4000 (7.1 GiB peak allocated, 9.8 reserved); `ppocrv5-mobile` 3000x4000 (1.4 GiB peak allocated, 2.3 reserved)
 - no kernels: cuDNN convolutions are the networks; the time outside them is the per-line crop / resize and the CPU box geometry.
 - `ppocrv5-server` 1080x1920, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `ppocrv5-mobile` 1080x1920, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 156 s (ONNX + engine).

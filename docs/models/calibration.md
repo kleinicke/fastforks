@@ -137,4 +137,4 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | id | dataset | licence | commercial use |
 |---|---|---|---|
 | `lvd-142m` | [LVD-142M (DINOv2's curated web-image set, not released)](https://arxiv.org/abs/2304.07193) | not stated | unclear |
-| `openpano` | [OpenPano (perspective crops of public 360-degree panoramas: PolyHaven, HDRMaps, AmbientCG, BlenderKit)](https://github.com/cvg/GeoCalib/blob/main/siclib/datasets/README.md) | mixed | unclear |
+| `openpano` | [OpenPano (perspective crops of public 360-degree panoramas: PolyHaven, HDRMaps, AmbientCG, BlenderKit)](https://github.com/cvg/GeoCalib/blob/1dedb29f94fc11b896c5f572005978aeebccd67f/siclib/datasets/README.md) | not stated | unclear |

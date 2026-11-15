@@ -344,4 +344,4 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 
 | id | dataset | licence | commercial use |
 |---|---|---|---|
-| `biped` | [BIPED (Barcelona Images for Perceptual Edge Detection)](https://github.com/xavysp/MBIPED) | LicenseRef-research-only | no |
+| `biped` | [BIPED (Barcelona Images for Perceptual Edge Detection)](https://github.com/xavysp/MBIPED/blob/91473d4ac10b36ae784e194d3e73b1497b7a0457/README.md) | LicenseRef-research-only | no |
