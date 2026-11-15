@@ -389,7 +389,11 @@ def eval_version(task: str, row: dict[str, Any]) -> str:
     return _eval_since(task).get(_row_key(row), UNRELEASED)
 
 
-_EXAMPLE_KEEP = ("top", "classes", "objects", "prompt", "certain", "mode", "dtype", "device", "date")
+_EXAMPLE_KEEP = (
+    "top", "classes", "objects", "prompt", "certain", "mode", "dtype", "device", "date",
+    "texts", "layout", "attribution", "scale", "psnr_vs_true_middle", "mean_error_px",
+    "focal_px", "vfov_deg", "roll_deg", "pitch_deg", "classes_litres",
+)  # fmt: skip
 
 
 @functools.cache
@@ -406,7 +410,7 @@ def _example(v: Variant, rows: dict[str, dict[str, Any]]) -> dict[str, Any] | No
     if r is None:
         return None
     _, title, credit, licence, source = examples.INPUTS[r["input"]]
-    views = 2 if r["task"] in {"stereo", "flow", "multiview", "matching"} else 1
+    views = 2 if r["task"] in {"stereo", "flow", "multiview", "matching", "interpolation"} else 1
     inputs = [f"/examples/inputs/{r['input']}{'-right' if i else ''}.webp" for i in range(views)]
     return {
         "image": None if r["task"] == "classification" else f"/examples/{v.id}.webp",
