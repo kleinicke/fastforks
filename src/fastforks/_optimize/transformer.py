@@ -94,6 +94,20 @@ def _reg(mod: _Blk, bufs: dict[str, torch.Tensor | None]) -> None:
         mod.register_buffer(k, None if v is None else v.detach(), persistent=False)
 
 
+def _adopt(bufs: dict[str, torch.Tensor | None], params: dict[str, torch.Tensor | None], gammas: tuple) -> None:
+    """Kernels path (no autograd, reads only the buffers): a folded buffer replaces its parameter's storage.
+
+    No second copy of proj / fc1 / fc2 next to the original (CLIP ViT-B kernels 228 -> 172 MB). A folded layer scale
+    becomes 1 so the module stays exact; a reload (load_state_dict) restores the originals and folds again.
+    """
+    for k, p in params.items():
+        if p is not None and bufs.get(k) is not None and bufs[k].data_ptr() != p.data_ptr():
+            p.data = bufs[k].reshape(p.shape)
+    for g in gammas:
+        if g is not None:
+            g.data = torch.ones_like(g)
+
+
 def _alias(params: list[nn.Parameter], packed: torch.Tensor, rows: list[int] | None = None) -> None:
     """Point `params` at row slices of `packed` (which holds exactly their values) instead of their own storage.
 
@@ -337,6 +351,20 @@ def _vit_prep(mod: _Blk) -> None:
             if g2 is not None:
                 w2, b2 = w2 * g2.float()[:, None], b2 * g2.float()
             bufs["_w_fc2"], bufs["_b_fc2"] = _w4(w2.to(dt)), b2.to(dt)
+        _adopt(
+            bufs,
+            {
+                "_w_proj": a.proj.weight,
+                "_b_proj": a.proj.bias,
+                "_w_fc1": m.fc1.weight,
+                "_b_fc1": m.fc1.bias,
+                "_w_fc2": m.fc2.weight,
+                "_b_fc2": m.fc2.bias,
+                "_ln2_w": getattr(n2, "weight", None),
+                "_ln2_b": getattr(n2, "bias", None),
+            },
+            (g1, g2),
+        )
     _reg(mod, bufs)
 
 
@@ -709,6 +737,11 @@ def _pe_prep(blk: _Blk) -> None:
                 "_w_fc2": _w4(m.fc2.weight) if blk.gamma_2 is None else _w4(w2.to(dt)),
                 "_b_fc2": m.fc2.bias if blk.gamma_2 is None else b2.to(dt),
             },
+        )
+        _adopt(
+            blk._buffers,
+            {"_w_proj": a.proj.weight, "_b_proj": a.proj.bias, "_w_fc2": m.fc2.weight, "_b_fc2": m.fc2.bias},
+            (blk.gamma_1, blk.gamma_2),
         )
 
 
