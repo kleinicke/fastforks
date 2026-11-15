@@ -132,7 +132,10 @@ def test_untie_restores_every_checkpoint_head(by_parameter):
 @pytest.mark.parametrize("by_parameter", [False, True])
 def test_untie_copies_values_a_tie_overwrote_with_initial_ones(by_parameter):
     """grounding-dino-base: the checkpoint stores the decoder's head, the tie target (top-level) kept its init."""
-    net, sd = _tied_heads(by_parameter=by_parameter), {k: v for k, v in _checkpoint().items() if k.startswith("heads.0")}
+    net, sd = (
+        _tied_heads(by_parameter=by_parameter),
+        {k: v for k, v in _checkpoint().items() if k.startswith("heads.0")},
+    )
     with torch.no_grad():
         for p in net.parameters():
             p.zero_()
