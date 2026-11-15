@@ -60,9 +60,10 @@ def sample_maps(
     if in_onnx_export() and dtype != torch.float32:
         # fp32 island of the exported graph: TensorRT's fp16 GridSample returns NaN / huge values (D-FINE-X at 800x1344)
         maps, grids = [v.float() for v in maps], [g.float() for g in grids]
-    sampled = [
-        F.grid_sample(v, g, mode="bilinear", padding_mode="zeros", align_corners=False).to(dtype)
-        for v, g in zip(maps, grids, strict=True)
-    ]
-    weights = weights.permute(0, 2, 1, 3).reshape(b * heads, 1, q, n)
-    return (torch.cat(sampled, dim=-1) * weights).sum(-1).reshape(b, heads * dh, q).transpose(1, 2)
+    weights = weights.permute(0, 2, 1, 3).reshape(b * heads, 1, q, n).split(points, dim=-1)
+    out = None
+    for v, g, w in zip(maps, grids, weights, strict=True):  # fastforks: per level, no cat of the samples (a copy)
+        s = F.grid_sample(v, g, mode="bilinear", padding_mode="zeros", align_corners=False).to(dtype)
+        s = (s * w).sum(-1)
+        out = s if out is None else out + s
+    return out.reshape(b, heads * dh, q).transpose(1, 2)

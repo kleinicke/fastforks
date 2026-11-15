@@ -29,6 +29,7 @@ import torch.nn.functional as F
 from fastforks._core.errors import InputError
 from fastforks._core.labels import label_set
 from fastforks._core.runner import host
+from fastforks.detection._attention import deformable_sample
 from fastforks.detection._runner import Forward, Runner
 from fastforks.shared.bert_tokenizer import BertTokenizer
 from fastforks.shared.seginfer import pretrained
@@ -90,6 +91,12 @@ def phrase_masks(ids: list[int], separators: set[int]) -> tuple[torch.Tensor, to
     return att, pos
 
 
+def _msda(value, shapes, shapes_list, start, loc, weights, step):  # noqa: ANN001, ANN202, ARG001 - transformers' signature
+    """`MultiScaleDeformableAttention.forward` on `deformable_sample`: `[B, Q, heads * dh]`, no stack of the samples."""
+    points = loc.shape[4]
+    return deformable_sample(value, loc.flatten(3, 4), weights.flatten(3), shapes_list, points)
+
+
 class Portable(Runner):
     """transformers' network in the compute dtype (text tower float32, once per query list), heads float32."""
 
@@ -112,6 +119,9 @@ class Portable(Runner):
         m.query_position_embeddings.to(self.dt)
         m.level_embed.data = m.level_embed.data.to(self.dt)
         self.net = net
+        for mod in net.modules():  # fastforks: the shared per-level deformable sampling (no stack of the samples)
+            if type(mod).__name__ == "MultiScaleDeformableAttention":
+                mod.forward = _msda
         self.head = net.bbox_embed[-1]
         # shared with the decoder (the same module, or tied weights since transformers 5.2x): a float copy
         if any(p.dtype != torch.float32 for p in self.head.parameters()):
