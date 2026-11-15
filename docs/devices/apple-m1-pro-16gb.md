@@ -40,7 +40,7 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-06 to 2026-11-14 |
-| rows | 2002 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| rows | 2090 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -63,7 +63,7 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`cfnet-sceneflow`](../models/stereo.md#cfnet) | OOM | OOM | OOM | 2206 | – | – | – | – | 5416 |
 | [`coex-sceneflow`](../models/stereo.md#coex) | 1024 | 784 | 411 | unsupported | – | – | 5473 | 3576 | – |
 | [`crestereo-eth3d`](../models/stereo.md#crestereo) | 15862 | 4771 | 3746 | 3342 | 4.7x | 1.1x | 4683 | 2745 | 2804 |
-| [`defom-stereo-vitl-sceneflow`](../models/stereo.md#defom_stereo) | OOM | 11105 | 12792 | 8224 | – | 1.4x | – | 13138 | 8328 |
+| [`defom-stereo-vitl-sceneflow`](../models/stereo.md#defom_stereo) | OOM | 11105 | – | 8224 | – | 1.4x | – | 13138 | 8328 |
 | [`dlnr-middlebury`](../models/stereo.md#dlnr) | 3257 | 2694 | 2143 | unsupported | – | – | 7472 | 5148 | – |
 | [`dlnr-sceneflow`](../models/stereo.md#dlnr) | 3258 | 2699 | 2143 | unsupported | – | – | 7469 | 4094 | – |
 | [`fast-acvnet-generalization`](../models/stereo.md#fast_acvnet) | 1334 | 944 | 478 | unsupported | – | – | 4975 | 2737 | – |
@@ -380,6 +380,7 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`inspyrenet-fast`](../models/matting.md#inspyrenet) | 225 | 208 | 145 | unsupported | – | 2304 | 2071 |
 | [`isnet`](../models/matting.md#isnet) | 156 | 157 | 129 | – | unsupported | 2032 | 1745 |
 | [`isnet-general-use`](../models/matting.md#isnet) | 156 | 157 | 130 | – | unsupported | 2030 | 1746 |
+| [`matanyone`](../models/matting.md#matanyone) | 6473 | 6198 | 5907 | unsupported | – | 6365 | 3851 |
 | [`u2net`](../models/matting.md#u2net) | 80.7 | 81.6 | 79.4 | – | unsupported | 1910 | 1885 |
 | [`u2net-human-seg`](../models/matting.md#u2net) | 81.7 | 81.7 | 75.1 | – | unsupported | 1911 | 1884 |
 | [`u2netp`](../models/matting.md#u2net) | 53.1 | 55.1 | 50.2 | – | unsupported | 1404 | 1402 |
@@ -389,12 +390,30 @@ Note: no Metal kernels for this family (card mps_kernels).
 Note: no Metal kernels for this family (card mps_kernels).
 Note: the card has no kernels mode.
 
+## Edges
+
+### Edges, synthetic, 1024x1024
+
+| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): original | portable |
+|---|---|---|---|---|---|---|
+| [`anyline`](../models/edges.md#anyline) | 259 | 130 | 117 | unsupported | 1557 | 1319 |
+| [`hed`](../models/edges.md#hed) | 66.8 | 64.9 | 56.9 | unsupported | 1554 | 1381 |
+| [`lineart`](../models/edges.md#lineart) | 114 | 95.8 | 66.5 | unsupported | 1481 | 1362 |
+| [`lineart-anime`](../models/edges.md#lineart_anime) | 83.2 | 63.4 | 51.1 | unsupported | 1782 | 1774 |
+| [`lineart-coarse`](../models/edges.md#lineart) | 117 | 93.0 | 68.2 | unsupported | 1481 | 1364 |
+| [`mlsd`](../models/edges.md#mlsd) | 55.3 | 50.0 | 44.6 | unsupported | 1500 | 1373 |
+| [`pidinet`](../models/edges.md#pidinet) | 109 | 90.8 | 73.2 | unsupported | 1480 | 1349 |
+| [`teed`](../models/edges.md#teed) | 25.8 | 20.1 | 16.7 | unsupported | 1434 | 1313 |
+
+Note: the card has no kernels mode.
+
 ## Promptable segmentation
 
 ### Promptable segmentation, synthetic, 1024x1024
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|
+| [`clipseg`](../models/promptable_segmentation.md#clipseg) | 67.6 | 44.7 | 37.7 | unsupported | 1606 | 1561 |
 | [`efficientvit-sam-l0`](../models/promptable_segmentation.md#efficientvit_sam) | 70.5 | 50.6 | – | unsupported | 1959 | 1779 |
 | [`efficientvit-sam-l1`](../models/promptable_segmentation.md#efficientvit_sam) | 85.4 | 75.2 | – | unsupported | 2075 | 1783 |
 | [`efficientvit-sam-l2`](../models/promptable_segmentation.md#efficientvit_sam) | 102 | 91.2 | – | unsupported | 2144 | 2004 |
@@ -708,6 +727,9 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`sea-raft-s`](../models/flow.md#sea_raft) | 1531 | 2115 | 1098 | – | 833 | 1.8x | 1.3x | 13174 | 9668 | 4667 |
 | [`sea-raft-s-kitti`](../models/flow.md#sea_raft) | 1503 | 2000 | 1098 | – | 831 | 1.8x | 1.3x | 13130 | 9671 | 4664 |
 | [`sea-raft-s-spring`](../models/flow.md#sea_raft) | 255 | 268 | 244 | – | 233 | 1.1x | 1.0x | 2757 | 2547 | 1527 |
+| [`waft-a1`](../models/flow.md#waft) | 22117 | 8225 | 7168 | unsupported | – | – | – | 12159 | 7185 | – |
+| [`waft-a1-kitti`](../models/flow.md#waft) | OOM | 8502 | 7384 | unsupported | – | – | – | – | 7187 | – |
+| [`waft-a1-sintel`](../models/flow.md#waft) | OOM | 8835 | 7430 | unsupported | – | – | – | – | 7187 | – |
 
 Note: the card has no kernels mode.
 Note: no Metal kernels for this family (card mps_kernels).
@@ -725,9 +747,9 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`loftr-indoor`](../models/matching.md#loftr) | 994 | 877 | 701 | unsupported | – | – | 5973 | 3613 |
 | [`loftr-outdoor`](../models/matching.md#loftr) | 997 | 875 | 723 | unsupported | – | – | 6998 | 3614 |
 | [`romav1`](../models/matching.md#romav1) | 12208 | 3050 | – | – | unsupported | – | 12492 | 7979 |
-| [`romav2`](../models/matching.md#romav2) | OOM | 5901 | 5076 | – | – | unsupported | – | 7738 |
-| [`xfeat`](../models/matching.md#xfeat) | 45.2 | 41.7 | 45.6 | unsupported | – | – | 1549 | 1471 |
-| [`xfeat-lighterglue`](../models/matching.md#xfeat) | 192 | 179 | 217 | unsupported | – | – | 1570 | 1499 |
+| [`romav2`](../models/matching.md#romav2) | OOM | 5901 | – | – | – | unsupported | – | 7697 |
+| [`xfeat`](../models/matching.md#xfeat) | 45.2 | 41.7 | – | unsupported | – | – | 1549 | 1471 |
+| [`xfeat-lighterglue`](../models/matching.md#xfeat) | 192 | 179 | – | unsupported | – | – | 1570 | 1499 |
 
 Note: the card has no kernels mode.
 Note: no Metal kernels for this family (card mps_kernels).
@@ -756,11 +778,19 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|
+| [`ema-vfi`](../models/interpolation.md#ema_vfi) | 36849 | 19632 | 1981 | unsupported | 10614 | 6883 |
+| [`ema-vfi-small`](../models/interpolation.md#ema_vfi) | 1070 | 736 | 556 | unsupported | 5821 | 3587 |
+| [`ema-vfi-small-t`](../models/interpolation.md#ema_vfi) | 1058 | 792 | 513 | unsupported | 5814 | 3583 |
+| [`ema-vfi-t`](../models/interpolation.md#ema_vfi) | 5764 | 28800 | 2272 | unsupported | 11039 | 6882 |
+| [`film`](../models/interpolation.md#film) | 10448 | OOM | OOM | unsupported | 12794 | – |
+| [`gimm-vfi-r`](../models/interpolation.md#gimm_vfi) | unsupported | OOM | failed | unsupported | – | – |
+| [`gimm-vfi-r-p`](../models/interpolation.md#gimm_vfi) | unsupported | OOM | OOM | unsupported | – | – |
 | [`rife-4.25`](../models/interpolation.md#rife) | 169 | 119 | 106 | unsupported | 3588 | 2482 |
 | [`rife-4.25-lite`](../models/interpolation.md#rife) | 145 | 91.0 | 80.0 | unsupported | 3576 | 2447 |
 | [`rife-4.26`](../models/interpolation.md#rife) | 170 | 118 | 103 | unsupported | 3586 | 2479 |
 
 Note: no Metal kernels for this family (card mps_kernels).
+Note: original needs cupy (CUDA softsplat kernels), no CUDA on the Mac.
 
 ## Restoration
 
@@ -768,10 +798,13 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|---|
+| [`big-lama`](../models/restoration.md#lama) | 334 | 241 | 214 | – | unsupported | 2096 | 1679 |
 | [`codeformer`](../models/restoration.md#codeformer) | 274 | 260 | 196 | unsupported | – | 3182 | 1866 |
 | [`dat-2-x4`](../models/restoration.md#dat) | 89592 | 11525 | 9404 | – | unsupported | 13698 | 10600 |
 | [`dat-light-x4`](../models/restoration.md#dat) | 3668 | 2992 | 2562 | – | unsupported | 6317 | 6851 |
 | [`dat-x4`](../models/restoration.md#dat) | 18351 | 21047 | 10512 | – | unsupported | 13512 | 10620 |
+| [`drct-l-x4`](../models/restoration.md#drct) | OOM | OOM | OOM | – | unsupported | – | – |
+| [`drct-x4`](../models/restoration.md#drct) | OOM | OOM | OOM | – | unsupported | – | – |
 | [`gfpgan-v1.4`](../models/restoration.md#gfpgan) | 172 | 153 | 138 | – | unsupported | 2871 | 1982 |
 | [`hat-s-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – |
 | [`hat-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – |
@@ -788,8 +821,8 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`swinir-m-x4`](../models/restoration.md#swinir) | 8782 | 6506 | 5893 | – | unsupported | 7699 | 5060 |
 | [`swinir-m-x4-real`](../models/restoration.md#swinir) | 8901 | 6622 | 5851 | – | unsupported | 7694 | 5060 |
 
-Note: the card has no kernels mode.
 Note: no Metal kernels for this family (card mps_kernels).
+Note: the card has no kernels mode.
 
 ## Volume
 

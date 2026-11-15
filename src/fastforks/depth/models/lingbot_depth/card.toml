@@ -32,7 +32,7 @@ resolution_level = { default = 9, min = 0, max = 9 }  # 0-9: 1200-3600 ViT token
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]

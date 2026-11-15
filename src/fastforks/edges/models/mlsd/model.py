@@ -159,11 +159,14 @@ class Portable(Runner):
         x = torch.cat((x, torch.ones_like(x[:, :1])), 1) / 127.5 - 1
         if self.cl:
             x = x.contiguous(memory_format=torch.channels_last)
-        seg, keep = decode(self.net(x.to(self.dtype)), p.thr_v, p.thr_d)
+        maps = self.net(x.to(self.dtype))
+        if maps.device.type == "mps":  # the decoding and drawing are float64 / int64 maths, which MPS lacks
+            maps = maps.cpu()
+        seg, keep = decode(maps, p.thr_v, p.thr_d)
         edges = draw(seg.trunc().long(), keep, hd, wd)
         scale = seg.new_tensor([image.shape[-1] / wd, image.shape[-2] / hd]).repeat(2)
-        lines = [(s[k] * scale).float() for s, k in zip(seg, keep, strict=True)]
-        return {"edges": to_input(edges, image), "lines": lines}
+        lines = [(s[k] * scale).float().to(image.device) for s, k in zip(seg, keep, strict=True)]
+        return {"edges": to_input(edges.to(image.device), image), "lines": lines}
 
     def module(self) -> torch.nn.Module:
         """The network with its pre- and post-processing: `[B, 3, H, W]` in `[0, 1]` -> edges `[B, H, W]`."""

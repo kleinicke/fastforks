@@ -44,7 +44,7 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 507 models, 2002 rows, measured 2026-11-06 to 2026-11-14.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 530 models, 2090 rows, measured 2026-11-06 to 2026-11-14.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -300,6 +300,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`inspyrenet-fast`](models/matting.md#inspyrenet) | 145 ms · portable fp16 |
 | [`isnet`](models/matting.md#isnet) | 129 ms · portable fp16 |
 | [`isnet-general-use`](models/matting.md#isnet) | 130 ms · portable fp16 |
+| [`matanyone`](models/matting.md#matanyone) | 5907 ms · portable fp16 |
 | [`u2net`](models/matting.md#u2net) | 79.4 ms · portable fp16 |
 | [`u2net-human-seg`](models/matting.md#u2net) | 75.1 ms · portable fp16 |
 | [`u2netp`](models/matting.md#u2net) | 50.2 ms · portable fp16 |
@@ -310,6 +311,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
 |---|---|---|---|---|---|---|---|
+| [`clipseg`](models/promptable_segmentation.md#clipseg) | – | 37.7 ms · portable fp16 | – | – | – | – | – |
 | [`efficientvit-sam-l0`](models/promptable_segmentation.md#efficientvit_sam) | – | 50.6 ms · portable fp32 | – | – | – | – | – |
 | [`efficientvit-sam-l1`](models/promptable_segmentation.md#efficientvit_sam) | – | 75.2 ms · portable fp32 | – | – | – | – | – |
 | [`efficientvit-sam-l2`](models/promptable_segmentation.md#efficientvit_sam) | – | 91.2 ms · portable fp32 | – | – | – | – | – |
@@ -554,6 +556,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`sea-raft-s`](models/flow.md#sea_raft) | 833 ms · kernels fp16 |
 | [`sea-raft-s-kitti`](models/flow.md#sea_raft) | 831 ms · kernels fp16 |
 | [`sea-raft-s-spring`](models/flow.md#sea_raft) | 233 ms · kernels fp16 |
+| [`waft-a1`](models/flow.md#waft) | 7168 ms · portable fp16 |
+| [`waft-a1-kitti`](models/flow.md#waft) | 7384 ms · portable fp16 |
+| [`waft-a1-sintel`](models/flow.md#waft) | 7430 ms · portable fp16 |
 
 #### Matching, 768x1024
 
@@ -566,7 +571,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`loftr-indoor`](models/matching.md#loftr) | 701 ms · portable fp16 |
 | [`loftr-outdoor`](models/matching.md#loftr) | 723 ms · portable fp16 |
 | [`romav1`](models/matching.md#romav1) | 3050 ms · portable fp32 |
-| [`romav2`](models/matching.md#romav2) | 5076 ms · portable fp16 |
+| [`romav2`](models/matching.md#romav2) | 5901 ms · portable fp32 |
 | [`xfeat`](models/matching.md#xfeat) | 41.7 ms · portable fp32 |
 | [`xfeat-lighterglue`](models/matching.md#xfeat) | 179 ms · portable fp32 |
 
@@ -588,6 +593,13 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB |
 |---|---|
+| [`ema-vfi`](models/interpolation.md#ema_vfi) | 1981 ms · portable fp16 |
+| [`ema-vfi-small`](models/interpolation.md#ema_vfi) | 556 ms · portable fp16 |
+| [`ema-vfi-small-t`](models/interpolation.md#ema_vfi) | 513 ms · portable fp16 |
+| [`ema-vfi-t`](models/interpolation.md#ema_vfi) | 2272 ms · portable fp16 |
+| [`film`](models/interpolation.md#film) | OOM |
+| [`gimm-vfi-r`](models/interpolation.md#gimm_vfi) | OOM |
+| [`gimm-vfi-r-p`](models/interpolation.md#gimm_vfi) | OOM |
 | [`rife-4.25`](models/interpolation.md#rife) | 106 ms · portable fp16 |
 | [`rife-4.25-lite`](models/interpolation.md#rife) | 80.0 ms · portable fp16 |
 | [`rife-4.26`](models/interpolation.md#rife) | 103 ms · portable fp16 |
@@ -596,10 +608,13 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB |
 |---|---|
+| [`big-lama`](models/restoration.md#lama) | 214 ms · portable fp16 |
 | [`codeformer`](models/restoration.md#codeformer) | 196 ms · portable fp16 |
 | [`dat-2-x4`](models/restoration.md#dat) | 9404 ms · portable fp16 |
 | [`dat-light-x4`](models/restoration.md#dat) | 2562 ms · portable fp16 |
 | [`dat-x4`](models/restoration.md#dat) | 10512 ms · portable fp16 |
+| [`drct-l-x4`](models/restoration.md#drct) | OOM |
+| [`drct-x4`](models/restoration.md#drct) | OOM |
 | [`gfpgan-v1.4`](models/restoration.md#gfpgan) | 138 ms · portable fp16 |
 | [`hat-s-x4`](models/restoration.md#hat) | OOM |
 | [`hat-x4`](models/restoration.md#hat) | OOM |

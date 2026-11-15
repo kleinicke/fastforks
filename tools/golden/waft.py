@@ -25,6 +25,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
@@ -47,7 +48,13 @@ def build(tree: Path, ckpt: Path, variant: str) -> torch.nn.Module:
         sys.path[:0] = [str(tree)]
         import timm  # noqa: PLC0415 - the reference's own dependency
 
-        vars(timm)["create_model"] = functools.partial(timm.create_model, pretrained=False)  # no ImageNet download
+        create = timm.create_model
+
+        def create_model(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - timm's signature
+            """`timm.create_model` with `pretrained` forced off (the reference passes True; no ImageNet download)."""
+            return create(*args, **{**kwargs, "pretrained": False})
+
+        vars(timm)["create_model"] = create_model
     from model import waft_a1  # noqa: PLC0415 - reference checkout on sys.path
 
     feature = getattr(waft_a1.DepthAnythingFeature, "func", waft_a1.DepthAnythingFeature)

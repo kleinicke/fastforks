@@ -25,7 +25,7 @@ resolution = { default = 512, min = 64, aliases = ["detect_resolution"] }  # det
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 status = "none"

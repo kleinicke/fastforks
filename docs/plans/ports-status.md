@@ -33,26 +33,9 @@ In this order, unless something more useful turns up:
    `docs/data/speed_compile.jsonl`.
 2. Next networks, from [model-landscape.md](model-landscape.md): MaxViT, `moge-2-vitl` (no normal head), and more
    flow and pose models. ConvNeXt features, TIPSv2, RepViT and MobileSAM are already merged.
-3. Merged without goldens or floor rows in `docs/data/speed.jsonl`, so the Mac cannot check or survey them yet:
-   `any2full-{s,b,l}`, `depthfm-v1`, `lingbot-depth`, `lingbot-depth-dc`, `omni-dc`, `aliked-flexglue` and
-   `lingbot-map`.
 
 ## Waiting for the Mac
 
-- DRCT (`drct-x4`, `drct-l-x4`, restoration): portable MPS goldens and Mac speed rows (512x512; MPS runs float32). No
-  Metal kernels runner. Weights: the pinned Google Drive URLs of the card (also in
-  `/home/florian/projects/data/ff-weights/drct/`).
-- MatAnyone (`matanyone`, matting): portable MPS goldens and Mac speed rows (1080x1920; MPS runs float32). No Metal
-  kernels runner. Weights: the pinned GitHub release URL of the card (also in
-  `/home/florian/projects/data/ff-weights/matanyone/`).
-- GIMM-VFI (`gimm-vfi-r`, `gimm-vfi-r-p`, interpolation, nc weights): portable MPS goldens and Mac speed rows
-  (480x854 pair; the splatting is plain torch `scatter_add`, check its speed on MPS). No Metal kernels runner. Weights:
-  the pinned HF URLs of the card (also in `data/ff-weights/gimm_vfi/`).
-- EMA-VFI (`ema-vfi`, `ema-vfi-small`, `ema-vfi-t`, `ema-vfi-small-t`, interpolation, Apache-2.0): portable MPS goldens
-  and Mac speed rows (480x854 pair). No Metal kernels runner. Weights: Google Drive URLs of the card (also in
-  `data/ff-weights/ema_vfi/`); mirror them to HF at release.
-- FILM (`film`, interpolation, Apache-2.0): portable MPS goldens and Mac speed rows (480x854 pair). No Metal kernels
-  runner. Weights: the pinned GitHub release URL of the card (also in `data/ff-weights/film/`).
 - ByteTrack multi-object tracking (`tracking.ByteTracker`): CPU numpy, nothing device-specific; optional Mac row of
   `tools/eval_mot.py track` (tracker ms per frame). No weights.
 - Perception Encoder `g14`: the peak footprint (about 17.8 GB) is above the 16 GB of the machine, so the times

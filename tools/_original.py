@@ -599,6 +599,8 @@ def _ema_vfi(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     `FF_EMA_VFI_REPO`: an MCG-NJU/EMA-VFI clone (needs timm). BGR in and out, replicate pad to 32 (centred).
     Upstream has no fp16 option (fp16 tier = autocast).
     """
+    import torch  # noqa: PLC0415
+
     from fastforks._core import registry  # noqa: PLC0415
 
     g = _golden("ema_vfi")
@@ -607,6 +609,9 @@ def _ema_vfi(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     p = {**card.params, **variant.params}
     file = registry.weights(card, variant, allow_download=False)[0]
     net = g.build(tree, file, p["width"], list(p["depths"]), device="cuda")
+    sys.modules["model.warplayer"].device = torch.device(
+        "cuda"
+    )  # its grid cache is made on a module-level device, CPU off CUDA
     a.note = "upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32"
     return lambda im1, im2: g.interpolate(net, im1[None].float() / 255, im2[None].float() / 255)
 
@@ -1342,6 +1347,8 @@ def _romav2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the
     fp16: the authors' `enable_amp` (bfloat16 autocast); fp32 replaces `torch.autocast` by a no-op for the whole
     process (one tier per process). Needs `FF_ROMAV2_REPO` / `FF_DINOV3_REPO` checkouts with the pinned commits.
     """
+    import torch  # noqa: PLC0415
+
     from fastforks._core import registry  # noqa: PLC0415
 
     g = _golden("romav2")
@@ -1349,6 +1356,11 @@ def _romav2(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the
     tree = g.reference_tree(Path(os.environ["FF_ROMAV2_REPO"]), g.REF_COMMIT)
     dino = g.reference_tree(Path(os.environ["FF_DINOV3_REPO"]), g.DINOV3_COMMIT)
     model = g.build(tree, dino, registry.weights(card, variant, allow_download=False)[0], amp=fp16).cuda()
+    for name, mod in list(
+        sys.modules.items()
+    ):  # `romav2.device` picks mps wherever available: follow the process device
+        if name.startswith("romav2.") and hasattr(mod, "device") and name != "romav2.device":
+            mod.device = torch.device("cuda")
     g.configure(model, card.options["coarse_size"], card.options["fine_size"])
     a.note = "upstream RoMaV2.match; local correlation: upstream's plain-torch path (no fused-local-corr)"
 
@@ -1574,7 +1586,10 @@ def _clipseg(a: Any, full: str) -> Any:  # noqa: ANN401
     from fastforks._core import registry  # noqa: PLC0415
 
     card, variant = registry.resolve("promptable_segmentation", full)
-    folder = registry.weights(card, variant, allow_download=False)[1].resolve().parent  # the HF snapshot folder
+    snap = os.environ.get("FF_CLIPSEG_SNAPSHOT")  # a snapshot folder where the cache holds bare blobs
+    folder = (
+        Path(snap) if snap else registry.weights(card, variant, allow_download=False)[1].resolve().parent
+    )  # the HF snapshot folder
     proc = transformers.CLIPSegProcessor.from_pretrained(folder)
     cls = transformers.CLIPSegForImageSegmentation
     net = cls.from_pretrained(folder, dtype=torch.float32).cuda().eval()  # ty: ignore[missing-argument] - transformers' from_pretrained decorator is inferred as an unbound method
@@ -1789,6 +1804,9 @@ def _matanyone(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - 
     (weights,) = registry.weights(card, variant)
     root = g.load_upstream(Path(os.environ["FF_MATANYONE_REPO"]))
     net = g.build(root, Path(weights)).cuda()
+    sys.modules["matanyone.model.matanyone"].device = torch.device(
+        "cuda"
+    )  # its module-level device: mps wherever available
     a.note = f"pq-yang/MatAnyone@{g.REF_COMMIT[:12]} process_video loop on frames in memory, cv2 mask closing"
 
     def call(image: Any, mask: Any) -> Any:  # noqa: ANN401 - uint8 CHW CUDA image, [1, 1, H, W] mask

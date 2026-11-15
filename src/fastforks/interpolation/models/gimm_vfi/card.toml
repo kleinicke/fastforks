@@ -28,7 +28,7 @@ ds_factor = 1.0  # video_Nx.py --ds-factor: scale of the flow estimation (0.5 / 
 
 [modes.portable]
 cuda_dtype = "float16"  # float16 autocast; the correlation lookups sample in float32
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["raft_flow", "cudnn_hacc"]  # the correlation windows on the fly (four levels, 256 channels, radius 4) instead of the three all-pairs volumes; the full-size decoder convs with float16 accumulation; otherwise the portable float16 network

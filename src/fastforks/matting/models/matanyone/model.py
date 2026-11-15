@@ -150,6 +150,10 @@ class Portable(Runner):
         override(self.net, _encode_image, "encode_image")
         self.net.eval().to(ctx.device)
 
+    def networks(self) -> tuple[torch.nn.Module, ...]:
+        """The one network (device adaptations, e.g. Apple MPS)."""
+        return (self.net,)
+
     def _autocast(self) -> contextlib.AbstractContextManager[Any]:
         if self.ctx.dtype == "float32":
             return contextlib.nullcontext()

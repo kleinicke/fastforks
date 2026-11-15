@@ -35,7 +35,7 @@ keep_descriptors = { default = 0, min = 0, effect = "speed" }  # N > 0: keep the
 
 [modes.portable]
 cuda_dtype = "bfloat16"  # as upstream: the DINOv3 descriptor in bf16, the multi-view ViT, DPT head, VGG and refiner blocks under bf16 autocast; matching, local correlation and warps float32
-mps_dtypes = ["float32", "float16"]
+mps_dtypes = ["float32"]
 
 [modes.kernels]
 dtype = "bfloat16"  # as portable (fp16 would overflow upstream's bf16 regions)

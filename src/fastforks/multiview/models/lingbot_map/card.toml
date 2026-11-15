@@ -34,6 +34,7 @@ window = { default = 64, min = 1 }  # original --kv_cache_sliding_window
 
 [modes.portable]
 cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc"]

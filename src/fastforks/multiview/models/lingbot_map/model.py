@@ -166,6 +166,8 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
     def rope3d(self, frames: range, rows: int, cols: int) -> tuple[torch.Tensor, torch.Tensor]:
         """3D RoPE tables `[len(frames) * P, 1, 1, 64]` for the permuted channels: cos and sign-folded sin."""
         dev = self.ctx.device
+        if dev.type == "mps":  # MPS has no float64: the tables are built on the CPU
+            dev = torch.device("cpu")
         om = [1.0 / THETA ** (torch.arange(0, d, 2, dtype=torch.float64, device=dev) / d) for d in FHW]
         i = torch.arange(SPECIAL, dtype=torch.float64, device=dev)  # special token t sits at (f, t, t)
         r = torch.arange(rows, dtype=torch.float64, device=dev) + SPECIAL
@@ -182,7 +184,7 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
             ],
             -1,
         ).flatten(0, 1)  # [F*P, 32]
-        cos, sin = ang.cos().to(self.dt), ang.sin().to(self.dt)
+        cos, sin = ang.cos().to(self.ctx.device, self.dt), ang.sin().to(self.ctx.device, self.dt)
         return torch.cat([cos, cos], -1)[:, None, None], torch.cat([-sin, sin], -1)[:, None, None]
 
     def gblock(
