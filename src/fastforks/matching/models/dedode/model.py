@@ -25,9 +25,9 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.patch import override
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import cnn_kernels
-from fastforks._core.patch import override
 from fastforks.shared.dedode import (
     VGG,
     ConvRefiner,
@@ -136,7 +136,7 @@ def prepare_kernels(net: Matcher, device: torch.device) -> None:
     cnn_kernels.load(device)
     for enc in (net.detector.encoder, net.descriptor.encoder):
         vgg = enc.vgg if isinstance(enc, VGGDINOv2) else enc
-        vgg.layers = nn.Sequential(*vgg.layers)  # a Sequential: `fuse_sequentials` fuses its conv-BN-ReLU runs
+        vgg.layers = nn.Sequential(*vgg.layers)  # ty: ignore[invalid-assignment]  # a Sequential: `fuse_sequentials` fuses its conv-BN-ReLU runs
         cnn_kernels.prepare_generic(vgg, device)
         override(vgg, _vgg_forward)
     for m in list(net.detector.decoder.modules()) + list(net.descriptor.decoder.modules()):
