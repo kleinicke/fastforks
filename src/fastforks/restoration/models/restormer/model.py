@@ -107,6 +107,8 @@ def _fold_attention(m: Attention, device: torch.device | str) -> None:
 
 def _block(m: TransformerBlock, x: torch.Tensor) -> torch.Tensor:
     """`TransformerBlock.forward` with the norms' affine folded into `qkv` / `project_in`."""
+    if x.is_cuda:  # PixelShuffle gives NCHW strides; a mixed-stride add is 8x slower
+        x = x.contiguous(memory_format=torch.channels_last)
     x = x + m.attn(_norm(m.norm1, x))
     return x + m.ffn(_norm(m.norm2, x))
 
