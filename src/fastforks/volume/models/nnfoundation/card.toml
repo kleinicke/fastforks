@@ -21,7 +21,7 @@ arch = "cnn"
 
 [modes.portable]
 cuda_dtype = "float16"  # float16 networks (nnU-Net: float16 autocast), channels-last 3D for the CNN; statistics in float64
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["vol_norm"]  # CNN: portable + InstanceNorm + LeakyReLU as one in-place kernel; ViT: fp16-accumulate GEMMs

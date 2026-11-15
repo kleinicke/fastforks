@@ -442,6 +442,8 @@ class Motion:
     def __init__(self, objects: int, weight: float, device: torch.device | str = "cpu") -> None:
         """`objects` tracks with motion weight `weight` (`kf_score_weight`) on `device`."""
         self.weight = weight
+        if torch.device(device).type == "mps":  # no float64 on Apple GPUs: the (tiny) filter runs on the host
+            device = "cpu"
         self.mean = torch.zeros(objects, 8, dtype=torch.float64, device=device)
         self.cov = torch.zeros(objects, 8, 8, dtype=torch.float64, device=device)
         self.stable = torch.zeros(objects, dtype=torch.int64, device=device)
@@ -451,7 +453,7 @@ class Motion:
 
     @staticmethod
     def boxes(low: torch.Tensor, size: int) -> torch.Tensor:
-        """`[P, M, 256, 256]` logits -> `[P, M, 4]` float64 boxes `(x0, y0, x1, y1)` of the `> 0` pixels at `size`."""
+        """`[P, M, 256, 256]` logits -> `[P, M, 4]` integer boxes `(x0, y0, x1, y1)` of the `> 0` pixels at `size`."""
         fg = F.interpolate(low, (size, size), mode="bilinear", align_corners=False) > 0
         idx = torch.arange(size, device=low.device)
         cols, rows = fg.any(2), fg.any(3)
@@ -464,7 +466,7 @@ class Motion:
             ),
             -1,
         )
-        return torch.where(cols.any(-1, keepdim=True), box, 0).double()
+        return torch.where(cols.any(-1, keepdim=True), box, 0)
 
     @staticmethod
     def xyah(box: torch.Tensor) -> torch.Tensor:
@@ -478,8 +480,9 @@ class Motion:
 
         Every object runs every step; `torch.where` keeps the steps that apply to it (upstream branches per object).
         """
-        boxes = self.boxes(low, size)  # [P, M, 4]
-        ious = iou.float()  # [P, M]
+        dev = self.mean.device  # the filter's device (the host on MPS)
+        boxes = self.boxes(low, size).to(dev).double()  # [P, M, 4]
+        ious = iou.float().to(dev)  # [P, M]
         new, scored = self.stable == 0, self.stable >= STABLE_FRAMES
         run = ~new
         mean, cov = box_kalman.predict(self.mean, self.cov)
@@ -505,7 +508,7 @@ class Motion:
         self.cov = torch.where(new[:, None, None], ic, torch.where(upd[:, None, None], uc, cov))
         self.stable = torch.where(new, 1, torch.where(ok, torch.where(scored, self.stable, self.stable + 1), 0))
         self.best_iou = chosen
-        return best
+        return best.to(low.device)
 
     def _read_flags(self) -> None:
         """Add the frame whose flags are in flight to the memory frames of the objects it passed for."""
@@ -541,7 +544,7 @@ class Motion:
         """
         self._read_flags()
         if t >= 2:  # noqa: PLR2004 - upstream skips frame 1
-            ok = (self.best_iou > MEMORY_IOU) & (obj[:, 0] > 0)
+            ok = (self.best_iou.to(obj.device) > MEMORY_IOU) & (obj[:, 0] > 0)
             if ok.is_cuda:
                 host = torch.empty(ok.shape, dtype=torch.bool, pin_memory=True)
                 host.copy_(ok, non_blocking=True)

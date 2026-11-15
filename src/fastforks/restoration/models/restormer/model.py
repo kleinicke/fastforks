@@ -62,7 +62,7 @@ def _gram(q: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
     """`q^T k` of `[B, N, C]` token views as `[B, C, C]` float32 (half inputs: float32 GEMM output, no overflow)."""
     if q.dtype == torch.float32:
         return torch.bmm(q.mT, k)
-    if torch.compiler.is_exporting():  # ONNX has no float32-output half GEMM
+    if torch.compiler.is_exporting() or q.device.type == "mps":  # ONNX and MPS have no float32-output half GEMM
         return torch.bmm(q.mT.float(), k.float())
     return torch.bmm(q.mT, k, out_dtype=torch.float32)
 

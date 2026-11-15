@@ -40,7 +40,7 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-06 to 2026-11-15 |
-| rows | 2116 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| rows | 2178 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -180,6 +180,8 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`moge-2-vitl-normal`](../models/depth.md#moge) | 1553 | 1343 | 1732 | 1344 | – | 1.2x | 1.0x | 4036 | 3914 | 3994 |
 | [`moge-2-vits-normal`](../models/depth.md#moge) | 516 | 361 | 857 | 362 | – | 1.4x | 1.0x | 2849 | 2634 | 2704 |
 | [`moge-3-vitl`](../models/depth.md#moge) | unsupported | 3469 | 3913 | 2415 | – | – | 1.4x | – | 6239 | 6121 |
+| [`pointdit-b-512`](../models/depth.md#pointdit) | 468 | 367 | 337 | – | unsupported | – | – | 3167 | 1912 | – |
+| [`pointdit-l-512`](../models/depth.md#pointdit) | 1356 | 1086 | 1013 | – | unsupported | – | – | 6994 | 4548 | – |
 | [`stablenormal-turbo`](../models/depth.md#stablenormal) | 51987 | 2718 | 1690 | – | unsupported | – | – | 11428 | 8985 | – |
 | [`unidepth-v2-vitl14`](../models/depth.md#unidepth_v2) | 1356 | 1252 | – | – | unsupported | – | – | 5260 | 6077 | – |
 | [`unik3d-vitl`](../models/depth.md#unik3d) | 1333 | 1217 | 1294 | – | unsupported | – | – | 5316 | 4001 | – |
@@ -333,11 +335,15 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 ### Segmentation, synthetic, 512x512
 
-| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): original | portable |
-|---|---|---|---|---|---|---|
-| [`bisenet-face-parsing`](../models/segmentation.md#bisenet) | 23.7 | 15.8 | 13.6 | unsupported | 1466 | 440 |
+| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
+|---|---|---|---|---|---|---|---|
+| [`bisenet-face-parsing`](../models/segmentation.md#bisenet) | 23.7 | 15.8 | 13.6 | unsupported | – | 1466 | 440 |
+| [`segformer-b2-clothes`](../models/segmentation.md#segformer) | unsupported | 59.5 | 49.9 | – | unsupported | – | 1643 |
+| [`segformer-b5-face-parsing`](../models/segmentation.md#segformer) | unsupported | 135 | 111 | – | unsupported | – | 1899 |
 
 Note: the card has no kernels mode.
+Note: no local original adapter for this family in tools/_original.py (the authors' code was not run on this Mac).
+Note: no Metal kernels for this family (card mps_kernels).
 
 ### Segmentation, synthetic, 1024x2048
 
@@ -501,18 +507,22 @@ Note: the card has no kernels mode.
 
 ### Ocr, synthetic, 32x128
 
-| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): portable |
-|---|---|---|---|---|
-| [`parseq`](../models/ocr.md#parseq) | 23.1 | 23.6 | unsupported | 496 |
+| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|---|
+| [`parseq`](../models/ocr.md#parseq) | unsupported | 23.1 | 23.6 | unsupported | 496 |
+| [`parseq-tiny`](../models/ocr.md#parseq) | unsupported | 31.1 | 25.1 | unsupported | 329 |
 
+Note: no local original adapter for this family in tools/_original.py (the authors' code was not run on this Mac).
 Note: the card has no kernels mode.
 
 ### Ocr, synthetic, 1080x1920
 
-| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): portable |
-|---|---|---|---|---|
-| [`ppocrv5-server`](../models/ocr.md#ppocrv5) | 2067 | 1607 | unsupported | 6545 |
+| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|---|
+| [`ppocrv5-mobile`](../models/ocr.md#ppocrv5) | unsupported | 884 | 736 | unsupported | 2987 |
+| [`ppocrv5-server`](../models/ocr.md#ppocrv5) | unsupported | 2067 | 1607 | unsupported | 6545 |
 
+Note: no local original adapter for this family in tools/_original.py (the authors' code was not run on this Mac).
 Note: the card has no kernels mode.
 
 ## Pose
@@ -566,7 +576,8 @@ Note: the card has no kernels mode.
 | [`vitpose-plus-huge`](../models/pose.md#vitpose) | 1543 | 1247 | 1158 | – | 1182 | 1.3x | 1.0x | 6040 | 4956 | 4957 |
 | [`vitpose-plus-large`](../models/pose.md#vitpose) | 842 | 646 | 603 | – | 526 | 1.6x | 1.1x | 5237 | 2663 | 2741 |
 | [`vitpose-plus-small`](../models/pose.md#vitpose) | 213 | 101 | 92.3 | – | 66.5 | 3.2x | 1.4x | 1865 | 1545 | 1633 |
-| [`yunet-n`](../models/pose.md#yunet) | – | 24.9 | 21.6 | – | unsupported | – | – | – | 1377 | – |
+| [`yunet-n`](../models/pose.md#yunet) | 34.1 | 24.9 | 21.6 | – | unsupported | – | – | 1453 | 1377 | – |
+| [`yunet-s`](../models/pose.md#yunet) | 30.5 | 21.1 | 19.4 | – | unsupported | – | – | 1456 | 1380 | – |
 
 Note: no Metal kernels for this family (card mps_kernels).
 
@@ -815,49 +826,67 @@ Note: original needs cupy (CUDA softsplat kernels), no CUDA on the Mac.
 
 ### Restoration, synthetic, 512x512
 
-| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
-|---|---|---|---|---|---|---|---|
-| [`big-lama`](../models/restoration.md#lama) | 334 | 241 | 214 | – | unsupported | 2096 | 1679 |
-| [`codeformer`](../models/restoration.md#codeformer) | 274 | 260 | 196 | unsupported | – | 3182 | 1866 |
-| [`dat-2-x4`](../models/restoration.md#dat) | 89592 | 11525 | 9404 | – | unsupported | 13698 | 10600 |
-| [`dat-light-x4`](../models/restoration.md#dat) | 3668 | 2992 | 2562 | – | unsupported | 6317 | 6851 |
-| [`dat-x4`](../models/restoration.md#dat) | 18351 | 21047 | 10512 | – | unsupported | 13512 | 10620 |
-| [`drct-l-x4`](../models/restoration.md#drct) | OOM | OOM | OOM | – | unsupported | – | – |
-| [`drct-x4`](../models/restoration.md#drct) | OOM | OOM | OOM | – | unsupported | – | – |
-| [`gfpgan-v1.4`](../models/restoration.md#gfpgan) | 172 | 153 | 138 | – | unsupported | 2871 | 1982 |
-| [`hat-s-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – |
-| [`hat-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – |
-| [`nafnet-gopro`](../models/restoration.md#nafnet) | – | 409 | 368 | – | unsupported | – | 1715 |
-| [`nafnet-sidd`](../models/restoration.md#nafnet) | – | 423 | 442 | – | unsupported | – | 3242 |
-| [`real-hat-gan-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – |
-| [`realesr-general-x4v3`](../models/restoration.md#compact) | 176 | 178 | 132 | – | unsupported | 1302 | 1289 |
-| [`realesrgan-x2plus`](../models/restoration.md#realesrgan) | 675 | 709 | 549 | – | unsupported | 1696 | 1440 |
-| [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 2991 | 3022 | 2066 | – | unsupported | 4713 | 2466 |
-| [`realesrgan-x4plus-anime-6b`](../models/restoration.md#realesrgan) | 938 | 973 | 664 | – | unsupported | 4517 | 2351 |
-| [`realplksr-nomoswebphoto-x4`](../models/restoration.md#realplksr) | 1555 | 1527 | 1092 | – | unsupported | 1407 | 1368 |
-| [`restormer-deblur`](../models/restoration.md#restormer) | – | 1376 | 1476 | – | unsupported | – | 4735 |
-| [`span-x2`](../models/restoration.md#span) | 115 | 100 | 74.0 | – | unsupported | 2391 | 1296 |
-| [`span-x4`](../models/restoration.md#span) | 117 | 103 | 89.0 | – | unsupported | 2388 | 1296 |
-| [`swin2sr-x4`](../models/restoration.md#swin2sr) | – | 9608 | 9410 | – | unsupported | – | 4580 |
-| [`swinir-l-x4-real`](../models/restoration.md#swinir) | 16883 | 12063 | 9874 | – | unsupported | 10504 | 4561 |
-| [`swinir-m-x2`](../models/restoration.md#swinir) | 8690 | 6260 | 5797 | – | unsupported | 5520 | 3500 |
-| [`swinir-m-x4`](../models/restoration.md#swinir) | 8782 | 6506 | 5893 | – | unsupported | 7699 | 5060 |
-| [`swinir-m-x4-real`](../models/restoration.md#swinir) | 8901 | 6622 | 5851 | – | unsupported | 7694 | 5060 |
+| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels bf16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
+|---|---|---|---|---|---|---|---|---|
+| [`big-lama`](../models/restoration.md#lama) | 334 | 241 | 214 | – | unsupported | – | 2096 | 1679 |
+| [`codeformer`](../models/restoration.md#codeformer) | 274 | 260 | 196 | unsupported | – | – | 3182 | 1866 |
+| [`dat-2-x4`](../models/restoration.md#dat) | 89592 | 11525 | 9404 | – | unsupported | – | 13698 | 10600 |
+| [`dat-light-x4`](../models/restoration.md#dat) | 3668 | 2992 | 2562 | – | unsupported | – | 6317 | 6851 |
+| [`dat-x4`](../models/restoration.md#dat) | 18351 | 21047 | 10512 | – | unsupported | – | 13512 | 10620 |
+| [`drct-l-x4`](../models/restoration.md#drct) | OOM | OOM | OOM | – | unsupported | – | – | – |
+| [`drct-x4`](../models/restoration.md#drct) | OOM | OOM | OOM | – | unsupported | – | – | – |
+| [`gfpgan-v1.4`](../models/restoration.md#gfpgan) | 172 | 153 | 138 | – | unsupported | – | 2871 | 1982 |
+| [`hat-s-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – | – |
+| [`hat-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – | – |
+| [`nafnet-gopro`](../models/restoration.md#nafnet) | 645 | 409 | 368 | – | unsupported | – | 3634 | 1715 |
+| [`nafnet-sidd`](../models/restoration.md#nafnet) | 802 | 423 | 442 | – | unsupported | – | 3427 | 3242 |
+| [`real-hat-gan-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – | – |
+| [`realesr-general-x4v3`](../models/restoration.md#compact) | 176 | 178 | 132 | – | unsupported | – | 1302 | 1289 |
+| [`realesrgan-x2plus`](../models/restoration.md#realesrgan) | 675 | 709 | 549 | – | unsupported | – | 1696 | 1440 |
+| [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 2991 | 3022 | 2066 | – | unsupported | – | 4713 | 2466 |
+| [`realesrgan-x4plus-anime-6b`](../models/restoration.md#realesrgan) | 938 | 973 | 664 | – | unsupported | – | 4517 | 2351 |
+| [`realplksr-nomoswebphoto-x4`](../models/restoration.md#realplksr) | 1555 | 1527 | 1092 | – | unsupported | – | 1407 | 1368 |
+| [`restormer-deblur`](../models/restoration.md#restormer) | 2395 | 1376 | 1476 | – | unsupported | – | 6858 | 4735 |
+| [`restormer-derain`](../models/restoration.md#restormer) | 2382 | 1678 | 1814 | – | unsupported | – | 5863 | 5778 |
+| [`restormer-sidd`](../models/restoration.md#restormer) | 2183 | 2218 | 2330 | – | unsupported | – | 5863 | 4761 |
+| [`seedvr2-3b`](../models/restoration.md#seedvr2) | unsupported | unsupported | – | – | – | unsupported | – | – |
+| [`seedvr2-7b`](../models/restoration.md#seedvr2) | unsupported | unsupported | – | – | – | unsupported | – | – |
+| [`span-x2`](../models/restoration.md#span) | 115 | 100 | 74.0 | – | unsupported | – | 2391 | 1296 |
+| [`span-x4`](../models/restoration.md#span) | 117 | 103 | 89.0 | – | unsupported | – | 2388 | 1296 |
+| [`swin2sr-x2`](../models/restoration.md#swin2sr) | 14608 | 11075 | 9258 | – | unsupported | – | 5529 | 3501 |
+| [`swin2sr-x4`](../models/restoration.md#swin2sr) | 12965 | 9608 | 9410 | – | unsupported | – | 7727 | 4580 |
+| [`swin2sr-x4-real`](../models/restoration.md#swin2sr) | 13527 | 11350 | 9531 | – | unsupported | – | 7724 | 4579 |
+| [`swinir-l-x4-real`](../models/restoration.md#swinir) | 16883 | 12063 | 9874 | – | unsupported | – | 10504 | 4561 |
+| [`swinir-m-x2`](../models/restoration.md#swinir) | 8690 | 6260 | 5797 | – | unsupported | – | 5520 | 3500 |
+| [`swinir-m-x4`](../models/restoration.md#swinir) | 8782 | 6506 | 5893 | – | unsupported | – | 7699 | 5060 |
+| [`swinir-m-x4-real`](../models/restoration.md#swinir) | 8901 | 6622 | 5851 | – | unsupported | – | 7694 | 5060 |
 
 Note: no Metal kernels for this family (card mps_kernels).
 Note: the card has no kernels mode.
+Note: no local original adapter for this family in tools/_original.py (the authors' code was not run on this Mac).
+Note: the family is not validated on MPS (card mps_dtypes).
 
 ## Volume
+
+### Volume, synthetic, 192x192
+
+| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|---|
+| [`nnfoundation-vit`](../models/volume.md#nnfoundation) | unsupported | 21342 | 17636 | unsupported | 3817 |
+
+Note: no local original adapter for this family in tools/_original.py (the authors' code was not run on this Mac).
+Note: no Metal kernels for this family (card mps_kernels).
 
 ### Volume, synthetic, 200x200
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
 |---|---|---|---|---|---|
-| [`nnfoundation-cnn`](../models/volume.md#nnfoundation) | – | 3645 | 2935 | unsupported | 7824 |
+| [`nnfoundation-cnn`](../models/volume.md#nnfoundation) | unsupported | 3645 | 2935 | unsupported | 7824 |
 | [`nninteractive`](../models/volume.md#nninteractive) | – | 3525 | – | unsupported | 11439 |
-| [`totalsegmentator-total`](../models/volume.md#totalsegmentator) | unsupported | 26959 | 20275 | unsupported | 7099 |
-| [`totalsegmentator-total-3mm`](../models/volume.md#totalsegmentator) | unsupported | 515 | 467 | unsupported | 4345 |
+| [`totalsegmentator-total`](../models/volume.md#totalsegmentator) | unsupported | 27804 | 23070 | unsupported | 6058 |
+| [`totalsegmentator-total-3mm`](../models/volume.md#totalsegmentator) | unsupported | 593 | 522 | unsupported | 2588 |
 
+Note: no local original adapter for this family in tools/_original.py (the authors' code was not run on this Mac).
 Note: no Metal kernels for this family (card mps_kernels).
 Note: no upstream adapter in tools/_original.py; original needs the nnU-Net/TotalSegmentator package (not in the Mac venv) and its 3D inference does not fit 16 GB here.
 <!-- device:end -->

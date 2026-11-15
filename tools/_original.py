@@ -2027,7 +2027,6 @@ class _Local:
             prompts=self.prompts,
             _runner=types.SimpleNamespace(
                 intrinsics=self.cameras,
-                prompt_depth=None,  # no local original takes a depth prompt
                 cam_to_world=self.cameras,
                 depth_range=self.cameras,
                 trimap=self.trimap,

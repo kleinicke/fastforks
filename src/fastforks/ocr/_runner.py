@@ -89,6 +89,8 @@ def components(mask: torch.Tensor) -> list[_db.Rows]:
     changes. The fixed point is each component's smallest pixel index whatever the passes; the run passes make
     a long text line converge in a few rounds instead of one per pixel of its length.
     """
+    if mask.device.type == "mps":  # int64 scatter_reduce atomics do not compile on Apple GPUs
+        mask = mask.cpu()
     h, w = mask.shape
     big = h * w
     idx = torch.arange(big, device=mask.device).view(h, w)

@@ -44,7 +44,7 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 539 models, 2116 rows, measured 2026-11-06 to 2026-11-15.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 553 models, 2178 rows, measured 2026-11-06 to 2026-11-15.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -163,6 +163,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`moge-2-vitl-normal`](models/depth.md#moge) | 73.4 ms · kernels fp16 | 1343 ms · portable fp32 | 103 ms · kernels fp16 | 35.2 ms · kernels fp16 | 95.2 ms · kernels fp16 | – | 24.1 ms · kernels fp16 |
 | [`moge-2-vits-normal`](models/depth.md#moge) | 29.7 ms · kernels fp16 | 361 ms · portable fp32 | 44.0 ms · kernels fp16 | 18.0 ms · kernels fp16 | 35.6 ms · kernels fp16 | 22.1 ms · kernels fp16 | 11.0 ms · kernels fp16 |
 | [`moge-3-vitl`](models/depth.md#moge) | – | 2415 ms · kernels fp32 | 284 ms · kernels fp16 | 93.5 ms · kernels fp16 | 276 ms · kernels fp16 | 114 ms · kernels fp16 | 61.5 ms · kernels fp16 |
+| [`pointdit-b-512`](models/depth.md#pointdit) | – | 337 ms · portable fp16 | – | – | – | – | – |
+| [`pointdit-l-512`](models/depth.md#pointdit) | – | 1013 ms · portable fp16 | – | – | – | – | – |
 | [`stablenormal-turbo`](models/depth.md#stablenormal) | – | 1690 ms · portable fp16 | – | – | – | – | – |
 | [`unidepth-v2-vitl14`](models/depth.md#unidepth_v2) | 66.4 ms · kernels fp16 | 1252 ms · portable fp32 | 85.8 ms · kernels fp16 | 25.4 ms · kernels fp16 | 77.0 ms · kernels fp16 | 26.6 ms · kernels fp16 | 18.4 ms · portable fp16 |
 | [`unik3d-vitl`](models/depth.md#unik3d) | 62.9 ms · kernels fp16 | 1217 ms · portable fp32 | 88.9 ms · kernels fp16 | 27.7 ms · kernels fp16 | 78.4 ms · kernels fp16 | 29.8 ms · kernels fp16 | 19.1 ms · kernels fp16 |
@@ -392,6 +394,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB |
 |---|---|
+| [`ppocrv5-mobile`](models/ocr.md#ppocrv5) | 736 ms · portable fp16 |
 | [`ppocrv5-server`](models/ocr.md#ppocrv5) | 1607 ms · portable fp16 |
 
 #### Pose, 1080x1920
@@ -444,6 +447,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`vitpose-plus-large`](models/pose.md#vitpose) | 526 ms · kernels fp16 |
 | [`vitpose-plus-small`](models/pose.md#vitpose) | 66.5 ms · kernels fp16 |
 | [`yunet-n`](models/pose.md#yunet) | 21.6 ms · portable fp16 |
+| [`yunet-s`](models/pose.md#yunet) | 19.4 ms · portable fp16 |
 
 #### Features, 224x224
 
@@ -634,9 +638,15 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`realesrgan-x4plus-anime-6b`](models/restoration.md#realesrgan) | 664 ms · portable fp16 |
 | [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | 1092 ms · portable fp16 |
 | [`restormer-deblur`](models/restoration.md#restormer) | 1376 ms · portable fp32 |
+| [`restormer-derain`](models/restoration.md#restormer) | 1678 ms · portable fp32 |
+| [`restormer-sidd`](models/restoration.md#restormer) | 2218 ms · portable fp32 |
+| [`seedvr2-3b`](models/restoration.md#seedvr2) | unsupported |
+| [`seedvr2-7b`](models/restoration.md#seedvr2) | unsupported |
 | [`span-x2`](models/restoration.md#span) | 74.0 ms · portable fp16 |
 | [`span-x4`](models/restoration.md#span) | 89.0 ms · portable fp16 |
+| [`swin2sr-x2`](models/restoration.md#swin2sr) | 9258 ms · portable fp16 |
 | [`swin2sr-x4`](models/restoration.md#swin2sr) | 9410 ms · portable fp16 |
+| [`swin2sr-x4-real`](models/restoration.md#swin2sr) | 9531 ms · portable fp16 |
 | [`swinir-l-x4-real`](models/restoration.md#swinir) | 9874 ms · portable fp16 |
 | [`swinir-m-x2`](models/restoration.md#swinir) | 5797 ms · portable fp16 |
 | [`swinir-m-x4`](models/restoration.md#swinir) | 5893 ms · portable fp16 |
@@ -648,8 +658,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|
 | [`nnfoundation-cnn`](models/volume.md#nnfoundation) | 2935 ms · portable fp16 |
 | [`nninteractive`](models/volume.md#nninteractive) | 3525 ms · portable fp32 |
-| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | 20275 ms · portable fp16 |
-| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | 467 ms · portable fp16 |
+| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | 23070 ms · portable fp16 |
+| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | 522 ms · portable fp16 |
 <!-- devices:end -->
 
 ## RTX 5060 Ti 16 GB (reference)
