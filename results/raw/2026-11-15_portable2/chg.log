@@ -1,0 +1,1033 @@
+== lib aanet-sceneflow kernels 14:24:53
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): aanet-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): aanet-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "aanet-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+{"side": "lib", "ref": "aanet-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib aanet-plus-sceneflow kernels 14:25:01
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): aanet-plus-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): aanet-plus-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "aanet-plus-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s
+{"side": "lib", "ref": "aanet-plus-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s
+== lib bridgedepth-sf kernels 14:25:08
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): bridgedepth-sf 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): bridgedepth-sf 994x1482 on synthetic inputs
+{"side": "lib", "ref": "bridgedepth-sf", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+{"side": "lib", "ref": "bridgedepth-sf", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+== lib c-fast-foundationstereo kernels 14:25:28
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): c-fast-foundationstereo 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): c-fast-foundationstereo 994x1482 on synthetic inputs
+{"side": "lib", "ref": "c-fast-foundationstereo", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_ini
+{"side": "lib", "ref": "c-fast-foundationstereo", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_ini
+== lib fast-foundationstereo kernels 14:25:38
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-foundationstereo 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-foundationstereo 994x1482 on synthetic inputs
+{"side": "lib", "ref": "fast-foundationstereo", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+{"side": "lib", "ref": "fast-foundationstereo", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+== lib cas-gwcnet-c-sceneflow kernels 14:25:47
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): cas-gwcnet-c-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): cas-gwcnet-c-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "cas-gwcnet-c-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+{"side": "lib", "ref": "cas-gwcnet-c-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+== lib cas-gwcnet-gc-sceneflow kernels 14:26:00
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): cas-gwcnet-gc-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): cas-gwcnet-gc-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "cas-gwcnet-gc-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_in
+{"side": "lib", "ref": "cas-gwcnet-gc-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_in
+== lib cfnet-sceneflow kernels 14:26:18
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): cfnet-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): cfnet-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "cfnet-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_init_s": 0
+{"side": "lib", "ref": "cfnet-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_init_s": 0
+== lib coex-sceneflow kernels 14:26:38
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): coex-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): coex-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "coex-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.
+{"side": "lib", "ref": "coex-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.
+== lib crestereo-eth3d kernels 14:26:43
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): crestereo-eth3d 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): crestereo-eth3d 994x1482 on synthetic inputs
+{"side": "lib", "ref": "crestereo-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+{"side": "lib", "ref": "crestereo-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib defom-stereo-vitl-sceneflow kernels 14:26:56
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): defom-stereo-vitl-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): defom-stereo-vitl-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "defom-stereo-vitl-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.2, "cuda
+{"side": "lib", "ref": "defom-stereo-vitl-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.2, "cuda
+== lib dlnr-sceneflow kernels 14:27:28
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): dlnr-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): dlnr-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "dlnr-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.08, "cuda_init_s": 0.
+{"side": "lib", "ref": "dlnr-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.08, "cuda_init_s": 0.
+== lib dlnr-middlebury kernels 14:27:41
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): dlnr-middlebury 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): dlnr-middlebury 994x1482 on synthetic inputs
+{"side": "lib", "ref": "dlnr-middlebury", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+{"side": "lib", "ref": "dlnr-middlebury", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+== lib fast-acvnet-sceneflow kernels 14:27:54
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "fast-acvnet-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+{"side": "lib", "ref": "fast-acvnet-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+== lib fast-acvnet-generalization kernels 14:27:59
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-generalization 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-generalization 994x1482 on synthetic inputs
+{"side": "lib", "ref": "fast-acvnet-generalization", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda
+{"side": "lib", "ref": "fast-acvnet-generalization", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda
+== lib fast-acvnet-kitti12 kernels 14:28:04
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-kitti12 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-kitti12 994x1482 on synthetic inputs
+{"side": "lib", "ref": "fast-acvnet-kitti12", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+{"side": "lib", "ref": "fast-acvnet-kitti12", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+== lib fast-acvnet-kitti15 kernels 14:28:09
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-kitti15 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-kitti15 994x1482 on synthetic inputs
+{"side": "lib", "ref": "fast-acvnet-kitti15", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+{"side": "lib", "ref": "fast-acvnet-kitti15", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+== lib fast-acvnet-plus-sceneflow kernels 14:28:14
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-plus-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-plus-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "fast-acvnet-plus-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+{"side": "lib", "ref": "fast-acvnet-plus-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+== lib fast-acvnet-plus-generalization kernels 14:28:20
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-plus-generalization 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-plus-generalization 994x1482 on synthetic inputs
+{"side": "lib", "ref": "fast-acvnet-plus-generalization", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, 
+{"side": "lib", "ref": "fast-acvnet-plus-generalization", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, 
+== lib fast-acvnet-plus-kitti12 kernels 14:28:25
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-plus-kitti12 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-plus-kitti12 994x1482 on synthetic inputs
+{"side": "lib", "ref": "fast-acvnet-plus-kitti12", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_i
+{"side": "lib", "ref": "fast-acvnet-plus-kitti12", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_i
+== lib fast-acvnet-plus-kitti15 kernels 14:28:30
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-plus-kitti15 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-plus-kitti15 994x1482 on synthetic inputs
+{"side": "lib", "ref": "fast-acvnet-plus-kitti15", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+{"side": "lib", "ref": "fast-acvnet-plus-kitti15", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+== lib foundationstereo-vit-l kernels 14:28:36
+{"side": "lib", "ref": "foundationstereo-vit-l", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.14, "cuda_ini
+== lib foundationstereo-vit-s kernels 14:28:38
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): foundationstereo-vit-s 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): foundationstereo-vit-s 994x1482 on synthetic inputs
+{"side": "lib", "ref": "foundationstereo-vit-s", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda_ini
+{"side": "lib", "ref": "foundationstereo-vit-s", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda_ini
+== lib great-igev-eth3d kernels 14:29:31
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): great-igev-eth3d 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): great-igev-eth3d 994x1482 on synthetic inputs
+{"side": "lib", "ref": "great-igev-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+{"side": "lib", "ref": "great-igev-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+== lib great-igev-sceneflow kernels 14:29:52
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): great-igev-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): great-igev-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "great-igev-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s
+{"side": "lib", "ref": "great-igev-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s
+== lib great-igev-kitti kernels 14:30:12
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): great-igev-kitti 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): great-igev-kitti 994x1482 on synthetic inputs
+{"side": "lib", "ref": "great-igev-kitti", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+{"side": "lib", "ref": "great-igev-kitti", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+== lib gwcnet-g-sceneflow kernels 14:30:33
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): gwcnet-g-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): gwcnet-g-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "gwcnet-g-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+{"side": "lib", "ref": "gwcnet-g-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib gwcnet-gc-sceneflow kernels 14:30:46
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): gwcnet-gc-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): gwcnet-gc-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "gwcnet-gc-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_init_s
+{"side": "lib", "ref": "gwcnet-gc-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_init_s
+== lib hitnet-eth3d kernels 14:31:00
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): hitnet-eth3d 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): hitnet-eth3d 994x1482 on synthetic inputs
+{"side": "lib", "ref": "hitnet-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.19
+{"side": "lib", "ref": "hitnet-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.19
+== lib igev-plusplus-eth3d kernels 14:31:04
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-plusplus-eth3d 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-plusplus-eth3d 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-plusplus-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+{"side": "lib", "ref": "igev-plusplus-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+== lib igev-plusplus-sceneflow kernels 14:31:24
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-plusplus-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-plusplus-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-plusplus-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_in
+{"side": "lib", "ref": "igev-plusplus-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_in
+== lib igev-plusplus-kitti12 kernels 14:31:45
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-plusplus-kitti12 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-plusplus-kitti12 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-plusplus-kitti12", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+{"side": "lib", "ref": "igev-plusplus-kitti12", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+== lib igev-plusplus-kitti15 kernels 14:32:06
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-plusplus-kitti15 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-plusplus-kitti15 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-plusplus-kitti15", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+{"side": "lib", "ref": "igev-plusplus-kitti15", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+== lib igev-plusplus-middlebury kernels 14:32:26
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-plusplus-middlebury 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-plusplus-middlebury 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-plusplus-middlebury", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_i
+{"side": "lib", "ref": "igev-plusplus-middlebury", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_i
+== lib igev-stereo-eth3d kernels 14:32:47
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-eth3d 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-eth3d 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-stereo-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+{"side": "lib", "ref": "igev-stereo-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib igev-stereo-sceneflow kernels 14:33:03
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-stereo-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init
+{"side": "lib", "ref": "igev-stereo-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init
+== lib igev-stereo-middlebury kernels 14:33:18
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-middlebury 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-middlebury 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-stereo-middlebury", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+{"side": "lib", "ref": "igev-stereo-middlebury", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+== lib igev-stereo-kitti12 kernels 14:33:34
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-kitti12 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-kitti12 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-stereo-kitti12", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+{"side": "lib", "ref": "igev-stereo-kitti12", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+== lib igev-stereo-kitti15 kernels 14:33:50
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-kitti15 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-kitti15 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-stereo-kitti15", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+{"side": "lib", "ref": "igev-stereo-kitti15", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+== lib las2-h kernels 14:34:06
+{"side": "lib", "ref": "las2-h", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.19, "comm
+{"side": "lib", "ref": "las2-h", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.19, "comm
+== lib las2-l kernels 14:34:12
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): las2-l 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): las2-l 994x1482 on synthetic inputs
+{"side": "lib", "ref": "las2-l", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.22, "com
+{"side": "lib", "ref": "las2-l", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.22, "com
+== lib las2-m kernels 14:34:16
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): las2-m 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): las2-m 994x1482 on synthetic inputs
+{"side": "lib", "ref": "las2-m", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2, "comm
+{"side": "lib", "ref": "las2-m", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2, "comm
+== lib las2-s kernels 14:34:20
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): las2-s 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): las2-s 994x1482 on synthetic inputs
+{"side": "lib", "ref": "las2-s", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "commi
+{"side": "lib", "ref": "las2-s", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "commi
+== lib mocha-v1-sceneflow kernels 14:34:24
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): mocha-v1-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): mocha-v1-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "mocha-v1-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s"
+{"side": "lib", "ref": "mocha-v1-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s"
+== lib mocha-v2-sceneflow kernels 14:34:49
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): mocha-v2-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): mocha-v2-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "mocha-v2-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s"
+{"side": "lib", "ref": "mocha-v2-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s"
+== lib monster-sceneflow kernels 14:35:13
+{"side": "lib", "ref": "monster-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib monster-mix-all kernels 14:35:16
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): monster-mix-all 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): monster-mix-all 994x1482 on synthetic inputs
+{"side": "lib", "ref": "monster-mix-all", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+{"side": "lib", "ref": "monster-mix-all", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+== lib monster-plusplus-mix-all kernels 14:35:49
+{"side": "lib", "ref": "monster-plusplus-mix-all", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_i
+== lib nmrf-sceneflow kernels 14:35:52
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): nmrf-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): nmrf-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "nmrf-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+{"side": "lib", "ref": "nmrf-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+== lib psmnet-sceneflow kernels 14:36:03
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): psmnet-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): psmnet-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "psmnet-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+{"side": "lib", "ref": "psmnet-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+== lib raft-stereo-eth3d kernels 14:36:16
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): raft-stereo-eth3d 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): raft-stereo-eth3d 994x1482 on synthetic inputs
+{"side": "lib", "ref": "raft-stereo-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s":
+{"side": "lib", "ref": "raft-stereo-eth3d", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s":
+== lib raft-stereo-middlebury kernels 14:36:31
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): raft-stereo-middlebury 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): raft-stereo-middlebury 994x1482 on synthetic inputs
+{"side": "lib", "ref": "raft-stereo-middlebury", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+{"side": "lib", "ref": "raft-stereo-middlebury", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+== lib raft-stereo-sceneflow kernels 14:36:45
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): raft-stereo-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): raft-stereo-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "raft-stereo-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init
+{"side": "lib", "ref": "raft-stereo-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init
+== lib s2m2-s kernels 14:37:00
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): s2m2-s 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): s2m2-s 994x1482 on synthetic inputs
+{"side": "lib", "ref": "s2m2-s", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "comm
+{"side": "lib", "ref": "s2m2-s", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "comm
+== lib s2m2-m kernels 14:37:08
+{"side": "lib", "ref": "s2m2-m", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "input
+== lib s2m2-l kernels 14:37:10
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): s2m2-l 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): s2m2-l 994x1482 on synthetic inputs
+{"side": "lib", "ref": "s2m2-l", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "comm
+{"side": "lib", "ref": "s2m2-l", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "comm
+== lib s2m2-xl kernels 14:37:31
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): s2m2-xl 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): s2m2-xl 994x1482 on synthetic inputs
+{"side": "lib", "ref": "s2m2-xl", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "com
+{"side": "lib", "ref": "s2m2-xl", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "com
+== lib selective-igev-eth3d-finetune kernels 14:38:07
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-eth3d-finetune 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-eth3d-finetune 994x1482 on synthetic inputs
+{"side": "lib", "ref": "selective-igev-eth3d-finetune", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cu
+{"side": "lib", "ref": "selective-igev-eth3d-finetune", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cu
+== lib selective-igev-sceneflow kernels 14:38:26
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-sceneflow 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "selective-igev-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+{"side": "lib", "ref": "selective-igev-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+== lib selective-igev-kitti12 kernels 14:38:44
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-kitti12 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-kitti12 994x1482 on synthetic inputs
+{"side": "lib", "ref": "selective-igev-kitti12", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_ini
+{"side": "lib", "ref": "selective-igev-kitti12", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_ini
+== lib selective-igev-kitti15 kernels 14:39:03
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-kitti15 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-kitti15 994x1482 on synthetic inputs
+{"side": "lib", "ref": "selective-igev-kitti15", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_ini
+{"side": "lib", "ref": "selective-igev-kitti15", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_ini
+== lib selective-igev-middlebury-finetune kernels 14:39:22
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-middlebury-finetune 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-middlebury-finetune 994x1482 on synthetic inputs
+{"side": "lib", "ref": "selective-igev-middlebury-finetune", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+{"side": "lib", "ref": "selective-igev-middlebury-finetune", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib selective-igev-middlebury-train kernels 14:39:40
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-middlebury-train 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-middlebury-train 994x1482 on synthetic inputs
+{"side": "lib", "ref": "selective-igev-middlebury-train", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, 
+{"side": "lib", "ref": "selective-igev-middlebury-train", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, 
+== lib selective-igev-eth3d-train kernels 14:39:58
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-eth3d-train 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-eth3d-train 994x1482 on synthetic inputs
+{"side": "lib", "ref": "selective-igev-eth3d-train", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+{"side": "lib", "ref": "selective-igev-eth3d-train", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+== lib waft-stereo-b kernels 14:40:17
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): waft-stereo-b 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): waft-stereo-b 994x1482 on synthetic inputs
+{"side": "lib", "ref": "waft-stereo-b", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2,
+{"side": "lib", "ref": "waft-stereo-b", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2,
+== lib waft-stereo-s kernels 14:40:44
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): waft-stereo-s 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): waft-stereo-s 994x1482 on synthetic inputs
+{"side": "lib", "ref": "waft-stereo-s", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2,
+{"side": "lib", "ref": "waft-stereo-s", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2,
+== lib depth-anything-v2-s kernels 14:41:00
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): depth-anything-v2-s 994x1482 on synthetic inputs
+{"side": "lib", "ref": "depth-anything-v2-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+{"side": "lib", "ref": "depth-anything-v2-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib depth-anything-v2-b kernels 14:41:03
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): depth-anything-v2-b 994x1482 on synthetic inputs
+{"side": "lib", "ref": "depth-anything-v2-b", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+{"side": "lib", "ref": "depth-anything-v2-b", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib depth-anything-v2-l kernels 14:41:07
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): depth-anything-v2-l 994x1482 on synthetic inputs
+{"side": "lib", "ref": "depth-anything-v2-l", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+{"side": "lib", "ref": "depth-anything-v2-l", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib da3-large-1.1 kernels 14:41:14
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): da3-large-1.1 994x1482 on synthetic inputs
+{"side": "lib", "ref": "da3-large-1.1", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.19
+{"side": "lib", "ref": "da3-large-1.1", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.19
+== lib da3metric-large kernels 14:41:21
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): da3metric-large 994x1482 on synthetic inputs
+{"side": "lib", "ref": "da3metric-large", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+{"side": "lib", "ref": "da3metric-large", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+== lib da3mono-large kernels 14:41:27
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): da3mono-large 994x1482 on synthetic inputs
+{"side": "lib", "ref": "da3mono-large", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, 
+{"side": "lib", "ref": "da3mono-large", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, 
+{"side": "lib", "ref": "da3mono-large", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, 
+== lib depth-pro kernels 14:41:34
+{"side": "lib", "ref": "depth-pro", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.18, "cuda_init_s": 0.2, "in
+== lib metric3d-vit-large kernels 14:41:37
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): metric3d-vit-large 994x1482 on synthetic inputs
+{"side": "lib", "ref": "metric3d-vit-large", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s":
+{"side": "lib", "ref": "metric3d-vit-large", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s":
+== lib midas-dpt-beit-large-512 kernels 14:41:52
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): midas-dpt-beit-large-512 994x1482 on synthetic inputs
+{"side": "lib", "ref": "midas-dpt-beit-large-512", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_ini
+{"side": "lib", "ref": "midas-dpt-beit-large-512", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_ini
+== lib moge-2-vitl-normal kernels 14:42:02
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): moge-2-vitl-normal 994x1482 on synthetic inputs
+{"side": "lib", "ref": "moge-2-vitl-normal", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+{"side": "lib", "ref": "moge-2-vitl-normal", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib unidepth-v2-vitl14 kernels 14:42:12
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): unidepth-v2-vitl14 994x1482 on synthetic inputs
+{"side": "lib", "ref": "unidepth-v2-vitl14", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s":
+{"side": "lib", "ref": "unidepth-v2-vitl14", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s":
+== lib unik3d-vitl kernels 14:42:22
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): unik3d-vitl 994x1482 on synthetic inputs
+{"side": "lib", "ref": "unik3d-vitl", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "c
+{"side": "lib", "ref": "unik3d-vitl", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "c
+== lib zoedepth-nk kernels 14:42:31
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): zoedepth-nk 994x1482 on synthetic inputs
+{"side": "lib", "ref": "zoedepth-nk", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "c
+{"side": "lib", "ref": "zoedepth-nk", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "c
+== lib alexnet.tv_in1k kernels 14:42:41
+{"side": "lib", "ref": "alexnet.tv_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda_in
+== lib convnextv2_base.fcmae_ft_in22k_in1k kernels 14:42:45
+{"side": "lib", "ref": "convnextv2_base.fcmae_ft_in22k_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_impor
+== lib deit_base_patch16_224.fb_in1k kernels 14:42:51
+{"side": "lib", "ref": "deit_base_patch16_224.fb_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 
+== lib densenet121.tv_in1k kernels 14:42:56
+{"side": "lib", "ref": "densenet121.tv_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda
+== lib dinov2_vitl14_lc kernels 14:43:01
+{"side": "lib", "ref": "dinov2_vitl14_lc", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+== lib efficientnet_b0.tv_in1k kernels 14:43:09
+{"side": "lib", "ref": "efficientnet_b0.tv_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "
+== lib efficientnet_b4.tv_in1k kernels 14:43:13
+{"side": "lib", "ref": "efficientnet_b4.tv_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "
+== lib efficientnet_v2_s.tv_in1k kernels 14:43:18
+{"side": "lib", "ref": "efficientnet_v2_s.tv_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0,
+== lib efficientvit_b2.r288_in1k kernels 14:43:23
+{"side": "lib", "ref": "efficientvit_b2.r288_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0,
+== lib eva02_large_patch14_448.mim_m38m_ft_in22k_in1k kernels 14:43:28
+{"side": "lib", "ref": "eva02_large_patch14_448.mim_m38m_ft_in22k_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "
+== lib inception_v3.tv_in1k kernels 14:43:36
+{"side": "lib", "ref": "inception_v3.tv_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.12, "cu
+== lib mobilenet_v2.tv2_in1k kernels 14:43:41
+{"side": "lib", "ref": "mobilenet_v2.tv2_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "c
+== lib mobilenet_v3_large.tv2_in1k kernels 14:43:54
+{"side": "lib", "ref": "mobilenet_v3_large.tv2_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.
+== lib mobilenetv1_100.ra4_e3600_r224_in1k kernels 14:43:58
+{"side": "lib", "ref": "mobilenetv1_100.ra4_e3600_r224_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_impor
+== lib mobilenetv4_conv_medium.e500_r256_in1k kernels 14:44:02
+{"side": "lib", "ref": "mobilenetv4_conv_medium.e500_r256_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_im
+== lib regnety_160.tv2_in1k kernels 14:44:07
+{"side": "lib", "ref": "regnety_160.tv2_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+== lib resnet152.tv2_in1k kernels 14:44:12
+{"side": "lib", "ref": "resnet152.tv2_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+== lib resnet18.tv_in1k kernels 14:44:17
+{"side": "lib", "ref": "resnet18.tv_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_i
+== lib resnet50.tv2_in1k kernels 14:44:21
+{"side": "lib", "ref": "resnet50.tv2_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_i
+== lib shufflenet_v2_x1_0.tv_in1k kernels 14:44:25
+{"side": "lib", "ref": "shufflenet_v2_x1_0.tv_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib squeezenet1_1.tv_in1k kernels 14:44:29
+{"side": "lib", "ref": "squeezenet1_1.tv_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "c
+== lib swin_base_patch4_window7_224.ms_in22k_ft_in1k kernels 14:44:33
+{"side": "lib", "ref": "swin_base_patch4_window7_224.ms_in22k_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "t
+== lib vgg16.tv_in1k kernels 14:44:38
+{"side": "lib", "ref": "vgg16.tv_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.03, "cuda_init
+== lib vit_base_patch16_224.augreg2_in21k_ft_in1k kernels 14:44:44
+{"side": "lib", "ref": "vit_base_patch16_224.augreg2_in21k_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torc
+== lib vit_so400m_patch14_siglip_378.webli_ft_in1k kernels 14:44:49
+{"side": "lib", "ref": "vit_so400m_patch14_siglip_378.webli_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "tor
+== lib faster-rcnn-r50-fpn-3x-coco kernels 14:44:58
+{"side": "lib", "ref": "faster-rcnn-r50-fpn-3x-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "
+== lib mask-rcnn-r50-fpn-3x-coco kernels 14:45:03
+{"side": "lib", "ref": "mask-rcnn-r50-fpn-3x-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+== lib sam-vit-b kernels 14:45:09
+{"side": "lib", "ref": "sam-vit-b", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda
+{"side": "lib", "ref": "sam-vit-b", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda
+== lib sam-vit-l kernels 14:45:14
+{"side": "lib", "ref": "sam-vit-l", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda
+{"side": "lib", "ref": "sam-vit-l", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda
+== lib sam-vit-h kernels 14:45:23
+{"side": "lib", "ref": "sam-vit-h", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda
+{"side": "lib", "ref": "sam-vit-h", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda
+== lib sam2.1-hiera-tiny kernels 14:45:37
+{"side": "lib", "ref": "sam2.1-hiera-tiny", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+{"side": "lib", "ref": "sam2.1-hiera-tiny", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib sam2.1-hiera-small kernels 14:45:41
+{"side": "lib", "ref": "sam2.1-hiera-small", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.
+{"side": "lib", "ref": "sam2.1-hiera-small", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.
+== lib sam2.1-hiera-base-plus kernels 14:45:44
+{"side": "lib", "ref": "sam2.1-hiera-base-plus", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s"
+{"side": "lib", "ref": "sam2.1-hiera-base-plus", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s"
+== lib sam2.1-hiera-large kernels 14:45:49
+{"side": "lib", "ref": "sam2.1-hiera-large", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.
+{"side": "lib", "ref": "sam2.1-hiera-large", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.
+== lib sam3 kernels 14:45:55
+{"side": "lib", "ref": "sam3", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+{"side": "lib", "ref": "sam3", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+== lib mvsanywhere kernels 14:46:08
+{"side": "lib", "ref": "mvsanywhere", "task": "multiview", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.12, "cuda_init_s": 0.
+== lib vggt-1b kernels 14:46:15
+{"side": "lib", "ref": "vggt-1b", "task": "multiview", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.1, "cuda_init_s": 0.2, "c
+== lib vggt-omega-1b-512 kernels 14:46:37
+{"side": "lib", "ref": "vggt-omega-1b-512", "task": "multiview", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.21, "cuda_init_
+== lib mapanything-apache kernels 14:46:58
+{"side": "lib", "ref": "mapanything-apache", "task": "multiview", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.06, "cuda_init
+== lib bridgedepth-rvc-pretrain kernels 14:47:21
+{"side": "lib", "ref": "bridgedepth-rvc-pretrain", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_i
+== lib great-igev-middlebury kernels 14:47:36
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): great-igev-middlebury 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): great-igev-middlebury 994x1482 on synthetic inputs
+{"side": "lib", "ref": "great-igev-middlebury", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.42, "cuda_init
+{"side": "lib", "ref": "great-igev-middlebury", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.42, "cuda_init
+== lib hitnet-middlebury-d400 kernels 14:48:05
+note: /home/florian/projects/data/KITTI/training/image_2/000000_10.png missing ($FASTFORKS_DATA=/home/florian/projects/data): hitnet-middlebury-d400 375x1242 on synthetic inputs
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): hitnet-middlebury-d400 994x1482 on synthetic inputs
+{"side": "lib", "ref": "hitnet-middlebury-d400", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+{"side": "lib", "ref": "hitnet-middlebury-d400", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+== lib da3-giant-1.1 kernels 14:48:10
+{"side": "lib", "ref": "da3-giant-1.1", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21
+== lib da3nested-giant-large-1.1 kernels 14:48:13
+{"side": "lib", "ref": "da3nested-giant-large-1.1", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+== lib dinov2-vits14-reg kernels 14:48:16
+{"side": "lib", "ref": "dinov2-vits14-reg", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+== lib dinov2-vitb14-reg kernels 14:48:20
+{"side": "lib", "ref": "dinov2-vitb14-reg", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+== lib dinov2-vitg14-reg kernels 14:48:24
+{"side": "lib", "ref": "dinov2-vitg14-reg", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+== lib detr-r50-coco kernels 14:48:30
+{"side": "lib", "ref": "detr-r50-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.08, "cuda_init_s": 
+== lib detr-r101-coco kernels 14:48:35
+{"side": "lib", "ref": "detr-r101-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib rtdetrv2-s-coco kernels 14:48:40
+{"side": "lib", "ref": "rtdetrv2-s-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib rtdetrv2-m-coco kernels 14:48:44
+{"side": "lib", "ref": "rtdetrv2-m-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib rtdetrv2-ms-coco kernels 14:48:49
+{"side": "lib", "ref": "rtdetrv2-ms-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+== lib rtdetrv2-l-coco kernels 14:48:53
+{"side": "lib", "ref": "rtdetrv2-l-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.18, "cuda_init_s"
+== lib rtdetrv2-x-coco kernels 14:48:58
+{"side": "lib", "ref": "rtdetrv2-x-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s"
+== lib dinov2-vits14 kernels 14:49:04
+{"side": "lib", "ref": "dinov2-vits14", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s": 0
+== lib dinov2-vitb14 kernels 14:49:07
+{"side": "lib", "ref": "dinov2-vitb14", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib dinov2-vitl14 kernels 14:49:11
+{"side": "lib", "ref": "dinov2-vitl14", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib dinov2-vitg14 kernels 14:49:16
+{"side": "lib", "ref": "dinov2-vitg14", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+== lib dinov2-vitl14-reg kernels 14:49:38
+{"side": "lib", "ref": "dinov2-vitl14-reg", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.22, "cuda_init_s
+== lib dinov3-convnext-tiny kernels 14:49:43
+{"side": "lib", "ref": "dinov3-convnext-tiny", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+== lib dinov3-convnext-small kernels 14:49:46
+{"side": "lib", "ref": "dinov3-convnext-small", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_ini
+== lib dinov3-convnext-base kernels 14:49:48
+{"side": "lib", "ref": "dinov3-convnext-base", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+== lib dinov3-convnext-large kernels 14:49:52
+{"side": "lib", "ref": "dinov3-convnext-large", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_ini
+== lib dinov3-vits16 kernels 14:49:55
+{"side": "lib", "ref": "dinov3-vits16", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib dinov3-vitb16 kernels 14:49:57
+{"side": "lib", "ref": "dinov3-vitb16", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib dinov3-vitl16 kernels 14:50:00
+{"side": "lib", "ref": "dinov3-vitl16", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib dinov3-vith16plus kernels 14:50:04
+{"side": "lib", "ref": "dinov3-vith16plus", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+== lib deeplabv3-r101-d8-ade20k kernels 14:50:12
+{"side": "lib", "ref": "deeplabv3-r101-d8-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.11, "
+{"side": "lib", "ref": "deeplabv3-r101-d8-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.11, "
+== lib deeplabv3plus-r101-d8-ade20k kernels 14:50:17
+{"side": "lib", "ref": "deeplabv3plus-r101-d8-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+{"side": "lib", "ref": "deeplabv3plus-r101-d8-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib fcn-r101-d8-ade20k kernels 14:50:21
+{"side": "lib", "ref": "fcn-r101-d8-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+{"side": "lib", "ref": "fcn-r101-d8-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+== lib hrnet-w48-fcn-ade20k kernels 14:50:26
+{"side": "lib", "ref": "hrnet-w48-fcn-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+{"side": "lib", "ref": "hrnet-w48-fcn-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+== lib eomt-l-dinov2-ade20k kernels 14:50:30
+{"side": "lib", "ref": "eomt-l-dinov2-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+{"side": "lib", "ref": "eomt-l-dinov2-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+== lib eomt-l-dinov3-ade20k kernels 14:50:42
+{"side": "lib", "ref": "eomt-l-dinov3-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda
+{"side": "lib", "ref": "eomt-l-dinov3-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda
+== lib mask2former-swinl-ade20k kernels 14:50:52
+[transformers] [1mMask2FormerForUniversalSegmentation LOAD REPORT[0m from: None
+Key                                                                                                                      | Status     | 
+-------------------------------------------------------------------------------------------------------------------------+------------+-
+model.pixel_level_module.encoder.swin.encoder.layers.{0, 1, 2, 3}.blocks.{0...17}.attention.self.relative_position_index | UNEXPECTED | 
+model.pixel_level_module.encoder.swin.layernorm.bias                                                                     | MISSING    | 
+model.pixel_level_module.encoder.swin.layernorm.weight                                                                   | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+{"side": "lib", "ref": "mask2former-swinl-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "
+{"side": "lib", "ref": "mask2former-swinl-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "
+== lib oneformer-swinl-ade20k kernels 14:51:03
+[transformers] [1mOneFormerForUniversalSegmentation LOAD REPORT[0m from: None
+Key                                                                                                                      | Status     | 
+-------------------------------------------------------------------------------------------------------------------------+------------+-
+model.pixel_level_module.encoder.swin.encoder.layers.{0, 1, 2, 3}.blocks.{0...17}.attention.self.relative_position_index | UNEXPECTED | 
+model.pixel_level_module.encoder.swin.layernorm.bias                                                                     | MISSING    | 
+model.pixel_level_module.encoder.swin.layernorm.weight                                                                   | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+{"side": "lib", "ref": "oneformer-swinl-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+{"side": "lib", "ref": "oneformer-swinl-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+== lib sapiens-seg-0.3b-goliath kernels 14:51:15
+{"side": "lib", "ref": "sapiens-seg-0.3b-goliath", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "c
+{"side": "lib", "ref": "sapiens-seg-0.3b-goliath", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "c
+== lib sapiens-seg-1b-goliath kernels 14:51:25
+{"side": "lib", "ref": "sapiens-seg-1b-goliath", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.14, "cu
+{"side": "lib", "ref": "sapiens-seg-1b-goliath", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.14, "cu
+== lib segformer-b0-ade20k kernels 14:51:44
+{"side": "lib", "ref": "segformer-b0-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.23, "cuda_
+{"side": "lib", "ref": "segformer-b0-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.23, "cuda_
+== lib segformer-b5-ade20k kernels 14:51:51
+{"side": "lib", "ref": "segformer-b5-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_i
+{"side": "lib", "ref": "segformer-b5-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_i
+== lib dinov2-s-linear-ade20k kernels 14:51:59
+{"side": "lib", "ref": "dinov2-s-linear-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+{"side": "lib", "ref": "dinov2-s-linear-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+== lib dinov2-b-linear-ade20k kernels 14:52:02
+{"side": "lib", "ref": "dinov2-b-linear-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+{"side": "lib", "ref": "dinov2-b-linear-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+== lib dinov2-l-linear-ade20k kernels 14:52:06
+{"side": "lib", "ref": "dinov2-l-linear-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+{"side": "lib", "ref": "dinov2-l-linear-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+== lib dfine-n-coco kernels 14:52:13
+{"side": "lib", "ref": "dfine-n-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib dfine-s-coco kernels 14:52:17
+{"side": "lib", "ref": "dfine-s-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+== lib dfine-m-coco kernels 14:52:21
+{"side": "lib", "ref": "dfine-m-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib dfine-l-coco kernels 14:52:26
+{"side": "lib", "ref": "dfine-l-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib dfine-x-coco kernels 14:52:30
+{"side": "lib", "ref": "dfine-x-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+== lib raft-large-things kernels 14:52:35
+{"side": "lib", "ref": "raft-large-things", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+== lib raft-large kernels 14:52:37
+{"side": "lib", "ref": "raft-large", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda_init_s": 0.21, "i
+== lib raft-large-kitti kernels 14:52:39
+{"side": "lib", "ref": "raft-large-kitti", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+== lib raft-small kernels 14:52:41
+{"side": "lib", "ref": "raft-small", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "in
+== lib sea-raft-m kernels 14:52:43
+{"side": "lib", "ref": "sea-raft-m", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "inp
+== lib sea-raft-m-kitti kernels 14:52:45
+{"side": "lib", "ref": "sea-raft-m-kitti", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+== lib sea-raft-m-spring kernels 14:52:47
+{"side": "lib", "ref": "sea-raft-m-spring", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+== lib sea-raft-m-things kernels 14:52:49
+{"side": "lib", "ref": "sea-raft-m-things", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib sea-raft-s kernels 14:52:51
+{"side": "lib", "ref": "sea-raft-s", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.28, "in
+== lib sea-raft-s-kitti kernels 14:52:53
+{"side": "lib", "ref": "sea-raft-s-kitti", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+== lib sea-raft-s-spring kernels 14:52:55
+{"side": "lib", "ref": "sea-raft-s-spring", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+== lib depth-anything-v2-metric-hypersim-s kernels 14:52:57
+{"side": "lib", "ref": "depth-anything-v2-metric-hypersim-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+{"side": "lib", "ref": "depth-anything-v2-metric-hypersim-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib depth-anything-v2-metric-vkitti-s kernels 14:53:00
+{"side": "lib", "ref": "depth-anything-v2-metric-vkitti-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, 
+{"side": "lib", "ref": "depth-anything-v2-metric-vkitti-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, 
+== lib distill-any-depth-s kernels 14:53:02
+{"side": "lib", "ref": "distill-any-depth-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+{"side": "lib", "ref": "distill-any-depth-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib depth-anything-v2-metric-hypersim-b kernels 14:53:05
+{"side": "lib", "ref": "depth-anything-v2-metric-hypersim-b", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+{"side": "lib", "ref": "depth-anything-v2-metric-hypersim-b", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib depth-anything-v2-metric-vkitti-b kernels 14:53:08
+{"side": "lib", "ref": "depth-anything-v2-metric-vkitti-b", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, 
+{"side": "lib", "ref": "depth-anything-v2-metric-vkitti-b", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, 
+== lib distill-any-depth-b kernels 14:53:12
+{"side": "lib", "ref": "distill-any-depth-b", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s"
+{"side": "lib", "ref": "distill-any-depth-b", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s"
+== lib depth-anything-v2-metric-hypersim-l kernels 14:53:15
+{"side": "lib", "ref": "depth-anything-v2-metric-hypersim-l", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+{"side": "lib", "ref": "depth-anything-v2-metric-hypersim-l", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib depth-anything-v2-metric-vkitti-l kernels 14:53:21
+{"side": "lib", "ref": "depth-anything-v2-metric-vkitti-l", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01,
+{"side": "lib", "ref": "depth-anything-v2-metric-vkitti-l", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01,
+== lib distill-any-depth-l kernels 14:53:26
+{"side": "lib", "ref": "distill-any-depth-l", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda_init_s"
+{"side": "lib", "ref": "distill-any-depth-l", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda_init_s"
+== lib pe-core-t16-384 kernels 14:53:31
+{"side": "lib", "ref": "pe-core-t16-384", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.03, "cuda_init_s":
+{"side": "lib", "ref": "pe-core-t16-384", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.03, "cuda_init_s":
+== lib pe-core-s16-384 kernels 14:53:36
+{"side": "lib", "ref": "pe-core-s16-384", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+{"side": "lib", "ref": "pe-core-s16-384", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib siglip2-b16-256 kernels 14:53:41
+{"side": "lib", "ref": "siglip2-b16-256", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+{"side": "lib", "ref": "siglip2-b16-256", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib clip-b16-openai kernels 14:53:46
+{"side": "lib", "ref": "clip-b16-openai", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.1, "cuda_init_s": 
+== lib pe-core-b16-224 kernels 14:53:51
+{"side": "lib", "ref": "pe-core-b16-224", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib c-radio-v3-b kernels 14:53:56
+{"side": "lib", "ref": "c-radio-v3-b", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.
+{"side": "lib", "ref": "c-radio-v3-b", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.
+== lib clip-l14-openai kernels 14:54:01
+{"side": "lib", "ref": "clip-l14-openai", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s":
+== lib siglip2-l16-256 kernels 14:54:09
+{"side": "lib", "ref": "siglip2-l16-256", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s":
+{"side": "lib", "ref": "siglip2-l16-256", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s":
+== lib pe-core-l14-336 kernels 14:55:23
+{"side": "lib", "ref": "pe-core-l14-336", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+{"side": "lib", "ref": "pe-core-l14-336", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib c-radio-v3-l kernels 14:55:31
+{"side": "lib", "ref": "c-radio-v3-l", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.
+{"side": "lib", "ref": "c-radio-v3-l", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.
+== lib pe-spatial-t16-512 kernels 14:55:37
+{"side": "lib", "ref": "pe-spatial-t16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+{"side": "lib", "ref": "pe-spatial-t16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+== lib pe-spatial-s16-512 kernels 14:55:41
+{"side": "lib", "ref": "pe-spatial-s16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+{"side": "lib", "ref": "pe-spatial-s16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+== lib pe-spatial-b16-512 kernels 14:55:46
+{"side": "lib", "ref": "pe-spatial-b16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s
+{"side": "lib", "ref": "pe-spatial-b16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s
+== lib clip-b16-laion2b kernels 14:55:51
+{"side": "lib", "ref": "clip-b16-laion2b", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib siglip2-b16-512 kernels 14:55:56
+{"side": "lib", "ref": "siglip2-b16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+{"side": "lib", "ref": "siglip2-b16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib siglip2-so400m14-224 kernels 14:56:01
+{"side": "lib", "ref": "siglip2-so400m14-224", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+== lib siglip2-so400m16-256 kernels 14:56:10
+{"side": "lib", "ref": "siglip2-so400m16-256", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.1, "cuda_init
+{"side": "lib", "ref": "siglip2-so400m16-256", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.1, "cuda_init
+== lib clip-l14-336-openai kernels 14:56:18
+{"side": "lib", "ref": "clip-l14-336-openai", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda_init
+{"side": "lib", "ref": "clip-l14-336-openai", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda_init
+== lib clip-l14-laion2b kernels 14:56:26
+{"side": "lib", "ref": "clip-l14-laion2b", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib clip-l14-datacompxl kernels 14:56:33
+{"side": "lib", "ref": "clip-l14-datacompxl", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.1, "cuda_init_
+== lib clip-l14-dfn2b kernels 14:56:41
+{"side": "lib", "ref": "clip-l14-dfn2b", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+== lib pe-spatial-l14-448 kernels 14:56:55
+{"side": "lib", "ref": "pe-spatial-l14-448", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s
+{"side": "lib", "ref": "pe-spatial-l14-448", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s
+== lib siglip2-l16-512 kernels 14:57:03
+{"side": "lib", "ref": "siglip2-l16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_init_s":
+{"side": "lib", "ref": "siglip2-l16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_init_s":
+== lib siglip2-so400m14-378 kernels 14:57:11
+{"side": "lib", "ref": "siglip2-so400m14-378", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.1, "cuda_init
+{"side": "lib", "ref": "siglip2-so400m14-378", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.1, "cuda_init
+== lib siglip2-so400m16-512 kernels 14:57:20
+{"side": "lib", "ref": "siglip2-so400m16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda_ini
+{"side": "lib", "ref": "siglip2-so400m16-512", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda_ini
+== lib c-radio-v3-h kernels 14:57:30
+{"side": "lib", "ref": "c-radio-v3-h", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda_init_s": 0.
+{"side": "lib", "ref": "c-radio-v3-h", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda_init_s": 0.
+== lib clip-h14-laion2b kernels 14:57:38
+{"side": "lib", "ref": "clip-h14-laion2b", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib clip-h14-dfn5b kernels 14:57:49
+{"side": "lib", "ref": "clip-h14-dfn5b", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+== lib clip-h14-378-dfn5b kernels 14:57:51
+{"side": "lib", "ref": "clip-h14-378-dfn5b", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.06, "cuda_init_
+== lib c-radio-v3-g kernels 14:57:53
+{"side": "lib", "ref": "c-radio-v3-g", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s": 0.
+{"side": "lib", "ref": "c-radio-v3-g", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s": 0.
+== lib siglip2-g16-256 kernels 14:58:03
+{"side": "lib", "ref": "siglip2-g16-256", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda_init_s":
+{"side": "lib", "ref": "siglip2-g16-256", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda_init_s":
+== lib siglip2-g16-384 kernels 14:58:17
+{"side": "lib", "ref": "siglip2-g16-384", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+{"side": "lib", "ref": "siglip2-g16-384", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib pe-core-g14-448 kernels 14:58:33
+{"side": "lib", "ref": "pe-core-g14-448", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.21, "cuda_init_s":
+== lib pe-spatial-g14-448 kernels 14:58:35
+{"side": "lib", "ref": "pe-spatial-g14-448", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+== lib rtmdet-tiny-coco kernels 14:58:38
+{"side": "lib", "ref": "rtmdet-tiny-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s
+== lib rtmdet-s-coco kernels 14:58:42
+{"side": "lib", "ref": "rtmdet-s-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+== lib rtmdet-m-coco kernels 14:58:47
+{"side": "lib", "ref": "rtmdet-m-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+== lib rtmdet-l-coco kernels 14:58:52
+{"side": "lib", "ref": "rtmdet-l-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+== lib rtmdet-x-coco kernels 14:58:57
+{"side": "lib", "ref": "rtmdet-x-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+== lib rtmdet-nano-person kernels 14:59:03
+{"side": "lib", "ref": "rtmdet-nano-person", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.17, "cuda_init
+== lib rtmdet-m-person kernels 14:59:09
+{"side": "lib", "ref": "rtmdet-m-person", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib convnext_tiny.fb_in1k kernels 14:59:12
+{"side": "lib", "ref": "convnext_tiny.fb_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cu
+== lib convnext_small.fb_in1k kernels 14:59:17
+{"side": "lib", "ref": "convnext_small.fb_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "c
+== lib convnext_base.fb_in1k kernels 14:59:21
+{"side": "lib", "ref": "convnext_base.fb_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cu
+== lib convnext_large.fb_in1k kernels 14:59:26
+{"side": "lib", "ref": "convnext_large.fb_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "
+== lib convnext_tiny.fb_in22k_ft_in1k kernels 14:59:33
+{"side": "lib", "ref": "convnext_tiny.fb_in22k_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s":
+== lib convnext_small.fb_in22k_ft_in1k kernels 14:59:38
+{"side": "lib", "ref": "convnext_small.fb_in22k_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s"
+== lib convnext_base.fb_in22k_ft_in1k kernels 14:59:43
+{"side": "lib", "ref": "convnext_base.fb_in22k_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s":
+== lib convnext_large.fb_in22k_ft_in1k kernels 14:59:49
+{"side": "lib", "ref": "convnext_large.fb_in22k_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s"
+== lib convnext_tiny.fb_in22k_ft_in1k_384 kernels 14:59:55
+{"side": "lib", "ref": "convnext_tiny.fb_in22k_ft_in1k_384", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import
+== lib convnext_small.fb_in22k_ft_in1k_384 kernels 14:59:59
+{"side": "lib", "ref": "convnext_small.fb_in22k_ft_in1k_384", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_impor
+== lib convnext_base.fb_in22k_ft_in1k_384 kernels 15:00:04
+{"side": "lib", "ref": "convnext_base.fb_in22k_ft_in1k_384", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import
+== lib convnext_large.fb_in22k_ft_in1k_384 kernels 15:00:09
+{"side": "lib", "ref": "convnext_large.fb_in22k_ft_in1k_384", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_impor
+== lib dwpose-l kernels 15:00:15
+{"side": "lib", "ref": "dwpose-l", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2, "comm
+== lib dwpose-l-384 kernels 15:00:19
+{"side": "lib", "ref": "dwpose-l-384", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2, "
+== lib dwpose-m kernels 15:00:23
+{"side": "lib", "ref": "dwpose-m", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "commi
+== lib dwpose-s kernels 15:00:26
+{"side": "lib", "ref": "dwpose-s", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "comm
+== lib dwpose-t kernels 15:00:30
+{"side": "lib", "ref": "dwpose-t", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.26, "com
+== lib rtmpose-l kernels 15:00:33
+{"side": "lib", "ref": "rtmpose-l", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "com
+== lib rtmpose-l-384 kernels 15:00:36
+{"side": "lib", "ref": "rtmpose-l-384", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "
+== lib rtmpose-m kernels 15:00:40
+{"side": "lib", "ref": "rtmpose-m", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, "co
+== lib rtmpose-m-384 kernels 15:00:43
+{"side": "lib", "ref": "rtmpose-m-384", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2, 
+== lib rtmpose-s kernels 15:00:47
+{"side": "lib", "ref": "rtmpose-s", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "comm
+== lib rtmpose-t kernels 15:00:50
+{"side": "lib", "ref": "rtmpose-t", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, "co
+== lib vitpose-base-simple kernels 15:00:53
+{"side": "lib", "ref": "vitpose-base-simple", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib vitpose-plus-base kernels 15:00:57
+{"side": "lib", "ref": "vitpose-plus-base", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib vitpose-plus-huge kernels 15:01:00
+{"side": "lib", "ref": "vitpose-plus-huge", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib vitpose-plus-large kernels 15:01:07
+{"side": "lib", "ref": "vitpose-plus-large", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+== lib vitpose-plus-small kernels 15:01:12
+{"side": "lib", "ref": "vitpose-plus-small", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+== lib efficientvit-sam-l0 kernels 15:01:15
+{"side": "lib", "ref": "efficientvit-sam-l0", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1
+{"side": "lib", "ref": "efficientvit-sam-l0", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1
+== lib efficientvit-sam-l1 kernels 15:01:19
+{"side": "lib", "ref": "efficientvit-sam-l1", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1
+{"side": "lib", "ref": "efficientvit-sam-l1", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1
+== lib efficientvit-sam-l2 kernels 15:01:22
+{"side": "lib", "ref": "efficientvit-sam-l2", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1
+{"side": "lib", "ref": "efficientvit-sam-l2", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1
+== lib efficientvit-sam-xl0 kernels 15:01:26
+{"side": "lib", "ref": "efficientvit-sam-xl0", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 
+{"side": "lib", "ref": "efficientvit-sam-xl0", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 
+== lib efficientvit-sam-xl1 kernels 15:01:33
+{"side": "lib", "ref": "efficientvit-sam-xl1", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 
+{"side": "lib", "ref": "efficientvit-sam-xl1", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 
+== lib sam-hq-vit-b kernels 15:01:39
+{"side": "lib", "ref": "sam-hq-vit-b", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cu
+{"side": "lib", "ref": "sam-hq-vit-b", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cu
+== lib sam-hq-vit-l kernels 15:01:44
+{"side": "lib", "ref": "sam-hq-vit-l", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cu
+{"side": "lib", "ref": "sam-hq-vit-l", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cu
+== lib sam-hq-vit-h kernels 15:01:54
+{"side": "lib", "ref": "sam-hq-vit-h", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.12, "c
+{"side": "lib", "ref": "sam-hq-vit-h", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.12, "c
+== lib tipsv2-b14 kernels 15:02:08
+{"side": "lib", "ref": "tipsv2-b14", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.03, "cuda_init_s": 0.19
+== lib tipsv2-l14 kernels 15:02:12
+{"side": "lib", "ref": "tipsv2-l14", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21
+== lib mobile-sam kernels 15:02:17
+{"side": "lib", "ref": "mobile-sam", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda
+{"side": "lib", "ref": "mobile-sam", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda
+== lib repvit_m0_9.dist_300e_in1k kernels 15:02:21
+{"side": "lib", "ref": "repvit_m0_9.dist_300e_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib repvit_m0_9.dist_450e_in1k kernels 15:02:26
+{"side": "lib", "ref": "repvit_m0_9.dist_450e_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib repvit_m1_0.dist_300e_in1k kernels 15:02:31
+{"side": "lib", "ref": "repvit_m1_0.dist_300e_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib repvit_m1_0.dist_450e_in1k kernels 15:02:36
+{"side": "lib", "ref": "repvit_m1_0.dist_450e_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib repvit_m1_1.dist_300e_in1k kernels 15:02:41
+{"side": "lib", "ref": "repvit_m1_1.dist_300e_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib repvit_m1_1.dist_450e_in1k kernels 15:02:45
+{"side": "lib", "ref": "repvit_m1_1.dist_450e_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib repvit_m1_5.dist_300e_in1k kernels 15:02:50
+{"side": "lib", "ref": "repvit_m1_5.dist_300e_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib repvit_m1_5.dist_450e_in1k kernels 15:02:55
+{"side": "lib", "ref": "repvit_m1_5.dist_450e_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib repvit_m2_3.dist_300e_in1k kernels 15:03:00
+{"side": "lib", "ref": "repvit_m2_3.dist_300e_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib repvit_m2_3.dist_450e_in1k kernels 15:03:06
+{"side": "lib", "ref": "repvit_m2_3.dist_450e_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib convnext_tiny.fb_in22k kernels 15:03:11
+{"side": "lib", "ref": "convnext_tiny.fb_in22k", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_i
+== lib convnext_small.fb_in22k kernels 15:03:16
+{"side": "lib", "ref": "convnext_small.fb_in22k", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_i
+== lib convnext_base.fb_in22k kernels 15:03:21
+{"side": "lib", "ref": "convnext_base.fb_in22k", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+== lib convnext_large.fb_in22k kernels 15:04:53
+{"side": "lib", "ref": "convnext_large.fb_in22k", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_i
+== lib rtmo-t kernels 15:04:59
+{"side": "lib", "ref": "rtmo-t", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2, "commit
+== lib rtmo-s kernels 15:05:03
+{"side": "lib", "ref": "rtmo-s", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.26, "commit
+== lib rtmo-m kernels 15:05:06
+{"side": "lib", "ref": "rtmo-m", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, "commi
+== lib rtmo-l kernels 15:05:09
+{"side": "lib", "ref": "rtmo-l", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s": 0.27, "commi
+== lib tiny_vit_5m_224.dist_in22k_ft_in1k kernels 15:05:40
+{"side": "lib", "ref": "tiny_vit_5m_224.dist_in22k_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import
+== lib tiny_vit_11m_224.dist_in22k_ft_in1k kernels 15:05:45
+{"side": "lib", "ref": "tiny_vit_11m_224.dist_in22k_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_impor
+== lib tiny_vit_21m_224.dist_in22k_ft_in1k kernels 15:05:49
+{"side": "lib", "ref": "tiny_vit_21m_224.dist_in22k_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_impor
+== lib tiny_vit_21m_384.dist_in22k_ft_in1k kernels 15:05:53
+{"side": "lib", "ref": "tiny_vit_21m_384.dist_in22k_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_impor
+== lib tiny_vit_21m_512.dist_in22k_ft_in1k kernels 15:05:58
+{"side": "lib", "ref": "tiny_vit_21m_512.dist_in22k_ft_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_impor
+== lib rtmw-m kernels 15:06:04
+{"side": "lib", "ref": "rtmw-m", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "commit
+== lib rtmw-l kernels 15:06:07
+{"side": "lib", "ref": "rtmw-l", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "commit"
+== lib rtmw-x kernels 15:06:11
+{"side": "lib", "ref": "rtmw-x", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "commit"
+== lib rtmw-l-384 kernels 15:06:17
+{"side": "lib", "ref": "rtmw-l-384", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, "c
+== lib rtmw-x-384 kernels 15:06:21
+{"side": "lib", "ref": "rtmw-x-384", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, "c
+== lib rtmpose-t-halpe26 kernels 15:06:27
+{"side": "lib", "ref": "rtmpose-t-halpe26", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+== lib rtmpose-s-halpe26 kernels 15:06:30
+{"side": "lib", "ref": "rtmpose-s-halpe26", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+== lib rtmpose-m-halpe26 kernels 15:06:33
+{"side": "lib", "ref": "rtmpose-m-halpe26", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib rtmpose-l-halpe26 kernels 15:06:37
+{"side": "lib", "ref": "rtmpose-l-halpe26", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+== lib rtmpose-m-hand5 kernels 15:06:40
+{"side": "lib", "ref": "rtmpose-m-hand5", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2
+== lib rtmpose-t-face6 kernels 15:06:43
+{"side": "lib", "ref": "rtmpose-t-face6", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2
+== lib rtmpose-s-face6 kernels 15:06:47
+{"side": "lib", "ref": "rtmpose-s-face6", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.22
+== lib rtmpose-m-face6 kernels 15:06:50
+{"side": "lib", "ref": "rtmpose-m-face6", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2,
+== lib rtmpose-m-ap10k kernels 15:06:53
+{"side": "lib", "ref": "rtmpose-m-ap10k", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.17, "cuda_init_s": 0.2
+== lib rtmpose-m-halpe26-384 kernels 15:06:57
+{"side": "lib", "ref": "rtmpose-m-halpe26-384", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+== lib rtmpose-l-halpe26-384 kernels 15:07:00
+{"side": "lib", "ref": "rtmpose-l-halpe26-384", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda_init_s
+== lib rtmpose-x-halpe26-384 kernels 15:07:04
+{"side": "lib", "ref": "rtmpose-x-halpe26-384", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda_init_s
+== lib rf-detr-keypoint-preview kernels 15:07:08
+[2026-11-15 15:07:12] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-15 15:07:12] [WARNING] rf-detr - Using patch size 12 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+{"side": "lib", "ref": "rf-detr-keypoint-preview", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_ini
+== lib starnet_s1.in1k kernels 15:07:15
+{"side": "lib", "ref": "starnet_s1.in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_in
+== lib starnet_s2.in1k kernels 15:07:19
+{"side": "lib", "ref": "starnet_s2.in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_in
+== lib starnet_s3.in1k kernels 15:07:24
+{"side": "lib", "ref": "starnet_s3.in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_ini
+== lib starnet_s4.in1k kernels 15:07:29
+{"side": "lib", "ref": "starnet_s4.in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_ini
+== lib segnext-mscan-t-ade20k kernels 15:07:33
+{"side": "lib", "ref": "segnext-mscan-t-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+{"side": "lib", "ref": "segnext-mscan-t-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+== lib segnext-mscan-s-ade20k kernels 15:07:36
+{"side": "lib", "ref": "segnext-mscan-s-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+{"side": "lib", "ref": "segnext-mscan-s-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+== lib segnext-mscan-b-ade20k kernels 15:07:40
+{"side": "lib", "ref": "segnext-mscan-b-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+{"side": "lib", "ref": "segnext-mscan-b-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cud
+== lib segnext-mscan-l-ade20k kernels 15:07:43
+{"side": "lib", "ref": "segnext-mscan-l-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.03, "cu
+{"side": "lib", "ref": "segnext-mscan-l-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.03, "cu
+== lib neuflow-v2-things kernels 15:07:47
+{"side": "lib", "ref": "neuflow-v2-things", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib fastvit_sa24.apple_dist_in1k kernels 15:07:49
+{"side": "lib", "ref": "fastvit_sa24.apple_dist_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1
+== lib fastvit_t8.apple_dist_in1k kernels 15:07:55
+{"side": "lib", "ref": "fastvit_t8.apple_dist_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
+== lib fastvit_t12.apple_dist_in1k kernels 15:08:00
+{"side": "lib", "ref": "fastvit_t12.apple_dist_in1k", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.
+== lib moge-2-vitb-normal kernels 15:08:04
+{"side": "lib", "ref": "moge-2-vitb-normal", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+{"side": "lib", "ref": "moge-2-vitb-normal", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib hrnet-w32 kernels 15:08:10
+{"side": "lib", "ref": "hrnet-w32", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.19, "com
+== lib hrnet-w32-384 kernels 15:08:14
+{"side": "lib", "ref": "hrnet-w32-384", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2, 
+== lib hrnet-w48 kernels 15:08:18
+{"side": "lib", "ref": "hrnet-w48", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.07, "cuda_init_s": 0.2, "com
+== lib hrnet-w48-384 kernels 15:08:23
+{"side": "lib", "ref": "hrnet-w48-384", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.19,
+== lib neuflow-v2 kernels 15:08:28
+{"side": "lib", "ref": "neuflow-v2", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.19, "i
+== lib neuflow-v2-sintel kernels 15:08:30
+{"side": "lib", "ref": "neuflow-v2-sintel", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib romav2 kernels 15:08:32
+{"side": "lib", "ref": "romav2", "task": "matching", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.03, "cuda_init_s": 0.27, "i
+== lib rf-detr-n-coco kernels 15:09:46
+[2026-11-15 15:09:50] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-15 15:09:50] [WARNING] rf-detr - Using patch size 16 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+{"side": "lib", "ref": "rf-detr-n-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib rf-detr-s-coco kernels 15:09:52
+[2026-11-15 15:09:56] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-15 15:09:56] [WARNING] rf-detr - Using patch size 16 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+{"side": "lib", "ref": "rf-detr-s-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib rf-detr-m-coco kernels 15:09:59
+[2026-11-15 15:10:03] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-15 15:10:03] [WARNING] rf-detr - Using patch size 16 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+{"side": "lib", "ref": "rf-detr-m-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib rf-detr-l-coco kernels 15:10:05
+[2026-11-15 15:10:09] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-15 15:10:09] [WARNING] rf-detr - Using patch size 16 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+{"side": "lib", "ref": "rf-detr-l-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+== lib rf-detr-seg-n-coco kernels 15:10:11
+[2026-11-15 15:10:15] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-15 15:10:15] [WARNING] rf-detr - Using patch size 12 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+{"side": "lib", "ref": "rf-detr-seg-n-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init
+== lib rf-detr-seg-s-coco kernels 15:10:17
+[2026-11-15 15:10:21] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-15 15:10:21] [WARNING] rf-detr - Using patch size 12 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+{"side": "lib", "ref": "rf-detr-seg-s-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init
+== lib rf-detr-seg-m-coco kernels 15:10:23
+[2026-11-15 15:10:27] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-15 15:10:27] [WARNING] rf-detr - Using patch size 12 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+{"side": "lib", "ref": "rf-detr-seg-m-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_init
+== lib rf-detr-seg-l-coco kernels 15:10:29
+[2026-11-15 15:10:33] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-15 15:10:33] [WARNING] rf-detr - Using patch size 12 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+{"side": "lib", "ref": "rf-detr-seg-l-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init
+== lib rf-detr-seg-xl-coco kernels 15:10:36
+[2026-11-15 15:10:40] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-15 15:10:40] [WARNING] rf-detr - Using patch size 12 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+{"side": "lib", "ref": "rf-detr-seg-xl-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_ini
+== lib rf-detr-seg-2xl-coco kernels 15:10:42
+[2026-11-15 15:10:46] [WARNING] rf-detr - Using a different number of positional encodings than DINOv2, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+[2026-11-15 15:10:46] [WARNING] rf-detr - Using patch size 12 instead of 14, which means we're not loading DINOv2 backbone weights. This is not a problem if finetuning a pretrained RF-DETR model.
+{"side": "lib", "ref": "rf-detr-seg-2xl-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_in
+== lib memfof kernels 15:10:49
+{"side": "lib", "ref": "memfof", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda_init_s": 0.2, "input"
+== lib memfof-kitti kernels 15:10:51
+{"side": "lib", "ref": "memfof-kitti", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.06, "cuda_init_s": 0.2, "
+== lib marigold-normals-lcm-v0-1 kernels 15:10:53
+{"side": "lib", "ref": "marigold-normals-lcm-v0-1", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.06, "cuda_i
+== lib lotus-normal-g-v1-1 kernels 15:11:11
+{"side": "lib", "ref": "lotus-normal-g-v1-1", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda_init_s"
+== lib lotus-normal-d-v1-1 kernels 15:11:27
+{"side": "lib", "ref": "lotus-normal-d-v1-1", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.51, "cuda_init_s"
+== lib deim-n-coco kernels 15:11:40
+{"side": "lib", "ref": "deim-n-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.
+== lib deim-s-coco kernels 15:13:30
+{"side": "lib", "ref": "deim-s-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.
+== lib deim-m-coco kernels 15:13:34
+{"side": "lib", "ref": "deim-m-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+== lib deim-l-coco kernels 15:13:39
+{"side": "lib", "ref": "deim-l-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.06, "cuda_init_s": 0.
+== lib deim-x-coco kernels 15:13:44
+{"side": "lib", "ref": "deim-x-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+== lib owlv2-b16 kernels 15:13:49
+{"side": "lib", "ref": "owlv2-b16", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.27,
+== lib owlv2-l14 kernels 15:13:57
+{"side": "lib", "ref": "owlv2-l14", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.23,
+== lib video-depth-anything-s kernels 15:14:07
+{"side": "lib", "ref": "video-depth-anything-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init
+{"side": "lib", "ref": "video-depth-anything-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init
+== lib birefnet kernels 15:14:20
+{"side": "lib", "ref": "birefnet", "task": "matting", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2, "c
+== lib birefnet-lite kernels 15:14:27
+{"side": "lib", "ref": "birefnet-lite", "task": "matting", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.
+== lib ben2 kernels 15:14:31
+{"side": "lib", "ref": "ben2", "task": "matting", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "commit
+== lib tapnext kernels 15:14:37
+done

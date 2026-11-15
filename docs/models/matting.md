@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | DIS-VD MAE ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`ben2`](#ben2) | yes | 0.0403 | 104, 1.9x | 2238, 0.81x |
+| [`ben2`](#ben2) | yes | 0.0403 | 104, 1.9x | 1698, 0.61x |
 | [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1916, 0.99x |
 | [`birefnet-lite`](#birefnet) | yes | – | 48.1, 1.6x | 960, 0.99x |
 | [`inspyrenet`](#inspyrenet) | yes | – | no kernels | no kernels |
@@ -37,7 +37,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ben2` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 201<br>110<br>104<br>103<br>58.2 | 2466 / 2772<br>1681 / 1976<br>1942 / 2238<br>813 / 916<br>1280 / 1326 |
+| `ben2` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 201<br>110<br>104<br>103<br>58.2 | 2466 / 2772<br>1681 / 1956<br>1430 / 1698<br>813 / 916<br>1280 / 1326 |
 
 <details><summary>Details</summary>
 
@@ -75,10 +75,6 @@ CPU, float32: max |diff| <= 3.5e-06 vs the original. GPU, float16 (the default),
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `ben2` | 2e-05 / 0.00017 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-
-### Limitations
-
-- Kernels at 1080 x 1920 peak 1942 MB vs 1681 MB portable (original 2466 MB), 7 % faster than portable (103.6 vs 111.4 ms); the extra memory was not isolated further.
 
 </details>
 

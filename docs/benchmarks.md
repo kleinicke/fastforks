@@ -574,7 +574,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | midas-dpt-beit-large-512 | 518x770 | 399 | 320 | 75.6 | 63.9 | 5.0x | 1.2x | 2759 / 2858 | 975 / 1418 | 986 / 1436 |
 | moge-2-vitb-normal | 994x1482 | – | – | 83.9 | 40.7 | – | 2.1x | – | 1163 / 1312 | 1093 / 1208 |
 | moge-2-vitl-normal | 518x770 | 500 | 169 | 145 | 73.9 | 2.3x | 2.0x | 2326 / 2418 | 1645 / 1836 | 1481 / 1610 |
-| moge-2-vits-normal | 994x1482 | – | – | 61.6 | 33.3 | – | 1.8x | – | 1007 / 1172 | 932 / 1048 |
+| moge-2-vits-normal | 994x1482 | – | – | 61.6 | 33.3 | – | 1.9x | – | 1007 / 1172 | 932 / 1048 |
 | moge-3-vitl | 994x1482 | – | – | 332 | 149 | – | 2.2x | – | 1678 / 1926 | 1626 / 1762 |
 | omni-dc | 994x1482 | – | – | 554 | – | – | – | – | 4958 / 6304 | – |
 | pointdit-b-512 | 518x770 | – | – | 30.7 | 20.5 | – | 1.5x | – | 432 / 484 | 434 / 590 |
@@ -672,12 +672,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | efficientnet_b0.tv_in1k | 224x224 | 5.64 | 7.91 | 4.98 | 0.769 | 7.3x | 6.5x | 64 / 84 | 48 / 96 | 78 / 118 |
 | efficientnet_b4.tv_in1k | 224x224 | 11.1 | 15.7 | 10.0 | 2.00 | 5.5x | 5.0x | 147 / 174 | 89 / 114 | 111 / 180 |
 | efficientnet_v2_s.tv_in1k | 224x224 | 12.1 | 16.6 | 10.2 | 1.89 | 6.4x | 5.4x | 159 / 176 | 81 / 106 | 114 / 188 |
-| efficientvit_b2.r288_in1k | 224x224 | 10.7 | 14.7 | 13.6 | 1.12 | 9.5x | 12.1x | 173 / 194 | 85 / 144 | 88 / 170 |
+| efficientvit_b2.r288_in1k | 224x224 | 10.7 | 14.7 | 12.0 | 1.12 | 9.5x | 10.7x | 173 / 194 | 85 / 144 | 88 / 170 |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 83.7 | 32.1 | 18.7 | 14.1 | 2.3x | 1.3x | 1819 / 1864 | 648 / 664 | 652 / 786 |
 | falconsai-nsfw-vit | 224x224 | 6.76 | 5.74 | 2.83 | 1.61 | 3.6x | 1.8x | 200 / 226 | 201 / 226 | 198 / 228 |
 | fastvit_sa24.apple_dist_in1k | 256x256 | 7.10 | 10.9 | 6.05 | 1.40 | 5.1x | 4.3x | 157 / 176 | 81 / 110 | 80 / 150 |
 | fastvit_t12.apple_dist_in1k | 256x256 | 3.61 | 5.66 | 3.27 | 0.781 | 4.6x | 4.2x | 77 / 84 | 54 / 76 | 52 / 76 |
-| fastvit_t8.apple_dist_in1k | 256x256 | 3.07 | 4.91 | 3.31 | 0.706 | 4.3x | 4.7x | 57 / 76 | 45 / 72 | 45 / 76 |
+| fastvit_t8.apple_dist_in1k | 256x256 | 3.07 | 4.91 | 3.30 | 0.709 | 4.3x | 4.7x | 57 / 76 | 45 / 72 | 45 / 76 |
 | focalnet_base_lrf.ms_in1k | 224x224 | 18.0 | 22.1 | 15.5 | – | – | – | 546 / 560 | 212 / 234 | – |
 | focalnet_base_srf.ms_in1k | 224x224 | 17.1 | 20.0 | 14.2 | – | – | – | 542 / 558 | 211 / 234 | – |
 | focalnet_small_lrf.ms_in1k | 224x224 | 16.8 | 22.0 | 15.8 | – | – | – | 323 / 338 | 136 / 152 | – |
@@ -715,7 +715,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | shvit_s2.in1k | 224x224 | 8.37 | 11.1 | 6.76 | – | – | – | 99 / 120 | 56 / 88 | – |
 | shvit_s3.in1k | 224x224 | 9.40 | 12.5 | 8.11 | – | – | – | 115 / 134 | 62 / 112 | – |
 | shvit_s4.in1k | 256x256 | 11.5 | 14.6 | 9.31 | – | – | – | 129 / 146 | 67 / 118 | – |
-| squeezenet1_1.tv_in1k | 224x224 | 1.72 | 2.63 | 1.82 | 0.377 | 4.6x | 4.8x | 10 / 30 | 7 / 28 | 8 / 12 |
+| squeezenet1_1.tv_in1k | 224x224 | 1.72 | 2.63 | 1.81 | 0.376 | 4.6x | 4.8x | 10 / 30 | 7 / 28 | 8 / 12 |
 | starnet_s1.in1k | 224x224 | 4.57 | 7.29 | 3.88 | 0.683 | 6.7x | 5.7x | 51 / 60 | 41 / 52 | 41 / 56 |
 | starnet_s2.in1k | 224x224 | 3.64 | 5.63 | 3.02 | 0.578 | 6.3x | 5.2x | 55 / 64 | 43 / 54 | 43 / 58 |
 | starnet_s3.in1k | 224x224 | 4.96 | 7.67 | 4.19 | 0.715 | 6.9x | 5.9x | 67 / 76 | 47 / 60 | 47 / 64 |
@@ -766,7 +766,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
-| ben2 | 201 | 110 | 104 | 1.9x | 1.1x | 2466 / 2772 | 1681 / 1976 | 1942 / 2238 |
+| ben2 | 201 | 110 | 104 | 1.9x | 1.1x | 2466 / 2772 | 1681 / 1956 | 1430 / 1698 |
 | birefnet | 234 | 131 | 121 | 1.9x | 1.1x | 1666 / 1930 | 1660 / 1908 | 1674 / 1916 |
 | birefnet-lite | 75.1 | 58.0 | 48.1 | 1.6x | 1.2x | 913 / 974 | 810 / 952 | 754 / 960 |
 | inspyrenet | 241 | 109 | – | – | – | 3240 / 3262 | 1649 / 1848 | – |
@@ -1915,12 +1915,12 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | efficientnet_b0.tv_in1k | 224x224 | 4.98 ms | 2.88 ms | 0.536 ms | 0.769 ms | 9.12 s | 25.8 s | 48 / 96 | 80 / 96 | 78 / 118 | 81 / 92 |
 | efficientnet_b4.tv_in1k | 224x224 | 10.0 ms | 5.39 ms | 1.63 ms | 2.00 ms | 13.8 s | 34.9 s | 89 / 114 | 124 / 154 | 111 / 180 | 157 / 200 |
 | efficientnet_v2_s.tv_in1k | 224x224 | 10.2 ms | 5.39 ms | 1.35 ms | 1.89 ms | 12.1 s | 32.0 s | 81 / 106 | 116 / 146 | 114 / 188 | 149 / 198 |
-| efficientvit_b2.r288_in1k | 224x224 | 13.6 ms | 6.91 ms | 0.790 ms | 1.12 ms | 11.0 s | 35.3 s | 85 / 144 | 120 / 164 | 88 / 170 | 154 / 216 |
+| efficientvit_b2.r288_in1k | 224x224 | 12.0 ms | 6.91 ms | 0.790 ms | 1.12 ms | 11.0 s | 35.3 s | 85 / 144 | 120 / 164 | 88 / 170 | 154 / 216 |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 18.7 ms | 14.9 ms | 12.4 ms | 14.1 ms | 21.0 s | 43.5 s | 648 / 664 | 674 / 684 | 652 / 786 | 1259 / 1286 |
 | falconsai-nsfw-vit | 224x224 | 2.83 ms | fails: timeout after 290 s | 1.12 ms | 1.61 ms | – | 27.4 s | 201 / 226 | – | 198 / 228 | 393 / 420 |
 | fastvit_sa24.apple_dist_in1k | 256x256 | 6.05 ms | 3.97 ms | 0.818 ms | 1.40 ms | 8.44 s | 54.5 s | 81 / 110 | 113 / 148 | 80 / 150 | 148 / 200 |
 | fastvit_t12.apple_dist_in1k | 256x256 | 3.27 ms | 2.32 ms | 0.431 ms | 0.781 ms | 7.39 s | 39.7 s | 54 / 76 | 86 / 94 | 52 / 76 | 89 / 114 |
-| fastvit_t8.apple_dist_in1k | 256x256 | 3.31 ms | 2.55 ms | 0.368 ms | 0.706 ms | 6.81 s | 30.8 s | 45 / 72 | 77 / 92 | 45 / 76 | 78 / 108 |
+| fastvit_t8.apple_dist_in1k | 256x256 | 3.30 ms | 2.55 ms | 0.368 ms | 0.709 ms | 6.81 s | 30.8 s | 45 / 72 | 77 / 92 | 45 / 76 | 78 / 108 |
 | focalnet_base_lrf.ms_in1k | 224x224 | 15.5 ms | 7.47 ms | 2.08 ms | – | 19.7 s | 63.9 s | 212 / 234 | 235 / 274 | – | 404 / 432 |
 | focalnet_base_srf.ms_in1k | 224x224 | 14.2 ms | 6.94 ms | 1.74 ms | – | 17.8 s | 63.8 s | 211 / 234 | 234 / 272 | – | 401 / 430 |
 | focalnet_small_lrf.ms_in1k | 224x224 | 15.8 ms | 7.28 ms | 1.70 ms | – | 19.5 s | 62.5 s | 136 / 152 | 162 / 192 | – | 265 / 286 |
@@ -1958,7 +1958,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | shvit_s2.in1k | 224x224 | 6.76 ms | 3.90 ms | 0.533 ms | – | 10.1 s | 24.0 s | 56 / 88 | 88 / 128 | – | 87 / 120 |
 | shvit_s3.in1k | 224x224 | 8.11 ms | 3.64 ms | 0.575 ms | – | 10.9 s | 24.6 s | 62 / 112 | 94 / 132 | – | 92 / 144 |
 | shvit_s4.in1k | 256x256 | 9.31 ms | 4.11 ms | 0.658 ms | – | 11.3 s | 26.3 s | 67 / 118 | 99 / 138 | – | 101 / 154 |
-| squeezenet1_1.tv_in1k | 224x224 | 1.82 ms | 1.13 ms | 0.214 ms | 0.377 ms | 4.49 s | 9.10 s | 7 / 28 | 39 / 48 | 8 / 12 | 38 / 40 |
+| squeezenet1_1.tv_in1k | 224x224 | 1.81 ms | 1.13 ms | 0.214 ms | 0.376 ms | 4.49 s | 9.10 s | 7 / 28 | 39 / 48 | 8 / 12 | 38 / 40 |
 | starnet_s1.in1k | 224x224 | 3.88 ms | 2.41 ms | 0.774 ms | 0.683 ms | 6.23 s | 24.4 s | 41 / 52 | 73 / 92 | 41 / 56 | 73 / 86 |
 | starnet_s2.in1k | 224x224 | 3.02 ms | 1.96 ms | 0.622 ms | 0.578 ms | 5.71 s | 24.7 s | 43 / 54 | 75 / 94 | 43 / 58 | 74 / 88 |
 | starnet_s3.in1k | 224x224 | 4.19 ms | 2.60 ms | 0.878 ms | 0.715 ms | 6.03 s | 27.5 s | 47 / 60 | 79 / 100 | 47 / 64 | 80 / 96 |
@@ -1999,7 +1999,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | segnext-mscan-l-ade20k | 1024x2048 | 43.1 ms | 63.6 ms | 32.3 ms | 20.6 ms | 34.9 s | 82.2 s | 417 / 458 | 532 / 578 | 314 / 428 | 1634 / 1694 |
 | segnext-mscan-s-ade20k | 1024x2048 | 18.5 ms | 24.9 ms | 18.0 ms | 8.04 ms | 17.2 s | 56.6 s | 350 / 402 | 465 / 482 | 202 / 290 | 1493 / 1544 |
 | segnext-mscan-t-ade20k | 1024x2048 | 15.9 ms | 16.6 ms | 16.0 ms | 8.99 ms | 19.1 s | 59.6 s | 332 / 378 | 446 / 480 | 147 / 206 | 1476 / 1498 |
-| ben2 | 1080x1920 | 110 ms | 103 ms | 58.2 ms | 104 ms | 70.8 s | 140 s | 1681 / 1976 | 813 / 916 | 1942 / 2238 | 1280 / 1326 |
+| ben2 | 1080x1920 | 110 ms | 103 ms | 58.2 ms | 104 ms | 70.8 s | 140 s | 1681 / 1956 | 813 / 916 | 1430 / 1698 | 1280 / 1326 |
 | birefnet | 1080x1920 | 131 ms | 138 ms | 87.8 ms | 121 ms | 93.8 s | 201 s | 1660 / 1908 | 1874 / 1932 | 1674 / 1916 | 1753 / 1814 |
 | birefnet-lite | 1080x1920 | 58.0 ms | 50.2 ms | 49.0 ms | 48.1 ms | 75.1 s | 156 s | 810 / 952 | 1469 / 1552 | 754 / 960 | 874 / 934 |
 | inspyrenet | 1080x1920 | 109 ms | 85.8 ms | 51.1 ms | – | 70.8 s | 133 s | 1649 / 1848 | 913 / 1018 | – | 1181 / 1252 |

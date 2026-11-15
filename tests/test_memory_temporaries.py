@@ -42,3 +42,13 @@ def test_dat_spatial_block_pads_only_when_needed(monkeypatch: pytest.MonkeyPatch
         want = m(x, h, w)
     assert made is pads  # a divisible size makes no padded copy of q, k, v in the helper
     torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-4)
+
+
+def test_instance_stats_chunked_equals_full(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastforks.shared import cnn_kernels as ck  # noqa: PLC0415
+
+    x = torch.randn(2, 10, 8, 8).half()
+    want = ck.instance_stats(x)  # small map: one pass
+    monkeypatch.setattr(ck, "_STATS_CHUNK_BYTES", 3 * 4 * 64)  # forces 3-channel slices (10 = 3 + 3 + 3 + 1)
+    got = ck.instance_stats(x)
+    assert all(torch.equal(a, b) for a, b in zip(want, got, strict=True))

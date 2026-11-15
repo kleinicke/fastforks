@@ -57,7 +57,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`falconsai-nsfw-vit`](#nsfw_vit) | yes | 1.61, 3.6x | 228, 1.0x |
 | [`fastvit_sa24`](#fastvit) | yes | 1.40, 5.1x (256x256) | 150, 1.1x |
 | [`fastvit_t12.apple_dist_in1k`](#fastvit) | yes | 0.781, 4.6x (256x256) | 76, 0.95x |
-| [`fastvit_t8.apple_dist_in1k`](#fastvit) | yes | 0.706, 4.3x (256x256) | 76, 1.1x |
+| [`fastvit_t8.apple_dist_in1k`](#fastvit) | yes | 0.709, 4.3x (256x256) | 76, 1.1x |
 | [`focalnet_base_lrf`](#focalnet) | yes | no kernels | no kernels |
 | [`focalnet_base_srf`](#focalnet) | yes | no kernels | no kernels |
 | [`focalnet_small_lrf`](#focalnet) | yes | no kernels | no kernels |
@@ -95,7 +95,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`shvit_s2`](#shvit) | yes | no kernels | no kernels |
 | [`shvit_s3`](#shvit) | yes | no kernels | no kernels |
 | [`shvit_s4`](#shvit) | yes | no kernels | no kernels |
-| [`squeezenet1_1`](#squeezenet) | yes | 0.377, 4.6x | 12, 0.43x |
+| [`squeezenet1_1`](#squeezenet) | yes | 0.376, 4.6x | 12, 0.43x |
 | [`starnet_s1`](#starnet) | yes | 0.683, 6.7x | 56, 0.97x |
 | [`starnet_s2`](#starnet) | yes | 0.578, 6.3x | 58, 0.91x |
 | [`starnet_s3`](#starnet) | yes | 0.715, 6.9x | 64, 0.84x |
@@ -934,7 +934,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientvit_b2.r288_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.7<br>13.6<br>1.12<br>6.91<br>0.790 | 144 / 160<br>173 / 194<br>85 / 144<br>88 / 170<br>120 / 164<br>154 / 216 |
+| `efficientvit_b2.r288_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.7<br>12.0<br>1.12<br>6.91<br>0.790 | 144 / 160<br>173 / 194<br>85 / 144<br>88 / 170<br>120 / 164<br>154 / 216 |
 
 <details><summary>Details</summary>
 
@@ -1081,7 +1081,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `fastvit_sa24.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.10<br>10.9<br>6.05<br>1.40<br>3.97<br>0.818 | 129 / 142<br>157 / 176<br>81 / 110<br>80 / 150<br>113 / 148<br>148 / 200 |
-| `fastvit_t8.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.07<br>4.91<br>3.31<br>0.706<br>2.55<br>0.368 | 56 / 72<br>57 / 76<br>45 / 72<br>45 / 76<br>77 / 92<br>78 / 108 |
+| `fastvit_t8.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.07<br>4.91<br>3.30<br>0.709<br>2.55<br>0.368 | 56 / 72<br>57 / 76<br>45 / 72<br>45 / 76<br>77 / 92<br>78 / 108 |
 | `fastvit_t12.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.61<br>5.66<br>3.27<br>0.781<br>2.32<br>0.431 | 74 / 80<br>77 / 84<br>54 / 76<br>52 / 76<br>86 / 94<br>89 / 114 |
 
 <details><summary>Details</summary>
@@ -1924,7 +1924,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `squeezenet1_1.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.72<br>2.63<br>1.82<br>0.377<br>1.13<br>0.214 | 11 / 28<br>10 / 30<br>7 / 28<br>8 / 12<br>39 / 48<br>38 / 40 |
+| `squeezenet1_1.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.72<br>2.63<br>1.81<br>0.376<br>1.13<br>0.214 | 11 / 28<br>10 / 30<br>7 / 28<br>8 / 12<br>39 / 48<br>38 / 40 |
 
 <details><summary>Details</summary>
 

@@ -106,7 +106,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 - Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.9 ms, error 0.0346).
 - Best trade-off: [`da3mono-large`](models/depth.md#depth-anything-3) (14.6 ms, error 0.0402).
 - Fastest commercially usable: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
-- Most accurate commercially usable: [`moge-3-vitl`](models/depth.md#moge) (149.0 ms, error 0.0356).
+- Most accurate commercially usable: [`moge-3-vitl`](models/depth.md#moge) (149.1 ms, error 0.0356).
 
 The error is AbsRel after a per-image scale and shift alignment for every model: it ranks relative depth quality, not metric accuracy (metric error is not measured here). Best relative, commercially usable: the most accurate pick above. Metric (metres), commercially usable: `metric3d-vit-large` and `da3metric-large` (give `intrinsics=`), `moge-2-vitl-normal`, `zoedepth-nk`; non-commercial: `unidepth-v2-vitl14`. See the [depth page](models/depth.md) for `kind` and `intrinsics=`.
 
@@ -141,7 +141,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`prompt-depth-anything-l`](models/depth.md#prompt-depth-anything) | yes | – | – | 124.8 | 69.3 (756x1008) | 1.8x vs portable | 1179 |
 | [`moge-2-vitl-normal`](models/depth.md#moge) | yes | 0.0357 | 170.7 (994x1482) | 144.5 | 73.4 | 2.3x vs original (994x1482) | 1498 |
 | [`zoedepth-nk`](models/depth.md#zoedepth) | yes | 0.0532 | 271.2 (994x1482) | 124.0 | 88.9 | 3.1x vs original (994x1482) | 1771 |
-| [`moge-3-vitl`](models/depth.md#moge) | yes | 0.0356 | 485.6 (994x1482) | 331.8 | 149.0 | 3.3x vs original (994x1482) | 1626 |
+| [`moge-3-vitl`](models/depth.md#moge) | yes | 0.0356 | 485.6 (994x1482) | 332.0 | 149.1 | 3.3x vs original (994x1482) | 1626 |
 | [`metric3d-vit-large`](models/depth.md#metric3d-v2) | yes | 0.0546 | 438.5 (994x1482) | 200.3 | 155.2 | 2.8x vs original (994x1482) | 1480 |
 | [`lotus-normal-d-v1-1`](models/depth.md#lotus-normals) | yes | – | 344.3 (994x1482) | 267.6 | 164.1 | 2.1x vs original (994x1482) | 2351 |
 | [`lotus-normal-g-v1-1`](models/depth.md#lotus-normals) | yes | – | 344.1 (994x1482) | 267.5 | 164.1 | 2.1x vs original (994x1482) | 2351 |
@@ -192,7 +192,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`tiny_vit_5m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | yes | 5.9 (224x224) | 5.2 | 0.8 | 7.0x vs original (224x224) | 48 |
 | [`starnet_s4`](models/classification.md#starnet) | yes | 6.8 (224x224) | 5.6 | 0.9 | 7.5x vs original (224x224) | 51 |
 | [`tiny_vit_11m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | yes | 6.0 (224x224) | 5.2 | 0.9 | 6.4x vs original (224x224) | 60 |
-| [`efficientvit_b2`](models/classification.md#efficientvit-mit) | yes | 10.7 (224x224) | 13.6 | 1.1 | 9.5x vs original (224x224) | 88 |
+| [`efficientvit_b2`](models/classification.md#efficientvit-mit) | yes | 10.7 (224x224) | 12.0 | 1.1 | 9.5x vs original (224x224) | 88 |
 | [`convnext_tiny.fb_in1k`](models/classification.md#convnext) | yes | 4.0 (224x224) | 3.2 | 1.1 | 3.5x vs original (224x224) | 92 |
 | [`convnext_tiny.fb_in22k_ft_in1k`](models/classification.md#convnext) | yes | 4.1 (224x224) | 3.2 | 1.1 | 3.6x vs original (224x224) | 92 |
 | [`tiny_vit_21m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | yes | 6.0 (224x224) | 5.3 | 1.2 | 5.1x vs original (224x224) | 83 |
@@ -309,7 +309,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 - Fastest: [`u2net`](models/matting.md#u²-net) (8.8 ms).
 - Most accurate: [`birefnet`](models/matting.md#birefnet) (121.1 ms, error 0.0325).
-- Best trade-off: [`ben2`](models/matting.md#ben2) (103.5 ms, error 0.0403).
+- Best trade-off: [`ben2`](models/matting.md#ben2) (103.8 ms, error 0.0403).
 - Fastest commercially usable: [`u2net`](models/matting.md#u²-net) (8.8 ms).
 - Most accurate commercially usable: [`birefnet`](models/matting.md#birefnet) (121.1 ms, error 0.0325).
 
@@ -323,7 +323,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`inspyrenet-fast`](models/matting.md#inspyrenet) | yes | – | 71.1 (1080x1920) | 41.7 | – | – | – |
 | [`birefnet-lite`](models/matting.md#birefnet) | yes | – | 75.1 (1080x1920) | 58.0 | 48.1 | 1.6x vs original (1080x1920) | 754 |
 | [`vitmatte-s`](models/matting.md#vitmatte) | yes | – | 140.2 (1080x1920) | 101.9 | 83.8 | 1.7x vs original (1080x1920) | 1337 |
-| [`ben2`](models/matting.md#ben2) | yes | 0.0403 | 200.6 (1080x1920) | 110.3 | 103.5 | 1.9x vs original (1080x1920) | 1942 |
+| [`ben2`](models/matting.md#ben2) | yes | 0.0403 | 200.6 (1080x1920) | 110.0 | 103.8 | 1.9x vs original (1080x1920) | 1430 |
 | [`inspyrenet`](models/matting.md#inspyrenet) | yes | – | 240.9 (1080x1920) | 108.5 | – | – | – |
 | [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 131.4 | 121.1 | 1.9x vs original (1080x1920) | 1674 |
 | [`rmbg-2.0`](models/matting.md#birefnet) | no | – | 149.0 (1080x1920) | 131.5 | 121.4 | 1.2x vs original (1080x1920) | 1674 |
@@ -777,7 +777,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`swinir-m-x4-real`](models/restoration.md#swinir) | yes | 2461.6 (512x512) | 1241.7 | 588.5 | 4.2x vs original (512x512) | 1577 |
 | [`swin2sr-x2`](models/restoration.md#swin2sr) | yes | 2565.1 (512x512) | 908.7 | 720.4 | 3.6x vs original (512x512) | 1459 |
 | [`drct-x4`](models/restoration.md#drct) | yes | 7491.7 (512x512) | 829.8 | 730.2 | 10.3x vs original (512x512) | 2626 |
-| [`swin2sr-x4`](models/restoration.md#swin2sr) | yes | 2921.9 (512x512) | 931.7 | 744.8 | 3.9x vs original (512x512) | 1459 |
+| [`swin2sr-x4`](models/restoration.md#swin2sr) | yes | 2921.9 (512x512) | 931.7 | 744.9 | 3.9x vs original (512x512) | 1459 |
 | [`swin2sr-x4-real`](models/restoration.md#swin2sr) | yes | 2527.2 (512x512) | 958.1 | 751.2 | 3.4x vs original (512x512) | 1459 |
 | [`hat-s-x4`](models/restoration.md#hat) | yes | 2401.8 (512x512) | 1072.2 | 974.4 | 2.5x vs original (512x512) | 1985 |
 | [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 2098.7 | 1043.5 | 3.6x vs original (512x512) | 1872 |
