@@ -15,6 +15,7 @@ kind = "metric"  # in the units of the given cam_to_world and depth_range (the n
 [upstream]
 repo = "https://github.com/cvg/resplat"
 commit = "cae7ddc"
+no_original_reason = "the original needs the pointops and gsplat CUDA extensions, which are not built for sm_120 here; the golden reference replaces them by PyTorch loops that are far slower than the extensions, so their time would not be the original's"
 
 [licence]
 code = "MIT"  # LICENSE (Haofei Xu)

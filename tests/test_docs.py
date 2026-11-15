@@ -649,3 +649,18 @@ def test_oom_row_older_than_a_timed_row_is_stale(tmp_path, monkeypatch):
         assert gen_docs._oom() == {("b", "portable", "1x1")}
     finally:
         gen_docs._oom.cache_clear()
+
+
+def test_no_original_reason_only_without_an_original_row():
+    """A card states why its original was not timed only while docs/data has no timed upstream row of its variants."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    timed = {
+        json.loads(line)["ref"]
+        for line in (ROOT / "docs" / "data" / "speed.jsonl").read_text().splitlines()
+        if '"upstream' in line and '"ms"' in line and json.loads(line).get("ms") is not None
+    }
+    for task in registry.TASKS:
+        for card, _ in registry.cards(task).values():
+            if card.no_original_reason:
+                assert not timed & {v.id for v in card.variants}, card.name

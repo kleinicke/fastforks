@@ -20,6 +20,7 @@ kind = "affine_invariant"  # depth in [0, 1] (near to far) up to an unknown scal
 [upstream]
 repo = "https://github.com/CompVis/depth-fm"
 commit = "da632c8"
+no_original_reason = "the authors' code (CompVis/depth-fm) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run"
 
 [licence]
 code = "MIT"

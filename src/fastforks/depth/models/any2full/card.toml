@@ -15,6 +15,7 @@ kind = "metric"  # metres, in the scale of the depth input
 [upstream]
 repo = "https://github.com/zhiyuandaily/Any2Full"
 commit = "780edf6"
+no_original_reason = "the authors' code (zhiyuandaily/Any2Full) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run; the golden check against it was made on the CPU with a checkout of the pinned commit"
 
 [licence]
 code = "Apache-2.0"

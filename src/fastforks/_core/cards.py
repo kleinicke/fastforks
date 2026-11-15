@@ -302,6 +302,8 @@ class ModelCard:
         papers: The publications the variants come from (card `[[papers]]`).
         official: The authors' own implementations where `upstream` is a port of them (e.g. timm, transformers, a
             PyTorch port of TensorFlow code); empty if `upstream` is the authors' code.
+        no_original_reason: Why the original code was not timed (card `[upstream] no_original_reason`: no runnable
+            public code or checkpoint, or it cannot run on the benchmark GPU); empty if it was or can be.
     """
 
     family: str
@@ -335,6 +337,7 @@ class ModelCard:
     option_effect: Mapping[str, OptionEffect] = field(default_factory=lambda: MappingProxyType({}))
     papers: tuple[Paper, ...] = ()
     official: tuple[Official, ...] = ()
+    no_original_reason: str = ""
     option_aliases: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
     variant_ref: str | None = None
 
@@ -689,7 +692,11 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
     )
     planned = _planned(_get(data, "planned", dict, where) if "planned" in data else {}, f"{where} [planned]")
     up = _get(data, "upstream", dict, where)
-    _unknown_keys(up, {"repo", "commit", "official"}, f"{where} [upstream]")
+    _unknown_keys(up, {"repo", "commit", "official", "no_original_reason"}, f"{where} [upstream]")
+    no_original_reason = up.get("no_original_reason", "")
+    if not isinstance(no_original_reason, str) or "\n" in no_original_reason or len(no_original_reason) > 400:  # noqa: PLR2004
+        msg = f"{where} [upstream] no_original_reason: one line of at most 400 characters"
+        raise CardError(msg)
     outputs = _str_tuple(_get(data, "outputs", list, where), f"{where} outputs")
     output_t = _get(data, "output", dict, where) if "output" in data else {}
     output_info = _output(task, outputs, output_t, where)
@@ -794,6 +801,7 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
         else None,
         papers=papers,
         official=official,
+        no_original_reason=no_original_reason.strip(),
     )
 
 

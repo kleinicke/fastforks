@@ -344,7 +344,9 @@ def _speed_rows() -> dict[str, list[dict]]:
     rows: dict[str, list[dict]] = {}
     for line in path.read_text().splitlines() if path.is_file() else []:
         row = json.loads(line)
-        if row.get("status") == "oom" or ("error" in row and "ms" not in row):  # no time: OOM rows are read by _oom, errors stay in results/
+        if row.get("status") == "oom" or (
+            "error" in row and "ms" not in row
+        ):  # no time: _oom reads OOM; errors stay in results/
             continue
         if not row.get("cold") or "ms" in row:  # speed_check rows: a fresh process, warm timings included
             rows.setdefault(row["ref"], []).append(row)
@@ -362,7 +364,7 @@ def _oom() -> frozenset[tuple[str, str, str]]:
         if r.get("status") != "oom" and "ms" in r and r.get("ms") is not None:
             key = (r["ref"], r["mode"], r["input"])
             timed[key] = max(timed.get(key, ""), r.get("date", ""))
-    return frozenset(  # an OOM row older than (or as old as) a measured row of the same key is stale (e.g. before streaming)
+    return frozenset(  # an OOM row not newer than a measured row of its key is stale (e.g. before streaming)
         (r["ref"], r["mode"], r["input"])
         for r in rows
         if r.get("status") == "oom" and timed.get((r["ref"], r["mode"], r["input"]), "") < r.get("date", "")
@@ -370,6 +372,7 @@ def _oom() -> frozenset[tuple[str, str, str]]:
 
 
 NM = "not measured"
+_NO_ORIG = "n/a"  # original cell of a card whose original cannot be run; the reason is a note under the table
 _NOK = "no kernels"  # kernels cell of a card without a kernels mode; the card's reason is a note under the table
 DASH = "\u2013"
 _SPEED_MODES = ("upstream-default", "upstream", "portable", "kernels")  # fixed line order inside a table cell
@@ -675,8 +678,11 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
     measured_all = list(card.variants)
     notes = []
     nok = "kernels" not in card.modes
-    if nok and card.no_kernels_reason:
-        notes.append(f"- {_NOK}: {card.no_kernels_reason.rstrip('.')}.")
+    notes += [
+        f"- {label}: {reason.rstrip('.')}."
+        for label, reason in ((_NOK, nok and card.no_kernels_reason), ("original not timed", card.no_original_reason))
+        if reason
+    ]
     given: dict[tuple[str, str], list[str]] = {}
     dups = same_as(
         [v.id for v in measured if v.id in rows],
@@ -1414,6 +1420,7 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
                     "kernels": mx,
                     "portable": pt,
                     "original": orig["ms"] if orig else None,
+                    "no_orig": card.no_original_reason if orig is None else "",
                     "orig_oom": orig is None and (v.id, "upstream", osz) in _oom(),
                     "port_oom": pt is None and (v.id, "portable", size) in _oom(),
                     "orig_size": osz,
@@ -1495,7 +1502,7 @@ def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
         cells += [
             f"OOM ({r['orig_size']})"
             if r["orig_oom"]
-            else _DASH
+            else (_NO_ORIG if r["no_orig"] else _DASH)
             if r["original"] is None
             else f"{r['original']:.1f} ({r['orig_size']})",
             f"OOM ({r['orig_size']})" if r["port_oom"] else _ms(r["portable"]),
@@ -1507,6 +1514,11 @@ def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
     lines += _md_table(head, body)
     for m in (_DAGGER, "?"):
         lines += ["", _LEGEND[m]] if m in marks else []
+    why: dict[str, list[str]] = {}
+    for r in rows:
+        if r["no_orig"] and r["original"] is None:
+            why.setdefault(r["no_orig"], []).append(f"`{r['id']}`")
+    lines += [f"- Original not timed ({', '.join(ids)}): {reason.rstrip('.')}." for reason, ids in why.items()]
     return lines
 
 

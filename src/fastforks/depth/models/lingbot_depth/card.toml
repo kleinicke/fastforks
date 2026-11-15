@@ -14,6 +14,7 @@ kind = "metric"  # metres, in the scale of the depth input
 [upstream]
 repo = "https://github.com/robbyant/lingbot-depth"
 commit = "f3a237e"
+no_original_reason = "the authors' code (robbyant/lingbot-depth) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run on this GPU; its golden check ran on the CPU (without xFormers upstream cannot run its per-sample token lists)"
 
 [licence]
 code = "Apache-2.0"
