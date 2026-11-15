@@ -31,7 +31,7 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 status = "none"
-reason = "not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable already runs 6 % faster than the original fp16"
+reason = "not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable runs 1.2 % faster than the original fp16 at 1080x1920 (1205 vs 1220 ms) with 9 % lower peak allocated memory (2719 vs 2978 MB) and identical task accuracy (YouTubeMatte MAD 2.636 both); against the original fp32 at 512x288 portable fp16 is 5 % slower per frame (20.5 vs 19.4 ms) with 24 % less memory, so the speed bar holds at 1080p and against fp16 only"
 
 [[papers]]
 title = "MatAnyone: Stable Video Matting with Consistent Memory Propagation"
