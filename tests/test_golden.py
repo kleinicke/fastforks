@@ -170,6 +170,7 @@ _SWEEP_OPTIONS: dict[str, dict[str, Any]] = {
     "defom_stereo": {"iters": 2, "scale_iters": 1},
     "romav2": {"coarse_size": 256, "fine_size": 384},
     "marigold_v2": {"long_side": 128},
+    "pointdit": {"tokens": 256, "steps": 1},
 }
 # Refs left out of the CPU sweeps (batch, sizes, export, ...) for time: a fixed large network input, so the sweep
 # options cannot shrink the work; only with FASTFORKS_HEAVY_CPU_TESTS=1. test_cpu_portable still runs.

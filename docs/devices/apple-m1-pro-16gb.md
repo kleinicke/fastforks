@@ -39,8 +39,8 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | hardware | 16-core GPU |
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-06 to 2026-11-14 |
-| rows | 2090 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| measured | 2026-11-06 to 2026-11-15 |
+| rows | 2116 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -497,6 +497,24 @@ Note: no Metal kernels for this family (card mps_kernels).
 Note: no Metal kernels for this family (card mps_kernels).
 Note: the card has no kernels mode.
 
+## Ocr
+
+### Ocr, synthetic, 32x128
+
+| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|
+| [`parseq`](../models/ocr.md#parseq) | 23.1 | 23.6 | unsupported | 496 |
+
+Note: the card has no kernels mode.
+
+### Ocr, synthetic, 1080x1920
+
+| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|
+| [`ppocrv5-server`](../models/ocr.md#ppocrv5) | 2067 | 1607 | unsupported | 6545 |
+
+Note: the card has no kernels mode.
+
 ## Pose
 
 ### Pose, synthetic, 1080x1920
@@ -548,6 +566,7 @@ Note: the card has no kernels mode.
 | [`vitpose-plus-huge`](../models/pose.md#vitpose) | 1543 | 1247 | 1158 | – | 1182 | 1.3x | 1.0x | 6040 | 4956 | 4957 |
 | [`vitpose-plus-large`](../models/pose.md#vitpose) | 842 | 646 | 603 | – | 526 | 1.6x | 1.1x | 5237 | 2663 | 2741 |
 | [`vitpose-plus-small`](../models/pose.md#vitpose) | 213 | 101 | 92.3 | – | 66.5 | 3.2x | 1.4x | 1865 | 1545 | 1633 |
+| [`yunet-n`](../models/pose.md#yunet) | – | 24.9 | 21.6 | – | unsupported | – | – | – | 1377 | – |
 
 Note: no Metal kernels for this family (card mps_kernels).
 
@@ -808,14 +827,18 @@ Note: original needs cupy (CUDA softsplat kernels), no CUDA on the Mac.
 | [`gfpgan-v1.4`](../models/restoration.md#gfpgan) | 172 | 153 | 138 | – | unsupported | 2871 | 1982 |
 | [`hat-s-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – |
 | [`hat-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – |
+| [`nafnet-gopro`](../models/restoration.md#nafnet) | – | 409 | 368 | – | unsupported | – | 1715 |
+| [`nafnet-sidd`](../models/restoration.md#nafnet) | – | 423 | 442 | – | unsupported | – | 3242 |
 | [`real-hat-gan-x4`](../models/restoration.md#hat) | OOM | OOM | OOM | – | unsupported | – | – |
 | [`realesr-general-x4v3`](../models/restoration.md#compact) | 176 | 178 | 132 | – | unsupported | 1302 | 1289 |
 | [`realesrgan-x2plus`](../models/restoration.md#realesrgan) | 675 | 709 | 549 | – | unsupported | 1696 | 1440 |
 | [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 2991 | 3022 | 2066 | – | unsupported | 4713 | 2466 |
 | [`realesrgan-x4plus-anime-6b`](../models/restoration.md#realesrgan) | 938 | 973 | 664 | – | unsupported | 4517 | 2351 |
 | [`realplksr-nomoswebphoto-x4`](../models/restoration.md#realplksr) | 1555 | 1527 | 1092 | – | unsupported | 1407 | 1368 |
+| [`restormer-deblur`](../models/restoration.md#restormer) | – | 1376 | 1476 | – | unsupported | – | 4735 |
 | [`span-x2`](../models/restoration.md#span) | 115 | 100 | 74.0 | – | unsupported | 2391 | 1296 |
 | [`span-x4`](../models/restoration.md#span) | 117 | 103 | 89.0 | – | unsupported | 2388 | 1296 |
+| [`swin2sr-x4`](../models/restoration.md#swin2sr) | – | 9608 | 9410 | – | unsupported | – | 4580 |
 | [`swinir-l-x4-real`](../models/restoration.md#swinir) | 16883 | 12063 | 9874 | – | unsupported | 10504 | 4561 |
 | [`swinir-m-x2`](../models/restoration.md#swinir) | 8690 | 6260 | 5797 | – | unsupported | 5520 | 3500 |
 | [`swinir-m-x4`](../models/restoration.md#swinir) | 8782 | 6506 | 5893 | – | unsupported | 7699 | 5060 |
@@ -830,11 +853,13 @@ Note: the card has no kernels mode.
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
 |---|---|---|---|---|---|
+| [`nnfoundation-cnn`](../models/volume.md#nnfoundation) | – | 3645 | 2935 | unsupported | 7824 |
+| [`nninteractive`](../models/volume.md#nninteractive) | – | 3525 | – | unsupported | 11439 |
 | [`totalsegmentator-total`](../models/volume.md#totalsegmentator) | unsupported | 26959 | 20275 | unsupported | 7099 |
 | [`totalsegmentator-total-3mm`](../models/volume.md#totalsegmentator) | unsupported | 515 | 467 | unsupported | 4345 |
 
-Note: no upstream adapter in tools/_original.py; original needs the nnU-Net/TotalSegmentator package (not in the Mac venv) and its 3D inference does not fit 16 GB here.
 Note: no Metal kernels for this family (card mps_kernels).
+Note: no upstream adapter in tools/_original.py; original needs the nnU-Net/TotalSegmentator package (not in the Mac venv) and its 3D inference does not fit 16 GB here.
 <!-- device:end -->
 
 ## Notes on `kernels`

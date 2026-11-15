@@ -46,6 +46,7 @@ BF16 = {
     "pi3",
     "insid3",
     "megaflow",
+    "pointdit",
 }  # the authors' mixed precision is bfloat16
 NATIVE_HALF = {
     "depth_pro",
@@ -249,6 +250,29 @@ _SPECIAL = {  # ref -> build(ref, fp16) where the bench adapter has none
     **{f"depth-anything-v2-metric-{d}-{s}": _dav2_metric for d in ("hypersim", "vkitti") for s in "sbl"},
     **{f"distill-any-depth-{s}": _distill for s in "sbl"},
 }
+
+
+def _pointdit(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream `Denoiser.generate` (3 steps) on the wild-image path, as `tools/golden/pointdit.py`.
+
+    fp16: the authors' evaluation runs under `torch.autocast("cuda", torch.bfloat16)`. Needs `POINTDIT_SRC` and
+    `DINOV3_SRC`, checkouts with the pinned commits.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("pointdit")
+    card, variant = registry.resolve("depth", full)
+    dino, ckpt = registry.weights(card, variant, allow_download=False)
+    den = g.reference(Path(os.environ["POINTDIT_SRC"]), Path(os.environ["DINOV3_SRC"]), variant.id, dino, ckpt, "cuda")
+    a.note = "upstream wild-image resize (~1024 tokens), 3 Euler steps" + ("; authors bf16 autocast" * fp16)
+
+    def call(image: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW image -> the point map's z (the eval's depth)
+        with torch.autocast("cuda", torch.bfloat16, enabled=fp16):
+            return g.predict(den, image[None].float() / 255)[0, 2]
+
+    return call
 
 
 def _golden(name: str) -> Any:  # noqa: ANN401 - a tools/golden module
@@ -2003,6 +2027,7 @@ class _Local:
             prompts=self.prompts,
             _runner=types.SimpleNamespace(
                 intrinsics=self.cameras,
+                prompt_depth=None,  # no local original takes a depth prompt
                 cam_to_world=self.cameras,
                 depth_range=self.cameras,
                 trimap=self.trimap,
@@ -2890,6 +2915,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "marigold_normals": _LocalFp16("depth", _marigold_normals, ((994, 1482),)),
     "lotus": _LocalFp16("depth", _lotus, ((994, 1482),)),
     "stablenormal": _LocalFp16("depth", _stablenormal, ((994, 1482),)),
+    "pointdit": _LocalFp16("depth", _pointdit, ((994, 1482),)),
     "lightglue": _LocalFp16("matching", _lightglue, ((768, 1024),)),
     "xfeat": _Local("matching", _xfeat, ((768, 1024),)),
     "dedode": _LocalFp16("matching", _dedode, ((768, 1024),)),

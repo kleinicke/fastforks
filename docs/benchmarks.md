@@ -44,7 +44,7 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 530 models, 2090 rows, measured 2026-11-06 to 2026-11-14.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 539 models, 2116 rows, measured 2026-11-06 to 2026-11-15.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -388,6 +388,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`yolox-tiny`](models/detection.md#yolox) | – | 20.1 ms · portable fp16 | – | – | – | – | – |
 | [`yolox-x`](models/detection.md#yolox) | – | 123 ms · portable fp16 | – | – | – | – | – |
 
+#### Ocr, 1080x1920
+
+| model | Apple M1 Pro 16 GB |
+|---|---|
+| [`ppocrv5-server`](models/ocr.md#ppocrv5) | 1607 ms · portable fp16 |
+
 #### Pose, 1080x1920
 
 | model | Apple M1 Pro 16 GB |
@@ -437,6 +443,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`vitpose-plus-huge`](models/pose.md#vitpose) | 1158 ms · portable fp16 |
 | [`vitpose-plus-large`](models/pose.md#vitpose) | 526 ms · kernels fp16 |
 | [`vitpose-plus-small`](models/pose.md#vitpose) | 66.5 ms · kernels fp16 |
+| [`yunet-n`](models/pose.md#yunet) | 21.6 ms · portable fp16 |
 
 #### Features, 224x224
 
@@ -618,14 +625,18 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`gfpgan-v1.4`](models/restoration.md#gfpgan) | 138 ms · portable fp16 |
 | [`hat-s-x4`](models/restoration.md#hat) | OOM |
 | [`hat-x4`](models/restoration.md#hat) | OOM |
+| [`nafnet-gopro`](models/restoration.md#nafnet) | 368 ms · portable fp16 |
+| [`nafnet-sidd`](models/restoration.md#nafnet) | 423 ms · portable fp32 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | OOM |
 | [`realesr-general-x4v3`](models/restoration.md#compact) | 132 ms · portable fp16 |
 | [`realesrgan-x2plus`](models/restoration.md#realesrgan) | 549 ms · portable fp16 |
 | [`realesrgan-x4plus`](models/restoration.md#realesrgan) | 2066 ms · portable fp16 |
 | [`realesrgan-x4plus-anime-6b`](models/restoration.md#realesrgan) | 664 ms · portable fp16 |
 | [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | 1092 ms · portable fp16 |
+| [`restormer-deblur`](models/restoration.md#restormer) | 1376 ms · portable fp32 |
 | [`span-x2`](models/restoration.md#span) | 74.0 ms · portable fp16 |
 | [`span-x4`](models/restoration.md#span) | 89.0 ms · portable fp16 |
+| [`swin2sr-x4`](models/restoration.md#swin2sr) | 9410 ms · portable fp16 |
 | [`swinir-l-x4-real`](models/restoration.md#swinir) | 9874 ms · portable fp16 |
 | [`swinir-m-x2`](models/restoration.md#swinir) | 5797 ms · portable fp16 |
 | [`swinir-m-x4`](models/restoration.md#swinir) | 5893 ms · portable fp16 |
@@ -635,6 +646,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB |
 |---|---|
+| [`nnfoundation-cnn`](models/volume.md#nnfoundation) | 2935 ms · portable fp16 |
+| [`nninteractive`](models/volume.md#nninteractive) | 3525 ms · portable fp32 |
 | [`totalsegmentator-total`](models/volume.md#totalsegmentator) | 20275 ms · portable fp16 |
 | [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | 467 ms · portable fp16 |
 <!-- devices:end -->
@@ -843,6 +856,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | moge-2-vitl-normal | 518x770 | 500 | 169 | 145 | 73.9 | 2.3x | 2.0x | 2326 / 2418 | 1645 / 1836 | 1481 / 1610 |
 | moge-2-vits-normal | 518x770 | 160 | 81.2 | 61.3 | 32.9 | 2.5x | 1.9x | 1180 / 1288 | 1049 / 1336 | 867 / 1008 |
 | moge-3-vitl | 518x770 | 734 | 324 | 354 | 150 | 2.2x | 2.4x | 2493 / 2594 | 1669 / 1804 | 1506 / 1662 |
+| pointdit-b-512 | 518x770 | – | – | 30.7 | 20.5 | – | 1.5x | – | 432 / 484 | 434 / 590 |
+| pointdit-l-512 | 518x770 | – | – | 94.2 | 61.0 | – | 1.5x | – | 1285 / 1410 | 1314 / 1656 |
 | prompt-depth-anything-l | 756x1008 | – | – | 125 | 69.3 | – | 1.8x | – | 1318 / 1488 | 1179 / 1348 |
 | prompt-depth-anything-s | 756x1008 | – | – | 18.4 | 11.4 | – | 1.6x | – | 363 / 442 | 297 / 384 |
 | stablenormal-turbo | 994x1482 | – | 299 | 289 | 180 | 1.7x | 1.6x | 4156 / 4374 | 3463 / 3628 | 3037 / 3172 |
@@ -879,6 +894,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | moge-2-vitl-normal | 501 | 171 | 144 | 73.4 | 2.3x | 2.0x | 2339 / 2438 | 1661 / 1836 | 1498 / 1610 |
 | moge-2-vits-normal | 162 | 82.6 | 64.2 | 29.7 | 2.8x | 2.2x | 1193 / 1268 | 1066 / 1336 | 884 / 1008 |
 | moge-3-vitl | 843 | 486 | 514 | 215 | 2.3x | 2.4x | 2505 / 2630 | 1686 / 1924 | 1673 / 1884 |
+| pointdit-b-512 | 105 | 48.7 | 30.7 | 20.6 | 2.4x | 1.5x | 1214 / 1246 | 450 / 544 | 466 / 630 |
+| pointdit-l-512 | 335 | 112 | 94.6 | 61.4 | 1.8x | 1.5x | 3953 / 4010 | 1301 / 1410 | 1314 / 1696 |
 | unidepth-v2-vitl14 | 132 | 132 | 99.8 | 66.4 | 2.0x | 1.5x | 3230 / 3508 | 1208 / 1472 | 1211 / 1472 |
 | unik3d-vitl | 134 | 134 | 108 | 62.9 | 2.1x | 1.7x | 3307 / 3570 | 1219 / 1492 | 1166 / 1266 |
 | zoedepth-nk | 408 | 271 | 124 | 88.9 | 3.1x | 1.4x | 2040 / 2146 | 2037 / 2124 | 1771 / 1960 |
@@ -1541,6 +1558,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | moge-2-vitl-normal | 7.24 | 1.37 | 0.63† | 0.17 | 0.14 | 0.13 |
 | moge-2-vits-normal | 0.88 | 0.35 | 0.11† | 1.50 | 0.08 | 0.10 |
 | moge-3-vitl | 10.60 | 1.02 | 1.66 | 2.92 | 0.56 | 0.30 |
+| pointdit-b-512 | 2.57 | 0.65 (518x770) | 0.56 (518x770) | 0.11 | 0.29 (518x770) | 0.17 (518x770) |
+| pointdit-l-512 | 9.47 | 0.92 (518x770) | 0.94 (518x770) | 0.12 | 0.27 (518x770) | 0.25 (518x770) |
 | prompt-depth-anything-l | 4.80 (756x1008) | 1.50 (756x1008) | 2.78 (756x1008) | 0.77 (756x1008) | 0.30 (756x1008) | 0.22 (756x1008) |
 | prompt-depth-anything-s | 0.42 (756x1008) | 0.37 (756x1008) | 1.20 (756x1008) | 0.79 (756x1008) | 0.24 (756x1008) | 0.18 (756x1008) |
 | stablenormal-turbo | 6.36 | 2.94 | 3.25 | 1.13 | 0.54 | 0.35 |
@@ -2087,6 +2106,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
 | moge-2-vitl-normal | 994x1482 | 144 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1661 / 1836 | 1411 / 1634 | 1498 / 1610 | 1882 / 1936 |
 | moge-2-vits-normal | 994x1482 | 64.2 ms | 43.9 ms | 24.5 ms | 29.7 ms | 124 s | 131 s | 1066 / 1336 | 836 / 992 | 884 / 1008 | 768 / 852 |
+| pointdit-b-512 | 994x1482 | 30.7 ms | 23.7 ms | fails: BackendUnavailableError: onnx is not installed: pip install  | 20.6 ms | 33.6 s | – | 450 / 544 | 465 / 524 | 466 / 630 | – |
 | stablenormal-turbo | 994x1482 | 289 ms | 238 ms | fails: timeout after 290 s | 180 ms | 76.3 s | – | 3463 / 3628 | 3019 / 3106 | 3037 / 3172 | – |
 | unidepth-v2-vitl14 | 994x1482 | 99.8 ms | 96.4 ms | 64.3 ms | 63.0 ms | 31.1 s | 119 s | 1208 / 1472 | 1304 / 1392 | 1166 / 1252 | 1815 / 1842 |
 | unik3d-vitl | 994x1482 | 108 ms | 94.4 ms | 58.0 ms | 62.9 ms | 32.8 s | 105 s | 1219 / 1492 | 1258 / 1312 | 1166 / 1266 | 1609 / 1678 |

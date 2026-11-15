@@ -380,6 +380,14 @@ def _remember(path: Path, sha256: str) -> None:
             tmp.unlink(missing_ok=True)
 
 
+def stamped(path: Path, spec: FileSpec) -> bool:
+    """Whether `path` was verified against `spec` and is unchanged since (its stamp; nothing is hashed)."""
+    try:
+        return json.loads(_stamp_file(path).read_text()) == _stamp(path, spec.sha256)
+    except (OSError, ValueError):
+        return False
+
+
 def verify(path: Path, spec: FileSpec) -> None:
     """Check `path` against `spec` (size, then SHA-256 unless already verified unchanged).
 
@@ -389,11 +397,7 @@ def verify(path: Path, spec: FileSpec) -> None:
     if spec.size is not None and path.stat().st_size != spec.size:
         msg = f"{path}: size {path.stat().st_size} != expected {spec.size}"
         raise WeightsHashError(msg)
-    try:
-        known = json.loads(_stamp_file(path).read_text())
-    except (OSError, ValueError):
-        known = None
-    if known == _stamp(path, spec.sha256):
+    if stamped(path, spec):
         return
     digest = sha256_of(path)
     if digest != spec.sha256:
