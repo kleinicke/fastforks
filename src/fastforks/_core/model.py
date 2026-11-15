@@ -45,6 +45,7 @@ from fastforks._core.errors import (
     UnknownOptionError,
     WeightsError,
 )
+from fastforks._core.files import stamped
 from fastforks._core.kernels import begin_call, checked, cuda_device
 from fastforks._core.runner import Context, Runner
 from fastforks._core.sizes import SizeRange, size_range
@@ -915,7 +916,7 @@ def user_weights(variant: Variant, path: str | os.PathLike[str], log: logging.Lo
     Args:
         variant: The variant to load.
         path: The user's file or directory.
-        log: Gets one WARNING that the files are unverified.
+        log: Gets one WARNING that the files are unverified (none for the pinned files, verified unchanged).
 
     Raises:
         WeightsError: `path` does not exist, or does not hold the files the variant needs.
@@ -942,15 +943,16 @@ def user_weights(variant: Variant, path: str | os.PathLike[str], log: logging.Lo
     return _unverified(files, variant, log)
 
 
-def _unverified(files: tuple[Path, ...], variant: Variant, log: logging.Logger | None) -> tuple[Path, ...]:
-    if log is not None:
+def _unverified(paths: tuple[Path, ...], variant: Variant, log: logging.Logger | None) -> tuple[Path, ...]:
+    # the pinned files themselves (verified unchanged, e.g. a composite passing its encoder's checked file) are quiet
+    if log is not None and not all(stamped(p, s) for p, s in zip(paths, variant.weights, strict=True)):
         log.warning(
             "%s: unverified weights from %s (not hash-checked; the golden parity of %s does not apply)",
             variant.ref,
-            ", ".join(map(str, files)),
+            ", ".join(map(str, paths)),
             variant.ref,
         )
-    return files
+    return paths
 
 
 def resolve_device(device: str | torch.device | None, card: ModelCard | None = None) -> torch.device:

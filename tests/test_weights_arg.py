@@ -100,6 +100,15 @@ def test_renamed_copy_loads_unverified(tmp_path, caplog):
 
 
 @pytest.mark.model
+def test_the_verified_pinned_file_loads_quietly(caplog):
+    """weights= naming the checked cache file itself (a composite passing its encoder's file) logs no warning."""
+    src = _local(REF)[0]
+    with caplog.at_level(logging.INFO, logger="fastforks"):
+        stereo.load(REF, device="cpu", weights=src)
+    assert not [r for r in caplog.records if "unverified weights" in r.getMessage()]
+
+
+@pytest.mark.model
 def test_changed_weights_are_used(tmp_path):
     sd = load_state_dict(_local(REF)[0], key="model")
     name = next(k for k, v in sd.items() if v.is_floating_point())

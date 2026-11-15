@@ -69,10 +69,10 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | perception_encoder | fp16 | fp16 | fp32/fp16 | vit_metal fp16 |
 | flowformer, lightglue, xfeat | fp32 | - | fp32 | - |
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 |
+| insid3, lingbot_map, pi3, pointdit | fp16 | fp16 | - | - |
 | parseq, ppocrv5 | fp16 | - | fp32/fp16 | - |
 | moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
 | marigold_v2, seedvr2 | bf16 | bf16 | - | - |
-| insid3, lingbot_map, pi3 | fp16 | fp16 | - | - |
 | loma | bf16 | - | fp32 | - |
 | romav2 | bf16 | bf16 | fp32 | - |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
@@ -101,8 +101,8 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `cudnn_hacc` | aanet, alexnet, anycalib, anysplat, ben2, c_foundationstereo, c_radio, cas_gwcnet, cfnet, clip, coex, compact, convnextv2, crestereo, dat, defom_stereo, deit, densenet, depthfm, depthsplat, detr, dfine, dinov2_linear_cls, dlnr, drct, efficientnet, efficientnetv2, efficientvit, ema_vfi, eva02, fast_acvnet, fastvit, film, foundationstereo, geocalib, gfpgan, gimm_vfi, great_igev, gwcnet, hat, hrnet, igev_plusplus, igev_stereo, inception_v3, isnet, lama, las2, lingbot_map, lotus, lwdetr, marigold, marigold_normals, megaflow, midas, mmseg, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mocha_stereo, monster, monster_plusplus, mvsanywhere, mvsplat, nafnet, nsfw_vit, perception_encoder, psmnet, raft, raft_stereo, rcnn, realesrgan, realplksr, recover, regnet, repvit, resnet, resplat, restormer, retinaface, rife, rt_monster_plusplus, rtdetrv2, rtmdet, rtmo, rtmpose, s2m2, sam3, sapiens, sea_raft, segformer, selective_igev, shufflenetv2, siglip, siglip2, span, squeezenet, stablenormal, starnet, swin, swin2sr, swinir, u2net, unidepth_v2, vgg, vggt, vit, vitmatte, waft_stereo, wd_tagger, yolox, yunet, zoedepth |
 | `cutlass_conv` | aanet, ben2, c_foundationstereo, cas_gwcnet, cfnet, coex, crestereo, defom_stereo, dlnr, fast_acvnet, great_igev, gwcnet, igev_plusplus, igev_stereo, isnet, las2, mmseg, mocha_stereo, monster, monster_plusplus, mvsanywhere, psmnet, raft, raft_stereo, rt_monster_plusplus, sea_raft, selective_igev, u2net, vitmatte, waft_stereo |
 | `deform_conv` | aanet, birefnet |
-| `dpt_fused` | any2full, anycalib, boq, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, insid3, lingbot_depth, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, omni_dc, prompt_depth_anything, sam, sam2, sam_hq, tipsv2, track_on, unidepth_v2, unik3d, vitmatte, waft_stereo |
-| `fastbb` | any2full, anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, insid3, lingbot_depth, lingbot_map, mapanything, megaflow, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, omni_dc, pi3, prompt_depth_anything, resplat, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft_stereo |
+| `dpt_fused` | any2full, anycalib, boq, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, insid3, lingbot_depth, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, omni_dc, pointdit, prompt_depth_anything, sam, sam2, sam_hq, tipsv2, track_on, unidepth_v2, unik3d, vitmatte, waft_stereo |
+| `fastbb` | any2full, anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, insid3, lingbot_depth, lingbot_map, mapanything, megaflow, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, omni_dc, pi3, pointdit, prompt_depth_anything, resplat, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft_stereo |
 | `ffs_cutlass` | c_foundationstereo |
 | `fs` | c_foundationstereo, foundationstereo |
 | `fs_cutlass` | c_foundationstereo, foundationstereo |
