@@ -4,6 +4,7 @@ from collections import Counter
 
 import coverage_report
 import stage_hf
+from fastforks._core import registry
 
 SRC = "<!-- staged from fastforks abc1234 (2026-11-05) -->"
 
@@ -47,3 +48,8 @@ def test_summarize_and_render():
     text = coverage_report.render(summary, fams)
     assert "| dino | yes | 1f |" in text
     assert "- onnx: 2 of 2" in text
+
+
+def test_stage_hf_maps_cover_every_task():
+    for name in ("_PIPELINE", "_TASK_TAGS", "_SNIPPET"):
+        assert set(registry.TASKS) <= set(getattr(stage_hf, name)), name

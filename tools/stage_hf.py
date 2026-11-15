@@ -230,6 +230,7 @@ _PIPELINE = {
     "restoration": "image-to-image",
     "edges": "image-to-image",  # no line-detection pipeline on the Hub
     "volume": "image-segmentation",
+    "ocr": "image-to-text",
 }
 _TASK_TAGS = {
     "stereo": ["stereo", "stereo-matching", "disparity"],
@@ -251,6 +252,7 @@ _TASK_TAGS = {
     "restoration": ["super-resolution", "image-upscaling", "image-restoration"],
     "edges": ["edge-detection", "line-art", "controlnet-preprocessor"],
     "volume": ["medical-imaging", "3d-segmentation", "ct-segmentation"],
+    "ocr": ["ocr", "text-recognition", "text-detection"],
 }
 _SNIPPET = {
     "stereo": 'result = model("left.png", "right.png")\nresult.{out}  # [H, W] float32 tensor, input resolution',
@@ -278,6 +280,10 @@ _SNIPPET = {
     "volume": (
         "result = model(ct, spacing=spacing)  # ct: [D, H, W] float32 HU volume; spacing: (z, y, x) in mm\n"
         "result.{out}  # [D, H, W] uint8 label per voxel; result.class_names[k] names label k"
+    ),
+    "ocr": (
+        'result = model("receipt.jpg")\nresult.texts  # the text lines in reading order\n'
+        "result.boxes, result.scores  # [N, 4, 2] quads in input pixels, [N] confidences"
     ),
     "matting": 'result = model("photo.jpg")\nresult.{out}  # [H, W] float32 in [0, 1], input resolution',
     "retrieval": (
