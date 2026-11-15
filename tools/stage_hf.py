@@ -348,7 +348,21 @@ _HF_LICENCES = {
     "CC-BY-4.0": "cc-by-4.0",
     "CC-BY-NC-4.0": "cc-by-nc-4.0",
     "CC-BY-NC-SA-4.0": "cc-by-nc-sa-4.0",
+    "CC-BY-NC-ND-4.0": "cc-by-nc-nd-4.0",
+    "CC-BY-SA-4.0": "cc-by-sa-4.0",
+    "CC-BY-SA-3.0": "cc-by-sa-3.0",
+    "CC-BY-NC-SA-3.0": "cc-by-nc-sa-3.0",
+    "CC0-1.0": "cc0-1.0",
+    "ISC": "isc",
+    "Zlib": "zlib",
+    "Unlicense": "unlicense",
+    "WTFPL": "wtfpl",
+    "LicenseRef-CreativeML-OpenRAIL-PlusPlus-M": "openrail++",
+    "LicenseRef-CreativeML-OpenRAIL-M": "creativeml-openrail-m",
 }
+SEE_CARD = "see-model-card"  # `license_name` when the terms are a combination: they are spelled out in the card body
+# Fine-tuned from Stable Diffusion 2: its CreativeML OpenRAIL++-M use restrictions pass down to the weights.
+SD2_DERIVED = frozenset({"lotus", "stablenormal", "marigold_normals"})
 _PIPELINE = {
     "stereo": "depth-estimation",
     "flow": "image-to-image",
@@ -526,24 +540,30 @@ def _benchmark_tables() -> list[tuple[str, list[str], dict[str, list[list[str]]]
 
 
 def _licence_front(card: ModelCard, variants: list[Variant]) -> dict[str, str]:
-    """HF licence keys: the SPDX id of the weights if HF knows it, else `other` + name + link."""
+    """HF licence keys. Header rule: the WEIGHTS licence, never the code licence. A single weights licence HF knows
+    is its id; otherwise `other` + a plain `license_name` (one custom licence: its name; several, or only
+    `assumed from code`: `see-model-card`, `mixed-see-variant-table` for variants that differ) + a link. The
+    details (code licence, evidence, assumptions) are in the card body."""
     found = {card.variant_licence(v).weights_licence for v in variants}
     link = next((card.variant_licence(v).evidence for v in variants if card.variant_licence(v).evidence), None)
     link = link.split()[0].rstrip(";,.") if link and link.startswith("http") else card.upstream
     slug = lambda t: re.sub(r"[^a-z0-9.]+", "-", t.lower()).removeprefix("licenseref-").strip("-")  # noqa: E731
+    if card.family in SD2_DERIVED:  # the Stable Diffusion 2 licence (OpenRAIL++) binds the derived weights
+        return {"license": "openrail++"}
     if assumed_weights(card, variants):  # the authors state no weights licence: no firm id
         return {
             "license": "other",
-            "license_name": "no-licence-stated"
-            if slug(card.licence.code) == "none"
-            else f"{slug(card.licence.code)}-code-weights-unstated",
+            "license_name": "no-licence-stated" if slug(card.licence.code) == "none" else SEE_CARD,
             "license_link": link,
         }
     if len(found) == 1 and (only := next(iter(found))) in _HF_LICENCES:
         return {"license": _HF_LICENCES[only]}
-    name = "mixed-see-variant-table" if len(found) > 1 else slug(next(iter(found)))
-    if name == "none":
-        name = "no-licence-stated"
+    if len(found) > 1:
+        name = "mixed-see-variant-table"
+    elif re.search(r"\s(AND|OR)\s", only := next(iter(found))):
+        name = SEE_CARD
+    else:
+        name = "no-licence-stated" if (name := slug(only)) == "none" else name
     return {"license": "other", "license_name": name, "license_link": link}
 
 
