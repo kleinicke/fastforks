@@ -474,6 +474,7 @@ def speed_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: 
 def _fail(row: dict[str, Any], spec: dict[str, Any], msg: str) -> None:
     """Record a failure: `fails: <short reason>` for compile / tensorrt rows, else the long `error`."""
     if spec["mode"] in NEW_MODES:
+        print("FAIL (full):", msg[-3000:], flush=True)  # the row keeps 160 characters; the log keeps the cause
         row["fails"] = " ".join(msg.split())[:160]
     else:
         row["error"] = msg[:600]
@@ -505,7 +506,10 @@ def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int
         model._runner = runner  # noqa: SLF001
         if handle is not None:
             handle.remove()
-    seen += [a.shape for a in cap.__dict__["_args"][1] if isinstance(a, torch.Tensor)][:1]
+    args = cap.__dict__["_args"][1]
+    if task == "tracking":  # the runner takes (frames fn, n, size (H, W), queries): `module()` takes the whole video
+        return 1, *(int(v) for v in args[2])
+    seen += [a.shape for a in args if isinstance(a, torch.Tensor)][:1]
     n, _, h, w = seen[0]
     return n, h, w
 
@@ -545,7 +549,7 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
             torch.cuda.empty_cache()
             free0 = torch.cuda.mem_get_info()[0]
             engine = TensorRTEngine(engine_path)
-            row |= measure(lambda: engine(*inputs))
+            row |= measure(lambda e=engine: e(*inputs))
             row["device_mb"] = round((free0 - torch.cuda.mem_get_info()[0]) / 2**20)
             # peak = engine memory + torch-side peak (the allocator does not see the engine's memory)
             for k in ("alloc", "reserved"):
@@ -553,6 +557,18 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
                 row[f"peak_{k}_mb"] += row["device_mb"]
             if all_nan(engine.run(*inputs)) is not None:
                 _fail(row, spec, "wrong output: an engine output is all NaN")
+            # start with an already built engine: load the engine file + the first call (cold = onnx export + build)
+            del engine
+            gc.collect()
+            torch.cuda.empty_cache()
+            t0 = time.perf_counter()
+            again = TensorRTEngine(engine_path)
+            row["engine_load_s"] = round(time.perf_counter() - t0, 3)
+            t0 = time.perf_counter()
+            again.run(*inputs)
+            _sync()
+            row["engine_first_call_s"] = round(time.perf_counter() - t0, 3)
+            del again
     except Exception as e:  # noqa: BLE001 - recorded as a failed row
         _fail(row, spec, f"{type(e).__name__}: {e}")
     _append(out, row)
@@ -656,6 +672,19 @@ MODEL_STEPS: list[Callable[[Any, dict[str, Any], dict[str, Any], list[Any], Path
 """Per-model steps of a worker, run on the already loaded model (e.g. a golden output check can be appended)."""
 
 
+def _warm_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: list[Any], out: Path) -> None:  # noqa: ANN401
+    del model
+    row = {**common, "input": calls[0][0]}
+    t0 = time.perf_counter()
+    try:
+        calls[0][1]()
+        _sync()
+        row["first_call_s"] = round(time.perf_counter() - t0, 3)
+    except Exception as e:  # noqa: BLE001 - recorded as a failed row
+        _fail(row, spec, f"{type(e).__name__}: {e}")
+    _append(out, row)
+
+
 def worker(spec: dict[str, Any]) -> int:
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     t0 = time.perf_counter()
@@ -704,6 +733,9 @@ def worker(spec: dict[str, Any]) -> int:
         k = json.dumps(info["backend"]["kernels"]) + torch.__version__
         common |= {"code_hash": files_hash(files) + hashlib.sha256(k.encode()).hexdigest()[:8], "files": files}
     common |= {**info, "base_alloc_mb": round(base)}
+    if spec.get("warm"):  # warm-cache start: only the first call (the compile of an already cached graph)
+        _warm_step(model, spec, common, calls, out)
+        return 0
     steps = [trace_step] if spec.get("trace") else [trt_step] if spec["mode"] == "tensorrt" else MODEL_STEPS
     for step in steps:
         step(model, spec, common, calls, out)
@@ -761,19 +793,46 @@ def _changed(rows: list[dict[str, Any]], job: dict[str, Any], since: str) -> boo
     return files is None or bool(changed & set(files))
 
 
+def _warm_start(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env: dict[str, str], cache: str) -> None:
+    """Second start of a compile job on the caches the first one filled: `compile_warm_s` = its first call."""
+    tmp = Path(cache) / "warm.jsonl"
+    cmd2 = [*cmd[:-1], json.dumps({**spec, "out": str(tmp), "warm": True})]
+    try:
+        subprocess.run(cmd2, env=env, timeout=a.timeout, check=False)
+    except subprocess.TimeoutExpired:
+        return
+    got = read_rows(tmp)
+    if not got or got[0].get("first_call_s") is None:
+        return
+    rows = read_rows(a.out)
+    rows[-1]["compile_warm_s"] = got[0]["first_call_s"]
+    a.out.write_text("".join(json.dumps(r) + "\n" for r in rows))
+
+
 def _launch(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env: dict[str, str]) -> None:
     """One worker of `spec`; a crash or timeout without a row becomes an error row (`fails` for compile / tensorrt)."""
-    cache = tempfile.mkdtemp(prefix="ff-compile-cache-") if spec["mode"] == "compile" else ""
+    prebuilt = getattr(a, "cache_dir", "")  # a cache filled by an earlier (unlocked) cold run: this start is the warm one
+    cache = (prebuilt or tempfile.mkdtemp(prefix="ff-compile-cache-")) if spec["mode"] == "compile" else ""
     if cache:  # empty Inductor / Triton caches: the first call is a cold compile
         env |= {"TORCHINDUCTOR_CACHE_DIR": f"{cache}/inductor", "TRITON_CACHE_DIR": f"{cache}/triton"}
+    cache_keep = cache if getattr(a, "warm_start", False) and not prebuilt else ""  # kept for the warm-cache start
     before = len(read_rows(a.out))
     try:
         rc = subprocess.run(cmd, env=env, timeout=a.timeout, check=False).returncode
     except subprocess.TimeoutExpired:
         rc = "timeout"
     finally:
-        if cache:
+        if cache and not cache_keep and not prebuilt:
             shutil.rmtree(cache, ignore_errors=True)
+    if rc == 0 and cache_keep and len(read_rows(a.out)) == before + 1:
+        _warm_start(a, spec, cmd, env, cache_keep)
+    if cache_keep:
+        shutil.rmtree(cache_keep, ignore_errors=True)
+    if prebuilt and a.cold_from and rc == 0 and len(read_rows(a.out)) == before + 1:  # cold time from the unlocked build run
+        rows, cold = read_rows(a.out), next(iter(read_rows(Path(a.cold_from))[::-1]), {})
+        if cold.get("compile_s") and "fails" not in cold:
+            rows[-1] |= {"compile_warm_s": rows[-1].get("compile_s"), "compile_s": cold["compile_s"]}
+            a.out.write_text("".join(json.dumps(r) + "\n" for r in rows))
     if rc == 0 or len(read_rows(a.out)) != before:
         return
     row = {
@@ -1055,6 +1114,11 @@ def main() -> int:
     p.add_argument("--forks", default="")
     p.add_argument("--force", action="store_true", help="measure again even if the code did not change")
     p.add_argument("--no-profile", action="store_true")
+    p.add_argument(
+        "--warm-start", action="store_true", help="compile: a second start on the filled caches (compile_warm_s)"
+    )
+    p.add_argument("--cache-dir", default="", help="compile: Inductor / Triton caches of an earlier cold run (kept)")
+    p.add_argument("--cold-from", default="", help="with --cache-dir: that cold run's jsonl (its compile_s is the cold time)")
     p.add_argument("--trace-diff", action="store_true", help="kernel-group trace rows (one input) instead of timings")
     p.add_argument("--check", action="store_true")
     for name in ("check", "report"):
