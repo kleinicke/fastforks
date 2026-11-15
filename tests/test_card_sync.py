@@ -65,3 +65,16 @@ def test_fetch_live_reports_unauthorized_and_missing_repos_as_none(monkeypatch):
 
         monkeypatch.setattr(stage_hf.urllib.request, "urlopen", boom)
         assert stage_hf.fetch_live("fastforks/nope") is None
+
+
+def test_find_golden_takes_the_first_source_with_the_recorded_hash(tmp_path):
+    import hashlib
+
+    a, b = tmp_path / "a", tmp_path / "b"
+    a.mkdir(), b.mkdir()
+    (a / "m@1.npz").write_bytes(b"stale")
+    (b / "m@1.npz").write_bytes(b"good")
+    good = hashlib.sha256(b"good").hexdigest()
+    assert stage_hf._find_golden([a, b], "m@1", good) == b / "m@1.npz"
+    assert stage_hf._find_golden([a], "m@1", good) is None
+    assert stage_hf._find_golden([a, b], "x@1", good) is None

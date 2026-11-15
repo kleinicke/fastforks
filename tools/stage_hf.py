@@ -1,7 +1,7 @@
 """Stage our Hugging Face repos (kernel binaries, golden outputs, weight mirrors) in a local directory (no upload).
 
     uv run python tools/stage_hf.py kernels OUT [--from build/kernels] [--standin]
-    uv run python tools/stage_hf.py goldens OUT --from $FASTFORKS_GOLDEN_PATH [--standin]
+    uv run python tools/stage_hf.py goldens OUT --from $FASTFORKS_GOLDEN_PATH [--from DIR2 ...] [--skip-missing] [--standin]
     FASTFORKS_WEIGHTS_PATH=... uv run python tools/stage_hf.py mirrors OUT [--standin]
     FASTFORKS_WEIGHTS_PATH=... uv run python tools/stage_hf.py weights OUT [--standin]
     uv run python tools/stage_hf.py cards OUT
@@ -101,8 +101,15 @@ def stage_kernels(src: Path, out: Path) -> list[str]:
     return rows
 
 
-def stage_goldens(src: Path, out: Path) -> list[str]:
-    """Copy the golden outputs; return the card's table rows."""
+def _find_golden(srcs: list[Path], ref: str, sha256: str) -> Path | None:
+    """First `<ref>.npz` in the source directories whose SHA-256 matches, else None."""
+    return next((p for d in srcs if (p := d / f"{ref}.npz").is_file() and sha256_of(p) == sha256), None)
+
+
+def stage_goldens(srcs: list[Path], out: Path, skip_missing: bool = False) -> list[str]:
+    """Copy the golden outputs (hash-checked, first matching source directory); return the card's table rows.
+
+    With `skip_missing`, refs with no matching local file are reported on stderr and left out (partial staging)."""
     cards = {v.ref: (card, v) for t in registry.TASKS for card, v in registry.cards(t).values()}
     rows = []
     out.mkdir(parents=True, exist_ok=True)
@@ -110,8 +117,13 @@ def stage_goldens(src: Path, out: Path) -> list[str]:
         for ref, entry in sorted(refs.items()):
             if ref not in cards:
                 sys.exit(f"{ref}: no card variant (a stale golden ref?)")
-            _check(src / f"{ref}.npz", entry["sha256"])
-            shutil.copyfile(src / f"{ref}.npz", out / f"{ref}.npz")
+            src = _find_golden(srcs, ref, entry["sha256"])
+            if src is None:
+                if skip_missing:
+                    print(f"skipped (no local file with the recorded SHA-256): {ref}", file=sys.stderr)
+                    continue
+                sys.exit(f"{ref}: no file with the recorded SHA-256 in {', '.join(map(str, srcs))}")
+            shutil.copyfile(src, out / f"{ref}.npz")
             card, v = cards[ref]
             st = card.status(v)
             rows.append(f"| `{ref}` | {card.family} | {card.licence.code} | {st.weights} | {entry['upstream']} |")
@@ -816,7 +828,14 @@ def _args() -> argparse.Namespace:
     ap.add_argument(
         "out", type=Path, nargs="?", help="staging directory (must not exist; with --standin: the stand-in root)"
     )
-    ap.add_argument("--from", dest="src", type=Path, help="source directory (default for kernels: build/kernels)")
+    ap.add_argument(
+        "--from",
+        dest="src",
+        type=Path,
+        action="append",
+        help="source directory (default for kernels: build/kernels); goldens: repeatable, first hash match wins",
+    )
+    ap.add_argument("--skip-missing", action="store_true", help="goldens: leave out refs with no local file")
     ap.add_argument("--check-live", action="store_true", help="cards: compare with the published cards, upload nothing")
     ap.add_argument("--standin", action="store_true", help="stage into a huggingface.co stand-in rooted at OUT")
     a = ap.parse_args()
@@ -854,13 +873,13 @@ def main() -> None:
         print(f"staged {len(ids)} model cards in {out}")
         return
     if a.what == "kernels":
-        rows, card = stage_kernels(a.src or ROOT / "build" / "kernels", out), KERNELS_CARD
+        rows, card = stage_kernels((a.src or [ROOT / "build" / "kernels"])[0], out), KERNELS_CARD
     elif a.what == "mirrors":
         rows, card = stage_mirrors(out), MIRRORS_CARD
     elif a.src is None:
         sys.exit("goldens need --from DIR")
     else:
-        rows, card = stage_goldens(a.src, out), GOLDENS_CARD
+        rows, card = stage_goldens(a.src, out, a.skip_missing), GOLDENS_CARD
     (out / "README.md").write_text(card + "\n".join(rows) + "\n")
     print(f"staged {len(rows)} entries in {out}")
     if a.standin:
