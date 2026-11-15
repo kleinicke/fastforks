@@ -562,6 +562,45 @@ def test_mirror_paths_are_family_and_file():
         assert len({spec.sha256 for _, _, spec in uses}) == 1, path
 
 
+def test_card_mirror_names_a_weights_repo():
+    """`mirror = "<repo>"` is `fastforks/<repo>`, named after the weights; reserved repo names are refused."""
+    from fastforks._core import cards  # noqa: PLC0415
+    from fastforks._core.errors import CardError  # noqa: PLC0415
+    from fastforks._core.files import MIRROR_URL, WEIGHTS_REPO_URL  # noqa: PLC0415
+
+    t = {"name": "w.pth", "sha256": "0" * 64, "size": 1, "url": "https://example.org/v1/orig.pth"}
+    assert cards._file_spec({**t, "mirror": "w-n16"}, "x", "fam").mirror == WEIGHTS_REPO_URL.format(
+        repo="w-n16", name="orig.pth"
+    )  # the repo keeps the original file name
+    assert cards._file_spec({**t, "mirror": True}, "x", "fam").mirror == MIRROR_URL.format(group="fam", name="w.pth")
+    assert cards._file_spec(t, "x", "fam").mirror is None
+    for bad in ("mirrors", "kernels", "Bad_Name", "a/b", 1):
+        with pytest.raises(CardError):
+            cards._file_spec({**t, "mirror": bad}, "x", "fam")
+
+
+def test_weights_repos_are_named_after_the_weights_and_used_by_every_card_with_that_sha():
+    """User 2026-11-15: one repo per distinct weight file; every card pinning its SHA-256 points at it."""
+    import stage_hf  # noqa: PLC0415 - tool module, imported only here
+
+    repos, users = stage_hf.weights_repos(), stage_hf.weight_users()
+    families = {stage_hf.repo_name(f) for f in stage_hf._families()}
+    for repo, meta in repos.items():
+        assert re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", repo), repo
+        assert repo not in stage_hf.RESERVED_REPOS, repo
+        assert repo not in families, f"{repo}: a family card repo"
+        assert stage_hf._HF_LICENCES.get(meta["licence"]), f"{repo}: no hub licence id"
+        assert licence_class(meta["licence"]) == "permissive", repo
+        for published in meta["licence_files"].values():
+            assert (Path(stage_hf.ROOT) / "src" / "fastforks" / published).is_file(), f"{repo}: {published}"
+        for name, sha in meta["files"].items():
+            assert sha in users, f"{repo}/{name}: no card pins it"
+            for _, v, spec in users[sha]:
+                assert stage_hf.weights_repo_of(spec) == (repo, name), (
+                    f"{v.ref}: {spec.name} is not fastforks/{repo}/{name}"
+                )
+
+
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_commercial_status_follows_code_and_weights_licence_only(task):
     """User decision 2026-10-31: training data is a note, never a blocker."""

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar, get_args
 
 from fastforks._core import licences, tasks
 from fastforks._core.errors import BackendUnavailableError, CardError, install_hint
-from fastforks._core.files import MIRROR_URL, FileSpec
+from fastforks._core.files import MIRROR_URL, WEIGHTS_REPO_URL, FileSpec
 from fastforks._core.labels import label_set
 from fastforks._core.licences import CodeClass, Commercial
 
@@ -531,6 +531,10 @@ def _sha256(t: dict[str, Any], where: str) -> str:
     return sha
 
 
+_REPO = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
+_NOT_WEIGHTS_REPOS = frozenset({"kernels", "goldens", "reference-outputs", "mirrors", "fastforks"})
+
+
 def _file_spec(t: dict[str, Any], where: str, family: str) -> FileSpec:
     _unknown_keys(t, {"name", "sha256", "size", "url", "member", "archive", "mirror"}, where)
     member = _opt_str(t, "member", where)
@@ -543,10 +547,9 @@ def _file_spec(t: dict[str, Any], where: str, family: str) -> FileSpec:
     if archive:
         _unknown_keys(archive, {"sha256", "size"}, f"{where} archive")
     name = _get(t, "name", str, where)
-    for key in ("url", "mirror"):
-        if isinstance(t.get(key), str) and not t[key].startswith("https://"):
-            msg = f"{where}: {key} must be an https:// URL"
-            raise CardError(msg)
+    if isinstance(t.get("url"), str) and not t["url"].startswith("https://"):
+        msg = f"{where}: url must be an https:// URL"
+        raise CardError(msg)
     return FileSpec(
         name=name,
         sha256=_sha256(t, where),
@@ -555,8 +558,25 @@ def _file_spec(t: dict[str, Any], where: str, family: str) -> FileSpec:
         member=member,
         archive_sha256=_sha256(archive, f"{where} archive") if archive else None,
         archive_size=_get(archive, "size", int, f"{where} archive") if archive else None,
-        mirror=MIRROR_URL.format(group=family, name=name) if "mirror" in t and _get(t, "mirror", bool, where) else None,
+        mirror=_mirror(t.get("mirror", False), family, name, t["url"], where),
     )
+
+
+def _mirror(value: object, family: str, name: str, url: str, where: str) -> str | None:
+    """The fallback URL of a weight file.
+
+    `mirror = "<repo>"`: the weights' own repo `fastforks/<repo>`, holding the file under its original name (the last
+    part of `url`; cards may name it differently). `true`: `fastforks/mirrors/<family>/<name>`.
+    """
+    if isinstance(value, str):
+        if not _REPO.fullmatch(value) or value in _NOT_WEIGHTS_REPOS:
+            msg = f"{where}: mirror {value!r} must be a weights repo name ([a-z0-9] words joined by '-')"
+            raise CardError(msg)
+        return WEIGHTS_REPO_URL.format(repo=value, name=url.rpartition("/")[2])
+    if not isinstance(value, bool):
+        msg = f"{where}: 'mirror' must be a repo name or bool, got {type(value).__name__}"
+        raise CardError(msg)
+    return MIRROR_URL.format(group=family, name=name) if value else None
 
 
 def _training_data(value: object, where: str) -> tuple[str, ...]:

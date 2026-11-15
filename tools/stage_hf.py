@@ -3,6 +3,7 @@
     uv run python tools/stage_hf.py kernels OUT [--from build/kernels] [--standin]
     uv run python tools/stage_hf.py goldens OUT --from $FASTFORKS_GOLDEN_PATH [--standin]
     FASTFORKS_WEIGHTS_PATH=... uv run python tools/stage_hf.py mirrors OUT [--standin]
+    FASTFORKS_WEIGHTS_PATH=... uv run python tools/stage_hf.py weights OUT [--standin]
     uv run python tools/stage_hf.py cards OUT
     uv run python tools/stage_hf.py cards --check-live
 
@@ -10,8 +11,11 @@
 layout of the manifests' `url`, and writes the repo card. `goldens` copies every `<ref>.npz` of the `golden.toml`
 files (hash-checked) to `OUT/<ref>.npz`, the layout `tools/fetch_goldens.py` reads, with a card listing the model
 each output comes from. `mirrors` copies the weights whose card entry has `mirror = true` from the local weight
-store (hash-checked) to `OUT/<family>/<file>`, with a card naming each file's licence and original URL. The tool
-prints the upload command; it never uploads.
+store (hash-checked) to `OUT/<family>/<file>`, with a card naming each file's licence and original URL (the first
+mirrors, `mirror = true`). `weights` stages one repo per distinct weight file, named after the weights
+(`tools/weights_repos.toml`; cards point at it by `url` or `mirror = "<repo>"`), as `OUT/<repo>/` with symlinks to
+the hash-checked local files, the upstream licence files and a README naming source, licence, SHA-256 and the cards
+that use it. The tool prints the upload command; it never uploads.
 
 `cards` writes one model card (README.md only, no weights) per model family to `OUT/<repo name>/README.md`, the
 repos `fastforks/<family>`, from the model cards, the golden tolerances, `docs/benchmarks.md` and `docs/data/`, and
@@ -44,7 +48,7 @@ import gen_docs
 import goldens as store
 from fastforks._core import licences, registry
 from fastforks._core.errors import WeightsError
-from fastforks._core.files import MIRROR_URL, FileSpec, locate, sha256_of
+from fastforks._core.files import MIRROR_URL, WEIGHTS_REPO_URL, FileSpec, locate, sha256_of
 from fastforks._core.registry import WEIGHTS_PATH_ENV
 from fastforks._core.sizes import card_size_lines
 
@@ -55,6 +59,7 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[1]
 KERNELS = ROOT / "src" / "fastforks" / "kernels"
+WEIGHTS_REPOS = Path(__file__).with_name("weights_repos.toml")
 GITHUB = "https://github.com/kleinicke/fastforks"
 KERNELS_REPO = "https://huggingface.co/fastforks/kernels"
 HF_URL = r"https://huggingface\.co/([^/]+/[^/]+)/resolve/"
@@ -63,6 +68,7 @@ REPOS = {
     "kernels": ("fastforks/kernels", "model"),
     "goldens": ("fastforks/reference-outputs", "dataset"),
     "mirrors": ("fastforks/mirrors", "model"),
+    "weights": ("fastforks/<weights>", "model"),
     "cards": ("fastforks/<family>", "model"),
 }
 
@@ -114,13 +120,13 @@ def stage_goldens(src: Path, out: Path) -> list[str]:
 
 
 def mirrored() -> dict[str, list[tuple[ModelCard, Variant, FileSpec]]]:
-    """`<family>/<file>` -> [(card, variant, spec)] of every weight file that has a mirror."""
+    """`<family>/<file>` -> [(card, variant, spec)] of every weight file mirrored in `fastforks/mirrors`."""
     out: dict[str, list[tuple[ModelCard, Variant, FileSpec]]] = {}
     for t in registry.TASKS:
         for card, v in registry.cards(t).values():
             for spec in v.weights:
-                if spec.mirror is not None:
-                    path = spec.mirror.removeprefix(MIRROR_URL.partition("{group}")[0])
+                if spec.mirror is not None and spec.mirror.startswith(prefix := MIRROR_URL.partition("{group}")[0]):
+                    path = spec.mirror.removeprefix(prefix)
                     out.setdefault(path, []).append((card, v, spec))
     return out
 
@@ -141,6 +147,125 @@ def stage_mirrors(out: Path) -> list[str]:
         rows.append(f"| `{path}` | {refs} | {' / '.join(sorted(lic))} | {spec.url} |")
     shutil.copyfile(ROOT / "LICENSE", out / "LICENSE")
     return rows
+
+
+def weights_repos() -> dict[str, dict]:
+    """`tools/weights_repos.toml`: repo name -> its table (title, licence, files name -> sha256, ...)."""
+    return tomllib.loads(WEIGHTS_REPOS.read_text())
+
+
+def weight_users() -> dict[str, list[tuple[ModelCard, Variant, FileSpec]]]:
+    """SHA-256 -> [(card, variant, spec)] of every weight file of every card."""
+    out: dict[str, list[tuple[ModelCard, Variant, FileSpec]]] = {}
+    for t in registry.TASKS:
+        for card, v in registry.cards(t).values():
+            for spec in v.weights:
+                out.setdefault(spec.sha256, []).append((card, v, spec))
+    return out
+
+
+def weights_repo_of(spec: FileSpec) -> tuple[str, str] | None:
+    """(repo, file) of the weights repo `spec` points at by its `url` or its `mirror`, `None` for none."""
+    pattern = re.escape(WEIGHTS_REPO_URL).replace(r"\{repo\}", "([a-z0-9-]+)").replace(r"\{name\}", "([^/]+)")
+    for url in (spec.url, spec.mirror):
+        if url and (m := re.fullmatch(pattern, url)) and m[1] not in RESERVED_REPOS:
+            return m[1], m[2]
+    return None
+
+
+def _mib(size: int) -> str:
+    return f"{size / 2**20:,.1f} MiB" if size < 2**30 else f"{size / 2**30:,.2f} GiB"
+
+
+def render_weights_card(repo: str, meta: dict, users: dict[str, list[tuple[ModelCard, Variant, FileSpec]]]) -> str:
+    """README.md of the weights repo `fastforks/<repo>`."""
+    files = [(name, sha, users[sha]) for name, sha in meta["files"].items()]
+    lic = meta["licence"]
+    converted = meta.get("converted")
+    refs = sorted({(card.family, v.ref) for _, _, uses in files for card, v, _ in uses})
+    front = {"license": _HF_LICENCES[lic], "tags": "[fastforks, weights]"}
+    lines = ["---", *(f"{k}: {v}" for k, v in front.items()), "---", f"# {meta['title']}", ""]
+    what = "converted to safetensors (see Source)" if converted else "an unchanged, byte-identical copy"
+    lines += [
+        f"Weights by {meta['by']}, {what}, hosted for [fastforks]({GITHUB}). This repo is named after the weights,",
+        "not after a model: every fastforks model that uses these exact bytes (same SHA-256) points here.",
+        "",
+        "## Files",
+        "",
+        "| file | size | SHA-256 |",
+        "|---|---|---|",
+        *(f"| `{n}` | {_mib(uses[0][2].size or 0)} ({uses[0][2].size} bytes) | `{sha}` |" for n, sha, uses in files),
+        "",
+        "## Source",
+        "",
+        f"- Upstream: {meta['upstream']}",
+        f"- Original file: {meta['source']}",
+        f"- {converted}"
+        if converted
+        else "- Byte-identical copy of the original file: nothing was retrained, converted or changed.",
+        "",
+        "## Licence",
+        "",
+        f"{lic}, the authors' licence: {meta['licence_url']}",
+        "",
+        f"Evidence that it covers the weights: {meta['licence_evidence']}",
+        "",
+        f"`{'`, `'.join(meta['licence_files'])}` in this repo: the upstream licence text"
+        + (" and notice" if "NOTICE" in meta["licence_files"] else "")
+        + ", kept as the licence requires. Copyright stays with the authors. Mirrored by the fastforks maintainers;",
+        "fastforks is not affiliated with the authors.",
+        "",
+        "## Used by",
+        "",
+        "| fastforks model | family |",
+        "|---|---|",
+        *(f"| `{ref}` | {fam} |" for fam, ref in refs),
+        "",
+        "## How fastforks downloads it",
+        "",
+        "fastforks downloads the file on first use and checks it against the SHA-256 above (nothing unverified is",
+        "loaded); `fastforks download MODEL` fetches it ahead of time.",
+    ]
+    if converted:
+        lines.append("These converted files exist only here, so this repo is the download URL in the model cards.")
+    else:
+        lines.append("The authors' URL comes first; this repo is the fallback when that URL fails.")
+    lines += [
+        "Without fastforks: `hf download fastforks/" + repo + " " + files[0][0] + "`.",
+        "",
+        source_line(),
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def stage_weights(out: Path, *, standin: bool = False) -> list[str]:
+    """Stage every weights repo; returns the repo ids.
+
+    `OUT/<repo>/` (stand-in: `OUT/fastforks/<repo>/resolve/main/`) gets symlinks to the hash-checked local weights,
+    the licence files and a README.
+    """
+    users, src_root = weight_users(), ROOT / "src" / "fastforks"
+    ids = []
+    for repo, meta in sorted(weights_repos().items()):
+        if repo in RESERVED_REPOS or repo in {repo_name(f) for f in _families()}:
+            sys.exit(f"{repo}: reserved or a family's card repo")
+        d = out / "fastforks" / repo / "resolve" / "main" if standin else out / repo
+        d.mkdir(parents=True)
+        for name, sha in meta["files"].items():
+            if sha not in users:
+                sys.exit(f"{repo}/{name}: no card pins {sha}")
+            card, _, spec = users[sha][0]
+            try:
+                src = locate(spec, group=card.family, env_var=WEIGHTS_PATH_ENV, allow_download=False)
+            except WeightsError as e:
+                sys.exit(f"{repo}/{name}: {e}")
+            _check(src, sha, spec.size)
+            (d / name).symlink_to(src.resolve())
+        for published, path in meta["licence_files"].items():
+            shutil.copyfile(src_root / path, d / published)
+        (d / "README.md").write_text(render_weights_card(repo, meta, users))
+        ids.append(f"fastforks/{repo}")
+    return ids
 
 
 KERNELS_CARD = """\
@@ -697,20 +822,30 @@ def _args() -> argparse.Namespace:
         ap.error("--check-live is for cards")
     if a.out is None and not a.check_live:
         ap.error("OUT is required")
+    if a.standin and a.what == "cards":
+        ap.error("cards has no --standin")
     return a
+
+
+def _main_weights(out: Path, *, standin: bool) -> None:
+    if out.exists():
+        sys.exit(f"{out} exists; pick a new directory")
+    print("\n".join(ids := stage_weights(out, standin=standin)))
+    print(f"use it: FASTFORKS_HF_ENDPOINT=file://{out.resolve()}" if standin else f"staged {len(ids)} repos in {out}")
 
 
 def main() -> None:
     a = _args()
     if a.check_live:
         check_live()
+    if a.what == "weights":
+        _main_weights(a.out, standin=a.standin)
+        return
     repo, kind = REPOS[a.what]
     out = a.out / ("datasets/" if kind == "dataset" else "") / repo / "resolve" / "main" if a.standin else a.out
     if out.exists():
         sys.exit(f"{out} exists; pick a new directory")
     if a.what == "cards":
-        if a.standin:
-            sys.exit("cards has no --standin")
         out.mkdir(parents=True)
         for repo_id in (ids := stage_cards(out)):
             print(repo_id)

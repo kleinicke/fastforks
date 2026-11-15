@@ -73,7 +73,9 @@ HF_ENDPOINT_ENV = "FASTFORKS_HF_ENDPOINT"
 OFFLINE_ENV = "FASTFORKS_OFFLINE"
 READ_CACHES_ENV = "FASTFORKS_READ_CACHES"
 _OUR_HF = re.compile(r"https://huggingface\.co/((?:datasets/)?fastforks/.+)")
-MIRROR_URL = "https://huggingface.co/fastforks/mirrors/resolve/main/{group}/{name}"
+MIRROR_URL = "https://huggingface.co/fastforks/mirrors/resolve/main/{group}/{name}"  # `mirror = true` (first mirrors)
+# `mirror = "<repo>"`: one repo per distinct weight file, named after the weights; cards with the same SHA-256 share it
+WEIGHTS_REPO_URL = "https://huggingface.co/fastforks/{repo}/resolve/main/{name}"
 _HF_FILE = re.compile(r"https://huggingface\.co/(?P<repo>[^/]+/[^/]+)/resolve/(?P<rev>[^/]+)/(?P<file>.+)")
 
 
@@ -90,8 +92,8 @@ class FileSpec:
             `sha256` and `size` are those of the member.
         archive_sha256: SHA-256 of the archive at `url` (members only), checked before the archive is opened.
         archive_size: Size of the archive in bytes (members only); the fetch stops beyond it.
-        mirror: URL of the same bytes (the member itself for an archive member) in our mirror repo, tried when `url`
-            fails; `None` if not mirrored.
+        mirror: URL of the same bytes (the member itself for an archive member) in our mirror repos (`MIRROR_URL`, or
+            the weights' own repo `WEIGHTS_REPO_URL`), tried when `url` fails; `None` if not mirrored.
     """
 
     name: str
