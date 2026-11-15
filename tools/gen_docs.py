@@ -1169,7 +1169,9 @@ def render(task: str) -> str:
             "Where measured (one variant per family), a variant's table also lists portable under `torch.compile` "
             "and the fp16 TensorRT engine of portable ([export](../export.md); "
             "memory: the engine's device memory + torch's peak). "
-            f"{_DASH} = not measured; no kernels = the family has no kernels backend (reason under its table)."
+            f"{_DASH} = not measured; no kernels = the family has no kernels backend (reason under its table). "
+            "Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few "
+            "percent to some tens of percent more than portable at the same allocated peak."
             + (f" The accuracy column is lower-is-better ({_OVERVIEW_ACC[task][2]})." if task in _OVERVIEW_ACC else "")
         ),
         "",

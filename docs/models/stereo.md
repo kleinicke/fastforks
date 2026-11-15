@@ -6,7 +6,7 @@
 
 Input: a rectified left / right image pair. Output: a disparity map (pixels, left view).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). The accuracy column is lower-is-better (ETH3D bad > 1 px (%)).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 994x1482: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak. The accuracy column is lower-is-better (ETH3D bad > 1 px (%)).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -1247,7 +1247,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - The original code's LAS1 (LiteAnyStereo.pth, another architecture) is not included.
-- Portable LAS2-H at 375 x 1242 is faster than the original code (35.6 vs 36.4 ms) but peaks 13 MB (3.7 %) higher (365 vs 352 MB).
+- Portable LAS2-H at 375 x 1242 is faster than the original code (35.6 vs 36.4 ms) but peaks 13 MB (3.7 %) higher (365 vs 352 MB). Kernels at 994 x 1482 allocate less than the original (917 vs 1022 MB) but reserve more (1248 vs 1084 MB): graph / cuDNN workspace blocks.
 
 </details>
 

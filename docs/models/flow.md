@@ -6,7 +6,7 @@
 
 Input: two RGB images (consecutive frames). Output: per-pixel motion from the first to the second (dx, dy in pixels).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). The accuracy column is lower-is-better (KITTI 2015 train EPE (px)).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak. The accuracy column is lower-is-better (KITTI 2015 train EPE (px)).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -595,7 +595,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
-- Portable at 375 x 1242 runs 13.9 ms vs 12.2 ms for the authors' half-precision lookup (14 % slower, 235 vs 310 MB): lookup, matching and upsampling stay float32 on purpose (lower KITTI EPE, all three checkpoints); fp16 lookup output or channels_last gave no speed-up without changing the flow.
+- Portable at 375 x 1242 runs 15.1 ms vs 12.2 ms for the authors' fp16 lookup (24 % slower, launch-bound; at 1080 x 1920 it is faster, 71.4 vs 75.8 ms): lookup, matching and upsampling stay float32 on purpose (lower KITTI EPE); fp16 lookup or channels_last did not help.
 - Kernels (raft_flow) run 12.0 ms / 205 MB, faster than the original, but the binary is not on Hugging Face yet; it is built locally and found through FASTFORKS_KERNEL_PATH.
 
 </details>

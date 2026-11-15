@@ -6,6 +6,7 @@ outputs = ["logits"]
 uses = ["libnet"]  # fastforks.shared modules this family imports
 limitations = [
   "An image with an alpha channel is not composited on white first, as the reference script does: pass RGB.",
+  "Kernels allocate as much as portable (673 vs 669 MB) but reserve 806 vs 684 MB (graph / kernel workspace blocks); both are below the float32 original (1299 / 1324 MB).",
 ]
 # Multi-label: `probs` is the sigmoid of each logit. Classes 0-3 are the ratings (general, sensitive, questionable,
 # explicit), 4-8109 general tags, 8110-10860 characters; the reference script keeps general tags above 0.35 and

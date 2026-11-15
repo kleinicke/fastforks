@@ -6,7 +6,7 @@ outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "fasternet"]  # fastforks.shared modules this family imports
 limitations = [
   "The original code's LAS1 (LiteAnyStereo.pth, another architecture) is not included.",
-  "Portable LAS2-H at 375 x 1242 is faster than the original code (35.6 vs 36.4 ms) but peaks 13 MB (3.7 %) higher (365 vs 352 MB).",
+  "Portable LAS2-H at 375 x 1242 is faster than the original code (35.6 vs 36.4 ms) but peaks 13 MB (3.7 %) higher (365 vs 352 MB). Kernels at 994 x 1482 allocate less than the original (917 vs 1022 MB) but reserve more (1248 vs 1084 MB): graph / cuDNN workspace blocks.",
 ]
 licence_notes = [
   "Trained on a mixture that includes NVIDIA's FSD dataset and Dynamic Replica, whose terms for commercial use of trained models are unclear (the repository lists no data terms); the status does not depend on the training data.",

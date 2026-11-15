@@ -1,0 +1,14 @@
+ref,family,input,orig_ms,port_ms,k_ms,orig_alloc,port_alloc,k_alloc,orig_res,port_res,k_res,port_note,flags
+crestereo-eth3d,crestereo,375x1242,480.0,209.41,83.11,516,315,245,640,370,292,,i_mixed_torch_in_comparison
+crestereo-eth3d,crestereo,994x1482,1597.36,731.79,228.95,1541,884,644,1752,1030,732,,i_mixed_torch_in_comparison
+hitnet-eth3d,hitnet,375x1242,46.02,22.44,7.41,746,341,208,,510,728,,c_kernels_reserved_above_portable;i_mixed_torch_in_comparison
+hitnet-eth3d,hitnet,994x1482,182.21,67.78,23.16,2433,860,647,,1090,1248,,c_kernels_reserved_above_portable;i_mixed_torch_in_comparison
+hitnet-middlebury-d400,hitnet,375x1242,130.18,52.6,17.01,2124,698,425,,1074,1428,,c_kernels_reserved_above_portable;i_mixed_torch_in_comparison
+hitnet-middlebury-d400,hitnet,994x1482,483.05,176.0,52.73,6831,1744,1263,,2414,2368,,i_mixed_torch_in_comparison
+nnfoundation-cnn,nnfoundation,200x200,273.6,226.721,211.152,3818,3011,2985,4628,3110,3710,,c_kernels_reserved_above_portable;i_mixed_torch_in_comparison
+nnfoundation-vit,nnfoundation,192x192,1930.1,1848.071,1732.144,3930,1669,1669,4298,1884,1884,,i_mixed_torch_in_comparison
+nninteractive,nninteractive,200x200,459.687,215.223,200.97,4076,3075,2643,4636,3492,3072,,i_mixed_torch_in_comparison
+ppocrv5-mobile,ppocrv5,1080x1920,418.29,152.95,,393,289,,1005,448,,,i_mixed_torch_in_comparison
+ppocrv5-server,ppocrv5,1080x1920,762.38,276.52,,2355,1357,,2901,1452,,,i_mixed_torch_in_comparison
+totalsegmentator-total,totalsegmentator,200x200,45629.8,1927.063,1739.526,2640,2605,2349,2874,2944,2704,,a_portable_reserved_above_orig;i_mixed_torch_in_comparison
+totalsegmentator-total-3mm,totalsegmentator,200x200,7269.8,67.084,63.54,2010,1092,1037,2684,1508,1410,,i_mixed_torch_in_comparison

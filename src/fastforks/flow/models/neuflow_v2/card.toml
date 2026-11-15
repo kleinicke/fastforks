@@ -6,7 +6,7 @@ outputs = ["flow"]
 uses = []  # fastforks.shared modules this family imports
 
 limitations = [
-  "Portable at 375 x 1242 runs 13.9 ms vs 12.2 ms for the authors' half-precision lookup (14 % slower, 235 vs 310 MB): lookup, matching and upsampling stay float32 on purpose (lower KITTI EPE, all three checkpoints); fp16 lookup output or channels_last gave no speed-up without changing the flow.",
+  "Portable at 375 x 1242 runs 15.1 ms vs 12.2 ms for the authors' fp16 lookup (24 % slower, launch-bound; at 1080 x 1920 it is faster, 71.4 vs 75.8 ms): lookup, matching and upsampling stay float32 on purpose (lower KITTI EPE); fp16 lookup or channels_last did not help.",
   "Kernels (raft_flow) run 12.0 ms / 205 MB, faster than the original, but the binary is not on Hugging Face yet; it is built locally and found through FASTFORKS_KERNEL_PATH.",
 ]
 

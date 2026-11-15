@@ -6,7 +6,7 @@
 
 Input: a video (its frames in order) and query points `(t, x, y)`. Output: the position of every query in every frame and the probability that it is visible there.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 480x854: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 480x854: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -401,6 +401,7 @@ CPU, float32: max |diff| <= 1.8e-05 vs the original. GPU, float16 (the default),
 
 ### Limitations
 
+- At 480 x 854 portable / kernels peak 1423 / 1368 MB, above the float32 original (1236 MB) but 2.4x / 2.6x faster (1194 / 1109 vs 2861 ms); the original under fp16 autocast needs 1403 MB, like portable.
 - Frames are resized to 384 x 512 (the size the learned position embedding was trained at), whatever their size and aspect ratio.
 - Upstream adds a 20 x 20 grid of support points on frame 0 to every call (option support_grid); they are tracked with the user's queries, so a call costs at least 400 tracked points.
 - Online: a query only sees the frames from its own frame on; frames before it return the query position with visibility 0.
