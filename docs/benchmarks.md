@@ -1781,6 +1781,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | aanet-plus-sceneflow | 994x1482 | 159 ms | 143 ms | 202 ms | 88.9 ms | 89.3 s | 145 s | 1142 / 1278 | 3020 / 3716 | 813 / 920 | 1786 / 1834 |
 | aanet-sceneflow | 994x1482 | 140 ms | 91.8 ms | 91.2 ms | 101 ms | 79.9 s | 211 s | 845 / 986 | 754 / 928 | 536 / 644 | 602 / 620 |
+| bridgedepth-rvc-pretrain | 994x1482 | 442 ms | 337 ms | fails: TensorRT bug: Myelin internal error | 354 ms | 118 s | – | 2968 / 3246 | 2329 / 2360 | 2361 / 2686 | – |
 | bridgedepth-sf | 994x1482 | 437 ms | 325 ms | fails: unsupported: TensorRT 10 Myelin tactic check fails during th | 348 ms | 111 s | – | 2916 / 3214 | 2280 / 2308 | 2310 / 2634 | – |
 | c-fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 451 ms | 135 ms | 75.4 s | 240 s | 2109 / 2336 | 1649 / 1792 | 1196 / 1516 | 1425 / 1462 |
 | c-foundationstereo-s | 994x1482 | 3633 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 6301 / 6430 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
@@ -1801,6 +1802,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | fast-acvnet-plus-sceneflow | 994x1482 | 70.6 ms | 41.9 ms | 40.9 ms | 46.4 ms | 40.6 s | 72.8 s | 662 / 756 | 549 / 830 | 790 / 1120 | 1127 / 1178 |
 | fast-acvnet-sceneflow | 994x1482 | 54.7 ms | 36.2 ms | 36.7 ms | 38.2 ms | 41.8 s | 71.3 s | 664 / 736 | 584 / 698 | 739 / 1042 | 563 / 576 |
 | fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 156 ms | 135 ms | 78.4 s | 157 s | 2109 / 2256 | 1613 / 1752 | 1196 / 1576 | 1342 / 1398 |
+| foundationstereo-vit-l | 994x1482 | 2990 ms | fails: unsupported: cold compile build exceeds the 175 s slice of g | fails: unsupported: cold tensorrt build exceeds the 175 s slice of  | 1513 ms | – | – | 3141 / 3436 | – | 2818 / 3300 | – |
 | foundationstereo-vit-s | 994x1482 | 2514 ms | 2044 ms | 1196 ms | 1120 ms | 212 s | 545 s | 2493 / 2606 | 2822 / 3646 | 2169 / 2470 | 2794 / 2872 |
 | great-igev-eth3d | 994x1482 | 1085 ms | 829 ms | 940 ms | 393 ms | 224 s | 685 s | 1402 / 1678 | 2831 / 3362 | 1192 / 1564 | 6151 / 6172 |
 | great-igev-kitti | 994x1482 | 1085 ms | 830 ms | 942 ms | 393 ms | 225 s | 687 s | 1402 / 1678 | 2831 / 3362 | 1192 / 1564 | 6155 / 6234 |
@@ -1836,6 +1838,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | raft-stereo-sceneflow | 994x1482 | 746 ms | 507 ms | 333 ms | 273 ms | 100 s | 132 s | 1388 / 1492 | 780 / 988 | 765 / 802 | 1014 / 1092 |
 | rt-monster-plusplus-mix-all | 994x1482 | 113 ms | 77.0 ms | 44.1 ms | 89.5 ms | 69.4 s | 150 s | 2581 / 2620 | 2750 / 2942 | 2631 / 3436 | 1139 / 1210 |
 | s2m2-l | 994x1482 | 1015 ms | 650 ms | 497 ms | 376 ms | 144 s | 374 s | 3245 / 3838 | 3169 / 3514 | 1249 / 1568 | 2910 / 2982 |
+| s2m2-m | 994x1482 | 670 ms | 420 ms | fails: unsupported: cold tensorrt build exceeds the 175 s slice of  | 248 ms | 126 s | – | 2300 / 2786 | 2197 / 2572 | 876 / 1162 | – |
 | s2m2-s | 994x1482 | 348 ms | 186 ms | 137 ms | 113 ms | 95.9 s | 363 s | 1733 / 1930 | 1579 / 1710 | 686 / 820 | 1186 / 1240 |
 | s2m2-xl | 994x1482 | 1815 ms | 1298 ms | 753 ms | 682 ms | 153 s | 408 s | 5228 / 6016 | 5594 / 6014 | 2092 / 2274 | 5283 / 5338 |
 | selective-igev-eth3d-finetune | 994x1482 | 998 ms | 691 ms | 461 ms | 349 ms | 126 s | 256 s | 1238 / 1488 | 919 / 1088 | 1109 / 1390 | 1279 / 1316 |
@@ -1884,6 +1887,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | moge-3-vitl | 994x1482 | 332 ms | fails: BackendCompilerFailed: backend='inductor' raised: AssertionE | fails: ONNX export: torch.export failed | 149 ms | – | – | 1678 / 1926 | – | 1626 / 1762 | – |
 | omni-dc | 994x1482 | 554 ms | fails: timeout after 190 s | fails: ONNX export: torch.export failed | – | – | – | 4958 / 6304 | – | – | – |
 | pointdit-b-512 | 994x1482 | 30.7 ms | 23.7 ms | fails: BackendUnavailableError: onnx is not installed: pip install  | 20.6 ms | 33.6 s | – | 450 / 544 | 465 / 524 | 466 / 630 | – |
+| prompt-depth-anything-l | 756x1008 | 125 ms | 117 ms | 75.3 ms | 69.3 ms | 21.2 s | 52.5 s | 1318 / 1488 | 968 / 1148 | 1179 / 1348 | 1649 / 1714 |
 | prompt-depth-anything-s | 756x1008 | 18.4 ms | 16.3 ms | 10.5 ms | 11.4 ms | 14.7 s | 46.6 s | 363 / 442 | 260 / 322 | 297 / 384 | 368 / 410 |
 | stablenormal-turbo | 994x1482 | 289 ms | 238 ms | 118 ms | 180 ms | 76.3 s | 198 s | 3463 / 3628 | 3019 / 3106 | 3037 / 3172 | 5587 / 5626 |
 | unidepth-v2-vitl14 | 994x1482 | 99.8 ms | 96.4 ms | 64.3 ms | 63.0 ms | 31.1 s | 119 s | 1208 / 1472 | 1304 / 1392 | 1166 / 1252 | 1815 / 1842 |
@@ -2166,9 +2170,12 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | c-radio-v4-so400m | 224x224 | 6.33 ms | 14.2 ms | 3.75 ms | 4.25 ms | 11.5 s | 49.0 s | 864 / 906 | 927 / 966 | 864 / 908 | 1695 / 1740 |
 | clip-b16-laion2b | 224x224 | 3.09 ms | 2.41 ms | 1.12 ms | 1.36 ms | 6.49 s | 24.3 s | 202 / 226 | 237 / 266 | 270 / 310 | 394 / 422 |
 | clip-b16-openai | 224x224 | 3.35 ms | 2.39 ms | 1.11 ms | 1.35 ms | 6.37 s | 14.6 s | 204 / 226 | 237 / 266 | 324 / 370 | 394 / 422 |
+| clip-h14-378-dfn5b | 224x224 | 11.4 ms | 11.8 ms | 7.85 ms | 8.22 ms | 13.6 s | 58.9 s | 1254 / 1288 | 1290 / 1328 | 2153 / 2212 | 2468 / 2510 |
+| clip-h14-dfn5b | 224x224 | 11.4 ms | 11.5 ms | 7.76 ms | 8.22 ms | 13.0 s | 36.3 s | 1252 / 1268 | 1289 / 1310 | 2150 / 2192 | 2465 / 2490 |
 | clip-h14-laion2b | 224x224 | 11.2 ms | 11.6 ms | 7.84 ms | 8.26 ms | 14.3 s | 40.6 s | 1249 / 1268 | 1289 / 1310 | 1750 / 1792 | 2467 / 2492 |
 | clip-l14-336-openai | 224x224 | 6.16 ms | 6.36 ms | 4.25 ms | 4.75 ms | 10.7 s | 33.1 s | 625 / 646 | 658 / 686 | 1056 / 1090 | 1235 / 1264 |
 | clip-l14-datacompxl | 224x224 | 5.99 ms | 6.24 ms | 4.19 ms | 4.77 ms | 10.5 s | 32.1 s | 621 / 666 | 658 / 686 | 862 / 930 | 1232 / 1282 |
+| clip-l14-dfn2b | 224x224 | 6.16 ms | 6.16 ms | 4.14 ms | 4.75 ms | 11.4 s | 26.6 s | 623 / 666 | 658 / 686 | 1054 / 1110 | 1230 / 1280 |
 | clip-l14-laion2b | 224x224 | 5.98 ms | 6.19 ms | 4.19 ms | 4.77 ms | 10.4 s | 32.0 s | 621 / 666 | 658 / 686 | 862 / 930 | 1232 / 1282 |
 | clip-l14-openai | 224x224 | 6.16 ms | 6.17 ms | 4.14 ms | 4.74 ms | 10.2 s | 23.0 s | 623 / 666 | 658 / 686 | 1054 / 1110 | 1230 / 1280 |
 | convnext_base.fb_in22k | 224x224 | 5.57 ms | 3.21 ms | 1.51 ms | 1.96 ms | 10.2 s | 29.9 s | 289 / 296 | 321 / 334 | 204 / 216 | 480 / 494 |
@@ -2224,6 +2231,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | fails: unsupported: fp16 engine output is all NaN (strongly-typed f | 35.2 ms | 153 s | – | 931 / 1226 | 818 / 860 | 702 / 760 | – |
 | mvsplat-re10k | 336x518 | 181 ms | 115 ms | fails: ONNX export: conversion failed | 172 ms | 102 s | – | 1239 / 1532 | 2762 / 2810 | 1239 / 1532 | – |
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
+| pi3 | 336x518 | 821 ms | 752 ms | fails: ONNX export: conversion failed | 560 ms | 55.6 s | – | 2360 / 2416 | 2205 / 2334 | 2367 / 2456 | – |
 | resplat-small-dl3dv | 480x640 | 1723 ms | fails: timeout after 190 s | fails: TypeError: _Base.forward() missing 1 required positional arg | – | – | – | 4995 / 5180 | – | – | – |
 | vggt-1b | 336x518 | 651 ms | 557 ms | 424 ms | 458 ms | 74.3 s | 199 s | 3691 / 4674 | 3611 / 3856 | 3702 / 4654 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 464 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3422 / 3518 | 5657 / 5766 |

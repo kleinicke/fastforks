@@ -187,9 +187,9 @@ Commercial use: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `cl
 | `clip-l14-laion2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.6<br>10.1<br>5.98<br>4.77<br>6.19<br>4.19 | 1205 / 1214<br>1779 / 1812<br>621 / 666<br>862 / 930<br>658 / 686<br>1232 / 1282 |
 | `clip-h14-laion2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47.2<br>19.3<br>11.2<br>8.26<br>11.6<br>7.84 | 2524 / 2580<br>3720 / 4032<br>1249 / 1268<br>1750 / 1792<br>1289 / 1310<br>2467 / 2492 |
 | `clip-l14-datacompxl` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.6<br>10.1<br>5.99<br>4.77<br>6.24<br>4.19 | 1205 / 1214<br>1779 / 1812<br>621 / 666<br>862 / 930<br>658 / 686<br>1232 / 1282 |
-| `clip-l14-dfn2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 22.0<br>10.6<br>6.16<br>4.75 | 1210 / 1214<br>1779 / 1812<br>623 / 666<br>1054 / 1110 |
-| `clip-h14-dfn5b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 47.5<br>19.4<br>11.4<br>8.22 | 2529 / 2600<br>3720 / 4038<br>1252 / 1268<br>2150 / 2192 |
-| `clip-h14-378-dfn5b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 47.9<br>19.5<br>11.4<br>8.22 | 2530 / 2600<br>3722 / 4038<br>1254 / 1288<br>2153 / 2212 |
+| `clip-l14-dfn2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.0<br>10.6<br>6.16<br>4.75<br>6.16<br>4.14 | 1210 / 1214<br>1779 / 1812<br>623 / 666<br>1054 / 1110<br>658 / 686<br>1230 / 1280 |
+| `clip-h14-dfn5b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47.5<br>19.4<br>11.4<br>8.22<br>11.5<br>7.76 | 2529 / 2600<br>3720 / 4038<br>1252 / 1268<br>2150 / 2192<br>1289 / 1310<br>2465 / 2490 |
+| `clip-h14-378-dfn5b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47.9<br>19.5<br>11.4<br>8.22<br>11.8<br>7.85 | 2530 / 2600<br>3722 / 4038<br>1254 / 1288<br>2153 / 2212<br>1290 / 1328<br>2468 / 2510 |
 
 <details><summary>Details</summary>
 
@@ -230,6 +230,9 @@ Commercial use: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `cl
 - `clip-l14-laion2b` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 32 s (ONNX + engine).
 - `clip-h14-laion2b` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `clip-l14-datacompxl` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 32 s (ONNX + engine).
+- `clip-l14-dfn2b` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 27 s (ONNX + engine).
+- `clip-h14-dfn5b` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
+- `clip-h14-378-dfn5b` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 59 s (ONNX + engine).
 - `clip-b16-openai` original (fp32) 224x224: timm 1.0.30 create_model(dynamic_img_size=True), forward_head(pre_logits=True)
 - `clip-b16-openai` original 224x224: torch.autocast(fp16) around the forward; timm 1.0.30 create_model(dynamic_img_size=True), forward_head(pre_logits=True)
 - `clip-l14-openai` original (fp32) 224x224: timm 1.0.30 create_model(dynamic_img_size=True), forward_head(pre_logits=True)

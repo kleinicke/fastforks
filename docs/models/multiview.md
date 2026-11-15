@@ -394,7 +394,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `pi3` | synthetic (336x518) | original<br>portable<br>kernels | 1057<br>821<br>560 | 5926 / 6016<br>2360 / 2416<br>2367 / 2456 |
+| `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>821<br>560<br>752<br>fails: ONNX export: conversion failed | 5926 / 6016<br>2360 / 2416<br>2367 / 2456<br>2205 / 2334<br>– |
 
 <details><summary>Details</summary>
 
@@ -411,6 +411,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Outputs: depth, confidence, world_points, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pi3` 3000x4000 (4.8 GiB peak allocated, 6.5 reserved)
+- `pi3` 336x518, first call: portable + torch.compile 56 s (cold Inductor cache).
 - `pi3` original 336x518: the authors' mixed-precision option (bfloat16); yyfz/Pi3@9fa3ddb3f8d5 Pi3.forward, PIXEL_LIMIT 255000
 - `pi3` load / first call: original 10.64 s / 4.059 s (336x518), portable 2.35 s / 1.242 s (336x518), kernels 3.54 s / 0.69 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
