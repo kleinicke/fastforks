@@ -697,7 +697,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 ## Marigold V2
 
-Relative depth from one photo by a very large image-generation model run for a single step: accurate but slow and memory-hungry (about 10 GB, or 2 GB with the stream option).
+Relative depth from one photo by a very large image-generation model run for a single step: accurate but slow and memory-hungry (about 2 GB of GPU memory, 9 GB of host RAM).
 
 Commercial use: yes.
 
@@ -714,7 +714,7 @@ Commercial use: yes.
 - Licence evidence: https://huggingface.co/huawei-bayerlab/marigold-v2/blob/main/README.md (license: apache-2.0; base model Qwen/Qwen-Image-Edit-2509)
 - Training data: Qwen-Image-Edit-2509 (Alibaba, Apache-2.0) fine-tuned (LoRA + VAE decoder) on synthetic depth data per the Marigold V2 paper (arXiv 2609.08084); the training data terms are not checked
 - Licence note: The converted weight file (NF4 transformer, LoRA, folded constants, 2-D VAE) is hosted by fastforks under the originals' Apache-2.0 licence; NOTICE keeps both attributions and lists the changes.
-- Options: `seed` = 2026, `long_side` = 0 (>= 0), `exact_mask` = False, `stream` = False
+- Options: `seed` = 2026, `long_side` = 0 (>= 0), `exact_mask` = False, `stream` = True
 - Kernel libraries: `nf4`
 - Variants: `marigold-v2-depth`
 - Outputs: depth; kind: `affine_invariant_log`
@@ -733,7 +733,7 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 
 ### Limitations
 
-- 20 B transformer in 4 bit: 8.4 GB of weights; the resident model needs about 9-11 GB of device memory (16 GB cards: up to ~1024 px); `stream=True` runs it in ~1-4 GB of device memory (8.4 GB of page-locked host memory) for ~1 % more time.
+- 20 B transformer in 4 bit: 8.4 GB of weights; by default (`stream=True`, CUDA) it runs in ~1-4 GB of device memory from 8.4 GB of page-locked host RAM (load fails with an error when less is free); `stream=False` keeps it resident (about 9-11 GB of device memory, 16 GB cards: up to ~1024 px).
 - Diffusion model: the VAE posterior sample comes from a CPU generator seeded with `seed` and differs from the original code's (unseeded, device) sample.
 - The enlargement to a multiple of 16 is bicubic (the original: OpenCV Lanczos); inputs with sides that are multiples of 16 are not resized.
 - The output is log depth up to scale and shift (`kind = "affine_invariant_log"`): align in log space, not with the other families' depth outputs.

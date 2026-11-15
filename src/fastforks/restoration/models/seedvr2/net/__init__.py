@@ -136,9 +136,7 @@ def load(dit: Path, vae: Path, device: torch.device, variant: str, *, stream: bo
     `stream` keeps the transformer blocks on the host (page-locked); `quant = "nf4"` stores the blocks' linear weights
     in NF4 and expands each per call with the plain-PyTorch table gather (`fastforks.shared.nf4.dequant_lut`).
     """
-    if stream and device.type != "cuda":
-        msg = "stream=True needs a CUDA device"
-        raise ValueError(msg)
+    stream = stream and device.type == "cuda"  # page-locked streaming is CUDA only; other devices stay resident
     cfg = CONFIGS[variant]
     if quant not in ("none", "nf4"):
         msg = f"quant must be 'none' or 'nf4', got {quant!r}"

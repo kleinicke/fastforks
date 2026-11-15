@@ -6,9 +6,10 @@ import pytest
 import torch
 import torch.nn.functional as F
 
+import fastforks.restoration
 from fastforks._core import registry
 from fastforks.restoration.models.seedvr2.net.vae import CausalConv3d, State
-from fastforks.shared import nf4
+from fastforks.shared import host_blocks, nf4
 
 
 def test_card_variants() -> None:
@@ -68,3 +69,28 @@ def test_causal_conv_framewise_and_chunked(kernel: int, stride: int, padding: in
     torch.testing.assert_close(whole, want)
     if stride == 1:
         torch.testing.assert_close(torch.cat([first, rest], 2), want)
+
+
+def test_stream_and_resident_ram_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Streaming pins host RAM: a clearly too small free RAM is an error at load, not an OOM kill (CPU)."""
+    monkeypatch.setattr(host_blocks, "available_host_bytes", lambda: 2**30)
+    with pytest.raises(MemoryError, match="stream=False"):
+        host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
+    monkeypatch.setattr(host_blocks, "available_host_bytes", lambda: 40 * 2**30)
+    host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
+    monkeypatch.setattr(host_blocks, "available_host_bytes", lambda: None)  # unreadable (not Linux): no check
+    host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_stream_false_is_bit_identical() -> None:
+    """The resident path (`stream=False`) gives the streamed default's output bit for bit (3 B, small frame)."""
+    x = torch.rand(3, 64, 64, generator=torch.Generator().manual_seed(0)).mul(255).byte().permute(1, 2, 0).numpy()
+    out = []
+    for s in (True, False):
+        model = fastforks.restoration.load("seedvr2-3b", mode="portable", device="cuda", stream=s)
+        out.append(torch.as_tensor(model(x).image).clone())
+        del model
+        torch.cuda.empty_cache()
+    assert torch.equal(*out)

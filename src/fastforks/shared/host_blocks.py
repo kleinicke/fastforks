@@ -26,6 +26,34 @@ def _up(n: int) -> int:
     return -(-n // ALIGN) * ALIGN
 
 
+def available_host_bytes() -> int | None:
+    """Host RAM available without swapping (Linux `MemAvailable`); None where it cannot be read."""
+    try:
+        with open("/proc/meminfo", encoding="ascii") as f:  # noqa: PTH123
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) * 1024
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def require_host_ram(need: int, what: str) -> None:
+    """Fail with a clear error when the free host RAM is clearly too small for `need` bytes of page-locked memory.
+
+    Page-locked memory cannot be swapped: without the check the process is killed for lack of memory. Clearly too small:
+    less than `need` plus 1 GiB for the rest of the process is available.
+    """
+    free = available_host_bytes()
+    if free is not None and free < need + 2**30:
+        msg = (
+            f"{what} keeps its transformer blocks in {need / 2**30:.1f} GiB of page-locked host memory, but only "
+            f"{free / 2**30:.1f} GiB of host RAM are available: free memory (close other programs), pass "
+            "stream=False (the blocks then need the device memory instead) or use a machine with more RAM"
+        )
+        raise MemoryError(msg)
+
+
 def _unregister(ptr: int) -> None:
     torch.cuda.cudart().cudaHostUnregister(ptr)
 
@@ -50,6 +78,7 @@ class HostBlocks:
             self.layout.append(rows)
             pos += off
         self.sizes = [s - a for a, s in zip(self.starts, [*self.starts[1:], pos], strict=True)]
+        require_host_ram(pos, "this model")
         self.buf = torch.empty(pos, dtype=torch.uint8)
         for i, rows in enumerate(self.layout):
             for k, dt, shape, off, n in rows:

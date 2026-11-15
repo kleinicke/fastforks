@@ -44,6 +44,7 @@ In this order, unless something more useful turns up:
   and Mac speed rows (1080x1920 page, 32x128 crop). No kernels runner. Weights: the pinned Hugging Face (PP-OCRv5) and
   GitHub release (PARSeq) URLs of the cards (also in `/home/florian/projects/data/ff-weights/ppocrv5/` and
   `/home/florian/projects/data/ff-weights/parseq/`).
+- **Since 2026-11-15 `stream` defaults to True (CUDA only; MPS / CPU stay resident) for SeedVR2 and Marigold V2: Mac re-measures Marigold V2 and SeedVR2 after this change (speed rows and goldens).**
 - SeedVR2 (`seedvr2-3b`, `seedvr2-7b`, restoration): portable MPS goldens and Mac speed rows (512x512 -> 1024x1024;
   7B only with `stream=True` or `quant="nf4"` below 32 GB). No kernels runner (nf4 is CUDA only). Weights: converted
   bf16 files in `/home/florian/projects/data/ff-weights/seedvr2/` (7B on /mnt/hdd, symlinked); HF repos not created yet.

@@ -8,8 +8,8 @@ limitations = [
   "One frame per call: the clip mode of the original (temporal attention over 4n + 1 frames) is not used by this image API.",
   "The input is padded on the bottom and right (replicate) so that `scale x` its size is a multiple of 16, and the output cropped back; the original centre-crops the resized frame to a multiple of 16 instead.",
   "No colour fix: the authors' scripts optionally match the output colours to the input with StableSR's wavelet reconstruction (non-commercial code), which is not included.",
-  "The 3 B model needs ~7 GB for its weights plus the VAE's activations (~14 GB peak at 960 x 1696 output); `stream=True` keeps the transformer blocks in page-locked host memory (~9 GB peak at that size).",
-  "The 7 B model's weights are 16.5 GB in bf16: on a 16 GB GPU it needs `stream=True` (blocks in ~16 GB of page-locked host memory) or `quant=\"nf4\"` (~4.6 GB resident); without either it runs out of memory.",
+  "The 3 B model needs ~7 GB for its weights plus the VAE's activations (~14 GB peak at 960 x 1696 output); `stream=False` keeps them resident; by default (`stream=True`, CUDA) they stay in ~6.6 GB of page-locked host RAM (~9 GB peak at that size).",
+  "The 7 B model's weights are 16.5 GB in bf16: it runs with the default `stream=True` (blocks in ~16.5 GB of page-locked host RAM; load fails with an error when less is free) or `quant=\"nf4\"` (~4.6 GB resident); with `stream=false` and no quant it runs out of GPU memory.",
   "`quant=\"nf4\"` changes the generated detail: 23-27 dB PSNR against the bf16 output (3 B, 4 clips; 7 B: 26-31 dB, 2 clips), about as far as another `seed` (18-24 dB), with ~3.5x smaller transformer blocks.",
 ]
 licence_notes = [
@@ -39,7 +39,7 @@ variant = "3b"
 
 [options]
 seed = 666  # seed of the CPU generator of both noises (upstream's default); the output depends on it
-stream = false  # keep the transformer blocks in pinned host memory and upload one at a time (printed when on)
+stream = true  # transformer blocks in pinned host memory, uploaded one at a time (3B: ~6.6 GB, 7B: ~16.5 GB of free host RAM needed, load fails with a clear error otherwise; CUDA only). Switch off with stream=false when host RAM is short or for tiny inputs where it costs more
 quant = { default = "none", choices = ["none", "nf4"] }  # "nf4": the transformer blocks' linear weights in 4 bit, quantised at load (printed when on; changes the generated detail, see limitations)
 
 [modes.portable]

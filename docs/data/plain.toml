@@ -216,7 +216,7 @@ nafnet = "NAFNet (Chen et al., ECCV 2022): a nonlinear-activation-free U-Net tha
 restormer = "Restormer (Zamir et al., CVPR 2022): a transposed-attention U-Net transformer that removes motion blur (GoPro), rain streaks (Rain13K) or real camera noise (SIDD). MIT code and weights."
 hat = "HAT (Chen et al., CVPR 2023): a x4 upscaler mixing window attention, channel attention and overlapping cross-attention: two models for clean (bicubic) images (large and small) and a GAN model for real-world photos. Apache-2.0 code and weights."
 swinir = "SwinIR (Liang et al., ICCVW 2021): a Swin Transformer upscaler: x4 / x2 for clean (bicubic) images and x4 for real-world photos (medium and large). Apache-2.0 code and weights."
-seedvr2 = "SeedVR2 (Wang et al., ByteDance Seed, 2025): upscales and restores photos and video frames x2 with a large diffusion transformer run for a single step; 3 B and 7 B versions, the 7 B with the stream or 4-bit option on 16 GB. Apache-2.0 code and weights."
+seedvr2 = "SeedVR2 (Wang et al., ByteDance Seed, 2025): upscales and restores photos and video frames x2 with a large diffusion transformer run for a single step; 3 B and 7 B versions, the 7 B runs on 16 GB with weight streaming (default, ~17 GB free host RAM). Apache-2.0 code and weights."
 lama = "LaMa big-lama (Suvorov et al., Samsung AI, WACV 2022): fills the masked hole of an image (object removal) with a fast-Fourier-convolution network trained on scene photos. Apache-2.0 code and weights; the Places365 training images are for research use only (see the card)."
 
 # --- tracking
@@ -231,4 +231,4 @@ geocalib = "GeoCalib (ETH Zurich / Microsoft, 2024): the camera of one photo (fo
 anycalib = "AnyCalib (University of Zaragoza, ICCV 2025): the camera of one photo (focal length, principal point, field of view) from one predicted viewing ray per pixel and a fit; no checkerboard needed, no gravity. Apache-2.0 code and weights; trained on crops of public 360-degree panoramas."
 boq = "BoQ, Bag-of-Queries (Université Laval, 2024): one descriptor per photo to find photos of the same place (place recognition, loop closure); DINOv2 ViT-B with learned queries that read out the image features. MIT code and weights."
 totalsegmentator = "TotalSegmentator (University Hospital Basel): nnU-Net v2 networks that label 117 anatomical structures (organs, bones, muscles, vessels) in CT volumes, at 1.5 mm (five networks) or 3 mm (one, faster). Commercially usable (Apache-2.0 code and weights)."
-marigold_v2 = "Relative depth from one photo by a very large image-generation model run for a single step: accurate but slow and memory-hungry (about 10 GB, or 2 GB with the stream option)."
+marigold_v2 = "Relative depth from one photo by a very large image-generation model run for a single step: accurate but slow and memory-hungry (about 2 GB of GPU memory, 9 GB of host RAM)."

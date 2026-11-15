@@ -9,7 +9,7 @@ multiple of 16 and crops the output back, so every pixel is restored. Both noise
 diffusion noise) come from one CPU generator seeded with `seed` (upstream's default 666, drawn in the same order and
 shapes), so a seed and size give the same noise on every device and in every mode.
 
-`stream` keeps the transformer blocks in page-locked host memory and uploads one at a time
+`stream` (default on, CUDA) keeps the transformer blocks in page-locked host memory and uploads one at a time
 (`fastforks.shared.host_blocks`); `quant = "nf4"` quantises the blocks' linear weights to NF4 at load (bitsandbytes'
 format, `fastforks.shared.nf4`) and expands each to bf16 per call: ~3.5x smaller transformer, a small quality cost
 (results/2026-11-14_seedvr2.md). Both are explicit options, printed when used, never silent fallbacks. The kernels
@@ -81,7 +81,7 @@ def infer(net: Net, image: torch.Tensor, scale: int, noise: Noise) -> torch.Tens
 
 
 def _announce(ctx: Context) -> None:
-    if ctx.params.stream:
+    if ctx.params.stream and ctx.device.type == "cuda":
         print(f"{ctx.variant.ref}: stream=True, transformer blocks are uploaded per block from pinned host memory")  # noqa: T201
     if ctx.params.quant != "none":
         print(f"{ctx.variant.ref}: quant={ctx.params.quant!r}, transformer block weights quantised at load")  # noqa: T201

@@ -8,9 +8,9 @@ the checkpoint's fixed timestep, `latent - velocity`, VAE decode, mean of the th
 size (bilinear). The output is log depth up to an unknown scale and shift (`kind = "affine_invariant_log"`), in
 `[-1, 1]` as the decoder clamps it.
 
-`long_side` (ours) scales the longest side first; `stream` keeps the 60 transformer blocks pinned on the host and
-uploads one at a time (~1-3 GB of device memory instead of ~9.5 GB, some transfer time per image): an explicit
-option, printed when used, never a silent fallback.
+`long_side` (ours) scales the longest side first; `stream` (default on, CUDA only) keeps the 60 transformer blocks
+pinned on the host and uploads one at a time (~1-3 GB of device memory instead of ~9.5 GB, ~0.4 % time); printed when
+on, off with `stream=False`.
 """
 
 from __future__ import annotations
@@ -100,7 +100,7 @@ def infer(net: Net, image: torch.Tensor, params: Params, noise: Noise) -> torch.
 
 
 def _announce(ctx: Context) -> None:
-    if ctx.params.stream:
+    if ctx.params.stream and ctx.device.type == "cuda":
         print(f"{ctx.variant.ref}: stream=True, transformer blocks are uploaded per block from pinned host memory")  # noqa: T201
 
 

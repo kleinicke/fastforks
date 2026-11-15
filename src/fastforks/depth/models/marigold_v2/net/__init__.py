@@ -110,9 +110,7 @@ _DTYPES = {"U8": torch.uint8, "BF16": torch.bfloat16, "F32": torch.float32, "F16
 
 def load(ctx: Context, *, stream: bool, fused: bool = False, exact_mask: bool = False) -> Net:
     """The network on `ctx.device`, in eval mode; `stream` keeps the transformer blocks on the host (page-locked)."""
-    if stream and ctx.device.type != "cuda":
-        msg = "stream=True needs a CUDA device"
-        raise ValueError(msg)
+    stream = stream and ctx.device.type == "cuda"  # page-locked streaming is CUDA only; other devices stay resident
     t, host = _read(ctx, ctx.device, stream=stream)
     net = Net(t, host=host, fused=fused, exact_mask=exact_mask).to(ctx.device)
     del t

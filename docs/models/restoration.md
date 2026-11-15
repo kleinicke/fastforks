@@ -645,7 +645,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ## SeedVR2
 
-SeedVR2 (Wang et al., ByteDance Seed, 2025): upscales and restores photos and video frames x2 with a large diffusion transformer run for a single step; 3 B and 7 B versions, the 7 B with the stream or 4-bit option on 16 GB. Apache-2.0 code and weights.
+SeedVR2 (Wang et al., ByteDance Seed, 2025): upscales and restores photos and video frames x2 with a large diffusion transformer run for a single step; 3 B and 7 B versions, the 7 B runs on 16 GB with weight streaming (default, ~17 GB free host RAM). Apache-2.0 code and weights.
 
 Commercial use: yes.
 
@@ -663,12 +663,12 @@ Commercial use: yes.
 - Licence evidence: https://github.com/ByteDance-Seed/SeedVR/blob/e4de8c24441a67e1b7df56abea10645059bb1185/LICENSE ; https://huggingface.co/ByteDance-Seed/SeedVR2-3B (license: apache-2.0)
 - Training data: Paper (arXiv 2506.05301): adversarial post-training of SeedVR on large-scale image and video data with synthetic degradations; the data sources and terms are not stated.
 - Licence note: The converted weight files (bf16 transformer with the fixed prompt embedding, bf16 VAE) are hosted by fastforks under the originals' Apache-2.0 licence; NOTICE keeps the attribution and lists the changes.
-- Options: `seed` = 666, `stream` = False, `quant` = none (one of 'none', 'nf4')
+- Options: `seed` = 666, `stream` = True, `quant` = none (one of 'none', 'nf4')
 - Kernel libraries: `nf4`
 - Variants: `seedvr2-3b`, `seedvr2-7b`
 - Outputs: image
 - Input size: any H x W >= 8, padded to a multiple of 8
-- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `seedvr2-3b` 512x512 (11.7 GiB peak allocated, 15.0 reserved); `seedvr2-7b` not measured yet
+- Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `seedvr2-3b` 512x512 (11.7 GiB peak allocated, 15.0 reserved); `seedvr2-7b` 512x512 (6.3 GiB peak allocated, 8.7 reserved)
 - `seedvr2-3b` original 512x512: load: the authors' fp32 .pth files from the page cache (read once before)
 - `seedvr2-3b` load / first call: original 96.2 s / 13.89 s, portable 8.09 s / 2.508 s, kernels 5.29 s / 2.453 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -688,8 +688,8 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 - One frame per call: the clip mode of the original (temporal attention over 4n + 1 frames) is not used by this image API.
 - The input is padded on the bottom and right (replicate) so that `scale x` its size is a multiple of 16, and the output cropped back; the original centre-crops the resized frame to a multiple of 16 instead.
 - No colour fix: the authors' scripts optionally match the output colours to the input with StableSR's wavelet reconstruction (non-commercial code), which is not included.
-- The 3 B model needs ~7 GB for its weights plus the VAE's activations (~14 GB peak at 960 x 1696 output); `stream=True` keeps the transformer blocks in page-locked host memory (~9 GB peak at that size).
-- The 7 B model's weights are 16.5 GB in bf16: on a 16 GB GPU it needs `stream=True` (blocks in ~16 GB of page-locked host memory) or `quant="nf4"` (~4.6 GB resident); without either it runs out of memory.
+- The 3 B model needs ~7 GB for its weights plus the VAE's activations (~14 GB peak at 960 x 1696 output); `stream=False` keeps them resident; by default (`stream=True`, CUDA) they stay in ~6.6 GB of page-locked host RAM (~9 GB peak at that size).
+- The 7 B model's weights are 16.5 GB in bf16: it runs with the default `stream=True` (blocks in ~16.5 GB of page-locked host RAM; load fails with an error when less is free) or `quant="nf4"` (~4.6 GB resident); with `stream=false` and no quant it runs out of GPU memory.
 - `quant="nf4"` changes the generated detail: 23-27 dB PSNR against the bf16 output (3 B, 4 clips; 7 B: 26-31 dB, 2 clips), about as far as another `seed` (18-24 dB), with ~3.5x smaller transformer blocks.
 
 </details>
