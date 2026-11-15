@@ -4,6 +4,9 @@
 
 ### API changes
 
+- Features known not to work in this release are gated: a card's `planned = { onnx = "reason" }` (also `load`,
+  `kernels`, `compile`, `tensorrt`) makes that call raise `BackendUnavailableError: ... not available in 0.2.0,
+  planned for 0.2.1: <reason>` before any work; `mode="auto"` skips gated kernels. The model pages list them.
 Renames in the tasks and models added since 0.1.1 (0.1.1 names change only as listed under "Renamed 0.1.1 names",
 with a warning; `tests/api_snapshot.txt` freezes the public API from now on):
 
