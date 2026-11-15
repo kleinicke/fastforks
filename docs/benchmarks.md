@@ -1168,6 +1168,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | restormer-derain | 234 | 228 | 180 | 1.3x | 1.3x | 1221 / 1418 | 850 / 1000 | 850 / 920 |
 | restormer-sidd | 218 | 181 | 179 | 1.2x | 1.0x | 1221 / 1416 | 850 / 920 | 850 / 940 |
 | seedvr2-3b | 13150 | 2295 | 2295 | 5.7x | 1.0x | 7598 / 15268 | 6140 / 6772 | 6140 / 6772 |
+| seedvr2-7b | OOM | 2715 | 2712 | – | 1.0x | – | 6419 / 8880 | 6419 / 8880 |
 | span-x2 | 24.6 | 23.5 | 14.9 | 1.6x | 1.6x | 611 / 648 | 607 / 662 | 487 / 522 |
 | span-x4 | 26.9 | 24.2 | 14.6 | 1.8x | 1.7x | 611 / 648 | 607 / 662 | 487 / 522 |
 | swin2sr-x2 | 2565 | 909 | 720 | 3.6x | 1.3x | 1488 / 1578 | 1459 / 1554 | 1459 / 1636 |
@@ -1751,6 +1752,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | restormer-derain | 0.34 | 0.29 | 0.58 | 0.90 | 0.72 | 0.53 |
 | restormer-sidd | 0.34 | 0.29 | 0.59 | 0.89 | 0.89 | 0.53 |
 | seedvr2-3b | 96.20 | 4.88 | 4.90 | 13.89 | 2.49 | 2.50 |
+| seedvr2-7b | – | 222.77 | 118.43 | – | 3.17 | 3.18 |
 | span-x2 | 0.23 | 0.10 | 2.88 | 0.32 | 0.26 | 0.10 |
 | span-x4 | 0.45 | 0.10 | 1.11 | 0.58 | 0.26 | 0.05 |
 | swin2sr-x2 | 1.81 | 0.37 | 0.56 | 4.12 | 1.23 | 0.84 |
@@ -2335,7 +2337,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 180 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 850 / 920 | 757 / 774 |
 | restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 179 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 850 / 940 | 757 / 774 |
 | seedvr2-3b | 512x512 | 2295 ms | deferred (build >5 min) | fails: not run: onnx is not installed in the test venv | 2295 ms | – | – | 6140 / 6772 | – | 6140 / 6772 | – |
-| seedvr2-7b | 512x512 | – | fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat | deferred (build >5 min) | – | – | – | – | – | – | – |
+| seedvr2-7b | 512x512 | 2715 ms | fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat | deferred (build >5 min) | 2712 ms | – | – | 6419 / 8880 | – | 6419 / 8880 | – |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
 | span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |
 | swin2sr-x2 | 512x512 | 909 ms | 482 ms | 547 ms | 720 ms | 43.7 s | 112 s | 1459 / 1554 | 1308 / 1516 | 1459 / 1636 | 4941 / 4997 |

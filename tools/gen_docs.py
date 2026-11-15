@@ -356,8 +356,17 @@ def _oom() -> frozenset[tuple[str, str, str]]:
     """(ref, mode, input) of the speed.jsonl rows that ran out of GPU memory (`status: "oom"`, no time)."""
     path = ROOT / "docs" / "data" / "speed.jsonl"
     lines = path.read_text().splitlines() if path.is_file() else []
-    rows = [json.loads(line) for line in lines if '"oom"' in line]
-    return frozenset((r["ref"], r["mode"], r["input"]) for r in rows if r.get("status") == "oom")
+    rows = [json.loads(line) for line in lines if line.strip()]
+    timed: dict[tuple[str, str, str], str] = {}  # newest date of a measured (ms) row per key
+    for r in rows:
+        if r.get("status") != "oom" and "ms" in r and r.get("ms") is not None:
+            key = (r["ref"], r["mode"], r["input"])
+            timed[key] = max(timed.get(key, ""), r.get("date", ""))
+    return frozenset(  # an OOM row older than (or as old as) a measured row of the same key is stale (e.g. before streaming)
+        (r["ref"], r["mode"], r["input"])
+        for r in rows
+        if r.get("status") == "oom" and timed.get((r["ref"], r["mode"], r["input"]), "") < r.get("date", "")
+    )
 
 
 NM = "not measured"

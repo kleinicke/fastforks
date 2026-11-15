@@ -630,3 +630,22 @@ def test_example_check_rejects_a_literal_outside_the_annotation():
     good = ast.parse("fn(mode='a', n=x)").body[0].value
     assert "mode='c'" in (_bind(fn, bad, bound=True) or "")
     assert _bind(fn, good, bound=True) is None
+
+
+def test_oom_row_older_than_a_timed_row_is_stale(tmp_path, monkeypatch):
+    """An OOM row only marks a cell while no measured row of the same key is as new (seedvr2-7b before streaming)."""
+    data = tmp_path / "docs" / "data"
+    data.mkdir(parents=True)
+    rows = [
+        {"ref": "a", "mode": "portable", "input": "1x1", "status": "oom", "date": "2026-11-14"},
+        {"ref": "a", "mode": "portable", "input": "1x1", "ms": 5.0, "side": "lib", "date": "2026-11-14"},
+        {"ref": "b", "mode": "portable", "input": "1x1", "status": "oom", "date": "2026-11-15"},
+        {"ref": "b", "mode": "portable", "input": "1x1", "ms": 5.0, "side": "lib", "date": "2026-11-14"},
+    ]
+    (data / "speed.jsonl").write_text("\n".join(json.dumps(r) for r in rows))
+    monkeypatch.setattr(gen_docs, "ROOT", tmp_path)
+    gen_docs._oom.cache_clear()
+    try:
+        assert gen_docs._oom() == {("b", "portable", "1x1")}
+    finally:
+        gen_docs._oom.cache_clear()
