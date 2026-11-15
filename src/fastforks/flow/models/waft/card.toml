@@ -41,16 +41,16 @@ venue = "arXiv"
 [[variants]]
 id = "waft-a1"  # upstream config/a1/tar-c-t.json, the checkpoint the README recommends for downstream applications
 revision = 1
-weights = [{ mirror = true, name = "waft-a1-tar-c-t.pth", size = 256886970, sha256 = "9f4b24f48b3937eca690a12b73bc3190effde6d4d4c87db01998fe63d846397f", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1CxzBQx0iSg6AyIgt6MF0ROlF_cAeZLPC" }]
+weights = [{ name = "waft-a1-tar-c-t.pth", size = 256886970, sha256 = "9f4b24f48b3937eca690a12b73bc3190effde6d4d4c87db01998fe63d846397f", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1CxzBQx0iSg6AyIgt6MF0ROlF_cAeZLPC" }]
 
 [[variants]]
 id = "waft-a1-kitti"  # upstream config/a1/tar-c-t-kitti.json (its KITTI submission)
 revision = 1
 licence = { training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "TartanAir, FlyingChairs, FlyingThings3D, then fine-tuned on KITTI 2015 (5000 steps; the config does not name the starting checkpoint, counted as the TSKH stage as in SEA-RAFT)" }
-weights = [{ mirror = true, name = "waft-a1-tar-c-t-kitti.pth", size = 256890618, sha256 = "b600f7821a529c0ca014efc228e77f32e0e20f4e0a5a88c29bebf0e635e4092b", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1hzpxBe80BmPCXjo9DvSszdCRsio5vLaB" }]
+weights = [{ name = "waft-a1-tar-c-t-kitti.pth", size = 256890618, sha256 = "b600f7821a529c0ca014efc228e77f32e0e20f4e0a5a88c29bebf0e635e4092b", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1hzpxBe80BmPCXjo9DvSszdCRsio5vLaB" }]
 
 [[variants]]
 id = "waft-a1-sintel"  # upstream config/a1/tar-c-t-sintel.json (its Sintel submission)
 revision = 1
 licence = { training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "TartanAir, FlyingChairs, FlyingThings3D, then the mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH)" }
-weights = [{ mirror = true, name = "waft-a1-tar-c-t-sintel.pth", size = 256889402, sha256 = "e3d95a6df6ec641ef29c766be658aae8698d00b899dc75742d23ff2cd9cf9d4e", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1pAsbH0Orb5mFo4CLCYi4dSm6FjxrOqO3" }]
+weights = [{ name = "waft-a1-tar-c-t-sintel.pth", size = 256889402, sha256 = "e3d95a6df6ec641ef29c766be658aae8698d00b899dc75742d23ff2cd9cf9d4e", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1pAsbH0Orb5mFo4CLCYi4dSm6FjxrOqO3" }]

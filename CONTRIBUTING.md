@@ -26,7 +26,7 @@ binaries via `FASTFORKS_KERNEL_PATH` (e.g. `build/kernels` after `tools/build_ke
 The ONNX export tests (ONNX Runtime against `module()`, ~30 min on the CPU) run only for a release, with
 `FASTFORKS_ONNX_TESTS=1`.
 `tools/stage_hf.py` stages the kernel binaries, the goldens and the weight mirrors for their Hugging Face repos
-(`fastforks/kernels`, dataset `fastforks/reference-outputs`, `fastforks/mirrors`, and `weights`: one repo per weight
+(`fastforks/kernels`, dataset `fastforks/reference-outputs`, the private legacy repo `fastforks/mirrors` (no card uses it), and `weights`: one repo per weight
 file, named after the weights, from `tools/weights_repos.toml`) and prints the upload command; uploads are a
 maintainer step. With `--standin` it builds a local copy of those repos under OUT instead, and
 `FASTFORKS_HF_ENDPOINT=file://OUT` points every download from them there (other URLs are unchanged), so new kernel

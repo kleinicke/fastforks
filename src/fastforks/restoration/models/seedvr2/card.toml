@@ -59,8 +59,8 @@ venue = "arXiv"
 id = "seedvr2-3b"
 revision = 1
 weights = [
-  { name = "seedvr2-3b.safetensors", size = 6784909160, sha256 = "61df4f7979f4a4005029dd93ee186e97397d326b81b585d4fdf445573b85f0a7", url = "https://huggingface.co/fastforks/seedvr2-3b/resolve/main/seedvr2-3b.safetensors" },
-  { name = "seedvr2-vae.safetensors", size = 501325110, sha256 = "bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a", url = "https://huggingface.co/fastforks/seedvr2-vae/resolve/main/seedvr2-vae.safetensors" },
+  { name = "seedvr2-3b.safetensors", size = 6784909160, sha256 = "61df4f7979f4a4005029dd93ee186e97397d326b81b585d4fdf445573b85f0a7", url = "https://huggingface.co/fastforks/seedvr2-3b-bf16/resolve/main/seedvr2-3b.safetensors" },
+  { name = "seedvr2-vae.safetensors", size = 501325110, sha256 = "bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a", url = "https://huggingface.co/fastforks/seedvr2-vae-bf16/resolve/main/seedvr2-vae.safetensors" },
 ]
 
 [[variants]]
@@ -68,6 +68,6 @@ id = "seedvr2-7b"
 revision = 1
 params = { variant = "7b" }
 weights = [
-  { name = "seedvr2-7b.safetensors", size = 16482579008, sha256 = "bf73826841cfd31895370e92472fae58810ef456310dcc7a167e22dd673eeb7b", url = "https://huggingface.co/fastforks/seedvr2-7b/resolve/main/seedvr2-7b.safetensors" },
-  { name = "seedvr2-vae.safetensors", size = 501325110, sha256 = "bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a", url = "https://huggingface.co/fastforks/seedvr2-vae/resolve/main/seedvr2-vae.safetensors" },
+  { name = "seedvr2-7b.safetensors", size = 16482579008, sha256 = "bf73826841cfd31895370e92472fae58810ef456310dcc7a167e22dd673eeb7b", url = "https://huggingface.co/fastforks/seedvr2-7b-bf16/resolve/main/seedvr2-7b.safetensors" },
+  { name = "seedvr2-vae.safetensors", size = 501325110, sha256 = "bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a", url = "https://huggingface.co/fastforks/seedvr2-vae-bf16/resolve/main/seedvr2-vae.safetensors" },
 ]

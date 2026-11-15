@@ -50,4 +50,4 @@ venue = "CVPR 2022"
 [[variants]]
 id = "crestereo-eth3d"
 revision = 1
-weights = [{ mirror = true, name = "crestereo_eth3d.mge", size = 21738986, sha256 = "6a11b16a121d36077231ee65a793c7e60ba91d8fe7fe9475688fb5145c44596e", url = "https://drive.usercontent.google.com/download?id=1Wx_-zDQh7BUFBmN9im_26DFpnf3AkXj4&export=download&confirm=t" }]
+weights = [{ name = "crestereo_eth3d.mge", size = 21738986, sha256 = "6a11b16a121d36077231ee65a793c7e60ba91d8fe7fe9475688fb5145c44596e", url = "https://drive.usercontent.google.com/download?id=1Wx_-zDQh7BUFBmN9im_26DFpnf3AkXj4&export=download&confirm=t" }]

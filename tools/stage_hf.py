@@ -13,7 +13,7 @@ layout of the manifests' `url`, and writes the repo card. `goldens` copies every
 files (hash-checked) to `OUT/<ref>.npz`, the layout `tools/fetch_goldens.py` reads, with a card listing the model
 each output comes from. `mirrors` copies the weights whose card entry has `mirror = true` from the local weight
 store (hash-checked) to `OUT/<family>/<file>`, with a card naming each file's licence and original URL (the first
-mirrors, `mirror = true`). `weights` stages one repo per distinct weight file, named after the weights
+mirrors, `mirror = true`; no card uses it since 2026-11-15, the repo is private). `weights` stages one repo per distinct weight file, named after the weights
 (`tools/weights_repos.toml`; cards point at it by `url` or `mirror = "<repo>"`), as `OUT/<repo>/` with symlinks to
 the hash-checked local files, the upstream licence files and a README naming source, licence, SHA-256 and the cards
 that use it. The tool prints the upload command; it never uploads.
@@ -230,6 +230,9 @@ def render_weights_card(repo: str, meta: dict, users: dict[str, list[tuple[Model
         f"- {converted}"
         if converted
         else "- Byte-identical copy of the original file: nothing was retrained, converted or changed.",
+        *([f"- Precision: {meta['precision']}."] if "precision" in meta else []),
+        *([f"- Conversion script: `{Path(meta['script']).name}` in this repo (also `{meta['script']}` in fastforks)."]
+          if "script" in meta else []),
         "",
         "## Licence",
         "",
@@ -290,6 +293,8 @@ def stage_weights(out: Path, *, standin: bool = False) -> list[str]:
             (d / name).symlink_to(src.resolve())
         for published, path in meta["licence_files"].items():
             shutil.copyfile(src_root / path, d / published)
+        if "script" in meta:
+            shutil.copyfile(ROOT / meta["script"], d / Path(meta["script"]).name)
         if "notice" in meta:
             (d / "NOTICE").write_text(meta["notice"])
         (d / "README.md").write_text(render_weights_card(repo, meta, users))

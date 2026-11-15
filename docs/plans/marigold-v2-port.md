@@ -58,7 +58,7 @@ Done 2026-11-14 (port measurement log of that day): converter `tools/convert_mar
 authors' stack (bit-equal to the lab file except two cuBLAS-bf16 folded constants, see the results file), family
 `depth/models/marigold_v2` (`portable`, `kernels`, `stream` option), kernel library `nf4`, golden (the lean net in
 `exact_mask` mode), speed / memory / accuracy rows on the reference card. The 8.4 GiB file is to be hosted
-(`fastforks/marigold-v2-depth`, upload pending the user's OK).
+(`fastforks/marigold-v2-depth-nf4`, upload pending the user's OK).
 
 - More speed: at 1024² the matrix products (about 60 TFLOP) and the attention run near the 3090's bf16 peak. Left
   are the glue steps (norms, modulation, RoPE, GELU, casts: about 15 % of the transformer) as fused kernels.

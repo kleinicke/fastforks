@@ -70,13 +70,13 @@ venue = "CVPR 2021"
 [[variants]]
 id = "hitnet-eth3d"
 revision = 1
-weights = [{ mirror = true, name = "eth3d.pb", size = 3374674, sha256 = "ab34a01de126985cbdcd8c482494851f11fa7fac555f83bdc5d5b8af9f2b9797", url = "https://s3.ap-northeast-2.wasabisys.com/pinto-model-zoo/142_HITNET/resources.tar.gz", member = "eth3d.pb", archive = { size = 440098687, sha256 = "6adb1ed9f226ed1682c4dec7b667cf4e3f81f71ac468a29635dd4c6578dd2da5" } }]
+weights = [{ name = "eth3d.pb", size = 3374674, sha256 = "ab34a01de126985cbdcd8c482494851f11fa7fac555f83bdc5d5b8af9f2b9797", url = "https://s3.ap-northeast-2.wasabisys.com/pinto-model-zoo/142_HITNET/resources.tar.gz", member = "eth3d.pb", archive = { size = 440098687, sha256 = "6adb1ed9f226ed1682c4dec7b667cf4e3f81f71ac468a29635dd4c6578dd2da5" } }]
 licence = { training_data = ["eth3d"], training_note = "fine-tuned on the ETH3D training pairs (paper); any pre-training data is not stated by the authors" }
 params = { in_ch = 1, channels = [16, 16, 24, 24, 32], disparities = [8, 16, 32, 64, 128], refine_channels = [32, 32, 16], refine_dilations = [[1, 3, 1, 1], [1, 3, 1, 1], [1, 1]], refine_sad_scale = [0.0, 0.0, 0.0], pad_multiple = 64, pad_value = 0.0, pad_value_right = 0.0 }
 
 [[variants]]
 id = "hitnet-middlebury-d400"
 revision = 1
-weights = [{ mirror = true, name = "middlebury_d400.pb", size = 7663483, sha256 = "cc386fbb3181932e9ca9ac77f4a7bafc16f605ee490d5a0466b22f3df5e77fb0", url = "https://s3.ap-northeast-2.wasabisys.com/pinto-model-zoo/142_HITNET/resources.tar.gz", member = "middlebury_d400.pb", archive = { size = 440098687, sha256 = "6adb1ed9f226ed1682c4dec7b667cf4e3f81f71ac468a29635dd4c6578dd2da5" } }]
+weights = [{ name = "middlebury_d400.pb", size = 7663483, sha256 = "cc386fbb3181932e9ca9ac77f4a7bafc16f605ee490d5a0466b22f3df5e77fb0", url = "https://s3.ap-northeast-2.wasabisys.com/pinto-model-zoo/142_HITNET/resources.tar.gz", member = "middlebury_d400.pb", archive = { size = 440098687, sha256 = "6adb1ed9f226ed1682c4dec7b667cf4e3f81f71ac468a29635dd4c6578dd2da5" } }]
 licence = { training_data = ["middlebury"], training_note = "trained for half-resolution Middlebury images (README); any pre-training data is not stated by the authors" }
 params = { in_ch = 3, channels = [32, 40, 48, 56, 64, 72], disparities = [12, 25, 50, 100, 200, 400], refine_channels = [32, 32, 32], refine_dilations = [[1, 2, 4, 8, 1, 1], [1, 2, 4, 8, 1, 1], [1, 2, 4, 8, 1, 1]], refine_sad_scale = [0.25, 0.5, 1.0], pad_multiple = 128, pad_value = -1.0, pad_value_right = 1.0 }
