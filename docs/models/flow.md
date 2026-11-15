@@ -33,7 +33,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`memflow-sintel`](#memflow) | yes | – | 865, 3.7x | 1022, 0.065x |
 | [`memfof`](#memfof) | yes | 10.891 † | 427, 1.2x | 1418, 0.66x |
 | [`memfof-kitti`](#memfof) | yes | – | 380, 2.4x (375x1242) | 1218, 0.54x |
-| [`memfof-sintel`](#memfof) | yes | – | – | – |
+| [`memfof-sintel`](#memfof) | yes | – | 1993 | 8820 |
 | [`memfof-spring`](#memfof) | yes | – | – | – |
 | [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.1, 1.3x | 896, 0.2x |
 | [`neuflow-v2-sintel`](#neuflow_v2) | yes | 1.566 † | 58.9, 1.3x | 896, 0.2x |
@@ -465,7 +465,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `memfof` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 531<br>433<br>427<br>291<br>160 | 2003 / 2144<br>1911 / 2196<br>1301 / 1418<br>2452 / 2666<br>2070 / 2132 |
 | `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 927<br>386<br>380<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | 1968 / 2276<br>1619 / 1856<br>1137 / 1218<br>2041 / 2226<br>– |
-| `memfof-sintel` | synthetic (375x1242) | original<br>portable<br>kernels | 894<br>385<br>– | 1968 / 2176<br>1619 / 1856<br>– |
+| `memfof-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>1993<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | –<br>–<br>7249 / 8820<br>–<br>– |
 | `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1035<br>433<br>–<br>291<br>160 | 2340 / 2676<br>1900 / 2196<br>–<br>2452 / 2666<br>2070 / 2112 |
 
 <details><summary>Details</summary>
@@ -492,11 +492,10 @@ Commercial use: yes.
 - `memfof-spring` 1080x1920, first call: portable + torch.compile 45 s (cold Inductor cache), TensorRT fp16 96 s (ONNX + engine).
 - `memfof` original 1080x1920: torch.autocast(float16) around the call; upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)
 - `memfof-kitti` original 375x1242: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=1, frames (image1, image1, image2)
-- `memfof-sintel` original 375x1242: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=1, frames (image1, image1, image2)
 - `memfof-spring` original 1080x1920: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)
 - `memfof` load / first call: original 2.06 s / 1.293 s, portable 0.22 s / 0.415 s (375x1242), kernels 1.84 s / 0.286 s (375x1242)
 - `memfof-kitti` load / first call: original 2.59 s / 0.961 s (375x1242), portable 0.21 s / 0.651 s (375x1242), kernels 1.07 s / 0.565 s (375x1242)
-- `memfof-sintel` load / first call: original 1.3 s / 0.897 s (375x1242), portable 0.69 s / 0.574 s (375x1242)
+- `memfof-sintel` load / first call: original 1.3 s / 0.897 s (375x1242), portable 0.69 s / 0.574 s (375x1242), kernels 2.49 s / 1.994 s
 - `memfof-spring` load / first call: original 1.12 s / 1.037 s, portable 0.71 s / 0.433 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

@@ -69,9 +69,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `any2full-s` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>12.4<br>–<br>deferred (build >5 min)<br>deferred (build >5 min) | –<br>274 / 312<br>–<br>–<br>– |
-| `any2full-b` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>26.8<br>–<br>24.2<br>deferred (build >5 min) | –<br>538 / 596<br>–<br>442 / 496<br>– |
-| `any2full-l` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>67.7<br>–<br>63.8<br>deferred (build >5 min) | –<br>1178 / 1250<br>–<br>987 / 1092<br>– |
+| `any2full-s` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47.5<br>12.4<br>–<br>deferred (build >5 min)<br>deferred (build >5 min) | 646 / 670<br>274 / 312<br>–<br>–<br>– |
+| `any2full-b` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 108<br>26.8<br>–<br>24.2<br>deferred (build >5 min) | 1109 / 1160<br>538 / 596<br>–<br>442 / 496<br>– |
+| `any2full-l` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 269<br>67.7<br>–<br>63.8<br>deferred (build >5 min) | 2436 / 2788<br>1178 / 1250<br>–<br>987 / 1092<br>– |
 
 <details><summary>Details</summary>
 
@@ -87,12 +87,14 @@ Commercial use: yes.
 - Outputs: depth; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `any2full-s` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `any2full-b` 3000x4000 (0.7 GiB peak allocated, 0.9 reserved); `any2full-l` 3000x4000 (1.2 GiB peak allocated, 1.3 reserved)
-- original not timed: the authors' code (zhiyuandaily/Any2Full) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run; the golden check against it was made on the CPU with a checkout of the pinned commit.
 - `any2full-b` 994x1482, first call: portable + torch.compile 97 s (cold Inductor cache).
 - `any2full-l` 994x1482, first call: portable + torch.compile 34 s (cold Inductor cache).
-- `any2full-s` load / first call: portable 0.31 s / 0.359 s
-- `any2full-b` load / first call: portable 6.38 s / 3.337 s
-- `any2full-l` load / first call: portable 1.45 s / 0.298 s
+- `any2full-s` original 994x1482: upstream Any2Full.forward (init_scailing, torch.pinverse fit), float32, no xFormers
+- `any2full-b` original 994x1482: upstream Any2Full.forward (init_scailing, torch.pinverse fit), float32, no xFormers
+- `any2full-l` original 994x1482: upstream Any2Full.forward (init_scailing, torch.pinverse fit), float32, no xFormers
+- `any2full-s` load / first call: original 2.55 s / 0.737 s, portable 0.31 s / 0.359 s
+- `any2full-b` load / first call: original 3.73 s / 0.343 s, portable 6.38 s / 3.337 s
+- `any2full-l` load / first call: original 9.41 s / 0.475 s, portable 1.45 s / 0.298 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
@@ -450,7 +452,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depthfm-v1` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>5662<br>–<br>deferred (build >5 min)<br>deferred (build >5 min) | –<br>13651 / 15150<br>–<br>–<br>– |
+| `depthfm-v1` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5662<br>–<br>deferred (build >5 min)<br>deferred (build >5 min) | –<br>13651 / 15150<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -467,7 +469,6 @@ Commercial use: yes.
 - Outputs: depth; kind: `affine_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depthfm-v1` 1024x1024 (9.8 GiB peak allocated, 15.0 reserved)
-- original not timed: the authors' code (CompVis/depth-fm) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run.
 - `depthfm-v1` load / first call: portable 3.58 s / 6.004 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -497,8 +498,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lingbot-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>280<br>–<br>deferred (build >5 min)<br>188 | –<br>1559 / 1872<br>–<br>–<br>1821 / 1876 |
-| `lingbot-depth-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>281<br>–<br>252<br>188 | –<br>1559 / 1872<br>–<br>1381 / 1572<br>1821 / 1876 |
+| `lingbot-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 297<br>280<br>–<br>deferred (build >5 min)<br>188 | 2267 / 2338<br>1559 / 1872<br>–<br>–<br>1821 / 1876 |
+| `lingbot-depth-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 297<br>281<br>–<br>252<br>188 | 2267 / 2338<br>1559 / 1872<br>–<br>1381 / 1572<br>1821 / 1876 |
 
 <details><summary>Details</summary>
 
@@ -514,11 +515,12 @@ Commercial use: yes.
 - Outputs: depth, mask; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-depth` 3000x4000 (1.7 GiB peak allocated, 2.1 reserved); `lingbot-depth-dc` 3000x4000 (1.7 GiB peak allocated, 2.1 reserved)
-- original not timed: the authors' code (robbyant/lingbot-depth) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run on this GPU; its golden check ran on the CPU (without xFormers upstream cannot run its per-sample token lists).
 - `lingbot-depth` 994x1482, first call: TensorRT fp16 66 s (ONNX + engine).
 - `lingbot-depth-dc` 994x1482, first call: portable + torch.compile 32 s (cold Inductor cache), TensorRT fp16 67 s (ONNX + engine).
-- `lingbot-depth` load / first call: portable 1.38 s / 0.531 s
-- `lingbot-depth-dc` load / first call: portable 1.29 s / 0.532 s
+- `lingbot-depth` original 994x1482: the authors' mixed-precision option (bfloat16); upstream MDMModel.infer (resolution_level 9, apply_mask off), no xFormers
+- `lingbot-depth-dc` original 994x1482: the authors' mixed-precision option (bfloat16); upstream MDMModel.infer (resolution_level 9, apply_mask off), no xFormers
+- `lingbot-depth` load / first call: original 4.81 s / 1.377 s, portable 1.38 s / 0.531 s
+- `lingbot-depth-dc` load / first call: original 7.54 s / 1.364 s, portable 1.29 s / 0.532 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity

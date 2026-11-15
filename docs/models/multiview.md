@@ -20,7 +20,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`mvsplat-re10k`](#mvsplat) | yes | 172, 1.6x | 1532, 0.37x |
 | [`patchmatchnet`](#patchmatchnet) | yes | 29.5, 7.4x | 772, 0.61x |
 | [`pi3`](#pi3) | no | 560, 1.9x | 2456, 0.41x |
-| [`resplat-base-re10k`](#resplat) | no | – | – |
+| [`resplat-base-re10k`](#resplat) | no | 1280 | 8706 |
 | [`resplat-small-dl3dv`](#resplat) | yes | – | – |
 | [`vggt-1b`](#vggt) | no | 458, 2.1x | 4654, 0.63x |
 | [`vggt-omega-1b-512`](#vggt_omega) | no | 464, 2.0x | 3518, 0.6x |
@@ -140,7 +140,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>730<br>–<br>planned for 0.2.1<br>deferred (build >5 min) | –<br>4512 / 4770<br>–<br>–<br>– |
+| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 993<br>730<br>–<br>planned for 0.2.1<br>deferred (build >5 min) | 7141 / 7672<br>4512 / 4770<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -157,8 +157,8 @@ Commercial use: yes.
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-map` 3000x4000 (5.5 GiB peak allocated, 6.8 reserved)
-- original not timed: the authors' code (Robbyant/lingbot-map) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run.
-- `lingbot-map` load / first call: portable 6.58 s / 1.077 s (480x640)
+- `lingbot-map` original 480x640: the authors' mixed-precision option (bfloat16); upstream GCTStream.inference_streaming (demo defaults, SDPA), bfloat16 aggregator
+- `lingbot-map` load / first call: original 131.28 s / 4.645 s (480x640), portable 6.58 s / 1.077 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
@@ -452,7 +452,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>1723<br>–<br>deferred (build >5 min)<br>planned for 0.2.1 | –<br>4995 / 5180<br>–<br>–<br>– |
-| `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels | –<br>7085<br>– | –<br>6951 / 8634<br>– |
+| `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels | –<br>7085<br>1280 | –<br>6951 / 8634<br>6944 / 8706 |
 
 <details><summary>Details</summary>
 
@@ -474,7 +474,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resplat-small-dl3dv` 3000x4000 (5.9 GiB peak allocated, 7.0 reserved); `resplat-base-re10k` 3000x4000 (7.8 GiB peak allocated, 11.2 reserved)
 - original not timed: the original needs the pointops and gsplat CUDA extensions, which are not built for sm_120 here; the golden reference replaces them by PyTorch loops that are far slower than the extensions, so their time would not be the original's.
 - `resplat-small-dl3dv` load / first call: portable 0.72 s / 2.51 s (480x640)
-- `resplat-base-re10k` load / first call: portable 0.9 s / 7.756 s (480x640)
+- `resplat-base-re10k` load / first call: portable 0.9 s / 7.756 s (480x640), kernels 3.3 s / 1.98 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity

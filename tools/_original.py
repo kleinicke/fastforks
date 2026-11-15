@@ -47,6 +47,8 @@ BF16 = {
     "insid3",
     "megaflow",
     "pointdit",
+    "lingbot_depth",
+    "lingbot_map",
 }  # the authors' mixed precision is bfloat16
 NATIVE_HALF = {
     "depth_pro",
@@ -2502,6 +2504,166 @@ def _loma(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return call
 
 
+class _LocalPromptFp16(_LocalPrompt):
+    """A depth-prompted original with an fp16 option of its own."""
+
+    flag = True
+
+
+def _any2full(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `Any2Full.forward(image, prompt_depth)` (run script defaults: `init_scailing`) as `tools/golden/any2full.py`.
+
+    float32 on CUDA, no precision option of its own. The image is ImageNet-normalised, the prompt nearest-resized to the
+    image (upstream needs it at the image size; zero = hole); upstream resizes both to a 14-multiple itself and back.
+    Needs `FF_ANY2FULL_REPO`: a checkout with the pinned commit.
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+    from fastforks._core.checkpoint import restricted_load  # noqa: PLC0415
+    from fastforks.depth.models.any2full.model import EXTRA  # noqa: PLC0415
+
+    g = _golden("any2full")
+    card, variant = registry.resolve("depth", full)
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_ANY2FULL_REPO"]), g.REF_COMMIT)))
+    from model.ours.any2full import Any2Full  # noqa: PLC0415  # reference checkout  # ty: ignore[unresolved-import]
+
+    arch = next(k for k, v in g.VARIANTS.items() if v == full.split("@")[0])
+    args = types.SimpleNamespace(init_scailing=True, max_depth=1e3, min_depth=1e-6)
+    net = Any2Full(encoder=arch, da_ckpt_path=None, args=args)
+    (weights,) = registry.weights(card, variant, allow_download=False)
+    state = restricted_load(weights, EXTRA)["state_dict"]
+    net.load_state_dict({k.replace("module.", ""): v for k, v in state.items()}, strict=True)
+    net = net.cuda().eval()
+    mean = torch.tensor(g.MEAN, device="cuda").view(1, 3, 1, 1)
+    std = torch.tensor(g.STD, device="cuda").view(1, 3, 1, 1)
+    a.note = "upstream Any2Full.forward (init_scailing, torch.pinverse fit), float32, no xFormers"
+
+    @torch.inference_mode()
+    def call(image: Any, prompt: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW image, float prompt
+        h, w = image.shape[-2:]
+        x = (image[None].float() / 255 - mean) / std
+        d = F.interpolate(prompt[None, None].float(), (h, w), mode="nearest")
+        return net(x, d)["pred"][0, 0]
+
+    return call
+
+
+def _lingbot_depth(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `MDMModel.infer(image, depth_in, resolution_level=9, apply_mask=False)` as `tools/golden/lingbot_depth.py`.
+
+    fp16 = the authors' `use_fp16` (their default: bfloat16 autocast around the forward); fp32 = it off. Without
+    xFormers (not built for this torch) the per-sample token lists of its nested block run one sample at a time (the
+    golden's patch; one sample here, so the same work). Needs `FF_LINGBOT_DEPTH_REPO`: a checkout with the pinned commit.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("lingbot_depth")
+    card, variant = registry.resolve("depth", full)
+    os.environ["XFORMERS_DISABLED"] = "1"
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_LINGBOT_DEPTH_REPO"]), g.REF_COMMIT)))
+    from mdm.model.dinov2_rgbd.layers.block import Block, NestedTensorBlock  # noqa: PLC0415  # ty: ignore[unresolved-import]
+    from mdm.model.v2 import MDMModel  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    def nested(self: Any, x: Any) -> Any:  # noqa: ANN401
+        return [Block.forward(self, t) for t in x] if isinstance(x, list) else Block.forward(self, x)
+
+    NestedTensorBlock.forward = nested
+    (weights,) = registry.weights(card, variant, allow_download=False)
+    net = MDMModel.from_pretrained(str(weights)).cuda().eval()
+    a.note = "upstream MDMModel.infer (resolution_level 9, apply_mask off), no xFormers"
+
+    @torch.inference_mode()
+    def call(image: Any, prompt: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW image, float prompt
+        return net.infer(image[None].float() / 255, prompt[None].float(), resolution_level=9, use_fp16=fp16,
+                         apply_mask=False)["depth"]  # fmt: skip
+
+    return call
+
+
+def _depthfm(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `DepthFM.predict_depth` with the `inference.py` defaults (2 steps, ensemble 4, input size) as the golden.
+
+    The input is resized to multiples of 64 (as `inference.py`, there with PIL), scaled to [-1, 1], noise drawn inside.
+    fp16 = the authors' `--dtype fp16` (their default: `torch.autocast(float16)`), fp32 = `--dtype fp32`. Needs
+    `FF_DEPTHFM_REPO` (a checkout with the pinned commit; the golden's patch loads the VAE from the cached file and
+    uses the standard attention scale of the xFormers path), `diffusers`, `torchdiffeq`, `einops` and `omegaconf`.
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("depthfm")
+    card, variant = registry.resolve("depth", full)
+    tree = g.reference_tree(Path(os.environ["FF_DEPTHFM_REPO"]), g.REF_COMMIT, g.PATCH)
+    sys.path[:0] = [str(tree), str(tree / "depthfm")]
+    from depthfm import DepthFM  # noqa: PLC0415  # reference checkout  # ty: ignore[unresolved-import]
+
+    ckpt, vae = sorted(registry.weights(card, variant, allow_download=False), key=lambda f: -f.stat().st_size)
+    net = DepthFM(str(ckpt), str(vae)).cuda().eval()
+    dtype = torch.float16 if fp16 else torch.float32
+    net.model.dtype = dtype
+    a.note = "upstream DepthFM.predict_depth (2 steps, ensemble 4, input size to multiples of 64)"
+
+    @torch.inference_mode()
+    def call(image: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW image
+        h, w = image.shape[-2:]
+        x = F.interpolate(image[None].float(), (round(h / 64) * 64, round(w / 64) * 64), mode="bilinear")
+        with torch.autocast("cuda", dtype, enabled=fp16):
+            d = net.predict_depth(x / 127.5 - 1, num_steps=g.STEPS, ensemble_size=g.ENSEMBLE)
+        return F.interpolate(d.float(), (h, w), mode="bilinear")[0, 0]
+
+    return call
+
+
+def _lingbot_map(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `GCTStream.inference_streaming` (demo defaults: SDPA, 3D RoPE, 8 scale frames, window 64, 4 camera
+    iterations) as `tools/golden/lingbot_map.py`, called with the views as a sequence (long side 518, bicubic).
+
+    fp16 = the demo's precision (bfloat16 autocast, the aggregator cast to bfloat16, heads in fp32); fp32 = none of it.
+    Needs `FF_LINGBOT_MAP_REPO`: a checkout with the pinned commit.
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("lingbot_map")
+    card, variant = registry.resolve("multiview", full)
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_LINGBOT_MAP_REPO"]), g.REF_COMMIT)))
+    from lingbot_map.models.gct_stream import GCTStream  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    net = GCTStream(
+        img_size=518, patch_size=14, enable_3d_rope=True, max_frame_num=1024, kv_cache_sliding_window=64,
+        kv_cache_scale_frames=8, kv_cache_cross_frame_special=True, kv_cache_include_scale_frames=True,
+        use_sdpa=True, camera_num_iterations=4,
+    )  # fmt: skip
+    (weights,) = registry.weights(card, variant, allow_download=False)
+    sd = torch.load(weights, map_location="cpu", weights_only=True)
+    net.load_state_dict(sd.get("model", sd), strict=False)
+    net = net.cuda().eval()
+    if fp16:
+        net.aggregator = net.aggregator.to(torch.bfloat16)
+    a.note = "upstream GCTStream.inference_streaming (demo defaults, SDPA), " + ("bfloat16 aggregator" if fp16 else "float32")
+
+    @torch.inference_mode()
+    def call(images: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 CUDA
+        x = images.float() / 255
+        h0, w0 = x.shape[-2:]
+        f = g.LONG_SIDE / max(h0, w0)
+        hn, wn = (max(14, round(v * f / 14) * 14) for v in (h0, w0))
+        x = F.interpolate(x, (hn, wn), mode="bicubic", align_corners=False, antialias=True).clamp(0, 1)
+        with torch.autocast("cuda", torch.bfloat16, enabled=fp16):
+            p = net.inference_streaming(x, num_scale_frames=8)
+        return F.interpolate(p["depth"][0].permute(0, 3, 1, 2).float(), (h0, w0), mode="bilinear")[:, 0]
+
+    return call
+
+
 class _LocalReference(_LocalFp16):
     """An in-context segmentation original: called with the image, the reference image and its mask."""
 
@@ -2653,6 +2815,10 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "omni_dc": _LocalPrompt("depth", _omni_dc, ((994, 1482),)),
     "flexglue": _Local("matching", _flexglue, ((768, 1024),)),
     "loma": _Local("matching", _loma, ((768, 1024),)),
+    "any2full": _LocalPrompt("depth", _any2full, ((994, 1482),)),
+    "lingbot_depth": _LocalPromptFp16("depth", _lingbot_depth, ((994, 1482),)),
+    "depthfm": _LocalFp16("depth", _depthfm, ((994, 1482),)),
+    "lingbot_map": _LocalFp16("multiview", _lingbot_map, ((480, 640),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
     "matanyone": _LocalMatteMask("matting", _matanyone, ((1080, 1920),)),

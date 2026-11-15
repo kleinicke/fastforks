@@ -14,7 +14,6 @@ kind = "scale_invariant"  # the scene's scale is the network's own: depth and tr
 [upstream]
 repo = "https://github.com/Robbyant/lingbot-map"
 commit = "b9dd1b1"
-no_original_reason = "the authors' code (Robbyant/lingbot-map) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run"
 
 [licence]
 code = "Apache-2.0"

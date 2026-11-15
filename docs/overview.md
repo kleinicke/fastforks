@@ -121,12 +121,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`depth-anything-v2-metric-hypersim-b`](models/depth.md#depth-anything-v2) | yes | 0.0549 | 60.7 (994x1482) | 18.6 | 10.8 | 5.6x vs original (994x1482) | 349 |
 | [`depth-anything-v2-metric-vkitti-b`](models/depth.md#depth-anything-v2) | yes | 0.1089 | 60.6 (994x1482) | 18.6 | 10.8 | 5.6x vs original (994x1482) | 349 |
 | [`prompt-depth-anything-s`](models/depth.md#prompt-depth-anything) | yes | – | – | 18.4 | 11.4 (756x1008) | 1.6x vs portable | 297 |
-| [`any2full-s`](models/depth.md#any2full) | yes | – | n/a | 12.4 | – | – | – |
+| [`any2full-s`](models/depth.md#any2full) | yes | – | 47.5 (994x1482) | 12.4 | – | – | – |
 | [`da3mono-large`](models/depth.md#depth-anything-3) | yes | 0.0402 | 85.2 (994x1482) | 24.1 | 14.6 | 5.8x vs original (994x1482) | 814 |
 | [`da3metric-large`](models/depth.md#depth-anything-3) | yes | 0.0398 | 85.1 (994x1482) | 24.3 | 14.7 | 5.8x vs original (994x1482) | 811 |
 | [`da3-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0468 | 165.6 (994x1482) | 30.0 | 17.1 | 9.7x vs original (994x1482) | 985 |
 | [`pointdit-b-512`](models/depth.md#pointdit) | yes | 0.0453 | 48.7 (994x1482) | 30.7 | 20.6 | 2.4x vs original (994x1482) | 466 |
-| [`any2full-b`](models/depth.md#any2full) | yes | – | n/a | 26.8 | – | – | – |
+| [`any2full-b`](models/depth.md#any2full) | yes | – | 108.3 (994x1482) | 26.8 | – | – | – |
 | [`depth-anything-v2-l`](models/depth.md#depth-anything-v2) | no | 0.0439 | 140.2 (994x1482) | 55.1 | 31.1 | 4.5x vs original (994x1482) | 921 |
 | [`depth-anything-v2-metric-hypersim-l`](models/depth.md#depth-anything-v2) | yes | 0.0491 | 140.7 (994x1482) | 54.5 | 31.7 | 4.4x vs original (994x1482) | 917 |
 | [`distill-any-depth-l`](models/depth.md#depth-anything-v2) | yes | 0.0444 | 139.3 (994x1482) | 54.4 | 31.8 | 4.4x vs original (994x1482) | 917 |
@@ -139,7 +139,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`unik3d-vitl`](models/depth.md#unik3d) | no | 0.0346 | 133.7 (994x1482) | 107.8 | 62.9 | 2.1x vs original (994x1482) | 1166 |
 | [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 63.0 | 2.1x vs original (994x1482) | 1166 |
 | [`midas-dpt-beit-large-512`](models/depth.md#midas-v31) | yes | 0.0487 | 333.2 (994x1482) | 78.8 | 63.9 | 5.2x vs original (994x1482) | 1003 |
-| [`any2full-l`](models/depth.md#any2full) | yes | – | n/a | 67.7 | – | – | – |
+| [`any2full-l`](models/depth.md#any2full) | yes | – | 268.8 (994x1482) | 67.7 | – | – | – |
 | [`prompt-depth-anything-l`](models/depth.md#prompt-depth-anything) | yes | – | – | 124.8 | 69.3 (756x1008) | 1.8x vs portable | 1179 |
 | [`moge-2-vitl-normal`](models/depth.md#moge) | yes | 0.0357 | 170.7 (994x1482) | 144.5 | 73.4 | 2.3x vs original (994x1482) | 1498 |
 | [`zoedepth-nk`](models/depth.md#zoedepth) | yes | 0.0532 | 271.2 (994x1482) | 124.0 | 88.9 | 3.1x vs original (994x1482) | 1771 |
@@ -152,15 +152,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | 2004.6 | 200.2 (1080x1920) | 10.0x vs portable | 1967 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 410.0 | 261.4 | 1.7x vs original (994x1482) | 2343 |
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 518.4 | 270.9 | 2.1x vs original (994x1482) | 3667 |
-| [`lingbot-depth`](models/depth.md#lingbot-depth) | yes | – | n/a | 280.3 | – | – | – |
-| [`lingbot-depth-dc`](models/depth.md#lingbot-depth) | yes | – | n/a | 280.7 | – | – | – |
+| [`lingbot-depth`](models/depth.md#lingbot-depth) | yes | – | 297.1 (994x1482) | 280.3 | – | – | – |
+| [`lingbot-depth-dc`](models/depth.md#lingbot-depth) | yes | – | 297.2 (994x1482) | 280.7 | – | – | – |
 | [`omni-dc`](models/depth.md#omni-dc) | no | – | 875.5 (994x1482) | 554.3 | – | – | – |
 | [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | – | 1434.3 | 1284.0 (1080x1920) | 1.1x vs portable | 8204 |
 | [`marigold-v2-depth`](models/depth.md#marigold-v2) | yes | 0.0386 | OOM (994x1482) | 5093.4 | 3885.9 | 1.3x vs portable | 1498 |
-| [`depthfm-v1`](models/depth.md#depthfm) | yes | – | n/a | 5662.2 | – | – | – |
-- Original not timed (`any2full-s`, `any2full-b`, `any2full-l`): the authors' code (zhiyuandaily/Any2Full) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run; the golden check against it was made on the CPU with a checkout of the pinned commit.
-- Original not timed (`lingbot-depth`, `lingbot-depth-dc`): the authors' code (robbyant/lingbot-depth) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run on this GPU; its golden check ran on the CPU (without xFormers upstream cannot run its per-sample token lists).
-- Original not timed (`depthfm-v1`): the authors' code (CompVis/depth-fm) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run.
+| [`depthfm-v1`](models/depth.md#depthfm) | yes | – | OOM (994x1482) | 5662.2 | – | – | – |
 
 ## Classification
 
@@ -623,11 +620,10 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 464.4 | 2.0x vs original (336x518) | 3422 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 820.7 | 559.7 | 1.9x vs original (336x518) | 2367 |
-| [`lingbot-map`](models/multiview.md#lingbot-map) | yes | n/a | 729.7 | – | – | – |
+| [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 729.7 | – | – | – |
+| [`resplat-base-re10k`](models/multiview.md#resplat) | no | n/a | 7084.8 | 1280.2 | 5.5x vs portable | 6944 |
 | [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | n/a | 1723.4 | – | – | – |
-| [`resplat-base-re10k`](models/multiview.md#resplat) | no | n/a | 7084.8 | – | – | – |
-- Original not timed (`lingbot-map`): the authors' code (Robbyant/lingbot-map) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run.
-- Original not timed (`resplat-small-dl3dv`, `resplat-base-re10k`): the original needs the pointops and gsplat CUDA extensions, which are not built for sm_120 here; the golden reference replaces them by PyTorch loops that are far slower than the extensions, so their time would not be the original's.
+- Original not timed (`resplat-base-re10k`, `resplat-small-dl3dv`): the original needs the pointops and gsplat CUDA extensions, which are not built for sm_120 here; the golden reference replaces them by PyTorch loops that are far slower than the extensions, so their time would not be the original's.
 
 ## Flow
 
@@ -679,10 +675,10 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 1674.0 | – | – | – |
 | [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 1674.7 | – | – | – |
 | [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1677.7 | – | – | – |
+| [`memfof-sintel`](models/flow.md#memfof) | yes | – | OOM (1080x1920) | OOM (1080x1920) | 1992.8 | – | 7249 |
 | [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | OOM (1080x1920) | – | – | – |
 | [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | OOM (1080x1920) | – | – | – |
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | OOM (1080x1920) | – | – | – |
-| [`memfof-sintel`](models/flow.md#memfof) | yes | – | OOM (1080x1920) | OOM (1080x1920) | – | – | – |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
