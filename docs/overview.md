@@ -615,15 +615,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`mvsanywhere`](models/multiview.md#mvsanywhere) | no | 218.7 (448x672) | 93.2 | 35.2 | 6.2x vs original (448x672) | 702 |
 | [`depthsplat-small-re10k`](models/multiview.md#depthsplat) | yes | 126.5 (336x518) | 118.9 | 111.7 | 1.1x vs original (336x518) | 5434 |
 | [`mvsplat-re10k`](models/multiview.md#mvsplat) | yes | 279.3 (336x518) | 180.9 | 172.5 | 1.6x vs original (336x518) | 1239 |
+| [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | 493.4 (480x640) | 1723.4 | 362.1 | 1.4x vs original (480x640) | 4981 |
 | [`anysplat`](models/multiview.md#anysplat) | yes | 741.2 (336x518) | 503.5 | 363.8 | 2.0x vs original (336x518) | 4852 |
 | [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 651.2 | 458.4 | 2.1x vs original (336x518) | 3702 |
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 464.4 | 2.0x vs original (336x518) | 3422 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 820.7 | 559.7 | 1.9x vs original (336x518) | 2367 |
 | [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 729.7 | – | – | – |
-| [`resplat-base-re10k`](models/multiview.md#resplat) | no | n/a | 7084.8 | 1280.2 | 5.5x vs portable | 6944 |
-| [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | n/a | 1723.4 | – | – | – |
-- Original not timed (`resplat-base-re10k`, `resplat-small-dl3dv`): the original needs the pointops and gsplat CUDA extensions, which are not built for sm_120 here; the golden reference replaces them by PyTorch loops that are far slower than the extensions, so their time would not be the original's.
+| [`resplat-base-re10k`](models/multiview.md#resplat) | no | 2520.8 (480x640) | 7084.8 | 1280.2 | 2.0x vs original (480x640) | 6944 |
 
 ## Flow
 

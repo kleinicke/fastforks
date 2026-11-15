@@ -49,6 +49,7 @@ BF16 = {
     "pointdit",
     "lingbot_depth",
     "lingbot_map",
+    "resplat",
 }  # the authors' mixed precision is bfloat16
 NATIVE_HALF = {
     "depth_pro",
@@ -2352,6 +2353,47 @@ def _mvsplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - ad
     return call
 
 
+def _resplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
+    """Upstream `EncoderReSplat` + `forward_update` (2 refinement steps) as `tools/golden/resplat.py`, on the GPU with
+    the real `pointops` and gsplat extensions (upstream's own decoder call), the runner's resizing (long side = the
+    checkpoint's training size, the runner's default).
+
+    `FF_RESPLAT_REPO`: a checkout with the pinned commit; `FF_RESPLAT_SITE`: `einops`, `jaxtyping`, `e3nn`, plus
+    `pointops` built for this GPU (`setup.py build_ext` of `src/model/encoder/pointops`, `TORCH_CUDA_ARCH_LIST=12.0`).
+    fp16 = the released configuration (its bfloat16 autocast blocks: `use_amp`, `pt_head_amp`, `pt_update_amp`);
+    fp32 = those switched off.
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    site = os.environ.get("FF_RESPLAT_SITE")
+    if site and site not in sys.path:
+        sys.path.append(site)
+    g = _golden("resplat")
+    card, variant = registry.resolve("multiview", full)
+    (weights,) = registry.weights(card, variant, allow_download=False)
+    name = variant.ref.split("@")[0]
+    amp = {} if fp16 else {"use_amp": False, "pt_head_amp": False, "pt_update_amp": False}
+    enc = g.network(Path(os.environ["FF_RESPLAT_REPO"]), name, Path(weights), native=True, **amp).cuda()
+    renderer = g.NativeRenderer()
+    a.note = f"cvg/resplat@{g.REF_COMMIT[:12]} EncoderReSplat, pointops + gsplat extensions, 2 refinement steps" + (
+        ", released bfloat16 autocast" if fp16 else ", float32"
+    )
+
+    @torch.inference_mode()
+    def call(images: Any, k: Any, c2w: Any, depth_range: Any) -> Any:  # noqa: ANN401, ARG001 - uint8 or 0-1 images
+        x = images.float() / 255 if images.dtype == torch.uint8 else images.float()
+        ctx, _, _ = g.context(x, k, c2w, name, g.TRAIN_LONG_SIDE[name])
+        out = enc(ctx, global_step=0)
+        enc.forward_update(ctx, None, out["condition_features"], out["gaussians"], renderer)
+        depth = out["depths"][0][:, None].float()
+        return F.interpolate(depth, x.shape[2:], mode="bilinear", align_corners=False)[:, 0]
+
+    return call
+
+
 def _insid3(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, ARG001, FBT001 - adapter signature
     """Upstream `INSID3` as `tools/golden/insid3.py` (`FF_INSID3_REPO`; `FF_INSID3_WEIGHTS`: DINOv3 dir).
 
@@ -2826,6 +2868,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "pi3": _LocalFp16("multiview", _pi3, ((336, 518),)),
     "depthsplat": _LocalCameras("multiview", _depthsplat, ((336, 518),)),
     "mvsplat": _LocalCameras("multiview", _mvsplat, ((336, 518),)),
+    "resplat": _LocalCameras("multiview", _resplat, ((480, 640),)),
     "insid3": _LocalReference("promptable_segmentation", _insid3, ((1024, 1024),), _insid3_prep),
     "tapir": _Tracking("tracking", _tapir, ((480, 854),)),
     "alltracker": _Tracking("tracking", _alltracker, ((480, 854),)),

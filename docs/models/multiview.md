@@ -20,8 +20,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`mvsplat-re10k`](#mvsplat) | yes | 172, 1.6x | 1532, 0.37x |
 | [`patchmatchnet`](#patchmatchnet) | yes | 29.5, 7.4x | 772, 0.61x |
 | [`pi3`](#pi3) | no | 560, 1.9x | 2456, 0.41x |
-| [`resplat-base-re10k`](#resplat) | no | 1280 | 8706 |
-| [`resplat-small-dl3dv`](#resplat) | yes | – | – |
+| [`resplat-base-re10k`](#resplat) | no | 1280, 2.0x | 8706, 0.69x |
+| [`resplat-small-dl3dv`](#resplat) | yes | 362, 1.4x | 5148, 0.96x |
 | [`vggt-1b`](#vggt) | no | 458, 2.1x | 4654, 0.63x |
 | [`vggt-omega-1b-512`](#vggt_omega) | no | 464, 2.0x | 3518, 0.6x |
 
@@ -451,8 +451,8 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>1723<br>–<br>deferred (build >5 min)<br>planned for 0.2.1 | –<br>4995 / 5180<br>–<br>–<br>– |
-| `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels | –<br>7085<br>1280 | –<br>6951 / 8634<br>6944 / 8706 |
+| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 493<br>1723<br>362<br>deferred (build >5 min)<br>planned for 0.2.1 | 5148 / 5376<br>4995 / 5180<br>4981 / 5148<br>–<br>– |
+| `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels | 2521<br>7085<br>1280 | 10139 / 12684<br>6951 / 8634<br>6944 / 8706 |
 
 <details><summary>Details</summary>
 
@@ -472,9 +472,10 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resplat-small-dl3dv` 3000x4000 (5.9 GiB peak allocated, 7.0 reserved); `resplat-base-re10k` 3000x4000 (7.8 GiB peak allocated, 11.2 reserved)
-- original not timed: the original needs the pointops and gsplat CUDA extensions, which are not built for sm_120 here; the golden reference replaces them by PyTorch loops that are far slower than the extensions, so their time would not be the original's.
-- `resplat-small-dl3dv` load / first call: portable 0.72 s / 2.51 s (480x640)
-- `resplat-base-re10k` load / first call: portable 0.9 s / 7.756 s (480x640), kernels 3.3 s / 1.98 s (480x640)
+- `resplat-small-dl3dv` original 480x640: the authors' mixed-precision option (bfloat16); cvg/resplat@cae7ddc4cdbd EncoderReSplat, pointops + gsplat extensions, 2 refinement steps, released bfloat16 autocast
+- `resplat-base-re10k` original 480x640: the authors' mixed-precision option (bfloat16); cvg/resplat@cae7ddc4cdbd EncoderReSplat, pointops + gsplat extensions, 2 refinement steps, released bfloat16 autocast
+- `resplat-small-dl3dv` load / first call: original 16.8 s / 10.688 s (480x640), portable 0.72 s / 2.51 s (480x640), kernels 3.88 s / 2.839 s (480x640)
+- `resplat-base-re10k` load / first call: original 2.26 s / 2.743 s (480x640), portable 0.9 s / 7.756 s (480x640), kernels 3.3 s / 1.98 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
@@ -485,6 +486,10 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 |---|---|---|---|
 | `resplat-small-dl3dv` | 0.00302 / 0.00738 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120` |
 | `resplat-base-re10k` | 0.00424 / 0.01598 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120` |
+
+### Limitations
+
+- Portable runs upstream's two CUDA extensions (point-transformer kNN, gsplat rasteriser) as plain PyTorch ops: 2.8x (base) and 3.5x (small) slower than the original at 480x640 (bfloat16 original). Kernels replaces them and is 2.0x (base) and 1.4x (small) faster than the original.
 
 </details>
 

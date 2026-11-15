@@ -5,6 +5,9 @@ tier = "experimental"
 uses = ["depth_anything_v2"]  # shared modules imported directly by this family (DINOv2, its attention block)
 outputs = ["depth", "confidence", "gaussians"]  # confidence: largest match probability over the depth candidates; gaussians: MultiViewResult.gaussians (not a map)
 
+limitations = [
+  "Portable runs upstream's two CUDA extensions (point-transformer kNN, gsplat rasteriser) as plain PyTorch ops: 2.8x (base) and 3.5x (small) slower than the original at 480x640 (bfloat16 original). Kernels replaces them and is 2.0x (base) and 1.4x (small) faster than the original.",
+]
 licence_notes = [
   "Code and checkpoints are MIT. The Base RealEstate10K checkpoint's monocular branch is initialised from Depth Anything V2 Base (CC-BY-NC-4.0) and is labelled non-commercial; the Small DL3DV checkpoint builds on Depth Anything V2 Small (Apache-2.0).",
 ]
@@ -15,7 +18,6 @@ kind = "metric"  # in the units of the given cam_to_world and depth_range (the n
 [upstream]
 repo = "https://github.com/cvg/resplat"
 commit = "cae7ddc"
-no_original_reason = "the original needs the pointops and gsplat CUDA extensions, which are not built for sm_120 here; the golden reference replaces them by PyTorch loops that are far slower than the extensions, so their time would not be the original's"
 
 [licence]
 code = "MIT"  # LICENSE (Haofei Xu)
