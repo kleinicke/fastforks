@@ -84,7 +84,7 @@ They are not advertised in the docs. The model pages carry a "Not in this releas
 | kernels binaries `raft_flow`, `romav2` | `mode="kernels"` works locally; elsewhere `mode="auto"` falls back to portable | the binaries are not uploaded yet (HF upload at release) | upload at release prep | `kernels/` builds, HF repos |
 | `matanyone`, `totalsegmentator` export | `BackendUnavailableError`: no exportable module | by design (recurrent memory / multi-model pipeline) | none planned | family `export` = none |
 | families with kernels `status = "none"` | `mode="kernels"` raises with the family's reason; `auto` uses portable | no custom kernels for these yet | the per-family kernel backlog | card `[kernels]` |
-| volume NIfTI example | `MissingDependencyError` names `pip install fastforks[volume]` | `nibabel` is an optional extra | none needed | `volume/_nifti.py` |
+| volume NIfTI example | `MissingDependencyError` names `pip install 'fastforks-core[nifti]'` | `nibabel` is an optional extra | none needed | `volume/_nifti.py` |
 
 ## API leftovers (proposal v2, deferred: risky or needs a mechanism)
 

@@ -820,9 +820,10 @@ def _planned(t: dict[str, Any], where: str) -> dict[str, str]:
 
 def planned_reason(variant: Variant, feature: Feature) -> str | None:
     """Why `feature` of `variant` is not available in this release, or `None` if it is (onnx also blocks tensorrt)."""
-    reason = variant.planned.get(feature)
+    planned = getattr(variant, "planned", {})  # a stand-in variant (tests, wrappers) plans nothing
+    reason = planned.get(feature)
     if reason is None and feature == "tensorrt":
-        reason = variant.planned.get("onnx")
+        reason = planned.get("onnx")
     return reason
 
 
