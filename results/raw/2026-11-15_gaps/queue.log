@@ -1,0 +1,11 @@
+2026-11-15_03:02:51 queue start commit 138e4308 gpu NVIDIA GeForce RTX 5060 Ti
+2026-11-15_03:02:51 stage 1 original rows: skipped (memfof-kitti/-sintel/-spring need FF_MEMFOF_REPO, tapnext-pp the tapnet clone, VDA-metric-s has no adapter; no downloads in the queue)
+2026-11-15_03:02:51 start tensorrt dedode-v2-g
+2026-11-15_03:03:27 end tensorrt dedode-v2-g rc=0
+2026-11-15_03:03:27 start tensorrt depth-anything-v2-b
+2026-11-15_03:04:04 end tensorrt depth-anything-v2-b rc=0
+2026-11-15_03:04:04 start tensorrt dinov2-vitg14
+2026-11-15_03:04:58 end tensorrt dinov2-vitg14 rc=0
+2026-11-15_03:04:58 start tensorrt dinov3-convnext-base
+2026-11-15_03:05:33 end tensorrt dinov3-convnext-base rc=0
+2026-11-15_03:05:33 start tensorrt great-igev-middlebury

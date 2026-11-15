@@ -1,0 +1,6 @@
+dedode-v2-g
+depth-anything-v2-b
+dinov2-vitg14
+dinov3-convnext-base
+loftr-indoor
+waft-stereo-b
