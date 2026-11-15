@@ -4,6 +4,7 @@ summary = "EfficientViT (Cai et al. 2023, MIT Han lab): MBConv stages with multi
 tier = "stable"
 outputs = ["logits"]
 uses = ["libnet"]  # fastforks.shared modules this family imports
+limitations = ["Portable float16 at batch 1 is launch-bound: timm's linear attention casts q, k, v to float32 and back in every LiteMLA block (needed for a stable division), so 224x224 runs 12-13 ms against 10.7 ms for the float32 original and 14.7 ms for the fp16-autocast original; the kernels mode runs 1.1 ms."]
 
 [upstream]
 repo = "https://github.com/huggingface/pytorch-image-models"
