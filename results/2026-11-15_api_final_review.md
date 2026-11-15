@@ -96,7 +96,7 @@ All errors were clear and named the fix, except two, both fixed in fd8df2e5:
 
 - `tests/test_planned.py` (13), `tests/test_volume.py` (+2), `tests/test_export.py`: 45 passed, CPU light slot.
 - `tools/select_tests.py origin/work/ports HEAD`:
-  - fast tier `tests`, run on CPU in the light slot: this branch has 25 failed / 5443 passed; base 79daa547 has 25 failed / 5429 passed.
+  - fast tier `tests`, run on CPU in the light slot: this branch before the stand-in fix had 27 failed / 5441 passed; base 79daa547 has 25 failed / 5429 passed. The 2 extra (`test_sizes`) pass after the fix (rerun of all failed files: 13 failed both on base and branch).
     - The failures are the same set on both, all pre-existing: `test_pipeline` x11 (order-dependent; they pass alone), `test_hf_cards` x2, `test_patch` x2, `test_repo_hygiene`, `test_auto_mode` and others.
     - The rule tests (`test_policy`, `test_contract`, `test_docs`, `test_testuser_fixes*`, `test_review*`) pass, apart from the pre-existing failures.
     - The 2 `test_sizes` fakes without `.planned` are fixed: `planned_reason` treats a stand-in variant as planning nothing.
