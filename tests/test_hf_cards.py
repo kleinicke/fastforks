@@ -166,3 +166,26 @@ def test_sd2_derived_cards_carry_the_openrail_note(staged):
 
 def test_goldens_exclude_copyleft_outputs():
     assert "coex-sceneflow@1" in stage_hf.EXCLUDED_GOLDENS
+
+
+def test_create_repos_is_resumable_and_backs_off():
+    existing, made, waits = {"fastforks/a"}, [], []
+    calls = {"n": 0}
+
+    class Rate(Exception):
+        code = 429
+
+    def create(r):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise Rate
+        made.append(r)
+
+    ids = [f"fastforks/{c}" for c in "abcde"]
+    got = stage_hf.create_repos(
+        ids, exists=lambda r: r in existing, create=create, batch=2, pause=1, sleep=waits.append
+    )
+    assert got == made == ids[1:]  # `a` exists; the first create hit a 429 and was retried
+    assert waits == [1, 1]  # backoff 1 s after the 429, then the pause before round two
+    assert stage_hf.create_repos(ids, exists=lambda r: True, create=create, dry_run=False) == []
+    assert stage_hf.create_repos(ids, exists=lambda r: False, create=create, dry_run=True) == ids

@@ -6,6 +6,7 @@
     FASTFORKS_WEIGHTS_PATH=... uv run python tools/stage_hf.py weights OUT [--standin]
     uv run python tools/stage_hf.py cards OUT
     uv run python tools/stage_hf.py cards --check-live
+    uv run python tools/stage_hf.py create CARDS_DIR [--dry-run] [--batch 20] [--pause 60]
 
 `kernels` copies the files the committed `manifest.toml`s list (hash- and size-checked) to `OUT/<lib>/<file>`, the
 layout of the manifests' `url`, and writes the repo card. `goldens` copies every `<ref>.npz` of the `golden.toml`
@@ -23,6 +24,12 @@ prints the repo ids. Each card ends with a comment naming the fastforks commit a
 `cards --check-live` downloads the published card of every repo (anonymously, read-only), prints the repos whose
 card differs from the freshly staged one (the commit comment is ignored) and exits 1 if there are any.
 
+`create` makes the (empty) model repos `fastforks/<dir>` for the sub-directories of a staged directory (e.g. of
+`cards`), in batches of `--batch` (default 20) with `--pause` seconds between batches and exponential backoff on
+HTTP 429. It is resumable: repos that already exist are skipped, so after an interruption run the same command
+again. `--dry-run` only prints what it would create (no token needed). Creating needs `HF_TOKEN` and the
+maintainers' OK; it never uploads files.
+
 With `--standin`, OUT is the root of a local stand-in for huggingface.co and the repo is staged at
 `OUT/<repo>/resolve/main/` (datasets under `OUT/datasets/`); `FASTFORKS_HF_ENDPOINT=file://OUT` then makes fastforks
 download from it exactly as it will from the published repos.
@@ -33,10 +40,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
 import urllib.error
 import urllib.request
@@ -877,9 +886,78 @@ def check_live() -> None:
     sys.exit(1 if diff else 0)
 
 
+def hf_repo_exists(repo_id: str) -> bool:
+    """True if the public model repo exists (anonymous API GET; 401/404 = not there or private)."""
+    try:
+        with urllib.request.urlopen(f"https://huggingface.co/api/models/{repo_id}", timeout=30):
+            return True
+    except urllib.error.HTTPError as e:
+        if e.code in (HTTPStatus.NOT_FOUND, HTTPStatus.UNAUTHORIZED):
+            return False
+        raise
+
+
+def hf_create_repo(repo_id: str) -> None:
+    """Create a public, empty model repo (needs `HF_TOKEN`; `huggingface_hub` is imported only here)."""
+    from huggingface_hub import HfApi  # noqa: PLC0415
+
+    HfApi(token=os.environ["HF_TOKEN"]).create_repo(repo_id, repo_type="model", private=False, exist_ok=True)
+
+
+def create_repos(
+    ids: list[str],
+    *,
+    exists: Callable[[str], bool] = hf_repo_exists,
+    create: Callable[[str], None] = hf_create_repo,
+    batch: int = 20,
+    pause: float = 60,
+    retries: int = 6,
+    sleep: Callable[[float], None] = time.sleep,
+    dry_run: bool = False,
+) -> list[str]:
+    """Create the repos that do not exist yet, `batch` per round with `pause` s between rounds; a 429 (or any
+    HTTP error with that status) is retried with a doubling wait (`pause`, 2 `pause`, ...) up to `retries` times.
+    Returns the repo ids created (dry run: that would be created). Safe to re-run after an interruption."""
+    todo = [r for r in ids if not exists(r)]
+    print(f"{len(ids) - len(todo)} of {len(ids)} repos exist; {len(todo)} to create", file=sys.stderr)
+    done: list[str] = []
+    for i in range(0, len(todo), batch):
+        if i:
+            sleep(pause)
+        for repo_id in todo[i : i + batch]:
+            if dry_run:
+                print(f"would create {repo_id}")
+                done.append(repo_id)
+                continue
+            for attempt in range(retries + 1):
+                try:
+                    create(repo_id)
+                    break
+                except Exception as e:  # noqa: BLE001  # huggingface_hub's HfHubHTTPError carries `.response`
+                    status = getattr(getattr(e, "response", None), "status_code", getattr(e, "code", None))
+                    if status != HTTPStatus.TOO_MANY_REQUESTS or attempt == retries:
+                        raise
+                    wait = pause * 2**attempt
+                    print(f"429 on {repo_id}: waiting {wait:.0f} s", file=sys.stderr)
+                    sleep(wait)
+            print(f"created {repo_id}", flush=True)
+            done.append(repo_id)
+    return done
+
+
+def _create_main(a: argparse.Namespace) -> None:
+    if not a.out.is_dir():
+        sys.exit(f"{a.out} is not a staged directory")
+    if not a.dry_run and "HF_TOKEN" not in os.environ:
+        sys.exit("HF_TOKEN is not set (use --dry-run to list what would be created)")
+    ids = [f"fastforks/{d.name}" for d in sorted(a.out.iterdir()) if d.is_dir()]
+    done = create_repos(ids, batch=a.batch, pause=a.pause, dry_run=a.dry_run)
+    print(f"{'would create' if a.dry_run else 'created'} {len(done)} repos")
+
+
 def _args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("what", choices=sorted(REPOS))
+    ap.add_argument("what", choices=[*sorted(REPOS), "create"])
     ap.add_argument(
         "out", type=Path, nargs="?", help="staging directory (must not exist; with --standin: the stand-in root)"
     )
@@ -893,6 +971,9 @@ def _args() -> argparse.Namespace:
     ap.add_argument("--skip-missing", action="store_true", help="goldens: leave out refs with no local file")
     ap.add_argument("--check-live", action="store_true", help="cards: compare with the published cards, upload nothing")
     ap.add_argument("--standin", action="store_true", help="stage into a huggingface.co stand-in rooted at OUT")
+    ap.add_argument("--dry-run", action="store_true", help="create: print the repos that would be created")
+    ap.add_argument("--batch", type=int, default=20, help="create: repos per round")
+    ap.add_argument("--pause", type=float, default=60, help="create: seconds between rounds (doubles on HTTP 429)")
     a = ap.parse_args()
     if a.check_live and a.what != "cards":
         ap.error("--check-live is for cards")
@@ -912,6 +993,9 @@ def _main_weights(out: Path, *, standin: bool) -> None:
 
 def main() -> None:
     a = _args()
+    if a.what == "create":
+        _create_main(a)
+        return
     if a.check_live:
         check_live()
     if a.what == "weights":
