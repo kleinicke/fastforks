@@ -9,6 +9,7 @@ limitations = [
   "Upstream adds a 20 x 20 grid of support points on frame 0 to every call (option support_grid); they are tracked with the user's queries, so a call costs at least 400 tracked points.",
   "Online: a query only sees the frames from its own frame on; frames before it return the query position with visibility 0.",
   "One video per call; all queries of a call share the video.",
+  "Track-On2 peaks 1423 MB, 20 MB (1.4 %) above the fp16 original (1403 MB), and runs 15 % faster. The 1236 MB original variant is the fp32 one, which is 2.4x slower.",
 ]
 licence_notes = [
   "The DINOv3 ViT-S+/16 weights and net/dinov3.py are under the DINOv3 License (Meta: attribution and conditions apply); read it before commercial use. The Track-On code and checkpoints are MIT.",
