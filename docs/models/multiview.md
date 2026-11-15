@@ -443,7 +443,9 @@ ReSplat (ETH Zurich / cvg): 3D Gaussian splats from several posed images, refine
 
 Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weights: CC-BY-NC-4.0).
 
-Speed and memory not measured for: `resplat-small-dl3dv`, `resplat-base-re10k`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>1723<br>–<br>fails: timeout after 190 s<br>fails: TypeError: _Base.forward() missing 1 required positional arg | –<br>4995 / 5180<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -462,6 +464,9 @@ Speed and memory not measured for: `resplat-small-dl3dv`, `resplat-base-re10k`.
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resplat-small-dl3dv` 3000x4000 (5.9 GiB peak allocated, 7.0 reserved); `resplat-base-re10k` 3000x4000 (7.8 GiB peak allocated, 11.2 reserved)
+- `resplat-small-dl3dv` load / first call: portable 0.72 s / 2.51 s (480x640)
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+- Speed and memory not measured for: `resplat-base-re10k`.
 
 ### Parity
 

@@ -465,7 +465,7 @@ Commercial use: yes.
 | `memfof` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 531<br>433<br>427<br>291<br>160 | 2003 / 2144<br>1911 / 2196<br>1301 / 1418<br>2452 / 2666<br>2070 / 2132 |
 | `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 927<br>386<br>380<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | 1968 / 2276<br>1619 / 1856<br>1137 / 1218<br>2041 / 2226<br>– |
 | `memfof-sintel` | synthetic (375x1242) | original<br>portable<br>kernels | 894<br>–<br>– | 1968 / 2176<br>–<br>– |
-| `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels | 1035<br>–<br>– | 2340 / 2676<br>–<br>– |
+| `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1035<br>433<br>–<br>291<br>160 | 2340 / 2676<br>1900 / 2196<br>–<br>2452 / 2666<br>2070 / 2112 |
 
 <details><summary>Details</summary>
 
@@ -488,16 +488,17 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `memfof` 1988x2880 (9.0 GiB peak allocated, 10.6 reserved); `memfof-kitti` 1024x1024 (5.2 GiB peak allocated, 6.1 reserved); `memfof-sintel` 1024x1024 (5.2 GiB peak allocated, 6.1 reserved); `memfof-spring` 1988x2880 (9.0 GiB peak allocated, 10.6 reserved)
 - `memfof` 1080x1920, first call: portable + torch.compile 51 s (cold Inductor cache), TensorRT fp16 110 s (ONNX + engine).
 - `memfof-kitti` 375x1242, first call: portable + torch.compile 49 s (cold Inductor cache).
+- `memfof-spring` 1080x1920, first call: portable + torch.compile 45 s (cold Inductor cache), TensorRT fp16 96 s (ONNX + engine).
 - `memfof` original 1080x1920: torch.autocast(float16) around the call; upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)
 - `memfof-kitti` original 375x1242: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=1, frames (image1, image1, image2)
 - `memfof-sintel` original 375x1242: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=1, frames (image1, image1, image2)
 - `memfof-spring` original 1080x1920: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)
 - `memfof` load / first call: original 2.06 s / 1.293 s, portable 0.22 s / 0.415 s (375x1242), kernels 1.84 s / 0.286 s (375x1242)
 - `memfof-kitti` load / first call: original 2.59 s / 0.961 s (375x1242), portable 0.21 s / 0.651 s (375x1242), kernels 1.07 s / 0.565 s (375x1242)
-- `memfof-sintel` load / first call: original 1.3 s / 0.897 s (375x1242)
-- `memfof-spring` load / first call: original 1.12 s / 1.037 s
-- Protocol, `memfof`, `memfof-kitti`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
-- Protocol, `memfof-sintel`, `memfof-spring`: median of 5 after 3 warm-up, uint8 CUDA input, original code at the pinned commit, torch.no_grad; peak = max over the first call and the timed calls
+- `memfof-sintel` load / first call: original 1.3 s / 0.897 s (375x1242), portable 0.69 s / 0.574 s (375x1242)
+- `memfof-spring` load / first call: original 1.12 s / 1.037 s, portable 0.71 s / 0.433 s
+- Protocol, `memfof`, `memfof-kitti`, `memfof-spring`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+- Protocol, `memfof-sintel`: median of 5 after 3 warm-up, uint8 CUDA input, original code at the pinned commit, torch.no_grad; peak = max over the first call and the timed calls
 
 ### Measured
 

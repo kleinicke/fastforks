@@ -69,7 +69,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
+| `any2full-s` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>12.4<br>–<br>fails: timeout after 190 s<br>fails: timeout after 190 s | –<br>274 / 312<br>–<br>–<br>– |
 | `any2full-b` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>26.8<br>–<br>24.2<br>fails: timeout after 190 s | –<br>538 / 596<br>–<br>442 / 496<br>– |
+| `any2full-l` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>67.7<br>–<br>63.8<br>fails: timeout after 190 s | –<br>1178 / 1250<br>–<br>987 / 1092<br>– |
 
 <details><summary>Details</summary>
 
@@ -86,9 +88,11 @@ Commercial use: yes.
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `any2full-s` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `any2full-b` 3000x4000 (0.7 GiB peak allocated, 0.9 reserved); `any2full-l` 3000x4000 (1.2 GiB peak allocated, 1.3 reserved)
 - `any2full-b` 994x1482, first call: portable + torch.compile 97 s (cold Inductor cache).
+- `any2full-l` 994x1482, first call: portable + torch.compile 34 s (cold Inductor cache).
+- `any2full-s` load / first call: portable 0.31 s / 0.359 s
 - `any2full-b` load / first call: portable 6.38 s / 3.337 s
+- `any2full-l` load / first call: portable 1.45 s / 0.298 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
-- Speed and memory not measured for: `any2full-s`, `any2full-l`.
 
 ### Parity
 
@@ -489,7 +493,10 @@ LingBot-Depth (Robbyant, 2026): metric depth completion from an image plus an in
 
 Commercial use: yes.
 
-Speed and memory not measured for: `lingbot-depth`, `lingbot-depth-dc`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `lingbot-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>280<br>–<br>fails: timeout after 190 s<br>188 | –<br>1559 / 1872<br>–<br>–<br>1821 / 1876 |
+| `lingbot-depth-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>281<br>–<br>252<br>188 | –<br>1559 / 1872<br>–<br>1381 / 1572<br>1821 / 1876 |
 
 <details><summary>Details</summary>
 
@@ -505,6 +512,11 @@ Speed and memory not measured for: `lingbot-depth`, `lingbot-depth-dc`.
 - Outputs: depth, mask; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-depth` 3000x4000 (1.7 GiB peak allocated, 2.1 reserved); `lingbot-depth-dc` 3000x4000 (1.7 GiB peak allocated, 2.1 reserved)
+- `lingbot-depth` 994x1482, first call: TensorRT fp16 66 s (ONNX + engine).
+- `lingbot-depth-dc` 994x1482, first call: portable + torch.compile 32 s (cold Inductor cache), TensorRT fp16 67 s (ONNX + engine).
+- `lingbot-depth` load / first call: portable 1.38 s / 0.531 s
+- `lingbot-depth-dc` load / first call: portable 1.29 s / 0.532 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 

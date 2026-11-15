@@ -33,7 +33,9 @@ FlexGlue (ETH Zurich and partners, 2026): sparse matching of two photos of one s
 
 Commercial use: yes.
 
-Speed and memory not measured for: `aliked-flexglue`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `aliked-flexglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>129<br>no kernels<br>fails: timeout after 190 s<br>fails: timeout after 190 s | –<br>1775 / 1886<br>no kernels<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -50,6 +52,9 @@ Speed and memory not measured for: `aliked-flexglue`.
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-flexglue` 3000x4000 (2.0 GiB peak allocated, 2.5 reserved)
+- no kernels: not implemented: data-dependent keypoint and match counts. Portable at 768x1024, 2048 keypoints, MegaDepth pair: 129.6 ms against 152.9 ms for the original with its float16 option (1.18x), peak allocated 1799 vs 1801 MB (reserved 1962 vs 1950), 760 vs 759 matches.
+- `aliked-flexglue` load / first call: portable 0.92 s / 1.199 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 

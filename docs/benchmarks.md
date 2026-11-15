@@ -546,6 +546,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
 | any2full-b | 994x1482 | – | – | 26.8 | – | – | – | – | 538 / 596 | – |
+| any2full-l | 994x1482 | – | – | 67.7 | – | – | – | – | 1178 / 1250 | – |
+| any2full-s | 994x1482 | – | – | 12.4 | – | – | – | – | 274 / 312 | – |
 | da3-giant-1.1 | 994x1482 | – | – | 71.5 | – | – | – | – | 2634 / 2728 | – |
 | da3-large-1.1 | 994x1482 | – | – | 30.0 | – | – | – | – | 988 / 1088 | – |
 | da3metric-large | 994x1482 | – | – | 24.3 | – | – | – | – | 811 / 868 | – |
@@ -565,6 +567,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | distill-any-depth-b | 994x1482 | – | – | 18.6 | 10.8 | – | 1.7x | – | 445 / 514 | 349 / 396 |
 | distill-any-depth-l | 994x1482 | – | – | 54.4 | 31.8 | – | 1.7x | – | 1022 / 1092 | 917 / 1034 |
 | distill-any-depth-s | 994x1482 | – | – | 7.65 | 4.63 | – | 1.7x | – | 244 / 288 | 152 / 208 |
+| lingbot-depth | 994x1482 | – | – | 280 | – | – | – | – | 1559 / 1872 | – |
+| lingbot-depth-dc | 994x1482 | – | – | 281 | – | – | – | – | 1559 / 1872 | – |
 | lotus-normal-d-v1-1 | 994x1482 | – | 344 | 268 | 164 | 2.1x | 1.6x | 3835 / 3898 | 2777 / 2940 | 2351 / 2500 |
 | lotus-normal-g-v1-1 | 994x1482 | – | 344 | 267 | 164 | 2.1x | 1.6x | 3836 / 3898 | 2777 / 2940 | 2351 / 2500 |
 | marigold-depth-v1-1 | 994x1482 | – | – | 410 | 261 | – | 1.6x | – | 2776 / 2938 | 2343 / 2500 |
@@ -1026,6 +1030,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | mvsplat-re10k | 336x518 | – | 279 | 181 | 172 | 1.6x | 1.0x | 2889 / 4160 | 1239 / 1532 | 1239 / 1532 |
 | patchmatchnet | 1536x1024 | 248 | 220 | 201 | 29.5 | 7.4x | 6.8x | 1228 / 1272 | 1039 / 1212 | 648 / 772 |
 | pi3 | 336x518 | – | 1057 | 821 | 560 | 1.9x | 1.5x | 5926 / 6016 | 2360 / 2416 | 2367 / 2456 |
+| resplat-small-dl3dv | 480x640 | – | – | 1723 | – | – | – | – | 4995 / 5180 | – |
 | vggt-1b | 336x518 | 2502 | 965 | 651 | 458 | 2.1x | 1.4x | 8688 / 9158 | 3691 / 4674 | 3702 / 4654 |
 | vggt-omega-1b-512 | 336x518 | 2650 | 906 | 726 | 464 | 2.0x | 1.6x | 7495 / 7654 | 3421 / 3518 | 3422 / 3518 |
 
@@ -1055,7 +1060,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | memfof | 1080x1920 | – | 531 | 433 | 427 | 1.2x | 1.0x | 2003 / 2144 | 1911 / 2196 | 1301 / 1418 |
 | memfof-kitti | 375x1242 | – | 927 | 386 | 380 | 2.4x | 1.0x | 1968 / 2276 | 1619 / 1856 | 1137 / 1218 |
 | memfof-sintel | 375x1242 | – | 894 | – | – | – | – | 1968 / 2176 | – | – |
-| memfof-spring | 1080x1920 | – | 1035 | – | – | – | – | 2340 / 2676 | – | – |
+| memfof-spring | 1080x1920 | – | 1035 | 433 | – | – | – | 2340 / 2676 | 1900 / 2196 | – |
 | neuflow-v2 | 1080x1920 | 171 | 75.6 | 71.2 | 59.1 | 1.3x | 1.2x | 4367 / 4556 | 2366 / 2398 | 790 / 896 |
 | neuflow-v2-sintel | 1080x1920 | 171 | 75.7 | 71.3 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2366 / 2398 | 790 / 896 |
 | neuflow-v2-things | 1080x1920 | 172 | 75.8 | 71.4 | 58.9 | 1.3x | 1.2x | 4374 / 4720 | 2366 / 2398 | 779 / 896 |
@@ -1090,6 +1095,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
+| aliked-flexglue | – | – | 129 | – | – | – | – | 1775 / 1886 | – |
 | aliked-lightglue | – | 41.8 | 40.6 | 35.1 | 1.2x | 1.2x | 1305 / 1364 | 1300 / 1404 | 1238 / 1324 |
 | dedode-v2-b | – | 318 | 246 | – | – | – | 1734 / 1992 | 1535 / 1654 | – |
 | dedode-v2-g | – | 666 | 592 | – | – | – | 2335 / 2472 | 2142 / 2334 | – |
@@ -1258,6 +1264,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | waft-stereo-b | 3.07 (375x1242) | 1.65 | 1.77 (375x1242) | 0.44 (375x1242) | 1.15† | 0.46 (375x1242) |
 | waft-stereo-s | 1.60 (375x1242) | 0.58 | 1.47 (375x1242) | 0.14 (375x1242) | 0.69† | 0.32 (375x1242) |
 | any2full-b | – | 6.38 | – | – | 3.34 | – |
+| any2full-l | – | 1.45 | – | – | 0.30 | – |
+| any2full-s | – | 0.31 | – | – | 0.36 | – |
 | da3-giant-1.1 | 12.39 | 7.21 (518x770) | 0.90† | 0.68 | 0.36 (518x770) | 0.06 |
 | da3-large-1.1 | 3.46 | 1.59 (518x770) | 0.31† | 0.45 | 0.41 (518x770) | 0.03 |
 | da3metric-large | 2.70 | 4.84 (518x770) | 0.30† | 0.28 | 0.24 (518x770) | 0.02 |
@@ -1277,6 +1285,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | distill-any-depth-b | 0.84 | 0.29 (518x770) | 1.13 (518x770) | 0.06 | 0.27 (518x770) | 0.04 (518x770) |
 | distill-any-depth-l | 3.03 | 0.82 (518x770) | 1.68 (518x770) | 0.14 | 0.14 (518x770) | 0.06 (518x770) |
 | distill-any-depth-s | 0.25 | 0.13 (518x770) | 0.96 (518x770) | 0.04 | 0.16 (518x770) | 0.04 (518x770) |
+| lingbot-depth | – | 1.38 | – | – | 0.53 | – |
+| lingbot-depth-dc | – | 1.29 | – | – | 0.53 | – |
 | lotus-normal-d-v1-1 | 2.10 | 5.48 | 2.70 | 0.56 | 0.69 | 0.32 |
 | lotus-normal-g-v1-1 | 10.43 | 4.37 | 3.49 | 1.15 | 0.59 | 0.38 |
 | marigold-depth-v1-1 | 1.32 | 11.04 (518x770) | 2.49 (518x770) | 0.60 | 0.89 (518x770) | 0.50 (518x770) |
@@ -1637,6 +1647,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | mvsplat-re10k | 1.37 (336x518) | 0.15 (336x518) | 1.27 (336x518) | 2.82 (336x518) | 1.02 (336x518) | 0.69 (336x518) |
 | patchmatchnet | 0.04 (1536x1024) | 0.16 (1536x1024) | 0.17 (1536x1024) | 0.92 (1536x1024) | 0.86 (1536x1024) | 0.56 (1536x1024) |
 | pi3 | 10.64 (336x518) | 2.35 (336x518) | 3.54 (336x518) | 4.06 (336x518) | 1.24 (336x518) | 0.69 (336x518) |
+| resplat-small-dl3dv | – | 0.72 (480x640) | – | – | 2.51 (480x640) | – |
 | vggt-1b | 19.37 (336x518) | 4.98 (336x518) | 5.99† (336x518) | 1.29 (336x518) | 0.69 (336x518) | 0.46 (336x518) |
 | vggt-omega-1b-512 | 16.31 (336x518) | 3.31 (336x518) | 2.27† (336x518) | 1.10 (336x518) | 0.73 (336x518) | 0.46 (336x518) |
 | flowformer-small-chairs | 0.16 (375x1242) | 1.31 (375x1242) | – | 0.37 (375x1242) | 0.57 (375x1242) | – |
@@ -1660,8 +1671,8 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | memflow-sintel | 0.14 | 0.10 | 0.95 | 3.06 | 0.98 | 0.88 |
 | memfof | 2.06 | 0.22 (375x1242) | 1.84 (375x1242) | 1.29 | 0.41 (375x1242) | 0.29 (375x1242) |
 | memfof-kitti | 2.59 (375x1242) | 0.21 (375x1242) | 1.07 (375x1242) | 0.96 (375x1242) | 0.65 (375x1242) | 0.56 (375x1242) |
-| memfof-sintel | 1.30 (375x1242) | – | – | 0.90 (375x1242) | – | – |
-| memfof-spring | 1.12 | – | – | 1.04 | – | – |
+| memfof-sintel | 1.30 (375x1242) | 0.69 (375x1242) | – | 0.90 (375x1242) | 0.57 (375x1242) | – |
+| memfof-spring | 1.12 | 0.71 | – | 1.04 | 0.43 | – |
 | neuflow-v2 | 0.20 | 0.26 | 0.96 (375x1242) | 0.22 | 0.07 | 0.18 (375x1242) |
 | neuflow-v2-sintel | 0.17 | 1.29 (375x1242) | 0.95 (375x1242) | 0.08 | 0.81 (375x1242) | 0.18 (375x1242) |
 | neuflow-v2-things | 0.17 | 0.38 | 0.26 | 0.08 | 0.07 | 0.06 |
@@ -1682,6 +1693,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | waft-a1 | 5.87 | 0.51 | 0.57 (375x1242) | 3.41 | 0.79 | 0.21 (375x1242) |
 | waft-a1-kitti | 4.06 | 0.54 | – | 2.87 | 0.79 | – |
 | waft-a1-sintel | 2.93 | 0.51 | – | 2.87 | 0.79 | – |
+| aliked-flexglue | – | 0.92 | – | – | 1.20 | – |
 | aliked-lightglue | 1.49 | 0.17 | 1.46 | 0.73 | 0.79 | 0.90 |
 | dedode-v2-b | 3.73 | 0.67 | – | 1.10 | 0.75 | – |
 | dedode-v2-g | 6.36 | 1.12 | – | 1.51 | 1.04 | – |
@@ -1836,8 +1848,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | waft-stereo-b | 994x1482 | 1137 ms | 571 ms | fails: unsupported: fp16 engine output is all NaN (strongly-typed f | 385 ms | 104 s | – | 5775 / 5852 | 3908 / 3936 | 1906 / 2152 | – |
 | waft-stereo-s | 994x1482 | 689 ms | 357 ms | 170 ms | 281 ms | 95.1 s | 152 s | 3293 / 3456 | 2024 / 2058 | 1113 / 1282 | 1061 / 1114 |
 | any2full-b | 994x1482 | 26.8 ms | 24.2 ms | fails: timeout after 190 s | – | 97.0 s | – | 538 / 596 | 442 / 496 | – | – |
-| any2full-l | 994x1482 | – | 63.8 ms | fails: timeout after 190 s | – | 33.9 s | – | – | 987 / 1092 | – | – |
-| any2full-s | 994x1482 | – | fails: timeout after 190 s | fails: timeout after 190 s | – | – | – | – | – | – | – |
+| any2full-l | 994x1482 | 67.7 ms | 63.8 ms | fails: timeout after 190 s | – | 33.9 s | – | 1178 / 1250 | 987 / 1092 | – | – |
+| any2full-s | 994x1482 | 12.4 ms | fails: timeout after 190 s | fails: timeout after 190 s | – | – | – | 274 / 312 | – | – | – |
 | da3-giant-1.1 | 994x1482 | 71.5 ms | 64.3 ms | 37.2 ms | 44.2 ms | 47.2 s | 84.1 s | 2634 / 2728 | 2487 / 2528 | 2628 / 2710 | 4795 / 4842 |
 | da3-large-1.1 | 994x1482 | 30.0 ms | 26.5 ms | 13.8 ms | 17.1 ms | 45.4 s | 62.6 s | 988 / 1088 | 841 / 868 | 985 / 1090 | 1562 / 1622 |
 | da3metric-large | 994x1482 | 24.3 ms | 21.2 ms | 14.4 ms | 14.7 ms | 26.6 s | 58.2 s | 811 / 868 | 792 / 828 | 811 / 868 | 1465 / 1502 |
@@ -1857,8 +1869,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | distill-any-depth-b | 994x1482 | 18.6 ms | 17.0 ms | 10.8 ms | 10.8 ms | 16.2 s | 33.0 s | 445 / 514 | 340 / 394 | 349 / 396 | 539 / 614 |
 | distill-any-depth-l | 994x1482 | 54.4 ms | 51.6 ms | 32.4 ms | 31.8 ms | 20.1 s | 42.5 s | 1022 / 1092 | 850 / 910 | 917 / 1034 | 1579 / 1634 |
 | distill-any-depth-s | 994x1482 | 7.65 ms | 6.67 ms | 4.46 ms | 4.63 ms | 15.9 s | 29.9 s | 244 / 288 | 201 / 224 | 152 / 208 | 305 / 348 |
-| lingbot-depth | 994x1482 | – | fails: timeout after 190 s | 188 ms | – | – | 65.5 s | – | – | – | 1821 / 1876 |
-| lingbot-depth-dc | 994x1482 | – | 252 ms | 188 ms | – | 32.4 s | 67.3 s | – | 1381 / 1572 | – | 1821 / 1876 |
+| lingbot-depth | 994x1482 | 280 ms | fails: timeout after 190 s | 188 ms | – | – | 65.5 s | 1559 / 1872 | – | – | 1821 / 1876 |
+| lingbot-depth-dc | 994x1482 | 281 ms | 252 ms | 188 ms | – | 32.4 s | 67.3 s | 1559 / 1872 | 1381 / 1572 | – | 1821 / 1876 |
 | lotus-normal-d-v1-1 | 994x1482 | 268 ms | 222 ms | 107 ms | 164 ms | 63.9 s | 183 s | 2777 / 2940 | 2344 / 2416 | 2351 / 2500 | 4215 / 4242 |
 | lotus-normal-g-v1-1 | 994x1482 | 267 ms | 222 ms | 107 ms | 164 ms | 63.4 s | 183 s | 2777 / 2940 | 2344 / 2416 | 2351 / 2500 | 4213 / 4240 |
 | marigold-depth-v1-1 | 994x1482 | 410 ms | 342 ms | 172 ms | 261 ms | 127 s | 285 s | 2776 / 2938 | 2341 / 2418 | 2343 / 2500 | 4263 / 4318 |
@@ -2166,7 +2178,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | dinov2-vitb14 | 224x224 | 2.92 ms | 2.20 ms | 1.30 ms | 1.48 ms | 9.52 s | 25.2 s | 205 / 226 | 240 / 266 | 237 / 290 | 367 / 384 |
 | dinov2-vitb14-reg | 224x224 | 2.94 ms | 2.30 ms | 1.33 ms | 1.50 ms | 6.12 s | 29.2 s | 207 / 226 | 240 / 246 | 237 / 288 | 399 / 402 |
 | dinov2-vitg14 | 224x224 | 18.9 ms | 18.3 ms | 12.0 ms | 12.8 ms | 19.0 s | 46.5 s | 2216 / 2230 | 2267 / 2290 | 2222 / 2250 | 4392 / 4410 |
-| dinov2-vitg14-reg | 224x224 | 18.7 ms | 18.3 ms | – | 12.7 ms | 15.4 s | – | 2217 / 2228 | 2267 / 2290 | 2222 / 2250 | – |
+| dinov2-vitg14-reg | 224x224 | 18.7 ms | 18.3 ms | 12.0 ms | 12.7 ms | 15.4 s | 56.9 s | 2217 / 2228 | 2267 / 2290 | 2222 / 2250 | 4400 / 4418 |
 | dinov2-vitl14 | 224x224 | 6.12 ms | 6.03 ms | 4.25 ms | 4.59 ms | 13.2 s | 33.5 s | 622 / 646 | 661 / 666 | 655 / 714 | 1235 / 1262 |
 | dinov2-vitl14-reg | 224x224 | 6.17 ms | 6.17 ms | 4.27 ms | 4.60 ms | 9.55 s | 42.0 s | 625 / 646 | 661 / 666 | 655 / 714 | 1237 / 1242 |
 | dinov2-vits14 | 224x224 | 2.95 ms | 2.02 ms | 0.601 ms | 0.827 ms | 9.99 s | 22.9 s | 79 / 98 | 111 / 140 | 80 / 122 | 141 / 160 |
@@ -2176,7 +2188,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | dinov3-convnext-small | 224x224 | 5.42 ms | 3.41 ms | 1.17 ms | 1.99 ms | 10.6 s | 25.9 s | 134 / 150 | 165 / 188 | 127 / 152 | 232 / 252 |
 | dinov3-convnext-tiny | 224x224 | 3.04 ms | 1.96 ms | 0.681 ms | 1.18 ms | 7.76 s | 22.8 s | 93 / 108 | 123 / 148 | 86 / 112 | 126 / 158 |
 | dinov3-vitb16 | 224x224 | 3.68 ms | 2.35 ms | 1.14 ms | 1.26 ms | 10.4 s | 25.0 s | 200 / 206 | 236 / 306 | 168 / 210 | 393 / 480 |
-| dinov3-vith16plus | 224x224 | 12.5 ms | 11.6 ms | – | 8.45 ms | 21.0 s | – | 1646 / 1668 | 1699 / 2008 | 1645 / 1672 | – |
+| dinov3-vith16plus | 224x224 | 12.5 ms | 11.6 ms | 7.86 ms | 8.45 ms | 21.0 s | 99.2 s | 1646 / 1668 | 1699 / 2008 | 1645 / 1672 | 3280 / 3628 |
 | dinov3-vitl16 | 224x224 | 6.69 ms | 4.91 ms | 2.98 ms | 3.03 ms | 17.0 s | 34.4 s | 616 / 626 | 655 / 846 | 616 / 652 | 1226 / 1418 |
 | dinov3-vits16 | 224x224 | 3.54 ms | 2.18 ms | 0.564 ms | 0.792 ms | 8.81 s | 25.0 s | 76 / 78 | 109 / 138 | 44 / 62 | 107 / 120 |
 | pe-core-b16-224 | 224x224 | 4.97 ms | 2.50 ms | 1.17 ms | 1.47 ms | 8.71 s | 25.8 s | 218 / 266 | 251 / 286 | 285 / 348 | 409 / 460 |
@@ -2212,7 +2224,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | fails: unsupported: fp16 engine output is all NaN (strongly-typed f | 35.2 ms | 153 s | – | 931 / 1226 | 818 / 860 | 702 / 760 | – |
 | mvsplat-re10k | 336x518 | 181 ms | 115 ms | fails: ONNX export: conversion failed | 172 ms | 102 s | – | 1239 / 1532 | 2762 / 2810 | 1239 / 1532 | – |
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
-| resplat-small-dl3dv | 480x640 | – | fails: timeout after 190 s | fails: TypeError: _Base.forward() missing 1 required positional arg | – | – | – | – | – | – | – |
+| resplat-small-dl3dv | 480x640 | 1723 ms | fails: timeout after 190 s | fails: TypeError: _Base.forward() missing 1 required positional arg | – | – | – | 4995 / 5180 | – | – | – |
 | vggt-1b | 336x518 | 651 ms | 557 ms | 424 ms | 458 ms | 74.3 s | 199 s | 3691 / 4674 | 3611 / 3856 | 3702 / 4654 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 464 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3422 / 3518 | 5657 / 5766 |
 | flowformer-small-chairs | 375x1242 | 351 ms | 250 ms | 202 ms | – | 98.7 s | 118 s | 3165 / 3638 | 2438 / 3196 | – | 2087 / 2138 |
@@ -2235,6 +2247,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | memflow-sintel | 1080x1920 | 964 ms | 1640 ms | fails: TensorRT engine build failed | 865 ms | 76.0 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 427 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 1301 / 1418 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 380 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 1137 / 1218 | – |
+| memfof-sintel | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | – | – | – | – | – | – | – |
+| memfof-spring | 1080x1920 | 433 ms | 291 ms | 160 ms | – | 45.4 s | 95.8 s | 1900 / 2196 | 2452 / 2666 | – | 2070 / 2112 |
 | neuflow-v2 | 1080x1920 | 71.2 ms | 91.4 ms | 65.0 ms | 59.1 ms | 28.5 s | 104 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-sintel | 1080x1920 | 71.3 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
@@ -2255,7 +2269,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | waft-a1 | 1080x1920 | 791 ms | 610 ms | fails: worker rc=124 | 519 ms | 84.7 s | – | 3553 / 4076 | 3479 / 3638 | 1851 / 2264 | – |
 | waft-a1-kitti | 1080x1920 | 791 ms | 610 ms | fails: worker rc=124 | – | 84.1 s | – | 3553 / 4196 | 3479 / 3758 | – | – |
 | waft-a1-sintel | 1080x1920 | 791 ms | 610 ms | fails: worker rc=124 | – | 84.7 s | – | 3553 / 4076 | 3479 / 3578 | – | – |
-| aliked-flexglue | 768x1024 | – | fails: timeout after 190 s | fails: timeout after 190 s | – | – | – | – | – | – | – |
+| aliked-flexglue | 768x1024 | 129 ms | fails: timeout after 190 s | fails: timeout after 190 s | – | – | – | 1775 / 1886 | – | – | – |
 | aliked-lightglue | 768x1024 | 40.6 ms | 29.5 ms | fails: unsupported: torch.export: data-dependent guard (masks.sum() | 35.1 ms | 30.8 s | – | 1300 / 1404 | 1653 / 1680 | 1238 / 1324 | – |
 | dedode-v2-b | 768x1024 | 246 ms | 164 ms | fails: unsupported: TensorRT ITopK supports K <= 3840 only; the key | – | 50.5 s | – | 1535 / 1654 | 1893 / 2434 | – | – |
 | dedode-v2-g | 768x1024 | 592 ms | 330 ms | fails: TensorRT engine build failed | – | 86.4 s | – | 2142 / 2334 | 2881 / 3316 | – | – |

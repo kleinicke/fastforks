@@ -400,7 +400,7 @@ Commercial use: yes.
 | `dinov2-vitl14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.8<br>9.80<br>6.12<br>4.59<br>6.03<br>4.25 | 1205 / 1224<br>1777 / 1784<br>622 / 646<br>655 / 714<br>661 / 666<br>1235 / 1262 |
 | `dinov2-vitl14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.5<br>10.7<br>6.17<br>4.60<br>6.17<br>4.27 | 1205 / 1226<br>1777 / 1786<br>625 / 646<br>655 / 714<br>661 / 666<br>1237 / 1242 |
 | `dinov2-vitg14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 86.4<br>33.9<br>18.9<br>12.8<br>18.3<br>12.0 | 4389 / 4406<br>6542 / 6548<br>2216 / 2230<br>2222 / 2250<br>2267 / 2290<br>4392 / 4410 |
-| `dinov2-vitg14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 86.6<br>34.2<br>18.7<br>12.7<br>18.3 | 4389 / 4406<br>6542 / 6568<br>2217 / 2228<br>2222 / 2250<br>2267 / 2290 |
+| `dinov2-vitg14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 86.6<br>34.2<br>18.7<br>12.7<br>18.3<br>12.0 | 4389 / 4406<br>6542 / 6568<br>2217 / 2228<br>2222 / 2250<br>2267 / 2290<br>4400 / 4418 |
 
 <details><summary>Details</summary>
 
@@ -423,7 +423,7 @@ Commercial use: yes.
 - `dinov2-vitl14` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `dinov2-vitl14-reg` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `dinov2-vitg14` 224x224, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 46 s (ONNX + engine).
-- `dinov2-vitg14-reg` 224x224, first call: portable + torch.compile 15 s (cold Inductor cache).
+- `dinov2-vitg14-reg` 224x224, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 57 s (ONNX + engine).
 - `dinov2-vits14` original 224x224: torch.autocast(fp16) around the forward
 - `dinov2-vits14-reg` original (fp32) 224x224, original 224x224: dinov2 forward_features CLS
 - `dinov2-vitb14` original 224x224: torch.autocast(fp16) around the forward
@@ -556,7 +556,7 @@ Commercial use: yes.
 | `dinov3-vits16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.47<br>9.16<br>3.54<br>0.792<br>2.18<br>0.564 | 119 / 132<br>158 / 166<br>76 / 78<br>44 / 62<br>109 / 138<br>107 / 120 |
 | `dinov3-vitb16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.95<br>9.33<br>3.68<br>1.26<br>2.35<br>1.14 | 367 / 390<br>527 / 550<br>200 / 206<br>168 / 210<br>236 / 306<br>393 / 480 |
 | `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.2<br>17.7<br>6.69<br>3.03<br>4.91<br>2.98 | 1199 / 1212<br>1772 / 1812<br>616 / 626<br>616 / 652<br>655 / 846<br>1226 / 1418 |
-| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 48.0<br>25.9<br>12.5<br>8.45<br>11.6 | 3255 / 3276<br>4849 / 4876<br>1646 / 1668<br>1645 / 1672<br>1699 / 2008 |
+| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.0<br>25.9<br>12.5<br>8.45<br>11.6<br>7.86 | 3255 / 3276<br>4849 / 4876<br>1646 / 1668<br>1645 / 1672<br>1699 / 2008<br>3280 / 3628 |
 
 <details><summary>Details</summary>
 
@@ -577,7 +577,7 @@ Commercial use: yes.
 - `dinov3-vits16` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `dinov3-vitb16` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `dinov3-vitl16` 224x224, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
-- `dinov3-vith16plus` 224x224, first call: portable + torch.compile 21 s (cold Inductor cache).
+- `dinov3-vith16plus` 224x224, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 99 s (ONNX + engine).
 - `dinov3-vits16` original 224x224: torch.autocast(fp16) around the forward
 - `dinov3-vitb16` original 224x224: torch.autocast(fp16) around the forward
 - `dinov3-vitl16` original 224x224: torch.autocast(fp16) around the forward
