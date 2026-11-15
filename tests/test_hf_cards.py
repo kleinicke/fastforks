@@ -61,7 +61,11 @@ def test_no_internal_text_or_base_model(staged):
         text = readme.read_text()
         for bad in ("exp 0", "results/", "/home/"):
             assert bad not in text, (readme, bad)
-        assert "base_model" not in text, readme
+        front = yaml.safe_load(text.split("---")[1])
+        assert "fastforks-card" in front["tags"], readme
+        for repo in front.get("base_model", []):  # only the authors' own repos, and each is named in the card
+            assert repo.split("/")[0] in set(stage_hf.AUTHOR_HF.values()), (readme, repo)
+            assert f"https://huggingface.co/{repo}/resolve/" in text, (readme, repo)
 
 
 def test_assumed_weights_licence_is_not_firm(staged):

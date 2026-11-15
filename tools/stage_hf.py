@@ -195,7 +195,7 @@ def render_weights_card(repo: str, meta: dict, users: dict[str, list[tuple[Model
     lic = meta["licence"]
     converted = meta.get("converted")
     refs = sorted({(card.family, v.ref) for _, _, uses in files for card, v, _ in uses})
-    front = {"license": _HF_LICENCES[lic], "tags": "[fastforks, weights]"}
+    front = {"license": _HF_LICENCES[lic], "tags": f"[fastforks, weights, {KIND_TAGS['weights']}]"}
     lines = ["---", *(f"{k}: {v}" for k, v in front.items()), "---", f"# {meta['title']}", ""]
     what = "converted to safetensors (see Source)" if converted else "an unchanged, byte-identical copy"
     lines += [
@@ -286,7 +286,7 @@ KERNELS_CARD = """\
 ---
 license: other
 license_name: per-library
-tags: [cuda, kernels, fastforks]
+tags: [cuda, kernels, fastforks, fastforks-kernels]
 ---
 # fastforks kernels
 
@@ -323,7 +323,7 @@ MIRRORS_CARD = """\
 ---
 license: other
 license_name: per-file
-tags: [stereo, weights, fastforks]
+tags: [stereo, weights, fastforks, fastforks-weights]
 ---
 # fastforks weight mirrors
 
@@ -363,6 +363,23 @@ _HF_LICENCES = {
 SEE_CARD = "see-model-card"  # `license_name` when the terms are a combination: they are spelled out in the card body
 # Fine-tuned from Stable Diffusion 2: its CreativeML OpenRAIL++-M use restrictions pass down to the weights.
 SD2_DERIVED = frozenset({"lotus", "stablenormal", "marigold_normals"})
+# `base_model:` front matter only where the weights file is fetched from the original authors' own HF repo (not a
+# timm / community re-upload, not a backbone): family -> owners of the author repos. Extend only when certain.
+AUTHOR_HF = {
+    **dict.fromkeys(("dinov3", "dinov3_convnext", "sam3", "vggt", "vggt_omega", "mapanything", "cotracker"), "facebook"),
+    **dict.fromkeys(("sapiens", "mask2former"), "facebook"),
+    **dict.fromkeys(
+        ("depth_anything_v2", "depth_anything_3", "prompt_depth_anything", "video_depth_anything"), "depth-anything"
+    ),
+    "oneformer": "shi-labs", "clipseg": "CIDAS", "owlv2": "google", "tipsv2": "google", "moge": "Ruicheng",
+    "marigold": "prs-eth", "marigold_normals": "prs-eth", "nnfoundation": "MIC-DKFZ", "nninteractive": "MIC-DKFZ",
+    "nsfw_vit": "Falconsai", "ben2": "PramaLLC", "birefnet": "ZhengPeng7", "c_radio": "nvidia",
+    "c_foundationstereo": "nvidia", "grounding_dino": "IDEA-Research", "lingbot_depth": "robbyant",
+    "lingbot_map": "robbyant", "alltracker": "aharley", "stablenormal": "Stable-X", "lotus": "jingheya",
+    "efficientvit_sam": "mit-han-lab", "metric3d": "JUGGHM", "unidepth_v2": "lpiccinelli", "unik3d": "lpiccinelli",
+    "vitmatte": "hustvl", "ppocrv5": "PaddlePaddle",
+}  # fmt: skip
+KIND_TAGS = {"cards": "fastforks-card", "weights": "fastforks-weights", "kernels": "fastforks-kernels"}
 _PIPELINE = {
     "stereo": "depth-estimation",
     "flow": "image-to-image",
@@ -608,8 +625,10 @@ def render_card(card: ModelCard, variants: list[Variant]) -> str:
         "library_name": "fastforks",
         "pipeline_tag": _PIPELINE[task],
         **_licence_front(card, variants),
-        "tags": list(dict.fromkeys([task, *_TASK_TAGS[task], "cuda", "pytorch", "fastforks"])),
+        "tags": list(dict.fromkeys([task, *_TASK_TAGS[task], "cuda", "pytorch", "fastforks", KIND_TAGS["cards"]])),
     }
+    if authors := [r for r in base if r.split("/")[0] == AUTHOR_HF.get(card.family)]:
+        front["base_model"] = authors
     first = variants[0]
     author_repos = ", ".join(f"<https://huggingface.co/{r}>" for r in base)
     lines = [
