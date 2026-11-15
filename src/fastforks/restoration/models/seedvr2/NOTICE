@@ -1,0 +1,12 @@
+SeedVR2
+Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+
+The network in net/ re-implements SeedVR2 (https://github.com/ByteDance-Seed/SeedVR, Apache License 2.0) without its
+training framework, flash-attn and apex: the NaDiT transformers of models/dit_v2 (3B) and models/dit (7B) at their one
+fixed timestep, and the causal 3-D VAE of models/video_vae_v3, as the authors' projects/inference_seedvr2_*.py run them.
+
+The weights are not included. fastforks downloads converted files (see card.toml): the transformer of
+ByteDance-Seed/SeedVR2-3B or -7B (https://huggingface.co/ByteDance-Seed, Apache License 2.0) in bf16 with the fixed
+text prompt embedding (pos_emb.pt of the same repositories) and its AdaSingle vectors in float32, and the VAE
+(ema_vae.pth) in bf16. Both the originals and the converted files are Apache License 2.0. The colour fix of the
+authors' scripts (wavelet reconstruction from StableSR) is not used.

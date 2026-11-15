@@ -20,6 +20,9 @@ evidence = "https://github.com/wasserth/TotalSegmentator/blob/184fa4765456492b2a
 folds = [0]
 step = 0.8  # TotalSegmentator's sliding-window step
 mirror = false
+configuration = ""  # the part name's last `__` field
+checkpoint = "checkpoint_final.pth"
+embedded = false
 classes = "classes_total.txt"
 
 [modes.portable]

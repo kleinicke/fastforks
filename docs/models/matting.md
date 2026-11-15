@@ -6,7 +6,7 @@
 
 Input: one RGB image (trimap-guided models also a trimap: background / unknown / foreground). Output: an alpha matte `[H, W]` in [0, 1] at the input size: 1 = foreground (background removal, dichotomous / salient object segmentation).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured. The accuracy column is lower-is-better (DIS-VD MAE).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). The accuracy column is lower-is-better (DIS-VD MAE).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -15,11 +15,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`ben2`](#ben2) | yes | 0.0403 | 104, 1.9x | 2238, 0.81x |
 | [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1916, 0.99x |
 | [`birefnet-lite`](#birefnet) | yes | – | 48.1, 1.6x | 960, 0.99x |
-| [`inspyrenet`](#inspyrenet) | yes | – | – | – |
-| [`inspyrenet-fast`](#inspyrenet) | yes | – | – | – |
+| [`inspyrenet`](#inspyrenet) | yes | – | no kernels | no kernels |
+| [`inspyrenet-fast`](#inspyrenet) | yes | – | no kernels | no kernels |
 | [`isnet`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
 | [`isnet-general-use`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
-| [`matanyone`](#matanyone) | no | – | – | – |
+| [`matanyone`](#matanyone) | no | – | no kernels | no kernels |
 | [`rmbg-2.0`](#birefnet) | no | – | 121, 1.2x | 1936, 0.97x |
 | [`u2net`](#u2net) | yes | – | 8.83, 1.8x | 260, 0.52x |
 | [`u2net-human-seg`](#u2net) | yes | – | 9.05, 1.8x | 260, 0.52x |
@@ -151,8 +151,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>109<br>–<br>85.8<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 3240 / 3262<br>1649 / 1848<br>–<br>913 / 1018<br>– |
-| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>41.7<br>–<br>17.7<br>6.99 | 810 / 836<br>432 / 488<br>–<br>345 / 376<br>561 / 600 |
+| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>109<br>no kernels<br>85.8<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 3240 / 3262<br>1649 / 1848<br>no kernels<br>913 / 1018<br>– |
+| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>41.7<br>no kernels<br>17.7<br>6.99 | 810 / 836<br>432 / 488<br>no kernels<br>345 / 376<br>561 / 600 |
 
 <details><summary>Details</summary>
 
@@ -166,6 +166,7 @@ Commercial use: yes.
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `inspyrenet` 3000x4000 (2.0 GiB peak allocated, 2.4 reserved); `inspyrenet-fast` 3000x4000 (0.9 GiB peak allocated, 1.0 reserved)
+- no kernels: measured slower: cudnn_hacc convolutions 189.9 ms vs 159.4 ms portable (1080x1920, size 1024; upstream views their outputs, so channels-last needs copies); fp16-accumulate GEMMs alone 3 %.
 - `inspyrenet` 1080x1920, first call: portable + torch.compile 71 s (cold Inductor cache).
 - `inspyrenet-fast` 1080x1920, first call: portable + torch.compile 77 s (cold Inductor cache), TensorRT fp16 138 s (ONNX + engine).
 - `inspyrenet` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing
@@ -261,7 +262,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels | 1220<br>1208<br>– | 2978 / 3208<br>2719 / 2908<br>– |
+| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels | 1220<br>1205<br>no kernels | 2978 / 3208<br>2719 / 2908<br>no kernels |
 
 <details><summary>Details</summary>
 
@@ -276,8 +277,9 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `matanyone` 3000x4000 (14.5 GiB peak allocated, 15.1 reserved)
+- no kernels: not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable already runs 6 % faster than the original fp16.
 - `matanyone` original 1080x1920: the authors' mixed-precision option (float16); pq-yang/MatAnyone@e5ddc534c1ff process_video loop on frames in memory, cv2 mask closing
-- `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.54 s / 2.947 s
+- `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -288,7 +290,7 @@ Video matting, YouTubeMatte (MatAnyone's benchmark): each clip at 512 x 288 with
 |---|---|---|---|---|---|
 | `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 706c6828, 2026-11-14.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14.
 
 ### Parity
 

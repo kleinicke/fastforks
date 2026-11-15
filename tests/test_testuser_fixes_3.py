@@ -139,7 +139,7 @@ def test_classification_example_inputs_default_size():  # TF-9
     m.card, m.variant = registry.resolve_any("resnet50.tv2_in1k")
     m.device = torch.device("cpu")
     (x,) = m.example_inputs()
-    assert x.shape[-2:] == m.export_size()
+    assert x.shape[-2:] == m.size_range().export_size
     with pytest.raises(fastforks.InputError, match="both height and width"):
         m.example_inputs(224)
 

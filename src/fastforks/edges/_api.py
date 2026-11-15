@@ -56,6 +56,8 @@ class EdgesModel(core.Model):
     Has the attributes of `fastforks.Model`.
     """
 
+    _list_images = 1
+
     _runner: Runner
 
     def __call__(self, image: ImageLike) -> EdgesResult:

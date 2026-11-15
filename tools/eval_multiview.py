@@ -58,7 +58,7 @@ if UP:
     orig = _original.load("multiview", a.ref, a.mode)
 else:
     port32 = a.mode == "portable32"
-    m = multiview.load(a.ref, mode="portable" if port32 else a.mode, device="cuda", options=opts,
+    m = multiview.load(a.ref, mode="portable" if port32 else a.mode, device="cuda", **(opts or {}),
                        dtype="float32" if port32 else None)  # fmt: skip
 calibrated = multiview.model_card(a.ref).family in {
     "mvsanywhere",

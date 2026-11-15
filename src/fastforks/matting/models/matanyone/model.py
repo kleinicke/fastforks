@@ -7,6 +7,9 @@ working memory every 5th frame, top-30 readout); the alpha of each real frame is
 output. Upstream runs it under CUDA fp16 autocast with fp32 regions inside; `portable` float16 does the same, float32
 runs without autocast. An image is a one-frame video (with the warm-up).
 
+The memory readout runs in query chunks (`_read`): upstream's full similarity maps (several per frame, 1 GB each at
+1080p with five memory frames) never exist, and the allocator keeps no growing set of them.
+
 Upstream's `encode_image` moves the normalisation buffers to the default device (CUDA if there is one) on every call;
 here it uses the buffers where the network is (`_encode_image`). The network is built without ImageNet weights
 (upstream's `pretrained_resnet` default downloads them before the checkpoint replaces them).
@@ -24,9 +27,11 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.patch import override
+from fastforks._core.runner import host
 from fastforks.matting._runner import Runner
 
 from .net.inference.inference_core import InferenceCore
+from .net.inference.memory_manager import MemoryManager
 from .net.model.matanyone import MatAnyone
 
 if TYPE_CHECKING:
@@ -133,6 +138,83 @@ def _encode_image(
     return ms_image_feat, m.pix_feat_proj(ms_image_feat[0])
 
 
+READ_TOKENS = (
+    1 << 11
+)  # query pixels per memory-readout chunk (1080p: 8160 queries x 6 memory frames = 0.8 GB per full map)
+
+
+def _read(  # noqa: PLR0913, PLR0917 - upstream's signature
+    mem: MemoryManager,
+    pix_feat: torch.Tensor,
+    query_key: torch.Tensor,
+    selection: torch.Tensor,
+    last_mask: torch.Tensor,
+    network: MatAnyone,
+    uncert_output: Any,  # noqa: ANN401 - upstream's untyped output dict
+    *,  # `InferenceCore.step` passes the four below by keyword
+    last_msk_value: torch.Tensor,
+    ti: int,  # noqa: ARG001 - unused upstream
+    last_pix_feat: torch.Tensor,
+    last_pred_mask: torch.Tensor,
+) -> dict[int, torch.Tensor]:
+    """`MemoryManager.read` (working memory, no object chunks, as configured) with the affinity in query chunks.
+
+    Upstream builds the similarity of every query pixel to every memory token (`[1, N, HW]`, several float16
+    temporaries of it, 0.8 GB each at 1080p with six memory frames) before the top-k softmax and the value readout.
+    Each query column is independent, so the same ops run over `READ_TOKENS` columns at a time: the readout
+    `v @ affinity` of the chunk is the readout's column block, and the full maps never exist.
+    """
+    assert uncert_output is None and not mem.use_long_term  # noqa: S101, PT018 - the inference config
+    assert mem.chunk_size < 1  # noqa: S101 - no object chunks
+    h, w = pix_feat.shape[-2:]
+    bs = pix_feat.shape[0]
+    query_key, selection = query_key.flatten(2), selection.flatten(2)
+    out = {}
+    for bucket_id, bucket in mem.work_mem.buckets.items():
+        mk, ms = mem.work_mem.key[bucket_id], mem.work_mem.shrinkage[bucket_id]
+        v = mem._get_visual_values_by_ids(bucket).flatten(1, 2)  # noqa: SLF001 - upstream's helpers  # bs x (objects C) x N
+        ck, ms_t, vt, mk_sq = mk.shape[1], ms.flatten(1)[:, None], v.transpose(1, 2), mk.pow(2)
+        reads = []
+        for s in range(0, h * w, READ_TOKENS):  # similarity as [B, chunk, N]: top-k over the last dim is faster
+            qk, qe = query_key[:, :, s : s + READ_TOKENS], selection[:, :, s : s + READ_TOKENS]
+            sim = (
+                (
+                    (2 * ((qk * qe).transpose(1, 2) @ mk))
+                    - (qe.transpose(1, 2) @ mk_sq)
+                    - (qe * qk.pow(2)).sum(1).unsqueeze(2)
+                )
+                * ms_t
+                / math.sqrt(ck)
+            )
+            val, idx = torch.topk(sim, k=mem.top_k, dim=2)
+            val = val.exp_()
+            val /= val.sum(2, keepdim=True)
+            reads.append(sim.zero_().scatter_(2, idx, val) @ vt)  # [B, chunk, objects C]
+        visual_readout = torch.cat(reads, 1).transpose(1, 2).reshape(bs, len(bucket), v.shape[1] // len(bucket), h, w)
+        uncert_output = network.pred_uncertainty(
+            last_pix_feat, pix_feat, last_pred_mask, visual_readout[:, 0] - last_msk_value[:, 0]
+        )
+        if uncert_output is not None:
+            uncert_prob = uncert_output["prob"].unsqueeze(1)
+            visual_readout = visual_readout * uncert_prob + last_msk_value * (1 - uncert_prob)
+        pixel_readout = network.pixel_fusion(
+            pix_feat,
+            visual_readout,
+            mem._get_sensory_by_ids(bucket),  # noqa: SLF001
+            mem._get_mask_by_ids(last_mask, bucket),  # noqa: SLF001
+        )
+        readout_memory, _ = network.readout_query(pixel_readout, mem._get_object_mem_by_ids(bucket).unsqueeze(2))  # noqa: SLF001
+        for i, obj in enumerate(bucket):
+            out[obj] = readout_memory[:, i]
+    return out
+
+
+class _Memory(MemoryManager):
+    """`MemoryManager` with the chunked readout."""
+
+    read = _read  # ty: ignore[invalid-method-override] - keyword-only where upstream is untyped
+
+
 class Portable(Runner):
     """Upstream's network and memory in plain PyTorch; float16 = CUDA fp16 autocast with fp32 weights (as upstream)."""
 
@@ -164,6 +246,7 @@ class Portable(Runner):
         p = self.ctx.params
         closed = close_mask(mask, p.dilate, p.erode)
         core = InferenceCore(self.net, cfg=self.cfg, device=self.ctx.device)
+        core.memory.__class__ = _Memory  # the chunked readout (a bound method stored on it would be a reference cycle)
         first = frames(0)[0]
         with self._autocast():
             for ti in range(p.warmup + n):
@@ -182,6 +265,7 @@ class Portable(Runner):
         out = [next(iter(self._alphas(lambda _t, x=x: x[None], 1, m[0]))) for x, m in zip(image, trimap, strict=True)]
         return {"alpha": torch.stack(out)}
 
+    @host
     def track(
         self, frames: Callable[[int], torch.Tensor], n_frames: int, size: tuple[int, int], mask: torch.Tensor
     ) -> dict[str, torch.Tensor]:

@@ -213,8 +213,28 @@ def _kernel_correlate(
     return out.permute(0, 3, 1, 2)
 
 
+def _kernel_depthwise(k: CubinModule, weight: torch.Tensor, bias: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    """`relu(conv2d(x, weight, bias, padding=2, groups=C))` of a bf16 map by `romav2_dw5_bias_relu_bf16`.
+
+    `weight`: the folded depthwise weight as `[25, C]` bf16; returns channels-last bf16, rounded as cuDNN's conv, the
+    bias add and the ReLU.
+    """
+    from fastforks.kernels import romav2 as lib  # noqa: PLC0415 - needs the kernel library
+
+    b, c, h, w = x.shape
+    x = x.contiguous(memory_format=torch.channels_last)  # the first block's input is NCHW
+    out = torch.empty_like(x)
+    n = b * h * -(-w // lib.DEPTHWISE_TX) * (c // 8)
+    k.launch(lib.DEPTHWISE, (-(-n // 256), 1, 1), (256, 1, 1), x, weight, bias, out, b, h, w, c)
+    return out
+
+
 class Kernels(Portable):
-    """The portable pass with the refiners' local correlation as a kernel (`romav2`): no window tensor, one pass."""
+    """The portable pass with the `romav2` kernels: local correlation and, in bf16, the blocks' depthwise conv.
+
+    The refiners' local correlation without the window tensor, and the blocks' depthwise 5x5 conv + bias + ReLU in one
+    pass instead of three.
+    """
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the correlation kernel to the refiners that correlate."""
@@ -225,6 +245,16 @@ class Kernels(Portable):
         for m in self.net.modules():
             if isinstance(m, ConvRefiner) and m.cfg.local_corr_radius is not None:  # (C, r): (192, 3), (48, 1)
                 m.correlate = functools.partial(_kernel_correlate, k)
+        if ctx.device.type == "cuda" and ctx.dtype == "bfloat16":
+            for m in self.net.modules():
+                if isinstance(m, Block):  # BatchNorm folded (CUDA), bf16 weights, C a multiple of 8
+                    conv = m.conv_depthwise
+                    c = conv.weight.shape[0]
+                    if c % 8 or conv.weight.shape[1:] != (1, 5, 5) or conv.weight.dtype != torch.bfloat16:
+                        msg = f"romav2 depthwise kernel: unexpected conv {tuple(conv.weight.shape)} {conv.weight.dtype}"
+                        raise ValueError(msg)
+                    weight = conv.weight.reshape(c, 25).t().contiguous()
+                    m.depthwise = functools.partial(_kernel_depthwise, k, weight, conv.bias)
 
     def module(self) -> torch.nn.Module:
         """No exportable module: the correlation is a kernel launch."""

@@ -69,3 +69,20 @@ def test_overlapping_chunks_of_two_sizes_are_refused():
     assert acc_collect._chunks(ok, "classification")[0]["n"] == 10
     with pytest.raises(SystemExit, match="overlapping"):
         acc_collect._chunks([*ok, rec | {"start": 0, "stop": 10, "images": 10}], "classification")
+
+
+def test_write_keeps_rows_it_did_not_collect():
+    """--write replaces only the (ref, mode, dataset) rows it collected; other rows stay byte-identical, in order."""
+    old = [
+        '{"ref": "a", "mode": "portable", "dataset": "nyu", "n": 1}  \n',
+        '{"ref": "b", "mode": "portable32", "dataset": "nyu", "n": 2}\n',
+        '{"ref": "a", "mode": "kernels", "dataset": "nyu", "n": 3}\n',
+        '{"ref": "a", "mode": "kernels", "dataset": "kitti", "n": 4}\n',
+    ]
+    new = [{"ref": "a", "mode": "kernels", "dataset": "nyu", "n": 9}]
+    assert acc_collect.merge_lines(old, new) == [
+        old[0],
+        old[1],
+        old[3],
+        '{"ref": "a", "mode": "kernels", "dataset": "nyu", "n": 9}\n',
+    ]

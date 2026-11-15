@@ -17,6 +17,7 @@ import pytest
 import torch
 from torch import nn
 
+from fastforks._core.errors import KernelUnavailableError, WeightsDownloadError
 from synth import clip, image, pair, size, track_queries
 from test_golden import API, GOLDEN, SMALLEST, TASK
 
@@ -428,4 +429,8 @@ def test_kernels_passes_convert_as_before(ref):
         pytest.skip("no CUDA")
     if ref not in EXPECTED:
         pytest.skip(f"{ref}: no recorded structure")
-    assert structure(load_and_call(ref)) == EXPECTED[ref]
+    try:
+        model = load_and_call(ref)
+    except (WeightsDownloadError, KernelUnavailableError) as e:  # weights or kernel binaries not local (offline)
+        pytest.skip(f"{ref}: not available locally: {e}")
+    assert structure(model) == EXPECTED[ref]

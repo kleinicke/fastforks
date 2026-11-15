@@ -9,7 +9,7 @@ import pytest
 import torch
 
 from synth import image, pair, prompt_kwargs, size
-from test_golden import FAMILY, SMALLEST, TASK, sweep_model
+from test_golden import SMALLEST, TASK, sweep_model
 
 LOAD_ONCE = True  # conftest runs the tests of one ref together: `sweep_model` loads it once
 
@@ -26,7 +26,7 @@ def _maps(result: object) -> dict[str, torch.Tensor]:
 @pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", SMALLEST)
-def test_batch_equals_singles(ref):  # noqa: C901 - one skip per task
+def test_batch_equals_singles(ref):
     task = TASK[ref]
     if task == "promptable_segmentation":
         pytest.skip("one image per call with prompts (batched prompts: tests/test_tasks.py)")
@@ -36,8 +36,6 @@ def test_batch_equals_singles(ref):  # noqa: C901 - one skip per task
         pytest.skip("volume: one volume per call")
     if task == "multiview":
         pytest.skip("multiview: the leading dim holds the views of one scene (they attend to each other), not a batch")
-    if FAMILY[ref] == "video_depth_anything":
-        pytest.skip("video depth: the batch is one video in time order (tests/test_depth_video_depth_anything.py)")
     model = sweep_model(ref)
     hw = size(model.variant.io.min_size, *SIZE)
     inputs = [

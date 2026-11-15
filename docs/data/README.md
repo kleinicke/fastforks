@@ -95,7 +95,14 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
 - Restoration: `psnr` (dB) and `ssim` on the Y channel (BT.601) of the output, rounded to uint8, against the HR image,
   `scale` px border cropped, on the 100 DIV2K validation images from the official bicubic LR images (`div2k-val-x4`,
   `div2k-val-x2`, the model's scale), one pass without tiles, measured with `tools/eval_restoration.py`; `ms_per_image`
-  is the median time of a call.
+  is the median time of a call. Deblurring / denoising / deraining (RGB PSNR / SSIM, no crop, as the NAFNet / Restormer
+  code; deraining on Y as Restormer's MATLAB script): GoPro test (1111 frames, `gopro-test-everyN`), SIDD validation
+  (1280 256 x 256 crops, `sidd-val`), Rain100L / Rain100H (`rain100l`, `rain100h`); Restormer's GoPro images at full
+  size, NAFNet's too (both padded internally). `-everyN`: every N-th image in sorted order.
+- Face detection: `ap_easy`, `ap_medium`, `ap_hard`, WIDER FACE val box AP (IoU 0.5, the official toolkit's code via
+  libfacedetection.train, scores normalised over the set), every 4th image in the ground truth's order (807 images,
+  `widerface-val-every4`), each image at its own size, score threshold 0.02, NMS IoU 0.45; measured with
+  `tools/eval_widerface.py`.
 - Multiview: `absrel`, `d125` (% within 1.25) on DTU scans 1, 9, 24, 33, 75 (reference view 24 + 7 sources, 640x512),
   median-scaled for uncalibrated models; calibrated MVS also `mae_mm`, `le2mm`, `le4mm`. `n` = scans.
 

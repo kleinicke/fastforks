@@ -11,7 +11,7 @@ import torch
 
 from fastforks._core import model as core
 from fastforks._core.api import task_api
-from fastforks._core.arguments import typo_checked_load
+from fastforks._core.arguments import typo_checked_load, warn_renamed
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError, ModelNotFoundError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
@@ -57,10 +57,21 @@ MAX_EXEMPLARS = 256  # fixed: exemplar boxes per call (the box tokens, ROI pooli
 CONCEPT_THRESHOLD = 0.5  # fixed: SAM 3's default instance score threshold (scores are in [0, 1])
 
 
+def _legacy_threshold(score_threshold: float | None, threshold: float | None) -> float | None:
+    """`score_threshold`, or the old name `threshold=` (warned)."""
+    if threshold is None:
+        return score_threshold
+    warn_renamed("threshold=", "score_threshold=", stacklevel=4)
+    if score_threshold is not None:
+        msg = "threshold= is the old name of score_threshold=: pass only score_threshold="
+        raise InputError(msg)
+    return threshold
+
+
 def _threshold(value: object) -> float:
-    """The concept threshold: a number in [0, 1] (the score range; as detection's `score_threshold`)."""
+    """The concept score threshold: a number in [0, 1] (the score range; as detection's `score_threshold`)."""
     if not isinstance(value, numbers.Real) or isinstance(value, bool) or not 0 <= float(value) <= 1:
-        msg = f"threshold must be a number in [0, 1] (scores are probabilities), got {value!r}"
+        msg = f"score_threshold must be a number in [0, 1] (scores are probabilities), got {value!r}"
         raise InputError(msg)
     return float(value)
 
@@ -161,7 +172,7 @@ class PromptableSegmentationResult(MapOutputs):
 
 @dataclass(frozen=True)
 class VideoSegmentationResult(NumpyOutputs):
-    """Masks of the objects prompted on frame 0, for every frame of a video (`track`), on the CPU.
+    """Masks of the objects prompted on frame 0, for every frame of a video, on the CPU.
 
     The CPU, not the model's device: the result grows with the video length, the device memory does not.
 
@@ -230,6 +241,9 @@ class PromptableSegmentationModel(core.Model):
             `"boxes"` are exemplar boxes).
     """
 
+    _list_images = 1
+    _per_input = ("input_points", "input_labels", "input_boxes", "input_masks")
+
     _runner: Runner
 
     def __init__(self, runner: Runner, backend: Backend, options: Mapping[str, Any]) -> None:
@@ -286,7 +300,7 @@ class PromptableSegmentationModel(core.Model):
         text: str,
         input_boxes: PromptLike | None = None,
         input_boxes_labels: PromptLike | None = None,
-        threshold: float | None = None,
+        score_threshold: float | None = None,
     ) -> ConceptSegmentationResult: ...
 
     @overload
@@ -296,7 +310,7 @@ class PromptableSegmentationModel(core.Model):
         *,
         input_boxes: PromptLike,
         input_boxes_labels: PromptLike,
-        threshold: float | None = None,
+        score_threshold: float | None = None,
     ) -> ConceptSegmentationResult: ...
 
     def __call__(  # noqa: PLR0913 - one argument per prompt kind (HF names)
@@ -310,6 +324,7 @@ class PromptableSegmentationModel(core.Model):
         multimask_output: bool = True,
         text: str | None = None,
         input_boxes_labels: PromptLike | None = None,
+        score_threshold: float | None = None,
         threshold: float | None = None,
     ) -> PromptableSegmentationResult | ConceptSegmentationResult:
         """Segment one image with prompts (HF `SamModel` / `Sam3Model` argument names, one image).
@@ -329,8 +344,9 @@ class PromptableSegmentationModel(core.Model):
             text: Concept prompt (SAM 3, the original `set_text_prompt`), e.g. `"yellow school bus"`.
             input_boxes_labels: Concept models: `[N]` (or a scalar) exemplar labels, 1 positive, 0 negative
                 (default: all positive).
-            threshold: Concept models: keep instances scoring above this, in [0, 1] (default 0.5, as the original
-                `confidence_threshold`); `result.options["threshold"]` records the one used.
+            score_threshold: Concept models: keep instances scoring above this, in [0, 1] (default 0.5, as the
+                original `confidence_threshold`); `result.options["score_threshold"]` records the one used.
+            threshold: The old name of `score_threshold` (warns; removed after 2026-12-15).
 
         Returns:
             The masks; `P` is dropped if no prompt had it, and an empty prompt batch (`P = 0`, e.g. boxes `[0, 4]`)
@@ -347,9 +363,10 @@ class PromptableSegmentationModel(core.Model):
             "input_masks": input_masks,
         }
         given = {k: v for k, v in given.items() if v is not None}
+        score_threshold = _legacy_threshold(score_threshold, threshold)
         if "text" in self.prompts:
-            return self._concept(image, text, given, input_boxes_labels, threshold)
-        concept = {"text": text, "input_boxes_labels": input_boxes_labels, "threshold": threshold}
+            return self._concept(image, text, given, input_boxes_labels, score_threshold)
+        concept = {"text": text, "input_boxes_labels": input_boxes_labels, "score_threshold": score_threshold}
         if text is not None:
             msg = f"{self.variant.ref} takes no text prompts (takes: {sorted(self.prompts)})"
             raise InputError(msg)
@@ -384,9 +401,9 @@ class PromptableSegmentationModel(core.Model):
             maps["masks"], maps["iou_scores"], maps["pred_masks"], self.variant.ref, self.backend, self.options
         )
 
-    def track(  # noqa: C901 - input checks per prompt kind
+    def video(  # noqa: C901 - input checks per prompt kind
         self,
-        video: Sequence[ImageLike] | np.ndarray | torch.Tensor,
+        frames: Sequence[ImageLike] | np.ndarray | torch.Tensor,
         *,
         input_points: PromptLike | None = None,
         input_labels: PromptLike | None = None,
@@ -399,7 +416,7 @@ class PromptableSegmentationModel(core.Model):
         one object per prompt), then `propagate_in_video` forward. Frames are encoded one at a time.
 
         Args:
-            video: The frames in order: a sequence of images (paths, PIL, numpy HWC, torch CHW; one size), or a
+            frames: The frames in order: a sequence of images (paths, PIL, numpy HWC, torch CHW; one size), or a
                 `[T, H, W, 3]` numpy / `[T, 3, H, W]` torch batch.
             input_points: `[P, N, 2]` (or `[N, 2]`) point `(x, y)` in pixels of frame 0.
             input_labels: `[P, N]` (or `[N]`) point labels: 1 foreground, 0 background, -1 padding.
@@ -417,18 +434,18 @@ class PromptableSegmentationModel(core.Model):
         if not self._runner.video:
             msg = f"{self.variant.ref} does not track video"
             raise InputError(msg)
-        if isinstance(video, str | bytes) or not hasattr(video, "__len__") or not hasattr(video, "__getitem__"):
-            msg = f"video must be a sequence of frames or a [T, ...] frame batch, got {type(video).__name__}"
+        if isinstance(frames, str | bytes) or not hasattr(frames, "__len__") or not hasattr(frames, "__getitem__"):
+            msg = f"frames must be a sequence of frames or a [T, ...] frame batch, got {type(frames).__name__}"
             raise InputError(msg)
-        n = len(video)
+        n = len(frames)
         if n == 0:
             msg = "video has no frames"
             raise InputError(msg)
-        first = self._frame(video, 0)
+        first = self._frame(frames, 0)
         size = (int(first.shape[-2]), int(first.shape[-1]))
 
         def frame(t: int) -> torch.Tensor:
-            x = first if t == 0 else self._frame(video, t)
+            x = first if t == 0 else self._frame(frames, t)
             if tuple(x.shape[-2:]) != size:
                 msg = f"video frames must have one size: frame 0 is {size}, frame {t} is {tuple(x.shape[-2:])}"
                 raise InputError(msg)
@@ -436,7 +453,7 @@ class PromptableSegmentationModel(core.Model):
 
         if input_masks is not None:
             if any(v is not None for v in (input_points, input_labels, input_boxes)):
-                msg = "track takes input_masks or input_points / input_boxes, not both"
+                msg = "video takes input_masks or input_points / input_boxes, not both"
                 raise InputError(msg)
             m = _numeric("input_masks", input_masks, torch.float32)
             batched = m.ndim == 3  # noqa: PLR2004 - [P, H, W]
@@ -449,7 +466,7 @@ class PromptableSegmentationModel(core.Model):
             kinds = self._runner.video_prompts or self.prompts
             prompts, batched = self._prompts({k: v for k, v in given.items() if v is not None}, kinds)
         if next(iter(prompts.values())).shape[0] == 0:
-            msg = "track needs at least one object prompt"
+            msg = "video needs at least one object prompt"
             raise InputError(msg)
         with self._session():
             out = self._runner.track(
@@ -481,7 +498,7 @@ class PromptableSegmentationModel(core.Model):
         text: str | None,
         given: dict[str, PromptLike],
         labels: PromptLike | None,
-        threshold: float | None,
+        score_threshold: float | None,
     ) -> ConceptSegmentationResult:
         if other := sorted(set(given) - {"input_boxes"}):
             msg = f"{self.variant.ref} takes text and / or exemplar input_boxes, not {other}"
@@ -496,8 +513,8 @@ class PromptableSegmentationModel(core.Model):
         if boxes is None and labels is not None:
             msg = "input_boxes_labels needs input_boxes"
             raise InputError(msg)
-        threshold = CONCEPT_THRESHOLD if threshold is None else _threshold(threshold)
-        options = core.ReadOnlyDict(self.options, threshold=threshold)  # the threshold used, also the default
+        threshold = CONCEPT_THRESHOLD if score_threshold is None else _threshold(score_threshold)
+        options = core.ReadOnlyDict(self.options, score_threshold=threshold)  # the one used, also the default
         ex_boxes, ex_labels = self._check_exemplars(boxes, labels, text)  # before the (expensive) image encoder
         x = None
         if isinstance(image, ImageEmbeddings):
@@ -673,7 +690,7 @@ class ConceptSegmentationModel(PromptableSegmentationModel):
         text: str,
         input_boxes: PromptLike | None = None,
         input_boxes_labels: PromptLike | None = None,
-        threshold: float | None = None,
+        score_threshold: float | None = None,
     ) -> ConceptSegmentationResult: ...
 
     @overload
@@ -683,7 +700,7 @@ class ConceptSegmentationModel(PromptableSegmentationModel):
         *,
         input_boxes: PromptLike,
         input_boxes_labels: PromptLike | None = None,
-        threshold: float | None = None,
+        score_threshold: float | None = None,
     ) -> ConceptSegmentationResult: ...
 
     def __call__(  # noqa: PLR0913  # ty: ignore[invalid-method-override] - typed for concept prompts only
@@ -697,7 +714,8 @@ class ConceptSegmentationModel(PromptableSegmentationModel):
         multimask_output: bool = True,  # noqa: ARG002 - accepted like the base class; no effect on concept prompts
         text: str | None = None,
         input_boxes_labels: PromptLike | None = None,
-        threshold: float | None = None,
+        score_threshold: float | None = None,
+        threshold: float | None = None,  # the old name of score_threshold (warns; removed after 2026-12-15)
     ) -> ConceptSegmentationResult:
         """Segment every instance of a concept: `text` and / or exemplar `input_boxes` (+ `input_boxes_labels`).
 
@@ -709,7 +727,8 @@ class ConceptSegmentationModel(PromptableSegmentationModel):
         """
         given = {"input_points": input_points, "input_labels": input_labels, "input_boxes": input_boxes}
         given = {k: v for k, v in (given | {"input_masks": input_masks}).items() if v is not None}
-        return self._concept(image, text, given, input_boxes_labels, threshold)
+        score_threshold = _legacy_threshold(score_threshold, threshold)
+        return self._concept(image, text, given, input_boxes_labels, score_threshold)
 
 
 class InContextSegmentationModel(PromptableSegmentationModel):
@@ -718,6 +737,8 @@ class InContextSegmentationModel(PromptableSegmentationModel):
     The model segments in a target image whatever the reference masks mark in the reference images (one or more
     shots); no point / box / text prompts.
     """
+
+    _per_input = ()  # the references are shared by the images
 
     def __call__(  # ty: ignore[invalid-method-override] - in-context prompts only
         self,
@@ -907,8 +928,8 @@ def load(
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
+    **options: object,
 ) -> ConceptSegmentationModel: ...
 
 
@@ -919,8 +940,8 @@ def load(
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
+    **options: object,
 ) -> InContextSegmentationModel: ...
 
 
@@ -931,20 +952,20 @@ def load(
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
+    **options: object,
 ) -> PromptableSegmentationModel: ...
 
 
 @typo_checked_load
-def load(  # noqa: PLR0913 - the same arguments in every task
+def load(
     model: str,
     *,
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
+    **options: object,
 ) -> PromptableSegmentationModel:
     """Load a promptable segmentation model; the arguments and errors are those of `fastforks.stereo.load`.
 
@@ -954,9 +975,9 @@ def load(  # noqa: PLR0913 - the same arguments in every task
         device: Default: `"cuda"` if available, else `"mps"` for a family validated on it, else `"cpu"`.
         dtype: `None` (the validated one), `"float32"` (portable only), `"float16"` or `"bfloat16"`; see
             `fastforks.stereo.load`.
-        options: Overrides of the model's load options (card `[options]`).
         weights: Your own weights file (or directory) instead of the recorded ones, e.g. a fine-tune; not
             hash-checked, loaded strictly (see `fastforks.stereo.load`).
+        **options: Overrides of the model's load options (card `[options]`, e.g. `samurai=True`).
 
     Raises:
         ModelNotFoundError: Unknown id or revision.

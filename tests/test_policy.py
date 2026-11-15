@@ -74,6 +74,11 @@ CROSS_FAMILY_IMPORTS |= {
 CROSS_FAMILY_IMPORTS |= {
     f"multiview/models/lingbot_map/{file}.py": "fastforks.multiview.models.vggt" for file in ("model", "net")
 }
+# ReSplat builds on DepthSplat's code (same authors): it reuses its depth network modules and kernels-mode helpers.
+CROSS_FAMILY_IMPORTS |= {
+    f"multiview/models/resplat/{file}.py": "fastforks.multiview.models.depthsplat"
+    for file in ("model", "net/mv_unimatch")
+}
 TORCH_LOAD = {"depth/models/midas/model.py", "depth/models/zoedepth/model.py"}  # per-family checkpoint loaders
 UNDOCUMENTED_CONSTANTS = {
     ("depth/models/depth_anything_3/model.py", "PATCH"),
@@ -604,7 +609,7 @@ def test_task_load_is_generated_by_task_api(task):
         # mode / dtype / device / options / weights to `_load` unchanged
         forwarded = [c for c in calls if getattr(c.func, "id", "") == "_load"]
         assert len(forwarded) == 1, f"{task}: load() must forward to the task_api `_load`"
-        kw = {k.arg for k in forwarded[0].keywords}
+        kw = {k.arg or "options" for k in forwarded[0].keywords}  # `**options`
         assert kw == {"mode", "device", "dtype", "options", "weights"}, f"{task}: load() forwards {sorted(kw)}"
         return
     assert len(body) == 1, f"{task}: load() does more than forward"

@@ -77,7 +77,7 @@ def _mask(m: SwinTransformerBlock, x_size: tuple[int, int]) -> torch.Tensor | _N
     """`SwinTransformerBlock.calculate_mask` made on the device, once per size (upstream: all zeros if unshifted)."""
     if not m.shift_size:
         return _NO_MASK
-    return shift_mask(*x_size, m.window_size, m.shift_size, m.norm1.weight.device)
+    return shift_mask(*x_size, m.window_size, m.shift_size, m.norm1.weight.device, dtype=m.norm1.weight.dtype)
 
 
 def _attention(m: WindowAttention, x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
@@ -183,10 +183,10 @@ _BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a SwinIR state dict as a variant and its params (size, depths, heads, upsampler); keys unchanged."""
+    """`load(path)`: a SwinIR state dict as a variant and its params (size, depths, heads, upsampler); same keys."""
     blocks = [(int(m.group(1)), int(m.group(2))) for k in sd if (m := _BLOCK.match(k))]
-    if "conv_first.weight" not in sd or not blocks or any(".overlap_attn." in k for k in sd):  # HAT's keys
-        return None
+    if "conv_first.weight" not in sd or not blocks or any(".overlap_attn." in k or ".logit_scale" in k for k in sd):
+        return None  # HAT's / Swin2SR's keys
     layers = 1 + max(i for i, _ in blocks)
     depths = tuple(1 + max(j for i, j in blocks if i == n) for n in range(layers))
     tables = [sd[f"layers.{n}.residual_group.blocks.0.attn.relative_position_bias_table"] for n in range(layers)]

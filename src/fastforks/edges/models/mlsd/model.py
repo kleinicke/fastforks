@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.runner import host
 from fastforks.edges._runner import Forward, Runner, to_detect, to_input
 
 from .net import MobileV2_MLSD_Large
@@ -34,12 +35,12 @@ class Params:
     """Card `[params]` + `[options]`.
 
     Attributes:
-        resolution: Detect resolution: the short side of the network input (rounded to a multiple of 64).
+        short_side: The short side of the network input (controlnet_aux detect resolution; rounded to a multiple of 64).
         thr_v: Center score threshold (kept if above).
         thr_d: Segment length threshold in half-resolution pixels (kept if above).
     """
 
-    resolution: int
+    short_side: int
     thr_v: float
     thr_d: float
 
@@ -139,7 +140,7 @@ class Portable(Runner):
 
     Params = Params
     dtypes = ("float32", "float16")
-    compiled_methods = ("net",)
+    compiled_methods = ("_net",)  # the line decoding (data-dependent segment counts) stays eager
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -151,15 +152,19 @@ class Portable(Runner):
         fmt = torch.channels_last if self.cl else torch.contiguous_format
         self.net = net.eval().to(ctx.device, self.dtype).to(memory_format=fmt)
 
+    def _net(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+    @host
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[torch.Tensor]]:
         """Line map `[B, H, W]` and segments (`B` x `[N, 4]`, input pixels) of `[B, 3, H, W]` RGB in `[0, 1]`."""
         p = self.ctx.params
-        x = to_detect(image, p.resolution)
+        x = to_detect(image, p.short_side)
         hd, wd = x.shape[-2:]
         x = torch.cat((x, torch.ones_like(x[:, :1])), 1) / 127.5 - 1
         if self.cl:
             x = x.contiguous(memory_format=torch.channels_last)
-        maps = self.net(x.to(self.dtype))
+        maps = self._net(x.to(self.dtype))
         if maps.device.type == "mps":  # the decoding and drawing are float64 / int64 maths, which MPS lacks
             maps = maps.cpu()
         seg, keep = decode(maps, p.thr_v, p.thr_d)

@@ -14,6 +14,7 @@ import functools
 import importlib
 import importlib.abc
 import importlib.machinery
+import inspect
 import json
 import logging
 import math
@@ -24,12 +25,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast, get_args
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, cast, get_args
 
 import torch
 
 from fastforks._core import mps, registry, warmup
-from fastforks._core.arguments import bind_error
+from fastforks._core.arguments import bind_error, warn_renamed
 from fastforks._core.cards import Dtype  # noqa: TC001 - re-exported to the task APIs, which annotate with it
 from fastforks._core.checkpoint import mismatch_details, torch_mismatch
 from fastforks._core.deferred_init import deferred_init, float32_default
@@ -41,6 +42,7 @@ from fastforks._core.errors import (
     InputError,
     KernelUnavailableError,
     OptionsError,
+    UnknownOptionError,
     WeightsError,
 )
 from fastforks._core.kernels import begin_call, checked, cuda_device
@@ -328,6 +330,46 @@ def _kernels_entry_points(runner: Runner) -> None:
     runner.__class__ = type(base.__name__, (base,), names | {name: opaque(name) for name in base.compiled_methods})
 
 
+def _listwise(fn: Callable[..., Any], images: int, per_input: tuple[str, ...]) -> Callable[..., Any]:
+    """`fn` (a model's `__call__`) with list in, list out.
+
+    A list of images (pair tasks: two equal-length lists) runs one call per image and returns the list of results.
+    A `per_input` argument given as a `list` is one item per image (the same length; item `i` goes with image `i`);
+    given as anything else (a tuple, an array, a tensor) it is one value shared by every call, as are all other
+    arguments. So `boxes=[b0, b1]` is per image, `boxes=(b0, b1)` is shared.
+    """
+    sig = inspect.signature(fn)
+    names = list(sig.parameters)[1 : 1 + images]
+    _seq = (list, tuple)
+
+    @functools.wraps(fn)
+    def call(self: object, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - the signature of `fn`
+        if not any(isinstance(a, _seq) for a in (*args[:images], *(kwargs.get(n) for n in names))):
+            return fn(self, *args, **kwargs)
+        bound = sig.bind(self, *args, **kwargs).arguments
+        lists = [bound.get(n) for n in names]
+        n = len(lists[0]) if isinstance(lists[0], _seq) else -1
+        if not all(isinstance(x, _seq) and len(x) == n for x in lists) or n == 0:
+            got = ", ".join(
+                f"{len(x)} {k}" if isinstance(x, _seq) else f"one {k}" for k, x in zip(names, lists, strict=True)
+            )
+            msg = f"give each image input as one image or all as non-empty lists of the same length (got {got})"
+            raise InputError(msg)
+        split = {}
+        for k in per_input:
+            v = bound.get(k)
+            if isinstance(v, list):
+                if len(v) != n:
+                    msg = f"{k}= as a list needs {n} items, one per image (a tuple is shared), got {len(v)}"
+                    raise InputError(msg)
+                split[k] = v
+        rest = {k: v for k, v in bound.items() if k != "self" and k not in names and k not in split}
+        seqs = cast("list[Sequence[Any]]", lists)
+        return [fn(self, *(x[i] for x in seqs), **rest, **{k: v[i] for k, v in split.items()}) for i in range(n)]
+
+    return call
+
+
 class Model:
     """Base of the loaded-model classes of all tasks (`StereoModel`, `DepthModel`, ...).
 
@@ -348,10 +390,17 @@ class Model:
             `None` for the variant's recorded weights.
     """
 
+    _list_images: ClassVar[int] = 0
+    """Image arguments a list of images may replace (1 single-image, 2 pair tasks; 0: none, see `_listwise`)."""
+    _per_input: ClassVar[tuple[str, ...]] = ()
+    """Call arguments that come one per image (`_listwise`)."""
+
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
-        """Wrap a `__call__` defined by a subclass (see `_typo_checked`)."""
+        """Wrap a `__call__` defined by a subclass (see `_listwise`, `_typo_checked`)."""
         super().__init_subclass__(**kwargs)
         if (fn := cls.__dict__.get("__call__")) is not None:
+            if cls._list_images:
+                fn = _listwise(fn, cls._list_images, cls._per_input)
             cls.__call__ = _typo_checked(fn)  # ty: ignore[invalid-assignment]
 
     def __init__(self, runner: Runner, backend: Backend, options: Mapping[str, Any]) -> None:
@@ -463,13 +512,9 @@ class Model:
         return self
 
     def export_size(self) -> tuple[int, int] | None:
-        """Default `(height, width)` of `export_onnx` / `export_tensorrt`, or `None` if the task has none.
-
-        Classification (the card's crop), features (224) and promptable segmentation (the encoder side: 1024, SAM 3
-        1008) have one; stereo, depth, segmentation and detection do not: give a size inside `size_range()`.
-        """
-        side = size_range(self.variant, self.card).encoder if self.card.task == "promptable_segmentation" else 0
-        return (side, side) if side else spec(self.card.task).export_size
+        """The old name of `size_range().export_size` (warns; removed after 2026-12-15)."""
+        warn_renamed("model.export_size()", "model.size_range().export_size")
+        return self.size_range().export_size
 
     def size_range(self) -> SizeRange:
         """Input sizes this model accepts: min size, pad multiple, fixed size, and the largest size measured."""
@@ -491,7 +536,7 @@ class Model:
         override this.
 
         Args:
-            height: Image height in pixels; default (with `width`): `export_size()` where the task has one.
+            height: Image height in pixels; default (with `width`): `size_range().export_size` where the task has one.
             width: Image width in pixels.
             batch: Batch size.
 
@@ -533,8 +578,9 @@ class Model:
 
         Args:
             path: ONNX file to write.
-            height: Input height of the exported graph (fixed); default: `export_size()`; required if the task has none.
-            width: Input width (fixed); default: `export_size()`; required if the task has none.
+            height: Input height of the exported graph (fixed); default: `size_range().export_size`; required if the
+                task has none.
+            width: Input width (fixed); default: `size_range().export_size`; required if the task has none.
             batch: Batch size (fixed).
             size_range: `((min_h, min_w), (max_h, max_w))`: make height and width dynamic axes within these bounds
                 (traced at `(height, width)`); default: the fixed size.
@@ -566,8 +612,9 @@ class Model:
 
         Args:
             path: Engine file to write.
-            height: Input height of the engine (fixed); default: `export_size()`; required if the task has none.
-            width: Input width (fixed); default: `export_size()`; required if the task has none.
+            height: Input height of the engine (fixed); default: `size_range().export_size`; required if the task
+                has none.
+            width: Input width (fixed); default: `size_range().export_size`; required if the task has none.
             batch: Batch size (fixed).
             size_range: `((min_h, min_w), (max_h, max_w))`: a dynamic-shape engine with an optimization profile (min,
                 opt = `(height, width)`, max); not faster than a fixed engine, see export.md.
@@ -966,7 +1013,7 @@ def check_options(card: ModelCard, options: Mapping[str, Any], model: str | None
             f"unknown option(s) {', '.join(hints)} for {model or card.family}; "
             f"valid options: {', '.join(card.options) or 'none'} (defaults {dict(card.options)})"
         )
-        raise OptionsError(msg)
+        raise UnknownOptionError(msg)
     renamed = {card.option_aliases.get(k, k): v for k, v in options.items()}
     if len(renamed) < len(options):
         both = sorted(k for k in options if k in card.option_aliases and card.option_aliases[k] in options)

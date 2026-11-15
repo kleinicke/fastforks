@@ -765,6 +765,54 @@ def _swinir(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     return lambda x: g.run(net, x, p["scale"])
 
 
+def _swin2sr(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `Swin2SR` as `tools/golden/swin2sr.py` (`FF_SWIN2SR_REPO`, `FF_SWIN2SR_WEIGHTS`), float32.
+
+    As `main_test_swin2sr.py`: mirror padding, `model(lq)` (no tile), crop, clamp.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("swin2sr")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    weights = Path(os.environ["FF_SWIN2SR_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(Path(os.environ["FF_SWIN2SR_REPO"]), weights, p, device=torch.device("cuda"))
+    a.note = "upstream main_test_swin2sr.py, float32, no tile"
+    return lambda x: g.run(net, x, p["scale"])
+
+
+def _nafnet(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `NAFNet` / `NAFNetLocal` as `tools/golden/nafnet.py` (`FF_NAFNET_REPO`, `FF_NAFNET_WEIGHTS`), float32.
+
+    As `ImageRestorationModel.test`: `net_g(lq)` (the network pads to a multiple of 16 itself), clamp.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("nafnet")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    weights = Path(os.environ["FF_NAFNET_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(Path(os.environ["FF_NAFNET_REPO"]), weights, p, device=torch.device("cuda"))
+    a.note = "upstream ImageRestorationModel.test, float32" + (", NAFNetLocal (TLC)" if p["tlc"] else "")
+    return lambda x: g.run(net, x)
+
+
+def _restormer(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `Restormer` as `tools/golden/restormer.py` (`FF_RESTORMER_REPO`, `FF_RESTORMER_WEIGHTS`, `einops`).
+
+    As `Motion_Deblurring/test.py`: reflect padding to a multiple of 8, `model(input_)` (no tile), crop, clamp; float32.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("restormer")
+    card, variant = full_ref("restoration", full)[1:]
+    p = {**card.params, **variant.params}
+    weights = Path(os.environ["FF_RESTORMER_WEIGHTS"]) / variant.weights[0].name
+    net = g.build(Path(os.environ["FF_RESTORMER_REPO"]), weights, p, device=torch.device("cuda"))
+    a.note = "upstream test.py, float32, no tile"
+    return lambda x: g.run(net, x)
+
+
 def _hat(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     """Upstream `HAT` as `tools/golden/hat.py` (`FF_HAT_REPO`, `FF_HAT_WEIGHTS`; needs `einops`), float32.
 
@@ -1097,6 +1145,28 @@ def _retinaface(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     net = g.build(tree, weights, p["backbone"], "cuda").cuda()
     a.note = "facexlib 0.3.0 detect_faces (use_origin_size, float32): preprocessing, network, NMS, decode"
     return lambda bgr: g.run(net, bgr, p["score_threshold"], p["nms_iou"])
+
+
+def _yunet(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """libfacedetection.train `build_yunet` + `YuNetPostprocessor` (`FF_YUNET_REPO`, `FF_YUNET_WEIGHTS`).
+
+    float32 on CUDA, `eval_widerface --mode origin` input (BGR 0..255 float, padded to 32), card thresholds; BGR uint8
+    in, the upload, padding and postprocessing in the timed call.
+    """
+    import torch  # noqa: PLC0415
+
+    g = _golden("yunet")
+    card, variant = full_ref("pose", full)[1:]
+    p = {**card.params, **card.options, **variant.params}
+    tree = g.reference_tree(Path(os.environ["FF_YUNET_REPO"]), g.REF_COMMIT)
+    net = g.build(tree, Path(os.environ["FF_YUNET_WEIGHTS"]) / variant.weights[0].name, variant.id, "cuda")
+    a.note = "libfacedetection.train build_yunet + YuNetPostprocessor (origin size, float32): upload, pad, network, NMS"
+
+    def call(bgr: Any) -> Any:  # noqa: ANN401 - numpy image
+        x = torch.from_numpy(bgr).cuda().permute(2, 0, 1)[None].float()
+        return g.run(tree, net, x, p["score_threshold"], p["nms_iou"])
+
+    return call
 
 
 def _rtmdet(a: Any, full: str) -> Any:  # noqa: ANN401
@@ -1752,7 +1822,7 @@ def _edges(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
 
     def run(image: Any) -> Any:  # noqa: ANN401 - CUDA uint8 CHW
         img = image.permute(1, 2, 0).cpu().numpy()
-        return predict(net, img, card.options["resolution"])
+        return predict(net, img, card.options["short_side"])
 
     return run
 
@@ -2196,6 +2266,31 @@ def _locotrack(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - 
     file = Path(registry.weights(card, variant, allow_download=False)[0])
     model = g.load(Path(os.environ["LOCOTRACK_SRC"]), file, g.MODELS[f"{variant.id}@1"][1]).cuda()
     a.note = f"KU-CVLAB/LocoTrack@{g.COMMIT[:12]} forward, offline (whole video), frames resized to 256 x 256"
+
+    def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
+        return g.track(model, video.float() / 255, queries, amp=torch.float16 if fp16 else None)
+
+    return call
+
+
+def _cotracker(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - the adapter's build(ref, fp16) signature
+    """Upstream CoTracker3 (CUDA, unpatched) driven as its predictor via `tools/golden/cotracker.py`, 384 x 512.
+
+    Offline: the whole video with a 6 x 6 support grid; online: 16-frame windows, step 8. fp16:
+    `torch.autocast("cuda", torch.float16)`. Needs `COTRACKER_SRC`, a facebookresearch/co-tracker checkout with the
+    pinned commit.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("cotracker")
+    card, variant = registry.resolve("tracking", full)
+    file = Path(registry.weights(card, variant, allow_download=False)[0])
+    online = g.MODELS[f"{variant.id}@1"][1]
+    model = g.load(Path(os.environ["COTRACKER_SRC"]), file, online).cuda()
+    how = "online (16-frame windows, step 8)" if online else "offline (whole video, 6 x 6 support grid)"
+    a.note = f"facebookresearch/co-tracker@{g.COMMIT[:12]} as its predictor, {how}, frames resized to 384 x 512"
 
     def call(video: Any, queries: Any) -> Any:  # noqa: ANN401 - uint8 CUDA [T, 3, H, W], float [Q, 3] (t, x, y)
         return g.track(model, video.float() / 255, queries, amp=torch.float16 if fp16 else None)
@@ -2714,7 +2809,10 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "lama": _LocalMask("restoration", _lama, ((512, 512),)),
     "realplksr": _Local("restoration", _realplksr, ((512, 512),), _bchw01),
     "swinir": _Local("restoration", _swinir, ((512, 512),), _bchw01),
+    "swin2sr": _Local("restoration", _swin2sr, ((512, 512),), _bchw01),
     "hat": _Local("restoration", _hat, ((512, 512),), _bchw01),
+    "nafnet": _Local("restoration", _nafnet, ((512, 512),), _bchw01),
+    "restormer": _Local("restoration", _restormer, ((512, 512),), _bchw01),
     "dat": _Local("restoration", _dat, ((512, 512),), _bchw01),
     "drct": _Local("restoration", _drct, ((512, 512),), _bchw01),
     "codeformer": _Local("restoration", _codeformer, ((512, 512),), _bchw01),
@@ -2750,6 +2848,13 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "retinaface": _Local(
         "pose",
         _retinaface,
+        ((1080, 1920),),
+        lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),),
+        needs_boxes=False,
+    ),
+    "yunet": _Local(
+        "pose",
+        _yunet,
         ((1080, 1920),),
         lambda a: (a[0].flip(0).permute(1, 2, 0).contiguous().cpu().numpy(),),
         needs_boxes=False,
@@ -2832,6 +2937,7 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "track_on": _Tracking("tracking", _track_on, ((480, 854),)),
     "locotrack": _Tracking("tracking", _locotrack, ((480, 854),)),
     "prompt_depth_anything": _LocalPrompt("depth", _prompt_depth_anything, ((756, 1008),)),
+    "cotracker": _Tracking("tracking", _cotracker, ((480, 854),)),
 }
 
 

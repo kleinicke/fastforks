@@ -1,4 +1,4 @@
-"""SAM 2 video tracking: hole filling and frame resizing against the references, SAMURAI motion, `track` errors.
+"""SAM 2 video tracking: hole filling and frame resizing against the references, SAMURAI motion, `video` errors.
 
 SAM 3 video tracking against its transformers reference (CPU and GPU).
 """
@@ -92,15 +92,15 @@ def test_track_input_errors() -> None:
     frames = clip(2)
     point = {"input_points": [[50, 45]], "input_labels": [1]}
     with pytest.raises(InputError, match="no frames"):
-        m.track([], **point)
+        m.video([], **point)
     with pytest.raises(InputError, match="sequence of frames"):
-        m.track("video.mp4", **point)
+        m.video("video.mp4", **point)
     with pytest.raises(InputError, match="one size"):
-        m.track([frames[0], frames[1][:50]], **point)
+        m.video([frames[0], frames[1][:50]], **point)
     with pytest.raises(InputError, match="not both"):
-        m.track(frames, input_masks=np.ones((100, 150)), **point)
+        m.video(frames, input_masks=np.ones((100, 150)), **point)
     with pytest.raises(InputError, match="frame size"):
-        m.track(frames, input_masks=np.ones((50, 150)))
+        m.video(frames, input_masks=np.ones((50, 150)))
 
 
 @pytest.mark.slow
@@ -108,7 +108,7 @@ def test_track_input_errors() -> None:
 @pytest.mark.gpu
 @pytest.mark.parametrize("mode", ["portable", "kernels"])
 def test_track_device_memory_is_bounded(mode: str) -> None:
-    """`track` results live on the CPU: device memory does not grow with the video length (only the memory bank)."""
+    """`video` results live on the CPU: device memory does not grow with the video length (only the memory bank)."""
     if not torch.cuda.is_available():
         pytest.skip("needs a CUDA GPU")
     card, variant = registry.resolve("promptable_segmentation", "sam2.1-hiera-tiny")
@@ -123,7 +123,7 @@ def test_track_device_memory_is_bounded(mode: str) -> None:
         frames = clip(n, 720, 1280)
         torch.cuda.synchronize()
         torch.cuda.reset_peak_memory_stats()
-        r = m.track(frames, **box)
+        r = m.video(frames, **box)
         peaks.append(torch.cuda.max_memory_allocated())
         assert {t.device.type for t in (r.masks, r.pred_masks, r.object_score_logits)} == {"cpu"}
         assert r.masks.shape == (n, 720, 1280)
@@ -160,7 +160,7 @@ def _sam3_video(mode: str, device: str) -> tuple[Any, dict[str, np.ndarray]]:
 def test_sam3_track_matches_reference() -> None:
     m, want = _sam3_video("portable", "cpu")
     for prefix, p in clip_prompts().items():
-        r = m.track(clip(), **p)
+        r = m.video(clip(), **p)
         for k, atol in SAM3_CPU_ATOL.items():
             got = getattr(r, k).float().numpy()
             np.testing.assert_allclose(got, want[prefix + k].reshape(got.shape), rtol=0, atol=atol, err_msg=prefix + k)
@@ -176,7 +176,7 @@ def test_sam3_track_gpu_matches_reference(mode: str) -> None:
     m, want = _sam3_video(mode, "cuda")
     mean, p99 = SAM3_GPU[mode]
     for prefix, p in clip_prompts().items():
-        r = m.track(clip(), **p)
+        r = m.video(clip(), **p)
         d = (r.pred_masks.float() - torch.from_numpy(want[prefix + "pred_masks"]).view(r.pred_masks.shape)).abs()
         assert d.mean().item() <= mean, (prefix, d.mean().item())
         assert d.flatten().quantile(0.99).item() <= p99, (prefix, d.flatten().quantile(0.99).item())

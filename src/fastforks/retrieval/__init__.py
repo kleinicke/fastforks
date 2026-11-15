@@ -12,12 +12,9 @@ pairs = retrieval.pairs(desc, k=20)  # [P, 2] image pairs to match (each image w
 ```
 """
 
-from fastforks._core.cards import ModelCard
-from fastforks._core.export import TensorRTEngine
-from fastforks._core.image import ImageLike
-from fastforks._core.sizes import SizeRange
+from fastforks._core.arguments import renamed_attributes
+from fastforks._core.shared_types import OLD_TASK_NAMES
 from fastforks.retrieval._api import (
-    Backend,
     RetrievalModel,
     RetrievalResult,
     list_models,
@@ -28,16 +25,13 @@ from fastforks.retrieval._api import (
 )
 
 __all__ = [
-    "Backend",
-    "ImageLike",
-    "ModelCard",
     "RetrievalModel",
     "RetrievalResult",
-    "SizeRange",
-    "TensorRTEngine",
     "list_models",
     "load",
     "model_card",
     "pairs",
     "top_k",
 ]
+
+__getattr__ = renamed_attributes(__name__, OLD_TASK_NAMES)  # the shared types: `fastforks.<Name>`

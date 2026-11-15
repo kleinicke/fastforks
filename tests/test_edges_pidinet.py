@@ -48,7 +48,7 @@ def test_matches_pidinet_detector(tmp_path: Path) -> None:
     torch.manual_seed(0)
     pdc = _pdc(converted=False)
     torch.save({"state_dict": {f"module.{k}": v for k, v in pdc.state_dict().items()}}, tmp_path / "w.pth")
-    m = edges.load("pidinet", weights=tmp_path / "w.pth", device="cpu", dtype="float32", options={"resolution": 64})
+    m = edges.load("pidinet", weights=tmp_path / "w.pth", device="cpu", dtype="float32", short_side=64)
     img = synthetic_image(64, 128, torch.device("cpu"))
     with torch.inference_mode():
         want = pdc((img * 255).round().flip(1) / 255)[-1][0, 0]

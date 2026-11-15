@@ -1,0 +1,73 @@
+schema = 2
+name = "SeedVR2"
+summary = "SeedVR2 (Wang et al., ByteDance Seed 2025): one-step video restoration and super-resolution by a diffusion transformer (NaDiT, adversarially post-trained) on the latents of a causal 3-D VAE. `seedvr2-3b` and `seedvr2-7b` are the 3 B and 7 B transformers (same VAE); frames are restored one at a time."
+tier = "experimental"
+outputs = ["image"]
+limitations = [
+  "Generative restoration: the output depends on `seed` (one CPU generator draws the VAE posterior noise and the diffusion noise, upstream's default 666); other seeds give other plausible details.",
+  "One frame per call: the clip mode of the original (temporal attention over 4n + 1 frames) is not used by this image API.",
+  "The input is padded on the bottom and right (replicate) so that `scale x` its size is a multiple of 16, and the output cropped back; the original centre-crops the resized frame to a multiple of 16 instead.",
+  "No colour fix: the authors' scripts optionally match the output colours to the input with StableSR's wavelet reconstruction (non-commercial code), which is not included.",
+  "The 3 B model needs ~7 GB for its weights plus the VAE's activations (~14 GB peak at 960 x 1696 output); `stream=False` keeps them resident; by default (`stream=True`, CUDA) they stay in ~6.6 GB of page-locked host RAM (~9 GB peak at that size).",
+  "The 7 B model's weights are 16.5 GB in bf16: it runs with the default `stream=True` (blocks in ~16.5 GB of page-locked host RAM; load fails with an error when less is free) or `quant=\"nf4\"` (~4.6 GB resident); with `stream=false` and no quant it runs out of GPU memory.",
+  "`quant=\"nf4\"` changes the generated detail: 23-27 dB PSNR against the bf16 output (3 B, 4 clips; 7 B: 26-31 dB, 2 clips), about as far as another `seed` (18-24 dB), with ~3.5x smaller transformer blocks.",
+]
+licence_notes = [
+  "The converted weight files (bf16 transformer with the fixed prompt embedding, bf16 VAE) are hosted by fastforks under the originals' Apache-2.0 licence; NOTICE keeps the attribution and lists the changes.",
+]
+
+[upstream]
+repo = "https://github.com/ByteDance-Seed/SeedVR"
+commit = "e4de8c24441a67e1b7df56abea10645059bb1185"  # projects/inference_seedvr2_{3b,7b}.py, models/dit_v2 (3B), models/dit (7B), models/video_vae_v3
+
+[licence]
+code = "Apache-2.0"  # LICENSE; readme: "SeedVR and SeedVR2 are licensed under the Apache 2.0"
+weights = "Apache-2.0"  # model cards of ByteDance-Seed/SeedVR2-3B and -7B: license apache-2.0
+files = ["LICENSE", "NOTICE"]
+training_data = ["unstated"]
+training_note = "Paper (arXiv 2506.05301): adversarial post-training of SeedVR on large-scale image and video data with synthetic degradations; the data sources and terms are not stated."
+evidence = "https://github.com/ByteDance-Seed/SeedVR/blob/e4de8c24441a67e1b7df56abea10645059bb1185/LICENSE ; https://huggingface.co/ByteDance-Seed/SeedVR2-3B (license: apache-2.0)"
+
+[io]
+input = "0-1"
+pad = { multiple = 8, mode = "bottom_right", fill = "replicate" }  # scale 2: 2 x a multiple of 8 is a multiple of 16
+min_size = 8
+
+[params]
+scale = 2
+variant = "3b"
+
+[options]
+seed = 666  # seed of the CPU generator of both noises (upstream's default); the output depends on it
+stream = true  # transformer blocks in pinned host memory, uploaded one at a time (3B: ~6.6 GB, 7B: ~16.5 GB of free host RAM needed, load fails with a clear error otherwise; CUDA only). Switch off with stream=false when host RAM is short or for tiny inputs where it costs more
+quant = { default = "none", choices = ["none", "nf4"] }  # "nf4": the transformer blocks' linear weights in 4 bit, quantised at load (printed when on; changes the generated detail, see limitations)
+
+[modes.portable]
+cuda_dtype = "bfloat16"  # as upstream under autocast: bf16 GEMMs, attention and convolutions, float32 norms and RoPE
+
+[modes.kernels]
+dtype = "bfloat16"
+kernels = ["nf4"]  # the NF4 expansion of `quant = "nf4"` as one fused kernel; without quant the portable path
+
+[[papers]]
+title = "SeedVR2: One-Step Video Restoration via Diffusion Adversarial Post-Training"
+url = "https://arxiv.org/abs/2506.05301"
+date = "2025-06-05"
+venue = "arXiv"
+
+[[variants]]
+id = "seedvr2-3b"
+revision = 1
+weights = [
+  { name = "seedvr2-3b.safetensors", size = 6784909160, sha256 = "61df4f7979f4a4005029dd93ee186e97397d326b81b585d4fdf445573b85f0a7", url = "https://huggingface.co/fastforks/seedvr2-3b/resolve/main/seedvr2-3b.safetensors" },
+  { name = "seedvr2-vae.safetensors", size = 501325110, sha256 = "bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a", url = "https://huggingface.co/fastforks/seedvr2-vae/resolve/main/seedvr2-vae.safetensors" },
+]
+
+[[variants]]
+id = "seedvr2-7b"
+revision = 1
+params = { variant = "7b" }
+weights = [
+  { name = "seedvr2-7b.safetensors", size = 16482579008, sha256 = "bf73826841cfd31895370e92472fae58810ef456310dcc7a167e22dd673eeb7b", url = "https://huggingface.co/fastforks/seedvr2-7b/resolve/main/seedvr2-7b.safetensors" },
+  { name = "seedvr2-vae.safetensors", size = 501325110, sha256 = "bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a", url = "https://huggingface.co/fastforks/seedvr2-vae/resolve/main/seedvr2-vae.safetensors" },
+]

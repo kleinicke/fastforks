@@ -2,21 +2,23 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar, cast
+import os
+from typing import TYPE_CHECKING, Protocol, TypeVar, cast
 
 from fastforks._core import model as core
 from fastforks._core.arguments import typo_checked_load
 from fastforks._core.model import M, ModeArg, Model
 
 if TYPE_CHECKING:
-    import os
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Sequence
 
     import torch
 
     from fastforks._core.cards import Commercial, Dtype, ModelCard, Tier
 
-__all__ = ["ListModelsFn", "LoadFn", "ModelCardFn", "task_api"]
+__all__ = ["ListModelsFn", "LoadFn", "ModelCardFn", "is_path", "task_api"]
+
+CHECKPOINT_SUFFIXES = (".pth", ".pt", ".safetensors", ".ckpt", ".bin", ".onnx")
 
 
 class ListModelsFn(Protocol):
@@ -80,15 +82,15 @@ M_co = TypeVar("M_co", bound=Model, covariant=True)
 class LoadFn(Protocol[M_co]):
     """Signature of every task's `load`; it returns the task's model class."""
 
-    def __call__(  # noqa: PLR0913 - the same arguments in every task
+    def __call__(
         self,
         model: str,
         *,
         mode: ModeArg = "auto",
         device: str | torch.device | None = None,
         dtype: Dtype | torch.dtype | None = None,
-        options: Mapping[str, Any] | None = None,
         weights: str | os.PathLike[str] | None = None,
+        **options: object,
     ) -> M_co:
         """Load a model of this task.
 
@@ -106,13 +108,14 @@ class LoadFn(Protocol[M_co]):
                 it (logged if it is not the validated one), portable on MPS where the card lists it, or `kernels` when
                 it is the kernels' dtype (else `"auto"` falls back to portable). `torch.float32` / `torch.float16` /
                 `torch.bfloat16` are the same as the strings.
-            options: Overrides of the model's load options (card `[options]`, e.g. `{"iters": 16}`); the defaults
-                are the validated values, and non-default ones are recorded in every result.
             weights: Your own copy of the weights instead of the recorded ones, e.g. a fine-tuned checkpoint with
                 the same keys, shapes and file format: the file, or a directory holding the variant's files as
                 `<dir>/<name>` (several files, e.g. a diffusers layout; weights shipped in an archive: the
                 extracted file). Not hash-checked, so the golden parity does not apply (logged once); loaded
                 strictly.
+            **options: Overrides of the model's load options (card `[options]`, e.g. `iters=16`); the defaults
+                are the validated values, and non-default ones are recorded in every result. `options={...}` (the
+                0.1.1 form) still works with a `FutureWarning` until 2026-12-15.
 
         Returns:
             The loaded model.
@@ -128,6 +131,16 @@ class LoadFn(Protocol[M_co]):
                 fit the model (the message lists the missing, unexpected and mismatched keys).
         """
         ...
+
+
+def is_path(model: object) -> bool:
+    """`load`'s path rule: `model` is a path (not a model id) iff it is a `PathLike`, has a path separator, or a suffix.
+
+    Separators: slash or backslash. Suffixes: `.pth .pt .safetensors .ckpt .bin .onnx`.
+    """
+    if isinstance(model, os.PathLike):
+        return True
+    return isinstance(model, str) and ("/" in model or "\\" in model or model.lower().endswith(CHECKPOINT_SUFFIXES))
 
 
 def task_api(
@@ -160,14 +173,14 @@ def task_api(
     def model_card(model: str) -> ModelCard:
         return core.model_card(task, model)
 
-    def load(  # noqa: PLR0913 - the same arguments in every task
+    def load(
         model: str,
         *,
         mode: ModeArg = "auto",
         device: str | torch.device | None = None,
         dtype: Dtype | torch.dtype | None = None,
-        options: Mapping[str, Any] | None = None,
         weights: str | os.PathLike[str] | None = None,
+        **options: object,
     ) -> M:
         model_cls = cast("type[M]", cls if isinstance(cls, type) else cls(model))
         return core.load_model(

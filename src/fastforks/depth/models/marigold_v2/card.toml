@@ -1,0 +1,61 @@
+schema = 2
+name = "Marigold V2"
+summary = "Marigold V2 (Pavlovic, Wandel, Obukhov et al. 2026): affine-invariant log depth by one rectified-flow step of Qwen-Image-Edit-2509's 20 B transformer (NF4 4-bit, as the authors run it) with a rank-128 depth LoRA and a fine-tuned Qwen VAE decoder (depth/Log-stage2)."
+tier = "experimental"
+outputs = ["depth"]
+limitations = [
+  "20 B transformer in 4 bit: 8.4 GB of weights; by default (`stream=True`, CUDA) it runs in ~1-4 GB of device memory from 8.4 GB of page-locked host RAM (load fails with an error when less is free); `stream=False` keeps it resident (about 9-11 GB of device memory, 16 GB cards: up to ~1024 px).",
+  "Diffusion model: the VAE posterior sample comes from a CPU generator seeded with `seed` and differs from the original code's (unseeded, device) sample.",
+  "The enlargement to a multiple of 16 is bicubic (the original: OpenCV Lanczos); inputs with sides that are multiples of 16 are not resized.",
+  "The output is log depth up to scale and shift (`kind = \"affine_invariant_log\"`): align in log space, not with the other families' depth outputs.",
+  "A traced or exported module reuses the noise of its traced shape; CPU inference is possible but slow (bf16 GEMMs of a 20 B model).",
+]
+
+licence_notes = [
+  "The converted weight file (NF4 transformer, LoRA, folded constants, 2-D VAE) is hosted by fastforks under the originals' Apache-2.0 licence; NOTICE keeps both attributions and lists the changes.",
+]
+
+[output]
+kind = "affine_invariant_log"  # log depth in [-1, 1] up to an unknown scale and shift: log(metres) = a * depth + b
+
+[upstream]
+repo = "https://github.com/huawei-bayerlab/marigold-v2"
+commit = "main"
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"
+files = ["LICENSE", "NOTICE"]  # NOTICE: Huawei (Marigold V2) and Alibaba (Qwen-Image-Edit-2509) attributions, the conversion
+training_data = ["unstated"]
+training_note = "Qwen-Image-Edit-2509 (Alibaba, Apache-2.0) fine-tuned (LoRA + VAE decoder) on synthetic depth data per the Marigold V2 paper (arXiv 2609.08084); the training data terms are not checked"
+evidence = "https://huggingface.co/huawei-bayerlab/marigold-v2/blob/main/README.md (license: apache-2.0; base model Qwen/Qwen-Image-Edit-2509)"
+
+[io]
+input = "0-255"  # the runner maps to [-1, 1] and enlarges to multiples of 16 itself
+pad = "none"
+
+[options]
+seed = 2026  # seed of the VAE posterior sample (CPU generator); the output depends on it
+long_side = { default = 0, min = 0 }  # longest side of the network input (then rounded up to a multiple of 16); 0 = the input size (the original)
+exact_mask = false  # pass the original's all-true attention mask: bit-equal to the authors' code on the same GPU, 3-13 % slower (the default differs by ~0.01 mean |d|)
+stream = true  # transformer blocks in pinned host memory, uploaded one at a time (~1-4 GB of device memory instead of ~9.5-12 GB, ~0.4 % slower; needs 8.4 GB free host RAM, load fails with a clear error otherwise; CUDA only). Switch off with stream=false when host RAM is short or for tiny inputs where it costs more
+
+[modes.portable]
+cuda_dtype = "bfloat16"  # as upstream under autocast: bf16 GEMMs and attention, float32 norms, RoPE and gates
+
+[modes.kernels]
+dtype = "bfloat16"
+kernels = ["nf4"]
+
+[[papers]]
+title = "Marigold V2: Revisiting Diffusion Transformers for Monocular Depth Estimation"
+url = "https://arxiv.org/abs/2609.08084"
+date = "2026-09-09"
+venue = "ACM TOG (SIGGRAPH Asia 2026)"
+
+[[variants]]
+id = "marigold-v2-depth"
+revision = 1
+weights = [
+  { name = "marigold-v2-depth-log-stage2-nf4.safetensors", size = 8974251334, sha256 = "4b4aee27acdba6ba91582b76ed374fe91bf1bb02bea3be491e04e71a54fe9f5d", url = "https://huggingface.co/fastforks/marigold-v2-depth/resolve/main/marigold-v2-depth-log-stage2-nf4.safetensors" },
+]

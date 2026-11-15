@@ -1,4 +1,4 @@
-"""Shared parts of the Swin super-resolution networks (SwinIR, HAT, DAT).
+"""Shared parts of the Swin super-resolution networks (SwinIR, Swin2SR, HAT, DAT).
 
 `DropPath`, `to_2tuple`, `trunc_normal_` replace the timm / BasicSR helpers the vendored networks import (inference
 only). `shift_mask` is SwinIR's `SwinTransformerBlock.calculate_mask` (the 0 / -100 shifted-window mask), made on the
@@ -10,7 +10,7 @@ zero-pads a block's head dimension to a multiple of 8 in its `qkv` / `proj` weig
 rows of q and k), the extra output channels meet zero columns of `proj`. `attention` is the SDPA call itself, padding
 the head size at run time where the weights are not padded (HAT, DAT) and copying strided inputs. `patch_embed` is
 `PatchEmbed.forward` with contiguous tokens. `checkpoint_upsampler` reads a checkpoint's reconstruction layers
-(`load_file`).
+(`load(path)`).
 """
 
 from __future__ import annotations
@@ -54,8 +54,14 @@ def DropPath(drop_prob: float) -> nn.Module:  # noqa: N802 - the timm class name
 
 
 @functools.lru_cache(maxsize=16)
-def shift_mask(h: int, w: int, window: int, shift: int, device: torch.device) -> torch.Tensor:
-    """`[nW, window**2, window**2]` float32 0 / -100 mask of the shifted windows of an `h` x `w` map (SwinIR's)."""
+def shift_mask(  # noqa: PLR0913 - the map size, window, shift and where / how the mask is cached
+    h: int, w: int, window: int, shift: int, device: torch.device, *, dtype: torch.dtype = torch.float32
+) -> torch.Tensor:
+    """`[nW, window**2, window**2]` 0 / -100 mask of the shifted windows of an `h` x `w` map (SwinIR's), in `dtype`.
+
+    Cached in the attention's dtype: float16 holds 0 / -100 exactly, and a float32 copy per size plus a cast per call
+    cost 1.5 x its float16 size (64 + 32 MB at 512 x 512, window 8).
+    """
     img = torch.zeros(1, h, w, 1, device=device)
     cnt = 0
     for hs in (slice(0, -window), slice(-window, -shift), slice(-shift, None)):
@@ -64,7 +70,7 @@ def shift_mask(h: int, w: int, window: int, shift: int, device: torch.device) ->
             cnt += 1
     m = img.view(1, h // window, window, w // window, window, 1).permute(0, 1, 3, 2, 4, 5).reshape(-1, window * window)
     m = m.unsqueeze(1) - m.unsqueeze(2)
-    return m.masked_fill(m != 0, -100.0).masked_fill(m == 0, 0.0)
+    return m.masked_fill(m != 0, -100.0).masked_fill(m == 0, 0.0).to(dtype)
 
 
 def relative_bias(table: torch.Tensor, index: torch.Tensor) -> torch.Tensor:
@@ -103,15 +109,20 @@ def window_attention(  # noqa: PLR0913 - the block's projections, head count, sc
     scale: float,
     bias: torch.Tensor,
     mask: torch.Tensor | None,
+    cosine: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Swin window attention of `[B * nW, N, C]` windows: `proj(softmax(q k^T * scale + bias (+ mask)) v)`.
 
     `bias` is `relative_bias(...)` `[nH, N, N]`, `mask` the `[nW, N, N]` shifted-window mask or None. The head
-    dimension is `qkv`'s (padded by `pad_heads` or not).
+    dimension is `qkv`'s (padded by `pad_heads` or not). `cosine`: Swin V2's cosine attention, its `[nH, 1, 1]`
+    clamped, exponentiated logit scale; q and k are L2-normalised and q is multiplied by it (pass `scale=1`).
     """
     b_, n, _ = x.shape
     d = qkv.out_features // (3 * heads)
     q, k, v = qkv(x).reshape(b_, n, 3, heads, d).permute(2, 0, 3, 1, 4).unbind(0)
+    if cosine is not None:  # zero padded head columns leave the norms unchanged
+        q = F.normalize(q, dim=-1) * cosine.to(q.dtype)
+        k = F.normalize(k, dim=-1)
     add = bias.to(q.dtype)[None]
     if mask is not None:
         nw = mask.shape[0]

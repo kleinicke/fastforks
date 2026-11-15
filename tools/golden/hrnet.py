@@ -81,7 +81,7 @@ def main() -> None:
         kp = np.stack([r.pred_instances.keypoints[0] for r in res])
         ks = np.stack([r.pred_instances.keypoint_scores[0] for r in res])
         if flip:
-            ours = load(f"{variant.id}@{variant.revision}", device="cpu", options={"flip_test": True})(img, boxes=BOXES)
+            ours = load(f"{variant.id}@{variant.revision}", device="cpu", flip_test=True)(img, boxes=BOXES)
             d = np.abs(np.asarray(ours.keypoints) - kp)
             print(f"  {variant.id} flip: |dkp| mean {d.mean():.4f} max {d.max():.4f}")
             continue

@@ -120,7 +120,7 @@ def golden_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls:
         opts = tg.options(ref, want)
         if opts:
             m = tg.API[tg.TASK[ref]].load(
-                ref, mode=spec["mode"], device=spec.get("device", "cuda"), dtype=spec.get("dtype"), options=opts
+                ref, mode=spec["mode"], device=spec.get("device", "cuda"), dtype=spec.get("dtype"), **(opts or {})
             )
             row["golden_reload"] = True
         kernels.reset_fallbacks()

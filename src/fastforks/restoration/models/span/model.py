@@ -105,7 +105,7 @@ RUNNERS = {"portable": Portable, "kernels": Kernels}
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a SPAN state dict as a variant and its params (feature channels, scale); keys unchanged."""
+    """`load(path)`: a SPAN state dict as a variant and its params (feature channels, scale); keys unchanged."""
     if "block_1.c1_r.sk.weight" not in sd or "conv_1.sk.weight" not in sd:
         return None
     first, up = sd["conv_1.sk.weight"], sd.get("upsampler.0.weight")

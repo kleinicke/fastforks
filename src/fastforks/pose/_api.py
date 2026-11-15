@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 import torch
@@ -17,7 +17,6 @@ from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
 from fastforks._core.instances import Instances
 from fastforks._core.labels import label_set
 from fastforks._core.model import Backend
-from fastforks._core.outputs import NumpyOutputs
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -65,9 +64,12 @@ BoxesLike = torch.Tensor | np.ndarray | Sequence[Sequence[float]] | Instances
 """Person boxes `[P, 4]` `(x0, y0, x1, y1)` in input pixels: a tensor, array, nested list, or a detection result."""
 
 
-@dataclass(frozen=True)
-class PoseResult(NumpyOutputs):
-    """Keypoints of the people in one image, on the model's device.
+@dataclass(frozen=True, kw_only=True)
+class PoseResult(Instances):
+    """Keypoints of the people in one image, on the model's device: `Instances` (boxes, scores) with keypoints.
+
+    Indexing selects people like `Instances` (`result[result.scores > 0.5]`, keypoints included); `save(path)` writes
+    `to_list()` as `.json`.
 
     Attributes:
         keypoints: `[P, K, 2]` float32 keypoint positions `(x, y)` in pixels of the input image (pixel centres at
@@ -75,6 +77,9 @@ class PoseResult(NumpyOutputs):
         keypoint_scores: `[P, K]` float32 keypoint confidence (heatmap models: the heatmap peak, about 0..1).
         boxes: `[P, 4]` float32 person boxes `(x0, y0, x1, y1)` in input pixels (top-down: the boxes given).
         scores: `[P]` float32 person confidence (top-down: the mean keypoint score).
+        labels: `None` (every instance is a person).
+        masks: `None`.
+        class_names: Empty.
         keypoint_names: Name of every keypoint (the card's label set), index = keypoint `K`.
         skeleton: Limbs as pairs of keypoint indices (for drawing).
         model: Versioned model id.
@@ -82,19 +87,15 @@ class PoseResult(NumpyOutputs):
         options: Load options that differ from the validated defaults.
     """
 
+    labels: torch.Tensor | None = None
+    masks: torch.Tensor | None = None
+    class_names: tuple[str, ...] = ()
     keypoints: torch.Tensor
     keypoint_scores: torch.Tensor
-    boxes: torch.Tensor
-    scores: torch.Tensor
     keypoint_names: tuple[str, ...]
     skeleton: tuple[tuple[int, int], ...]
-    model: str
-    backend: Backend
-    options: Mapping[str, Any] = field(default_factory=dict)
 
-    def __len__(self) -> int:
-        """Number of people."""
-        return int(self.scores.shape[0])
+    _per_instance: ClassVar[tuple[str, ...]] = (*Instances._per_instance, "keypoints", "keypoint_scores")  # noqa: SLF001
 
     def to_list(self) -> list[dict[str, Any]]:
         """One dict per person: `box`, `score` and `keypoints` (`{name: (x, y, score)}`)."""
@@ -123,6 +124,9 @@ class PoseModel(core.Model):
         needs_boxes: Whether calls need person boxes (top-down models).
     """
 
+    _list_images = 1
+    _per_input = ("boxes",)
+
     _runner: Runner
 
     def __init__(self, runner: Runner, backend: Backend, options: Mapping[str, Any]) -> None:
@@ -134,7 +138,7 @@ class PoseModel(core.Model):
         self.needs_boxes = runner.needs_boxes
 
     def __call__(
-        self, image: ImageLike, boxes: BoxesLike | Sequence[BoxesLike] | None = None
+        self, image: ImageLike, *, boxes: BoxesLike | Sequence[BoxesLike] | None = None
     ) -> PoseResult | list[PoseResult]:
         """Estimate the keypoints of the people in an image.
 

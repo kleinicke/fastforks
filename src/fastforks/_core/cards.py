@@ -249,7 +249,7 @@ class ModelCard:
         licence: Licensing and training data of the family.
         io: Input handling of the family (a variant may override fields; see `Variant.io`).
         params: Architecture parameters shared by all variants (e.g. `max_disp`, the encoder); variants override them.
-        options: Load-time options (`load(..., options=)`) with their validated defaults.
+        options: Load-time options (`load(..., **options)`) with their validated defaults.
         option_min: Lower bounds of numeric options (card `{ default = ..., min = ... }`); checked at load.
         option_max: Upper bounds of numeric options (card `max = ...`); checked at load.
         option_choices: Allowed values of options with a fixed set (card `choices = [...]`); checked at load.
@@ -862,10 +862,22 @@ def _number(x: object) -> bool:
     return isinstance(x, int | float) and not isinstance(x, bool)
 
 
+# Keywords of the task loaders (`load(model, *, mode=..., **options)`): no option or alias may use one.
+LOAD_ARGUMENTS = frozenset(
+    (
+        *("model", "mode", "device", "dtype", "weights", "options", "labels", "class_names"),
+        *("folds", "step", "mirror", "checkpoint"),
+    )
+)
+
+
 def _aliases(options: Mapping[str, _Opt], where: str) -> Mapping[str, str]:
     """`alias -> option` of all options; an alias must not be an option name or belong to two options."""
     out: dict[str, str] = {}
     for name, opt in options.items():
+        if clash := {name, *opt.aliases} & LOAD_ARGUMENTS:
+            msg = f"{where} [options] {name}: {sorted(clash)} is a load() argument (options are load keywords)"
+            raise CardError(msg)
         for a in opt.aliases:
             if a in options or a in out:
                 msg = f"{where} [options] {name}: alias {a!r} is already an option name or alias"
@@ -929,10 +941,12 @@ def _reasons(lic: Licence, cls: CodeClass) -> tuple[str, ...]:
 
 
 def _notes(lic: Licence) -> tuple[str, ...]:
-    """Caveats that do not change the status: assumed weights licence, restrictive / unclear / unstated data."""
+    """Caveats that do not change the status: assumed or share-alike weights licence, restrictive / unclear data."""
     out = []
     if lic.weights == licences.ASSUMED:
         out.append("weights licence not stated by the original authors; assumed to be the code licence")
+    elif lic.weights != licences.OTHER and licences.licence_class(lic.weights) == "copyleft":
+        out.append(f"share-alike: weights {lic.weights}; fine-tuned or adapted weights keep this licence")
     known = licences.datasets()
     out.extend(
         "data: unstated"

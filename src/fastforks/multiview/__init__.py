@@ -18,12 +18,9 @@ matrices with OpenCV axes (x right, y down, z forward); `MultiViewResult.extrins
 Feed-forward splatting models (e.g. `anysplat`) also return `result.gaussians` (`Gaussians`; `.save("scene.ply")`).
 """
 
-from fastforks._core.cards import ModelCard
-from fastforks._core.export import TensorRTEngine
-from fastforks._core.image import ImageLike
-from fastforks._core.sizes import SizeRange
+from fastforks._core.arguments import renamed_attributes
+from fastforks._core.shared_types import OLD_TASK_NAMES
 from fastforks.multiview._api import (
-    Backend,
     MultiViewKind,
     MultiViewModel,
     MultiViewResult,
@@ -35,17 +32,14 @@ from fastforks.multiview._api import (
 from fastforks.multiview._gaussians import Gaussians
 
 __all__ = [
-    "Backend",
     "Gaussians",
-    "ImageLike",
-    "ModelCard",
     "MultiViewKind",
     "MultiViewModel",
     "MultiViewResult",
-    "SizeRange",
-    "TensorRTEngine",
     "list_models",
     "load",
     "model_card",
     "unproject",
 ]
+
+__getattr__ = renamed_attributes(__name__, OLD_TASK_NAMES)  # the shared types: `fastforks.<Name>`

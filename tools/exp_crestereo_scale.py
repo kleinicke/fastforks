@@ -55,7 +55,7 @@ def main() -> None:  # noqa: PLR0915
     first = True
     with (a.out / "rows.jsonl").open("w") as f:
         for iters in dict.fromkeys(i for _, i in SETTINGS):
-            model = stereo.load(a.ref, mode="kernels", device="cuda", options={"iters": iters})
+            model = stereo.load(a.ref, mode="kernels", device="cuda", iters=iters)
             meta["dtype"] = str(model.backend.dtype).removeprefix("torch.")
             for ds in ev.DATASETS["stereo"]:
                 thr, vmax = ev.BAD[ds]

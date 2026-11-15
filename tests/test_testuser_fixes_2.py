@@ -12,13 +12,12 @@ import torch
 from torch import nn
 
 import fastforks
-from fastforks import OptionsError, WeightsHashError
+from fastforks import Backend, OptionsError, WeightsHashError
 from fastforks._core import cli, files
 from fastforks._core.files import FileSpec, locate
 from fastforks._core.model import Model
 from fastforks._core.runner import Runner
 from fastforks._optimize import FastModel, patch
-from fastforks.stereo import Backend
 
 
 def test_version_is_only_a_string():  # TH-8

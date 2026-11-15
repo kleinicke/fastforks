@@ -90,7 +90,7 @@ class TrackingModel(core.Model):
         The video has `8 * batch` frames of a texture moving 2 px per frame.
 
         Args:
-            height: Frame height in pixels; default (with `width`): `export_size()`.
+            height: Frame height in pixels; default (with `width`): `size_range().export_size`.
             width: Frame width in pixels.
             batch: Multiplies the frame count (a video is one call).
 

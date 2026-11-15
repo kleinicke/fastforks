@@ -156,7 +156,7 @@ def _fastforks(ref: str, mode: str) -> tuple[Any, str, dict]:
 
     dtype = "float32" if mode == "portable32" else None
     options = sparse_options(ref) if sparse(ref) else options_of(ref)
-    model = ff.load(ref, mode=mode.removesuffix("32"), dtype=dtype, options=options)
+    model = ff.load(ref, mode=mode.removesuffix("32"), dtype=dtype, **(options or {}))
     backend = {"mode": model.backend.mode, "dtype": str(model.backend.dtype), "kernels": list(model.backend.kernels)}
 
     def call(a: torch.Tensor, b: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:

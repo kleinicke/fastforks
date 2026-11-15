@@ -31,8 +31,8 @@ def test_matches_hed_detector(tmp_path: Path, safe: bool) -> None:  # noqa: FBT0
     torch.manual_seed(0)
     net = ControlNetHED_Apache2().eval()
     torch.save(net.state_dict(), tmp_path / "w.pth")
-    opts = {"resolution": 64, "safe": safe}
-    m = edges.load("hed", weights=tmp_path / "w.pth", device="cpu", dtype="float32", options=opts)
+    opts = {"short_side": 64, "safe": safe}
+    m = edges.load("hed", weights=tmp_path / "w.pth", device="cpu", dtype="float32", **(opts or {}))
     img = synthetic_image(64, 128, torch.device("cpu"))
     with torch.inference_mode():
         sides = [F.interpolate(e, (64, 128), mode="bilinear", align_corners=False) for e in net((img * 255).round())]

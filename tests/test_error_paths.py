@@ -31,7 +31,7 @@ def test_model_id_must_be_a_string(model):
 
 @pytest.mark.parametrize("options", [[("iters", 3)], "iters=3"])
 def test_options_must_be_a_mapping(options):
-    with pytest.raises(OptionsError, match="options must be a dict"):
+    with pytest.raises(OptionsError, match="options must be a dict"), pytest.warns(FutureWarning):
         stereo.load("crestereo-eth3d", options=options)
 
 

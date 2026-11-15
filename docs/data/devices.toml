@@ -88,3 +88,12 @@ match = "NVIDIA RTX PRO 6000 Blackwell Server Edition"
 memory = "96 GB GDDR7"
 details = "Blackwell Server Edition, sm_120, 600 W"
 software = "torch 2.14.1+cu130, cuda 13.0, driver 610.57.04"
+
+[rtx-3090-24gb]
+name = "NVIDIA GeForce RTX 3090"
+hidden = true  # rented for one session (2026-11-14): only the RoMa v2 rows; show after a full survey
+backend = "cuda"
+match = "NVIDIA GeForce RTX 3090"
+memory = "24 GB"
+details = "sm_86, 350 W"
+software = "torch 2.14.1+cu130, cuda 13.0, driver 580.178.04"

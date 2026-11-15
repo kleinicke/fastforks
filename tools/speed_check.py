@@ -103,6 +103,7 @@ STANDARD = {  # the task's standard input of docs/benchmarks.md (tools/gen_docs.
     "retrieval": "480x640",
     "calibration": "1080x1920",
     "restoration": "512x512",
+    "ocr": "1080x1920",
 }
 PROFILE_INPUT = {
     "stereo": "994x1482",
@@ -481,9 +482,9 @@ def _fail(row: dict[str, Any], spec: dict[str, Any], msg: str) -> None:
 def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int, int]:  # noqa: ANN401
     """(batch or views, h, w) of the image the network takes in one timed call (`module()` takes the same).
 
-    The runner's first image argument (classification: the crop, multi-view: `[views, 3, H, W]`); detection, whose
-    `module()` starts after the resize, and pose, whose `module()` takes the box crops: the first 3-channel image a
-    submodule gets, if one does (R-CNN: the runner's).
+    The runner's first image argument (classification: the crop, multi-view: `[views, 3, H, W]`); detection and OCR,
+    whose `module()` starts after the resize, and pose, whose `module()` takes the box crops: the first 3-channel
+    image a submodule gets, if one does (R-CNN: the runner's).
     """
     import torch  # noqa: PLC0415
 
@@ -496,7 +497,8 @@ def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int
 
     runner = model._runner  # noqa: SLF001 - the task's own runner contract
     cap = model._runner = _Capture(runner)  # noqa: SLF001
-    handle = torch.nn.modules.module.register_module_forward_pre_hook(hook) if task in {"detection", "pose"} else None
+    hooked = task in {"detection", "pose", "ocr"}
+    handle = torch.nn.modules.module.register_module_forward_pre_hook(hook) if hooked else None
     try:
         full()
     finally:

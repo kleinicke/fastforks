@@ -64,7 +64,7 @@ def weights(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def test_odd_size_is_padded_and_exports(weights: Path) -> None:
-    model = flow.load("neuflow-v2", weights=weights, device="cpu", options={"iters": 1})
+    model = flow.load("neuflow-v2", weights=weights, device="cpu", iters=1)
     a, b = _pair(67, 93)  # neither a multiple of 16: replicate padding, cropped again
     out = model(a, b).flow
     assert out.shape == (1, 2, 67, 93)

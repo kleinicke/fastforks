@@ -93,7 +93,9 @@ features.load("dinov2-vitb14")("cat.jpg").pooler_output  # image embedding; .las
 # MVSAnywhere's code and weights are non-commercial: its weights download only with FASTFORKS_NONCOMMERCIAL=1
 import torch
 
-from fastforks import calibration, detection, edges, flow, matting, multiview, pose, promptable_segmentation, retrieval
+from fastforks import (
+    calibration, detection, edges, flow, matting, multiview, ocr, pose, promptable_segmentation, retrieval,
+)
 
 det = detection.load("faster-rcnn-r50-fpn-3x-coco")
 det("street.jpg", score_threshold=0.5).to_list()  # dicts: box, class_name, score
@@ -114,6 +116,8 @@ people.keypoints, people.keypoint_scores  # [P, 17, 2] pixels of the input, [P, 
 flow.load("raft-large")("frame1.png", "frame2.png").flow  # [2, H, W]: dx, dy in pixels, frame 1 -> frame 2
 matting.load("birefnet-lite")("photo.jpg").alpha  # [H, W] in [0, 1]: 1 = foreground (background removal)
 edges.load("lineart")("photo.jpg").edges  # [H, W] in [0, 1]: 1 = line (ControlNet preprocessor)
+lines = ocr.load("ppocrv5-server")("receipt.jpg")
+lines.texts, lines.boxes, lines.scores  # N strings in reading order, [N, 4, 2] quads in pixels, [N]
 vpr = retrieval.load("megaloc")
 d = [vpr(p).descriptor for p in paths]  # each [8448], unit norm; any image sizes
 retrieval.pairs(torch.stack(d), k=20)  # [P, 2] image pairs to match (each image with its 20 nearest), e.g. for SfM
@@ -122,15 +126,15 @@ cam = calibration.load("geocalib-pinhole")(image)  # one photo: no checkerboard,
 cam.intrinsics, cam.roll, cam.pitch, cam.vfov  # [3, 3] (pixels of the input), radians
 ```
 
-3D CT segmentation ([models](models/volume.md), [API](api/volume.md)); also any trained nnU-Net v2 folder via
-`volume.load_nnunet(folder)`:
+3D CT segmentation ([models](models/volume.md), [API](api/volume.md)); also any trained nnU-Net v2 model folder or
+checkpoint via `volume.load(path, folds=..., step=..., mirror=...)`:
 
 ```python
 # read_nifti / write_nifti need: pip install "fastforks-core[nifti]"
 from fastforks import volume
 
 ct, meta = volume.read_nifti("ct.nii.gz")  # [D, H, W] float32 (RAS-canonical), meta.spacing in mm
-seg = volume.load("totalsegmentator-total-3mm")(ct, meta.spacing)
+seg = volume.load("totalsegmentator-total-3mm")(ct, meta=meta)  # or spacing=(d, h, w); seg.save("seg.nii.gz")
 seg.labels  # [D, H, W] uint8 class index on the input grid; seg.class_names {1: "spleen", ...}
 volume.write_nifti("seg.nii.gz", seg.labels.cpu().numpy(), meta)  # on the grid of ct.nii.gz
 ```
@@ -142,7 +146,7 @@ tensors; calling it returns the typed result, whose `.backend` records what ran.
 Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
 `fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation`,
 `fastforks.multiview`, `fastforks.matching`, `fastforks.matting`, `fastforks.tracking`, `fastforks.interpolation`,
-`fastforks.retrieval`, `fastforks.calibration`, `fastforks.restoration`, `fastforks.volume` and `fastforks.edges`.
+`fastforks.retrieval`, `fastforks.calibration`, `fastforks.restoration`, `fastforks.volume`, `fastforks.edges` and `fastforks.ocr`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
 PatchmatchNet return the reference view only. AnySplat also returns 3D Gaussians: `result.gaussians.save("scene.ply")`
 writes a standard 3DGS PLY. See the [API pages](api/index.md) for every result's fields.
@@ -262,7 +266,7 @@ iterations:
 ```python
 from fastforks import stereo
 
-model = stereo.load("raft-stereo-middlebury", options={"iters": 16})
+model = stereo.load("raft-stereo-middlebury", iters=16)
 result = model("left.png", "right.png")
 result.options  # {"iters": 16}: non-default options are recorded in every result
 ```
@@ -273,7 +277,7 @@ One name per concept across families; the old (upstream) names are accepted as a
 | Concept | Option | Old names |
 |---|---|---|
 | Longer side of the network input, px | `long_side` | `process_res` (Depth Anything 3), `processing_res` (Marigold), `resolution` (MapAnything) |
-| Shorter side (lower bound) of the network input, px | `short_side` | `input_size` (Depth Anything V2) |
+| Shorter side (lower bound) of the network input, px | `short_side` | `input_size` (Depth Anything V2), `resolution` and `detect_resolution` (edges) |
 | Side of a square with the network input's area, px | `area_side` | `resolution` (VGGT-Omega) |
 | Resolution level 0 to 9 (not pixels) | `resolution_level` | |
 | Recurrent refinement iterations | `iters` | |
@@ -344,7 +348,7 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   them, and a missing or unreadable file (another format, empty, truncated) a `WeightsError` naming it. Floating-point
   tensors in another precision than the original (e.g. a float32 fine-tune of Depth Pro's float16 checkpoint) are
   cast to the model's.
-- `labels=` (classification): `classification.load("resnet50", weights="ft.pth", labels=my_1000_names)` names
+- `class_names=` (classification): `classification.load("resnet50", weights="ft.pth", class_names=my_1000_names)` names
   the classes of a fine-tuned head (a list of non-empty strings, in logit order, one per logit: 1000 for `resnet50`, else
   `OptionsError`, checked before loading; the head size is the family's, fixed).
   Only the names change (`result.class_names`, `top()`); the input handling and what the logits mean stay the
@@ -410,7 +414,11 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   q = F.normalize(model(query_images).pooler_output, dim=-1)  # same size as the gallery
   scores = q @ g.T  # cosine similarity [Q, N]; scores.topk(5, dim=-1) for the best matches
   ```
-- Lists are not batches: stack same-size images into one array or tensor (multi-view models take a list of views).
+- A list of images gives a list of results, one call per image (pair tasks: two lists of the same length).
+  Arguments that come one per image (depth `intrinsics` and `prompt_depth`, pose `boxes`, matting `trimap` / `mask`,
+  restoration `mask`, the prompts of promptable segmentation) are then `list`s of the same length (a tuple, array or tensor is
+  one value shared by every image, as are all other arguments). Stack same-size images into one array or tensor for one batched call. Multi-view models, point tracking
+  and volumes take one list (views, frames) as one input.
 - Any size above the model's minimum: resizing or padding to what the network needs and back happen inside the call, so
   dense maps (disparity, depth, labels) have the input's resolution. Classifiers resize and crop as the model expects.
 - Batches: pass `[B, 3, H, W]` tensors (or `BHWC` arrays) to get `[B, H, W]` maps (`[B, classes]` logits).
@@ -436,9 +444,12 @@ nerfstudio): `cx_colmap = cx_opencv + 0.5` (same for `cy`); `read_calib(..., "co
 
 ### Saving maps
 
-`save` exists on results that hold dense maps: stereo, depth, multi-view, segmentation (`labels`) and promptable
-segmentation (`masks`); classification, features, pose and detection results have none (use `result.numpy()` or the
-fields). `result.save(path)` writes the primary map (`disparity`, `depth` or `inverse_depth`, `labels`, `masks`;
+`save` exists on results that hold dense maps: stereo, depth, multi-view, segmentation (`labels`), promptable
+segmentation (`masks`), matting and edges; classification and features results have none (use `result.numpy()` or the
+fields). Restoration and interpolation results write their image (`.png` / `.jpg` 8-bit, `.npy` float32), flow results
+`.flo` (Middlebury) or `.npy`, volume results `.nii.gz` (on the input file's grid: call with `meta=`) or `.npy`; a
+batch of these takes `{i}` in the path (`"out_{i}.png"`). Instance results (detection, concept segmentation, pose:
+`PoseResult` is an `Instances` with keypoints) write `to_list()` as `.json` (masks left out). `result.save(path)` writes the primary map (`disparity`, `depth` or `inverse_depth`, `labels`, `masks`;
 `key="confidence"` or an `extras` name picks another) as one `[H, W]` file; the suffix selects the format, and an
 unknown suffix raises with the list this result accepts. Batches are not split (pass one image per call; leading
 dimensions of size 1 are dropped; for several masks write one, `fastforks.save("m.png", r.masks[i])`); a multi-view
@@ -612,7 +623,7 @@ Or keep the high-level API and compile in place (`kernels` raises `BackendUnavai
 ```python
 model.compile()  # every task call now runs compiled; again with other arguments replaces it
 model.export_onnx("m.onnx", 384, 1248)
-model.export_tensorrt("m.engine", 384, 1248)  # on the target GPU; then stereo.TensorRTEngine("m.engine")(left, right)
+model.export_tensorrt("m.engine", 384, 1248)  # on the target GPU; then fastforks.TensorRTEngine("m.engine")(left, right)
 ```
 
 ```
@@ -624,9 +635,9 @@ fastforks export depth-anything-v2-s --format trt --fp16 --size 518x770
 ```
 
 From Python: `model.export_onnx(path[, height, width])` and `model.export_tensorrt(path[, height, width])`; run an
-engine with `stereo.TensorRTEngine(path)(left, right)` (`depth.TensorRTEngine(path)(image)`). Exports have one fixed
+engine with `fastforks.TensorRTEngine(path)(left, right)` (or `(image)`). Exports have one fixed
 size and batch by default (size ranges: see [export](export.md)); the size must lie in `model.size_range()` (stereo, depth, segmentation and detection have no default size;
-classification and features default to `model.export_size()`). **A TensorRT engine only runs on the GPU model and
+classification and features default to `model.size_range().export_size`). **A TensorRT engine only runs on the GPU model and
 TensorRT version it was built with: build it on the target machine.** Install the exporters with
 `pip install "fastforks-core[onnx]"` / `"fastforks-core[tensorrt]"`. See [export](export.md) for inputs and outputs per task,
 what works per model and how TensorRT compares with `kernels`.

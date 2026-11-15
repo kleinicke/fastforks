@@ -1,0 +1,63 @@
+schema = 2
+name = "Restormer"
+summary = "Restormer (Zamir et al., CVPR 2022): a U-Net of transformer blocks for high-resolution image restoration: channel ('transposed') self-attention whose cost grows linearly with the pixels (MDTA) and a gated depthwise-conv feed-forward (GDFN), four 2 x down / up levels plus refinement blocks. `restormer-deblur` removes motion blur (GoPro), `restormer-derain` removes rain streaks (Rain13K), `restormer-sidd` removes smartphone sensor noise (SIDD)."
+tier = "experimental"
+outputs = ["image"]
+
+[upstream]
+repo = "https://github.com/swz30/Restormer"
+commit = "68dc6ac472db26f16361150cb7a96a1bc87da93f"  # basicsr/models/archs/restormer_arch.py; the call is Motion_Deblurring/test.py / Deraining/test.py (reflect padding to a multiple of 8, model(input_), no tile)
+
+[licence]
+code = "MIT"  # LICENSE.md
+weights = "MIT"  # the authors' GitHub release v1.0 of the MIT repository; no separate weights licence
+files = ["LICENSE"]
+training_data = ["gopro"]
+training_note = "Motion_Deblurring/Options/Deblurring_Restormer.yml: GoPro train (2103 blurred / sharp pairs), progressive patch sizes 128 to 384."
+evidence = "https://github.com/swz30/Restormer/blob/68dc6ac472db26f16361150cb7a96a1bc87da93f/LICENSE.md ; https://github.com/swz30/Restormer/releases/tag/v1.0"
+
+[io]
+input = "0-1"  # the test scripts read images in [0, 1]
+min_size = 8  # reflect padding to a multiple of 8 needs pad < size
+
+[params]
+scale = 1
+dim = 48
+blocks = [4, 6, 6, 8]
+refinement = 4
+heads = [1, 2, 4, 8]
+ffn = 2.66
+norm = "WithBias"
+key = "params"
+multiple = 8
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate dense convolutions
+
+[[papers]]
+title = "Restormer: Efficient Transformer for High-Resolution Image Restoration"
+url = "https://arxiv.org/abs/2111.09881"
+date = "2021-11-18"
+venue = "CVPR 2022"
+
+[[variants]]
+id = "restormer-deblur"
+revision = 1
+weights = [{ name = "motion_deblurring.pth", size = 104700429, sha256 = "194e38fb5b607c9dc5a5b3e08e65b2e79ee2bf0ef5048e0612f6b2ff2f79da31", url = "https://github.com/swz30/Restormer/releases/download/v1.0/motion_deblurring.pth" }]
+
+[[variants]]
+id = "restormer-derain"
+revision = 1
+weights = [{ name = "deraining.pth", size = 104700429, sha256 = "225ed9acf80b3527d7080e5182918f642a23a78ef8593ad700b7e924bd660681", url = "https://github.com/swz30/Restormer/releases/download/v1.0/deraining.pth" }]
+licence = { training_data = ["rain13k"], training_note = "Deraining/Options/Deraining_Restormer.yml: Rain13K (13712 synthetic rainy / clean pairs), progressive patch sizes 128 to 384." }
+
+[[variants]]
+id = "restormer-sidd"
+revision = 1
+params = { norm = "BiasFree" }
+weights = [{ name = "real_denoising.pth", size = 104611957, sha256 = "4cae18bed8a291b9a5deeeab48756bbe6f61fcf7f31a4cca0969b24608601387", url = "https://github.com/swz30/Restormer/releases/download/v1.0/real_denoising.pth" }]
+licence = { training_data = ["sidd"], training_note = "Denoising/Options/RealDenoising_Restormer.yml: SIDD-Medium sRGB (320 noisy / clean pairs), progressive patch sizes 128 to 384." }

@@ -28,6 +28,7 @@ from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 
 from .net import GIMMVFI_R
+from .net.modules.fi_components import ResBlock
 from .net.modules.fi_utils import normalize_flow, resize, unnormalize_flow, warp
 from .net.modules.softsplat import softsplat
 
@@ -38,11 +39,13 @@ if TYPE_CHECKING:
     from fastforks.interpolation._runner import Context
 
     from .net.modules.fi_components import NewMultiFlowDecoder
+    from .net.modules.hyponet import HypoNet
     from .net.raft.raft import RAFT
 
 LEVELS, RADIUS = 4, 4  # the correlation pyramids of RAFT and of the bidirectional lookup
 HALO = 17  # fixed: rows `convblock` reads beyond a band (17 3 x 3 convs in a chain: 1 + 3 x 5 + 1)
 BAND_PIXELS = 1 << 20  # larger full-size inputs run `convblock` in row bands of about this many pixels
+HYPO_PIXELS = 1 << 19  # the hyponet MLP runs over pixel chunks of this size (its activations never exist at once)
 
 
 @dataclass(frozen=True)
@@ -142,10 +145,50 @@ def _raft(raft: RAFT, im1: torch.Tensor, im2: torch.Tensor, iters: int, make: Ca
     return raft.upsample_flow(coords1 - coords0, up_mask), feats[1:], fmap1.float()
 
 
+def _compute_dtype(x: torch.Tensor) -> torch.dtype:
+    """The dtype a conv would run `x` in: the autocast dtype when autocast is on for its device, else its own."""
+    dev = x.device.type
+    return torch.get_autocast_dtype(dev) if torch.is_autocast_enabled(dev) else x.dtype
+
+
+def _hyponet(hn: HypoNet, coord: torch.Tensor, lat: torch.Tensor, chunk: int = HYPO_PIXELS) -> torch.Tensor:
+    """Upstream `HypoNet.forward(coord, None, pixel_latent=lat.permute(0, 2, 3, 1))` in pixel chunks: `[B, h, w, 2]`.
+
+    The same ops per pixel (the latent resized to the coordinate grid, the SIREN layers as `bmm` on `[hidden, 1]`
+    against the normalised `[W; b]`, the output bias), over `chunk` pixels at a time: the `[B, h w, 129]`
+    activations of the whole image (1 GB at 1080p) never exist. The parameters are prepared once, not per layer
+    call (upstream multiplies them by a modulation of ones), and the resize is skipped when the sizes match
+    (bilinear at scale 1 is the identity).
+    """
+    b, h, w, _ = coord.shape
+    if lat.shape[-2:] != (h, w):
+        lat = F.interpolate(lat, size=(h, w), mode="bilinear")
+    lat = lat.permute(0, 2, 3, 1).reshape(b, h * w, -1)
+    coord = coord.reshape(b, h * w, -1)
+    params = []
+    for i in range(hn.config.n_layer):
+        p = hn.params_dict[f"linear_wb{i}"]  # ty: ignore[not-subscriptable]  # set in __init__
+        wgt = F.normalize(p[:-1], dim=0) if hn.normalize_weight else p[:-1]
+        params.append(torch.cat([wgt, p[-1:]], 0).unsqueeze(0).expand(b, -1, -1))
+    outs = []
+    for s in range(0, h * w, chunk):
+        hidden = torch.cat([lat[:, s : s + chunk], coord[:, s : s + chunk]], -1)
+        for i, p in enumerate(params):
+            hidden = torch.bmm(torch.cat([hidden, hidden.new_ones(b, hidden.shape[1], 1)], -1), p)
+            if i < len(params) - 1:
+                hidden = hn.activation(hidden)
+        outs.append(hidden + hn.output_bias)
+    return torch.cat(outs, 1).view(b, h, w, -1)
+
+
 def _predict_flow(
     net: GIMMVFI_R, f: torch.Tensor, coord: torch.Tensor, t: torch.Tensor, flows: torch.Tensor
 ) -> torch.Tensor:
-    """Upstream `predict_flow(f, [(coord, None)], [t], flows)[0]` without the coordinate assert: `[B, 2, 1, H, W]`."""
+    """Upstream `predict_flow(f, [(coord, None)], [t], flows)[0]` without the coordinate assert: `[B, 2, 1, H, W]`.
+
+    The residual conv's input `cat` is built in the conv's dtype (under autocast its first conv casts it anyway), and
+    the hyponet runs in pixel chunks (`_hyponet`).
+    """
     flow01, flow10 = flows[:, :, 0], flows[:, :, 1]
     weights1, weights2 = net.cal_splatting_weights(flow01, flow10)
     mode = net.fwarp_type + "-zeroeps"
@@ -153,10 +196,15 @@ def _predict_flow(
     tt = t.reshape(-1, 1, 1, 1)
     s0 = softsplat(tenIn=lat0, tenFlow=flow01 * tt, tenMetric=weights1, strMode=mode)
     s1 = softsplat(tenIn=lat1, tenFlow=flow10 * (1 - tt), tenMetric=weights2, strMode=mode)
+    del weights1, weights2
     lat = torch.cat([s0, s1], dim=1)
-    lat = lat + net.res_conv(torch.cat([lat0, lat1, lat], dim=1))
-    out = net.hyponet(coord, modulation_params_dict=None, pixel_latent=lat.permute(0, 2, 3, 1))
-    return out.permute(0, 4, 1, 2, 3)
+    del s0, s1
+    dt = _compute_dtype(lat)
+    res = net.res_conv(torch.cat([lat0.to(dt), lat1.to(dt), lat.to(dt)], dim=1))
+    del lat0, lat1
+    lat = lat + res
+    del res
+    return _hyponet(net.hyponet, coord[:, 0], lat).unsqueeze(1).permute(0, 4, 1, 2, 3)
 
 
 def _coords(b: int, h: int, w: int, t: torch.Tensor) -> torch.Tensor:
@@ -209,6 +257,21 @@ def _banded(block: torch.nn.Module, x: torch.Tensor, band_pixels: int = BAND_PIX
     return torch.cat(out, 2)
 
 
+def _resblock(m: ResBlock, x: torch.Tensor) -> torch.Tensor:
+    """Upstream `ResBlock.forward` with the side convs written into their channel slice and the residual added in place.
+
+    Same ops, without the two `cat`s of the 256-channel activation and the `x + out` temporary (three full-size
+    activations fewer per block).
+    """
+    s = m.side_channels
+    out = m.conv1(x)
+    out[:, -s:] = m.conv2(out[:, -s:])
+    out = m.conv3(out)
+    out[:, -s:] = m.conv4(out[:, -s:])
+    out = m.conv5(out)
+    return m.prelu(out.add_(x))
+
+
 def _decoder(  # noqa: PLR0913, PLR0917 - upstream's signature
     m: NewMultiFlowDecoder,
     ft_: torch.Tensor,
@@ -220,20 +283,38 @@ def _decoder(  # noqa: PLR0913, PLR0917 - upstream's signature
     img0: torch.Tensor,
     img1: torch.Tensor,
 ) -> tuple[torch.Tensor, ...]:
-    """Upstream `NewMultiFlowDecoder.forward` with its full-size input built by one `cat` in the conv dtype.
+    """Upstream `NewMultiFlowDecoder.forward` with its full-size input assembled part by part in the conv dtype.
 
-    Under autocast the first conv casts the float32 `cat` to float16 anyway, so casting the parts first is the same
-    input at half the size; `convblock` runs in row bands (`_banded`) on large inputs.
+    Under autocast the first conv casts the float32 `cat` to float16 anyway, so writing each part into its channel
+    slice of one float16 buffer (channels-last on CUDA, the layout the convs use) is the same input at a fraction of
+    the memory: the parts are made one at a time and dropped. `convblock` runs in row bands (`_banded`).
     """
-    f0, f1, n = m.upsample(f0), m.upsample(f1), m.num_flows
+    n = m.num_flows
     flow0, flow1 = 4.0 * resize(flow0, scale_factor=4.0), 4.0 * resize(flow1, scale_factor=4.0)
     ft_, mask = resize(ft_, scale_factor=4.0), resize(mask, scale_factor=4.0)
-    parts = (ft_, warp(f0, flow0), warp(f1, flow1), flow0, flow1, mask, img0, img1, warp(img0, flow0))
-    parts = (*parts, warp(img1, flow1))
-    dev = ft_.device.type
-    if torch.is_autocast_enabled(dev):
-        parts = tuple(p.to(torch.get_autocast_dtype(dev)) for p in parts)
-    out = _banded(m.convblock, torch.cat(parts, 1))
+    b, _, h, w = ft_.shape
+    dt = _compute_dtype(ft_)
+    mf = torch.channels_last if ft_.is_cuda else torch.contiguous_format
+    ch = m.convblock[0][0].in_channels  # ty: ignore[not-subscriptable]  # the first conv of the Sequential
+    buf = torch.empty(b, ch, h, w, dtype=dt, device=ft_.device, memory_format=mf)
+    c = 0
+
+    def put(part: torch.Tensor) -> None:
+        nonlocal c
+        buf[:, c : c + part.shape[1]].copy_(part)
+        c += part.shape[1]
+
+    put(ft_)
+    del ft_
+    for f, flow in ((f0, flow0), (f1, flow1)):
+        put(warp(m.upsample(f), flow))
+    del f0, f1
+    for part in (flow0, flow1, mask, img0, img1):
+        put(part)
+    put(warp(img0, flow0))
+    put(warp(img1, flow1))
+    assert c == buf.shape[1]  # noqa: S101 - the parts fill the conv input
+    out = _banded(m.convblock, buf)
     delta_flow0, delta_flow1, delta_mask, img_res = torch.split(out, [2 * n, 2 * n, n, 3 * n], 1)
     mask = torch.sigmoid(delta_mask + mask.repeat(1, n, 1, 1))
     flow0 = delta_flow0 + flow0.repeat(1, n, 1, 1)
@@ -247,6 +328,9 @@ def _net(ctx: Context) -> GIMMVFI_R:
     check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
     net.load_state_dict(sd)
     override(net.amt_final_decoder, _decoder)
+    for m in net.amt_final_decoder.convblock:
+        if isinstance(m, ResBlock):
+            override(m, _resblock)
     return net.eval().to(ctx.device)
 
 

@@ -6,24 +6,24 @@
 
 Input: two RGB images of one scene. Output: for every pixel of the first image its position in the second (x, y in pixels) and a certainty that the pixel is visible in both. Sparse matchers (LightGlue) return the keypoints of both images and the index pairs of the matched ones instead. To reconstruct camera poses from an image folder with these matchers, see [structure from motion](../sfm.md).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 768x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 768x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`aliked-flexglue`](#flexglue) | yes | – | – |
-| [`aliked-lightglue`](#lightglue) | yes | – | – |
-| [`dedode-v2-b`](#dedode) | yes | – | – |
-| [`dedode-v2-g`](#dedode) | yes | – | – |
-| [`disk-lightglue`](#lightglue) | yes | – | – |
-| [`loftr-indoor`](#loftr) | yes | – | – |
-| [`loftr-outdoor`](#loftr) | yes | – | – |
-| [`loma-b`](#loma) | yes | – | – |
+| [`aliked-flexglue`](#flexglue) | yes | no kernels | no kernels |
+| [`aliked-lightglue`](#lightglue) | yes | no kernels | no kernels |
+| [`dedode-v2-b`](#dedode) | yes | no kernels | no kernels |
+| [`dedode-v2-g`](#dedode) | yes | no kernels | no kernels |
+| [`disk-lightglue`](#lightglue) | yes | no kernels | no kernels |
+| [`loftr-indoor`](#loftr) | yes | no kernels | no kernels |
+| [`loftr-outdoor`](#loftr) | yes | no kernels | no kernels |
+| [`loma-b`](#loma) | yes | no kernels | no kernels |
 | [`romav1`](#romav1) | yes | 356, 1.1x | 1860, 0.45x |
-| [`romav2`](#romav2) | yes | 406, 1.8x | 2580, 0.25x |
-| [`xfeat`](#xfeat) | yes | – | – |
-| [`xfeat-lighterglue`](#xfeat) | yes | – | – |
+| [`romav2`](#romav2) | yes | 354, 2.1x | 2300, 0.23x |
+| [`xfeat`](#xfeat) | yes | no kernels | no kernels |
+| [`xfeat-lighterglue`](#xfeat) | yes | no kernels | no kernels |
 
 <a id="flexglue"></a>
 
@@ -78,8 +78,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.8<br>40.6<br>–<br>29.5<br>fails: ONNX export: torch.export failed | 1305 / 1364<br>1300 / 1404<br>–<br>1653 / 1680<br>– |
-| `disk-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 117<br>116<br>–<br>113<br>fails: ONNX export: torch.export failed | 1955 / 2412<br>1950 / 2398<br>–<br>1375 / 1502<br>– |
+| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.8<br>40.6<br>no kernels<br>29.5<br>fails: ONNX export: torch.export failed | 1305 / 1364<br>1300 / 1404<br>no kernels<br>1653 / 1680<br>– |
+| `disk-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 117<br>116<br>no kernels<br>113<br>fails: ONNX export: torch.export failed | 1955 / 2412<br>1950 / 2398<br>no kernels<br>1375 / 1502<br>– |
 
 <details><summary>Details</summary>
 
@@ -94,6 +94,7 @@ Commercial use: yes.
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-lightglue` 3000x4000 (1.5 GiB peak allocated, 2.0 reserved); `disk-lightglue` 3000x4000 (2.2 GiB peak allocated, 2.9 reserved)
+- no kernels: not implemented: data-dependent keypoint counts (detection, top-k, match filtering); portable float32 with upstream's fp16 attention.
 - `aliked-lightglue` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache).
 - `disk-lightglue` 768x1024, first call: portable + torch.compile 21 s (cold Inductor cache).
 - `aliked-lightglue` original 768x1024: the authors' mixed-precision option (float16); upstream match_pair aliked + LightGlue, resize 1024
@@ -141,8 +142,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>–<br>164<br>fails: timeout after 298 s | 1734 / 1992<br>1535 / 1654<br>–<br>1893 / 2434<br>– |
-| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels | 666<br>592<br>– | 2335 / 2472<br>2142 / 2334<br>– |
+| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>no kernels<br>164<br>fails: timeout after 298 s | 1734 / 1992<br>1535 / 1654<br>no kernels<br>1893 / 2434<br>– |
+| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels | 666<br>592<br>no kernels | 2335 / 2472<br>2142 / 2334<br>no kernels |
 
 <details><summary>Details</summary>
 
@@ -157,6 +158,7 @@ Commercial use: yes.
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dedode-v2-b` 3000x4000 (1.9 GiB peak allocated, 3.8 reserved); `dedode-v2-g` 3000x4000 (2.5 GiB peak allocated, 4.5 reserved)
+- no kernels: not implemented yet.
 - `dedode-v2-b` 768x1024, first call: portable + torch.compile 50 s (cold Inductor cache).
 - `dedode-v2-b` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor B, 10000 keypoints
 - `dedode-v2-g` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor G, 10000 keypoints
@@ -203,8 +205,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>–<br>176<br>fails: ONNX export: torch.export failed | 1739 / 1870<br>796 / 904<br>–<br>1149 / 1232<br>– |
-| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels | 242<br>111<br>– | 1751 / 1910<br>796 / 904<br>– |
+| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>no kernels<br>176<br>fails: ONNX export: torch.export failed | 1739 / 1870<br>796 / 904<br>no kernels<br>1149 / 1232<br>– |
+| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels | 242<br>111<br>no kernels | 1751 / 1910<br>796 / 904<br>no kernels |
 
 <details><summary>Details</summary>
 
@@ -219,6 +221,7 @@ Commercial use: yes.
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loftr-outdoor` 3000x4000 (1.9 GiB peak allocated, 2.8 reserved); `loftr-indoor` 3000x4000 (2.0 GiB peak allocated, 2.8 reserved)
+- no kernels: not implemented yet: data-dependent match counts (mutual nearest neighbours above a threshold).
 - `loftr-outdoor` 768x1024, first call: portable + torch.compile 33 s (cold Inductor cache).
 - `loftr-outdoor` original 768x1024: upstream LoFTR default_cfg, temp_bug_fix False, long side 840
 - `loftr-indoor` original 768x1024: upstream LoFTR default_cfg, temp_bug_fix True, long side 840
@@ -362,7 +365,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `romav2` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1412<br>741<br>546<br>406<br>576<br>353 | 11159 / 11606<br>9881 / 10124<br>1989 / 2596<br>1909 / 2580<br>3150 / 3386<br>6694 / 6740 |
+| `romav2` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1412<br>741<br>546<br>354<br>576<br>353 | 11159 / 11606<br>9881 / 10124<br>1989 / 2596<br>1909 / 2300<br>3150 / 3386<br>6694 / 6740 |
 
 <details><summary>Details</summary>
 
@@ -381,7 +384,7 @@ Commercial use: yes.
 - `romav2` 768x1024, first call: portable + torch.compile 254 s (cold Inductor cache), TensorRT fp16 185 s (ONNX + engine).
 - `romav2` original (fp32) 768x1024: upstream RoMaV2.match; local correlation: upstream's plain-torch path (no fused-local-corr)
 - `romav2` original 768x1024: the authors' mixed-precision option (bfloat16); upstream RoMaV2.match; local correlation: upstream's plain-torch path (no fused-local-corr)
-- `romav2` load / first call: original 5.45 s / 2.091 s, portable 0.85 s / 0.913 s, kernels 1.5 s / 0.812 s
+- `romav2` load / first call: original 5.45 s / 2.091 s, portable 0.85 s / 0.913 s, kernels 0.96 s / 0.62 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -401,7 +404,7 @@ CPU, float32: max |diff| <= 1.6e-05 vs the original. GPU, bfloat16 (the default)
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `romav2` | 0.00573 / 0.02077 | RTX 5060 Ti, torch 2.14.1+cu130 | `romav2@1c8e19405d40:sm_120` |
+| `romav2` | 0.00573 / 0.02077 | RTX 5060 Ti, torch 2.14.1+cu130 | `romav2@bb29839cee98:sm_120` |
 
 ### Limitations
 
@@ -420,8 +423,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.89<br>7.17<br>–<br>5.65<br>fails: ONNX export: conversion failed | 128 / 174<br>122 / 154<br>–<br>186 / 212<br>– |
-| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>–<br>16.2<br>fails: ONNX export: torch.export failed | 448 / 478<br>445 / 476<br>–<br>262 / 278<br>– |
+| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.89<br>7.17<br>no kernels<br>5.65<br>fails: ONNX export: conversion failed | 128 / 174<br>122 / 154<br>no kernels<br>186 / 212<br>– |
+| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>no kernels<br>16.2<br>fails: ONNX export: torch.export failed | 448 / 478<br>445 / 476<br>no kernels<br>262 / 278<br>– |
 
 <details><summary>Details</summary>
 
@@ -436,6 +439,7 @@ Commercial use: yes.
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `xfeat` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved); `xfeat-lighterglue` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved)
+- no kernels: not implemented: data-dependent keypoint counts (NMS, top-k, match filtering); the extractor is a small CNN.
 - `xfeat` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache).
 - `xfeat-lighterglue` 768x1024, first call: portable + torch.compile 40 s (cold Inductor cache).
 - `xfeat` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + mnn, top_k 4096

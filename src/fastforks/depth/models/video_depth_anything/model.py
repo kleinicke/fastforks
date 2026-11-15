@@ -1,6 +1,7 @@
 """Video Depth Anything runners: weights -> network and the portable / kernels forward passes of a whole video.
 
-A call's batch is one video in time order (`[L, 3, H, W]`). Both runners follow upstream `infer_video_depth`:
+A runner call takes one video in time order (`[L, 3, H, W]`; the model's `video`; a batch of the model runs frame by
+frame, `batch = 1`). Both runners follow upstream `infer_video_depth`:
 
 - resize so that both sides are at least `short_side` and multiples of 14 (aspect kept, bicubic; videos wider than
   16:9 lower `short_side` by the aspect ratio, as upstream), normalise with the ImageNet mean / std
@@ -27,6 +28,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.half import pure_half
+from fastforks._core.runner import host
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, use_fast_vit, use_sdpa_attention
 
@@ -127,7 +129,8 @@ def _scale_shift(p: torch.Tensor, t: torch.Tensor) -> tuple[torch.Tensor, torch.
 class _Video(Runner):
     """The windowing / alignment of `infer_video_depth`; subclasses run the encoder and the head."""
 
-    batch = None
+    batch = 1  # a batch is independent images; `DepthModel.video` passes the whole video
+    video = True
     Params = Params
     compiled_methods = ("_encode", "_window")  # the networks; the windowing loop stays eager
     net: Net
@@ -189,6 +192,7 @@ class _Video(Runner):
             ref = [ref[0], (d[KEYFRAMES[1]] * s + b).clamp_min(0)]
         return out
 
+    @host
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
         """Relative inverse depth (metric depth for metric checkpoints) of one video (the batch, in time order)."""
         return {_key(self.ctx): self._video(image)}

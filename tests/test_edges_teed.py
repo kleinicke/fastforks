@@ -31,8 +31,8 @@ def test_matches_teed_detector(tmp_path: Path, steps: int) -> None:
     torch.manual_seed(0)
     net = TED().eval()
     torch.save(net.state_dict(), tmp_path / "w.pth")
-    opts = {"resolution": 64, "safe_steps": steps}
-    m = edges.load("teed", weights=tmp_path / "w.pth", device="cpu", dtype="float32", options=opts)
+    opts = {"short_side": 64, "safe_steps": steps}
+    m = edges.load("teed", weights=tmp_path / "w.pth", device="cpu", dtype="float32", **(opts or {}))
     img = synthetic_image(64, 128, torch.device("cpu"))
     with torch.inference_mode():
         outs = [F.interpolate(e, (64, 128), mode="bilinear", align_corners=False) for e in net((img * 255).round())]

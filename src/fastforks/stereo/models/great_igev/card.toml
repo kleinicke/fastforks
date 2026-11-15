@@ -33,7 +33,7 @@ mps_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["igev", "igevpp", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
-# CUDA graphs (kernels, opt-in with `options={"cuda_graphs": True}`): batch x padded H x W <= 500k replays a CUDA graph,
+# CUDA graphs (kernels, opt-in with `cuda_graphs=True`): batch x padded H x W <= 500k replays a CUDA graph,
 # captured on a shape's 4th call (`cudnn_hacc` plans first), at most 2 shapes per model. Off by default: the gain is
 # below 10 % for about 1.3 GB more reserved memory (graph vs eager, interleaved: 119.2 vs 131.0 ms at KITTI 384x1248,
 # reserved 2032 vs 740 MiB; 4.6 % at 544x960, 0.7 % at 736x1280). The graph pool stays reserved until

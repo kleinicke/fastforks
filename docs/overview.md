@@ -100,7 +100,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 
 ## Monocular depth
 
-43 models; size 994x1482.
+44 models; size 994x1482.
 
 - Fastest: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
 - Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.9 ms, error 0.0346).
@@ -147,6 +147,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 518.4 | 270.9 | 2.1x vs original (994x1482) | 3667 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 408.1 | 383.2 | 1.1x vs original (994x1482) | 2583 |
 | [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | – | 1434.3 | 1284.0 (1080x1920) | 1.1x vs portable | 8204 |
+| [`marigold-v2-depth`](models/depth.md#marigold-v2) | yes | – | OOM (994x1482) | 5070.8 | 3868.1 | 1.3x vs portable | 9785 |
 | [`any2full-b`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
 | [`any2full-l`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
 | [`any2full-s`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
@@ -325,7 +326,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 131.4 | 121.1 | 1.9x vs original (1080x1920) | 1674 |
 | [`rmbg-2.0`](models/matting.md#birefnet) | no | – | 149.0 (1080x1920) | 131.5 | 121.4 | 1.2x vs original (1080x1920) | 1674 |
 | [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 181.7 | 147.4 | 1.7x vs original (1080x1920) | 1484 |
-| [`matanyone`](models/matting.md#matanyone) | no | – | 1219.9 (1080x1920) | 1208.1 | – | – | – |
+| [`matanyone`](models/matting.md#matanyone) | no | – | 1219.9 (1080x1920) | 1205.2 | – | – | – |
 
 ## Edges
 
@@ -349,12 +350,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 19 models; size 1024x1024.
 
-- Fastest: [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) (2.7 ms).
-- Fastest commercially usable: [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) (2.7 ms).
+- Fastest: [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) (2.8 ms).
+- Fastest commercially usable: [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) (2.8 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) | yes | 15.3 (1024x1024) | 4.4 | 2.7 | 5.6x vs original (1024x1024) | 458 |
+| [`clipseg`](models/promptable_segmentation.md#clipseg-text-prompted-segmentation-clip-b16) | yes | 15.3 (1024x1024) | 4.5 | 2.8 | 5.6x vs original (1024x1024) | 335 |
 | [`efficientvit-sam-l0`](models/promptable_segmentation.md#efficientvit-sam) | yes | 26.3 (1024x1024) | 12.7 | 4.4 | 5.9x vs original (1024x1024) | 176 |
 | [`efficientvit-sam-l1`](models/promptable_segmentation.md#efficientvit-sam) | yes | 29.9 (1024x1024) | 14.4 | 5.8 | 5.2x vs original (1024x1024) | 203 |
 | [`efficientvit-sam-l2`](models/promptable_segmentation.md#efficientvit-sam) | yes | 34.4 (1024x1024) | 17.8 | 6.8 | 5.0x vs original (1024x1024) | 232 |
@@ -436,15 +437,31 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`grounding-dino-base`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 229.8 (800x1344) | 160.2 | – | – | – |
 | [`mm-grounding-dino-base`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 232.5 (800x1344) | 160.2 | – | – | – |
 
+## Ocr
+
+4 models; size 1080x1920.
+
+- Fastest: [`ppocrv5-mobile`](models/ocr.md#pp-ocrv5-server--mobile) (152.9 ms).
+- Fastest commercially usable: [`ppocrv5-mobile`](models/ocr.md#pp-ocrv5-server--mobile) (152.9 ms).
+
+| model | commercial use | original time (ms, its size) | portable time (ms) |
+|---|---|---|---|
+| [`ppocrv5-mobile`](models/ocr.md#pp-ocrv5-server--mobile) | yes | 418.3 (1080x1920) | 152.9 |
+| [`ppocrv5-server`](models/ocr.md#pp-ocrv5-server--mobile) | yes | 762.4 (1080x1920) | 276.5 |
+| [`parseq`](models/ocr.md#parseq-scene-text-recognition) | yes | – | – |
+| [`parseq-tiny`](models/ocr.md#parseq-scene-text-recognition) | yes | – | – |
+
 ## Pose
 
-45 models; size 1080x1920.
+47 models; size 1080x1920.
 
-- Fastest: [`retinaface-mobilenet0.25`](models/pose.md#retinaface) (2.7 ms).
-- Fastest commercially usable: [`retinaface-mobilenet0.25`](models/pose.md#retinaface) (2.7 ms).
+- Fastest: [`yunet-s`](models/pose.md#yunet) (2.0 ms).
+- Fastest commercially usable: [`yunet-s`](models/pose.md#yunet) (2.0 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
+| [`yunet-s`](models/pose.md#yunet) | yes | 5.5 (1080x1920) | 2.7 | 2.0 | 2.8x vs original (1080x1920) | 84 |
+| [`yunet-n`](models/pose.md#yunet) | yes | 6.0 (1080x1920) | 2.9 | 2.2 | 2.7x vs original (1080x1920) | 84 |
 | [`retinaface-mobilenet0.25`](models/pose.md#retinaface) | yes | 75.9 (1080x1920) | 3.4 | 2.7 | 27.7x vs original (1080x1920) | 105 |
 | [`rtmpose-t`](models/pose.md#rtmpose) | yes | 150.9 (1080x1920) | 4.5 | 2.9 | 52.0x vs original (1080x1920) | 129 |
 | [`rtmpose-t-halpe26`](models/pose.md#rtmpose) | yes | 171.7 (1080x1920) | 4.5 | 2.9 | 59.1x vs original (1080x1920) | 129 |
@@ -585,7 +602,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Multiview
 
-10 models; each at its own benchmark input (views x size in Benchmarks).
+12 models; each at its own benchmark input (views x size in Benchmarks).
 
 - Fastest: [`patchmatchnet`](models/multiview.md#patchmatchnet) (29.6 ms).
 - Fastest commercially usable: [`patchmatchnet`](models/multiview.md#patchmatchnet) (29.6 ms).
@@ -602,6 +619,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 820.7 | 559.7 | 1.9x vs original (336x518) | 2367 |
 | [`lingbot-map`](models/multiview.md#lingbot-map) | yes | – | – | – | – | – |
+| [`resplat-base-re10k`](models/multiview.md#resplat) | no | – | – | – | – | – |
+| [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | – | – | – | – | – |
 
 ## Flow
 
@@ -678,15 +697,15 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`loftr-indoor`](models/matching.md#loftr) | yes | 241.6 (768x1024) | 110.6 | – | – | – |
 | [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.4 | – | – | – |
 | [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.5 | – | – | – |
+| [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 353.6 | 2.1x vs original (768x1024) | 1909 |
 | [`romav1`](models/matching.md#roma) | yes | 385.8 (768x1024) | 376.3 | 356.0 | 1.1x vs original (768x1024) | 1720 |
-| [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 405.9 | 1.8x vs original (768x1024) | 1909 |
 | [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 592.5 | – | – | – |
 | [`aliked-flexglue`](models/matching.md#flexglue) | yes | – | – | – | – | – |
 | [`loma-b`](models/matching.md#loma) | yes | – | – | – | – | – |
 
 ## Tracking
 
-10 models; size 480x854.
+12 models; size 480x854.
 
 - Fastest: [`tapir`](models/tracking.md#tapir) (140.8 ms).
 - Fastest commercially usable: [`tapir`](models/tracking.md#tapir) (140.8 ms).
@@ -695,6 +714,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 |---|---|---|---|---|---|---|
 | [`tapir`](models/tracking.md#tapir) | yes | 186.9 (480x854) | 181.8 | 140.8 | 1.3x vs original (480x854) | 463 |
 | [`locotrack-s`](models/tracking.md#locotrack) | yes | 192.8 (480x854) | 179.5 | 151.1 | 1.3x vs original (480x854) | 764 |
+| [`cotracker3-offline`](models/tracking.md#cotracker3) | no | 243.5 (480x854) | 162.1 | 154.2 | 1.6x vs original (480x854) | 799 |
+| [`cotracker3-online`](models/tracking.md#cotracker3) | no | 327.7 (480x854) | 184.0 | 176.3 | 1.9x vs original (480x854) | 798 |
 | [`locotrack-b`](models/tracking.md#locotrack) | yes | 203.3 (480x854) | 190.1 | 177.6 | 1.1x vs original (480x854) | 782 |
 | [`bootstapir`](models/tracking.md#tapir) | yes | 242.5 (480x854) | 233.7 | 192.5 | 1.3x vs original (480x854) | 508 |
 | [`alltracker`](models/tracking.md#alltracker) | yes | 485.3 (480x854) | 391.2 | 221.3 | 2.2x vs original (480x854) | 1076 |
@@ -721,12 +742,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`ema-vfi-t`](models/interpolation.md#ema-vfi) | yes | 286.9 (1080x1920) | 232.9 | 206.7 | 1.4x vs original (1080x1920) | 3129 |
 | [`ema-vfi`](models/interpolation.md#ema-vfi) | yes | 296.2 (1080x1920) | 233.7 | 206.8 | 1.4x vs original (1080x1920) | 3129 |
 | [`film`](models/interpolation.md#film) | yes | 463.8 (1080x1920) | 527.6 | 444.3 | 1.0x vs original (1080x1920) | 4763 |
-| [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2791.2 | 1694.7 | 1.6x vs portable | 7860 |
-| [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2796.9 | 1695.0 | 1.7x vs portable | 7860 |
+| [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2621.8 | 1627.6 | 1.6x vs portable | 4587 |
+| [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2622.0 | 1629.3 | 1.6x vs portable | 4587 |
 
 ## Restoration
 
-22 models; size 512x512.
+32 models; size 512x512.
 
 - Fastest: [`span-x4`](models/restoration.md#span) (14.6 ms).
 - Fastest commercially usable: [`span-x4`](models/restoration.md#span) (14.6 ms).
@@ -739,15 +760,23 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`big-lama`](models/restoration.md#lama-big-lama-inpainting) | yes | 38.0 (512x512) | 26.0 | 21.2 | 1.8x vs original (512x512) | 219 |
 | [`realesr-general-x4v3`](models/restoration.md#real-esrgan-compact) | yes | 42.1 (512x512) | 30.1 | 24.0 | 1.8x vs original (512x512) | 125 |
 | [`codeformer`](models/restoration.md#codeformer) | no | 85.7 (512x512) | 48.6 | – | – | – |
+| [`nafnet-gopro`](models/restoration.md#nafnet) | yes | 63.7 (512x512) | 60.4 | 55.3 | 1.2x vs original (512x512) | 451 |
+| [`nafnet-sidd`](models/restoration.md#nafnet) | yes | 71.6 (512x512) | 60.6 | 56.9 | 1.3x vs original (512x512) | 575 |
 | [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 97.0 | 80.2 | 1.6x vs original (512x512) | 333 |
 | [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | yes | 267.3 (512x512) | 181.8 | 129.8 | 2.1x vs original (512x512) | 179 |
 | [`realesrgan-x4plus-anime-6b`](models/restoration.md#real-esrgan) | yes | 205.1 (512x512) | 154.9 | 131.8 | 1.6x vs original (512x512) | 1197 |
+| [`restormer-sidd`](models/restoration.md#restormer) | yes | 217.9 (512x512) | 227.1 | 224.3 | 1.0x vs original (512x512) | 850 |
+| [`restormer-deblur`](models/restoration.md#restormer) | yes | 233.9 (512x512) | 228.1 | 225.0 | 1.0x vs original (512x512) | 850 |
+| [`restormer-derain`](models/restoration.md#restormer) | yes | 233.8 (512x512) | 228.4 | 225.2 | 1.0x vs original (512x512) | 850 |
 | [`dat-light-x4`](models/restoration.md#dat) | yes | 2203.5 (512x512) | 267.8 | 268.2 | 8.2x vs original (512x512) | 1535 |
 | [`realesrgan-x4plus`](models/restoration.md#real-esrgan) | yes | 631.1 (512x512) | 471.3 | 402.7 | 1.6x vs original (512x512) | 1220 |
 | [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 1192.3 | 557.8 | 5.8x vs original (512x512) | 1577 |
 | [`swinir-m-x4`](models/restoration.md#swinir) | yes | 3497.4 (512x512) | 767.5 | 580.4 | 6.0x vs original (512x512) | 1390 |
 | [`swinir-m-x4-real`](models/restoration.md#swinir) | yes | 2461.6 (512x512) | 1241.7 | 588.5 | 4.2x vs original (512x512) | 1577 |
+| [`swin2sr-x2`](models/restoration.md#swin2sr) | yes | 2565.1 (512x512) | 908.7 | 720.4 | 3.6x vs original (512x512) | 1459 |
 | [`drct-x4`](models/restoration.md#drct) | yes | 7491.7 (512x512) | 829.8 | 730.2 | 10.3x vs original (512x512) | 2626 |
+| [`swin2sr-x4`](models/restoration.md#swin2sr) | yes | 2921.9 (512x512) | 931.6 | 745.1 | 3.9x vs original (512x512) | 1459 |
+| [`swin2sr-x4-real`](models/restoration.md#swin2sr) | yes | 2527.2 (512x512) | 958.3 | 751.5 | 3.4x vs original (512x512) | 1459 |
 | [`hat-s-x4`](models/restoration.md#hat) | yes | 2401.8 (512x512) | 1072.2 | 974.4 | 2.5x vs original (512x512) | 1985 |
 | [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 2098.7 | 1043.5 | 3.6x vs original (512x512) | 1872 |
 | [`dat-2-x4`](models/restoration.md#dat) | yes | 4880.3 (512x512) | 1338.0 | 1246.7 | 3.9x vs original (512x512) | 2730 |
@@ -755,15 +784,20 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`drct-l-x4`](models/restoration.md#drct) | yes | 14651.1 (512x512) | 1606.9 | 1422.5 | 10.3x vs original (512x512) | 2692 |
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1444.6 | 2.1x vs original (512x512) | 2610 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1596.7 | 1444.7 | 2.1x vs original (512x512) | 2610 |
+| [`seedvr2-3b`](models/restoration.md#seedvr2) | yes | 13150.0 (512x512) | 2281.5 | 2281.2 | 5.8x vs original (512x512) | 11957 |
+| [`seedvr2-7b`](models/restoration.md#seedvr2) | yes | OOM (512x512) | – | – | – | – |
 
 ## Volume
 
-2 models; size 200x200.
+5 models; size 200x200.
 
-- Fastest: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (64.2 ms).
-- Fastest commercially usable: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (64.2 ms).
+- Fastest: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (63.5 ms).
+- Fastest commercially usable: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (63.5 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes | 7269.8 (200x200) | 68.7 | 64.2 | 113.3x vs original (200x200) | 1037 |
-| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 1929.1 | 1742.7 | 26.2x vs original (200x200) | 2349 |
+| [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes | 7269.8 (200x200) | 67.1 | 63.5 | 114.4x vs original (200x200) | 1037 |
+| [`nninteractive`](models/volume.md#nninteractive) | no | 459.7 (200x200) | 215.2 | 201.0 | 2.3x vs original (200x200) | 2643 |
+| [`nnfoundation-cnn`](models/volume.md#nnfoundation) | yes | 273.6 (200x200) | 226.7 | 211.2 | 1.3x vs original (200x200) | 2985 |
+| [`nnfoundation-vit`](models/volume.md#nnfoundation) | yes | – | 1848.1 | 1732.1 (192x192) | 1.1x vs portable | 1669 |
+| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 1927.1 | 1739.5 | 26.2x vs original (200x200) | 2349 |

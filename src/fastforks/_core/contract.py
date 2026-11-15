@@ -34,6 +34,7 @@ _DEPTH_UNIT = {
     "metric": "metres",
     "scale_invariant": "unknown scale",
     "affine_invariant": "unknown scale and shift",
+    "affine_invariant_log": "log depth up to an unknown scale and shift (log metres = a * depth + b)",
     "affine_invariant_inverse": "unknown scale and shift (inverse depth; depth and points are not defined)",
     "none": "no depth (normals only)",
 }
@@ -320,6 +321,11 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
             "input pixels",
         ),
     },
+    "ocr": {
+        "boxes": ("[N, 4, 2]", "float32", "quad corners (x, y), clockwise from the top-left", "input pixels"),
+        "texts": ("N strings", "str", "recognised text, reading order", ""),
+        "scores": ("[N]", "float32", "[0, 1] mean character probability", ""),
+    },
     "interpolation": {"frame": ("[B, 3, H, W]", "float32", "RGB in [0, 1]", "input pixels, at time `timestep`")},
     "retrieval": {
         "descriptor": ("[B, D]", "float32", "unit L2 norm (cosine similarity = dot product)", "one per image")
@@ -343,6 +349,12 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
     },
     "volume": {
         "labels": ("[D, H, W]", "uint8 (int16 above 255 classes)", "class index, 0 = background", "input voxels"),
+        "features": (
+            "tuple of [C_i, ceil(D/s_i), ceil(H/s_i), ceil(W/s_i)]",
+            "float32",
+            "encoder feature maps (encoder models)",
+            "stage i at stride `model.strides[i]`, input voxels",
+        ),
     },
     "pose": {
         "keypoints": ("[P, K, 2]", "float32", "pixels of the input image", "(x, y), corner origin"),
@@ -432,6 +444,10 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "segmentation": (("input handling", "network", "logits at the input size"), ("image conversion", "argmax")),
     "matting": (("resize to the network size", "normalise", "network", "resize to the input"), ("image conversion",)),
     "edges": (("resize to the detect size", "normalise", "network", "resize to the input"), ("image conversion",)),
+    "ocr": (
+        ("normalise", "detector"),
+        ("image conversion", "resize", "box extraction", "reading order", "line crops", "recogniser", "decoding"),
+    ),
     "retrieval": (("resize to the network size", "normalise", "network"), ("image conversion", "top_k", "pairs")),
     "calibration": (("resize", "crop", "network", "camera fit", "camera of the input image"), ("image conversion",)),
     "features": (("resize to the patch stride", "network"), ("image conversion", "pooler_output", "hidden_states")),
@@ -445,7 +461,13 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     ),
     "multiview": (("resize to the network size", "network", "resize to the input"), ("image conversion",)),
     "volume": (
-        ("resample to the model spacing", "normalise", "network (sliding windows)", "argmax", "resample to the input"),
+        (
+            "resample to the model spacing",
+            "normalise",
+            "network (sliding windows; encoders: one pass)",
+            "argmax",
+            "resample to the input",
+        ),
         ("NIfTI reading / writing",),
     ),
     "pose": (
@@ -462,11 +484,6 @@ def _export(card: ModelCard, v: Variant, uses: Mapping[str, Any]) -> dict[str, A
     inputs: tuple[str, ...] = spec(card.task).inputs
     if card.task in _EXTRA_INPUT_TASKS:  # the image(s), then the cameras / trimap / mask / prompt the model requires
         inputs = (inputs[0], *(k for k in inputs[1:] if uses.get(k) == "required"))
-    side = 0  # as `Model.export_size()`: the classification crop, the promptable encoder side, else the task's
-    if card.task == "classification":
-        side = v.io.crop or v.io.resize
-    elif card.task == "promptable_segmentation":
-        side = size_range(v, card).encoder
     reason = fixed_size_reason(card, size_range(v, card))
     return {
         "mode": "portable",
@@ -475,5 +492,5 @@ def _export(card: ModelCard, v: Variant, uses: Mapping[str, Any]) -> dict[str, A
         "outside": outside,
         "dynamic": not reason,
         "fixed_reason": reason,
-        "default_size": (side, side) if side else spec(card.task).export_size,
+        "default_size": size_range(v, card).export_size,
     }

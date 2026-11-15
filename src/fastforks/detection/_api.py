@@ -51,6 +51,8 @@ class DetectionModel(core.Model):
         class_names: Name of every class (index = `labels` value).
     """
 
+    _list_images = 1
+
     _runner: Runner
 
     def __init__(self, runner: Runner, backend: Backend, options: Mapping[str, Any]) -> None:

@@ -14,7 +14,7 @@ from fastforks.edges.models.anyline.model import gaussian_blur, median_above, re
 def test_card() -> None:
     cards = {v.id: c for c, v in registry.cards("edges").values() if c.family == "anyline"}
     assert sorted(cards) == ["anyline"]
-    assert cards["anyline"].options["resolution"] == 1280
+    assert cards["anyline"].options["short_side"] == 1280
 
 
 def _components(fg: np.ndarray) -> np.ndarray:

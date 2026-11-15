@@ -1,0 +1,62 @@
+schema = 2
+name = "YuNet"
+summary = "YuNet (Wu et al., Machine Intelligence Research 2023): a 75k-parameter anchor-free face detector with five facial landmarks, the network behind libfacedetection and OpenCV's `FaceDetectorYN` (OpenCV Zoo `face_detection_yunet`). Depthwise-separable backbone, a tiny top-down FPN and per-cell class / objectness / box / landmark heads on the stride 8 / 16 / 32 maps. Takes the whole image at its own size (padded to multiples of 32, as upstream's WIDER FACE evaluation); vendored from libfacedetection.train's PyTorch code. The portable `module()` maps the image to the raw head maps (decoding and NMS stay outside)."
+tier = "stable"
+limitations = ["module() exports the raw per-level head maps; decoding and NMS remain outside the exported graph.", "No per-landmark confidence: keypoint_scores repeats the face score.", "The image is not resized: faces much smaller than about 10 px are missed; large photos cost time in proportion to their pixels."]
+outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
+
+[upstream]
+repo = "https://github.com/ShiqiYu/libfacedetection.train"
+commit = "dca340aa082c71081a68d17db8e58b33a58a914b"  # yunet_train/models + tasks/face (head, postprocess); weights/ since 02246e79 (2023-01)
+
+[[upstream.official]]
+repo = "https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet"
+framework = "ONNX (OpenCV DNN)"
+reason = "The OpenCV Zoo ships the same network as ONNX for `cv2.FaceDetectorYN`; the PyTorch weights and the WIDER FACE evaluation are libfacedetection.train's."
+
+[licence]
+code = "BSD-3-Clause"  # libfacedetection.train LICENSE (Shiqi Yu), in LICENSE
+weights = "BSD-3-Clause"  # weights/yunet_*.pth in the repository, under its licence
+files = ["LICENSE"]
+training_data = ["wider-face"]
+training_note = "WIDER FACE train with the SCRFD five-landmark annotations (labelv2), from scratch"
+evidence = "https://github.com/ShiqiYu/libfacedetection.train/blob/dca340aa082c71081a68d17db8e58b33a58a914b/LICENSE"
+
+[io]
+input = "0-1"  # the runner turns the RGB image into BGR 0..255 itself and pads it to multiples of 32
+
+[options]
+score_threshold = { default = 0.6, min = 0.0, max = 1.0 }  # minimum face score (class x objectness; clear faces score ~0.85-0.9, so the OpenCV Zoo demo's 0.9 misses some; WIDER FACE evaluation: 0.02)
+
+[params]
+stage1 = 64
+shared_convs = 1
+nms_iou = 0.3  # OpenCV Zoo demo nms_threshold
+
+[modes.portable]
+cuda_dtype = "float16"  # decoding and NMS stay float32
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the whole network through fastforks._optimize (fused conv + BN + activation)
+
+[output]
+label_set = "face-5"
+
+[[papers]]
+title = "YuNet: A Tiny Millisecond-level Face Detector"
+url = "https://doi.org/10.1007/s11633-023-1423-y"
+date = "2023-05-15"
+venue = "Machine Intelligence Research 2023"
+
+[[variants]]
+id = "yunet-n"  # WIDER FACE val AP 89.2 / 88.3 / 81.1 (easy / medium / hard; libfacedetection.train README, original size)
+revision = 1
+params = {}
+weights = [{ name = "yunet_n.pth", size = 747497, sha256 = "9c7c9e14a4d60e57491d77e4d8b0d451bd834f300e05c0dea7fd1f6533817b06", url = "https://github.com/ShiqiYu/libfacedetection.train/raw/dca340aa082c71081a68d17db8e58b33a58a914b/weights/yunet_n.pth" }]
+
+[[variants]]
+id = "yunet-s"
+revision = 1
+params = { stage1 = 32, shared_convs = 0 }
+weights = [{ name = "yunet_s.pth", size = 560340, sha256 = "f2688fecd5aef7d204d04ca12ff377b724978abbe5955740bc67280d99ffe4d6", url = "https://github.com/ShiqiYu/libfacedetection.train/raw/dca340aa082c71081a68d17db8e58b33a58a914b/weights/yunet_s.pth" }]

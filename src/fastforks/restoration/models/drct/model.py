@@ -73,7 +73,7 @@ def _mask(m: SwinTransformerBlock, x_size: tuple[int, int]) -> torch.Tensor | _N
     """`SwinTransformerBlock.calculate_mask` made on the device, once per size (upstream: all zeros if unshifted)."""
     if not m.shift_size:
         return _NO_MASK
-    return shift_mask(*x_size, m.window_size, m.shift_size, m.norm1.weight.device)
+    return shift_mask(*x_size, m.window_size, m.shift_size, m.norm1.weight.device, dtype=m.norm1.weight.dtype)
 
 
 def _attention(m: WindowAttention, x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
@@ -178,7 +178,7 @@ _GROUP = re.compile(r"layers\.(\d+)\.swin1\.attn\.relative_position_bias_table")
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a DRCT state dict as a variant and its params (channels, groups, heads); keys unchanged."""
+    """`load(path)`: a DRCT state dict as a variant and its params (channels, groups, heads); keys unchanged."""
     groups = sorted(int(m.group(1)) for k in sd if (m := _GROUP.match(k)))
     if "conv_first.weight" not in sd or "layers.0.adjust1.weight" not in sd or not groups:
         return None

@@ -379,7 +379,7 @@ def options_for(task: str, ref: str) -> dict[str, Any]:
 
 def load(task: str, ref: str, mode: str, device: str, *, fp32: bool = False) -> Any:
     kw: dict[str, Any] = {"dtype": "float32"} if fp32 else {}
-    return api(task).load(ref, mode=mode, device=device, options=options_for(task, ref) or None, **kw)
+    return api(task).load(ref, mode=mode, device=device, **(options_for(task, ref) or {}), **kw)
 
 
 def run_case(task: str, m: Any, case: Case, *, calls: int = 1) -> dict[str, torch.Tensor]:

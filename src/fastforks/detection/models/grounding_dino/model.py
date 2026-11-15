@@ -28,6 +28,7 @@ import torch.nn.functional as F
 
 from fastforks._core.errors import InputError
 from fastforks._core.labels import label_set
+from fastforks._core.runner import host
 from fastforks.detection._runner import Forward, Runner
 from fastforks.shared.bert_tokenizer import BertTokenizer
 from fastforks.shared.seginfer import pretrained
@@ -280,6 +281,7 @@ class Portable(Runner):
 
         return Forward(self.net, fn, output_names=("scores", "boxes"), query_scores=lambda s: s.amax(-1))
 
+    @host
     def __call__(
         self, image: torch.Tensor, score_threshold: float, text: tuple[str, ...] | None = None
     ) -> dict[str, torch.Tensor]:

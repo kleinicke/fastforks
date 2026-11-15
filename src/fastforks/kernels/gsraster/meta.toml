@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"
+derived_from = "gsplat (nerfstudio-project/gsplat, Apache-2.0): fully_fused_projection (antialiased EWA), isect_tiles keys and rasterize_to_pixels_3dgs_fwd, and our exp 001 fork's 4-pixels-per-thread forward; forward only, degree-3 SH colours fused into the projection, torch sort for the intersections; plus a brute-force exact kNN (own code)"

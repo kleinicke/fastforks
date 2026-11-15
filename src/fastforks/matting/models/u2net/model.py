@@ -57,7 +57,6 @@ class _Matting(Runner):
     """Resize, divide by the maximum, normalise, network (`d0`), min-max, resize back."""
 
     Params = Params
-    compiled_methods = ("_net",)
     net: torch.nn.Module
     dtype: torch.dtype
 

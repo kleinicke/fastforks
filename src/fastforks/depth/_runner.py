@@ -45,11 +45,14 @@ class Runner(core.Runner):
             uses them if given (else it estimates them or assumes a default). `"required"`: it needs them.
         prompt_depth: `"required"`: the network takes a metric depth map besides the image.
         prompt_sparse: The depth map may have missing values (0, negative, NaN or inf); else it must be dense.
+        video: A video model: `__call__` takes one video `[T, 3, H, W]` in time order (the model's `video`); a call
+            of the model with a batch runs each image as a one-frame video (`batch = 1`).
     """
 
     intrinsics: ClassVar[Literal["unused", "optional", "required"]] = "unused"
     prompt_depth: ClassVar[Literal["unused", "required"]] = "unused"
     prompt_sparse: ClassVar[bool] = False
+    video: ClassVar[bool] = False
 
     @classmethod
     def input_use(cls, params: Any) -> dict[str, Any]:  # noqa: ANN401, ARG003 - the family's `Params`

@@ -51,7 +51,7 @@ def weights(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.mark.slow
 def test_batch_odd_size_and_export(weights: Path) -> None:
-    model = flow.load("memflow", weights=weights, device="cpu", options={"iters": 2})
+    model = flow.load("memflow", weights=weights, device="cpu", iters=2)
     a, b = _pair(131, 141, batch=2)  # above the 128 px minimum, not multiples of 8: replicate padding, cropped again
     out = model(a, b).flow
     assert out.shape == (2, 2, 131, 141)

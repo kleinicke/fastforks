@@ -41,6 +41,7 @@ from fastforks import (
     matching,
     matting,
     multiview,
+    ocr,
     pose,
     promptable_segmentation,
     restoration,
@@ -81,6 +82,7 @@ API: dict[str, Any] = {
     "matching": matching,
     "matting": matting,
     "edges": edges,
+    "ocr": ocr,
     "interpolation": interpolation,
     "retrieval": retrieval,
     "calibration": calibration,
@@ -133,6 +135,7 @@ CPU_ALSO = {
 # goldens check their parity at the fp16 tolerance.
 CPU_HEAVY = {
     "vggt-1b@1": "1.2 B parameters on 4 views at 392 x 518 (CPU ~200 s)",
+    "nnfoundation-vit@1": "0.67 B parameter ViT on 13824 tokens (192^3 voxels, CPU ~130 s)",
     "mapanything-apache@1": "4 views at 392 x 518 (CPU ~170 s)",
     "mvsanywhere@1": "4 views at 480 x 640 (CPU ~75 s)",
     "vit_so400m_patch14_siglip_378.webli_ft_in1k@1": "SigLIP So400m at 378 px (CPU ~55 s)",
@@ -141,6 +144,9 @@ CPU_HEAVY = {
     "lotus-normal-d-v1-1@1": "Stable Diffusion UNet, 1 step at 768 px (CPU ~20 s)",
     "stablenormal-turbo@1": "Stable Diffusion UNet + ControlNet encoder, 1 step at 768 px (CPU ~25 s)",
     "romav2@1": "DINOv3 ViT-L at 800 px + two-view ViT + refiners at 1280 px (CPU ~60 s)",
+    "marigold-v2-depth@1": "20 B NF4 transformer expanded per linear in bf16 (8.4 GB of weights; CPU many minutes)",
+    "seedvr2-3b@1": "3 B bf16 transformer + 3-D VAE (bf16 only, 6.8 GB of weights; CPU minutes per call)",
+    "seedvr2-7b@1": "7 B bf16 transformer + 3-D VAE (bf16 only, 16 GB of weights; CPU many minutes per call)",
 }
 CPU_REFS = set(SMALLEST) - set(CPU_HEAVY) | set(CPU_ALSO)
 # The CPU sweeps outside the goldens run with fewer iterations and smaller network inputs: the same code, less work
@@ -163,6 +169,7 @@ _SWEEP_OPTIONS: dict[str, dict[str, Any]] = {
     "depth_anything_3": {"long_side": 252},
     "defom_stereo": {"iters": 2, "scale_iters": 1},
     "romav2": {"coarse_size": 256, "fine_size": 384},
+    "marigold_v2": {"long_side": 128},
 }
 # Refs left out of the CPU sweeps (batch, sizes, export, ...) for time: a fixed large network input, so the sweep
 # options cannot shrink the work; only with FASTFORKS_HEAVY_CPU_TESTS=1. test_cpu_portable still runs.
@@ -170,6 +177,9 @@ SWEEP_HEAVY = {
     "depth-pro@1": "two DINOv2-L encoders at a fixed 1536 px (CPU ~65 s per forward; the sweeps took ~560 s)",
     "metric3d-vit-large@1": "ViT-L at a fixed network input (the sweeps took ~260 s; compile + export > 13 GB RSS)",
     "sapiens-seg-0.3b-goliath@1": "a fixed 1024 x 768 network input (the sweeps took ~105 s)",
+    "marigold-v2-depth@1": "a 20 B transformer: every forward expands 8.4 GB of NF4 weights (CPU minutes per call)",
+    "seedvr2-3b@1": "a 3 B transformer in bf16 (CPU minutes per call)",
+    "seedvr2-7b@1": "a 7 B transformer in bf16 (CPU many minutes per call)",
 }
 
 
@@ -199,7 +209,7 @@ def sweep_model(ref: str) -> Any:
             registry.weights(card, variant, allow_download=False)
         except WeightsError as e:
             pytest.skip(f"weights of {ref} not available locally: {e}")
-        SWEEP[ref] = API[TASK[ref]].load(ref, device="cpu", options=sweep_options(ref))
+        SWEEP[ref] = API[TASK[ref]].load(ref, device="cpu", **(sweep_options(ref) or {}))
     return SWEEP[ref]
 
 
@@ -228,7 +238,7 @@ def run(  # noqa: PLR0913 - the golden run's settings
     `built`: a second call with every `cudnn_hacc` plan built at once (the first call of a new size runs torch
     convolutions; see `fastforks.kernels.cudnn_hacc`).
     """
-    m = API[TASK[ref]].load(ref, mode=mode, device=device, dtype=dtype, options=opts)
+    m = API[TASK[ref]].load(ref, mode=mode, device=device, dtype=dtype, **(opts or {}))
     return calls_of(m, ref, want, built=built)
 
 
@@ -265,9 +275,19 @@ def _plans_at_once() -> Any:
 def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901, PLR0912, PLR0915 - one branch per task
     """One call of `m` on the golden's input: its output maps and backend."""
     task = TASK[ref]
+    if task == "volume" and "features" in m.variant.outputs:  # encoders: the deepest map is the main output
+        assert want is not None, "volume goldens store their volume"
+        r = m(want["input"])
+        *rest, last = (f.float().cpu() for f in r.features)
+        maps = {"features": last, **{f"features.{i}": f for i, f in enumerate(rest)}}
+        return {k: v for k, v in maps.items() if k in want}, r.backend  # large full-resolution maps may be left out
+    if task == "volume" and "mask" in m.variant.outputs:  # promptable: one positive point
+        assert want is not None, "volume goldens store their volume and prompt"
+        r = m(want["input"], point=tuple(want["point"].tolist()))
+        return {"mask": r.mask.float().cpu()}, r.backend
     if task == "volume":  # the golden's CT crop and spacing
         assert want is not None, "volume goldens store their volume and spacing"
-        r = m(want["input"], tuple(want["spacing"].tolist()))
+        r = m(want["input"], spacing=tuple(want["spacing"].tolist()))
         return {"labels": r.labels.float().cpu()}, r.backend
     img = want["input"].round().astype(np.uint8) if want and "input" in want else image()
     if task == "stereo":
@@ -313,14 +333,14 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         for prefix, p in prompts().items():
             pr = m(emb, **p)
             maps |= {f"{prefix}pred_masks": pr.pred_masks, f"{prefix}iou_scores": pr.iou_scores}
-        if want is not None and "video_pred_masks" in want:  # video goldens: `track` on the synth clip per prompt
+        if want is not None and "video_pred_masks" in want:  # video goldens: `video` on the synth clip per prompt
             for prefix, p in clip_prompts().items():
-                tr = m.track(clip(), **p)
+                tr = m.video(clip(), **p)
                 maps |= {f"{prefix}pred_masks": tr.pred_masks, f"{prefix}object_score_logits": tr.object_score_logits}
         if want is not None and "samurai_box_pred_masks" in want:  # SAMURAI: the box prompt on a longer clip
             b = m.backend
-            sm = API[TASK[ref]].load(ref, mode=b.mode, device=b.device, dtype=b.dtype, options={"samurai": True})
-            tr = sm.track(clip(len(want["samurai_box_object_score_logits"])), **clip_prompts()["video_box_"])
+            sm = API[TASK[ref]].load(ref, mode=b.mode, device=b.device, dtype=b.dtype, samurai=True)
+            tr = sm.video(clip(len(want["samurai_box_object_score_logits"])), **clip_prompts()["video_box_"])
             maps |= {"samurai_box_pred_masks": tr.pred_masks, "samurai_box_object_score_logits": tr.object_score_logits}
         return {k: v.float().cpu() for k, v in maps.items()}, m.backend
     elif task == "detection":  # instances in score order; labels and masks stored as float
@@ -342,12 +362,15 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
     elif task == "edges":
         r = m(img)
         maps = {"edges": r.edges}
-    elif task == "matting":  # trimap- / mask-guided models: the golden's trimap or mask; video: `track` on the clip
+    elif task == "ocr":  # texts as code points (`goldens.text_codes`)
+        r = m(img)
+        maps = {"boxes": r.boxes, "scores": r.scores, "texts": torch.from_numpy(goldens.text_codes(r.texts))}
+    elif task == "matting":  # trimap- / mask-guided models: the golden's trimap or mask; video: `video` on the clip
         guide = {k: want[k].round().astype(np.uint8) for k in ("trimap", "mask") if want and k in want}
         r = m(img, **guide)
         maps = {"alpha": r.alpha}
         if want is not None and "video_alpha" in want:
-            maps["video_alpha"] = m.track(clip(), mask=guide["mask"]).alpha
+            maps["video_alpha"] = m.video(clip(), mask=guide["mask"]).alpha
     elif task == "retrieval":
         r = m(img)
         maps = {"descriptor": r.descriptor}
@@ -366,7 +389,7 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
 
 
 # stored inputs of a golden (the image(s); tracking queries; a matting trimap; an inpainting mask; an in-context
-# reference and its mask; per concept prompt, the queries whose masks are kept)
+# reference and its mask; per concept prompt, the queries whose masks are kept; a volume's point prompt)
 INPUTS = (
     "input",
     "spacing",
@@ -376,8 +399,15 @@ INPUTS = (
     "mask",
     "reference",
     "reference_mask",
+    "point",
     *(f"{prefix}mask_query" for prefix in concepts()),
 )
+
+
+def outputs(ref: str, want: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    """The golden's outputs: everything but its stored inputs (a key the task returns, e.g. a volume mask, is one)."""
+    out = spec(TASK[ref]).standard
+    return {k: v for k, v in want.items() if k not in INPUTS or k in out}
 
 
 def primary(ref: str, maps: dict[str, np.ndarray]) -> str:
@@ -493,7 +523,7 @@ def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tenso
         if g.shape != v.shape:
             lines.append(f"FAIL {k}: shape {g.shape}, golden {v.shape}")
             continue
-        if TASK[ref] == "volume":  # label maps: argmax ties at class borders flip voxels
+        if k in {"labels", "mask"}:  # volume label maps / masks: argmax ties at class borders flip voxels
             frac = float((g != v).mean())
             bound = tol["cpu_label_mismatch"]
             lines.append(f"{'FAIL ' * (frac > bound)}{k} {v.shape}: {frac:.2e} of the voxels differ (bound {bound})")
@@ -529,8 +559,7 @@ def test_cpu_portable(ref, record_property):
         pytest.skip(f"{why}; {HEAVY_CPU}=1 runs it")
     want = golden(ref)
     (got,), _ = run_or_skip(ref, device="cpu", opts=options(ref, want), want=want)
-    for k in INPUTS:
-        want.pop(k, None)
+    want = outputs(ref, want)
     assert set(got) == set(want), f"outputs {sorted(got)}, golden {sorted(want)}"
     lines = cpu_parity(ref, want, got)
     record_property("parity", lines)
@@ -585,7 +614,7 @@ def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torc
         return err
     unit = np.median(np.abs(want[key])) if tol.get("relative") else 1.0  # scale-free outputs (relative depth)
     err = np.abs(got[key].numpy() - want[key]) / unit
-    if TASK[ref] == "volume":  # label maps: the share of differing voxels (mean), p99 0 below 1 %
+    if key in {"labels", "mask"}:  # volume label maps / masks: the share of differing voxels (mean), p99 0 below 1 %
         err = (err > 0).astype(np.float64)
     if "gpu_min_score" in tol:  # unsure points: pose argmax ties, matching pixels outside the overlap
         sure = sure_mask(want[SCORE[TASK[ref]]] >= tol["gpu_min_score"], err.shape)
@@ -617,7 +646,7 @@ def gpu_parity(
     """The GPU golden check of a model's `calls` (`run(..., built=...)`, fallbacks reset before them): the backend is
     the mode asked for, the kernel libraries handed no work to PyTorch, every call is within the tolerances. The error
     map of the last call's primary output. tools/merge_check.py runs it on the model it then times."""
-    want = {k: v for k, v in want.items() if k not in INPUTS}
+    want = outputs(ref, want)
     assert backend.mode == mode
     assert bool(backend.kernels) == (mode == "kernels")
     assert kernels.fallbacks() == {}, "kernel libraries handed work to PyTorch"
@@ -712,7 +741,7 @@ def test_mps(ref):
         (got,), backend = run_or_skip(ref, device="mps", mode=mode, dtype=dtype, opts=options(ref, want), want=want)
         assert (backend.mode, str(backend.dtype)) == (mode, dtype)
         assert len(backend.kernels) == len(card.mps_kernel_libs) if mode == "kernels" else not backend.kernels
-        _check(ref, mode, {k: v for k, v in want.items() if k not in INPUTS}, got, f"{mode} {dtype}: ")
+        _check(ref, mode, outputs(ref, want), got, f"{mode} {dtype}: ")
 
 
 def _manifest(lib: str) -> kernels.KernelManifest | None:

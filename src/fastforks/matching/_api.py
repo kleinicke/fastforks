@@ -248,16 +248,16 @@ class SparseMatchingResult(NumpyOutputs):
     backend: Backend
     options: Mapping[str, Any] = field(default_factory=dict)
 
-    def matches(self, threshold: float = 0.0) -> tuple[torch.Tensor, torch.Tensor]:
+    def matches(self, *, score_threshold: float = 0.0) -> tuple[torch.Tensor, torch.Tensor]:
         """The matched points, for `estimate_pose`.
 
         Args:
-            threshold: Keep the matches with a score above it (the model already dropped those below its own).
+            score_threshold: Keep the matches with a score above it (the model already dropped those below its own).
 
         Returns:
             Points in the first and in the second image, `[K, 2]` float32 `(x, y)` pixels, row `i` matched to row `i`.
         """
-        keep = self.pairs[self.scores > threshold]
+        keep = self.pairs[self.scores > score_threshold]
         return self.keypoints1[keep[:, 0]], self.keypoints2[keep[:, 1]]
 
     def verify(
@@ -287,6 +287,8 @@ class MatchingModel(core.Model):
 
     Has the attributes of `fastforks.Model`.
     """
+
+    _list_images = 2
 
     _runner: Runner
 

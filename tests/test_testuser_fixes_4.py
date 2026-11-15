@@ -73,7 +73,7 @@ def test_run_many_takes_bytes_lists_and_refuses_a_single_bytes_side(tmp_path):
 
 def test_load_keyword_typo_is_an_argument_error():
     with pytest.raises(ArgumentError, match="did you mean 'mode'") as e:
-        fastforks.load("s2m2-s", mdoe="kernels")  # ty: ignore[unknown-argument]
+        fastforks.load("s2m2-s", mdoe="kernels")
     assert isinstance(e.value, FastforksError)
     assert isinstance(e.value, TypeError)
     for task in (
@@ -84,7 +84,7 @@ def test_load_keyword_typo_is_an_argument_error():
         fastforks.promptable_segmentation,
     ):
         with pytest.raises(ArgumentError, match="did you mean 'dtype'"):
-            task.load("x", dtpye="float16")  # ty: ignore[unknown-argument]
+            task.load("x", dtpye="float16")
     assert fastforks.ArgumentError is ArgumentError
 
 

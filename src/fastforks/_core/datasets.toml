@@ -306,6 +306,12 @@ licence = "CC-BY-4.0"  # the released camera files; the frames are downloaded fr
 commercial = "unclear"
 url = "https://google.github.io/realestate10k/"
 
+[dl3dv]
+name = "DL3DV-10K (multi-view real-world scenes for 3D vision)"
+licence = "CC-BY-NC-4.0"  # the dataset's terms of use: non-commercial research and education
+commercial = "no"
+url = "https://dl3dv-10k.github.io/DL3DV-10K/"
+
 [vimeo90k]
 name = "Vimeo-90K (septuplets / triplets for frame interpolation)"
 licence = "not stated"  # clips from vimeo.com under their uploaders' terms; the page asks only for a citation
@@ -352,6 +358,24 @@ name = "DIV2K (NTIRE 2017 super-resolution, 1000 2K images)"
 licence = "academic research only"  # images collected from the Internet, copyright with their owners
 commercial = "no"
 url = "https://data.vision.ee.ethz.ch/cvl/DIV2K/"
+
+[gopro]
+name = "GoPro deblurring (GOPRO_Large, Nah et al. 2017: 3214 blurred / sharp frame pairs)"
+licence = "CC-BY-4.0"  # "GOPRO dataset is released under CC BY 4.0 license" (official page, read 2026-11-14)
+commercial = "yes"
+url = "https://seungjunnah.github.io/Datasets/gopro"
+
+[sidd]
+name = "Smartphone Image Denoising Dataset (SIDD, noisy / ground-truth smartphone photos)"
+licence = "MIT"  # "The dataset and the associated code repositories are under the MIT License." (official page, read 2026-11-14)
+commercial = "yes"
+url = "https://abdokamel.github.io/sidd/"
+
+[rain13k]
+name = "Rain13K (13712 synthetic rainy / clean pairs merged from Rain14000, Rain1800, Rain800, Rain12; MPRNet's training set)"
+licence = "not stated"  # the source sets state no terms; collected images of mixed origin
+commercial = "unclear"
+url = "https://github.com/swz30/Restormer/blob/68dc6ac472db26f16361150cb7a96a1bc87da93f/Deraining/README.md"
 
 [flickr2k]
 name = "Flickr2K (2650 2K Flickr images, EDSR)"

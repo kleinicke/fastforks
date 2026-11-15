@@ -85,7 +85,7 @@ def _as_tensor(img: ImageLike) -> torch.Tensor:
         t = img.float() if img.dtype == torch.float64 else img
     else:
         hint = (
-            ": lists are not batches; stack same-size images into a BHWC array or BCHW tensor (np.stack / torch.stack)"
+            ": not an image (a model call takes a flat list of images; a batch is a BHWC array or BCHW tensor)"
             if isinstance(img, (list, tuple))
             else " (path, encoded bytes, PIL image, numpy array or torch tensor)"
         )

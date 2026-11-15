@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.runner import host
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.promptable_segmentation._runner import Forward, Runner
 
@@ -41,7 +42,7 @@ STRIDE = 16  # fixed: SAM 2's image-embedding stride (all released checkpoints)
 STABILITY = (0.05, 0.98)  # fixed: upstream build_sam2 post-processing (stability delta, threshold)
 LOGIT_CLAMP = 32.0  # fixed: upstream SAM2ImagePredictor clamps the returned low-resolution logits
 # The video-memory modules of the checkpoint (image mode does not use them); every other tensor must fit.
-VIDEO = (*VIDEO_KEYS, "no_mem_pos_enc")  # `track` loads VIDEO_KEYS on first use; no_mem_pos_enc is never used
+VIDEO = (*VIDEO_KEYS, "no_mem_pos_enc")  # `video` loads VIDEO_KEYS on first use; no_mem_pos_enc is never used
 
 
 @dataclass(frozen=True)
@@ -56,7 +57,7 @@ class Params:
     window_spec: list[int]  # attention window per stage
     pos_embed_size: list[int]  # background position-embedding grid (upstream window_pos_embed_bkg_spatial_size)
     kf_score_weight: float  # SAMURAI motion weight
-    samurai: bool  # option: `track` as SAMURAI
+    samurai: bool  # option: `video` as SAMURAI
 
 
 class Sam2Image(torch.nn.Module):
@@ -166,7 +167,7 @@ class _Sam2(Runner):
         return F.interpolate(pred_masks, size, mode="bilinear", align_corners=False)
 
     def _tracker(self) -> Tracker:
-        """The video modules, loaded on the first `track` call (image use does not hold them)."""
+        """The video modules, loaded on the first `video` call (image use does not hold them)."""
         if self._video is None:
             ctx = self.ctx
             mods = VideoModules.load(
@@ -180,6 +181,7 @@ class _Sam2(Runner):
             )
         return self._video
 
+    @host
     def track(  # noqa: PLR0913 - one argument per prompt kind
         self,
         frames: Callable[[int], torch.Tensor],

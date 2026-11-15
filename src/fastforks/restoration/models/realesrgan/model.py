@@ -125,7 +125,7 @@ def _new_keys(sd: Mapping[str, torch.Tensor]) -> dict[str, torch.Tensor]:
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: an RRDBNet (Real-ESRGAN / ESRGAN; BasicSR or old `model.N` keys) as a variant, params, keys."""
+    """`load(path)`: an RRDBNet (Real-ESRGAN / ESRGAN; BasicSR or old `model.N` keys) as a variant, params, keys."""
     if "model.1.sub.0.RDB1.conv1.0.weight" in sd:
         sd = _new_keys(sd)
     elif "body.0.rdb1.conv1.weight" not in sd:

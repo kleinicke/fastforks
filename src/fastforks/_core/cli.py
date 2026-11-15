@@ -899,7 +899,11 @@ def _add_sfm(sub: argparse._SubParsersAction) -> None:
     p.add_argument("out", help="COLMAP database file to write (must not exist); with --reconstruct: the output folder")
     p.add_argument("--reconstruct", action="store_true", help="also run pycolmap's mapper: out/database.db, out/sparse")
     p.add_argument("--mapper", choices=("incremental", "global"), default="incremental", help="with --reconstruct")
-    p.add_argument("--matcher", default="aliked-lightglue", help="sparse matching model id (default aliked-lightglue)")
+    p.add_argument(
+        "--matcher",
+        default="loma-b",  # `sfm.DEFAULT_MATCHER` (the module is imported lazily)
+        help="matching model id (default loma-b, the most accurate; aliked-lightglue: the fast alternative)",
+    )
     p.add_argument("--retrieval", default="megaloc", help="retrieval model id that picks the pairs, or none: all pairs")
     p.add_argument("--k", type=int, default=20, help="pairs per image (default 20)")
     p.add_argument("--threshold", type=float, default=4.0, help="RANSAC inlier threshold in pixels (default 4)")

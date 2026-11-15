@@ -45,8 +45,12 @@ class DDIM:
     def step(self, v: torch.Tensor, t: int, sample: torch.Tensor) -> torch.Tensor:
         """x_t -> x_{t - 1000 // steps} from the v-prediction `v` (diffusers `DDIMScheduler.step`, eta = 0).
 
-        The coefficients are 0-d CPU tensors computed once per timestep, as diffusers computes them per step (same
-        results): Inductor fused the select from the CPU `alphas_cumprod` into a CUDA kernel (invalid pointer).
+        The coefficients are 0-d CPU float32 tensors computed once per timestep, as diffusers computes them per step
+        (bit-identical results on every device; Python floats would round once more in CPU half precision). diffusers
+        selects them from the CPU `alphas_cumprod` inside the step: under torch.compile Inductor fuses that select
+        into the CUDA kernel and passes the CPU buffer as a device pointer ("CUDA driver error: invalid argument",
+        torch 2.14; review/issues_2026-11-14/inductor_cpu_select.md), while 0-d constants are inlined as literals
+        (test_compile.test_marigold_scheduler_steps_trace_without_cpu_selects).
         """
         sa, sb, sp, d = self._coef.get(t) or self._coefficients(t)
         x0 = sa * sample - sb * v

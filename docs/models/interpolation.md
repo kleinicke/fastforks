@@ -6,7 +6,7 @@
 
 Input: two RGB images (consecutive frames). Output: the frame between them at `timestep` (0.5 by default; 0 = the first, 1 = the second), RGB in [0, 1].
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -17,8 +17,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`ema-vfi-small-t`](#ema_vfi) | yes | 84.5, 1.3x | 2178, 0.91x |
 | [`ema-vfi-t`](#ema_vfi) | yes | 207, 1.4x | 4152, 0.97x |
 | [`film`](#film) | yes | 444, 1.0x | 6188, 1.7x |
-| [`gimm-vfi-r`](#gimm_vfi) | no | 1695 | 8942 |
-| [`gimm-vfi-r-p`](#gimm_vfi) | no | 1695 | 8882 |
+| [`gimm-vfi-r`](#gimm_vfi) | no | 1629 | 5362 |
+| [`gimm-vfi-r-p`](#gimm_vfi) | no | 1628 | 5282 |
 | [`rife-4.25`](#rife) | yes | 21.5, 1.1x | 1076, 0.93x |
 | [`rife-4.25-lite`](#rife) | yes | 18.3, 1.2x | 1056, 0.87x |
 | [`rife-4.26`](#rife) | yes | 21.4, 1.1x | 1076, 0.93x |
@@ -146,8 +146,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels | OOM<br>2791<br>1695 | –<br>13698 / 15340<br>7860 / 8942 |
-| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels | OOM<br>2797<br>1695 | –<br>13698 / 15180<br>7860 / 8882 |
+| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels | OOM<br>2622<br>1629 | –<br>9899 / 10400<br>4587 / 5362 |
+| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels | OOM<br>2622<br>1628 | –<br>9899 / 10400<br>4587 / 5282 |
 
 <details><summary>Details</summary>
 
@@ -161,8 +161,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Outputs: frame
 - Input size: any H x W >= 128, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gimm-vfi-r` 1024x2048 (13.4 GiB peak allocated, 14.5 reserved); `gimm-vfi-r-p` 1024x2048 (13.0 GiB peak allocated, 14.2 reserved)
-- `gimm-vfi-r` load / first call: original 2.05 s / 1.336 s (480x854), portable 0.17 s / 2.792 s, kernels 0.75 s / 1.694 s
-- `gimm-vfi-r-p` load / first call: original 2.96 s / 1.438 s (480x854), portable 0.56 s / 1.131 s (480x854), kernels 0.81 s / 0.691 s (480x854)
+- `gimm-vfi-r` load / first call: original 2.05 s / 1.336 s (480x854), portable 0.27 s / 2.622 s, kernels 0.59 s / 1.631 s
+- `gimm-vfi-r-p` load / first call: original 2.96 s / 1.438 s (480x854), portable 0.27 s / 0.997 s (480x854), kernels 0.58 s / 0.684 s (480x854)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -174,7 +174,7 @@ DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 vide
 | `gimm-vfi-r` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 |  |
 | `gimm-vfi-r-p` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d199e94c, 2026-11-14.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14.
 
 ### Parity
 

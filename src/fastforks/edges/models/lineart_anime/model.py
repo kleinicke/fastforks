@@ -34,10 +34,10 @@ class Params:
     """Card `[params]` + `[options]`.
 
     Attributes:
-        resolution: Detect resolution: the short side of the network input (rounded to a multiple of 64).
+        short_side: The short side of the network input (controlnet_aux detect resolution; rounded to a multiple of 64).
     """
 
-    resolution: int
+    short_side: int
 
 
 class Portable(Runner):
@@ -45,7 +45,6 @@ class Portable(Runner):
 
     Params = Params
     dtypes = ("float32", "float16")
-    compiled_methods = ("net",)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -58,7 +57,7 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Line map `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
-        x = to_detect(image, self.ctx.params.resolution)
+        x = to_detect(image, self.ctx.params.short_side)
         h, w = x.shape[-2:]
         hn, wn = PAD * math.ceil(h / PAD), PAD * math.ceil(w / PAD)
         if (hn, wn) != (h, w):

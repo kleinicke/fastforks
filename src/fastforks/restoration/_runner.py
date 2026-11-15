@@ -22,7 +22,7 @@ class Portable(Runner):
 RUNNERS = {"portable": Portable}
 
 
-def from_checkpoint(sd):  # a user's state dict (`load_file`): None if it is not this family's network
+def from_checkpoint(sd):  # a user's state dict (`load(path)`): None if it is not this family's network
     return "<variant id>", {"scale": 4, ...}, sd  # params read from the shapes, keys mapped to the network's
 ```
 

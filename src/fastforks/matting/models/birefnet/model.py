@@ -54,7 +54,6 @@ class _Matting(Runner):
     """Resize, normalise, network, sigmoid, resize back."""
 
     Params = Params
-    compiled_methods = ("_net",)
     net: BiRefNet
     dtype: torch.dtype
 

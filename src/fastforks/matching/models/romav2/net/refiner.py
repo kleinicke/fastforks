@@ -56,12 +56,17 @@ class Block(nn.Module):
             in_dim, out_dim, kernel_size, bn_momentum, norm_type_name
         )
         self.enable_amp = enable_amp
+        # fastforks: kernels mode sets this to `x -> relu(conv_depthwise(x))` in one pass (BatchNorm folded, bf16)
+        self.depthwise = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         with autocast(x, self.amp):
-            x = self.conv_depthwise(x)
-            x = self.norm(x)
-            x = self.relu(x)
+            if self.depthwise is not None:
+                x = self.depthwise(x)
+            else:
+                x = self.conv_depthwise(x)
+                x = self.norm(x)
+                x = self.relu(x)
             if x.is_contiguous(memory_format=torch.channels_last):  # fastforks: the 1x1 conv as a GEMM with its bias
                 w = self.conv_pointwise.weight
                 return F.linear(x.permute(0, 2, 3, 1), w.view(w.shape[:2]), self.conv_pointwise.bias).permute(0, 3, 1, 2)

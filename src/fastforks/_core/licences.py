@@ -77,6 +77,8 @@ CLASSES: dict[str, CodeClass] = {
     # Share-alike: adapted weights must carry the same licence; commercial use allowed (detectron2 model zoo).
     # https://creativecommons.org/licenses/by-sa/3.0/
     "CC-BY-SA-3.0": "copyleft",
+    # Version 4.0 (nnFoundation weights): the same share-alike terms. https://creativecommons.org/licenses/by-sa/4.0/
+    "CC-BY-SA-4.0": "copyleft",
     **dict.fromkeys(
         (
             "CC-BY-NC-4.0",

@@ -21,7 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.half import cublas_gemms
 from fastforks._optimize import conv_ops
-from fastforks.kernels import cudnn_hacc, fastbb, seg_up, vol_norm
+from fastforks.kernels import cudnn_hacc, fastbb, nf4, seg_up, vol_norm
 from fastforks.shared import cnn_kernels
 from fastforks.stereo.models.las2 import kernels as las2_kernels
 
@@ -406,6 +406,57 @@ def test_vol_norm(dev, seed, record_property):
         assert vol_norm.supported(x)
         got = vol_norm.norm_act_(x, wt, b, 1e-5, 0.01)
         _cmp(record_property, "vol_norm", got, ref, 5e-3, shape=[n, c, d, h, w])
+
+
+# --- NF4 dequantization (nf4) ---------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_nf4_dequant(dev, seed):
+    """`nf4.dequant` on random bytes and scales = the portable decode `(code[nibble] * absmax).to(bf16)`, bit-exact."""
+    rng, g = _rng(seed, "nf4"), _gen(seed)
+    nf4.load(dev)
+    code = torch.tensor([-1.0, -0.6962, -0.5251, -0.3949, -0.2844, -0.1848, -0.0911, 0.0], device=dev)
+    code = torch.cat([code, torch.tensor([0.0796, 0.1609, 0.2461, 0.3379, 0.4407, 0.5626, 0.7230, 1.0], device=dev)])
+    for _ in range(3):
+        n = 32 * rng.randint(1, 4096)  # bytes: 64 weights = 32 bytes per absmax
+        q = torch.randint(0, 256, (n,), generator=g, dtype=torch.int32).to(torch.uint8).to(dev)
+        absmax = (torch.rand(n // 32, generator=g) * MAGS[seed % 3]).to(dev).bfloat16()
+        idx = torch.stack([q >> 4, q & 15], dim=1).reshape(-1).long()
+        ref = (code[idx].view(-1, 64) * absmax.float()[:, None]).to(torch.bfloat16).reshape(-1)
+        got = nf4.dequant(q, absmax, code, torch.empty(2 * n, dtype=torch.bfloat16, device=dev))
+        assert torch.equal(got, ref), n
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_nf4_epilogues(dev, seed):
+    """The fused LoRA / modulation / RMS-RoPE epilogues = their PyTorch chains (Marigold V2 `NF4Linear`), bit-exact."""
+    rng, g, mag = _rng(seed, "nf4epi"), _gen(seed), MAGS[seed % 3]
+    nf4.load(dev)
+    bf = torch.bfloat16
+    t, n = rng.randint(1, 300), 8 * rng.randint(1, 64)
+    y, lo = (_randn(g, 1, t, n, mag=mag).to(dev).to(bf) for _ in range(2))
+    gate, scale, shift = (_randn(g, n).to(dev).to(bf) for _ in range(3))
+    res, x = (_randn(g, 1, t, n, mag=mag).to(dev) for _ in range(2))
+    s = y.float() + lo
+    assert torch.equal(nf4.lora_f32(y, lo), s)
+    assert torch.equal(nf4.lora_bf16(y, lo), s.to(bf))
+    assert torch.equal(nf4.lora_gelu_bf16(y, lo), F.gelu(s, approximate="tanh").to(bf))
+    assert torch.equal(nf4.lora_gate_res(y, lo, gate, res.clone()), res + s * gate)
+    assert torch.equal(nf4.mod_bf16(x, scale, shift), (x * scale + shift).to(bf))
+    heads, d, t2 = rng.randint(1, 4), 2 * rng.randint(1, 64), rng.randint(1, 50)
+    xa, xb = _randn(g, 1, t2, heads, d, mag=mag).to(dev), _randn(g, 1, t, heads, d, mag=mag).to(dev)
+    wa, wb = torch.rand(d, generator=g).to(dev), torch.rand(d, generator=g).to(dev)
+    f = torch.polar(torch.ones(t2 + t, 1, d // 2), torch.rand(t2 + t, 1, d // 2, generator=g) * 100).to(dev)
+
+    def rms(v, w):
+        return v * torch.rsqrt(v.pow(2).mean(-1, keepdim=True) + 1e-6) * w
+
+    xc = torch.view_as_complex(torch.cat([rms(xa, wa), rms(xb, wb)], 1).reshape(1, t2 + t, heads, -1, 2))
+    ref = torch.view_as_real(xc * f).flatten(3).to(bf)
+    out = torch.empty(1, t2 + t, heads, d, dtype=bf, device=dev)
+    nf4.rms_rope_bf16(xa, wa, f, out, 0)
+    assert torch.equal(nf4.rms_rope_bf16(xb, wb, f, out, t2), ref)
 
 
 # --- cuDNN fp16-accumulate convs (cudnn_hacc) ------------------------------------------------------------------------

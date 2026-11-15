@@ -6,7 +6,7 @@
 
 Input: one RGB image. Output: boxes, class labels, scores and instance masks.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 800x1344: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 800x1344: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -25,16 +25,16 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`dfine-s-coco`](#dfine) | yes | 3.83, 6.7x | 172, 0.93x |
 | [`dfine-x-coco`](#dfine) | yes | 9.71, 4.6x | 304, 0.62x |
 | [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.5, 2.1x | 450, 0.64x |
-| [`grounding-dino-base`](#grounding_dino) | yes | – | – |
-| [`grounding-dino-tiny`](#grounding_dino) | yes | – | – |
+| [`grounding-dino-base`](#grounding_dino) | yes | no kernels | no kernels |
+| [`grounding-dino-tiny`](#grounding_dino) | yes | no kernels | no kernels |
 | [`lw-detr-large-coco`](#lwdetr) | yes | 5.64, 4.0x | 254, 0.66x |
 | [`lw-detr-medium-coco`](#lwdetr) | yes | 3.83, 6.1x | 180, 0.66x |
 | [`lw-detr-small-coco`](#lwdetr) | yes | 2.80, 7.1x | 140, 0.84x |
 | [`lw-detr-tiny-coco`](#lwdetr) | yes | 2.20, 7.5x | 134, 1.0x |
 | [`lw-detr-xlarge-coco`](#lwdetr) | yes | 9.44, 2.7x | 408, 0.48x |
 | [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 21.0, 2.1x | 400, 0.62x |
-| [`mm-grounding-dino-base`](#grounding_dino) | yes | – | – |
-| [`mm-grounding-dino-tiny`](#grounding_dino) | yes | – | – |
+| [`mm-grounding-dino-base`](#grounding_dino) | yes | no kernels | no kernels |
+| [`mm-grounding-dino-tiny`](#grounding_dino) | yes | no kernels | no kernels |
 | [`owlv2-b16`](#owlv2) | yes | 23.8, 3.9x | 732, 0.76x |
 | [`owlv2-l14`](#owlv2) | yes | 110, 1.9x | 1726, 0.66x |
 | [`rf-detr-l-coco`](#rfdetr) | yes | 5.36, 2.2x | 206, 0.86x |
@@ -310,10 +310,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>–<br>111<br>fails: ONNX export: conversion failed | 2541 / 2716<br>1404 / 1468<br>–<br>2550 / 2664<br>– |
-| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 230<br>160<br>–<br>131<br>fails: ONNX export: conversion failed | 2895 / 3094<br>1525 / 1624<br>–<br>2669 / 2800<br>– |
-| `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 202<br>138<br>–<br>111<br>fails: ONNX export: conversion failed | 2541 / 2716<br>1405 / 1470<br>–<br>2555 / 2666<br>– |
-| `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 232<br>160<br>–<br>132<br>fails: ONNX export: conversion failed | 2895 / 3094<br>1525 / 1624<br>–<br>2669 / 2800<br>– |
+| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>no kernels<br>111<br>fails: ONNX export: conversion failed | 2541 / 2716<br>1404 / 1468<br>no kernels<br>2550 / 2664<br>– |
+| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 230<br>160<br>no kernels<br>131<br>fails: ONNX export: conversion failed | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |
+| `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 202<br>138<br>no kernels<br>111<br>fails: ONNX export: conversion failed | 2541 / 2716<br>1405 / 1470<br>no kernels<br>2555 / 2666<br>– |
+| `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 232<br>160<br>no kernels<br>132<br>fails: ONNX export: conversion failed | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |
 
 <details><summary>Details</summary>
 
@@ -331,6 +331,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved); `mm-grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `mm-grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved)
+- no kernels: not built yet: fp16-accumulate GEMMs gain nothing (tiny 112.5 vs 112.5 ms, base 127.6 vs 131.3 ms at 480x640); the time is in the deformable attention (grid_sample) and many small ops, which needs a multi-scale deformable attention kernel and per-size CUDA graphs.
 - `grounding-dino-tiny` 800x1344, first call: portable + torch.compile 73 s (cold Inductor cache).
 - `grounding-dino-base` 800x1344, first call: portable + torch.compile 98 s (cold Inductor cache).
 - `mm-grounding-dino-tiny` 800x1344, first call: portable + torch.compile 71 s (cold Inductor cache).

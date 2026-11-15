@@ -65,7 +65,7 @@ class Params:
 
 def _mask(m: HAT, x_size: tuple[int, int]) -> torch.Tensor:
     """`HAT.calculate_mask` made on the device, once per size."""
-    return shift_mask(*x_size, m.window_size, m.shift_size, m.conv_first.weight.device)
+    return shift_mask(*x_size, m.window_size, m.shift_size, m.conv_first.weight.device, dtype=m.conv_first.weight.dtype)
 
 
 def _attention(
@@ -199,7 +199,7 @@ _BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a HAT state dict as a variant and its params (channels, depths, heads, CAB ratios)."""
+    """`load(path)`: a HAT state dict as a variant and its params (channels, depths, heads, CAB ratios)."""
     blocks = [(int(m.group(1)), int(m.group(2))) for k in sd if (m := _BLOCK.match(k))]
     if "conv_first.weight" not in sd or "layers.0.residual_group.overlap_attn.qkv.weight" not in sd or not blocks:
         return None

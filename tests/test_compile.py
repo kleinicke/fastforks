@@ -1,7 +1,8 @@
 """`Model.compile()` on stub runners (CPU, no weights): every task's default call path runs the compiled entry points,
 nested entry points trace inline, a failed first compiled call leaves the model eager, a repeat compile replaces.
 
-Real families: `test_export.test_model_compile_equals_eager`; here, every runner's `compiled_methods` exist.
+Real families: `test_export.test_model_compile_equals_eager`; here, every runner's `compiled_methods` exist and every
+override of a task entry point is compiled or marked `@host`.
 """
 
 from __future__ import annotations
@@ -202,11 +203,17 @@ def test_compiled_methods_exist(task):
 HELPERS = {"module", "input_use", "pad", "resize", "restore", "upsample", "scene", "segment_concept"}
 
 
+def _is_host(cls: type, name: str) -> bool:
+    return bool(getattr(getattr(cls, name), "ff_host", False))
+
+
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_overridden_entry_points_are_compiled(task):
-    """A family override of a task entry point (`__call__`, segmentation `labels`, ...) is in `compiled_methods`.
+    """A family override of a task entry point (`__call__`, segmentation `labels`, ...) is in `compiled_methods`,
+    unless it is marked `@host` (loops, tokenizers, solvers: it lists the methods it calls instead).
 
-    The 2026-11-04 segmentation compile rows timed eager code: the default call ran `labels` overrides, not `__call__`.
+    The 2026-11-04 segmentation compile rows timed eager code: the default call ran `labels` overrides, not `__call__`;
+    the 2026-11-14 ports listed private network methods (or the `net` attribute: `compile()` raised) instead.
     """
     for card, _ in registry.cards(task).values():
         try:
@@ -217,10 +224,13 @@ def test_overridden_entry_points_are_compiled(task):
             continue
         base = importlib.import_module(f"fastforks.{task}._runner").Runner
         names = {n for n, v in vars(base).items() if callable(v) and (n == "__call__" or not n.startswith("_"))}
-        if "text" in getattr(cls, "prompts", ()):  # concept models: `predict` only raises, `segment_concept` runs
-            names.discard("predict")
-        missed = {n for n in names - HELPERS if getattr(cls, n) is not getattr(base, n)} - set(cls.compiled_methods)
+        if set(getattr(cls, "prompts", ())) - {"points", "boxes", "masks"}:  # concept / reference models: all
+            names.discard("predict")  # prompts go to `segment_concept` / `segment_reference`, `predict` only raises
+        overridden = {n for n in names - HELPERS if getattr(cls, n) is not getattr(base, n)}
+        missed = {n for n in overridden if not _is_host(cls, n)} - set(cls.compiled_methods)
         assert not missed, (card.family, missed)
+        hosts = {n for n in cls.compiled_methods if _is_host(cls, n)}
+        assert not hosts, (card.family, hosts)  # host code is not compiled
 
 
 @pytest.mark.parametrize(
@@ -269,3 +279,99 @@ def test_great_igev_compiled_outlook_attention_matches_eager():
     if tuple(int(v) for v in torch.__version__.split(".")[:2]) > (2, 8):  # torch 2.8's Dynamo takes the eager branch
         assert not [t for t in seen if "softmax" in t]
     torch.testing.assert_close(got, want, rtol=1e-5, atol=1e-6)
+
+
+@pytest.mark.parametrize("scheduler", ["ddim", "lcm"])
+def test_marigold_scheduler_steps_trace_without_cpu_selects(scheduler):
+    """The DDIM / LCM coefficients enter the graph as 0-d constants, inlined as literals: diffusers selects them from
+    the CPU `alphas_cumprod` per step, and Inductor fuses that select into the CUDA kernel with the CPU buffer as a
+    device pointer ("CUDA driver error: invalid argument", torch 2.14). The traced steps hold no select / index and
+    no tensor constant with a dimension."""
+    if scheduler == "ddim":
+        from fastforks.depth.models.marigold.net.ddim import DDIM  # noqa: PLC0415
+
+        ddim = DDIM(4)
+
+        def step(v: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+            for t in ddim.timesteps:
+                x = ddim.step(v, t, x)
+            return x
+
+    else:
+        from fastforks.depth.models.marigold_normals.net.lcm import LCM  # noqa: PLC0415
+
+        lcm = LCM(4)
+
+        def step(v: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+            for t in lcm.timesteps:
+                x = lcm.step(v, t, x, None if t == lcm.timesteps[-1] else v)
+            return x
+
+    graphs = []
+
+    def backend(gm, _inputs):
+        graphs.append(gm)
+        return gm
+
+    v, x = (torch.randn(1, 4, 8, 8, dtype=torch.float16) for _ in range(2))
+    got = torch.compile(step, backend=backend, fullgraph=True)(v, x)
+    assert len(graphs) == 1
+    gm = graphs[0]
+    bad = [n for n in gm.graph.nodes if n.op != "get_attr" and ("select" in str(n.target) or "index" in str(n.target))]
+    bad += [n for n in gm.graph.nodes if n.op == "get_attr" and getattr(gm, n.target).dim() != 0]
+    assert not bad, bad
+    torch.testing.assert_close(got, step(v, x), rtol=0, atol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_triton_scaled_softmax_rows_bitcast_bug_still_present():
+    """Sentinel for the GREAT-IGEV outlook workaround: Inductor's `softmax(x * scale)` lowering (a masked boolean
+    any-reduction beside two max-reductions and an exp; `_partial_softmax_pattern`) aborts Triton 3.8's LLVM on
+    49-wide rows with XBLOCK=8 / 2 warps ("Cannot BITCAST between types of different sizes!"). The kernel runs in a
+    subprocess (the assertion aborts the process). When it compiles, Triton fixed it: drop the `is_compiling` branch
+    of `OutlookAttentionLayer.forward` and this test."""
+    import subprocess  # noqa: PLC0415
+    import sys  # noqa: PLC0415
+    import textwrap  # noqa: PLC0415
+
+    src = textwrap.dedent(
+        """
+        import torch, triton, triton.language as tl
+
+        @triton.jit
+        def _or(a, b):
+            return a | b
+
+        @triton.jit
+        def _max(a, b):
+            return tl.maximum(a, b)
+
+        @triton.jit
+        def k(in0, in1, out, xnumel, XBLOCK: tl.constexpr):
+            xindex = tl.program_id(0) * XBLOCK + tl.arange(0, XBLOCK)[:, None]
+            r = tl.arange(0, 64)[None, :]
+            mask = (r < 49) & (xindex < xnumel)
+            x = tl.load(in0 + (r + 49 * xindex), mask, other=0.0).to(tl.float32)
+            x = x + tl.load(in1 + xindex // 49, mask, other=0.0).to(tl.float32)
+            s = x * 0.3535533905932738
+            bad = ((s == s) & (tl.abs(s) != float("inf"))) == 0
+            nonfinite = tl.reduce(tl.where(mask, bad, False), 1, _or)[:, None]
+            m1 = tl.reduce(tl.where(mask, x, float("-inf")), 1, _max)[:, None]
+            m2 = tl.reduce(tl.where(mask, s, float("-inf")), 1, _max)[:, None]
+            e = tl.where(nonfinite == 0, (x - m1) * 0.3535533905932738, s - m2)
+            tl.store(out + (r + 49 * xindex), tl.exp(e), mask)
+
+        n = 265825
+        a = torch.randn(n * 49, device="cuda", dtype=torch.float16)
+        b = torch.randn(n, device="cuda", dtype=torch.float16)
+        out = torch.zeros(n * 49, device="cuda")
+        k[(triton.cdiv(n, 8),)](a, b, out, n, 8, num_warps=2)
+        torch.cuda.synchronize()
+        print("compiled")
+        """
+    )
+    r = subprocess.run([sys.executable, "-c", src], capture_output=True, text=True, timeout=600, check=False)
+    if r.returncode == 0:
+        pytest.fail("Triton compiles the softmax(x * scale) kernel: remove the GREAT-IGEV outlook workaround")
+    assert "BITCAST" in r.stderr, r.stderr[-2000:]

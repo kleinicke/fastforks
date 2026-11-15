@@ -1,13 +1,13 @@
 """Multi-object tracking by detection: ByteTrack association of per-frame detections into tracks with identities.
 
 ```python
-from fastforks import detection, tracking
+from fastforks import detection
 
-detector = detection.load("dfine-x-coco", options={"score_threshold": 0.1})  # ByteTrack also uses low-score boxes
-frames = tracking.track_objects(video, detector, labels=[0])  # one ObjectTracks per frame (COCO class 0: person)
+detector = detection.load("dfine-x-coco", score_threshold=0.1)  # ByteTrack also uses low-score boxes
+frames = detection.track_objects(video, detector, classes=["person"])  # one ObjectTracks per frame
 frames[10].ids, frames[10].boxes  # [K] int64 track ids, [K, 4] (x0, y0, x1, y1) pixels
 
-tracker = tracking.ByteTracker(frame_rate=30)  # online: one update per frame
+tracker = detection.ByteTracker(frame_rate=30)  # online: one update per frame
 for frame in video:
     tracks = tracker.update(detector(frame))  # a DetectionResult, or [N, 5] (x0, y0, x1, y1, score)
 ```
@@ -236,8 +236,8 @@ class ByteTracker:
 
         Args:
             detections: This frame's detections: a `fastforks.detection.DetectionResult` (class-agnostic tracking;
-                filter its classes before, e.g. `det[det.labels == 0]`) or an `[N, 5]` `(x0, y0, x1, y1, score)`
-                array / tensor.
+                filter its classes before, e.g. `det[det.labels == 0]`; `track_objects(classes=)`) or an `[N, 5]`
+                `(x0, y0, x1, y1, score)` array / tensor.
 
         Returns:
             The confirmed tracks after this frame.
@@ -391,7 +391,7 @@ def track_objects(
     video: Iterable[Any],
     detector: Callable[..., Any] | None = None,
     *,
-    labels: Sequence[int] | None = None,
+    classes: Sequence[int | str] | None = None,
     **tracker: float,
 ) -> list[ObjectTracks]:
     """Track the objects of a whole video (ByteTrack); `ByteTracker` is the online version.
@@ -401,24 +401,38 @@ def track_objects(
             (`DetectionResult`s or `[N, 5]` arrays).
         detector: A `fastforks.detection` model (load it with a low `score_threshold` option, e.g. 0.1: the second
             association uses detections down to 0.1), called once per frame.
-        labels: Track only detections of these classes (e.g. `[0]`: COCO persons); default all.
+        classes: Track only detections of these classes, by name (`["person"]`) or id (`[0]`); default all.
         **tracker: `ByteTracker` settings (`track_thresh`, `match_thresh`, `track_buffer`, `frame_rate`).
 
     Returns:
         One `ObjectTracks` per frame.
 
     Raises:
-        InputError: `labels` for detections without classes (`[N, 5]` arrays).
+        InputError: `classes` for detections without classes (`[N, 5]` arrays), or a class name the detections'
+            `class_names` do not have.
     """
     bt = ByteTracker(**tracker)
-    keep = None if labels is None else torch.tensor(list(labels))
     out = []
     for item in video:
         det = item if detector is None else detector(item)
-        if keep is not None:
+        if classes is not None:
             if getattr(det, "labels", None) is None:
-                msg = "labels: these detections have no classes ([N, 5] arrays); filter them before"
+                msg = "classes: these detections have no classes ([N, 5] arrays); filter them before"
                 raise InputError(msg)
-            det = det[torch.isin(det.labels, keep.to(det.labels.device))]
+            det = det[torch.isin(det.labels, _class_ids(classes, det).to(det.labels.device))]
         out.append(bt.update(det))
     return out
+
+
+def _class_ids(classes: Sequence[int | str], det: Any) -> torch.Tensor:  # noqa: ANN401 - a DetectionResult
+    """`classes` (names or ids) as ids of `det.class_names`."""
+    names: list[str] = list(getattr(det, "class_names", ()) or ())
+    ids = []
+    for c in classes:
+        if isinstance(c, str):
+            if c not in names:
+                msg = f"classes: unknown class {c!r}" + (f" (known: {names[:10]}...)" if names else " (no class names)")
+                raise InputError(msg)
+            c = names.index(c)  # noqa: PLW2901 - the name's id
+        ids.append(int(c))
+    return torch.tensor(ids, dtype=torch.int64)

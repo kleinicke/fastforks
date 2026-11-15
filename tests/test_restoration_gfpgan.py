@@ -1,4 +1,4 @@
-"""GFPGAN: the card, the inference forward against the vendored upstream network, the size check, `load_file`."""
+"""GFPGAN: the card, the inference forward against the vendored upstream network, the size check, `load(path)`."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def test_matches_vendored_upstream(tmp_path: Path) -> None:
     torch.testing.assert_close(exported.clamp(0, 1), got, rtol=0, atol=1e-6)
     with pytest.raises(InputError, match="512 x 512"):
         m(torch.rand(1, 3, 512, 640))
-    m2 = restoration.load_file(tmp_path / "w.pth", device="cpu", dtype="float32")
+    m2 = restoration.load(tmp_path / "w.pth", device="cpu", dtype="float32")
     assert m2.variant.id == "gfpgan-v1.4"
 
 

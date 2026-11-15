@@ -54,6 +54,8 @@ class RetrievalModel(core.Model):
         dim: Descriptor size.
     """
 
+    _list_images = 1
+
     _runner: Runner
 
     @property

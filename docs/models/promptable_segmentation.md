@@ -6,13 +6,13 @@
 
 Input: one image plus a point, box or text prompt. Output: masks with quality scores.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`clipseg`](#clipseg) | yes | 2.74, 5.6x | 544, 1.3x |
+| [`clipseg`](#clipseg) | yes | 2.75, 5.6x | 362, 0.9x |
 | [`efficientvit-sam-l0`](#efficientvit_sam) | yes | 4.45, 5.9x | 256, 1.1x |
 | [`efficientvit-sam-l1`](#efficientvit_sam) | yes | 5.79, 5.2x | 284, 1.0x |
 | [`efficientvit-sam-l2`](#efficientvit_sam) | yes | 6.83, 5.0x | 312, 0.91x |
@@ -42,7 +42,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels | 15.3<br>4.36<br>2.74 | 346 / 404<br>362 / 376<br>458 / 544 |
+| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels | 15.3<br>4.45<br>2.75 | 346 / 404<br>328 / 356<br>335 / 362 |
 
 <details><summary>Details</summary>
 
@@ -58,7 +58,7 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `clipseg` 3000x4000 (0.7 GiB peak allocated, 0.9 reserved)
 - `clipseg` original 1024x1024: .half() on 1 modules, fp16 inputs; transformers CLIPSegProcessor (CPU) + CLIPSegForImageSegmentation, text tower per call, masks at logits > 0
-- `clipseg` load / first call: original 3.05 s / 0.021 s, portable 3.01 s / 0.374 s, kernels 2.77 s / 0.278 s
+- `clipseg` load / first call: original 3.05 s / 0.021 s, portable 3.9 s / 0.264 s, kernels 3.64 s / 0.26 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
@@ -427,7 +427,7 @@ Commercial use: yes.
 
 ### Measured
 
-One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Semi-supervised: every object's first-frame mask as `input_masks`, `track` forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as davis2017-evaluation, mean over objects. Semi-supervised: every object's first-frame mask as `input_masks`, `track` forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as davis2017-evaluation, mean over objects. Original = the original code named under Details, same checkpoint and protocol.
+One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Semi-supervised: every object's first-frame mask as `input_masks`, `video` forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as davis2017-evaluation, mean over objects. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | kernels | note |
 |---|---|---|---|---|---|---|

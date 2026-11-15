@@ -1,4 +1,4 @@
-"""Real-ESRGAN Compact: the card's variant, the network against upstream's forward, `load_file` detection."""
+"""Real-ESRGAN Compact: the card's variant, the network against upstream's forward, `load(path)` detection."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def test_load_file_matches_upstream(tmp_path: Path, scale: int, feat: int, convs
     torch.manual_seed(0)
     net = SRVGGNetCompact(3, 3, num_feat=feat, num_conv=convs, upscale=scale, act_type="prelu").eval()
     torch.save({"params": net.state_dict()}, tmp_path / "w.pth")
-    m = restoration.load_file(tmp_path / "w.pth", device="cpu", dtype="float32")
+    m = restoration.load(tmp_path / "w.pth", device="cpu", dtype="float32")
     assert m.variant.id == "realesr-general-x4v3"
     img = synthetic_image(17, 23, torch.device("cpu"))
     with torch.inference_mode():

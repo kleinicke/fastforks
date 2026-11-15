@@ -255,7 +255,8 @@ def export_onnx(  # noqa: PLR0913 - the size, the batch and the optional dynamic
 ) -> Path:
     """Write `model.module()` at `[batch, 3, height, width]` to an ONNX file.
 
-    The size defaults to `model.export_size()` where the task has one (classification, features); else it is required.
+    The size defaults to `model.size_range().export_size` where the task has one (classification, features); else it
+    is required.
     `size_range=((min_h, min_w), (max_h, max_w))` makes height and width dynamic axes of the graph within these bounds
     (the graph is traced at `(height, width)`); the default is a fixed size. A dynamic file is checked: its image
     inputs must have symbolic H / W, and with `onnxruntime` installed it runs at the corners of the range
@@ -448,9 +449,9 @@ def resolve_size(model: Model, height: int | None, width: int | None) -> tuple[i
         raise InputError(msg)
     if height is not None and width is not None:
         return height, width
-    default = model.export_size()
+    rng = model.size_range()
+    default = rng.export_size
     if default is None:
-        rng = model.size_range()
         eh, ew = rng.example()
         msg = (
             f"{model.variant.ref}: give an export size (this task has no default); valid sizes: "

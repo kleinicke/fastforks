@@ -17,7 +17,7 @@ import pytest
 import torch
 from torch._subclasses.fake_tensor import FakeTensorMode
 
-from fastforks import stereo
+from fastforks import Backend
 from fastforks._core import model as core_model
 from fastforks._core import registry
 from fastforks._core.errors import BackendUnavailableError, InputError
@@ -148,7 +148,10 @@ def _main_map(result: Any) -> torch.Tensor:
 
 def _skip_without_module(ref: str) -> None:
     if TASK[ref] == "volume":
-        pytest.skip("volume: the sliding-window pipeline is no single module (`model.networks()` are the U-Nets)")
+        pytest.skip(
+            "volume: the sliding-window pipeline is no single module (`model.networks()` are the U-Nets); encoders"
+            " take 3D volumes up to 192^3, too large for this sweep"
+        )
 
 
 @pytest.mark.slow
@@ -308,7 +311,7 @@ def test_onnx_features(ref, tmp_path):
     import onnxruntime as ort  # noqa: PLC0415 - optional
 
     model = _load(ref)
-    size = model.export_size()
+    size = model.size_range().export_size
     assert all(s % model.stride == 0 for s in size)  # the exported graph runs at export_size, not a snapped size
     (image,) = model.example_inputs(*size)
     path = model.export_onnx(tmp_path / "m.onnx")
@@ -378,15 +381,17 @@ def test_classification_export_overrides():
     from fastforks.classification._api import ClassificationModel  # noqa: PLC0415
 
     model: Any = object.__new__(ClassificationModel)  # a stub: only what the overrides read
-    model.card = SimpleNamespace(task="classification")
+    model.card = SimpleNamespace(task="classification", family="x", params={})
     model.device = "cpu"
-    io = SimpleNamespace(crop=0, resize=0, input="imagenet", mean=(), std=())
-    model.variant = SimpleNamespace(io=io)
-    assert model.export_size() == spec("classification").export_size == (224, 224)  # no crop / resize: the task default
+    io = SimpleNamespace(crop=0, resize=0, input="imagenet", mean=(), std=(), min_size=1, pad_mode="none")
+    model.variant = SimpleNamespace(io=io, ref="x@1")
+    assert (
+        model.size_range().export_size == spec("classification").export_size == (224, 224)
+    )  # no crop / resize: the task default
     io.resize = 256
-    assert model.export_size() == (256, 256)
+    assert model.size_range().export_size == (256, 256)
     io.crop = 224
-    assert model.export_size() == (224, 224)
+    assert model.size_range().export_size == (224, 224)
     (x,) = model.example_inputs(32, 48, batch=2)
     assert x.shape == (2, 3, 32, 48)
     assert x.min() < 0  # ImageNet-normalised, not [0, 1]
@@ -424,7 +429,7 @@ def test_export_defaults_per_task():
 @pytest.mark.model
 def test_depth_export_rejects_kernels(tmp_path, monkeypatch):
     model = _load(DEPTH[0])
-    monkeypatch.setattr(model, "backend", stereo.Backend("kernels", "cuda:0", "float16"))
+    monkeypatch.setattr(model, "backend", Backend("kernels", "cuda:0", "float16"))
     with pytest.raises(BackendUnavailableError, match="cannot run"):
         model.export_onnx(tmp_path / "m.onnx", 64, 64)
     with pytest.raises(InputError, match="both height and width"):
@@ -518,7 +523,7 @@ def test_export_rejects_kernels_and_small_sizes(tmp_path, monkeypatch):
         InputError, match=rf"export size {low - 1}x64 .*outside the supported range: any H x W >= {low}"
     ):
         model.export_onnx(tmp_path / "m.onnx", low - 1, 64)
-    monkeypatch.setattr(model, "backend", stereo.Backend("kernels", "cuda:0", "float16"))
+    monkeypatch.setattr(model, "backend", Backend("kernels", "cuda:0", "float16"))
     with pytest.raises(BackendUnavailableError, match="cannot run"):
         model.export_onnx(tmp_path / "m.onnx", 64, 64)
 
@@ -587,7 +592,7 @@ def test_model_compile_equals_eager(ref):
 @pytest.mark.slow
 def test_compile_rejects_kernels(monkeypatch):
     model = _load("hitnet-eth3d@1")
-    monkeypatch.setattr(model, "backend", stereo.Backend("kernels", "cuda:0", "float16"))
+    monkeypatch.setattr(model, "backend", Backend("kernels", "cuda:0", "float16"))
     with pytest.raises(BackendUnavailableError, match="only the portable backend"):
         model.compile()
 

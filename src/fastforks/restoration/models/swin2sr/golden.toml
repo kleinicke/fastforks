@@ -1,0 +1,52 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1.4e-05
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."swin2sr-x2@1"]
+sha256 = "199d6f723fbebc7d3f5bf768b4310948ebd61eec057da148fc36b74dc47db572"
+upstream = "https://github.com/mv-lab/swin2sr@6f25d7689813f7dd12c5a212b638066fa71bc9e6"
+settings = "CPU float32, main_test_swin2sr.py: mirror padding to (size // 8 + 1) * 8, model(lq), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."swin2sr-x4-real@1"]
+sha256 = "f6bbeafc65d117255de0b20049afc22bcd7692e62ef692a89c374b00d0028283"
+upstream = "https://github.com/mv-lab/swin2sr@6f25d7689813f7dd12c5a212b638066fa71bc9e6"
+settings = "CPU float32, main_test_swin2sr.py: mirror padding to (size // 8 + 1) * 8, model(lq), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."swin2sr-x4@1"]
+sha256 = "f660bbc4a72415ba5b8f44fccb02f783d50061acc54952f14afd1e2232de3bb6"
+upstream = "https://github.com/mv-lab/swin2sr@6f25d7689813f7dd12c5a212b638066fa71bc9e6"
+settings = "CPU float32, main_test_swin2sr.py: mirror padding to (size // 8 + 1) * 8, model(lq), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[validated."swin2sr-x2@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00063
+p99_px = 0.00232
+
+[validated."swin2sr-x4-real@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00037
+p99_px = 0.00138
+
+[validated."swin2sr-x4@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00055
+p99_px = 0.00205

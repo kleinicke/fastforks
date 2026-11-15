@@ -26,7 +26,7 @@ def model() -> depth.DepthModel:
         registry.weights(card, variant, allow_download=False)
     except WeightsError as e:
         pytest.skip(f"weights of {REF} not available locally: {e}")
-    return depth.load(REF, device="cpu", options={"max_size": 56})
+    return depth.load(REF, device="cpu", max_size=56)
 
 
 def test_prompt_errors(model: depth.DepthModel) -> None:
@@ -66,7 +66,7 @@ def test_sparse_prompt_only_for_completion_models(model: depth.DepthModel) -> No
         registry.weights(card, variant, allow_download=False)
     except WeightsError as e:
         pytest.skip(f"weights of lingbot-depth not available locally: {e}")
-    m = depth.load("lingbot-depth", device="cpu", options={"resolution_level": 0})
+    m = depth.load("lingbot-depth", device="cpu", resolution_level=0)
     for p in (sparse_prompt(), np.zeros((4, 4), np.float32)):
         r = m(image(56, 84), prompt_depth=p)
         assert r.depth.shape[-2:] == (56, 84)

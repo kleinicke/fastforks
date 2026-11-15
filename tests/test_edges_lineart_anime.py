@@ -31,7 +31,7 @@ def test_matches_lineart_anime_detector(tmp_path: Path) -> None:
     net = UnetGenerator(3, 1, 8, 64, norm_layer=norm, use_dropout=False).eval()
     torch.save({f"module.{k}": v for k, v in net.state_dict().items()}, tmp_path / "w.pth")  # as the DataParallel file
     m = edges.load(
-        "lineart-anime", weights=tmp_path / "w.pth", device="cpu", dtype="float32", options={"resolution": 256}
+        "lineart-anime", weights=tmp_path / "w.pth", device="cpu", dtype="float32", options={"short_side": 256}
     )
     img = synthetic_image(256, 256, torch.device("cpu"))
     with torch.inference_mode():

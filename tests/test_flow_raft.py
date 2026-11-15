@@ -67,7 +67,7 @@ def _load(ref: str, mode: str, **options: int) -> flow.FlowModel:
         pytest.skip("no CUDA")
     try:
         dtype = {"dtype": "float32"} if mode == "portable" else {}
-        return flow.load(ref, mode=mode, device="cuda", options=options or None, **dtype)
+        return flow.load(ref, mode=mode, device="cuda", **(options or {}), **dtype)
     except WeightsError as e:
         pytest.skip(f"{ref} weights not available: {e}")
 
