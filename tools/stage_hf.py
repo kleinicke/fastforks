@@ -647,12 +647,13 @@ def staged_cards() -> dict[str, str]:
 
 
 def fetch_live(repo_id: str) -> str | None:
-    """The published README.md of a public repo (anonymous GET); None if the repo or the file does not exist yet."""
+    """The published README.md of a public repo (anonymous GET); None if the repo or the file does not exist yet
+    (HF answers 404, or 401 for a repo that does not exist / is private, to anonymous requests)."""
     try:
         with urllib.request.urlopen(f"https://huggingface.co/{repo_id}/raw/main/README.md", timeout=30) as r:
             return r.read().decode()
     except urllib.error.HTTPError as e:
-        if e.code == HTTPStatus.NOT_FOUND:
+        if e.code in (HTTPStatus.NOT_FOUND, HTTPStatus.UNAUTHORIZED):
             return None
         raise
 
@@ -674,9 +675,10 @@ def stage_cards(out: Path) -> list[str]:
 def check_live() -> None:
     """Print the repos whose published card differs from the staged one; exit 1 if any (read-only)."""
     cards = staged_cards()
-    diff = differing(cards)
+    lives = {r: fetch_live(r) for r in cards}
+    diff = differing(cards, lives.get)
     for repo_id in diff:
-        print(f"differs: {repo_id}")
+        print(f"{'missing' if lives[repo_id] is None else 'differs'}: {repo_id}")
     print(f"{len(diff)} of {len(cards)} live cards differ from the staged ones")
     sys.exit(1 if diff else 0)
 

@@ -53,3 +53,15 @@ def test_summarize_and_render():
 def test_stage_hf_maps_cover_every_task():
     for name in ("_PIPELINE", "_TASK_TAGS", "_SNIPPET"):
         assert set(registry.TASKS) <= set(getattr(stage_hf, name)), name
+
+
+def test_fetch_live_reports_unauthorized_and_missing_repos_as_none(monkeypatch):
+    import urllib.error
+
+    for code in (401, 404):
+
+        def boom(*_a, _c=code, **_k):
+            raise urllib.error.HTTPError("u", _c, "x", None, None)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(stage_hf.urllib.request, "urlopen", boom)
+        assert stage_hf.fetch_live("fastforks/nope") is None
