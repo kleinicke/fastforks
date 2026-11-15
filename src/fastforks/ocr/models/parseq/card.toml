@@ -26,7 +26,7 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 status = "none"
-reason = "a 12-layer ViT on 128 tokens and a 26-step decoder: SDPA / cuBLAS and the decoding loop's launches are the time"
+reason = "the 26-step decoding loop is launch-bound, not kernel-bound: replaying it as a CUDA graph takes the forward from 29.8 to 3.4 ms (parseq) and 29.8 to 1.9 ms (parseq-tiny) with identical logits, but that is a graph, not a kernel (no library in the manifests helps; SDPA / cuBLAS are already the compute), so it is a portable-mode candidate, not a kernels mode (2026-11-15, results/2026-11-15_kernel_slower_remeasure.md)"
 
 [[papers]]
 title = "Scene Text Recognition with Permuted Autoregressive Sequence Models"
