@@ -24,7 +24,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.9, 4.1x | 430, 0.23x |
 | [`mask2former-swinl-ade20k`](#mask2former) | no | 60.4, 2.4x | 1400, 0.38x |
 | [`oneformer-swinl-ade20k`](#oneformer) | yes | 100, 2.1x | 2476, 0.32x |
-| [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 25.0, 1.9x | 494, 0.24x |
+| [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.9, 1.9x | 516, 0.25x |
 | [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.6, 1.9x | 1762, 0.65x |
 | [`sapiens-seg-1b-goliath`](#sapiens) | no | 185, 1.9x | 3382, 0.57x |
 | [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.48, 5.0x | 238, 0.15x |
@@ -87,7 +87,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `fcn-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 94.2<br>47.0<br>40.7<br>16.6<br>35.6<br>27.4 | 1799 / 2074<br>1925 / 2102<br>417 / 492<br>294 / 478<br>414 / 472<br>1656 / 1734 |
-| `pspnet-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 92.5<br>47.2<br>48.8<br>25.0<br>41.3<br>29.8 | 1797 / 2074<br>1922 / 2222<br>417 / 492<br>341 / 494<br>414 / 472<br>1859 / 1898 |
+| `pspnet-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 92.5<br>47.2<br>48.8<br>24.9<br>41.3<br>29.8 | 1797 / 2074<br>1922 / 2222<br>414 / 492<br>338 / 516<br>414 / 472<br>1859 / 1898 |
 | `deeplabv3-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 108<br>54.8<br>47.9<br>20.1<br>42.1<br>30.6 | 1870 / 2134<br>2031 / 2162<br>453 / 532<br>362 / 518<br>450 / 512<br>1764 / 1826 |
 | `deeplabv3plus-r101-d8-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 104<br>53.4<br>47.1<br>18.0<br>44.6<br>30.9 | 1776 / 2036<br>1891 / 2024<br>413 / 492<br>365 / 560<br>410 / 432<br>1683 / 1732 |
 | `hrnet-w48-fcn-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.1<br>54.8<br>26.9<br>11.9<br>23.9<br>20.9 | 1789 / 1870<br>1915 / 2010<br>424 / 490<br>274 / 430<br>421 / 448<br>1662 / 1712 |
@@ -115,12 +115,13 @@ Commercial use: yes.
 - `deeplabv3plus-r101-d8-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `hrnet-w48-fcn-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `fcn-r101-d8-ade20k` load / first call: original 4.72 s / 0.393 s (512x512), portable 0.53 s / 0.073 s, kernels 0.91† s / 0.018† s
-- `pspnet-r101-d8-ade20k` load / first call: original 1.35 s / 0.092 s (512x512), portable 0.47 s / 0.082 s, kernels 0.77† s / 0.026† s
+- `pspnet-r101-d8-ade20k` load / first call: original 1.35 s / 0.092 s (512x512), portable 1.08 s / 0.049 s, kernels 0.71 s / 0.025 s
 - `deeplabv3-r101-d8-ade20k` load / first call: original 1.64 s / 0.031 s (512x512), portable 0.73 s / 0.081 s, kernels 0.91† s / 0.021† s
 - `deeplabv3plus-r101-d8-ade20k` load / first call: original 4.72 s / 0.662 s (512x512), portable 0.62 s / 0.095 s, kernels 0.75† s / 0.019† s
 - `hrnet-w48-fcn-ade20k` load / first call: original 1.48 s / 0.079 s (512x512), portable 0.62 s / 0.071 s, kernels 0.85† s / 0.014† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
-- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
+- Protocol, `fcn-r101-d8-ade20k`, `deeplabv3-r101-d8-ade20k`, `deeplabv3plus-r101-d8-ade20k`, `hrnet-w48-fcn-ade20k`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
+- Protocol, `pspnet-r101-d8-ade20k`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -610,5 +611,5 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | `imagenet-21k` | [ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release)](https://image-net.org/download.php) | LicenseRef-noncommercial | no |
 | `lvd-142m` | [LVD-142M (DINOv2's curated web-image set, not released)](https://arxiv.org/abs/2304.07193) | not stated | unclear |
 | `ade20k` | [ADE20K (SceneParsing, 150 classes)](https://ade20k.csail.mit.edu/terms/) | LicenseRef-noncommercial | no |
-| `atr` | [ATR human parsing dataset (18 clothes / body-part classes; SegFormer-B2 clothes: Hugging Face mirror mattmdjaga/human_parsing_dataset)](https://github.com/lemondan/HumanParsing-Dataset) | not stated | unclear |
-| `celebamask-hq` | [CelebAMask-HQ (30 000 CelebA-HQ faces, 19 face-part masks)](https://github.com/switchablenorms/CelebAMask-HQ) | LicenseRef-noncommercial | no |
+| `atr` | [ATR human parsing dataset (18 clothes / body-part classes; SegFormer-B2 clothes: Hugging Face mirror mattmdjaga/human_parsing_dataset)](https://github.com/lemondan/HumanParsing-Dataset/blob/837a281e75fae55ad42afed432533cf3cb2ce347/README.md) | not stated | unclear |
+| `celebamask-hq` | [CelebAMask-HQ (30 000 CelebA-HQ faces, 19 face-part masks)](https://github.com/switchablenorms/CelebAMask-HQ/blob/3f6c45df5e67130568f9459f24f8d6a5ff836d30/README.md) | LicenseRef-noncommercial | no |

@@ -16,12 +16,12 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`ema-vfi-small`](#ema_vfi) | yes | 84.5, 1.4x | 2178, 0.91x |
 | [`ema-vfi-small-t`](#ema_vfi) | yes | 84.5, 1.3x | 2178, 0.91x |
 | [`ema-vfi-t`](#ema_vfi) | yes | 207, 1.4x | 4152, 0.97x |
-| [`film`](#film) | yes | 444, 1.0x | 6188, 1.7x |
+| [`film`](#film) | yes | 333, 1.4x | 3060, 0.86x |
 | [`gimm-vfi-r`](#gimm_vfi) | no | 1629 | 5362 |
 | [`gimm-vfi-r-p`](#gimm_vfi) | no | 1628 | 5282 |
 | [`rife-4.25`](#rife) | yes | 21.5, 1.1x | 1076, 0.93x |
 | [`rife-4.25-lite`](#rife) | yes | 18.3, 1.2x | 1056, 0.87x |
-| [`rife-4.26`](#rife) | yes | 21.4, 1.1x | 1076, 0.93x |
+| [`rife-4.26`](#rife) | yes | 21.4, 1.1x | 916, 0.79x |
 
 <a id="ema_vfi"></a>
 
@@ -33,10 +33,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ema-vfi` | synthetic (1080x1920) | original<br>portable<br>kernels | 296<br>234<br>207 | 3940 / 4290<br>2827 / 3204<br>3129 / 4152 |
-| `ema-vfi-small` | synthetic (1080x1920) | original<br>portable<br>kernels | 121<br>89.5<br>84.5 | 2272 / 2384<br>1614 / 1792<br>1660 / 2178 |
-| `ema-vfi-t` | synthetic (1080x1920) | original<br>portable<br>kernels | 287<br>233<br>207 | 3940 / 4290<br>2827 / 3184<br>3129 / 4152 |
-| `ema-vfi-small-t` | synthetic (1080x1920) | original<br>portable<br>kernels | 114<br>89.4<br>84.5 | 2272 / 2384<br>1614 / 1792<br>1660 / 2178 |
+| `ema-vfi` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | 296<br>234<br>207<br>124 | 3940 / 4290<br>2827 / 3204<br>3129 / 4152<br>1719 / 1786 |
+| `ema-vfi-small` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | 121<br>89.5<br>84.5<br>43.7 | 2272 / 2384<br>1614 / 1792<br>1660 / 2178<br>1018 / 1110 |
+| `ema-vfi-t` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | 287<br>233<br>207<br>125 | 3940 / 4290<br>2827 / 3184<br>3129 / 4152<br>1719 / 1766 |
+| `ema-vfi-small-t` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | 114<br>89.4<br>84.5<br>43.4 | 2272 / 2384<br>1614 / 1792<br>1660 / 2178<br>1018 / 1110 |
 
 <details><summary>Details</summary>
 
@@ -51,6 +51,10 @@ Commercial use: yes.
 - Outputs: frame
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `ema-vfi` 1988x2880 (7.4 GiB peak allocated, 9.1 reserved); `ema-vfi-small` 3000x4000 (8.9 GiB peak allocated, 11.4 reserved); `ema-vfi-t` 1988x2880 (7.4 GiB peak allocated, 9.1 reserved); `ema-vfi-small-t` 3000x4000 (8.9 GiB peak allocated, 11.4 reserved)
+- `ema-vfi` 1080x1920, first call: TensorRT fp16 91 s (ONNX + engine).
+- `ema-vfi-small` 1080x1920, first call: TensorRT fp16 68 s (ONNX + engine).
+- `ema-vfi-t` 1080x1920, first call: TensorRT fp16 92 s (ONNX + engine).
+- `ema-vfi-small-t` 1080x1920, first call: TensorRT fp16 69 s (ONNX + engine).
 - `ema-vfi` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
 - `ema-vfi-small` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
 - `ema-vfi-t` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
@@ -97,7 +101,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `film` | synthetic (1080x1920) | original<br>portable<br>kernels | 464<br>528<br>444 | 2953 / 3556<br>4747 / 5078<br>4763 / 6188 |
+| `film` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | 464<br>417<br>333<br>fails: TensorRT parser: SequenceEmpty node | 2953 / 3556<br>2856 / 3080<br>2856 / 3060<br>– |
 
 <details><summary>Details</summary>
 
@@ -113,7 +117,7 @@ Commercial use: yes.
 - Input size: any H x W >= 64, padded to a multiple of 64
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `film` 1988x2880 (13.0 GiB peak allocated, 15.3 reserved)
 - `film` original 1080x1920: the authors' mixed-precision option (float16); the TorchScript release as inference.py, dt 0.5, zero pad to 64 (centred), --fp16: model.half()
-- `film` load / first call: original 0.29 s / 0.946 s, portable 0.19 s / 0.529 s, kernels 0.33 s / 0.445 s
+- `film` load / first call: original 0.29 s / 0.946 s, portable 0.43 s / 0.418 s, kernels 0.65 s / 0.334 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -146,8 +150,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels | OOM<br>2622<br>1629 | –<br>9899 / 10400<br>4587 / 5362 |
-| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels | OOM<br>2622<br>1628 | –<br>9899 / 10400<br>4587 / 5282 |
+| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | OOM<br>2622<br>1629<br>fails: worker rc=124 | –<br>9899 / 10400<br>4587 / 5362<br>– |
+| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | OOM<br>2622<br>1628<br>fails: worker rc=124 | –<br>9899 / 10400<br>4587 / 5282<br>– |
 
 <details><summary>Details</summary>
 
@@ -198,7 +202,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `rife-4.25` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.5<br>25.0<br>21.5<br>44.9<br>17.6 | 987 / 1154<br>755 / 894<br>967 / 1076<br>1094 / 1234<br>696 / 714 |
-| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.1<br>21.4<br>44.5<br>17.6 | 1004 / 1154<br>755 / 896<br>967 / 1076<br>1094 / 1234<br>696 / 714 |
+| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.1<br>21.4<br>44.5<br>17.6 | 1004 / 1154<br>755 / 894<br>848 / 916<br>1094 / 1234<br>696 / 714 |
 | `rife-4.25-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.3<br>21.1<br>18.3<br>42.3<br>14.1 | 1012 / 1214<br>754 / 854<br>950 / 1056<br>1061 / 1374<br>696 / 714 |
 
 <details><summary>Details</summary>
@@ -221,7 +225,7 @@ Commercial use: yes.
 - `rife-4.26` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
 - `rife-4.25-lite` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
 - `rife-4.25` load / first call: original 1.42 s / 0.265 s, portable 0.31 s / 0.491 s, kernels 1.5 s / 0.203 s
-- `rife-4.26` load / first call: original 0.18 s / 0.046 s, portable 0.78 s / 0.243 s, kernels 1.15 s / 0.198 s
+- `rife-4.26` load / first call: original 0.18 s / 0.046 s, portable 0.15 s / 0.344 s, kernels 0.29 s / 0.215 s
 - `rife-4.25-lite` load / first call: original 0.18 s / 0.12 s, portable 1.0 s / 0.229 s, kernels 1.11 s / 0.183 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -274,4 +278,4 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 
 | id | dataset | licence | commercial use |
 |---|---|---|---|
-| `vimeo90k` | [Vimeo-90K (septuplets / triplets for frame interpolation)](http://toflow.csail.mit.edu/) | not stated | unclear |
+| `vimeo90k` | [Vimeo-90K (septuplets / triplets for frame interpolation)](https://toflow.csail.mit.edu/) | not stated | unclear |

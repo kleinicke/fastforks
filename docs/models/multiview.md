@@ -18,7 +18,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`mapanything-apache`](#mapanything) | yes | 544, 3.6x | 4072, 0.47x |
 | [`mvsanywhere`](#mvsanywhere) | no | 35.2, 6.2x | 760, 0.51x |
 | [`mvsplat-re10k`](#mvsplat) | yes | 172, 1.6x | 1532, 0.37x |
-| [`patchmatchnet`](#patchmatchnet) | yes | 29.6, 7.4x | 856, 0.67x |
+| [`patchmatchnet`](#patchmatchnet) | yes | 29.5, 7.4x | 772, 0.61x |
 | [`pi3`](#pi3) | no | 560, 1.9x | 2456, 0.41x |
 | [`resplat-base-re10k`](#resplat) | no | – | – |
 | [`resplat-small-dl3dv`](#resplat) | yes | – | – |
@@ -136,7 +136,9 @@ LingBot-Map (Robbyant, 2026): streaming 3D reconstruction, cameras and depth for
 
 Commercial use: yes.
 
-Speed and memory not measured for: `lingbot-map`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>730<br>–<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>fails: timeout after 190 s | –<br>4512 / 4770<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -151,6 +153,8 @@ Speed and memory not measured for: `lingbot-map`.
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-map` 3000x4000 (5.5 GiB peak allocated, 6.8 reserved)
+- `lingbot-map` load / first call: portable 6.58 s / 1.077 s (480x640)
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 
@@ -230,7 +234,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 273<br>219<br>93.2<br>35.2<br>70.8<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 1441 / 1500<br>1504 / 1576<br>931 / 1226<br>702 / 760<br>818 / 860<br>– |
+| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 273<br>219<br>93.2<br>35.2<br>70.8<br>fails: unsupported: fp16 engine output is all NaN (strongly-typed f | 1441 / 1500<br>1504 / 1576<br>931 / 1226<br>702 / 760<br>818 / 860<br>– |
 
 <details><summary>Details</summary>
 
@@ -332,7 +336,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `patchmatchnet` | synthetic (1536x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 248<br>220<br>202<br>29.6<br>175<br>51.0 | 1330 / 1412<br>1228 / 1272<br>1806 / 2096<br>740 / 856<br>1798 / 1888<br>1073 / 1106 |
+| `patchmatchnet` | synthetic (1536x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 248<br>220<br>201<br>29.5<br>175<br>51.0 | 1330 / 1412<br>1228 / 1272<br>1039 / 1212<br>648 / 772<br>1798 / 1888<br>1073 / 1106 |
 
 <details><summary>Details</summary>
 
@@ -349,9 +353,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `patchmatchnet` 1988x2880 (7.9 GiB peak allocated, 9.4 reserved)
 - `patchmatchnet` 1536x1024, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
 - `patchmatchnet` original 1536x1024: torch.autocast(fp16) around the forward
-- `patchmatchnet` load / first call: original 0.04 s / 0.917 s (1536x1024), portable 0.06 s / 0.25 s (1536x1024), kernels 0.05† s / 0.035 s (1536x1024)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
-- Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `patchmatchnet` load / first call: original 0.04 s / 0.917 s (1536x1024), portable 0.16 s / 0.861 s (1536x1024), kernels 0.17 s / 0.562 s (1536x1024)
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 

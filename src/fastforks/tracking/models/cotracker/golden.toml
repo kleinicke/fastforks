@@ -19,3 +19,21 @@ settings = "CPU float32, upstream CoTracker3 offline (whole clip, 6 x 6 support 
 sha256 = "0c5e82630f0d8e567a19309dd660801a5b7ec058af77c2330dd52b0ce748d725"
 upstream = "https://github.com/facebookresearch/co-tracker@82e02e8029753ad4ef13cf06be7f4fc5facdda4d"
 settings = "CPU float32, upstream CoTracker3 online (is_online windows of 16, step 8) as its predictor, 6 iterations, tests/synth.py clip() 6 x 100 x 150 bilinear (align_corners) to 384 x 512, torch 2.14.1+cu130"
+
+[validated."cotracker3-offline@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-15"
+mean_px = 0.00177
+p99_px = 0.00952
+
+[validated."cotracker3-online@1"]
+kernels = ["fvm_conv@f1d064e539e1:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-15"
+mean_px = 0.00149
+p99_px = 0.00738

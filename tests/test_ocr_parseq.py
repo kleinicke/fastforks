@@ -36,3 +36,45 @@ def test_stop_early_is_the_full_decoding() -> None:
         x = torch.rand(2, 3, *IMAGE) * 2 - 1
         a, b = net(x), net(x, stop=False)
     torch.testing.assert_close(a, b, rtol=0, atol=1e-5)
+
+
+def _runner(device: str, *, cuda_graphs: bool) -> tuple[object, torch.Tensor]:
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks.ocr.models.parseq.model import Params, Portable  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    ref = PARSeq(192, 3, 6)
+    with torch.no_grad():
+        ref.pos_queries.normal_(0, 0.02)
+    ctx = SimpleNamespace(
+        params=Params(dim=192, enc_heads=3, dec_heads=6, cuda_graphs=cuda_graphs),
+        torch_dtype=torch.float32,
+        device=torch.device(device),
+        state_dict=ref.state_dict,
+    )
+    return Portable(ctx), torch.randint(0, 256, (1, 3, 40, 90), dtype=torch.uint8, device=device)  # type: ignore[arg-type]
+
+
+def test_no_graph_on_cpu() -> None:
+    runner, _ = _runner("cpu", cuda_graphs=True)
+    assert runner._graphs is None  # noqa: SLF001
+    runner.release_graphs()
+
+
+@pytest.mark.gpu
+def test_graph_replay_matches_eager() -> None:
+    """The second call of a batch size captures the 26-step decoding; replays give the eager early-exit result."""
+    graphed, img = _runner("cuda", cuda_graphs=True)
+    eager, _ = _runner("cuda", cuda_graphs=False)
+    ref = eager(img)
+    for _ in range(4):  # call 1 eager, call 2 captures, the rest replay
+        out = graphed(img)
+        assert out["texts"] == ref["texts"]
+        torch.testing.assert_close(out["scores"], ref["scores"], rtol=0, atol=1e-5)
+    assert len(graphed._graphs.graphs) == 1  # noqa: SLF001
+    x = to_input(img)
+    with torch.no_grad():
+        torch.testing.assert_close(graphed._graphs.run((x.device, x.dtype, tuple(x.shape)), x), eager.net(x), rtol=0, atol=1e-4)  # noqa: SLF001
+    graphed.release_graphs()
+    assert not graphed._graphs.graphs  # noqa: SLF001

@@ -132,7 +132,8 @@ def _spatial_block(m: Adaptive_Spatial_Attention, x: torch.Tensor, h: int, w: in
     v = _image(qkv[2], h, w)
     s = max(m.split_size)
     pad_r, pad_b = -w % s, -h % s
-    qkv = F.pad(qkv.reshape(3 * b, h, w, c), (0, 0, 0, pad_r, 0, pad_b)).reshape(3, b, -1, c)
+    if pad_r or pad_b:  # no padded copy of q, k, v when the size divides (peak memory)
+        qkv = F.pad(qkv.reshape(3 * b, h, w, c), (0, 0, 0, pad_r, 0, pad_b)).reshape(3, b, -1, c)
     hp, wp = h + pad_b, w + pad_r
     half = c // 2
     if (m.rg_idx % 2 == 0 and m.b_idx > 0 and (m.b_idx - 2) % 4 == 0) or (m.rg_idx % 2 != 0 and m.b_idx % 4 == 0):

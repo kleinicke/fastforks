@@ -76,7 +76,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>82.3<br>82.5<br>73.1<br>fails: ONNX export: torch.export failed | 502 / 558<br>320 / 378<br>279 / 342<br>246 / 300<br>– |
+| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>82.3<br>82.5<br>73.1<br>fails: unsupported: torch.export: data-dependent guard ((norm_x ==  | 502 / 558<br>320 / 378<br>279 / 342<br>246 / 300<br>– |
 
 <details><summary>Details</summary>
 
@@ -135,4 +135,4 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | id | dataset | licence | commercial use |
 |---|---|---|---|
 | `lvd-142m` | [LVD-142M (DINOv2's curated web-image set, not released)](https://arxiv.org/abs/2304.07193) | not stated | unclear |
-| `openpano` | [OpenPano (perspective crops of public 360-degree panoramas: PolyHaven, HDRMaps, AmbientCG, BlenderKit)](https://github.com/cvg/GeoCalib/blob/main/siclib/datasets/README.md) | mixed | unclear |
+| `openpano` | [OpenPano (perspective crops of public 360-degree panoramas: PolyHaven, HDRMaps, AmbientCG, BlenderKit)](https://github.com/cvg/GeoCalib/blob/1dedb29f94fc11b896c5f572005978aeebccd67f/siclib/datasets/README.md) | not stated | unclear |

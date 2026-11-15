@@ -46,6 +46,7 @@ class PatchEmbed(nn.Module):
         else:
             print(f"patch size = {patch_size} is unacceptable.")
 
+        self.chunk = 1024
         self.ffn_with_coord = nn.Sequential(
             nn.Conv2d(embed_dim*2, embed_dim*2, kernel_size=1),
             nn.ReLU(),
@@ -54,13 +55,19 @@ class PatchEmbed(nn.Module):
         self.norm = nn.LayerNorm(embed_dim*2)
 
     def forward(self, x) -> Tuple[torch.Tensor, Size_]:
+        # modified: the (B*H1*W1) cost maps run in chunks; same per-map maths, the 16..128-channel activations of the
+        # whole batch (about 2 GB at 375x1242) are never alive at once
         B, C, H, W = x.shape    # C == 1
 
         pad_l = pad_t = 0
         pad_r = (self.patch_size - W % self.patch_size) % self.patch_size
         pad_b = (self.patch_size - H % self.patch_size) % self.patch_size
         x = F.pad(x, (pad_l, pad_r, pad_t, pad_b))
+        outs = [self._embed(c) for c in x.split(self.chunk)]
+        return torch.cat([o[0] for o in outs]), outs[0][1]
 
+    def _embed(self, x) -> Tuple[torch.Tensor, Size_]:
+        B = x.shape[0]
         x = self.proj(x)
         out_size = x.shape[2:] 
 

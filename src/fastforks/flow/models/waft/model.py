@@ -69,4 +69,27 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2, iters)["flow"][-1])
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Runner):
+    """Our kernels: fp16 NHWC convs with fused epilogues, Depth Anything's fast ViT; the flow state in fp32."""
+
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network and prepare it for the kernels."""
+        super().__init__(ctx)
+        from .kernels.inference import forward_kernels, prepare_kernels  # noqa: PLC0415 - needs the kernel libraries
+
+        self.net = _net()
+        sd = ctx.state_dict()
+        check_fits(self.net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
+        self.net.load_state_dict(sd)
+        self.net.eval().to(ctx.device)
+        prepare_kernels(self.net, ctx.device)
+        self._forward = forward_kernels
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Flow of a batch (the last iteration's)."""
+        return {"flow": self._forward(self.net, image1, image2, self.ctx.params.iters)}
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

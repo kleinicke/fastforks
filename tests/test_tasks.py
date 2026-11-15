@@ -166,7 +166,7 @@ def test_matting_trimap(fake):
         m(img, trimap=np.zeros((4, 6), np.uint8))
     with pytest.raises(InputError, match="do not match"):
         m(img, trimap=np.zeros((3, 4, 5, 1), np.uint8))
-    assert matting.model_card("fake").contract().inputs == {"image": "required", "trimap": "required"}
+    assert matting.model_card("fake").contract().inputs == {"image": "required", "trimap": "required", "mask": "unused"}
     assert matting.model_card("fake").contract().export["inputs"] == ("image", "trimap")
     image, trimap = m.example_inputs(32, 48, batch=2)
     assert image.shape == (2, 3, 32, 48)
@@ -185,7 +185,7 @@ def test_matting_trimap(fake):
     plain = matting.load("fake", device="cpu")
     with pytest.raises(InputError, match="does not use a trimap"):
         plain(img, trimap=tri)
-    assert matting.model_card("fake").contract().inputs == {"image": "required", "trimap": "unused"}
+    assert matting.model_card("fake").contract().inputs == {"image": "required", "trimap": "unused", "mask": "unused"}
     assert matting.model_card("fake").contract().export["inputs"] == ("image",)
     assert len(plain.example_inputs(32, 48)) == 1
 

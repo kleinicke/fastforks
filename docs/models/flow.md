@@ -32,7 +32,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`memflow-kitti`](#memflow) | yes | 0.600 † | 865, 3.8x | 1022, 0.066x |
 | [`memflow-sintel`](#memflow) | yes | – | 865, 3.7x | 1022, 0.065x |
 | [`memfof`](#memfof) | yes | 10.891 † | 427, 1.2x | 1418, 0.66x |
-| [`memfof-kitti`](#memfof) | yes | – | 380 (375x1242) | 1218 |
+| [`memfof-kitti`](#memfof) | yes | – | 380, 2.4x (375x1242) | 1218, 0.54x |
 | [`memfof-sintel`](#memfof) | yes | – | – | – |
 | [`memfof-spring`](#memfof) | yes | – | – | – |
 | [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.1, 1.3x | 896, 0.2x |
@@ -52,9 +52,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`sea-raft-s`](#sea_raft) | yes | 1.054 † | 50.4, 6.0x | 492, 0.058x |
 | [`sea-raft-s-kitti`](#sea_raft) | yes | 0.935 † | 50.5, 5.9x | 492, 0.058x |
 | [`sea-raft-s-spring`](#sea_raft) | yes | 7.757 † | 16.0, 2.6x | 192, 0.25x |
-| [`waft-a1`](#waft) | yes | 2.315 | no kernels | no kernels |
-| [`waft-a1-kitti`](#waft) | yes | – | no kernels | no kernels |
-| [`waft-a1-sintel`](#waft) | yes | – | no kernels | no kernels |
+| [`waft-a1`](#waft) | yes | 2.315 | 519, 3.0x | 2264, 0.38x |
+| [`waft-a1-kitti`](#waft) | yes | – | – | – |
+| [`waft-a1-sintel`](#waft) | yes | – | – | – |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
@@ -85,12 +85,12 @@ Commercial use: yes.
   - `flowformer-small-things`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
   - `flowformer-small-sintel`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark
 - Options: `iters` = 32 (>= 1)
-- Kernel libraries: none (Latent cost memory and recurrent attention need a dedicated kernel implementation.)
+- Kernel libraries: none (Measured 2026-11-15: time is cuDNN TF32 convolutions plus the float32 aggregation matmul; fp16 aggregation (NaN at scale 1024, worse EPE) and SDPA (slower, EPE changed) were tried and dropped.)
 - Variants: `flowformer-small-chairs`, `flowformer-small-things`, `flowformer-small-sintel`
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `flowformer-small-chairs` 1024x1024 (11.2 GiB peak allocated, 12.3 reserved); `flowformer-small-things` 1024x1024 (11.2 GiB peak allocated, 12.3 reserved); `flowformer-small-sintel` 1024x1024 (11.2 GiB peak allocated, 12.3 reserved)
-- no kernels: Latent cost memory and recurrent attention need a dedicated kernel implementation.
+- no kernels: Measured 2026-11-15: time is cuDNN TF32 convolutions plus the float32 aggregation matmul; fp16 aggregation (NaN at scale 1024, worse EPE) and SDPA (slower, EPE changed) were tried and dropped.
 - `flowformer-small-chairs` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 118 s (ONNX + engine).
 - `flowformer-small-things` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 118 s (ONNX + engine).
 - `flowformer-small-sintel` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 117 s (ONNX + engine).
@@ -130,7 +130,8 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, portable float32 and ke
 ### Limitations
 
 - Only the Small architecture is included.
-- No custom kernels backend is implemented.
+- No custom kernels backend: the time is in cuDNN TF32 convolutions and the float32 aggregation matmul, and lowering precision changes EPE.
+- Portable runs float32 (the validated dtype): 338 ms and 1410 MB at 375x1242 against 303 ms and 2382 MB for the fp16-autocast original (EPE identical to the float32 original); switching the default to fp16 needs a full accuracy re-validation.
 - Full-frame cost memory grows quadratically with input area; upstream tiled evaluation is not included. Full-frame 1080p exceeded the RTX 5060 Ti 16GB memory in portable and original fp32/fp16 runs.
 
 </details>
@@ -213,15 +214,15 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>801<br>no kernels<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>5523 / 5660<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
-| `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>800<br>no kernels<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>5523 / 5660<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
-| `gmflow-scale2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2537<br>1599<br>1636<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8742<br>8425 / 8552<br>6433 / 7244<br>no kernels<br>10865 / 10904<br>– |
-| `gmflow-scale2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2541<br>1607<br>1644<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8742<br>8425 / 8552<br>6433 / 7244<br>no kernels<br>10865 / 10904<br>– |
-| `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>1645<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8722<br>8425 / 8572<br>6433 / 7244<br>no kernels<br>10865 / 10904<br>– |
-| `gmflow-scale2-regrefine6-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3230<br>2175<br>2183<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8730<br>8537 / 8822<br>6443 / 7250<br>no kernels<br>10875 / 10972<br>– |
-| `gmflow-scale2-regrefine6-sintelft` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2184<br>2189<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8730<br>8537 / 8822<br>6443 / 7250<br>no kernels<br>10875 / 10972<br>– |
-| `gmflow-scale2-regrefine6-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2188<br>2194<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8710<br>8537 / 8822<br>6443 / 7250<br>no kernels<br>10875 / 10972<br>– |
-| `gmflow-scale2-regrefine6-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3254<br>2188<br>2192<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8710<br>8537 / 8822<br>6443 / 7250<br>no kernels<br>10875 / 10972<br>– |
+| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>556<br>no kernels<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>4496 / 4642<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
+| `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>556<br>no kernels<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>4496 / 4642<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
+| `gmflow-scale2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2537<br>1599<br>1139<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
+| `gmflow-scale2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2541<br>1607<br>1139<br>no kernels<br>765<br>fails: unsupported: TensorRT 10 Myelin compiler error CHECK(is_cons | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
+| `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>1139<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8722<br>8425 / 8572<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
+| `gmflow-scale2-regrefine6-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3230<br>2175<br>1665<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8730<br>8537 / 8822<br>6080 / 6230<br>no kernels<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-sintelft` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2184<br>1674<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8730<br>8537 / 8822<br>6080 / 6250<br>no kernels<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2188<br>1678<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8710<br>8537 / 8822<br>6080 / 6230<br>no kernels<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3254<br>2188<br>1675<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8710<br>8537 / 8822<br>6080 / 6250<br>no kernels<br>10875 / 10972<br>– |
 
 <details><summary>Details</summary>
 
@@ -236,14 +237,14 @@ Commercial use: yes.
   - `gmflow-scale2-regrefine6-sintelft`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (FlyingChairs, FlyingThings3D, the 'sintel' stage (Sintel, KITTI 2015, HD1K, FlyingThings3D), then fine-tuned on Sintel)
   - `gmflow-scale2-regrefine6-kitti`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015, not stated by the authors (FlyingChairs, FlyingThings3D, Virtual KITTI 2 (no dataset entry here yet, hence 'unstated'), then KITTI 2012 + 2015 (upstream scripts/gmflow_scale2_regrefine6_train.sh, stages vkitti2 and kitti_mix))
   - `gmflow-scale2-regrefine6-mixdata`: MODEL_ZOO.md: "trained on several mixed public datasets" (not listed)
-- Kernel libraries: none (none of the existing kernels fits (window attention with one head, global softmax matching), and no new kernel was written for it)
+- Kernel libraries: none (after the fused attention portable is faster than the original and uses less memory at every tested size (e.g. scale1 1080x1920 556 vs 750 ms, 4496 vs 8360 MiB); the rest is the attention itself (55 % of the CUDA time at 1080p, already the memory-efficient / flash SDPA kernels) and float32 elementwise ops, and the convolutions are a small share, so no library in the manifests (cudnn_hacc speeds up convolutions) would change the total (2026-11-15, results/2026-11-15_gmflow_sdpa.md))
 - Variants: `gmflow-scale1-things`, `gmflow-scale1-mixdata`, `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata`
 - Outputs: flow
 - Input size:
   - `gmflow-scale1-things`, `gmflow-scale1-mixdata`: any H x W >= 64, padded to a multiple of 16
   - `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata`: any H x W >= 64, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gmflow-scale1-things` 1024x2048 (5.4 GiB peak allocated, 6.0 reserved); `gmflow-scale1-mixdata` 1024x2048 (5.4 GiB peak allocated, 6.0 reserved); `gmflow-scale2-things` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-sintel` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-mixdata` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-things` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-sintelft` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-kitti` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-mixdata` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved)
-- no kernels: none of the existing kernels fits (window attention with one head, global softmax matching), and no new kernel was written for it.
+- no kernels: after the fused attention portable is faster than the original and uses less memory at every tested size (e.g. scale1 1080x1920 556 vs 750 ms, 4496 vs 8360 MiB); the rest is the attention itself (55 % of the CUDA time at 1080p, already the memory-efficient / flash SDPA kernels) and float32 elementwise ops, and the convolutions are a small share, so no library in the manifests (cudnn_hacc speeds up convolutions) would change the total (2026-11-15, results/2026-11-15_gmflow_sdpa.md).
 - `gmflow-scale1-things` 1080x1920, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 69 s (ONNX + engine).
 - `gmflow-scale1-mixdata` 1080x1920, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 67 s (ONNX + engine).
 - `gmflow-scale2-things` 1080x1920, first call: portable + torch.compile 47 s (cold Inductor cache).
@@ -271,15 +272,15 @@ Commercial use: yes.
 - `gmflow-scale2-regrefine6-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
-- `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.18 s / 0.564 s (375x1242)
-- `gmflow-scale1-mixdata` load / first call: original 0.13 s / 0.76 s, portable 0.14 s / 0.483 s (375x1242)
-- `gmflow-scale2-things` load / first call: original 0.14 s / 1.61 s, portable 0.11 s / 0.626 s (375x1242)
-- `gmflow-scale2-sintel` load / first call: original 0.13 s / 1.618 s, portable 0.09 s / 0.61 s (375x1242)
-- `gmflow-scale2-mixdata` load / first call: original 0.13 s / 1.618 s, portable 0.08 s / 0.611 s (375x1242)
-- `gmflow-scale2-regrefine6-things` load / first call: original 0.15 s / 2.186 s, portable 0.16 s / 0.753 s (375x1242)
-- `gmflow-scale2-regrefine6-sintelft` load / first call: original 0.15 s / 2.369 s, portable 0.12 s / 0.763 s (375x1242)
-- `gmflow-scale2-regrefine6-kitti` load / first call: original 0.15 s / 2.199 s, portable 0.11 s / 0.752 s (375x1242)
-- `gmflow-scale2-regrefine6-mixdata` load / first call: original 0.14 s / 2.198 s, portable 0.19 s / 0.722 s (375x1242)
+- `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.16 s / 0.558 s
+- `gmflow-scale1-mixdata` load / first call: original 0.13 s / 0.76 s, portable 0.16 s / 0.558 s
+- `gmflow-scale2-things` load / first call: original 0.14 s / 1.61 s, portable 0.17 s / 1.141 s
+- `gmflow-scale2-sintel` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s
+- `gmflow-scale2-mixdata` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s
+- `gmflow-scale2-regrefine6-things` load / first call: original 0.15 s / 2.186 s, portable 0.16 s / 1.666 s
+- `gmflow-scale2-regrefine6-sintelft` load / first call: original 0.15 s / 2.369 s, portable 0.26 s / 1.676 s
+- `gmflow-scale2-regrefine6-kitti` load / first call: original 0.15 s / 2.199 s, portable 0.46 s / 1.679 s
+- `gmflow-scale2-regrefine6-mixdata` load / first call: original 0.14 s / 2.198 s, portable 0.25 s / 1.676 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -455,7 +456,9 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `memfof` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 531<br>433<br>427<br>291<br>160 | 2003 / 2144<br>1911 / 2196<br>1301 / 1418<br>2452 / 2666<br>2070 / 2132 |
-| `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>386<br>380<br>258<br>fails: TensorRT engine build failed | –<br>1619 / 1856<br>1137 / 1218<br>2041 / 2226<br>– |
+| `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 927<br>386<br>380<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | 1968 / 2276<br>1619 / 1856<br>1137 / 1218<br>2041 / 2226<br>– |
+| `memfof-sintel` | synthetic (375x1242) | original<br>portable<br>kernels | 894<br>–<br>– | 1968 / 2176<br>–<br>– |
+| `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels | 1035<br>–<br>– | 2340 / 2676<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -478,10 +481,15 @@ Commercial use: yes.
 - `memfof` 1080x1920, first call: portable + torch.compile 51 s (cold Inductor cache), TensorRT fp16 110 s (ONNX + engine).
 - `memfof-kitti` 375x1242, first call: portable + torch.compile 49 s (cold Inductor cache).
 - `memfof` original 1080x1920: torch.autocast(float16) around the call; upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)
+- `memfof-kitti` original 375x1242: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=1, frames (image1, image1, image2)
+- `memfof-sintel` original 375x1242: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=1, frames (image1, image1, image2)
+- `memfof-spring` original 1080x1920: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)
 - `memfof` load / first call: original 2.06 s / 1.293 s, portable 0.22 s / 0.415 s (375x1242), kernels 1.84 s / 0.286 s (375x1242)
-- `memfof-kitti` load / first call: portable 0.21 s / 0.651 s (375x1242), kernels 1.07 s / 0.565 s (375x1242)
-- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
-- Speed and memory not measured for: `memfof-sintel`, `memfof-spring`.
+- `memfof-kitti` load / first call: original 2.59 s / 0.961 s (375x1242), portable 0.21 s / 0.651 s (375x1242), kernels 1.07 s / 0.565 s (375x1242)
+- `memfof-sintel` load / first call: original 1.3 s / 0.897 s (375x1242)
+- `memfof-spring` load / first call: original 1.12 s / 1.037 s
+- Protocol, `memfof`, `memfof-kitti`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+- Protocol, `memfof-sintel`, `memfof-spring`: median of 5 after 3 warm-up, uint8 CUDA input, original code at the pinned commit, torch.no_grad; peak = max over the first call and the timed calls
 
 ### Measured
 
@@ -520,9 +528,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>71.3<br>59.1<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>2435 / 2478<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
-| `neuflow-v2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.7<br>71.2<br>58.9<br>91.4<br>64.9 | 8694 / 9020<br>4367 / 4576<br>2435 / 2478<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
-| `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>71.2<br>58.9<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>2435 / 2478<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
+| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>71.2<br>59.1<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>2366 / 2398<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
+| `neuflow-v2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.7<br>71.3<br>58.9<br>91.4<br>64.9 | 8694 / 9020<br>4367 / 4576<br>2366 / 2398<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
+| `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>71.4<br>58.9<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>2366 / 2398<br>779 / 896<br>4529 / 4558<br>8710 / 8748 |
 
 <details><summary>Details</summary>
 
@@ -548,9 +556,9 @@ Commercial use: yes.
 - `neuflow-v2-sintel` original 1080x1920: the authors' mixed-precision option (float16); upstream NeuFlow, iters_s8=8, infer.py recipe: conv-bn folded, model.half()
 - `neuflow-v2-things` original (fp32) 1080x1920: upstream NeuFlow, iters_s8=8
 - `neuflow-v2-things` original 1080x1920: the authors' mixed-precision option (float16); upstream NeuFlow, iters_s8=8, infer.py recipe: conv-bn folded, model.half()
-- `neuflow-v2` load / first call: original 0.2 s / 0.223 s, portable 0.05 s / 0.303 s (375x1242), kernels 0.96 s / 0.179 s (375x1242)
-- `neuflow-v2-sintel` load / first call: original 0.17 s / 0.076 s, portable 0.07 s / 0.283 s (375x1242), kernels 0.95 s / 0.178 s (375x1242)
-- `neuflow-v2-things` load / first call: original 0.17 s / 0.076 s, portable 0.06 s / 0.297 s (375x1242), kernels 0.92 s / 0.182 s (375x1242)
+- `neuflow-v2` load / first call: original 0.2 s / 0.223 s, portable 0.26 s / 0.072 s, kernels 0.96 s / 0.179 s (375x1242)
+- `neuflow-v2-sintel` load / first call: original 0.17 s / 0.076 s, portable 1.29 s / 0.806 s (375x1242), kernels 0.95 s / 0.178 s (375x1242)
+- `neuflow-v2-things` load / first call: original 0.17 s / 0.076 s, portable 0.38 s / 0.072 s, kernels 0.26 s / 0.059 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -590,7 +598,7 @@ Commercial use: yes.
 | `raft-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>83.5<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>342 / 372<br>5886 / 5924<br>– |
 | `raft-large-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 481<br>566<br>291<br>83.1<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>333 / 352<br>5886 / 5924<br>– |
 | `raft-large-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>83.6<br>195<br>fails: TensorRT engine build failed | 13489 / 13818<br>7164 / 10928<br>5930 / 6058<br>333 / 352<br>5886 / 5924<br>– |
-| `raft-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>395<br>144<br>36.3<br>110<br>fails: TensorRT engine build failed | 13441 / 13686<br>7032 / 10888<br>5669 / 5706<br>197 / 224<br>5704 / 5728<br>– |
+| `raft-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>395<br>144<br>36.3<br>110<br>fails: unsupported: engine build needs more than the 16 GB of this  | 13441 / 13686<br>7032 / 10888<br>5669 / 5706<br>197 / 224<br>5704 / 5728<br>– |
 
 <details><summary>Details</summary>
 
@@ -820,9 +828,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>790<br>no kernels | 5537 / 5916<br>3553 / 4076<br>no kernels |
-| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>no kernels | 5537 / 5936<br>3553 / 4196<br>no kernels |
-| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>no kernels | 5537 / 5916<br>3553 / 4076<br>no kernels |
+| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>519 | 5537 / 5916<br>3553 / 4076<br>1851 / 2264 |
+| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>– | 5537 / 5936<br>3553 / 4196<br>– |
+| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>– | 5537 / 5916<br>3553 / 4076<br>– |
 
 <details><summary>Details</summary>
 
@@ -834,16 +842,15 @@ Commercial use: yes.
   - `waft-a1-kitti`: TartanAir, FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (TartanAir, FlyingChairs, FlyingThings3D, then fine-tuned on KITTI 2015 (5000 steps; the config does not name the starting checkpoint, counted as the TSKH stage as in SEA-RAFT))
   - `waft-a1-sintel`: TartanAir, FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (TartanAir, FlyingChairs, FlyingThings3D, then the mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH))
 - Options: `iters` = 5 (>= 1)
-- Kernel libraries: none (no kernels mode was built for it; Depth Anything's fast ViT kernels would fit)
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `waft-a1`, `waft-a1-kitti`, `waft-a1-sintel`
 - Outputs: flow
 - Input size: any H x W >= 112, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `waft-a1` 1080x1920 (3.5 GiB peak allocated, 4.0 reserved); `waft-a1-kitti` 1080x1920 (3.5 GiB peak allocated, 4.1 reserved); `waft-a1-sintel` 1080x1920 (3.5 GiB peak allocated, 4.0 reserved)
-- no kernels: no kernels mode was built for it; Depth Anything's fast ViT kernels would fit.
 - `waft-a1` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t.json), iters=5
 - `waft-a1-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-kitti.json), iters=5
 - `waft-a1-sintel` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-sintel.json), iters=5
-- `waft-a1` load / first call: original 5.87 s / 3.409 s, portable 0.51 s / 0.79 s
+- `waft-a1` load / first call: original 5.87 s / 3.409 s, portable 0.51 s / 0.79 s, kernels 0.57 s / 0.21 s (375x1242)
 - `waft-a1-kitti` load / first call: original 4.06 s / 2.874 s, portable 0.54 s / 0.79 s
 - `waft-a1-sintel` load / first call: original 2.93 s / 2.873 s, portable 0.51 s / 0.79 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -864,9 +871,9 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `waft-a1` | no kernels backend | - | - |
-| `waft-a1-kitti` | no kernels backend | - | - |
-| `waft-a1-sintel` | no kernels backend | - | - |
+| `waft-a1` | 0.00414 / 0.01608 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `waft-a1-kitti` | 0.00557 / 0.02456 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `waft-a1-sintel` | 0.00336 / 0.01352 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
 
 </details>
 
@@ -918,9 +925,9 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`sea-raft-s`](#sea_raft) | portable, kernels | BSD-3-Clause | BSD-3-Clause | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 | [`sea-raft-s-kitti`](#sea_raft) | portable, kernels | BSD-3-Clause | BSD-3-Clause | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 | [`sea-raft-s-spring`](#sea_raft) | portable, kernels | BSD-3-Clause | BSD-3-Clause | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k, spring | yes | flow |
-| [`waft-a1`](#waft) | portable | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow | yes | flow |
-| [`waft-a1-kitti`](#waft) | portable | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
-| [`waft-a1-sintel`](#waft) | portable | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
+| [`waft-a1`](#waft) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow | yes | flow |
+| [`waft-a1-kitti`](#waft) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
+| [`waft-a1-sintel`](#waft) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 
 </details>
 

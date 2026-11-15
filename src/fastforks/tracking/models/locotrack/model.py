@@ -31,6 +31,13 @@ QUERY_CHUNK = 64  # fixed: upstream's inference chunk
 GELU = 5  # fixed: fused-epilogue activation code of exact GELU (fastforks._optimize.conv_ops)
 
 
+def _join(chunks: list[torch.Tensor]) -> torch.Tensor:
+    """The chunks as one tensor, without keeping the chunks alive next to it (the per-frame features: peak memory)."""
+    out = chunks[0] if len(chunks) == 1 else torch.cat(chunks)
+    chunks.clear()
+    return out
+
+
 def build(ctx: Context) -> LocoTrack:
     """The variant's network (base or small, from the mixer width of the weights)."""
     sd = ctx.state_dict(key="state_dict", strip="model.")
@@ -62,7 +69,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
             for g, f in zip(grids, net.frame_features(video * 2 - 1), strict=True):
                 g.append(f)
         q = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]  # (t, y, x)
-        f = net.features(tuple(torch.cat(g) for g in grids), q)
+        f = net.features(tuple(_join(g) for g in grids), q)
         points, vis = [], []
         for s in range(0, q.shape[1], QUERY_CHUNK):
             p, occ, expd = net.track(f, q, slice(s, s + QUERY_CHUNK))

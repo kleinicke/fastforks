@@ -140,10 +140,13 @@ def _cnx_prep(blk: _Blk) -> None:
             g = blk.gamma.float()
             w2, b2 = w2 * g[:, None], b2 * g
         dt = m.fc2.weight.dtype
-        if blk.gamma is None:
-            _reg(blk, {"_w2": m.fc2.weight, "_b2": m.fc2.bias})
-        else:
-            _reg(blk, {"_w2": w2.to(dt).contiguous(), "_b2": b2.to(dt)})
+        if blk.gamma is not None:
+            # the layer scale is folded into the parameters themselves (as `cnn.fold_layer_scale` does) and the scale
+            # set to 1: a separate folded copy of every fc2 weight cost a second copy of ~40 % of the model
+            m.fc2.weight.data = w2.to(dt).contiguous()
+            m.fc2.bias.data = b2.to(dt)
+            blk.gamma.data = torch.ones_like(blk.gamma)
+        _reg(blk, {"_w2": m.fc2.weight, "_b2": m.fc2.bias})
     grn = getattr(m, "grn", None)
     if grn is not None:
         blk._grn_eps = grn.eps

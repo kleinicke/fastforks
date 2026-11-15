@@ -40,8 +40,8 @@ cuda_dtype = "float16"  # as upstream: encoders and refiners under float16 autoc
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-status = "none"
-reason = "not implemented yet"
+dtype = "float16"  # the VGG and refiner convs as fused fp16 channels-last conv + BatchNorm + ReLU (the BN is not folded); dedode-v2-g: 12 % faster, peak memory -3 % (the peak is in the DINOv2 descriptor, as portable), AUC@5 -0.2 on 1500 pairs
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 
 [[papers]]
 title = "DeDoDe v2: Analyzing and Improving the DeDoDe Keypoint Detector"

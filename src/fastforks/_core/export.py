@@ -461,13 +461,16 @@ def resolve_size(model: Model, height: int | None, width: int | None) -> tuple[i
     return default
 
 
-def _fix_folded_weight_casts(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Model
-    """Cast float32 weight constants of fp16 / bf16 convolutions to the input's dtype; returns how many it replaced.
+_WEIGHT_CAST_OPS = {"Conv", "ConvTranspose", "InstanceNormalization"}  # weight / scale + bias take the input's dtype
 
-    Under autocast a convolution casts its float32 weights to fp16 / bf16. The exporter's constant folding (torch 2.14,
-    onnxscript 0.7) stores some of these casts as float32 initializers again (seen in LAS2 fp16, on the weights the
-    two feature passes share; DEFOM bf16), which onnxruntime and TensorRT reject. The replacement is the value the cast
-    computes.
+
+def _fix_folded_weight_casts(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Model
+    """Cast float32 weight constants of fp16 / bf16 convolutions (and instance norms: scale, bias) to the input's dtype.
+
+    Returns how many it replaced. Under autocast a convolution casts its float32 weights to fp16 / bf16. The
+    exporter's constant folding (torch 2.14, onnxscript 0.7) stores some of these casts as float32 initializers again
+    (seen in LAS2 fp16, on the weights the two feature passes share; DEFOM bf16; TAPIR's instance norms), which
+    onnxruntime and TensorRT reject. The replacement is the value the cast computes.
     """
     try:
         import onnx_ir as ir  # noqa: PLC0415 - comes with onnxscript (optional)
@@ -477,7 +480,7 @@ def _fix_folded_weight_casts(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Mo
 
     fixed = 0
     for node in model.graph.all_nodes():
-        x = node.inputs[0] if node.op_type in {"Conv", "ConvTranspose"} and node.inputs else None
+        x = node.inputs[0] if node.op_type in _WEIGHT_CAST_OPS and node.inputs else None
         if x is None or x.dtype not in {ir.DataType.FLOAT16, ir.DataType.BFLOAT16}:
             continue
         for i, v in enumerate(node.inputs[1:], 1):

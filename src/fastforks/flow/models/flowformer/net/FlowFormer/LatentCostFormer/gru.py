@@ -41,18 +41,26 @@ class SepConvGRU(nn.Module):
         self.convq2 = nn.Conv2d(hidden_dim+input_dim, hidden_dim, (5,1), padding=(2,0))
 
 
+    def fuse(self):
+        # modified: z and r read the same input, so one conv with their weights stacked computes both
+        for k in (1, 2):
+            z, r = getattr(self, f"convz{k}"), getattr(self, f"convr{k}")
+            zr = nn.Conv2d(z.in_channels, 2 * z.out_channels, z.kernel_size, padding=z.padding).to(z.weight)
+            with torch.no_grad():
+                zr.weight.copy_(torch.cat([z.weight, r.weight]))
+                zr.bias.copy_(torch.cat([z.bias, r.bias]))
+            setattr(self, f"convzr{k}", zr)
+
     def forward(self, h, x):
         # horizontal
         hx = torch.cat([h, x], dim=1)
-        z = torch.sigmoid(self.convz1(hx))
-        r = torch.sigmoid(self.convr1(hx))
+        z, r = torch.sigmoid(self.convzr1(hx)).chunk(2, dim=1)
         q = torch.tanh(self.convq1(torch.cat([r*h, x], dim=1)))        
         h = (1-z) * h + z * q
 
         # vertical
         hx = torch.cat([h, x], dim=1)
-        z = torch.sigmoid(self.convz2(hx))
-        r = torch.sigmoid(self.convr2(hx))
+        z, r = torch.sigmoid(self.convzr2(hx)).chunk(2, dim=1)
         q = torch.tanh(self.convq2(torch.cat([r*h, x], dim=1)))       
         h = (1-z) * h + z * q
 

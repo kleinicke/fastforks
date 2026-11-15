@@ -25,7 +25,9 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.patch import override
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared import cnn_kernels
 from fastforks.shared.dedode import (
     VGG,
     ConvRefiner,
@@ -129,7 +131,39 @@ class Matcher(nn.Module):
         return self.match(image1, image2, self.describe(image1), self.describe(image2))
 
 
-def load_matcher(ctx: Context) -> Matcher:
+def prepare_kernels(net: Matcher, device: torch.device) -> None:
+    """The VGG encoders and refiners on the fused fp16 channels-last conv kernels (`cnn_kernels.prepare_generic`)."""
+    cnn_kernels.load(device)
+    for enc in (net.detector.encoder, net.descriptor.encoder):
+        vgg = enc.vgg if isinstance(enc, VGGDINOv2) else enc
+        vgg.layers = nn.Sequential(*vgg.layers)  # ty: ignore[invalid-assignment]  # a Sequential: `fuse_sequentials` fuses its conv-BN-ReLU runs
+        cnn_kernels.prepare_generic(vgg, device)
+        override(vgg, _vgg_forward)
+    for m in list(net.detector.decoder.modules()) + list(net.descriptor.decoder.modules()):
+        if isinstance(m, ConvRefiner):
+            cnn_kernels.prepare_generic(m, device)
+            override(m, _refiner_forward)
+
+
+def _vgg_forward(self: VGG, x: torch.Tensor) -> tuple[list[torch.Tensor], list[torch.Size]]:
+    """`VGG.forward` on an fp16 channels-last input."""
+    x = x.half().contiguous(memory_format=torch.channels_last)
+    feats, sizes = [], []
+    for layer in self.layers:
+        if isinstance(layer, nn.MaxPool2d):
+            feats.append(x)
+            sizes.append(x.shape[-2:])
+        x = layer(x)
+    return feats, sizes
+
+
+def _refiner_forward(self: ConvRefiner, feats: torch.Tensor) -> torch.Tensor:
+    """`ConvRefiner.forward` on an fp16 channels-last input."""
+    x0 = self.block1(feats.half().contiguous(memory_format=torch.channels_last))
+    return self.out_conv((self.hidden_blocks(x0) + x0) / 1.4)
+
+
+def load_matcher(ctx: Context, *, kernels: bool = False) -> Matcher:
     """The matcher with the variant's weights (detector, descriptor, DINOv2 for -G), eval, on `ctx.device`."""
     p = ctx.params
     net = Matcher(p)
@@ -143,6 +177,13 @@ def load_matcher(ctx: Context) -> Matcher:
     if ctx.device.type == "cuda":  # not on CPU: the float32 reference parity
         if net.dinov2 is not None:
             fold_layer_scale(net.dinov2)
+        if kernels:  # fastforks: conv + BN + ReLU fused in the epilogue of fp16 cuDNN / CUTLASS convs, no BN fold
+            prepare_kernels(net, ctx.device)
+            net.set_amp(torch.float16)
+            for m in net.modules():
+                if isinstance(m, (VGG, ConvRefiner)):
+                    m.amp = None  # the convs are fp16 themselves
+            return net
         fold_batch_norms(net)
         for m in net.modules():
             if isinstance(m, ConvRefiner):
@@ -181,4 +222,13 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2))
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Portable with the VGG and refiner convs as fused fp16 channels-last conv + BN + ReLU kernels."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the networks."""
+        Runner.__init__(self, ctx)
+        self.net = load_matcher(ctx, kernels=True)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

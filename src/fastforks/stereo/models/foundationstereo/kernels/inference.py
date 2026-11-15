@@ -19,10 +19,10 @@ prepare_kernels(model, device), then forward_kernels(model, left, right, iters) 
 """
 
 import ctypes
+import math
 from collections.abc import Iterator, Sequence
 from typing import Any, cast
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -445,7 +445,7 @@ def normalize_image(img: torch.Tensor) -> torch.Tensor:
 def feature_fast(ft: nn.Module, x: torch.Tensor, ctx: Sequence[Any]) -> tuple[list[torch.Tensor], torch.Tensor]:
     """== Feature.forward for a batch of images (fp32 normalized input)."""
     B, C, H, W = x.shape
-    divider = np.lcm(ft.patch_size, 16)
+    divider = math.lcm(ft.patch_size, 16)
     Hr, Wr = get_resize_keep_aspect_ratio(H, W, divider=divider, max_H=1344, max_W=1344)
     xin = F.interpolate(x, size=(Hr, Wr), mode="bicubic", align_corners=False)
     vit = dino_fast(ft.dino, xin.to(ctx.dt), (H // 4, W // 4))

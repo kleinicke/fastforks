@@ -13,10 +13,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`big-lama`](#lama) | yes | 21.2, 1.8x | 284, 0.99x |
-| [`codeformer`](#codeformer) | no | no kernels | no kernels |
-| [`dat-2-x4`](#dat) | yes | 1247, 3.9x | 2858, 1.1x |
+| [`codeformer`](#codeformer) | no | 40.4, 2.1x | 496, 0.46x |
+| [`dat-2-x4`](#dat) | yes | 1221, 4.0x | 2378, 0.94x |
 | [`dat-light-x4`](#dat) | yes | 268, 8.2x | 1572, 0.95x |
-| [`dat-x4`](#dat) | yes | 1421, 6.7x | 2864, 1.1x |
+| [`dat-x4`](#dat) | yes | 1417, 6.7x | 2604, 1.0x |
 | [`drct-l-x4`](#drct) | yes | 1422, 10.3x | 3010, 0.43x |
 | [`drct-x4`](#drct) | yes | 730, 10.3x | 2946, 0.75x |
 | [`gfpgan-v1.4`](#gfpgan) | yes | 18.0, 1.2x | 530, 0.79x |
@@ -32,16 +32,16 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`realplksr-nomoswebphoto-x4`](#realplksr) | yes | 130, 2.1x | 216, 0.68x |
 | [`restormer-deblur`](#restormer) | yes | 225, 1.0x | 980, 0.69x |
 | [`restormer-derain`](#restormer) | yes | 225, 1.0x | 980, 0.69x |
-| [`restormer-sidd`](#restormer) | yes | 224, 1.0x | 980, 0.69x |
-| [`seedvr2-3b`](#seedvr2) | yes | 2281, 5.8x | 15348, 1.0x |
+| [`restormer-sidd`](#restormer) | yes | 179, 1.2x | 940, 0.66x |
+| [`seedvr2-3b`](#seedvr2) | yes | 2295, 5.7x | 6772, 0.44x |
 | [`seedvr2-7b`](#seedvr2) | yes | – | – |
 | [`span-x2`](#span) | yes | 14.9, 1.6x | 522, 0.81x |
 | [`span-x4`](#span) | yes | 14.6, 1.8x | 522, 0.81x |
 | [`swin2sr-x2`](#swin2sr) | yes | 720, 3.6x | 1636, 1.0x |
 | [`swin2sr-x4`](#swin2sr) | yes | 745, 3.9x | 1736, 0.8x |
-| [`swin2sr-x4-real`](#swin2sr) | yes | 752, 3.4x | 1734, 0.65x |
+| [`swin2sr-x4-real`](#swin2sr) | yes | 751, 3.4x | 1734, 0.65x |
 | [`swinir-l-x4-real`](#swinir) | yes | 1044, 3.6x | 2152, 0.78x |
-| [`swinir-m-x2`](#swinir) | yes | 558, 5.8x | 1754, 0.96x |
+| [`swinir-m-x2`](#swinir) | yes | 553, 5.9x | 1454, 0.8x |
 | [`swinir-m-x4`](#swinir) | yes | 580, 6.0x | 1456, 0.71x |
 | [`swinir-m-x4-real`](#swinir) | yes | 588, 4.2x | 1954, 0.66x |
 
@@ -55,7 +55,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `big-lama` | synthetic (512x512) | original<br>portable<br>kernels | 38.0<br>26.0<br>21.2 | 239 / 286<br>219 / 242<br>219 / 284 |
+| `big-lama` | synthetic (512x512) | original<br>portable<br>kernels<br>TensorRT fp16 | 38.0<br>26.0<br>21.2<br>fails: TensorRT parser: DFT node | 239 / 286<br>219 / 242<br>219 / 284<br>– |
 
 <details><summary>Details</summary>
 
@@ -99,7 +99,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `codeformer` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>48.6<br>no kernels<br>30.8<br>16.3 | 959 / 1090<br>512 / 638<br>no kernels<br>407 / 458<br>593 / 642 |
+| `codeformer` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>48.6<br>40.4<br>30.8<br>16.3 | 959 / 1090<br>512 / 638<br>432 / 496<br>407 / 458<br>593 / 642 |
 
 <details><summary>Details</summary>
 
@@ -109,15 +109,14 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/LICENSE ; https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/README.md (weights: https://github.com/sczhou/CodeFormer/releases/tag/v0.1.0)
 - Training data: Flickr-Faces-HQ (FFHQ, 70k face images) (Paper Sec. 4.1: FFHQ (70 000 faces, resized to 512 x 512) with synthetic degradations (blur, downsampling, noise, JPEG).)
 - Options: `fidelity` = 0.5 (0.0 to 1.0; also `fidelity_weight`)
-- Kernel libraries: none (not built yet: a VQGAN of 3x3 convolutions with GroupNorm around a 16 x 16 transformer; fp16-accumulate convolutions (`cudnn_hacc`) are the next step)
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `codeformer`
 - Outputs: image
 - Input size: any H x W >= 512, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `codeformer` 512x512 (0.5 GiB peak allocated, 0.7 reserved)
-- no kernels: not built yet: a VQGAN of 3x3 convolutions with GroupNorm around a 16 x 16 transformer; fp16-accumulate convolutions (`cudnn_hacc`) are the next step.
 - `codeformer` 512x512, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 65 s (ONNX + engine).
 - `codeformer` original 512x512: upstream inference_codeformer.py on the aligned face, float32, w 0.5
-- `codeformer` load / first call: original 1.24 s / 0.406 s, portable 0.69 s / 0.228 s
+- `codeformer` load / first call: original 1.24 s / 0.406 s, portable 0.69 s / 0.228 s, kernels 0.65 s / 0.23 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
@@ -126,7 +125,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `codeformer` | no kernels backend | - | - |
+| `codeformer` | 0.0017 / 0.01817 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 </details>
 
@@ -140,8 +139,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 9564<br>1565<br>1421<br>1063 | 2443 / 2528<br>2552 / 2624<br>2737 / 2864<br>2552 / 2606 |
-| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 4880<br>1338<br>1247<br>964 | 2436 / 2518<br>2546 / 2618<br>2730 / 2858<br>2546 / 2598 |
+| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 9564<br>1565<br>1417<br>1063 | 2443 / 2528<br>2552 / 2624<br>2552 / 2604<br>2552 / 2606 |
+| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 4880<br>1312<br>1221<br>964 | 2436 / 2518<br>2276 / 2378<br>2276 / 2378<br>2546 / 2598 |
 | `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 2204<br>268<br>268<br>158 | 1606 / 1656<br>1535 / 1552<br>1535 / 1572<br>1385 / 1412 |
 
 <details><summary>Details</summary>
@@ -164,8 +163,8 @@ Commercial use: yes.
 - `dat-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-2-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-light-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
-- `dat-x4` load / first call: original 2.2 s / 6.13 s, portable 0.89 s / 2.36 s, kernels 2.55 s / 2.467 s
-- `dat-2-x4` load / first call: original 2.04 s / 5.516 s, portable 14.55 s / 2.72 s, kernels 1.61 s / 2.031 s
+- `dat-x4` load / first call: original 2.2 s / 6.13 s, portable 2.99 s / 2.307 s, kernels 0.71 s / 2.149 s
+- `dat-2-x4` load / first call: original 2.04 s / 5.516 s, portable 0.71 s / 2.136 s, kernels 0.72 s / 2.006 s
 - `dat-light-x4` load / first call: original 3.48 s / 2.721 s, portable 0.21 s / 1.304 s, kernels 1.25 s / 1.152 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -203,7 +202,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 7492<br>830<br>730<br>618 | 3359 / 3944<br>2626 / 3048<br>2626 / 2946<br>1938 / 2348 |
+| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>830<br>730<br>618<br>fails: worker rc=124 | 3359 / 3944<br>2626 / 3048<br>2626 / 2946<br>1938 / 2348<br>– |
 | `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 14651<br>1607<br>1422<br>1210 | 5574 / 6926<br>2692 / 3110<br>2692 / 3010<br>2005 / 2410 |
 
 <details><summary>Details</summary>
@@ -298,7 +297,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `hat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 3038<br>1596<br>1445<br>1185 | 5318 / 6106<br>2426 / 2590<br>2610 / 2790<br>1811 / 2750 |
-| `hat-s-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 2402<br>1072<br>974<br>750 | 5018 / 5644<br>1984 / 2148<br>1985 / 2088<br>2352 / 3068 |
+| `hat-s-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2402<br>1072<br>974<br>750<br>fails: TensorRT engine build failed | 5018 / 5644<br>1984 / 2148<br>1985 / 2088<br>2352 / 3068<br>– |
 | `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 3038<br>1597<br>1445<br>1185 | 5318 / 6106<br>2426 / 2610<br>2610 / 2770<br>1811 / 2750 |
 
 <details><summary>Details</summary>
@@ -577,7 +576,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>225<br>143<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 980<br>660 / 778<br>757 / 774 |
 | `restormer-derain` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>225<br>144<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 980<br>660 / 778<br>757 / 774 |
-| `restormer-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>227<br>224<br>142<br>162 | 1221 / 1416<br>850 / 960<br>850 / 980<br>660 / 778<br>757 / 774 |
+| `restormer-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>181<br>179<br>142<br>162 | 1221 / 1416<br>850 / 920<br>850 / 940<br>660 / 778<br>757 / 774 |
 
 <details><summary>Details</summary>
 
@@ -601,7 +600,7 @@ Commercial use: yes.
 - `restormer-sidd` original 512x512: .half() on 1 modules, fp16 inputs; upstream test.py, float32, no tile
 - `restormer-deblur` load / first call: original 0.36 s / 0.897 s, portable 0.28 s / 0.712 s, kernels 0.6 s / 0.528 s
 - `restormer-derain` load / first call: original 0.34 s / 0.898 s, portable 0.29 s / 0.721 s, kernels 0.58 s / 0.527 s
-- `restormer-sidd` load / first call: original 0.34 s / 0.886 s, portable 0.29 s / 0.733 s, kernels 0.6 s / 0.563 s
+- `restormer-sidd` load / first call: original 0.34 s / 0.886 s, portable 0.29 s / 0.891 s, kernels 0.59 s / 0.529 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -639,7 +638,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2281<br>2281<br>fails: timeout after 290 s<br>fails: not run: onnx is not installed in the test venv | 7598 / 15268<br>11957 / 15348<br>11957 / 15348<br>–<br>– |
+| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2295<br>fails: timeout after 290 s<br>fails: not run: onnx is not installed in the test venv | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>–<br>– |
 | `seedvr2-7b` | 512x512 | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>OOM<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>fails: timeout after 290 s | –<br>–<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
@@ -657,7 +656,7 @@ Commercial use: yes.
 - Input size: any H x W >= 8, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `seedvr2-3b` 512x512 (11.7 GiB peak allocated, 15.0 reserved); `seedvr2-7b` 512x512 (6.3 GiB peak allocated, 8.7 reserved)
 - `seedvr2-3b` original 512x512: load: the authors' fp32 .pth files from the page cache (read once before)
-- `seedvr2-3b` load / first call: original 96.2 s / 13.89 s, portable 8.09 s / 2.508 s, kernels 5.29 s / 2.453 s
+- `seedvr2-3b` load / first call: original 96.2 s / 13.89 s, portable 4.88 s / 2.494 s, kernels 4.9 s / 2.499 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
@@ -748,7 +747,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `swin2sr-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>TensorRT fp16 | 2922<br>932<br>745<br>556 | 1488 / 2160<br>1463 / 2276<br>1459 / 1736<br>5410 / 5470 |
 | `swin2sr-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2565<br>909<br>720<br>482<br>547 | 1488 / 1578<br>1459 / 1554<br>1459 / 1636<br>1308 / 1516<br>4941 / 4997 |
-| `swin2sr-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2527<br>958<br>752<br>508<br>562 | 2321 / 2660<br>2354 / 2774<br>1459 / 1734<br>1308 / 1556<br>5409 / 5468 |
+| `swin2sr-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2527<br>958<br>751<br>508<br>562 | 2321 / 2660<br>2354 / 2774<br>1459 / 1734<br>1308 / 1556<br>5409 / 5468 |
 
 <details><summary>Details</summary>
 
@@ -768,9 +767,9 @@ Commercial use: yes.
 - `swin2sr-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
 - `swin2sr-x2` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
 - `swin2sr-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
-- `swin2sr-x4` load / first call: original 1.63 s / 3.583 s, portable 0.37 s / 1.256 s, kernels 0.58 s / 0.867 s
+- `swin2sr-x4` load / first call: original 1.63 s / 3.583 s, portable 0.48 s / 1.16 s, kernels 0.57 s / 1.023 s
 - `swin2sr-x2` load / first call: original 1.81 s / 4.125 s, portable 0.37 s / 1.226 s, kernels 0.56 s / 0.844 s
-- `swin2sr-x4-real` load / first call: original 1.89 s / 3.754 s, portable 0.38 s / 1.275 s, kernels 0.6 s / 0.876 s
+- `swin2sr-x4-real` load / first call: original 1.89 s / 3.754 s, portable 0.47 s / 1.179 s, kernels 0.57 s / 0.882 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -808,7 +807,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `swinir-m-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3497<br>767<br>580<br>795<br>727 | 1500 / 2058<br>1499 / 2054<br>1390 / 1456<br>1684 / 1796<br>5525 / 5604 |
-| `swinir-m-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3252<br>1192<br>558<br>781<br>719 | 1500 / 1818<br>1386 / 1574<br>1577 / 1754<br>1683 / 1796<br>5088 / 5144 |
+| `swinir-m-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3252<br>739<br>553<br>781<br>719 | 1500 / 1818<br>1353 / 1454<br>1353 / 1454<br>1683 / 1796<br>5088 / 5144 |
 | `swinir-m-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2462<br>1242<br>588<br>807<br>733 | 2321 / 2978<br>2387 / 3034<br>1577 / 1954<br>1683 / 1796<br>5427 / 5506 |
 | `swinir-l-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3709<br>2099<br>1044<br>1426<br>1118 | 2357 / 2746<br>2425 / 2672<br>1872 / 2152<br>2153 / 2876<br>9182 / 9282 |
 
@@ -835,7 +834,7 @@ Commercial use: yes.
 - `swinir-m-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
 - `swinir-l-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
 - `swinir-m-x4` load / first call: original 2.07 s / 3.272 s, portable 0.44 s / 1.36 s, kernels 1.28 s / 0.646 s
-- `swinir-m-x2` load / first call: original 2.95 s / 4.489 s, portable 0.38 s / 1.342 s, kernels 1.26 s / 0.631 s
+- `swinir-m-x2` load / first call: original 2.95 s / 4.489 s, portable 0.67 s / 0.848 s, kernels 0.43 s / 0.629 s
 - `swinir-m-x4-real` load / first call: original 2.06 s / 3.326 s, portable 0.4 s / 1.386 s, kernels 1.31 s / 0.697 s
 - `swinir-l-x4-real` load / first call: original 2.15 s / 5.945 s, portable 0.7 s / 2.188 s, kernels 1.46 s / 1.103 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -874,7 +873,7 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
 | [`big-lama`](#lama) | portable, kernels | Apache-2.0 | Apache-2.0 | places365 | yes | image |
-| [`codeformer`](#codeformer) | portable | LicenseRef-noncommercial | LicenseRef-noncommercial | ffhq | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial) | image |
+| [`codeformer`](#codeformer) | portable, kernels | LicenseRef-noncommercial | LicenseRef-noncommercial | ffhq | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial) | image |
 | [`dat-2-x4`](#dat) | portable, kernels | Apache-2.0 | Apache-2.0 | div2k, flickr2k | yes | image |
 | [`dat-light-x4`](#dat) | portable, kernels | Apache-2.0 | Apache-2.0 | div2k, flickr2k | yes | image |
 | [`dat-x4`](#dat) | portable, kernels | Apache-2.0 | Apache-2.0 | div2k, flickr2k | yes | image |
@@ -913,15 +912,15 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | id | dataset | licence | commercial use |
 |---|---|---|---|
 | `imagenet-1k` | [ImageNet-1k (ILSVRC 2012 classification)](https://image-net.org/download.php) | LicenseRef-noncommercial | no |
-| `div2k` | [DIV2K (NTIRE 2017 super-resolution, 1000 2K images)](https://data.vision.ee.ethz.ch/cvl/DIV2K/) | academic research only | no |
+| `div2k` | [DIV2K (NTIRE 2017 super-resolution, 1000 2K images)](https://data.vision.ee.ethz.ch/cvl/DIV2K/) | LicenseRef-research-only | no |
 | `gopro` | [GoPro deblurring (GOPRO_Large, Nah et al. 2017: 3214 blurred / sharp frame pairs)](https://seungjunnah.github.io/Datasets/gopro) | CC-BY-4.0 | yes |
 | `sidd` | [Smartphone Image Denoising Dataset (SIDD, noisy / ground-truth smartphone photos)](https://abdokamel.github.io/sidd/) | MIT | yes |
 | `rain13k` | [Rain13K (13712 synthetic rainy / clean pairs merged from Rain14000, Rain1800, Rain800, Rain12; MPRNet's training set)](https://github.com/swz30/Restormer/blob/68dc6ac472db26f16361150cb7a96a1bc87da93f/Deraining/README.md) | not stated | unclear |
-| `flickr2k` | [Flickr2K (2650 2K Flickr images, EDSR)](https://github.com/limbee/NTIRE2017) | not stated | unclear |
-| `ost` | [OutdoorSceneTraining (OST, SFTGAN)](https://github.com/xinntao/SFTGAN) | not stated | unclear |
-| `ffhq` | [Flickr-Faces-HQ (FFHQ, 70k face images)](https://github.com/NVlabs/ffhq-dataset) | CC-BY-NC-SA-4.0 | no |
-| `manga109` | [Manga109 (109 Japanese manga volumes)](http://www.manga109.org/en/) | academic research only | no |
+| `flickr2k` | [Flickr2K (2650 2K Flickr images, EDSR)](https://github.com/limbee/NTIRE2017/blob/db34606c2844e89317aac8728a2de562ef1f8aba/README.md) | not stated | unclear |
+| `ost` | [OutdoorSceneTraining (OST, SFTGAN)](https://github.com/xinntao/SFTGAN/blob/d98889e9f94e44a788cc0ffeaaca77ca76556638/README.md) | not stated | unclear |
+| `ffhq` | [Flickr-Faces-HQ (FFHQ, 70k face images)](https://github.com/NVlabs/ffhq-dataset/blob/4826aa6ea77aa7f1a7802b938ed7c40afb985cda/README.md) | CC-BY-NC-SA-4.0 | no |
+| `manga109` | [Manga109 (109 Japanese manga volumes)](https://web.archive.org/web/20261022181634/https://manga109.github.io/manga109-project-website/en/index.html) | LicenseRef-research-only | no |
 | `wed` | [Waterloo Exploration Database (4744 natural images)](https://ece.uwaterloo.ca/~k29ma/exploration/) | not stated | unclear |
-| `scut-ctw1500` | [SCUT-CTW1500 (curved scene text)](https://github.com/Yuliang-Liu/Curve-Text-Detector) | not stated | unclear |
+| `scut-ctw1500` | [SCUT-CTW1500 (curved scene text)](https://github.com/Yuliang-Liu/Curve-Text-Detector/blob/2126a660d3baf3e84a76e77352597576519c35a2/README.md) | not stated | unclear |
 | `nomos-v2` | [Nomos-v2 (neosr's 6000-image multipurpose super-resolution set)](https://github.com/neosr-project/neosr/blob/31c7022620c682cf0961c8634d60787179145c5b/readme.md#-datasets) | not stated | unclear |
-| `places365` | [Places365-Challenge (8 M scene images, 365 categories)](http://places2.csail.mit.edu/download.html) | non-commercial research and educational use | no |
+| `places365` | [Places365-Challenge (8 M scene images, 365 categories)](https://web.archive.org/web/20261105071009/http://places2.csail.mit.edu/download.html) | LicenseRef-noncommercial | no |
