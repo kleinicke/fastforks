@@ -1,0 +1,84 @@
+downloading https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset291_TotalSegmentator_part1_organs_1559subj.zip (Dataset291_TotalSegmentator_part1_organs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json), 223 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/d7)
+downloading https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset292_TotalSegmentator_part2_vertebrae_1532subj.zip (Dataset292_TotalSegmentator_part2_vertebrae_1532subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json), 223 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/72)
+downloading https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset293_TotalSegmentator_part3_cardiac_1559subj.zip (Dataset293_TotalSegmentator_part3_cardiac_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json), 223 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/a0)
+downloading https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset294_TotalSegmentator_part4_muscles_1559subj.zip (Dataset294_TotalSegmentator_part4_muscles_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json), 223 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/63)
+downloading https://github.com/wasserth/TotalSegmentator/releases/download/v2.0.0-weights/Dataset295_TotalSegmentator_part5_ribs_1559subj.zip (Dataset295_TotalSegmentator_part5_ribs_1559subj/nnUNetTrainerNoMirroring__nnUNetPlans__3d_fullres/plans.json), 223 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/24)
+totalsegmentator-total@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 1115 MB
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/d7/d77d815eb2bd11ec79b623161561dab4cef3def17dec0a0fe0f8d8dee3a761d5
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/09/09089590277fe1e62e73857145617c2392f449fe98a6c752a67aa6dc2023b1e2
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/98/98c429f89fd9b3b08890fbb2b4c08c365ad4655fdcadb45efaa29380129fd890
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/72/72fcde2fa59183f65b92fc86a12467acd81511d93d8d2577608550ad0c1938cd
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/5c/5c967bfe82c846a6491473706e3c5d322f470ed4fce2eb5047a22c702ae64c79
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/70/7022f71829ef00aa14d790a7667bc18eb1691f2fe5b0a38c475862abc84c2457
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/a0/a048b27bfe30ca72a7a76f16cc5145ecc15f28911c6897793b93e6bea4b0e4a3
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/ac/ac8ee8e6d0040938a0e621b025fddd9fb82d15842b427ef1e590e84c6bb390c5
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/18/189010ac67fec3f1704df7547306d0067eabaaf620e0a46a1bdd183afa0800e4
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/63/63c9175c2f3fdff5e67ae55ea56250fb44ba53034335f1781081da9b9bdea709
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/3c/3c0002bc06677197f1597a5143ccfebd556508563edd9282a46f057d5a0d5965
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/65/655eb40de03aa3de7348b69d7569a1cc3a2dc7969a11c0d60a7331e07df11c28
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/24/241fa585e763462a7f4ab593d34e466a58cbce17c87b64d260a7ee5010416132
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/71/71228770dbcb9d303e6943dd1017b19346857b3fbc30e912dba30a704d1ac8f6
+totalsegmentator-total@1: /home/florian/.cache/fastforks/blobs/sha256/a6/a674364c60b304fbd56feccdd95f8d0fe0c45a5bfa1ef25815516e4dde04d3fc
+23:36:08 totalsegmentator-total@1 rc=0
+downloading https://huggingface.co/MIC-DKFZ/nnInteractive/resolve/3f308d751c00644e4fde6f09c600264b393b21b5/nnInteractive_v1.0/plans.json, 6 KB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/64)
+downloading https://huggingface.co/MIC-DKFZ/nnInteractive/resolve/3f308d751c00644e4fde6f09c600264b393b21b5/nnInteractive_v1.0/fold_0/checkpoint_final.pth, 392 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/b3)
+nninteractive@1: licence Apache-2.0, weights CC-BY-NC-SA-4.0, commercial no, 392 MB
+nninteractive@1: /home/florian/.cache/fastforks/blobs/sha256/64/64a30a430438302a692a3edadd345a207b3428bea2e5cdc125298757da21f4d4
+nninteractive@1: /home/florian/.cache/fastforks/blobs/sha256/b3/b3ac4421f85457bbd1aa0d87f5e67bcb7bc8e2ce6b824b6ac45077cc5d630ea9
+23:36:25 nninteractive@1 rc=0
+downloading https://huggingface.co/MIC-DKFZ/nnFoundationCNN/resolve/f443c09319988e833b3d9589bf95909e4443d7b2/checkpoint_final.pth, 391 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/ac)
+nnfoundation-cnn@1: licence Apache-2.0, weights CC-BY-SA-4.0, commercial yes, 391 MB
+nnfoundation-cnn@1: /home/florian/.cache/fastforks/blobs/sha256/ac/ac262d3e8c226c79f9567fddc34d38e011284730ddf2294b5c6c319ce2f22bbd
+23:36:38 nnfoundation-cnn@1 rc=0
+downloading https://huggingface.co/fastforks/seedvr2-3b/resolve/main/seedvr2-3b.safetensors, 6471 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/61)
+downloading https://huggingface.co/fastforks/seedvr2-vae/resolve/main/seedvr2-vae.safetensors, 478 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/bc)
+seedvr2-3b@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 6949 MB
+seedvr2-3b@1: /home/florian/.cache/fastforks/blobs/sha256/61/61df4f7979f4a4005029dd93ee186e97397d326b81b585d4fdf445573b85f0a7
+seedvr2-3b@1: /home/florian/.cache/fastforks/blobs/sha256/bc/bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a
+23:40:20 seedvr2-3b@1 rc=0
+downloading https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_x.pth, 757 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/56)
+yolox-x@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 757 MB
+yolox-x@1: /home/florian/.cache/fastforks/blobs/sha256/56/5652330b6ae860043f091b8f550a60c10e1129f416edfdb65c259be6caf355cf
+23:40:52 yolox-x@1 rc=0
+downloading https://huggingface.co/haofeixu/resplat/resolve/c69ad72a49b8358ac46599cf74468090425ed9c7/resplat-base-re10k-256x256-view2-b90d1b53.pth, 848 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/b9)
+resplat-base-re10k@1: licence MIT, weights CC-BY-NC-4.0, commercial no, 848 MB
+resplat-base-re10k@1: /home/florian/.cache/fastforks/blobs/sha256/b9/b90d1b530042df1c7a40dcd926ea2308004de6c26c75699a79e061e3fc208db8
+23:41:22 resplat-base-re10k@1 rc=0
+downloading https://huggingface.co/haofeixu/pointdit/resolve/956a6f4279c20b59adfc1ea2038603514f4fe5dc/pointditb-512-mixdata-nodinov3-1d42aacf.pth, 1047 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/1d)
+pointdit-b-512@1: licence Apache-2.0, weights LicenseRef-DINOv3-License, commercial yes, 1374 MB
+pointdit-b-512@1: /home/florian/.cache/huggingface/hub/models--facebook--dinov3-vitb16-pretrain-lvd1689m/snapshots/5931719e67bbdb9737e363e781fb0c67687896bc/model.safetensors
+pointdit-b-512@1: /home/florian/.cache/fastforks/blobs/sha256/1d/1d42aacfd6aaf97c8bd96b0ce5e23bd880cd01b2efbb2ac80ccf8876fde3034b
+23:41:56 pointdit-b-512@1 rc=0
+downloading https://drive.usercontent.google.com/download?export=download&confirm=t&id=1iYUA2TzKuxI0vzmA-UXr_nB43XgPOXUg (spanx2_ch48.pth), 1265 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/56)
+span-x2@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 1265 MB
+span-x2@1: /home/florian/.cache/fastforks/blobs/sha256/56/561fd5cf419a23d4de1231ce258180f61aee4aa8caa1aaaa783769c7301847bc
+23:42:48 span-x2@1 rc=0
+span-x4@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 1265 MB
+span-x4@1: /home/florian/.cache/fastforks/blobs/sha256/28/28fef8c6c845a0169afed9f9f566679990ef4c03fef9885298655fb5e4036402
+23:42:49 span-x4@1 rc=0
+downloading https://huggingface.co/cjd24/MonSter-plusplus/resolve/0c140353fa4b0485f08a9d18c2a5c0735188a84b/Mix_all_large.pth?download=true, 1483 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/e8)
+monster-plusplus-mix-all@1: licence LicenseRef-noncommercial, weights LicenseRef-noncommercial AND CC-BY-NC-4.0, commercial no, 1483 MB
+monster-plusplus-mix-all@1: /home/florian/.cache/fastforks/blobs/sha256/e8/e86dede921dcd4a169aae0fb32d07293583ea1daff3d5536f59724eeeaa602d9
+23:43:36 monster-plusplus-mix-all@1 rc=0
+downloading https://huggingface.co/cjd24/MonSter/resolve/e6821d996174f60ea0cb05d14eaaa37b34777f6e/sceneflow.pth?download=true, 1483 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/ec)
+monster-sceneflow@1: licence LicenseRef-noncommercial, weights LicenseRef-noncommercial AND CC-BY-NC-4.0, commercial no, 1483 MB
+monster-sceneflow@1: /home/florian/.cache/fastforks/blobs/sha256/ec/ece58ae6f8ffdacce1e6d4871eaab3432f86a81c78216b07bb5d258ee3e6e1ae
+23:44:24 monster-sceneflow@1 rc=0
+downloading https://ml-site.cdn-apple.com/models/depth-pro/depth_pro.pt, 1816 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/3e)
+depth-pro@1: licence LicenseRef-Apple-Sample-Code, weights LicenseRef-research-only, commercial no, 1816 MB
+depth-pro@1: /home/florian/.cache/fastforks/blobs/sha256/3e/3eb35ca68168ad3d14cb150f8947a4edf85589941661fdb2686259c80685c0ce
+23:45:32 depth-pro@1 rc=0
+downloading https://huggingface.co/MIC-DKFZ/nnFoundationViT/resolve/c691f2115140458ec64017712eb8ebbc8dde6ae4/checkpoint_final.pth, 2573 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/02)
+nnfoundation-vit@1: licence Apache-2.0, weights CC-BY-SA-4.0, commercial yes, 2573 MB
+nnfoundation-vit@1: /home/florian/.cache/fastforks/blobs/sha256/02/022ad18fc38885f6591f1e10c44e98d154019db92ca90f78f796f882013600ac
+23:46:52 nnfoundation-vit@1 rc=0
+downloading https://huggingface.co/haofeixu/pointdit/resolve/956a6f4279c20b59adfc1ea2038603514f4fe5dc/pointditl-512-mixdata-nodinov3-240c1a4f.pth, 3573 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/24)
+pointdit-l-512@1: licence Apache-2.0, weights LicenseRef-DINOv3-License, commercial yes, 4730 MB
+pointdit-l-512@1: /home/florian/.cache/huggingface/hub/models--facebook--dinov3-vitl16-pretrain-lvd1689m/snapshots/ea8dc2863c51be0a264bab82070e3e8836b02d51/model.safetensors
+pointdit-l-512@1: /home/florian/.cache/fastforks/blobs/sha256/24/240c1a4fc9a26d8623153027e5a5110fec14335c9920fedb1c92df76e287394a
+23:48:43 pointdit-l-512@1 rc=0
+downloading https://huggingface.co/depth-anything/DA3-GIANT-1.1/resolve/72ee9f89ce4e50d704e9d55ee9c646ec8dc25a19/model.safetensors, 5172 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/1e)
+da3-giant-1.1@1: licence Apache-2.0, weights CC-BY-NC-4.0, commercial no, 5172 MB
+da3-giant-1.1@1: /home/florian/.cache/fastforks/blobs/sha256/1e/1e47a08338ca73a6d6a21d37fd060b26b993b672bc6ddf6295fe474df2592001
+23:51:22 da3-giant-1.1@1 rc=0
+downloading https://huggingface.co/timm/vit_pe_spatial_gigantic_patch14_448.fb/resolve/f2cea21ca9d5900061bee5e896031ab4e8352936/model.safetensors, 7064 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/db)
