@@ -1,0 +1,68 @@
+== lib bootstapir compile 07:17:41
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0] Graph break from `Tensor.item()`, consider setting:
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]     torch._dynamo.config.capture_scalar_outputs = True
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0] or:
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]     env TORCHDYNAMO_CAPTURE_SCALAR_OUTPUTS=1
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0] to include these operations in the captured graph.
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0] 
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0] Graph break: from user code at:
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/tracking/models/tapir/model.py", line 97, in __call__
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]     return track(self.net, frames, n, size, queries, self.amp)
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/tracking/models/tapir/model.py", line 59, in track
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]     video = torch.cat([frames(t) for t in range(s, min(n, s + FRAME_CHUNK))])
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/tracking/_api.py", line 141, in frame
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]     x = first if t == 0 else self._frame(video, t)
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]                              ^^^^^^^^^^^^^^^^^^^^^
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/tracking/_api.py", line 157, in _frame
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]     x = to_rgb_batch(cast("ImageLike", video[t]), self.device)
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/_core/image.py", line 333, in to_rgb_batch
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]     _check_ranges([bounds])
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/_core/image.py", line 394, in _check_ranges
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]     if bool(ok[0] if len(ok) == 1 else torch.stack(ok).all()):  # one host sync
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0]        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0] 
+W1115 07:17:49.455000 295377 torch/_dynamo/variables/tensor.py:1841] [0/0] 
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+W1115 07:17:54.385000 295377 torch/_inductor/utils.py:1806] [10/0_1] Not enough SMs to use max_autotune_gemm mode
+{"side": "lib", "ref": "bootstapir", "task": "tracking", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s": 0.21
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0] Graph break from `Tensor.item()`, consider setting:
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]     torch._dynamo.config.capture_scalar_outputs = True
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0] or:
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]     env TORCHDYNAMO_CAPTURE_SCALAR_OUTPUTS=1
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0] to include these operations in the captured graph.
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0] 
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0] Graph break: from user code at:
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/tracking/models/tapir/model.py", line 97, in __call__
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]     return track(self.net, frames, n, size, queries, self.amp)
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/tracking/models/tapir/model.py", line 59, in track
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]     video = torch.cat([frames(t) for t in range(s, min(n, s + FRAME_CHUNK))])
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/tracking/_api.py", line 141, in frame
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]     x = first if t == 0 else self._frame(video, t)
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]                              ^^^^^^^^^^^^^^^^^^^^^
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/tracking/_api.py", line 157, in _frame
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]     x = to_rgb_batch(cast("ImageLike", video[t]), self.device)
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/_core/image.py", line 333, in to_rgb_batch
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]     _check_ranges([bounds])
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]   File "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/_core/image.py", line 394, in _check_ranges
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]     if bool(ok[0] if len(ok) == 1 else torch.stack(ok).all()):  # one host sync
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0]        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0] 
+W1115 07:21:22.276000 299418 torch/_dynamo/variables/tensor.py:1841] [0/0] 
+{"side": "lib", "ref": "bootstapir", "task": "tracking", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2,

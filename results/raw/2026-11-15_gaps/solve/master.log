@@ -118,3 +118,25 @@
 2026-11-15_06:02:20 start compile fast-acvnet-plus-kitti15
 2026-11-15_06:57:20 end compile fast-acvnet-plus-kitti15 rc=124
 2026-11-15_06:57:20 start compile fast-acvnet-plus-sceneflow
+2026-11-15_07:27:15 end compile fast-acvnet-plus-sceneflow rc=0
+2026-11-15_07:27:15 start compile gwcnet-gc-sceneflow
+2026-11-15_07:34:25 end compile gwcnet-gc-sceneflow rc=0
+2026-11-15_07:34:25 start compile igev-stereo-kitti12
+2026-11-15_07:51:22 end compile igev-stereo-kitti12 rc=0
+2026-11-15_07:51:22 start compile igev-stereo-kitti15
+2026-11-15_07:58:36 end compile igev-stereo-kitti15 rc=0
+2026-11-15_07:58:36 start compile mocha-v1-sceneflow
+2026-11-15_08:04:39 end compile mocha-v1-sceneflow rc=0
+2026-11-15_08:04:39 start compile rtdetrv2-l-coco
+2026-11-15_08:07:18 end compile rtdetrv2-l-coco rc=0
+2026-11-15_08:07:18 start compile rtdetrv2-m-coco
+2026-11-15_08:13:27 end compile rtdetrv2-m-coco rc=0
+2026-11-15_08:13:27 start compile rtdetrv2-ms-coco
+2026-11-15_08:19:23 end compile rtdetrv2-ms-coco rc=0
+2026-11-15_08:19:23 start compile rtdetrv2-x-coco
+2026-11-15_08:23:14 end compile rtdetrv2-x-coco rc=0
+2026-11-15_08:23:14 start compile selective-igev-eth3d-train
+2026-11-15_08:28:03 end compile selective-igev-eth3d-train rc=0
+2026-11-15_08:28:03 start compile selective-igev-kitti12
+2026-11-15_08:36:42 end compile selective-igev-kitti12 rc=0
+2026-11-15_08:36:42 start compile selective-igev-kitti15

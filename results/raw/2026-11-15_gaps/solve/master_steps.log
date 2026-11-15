@@ -2366,3 +2366,193 @@ note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.
 {"side": "lib", "ref": "fast-acvnet-plus-kitti12", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_i
 == lib fast-acvnet-plus-kitti15 compile 06:02:20
 == lib fast-acvnet-plus-sceneflow compile 06:57:20
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-plus-sceneflow 994x1482 on synthetic inputs
+W1115 07:17:02.217000 293318 torch/_inductor/utils.py:1806] [0/0] Not enough SMs to use max_autotune_gemm mode
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+{"side": "lib", "ref": "fast-acvnet-plus-sceneflow", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-plus-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "fast-acvnet-plus-sceneflow", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+== lib gwcnet-gc-sceneflow compile 07:27:16
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): gwcnet-gc-sceneflow 994x1482 on synthetic inputs
+W1115 07:27:44.944000 306316 torch/_inductor/utils.py:1806] [0/0] Not enough SMs to use max_autotune_gemm mode
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+{"side": "lib", "ref": "gwcnet-gc-sceneflow", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): gwcnet-gc-sceneflow 994x1482 on synthetic inputs
+{"side": "lib", "ref": "gwcnet-gc-sceneflow", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s
+== lib igev-stereo-kitti12 compile 07:34:25
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-kitti12 994x1482 on synthetic inputs
+W1115 07:39:09.824000 319905 torch/_inductor/utils.py:1806] [0/0] Not enough SMs to use max_autotune_gemm mode
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+{"side": "lib", "ref": "igev-stereo-kitti12", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-kitti12 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-stereo-kitti12", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_init_s
+== lib igev-stereo-kitti15 compile 07:51:22
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-kitti15 994x1482 on synthetic inputs
+W1115 07:54:39.474000 340937 torch/_inductor/utils.py:1806] [0/0] Not enough SMs to use max_autotune_gemm mode
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+{"side": "lib", "ref": "igev-stereo-kitti15", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-kitti15 994x1482 on synthetic inputs
+{"side": "lib", "ref": "igev-stereo-kitti15", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_init_s
+== lib mocha-v1-sceneflow compile 07:58:36
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): mocha-v1-sceneflow 994x1482 on synthetic inputs
+W1115 08:02:40.208000 352728 torch/_inductor/utils.py:1806] [0/0] Not enough SMs to use max_autotune_gemm mode
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+{"side": "lib", "ref": "mocha-v1-sceneflow", "task": "stereo", "mode": "compile", "date": "2026-11-15", "input": "994x1482", "fails": "worker rc=124"}
+== lib rtdetrv2-l-coco compile 08:04:39
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+W1115 08:06:04.721000 357796 torch/_inductor/utils.py:1806] [3/0_1] Not enough SMs to use max_autotune_gemm mode
+{"side": "lib", "ref": "rtdetrv2-l-coco", "task": "detection", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.12, "cuda_init_s"
+{"side": "lib", "ref": "rtdetrv2-l-coco", "task": "detection", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.07, "cuda_init_s"
+== lib rtdetrv2-m-coco compile 08:07:18
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+W1115 08:08:31.707000 360767 torch/_inductor/utils.py:1806] [3/0_1] Not enough SMs to use max_autotune_gemm mode
+{"side": "lib", "ref": "rtdetrv2-m-coco", "task": "detection", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s"
+{"side": "lib", "ref": "rtdetrv2-m-coco", "task": "detection", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.03, "cuda_init_s"
+== lib rtdetrv2-ms-coco compile 08:13:27
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+W1115 08:18:52.984000 372350 torch/_inductor/utils.py:1806] [3/0_1] Not enough SMs to use max_autotune_gemm mode
+{"side": "lib", "ref": "rtdetrv2-ms-coco", "task": "detection", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.05, "cuda_init_s
+{"side": "lib", "ref": "rtdetrv2-ms-coco", "task": "detection", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s
+== lib rtdetrv2-x-coco compile 08:19:23
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+W1115 08:19:44.161000 373212 torch/_inductor/utils.py:1806] [3/0_1] Not enough SMs to use max_autotune_gemm mode
+{"side": "lib", "ref": "rtdetrv2-x-coco", "task": "detection", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s"
+{"side": "lib", "ref": "rtdetrv2-x-coco", "task": "detection", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s"
+== lib selective-igev-eth3d-train compile 08:23:14
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-eth3d-train 994x1482 on synthetic inputs
+W1115 08:23:57.535000 376692 torch/_inductor/utils.py:1806] [0/0] Not enough SMs to use max_autotune_gemm mode
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+{"side": "lib", "ref": "selective-igev-eth3d-train", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-eth3d-train 994x1482 on synthetic inputs
+{"side": "lib", "ref": "selective-igev-eth3d-train", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+== lib selective-igev-kitti12 compile 08:28:03
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-kitti12 994x1482 on synthetic inputs
+W1115 08:30:43.419000 384251 torch/_inductor/utils.py:1806] [0/0] Not enough SMs to use max_autotune_gemm mode
+In file included from /home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/Python.h:12,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/include/python3.12/pyconfig.h:1877:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1877 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/fastforks/.venv/lib/python3.12/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+{"side": "lib", "ref": "selective-igev-kitti12", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_ini
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-kitti12 994x1482 on synthetic inputs
+{"side": "lib", "ref": "selective-igev-kitti12", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_ini
+== lib selective-igev-kitti15 compile 08:36:42
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-kitti15 994x1482 on synthetic inputs
+W1115 08:41:23.434000 396486 torch/_inductor/utils.py:1806] [0/0] Not enough SMs to use max_autotune_gemm mode
