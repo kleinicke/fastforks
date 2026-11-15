@@ -18,9 +18,12 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.patch import override
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared import cnn_kernels
+from fastforks.shared.cnn_kernels import conv_ep
 
-from .net.loftr import LoFTR
+from .net.loftr import LoFTR, BasicBlock, ResNetFPN_8_2
 
 if TYPE_CHECKING:
     from fastforks.matching._runner import Context
@@ -116,4 +119,57 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2))
 
 
-RUNNERS = {"portable": Portable}
+def _affines(backbone: ResNetFPN_8_2) -> None:
+    """The eval BatchNorms of the backbone as fp32 affines `(s, t)` next to their conv (plain attributes)."""
+    pairs = [(backbone.conv1, backbone.bn1)]
+    for block in backbone.modules():
+        if isinstance(block, BasicBlock):
+            pairs += [(block.conv1, block.bn1), (block.conv2, block.bn2)]
+            if block.downsample is not None:
+                pairs.append((block.downsample[0], block.downsample[1]))
+    for conv, bn in pairs:
+        conv._affine = cnn_kernels.bn_affine(bn, conv)  # noqa: SLF001
+
+
+def _block_forward(self: BasicBlock, x: torch.Tensor) -> torch.Tensor:
+    """`relu(bn2(conv2(relu(bn1(conv1(x))))) + shortcut)` with the BN and ReLU in the conv epilogues."""
+    relu = cnn_kernels.ACT["relu"]
+    y = conv_ep(self.conv1, x, *self.conv1._affine, relu)  # noqa: SLF001
+    r = x if self.downsample is None else conv_ep(self.downsample[0], x, *self.downsample[0]._affine, 0)  # noqa: SLF001
+    pad = self.conv2.weight.shape[0] - r.shape[1]  # 196 channels: the conv pads its output to a multiple of 8
+    if pad:
+        r = F.pad(r, (0, 0, 0, 0, 0, pad)).contiguous(memory_format=torch.channels_last)
+    return conv_ep(self.conv2, y, *self.conv2._affine, relu, r=r)  # noqa: SLF001
+
+
+def _fpn_forward(self: ResNetFPN_8_2, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """`ResNetFPN_8_2.forward` with the stem conv + BN + ReLU fused."""
+    x0 = conv_ep(self.conv1, x, *self.conv1._affine, cnn_kernels.ACT["relu"])  # noqa: SLF001
+    x1 = self.layer1(x0)
+    x2 = self.layer2(x1)
+    x3 = self.layer3(x2)
+    x3_out = self.layer3_outconv(x3)
+    x3_out_2x = F.interpolate(x3_out, scale_factor=2.0, mode="bilinear", align_corners=True)
+    x2_out = self.layer2_outconv2(self.layer2_outconv(x2) + x3_out_2x)
+    x2_out_2x = F.interpolate(x2_out, scale_factor=2.0, mode="bilinear", align_corners=True)
+    x1_out = self.layer1_outconv2(self.layer1_outconv(x1) + x2_out_2x)
+    return x3_out, x1_out
+
+
+class Kernels(Portable):
+    """Portable with the backbone's convs as fp16 channels-last kernels, BatchNorm and ReLU (and the residual) fused."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network, prepare the backbone."""
+        super().__init__(ctx)
+        bb = self.net.loftr.backbone
+        cnn_kernels.load(ctx.device)
+        _affines(bb)
+        cnn_kernels.prepare_convs(bb)
+        for m in bb.modules():
+            if isinstance(m, BasicBlock):
+                override(m, _block_forward)
+        override(bb, _fpn_forward)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}
