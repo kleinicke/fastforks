@@ -3,9 +3,9 @@
 The forward pass is ours and follows upstream `UniMatch.forward` for `task="flow"` in eval mode with the settings of
 upstream's `scripts/gmflow_evaluate.sh` (per scale: window splits of the Transformer, matching radius, propagation
 radius; -1 = global). Differences that do not change the maths: the projection for the refinement is computed once
-(upstream recomputes the same tensor in every refinement), and the two global attentions (matching and flow
-propagation) are evaluated in row chunks above `CHUNK_ELEMENTS`, so a 1080p pair does not need a `[H*W, H*W]`
-matrix of several GB. On CUDA in fp16 the CNN, the Transformer, the upsampling head and the refinement block run
+(upstream recomputes the same tensor in every refinement), and every attention (Transformer windows, global matching,
+flow propagation) is one fused `scaled_dot_product_attention`, so the `[H*W, H*W]` score matrix (several GB at 1080p)
+is never written. On CUDA in fp16 the CNN, the Transformer, the upsampling head and the refinement block run
 under autocast; positions, matching, propagation, warping, correlation lookup and the flow stay float32.
 """
 
@@ -21,6 +21,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
 
+from .net.attention import sdpa
 from .net.geometry import coords_grid, flow_warp
 from .net.matching import local_correlation_softmax, local_correlation_with_flow
 from .net.unimatch import UniMatch
@@ -34,7 +35,6 @@ SCALES = {  # card `scales` -> per scale (attn_splits, corr_radius, prop_radius)
     2: ((2, -1, -1), (8, 4, 1)),
 }
 REFINE_RADIUS = 4  # fixed: upstream's correlation radius of the refinement (the block's weights are made for 81 values)
-CHUNK_ELEMENTS = 1 << 27  # fixed: memory policy, largest attention matrix computed in one piece (0.5 GB in float32)
 
 
 @dataclass(frozen=True)
@@ -46,14 +46,8 @@ class Params:
 
 
 def attend(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
-    """`softmax(query @ key^T / sqrt(C)) @ value` for `[B, N, C]`, `[B, M, C]`, `[B, M, V]`, in row chunks if large."""
-    scale = query.shape[-1] ** 0.5
-    key_t = key.transpose(1, 2)
-    rows = max(1, CHUNK_ELEMENTS // (query.shape[0] * key.shape[1]))
-    if rows >= query.shape[1]:
-        return torch.matmul(torch.softmax(torch.matmul(query, key_t) / scale, dim=-1), value)
-    parts = [torch.softmax(torch.matmul(q, key_t) / scale, dim=-1) @ value for q in query.split(rows, dim=1)]
-    return torch.cat(parts, dim=1)
+    """`softmax(query @ key^T / sqrt(C)) @ value` for `[B, N, C]`, `[B, M, C]`, `[B, M, V]` (no `[N, M]` matrix)."""
+    return sdpa(query, key, value)
 
 
 def forward(net: UniMatch, image1: torch.Tensor, image2: torch.Tensor, params: Params, *, fp16: bool) -> torch.Tensor:

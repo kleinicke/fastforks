@@ -44,7 +44,7 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 status = "none"
-reason = "none of the existing kernels fits (window attention with one head, global softmax matching), and no new kernel was written for it"
+reason = "after the fused attention portable is faster than the original and uses less memory at every tested size (e.g. scale1 1080x1920 556 vs 750 ms, 4496 vs 8360 MiB); the rest is the attention itself (55 % of the CUDA time at 1080p, already the memory-efficient / flash SDPA kernels) and float32 elementwise ops, and the convolutions are a small share, so no library in the manifests (cudnn_hacc speeds up convolutions) would change the total (2026-11-15, results/2026-11-15_gmflow_sdpa.md)"
 
 [[papers]]
 title = "GMFlow: Learning Optical Flow via Global Matching"

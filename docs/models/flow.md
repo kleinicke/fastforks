@@ -216,15 +216,15 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>801<br>no kernels<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>5512 / 5640<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
-| `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>800<br>no kernels<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>5523 / 5660<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
-| `gmflow-scale2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2537<br>1599<br>1636<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8742<br>8425 / 8552<br>6433 / 7244<br>no kernels<br>10865 / 10904<br>– |
-| `gmflow-scale2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2541<br>1607<br>1644<br>no kernels<br>765<br>fails: unsupported: TensorRT 10 Myelin compiler error CHECK(is_cons | 8512 / 8742<br>8425 / 8552<br>6433 / 7244<br>no kernels<br>10865 / 10904<br>– |
-| `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>1646<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8722<br>8425 / 8572<br>6422 / 7244<br>no kernels<br>10865 / 10904<br>– |
-| `gmflow-scale2-regrefine6-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3230<br>2175<br>2183<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8730<br>8537 / 8822<br>6443 / 7250<br>no kernels<br>10875 / 10972<br>– |
-| `gmflow-scale2-regrefine6-sintelft` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2184<br>2189<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8730<br>8537 / 8822<br>6443 / 7250<br>no kernels<br>10875 / 10972<br>– |
-| `gmflow-scale2-regrefine6-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2188<br>2194<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8710<br>8537 / 8822<br>6443 / 7250<br>no kernels<br>10875 / 10972<br>– |
-| `gmflow-scale2-regrefine6-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3254<br>2188<br>2192<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8710<br>8537 / 8822<br>6443 / 7250<br>no kernels<br>10875 / 10972<br>– |
+| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>556<br>no kernels<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>4496 / 4642<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
+| `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>556<br>no kernels<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>4496 / 4642<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
+| `gmflow-scale2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2537<br>1599<br>1139<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
+| `gmflow-scale2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2541<br>1607<br>1139<br>no kernels<br>765<br>fails: unsupported: TensorRT 10 Myelin compiler error CHECK(is_cons | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
+| `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>1139<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8722<br>8425 / 8572<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
+| `gmflow-scale2-regrefine6-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3230<br>2175<br>1665<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8730<br>8537 / 8822<br>6080 / 6230<br>no kernels<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-sintelft` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2184<br>1674<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8730<br>8537 / 8822<br>6080 / 6250<br>no kernels<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2188<br>1678<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8710<br>8537 / 8822<br>6080 / 6230<br>no kernels<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3254<br>2188<br>1675<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8710<br>8537 / 8822<br>6080 / 6250<br>no kernels<br>10875 / 10972<br>– |
 
 <details><summary>Details</summary>
 
@@ -242,14 +242,14 @@ Commercial use: yes.
   - `gmflow-scale2-regrefine6-sintelft`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (FlyingChairs, FlyingThings3D, the 'sintel' stage (Sintel, KITTI 2015, HD1K, FlyingThings3D), then fine-tuned on Sintel)
   - `gmflow-scale2-regrefine6-kitti`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015, not stated by the authors (FlyingChairs, FlyingThings3D, Virtual KITTI 2 (no dataset entry here yet, hence 'unstated'), then KITTI 2012 + 2015 (upstream scripts/gmflow_scale2_regrefine6_train.sh, stages vkitti2 and kitti_mix))
   - `gmflow-scale2-regrefine6-mixdata`: MODEL_ZOO.md: "trained on several mixed public datasets" (not listed)
-- Kernel libraries: none (none of the existing kernels fits (window attention with one head, global softmax matching), and no new kernel was written for it)
+- Kernel libraries: none (after the fused attention portable is faster than the original and uses less memory at every tested size (e.g. scale1 1080x1920 556 vs 750 ms, 4496 vs 8360 MiB); the rest is the attention itself (55 % of the CUDA time at 1080p, already the memory-efficient / flash SDPA kernels) and float32 elementwise ops, and the convolutions are a small share, so no library in the manifests (cudnn_hacc speeds up convolutions) would change the total (2026-11-15, results/2026-11-15_gmflow_sdpa.md))
 - Variants: `gmflow-scale1-things`, `gmflow-scale1-mixdata`, `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata`
 - Outputs: flow
 - Input size:
   - `gmflow-scale1-things`, `gmflow-scale1-mixdata`: any H x W >= 64, padded to a multiple of 16
   - `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata`: any H x W >= 64, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gmflow-scale1-things` 1024x2048 (5.4 GiB peak allocated, 6.0 reserved); `gmflow-scale1-mixdata` 1024x2048 (5.4 GiB peak allocated, 6.0 reserved); `gmflow-scale2-things` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-sintel` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-mixdata` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-things` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-sintelft` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-kitti` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-mixdata` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved)
-- no kernels: none of the existing kernels fits (window attention with one head, global softmax matching), and no new kernel was written for it.
+- no kernels: after the fused attention portable is faster than the original and uses less memory at every tested size (e.g. scale1 1080x1920 556 vs 750 ms, 4496 vs 8360 MiB); the rest is the attention itself (55 % of the CUDA time at 1080p, already the memory-efficient / flash SDPA kernels) and float32 elementwise ops, and the convolutions are a small share, so no library in the manifests (cudnn_hacc speeds up convolutions) would change the total (2026-11-15, results/2026-11-15_gmflow_sdpa.md).
 - `gmflow-scale1-things` 1080x1920, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 69 s (ONNX + engine).
 - `gmflow-scale1-mixdata` 1080x1920, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 67 s (ONNX + engine).
 - `gmflow-scale2-things` 1080x1920, first call: portable + torch.compile 47 s (cold Inductor cache).
@@ -277,15 +277,15 @@ Commercial use: yes.
 - `gmflow-scale2-regrefine6-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
-- `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.26 s / 0.802 s
-- `gmflow-scale1-mixdata` load / first call: original 0.13 s / 0.76 s, portable 0.14 s / 0.483 s (375x1242)
-- `gmflow-scale2-things` load / first call: original 0.14 s / 1.61 s, portable 0.11 s / 0.626 s (375x1242)
-- `gmflow-scale2-sintel` load / first call: original 0.13 s / 1.618 s, portable 0.09 s / 0.61 s (375x1242)
-- `gmflow-scale2-mixdata` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.647 s
-- `gmflow-scale2-regrefine6-things` load / first call: original 0.15 s / 2.186 s, portable 0.16 s / 0.753 s (375x1242)
-- `gmflow-scale2-regrefine6-sintelft` load / first call: original 0.15 s / 2.369 s, portable 0.12 s / 0.763 s (375x1242)
-- `gmflow-scale2-regrefine6-kitti` load / first call: original 0.15 s / 2.199 s, portable 0.11 s / 0.752 s (375x1242)
-- `gmflow-scale2-regrefine6-mixdata` load / first call: original 0.14 s / 2.198 s, portable 0.19 s / 0.722 s (375x1242)
+- `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.16 s / 0.558 s
+- `gmflow-scale1-mixdata` load / first call: original 0.13 s / 0.76 s, portable 0.16 s / 0.558 s
+- `gmflow-scale2-things` load / first call: original 0.14 s / 1.61 s, portable 0.17 s / 1.141 s
+- `gmflow-scale2-sintel` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s
+- `gmflow-scale2-mixdata` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s
+- `gmflow-scale2-regrefine6-things` load / first call: original 0.15 s / 2.186 s, portable 0.16 s / 1.666 s
+- `gmflow-scale2-regrefine6-sintelft` load / first call: original 0.15 s / 2.369 s, portable 0.26 s / 1.676 s
+- `gmflow-scale2-regrefine6-kitti` load / first call: original 0.15 s / 2.199 s, portable 0.46 s / 1.679 s
+- `gmflow-scale2-regrefine6-mixdata` load / first call: original 0.14 s / 2.198 s, portable 0.25 s / 1.676 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

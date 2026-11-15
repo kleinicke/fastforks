@@ -658,21 +658,21 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | – | – | – |
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 427.4 | 1.2x vs original (1080x1920) | 1301 |
 | [`waft-a1`](models/flow.md#waft) | yes | 2.315 | 1533.1 (1080x1920) | 790.8 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
+| [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 555.9 | – | – | – |
+| [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 556.1 | – | – | – |
 | [`megaflow`](models/flow.md#megaflow) | yes | 1.714 † | 1588.5 (1080x1920) | 1109.0 | 733.5 | 2.2x vs original (1080x1920) | 2866 |
 | [`waft-a1-sintel`](models/flow.md#waft) | yes | – | 1532.7 (1080x1920) | 790.5 | – | – | – |
 | [`waft-a1-kitti`](models/flow.md#waft) | yes | – | 1533.3 (1080x1920) | 790.8 | – | – | – |
-| [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 800.4 | – | – | – |
-| [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 800.9 | – | – | – |
 | [`memflow-sintel`](models/flow.md#memflow) | yes | – | 3214.2 (1080x1920) | 964.5 | 864.5 | 3.7x vs original (1080x1920) | 968 |
 | [`memflow-kitti`](models/flow.md#memflow) | yes | 0.600 † | 3247.3 (1080x1920) | 964.7 | 864.6 | 3.8x vs original (1080x1920) | 968 |
 | [`memflow`](models/flow.md#memflow) | yes | 4.103 | 3115.6 (1080x1920) | 964.3 | 864.8 | 3.6x vs original (1080x1920) | 968 |
-| [`gmflow-scale2-things`](models/flow.md#gmflow) | yes | 6.747 | 1598.6 (1080x1920) | 1636.2 | – | – | – |
-| [`gmflow-scale2-sintel`](models/flow.md#gmflow) | yes | 1.975 † | 1606.7 (1080x1920) | 1644.2 | – | – | – |
-| [`gmflow-scale2-mixdata`](models/flow.md#gmflow) | yes | 2.389 ? | 1607.7 (1080x1920) | 1646.1 | – | – | – |
-| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 2183.3 | – | – | – |
-| [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 2189.4 | – | – | – |
-| [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 2191.5 | – | – | – |
-| [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 2194.3 | – | – | – |
+| [`gmflow-scale2-things`](models/flow.md#gmflow) | yes | 6.747 | 1598.6 (1080x1920) | 1138.7 | – | – | – |
+| [`gmflow-scale2-mixdata`](models/flow.md#gmflow) | yes | 2.389 ? | 1607.7 (1080x1920) | 1139.3 | – | – | – |
+| [`gmflow-scale2-sintel`](models/flow.md#gmflow) | yes | 1.975 † | 1606.7 (1080x1920) | 1139.5 | – | – | – |
+| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 1664.5 | – | – | – |
+| [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 1674.0 | – | – | – |
+| [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 1674.7 | – | – | – |
+| [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1677.7 | – | – | – |
 | [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | – | – | – | – |
 | [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | – | – | – | – |
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | – | – | – | – |
