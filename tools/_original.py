@@ -1921,6 +1921,7 @@ class _Local:
     cameras = "unused"  # multiview: "required" adds the bench rig's intrinsics, cam_to_world and depth range
     prompts: tuple[str, ...] = ()  # promptable segmentation: ("reference",) adds the bench's reference image and mask
     mask = "unused"  # restoration: "required" adds the bench's synthetic inpainting mask
+    prompt_depth = "unused"  # depth: "required" adds the bench's synthetic 1/8-resolution depth prompt
 
     def __init__(
         self,
@@ -1960,7 +1961,7 @@ class _Local:
             prompts=self.prompts,
             _runner=types.SimpleNamespace(
                 intrinsics=self.cameras,
-                prompt_depth=None,  # no local original takes a depth prompt
+                prompt_depth=self.prompt_depth,
                 cam_to_world=self.cameras,
                 depth_range=self.cameras,
                 trimap=self.trimap,
@@ -2393,6 +2394,114 @@ def _insid3_prep(args: tuple[Any, ...]) -> tuple[Any, ...]:
     return ((target.float() / 255 - mean) / std)[None], ((reference.float() - mean) / std)[None], mask
 
 
+class _LocalPrompt(_Local):
+    """A depth-prompted original: called with the image and the bench's synthetic `[H / 8, W / 8]` depth prompt."""
+
+    prompt_depth = "required"
+
+
+def _omni_dc(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream OMNI-DC `OGNIDC.forward` (the `demo.sh` arguments) as `tools/golden/omni_dc.py`, float32 on CUDA.
+
+    The image is ImageNet-normalised, the prompt nearest-resized to the image (zero = hole) and both zero-padded to
+    a multiple of 16 below / right (as `demo.py`), the output cropped back. Needs `FF_OMNI_DC_REPO`: a checkout with
+    the pinned commit (the golden's CPU patch only makes the devices follow the input: no change on CUDA).
+    """
+    import torch  # noqa: PLC0415
+    import torch.nn.functional as F  # noqa: PLC0415
+    from safetensors.torch import load_file  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("omni_dc")
+    card, variant = registry.resolve("depth", full)
+    src = g.reference_tree(Path(os.environ["FF_OMNI_DC_REPO"]), g.REF_COMMIT, g.PATCH) / "src"
+    sys.path[:0] = [str(src), str(src / "model")]
+    argv, sys.argv = sys.argv, ["omni_dc", *g.ARGS.split()]
+    try:
+        from config import args  # noqa: PLC0415  # reference checkout  # ty: ignore[unresolved-import]
+        from model.ognidc import OGNIDC  # noqa: PLC0415  # ty: ignore[unresolved-import]
+    finally:
+        sys.argv = argv
+    (weights,) = registry.weights(card, variant, allow_download=False)
+    net = OGNIDC(args)
+    net.load_state_dict(load_file(weights), strict=True)
+    net = net.cuda().eval()
+    mean = torch.tensor(g.MEAN, device="cuda").view(1, 3, 1, 1)
+    std = torch.tensor(g.STD, device="cuda").view(1, 3, 1, 1)
+    a.note = "upstream OGNIDC.forward (demo.sh arguments), float32, 16-padded"
+
+    @torch.inference_mode()
+    def call(image: Any, prompt: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW image, float prompt
+        h, w = image.shape[-2:]
+        x = (image[None].float() / 255 - mean) / std
+        d = F.interpolate(prompt[None, None].float(), (h, w), mode="nearest")
+        pads = (0, -w % 16, 0, -h % 16)
+        sample = {"rgb": F.pad(x, pads), "dep": F.pad(d, pads), "K": torch.eye(3, device="cuda")[None],
+                  "pattern": torch.zeros(1, device="cuda")}  # fmt: skip
+        return net(sample)["pred"][0, 0, :h, :w]
+
+    return call
+
+
+def _flexglue(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `FlexGlue(mp=None).match_pair(sparse=True)` + `ALIKED(origin="corner")` as `tools/golden/flexglue.py`.
+
+    float32 on CUDA. Needs `FF_FLEXGLUE_REPO` (a checkout with the pinned commit) and `FF_FLEXGLUE_LIGHTGLUE`, the
+    directory of a `lightglue` package with the `origin` option (kornia importable).
+    """
+    import functools  # noqa: PLC0415
+
+    import torch  # noqa: PLC0415
+
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("flexglue")
+    card, variant = registry.resolve("matching", full)
+    sys.path[:0] = [
+        str(g.reference_tree(Path(os.environ["FF_FLEXGLUE_REPO"]), g.REF_COMMIT)),
+        os.environ["FF_FLEXGLUE_LIGHTGLUE"],
+    ]
+    from flexglue import FlexGlue  # noqa: PLC0415  # reference checkout  # ty: ignore[unresolved-import]
+    from lightglue import ALIKED  # noqa: PLC0415  # ty: ignore[unresolved-import]
+
+    files = {f.name: f for f in registry.weights(card, variant, allow_download=False)}
+    torch.hub.load_state_dict_from_url = functools.partial(g.from_files, files)
+    opts, params = dict(card.options), dict(card.params)
+    detector = ALIKED(origin="corner", max_num_keypoints=opts["max_keypoints"]).eval().cuda()
+    matcher = FlexGlue(mp=None, weights=str(files["flexglue.pth"])).eval().cuda()
+    a.note = f"upstream FlexGlue(mp=None).match_pair(sparse=True) + ALIKED(origin=corner), {opts['max_keypoints']} kp"
+
+    @torch.inference_mode()
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        return matcher.match_pair(
+            img1.float() / 255, img2.float() / 255, detector=detector, sparse=True,
+            filter_threshold=params["threshold"], max_distance_px=params["max_distance_px"],
+        )  # fmt: skip
+
+    return call
+
+
+def _loma(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
+    """Upstream `LoMa(LoMaB(mp=False))` as `tools/golden/loma.py` (`build` on CUDA), float32.
+
+    Needs `FF_LOMA_REPO` (a checkout with the pinned commit) and the torch hub cache with dad.pth and DINOv2.
+    """
+    from fastforks._core import registry  # noqa: PLC0415
+
+    g = _golden("loma")
+    card, variant = registry.resolve("matching", full)
+    sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_LOMA_REPO"]), g.REF_COMMIT) / "src"))
+    params = dict(card.params) | dict(variant.params) | dict(card.options)
+    a.note = f"upstream LoMa(LoMaB(mp=False)), float32, {params['max_keypoints']} keypoints"
+    run = g.build(registry.weights(card, variant, allow_download=False), params, device="cuda")
+
+    def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images
+        return run(img1.float() / 255, img2.float() / 255)
+
+    return call
+
+
 class _LocalReference(_LocalFp16):
     """An in-context segmentation original: called with the image, the reference image and its mask."""
 
@@ -2541,6 +2650,9 @@ LOCAL = {  # family -> adapter where the bench has none or a local one wins (flo
     "mlsd": _Local("edges", _edges, ((1024, 1024), (1080, 1920))),
     "isnet": _Local("matting", _rsu, ((1080, 1920),)),
     "inspyrenet": _Local("matting", _inspyrenet, ((1080, 1920),)),
+    "omni_dc": _LocalPrompt("depth", _omni_dc, ((994, 1482),)),
+    "flexglue": _Local("matching", _flexglue, ((768, 1024),)),
+    "loma": _Local("matching", _loma, ((768, 1024),)),
     "tapnext": _Tracking("tracking", _tapnext, ((480, 854),)),
     "vitmatte": _LocalTrimap("matting", _vitmatte, ((1080, 1920),)),
     "matanyone": _LocalMatteMask("matting", _matanyone, ((1080, 1920),)),
