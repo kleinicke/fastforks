@@ -465,7 +465,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `memfof` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 531<br>433<br>427<br>291<br>160 | 2003 / 2144<br>1911 / 2196<br>1301 / 1418<br>2452 / 2666<br>2070 / 2132 |
 | `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 927<br>386<br>380<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | 1968 / 2276<br>1619 / 1856<br>1137 / 1218<br>2041 / 2226<br>– |
-| `memfof-sintel` | synthetic (375x1242) | original<br>portable<br>kernels | 894<br>–<br>– | 1968 / 2176<br>–<br>– |
+| `memfof-sintel` | synthetic (375x1242) | original<br>portable<br>kernels | 894<br>385<br>– | 1968 / 2176<br>1619 / 1856<br>– |
 | `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1035<br>433<br>–<br>291<br>160 | 2340 / 2676<br>1900 / 2196<br>–<br>2452 / 2666<br>2070 / 2112 |
 
 <details><summary>Details</summary>
@@ -498,8 +498,7 @@ Commercial use: yes.
 - `memfof-kitti` load / first call: original 2.59 s / 0.961 s (375x1242), portable 0.21 s / 0.651 s (375x1242), kernels 1.07 s / 0.565 s (375x1242)
 - `memfof-sintel` load / first call: original 1.3 s / 0.897 s (375x1242), portable 0.69 s / 0.574 s (375x1242)
 - `memfof-spring` load / first call: original 1.12 s / 1.037 s, portable 0.71 s / 0.433 s
-- Protocol, `memfof`, `memfof-kitti`, `memfof-spring`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
-- Protocol, `memfof-sintel`: median of 5 after 3 warm-up, uint8 CUDA input, original code at the pinned commit, torch.no_grad; peak = max over the first call and the timed calls
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 

@@ -344,7 +344,7 @@ def _speed_rows() -> dict[str, list[dict]]:
     rows: dict[str, list[dict]] = {}
     for line in path.read_text().splitlines() if path.is_file() else []:
         row = json.loads(line)
-        if row.get("status") == "oom" or "error" in row:  # no time: OOM rows are read by _oom, errors stay in results/
+        if row.get("status") == "oom" or ("error" in row and "ms" not in row):  # no time: OOM rows are read by _oom, errors stay in results/
             continue
         if not row.get("cold") or "ms" in row:  # speed_check rows: a fresh process, warm timings included
             rows.setdefault(row["ref"], []).append(row)
@@ -1378,7 +1378,7 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
             mine = {(r["mode"], r["input"]): r for r in speed.get(v.id, [])}
             at = _at(speed.get(v.id, []), size)  # a speed row of the same input beats the older cell
             if size == _OWN:
-                at = next((i for m, i in mine if m == "kernels"), size)
+                at = next((i for want in ("kernels", "portable") for m, i in mine if m == want), size)
             mx, pt = (
                 _fixed_cell(mine.get((m, at)), fixed.get((v.id, m), {}).get(size)) for m in ("kernels", "portable")
             )
@@ -1406,6 +1406,7 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
                     "portable": pt,
                     "original": orig["ms"] if orig else None,
                     "orig_oom": orig is None and (v.id, "upstream", osz) in _oom(),
+                    "port_oom": pt is None and (v.id, "portable", size) in _oom(),
                     "orig_size": osz,
                     "speedup": speedup,
                     "error": a_row[key] if a_row else None,
@@ -1488,7 +1489,7 @@ def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
             else _DASH
             if r["original"] is None
             else f"{r['original']:.1f} ({r['orig_size']})",
-            _ms(r["portable"]),
+            f"OOM ({r['orig_size']})" if r["port_oom"] else _ms(r["portable"]),
             _ms(r["kernels"]) + (f" ({r['at']})" if r["at"] != std and std != _OWN and r["kernels"] else ""),
             _DASH if sp is None else f"{sp[0]:.1f}x vs {sp[1]}",
             str(r["kernels"][1]) if isinstance(r["kernels"], tuple) else _DASH,

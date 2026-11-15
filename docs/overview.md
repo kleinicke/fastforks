@@ -620,9 +620,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 464.4 | 2.0x vs original (336x518) | 3422 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 820.7 | 559.7 | 1.9x vs original (336x518) | 2367 |
-| [`lingbot-map`](models/multiview.md#lingbot-map) | yes | – | – | – | – | – |
+| [`lingbot-map`](models/multiview.md#lingbot-map) | yes | – | 729.7 | – | – | – |
+| [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | – | 1723.4 | – | – | – |
 | [`resplat-base-re10k`](models/multiview.md#resplat) | no | – | – | – | – | – |
-| [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | – | – | – | – | – |
 
 ## Flow
 
@@ -674,10 +674,10 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 1674.0 | – | – | – |
 | [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 1674.7 | – | – | – |
 | [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1677.7 | – | – | – |
-| [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | – | – | – | – |
-| [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | – | – | – | – |
-| [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | – | – | – | – |
-| [`memfof-sintel`](models/flow.md#memfof) | yes | – | – | – | – | – | – |
+| [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | OOM (1080x1920) | – | – | – |
+| [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | OOM (1080x1920) | – | – | – |
+| [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | OOM (1080x1920) | – | – | – |
+| [`memfof-sintel`](models/flow.md#memfof) | yes | – | OOM (1080x1920) | OOM (1080x1920) | – | – | – |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
@@ -787,7 +787,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1426.7 | 2.1x vs original (512x512) | 2298 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1596.7 | 1426.9 | 2.1x vs original (512x512) | 2298 |
 | [`seedvr2-3b`](models/restoration.md#seedvr2) | yes | 13150.0 (512x512) | 2294.7 | 2294.9 | 5.7x vs original (512x512) | 6140 |
-| [`seedvr2-7b`](models/restoration.md#seedvr2) | yes | OOM (512x512) | – | – | – | – |
+| [`seedvr2-7b`](models/restoration.md#seedvr2) | yes | OOM (512x512) | OOM (512x512) | – | – | – |
 
 ## Volume
 
