@@ -53,7 +53,8 @@ class Params:
 def _norm(m: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
     """`LayerNorm` over the channels without the affine (folded into the next conv)."""
     if m.with_bias:
-        return F.layer_norm(x.permute(0, 2, 3, 1), x.shape[1:2], eps=_EPS).permute(0, 3, 1, 2)
+        y = F.layer_norm(x.permute(0, 2, 3, 1), x.shape[1:2], eps=_EPS).permute(0, 3, 1, 2)
+        return y.contiguous() if x.device.type == "cpu" else y  # a channels-last view makes the CPU convs slow (9x)
     var = x.float().var(1, keepdim=True, unbiased=False)
     return x * torch.rsqrt(var + _EPS).to(x.dtype)
 

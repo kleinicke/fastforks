@@ -28,6 +28,7 @@ from __future__ import annotations
 import copy
 import itertools
 import logging
+import platform
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -446,7 +447,9 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
             report["nls"] = cnn.fold_layer_scale(net)  # portable too: one broadcast multiply fewer per block
     if half:
         net = net.half()
-    cpu_cl = dev.type == "cpu" and conv_like  # oneDNN: channels_last convolutions run 12-30 % faster (cpu_speed.md)
+    # oneDNN (x86): channels_last convs run 12-30 % faster (cpu_speed.md); on Apple / ARM CPUs far slower
+    # (depthwise convs fall to `_slow_conv2d`: YuNet 9x, NAFNet 5x)
+    cpu_cl = dev.type == "cpu" and conv_like and platform.machine().lower() in {"x86_64", "amd64"}
     if cuda or cpu_cl:
         net = net.to(memory_format=torch.channels_last)
     report["fp16"] = half

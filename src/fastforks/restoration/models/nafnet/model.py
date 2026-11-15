@@ -73,8 +73,13 @@ class _LocalMean(torch.nn.Module):
 
 
 def _norm(x: torch.Tensor, eps: float) -> torch.Tensor:
-    """Channel LayerNorm without affine (folded into the next conv), over a channels-last view."""
-    return F.layer_norm(x.permute(0, 2, 3, 1), x.shape[1:2], eps=eps).permute(0, 3, 1, 2)
+    """Channel LayerNorm without affine (folded into the next conv), over a channels-last view.
+
+    On the CPU the result is made contiguous: the channels-last view sends the next (depthwise) convs down
+    `_slow_conv2d` (5.5x slower).
+    """
+    y = F.layer_norm(x.permute(0, 2, 3, 1), x.shape[1:2], eps=eps).permute(0, 3, 1, 2)
+    return y.contiguous() if x.device.type == "cpu" else y
 
 
 def _block(m: NAFBlock, inp: torch.Tensor) -> torch.Tensor:
