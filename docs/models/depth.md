@@ -38,15 +38,15 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`lingbot-depth-dc`](#lingbot_depth) | yes | – | – | – |
 | [`lotus-normal-d-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
 | [`lotus-normal-g-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
-| [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 383, 1.1x | 3762, 1.1x |
+| [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 261, 1.7x | 2500, 0.7x |
 | [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167, 1.7x | 2500, 0.69x |
 | [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3868 | 10548 |
 | [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 155, 2.8x | 1608, 0.52x |
 | [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.9, 5.2x | 1436, 0.5x |
 | [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7, 2.5x | 1208, 0.76x |
 | [`moge-2-vitl-normal`](#moge) | yes | 0.0357 | 73.4, 2.3x | 1610, 0.66x |
-| [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 29.7, 2.8x | 1008, 0.79x |
-| [`moge-3-vitl`](#moge) | yes | 0.0356 | 215, 2.3x | 1884, 0.72x |
+| [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 33.3, 2.5x | 1048, 0.83x |
+| [`moge-3-vitl`](#moge) | yes | 0.0356 | 149, 3.3x | 1762, 0.67x |
 | [`omni-dc`](#omni_dc) | no | – | – | – |
 | [`pointdit-b-512`](#pointdit) | yes | 0.0453 | 20.6, 2.4x | 630, 0.63x |
 | [`pointdit-l-512`](#pointdit) | yes | 0.0410 | 61.4, 1.8x | 1696, 0.54x |
@@ -585,7 +585,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `marigold-depth-v1-1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 963<br>439<br>408<br>383<br>342<br>172 | 6406 / 6804<br>3414 / 3580<br>2817 / 3760<br>2583 / 3762<br>2341 / 2418<br>4263 / 4318 |
+| `marigold-depth-v1-1` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 963<br>439<br>410<br>261<br>342<br>172 | 6406 / 6804<br>3414 / 3580<br>2776 / 2938<br>2343 / 2500<br>2341 / 2418<br>4263 / 4318 |
 
 <details><summary>Details</summary>
 
@@ -604,9 +604,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-depth-v1-1` 3000x4000 (3.0 GiB peak allocated, 3.8 reserved)
 - `marigold-depth-v1-1` 994x1482, first call: portable + torch.compile 127 s (cold Inductor cache), TensorRT fp16 285 s (ONNX + engine).
 - `marigold-depth-v1-1` original 994x1482: the authors' float16 model option; fp16 = upstream's own torch_dtype=float16 pipeline
-- `marigold-depth-v1-1` load / first call: original 1.32 s / 0.599 s, portable 8.2 s / 0.556 s, kernels 1.1† s / 0.523 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
-- Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `marigold-depth-v1-1` load / first call: original 1.32 s / 0.599 s, portable 11.04 s / 0.886 s (518x770), kernels 2.49 s / 0.504 s (518x770)
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -876,10 +875,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>64.2<br>29.7<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1066 / 1336<br>884 / 1008<br>836 / 992<br>768 / 852 |
+| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>61.6<br>33.3<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1007 / 1172<br>932 / 1048<br>836 / 992<br>768 / 852 |
 | `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>83.9<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>1163 / 1312<br>1093 / 1208<br>972 / 1172<br>1044 / 1092 |
 | `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>144<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610<br>1411 / 1634<br>1882 / 1936 |
-| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 843<br>486<br>514<br>215 | 2812 / 2990<br>2505 / 2630<br>1686 / 1924<br>1673 / 1884 |
+| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 843<br>486<br>332<br>149 | 2812 / 2990<br>2505 / 2630<br>1678 / 1926<br>1626 / 1762 |
 
 <details><summary>Details</summary>
 
@@ -901,13 +900,13 @@ Commercial use: yes.
 - `moge-2-vits-normal` 994x1482, first call: portable + torch.compile 124 s (cold Inductor cache), TensorRT fp16 131 s (ONNX + engine).
 - `moge-2-vitb-normal` 994x1482, first call: portable + torch.compile 133 s (cold Inductor cache), TensorRT fp16 127 s (ONNX + engine).
 - `moge-2-vitl-normal` 994x1482, first call: portable + torch.compile 152 s (cold Inductor cache), TensorRT fp16 173 s (ONNX + engine).
-- `moge-2-vits-normal` load / first call: original 0.88 s / 1.501 s, portable 0.35 s / 0.084 s, kernels 0.11† s / 0.099 s
+- `moge-2-vits-normal` load / first call: original 0.88 s / 1.501 s, portable 1.18 s / 0.298 s (518x770), kernels 0.21 s / 0.438 s (518x770)
 - `moge-2-vitb-normal` load / first call: original 1.26 s / 0.239 s, portable 0.49 s / 0.397 s (518x770), kernels 1.24 s / 0.285 s (518x770)
 - `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 1.37 s / 0.144 s, kernels 0.63† s / 0.131 s
-- `moge-3-vitl` load / first call: original 10.6 s / 2.918 s, portable 1.02 s / 0.562 s, kernels 1.66 s / 0.301 s
+- `moge-3-vitl` load / first call: original 10.6 s / 2.918 s, portable 2.31 s / 0.69 s (518x770), kernels 1.16 s / 0.742 s (518x770)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
-- Protocol, `moge-2-vits-normal`, `moge-2-vitl-normal`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
-- Protocol, `moge-2-vitb-normal`, `moge-3-vitl`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+- Protocol, `moge-2-vits-normal`, `moge-2-vitb-normal`, `moge-3-vitl`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+- Protocol, `moge-2-vitl-normal`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
 
@@ -1121,7 +1120,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `stablenormal-turbo` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 299<br>289<br>180<br>238<br>fails: timeout after 290 s | 4156 / 4374<br>3463 / 3628<br>3037 / 3172<br>3019 / 3106<br>– |
+| `stablenormal-turbo` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 299<br>289<br>180<br>238<br>118 | 4156 / 4374<br>3463 / 3628<br>3037 / 3172<br>3019 / 3106<br>5587 / 5626 |
 
 <details><summary>Details</summary>
 
@@ -1137,7 +1136,7 @@ Commercial use: yes.
 - Outputs: normals; kind: `none`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `stablenormal-turbo` 3000x4000 (3.6 GiB peak allocated, 4.8 reserved)
-- `stablenormal-turbo` 994x1482, first call: portable + torch.compile 76 s (cold Inductor cache).
+- `stablenormal-turbo` 994x1482, first call: portable + torch.compile 76 s (cold Inductor cache), TensorRT fp16 198 s (ONNX + engine).
 - `stablenormal-turbo` original 994x1482: the authors' mixed-precision option (float16); upstream YOSONormalsPipeline (turbo, t_start 0), diffusers 0.41.0, latents seed 0
 - `stablenormal-turbo` load / first call: original 6.36 s / 1.128 s, portable 2.94 s / 0.544 s, kernels 3.25 s / 0.352 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

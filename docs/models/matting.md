@@ -153,7 +153,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>109<br>no kernels<br>85.8<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 3240 / 3262<br>1649 / 1848<br>no kernels<br>913 / 1018<br>– |
+| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>109<br>no kernels<br>85.8<br>51.1 | 3240 / 3262<br>1649 / 1848<br>no kernels<br>913 / 1018<br>1181 / 1252 |
 | `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>41.7<br>no kernels<br>17.7<br>6.99 | 810 / 836<br>432 / 488<br>no kernels<br>345 / 376<br>561 / 600 |
 
 <details><summary>Details</summary>
@@ -171,7 +171,7 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `inspyrenet` 3000x4000 (2.0 GiB peak allocated, 2.4 reserved); `inspyrenet-fast` 3000x4000 (0.9 GiB peak allocated, 1.0 reserved)
 - no kernels: measured slower: cudnn_hacc convolutions 189.9 ms vs 159.4 ms portable (1080x1920, size 1024; upstream views their outputs, so channels-last needs copies); fp16-accumulate GEMMs alone 3 %.
-- `inspyrenet` 1080x1920, first call: portable + torch.compile 71 s (cold Inductor cache).
+- `inspyrenet` 1080x1920, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp16 133 s (ONNX + engine).
 - `inspyrenet-fast` 1080x1920, first call: portable + torch.compile 77 s (cold Inductor cache), TensorRT fp16 138 s (ONNX + engine).
 - `inspyrenet` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing
 - `inspyrenet-fast` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing

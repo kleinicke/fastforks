@@ -21,7 +21,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`gimm-vfi-r-p`](#gimm_vfi) | no | 1628 | 5282 |
 | [`rife-4.25`](#rife) | yes | 21.5, 1.1x | 1076, 0.93x |
 | [`rife-4.25-lite`](#rife) | yes | 18.3, 1.2x | 1056, 0.87x |
-| [`rife-4.26`](#rife) | yes | 21.4, 1.1x | 1076, 0.93x |
+| [`rife-4.26`](#rife) | yes | 21.4, 1.1x | 916, 0.79x |
 
 <a id="ema_vfi"></a>
 
@@ -201,7 +201,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `rife-4.25` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.5<br>25.0<br>21.5<br>44.9<br>17.6 | 987 / 1154<br>755 / 894<br>967 / 1076<br>1094 / 1234<br>696 / 714 |
-| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.1<br>21.4<br>44.5<br>17.6 | 1004 / 1154<br>755 / 896<br>967 / 1076<br>1094 / 1234<br>696 / 714 |
+| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.1<br>21.4<br>44.5<br>17.6 | 1004 / 1154<br>755 / 894<br>848 / 916<br>1094 / 1234<br>696 / 714 |
 | `rife-4.25-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.3<br>21.1<br>18.3<br>42.3<br>14.1 | 1012 / 1214<br>754 / 854<br>950 / 1056<br>1061 / 1374<br>696 / 714 |
 
 <details><summary>Details</summary>
@@ -225,7 +225,7 @@ Commercial use: yes.
 - `rife-4.26` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
 - `rife-4.25-lite` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
 - `rife-4.25` load / first call: original 1.42 s / 0.265 s, portable 0.31 s / 0.491 s, kernels 1.5 s / 0.203 s
-- `rife-4.26` load / first call: original 0.18 s / 0.046 s, portable 0.78 s / 0.243 s, kernels 1.15 s / 0.198 s
+- `rife-4.26` load / first call: original 0.18 s / 0.046 s, portable 0.15 s / 0.344 s, kernels 0.29 s / 0.215 s
 - `rife-4.25-lite` load / first call: original 0.18 s / 0.12 s, portable 1.0 s / 0.229 s, kernels 1.11 s / 0.183 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

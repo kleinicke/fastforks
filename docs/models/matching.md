@@ -79,7 +79,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.8<br>40.6<br>35.1<br>29.5<br>fails: ONNX export: torch.export failed | 1305 / 1364<br>1300 / 1404<br>1238 / 1324<br>1653 / 1680<br>– |
+| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.8<br>40.6<br>35.1<br>29.5<br>fails: unsupported: torch.export: data-dependent guard (masks.sum() | 1305 / 1364<br>1300 / 1404<br>1238 / 1324<br>1653 / 1680<br>– |
 | `disk-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 117<br>116<br>52.1<br>113<br>fails: ONNX export: torch.export failed | 1955 / 2412<br>1950 / 2398<br>736 / 778<br>1375 / 1502<br>– |
 
 <details><summary>Details</summary>
@@ -143,7 +143,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>no kernels<br>164<br>fails: timeout after 298 s | 1734 / 1992<br>1535 / 1654<br>no kernels<br>1893 / 2434<br>– |
+| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>no kernels<br>164<br>fails: unsupported: TensorRT ITopK supports K <= 3840 only; the key | 1734 / 1992<br>1535 / 1654<br>no kernels<br>1893 / 2434<br>– |
 | `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 666<br>592<br>no kernels<br>330<br>fails: TensorRT engine build failed | 2335 / 2472<br>2142 / 2334<br>no kernels<br>2881 / 3316<br>– |
 
 <details><summary>Details</summary>
@@ -208,7 +208,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>no kernels<br>176<br>fails: ONNX export: torch.export failed | 1739 / 1870<br>796 / 904<br>no kernels<br>1149 / 1232<br>– |
+| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>no kernels<br>176<br>fails: unsupported: torch.export: data-dependent guard in loftr.py: | 1739 / 1870<br>796 / 904<br>no kernels<br>1149 / 1232<br>– |
 | `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>111<br>no kernels<br>71.0<br>fails: ONNX export: torch.export failed | 1751 / 1910<br>796 / 904<br>no kernels<br>634 / 684<br>– |
 
 <details><summary>Details</summary>
@@ -431,7 +431,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.89<br>7.17<br>no kernels<br>5.65<br>fails: ONNX export: conversion failed | 128 / 174<br>122 / 154<br>no kernels<br>186 / 212<br>– |
+| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.89<br>7.17<br>no kernels<br>5.65<br>fails: unsupported: torch.export: data-dependent guard in the NMS / | 128 / 174<br>122 / 154<br>no kernels<br>186 / 212<br>– |
 | `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>no kernels<br>16.2<br>fails: ONNX export: torch.export failed | 448 / 478<br>445 / 476<br>no kernels<br>262 / 278<br>– |
 
 <details><summary>Details</summary>

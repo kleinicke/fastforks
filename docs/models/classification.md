@@ -934,7 +934,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientvit_b2.r288_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.7<br>11.9<br>1.10<br>6.91<br>0.790 | 144 / 160<br>173 / 194<br>85 / 124<br>120 / 212<br>120 / 164<br>154 / 216 |
+| `efficientvit_b2.r288_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.7<br>11.8<br>1.10<br>6.91<br>0.790 | 144 / 160<br>173 / 194<br>85 / 144<br>120 / 212<br>120 / 164<br>154 / 216 |
 
 <details><summary>Details</summary>
 
@@ -952,7 +952,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientvit_b2.r288_in1k` 288x288 (0.1 GiB peak allocated, 0.1 reserved)
 - `efficientvit_b2.r288_in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `efficientvit_b2.r288_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `efficientvit_b2.r288_in1k` load / first call: original 1.84 s / 1.888 s, portable 0.4 s / 0.039 s, kernels 1.92 s / 0.051 s
+- `efficientvit_b2.r288_in1k` load / first call: original 1.84 s / 1.888 s, portable 2.31 s / 0.724 s, kernels 1.92 s / 0.051 s
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -2324,7 +2324,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>3.98<br>4.05<br>5.33<br>fails: timeout after 290 s | 426 / 442<br>231 / 242<br>235 / 242<br>234 / 284<br>282 / 302<br>– |
-| `wd-convnext-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>9.60<br>5.62<br>4.45<br>4.45<br>3.10 | 481 / 516<br>259 / 292<br>340 / 374<br>318 / 358<br>380 / 392<br>521 / 548 |
+| `wd-convnext-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>9.60<br>5.58<br>4.45<br>4.45<br>3.10 | 481 / 516<br>259 / 292<br>340 / 374<br>318 / 358<br>380 / 392<br>521 / 548 |
 | `wd-vit-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.8<br>19.9<br>12.9<br>12.5<br>13.3<br>11.2 | 1287 / 1302<br>662 / 682<br>669 / 682<br>667 / 724<br>713 / 742<br>1266 / 1290 |
 | `wd-eva02-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 84.4<br>26.6<br>18.3<br>14.1<br>15.7<br>fails: timeout after 290 s | 1299 / 1324<br>668 / 684<br>669 / 684<br>673 / 806<br>714 / 724<br>– |
 
@@ -2350,7 +2350,7 @@ Commercial use: yes.
 - `wd-vit-large-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
 - `wd-eva02-large-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
 - `wd-vit-tagger-v3` load / first call: original 2.33 s / 0.318 s (448x448), portable 2.44 s / 0.09 s (448x448), kernels 2.28 s / 0.092 s (448x448)
-- `wd-convnext-tagger-v3` load / first call: original 2.92 s / 0.484 s (448x448), portable 2.72 s / 0.273 s (448x448), kernels 2.4 s / 0.096 s (448x448)
+- `wd-convnext-tagger-v3` load / first call: original 2.92 s / 0.484 s (448x448), portable 2.93 s / 0.252 s (448x448), kernels 2.37 s / 0.066 s (448x448)
 - `wd-vit-large-tagger-v3` load / first call: original 4.74 s / 0.439 s (448x448), portable 5.54 s / 0.091 s (448x448), kernels 4.68 s / 0.063 s (448x448)
 - `wd-eva02-large-tagger-v3` load / first call: original 4.82 s / 0.352 s (448x448), portable 5.38 s / 0.064 s (448x448), kernels 3.61 s / 0.076 s (448x448)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

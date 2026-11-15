@@ -17,13 +17,13 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`bootstapir`](#tapir) | yes | 192, 1.3x | 628, 0.81x |
 | [`cotracker3-offline`](#cotracker) | no | 154, 1.6x | 916, 0.37x |
 | [`cotracker3-online`](#cotracker) | no | 176, 1.9x | 922, 0.49x |
-| [`locotrack-b`](#locotrack) | yes | 178, 1.1x | 840, 1.1x |
+| [`locotrack-b`](#locotrack) | yes | 173, 1.2x | 840, 1.1x |
 | [`locotrack-s`](#locotrack) | yes | 151, 1.3x | 822, 1.0x |
 | [`tapir`](#tapir) | yes | 141, 1.3x | 548, 0.95x |
 | [`tapnext`](#tapnext) | yes | 382, 2.4x | 1374, 0.72x |
 | [`tapnext-pp`](#tapnext) | yes | – | – |
 | [`track-on-r`](#track_on) | yes | 1102, 1.8x | 1620, 0.84x |
-| [`track-on2`](#track_on) | yes | 1120, 1.7x | 1620, 1.0x |
+| [`track-on2`](#track_on) | yes | 1109, 1.8x | 1620, 1.0x |
 
 <a id="alltracker"></a>
 
@@ -35,8 +35,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>391<br>221<br>284<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 2100 / 2318<br>993 / 1238<br>1076 / 1288<br>1273 / 1358<br>– |
-| `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>233<br>229<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
+| `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>391<br>221<br>284<br>fails: ONNX export: torch.export failed | 2100 / 2318<br>993 / 1238<br>1076 / 1288<br>1273 / 1358<br>– |
+| `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>233<br>229<br>fails: ONNX export: torch.export failed | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
 
 <details><summary>Details</summary>
 
@@ -100,8 +100,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `bootstapir` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 243<br>234<br>192<br>183<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 639 / 774<br>508 / 628<br>508 / 628<br>758 / 832<br>– |
-| `tapir` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 187<br>182<br>141<br>131<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 498 / 574<br>463 / 548<br>463 / 548<br>630 / 752<br>– |
+| `bootstapir` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 243<br>234<br>192<br>183<br>13.2 | 639 / 774<br>508 / 628<br>508 / 628<br>758 / 832<br>492 / 532 |
+| `tapir` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 187<br>182<br>141<br>131<br>6.47 | 498 / 574<br>463 / 548<br>463 / 548<br>630 / 752<br>361 / 406 |
 
 <details><summary>Details</summary>
 
@@ -117,8 +117,8 @@ Commercial use: yes.
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `bootstapir` 3000x4000 (5.6 GiB peak allocated, 6.1 reserved); `tapir` 3000x4000 (5.5 GiB peak allocated, 6.0 reserved)
-- `bootstapir` 480x854, first call: portable + torch.compile 207 s (cold Inductor cache).
-- `tapir` 480x854, first call: portable + torch.compile 169 s (cold Inductor cache).
+- `bootstapir` 480x854, first call: portable + torch.compile 207 s (cold Inductor cache), TensorRT fp16 65 s (ONNX + engine).
+- `tapir` 480x854, first call: portable + torch.compile 169 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `bootstapir` original 480x854: the authors' mixed-precision option (float16); upstream BootsTAPIR, offline (whole video); frames resized to 256 x 256
 - `tapir` original 480x854: the authors' mixed-precision option (float16); upstream TAPIR, offline (whole video); frames resized to 256 x 256
 - `bootstapir` load / first call: original 0.6 s / 0.901 s, portable 0.32 s / 0.8 s, kernels 1.14 s / 0.659 s
@@ -225,7 +225,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>190<br>178<br>82.6<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 719 / 784<br>771 / 856<br>782 / 840<br>1117 / 1140<br>– |
+| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>187<br>173<br>82.6<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 719 / 784<br>771 / 816<br>782 / 840<br>1117 / 1140<br>– |
 | `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 706 / 812<br>759 / 842<br>764 / 822<br>1000 / 1034<br>– |
 
 <details><summary>Details</summary>
@@ -245,7 +245,7 @@ Commercial use: yes.
 - `locotrack-s` 480x854, first call: portable + torch.compile 140 s (cold Inductor cache).
 - `locotrack-b` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
 - `locotrack-s` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
-- `locotrack-b` load / first call: original 0.79 s / 1.058 s, portable 0.06 s / 0.637 s, kernels 1.0 s / 0.689 s
+- `locotrack-b` load / first call: original 0.79 s / 1.058 s, portable 0.25 s / 0.634 s, kernels 0.16 s / 0.77 s
 - `locotrack-s` load / first call: original 0.29 s / 0.229 s, portable 0.06 s / 0.653 s, kernels 1.13 s / 0.655 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -286,7 +286,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>529<br>382<br>398<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 1721 / 1902<br>1220 / 1294<br>1313 / 1374<br>1164 / 1272<br>– |
+| `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>529<br>382<br>398<br>fails: unsupported: engine build exceeds 5 min lock rule (cold ONNX | 1721 / 1902<br>1220 / 1294<br>1313 / 1374<br>1164 / 1272<br>– |
 
 <details><summary>Details</summary>
 
@@ -347,7 +347,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1238<br>1120<br>fails: worker rc=124<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 1403 / 1558<br>1423 / 1632<br>1368 / 1620<br>–<br>– |
+| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1194<br>1109<br>fails: worker rc=124<br>fails: unsupported: torch.export: data-dependent guard in model.py: | 1403 / 1558<br>1423 / 1572<br>1368 / 1620<br>–<br>– |
 | `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>fails: worker rc=124<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>–<br>– |
 
 <details><summary>Details</summary>
@@ -367,7 +367,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `track-on2` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved); `track-on-r` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved)
 - `track-on2` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
 - `track-on-r` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
-- `track-on2` load / first call: original 3.77 s / 3.626 s, portable 0.46 s / 2.637 s, kernels 1.17 s / 1.753 s
+- `track-on2` load / first call: original 3.77 s / 3.626 s, portable 0.66 s / 2.268 s, kernels 0.27 s / 1.777 s
 - `track-on-r` load / first call: original 0.88 s / 2.907 s, portable 0.24 s / 1.989 s, kernels 1.11 s / 1.72 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

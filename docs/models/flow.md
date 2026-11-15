@@ -216,11 +216,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>801<br>no kernels<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>5523 / 5660<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
+| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>801<br>no kernels<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>5512 / 5640<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
 | `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>800<br>no kernels<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>5523 / 5660<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
 | `gmflow-scale2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2537<br>1599<br>1636<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8742<br>8425 / 8552<br>6433 / 7244<br>no kernels<br>10865 / 10904<br>– |
-| `gmflow-scale2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2541<br>1607<br>1644<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8742<br>8425 / 8552<br>6433 / 7244<br>no kernels<br>10865 / 10904<br>– |
-| `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>1645<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8722<br>8425 / 8572<br>6433 / 7244<br>no kernels<br>10865 / 10904<br>– |
+| `gmflow-scale2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2541<br>1607<br>1644<br>no kernels<br>765<br>fails: unsupported: TensorRT 10 Myelin compiler error CHECK(is_cons | 8512 / 8742<br>8425 / 8552<br>6433 / 7244<br>no kernels<br>10865 / 10904<br>– |
+| `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>1646<br>no kernels<br>765<br>fails: TensorRT bug: Myelin internal error | 8512 / 8722<br>8425 / 8572<br>6422 / 7244<br>no kernels<br>10865 / 10904<br>– |
 | `gmflow-scale2-regrefine6-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3230<br>2175<br>2183<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8730<br>8537 / 8822<br>6443 / 7250<br>no kernels<br>10875 / 10972<br>– |
 | `gmflow-scale2-regrefine6-sintelft` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2184<br>2189<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8730<br>8537 / 8822<br>6443 / 7250<br>no kernels<br>10875 / 10972<br>– |
 | `gmflow-scale2-regrefine6-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2188<br>2194<br>no kernels<br>1116<br>fails: TensorRT bug: Myelin internal error | 8522 / 8710<br>8537 / 8822<br>6443 / 7250<br>no kernels<br>10875 / 10972<br>– |
@@ -277,11 +277,11 @@ Commercial use: yes.
 - `gmflow-scale2-regrefine6-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
-- `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.18 s / 0.564 s (375x1242)
+- `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.26 s / 0.802 s
 - `gmflow-scale1-mixdata` load / first call: original 0.13 s / 0.76 s, portable 0.14 s / 0.483 s (375x1242)
 - `gmflow-scale2-things` load / first call: original 0.14 s / 1.61 s, portable 0.11 s / 0.626 s (375x1242)
 - `gmflow-scale2-sintel` load / first call: original 0.13 s / 1.618 s, portable 0.09 s / 0.61 s (375x1242)
-- `gmflow-scale2-mixdata` load / first call: original 0.13 s / 1.618 s, portable 0.08 s / 0.611 s (375x1242)
+- `gmflow-scale2-mixdata` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.647 s
 - `gmflow-scale2-regrefine6-things` load / first call: original 0.15 s / 2.186 s, portable 0.16 s / 0.753 s (375x1242)
 - `gmflow-scale2-regrefine6-sintelft` load / first call: original 0.15 s / 2.369 s, portable 0.12 s / 0.763 s (375x1242)
 - `gmflow-scale2-regrefine6-kitti` load / first call: original 0.15 s / 2.199 s, portable 0.11 s / 0.752 s (375x1242)
@@ -463,7 +463,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `memfof` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 531<br>433<br>427<br>291<br>160 | 2003 / 2144<br>1911 / 2196<br>1301 / 1418<br>2452 / 2666<br>2070 / 2132 |
-| `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>386<br>380<br>258<br>fails: TensorRT engine build failed | –<br>1619 / 1856<br>1137 / 1218<br>2041 / 2226<br>– |
+| `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>386<br>380<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | –<br>1619 / 1856<br>1137 / 1218<br>2041 / 2226<br>– |
 
 <details><summary>Details</summary>
 
@@ -529,7 +529,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>71.3<br>59.1<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>2435 / 2478<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
+| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>71.2<br>59.1<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>2366 / 2398<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
 | `neuflow-v2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.7<br>71.2<br>58.9<br>91.4<br>64.9 | 8694 / 9020<br>4367 / 4576<br>2435 / 2478<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
 | `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>71.2<br>58.9<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>2435 / 2478<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
 
@@ -558,7 +558,7 @@ Commercial use: yes.
 - `neuflow-v2-sintel` original 1080x1920: the authors' mixed-precision option (float16); upstream NeuFlow, iters_s8=8, infer.py recipe: conv-bn folded, model.half()
 - `neuflow-v2-things` original (fp32) 1080x1920: upstream NeuFlow, iters_s8=8
 - `neuflow-v2-things` original 1080x1920: the authors' mixed-precision option (float16); upstream NeuFlow, iters_s8=8, infer.py recipe: conv-bn folded, model.half()
-- `neuflow-v2` load / first call: original 0.2 s / 0.223 s, portable 0.05 s / 0.303 s (375x1242), kernels 0.96 s / 0.179 s (375x1242)
+- `neuflow-v2` load / first call: original 0.2 s / 0.223 s, portable 0.26 s / 0.072 s, kernels 0.96 s / 0.179 s (375x1242)
 - `neuflow-v2-sintel` load / first call: original 0.17 s / 0.076 s, portable 0.07 s / 0.283 s (375x1242), kernels 0.95 s / 0.178 s (375x1242)
 - `neuflow-v2-things` load / first call: original 0.17 s / 0.076 s, portable 0.06 s / 0.297 s (375x1242), kernels 0.92 s / 0.182 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -600,7 +600,7 @@ Commercial use: yes.
 | `raft-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>83.5<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>342 / 372<br>5886 / 5924<br>– |
 | `raft-large-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 481<br>566<br>291<br>83.1<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>333 / 352<br>5886 / 5924<br>– |
 | `raft-large-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>83.6<br>195<br>fails: TensorRT engine build failed | 13489 / 13818<br>7164 / 10928<br>5930 / 6058<br>333 / 352<br>5886 / 5924<br>– |
-| `raft-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>395<br>144<br>36.3<br>110<br>fails: TensorRT engine build failed | 13441 / 13686<br>7032 / 10888<br>5669 / 5706<br>197 / 224<br>5704 / 5728<br>– |
+| `raft-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>395<br>144<br>36.3<br>110<br>fails: unsupported: engine build needs more than the 16 GB of this  | 13441 / 13686<br>7032 / 10888<br>5669 / 5706<br>197 / 224<br>5704 / 5728<br>– |
 
 <details><summary>Details</summary>
 

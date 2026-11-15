@@ -79,7 +79,7 @@ Commercial use: yes.
 | `dfine-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.7<br>31.9<br>11.1<br>3.83<br>5.63<br>1.65 | 180 / 204<br>152 / 184<br>105 / 128<br>106 / 172<br>131 / 152<br>147 / 160 |
 | `dfine-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 30.8<br>38.2<br>13.5<br>5.16<br>6.79<br>2.49 | 231 / 264<br>209 / 256<br>126 / 142<br>127 / 192<br>149 / 166<br>204 / 232 |
 | `dfine-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 37.1<br>44.9<br>16.2<br>6.64<br>7.91<br>3.19 | 281 / 328<br>278 / 350<br>152 / 172<br>149 / 220<br>175 / 198<br>219 / 256 |
-| `dfine-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.9<br>54.6<br>18.5<br>9.71<br>11.0<br>fails: TensorRT: NaN output (onnxruntime on the same ONNX is right) | 452 / 488<br>476 / 536<br>227 / 258<br>228 / 304<br>245 / 284<br>– |
+| `dfine-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.9<br>54.6<br>18.5<br>9.71<br>11.0<br>5.03 | 452 / 488<br>476 / 536<br>227 / 258<br>228 / 304<br>245 / 284<br>342 / 374 |
 | `deim-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.6<br>10.2<br>2.50<br>5.44<br>1.01 | 93 / 124<br>88 / 116<br>93 / 122<br>101 / 118<br>113 / 128 |
 | `deim-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 26.4<br>11.4<br>3.79<br>5.63<br>1.68 | 154 / 180<br>105 / 128<br>106 / 172<br>131 / 152<br>163 / 176 |
 | `deim-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 31.4<br>13.6<br>5.17<br>6.73<br>2.54 | 210 / 250<br>126 / 142<br>127 / 192<br>149 / 166<br>204 / 232 |
@@ -110,7 +110,7 @@ Commercial use: yes.
 - `dfine-s-coco` 800x1344, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
 - `dfine-m-coco` 800x1344, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `dfine-l-coco` 800x1344, first call: portable + torch.compile 46 s (cold Inductor cache), TensorRT fp16 59 s (ONNX + engine).
-- `dfine-x-coco` 800x1344, first call: portable + torch.compile 48 s (cold Inductor cache).
+- `dfine-x-coco` 800x1344, first call: portable + torch.compile 48 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
 - `deim-n-coco` 800x1344, first call: portable + torch.compile 28 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
 - `deim-s-coco` 800x1344, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp16 58 s (ONNX + engine).
 - `deim-m-coco` 800x1344, first call: portable + torch.compile 39 s (cold Inductor cache), TensorRT fp16 58 s (ONNX + engine).
@@ -317,7 +317,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>no kernels<br>111<br>fails: ONNX export: conversion failed | 2541 / 2716<br>1404 / 1468<br>no kernels<br>2550 / 2664<br>– |
+| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>no kernels<br>111<br>fails: unsupported: ONNX export: aten._is_all_true has no ONNX deco | 2541 / 2716<br>1404 / 1468<br>no kernels<br>2550 / 2664<br>– |
 | `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 230<br>160<br>no kernels<br>131<br>fails: ONNX export: conversion failed | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |
 | `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 202<br>138<br>no kernels<br>111<br>fails: ONNX export: conversion failed | 2541 / 2716<br>1405 / 1470<br>no kernels<br>2555 / 2666<br>– |
 | `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 232<br>160<br>no kernels<br>132<br>fails: ONNX export: conversion failed | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |

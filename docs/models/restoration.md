@@ -16,7 +16,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`codeformer`](#codeformer) | no | 40.4, 2.1x | 496, 0.46x |
 | [`dat-2-x4`](#dat) | yes | 1247, 3.9x | 2858, 1.1x |
 | [`dat-light-x4`](#dat) | yes | 268, 8.2x | 1572, 0.95x |
-| [`dat-x4`](#dat) | yes | 1421, 6.7x | 2864, 1.1x |
+| [`dat-x4`](#dat) | yes | 1417, 6.7x | 2604, 1.0x |
 | [`drct-l-x4`](#drct) | yes | 1422, 10.3x | 3010, 0.43x |
 | [`drct-x4`](#drct) | yes | 730, 10.3x | 2946, 0.75x |
 | [`gfpgan-v1.4`](#gfpgan) | yes | 18.0, 1.2x | 530, 0.79x |
@@ -32,16 +32,16 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`realplksr-nomoswebphoto-x4`](#realplksr) | yes | 130, 2.1x | 216, 0.68x |
 | [`restormer-deblur`](#restormer) | yes | 225, 1.0x | 980, 0.69x |
 | [`restormer-derain`](#restormer) | yes | 225, 1.0x | 980, 0.69x |
-| [`restormer-sidd`](#restormer) | yes | 224, 1.0x | 980, 0.69x |
+| [`restormer-sidd`](#restormer) | yes | 179, 1.2x | 940, 0.66x |
 | [`seedvr2-3b`](#seedvr2) | yes | 2281, 5.8x | 15348, 1.0x |
 | [`seedvr2-7b`](#seedvr2) | yes | – | – |
 | [`span-x2`](#span) | yes | 14.9, 1.6x | 522, 0.81x |
 | [`span-x4`](#span) | yes | 14.6, 1.8x | 522, 0.81x |
 | [`swin2sr-x2`](#swin2sr) | yes | 720, 3.6x | 1636, 1.0x |
 | [`swin2sr-x4`](#swin2sr) | yes | 745, 3.9x | 1736, 0.8x |
-| [`swin2sr-x4-real`](#swin2sr) | yes | 752, 3.4x | 1734, 0.65x |
+| [`swin2sr-x4-real`](#swin2sr) | yes | 751, 3.4x | 1734, 0.65x |
 | [`swinir-l-x4-real`](#swinir) | yes | 1044, 3.6x | 2152, 0.78x |
-| [`swinir-m-x2`](#swinir) | yes | 558, 5.8x | 1754, 0.96x |
+| [`swinir-m-x2`](#swinir) | yes | 553, 5.9x | 1454, 0.8x |
 | [`swinir-m-x4`](#swinir) | yes | 580, 6.0x | 1456, 0.71x |
 | [`swinir-m-x4-real`](#swinir) | yes | 588, 4.2x | 1954, 0.66x |
 
@@ -141,7 +141,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 9564<br>1565<br>1421<br>1063 | 2443 / 2528<br>2552 / 2624<br>2737 / 2864<br>2552 / 2606 |
+| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 9564<br>1565<br>1417<br>1063 | 2443 / 2528<br>2552 / 2624<br>2552 / 2604<br>2552 / 2606 |
 | `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 4880<br>1338<br>1247<br>964 | 2436 / 2518<br>2546 / 2618<br>2730 / 2858<br>2546 / 2598 |
 | `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile | 2204<br>268<br>268<br>158 | 1606 / 1656<br>1535 / 1552<br>1535 / 1572<br>1385 / 1412 |
 
@@ -166,7 +166,7 @@ Commercial use: yes.
 - `dat-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-2-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-light-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
-- `dat-x4` load / first call: original 2.2 s / 6.13 s, portable 0.89 s / 2.36 s, kernels 2.55 s / 2.467 s
+- `dat-x4` load / first call: original 2.2 s / 6.13 s, portable 2.99 s / 2.307 s, kernels 0.71 s / 2.149 s
 - `dat-2-x4` load / first call: original 2.04 s / 5.516 s, portable 14.55 s / 2.72 s, kernels 1.61 s / 2.031 s
 - `dat-light-x4` load / first call: original 3.48 s / 2.721 s, portable 0.21 s / 1.304 s, kernels 1.25 s / 1.152 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -587,7 +587,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>225<br>143<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 980<br>660 / 778<br>757 / 774 |
 | `restormer-derain` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>225<br>144<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 980<br>660 / 778<br>757 / 774 |
-| `restormer-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>227<br>224<br>142<br>162 | 1221 / 1416<br>850 / 960<br>850 / 980<br>660 / 778<br>757 / 774 |
+| `restormer-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>181<br>179<br>142<br>162 | 1221 / 1416<br>850 / 920<br>850 / 940<br>660 / 778<br>757 / 774 |
 
 <details><summary>Details</summary>
 
@@ -612,7 +612,7 @@ Commercial use: yes.
 - `restormer-sidd` original 512x512: .half() on 1 modules, fp16 inputs; upstream test.py, float32, no tile
 - `restormer-deblur` load / first call: original 0.36 s / 0.897 s, portable 0.28 s / 0.712 s, kernels 0.6 s / 0.528 s
 - `restormer-derain` load / first call: original 0.34 s / 0.898 s, portable 0.29 s / 0.721 s, kernels 0.58 s / 0.527 s
-- `restormer-sidd` load / first call: original 0.34 s / 0.886 s, portable 0.29 s / 0.733 s, kernels 0.6 s / 0.563 s
+- `restormer-sidd` load / first call: original 0.34 s / 0.886 s, portable 0.29 s / 0.891 s, kernels 0.59 s / 0.529 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -761,7 +761,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `swin2sr-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>TensorRT fp16 | 2922<br>932<br>745<br>556 | 1488 / 2160<br>1463 / 2276<br>1459 / 1736<br>5410 / 5470 |
 | `swin2sr-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2565<br>909<br>720<br>482<br>547 | 1488 / 1578<br>1459 / 1554<br>1459 / 1636<br>1308 / 1516<br>4941 / 4997 |
-| `swin2sr-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2527<br>958<br>752<br>508<br>562 | 2321 / 2660<br>2354 / 2774<br>1459 / 1734<br>1308 / 1556<br>5409 / 5468 |
+| `swin2sr-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2527<br>958<br>751<br>508<br>562 | 2321 / 2660<br>2354 / 2774<br>1459 / 1734<br>1308 / 1556<br>5409 / 5468 |
 
 <details><summary>Details</summary>
 
@@ -782,9 +782,9 @@ Commercial use: yes.
 - `swin2sr-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
 - `swin2sr-x2` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
 - `swin2sr-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
-- `swin2sr-x4` load / first call: original 1.63 s / 3.583 s, portable 0.37 s / 1.256 s, kernels 0.58 s / 0.867 s
+- `swin2sr-x4` load / first call: original 1.63 s / 3.583 s, portable 0.48 s / 1.16 s, kernels 0.57 s / 1.023 s
 - `swin2sr-x2` load / first call: original 1.81 s / 4.125 s, portable 0.37 s / 1.226 s, kernels 0.56 s / 0.844 s
-- `swin2sr-x4-real` load / first call: original 1.89 s / 3.754 s, portable 0.38 s / 1.275 s, kernels 0.6 s / 0.876 s
+- `swin2sr-x4-real` load / first call: original 1.89 s / 3.754 s, portable 0.47 s / 1.179 s, kernels 0.57 s / 0.882 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -822,7 +822,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `swinir-m-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3497<br>767<br>580<br>795<br>727 | 1500 / 2058<br>1499 / 2054<br>1390 / 1456<br>1684 / 1796<br>5525 / 5604 |
-| `swinir-m-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3252<br>1192<br>558<br>781<br>719 | 1500 / 1818<br>1386 / 1574<br>1577 / 1754<br>1683 / 1796<br>5088 / 5144 |
+| `swinir-m-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3252<br>739<br>553<br>781<br>719 | 1500 / 1818<br>1353 / 1454<br>1353 / 1454<br>1683 / 1796<br>5088 / 5144 |
 | `swinir-m-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2462<br>1242<br>588<br>807<br>733 | 2321 / 2978<br>2387 / 3034<br>1577 / 1954<br>1683 / 1796<br>5427 / 5506 |
 | `swinir-l-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3709<br>2099<br>1044<br>1426<br>1118 | 2357 / 2746<br>2425 / 2672<br>1872 / 2152<br>2153 / 2876<br>9182 / 9282 |
 
@@ -850,7 +850,7 @@ Commercial use: yes.
 - `swinir-m-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
 - `swinir-l-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
 - `swinir-m-x4` load / first call: original 2.07 s / 3.272 s, portable 0.44 s / 1.36 s, kernels 1.28 s / 0.646 s
-- `swinir-m-x2` load / first call: original 2.95 s / 4.489 s, portable 0.38 s / 1.342 s, kernels 1.26 s / 0.631 s
+- `swinir-m-x2` load / first call: original 2.95 s / 4.489 s, portable 0.67 s / 0.848 s, kernels 0.43 s / 0.629 s
 - `swinir-m-x4-real` load / first call: original 2.06 s / 3.326 s, portable 0.4 s / 1.386 s, kernels 1.31 s / 0.697 s
 - `swinir-l-x4-real` load / first call: original 2.15 s / 5.945 s, portable 0.7 s / 2.188 s, kernels 1.46 s / 1.103 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

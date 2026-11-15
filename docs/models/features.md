@@ -395,7 +395,7 @@ Commercial use: yes.
 | `dinov2-vitb14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.00<br>4.30<br>2.94<br>1.50<br>2.30<br>1.33 | 371 / 386<br>530 / 548<br>207 / 226<br>237 / 288<br>240 / 246<br>399 / 402 |
 | `dinov2-vitl14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.8<br>9.80<br>6.12<br>4.59<br>6.03<br>4.25 | 1205 / 1224<br>1777 / 1784<br>622 / 646<br>655 / 714<br>661 / 666<br>1235 / 1262 |
 | `dinov2-vitl14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 22.5<br>10.7<br>6.17<br>4.60 | 1205 / 1226<br>1777 / 1786<br>625 / 646<br>655 / 714 |
-| `dinov2-vitg14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 86.4<br>33.9<br>18.9<br>12.8<br>18.3<br>fails: OSError: [Errno 122] Disk quota exceeded | 4389 / 4406<br>6542 / 6548<br>2216 / 2230<br>2222 / 2250<br>2267 / 2290<br>– |
+| `dinov2-vitg14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 86.4<br>33.9<br>18.9<br>12.8<br>18.3<br>12.0 | 4389 / 4406<br>6542 / 6548<br>2216 / 2230<br>2222 / 2250<br>2267 / 2290<br>4392 / 4410 |
 | `dinov2-vitg14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 86.6<br>34.2<br>18.7<br>12.7 | 4389 / 4406<br>6542 / 6568<br>2217 / 2228<br>2222 / 2250 |
 
 <details><summary>Details</summary>
@@ -417,7 +417,7 @@ Commercial use: yes.
 - `dinov2-vitb14` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `dinov2-vitb14-reg` 224x224, first call: portable + torch.compile 6 s (cold Inductor cache), TensorRT fp16 29 s (ONNX + engine).
 - `dinov2-vitl14` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
-- `dinov2-vitg14` 224x224, first call: portable + torch.compile 19 s (cold Inductor cache).
+- `dinov2-vitg14` 224x224, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 46 s (ONNX + engine).
 - `dinov2-vits14` original 224x224: torch.autocast(fp16) around the forward
 - `dinov2-vits14-reg` original (fp32) 224x224, original 224x224: dinov2 forward_features CLS
 - `dinov2-vitb14` original 224x224: torch.autocast(fp16) around the forward
