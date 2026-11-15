@@ -153,8 +153,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1629<br>fails: worker rc=124<br>fails: worker rc=124 | –<br>9899 / 10400<br>4587 / 5362<br>–<br>– |
-| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1628<br>fails: worker rc=124<br>fails: worker rc=124 | –<br>9899 / 10400<br>4587 / 5282<br>–<br>– |
+| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1629<br>deferred (build >5 min)<br>deferred (build >5 min) | –<br>9899 / 10400<br>4587 / 5362<br>–<br>– |
+| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1628<br>deferred (build >5 min)<br>deferred (build >5 min) | –<br>9899 / 10400<br>4587 / 5282<br>–<br>– |
 
 <details><summary>Details</summary>
 

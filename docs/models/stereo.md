@@ -752,7 +752,7 @@ Commercial use: **no** (code: LicenseRef-NVIDIA-Source-Code-License-NC AND Apach
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `foundationstereo-vit-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9228<br>4237<br>2990<br>1513<br>fails: unsupported: cold compile build exceeds the 175 s slice of g<br>fails: unsupported: cold tensorrt build exceeds the 175 s slice of  | 11323 / 11632<br>8286 / 8750<br>3141 / 3436<br>2818 / 3300<br>–<br>– |
+| `foundationstereo-vit-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9228<br>4237<br>2990<br>1513<br>deferred (build >5 min)<br>deferred (build >5 min) | 11323 / 11632<br>8286 / 8750<br>3141 / 3436<br>2818 / 3300<br>–<br>– |
 | `foundationstereo-vit-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7129<br>3609<br>2514<br>1120<br>2044<br>1196 | 9991 / 15144<br>6987 / 7280<br>2493 / 2606<br>2169 / 2470<br>2822 / 3646<br>2794 / 2872 |
 
 <details><summary>Details</summary>
@@ -815,7 +815,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `great-igev-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2252<br>1458<br>1085<br>393<br>830<br>944 | 8964 / 9268<br>8861 / 9206<br>1402 / 1678<br>1192 / 1564<br>2831 / 3362<br>6155 / 6234 |
-| `great-igev-middlebury` (max_disp 768) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>1785<br>579<br>1676<br>fails: unsupported: engine build exceeds 5 min lock rule (cold ONNX | –<br>–<br>1875 / 2078<br>1553 / 1744<br>5228 / 5720<br>– |
+| `great-igev-middlebury` (max_disp 768) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>1785<br>579<br>1676<br>deferred (build >5 min) | –<br>–<br>1875 / 2078<br>1553 / 1744<br>5228 / 5720<br>– |
 
 <details><summary>Details</summary>
 
@@ -1258,7 +1258,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mocha-v1-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2148<br>1456<br>1057<br>455<br>fails: worker rc=124<br>fails: unsupported: engine build exceeds 5 min lock rule (cold ONNX | 4140 / 4598<br>3637 / 3982<br>1632 / 1770<br>1588 / 1730<br>–<br>– |
+| `mocha-v1-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2148<br>1456<br>1057<br>455<br>deferred (build >5 min)<br>deferred (build >5 min) | 4140 / 4598<br>3637 / 3982<br>1632 / 1770<br>1588 / 1730<br>–<br>– |
 | `mocha-v2-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2054<br>1295<br>1033<br>448<br>713<br>437 | 4017 / 4418<br>3576 / 3982<br>1632 / 1770<br>1587 / 1790<br>1122 / 1308<br>1400 / 1486 |
 
 <details><summary>Details</summary>
@@ -1657,7 +1657,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `s2m2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 582<br>350<br>348<br>113<br>186<br>137 | 2775 / 3008<br>1759 / 1986<br>1733 / 1930<br>686 / 820<br>1579 / 1710<br>1186 / 1240 |
-| `s2m2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1242<br>666<br>670<br>248<br>420<br>fails: unsupported: cold tensorrt build exceeds the 175 s slice of  | 3399 / 3704<br>2371 / 2920<br>2300 / 2786<br>876 / 1162<br>2197 / 2572<br>– |
+| `s2m2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1242<br>666<br>670<br>248<br>420<br>deferred (build >5 min) | 3399 / 3704<br>2371 / 2920<br>2300 / 2786<br>876 / 1162<br>2197 / 2572<br>– |
 | `s2m2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1934<br>1005<br>1015<br>376<br>650<br>497 | 4333 / 5252<br>3248 / 4090<br>3245 / 3838<br>1249 / 1568<br>3169 / 3514<br>2910 / 2982 |
 | `s2m2-xl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3510<br>1796<br>1815<br>682<br>1298<br>753 | 6940 / 8254<br>5606 / 6080<br>5228 / 6016<br>2092 / 2274<br>5594 / 6014<br>5283 / 5338 |
 

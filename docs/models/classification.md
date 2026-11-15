@@ -1036,7 +1036,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `falconsai-nsfw-vit` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.76<br>5.74<br>2.83<br>1.61<br>fails: timeout after 290 s<br>1.12 | 367 / 388<br>200 / 226<br>201 / 226<br>198 / 228<br>–<br>393 / 420 |
+| `falconsai-nsfw-vit` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.76<br>5.74<br>2.83<br>1.61<br>deferred (build >5 min)<br>1.12 | 367 / 388<br>200 / 226<br>201 / 226<br>198 / 228<br>–<br>393 / 420 |
 
 <details><summary>Details</summary>
 
@@ -2327,10 +2327,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>3.98<br>4.05<br>5.33<br>fails: timeout after 290 s | 426 / 442<br>231 / 242<br>235 / 242<br>234 / 284<br>282 / 302<br>– |
+| `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>3.98<br>4.05<br>5.33<br>deferred (build >5 min) | 426 / 442<br>231 / 242<br>235 / 242<br>234 / 284<br>282 / 302<br>– |
 | `wd-convnext-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>9.60<br>5.59<br>4.46<br>4.45<br>3.10 | 481 / 516<br>259 / 292<br>260 / 292<br>238 / 276<br>380 / 392<br>521 / 548 |
 | `wd-vit-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.8<br>19.9<br>12.9<br>12.5<br>13.3<br>11.2 | 1287 / 1302<br>662 / 682<br>669 / 682<br>667 / 724<br>713 / 742<br>1266 / 1290 |
-| `wd-eva02-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 84.4<br>26.6<br>18.3<br>14.1<br>15.7<br>fails: timeout after 290 s | 1299 / 1324<br>668 / 684<br>669 / 684<br>673 / 806<br>714 / 724<br>– |
+| `wd-eva02-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 84.4<br>26.6<br>18.3<br>14.1<br>15.7<br>deferred (build >5 min) | 1299 / 1324<br>668 / 684<br>669 / 684<br>673 / 806<br>714 / 724<br>– |
 
 <details><summary>Details</summary>
 

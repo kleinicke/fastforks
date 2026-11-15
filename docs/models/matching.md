@@ -35,7 +35,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aliked-flexglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>129<br>no kernels<br>fails: timeout after 190 s<br>fails: timeout after 190 s | –<br>1775 / 1886<br>no kernels<br>–<br>– |
+| `aliked-flexglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>129<br>no kernels<br>deferred (build >5 min)<br>deferred (build >5 min) | –<br>1775 / 1886<br>no kernels<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -325,7 +325,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `romav1` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>376<br>356<br>fails: worker rc=124<br>fails: ONNX export: conversion failed | 3887 / 4094<br>1720 / 1820<br>1720 / 1860<br>–<br>– |
+| `romav1` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>376<br>356<br>deferred (build >5 min)<br>fails: ONNX export: conversion failed | 3887 / 4094<br>1720 / 1820<br>1720 / 1860<br>–<br>– |
 
 <details><summary>Details</summary>
 

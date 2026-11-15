@@ -17,6 +17,7 @@ def has(rows, ref, mode, side=None):
 def cls(rs):
     if not rs: return "missing"
     if any(ok(r) for r in rs): return "ok"
+    if any(str(r.get("fails", "")).startswith("deferred") for r in rs): return "deferred"  # build >5 min, measure later
     e = " | ".join(str(r.get("error") or r.get("fails") or "no ms")[:90] for r in rs[:1])
     return "OOM" if "OOM" in e or "out of memory" in e.lower() else "error: " + e
 out = []
@@ -39,7 +40,7 @@ with open(ROOT / "results/raw/2026-11-15_gaps/gaps.csv", "w", newline="") as f:
     w = csv.DictWriter(f, fn); w.writeheader(); w.writerows(out)
 def stat(col): return collections.Counter(r[col].split(":")[0] for r in out)
 print(len(out), "refs", len({r["family"] for r in out}), "families")
-for c in ("upstream", "upstream-default", "portable", "kernels", "compile", "tensorrt"): print(c, dict(stat(c)))
+for c in ("upstream", "upstream-default", "portable", "kernels", "compile", "tensorrt"): print(c, dict(stat(c)))  # "deferred" = own category
 print("no orig ms", sum(not r["orig_ms"] for r in out), "no orig mem", sum(r["orig_ms"] and not r["orig_mem"] for r in out))
 print("orig OOM only", sum(not r["orig_ms"] and "OOM" in (r["upstream"]+r["upstream-default"]) for r in out))
 for c in ("compile_startcold","tensorrt_start_cold" if 0 else "tensorrt_startcold","tensorrt_start_cached","compile_start_warm"): print(c, sum(r[c] for r in out))

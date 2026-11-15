@@ -69,9 +69,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `any2full-s` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>12.4<br>–<br>fails: timeout after 190 s<br>fails: timeout after 190 s | –<br>274 / 312<br>–<br>–<br>– |
-| `any2full-b` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>26.8<br>–<br>24.2<br>fails: timeout after 190 s | –<br>538 / 596<br>–<br>442 / 496<br>– |
-| `any2full-l` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>67.7<br>–<br>63.8<br>fails: timeout after 190 s | –<br>1178 / 1250<br>–<br>987 / 1092<br>– |
+| `any2full-s` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>12.4<br>–<br>deferred (build >5 min)<br>deferred (build >5 min) | –<br>274 / 312<br>–<br>–<br>– |
+| `any2full-b` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>26.8<br>–<br>24.2<br>deferred (build >5 min) | –<br>538 / 596<br>–<br>442 / 496<br>– |
+| `any2full-l` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>67.7<br>–<br>63.8<br>deferred (build >5 min) | –<br>1178 / 1250<br>–<br>987 / 1092<br>– |
 
 <details><summary>Details</summary>
 
@@ -449,7 +449,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depthfm-v1` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>5662<br>–<br>fails: timeout after 190 s<br>fails: timeout after 190 s | –<br>13651 / 15150<br>–<br>–<br>– |
+| `depthfm-v1` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>5662<br>–<br>deferred (build >5 min)<br>deferred (build >5 min) | –<br>13651 / 15150<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -495,7 +495,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lingbot-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>280<br>–<br>fails: timeout after 190 s<br>188 | –<br>1559 / 1872<br>–<br>–<br>1821 / 1876 |
+| `lingbot-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>280<br>–<br>deferred (build >5 min)<br>188 | –<br>1559 / 1872<br>–<br>–<br>1821 / 1876 |
 | `lingbot-depth-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>281<br>–<br>252<br>188 | –<br>1559 / 1872<br>–<br>1381 / 1572<br>1821 / 1876 |
 
 <details><summary>Details</summary>
@@ -727,7 +727,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5093<br>3886<br>fails: worker rc=124<br>fails: unsupported: 20 B NF4 transformer, weights expanded per line | –<br>1408 / 1698<br>1498 / 1780<br>–<br>– |
+| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5093<br>3886<br>deferred (build >5 min)<br>fails: unsupported: 20 B NF4 transformer, weights expanded per line | –<br>1408 / 1698<br>1498 / 1780<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -984,7 +984,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>554<br>–<br>fails: timeout after 190 s<br>fails: ONNX export: torch.export failed | –<br>4958 / 6304<br>–<br>–<br>– |
+| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>554<br>–<br>deferred (build >5 min)<br>fails: ONNX export: torch.export failed | –<br>4958 / 6304<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 

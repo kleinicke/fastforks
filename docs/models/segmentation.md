@@ -459,7 +459,7 @@ Commercial use: `segformer-b0-ade20k`, `segformer-b5-ade20k`, `segformer-b2-clot
 | `segformer-b0-ade20k` (resize 2048x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.2<br>17.4<br>11.4<br>3.48<br>9.27<br>5.51 | 1583 / 1638<br>1590 / 1766<br>339 / 376<br>148 / 238<br>336 / 356<br>1480 / 1522 |
 | `segformer-b5-ade20k` (resize 2048x640) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>72.0<br>38.7<br>25.3<br>31.4<br>22.8 | 2529 / 2538<br>2531 / 2620<br>546 / 590<br>407 / 534<br>543 / 630<br>2069 / 2110 |
 | `segformer-b2-clothes` (resize 512x512) | synthetic (512x512) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.9<br>14.1<br>8.13<br>3.61<br>4.38<br>2.68 | 829 / 902<br>425 / 488<br>156 / 168<br>133 / 170<br>182 / 228<br>312 / 328 |
-| `segformer-b5-face-parsing` (resize 512x512) | synthetic (512x512) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.8<br>34.2<br>21.9<br>9.21<br>14.1<br>fails: timeout after 290 s | 1163 / 1284<br>647 / 758<br>278 / 292<br>257 / 294<br>305 / 352<br>– |
+| `segformer-b5-face-parsing` (resize 512x512) | synthetic (512x512) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.8<br>34.2<br>21.9<br>9.21<br>14.1<br>deferred (build >5 min) | 1163 / 1284<br>647 / 758<br>278 / 292<br>257 / 294<br>305 / 352<br>– |
 
 <details><summary>Details</summary>
 

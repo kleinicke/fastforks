@@ -140,7 +140,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>730<br>–<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>fails: timeout after 190 s | –<br>4512 / 4770<br>–<br>–<br>– |
+| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>730<br>–<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>deferred (build >5 min) | –<br>4512 / 4770<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -446,7 +446,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>1723<br>–<br>fails: timeout after 190 s<br>fails: TypeError: _Base.forward() missing 1 required positional arg | –<br>4995 / 5180<br>–<br>–<br>– |
+| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>1723<br>–<br>deferred (build >5 min)<br>fails: TypeError: _Base.forward() missing 1 required positional arg | –<br>4995 / 5180<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 

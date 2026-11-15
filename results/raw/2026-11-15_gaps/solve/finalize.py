@@ -45,12 +45,12 @@ C = list(_last.values())
 def _reason(r):  # cold-build / NaN / Myelin failures after the plain-gpulock retries (cold.sh): documented `unsupported:`
     f = str(r.get("fails", ""))
     if f == "worker rc=124":
-        return "engine build exceeds 5 min lock rule (cold ONNX export + build still running at the 295 s slice of gpulock)"
+        return "DEFERRED"  # build over the 5 min lock rule: deferred, not unsupported
     if "all NaN" in f: return "fp16 engine output is all NaN (strongly-typed fp16 overflow); no fp32 island implemented"
     if "Myelin" in f or "myelin" in f: return "TensorRT 10 Myelin tactic check fails during the engine build"
 for r in C:
     if r.get("mode") == "tensorrt" and r.get("fails") and not str(r["fails"]).startswith("unsupported") and _reason(r):
-        r["fails"] = "unsupported: " + _reason(r)
+        r["fails"] = "deferred: measure later (build >5 min)" if _reason(r) == "DEFERRED" else "unsupported: " + _reason(r)
 P = rd(SV / "rows_portable.jsonl")
 # a successful retry replaces a diagnosis failure: keep only the last row per key
 diag = [r for r in rd(SV / "diag1.jsonl") if r["mode"] == "tensorrt" and r["ref"] in UNSUP and UNSUP[r["ref"]]]

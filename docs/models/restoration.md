@@ -142,8 +142,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1565<br>1391<br>1063<br>fails: worker rc=124 | 2443 / 2528<br>2552 / 2624<br>2282 / 2384<br>2552 / 2606<br>– |
-| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1312<br>1221<br>964<br>fails: worker rc=124 | 2436 / 2518<br>2276 / 2378<br>2276 / 2378<br>2546 / 2598<br>– |
+| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1565<br>1391<br>1063<br>deferred (build >5 min) | 2443 / 2528<br>2552 / 2624<br>2282 / 2384<br>2552 / 2606<br>– |
+| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1312<br>1221<br>964<br>deferred (build >5 min) | 2436 / 2518<br>2276 / 2378<br>2276 / 2378<br>2546 / 2598<br>– |
 | `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2204<br>268<br>264<br>158<br>136 | 1606 / 1656<br>1535 / 1552<br>1445 / 1472<br>1385 / 1412<br>4144 / 4192 |
 
 <details><summary>Details</summary>
@@ -206,8 +206,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>830<br>718<br>618<br>fails: worker rc=124 | 3359 / 3944<br>2626 / 3048<br>2498 / 2766<br>1938 / 2348<br>– |
-| `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14651<br>1607<br>1399<br>1210<br>fails: worker rc=124 | 5574 / 6926<br>2692 / 3110<br>2564 / 2850<br>2005 / 2410<br>– |
+| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>830<br>718<br>618<br>deferred (build >5 min) | 3359 / 3944<br>2626 / 3048<br>2498 / 2766<br>1938 / 2348<br>– |
+| `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14651<br>1607<br>1399<br>1210<br>deferred (build >5 min) | 5574 / 6926<br>2692 / 3110<br>2564 / 2850<br>2005 / 2410<br>– |
 
 <details><summary>Details</summary>
 
@@ -302,9 +302,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1596<br>1427<br>1185<br>fails: worker rc=124 | 5318 / 6106<br>2426 / 2590<br>2298 / 2470<br>1811 / 2750<br>– |
+| `hat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1596<br>1427<br>1185<br>deferred (build >5 min) | 5318 / 6106<br>2426 / 2590<br>2298 / 2470<br>1811 / 2750<br>– |
 | `hat-s-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2402<br>1072<br>956<br>750<br>fails: TensorRT engine build failed | 5018 / 5644<br>1984 / 2148<br>1856 / 1888<br>2352 / 3068<br>– |
-| `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1597<br>1427<br>1185<br>fails: worker rc=124 | 5318 / 6106<br>2426 / 2610<br>2298 / 2470<br>1811 / 2750<br>– |
+| `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1597<br>1427<br>1185<br>deferred (build >5 min) | 5318 / 6106<br>2426 / 2610<br>2298 / 2470<br>1811 / 2750<br>– |
 
 <details><summary>Details</summary>
 
@@ -651,8 +651,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2295<br>fails: timeout after 290 s<br>fails: not run: onnx is not installed in the test venv | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>–<br>– |
-| `seedvr2-7b` | 512x512 | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>OOM<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>fails: timeout after 290 s | –<br>–<br>–<br>–<br>– |
+| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2295<br>deferred (build >5 min)<br>fails: not run: onnx is not installed in the test venv | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>–<br>– |
+| `seedvr2-7b` | 512x512 | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>OOM<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>deferred (build >5 min) | –<br>–<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 

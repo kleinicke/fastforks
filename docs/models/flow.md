@@ -850,9 +850,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>fails: worker rc=124 | 5537 / 5916<br>3553 / 4076<br>1851 / 2264<br>3479 / 3638<br>– |
-| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>–<br>610<br>fails: worker rc=124 | 5537 / 5936<br>3553 / 4196<br>–<br>3479 / 3758<br>– |
-| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>–<br>610<br>fails: worker rc=124 | 5537 / 5916<br>3553 / 4076<br>–<br>3479 / 3578<br>– |
+| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>deferred (build >5 min) | 5537 / 5916<br>3553 / 4076<br>1851 / 2264<br>3479 / 3638<br>– |
+| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>–<br>610<br>deferred (build >5 min) | 5537 / 5936<br>3553 / 4196<br>–<br>3479 / 3758<br>– |
+| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>–<br>610<br>deferred (build >5 min) | 5537 / 5916<br>3553 / 4076<br>–<br>3479 / 3578<br>– |
 
 <details><summary>Details</summary>
 

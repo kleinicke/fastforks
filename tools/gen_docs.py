@@ -464,7 +464,7 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
         if r is None or r["input"] != size:
             continue
         if "fails" in r:
-            lines.append((label, f"fails: {_fail_reason(r['fails'])}", DASH))
+            lines.append((label, _fail_cell(r["fails"]), DASH))
             continue
         name = "TensorRT fp32" if r.get("engine_dtype") == "float32" else label
         ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
@@ -1627,7 +1627,9 @@ def _bench_block() -> str:
 _COMPILE_BEGIN, _COMPILE_END = "<!-- compile:begin", "<!-- compile:end -->"
 
 
+DEFERRED = "deferred: measure later (build >5 min)"  # `fails` of a row whose build / export ran over the 5 min lock rule
 _FAIL_REASONS = (  # (pattern in the recorded error, short reason for the table); first match wins
+    (r"^deferred", DEFERRED),
     (r"cannot parse .*_aa and operator: Resize", "TensorRT: antialiased resize not supported"),
     (r"cannot parse .*operator: (\w+)", r"TensorRT parser: \1 node"),
     (r"engine build failed.*\[myelin", "TensorRT bug: Myelin internal error"),
@@ -1654,12 +1656,17 @@ def _fail_reason(msg: str) -> str:
     return re.sub(r"\x1b\[\d+m|/tmp/\S+/", "", msg.removeprefix("run: "))[:60]
 
 
+def _fail_cell(msg: str) -> str:
+    """`deferred (build >5 min)` for a build over the lock limit (not a failure), else `fails: reason`."""
+    return "deferred (build >5 min)" if msg.startswith("deferred") else f"fails: {_fail_reason(msg)}"
+
+
 def _compile_ms(r: dict | None) -> str:
     """The time cell of a compile / tensorrt row: `N ms`, `fails: reason`, or a dash."""
     if r is None:
         return DASH
     if "fails" in r:
-        return f"fails: {_fail_reason(r['fails'])}"
+        return _fail_cell(r["fails"])
     fp32 = ", fp32 engine" if r.get("engine_dtype") == "float32" else ""  # the fp16 engine misses the golden tolerance
     return f"{_ms_str(r['ms'])} ms{fp32}" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
 

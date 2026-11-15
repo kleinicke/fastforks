@@ -288,7 +288,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>529<br>382<br>398<br>fails: unsupported: engine build exceeds 5 min lock rule (cold ONNX | 1721 / 1902<br>1220 / 1294<br>1313 / 1374<br>1164 / 1272<br>– |
+| `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>529<br>382<br>398<br>deferred (build >5 min) | 1721 / 1902<br>1220 / 1294<br>1313 / 1374<br>1164 / 1272<br>– |
 | `tapnext-pp` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile | 1493<br>529<br>–<br>fails: Inductor: Triton kernel does not compile (torch bug) | 1527 / 1718<br>1220 / 1294<br>–<br>– |
 
 <details><summary>Details</summary>
@@ -351,8 +351,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1194<br>1109<br>fails: worker rc=124<br>fails: unsupported: torch.export: data-dependent guard in model.py: | 1403 / 1558<br>1423 / 1572<br>1368 / 1620<br>–<br>– |
-| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>fails: worker rc=124<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>–<br>– |
+| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1194<br>1109<br>deferred (build >5 min)<br>fails: unsupported: torch.export: data-dependent guard in model.py: | 1403 / 1558<br>1423 / 1572<br>1368 / 1620<br>–<br>– |
+| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>deferred (build >5 min)<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>–<br>– |
 
 <details><summary>Details</summary>
 
