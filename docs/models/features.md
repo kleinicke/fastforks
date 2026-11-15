@@ -164,6 +164,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.
 - Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.
 - `fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).
+- Kernels at 224 x 224 peak above portable for c-radio-v3-b (281 vs 214 MB; original 589 MB), about the size of one extra fc2 copy (57 MB) plus ~30 MB of CUDA-graph capture; the extra copies are not shared with the original parameters.
 
 </details>
 
@@ -302,6 +303,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 - `fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).
 - fp16 error against the fp32 original is higher than for the other ViTs on L/14 DataComp (mean 2.8 % portable, 4.8 % kernels): one residual channel sits near 120, where fp16 steps are 0.06, about 10 % of the median activation. No overflow; float32 portable gives 0.3 %.
 - DFN weights: the relative error (mean 1.3-3.9 % portable, 3.9-6.5 % kernels) is measured against a median |output| of only 0.015-0.021 (other weights: 0.5-0.6) with values up to 0.7; `fp32_accumulate = true` lowers kernels to about 1.5 %.
+- Kernels at 224 x 224 peak above portable (B/16 257 vs 204 MB, L/14 814 vs 623 MB; original 544 / 1779 MB): the QuickGELU fold keeps a folded copy of each fc2 weight next to the original parameter, and the second call's CUDA-graph capture adds ~30 MB.
 
 </details>
 

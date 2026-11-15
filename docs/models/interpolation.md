@@ -33,10 +33,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ema-vfi` | synthetic (1080x1920) | original<br>portable<br>kernels | 296<br>234<br>207 | 3940 / 4290<br>2827 / 3204<br>3129 / 4152 |
-| `ema-vfi-small` | synthetic (1080x1920) | original<br>portable<br>kernels | 121<br>89.5<br>84.5 | 2272 / 2384<br>1614 / 1792<br>1660 / 2178 |
-| `ema-vfi-t` | synthetic (1080x1920) | original<br>portable<br>kernels | 287<br>233<br>207 | 3940 / 4290<br>2827 / 3184<br>3129 / 4152 |
-| `ema-vfi-small-t` | synthetic (1080x1920) | original<br>portable<br>kernels | 114<br>89.4<br>84.5 | 2272 / 2384<br>1614 / 1792<br>1660 / 2178 |
+| `ema-vfi` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | 296<br>234<br>207<br>124 | 3940 / 4290<br>2827 / 3204<br>3129 / 4152<br>1719 / 1786 |
+| `ema-vfi-small` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | 121<br>89.5<br>84.5<br>43.7 | 2272 / 2384<br>1614 / 1792<br>1660 / 2178<br>1018 / 1110 |
+| `ema-vfi-t` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | 287<br>233<br>207<br>125 | 3940 / 4290<br>2827 / 3184<br>3129 / 4152<br>1719 / 1766 |
+| `ema-vfi-small-t` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | 114<br>89.4<br>84.5<br>43.4 | 2272 / 2384<br>1614 / 1792<br>1660 / 2178<br>1018 / 1110 |
 
 <details><summary>Details</summary>
 
@@ -52,6 +52,10 @@ Commercial use: yes.
 - Outputs: frame
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `ema-vfi` 1988x2880 (7.4 GiB peak allocated, 9.1 reserved); `ema-vfi-small` 3000x4000 (8.9 GiB peak allocated, 11.4 reserved); `ema-vfi-t` 1988x2880 (7.4 GiB peak allocated, 9.1 reserved); `ema-vfi-small-t` 3000x4000 (8.9 GiB peak allocated, 11.4 reserved)
+- `ema-vfi` 1080x1920, first call: TensorRT fp16 91 s (ONNX + engine).
+- `ema-vfi-small` 1080x1920, first call: TensorRT fp16 68 s (ONNX + engine).
+- `ema-vfi-t` 1080x1920, first call: TensorRT fp16 92 s (ONNX + engine).
+- `ema-vfi-small-t` 1080x1920, first call: TensorRT fp16 69 s (ONNX + engine).
 - `ema-vfi` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
 - `ema-vfi-small` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
 - `ema-vfi-t` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
@@ -98,7 +102,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `film` | synthetic (1080x1920) | original<br>portable<br>kernels | 464<br>417<br>333 | 2953 / 3556<br>2856 / 3080<br>2856 / 3060 |
+| `film` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | 464<br>417<br>333<br>fails: TensorRT parser: SequenceEmpty node | 2953 / 3556<br>2856 / 3080<br>2856 / 3060<br>– |
 
 <details><summary>Details</summary>
 
@@ -148,8 +152,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels | OOM<br>2622<br>1629 | –<br>9899 / 10400<br>4587 / 5362 |
-| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels | OOM<br>2622<br>1628 | –<br>9899 / 10400<br>4587 / 5282 |
+| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | OOM<br>2622<br>1629<br>fails: worker rc=124 | –<br>9899 / 10400<br>4587 / 5362<br>– |
+| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>TensorRT fp16 | OOM<br>2622<br>1628<br>fails: worker rc=124 | –<br>9899 / 10400<br>4587 / 5282<br>– |
 
 <details><summary>Details</summary>
 
@@ -278,4 +282,4 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 
 | id | dataset | licence | commercial use |
 |---|---|---|---|
-| `vimeo90k` | [Vimeo-90K (septuplets / triplets for frame interpolation)](http://toflow.csail.mit.edu/) | not stated | unclear |
+| `vimeo90k` | [Vimeo-90K (septuplets / triplets for frame interpolation)](https://toflow.csail.mit.edu/) | not stated | unclear |

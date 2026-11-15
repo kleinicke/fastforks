@@ -42,7 +42,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels | 15.3<br>4.45<br>2.75 | 346 / 404<br>328 / 356<br>335 / 362 |
+| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels<br>TensorRT fp16 | 15.3<br>4.45<br>2.75<br>fails: TypeError: Portable.module.<locals>.<lambda>() missing 1 req | 346 / 404<br>328 / 356<br>335 / 362<br>– |
 
 <details><summary>Details</summary>
 

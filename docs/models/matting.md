@@ -76,6 +76,10 @@ CPU, float32: max |diff| <= 3.5e-06 vs the original. GPU, float16 (the default),
 |---|---|---|---|
 | `ben2` | 2e-05 / 0.00017 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
+### Limitations
+
+- Kernels at 1080 x 1920 peak 1942 MB vs 1681 MB portable (original 2466 MB), 7 % faster than portable (103.6 vs 111.4 ms); the extra memory was not isolated further.
+
 </details>
 
 <a id="birefnet"></a>
@@ -278,12 +282,12 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/LICENSE ; https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/README.md (weights: https://github.com/pq-yang/MatAnyone/releases/tag/v1.0.0)
 - Training data: VM800 (MatAnyone video matting foregrounds), Composition-1k (Adobe Deep Image Matting), Distinctions-646 (image matting), BG-20k (background images), DVM background set (video backgrounds), COCO 2017 (train, instance annotations), YouTube-VIS 2021 (video instance segmentation), Supervisely Person Dataset (human segmentation) (doc/TRAIN.md: matting on VM800 (not released) and ImageMatte (Distinctions-646 + Adobe Image Matting), backgrounds from BG-20k and DVM, segmentation on COCO, YouTube-VIS 2021 and Supervisely Person.)
 - Options: `warmup` = 10 (>= 0; also `n_warmup`), `dilate` = 10 (>= 0; also `r_dilate`), `erode` = 10 (>= 0; also `r_erode`)
-- Kernel libraries: none (not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable already runs 6 % faster than the original fp16)
+- Kernel libraries: none (not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable runs 1.2 % faster than the original fp16 at 1080x1920 (1205 vs 1220 ms) with 9 % lower peak allocated memory (2719 vs 2978 MB) and identical task accuracy (YouTubeMatte MAD 2.636 both); against the original fp32 at 512x288 portable fp16 is 5 % slower per frame (20.5 vs 19.4 ms) with 24 % less memory, so the speed bar holds at 1080p and against fp16 only)
 - Variants: `matanyone`
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `matanyone` 3000x4000 (14.5 GiB peak allocated, 15.1 reserved)
-- no kernels: not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable already runs 6 % faster than the original fp16.
+- no kernels: not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable runs 1.2 % faster than the original fp16 at 1080x1920 (1205 vs 1220 ms) with 9 % lower peak allocated memory (2719 vs 2978 MB) and identical task accuracy (YouTubeMatte MAD 2.636 both); against the original fp32 at 512x288 portable fp16 is 5 % slower per frame (20.5 vs 19.4 ms) with 24 % less memory, so the speed bar holds at 1080p and against fp16 only.
 - `matanyone` original 1080x1920: the authors' mixed-precision option (float16); pq-yang/MatAnyone@e5ddc534c1ff process_video loop on frames in memory, cv2 mask closing
 - `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -458,18 +462,18 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | id | dataset | licence | commercial use |
 |---|---|---|---|
 | `coco` | [COCO 2017 (train, instance annotations)](https://cocodataset.org/#termsofuse) | CC-BY-4.0 | unclear |
-| `dis5k` | [DIS5K (dichotomous image segmentation)](https://github.com/xuebinqin/DIS) | not checked | unclear |
-| `duts` | [DUTS (salient object detection)](http://saliencydetection.net/duts/) | not checked | unclear |
-| `hrsod` | [HRSOD (high-resolution salient object detection)](https://github.com/yi94code/HRSOD) | not checked | unclear |
-| `uhrsd` | [UHRSD (ultra-high-resolution salient object detection)](https://github.com/iCVTEAM/PGNet) | not checked | unclear |
-| `hrs10k` | [HRS10K (high-resolution salient object detection)](https://github.com/DrowsyMon/HRS10K) | not checked | unclear |
-| `p3m-10k` | [P3M-10k (privacy-preserving portrait matting)](https://github.com/JizhiziLi/P3M) | not checked | unclear |
+| `dis5k` | [DIS5K (dichotomous image segmentation)](https://github.com/xuebinqin/DIS/blob/b6764e20381f6f42a70f83fa3324181529ed1403/DIS5K-Dataset-Terms-of-Use.pdf) | LicenseRef-noncommercial | no |
+| `duts` | [DUTS (salient object detection)](https://saliencydetection.net/duts/) | not stated | unclear |
+| `hrsod` | [HRSOD (high-resolution salient object detection)](https://github.com/yi94code/HRSOD/blob/166e6d7f433277c1f55c08d145732b7219f675e5/README.md) | not stated | unclear |
+| `uhrsd` | [UHRSD (ultra-high-resolution salient object detection)](https://github.com/iCVTEAM/PGNet/blob/fe79ada06f2f957b17dd3eaac176b6aed8de7be3/README.md) | not stated | unclear |
+| `hrs10k` | [HRS10K (high-resolution salient object detection)](https://openaccess.thecvf.com/content/ICCV2021/html/Tang_Disentangled_High_Quality_Salient_Object_Detection_ICCV_2021_paper.html) | not stated | unclear |
+| `p3m-10k` | [P3M-10k (privacy-preserving portrait matting)](https://jizhizili.github.io/files/p3m_dataset_agreement/P3M-10k_Dataset_Release_Agreement.pdf) | MIT | yes |
 | `prama-internal` | [Prama LLC proprietary segmentation data](https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md) | not stated | unclear |
 | `bria-internal` | [BRIA proprietary background-removal data](https://huggingface.co/briaai/RMBG-2.0/blob/2fd7b4b0f2393ddb39a267fb62df6c010928a6c6/README.md) | not stated | unclear |
-| `composition-1k` | [Composition-1k (Adobe Deep Image Matting)](https://sites.google.com/view/deepimagematting) | Adobe research licence on request | no |
-| `supervisely-person` | [Supervisely Person Dataset (human segmentation)](https://supervise.ly/explore/projects/supervisely-person-dataset-23304/datasets) | not checked | unclear |
-| `vm800` | [VM800 (MatAnyone video matting foregrounds)](https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/doc/TRAIN.md) | not released | no |
-| `distinctions-646` | [Distinctions-646 (image matting)](https://wukaoliu.github.io/HAttMatting/) | not checked | unclear |
-| `bg20k` | [BG-20k (background images)](https://github.com/JizhiziLi/GFM) | not checked | unclear |
-| `dvm-background` | [DVM background set (video backgrounds)](https://github.com/nowsyn/DVM) | not checked | unclear |
-| `youtube-vis-2021` | [YouTube-VIS 2021 (video instance segmentation)](https://youtube-vos.org/dataset/vis/) | not checked | unclear |
+| `composition-1k` | [Composition-1k (Adobe Deep Image Matting)](https://sites.google.com/view/deepimagematting) | LicenseRef-research-only | no |
+| `supervisely-person` | [Supervisely Person Dataset (human segmentation)](https://ecosystem.supervisely.com/projects/persons) | LicenseRef-noncommercial | no |
+| `vm800` | [VM800 (MatAnyone video matting foregrounds)](https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/doc/TRAIN.md) | not stated | no |
+| `distinctions-646` | [Distinctions-646 (image matting)](https://wukaoliu.github.io/HAttMatting/) | not stated | unclear |
+| `bg20k` | [BG-20k (background images)](https://jizhizili.github.io/files/gfm_datasets_agreements/BG-20k_Dataset_Release_Agreement.pdf) | MIT | yes |
+| `dvm-background` | [DVM background set (video backgrounds)](https://github.com/nowsyn/DVM/blob/c045693867c9397ed3eb635cea7c6f2cba6c02c3/README.md) | not stated | unclear |
+| `youtube-vis-2021` | [YouTube-VIS 2021 (video instance segmentation)](https://youtube-vos.org/dataset/vis/) | not stated | unclear |

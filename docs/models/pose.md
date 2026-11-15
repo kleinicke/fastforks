@@ -824,4 +824,4 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | `halpe` | [Halpe-FullBody](https://github.com/Fang-Haoshu/Halpe-FullBody/blob/70d6014c007c765adc65f5f0145d3f0999ab1135/README.md) | not stated | unclear |
 | `posetrack18` | [PoseTrack 2018](https://posetrack.net/) | not stated | unclear |
 | `jhmdb` | [sub-JHMDB (J-HMDB)](https://ps.is.mpg.de/publications/jhuang-iccv-2013) | not stated | unclear |
-| `wider-face` | [WIDER FACE (32k images, 394k labelled faces)](http://shuoyang1213.me/WIDERFACE/) | LicenseRef-research-only | no |
+| `wider-face` | [WIDER FACE (32k images, 394k labelled faces)](https://web.archive.org/web/20261014221817/http://shuoyang1213.me/WIDERFACE/) | LicenseRef-research-only | no |

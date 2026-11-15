@@ -735,6 +735,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | `fast-acvnet-plus-kitti12` | 0.00068 / 0.00258 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 | `fast-acvnet-plus-kitti15` | 0.00125 / 0.01454 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
+### Limitations
+
+- Kernels at 994 x 1482 reserve 960 MB vs 756 MB portable (peak allocated 664 vs 651 MB; original 1441 MB), 34 % faster; the difference is cached allocator blocks of the CUDA graph / cuDNN workspaces.
+
 </details>
 
 <a id="foundationstereo"></a>
@@ -1239,7 +1243,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - The original code's LAS1 (LiteAnyStereo.pth, another architecture) is not included.
-- Portable LAS2-H is faster than the original code but allocates more memory.
+- Portable LAS2-H at 375 x 1242 is faster than the original code (35.6 vs 36.4 ms) but peaks 13 MB (3.7 %) higher (365 vs 352 MB).
 
 </details>
 
@@ -1634,6 +1638,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `rt-monster-plusplus-mix-all` | 0.0032 / 0.01047 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+
+### Limitations
+
+- Kernels at 994 x 1482 peak 2631 MB (reserved 3436) vs 2581 MB (2658) portable and 2922 MB original, 21 % faster than portable; the difference is cached CUDA-graph / cuDNN workspace blocks.
 
 </details>
 

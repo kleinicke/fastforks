@@ -138,7 +138,9 @@ LingBot-Map (Robbyant, 2026): streaming 3D reconstruction, cameras and depth for
 
 Commercial use: yes.
 
-Speed and memory not measured for: `lingbot-map`.
+| variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
+|---|---|---|---|---|
+| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>730<br>–<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>fails: timeout after 190 s | –<br>4512 / 4770<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -154,6 +156,8 @@ Speed and memory not measured for: `lingbot-map`.
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-map` 3000x4000 (5.5 GiB peak allocated, 6.8 reserved)
+- `lingbot-map` load / first call: portable 6.58 s / 1.077 s (480x640)
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
 

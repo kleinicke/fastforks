@@ -125,6 +125,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`da3metric-large`](models/depth.md#depth-anything-3) | yes | 0.0398 | 85.1 (994x1482) | 24.3 | 14.7 | 5.8x vs original (994x1482) | 811 |
 | [`da3-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0468 | 165.6 (994x1482) | 30.0 | 17.1 | 9.7x vs original (994x1482) | 985 |
 | [`pointdit-b-512`](models/depth.md#pointdit) | yes | 0.0453 | 48.7 (994x1482) | 30.7 | 20.6 | 2.4x vs original (994x1482) | 466 |
+| [`any2full-b`](models/depth.md#any2full) | yes | – | – | 26.8 | – | – | – |
 | [`depth-anything-v2-l`](models/depth.md#depth-anything-v2) | no | 0.0439 | 140.2 (994x1482) | 55.1 | 31.1 | 4.5x vs original (994x1482) | 921 |
 | [`depth-anything-v2-metric-hypersim-l`](models/depth.md#depth-anything-v2) | yes | 0.0491 | 140.7 (994x1482) | 54.5 | 31.7 | 4.4x vs original (994x1482) | 917 |
 | [`distill-any-depth-l`](models/depth.md#depth-anything-v2) | yes | 0.0444 | 139.3 (994x1482) | 54.4 | 31.8 | 4.4x vs original (994x1482) | 917 |
@@ -148,16 +149,15 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`stablenormal-turbo`](models/depth.md#stablenormal-turbo) | yes | – | 299.2 (994x1482) | 289.3 | 180.3 | 1.7x vs original (994x1482) | 3037 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 410.0 | 261.4 | 1.7x vs original (994x1482) | 2343 |
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 518.4 | 270.9 | 2.1x vs original (994x1482) | 3667 |
+| [`omni-dc`](models/depth.md#omni-dc) | no | – | – | 554.3 | – | – | – |
 | [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | – | 1434.3 | 1284.0 (1080x1920) | 1.1x vs portable | 8204 |
+| [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | 2004.6 | 1847.6 (1080x1920) | 1.1x vs portable | 8208 |
 | [`marigold-v2-depth`](models/depth.md#marigold-v2) | yes | 0.0386 | OOM (994x1482) | 5093.4 | 3885.9 | 1.3x vs portable | 1498 |
-| [`any2full-b`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
+| [`depthfm-v1`](models/depth.md#depthfm) | yes | – | – | 5662.2 | – | – | – |
 | [`any2full-l`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
 | [`any2full-s`](models/depth.md#any2full) | yes | – | – | – | – | – | – |
-| [`depthfm-v1`](models/depth.md#depthfm) | yes | – | – | – | – | – | – |
 | [`lingbot-depth`](models/depth.md#lingbot-depth) | yes | – | – | – | – | – | – |
 | [`lingbot-depth-dc`](models/depth.md#lingbot-depth) | yes | – | – | – | – | – | – |
-| [`omni-dc`](models/depth.md#omni-dc) | no | – | – | – | – | – | – |
-| [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | – | – | – | – |
 
 ## Classification
 
@@ -699,11 +699,11 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`loftr-outdoor`](models/matching.md#loftr) | yes | 241.5 (768x1024) | 109.9 | – | – | – |
 | [`loftr-indoor`](models/matching.md#loftr) | yes | 241.6 (768x1024) | 110.6 | – | – | – |
 | [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.5 | – | – | – |
+| [`loma-b`](models/matching.md#loma) | yes | – | 308.1 | – | – | – |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 353.6 | 2.1x vs original (768x1024) | 1909 |
 | [`romav1`](models/matching.md#roma) | yes | 385.8 (768x1024) | 376.3 | 356.0 | 1.1x vs original (768x1024) | 1720 |
 | [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 592.5 | – | – | – |
 | [`aliked-flexglue`](models/matching.md#flexglue) | yes | – | – | – | – | – |
-| [`loma-b`](models/matching.md#loma) | yes | – | – | – | – | – |
 
 ## Tracking
 
@@ -723,9 +723,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`alltracker`](models/tracking.md#alltracker) | yes | 485.3 (480x854) | 391.2 | 221.3 | 2.2x vs original (480x854) | 1076 |
 | [`alltracker-tiny`](models/tracking.md#alltracker) | yes | 424.2 (480x854) | 329.9 | 232.9 | 1.8x vs original (480x854) | 978 |
 | [`tapnext`](models/tracking.md#tapnext) | yes | 908.8 (480x854) | 529.5 | 382.2 | 2.4x vs original (480x854) | 1313 |
+| [`tapnext-pp`](models/tracking.md#tapnext) | yes | 1492.8 (480x854) | 528.7 | – | – | – |
 | [`track-on-r`](models/tracking.md#track-on2) | yes | 2021.8 (480x854) | 1188.0 | 1102.3 | 1.8x vs original (480x854) | 1368 |
 | [`track-on2`](models/tracking.md#track-on2) | yes | 1952.8 (480x854) | 1193.7 | 1109.5 | 1.8x vs original (480x854) | 1368 |
-| [`tapnext-pp`](models/tracking.md#tapnext) | yes | – | – | – | – | – |
 
 ## Interpolation
 

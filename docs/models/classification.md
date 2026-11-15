@@ -1836,6 +1836,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 |---|---|---|---|
 | `shufflenet_v2_x1_0.tv_in1k` | 0.00435 / 0.01481 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
+### Limitations
+
+- At 224 x 224 portable runs 5.0 ms / 39 MB (fp32 original 4.8 ms / 45 MB, fp16 original 6.5 ms / 47 MB); kernels run 0.80 ms but peak 55 MB allocated / 76 MB reserved (original 47 / 45 MB) from cuDNN workspaces of the small convolutions.
+
 </details>
 
 <a id="shvit"></a>
