@@ -50,7 +50,7 @@ id = "dinov2-s-linear-ade20k"
 revision = 1
 params = { arch = "vits" }
 weights = [
-    { name = "dinov2-s-linear-ade20k.backbone.pth", size = 88283115, sha256 = "b938bf1bc15cd2ec0feacfe3a1bb553fe8ea9ca46a7e1d8d00217f29aef60cd9", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_pretrain.pth" },
+    { name = "dinov2-s-linear-ade20k.backbone.pth", size = 88283115, sha256 = "b938bf1bc15cd2ec0feacfe3a1bb553fe8ea9ca46a7e1d8d00217f29aef60cd9", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_pretrain.pth", mirror = "dinov2-vits14-pretrain" },
     { name = "dinov2-s-linear-ade20k.head.pth", size = 719673, sha256 = "67e10225e0bf1e2c6e8bc9e07020211ab58cbb4aa14efbaa32c52914931c4ade", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_ade20k_linear_head.pth" },
 ]
 
@@ -59,7 +59,7 @@ id = "dinov2-b-linear-ade20k"
 revision = 1
 params = { arch = "vitb" }
 weights = [
-    { name = "dinov2-b-linear-ade20k.backbone.pth", size = 346378731, sha256 = "0b8b82f85de91b424aded121c7e1dcc2b7bc6d0adeea651bf73a13307fad8c73", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth" },
+    { name = "dinov2-b-linear-ade20k.backbone.pth", size = 346378731, sha256 = "0b8b82f85de91b424aded121c7e1dcc2b7bc6d0adeea651bf73a13307fad8c73", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth", mirror = "dinov2-vitb14-pretrain" },
     { name = "dinov2-b-linear-ade20k.head.pth", size = 1423161, sha256 = "7c3545c3a6f79ccc130d075dfe66e84f8c32d72d2acd31fc218f8a15cd2c7b23", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_ade20k_linear_head.pth" },
 ]
 
@@ -68,6 +68,6 @@ id = "dinov2-l-linear-ade20k"
 revision = 1
 params = { arch = "vitl" }
 weights = [
-    { name = "dinov2-l-linear-ade20k.backbone.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth" },
+    { name = "dinov2-l-linear-ade20k.backbone.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth", mirror = "dinov2-vitl14-pretrain" },
     { name = "dinov2-l-linear-ade20k.head.pth", size = 1892153, sha256 = "59137f319d7e83c79f3253ab7bf63041f1f884e54ba865a2c7ef0046655306a0", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_ade20k_linear_head.pth" },
 ]
