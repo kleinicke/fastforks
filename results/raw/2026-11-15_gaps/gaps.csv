@@ -19,7 +19,7 @@ birefnet-lite,matting,birefnet,ok,missing,ok,ok,True,True,ok,True,ok,True,False,
 bisenet-face-parsing,segmentation,bisenet,ok,missing,ok,missing,True,True,ok,True,ok,True,False,False
 bootstapir,tracking,tapir,ok,missing,ok,ok,True,True,ok,True,ok,True,True,False
 boq-dinov2,retrieval,boq,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
-bridgedepth-rvc-pretrain,stereo,bridgedepth,ok,ok,ok,ok,True,True,missing,False,missing,False,False,False
+bridgedepth-rvc-pretrain,stereo,bridgedepth,ok,ok,ok,ok,True,True,ok,True,error: unsupported: BackendUnavailableError: TensorRT engine build failed: Error Code: 9: Skippin,False,False,True
 bridgedepth-sf,stereo,bridgedepth,ok,ok,ok,ok,True,True,ok,True,error: unsupported: TensorRT 10 Myelin tactic check fails during the engine build,False,False,False
 c-fast-foundationstereo,stereo,c_foundationstereo,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 c-foundationstereo-s,stereo,c_foundationstereo,ok,ok,ok,ok,True,True,ok,True,ok,True,False,True
@@ -34,12 +34,12 @@ cas-gwcnet-gc-sceneflow,stereo,cas_gwcnet,ok,ok,ok,ok,True,True,ok,True,ok,True,
 cfnet-sceneflow,stereo,cfnet,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 clip-b16-laion2b,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 clip-b16-openai,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
-clip-h14-378-dfn5b,features,clip,ok,ok,ok,ok,True,True,missing,False,missing,False,False,False
-clip-h14-dfn5b,features,clip,ok,ok,ok,ok,True,True,missing,False,missing,False,False,False
+clip-h14-378-dfn5b,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,True,True
+clip-h14-dfn5b,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,True,True
 clip-h14-laion2b,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 clip-l14-336-openai,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 clip-l14-datacompxl,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
-clip-l14-dfn2b,features,clip,ok,ok,ok,ok,True,True,missing,False,missing,False,False,False
+clip-l14-dfn2b,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,True,True
 clip-l14-laion2b,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 clip-l14-openai,features,clip,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 clipseg,promptable_segmentation,clipseg,ok,missing,ok,ok,True,True,ok,True,error: TypeError: Portable.module.<locals>.<lambda>() missing 1 required positional argument: 'co,False,False,True
@@ -201,7 +201,7 @@ focalnet_small_lrf.ms_in1k,classification,focalnet,ok,ok,ok,missing,True,True,ok
 focalnet_small_srf.ms_in1k,classification,focalnet,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
 focalnet_tiny_lrf.ms_in1k,classification,focalnet,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
 focalnet_tiny_srf.ms_in1k,classification,focalnet,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
-foundationstereo-vit-l,stereo,foundationstereo,ok,ok,ok,ok,True,True,missing,False,missing,False,False,False
+foundationstereo-vit-l,stereo,foundationstereo,ok,ok,ok,ok,True,True,error: unsupported: cold compile build exceeds the 175 s slice of gpulock (worker timeout); no ro,False,error: unsupported: cold tensorrt build exceeds the 175 s slice of gpulock (worker timeout); no r,False,False,False
 foundationstereo-vit-s,stereo,foundationstereo,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 geocalib-pinhole,calibration,geocalib,ok,missing,ok,ok,True,True,ok,True,error: unsupported: torch.export: data-dependent guard ((norm_x == 0).any()),False,False,False
 gfpgan-v1.4,restoration,gfpgan,ok,missing,ok,ok,True,True,ok,True,ok,True,False,False
@@ -342,13 +342,13 @@ pe-spatial-g14-448,features,perception_encoder,ok,ok,ok,ok,True,True,ok,True,ok,
 pe-spatial-l14-448,features,perception_encoder,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 pe-spatial-s16-512,features,perception_encoder,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 pe-spatial-t16-512,features,perception_encoder,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
-pi3,multiview,pi3,ok,missing,ok,ok,True,True,missing,False,missing,False,False,False
+pi3,multiview,pi3,ok,missing,ok,ok,True,True,ok,True,error: unsupported: ConversionError: Failed to convert the exported program to an ONNX model. Thi,False,False,True
 pidinet,edges,pidinet,ok,missing,ok,missing,True,True,ok,True,ok,True,True,True
 pointdit-b-512,depth,pointdit,ok,ok,ok,ok,True,True,ok,True,error: BackendUnavailableError: onnx is not installed: pip install 'fastforks-core[onnx]' (or 'pi,False,False,False
 pointdit-l-512,depth,pointdit,ok,ok,ok,ok,True,True,missing,False,missing,False,False,False
 ppocrv5-mobile,ocr,ppocrv5,ok,ok,ok,missing,True,True,ok,True,ok,True,False,False
 ppocrv5-server,ocr,ppocrv5,ok,missing,ok,missing,True,True,ok,True,ok,True,False,False
-prompt-depth-anything-l,depth,prompt_depth_anything,ok,ok,ok,ok,True,True,missing,False,missing,False,False,False
+prompt-depth-anything-l,depth,prompt_depth_anything,ok,ok,ok,ok,True,True,ok,True,ok,True,True,True
 prompt-depth-anything-s,depth,prompt_depth_anything,ok,ok,ok,ok,True,True,ok,True,ok,True,True,True
 psmnet-sceneflow,stereo,psmnet,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 pspnet-r101-d8-ade20k,segmentation,mmseg,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
@@ -447,7 +447,7 @@ rtmw-m,pose,rtmpose,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 rtmw-x,pose,rtmpose,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 rtmw-x-384,pose,rtmpose,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 s2m2-l,stereo,s2m2,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
-s2m2-m,stereo,s2m2,ok,ok,ok,ok,True,True,missing,False,missing,False,False,False
+s2m2-m,stereo,s2m2,ok,ok,ok,ok,True,True,ok,True,error: unsupported: cold tensorrt build exceeds the 175 s slice of gpulock (worker timeout); no r,False,False,True
 s2m2-s,stereo,s2m2,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 s2m2-xl,stereo,s2m2,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
 sam-hq-vit-b,promptable_segmentation,sam_hq,ok,ok,ok,ok,True,True,ok,True,ok,True,False,False
