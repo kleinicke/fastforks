@@ -85,6 +85,7 @@ class Portable(Runner):
         check_fits(self.net.state_dict(), state, f"{ctx.variant.ref} checkpoint")
         self.net.load_state_dict(state)
         self.net.eval().to(ctx.device)
+        self.net.memory_decoder.update_block.gru.fuse()
         self.fp16 = ctx.dtype == "float16"
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
