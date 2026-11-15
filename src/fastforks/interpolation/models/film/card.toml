@@ -3,7 +3,6 @@ name = "FILM"
 summary = "FILM (Reda et al., ECCV 2022): frame interpolation for large motion, the authors' film_net with the Style weights (the published default) as dajes/frame-interpolation-pytorch ports it. A 7-level image pyramid of both frames, cascaded features (one convolutional sub-tree extractor shared by all levels, so the coarse levels learn from fine training samples), a residual flow pyramid in both directions with one predictor shared by the coarse levels, both frames' images and features warped to the time on the 5 finest levels, and a U-Net-like decoder. Trained for the middle frame; other times run as upstream allows."
 tier = "experimental"
 outputs = ["frame"]
-limitations = ["Portable peak memory is above the fp16 original (480x854: 1093 vs 711 MB; 1080x1920: 4747 vs 2953 MB): the flows and the warps stay in float32, because fp16 flows cost 0.17 dB PSNR (27.63 vs 27.46) and a lib port must not trade accuracy for memory."]
 uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 
 [upstream]
