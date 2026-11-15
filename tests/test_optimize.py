@@ -445,3 +445,23 @@ def test_fold_leaves_no_proxy_in_a_forward_cache():
         net, _ = fold.fold_bn(m)
         assert (net(x) - want).abs().max() < 1e-5
     assert not any(isinstance(v, fx.Proxy) for mod in m.modules() for v in getattr(mod, "cache", {}).values())
+
+
+def test_convnext_layer_scale_fold_adds_no_weight_copy():
+    """The layer scale is folded into fc2 itself: the folded `_w2` shares the parameter's storage, outputs unchanged."""
+    timm = pytest.importorskip("timm")
+    torch.manual_seed(0)
+    m = timm.models.convnext.ConvNeXt(depths=(1, 1, 1, 1), dims=(32, 64, 96, 128), num_classes=10, ls_init_value=0.5)
+    m = m.eval()
+    x = torch.randn(1, 3, 64, 64)
+    with torch.no_grad():
+        want = copy.deepcopy(m)(x)
+        fast = optimize(m, mode="portable", device="cpu")
+        got = fast(x)
+    assert fast.report["convnext_blocks"] == 4
+    seen: dict[int, int] = {}
+    for t in [*fast.net.parameters(), *fast.net.buffers()]:
+        seen[t.untyped_storage().data_ptr()] = t.untyped_storage().nbytes()
+    own = sum(p.untyped_storage().nbytes() for p in {p.untyped_storage().data_ptr(): p for p in fast.net.parameters()}.values())
+    assert sum(seen.values()) == own  # no buffer owns storage a parameter does not
+    torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-5)
