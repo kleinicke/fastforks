@@ -20,6 +20,7 @@ import argparse
 import datetime as dt
 import importlib
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -32,7 +33,7 @@ from PIL import Image, ImageDraw, ImageFont
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-ROWS = Path(__file__).resolve().parents[1] / "docs/data/examples.jsonl"
+ROWS = Path(os.environ.get("EXAMPLES_ROWS") or Path(__file__).resolve().parents[1] / "docs/data/examples.jsonl")
 SCORE = 0.5  # detection boxes drawn and listed
 KEYPOINT = 0.3  # pose keypoints drawn
 BODY = 17  # COCO keypoints; more is whole-body (DWPose), drawn thinner
@@ -324,6 +325,10 @@ def _label(draw: ImageDraw.ImageDraw, xy: tuple[float, float], text: str, colour
     draw.text(xy, text, fill=(0, 0, 0), font=font)
 
 
+def _contract(model: Any) -> Any:  # noqa: ANN401
+    return importlib.import_module(f"fastforks.{model.card.task}").model_card(model.variant.id).contract()
+
+
 def _np(t: torch.Tensor) -> np.ndarray:
     return t.detach().float().cpu().numpy()
 
@@ -334,7 +339,7 @@ def _np(t: torch.Tensor) -> np.ndarray:
 def _depth(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401
     extra: dict[str, Any] = {}
     kw: dict[str, Any] = {}
-    if model.contract().inputs.get("prompt_depth") == "required":
+    if _contract(model).inputs.get("prompt_depth") == "required":
         # A synthetic LiDAR-like prompt (24 x 32 px, 0.35 to 0.7 m, farther towards the top): no real sensor
         h, w = 24, 32
         kw["prompt_depth"] = np.repeat(np.linspace(0.7, 0.35, h, dtype=np.float32)[:, None], w, 1)
@@ -388,7 +393,10 @@ LINES = 100  # matching: matches drawn
 def _matching(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401
     """The first view above the second, `LINES` of the most certain-weighted sampled matches joined by lines."""
     r = model(imgs[0], imgs[1])
-    p1, p2 = (_np(p) for p in r.matches(LINES))
+    p1, p2 = (_np(p) for p in (r.matches(LINES) if hasattr(r, "warp") else r.matches()))  # dense: sampled, sparse: all
+    if len(p1) > LINES:
+        keep = np.random.default_rng(0).choice(len(p1), LINES, replace=False)
+        p1, p2 = p1[keep], p2[keep]
     a, b = imgs
     w = max(a.shape[1], b.shape[1])
     canvas = np.zeros((a.shape[0] + b.shape[0], w, 3), np.uint8)
@@ -402,7 +410,8 @@ def _matching(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str,
         draw.line([(x1, y1), (x2, y2 + a.shape[0])], fill=col, width=2)
         for x, y in ((x1, y1), (x2, y2 + a.shape[0])):
             draw.ellipse([x - 3, y - 3, x + 3, y + 3], fill=col)
-    certain = float((_np(r.certainty) > 0.5).mean()) if r.certainty is not None else None  # noqa: PLR2004
+    certainty = getattr(r, "certainty", None)
+    certain = float((_np(certainty) > 0.5).mean()) if certainty is not None else None  # noqa: PLR2004
     return np.asarray(pil), {} if certain is None else {"certain": round(certain, 4)}
 
 
@@ -518,7 +527,7 @@ def _matting(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, 
     img = imgs[0]
     h, w = img.shape[:2]
     kw: dict[str, Any] = {}
-    guide = model.contract().inputs
+    guide = _contract(model).inputs
     box = np.zeros((h, w), np.uint8)
     x0, y0, x1, y1 = (int(v) for v in PERSON)
     box[y0:y1, x0:x1] = 255
@@ -767,7 +776,9 @@ def _save(img: np.ndarray, path: Path) -> None:
 def _done() -> set[str]:
     if not ROWS.exists():
         return set()
-    return {r["ref"] for r in map(json.loads, ROWS.read_text().splitlines()) if "error" not in r}
+    today = _today()  # a failure of today is not retried (the next step of the same job would hit it again)
+    rows = map(json.loads, ROWS.read_text().splitlines())
+    return {r["ref"] for r in rows if "error" not in r or r.get("date") == today}
 
 
 def _inputs_for(task: str, ref: str) -> tuple[str, list[np.ndarray]]:
@@ -822,8 +833,7 @@ def main() -> int:
         row: dict[str, Any] = {"ref": ref, "task": a.task, "input": name, "date": _today()}
         inflight.write_text(ref)
         try:
-            opts = {"stream": True} if ref.startswith("seedvr2") else {}
-            model = api.load(ref, mode=a.mode, device=a.device, **opts)
+            model = api.load(ref, mode=a.mode, device=a.device)
             with torch.inference_mode():
                 img, extra = RENDER[a.task](model, imgs)
             for i, inp in enumerate(extra.pop("_inputs", [])):
