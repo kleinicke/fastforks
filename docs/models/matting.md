@@ -267,7 +267,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels | 1220<br>1205<br>no kernels | 2978 / 3208<br>2719 / 2908<br>no kernels |
+| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>1205<br>no kernels<br>fails: load: BackendUnavailableError: matanyone@1 (portable) has no<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2719 / 2908<br>no kernels<br>–<br>– |
 
 <details><summary>Details</summary>
 

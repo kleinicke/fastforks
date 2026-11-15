@@ -290,7 +290,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mvsplat-re10k` | synthetic (336x518) | original<br>portable<br>kernels | 279<br>181<br>172 | 2889 / 4160<br>1239 / 1532<br>1239 / 1532 |
+| `mvsplat-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 279<br>181<br>172<br>115<br>fails: ONNX export: conversion failed | 2889 / 4160<br>1239 / 1532<br>1239 / 1532<br>2762 / 2810<br>– |
 
 <details><summary>Details</summary>
 
@@ -307,6 +307,7 @@ Commercial use: yes.
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsplat-re10k` 3000x4000 (3.2 GiB peak allocated, 4.4 reserved)
+- `mvsplat-re10k` 336x518, first call: portable + torch.compile 102 s (cold Inductor cache).
 - `mvsplat-re10k` original 336x518: the authors' mixed-precision option (float16); donydchen/mvsplat@01f9a28edb5e EncoderCostVolume, long side 256
 - `mvsplat-re10k` portable 336x518, kernels 336x518: measured on 45b0e4f0 with the cudnn_hacc per-call workspace change of 600d8c2c
 - `mvsplat-re10k` load / first call: original 1.37 s / 2.817 s (336x518), portable 0.15 s / 1.019 s (336x518), kernels 1.27 s / 0.693 s (336x518)

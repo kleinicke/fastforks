@@ -42,7 +42,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels<br>TensorRT fp16 | 15.3<br>4.45<br>2.75<br>fails: TypeError: Portable.module.<locals>.<lambda>() missing 1 req | 346 / 404<br>328 / 356<br>335 / 362<br>– |
+| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>4.45<br>2.75<br>3.19<br>fails: TypeError: Portable.module.<locals>.<lambda>() missing 1 req | 346 / 404<br>328 / 356<br>335 / 362<br>348 / 374<br>– |
 
 <details><summary>Details</summary>
 
@@ -59,6 +59,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, masks
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `clipseg` 3000x4000 (0.7 GiB peak allocated, 0.9 reserved)
+- `clipseg` 1024x1024, first call: portable + torch.compile 10 s (cold Inductor cache).
 - `clipseg` original 1024x1024: .half() on 1 modules, fp16 inputs; transformers CLIPSegProcessor (CPU) + CLIPSegForImageSegmentation, text tower per call, masks at logits > 0
 - `clipseg` load / first call: original 3.05 s / 0.021 s, portable 3.9 s / 0.264 s, kernels 3.64 s / 0.26 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -169,7 +170,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `insid3-vitl16` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 1649<br>713<br>255<br>157 | 1665 / 1746<br>2148 / 2226<br>986 / 1228<br>987 / 1228 |
+| `insid3-vitl16` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1649<br>713<br>255<br>157<br>235<br>64.1 (image encoder only) | 1665 / 1746<br>2148 / 2226<br>986 / 1228<br>987 / 1228<br>985 / 1206<br>1339 / 1508 |
 
 <details><summary>Details</summary>
 
@@ -185,6 +186,7 @@ Commercial use: yes.
 - Outputs: similarity, masks
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 1024x1024 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `insid3-vitl16` 1080x1920 (1.0 GiB peak allocated, 1.3 reserved)
+- `insid3-vitl16` 1024x1024, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `insid3-vitl16` original (fp32) 1024x1024: visinf/INSID3@0c165a10cf52 set_reference + set_target + segment, its encoder autocast off
 - `insid3-vitl16` original 1024x1024: the authors' mixed-precision option (bfloat16); visinf/INSID3@0c165a10cf52 set_reference + set_target + segment, bf16 autocast (as shipped)
 - `insid3-vitl16` load / first call: original 1.06 s / 1.114 s, portable 2.69 s / 0.441 s, kernels 1.39 s / 0.464 s

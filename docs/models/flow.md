@@ -685,9 +685,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `recover-cx` | synthetic (1080x1920) | original<br>portable<br>kernels | 179<br>107<br>89.8 | 1066 / 1168<br>733 / 892<br>733 / 892 |
-| `recover-rn` | synthetic (1080x1920) | original<br>portable<br>kernels | 130<br>64.1<br>51.3 | 950 / 1046<br>590 / 672<br>590 / 672 |
-| `recover-mn` | synthetic (1080x1920) | original<br>portable<br>kernels | 103<br>45.5<br>41.8 | 921 / 1036<br>580 / 676<br>580 / 676 |
+| `recover-cx` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 179<br>107<br>89.8<br>89.9<br>47.5 | 1066 / 1168<br>733 / 892<br>733 / 892<br>504 / 572<br>603 / 632 |
+| `recover-rn` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 130<br>64.1<br>51.3<br>48.8<br>28.9 | 950 / 1046<br>590 / 672<br>590 / 672<br>375 / 432<br>419 / 466 |
+| `recover-mn` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 103<br>45.5<br>41.8<br>32.2<br>21.2 | 921 / 1036<br>580 / 676<br>580 / 676<br>365 / 416<br>425 / 466 |
 
 <details><summary>Details</summary>
 
@@ -703,6 +703,9 @@ Commercial use: yes.
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `recover-cx` 1080x1920 (0.7 GiB peak allocated, 0.9 reserved); `recover-rn` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved); `recover-mn` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved)
+- `recover-cx` 1080x1920, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
+- `recover-rn` 1080x1920, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
+- `recover-mn` 1080x1920, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 57 s (ONNX + engine).
 - `recover-cx` original 1080x1920: torch.autocast(float16) around the call; upstream ReCoVEr_CX, iters=4, test_mode
 - `recover-rn` original 1080x1920: torch.autocast(float16) around the call; upstream ReCoVEr_RN, iters=4, test_mode
 - `recover-mn` original 1080x1920: torch.autocast(float16) around the call; upstream ReCoVEr_MN, iters=4, test_mode
@@ -846,9 +849,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>519 | 5537 / 5916<br>3553 / 4076<br>1851 / 2264 |
-| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>– | 5537 / 5936<br>3553 / 4196<br>– |
-| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>– | 5537 / 5916<br>3553 / 4076<br>– |
+| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>fails: worker rc=124 | 5537 / 5916<br>3553 / 4076<br>1851 / 2264<br>3479 / 3638<br>– |
+| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>–<br>610<br>fails: worker rc=124 | 5537 / 5936<br>3553 / 4196<br>–<br>3479 / 3758<br>– |
+| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>–<br>610<br>fails: worker rc=124 | 5537 / 5916<br>3553 / 4076<br>–<br>3479 / 3578<br>– |
 
 <details><summary>Details</summary>
 
@@ -866,6 +869,9 @@ Commercial use: yes.
 - Outputs: flow
 - Input size: any H x W >= 112, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `waft-a1` 1080x1920 (3.5 GiB peak allocated, 4.0 reserved); `waft-a1-kitti` 1080x1920 (3.5 GiB peak allocated, 4.1 reserved); `waft-a1-sintel` 1080x1920 (3.5 GiB peak allocated, 4.0 reserved)
+- `waft-a1` 1080x1920, first call: portable + torch.compile 85 s (cold Inductor cache).
+- `waft-a1-kitti` 1080x1920, first call: portable + torch.compile 84 s (cold Inductor cache).
+- `waft-a1-sintel` 1080x1920, first call: portable + torch.compile 85 s (cold Inductor cache).
 - `waft-a1` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t.json), iters=5
 - `waft-a1-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-kitti.json), iters=5
 - `waft-a1-sintel` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-sintel.json), iters=5

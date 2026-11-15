@@ -282,12 +282,12 @@ Commercial use: yes.
 - Licence evidence: https://github.com/davnords/loma/blob/415caedde23a9ed479172ed174fe4ff7b4514d4b/LICENSE ; https://github.com/Parskatt/dad/blob/41b9e86a1a3ae52128485cc1094aa4952ef489ba/LICENSE ; https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/README.md#license
 - Training data: MegaDepth (Internet photo collections with SfM / MVS depth) (Matcher: MegaDepth (paper); DaD: MegaDepth-based distillation (DaD paper); DeDoDe-G descriptor: MegaDepth; DINOv2 (frozen): LVD-142M (Meta).)
 - Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 16), `size` = 784 (>= 56)
-- Kernel libraries: none (not implemented: data-dependent keypoint and match counts. Portable is 308.1 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1767 vs 1843 MB, matches 1038-1039 for the originals)
+- Kernel libraries: none (not implemented: data-dependent keypoint and match counts. Portable is 307.9 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1790 vs 1843 MB (reserved 2562 vs 3398), matches 1030 vs 1038-1039)
 - Variants: `loma-b`
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loma-b` 3000x4000 (2.4 GiB peak allocated, 3.6 reserved)
-- no kernels: not implemented: data-dependent keypoint and match counts. Portable is 308.1 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1767 vs 1843 MB, matches 1038-1039 for the originals.
+- no kernels: not implemented: data-dependent keypoint and match counts. Portable is 307.9 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1790 vs 1843 MB (reserved 2562 vs 3398), matches 1030 vs 1038-1039.
 - `loma-b` 768x1024, first call: portable + torch.compile 104 s (cold Inductor cache).
 - `loma-b` load / first call: portable 2.53 s / 1.269 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

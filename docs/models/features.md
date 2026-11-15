@@ -85,8 +85,8 @@ Commercial use: yes.
 | `c-radio-v3-l` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.8<br>10.7<br>5.53<br>3.26<br>11.8<br>3.06 | 1263 / 1278<br>1838 / 1878<br>648 / 686<br>888 / 946<br>710 / 746<br>1297 / 1350 |
 | `c-radio-v3-h` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 34.5<br>17.0<br>8.90<br>7.42<br>18.1<br>6.62 | 2595 / 2666<br>3810 / 4110<br>1289 / 1308<br>1789 / 1828<br>1350 / 1386<br>2558 / 2586 |
 | `c-radio-v3-g` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 58.0<br>29.5<br>14.6<br>10.6<br>25.5<br>10.3 | 4514 / 4554<br>6672 / 6804<br>2266 / 2308<br>3166 / 3230<br>2329 / 2368<br>4483 / 4530 |
-| `c-radio-v4-so400m` | synthetic (224x224) | original<br>portable<br>kernels | 11.5<br>6.33<br>4.25 | 4115 / 4150<br>864 / 906<br>864 / 908 |
-| `c-radio-v4-h` | synthetic (224x224) | original<br>portable<br>kernels | 17.1<br>8.92<br>7.41 | 6214 / 6250<br>1289 / 1308<br>1289 / 1308 |
+| `c-radio-v4-so400m` | synthetic (224x224) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>6.33<br>4.25<br>14.2<br>3.75 | 4115 / 4150<br>864 / 906<br>864 / 908<br>927 / 966<br>1695 / 1740 |
+| `c-radio-v4-h` | synthetic (224x224) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>8.92<br>7.41<br>17.9<br>6.64 | 6214 / 6250<br>1289 / 1308<br>1289 / 1308<br>1351 / 1388<br>2558 / 2586 |
 
 <details><summary>Details</summary>
 
@@ -109,6 +109,8 @@ Commercial use: yes.
 - `c-radio-v3-l` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `c-radio-v3-h` 224x224, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 45 s (ONNX + engine).
 - `c-radio-v3-g` 224x224, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 57 s (ONNX + engine).
+- `c-radio-v4-so400m` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 49 s (ONNX + engine).
+- `c-radio-v4-h` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
 - `c-radio-v3-b` original (fp32) 224x224: hf_model.RADIOModel (trust_remote_code) summary, transformers 5.19.0
 - `c-radio-v3-b` original 224x224: torch.autocast(fp16) around the forward; hf_model.RADIOModel (trust_remote_code) summary, transformers 5.19.0
 - `c-radio-v3-l` original (fp32) 224x224: hf_model.RADIOModel (trust_remote_code) summary, transformers 5.19.0
@@ -396,9 +398,9 @@ Commercial use: yes.
 | `dinov2-vitb14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.90<br>4.50<br>2.92<br>1.48<br>2.20<br>1.30 | 371 / 386<br>530 / 548<br>205 / 226<br>237 / 290<br>240 / 266<br>367 / 384 |
 | `dinov2-vitb14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.00<br>4.30<br>2.94<br>1.50<br>2.30<br>1.33 | 371 / 386<br>530 / 548<br>207 / 226<br>237 / 288<br>240 / 246<br>399 / 402 |
 | `dinov2-vitl14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.8<br>9.80<br>6.12<br>4.59<br>6.03<br>4.25 | 1205 / 1224<br>1777 / 1784<br>622 / 646<br>655 / 714<br>661 / 666<br>1235 / 1262 |
-| `dinov2-vitl14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 22.5<br>10.7<br>6.17<br>4.60 | 1205 / 1226<br>1777 / 1786<br>625 / 646<br>655 / 714 |
+| `dinov2-vitl14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.5<br>10.7<br>6.17<br>4.60<br>6.17<br>4.27 | 1205 / 1226<br>1777 / 1786<br>625 / 646<br>655 / 714<br>661 / 666<br>1237 / 1242 |
 | `dinov2-vitg14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 86.4<br>33.9<br>18.9<br>12.8<br>18.3<br>12.0 | 4389 / 4406<br>6542 / 6548<br>2216 / 2230<br>2222 / 2250<br>2267 / 2290<br>4392 / 4410 |
-| `dinov2-vitg14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 86.6<br>34.2<br>18.7<br>12.7 | 4389 / 4406<br>6542 / 6568<br>2217 / 2228<br>2222 / 2250 |
+| `dinov2-vitg14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 86.6<br>34.2<br>18.7<br>12.7<br>18.3 | 4389 / 4406<br>6542 / 6568<br>2217 / 2228<br>2222 / 2250<br>2267 / 2290 |
 
 <details><summary>Details</summary>
 
@@ -419,7 +421,9 @@ Commercial use: yes.
 - `dinov2-vitb14` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `dinov2-vitb14-reg` 224x224, first call: portable + torch.compile 6 s (cold Inductor cache), TensorRT fp16 29 s (ONNX + engine).
 - `dinov2-vitl14` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
+- `dinov2-vitl14-reg` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `dinov2-vitg14` 224x224, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 46 s (ONNX + engine).
+- `dinov2-vitg14-reg` 224x224, first call: portable + torch.compile 15 s (cold Inductor cache).
 - `dinov2-vits14` original 224x224: torch.autocast(fp16) around the forward
 - `dinov2-vits14-reg` original (fp32) 224x224, original 224x224: dinov2 forward_features CLS
 - `dinov2-vitb14` original 224x224: torch.autocast(fp16) around the forward
@@ -551,8 +555,8 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `dinov3-vits16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.47<br>9.16<br>3.54<br>0.792<br>2.18<br>0.564 | 119 / 132<br>158 / 166<br>76 / 78<br>44 / 62<br>109 / 138<br>107 / 120 |
 | `dinov3-vitb16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.95<br>9.33<br>3.68<br>1.26<br>2.35<br>1.14 | 367 / 390<br>527 / 550<br>200 / 206<br>168 / 210<br>236 / 306<br>393 / 480 |
-| `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 19.2<br>17.7<br>6.69<br>3.03 | 1199 / 1212<br>1772 / 1812<br>616 / 626<br>616 / 652 |
-| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 48.0<br>25.9<br>12.5<br>8.45 | 3255 / 3276<br>4849 / 4876<br>1646 / 1668<br>1645 / 1672 |
+| `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.2<br>17.7<br>6.69<br>3.03<br>4.91<br>2.98 | 1199 / 1212<br>1772 / 1812<br>616 / 626<br>616 / 652<br>655 / 846<br>1226 / 1418 |
+| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 48.0<br>25.9<br>12.5<br>8.45<br>11.6 | 3255 / 3276<br>4849 / 4876<br>1646 / 1668<br>1645 / 1672<br>1699 / 2008 |
 
 <details><summary>Details</summary>
 
@@ -572,6 +576,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dinov3-vits16` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved); `dinov3-vitb16` 3000x4000 (1.6 GiB peak allocated, 2.0 reserved); `dinov3-vitl16` 3000x4000 (2.4 GiB peak allocated, 2.9 reserved); `dinov3-vith16plus` 3000x4000 (4.2 GiB peak allocated, 4.9 reserved)
 - `dinov3-vits16` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `dinov3-vitb16` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
+- `dinov3-vitl16` 224x224, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
+- `dinov3-vith16plus` 224x224, first call: portable + torch.compile 21 s (cold Inductor cache).
 - `dinov3-vits16` original 224x224: torch.autocast(fp16) around the forward
 - `dinov3-vitb16` original 224x224: torch.autocast(fp16) around the forward
 - `dinov3-vitl16` original 224x224: torch.autocast(fp16) around the forward

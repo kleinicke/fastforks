@@ -164,8 +164,8 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `cotracker3-offline` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp16 | 244<br>162<br>154<br>25.9 | 2221 / 2480<br>755 / 882<br>799 / 916<br>519 / 586 |
-| `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp16 | 328<br>184<br>176<br>fails: ONNX export: torch.export failed | 1659 / 1886<br>755 / 906<br>798 / 922<br>– |
+| `cotracker3-offline` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>162<br>154<br>135<br>25.9 | 2221 / 2480<br>755 / 882<br>799 / 916<br>755 / 902<br>519 / 586 |
+| `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 328<br>184<br>176<br>159<br>fails: ONNX export: torch.export failed | 1659 / 1886<br>755 / 906<br>798 / 922<br>701 / 846<br>– |
 
 <details><summary>Details</summary>
 
@@ -180,7 +180,8 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `cotracker3-offline` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `cotracker3-online` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
-- `cotracker3-offline` 480x854, first call: TensorRT fp16 157 s (ONNX + engine).
+- `cotracker3-offline` 480x854, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 157 s (ONNX + engine).
+- `cotracker3-online` 480x854, first call: portable + torch.compile 38 s (cold Inductor cache).
 - `cotracker3-offline` original 480x854: the authors' mixed-precision option (float16); facebookresearch/co-tracker@82e02e802975 as its predictor, offline (whole video, 6 x 6 support grid), frames resized to 384 x 512
 - `cotracker3-online` original 480x854: the authors' mixed-precision option (float16); facebookresearch/co-tracker@82e02e802975 as its predictor, online (16-frame windows, step 8), frames resized to 384 x 512
 - `cotracker3-offline` load / first call: original 0.65 s / 0.866 s, portable 0.28 s / 0.416 s, kernels 0.19 s / 0.52 s

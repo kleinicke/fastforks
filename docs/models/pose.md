@@ -406,8 +406,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `retinaface-resnet50` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels | 81.0<br>79.4<br>24.3<br>11.7 | 545 / 648<br>371 / 490<br>405 / 504<br>379 / 464 |
-| `retinaface-mobilenet0.25` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels | 75.9<br>77.4<br>3.44<br>2.74 | 110 / 128<br>87 / 110<br>86 / 108<br>105 / 128 |
+| `retinaface-resnet50` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 81.0<br>79.4<br>24.3<br>11.7<br>16.5<br>9.10 (network only) | 545 / 648<br>371 / 490<br>405 / 504<br>379 / 464<br>374 / 444<br>451 / 462 |
+| `retinaface-mobilenet0.25` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 75.9<br>77.4<br>3.44<br>2.74<br>2.16<br>0.982 (network only) | 110 / 128<br>87 / 110<br>86 / 108<br>105 / 128<br>125 / 148<br>133 / 144 |
 
 <details><summary>Details</summary>
 
@@ -424,6 +424,8 @@ Commercial use: yes.
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `face-5`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `retinaface-resnet50` 3000x4000 (1.6 GiB peak allocated, 1.8 reserved); `retinaface-mobilenet0.25` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved)
+- `retinaface-resnet50` 1080x1920, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 20 s (ONNX + engine).
+- `retinaface-mobilenet0.25` 1080x1920, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `retinaface-resnet50` original (fp32) 1080x1920: facexlib 0.3.0 detect_faces (use_origin_size, float32): preprocessing, network, NMS, decode
 - `retinaface-resnet50` original 1080x1920: torch.autocast(float16) around the call; facexlib 0.3.0 detect_faces (use_origin_size, float32): preprocessing, network, NMS, decode
 - `retinaface-mobilenet0.25` original (fp32) 1080x1920: facexlib 0.3.0 detect_faces (use_origin_size, float32): preprocessing, network, NMS, decode
