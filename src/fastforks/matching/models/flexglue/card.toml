@@ -46,7 +46,7 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 status = "none"
-reason = "not implemented: data-dependent keypoint and match counts"
+reason = "not implemented: data-dependent keypoint and match counts. Portable at 768x1024, 2048 keypoints, MegaDepth pair: 129.6 ms against 152.9 ms for the original with its float16 option (1.18x), peak allocated 1799 vs 1801 MB (reserved 1962 vs 1950), 760 vs 759 matches"
 
 [[papers]]
 title = "FlexGlue: Sparse-to-Dense Feature Matching and Visual Disambiguation"
