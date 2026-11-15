@@ -30,8 +30,7 @@ cuda_dtype = "float16"  # autocast for the whole network; the warping coordinate
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-status = "none"
-reason = "no kernels mode was built for it; Depth Anything's fast ViT kernels would fit"
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "dpt_fused"]
 
 [[papers]]
 title = "WAFT: Warping-Alone Field Transforms for Optical Flow"

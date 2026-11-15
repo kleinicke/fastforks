@@ -8,6 +8,8 @@
 cpu_atol = 0.002
 gpu_mean = 0.005  # measured fp16 0.0015 px (fp32 0.0005), RTX 5060 Ti
 gpu_p99 = 0.02  # measured fp16 0.0058 px
+gpu_mean_kernels = 0.008  # measured kernels (fp16 NHWC convs, fast ViT) 0.0056 px
+gpu_p99_kernels = 0.04
 
 [refs."waft-a1-kitti@1"]
 sha256 = "bb92df78d3b24ddcbfe7add5b12d7dc382117f03ef945db42cbb27a0871c63a1"
