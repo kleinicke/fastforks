@@ -1154,12 +1154,15 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | swinir-m-x4 | 3497 | 767 | 580 | 6.0x | 1.3x | 1500 / 2058 | 1499 / 2054 | 1390 / 1456 |
 | swinir-m-x4-real | 2462 | 1242 | 588 | 4.2x | 2.1x | 2321 / 2978 | 2387 / 3034 | 1577 / 1954 |
 
-### Volume, synthetic, 200x200
+### Volume, synthetic
 
-| model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
-|---|---|---|---|---|---|---|---|---|---|
-| totalsegmentator-total | 47779 | 45630 | 1927 | 1740 | 26.2x | 1.1x | 2640 / 2874 | 2605 / 2944 | 2349 / 2704 |
-| totalsegmentator-total-3mm | 7304 | 7270 | 67.1 | 63.5 | 114.4x | 1.1x | 2010 / 2684 | 1092 / 1508 | 1037 / 1410 |
+| model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|---|---|
+| nnfoundation-cnn | 200x200 | 501 | 274 | 227 | 211 | 1.3x | 1.1x | 3818 / 4628 | 3011 / 3110 | 2985 / 3710 |
+| nnfoundation-vit | 192x192 | OOM | 1930 | 1848 | 1732 | 1.1x | 1.1x | 3930 / 4298 | 1669 / 1884 | 1669 / 1884 |
+| nninteractive | 200x200 | 705 | 460 | 215 | 201 | 2.3x | 1.1x | 4076 / 4636 | 3075 / 3492 | 2643 / 3072 |
+| totalsegmentator-total | 200x200 | 47779 | 45630 | 1927 | 1740 | 26.2x | 1.1x | 2640 / 2874 | 2605 / 2944 | 2349 / 2704 |
+| totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 67.1 | 63.5 | 114.4x | 1.1x | 2010 / 2684 | 1092 / 1508 | 1037 / 1410 |
 
 ### Startup and first call
 
@@ -1716,6 +1719,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | swinir-m-x2 | 2.95 | 0.38 | 1.26 | 4.49 | 1.34 | 0.63 |
 | swinir-m-x4 | 2.07 | 0.44 | 1.28 | 3.27 | 1.36 | 0.65 |
 | swinir-m-x4-real | 2.06 | 0.40 | 1.31 | 3.33 | 1.39 | 0.70 |
+| nnfoundation-cnn | 1.18 | 0.67 | 0.39 | 0.69 | 0.33 | 0.29 |
+| nnfoundation-vit | 9.54 (192x192) | 1.24 (192x192) | 1.27 (192x192) | 2.37 (192x192) | 1.87 (192x192) | 1.76 (192x192) |
+| nninteractive | 3.23 | 1.09 | 0.65 | 1.04 | 0.48 | 0.40 |
 | totalsegmentator-total | 0.07 | 0.77 | 0.77 | 54.51 | 2.10 | 1.88 |
 | totalsegmentator-total-3mm | 0.06 | 1.18 | 1.19 | 12.48 | 0.26 | 0.21 |
 
@@ -2204,6 +2210,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | swinir-m-x2 | 512x512 | 1192 ms | 781 ms | 719 ms | 558 ms | 60.3 s | 102 s | 1386 / 1574 | 1683 / 1796 | 1577 / 1754 | 5088 / 5144 |
 | swinir-m-x4 | 512x512 | 767 ms | 795 ms | 727 ms | 580 ms | 61.8 s | 104 s | 1499 / 2054 | 1684 / 1796 | 1390 / 1456 | 5525 / 5604 |
 | swinir-m-x4-real | 512x512 | 1242 ms | 807 ms | 733 ms | 588 ms | 59.6 s | 109 s | 2387 / 3034 | 1683 / 1796 | 1577 / 1954 | 5427 / 5506 |
+| nnfoundation-cnn | 200x200 | 227 ms | 170 ms | fails: RuntimeError: required rank 5 tensor to use channels_last_3d | 211 ms | 19.8 s | – | 3011 / 3110 | 5067 / 5110 | 2985 / 3710 | – |
+| nnfoundation-vit | 192x192 | 1848 ms | 1440 ms | fails: RuntimeError: Calculated padded input size per channel: (3 x | 1732 ms | 69.5 s | – | 1669 / 1884 | 1406 / 1484 | 1669 / 1884 | – |
+| nninteractive | 200x200 | 215 ms | fails: TypeError: cannot unpack non-iterable NoneType object | fails: TypeError: 'NoneType' object is not subscriptable | 201 ms | – | – | 3075 / 3492 | – | 2643 / 3072 | – |
 | totalsegmentator-total | 200x200 | 1927 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 1740 ms | – | – | 2605 / 2944 | – | 2349 / 2704 | – |
 | totalsegmentator-total-3mm | 200x200 | 67.1 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 63.5 ms | – | – | 1092 / 1508 | – | 1037 / 1410 | – |
 <!-- compile:end -->

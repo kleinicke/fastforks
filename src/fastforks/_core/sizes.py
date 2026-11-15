@@ -118,6 +118,9 @@ def _data() -> dict[str, dict[str, Any]]:
 
 
 VOLUME_INPUT = "any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)"
+VOLUME_ENCODER_INPUT = (
+    "any D x H x W volume, no resampling, one encoder pass (a fixed-grid ViT: each side up to its grid)"
+)
 
 
 def size_range(variant: Variant, card: ModelCard | None = None) -> SizeRange:
@@ -168,7 +171,12 @@ def card_size_lines(card: ModelCard, variants: list[Variant] | None = None, *, h
     vs = variants or card.variants
     groups: dict[str, list[str]] = {}
     for v in vs:
-        text = VOLUME_INPUT if card.task == "volume" else size_range(v, card).describe(tested=False)
+        encoder = "features" in (v.outputs or card.outputs)
+        text = (
+            (VOLUME_ENCODER_INPUT if encoder else VOLUME_INPUT)
+            if card.task == "volume"
+            else size_range(v, card).describe(tested=False)
+        )
         groups.setdefault(text, []).append(f"`{v.id}`")
     if len(groups) == 1:
         text = next(iter(groups))

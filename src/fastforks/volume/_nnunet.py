@@ -29,7 +29,7 @@ from fastforks.volume import _resample
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
-__all__ = ["Norm", "Plan", "Predictor", "UNet", "gaussian", "read_plan", "sliding_steps"]
+__all__ = ["Encoder", "Norm", "Plan", "Predictor", "UNet", "gaussian", "read_plan", "sliding_steps"]
 
 _DNA = "dynamic_network_architectures.architectures.unet."
 _ARCHS = {_DNA + "PlainConvUNet": "plain", _DNA + "ResidualEncoderUNet": "resenc"}
@@ -306,6 +306,28 @@ class _Stacked(nn.Module):
         return self.convs(x)
 
 
+class _AvgPool(nn.Module):
+    """`nn.AvgPool3d(stride, stride)` as a float32 sum of strided views that keeps `channels_last_3d`.
+
+    avg_pool3d copies such inputs to contiguous and back (192^3, 32 channels: 20 ms vs 7 ms).
+    """
+
+    def __init__(self, stride: tuple[int, ...]) -> None:
+        super().__init__()
+        self.stride = stride
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        dims = x.shape[2:]
+        views = (
+            x[(..., *(slice(o, o + s * (n // s), s) for o, s, n in zip(offs, self.stride, dims, strict=True)))]
+            for offs in itertools.product(*(range(s) for s in self.stride))
+        )
+        out = next(views).to(torch.float32, copy=True)
+        for v in views:
+            out.add_(v)
+        return out.mul_(1.0 / math.prod(self.stride)).to(x.dtype)
+
+
 class _BasicBlock(nn.Module):
     """`BasicBlockD`: two conv blocks (the second without nonlinearity) + the (avg-pooled, projected) input."""
 
@@ -315,7 +337,7 @@ class _BasicBlock(nn.Module):
         self.conv2 = _ConvNormAct(cout, cout, k, (1,) * len(k), plan, act=False)
         ops: list[nn.Module] = []
         if any(s != 1 for s in stride):
-            ops.append(nn.AvgPool3d(stride, stride))  # ty: ignore[invalid-argument-type]
+            ops.append(_AvgPool(stride))
         if cin != cout:
             ones = (1,) * len(k)
             ops.append(_ConvNormAct(cin, cout, ones, ones, plan, act=False, bias=False))
@@ -343,7 +365,9 @@ class _ResStage(nn.Module):
         return self.blocks(x)
 
 
-class _Encoder(nn.Module):
+class Encoder(nn.Module):
+    """dynamic_network_architectures' `PlainConvEncoder` / `ResidualEncoder` (stem + stages), upstream's keys."""
+
     def __init__(self, plan: Plan, in_channels: int) -> None:
         super().__init__()
         if plan.network == "resenc":
@@ -414,7 +438,7 @@ class UNet(nn.Module):
         """Build the network of `plan` for `in_channels` input channels."""
         super().__init__()
         self.plan = plan
-        self.encoder = _Encoder(plan, in_channels)
+        self.encoder = Encoder(plan, in_channels)
         self.decoder = _Decoder(plan)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

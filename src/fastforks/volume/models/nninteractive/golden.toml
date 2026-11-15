@@ -1,0 +1,25 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.0
+cpu_label_mismatch = 0.001
+gpu_mean = 0.003
+gpu_p99 = 0.5
+
+[refs."nninteractive@1"]
+sha256 = "30827090ab9597313918c6da4b07a31d550e150d5f0a57aad218bee12551d8f0"
+upstream = "https://github.com/MIC-DKFZ/nnInteractive@6bf57adf42cae092e01957a81228d929dc03c489"
+settings = "CPU float32, nnInteractiveInferenceSession(do_autozoom=True), fold 0, on s0013 ct.nii.gz, crop (96, 128, 128) at (199, 24, 73) (z, y, x) RAS, one positive point at (56, 41, 97), torch 2.10.0+cu130"
+
+[validated."nninteractive@1"]
+kernels = ["vol_norm@44036d4da567:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "25ce125fd5d7b2ac", "in_final_h" = "7e4e2736f3fa180b", "in_stats_h" = "0a69cc1aa662739a"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 6e-05
+p99_px = 0.0

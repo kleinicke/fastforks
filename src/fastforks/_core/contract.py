@@ -349,6 +349,12 @@ _FIXED_TABLES: dict[str, dict[str, tuple[str, str, str, str]]] = {  # output tab
     },
     "volume": {
         "labels": ("[D, H, W]", "uint8 (int16 above 255 classes)", "class index, 0 = background", "input voxels"),
+        "features": (
+            "tuple of [C_i, ceil(D/s_i), ceil(H/s_i), ceil(W/s_i)]",
+            "float32",
+            "encoder feature maps (encoder models)",
+            "stage i at stride `model.strides[i]`, input voxels",
+        ),
     },
     "pose": {
         "keypoints": ("[P, K, 2]", "float32", "pixels of the input image", "(x, y), corner origin"),
@@ -455,7 +461,13 @@ _STAGES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     ),
     "multiview": (("resize to the network size", "network", "resize to the input"), ("image conversion",)),
     "volume": (
-        ("resample to the model spacing", "normalise", "network (sliding windows)", "argmax", "resample to the input"),
+        (
+            "resample to the model spacing",
+            "normalise",
+            "network (sliding windows; encoders: one pass)",
+            "argmax",
+            "resample to the input",
+        ),
         ("NIfTI reading / writing",),
     ),
     "pose": (

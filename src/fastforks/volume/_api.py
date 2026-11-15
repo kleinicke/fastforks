@@ -1,4 +1,4 @@
-"""3D volume segmentation API: `list_models`, `model_card`, `load` (also nnU-Net v2 folders), model / result types."""
+"""3D volume API: `list_models`, `model_card`, `load` (also nnU-Net v2 folders), model / session / result types."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from fastforks._core import model as core
 from fastforks._core import registry
 from fastforks._core.api import is_path, task_api
 from fastforks._core.arguments import typo_checked_load
-from fastforks._core.errors import InputError, OptionsError, WeightsError
+from fastforks._core.errors import CardError, InputError, ModelNotFoundError, OptionsError, WeightsError
 from fastforks._core.files import FileSpec
 from fastforks._core.io import atomic_write, check_suffix
 from fastforks._core.model import Backend
@@ -29,9 +29,21 @@ if TYPE_CHECKING:
     from fastforks._core.bench import BenchInputs, BenchSize
     from fastforks._core.cards import Dtype
     from fastforks._core.model import ModeArg
-    from fastforks.volume._runner import Runner
+    from fastforks.volume._runner import EncoderRunner, InteractiveRunner, Runner
 
-__all__ = ["Backend", "VolumeModel", "VolumeResult", "list_models", "load", "model_card"]
+__all__ = [
+    "Backend",
+    "VolumeEncoder",
+    "VolumeFeatures",
+    "VolumeInteractive",
+    "VolumeMask",
+    "VolumeModel",
+    "VolumeResult",
+    "VolumeSession",
+    "list_models",
+    "load",
+    "model_card",
+]
 
 TASK = "volume"
 _NDIM = (3, 4)
@@ -72,6 +84,56 @@ class VolumeResult(NumpyOutputs):
             return
         check_suffix(path, (".nii.gz", ".nii", ".npy"), type(self).__name__)
         atomic_write(path, lambda tmp: np.save(tmp, self.labels.detach().cpu().numpy()))
+
+
+@dataclass(frozen=True)
+class VolumeFeatures(NumpyOutputs):
+    """Output of a volume encoder, on the model's device.
+
+    Attributes:
+        features: One float32 map `[C_i, ceil(D / s_i), ceil(H / s_i), ceil(W / s_i)]` per stride `s_i`, finest first.
+        strides: The stride `s_i` of every map.
+        model: Versioned model id.
+        backend: The backend that produced the result.
+        options: Load options that differ from the validated defaults.
+    """
+
+    features: tuple[torch.Tensor, ...]
+    strides: tuple[int, ...]
+    model: str
+    backend: Backend
+    options: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class VolumeMask(NumpyOutputs):
+    """The object mask of a promptable model after a prompt, on the model's device, on the input grid.
+
+    Attributes:
+        mask: `[D, H, W]` bool.
+        model: Versioned model id.
+        backend: The backend that produced the result.
+        options: Load options that differ from the validated defaults.
+    """
+
+    mask: torch.Tensor
+    model: str
+    backend: Backend
+    options: Mapping[str, Any] = field(default_factory=dict)
+
+
+def _volume(volume: np.ndarray | torch.Tensor, channels: int, ref: str) -> torch.Tensor:
+    """`[C, D, H, W]` of a `[D, H, W]` / `[C, D, H, W]` numpy or torch volume (not yet on the device)."""
+    x = torch.as_tensor(np.ascontiguousarray(volume) if isinstance(volume, np.ndarray) else volume)
+    if x.ndim not in _NDIM or x.is_complex() or x.dtype == torch.bool:
+        msg = f"volume must be a real [D, H, W] or [C, D, H, W] array, got {x.dtype} {tuple(x.shape)}"
+        raise InputError(msg)
+    if x.ndim == 3:  # noqa: PLR2004
+        x = x[None]
+    if x.shape[0] != channels:
+        msg = f"{ref} takes {channels} channel(s), got {x.shape[0]} ({tuple(x.shape)})"
+        raise InputError(msg)
+    return x
 
 
 class VolumeModel(core.Model):
@@ -127,15 +189,7 @@ class VolumeModel(core.Model):
             InputError: Wrong number of dimensions or channels, neither or both of `spacing` and `meta`, a spacing that
                 is not three positive numbers, or a volume not on the grid of `meta`.
         """
-        x = torch.as_tensor(np.ascontiguousarray(volume) if isinstance(volume, np.ndarray) else volume)
-        if x.ndim not in _NDIM or x.is_complex() or x.dtype == torch.bool:
-            msg = f"volume must be a real [D, H, W] or [C, D, H, W] array, got {x.dtype} {tuple(x.shape)}"
-            raise InputError(msg)
-        if x.ndim == 3:  # noqa: PLR2004
-            x = x[None]
-        if x.shape[0] != self.channels:
-            msg = f"{self.variant.ref} takes {self.channels} channel(s), got {x.shape[0]} ({tuple(x.shape)})"
-            raise InputError(msg)
+        x = _volume(volume, self.channels, self.variant.ref)
         if (spacing is None) == (meta is None):
             msg = "give the voxel size as spacing=(d, h, w) in mm or meta= (from read_nifti), one of the two"
             raise InputError(msg)
@@ -155,14 +209,214 @@ class VolumeModel(core.Model):
         return VolumeResult(labels, self.class_names, self.variant.ref, self.backend, self.options, meta)
 
 
-def bench_inputs(model: VolumeModel, size: BenchSize) -> BenchInputs:
-    """`fastforks bench` call: a synthetic CT-like volume `[H, W, W]` at 1.5 mm (H slices of W x W voxels)."""
+class VolumeEncoder(core.Model):
+    """A loaded volume encoder (pretrained 3D backbone). Call it with a volume; it returns multi-scale feature maps.
+
+    Besides the attributes of `fastforks.Model`:
+
+    Attributes:
+        channels: Input channels (modalities) the model takes.
+        strides: Stride of every feature map (input voxels per feature voxel along each axis), finest first.
+        widths: Channels of every feature map.
+        max_size: Largest side in voxels a call takes, or `None` (any size; memory grows with the volume).
+    """
+
+    _runner: EncoderRunner
+
+    def __init__(self, runner: EncoderRunner, backend: Backend, options: Mapping[str, Any]) -> None:
+        """Wrap a runner (built by `load`)."""
+        super().__init__(runner, backend, options)
+        self.channels = runner.channels
+        self.strides = tuple(runner.strides)
+        self.widths = tuple(runner.widths)
+        self.max_size = runner.max_size
+
+    def __call__(self, volume: np.ndarray | torch.Tensor) -> VolumeFeatures:
+        """Encode a volume (no resampling: pass it at the spacing the model card names).
+
+        Args:
+            volume: `[D, H, W]` or `[C, D, H, W]` raw intensities (numpy or torch), e.g. from
+                `fastforks.volume.read_nifti`; the model normalises them (z-score over the volume).
+
+        Returns:
+            The feature maps, finest first.
+
+        Raises:
+            InputError: Wrong number of dimensions or channels, or a side above `max_size`.
+        """
+        x = _volume(volume, self.channels, self.variant.ref)
+        if self.max_size is not None and max(x.shape[1:]) > self.max_size:
+            msg = f"{self.variant.ref} takes sides up to {self.max_size} voxels, got {tuple(x.shape[1:])}"
+            raise InputError(msg)
+        with self._session():
+            x = x.to(self.device, torch.float32, non_blocking=True)
+            maps = self._runner(x)["features"]
+            if len(maps) != len(self.strides):
+                msg = f"{self.variant.ref}: runner returned {len(maps)} feature maps for strides {self.strides}"
+                raise CardError(msg)
+            out = []
+            for t, s, c in zip(maps, self.strides, self.widths, strict=True):
+                shape = (c, *(-(-n // s) for n in x.shape[1:]))
+                out.append(self._check_outputs({"features": t}, {"features": shape})["features"])
+        return VolumeFeatures(tuple(out), self.strides, self.variant.ref, self.backend, self.options)
+
+
+class VolumeSession:
+    """One volume in a promptable model: every prompt refines the same object mask. Made by `VolumeInteractive.session`.
+
+    Prompts are in voxels of the input volume, `(z, y, x)` = `[D, H, W]` order; `positive=False` marks background.
+    """
+
+    def __init__(self, model: VolumeInteractive, volume: torch.Tensor) -> None:
+        """Start a session (use `VolumeInteractive.session`)."""
+        self._model = model
+        self.shape = tuple(int(n) for n in volume.shape[1:])
+        with model._session():  # noqa: SLF001 - the model's locks and device guard
+            self._state = model._runner.start(volume.to(model.device, torch.float32))  # noqa: SLF001
+
+    def _run(self, prompt: str, *args: Any) -> VolumeMask:  # noqa: ANN401
+        m = self._model
+        with m._session():  # noqa: SLF001
+            getattr(m._runner, prompt)(self._state, *args)  # noqa: SLF001
+            return self._mask()
+
+    def _mask(self) -> VolumeMask:
+        m = self._model
+        out = m._check_outputs({"mask": m._runner.mask(self._state)}, {"mask": self.shape}, cast=False)  # noqa: SLF001
+        return VolumeMask(out["mask"], m.variant.ref, m.backend, m.options)
+
+    @property
+    def mask(self) -> VolumeMask:
+        """The current mask (all False before the first prompt)."""
+        with self._model._session():  # noqa: SLF001
+            return self._mask()
+
+    def add_point(self, zyx: Sequence[float], *, positive: bool = True) -> VolumeMask:
+        """Click a voxel `(z, y, x)` (fractions are rounded) inside the volume; returns the updated mask.
+
+        Raises:
+            InputError: Not three finite coordinates inside the volume.
+        """
+        p = tuple(float(c) for c in zyx)
+        n_ax = len(self.shape)
+        if len(p) != n_ax or not all(
+            math.isfinite(c) and 0 <= round(c) < n for c, n in zip(p, self.shape, strict=True)
+        ):
+            msg = f"point must be (z, y, x) inside the volume {self.shape}, got {zyx!r}"
+            raise InputError(msg)
+        return self._run("point", p, positive)
+
+    def add_box(self, box: Sequence[Sequence[float]], *, positive: bool = True) -> VolumeMask:
+        """Draw a box `[[z0, z1], [y0, y1], [x0, x1]]` (half-open; a 2D box spans one slice, e.g. `[z, z + 1]`).
+
+        Raises:
+            InputError: Not three `[start, end]` pairs with `0 <= start < end <= size`.
+        """
+        b = [tuple(float(c) for c in ax) for ax in box]
+        if len(b) != len(self.shape) or not all(
+            len(ax) == 2 and all(math.isfinite(c) for c in ax) and 0 <= ax[0] < ax[1] <= n  # noqa: PLR2004
+            for ax, n in zip(b, self.shape, strict=True)
+        ):
+            msg = f"box must be [[z0, z1], [y0, y1], [x0, x1]] with 0 <= start < end <= {self.shape}, got {box!r}"
+            raise InputError(msg)
+        return self._run("box", b, positive)
+
+    def add_scribble(self, mask: np.ndarray | torch.Tensor, *, positive: bool = True) -> VolumeMask:
+        """Paint voxels: a `[D, H, W]` bool / 0-1 mask on the volume's grid.
+
+        Raises:
+            InputError: A different shape, or no voxel set.
+        """
+        s = torch.as_tensor(np.ascontiguousarray(mask) if isinstance(mask, np.ndarray) else mask)
+        if tuple(s.shape) != self.shape or s.is_complex():
+            msg = f"scribble must be a [D, H, W] mask of the volume's shape {self.shape}, got {tuple(s.shape)}"
+            raise InputError(msg)
+        s = s.to(self._model.device) != 0
+        if not s.any():
+            msg = "scribble has no voxels set"
+            raise InputError(msg)
+        return self._run("scribble", s, positive)
+
+    def reset(self) -> None:
+        """Forget every prompt and the mask."""
+        with self._model._session():  # noqa: SLF001
+            self._model._runner.reset(self._state)  # noqa: SLF001
+
+
+class VolumeInteractive(core.Model):
+    """A loaded promptable volume model: `model.session(volume)` takes point, box and scribble prompts.
+
+    `model(volume, point=...)` (or `box=` / `scribble=`) is the one-prompt shortcut.
+
+    Besides the attributes of `fastforks.Model`:
+
+    Attributes:
+        channels: Input channels (modalities) the model takes.
+    """
+
+    _runner: InteractiveRunner
+
+    def __init__(self, runner: InteractiveRunner, backend: Backend, options: Mapping[str, Any]) -> None:
+        """Wrap a runner (built by `load`)."""
+        super().__init__(runner, backend, options)
+        self.channels = runner.channels
+
+    def session(self, volume: np.ndarray | torch.Tensor) -> VolumeSession:
+        """Start a session on a volume (raw intensities, any spacing; the model z-scores its nonzero region).
+
+        Args:
+            volume: `[D, H, W]` or `[C, D, H, W]` (numpy or torch), e.g. from `fastforks.volume.read_nifti`.
+
+        Raises:
+            InputError: Wrong number of dimensions or channels, or no nonzero voxel.
+        """
+        return VolumeSession(self, _volume(volume, self.channels, self.variant.ref))
+
+    def __call__(
+        self,
+        volume: np.ndarray | torch.Tensor,
+        *,
+        point: Sequence[float] | None = None,
+        box: Sequence[Sequence[float]] | None = None,
+        scribble: np.ndarray | torch.Tensor | None = None,
+        positive: bool = True,
+    ) -> VolumeMask:
+        """Segment one object from one prompt (a new session each call).
+
+        Args:
+            volume: As `session`.
+            point: `(z, y, x)` voxel, as `VolumeSession.add_point`.
+            box: `[[z0, z1], [y0, y1], [x0, x1]]`, as `VolumeSession.add_box`.
+            scribble: `[D, H, W]` mask, as `VolumeSession.add_scribble`.
+            positive: Foreground (True) or background prompt.
+
+        Raises:
+            InputError: Not exactly one prompt, or an invalid volume or prompt.
+        """
+        given = [k for k, v in (("point", point), ("box", box), ("scribble", scribble)) if v is not None]
+        if len(given) != 1:
+            msg = f"pass exactly one of point=, box=, scribble= (got {given or 'none'})"
+            raise InputError(msg)
+        s = self.session(volume)
+        if point is not None:
+            return s.add_point(point, positive=positive)
+        if box is not None:
+            return s.add_box(box, positive=positive)
+        return s.add_scribble(scribble, positive=positive)  # ty: ignore[invalid-argument-type]
+
+
+def bench_inputs(model: VolumeModel | VolumeEncoder | VolumeInteractive, size: BenchSize) -> BenchInputs:
+    """`fastforks bench` call: a synthetic CT-like volume `[H, W, W]` at 1.5 mm (H slices of W x W voxels).
+
+    Promptable models: one positive point at the centre.
+    """
     g = torch.Generator().manual_seed(0)
     vol = torch.randn((model.channels, size.height, size.width, size.width), generator=g) * 300.0
+    if isinstance(model, VolumeEncoder):
+        return (vol.to(model.device),), {}
+    if isinstance(model, VolumeInteractive):
+        return (vol.to(model.device),), {"point": tuple(n // 2 for n in vol.shape[1:])}
     return (vol.to(model.device),), {"spacing": (1.5, 1.5, 1.5)}
-
-
-list_models, model_card, _load = task_api(TASK, VolumeModel)
 
 
 def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net options
@@ -202,7 +456,7 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
             `checkpoint_best.pth`: nnU-Net's best epoch).
 
     Returns:
-        The loaded model.
+        The loaded model: a `VolumeModel`, or a `VolumeEncoder` / `VolumeInteractive` for those cards.
 
     Raises:
         ModelNotFoundError: Unknown id or revision.
@@ -215,7 +469,7 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
         if given := [k for k, v in nnunet.items() if v is not None]:
             msg = f"{', '.join(f'{k}=' for k in given)}: for nnU-Net folders and checkpoints, not model ids"
             raise OptionsError(msg)
-        return _load(str(model), mode=mode, device=device, dtype=dtype, weights=weights, **options)
+        return cast("VolumeModel", _load(str(model), mode=mode, device=device, dtype=dtype, weights=weights, **options))
     if options or weights is not None:
         msg = f"{str(model)!r} is an nnU-Net path: options and weights= are for model ids"
         raise OptionsError(msg)
@@ -280,3 +534,17 @@ def _load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the nnU-Net optio
     weights = tuple(FileSpec(n, "0" * 64) for n in names)
     variant = dataclasses.replace(variant, weights=weights, params=params)
     return core.load_variant(TASK, card, variant, VolumeModel, mode=mode, device=device, dtype=dtype, weights=root)
+
+
+def _model_class(model: str) -> type[VolumeModel | VolumeEncoder | VolumeInteractive]:
+    """`VolumeEncoder` for cards whose outputs are feature maps, `VolumeInteractive` for masks, else `VolumeModel`."""
+    try:
+        _, variant = registry.resolve(TASK, model)
+    except ModelNotFoundError:
+        return VolumeModel  # `load` raises the error
+    if "mask" in variant.outputs:
+        return VolumeInteractive
+    return VolumeEncoder if "features" in variant.outputs else VolumeModel
+
+
+list_models, model_card, _load = task_api(TASK, _model_class)

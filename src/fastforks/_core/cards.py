@@ -941,10 +941,12 @@ def _reasons(lic: Licence, cls: CodeClass) -> tuple[str, ...]:
 
 
 def _notes(lic: Licence) -> tuple[str, ...]:
-    """Caveats that do not change the status: assumed weights licence, restrictive / unclear / unstated data."""
+    """Caveats that do not change the status: assumed or share-alike weights licence, restrictive / unclear data."""
     out = []
     if lic.weights == licences.ASSUMED:
         out.append("weights licence not stated by the original authors; assumed to be the code licence")
+    elif lic.weights != licences.OTHER and licences.licence_class(lic.weights) == "copyleft":
+        out.append(f"share-alike: weights {lic.weights}; fine-tuned or adapted weights keep this licence")
     known = licences.datasets()
     out.extend(
         "data: unstated"

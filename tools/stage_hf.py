@@ -307,6 +307,14 @@ _SNIPPET = {
 }
 # Families whose call differs from their task's snippet (the family's runner decides, see tests/test_hf_cards.py).
 _SNIPPET_FAMILY = {
+    "nnfoundation": (
+        "result = model(volume)  # volume: [D, H, W] float32 (CT or MRI, no resampling; z-scored inside)\n"
+        "result.features  # tuple of [C_i, D/s_i, H/s_i, W/s_i] float32 maps at the strides model.strides"
+    ),
+    "nninteractive": (
+        "s = model.session(volume)  # volume: [D, H, W] float32 CT/MRI/PET (any intensity range)\n"
+        "s.add_point((z, y, x)).mask  # [D, H, W] bool; add_box / add_scribble / positive=False refine it"
+    ),
     "insid3": (
         'result = model("photo.jpg", reference_images="ref.jpg", reference_masks=ref_mask)  # ref_mask [H, W] bool\n'
         "result.masks  # [M, H, W] bool: the referenced concept in photo.jpg"

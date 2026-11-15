@@ -135,6 +135,7 @@ CPU_ALSO = {
 # goldens check their parity at the fp16 tolerance.
 CPU_HEAVY = {
     "vggt-1b@1": "1.2 B parameters on 4 views at 392 x 518 (CPU ~200 s)",
+    "nnfoundation-vit@1": "0.67 B parameter ViT on 13824 tokens (192^3 voxels, CPU ~130 s)",
     "mapanything-apache@1": "4 views at 392 x 518 (CPU ~170 s)",
     "mvsanywhere@1": "4 views at 480 x 640 (CPU ~75 s)",
     "vit_so400m_patch14_siglip_378.webli_ft_in1k@1": "SigLIP So400m at 378 px (CPU ~55 s)",
@@ -274,6 +275,16 @@ def _plans_at_once() -> Any:
 def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[str, torch.Tensor], Any]:  # noqa: C901, PLR0912, PLR0915 - one branch per task
     """One call of `m` on the golden's input: its output maps and backend."""
     task = TASK[ref]
+    if task == "volume" and "features" in m.variant.outputs:  # encoders: the deepest map is the main output
+        assert want is not None, "volume goldens store their volume"
+        r = m(want["input"])
+        *rest, last = (f.float().cpu() for f in r.features)
+        maps = {"features": last, **{f"features.{i}": f for i, f in enumerate(rest)}}
+        return {k: v for k, v in maps.items() if k in want}, r.backend  # large full-resolution maps may be left out
+    if task == "volume" and "mask" in m.variant.outputs:  # promptable: one positive point
+        assert want is not None, "volume goldens store their volume and prompt"
+        r = m(want["input"], point=tuple(want["point"].tolist()))
+        return {"mask": r.mask.float().cpu()}, r.backend
     if task == "volume":  # the golden's CT crop and spacing
         assert want is not None, "volume goldens store their volume and spacing"
         r = m(want["input"], spacing=tuple(want["spacing"].tolist()))
@@ -378,7 +389,7 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
 
 
 # stored inputs of a golden (the image(s); tracking queries; a matting trimap; an inpainting mask; an in-context
-# reference and its mask; per concept prompt, the queries whose masks are kept)
+# reference and its mask; per concept prompt, the queries whose masks are kept; a volume's point prompt)
 INPUTS = (
     "input",
     "spacing",
@@ -388,8 +399,15 @@ INPUTS = (
     "mask",
     "reference",
     "reference_mask",
+    "point",
     *(f"{prefix}mask_query" for prefix in concepts()),
 )
+
+
+def outputs(ref: str, want: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    """The golden's outputs: everything but its stored inputs (a key the task returns, e.g. a volume mask, is one)."""
+    out = spec(TASK[ref]).standard
+    return {k: v for k, v in want.items() if k not in INPUTS or k in out}
 
 
 def primary(ref: str, maps: dict[str, np.ndarray]) -> str:
@@ -505,7 +523,7 @@ def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tenso
         if g.shape != v.shape:
             lines.append(f"FAIL {k}: shape {g.shape}, golden {v.shape}")
             continue
-        if TASK[ref] == "volume":  # label maps: argmax ties at class borders flip voxels
+        if k in {"labels", "mask"}:  # volume label maps / masks: argmax ties at class borders flip voxels
             frac = float((g != v).mean())
             bound = tol["cpu_label_mismatch"]
             lines.append(f"{'FAIL ' * (frac > bound)}{k} {v.shape}: {frac:.2e} of the voxels differ (bound {bound})")
@@ -541,8 +559,7 @@ def test_cpu_portable(ref, record_property):
         pytest.skip(f"{why}; {HEAVY_CPU}=1 runs it")
     want = golden(ref)
     (got,), _ = run_or_skip(ref, device="cpu", opts=options(ref, want), want=want)
-    for k in INPUTS:
-        want.pop(k, None)
+    want = outputs(ref, want)
     assert set(got) == set(want), f"outputs {sorted(got)}, golden {sorted(want)}"
     lines = cpu_parity(ref, want, got)
     record_property("parity", lines)
@@ -597,7 +614,7 @@ def _check(ref: str, mode: str, want: dict[str, np.ndarray], got: dict[str, torc
         return err
     unit = np.median(np.abs(want[key])) if tol.get("relative") else 1.0  # scale-free outputs (relative depth)
     err = np.abs(got[key].numpy() - want[key]) / unit
-    if TASK[ref] == "volume":  # label maps: the share of differing voxels (mean), p99 0 below 1 %
+    if key in {"labels", "mask"}:  # volume label maps / masks: the share of differing voxels (mean), p99 0 below 1 %
         err = (err > 0).astype(np.float64)
     if "gpu_min_score" in tol:  # unsure points: pose argmax ties, matching pixels outside the overlap
         sure = sure_mask(want[SCORE[TASK[ref]]] >= tol["gpu_min_score"], err.shape)
@@ -629,7 +646,7 @@ def gpu_parity(
     """The GPU golden check of a model's `calls` (`run(..., built=...)`, fallbacks reset before them): the backend is
     the mode asked for, the kernel libraries handed no work to PyTorch, every call is within the tolerances. The error
     map of the last call's primary output. tools/merge_check.py runs it on the model it then times."""
-    want = {k: v for k, v in want.items() if k not in INPUTS}
+    want = outputs(ref, want)
     assert backend.mode == mode
     assert bool(backend.kernels) == (mode == "kernels")
     assert kernels.fallbacks() == {}, "kernel libraries handed work to PyTorch"
@@ -724,7 +741,7 @@ def test_mps(ref):
         (got,), backend = run_or_skip(ref, device="mps", mode=mode, dtype=dtype, opts=options(ref, want), want=want)
         assert (backend.mode, str(backend.dtype)) == (mode, dtype)
         assert len(backend.kernels) == len(card.mps_kernel_libs) if mode == "kernels" else not backend.kernels
-        _check(ref, mode, {k: v for k, v in want.items() if k not in INPUTS}, got, f"{mode} {dtype}: ")
+        _check(ref, mode, outputs(ref, want), got, f"{mode} {dtype}: ")
 
 
 def _manifest(lib: str) -> kernels.KernelManifest | None:

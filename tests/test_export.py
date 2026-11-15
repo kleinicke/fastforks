@@ -148,7 +148,10 @@ def _main_map(result: Any) -> torch.Tensor:
 
 def _skip_without_module(ref: str) -> None:
     if TASK[ref] == "volume":
-        pytest.skip("volume: the sliding-window pipeline is no single module (`model.networks()` are the U-Nets)")
+        pytest.skip(
+            "volume: the sliding-window pipeline is no single module (`model.networks()` are the U-Nets); encoders"
+            " take 3D volumes up to 192^3, too large for this sweep"
+        )
 
 
 @pytest.mark.slow

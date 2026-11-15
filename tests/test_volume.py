@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from fastforks import volume
 from fastforks._core.errors import InputError, WeightsError
 from fastforks.volume import _nnunet, _resample
+from fastforks.volume.models.nninteractive import model as nni
 from fastforks.volume.models.totalsegmentator import model as ts
 
 if TYPE_CHECKING:
@@ -337,3 +338,25 @@ def test_unsupported_networks() -> None:
         _nnunet.read_plan(_plans("MyNormalization"), _DATASET)
     with pytest.raises(WeightsError, match="configuration"):
         _nnunet.read_plan(_plans(), _DATASET, "2d")
+
+
+def test_nninteractive_cover_boxes() -> None:
+    """The box prompt's cover (summed-area counts) covers every object voxel; box sums match brute force."""
+    rng = np.random.default_rng(0)
+    for _ in range(6):
+        shape = tuple(int(n) for n in rng.integers(20, 70, 3))
+        m = torch.zeros(shape, dtype=torch.bool)
+        for _ in range(int(rng.integers(1, 4))):
+            c, r = rng.integers(0, shape), rng.integers(2, 25, 3)
+            m[tuple(slice(max(0, a - b), a + b) for a, b in zip(c.tolist(), r.tolist(), strict=True))] = True
+        lo = torch.from_numpy(rng.integers(0, np.array(shape) // 2, (5, 3)))
+        hi = lo + torch.from_numpy(rng.integers(1, np.array(shape) // 2, (5, 3)))
+        sums = nni._box_sums(nni._sat(m), lo, hi)
+        want = [
+            int(m[a[0] : b[0], a[1] : b[1], a[2] : b[2]].sum()) for a, b in zip(lo.tolist(), hi.tolist(), strict=True)
+        ]
+        assert sums.tolist() == want
+        covered = torch.zeros_like(m)
+        for box in nni.cover_boxes(m, (24, 24, 24), np.random.RandomState(0)):
+            covered[tuple(slice(max(0, a), b) for a, b in box)] = True
+        assert bool(covered[m].all())

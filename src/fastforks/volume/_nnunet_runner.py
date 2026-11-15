@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
     from fastforks.volume._runner import Context
 
-__all__ = ["CHECKPOINT_GLOBALS", "Kernels", "Params", "Portable", "weight_names"]
+__all__ = ["CHECKPOINT_GLOBALS", "Kernels", "Params", "Portable", "fused_norm_act", "weight_names"]
 
 _FILES = ("plans.json", "dataset.json")
 # besides the tensors: training state (numpy scalars and arrays in `logging` / `_best_ema`, the device in `init_args`)
@@ -195,7 +195,8 @@ class Portable(Runner):
         return {"labels": self.segment(volume, spacing)}
 
 
-def _fused_norm_act(self: Any, y: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - a `_ConvNormAct`
+def fused_norm_act(self: Any, y: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - a `_ConvNormAct`
+    """`norm_act` of a `_ConvNormAct` with `vol_norm` (in place), the portable one where the kernel does not apply."""
     from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels only
 
     if vol_norm.supported(y):
@@ -217,5 +218,5 @@ class Kernels(Portable):
         net = super()._net(index, plan, channels)
         for m in net.modules():
             if hasattr(m, "norm_act"):
-                override(m, _fused_norm_act, "norm_act")
+                override(m, fused_norm_act, "norm_act")
         return net

@@ -1,0 +1,45 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1.8e-06  # 1.5 x 1.19e-06 (features.1), CPU float32 vs nnssl's dna network
+# GPU (RTX 5060 Ti, fp16, portable / kernels): features mean 9.8e-4, p99 7.4e-3; 1.5 x the worse mode
+gpu_mean = 0.0015
+gpu_p99 = 0.011
+relative = true
+# [name, mean, p99] vs the median nonzero |reference|; 1.5 x the worse of portable / kernels
+gpu_extra = [["features.1", 0.020, 0.20], ["features.2", 0.053, 0.59], ["features.3", 0.059, 0.71], ["features.4", 0.0021, 0.018]]
+
+[refs."nnfoundation-cnn@1"]
+sha256 = "ccc5feea1dad711fba35db97dbc7c74d44139fb4da0a1b3d7d5375beadbe8010"
+upstream = "https://github.com/MIC-DKFZ/nnssl@3d774e942256bd70e5e264c6b94fa38e25f7ed74"
+settings = "CPU float32, nnssl's network (nnFoundationCNN) encoder on s0013 ct.nii.gz, centre crop (40, 56, 72) (z, y, x) RAS, nnU-Net ZScoreNormalization, zero pad at the far end, torch 2.10.0+cu130"
+
+[refs."nnfoundation-vit@1"]
+sha256 = "8f5c7a96d23a5d48d47abb81ad7c93cd5b4182b616aea9b7a4d7a3304c16a78d"
+cpu_extra = [["features", 1.4e-05]]  # 1.5 x 9.3e-06: 40 ViT blocks, float32 SDPA vs timm attention
+gpu_mean = 0.030  # 1.5 x 0.0194 (kernels; portable 0.0188): fp16 through 40 blocks
+gpu_p99 = 0.15  # 1.5 x 0.0993 (portable)
+upstream = "https://github.com/MIC-DKFZ/nnssl@3d774e942256bd70e5e264c6b94fa38e25f7ed74"
+settings = "CPU float32, nnssl's network (nnFoundationViT) encoder on s0013 ct.nii.gz, centre crop (40, 56, 72) (z, y, x) RAS, nnU-Net ZScoreNormalization, zero pad at the far end, torch 2.10.0+cu130"
+
+[validated."nnfoundation-cnn@1"]
+kernels = ["vol_norm@44036d4da567:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "25ce125fd5d7b2ac", "in_final_h" = "7e4e2736f3fa180b", "in_stats_h" = "0a69cc1aa662739a"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00067
+p99_px = 0.00463
+
+[validated."nnfoundation-vit@1"]
+kernels = ["vol_norm@44036d4da567:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "25ce125fd5d7b2ac", "in_final_h" = "7e4e2736f3fa180b", "in_stats_h" = "0a69cc1aa662739a"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-15"
+mean_px = 0.0067
+p99_px = 0.03039

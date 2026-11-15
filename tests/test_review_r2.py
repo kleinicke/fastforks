@@ -35,7 +35,7 @@ from fastforks.segmentation import SegmentationResult
 from fastforks.stereo import StereoResult
 from fastforks.stereo.calibrated import PairViews, StereoView
 from fastforks.tracking import TrackingResult
-from fastforks.volume import VolumeResult
+from fastforks.volume import VolumeFeatures, VolumeMask, VolumeResult
 
 RESULTS = {
     "stereo": (StereoResult, StereoView, PairViews),
@@ -57,7 +57,7 @@ RESULTS = {
     "promptable_segmentation": (PromptableSegmentationResult, ConceptSegmentationResult),
     "segmentation": (SegmentationResult,),
     "tracking": (TrackingResult,),
-    "volume": (VolumeResult,),
+    "volume": (VolumeResult, VolumeFeatures, VolumeMask),
 }
 
 

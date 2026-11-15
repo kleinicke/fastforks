@@ -1,0 +1,44 @@
+schema = 2
+name = "nnInteractive"
+summary = "nnInteractive (Isensee et al. 2025): DKFZ's promptable 3D segmentation for CT, MRI, PET and 3D microscopy. Point, box (2D or 3D) and scribble prompts, positive or negative, refine one object mask in a session; a ResEnc-L U-Net on 192³ patches with AutoZoom (zooms out up to 4x while the mask grows past the patch, then refines the changed region at full resolution). Lasso prompts and initial masks are not ported."
+tier = "experimental"
+outputs = ["mask"]
+
+[upstream]
+repo = "https://github.com/MIC-DKFZ/nnInteractive"
+commit = "6bf57adf42cae092e01957a81228d929dc03c489"  # tag v1.1.5 (PyPI 1.1.5; inference_session.py); the network is nnU-Net v2's ResidualEncoderUNet (dynamic_network_architectures 0.4.4, Apache-2.0)
+
+[licence]
+code = "Apache-2.0"  # LICENSE (nnInteractive repository)
+weights = "CC-BY-NC-SA-4.0"  # nnInteractive_v1.0/LICENSE on Hugging Face: "CC BY-NC-SA 4.0"; the readme: the checkpoint is non-commercial share-alike
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "120+ volumetric 3D datasets (CT, MRI, PET, 3D microscopy; readme) with simulated prompts."
+evidence = "https://huggingface.co/MIC-DKFZ/nnInteractive/blob/3f308d751c00644e4fde6f09c600264b393b21b5/nnInteractive_v1.0/LICENSE ; https://github.com/MIC-DKFZ/nnInteractive/blob/master/LICENSE"
+
+[params]
+configuration = "3d_fullres_ps192_bs24"
+point_radius = 4  # inference_session_class.json
+decay = 0.98  # older prompts of a kind when one is added (upstream default)
+autozoom = true
+
+[modes.portable]
+cuda_dtype = "float16"  # float16 network (upstream: float16 autocast), channels-last 3D; session state on the device
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["vol_norm"]  # portable + InstanceNorm + LeakyReLU as one in-place kernel
+
+[[papers]]
+title = "nnInteractive: Redefining 3D Promptable Segmentation"
+url = "https://arxiv.org/abs/2503.08373"
+date = "2025-03-11"
+venue = "arXiv 2025"
+
+[[variants]]
+id = "nninteractive"
+revision = 1
+weights = [
+  { name = "nnInteractive_v1.0/plans.json", size = 6287, sha256 = "64a30a430438302a692a3edadd345a207b3428bea2e5cdc125298757da21f4d4", url = "https://huggingface.co/MIC-DKFZ/nnInteractive/resolve/3f308d751c00644e4fde6f09c600264b393b21b5/nnInteractive_v1.0/plans.json" },
+  { name = "nnInteractive_v1.0/fold_0/checkpoint_final.pth", size = 411387150, sha256 = "b3ac4421f85457bbd1aa0d87f5e67bcb7bc8e2ce6b824b6ac45077cc5d630ea9", url = "https://huggingface.co/MIC-DKFZ/nnInteractive/resolve/3f308d751c00644e4fde6f09c600264b393b21b5/nnInteractive_v1.0/fold_0/checkpoint_final.pth" },
+]

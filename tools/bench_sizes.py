@@ -32,6 +32,10 @@ if TYPE_CHECKING:
     from fastforks._core.model import Model
 
 SIZES = {  # name: (height, width), smallest first
+    "128x128": (128, 128),  # volumes only (a cube: depth = width)
+    "192x192": (192, 192),
+    "256x256": (256, 256),
+    "384x384": (384, 384),
     "512x512": (512, 512),
     "1024x1024": (1024, 1024),
     "2048x1024": (1024, 2048),  # name is width x height; the value is (height, width)
@@ -43,6 +47,7 @@ SIZES = {  # name: (height, width), smallest first
     "12mp": (3000, 4000),
     "native": (0, 0),  # the model's fixed crop, resolved per model
 }
+VOLUME = ("128x128", "192x192", "256x256", "384x384", "512x512")  # cube sides of the volume ladder
 LABELS = {  # shown as height x width, like the CLI
     "640x480": "480x640",
     "1280x720": "720x1280",
@@ -79,7 +84,8 @@ def sizes_for(ref: str, wanted: list[str] | None = None) -> list[str]:
     Fixed-input models (`native`: classification / features crops) run only at their native size; promptable
     segmentation (fixed `encoder` side, the image is resized inside) at the three small sizes; other families at the
     full ladder: small (480x640), typical (720x1280), large (1080x1920), then the probes (Middlebury 1988x2880, 12 MP)
-    that find the largest size that fits in 16 GB. KITTI 375x1242 is a stereo size only.
+    that find the largest size that fits in 16 GB. KITTI 375x1242 is a stereo size only. Volumes run the cubes
+    128^3 ... 512^3 (`VOLUME`).
     """
     from fastforks._core import registry  # noqa: PLC0415
     from fastforks._core.sizes import size_range  # noqa: PLC0415
@@ -89,6 +95,7 @@ def sizes_for(ref: str, wanted: list[str] | None = None) -> list[str]:
     if rng.native:
         return ["native"]
     names = [s for s in SIZES if s != "native" and (card.task == "stereo" or s != "kitti")]
+    names = [s for s in names if (s in VOLUME) == (card.task == "volume") or s == "512x512"]  # 512: both
     names = [s for s in names if min(SIZES[s]) >= rng.min_size]
     if rng.encoder:
         names = [s for s in names if SIZES[s][0] * SIZES[s][1] <= SIZES["1920x1080"][0] * SIZES["1920x1080"][1]]

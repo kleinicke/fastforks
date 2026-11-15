@@ -1,11 +1,12 @@
-"""3D volume segmentation (`fastforks.volume`): a label per voxel of a CT / MR volume (nnU-Net based models)."""
+"""3D volumes (`fastforks.volume`): voxel labels (nnU-Net models), encoder features, or a promptable mask."""
 
 from fastforks._core.tasks._base import VALUE_KEYS, TaskSpec
 
 SPEC = TaskSpec(
-    standard=("labels",),
+    standard=("labels", "features", "mask"),
     extras=False,
-    required=frozenset({"labels"}),
+    required=frozenset({"labels", "features", "mask"}),
+    bool_outputs=frozenset({"mask"}),  # promptable models: the object mask
     output_keys={},
     io_keys=VALUE_KEYS,
     order=85,

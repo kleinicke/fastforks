@@ -1089,7 +1089,8 @@ TASK_IO = {
     "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
     "volume": (
         "Input: a CT volume `[D, H, W]` in Hounsfield units and its voxel spacing in mm (`volume.read_nifti` reads "
-        "both from a NIfTI file). Output: a class index per voxel `[D, H, W]` on the input grid (0 = background)."
+        "both from a NIfTI file). Output: a class index per voxel `[D, H, W]` on the input grid (0 = background). "
+        "Encoder models (nnFoundation) take a CT or MRI volume and give its encoder feature maps."
     ),
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",
     "multiview": (
