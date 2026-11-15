@@ -1,0 +1,31 @@
+nodes 1288 outputs ['logits', 'boxes']
+picked 25 of 1062
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+n outs 27
+0 1061 logits torch.float32 nan maxabs 0.0
+1 1050 boxes torch.float32 nan maxabs 0.0
+2 0 mul torch.float32 ok maxabs 255.0
+3 44 conv2d_19 torch.float16 ok maxabs 8.234375
+4 88 cat_4 torch.float16 ok maxabs 15.4296875
+5 132 conv2d_69 torch.float16 ok maxabs 3.96484375
+6 176 relu_64 torch.float16 ok maxabs 4.0546875
+7 220 conv2d_121 torch.float16 ok maxabs 14.859375
+8 264 val_177 torch.float16 ok maxabs 14.703125
+9 308 silu_10 torch.float16 ok maxabs 8.7890625
+10 352 conv2d_158 torch.float16 ok maxabs 10.1875
+11 396 val_225 torch.float16 ok maxabs 0.99560546875
+12 440 add_15 torch.float16 ok maxabs 7.12109375
+13 484 bitwise_and torch.bool ok maxabs 1.0
+14 528 val_535 torch.float16 ok maxabs 3.1875
+15 572 add_29 torch.float16 ok maxabs 59.46875
+16 616 val_699 torch.float32 ok maxabs 4.661988258361816
+17 660 mul_22 torch.float16 nan maxabs 32048.0
+18 704 linear_42 torch.float32 nan maxabs 0.7919623255729675
+19 748 sum_3 torch.float32 nan maxabs 0.0
+20 792 relu_101 torch.float32 nan maxabs 0.0
+21 836 cat_35 torch.float16 nan maxabs 0.0
+22 880 val_1475 torch.float32 nan maxabs 0.0
+23 924 val_1656 torch.float16 nan maxabs 0.0
+24 968 linear_85 torch.float32 nan maxabs 0.0
+25 1012 linear_92 torch.float16 nan maxabs 0.0
+26 1056 val_1999 torch.float32 nan maxabs 0.0

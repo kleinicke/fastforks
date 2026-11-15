@@ -116,3 +116,5 @@
 2026-11-15_05:29:01 start compile fast-acvnet-plus-kitti12
 2026-11-15_06:02:20 end compile fast-acvnet-plus-kitti12 rc=0
 2026-11-15_06:02:20 start compile fast-acvnet-plus-kitti15
+2026-11-15_06:57:20 end compile fast-acvnet-plus-kitti15 rc=124
+2026-11-15_06:57:20 start compile fast-acvnet-plus-sceneflow

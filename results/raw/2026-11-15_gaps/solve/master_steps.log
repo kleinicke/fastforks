@@ -2365,3 +2365,4 @@ In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
 note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): fast-acvnet-plus-kitti12 994x1482 on synthetic inputs
 {"side": "lib", "ref": "fast-acvnet-plus-kitti12", "task": "stereo", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_i
 == lib fast-acvnet-plus-kitti15 compile 06:02:20
+== lib fast-acvnet-plus-sceneflow compile 06:57:20

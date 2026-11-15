@@ -1,3 +1,4 @@
+import sys; sys.path.insert(0, "/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src")
 import sys, tempfile, time
 from pathlib import Path
 import numpy as np, onnx, torch
@@ -21,11 +22,13 @@ print("picked", len(picks), "of", len(nodes), flush=True)
 extra = []
 for n in picks:
     extra.append(n.output[0])
-    g.graph.output.append(onnx.ValueInfoProto(name=n.output[0]))
 onnx.save(onnx.load(str(p)) if False else g, str(tmp / "m2.onnx"), save_as_external_data=False) if False else None
 full = onnx.load(str(p))
+inf = onnx.shape_inference.infer_shapes(full)
+vi = {v.name: v for v in inf.graph.value_info}
 for n in picks:
-    full.graph.output.append(onnx.ValueInfoProto(name=n.output[0]))
+    if n.output[0] in vi: full.graph.output.append(vi[n.output[0]])
+    else: extra.remove(n.output[0])
 import shutil
 q = tmp / "m2.onnx"
 onnx.save(full, str(q), save_as_external_data=True, location="m2.data")
