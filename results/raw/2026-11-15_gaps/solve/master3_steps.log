@@ -1,0 +1,116 @@
+== lib c-radio-v4-h tensorrt 13:53:07
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "c-radio-v4-h", "task": "features", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+== lib c-radio-v4-so400m tensorrt 13:54:13
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "c-radio-v4-so400m", "task": "features", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.46, "cuda_init_
+== lib dat-2-x4 tensorrt 13:55:12
+WARNING: in op node_clamp_min_min, operand node_clamp_min_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_1_min, operand node_clamp_min_1_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_3_min, operand node_clamp_min_3_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_2_min, operand node_clamp_min_2_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_5_min, operand node_clamp_min_5_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_4_min, operand node_clamp_min_4_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_7_min, operand node_clamp_min_7_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_6_min, operand node_clamp_min_6_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_9_min, operand node_clamp_min_9_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_8_min, operand node_clamp_min_8_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_11_min, operand node_clamp_min_11_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_10_min, operand node_clamp_min_10_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_13_min, operand node_clamp_min_13_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_12_min, operand node_clamp_min_12_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_15_min, operand node_clamp_min_15_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_14_min, operand node_clamp_min_14_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_17_min, operand node_clamp_min_17_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_16_min, operand node_clamp_min_16_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_19_min, operand node_clamp_min_19_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_18_min, operand node_clamp_min_18_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_21_min, operand node_clamp_min_21_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_20_min, operand node_clamp_min_20_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_23_min, operand node_clamp_min_23_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_22_min, operand node_clamp_min_22_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_25_min, operand node_clamp_min_25_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_24_min, operand node_clamp_min_24_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_27_min, operand node_clamp_min_27_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_26_min, operand node_clamp_min_26_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_29_min, operand node_clamp_min_29_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_28_min, operand node_clamp_min_28_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_31_min, operand node_clamp_min_31_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_30_min, operand node_clamp_min_30_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_33_min, operand node_clamp_min_33_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_32_min, operand node_clamp_min_32_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_35_min, operand node_clamp_min_35_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_34_min, operand node_clamp_min_34_beta payload type requires precision-lose casting
+{"side": "lib", "ref": "dat-2-x4", "task": "restoration", "mode": "tensorrt", "date": "2026-11-15", "input": "512x512", "fails": "worker rc=124"}
+== lib dat-light-x4 tensorrt 13:58:08
+WARNING: in op node_clamp_min_min, operand node_clamp_min_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_1_min, operand node_clamp_min_1_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_3_min, operand node_clamp_min_3_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_2_min, operand node_clamp_min_2_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_5_min, operand node_clamp_min_5_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_4_min, operand node_clamp_min_4_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_7_min, operand node_clamp_min_7_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_6_min, operand node_clamp_min_6_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_9_min, operand node_clamp_min_9_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_8_min, operand node_clamp_min_8_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_11_min, operand node_clamp_min_11_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_10_min, operand node_clamp_min_10_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_13_min, operand node_clamp_min_13_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_12_min, operand node_clamp_min_12_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_15_min, operand node_clamp_min_15_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_14_min, operand node_clamp_min_14_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_17_min, operand node_clamp_min_17_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_16_min, operand node_clamp_min_16_beta payload type requires precision-lose casting
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "dat-light-x4", "task": "restoration", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s"
+== lib dat-x4 tensorrt 13:59:39
+WARNING: in op node_clamp_min_min, operand node_clamp_min_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_1_min, operand node_clamp_min_1_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_3_min, operand node_clamp_min_3_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_2_min, operand node_clamp_min_2_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_5_min, operand node_clamp_min_5_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_4_min, operand node_clamp_min_4_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_7_min, operand node_clamp_min_7_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_6_min, operand node_clamp_min_6_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_9_min, operand node_clamp_min_9_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_8_min, operand node_clamp_min_8_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_11_min, operand node_clamp_min_11_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_10_min, operand node_clamp_min_10_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_13_min, operand node_clamp_min_13_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_12_min, operand node_clamp_min_12_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_15_min, operand node_clamp_min_15_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_14_min, operand node_clamp_min_14_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_17_min, operand node_clamp_min_17_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_16_min, operand node_clamp_min_16_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_19_min, operand node_clamp_min_19_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_18_min, operand node_clamp_min_18_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_21_min, operand node_clamp_min_21_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_20_min, operand node_clamp_min_20_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_23_min, operand node_clamp_min_23_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_22_min, operand node_clamp_min_22_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_25_min, operand node_clamp_min_25_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_24_min, operand node_clamp_min_24_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_27_min, operand node_clamp_min_27_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_26_min, operand node_clamp_min_26_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_29_min, operand node_clamp_min_29_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_28_min, operand node_clamp_min_28_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_31_min, operand node_clamp_min_31_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_30_min, operand node_clamp_min_30_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_33_min, operand node_clamp_min_33_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_32_min, operand node_clamp_min_32_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_35_min, operand node_clamp_min_35_beta payload type requires precision-lose casting
+WARNING: in op node_clamp_min_34_min, operand node_clamp_min_34_beta payload type requires precision-lose casting
+{"side": "lib", "ref": "dat-x4", "task": "restoration", "mode": "tensorrt", "date": "2026-11-15", "input": "512x512", "fails": "worker rc=124"}
+== lib dinov2-vitl14-reg tensorrt 14:03:20
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "dinov2-vitl14-reg", "task": "features", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+== lib dinov3-vitl16 tensorrt 14:04:39
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "dinov3-vitl16", "task": "features", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+== lib drct-l-x4 tensorrt 14:05:28
+{"side": "lib", "ref": "drct-l-x4", "task": "restoration", "mode": "tensorrt", "date": "2026-11-15", "input": "512x512", "fails": "worker rc=124"}

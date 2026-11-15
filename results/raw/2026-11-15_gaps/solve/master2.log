@@ -51,3 +51,127 @@
 2026-11-15_11:41:03 start tensorrt hat-x4
 2026-11-15_11:44:09 end tensorrt hat-x4 rc=0
 2026-11-15_11:44:09 start tensorrt hed
+2026-11-15_12:38:15 end tensorrt hed rc=0
+2026-11-15_12:38:15 start tensorrt insid3-vitl16
+2026-11-15_12:39:06 end tensorrt insid3-vitl16 rc=0
+2026-11-15_12:39:06 start tensorrt lineart
+2026-11-15_12:39:20 end tensorrt lineart rc=0
+2026-11-15_12:39:20 start tensorrt lineart-anime
+2026-11-15_12:39:44 end tensorrt lineart-anime rc=0
+2026-11-15_12:39:44 start tensorrt lineart-coarse
+2026-11-15_12:39:58 end tensorrt lineart-coarse rc=0
+2026-11-15_12:39:58 start tensorrt matanyone
+2026-11-15_12:40:03 end tensorrt matanyone rc=0
+2026-11-15_12:40:03 start tensorrt mlsd
+2026-11-15_12:40:13 end tensorrt mlsd rc=0
+2026-11-15_12:40:13 start tensorrt moge-3-vitl
+2026-11-15_12:40:26 end tensorrt moge-3-vitl rc=0
+2026-11-15_12:40:26 start tensorrt mvsplat-re10k
+2026-11-15_12:40:45 end tensorrt mvsplat-re10k rc=0
+2026-11-15_12:40:45 start tensorrt pidinet
+2026-11-15_12:41:10 end tensorrt pidinet rc=0
+2026-11-15_12:41:10 start tensorrt prompt-depth-anything-s
+2026-11-15_12:42:01 end tensorrt prompt-depth-anything-s rc=0
+2026-11-15_12:42:01 start tensorrt real-hat-gan-x4
+2026-11-15_12:45:22 end tensorrt real-hat-gan-x4 rc=0
+2026-11-15_12:45:22 start tensorrt recover-cx
+2026-11-15_12:46:09 end tensorrt recover-cx rc=0
+2026-11-15_12:46:09 start tensorrt recover-mn
+2026-11-15_12:47:18 end tensorrt recover-mn rc=0
+2026-11-15_12:47:18 start tensorrt recover-rn
+2026-11-15_12:47:56 end tensorrt recover-rn rc=0
+2026-11-15_12:47:56 start tensorrt retinaface-mobilenet0.25
+2026-11-15_12:48:54 end tensorrt retinaface-mobilenet0.25 rc=0
+2026-11-15_12:48:54 start tensorrt retinaface-resnet50
+2026-11-15_12:49:20 end tensorrt retinaface-resnet50 rc=0
+2026-11-15_12:49:20 start tensorrt teed
+2026-11-15_12:49:36 end tensorrt teed rc=0
+2026-11-15_12:49:36 start tensorrt waft-a1
+2026-11-15_12:52:32 end tensorrt waft-a1 rc=0
+2026-11-15_12:52:32 start tensorrt waft-a1-kitti
+2026-11-15_12:55:40 end tensorrt waft-a1-kitti rc=0
+2026-11-15_12:55:40 start tensorrt waft-a1-sintel
+2026-11-15_12:58:36 end tensorrt waft-a1-sintel rc=0
+2026-11-15_12:58:36 start compile anyline
+2026-11-15_13:00:02 end compile anyline rc=0
+2026-11-15_13:00:02 start compile big-lama
+2026-11-15_13:00:45 end compile big-lama rc=0
+2026-11-15_13:00:45 start compile c-radio-v4-h
+2026-11-15_13:01:29 end compile c-radio-v4-h rc=0
+2026-11-15_13:01:29 start compile c-radio-v4-so400m
+2026-11-15_13:02:07 end compile c-radio-v4-so400m rc=0
+2026-11-15_13:02:07 start compile clipseg
+2026-11-15_13:02:37 end compile clipseg rc=0
+2026-11-15_13:02:38 start compile cotracker3-offline
+2026-11-15_13:04:17 end compile cotracker3-offline rc=0
+2026-11-15_13:04:17 start compile cotracker3-online
+2026-11-15_13:05:16 end compile cotracker3-online rc=0
+2026-11-15_13:05:16 start compile dinov2-vitg14-reg
+2026-11-15_13:05:53 end compile dinov2-vitg14-reg rc=0
+2026-11-15_13:05:53 start compile dinov2-vitl14-reg
+2026-11-15_13:06:19 end compile dinov2-vitl14-reg rc=0
+2026-11-15_13:06:19 start compile dinov3-vith16plus
+2026-11-15_13:07:00 end compile dinov3-vith16plus rc=0
+2026-11-15_13:07:01 start compile dinov3-vitl16
+2026-11-15_13:07:34 end compile dinov3-vitl16 rc=0
+2026-11-15_13:07:34 start compile ema-vfi
+2026-11-15_13:10:14 end compile ema-vfi rc=0
+2026-11-15_13:10:14 start compile ema-vfi-small
+2026-11-15_13:13:01 end compile ema-vfi-small rc=0
+2026-11-15_13:13:01 start compile ema-vfi-small-t
+2026-11-15_13:15:17 end compile ema-vfi-small-t rc=0
+2026-11-15_13:15:17 start compile ema-vfi-t
+2026-11-15_13:17:51 end compile ema-vfi-t rc=0
+2026-11-15_13:17:51 start compile fast-acvnet-plus-kitti15
+2026-11-15_13:18:50 end compile fast-acvnet-plus-kitti15 rc=0
+2026-11-15_13:18:50 start compile film
+2026-11-15_13:19:57 end compile film rc=0
+2026-11-15_13:19:57 start compile gimm-vfi-r
+2026-11-15_13:22:53 end compile gimm-vfi-r rc=0
+2026-11-15_13:22:53 start compile gimm-vfi-r-p
+2026-11-15_13:26:31 end compile gimm-vfi-r-p rc=0
+2026-11-15_13:26:31 start compile hed
+2026-11-15_13:27:30 end compile hed rc=0
+2026-11-15_13:27:30 start compile insid3-vitl16
+2026-11-15_13:28:12 end compile insid3-vitl16 rc=0
+2026-11-15_13:28:12 start compile lineart
+2026-11-15_13:28:39 end compile lineart rc=0
+2026-11-15_13:28:39 start compile lineart-anime
+2026-11-15_13:29:07 end compile lineart-anime rc=0
+2026-11-15_13:29:07 start compile lineart-coarse
+2026-11-15_13:29:34 end compile lineart-coarse rc=0
+2026-11-15_13:29:34 start compile marigold-v2-depth
+2026-11-15_13:32:31 end compile marigold-v2-depth rc=0
+2026-11-15_13:32:31 start compile matanyone
+2026-11-15_13:32:39 end compile matanyone rc=0
+2026-11-15_13:32:39 start compile mlsd
+2026-11-15_13:33:05 end compile mlsd rc=0
+2026-11-15_13:33:05 start compile moge-3-vitl
+2026-11-15_13:35:00 end compile moge-3-vitl rc=0
+2026-11-15_13:35:00 start compile mvsplat-re10k
+2026-11-15_13:38:06 end compile mvsplat-re10k rc=0
+2026-11-15_13:38:06 start compile pidinet
+2026-11-15_13:38:35 end compile pidinet rc=0
+2026-11-15_13:38:35 start compile prompt-depth-anything-s
+2026-11-15_13:39:06 end compile prompt-depth-anything-s rc=0
+2026-11-15_13:39:06 start compile recover-cx
+2026-11-15_13:39:37 end compile recover-cx rc=0
+2026-11-15_13:39:37 start compile recover-mn
+2026-11-15_13:40:07 end compile recover-mn rc=0
+2026-11-15_13:40:07 start compile recover-rn
+2026-11-15_13:41:17 end compile recover-rn rc=0
+2026-11-15_13:41:17 start compile retinaface-mobilenet0.25
+2026-11-15_13:42:13 end compile retinaface-mobilenet0.25 rc=0
+2026-11-15_13:42:13 start compile retinaface-resnet50
+2026-11-15_13:42:56 end compile retinaface-resnet50 rc=0
+2026-11-15_13:42:56 start compile swin2sr-x4
+2026-11-15_13:46:21 end compile swin2sr-x4 rc=0
+2026-11-15_13:46:21 start compile teed
+2026-11-15_13:46:46 end compile teed rc=0
+2026-11-15_13:46:46 start compile waft-a1
+2026-11-15_13:48:52 end compile waft-a1 rc=0
+2026-11-15_13:48:52 start compile waft-a1-kitti
+2026-11-15_13:50:57 end compile waft-a1-kitti rc=0
+2026-11-15_13:50:57 start compile waft-a1-sintel
+2026-11-15_13:53:03 end compile waft-a1-sintel rc=0
+2026-11-15_13:53:03 master2 done

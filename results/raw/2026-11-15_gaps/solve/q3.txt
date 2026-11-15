@@ -1,0 +1,8 @@
+c-radio-v4-h tensorrt
+c-radio-v4-so400m tensorrt
+dat-2-x4 tensorrt
+dat-light-x4 tensorrt
+dat-x4 tensorrt
+dinov2-vitl14-reg tensorrt
+dinov3-vitl16 tensorrt
+drct-l-x4 tensorrt

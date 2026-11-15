@@ -1,0 +1,9 @@
+13:53:07 c-radio-v4-h tensorrt
+13:54:12 c-radio-v4-so400m tensorrt
+13:55:12 dat-2-x4 tensorrt
+13:58:08 dat-light-x4 tensorrt
+13:59:38 dat-x4 tensorrt
+14:03:20 dinov2-vitl14-reg tensorrt
+14:04:39 dinov3-vitl16 tensorrt
+14:05:28 drct-l-x4 tensorrt
+14:12:11 master3 done
