@@ -165,4 +165,23 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2))
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Portable with DISK's U-Net on fp16 NHWC `conv_ep` convolutions; ALIKED's dense network in fp16."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the networks and switch the extractor to its kernels path."""
+        super().__init__(ctx)
+        if ctx.params.extractor == "disk":
+            from .kernels.inference import prepare_disk  # noqa: PLC0415 - needs the kernel libraries
+
+            disk = self.net.extractor
+            assert isinstance(disk, DISK)  # noqa: S101 - narrows the union for the type checker
+            disk.fp16 = False
+            prepare_disk(disk, ctx.device)
+
+    def module(self) -> torch.nn.Module:
+        """No exportable module: the extractor runs kernel launches."""
+        return Runner.module(self)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

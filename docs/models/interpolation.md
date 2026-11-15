@@ -16,7 +16,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`ema-vfi-small`](#ema_vfi) | yes | 84.5, 1.4x | 2178, 0.91x |
 | [`ema-vfi-small-t`](#ema_vfi) | yes | 84.5, 1.3x | 2178, 0.91x |
 | [`ema-vfi-t`](#ema_vfi) | yes | 207, 1.4x | 4152, 0.97x |
-| [`film`](#film) | yes | 444, 1.0x | 6188, 1.7x |
+| [`film`](#film) | yes | 333, 1.4x | 3060, 0.86x |
 | [`gimm-vfi-r`](#gimm_vfi) | no | 1629 | 5362 |
 | [`gimm-vfi-r-p`](#gimm_vfi) | no | 1628 | 5282 |
 | [`rife-4.25`](#rife) | yes | 21.5, 1.1x | 1076, 0.93x |
@@ -98,7 +98,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `film` | synthetic (1080x1920) | original<br>portable<br>kernels | 464<br>528<br>444 | 2953 / 3556<br>4747 / 5078<br>4763 / 6188 |
+| `film` | synthetic (1080x1920) | original<br>portable<br>kernels | 464<br>417<br>333 | 2953 / 3556<br>2856 / 3080<br>2856 / 3060 |
 
 <details><summary>Details</summary>
 
@@ -115,7 +115,7 @@ Commercial use: yes.
 - Input size: any H x W >= 64, padded to a multiple of 64
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `film` 1988x2880 (13.0 GiB peak allocated, 15.3 reserved)
 - `film` original 1080x1920: the authors' mixed-precision option (float16); the TorchScript release as inference.py, dt 0.5, zero pad to 64 (centred), --fp16: model.half()
-- `film` load / first call: original 0.29 s / 0.946 s, portable 0.19 s / 0.529 s, kernels 0.33 s / 0.445 s
+- `film` load / first call: original 0.29 s / 0.946 s, portable 0.43 s / 0.418 s, kernels 0.65 s / 0.334 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

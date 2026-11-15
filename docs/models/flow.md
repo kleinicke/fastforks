@@ -132,6 +132,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, portable float32 and ke
 
 - Only the Small architecture is included.
 - No custom kernels backend is implemented.
+- Portable runs float32 (the validated dtype), so its time and peak memory (3165 vs 2382 MB at 375x1242) match the float32 original, not the fp16-autocast original; switching the default to fp16 needs a full accuracy re-validation.
 - Full-frame cost memory grows quadratically with input area; upstream tiled evaluation is not included. Full-frame 1080p exceeded the RTX 5060 Ti 16GB memory in portable and original fp32/fp16 runs.
 
 </details>

@@ -35,8 +35,8 @@ cuda_dtype = "float32"  # as upstream: LightGlue's attention casts q, k, v to fl
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-status = "none"
-reason = "not implemented: data-dependent keypoint counts (detection, top-k, match filtering); portable float32 with upstream's fp16 attention"
+dtype = "float16"  # DISK: the U-Net on fp16 NHWC convolutions; ALIKED: the dense network under float16 autocast (as portable float16); detection, descriptors and the matcher float32
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 
 [[papers]]
 title = "LightGlue: Local Feature Matching at Light Speed"

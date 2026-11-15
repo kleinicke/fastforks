@@ -13,10 +13,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`aliked-flexglue`](#flexglue) | yes | no kernels | no kernels |
-| [`aliked-lightglue`](#lightglue) | yes | no kernels | no kernels |
+| [`aliked-lightglue`](#lightglue) | yes | 35.1, 1.2x | 1324, 0.97x |
 | [`dedode-v2-b`](#dedode) | yes | no kernels | no kernels |
 | [`dedode-v2-g`](#dedode) | yes | no kernels | no kernels |
-| [`disk-lightglue`](#lightglue) | yes | no kernels | no kernels |
+| [`disk-lightglue`](#lightglue) | yes | 52.1, 2.2x | 778, 0.32x |
 | [`loftr-indoor`](#loftr) | yes | no kernels | no kernels |
 | [`loftr-outdoor`](#loftr) | yes | no kernels | no kernels |
 | [`loma-b`](#loma) | yes | no kernels | no kernels |
@@ -79,8 +79,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.8<br>40.6<br>no kernels<br>29.5<br>fails: ONNX export: torch.export failed | 1305 / 1364<br>1300 / 1404<br>no kernels<br>1653 / 1680<br>– |
-| `disk-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 117<br>116<br>no kernels<br>113<br>fails: ONNX export: torch.export failed | 1955 / 2412<br>1950 / 2398<br>no kernels<br>1375 / 1502<br>– |
+| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.8<br>40.6<br>35.1<br>29.5<br>fails: ONNX export: torch.export failed | 1305 / 1364<br>1300 / 1404<br>1238 / 1324<br>1653 / 1680<br>– |
+| `disk-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 117<br>116<br>52.1<br>113<br>fails: ONNX export: torch.export failed | 1955 / 2412<br>1950 / 2398<br>736 / 778<br>1375 / 1502<br>– |
 
 <details><summary>Details</summary>
 
@@ -91,31 +91,30 @@ Commercial use: yes.
 - Licence evidence: https://github.com/cvg/LightGlue/blob/5a650c444718caffc2669dc0094cde908f42dd73/README.md#license ; https://github.com/Shiaoming/ALIKED/blob/683d7c65197395c0b3f01ebe76e1084a27e73a65/LICENSE ; https://github.com/cvlab-epfl/disk/blob/8dc6d4d65b47210f629e21ad1fbfb56944b11696/LICENSE.txt
 - Training data: MegaDepth (Internet photo collections with SfM / MVS depth) (LightGlue: pretrained on synthetic homographies of the Oxford-Paris 1M distractor images (Flickr; no dataset entry here), fine-tuned on MegaDepth. ALIKED and DISK: trained on MegaDepth.)
 - Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 0)
-- Kernel libraries: none (not implemented: data-dependent keypoint counts (detection, top-k, match filtering); portable float32 with upstream's fp16 attention)
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `aliked-lightglue`, `disk-lightglue`
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-lightglue` 3000x4000 (1.5 GiB peak allocated, 2.0 reserved); `disk-lightglue` 3000x4000 (2.2 GiB peak allocated, 2.9 reserved)
-- no kernels: not implemented: data-dependent keypoint counts (detection, top-k, match filtering); portable float32 with upstream's fp16 attention.
 - `aliked-lightglue` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache).
 - `disk-lightglue` 768x1024, first call: portable + torch.compile 21 s (cold Inductor cache).
 - `aliked-lightglue` original 768x1024: the authors' mixed-precision option (float16); upstream match_pair aliked + LightGlue, resize 1024
 - `disk-lightglue` original 768x1024: the authors' mixed-precision option (float16); upstream match_pair disk + LightGlue, resize 1024
-- `aliked-lightglue` load / first call: original 1.49 s / 0.732 s, portable 0.17 s / 0.79 s
-- `disk-lightglue` load / first call: original 1.43 s / 0.642 s, portable 0.2 s / 0.633 s
+- `aliked-lightglue` load / first call: original 1.49 s / 0.732 s, portable 0.17 s / 0.79 s, kernels 1.46 s / 0.902 s
+- `disk-lightglue` load / first call: original 1.43 s / 0.642 s, portable 0.2 s / 0.633 s, kernels 0.57 s / 0.301 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `aliked-lightglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 50.7 / 67.6 / 80.0 |  |
-| `aliked-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 51.7 / 68.2 / 81.0 | 51.4 / 68.8 / 80.8 | 52.1 / 69.2 / 81.4 |  |
-| `disk-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 45.6 / 63.3 / 77.3 | 44.9 / 63.4 / 77.0 | 45.6 / 63.3 / 77.3 |  |
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `aliked-lightglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 50.7 / 67.6 / 80.0 |  |  |
+| `aliked-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 51.7 / 68.2 / 81.0 | 51.4 / 68.8 / 80.8 | 52.1 / 69.2 / 81.4 | 51.0 / 68.3 / 80.9 |  |
+| `disk-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 45.6 / 63.3 / 77.3 | 44.9 / 63.4 / 77.0 | 45.6 / 63.3 / 77.3 | 45.0 / 62.9 / 76.6 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec7b1307+port/p1-match, 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec7b1307+port/p1-match, 2026-11-12; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecac19a2-dirty, 2026-11-15.
 
 ### Parity
 
@@ -123,8 +122,8 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, portable float32 and ker
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `aliked-lightglue` | no kernels backend | - | - |
-| `disk-lightglue` | no kernels backend | - | - |
+| `aliked-lightglue` | not measured | - | - |
+| `disk-lightglue` | not measured | - | - |
 
 ### Limitations
 
@@ -145,7 +144,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>no kernels<br>164<br>fails: timeout after 298 s | 1734 / 1992<br>1535 / 1654<br>no kernels<br>1893 / 2434<br>– |
-| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels | 666<br>592<br>no kernels | 2335 / 2472<br>2142 / 2334<br>no kernels |
+| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 666<br>592<br>no kernels<br>330<br>fails: TensorRT engine build failed | 2335 / 2472<br>2142 / 2334<br>no kernels<br>2881 / 3316<br>– |
 
 <details><summary>Details</summary>
 
@@ -163,6 +162,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dedode-v2-b` 3000x4000 (1.9 GiB peak allocated, 3.8 reserved); `dedode-v2-g` 3000x4000 (2.5 GiB peak allocated, 4.5 reserved)
 - no kernels: not implemented yet.
 - `dedode-v2-b` 768x1024, first call: portable + torch.compile 50 s (cold Inductor cache).
+- `dedode-v2-g` 768x1024, first call: portable + torch.compile 86 s (cold Inductor cache).
 - `dedode-v2-b` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor B, 10000 keypoints
 - `dedode-v2-g` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor G, 10000 keypoints
 - `dedode-v2-b` load / first call: original 3.73 s / 1.099 s, portable 0.67 s / 0.753 s
@@ -209,7 +209,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>no kernels<br>176<br>fails: ONNX export: torch.export failed | 1739 / 1870<br>796 / 904<br>no kernels<br>1149 / 1232<br>– |
-| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels | 242<br>111<br>no kernels | 1751 / 1910<br>796 / 904<br>no kernels |
+| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>111<br>no kernels<br>71.0<br>fails: ONNX export: torch.export failed | 1751 / 1910<br>796 / 904<br>no kernels<br>634 / 684<br>– |
 
 <details><summary>Details</summary>
 
@@ -227,6 +227,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loftr-outdoor` 3000x4000 (1.9 GiB peak allocated, 2.8 reserved); `loftr-indoor` 3000x4000 (2.0 GiB peak allocated, 2.8 reserved)
 - no kernels: not implemented yet: data-dependent match counts (mutual nearest neighbours above a threshold).
 - `loftr-outdoor` 768x1024, first call: portable + torch.compile 33 s (cold Inductor cache).
+- `loftr-indoor` 768x1024, first call: portable + torch.compile 30 s (cold Inductor cache).
 - `loftr-outdoor` original 768x1024: upstream LoFTR default_cfg, temp_bug_fix False, long side 840
 - `loftr-indoor` original 768x1024: upstream LoFTR default_cfg, temp_bug_fix True, long side 840
 - `loftr-outdoor` load / first call: original 0.35 s / 0.242 s, portable 0.24 s / 0.578 s
@@ -496,10 +497,10 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
 | [`aliked-flexglue`](#flexglue) | portable | MIT AND BSD-3-Clause | MIT AND LicenseRef-DINOv3-License AND BSD-3-Clause | unstated | yes | keypoints1, keypoints2, pairs, scores |
-| [`aliked-lightglue`](#lightglue) | portable | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`aliked-lightglue`](#lightglue) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`dedode-v2-b`](#dedode) | portable | MIT | MIT | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`dedode-v2-g`](#dedode) | portable | MIT | MIT | megadepth | yes | keypoints1, keypoints2, pairs, scores |
-| [`disk-lightglue`](#lightglue) | portable | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`disk-lightglue`](#lightglue) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`loftr-indoor`](#loftr) | portable | Apache-2.0 | Apache-2.0 | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`loftr-outdoor`](#loftr) | portable | Apache-2.0 | Apache-2.0 | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`loma-b`](#loma) | portable | MIT | MIT | megadepth | yes | keypoints1, keypoints2, pairs, scores |
