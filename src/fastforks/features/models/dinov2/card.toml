@@ -42,7 +42,7 @@ venue = "TMLR 2024"
 id = "dinov2-vits14"
 revision = 1
 params = { arch = "vits", registers = 0 }
-weights = [{ name = "dinov2_vits14_pretrain.pth", size = 88283115, sha256 = "b938bf1bc15cd2ec0feacfe3a1bb553fe8ea9ca46a7e1d8d00217f29aef60cd9", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_pretrain.pth", mirror = "dinov2-vits14-pretrain" }]
+weights = [{ name = "dinov2_vits14_pretrain.pth", size = 88283115, sha256 = "b938bf1bc15cd2ec0feacfe3a1bb553fe8ea9ca46a7e1d8d00217f29aef60cd9", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_pretrain.pth" }]
 
 [[variants]]
 id = "dinov2-vits14-reg"
@@ -54,7 +54,7 @@ weights = [{ name = "dinov2_vits14_reg4_pretrain.pth", size = 88291785, sha256 =
 id = "dinov2-vitb14"
 revision = 1
 params = { arch = "vitb", registers = 0 }
-weights = [{ name = "dinov2_vitb14_pretrain.pth", size = 346378731, sha256 = "0b8b82f85de91b424aded121c7e1dcc2b7bc6d0adeea651bf73a13307fad8c73", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth", mirror = "dinov2-vitb14-pretrain" }]
+weights = [{ name = "dinov2_vitb14_pretrain.pth", size = 346378731, sha256 = "0b8b82f85de91b424aded121c7e1dcc2b7bc6d0adeea651bf73a13307fad8c73", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth" }]
 
 [[variants]]
 id = "dinov2-vitb14-reg"
@@ -66,7 +66,7 @@ weights = [{ name = "dinov2_vitb14_reg4_pretrain.pth", size = 346393545, sha256 
 id = "dinov2-vitl14"
 revision = 1
 params = { arch = "vitl", registers = 0 }
-weights = [{ name = "dinov2_vitl14_pretrain.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth", mirror = "dinov2-vitl14-pretrain" }]
+weights = [{ name = "dinov2_vitl14_pretrain.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth" }]
 
 [[variants]]
 id = "dinov2-vitl14-reg"

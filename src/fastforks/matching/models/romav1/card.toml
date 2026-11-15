@@ -52,5 +52,5 @@ planned = { onnx = "the ONNX converter fails on the exported program (Conversion
 revision = 1
 weights = [
   { name = "roma_outdoor.pth", size = 445647516, sha256 = "c7a45c80d41ad788a63c641d1b686d7cb3f297f40097c6f4e75039889e5cc8ba", url = "https://github.com/Parskatt/storage/releases/download/roma/roma_outdoor.pth" },
-  { name = "dinov2_vitl14_pretrain.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth", mirror = "dinov2-vitl14-pretrain" },
+  { name = "dinov2_vitl14_pretrain.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth" },
 ]

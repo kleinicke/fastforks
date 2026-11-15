@@ -580,7 +580,7 @@ def test_card_mirror_names_a_weights_repo():
 
 
 def test_weights_repos_are_named_after_the_weights_and_used_by_every_card_with_that_sha():
-    """User 2026-11-15: one repo per distinct weight file; every card pinning its SHA-256 points at it."""
+    """User 2026-11-15: a repo only per changed (converted) weight file; every card pinning its SHA-256 points at it."""
     import stage_hf  # noqa: PLC0415 - tool module, imported only here
 
     repos, users = stage_hf.weights_repos(), stage_hf.weight_users()
@@ -589,6 +589,8 @@ def test_weights_repos_are_named_after_the_weights_and_used_by_every_card_with_t
         assert re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", repo), repo
         assert repo not in stage_hf.RESERVED_REPOS, repo
         assert repo not in families, f"{repo}: a family card repo"
+        assert "converted" in meta, f"{repo}: weights repos only for weights we changed (user, 2026-11-15)"
+        assert meta.get("precision") and meta.get("script"), f"{repo}: README states precision and script"
         assert stage_hf._HF_LICENCES.get(meta["licence"]), f"{repo}: no hub licence id"
         assert licence_class(meta["licence"]) == "permissive", repo
         for published in meta["licence_files"].values():

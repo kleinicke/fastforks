@@ -67,5 +67,5 @@ params = { descriptor = "G" }
 weights = [
   { name = "dedode_detector_L_v2.pth", size = 58483585, sha256 = "4113809dd9e0367af013a45fc2255a6b243ff241cd06520d17a65d9e231bdc17", url = "https://github.com/Parskatt/DeDoDe/releases/download/v2/dedode_detector_L_v2.pth" },
   { name = "dedode_descriptor_G.pth", size = 75485969, sha256 = "ef6e3f2911bb3c179960db15545a2137d0746054bb5bad75559524ccab1fee41", url = "https://github.com/Parskatt/DeDoDe/releases/download/dedode_pretrained_models/dedode_descriptor_G.pth" },
-  { name = "dinov2_vitl14_pretrain.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth", mirror = "dinov2-vitl14-pretrain" },
+  { name = "dinov2_vitl14_pretrain.pth", size = 1217586395, sha256 = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428", url = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth" },
 ]

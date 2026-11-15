@@ -23,7 +23,7 @@ every load, and concurrent processes never rewrite a shared database.
 With `FASTFORKS_OFFLINE=1` (or `HF_HUB_OFFLINE=1`) nothing is downloaded: steps 1 to 3 run as usual and a file that
 is not found raises an error naming the file and the `fastforks download` command that fetches it.
 
-Our own Hugging Face repos (`huggingface.co/fastforks/...`: kernel binaries, golden outputs, weight mirrors) can be
+Our own Hugging Face repos (`huggingface.co/fastforks/...`: kernel binaries, golden outputs, converted weights) can be
 redirected to a stand-in with the same layout: `FASTFORKS_HF_ENDPOINT=file:///path/to/standin` (or another server)
 replaces `https://huggingface.co` in their URLs. Other URLs are never rewritten. For private repos (pre-release),
 `HF_TOKEN` is sent as a bearer token to those URLs only, and not along a redirect (the file host gets none).
@@ -74,7 +74,7 @@ OFFLINE_ENV = "FASTFORKS_OFFLINE"
 READ_CACHES_ENV = "FASTFORKS_READ_CACHES"
 _OUR_HF = re.compile(r"https://huggingface\.co/((?:datasets/)?fastforks/.+)")
 MIRROR_URL = "https://huggingface.co/fastforks/mirrors/resolve/main/{group}/{name}"  # `mirror = true`: no card uses it since 2026-11-15 (the legacy repo `fastforks/mirrors` is private; weights whose licence is only assumed are not hosted)
-# `mirror = "<repo>"`: one repo per distinct weight file, named after the weights; cards with the same SHA-256 share it
+# `mirror = "<repo>"`: a weights repo as fallback host (no card uses it since 2026-11-15: only converted weights get a repo, cards point at it by `url`)
 WEIGHTS_REPO_URL = "https://huggingface.co/fastforks/{repo}/resolve/main/{name}"
 _HF_FILE = re.compile(r"https://huggingface\.co/(?P<repo>[^/]+/[^/]+)/resolve/(?P<rev>[^/]+)/(?P<file>.+)")
 

@@ -1,5 +1,7 @@
 # Weights repos named after the weights: plan and licence checks (2026-11-15)
 
+**Superseded 2026-11-15 (user): "the rule was wrong ... mirror the weights only if we want to change the weights ... please only keep the changed weights public. The others we will discuss in the future." Only the converted repos (seedvr2-*, marigold-v2-depth-nf4) stay public; the dinov2-*-pretrain and aliked-n16 rows below are private and unused. See `results/2026-11-15_hf_only_changed.md`.**
+
 User decision 2026-11-15: one Hugging Face repo `fastforks/<weights-name>` per distinct weight file; its identity is
 the SHA-256, and every card that pins those bytes points at it. Each repo has a README (source, revision, licence +
 evidence, SHA-256 + size, users, how fastforks downloads it) and the upstream LICENSE/NOTICE.

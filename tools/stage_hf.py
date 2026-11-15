@@ -1,4 +1,4 @@
-"""Stage our Hugging Face repos (kernel binaries, golden outputs, weight mirrors) in a local directory (no upload).
+"""Stage our Hugging Face repos (kernel binaries, golden outputs, converted weights) in a local directory (no upload).
 
     uv run python tools/stage_hf.py kernels OUT [--from build/kernels] [--standin]
     uv run python tools/stage_hf.py goldens OUT --from $FASTFORKS_GOLDEN_PATH [--from DIR2 ...] [--skip-missing] [--standin]
@@ -14,7 +14,7 @@ files (hash-checked) to `OUT/<ref>.npz`, the layout `tools/fetch_goldens.py` rea
 each output comes from. `mirrors` copies the weights whose card entry has `mirror = true` from the local weight
 store (hash-checked) to `OUT/<family>/<file>`, with a card naming each file's licence and original URL (the first
 mirrors, `mirror = true`; no card uses it since 2026-11-15, the repo is private). `weights` stages one repo per distinct weight file, named after the weights
-(`tools/weights_repos.toml`; cards point at it by `url` or `mirror = "<repo>"`), as `OUT/<repo>/` with symlinks to
+(`tools/weights_repos.toml`, only weights we changed; cards point at it by `url`), as `OUT/<repo>/` with symlinks to
 the hash-checked local files, the upstream licence files and a README naming source, licence, SHA-256 and the cards
 that use it. The tool prints the upload command; it never uploads.
 
@@ -178,7 +178,7 @@ def stage_mirrors(out: Path) -> list[str]:
 
 def weights_repos() -> dict[str, dict]:
     """`tools/weights_repos.toml`: repo name -> its table (title, licence, files name -> sha256, ...)."""
-    return tomllib.loads(WEIGHTS_REPOS.read_text())
+    return {k: v for k, v in tomllib.loads(WEIGHTS_REPOS.read_text()).items() if k != "discuss_later"}
 
 
 def weight_users() -> dict[str, list[tuple[ModelCard, Variant, FileSpec]]]:

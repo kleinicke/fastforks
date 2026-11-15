@@ -58,4 +58,4 @@ venue = "arXiv"
 id = "aliked-flexglue"  # ALIKED-n16 (threshold 0.2) + FlexGlue v0.1 (sparse mode)
 revision = 1
 params = {}
-weights = [{ name = "flexglue.pth", size = 567328059, sha256 = "d7371f743b8cdc4adf723c2aa05b181587fe4bc177fced139697975dff790068", url = "https://github.com/cvg/FlexGlue/releases/download/v0.1/flexglue.pth" }, { name = "aliked-n16.pth", size = 2738091, sha256 = "5be8704840ed662d9d8c561bf7279c222092674e7eb05fd0feab94899e9d82f2", url = "https://raw.githubusercontent.com/Shiaoming/ALIKED/683d7c65197395c0b3f01ebe76e1084a27e73a65/models/aliked-n16.pth", mirror = "aliked-n16" }]
+weights = [{ name = "flexglue.pth", size = 567328059, sha256 = "d7371f743b8cdc4adf723c2aa05b181587fe4bc177fced139697975dff790068", url = "https://github.com/cvg/FlexGlue/releases/download/v0.1/flexglue.pth" }, { name = "aliked-n16.pth", size = 2738091, sha256 = "5be8704840ed662d9d8c561bf7279c222092674e7eb05fd0feab94899e9d82f2", url = "https://raw.githubusercontent.com/Shiaoming/ALIKED/683d7c65197395c0b3f01ebe76e1084a27e73a65/models/aliked-n16.pth" }]

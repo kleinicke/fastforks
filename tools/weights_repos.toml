@@ -1,61 +1,15 @@
-# One Hugging Face repo `fastforks/<name>` per distinct weight file, named after the weights, not after a model
-# (user, 2026-11-15). The file's identity is its SHA-256: every card that pins it points at this repo, by its `url`
-# (weights we converted) or `mirror = "<name>"` (unchanged copies). `tools/stage_hf.py weights OUT` stages each repo
-# with a README built from this table and the cards. Plan and licence checks: results/2026-11-15_weights_repo_plan.md.
-#
-# Only weights whose own licence explicitly allows redistribution get a repo: never weights that only inherit the
-# code licence by assumption, gated, non-commercial-ambiguous, copyleft or face-recognition weights.
+# Hugging Face weights repos `fastforks/<name>`, ONLY for weights we changed (converted / quantized); user, 2026-11-15:
+# unchanged upstream weights are not mirrored (the cards point at the authors' hosts). A repo needs: the weights'
+# own licence checked (permissive, ungated), name = upstream stem + dtype tag (`-bf16`, `-nf4`), and a README that states
+# the source, the precision and the conversion script. `tools/stage_hf.py weights OUT` stages each repo from this
+# table and the cards. Plan and licence checks: results/2026-11-15_weights_repo_plan.md, results/2026-11-15_hf_only_changed.md.
 #
 # Keys: title, by (authors), upstream (repo + revision the weights come from), licence (SPDX) + licence_url +
 # licence_evidence (the upstream sentence that licenses the WEIGHTS), files (name -> sha256), licence_files
-# (published name -> path below src/fastforks), converted (absent: byte-identical copy of `source`), notice (text of
-# a NOTICE file stating our changes, for converted Apache-2.0 weights), precision + script (converted: the dtype of the
-# stored tensors and the repo's conversion script, which is copied into the weights repo).
-# Our converted repos are named upstream stem + dtype (`-bf16`); marigold-v2-depth-nf4 is hand-staged (not in this table).
-
-[dinov2-vits14-pretrain]
-title = "DINOv2 ViT-S/14 backbone"
-by = "Meta AI Research (FAIR): Oquab et al., DINOv2: Learning Robust Visual Features without Supervision (TMLR 2024)"
-upstream = "https://github.com/facebookresearch/dinov2/tree/7764ea0f912e53c92e82eb78a2a1631e92725fc8"
-source = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_pretrain.pth"
-licence = "Apache-2.0"
-licence_url = "https://github.com/facebookresearch/dinov2/blob/7764ea0f912e53c92e82eb78a2a1631e92725fc8/LICENSE"
-licence_evidence = "README.md, section License: \"DINOv2 code and model weights are released under the Apache License 2.0.\""
-licence_files = { LICENSE = "features/models/dinov2/LICENSE" }
-files = { "dinov2_vits14_pretrain.pth" = "b938bf1bc15cd2ec0feacfe3a1bb553fe8ea9ca46a7e1d8d00217f29aef60cd9" }
-
-[dinov2-vitb14-pretrain]
-title = "DINOv2 ViT-B/14 backbone"
-by = "Meta AI Research (FAIR): Oquab et al., DINOv2: Learning Robust Visual Features without Supervision (TMLR 2024)"
-upstream = "https://github.com/facebookresearch/dinov2/tree/7764ea0f912e53c92e82eb78a2a1631e92725fc8"
-source = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth"
-licence = "Apache-2.0"
-licence_url = "https://github.com/facebookresearch/dinov2/blob/7764ea0f912e53c92e82eb78a2a1631e92725fc8/LICENSE"
-licence_evidence = "README.md, section License: \"DINOv2 code and model weights are released under the Apache License 2.0.\""
-licence_files = { LICENSE = "features/models/dinov2/LICENSE" }
-files = { "dinov2_vitb14_pretrain.pth" = "0b8b82f85de91b424aded121c7e1dcc2b7bc6d0adeea651bf73a13307fad8c73" }
-
-[dinov2-vitl14-pretrain]
-title = "DINOv2 ViT-L/14 backbone"
-by = "Meta AI Research (FAIR): Oquab et al., DINOv2: Learning Robust Visual Features without Supervision (TMLR 2024)"
-upstream = "https://github.com/facebookresearch/dinov2/tree/7764ea0f912e53c92e82eb78a2a1631e92725fc8"
-source = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth"
-licence = "Apache-2.0"
-licence_url = "https://github.com/facebookresearch/dinov2/blob/7764ea0f912e53c92e82eb78a2a1631e92725fc8/LICENSE"
-licence_evidence = "README.md, section License: \"DINOv2 code and model weights are released under the Apache License 2.0.\""
-licence_files = { LICENSE = "features/models/dinov2/LICENSE" }
-files = { "dinov2_vitl14_pretrain.pth" = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428" }
-
-[aliked-n16]
-title = "ALIKED-N16 keypoint detector and descriptor"
-by = "Xiaoming Zhao et al., ALIKED: A Lighter Keypoint and Descriptor Extraction Network via Deformable Transformation (IEEE TIM 2023)"
-upstream = "https://github.com/Shiaoming/ALIKED/tree/683d7c65197395c0b3f01ebe76e1084a27e73a65"
-source = "https://raw.githubusercontent.com/Shiaoming/ALIKED/683d7c65197395c0b3f01ebe76e1084a27e73a65/models/aliked-n16.pth"
-licence = "BSD-3-Clause"
-licence_url = "https://github.com/Shiaoming/ALIKED/blob/683d7c65197395c0b3f01ebe76e1084a27e73a65/LICENSE"
-licence_evidence = "The weights are a file of the repository (models/aliked-n16.pth; README: \"The pretrained ALIKED models are provided in `models/`\"), which is licensed as a whole under BSD-3-Clause (LICENSE)."
-licence_files = { LICENSE = "matching/models/lightglue/LICENSE-ALIKED" }
-files = { "aliked-n16.pth" = "5be8704840ed662d9d8c561bf7279c222092674e7eb05fd0feab94899e9d82f2" }
+# (published name -> path below src/fastforks), converted (what we changed), notice (text of a NOTICE file stating
+# our changes, for converted Apache-2.0 weights), precision + script (the dtype of the stored tensors and the repo's
+# conversion script, which is copied into the weights repo).
+# marigold-v2-depth-nf4 is hand-staged (not in this table).
 
 [seedvr2-3b-bf16]
 title = "SeedVR2 3B transformer (fastforks safetensors)"
@@ -122,3 +76,54 @@ seedvr2-vae.safetensors is a modified version of ema_vae.pth of ByteDance-Seed/S
 (https://huggingface.co/ByteDance-Seed, Apache License 2.0), converted by the fastforks maintainers
 (see README.md, Source): tensors cast to bfloat16 / float32 and saved as safetensors, no retraining.
 """
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# DISCUSS LATER (user, 2026-11-15): byte-identical copies of upstream files. Their HF repos exist but are PRIVATE and
+# no card points at them; not read by stage_hf (nested under `discuss_later`). Kept so they can be restored.
+# ---------------------------------------------------------------------------------------------------------------
+
+[discuss_later.dinov2-vits14-pretrain]
+title = "DINOv2 ViT-S/14 backbone"
+by = "Meta AI Research (FAIR): Oquab et al., DINOv2: Learning Robust Visual Features without Supervision (TMLR 2024)"
+upstream = "https://github.com/facebookresearch/dinov2/tree/7764ea0f912e53c92e82eb78a2a1631e92725fc8"
+source = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_pretrain.pth"
+licence = "Apache-2.0"
+licence_url = "https://github.com/facebookresearch/dinov2/blob/7764ea0f912e53c92e82eb78a2a1631e92725fc8/LICENSE"
+licence_evidence = "README.md, section License: \"DINOv2 code and model weights are released under the Apache License 2.0.\""
+licence_files = { LICENSE = "features/models/dinov2/LICENSE" }
+files = { "dinov2_vits14_pretrain.pth" = "b938bf1bc15cd2ec0feacfe3a1bb553fe8ea9ca46a7e1d8d00217f29aef60cd9" }
+
+[discuss_later.dinov2-vitb14-pretrain]
+title = "DINOv2 ViT-B/14 backbone"
+by = "Meta AI Research (FAIR): Oquab et al., DINOv2: Learning Robust Visual Features without Supervision (TMLR 2024)"
+upstream = "https://github.com/facebookresearch/dinov2/tree/7764ea0f912e53c92e82eb78a2a1631e92725fc8"
+source = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth"
+licence = "Apache-2.0"
+licence_url = "https://github.com/facebookresearch/dinov2/blob/7764ea0f912e53c92e82eb78a2a1631e92725fc8/LICENSE"
+licence_evidence = "README.md, section License: \"DINOv2 code and model weights are released under the Apache License 2.0.\""
+licence_files = { LICENSE = "features/models/dinov2/LICENSE" }
+files = { "dinov2_vitb14_pretrain.pth" = "0b8b82f85de91b424aded121c7e1dcc2b7bc6d0adeea651bf73a13307fad8c73" }
+
+[discuss_later.dinov2-vitl14-pretrain]
+title = "DINOv2 ViT-L/14 backbone"
+by = "Meta AI Research (FAIR): Oquab et al., DINOv2: Learning Robust Visual Features without Supervision (TMLR 2024)"
+upstream = "https://github.com/facebookresearch/dinov2/tree/7764ea0f912e53c92e82eb78a2a1631e92725fc8"
+source = "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitl14/dinov2_vitl14_pretrain.pth"
+licence = "Apache-2.0"
+licence_url = "https://github.com/facebookresearch/dinov2/blob/7764ea0f912e53c92e82eb78a2a1631e92725fc8/LICENSE"
+licence_evidence = "README.md, section License: \"DINOv2 code and model weights are released under the Apache License 2.0.\""
+licence_files = { LICENSE = "features/models/dinov2/LICENSE" }
+files = { "dinov2_vitl14_pretrain.pth" = "d5383ea8f4877b2472eb973e0fd72d557c7da5d3611bd527ceeb1d7162cbf428" }
+
+[discuss_later.aliked-n16]
+title = "ALIKED-N16 keypoint detector and descriptor"
+by = "Xiaoming Zhao et al., ALIKED: A Lighter Keypoint and Descriptor Extraction Network via Deformable Transformation (IEEE TIM 2023)"
+upstream = "https://github.com/Shiaoming/ALIKED/tree/683d7c65197395c0b3f01ebe76e1084a27e73a65"
+source = "https://raw.githubusercontent.com/Shiaoming/ALIKED/683d7c65197395c0b3f01ebe76e1084a27e73a65/models/aliked-n16.pth"
+licence = "BSD-3-Clause"
+licence_url = "https://github.com/Shiaoming/ALIKED/blob/683d7c65197395c0b3f01ebe76e1084a27e73a65/LICENSE"
+licence_evidence = "The weights are a file of the repository (models/aliked-n16.pth; README: \"The pretrained ALIKED models are provided in `models/`\"), which is licensed as a whole under BSD-3-Clause (LICENSE)."
+licence_files = { LICENSE = "matching/models/lightglue/LICENSE-ALIKED" }
+files = { "aliked-n16.pth" = "5be8704840ed662d9d8c561bf7279c222092674e7eb05fd0feab94899e9d82f2" }
+
