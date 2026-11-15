@@ -18,7 +18,7 @@ Matrix of every model ref of the library (452 refs, 143 families, from `registry
 Every ref has an `upstream` OR `upstream-default` row except 5 (and every ok original row carries peak memory). The 5 need an upstream clone that is not on disk (a download, not allowed inside the queue lock):
 
 - `memfof-kitti` (memfof): needs `FF_MEMFOF_REPO` (clone of msu-video-group/memfof)
-- `memfof-sintel` (memfof): needs `FF_MEMFOF_REPO` (clone of msu-video-group/memfof); also no portable row yet
+- `memfof-sintel` (memfof): needs `FF_MEMFOF_REPO` (clone of msu-video-group/memfof); portable row added (375x1242 ms, 1080x1920 OOM; see results/2026-11-15_original_gaps.md)
 - `memfof-spring` (memfof): needs `FF_MEMFOF_REPO` (clone of msu-video-group/memfof); also no portable row yet
 - `tapnext-pp` (tapnext): needs the `tapnet` repo; also no portable row yet
 - `video-depth-anything-metric-s` (video_depth_anything): no original adapter in `tools/_original.py`; also no portable row yet

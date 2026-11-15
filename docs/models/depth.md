@@ -87,6 +87,7 @@ Commercial use: yes.
 - Outputs: depth; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `any2full-s` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `any2full-b` 3000x4000 (0.7 GiB peak allocated, 0.9 reserved); `any2full-l` 3000x4000 (1.2 GiB peak allocated, 1.3 reserved)
+- original not timed: the authors' code (zhiyuandaily/Any2Full) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run; the golden check against it was made on the CPU with a checkout of the pinned commit.
 - `any2full-b` 994x1482, first call: portable + torch.compile 97 s (cold Inductor cache).
 - `any2full-l` 994x1482, first call: portable + torch.compile 34 s (cold Inductor cache).
 - `any2full-s` load / first call: portable 0.31 s / 0.359 s
@@ -466,6 +467,7 @@ Commercial use: yes.
 - Outputs: depth; kind: `affine_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depthfm-v1` 1024x1024 (9.8 GiB peak allocated, 15.0 reserved)
+- original not timed: the authors' code (CompVis/depth-fm) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run.
 - `depthfm-v1` load / first call: portable 3.58 s / 6.004 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -512,6 +514,7 @@ Commercial use: yes.
 - Outputs: depth, mask; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 14)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-depth` 3000x4000 (1.7 GiB peak allocated, 2.1 reserved); `lingbot-depth-dc` 3000x4000 (1.7 GiB peak allocated, 2.1 reserved)
+- original not timed: the authors' code (robbyant/lingbot-depth) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run on this GPU; its golden check ran on the CPU (without xFormers upstream cannot run its per-sample token lists).
 - `lingbot-depth` 994x1482, first call: TensorRT fp16 66 s (ONNX + engine).
 - `lingbot-depth-dc` 994x1482, first call: portable + torch.compile 32 s (cold Inductor cache), TensorRT fp16 67 s (ONNX + engine).
 - `lingbot-depth` load / first call: portable 1.38 s / 0.531 s
@@ -986,7 +989,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>554<br>–<br>deferred (build >5 min)<br>planned for 0.2.1 | –<br>4958 / 6304<br>–<br>–<br>– |
+| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 875<br>554<br>–<br>deferred (build >5 min)<br>planned for 0.2.1 | 5966 / 6732<br>4958 / 6304<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -1002,7 +1005,8 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Outputs: depth; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 16)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `omni-dc` 1024x2048 (6.4 GiB peak allocated, 9.2 reserved)
-- `omni-dc` load / first call: portable 2.47 s / 1.062 s
+- `omni-dc` original 994x1482: upstream OGNIDC.forward (demo.sh arguments), float32, 16-padded
+- `omni-dc` load / first call: original 9.52 s / 2.035 s, portable 2.47 s / 1.062 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity

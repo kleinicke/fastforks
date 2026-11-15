@@ -157,6 +157,7 @@ Commercial use: yes.
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-map` 3000x4000 (5.5 GiB peak allocated, 6.8 reserved)
+- original not timed: the authors' code (Robbyant/lingbot-map) is not checked out on the benchmark machine and the download floor of its disk (30 GB free) blocks a clone, so the original could not be run.
 - `lingbot-map` load / first call: portable 6.58 s / 1.077 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -451,6 +452,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>1723<br>–<br>deferred (build >5 min)<br>planned for 0.2.1 | –<br>4995 / 5180<br>–<br>–<br>– |
+| `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels | –<br>7085<br>– | –<br>6951 / 8634<br>– |
 
 <details><summary>Details</summary>
 
@@ -470,9 +472,10 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resplat-small-dl3dv` 3000x4000 (5.9 GiB peak allocated, 7.0 reserved); `resplat-base-re10k` 3000x4000 (7.8 GiB peak allocated, 11.2 reserved)
+- original not timed: the original needs the pointops and gsplat CUDA extensions, which are not built for sm_120 here; the golden reference replaces them by PyTorch loops that are far slower than the extensions, so their time would not be the original's.
 - `resplat-small-dl3dv` load / first call: portable 0.72 s / 2.51 s (480x640)
+- `resplat-base-re10k` load / first call: portable 0.9 s / 7.756 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
-- Speed and memory not measured for: `resplat-base-re10k`.
 
 ### Parity
 
