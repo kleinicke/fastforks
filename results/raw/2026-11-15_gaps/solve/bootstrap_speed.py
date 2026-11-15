@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import speed_check as sc
 from fastforks._core import registry
 real = [json.loads(l) for l in sc.FLOOR.read_text().splitlines() if l.strip()]
-have = {r["ref"] for r in real}
+have = {r["ref"] for r in real if r["mode"] == "portable"}
 refs = sys.argv[1].split(",")
 cards = {m: cv for t in registry.TASKS for m, cv in registry.cards(t).items()}
 task_of = {m: t for t in registry.TASKS for m in registry.cards(t)}

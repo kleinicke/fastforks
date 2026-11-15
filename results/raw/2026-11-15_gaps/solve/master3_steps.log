@@ -114,3 +114,11 @@ WARNING: in op node_clamp_min_34_min, operand node_clamp_min_34_beta payload typ
 {"side": "lib", "ref": "dinov3-vitl16", "task": "features", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
 == lib drct-l-x4 tensorrt 14:05:28
 {"side": "lib", "ref": "drct-l-x4", "task": "restoration", "mode": "tensorrt", "date": "2026-11-15", "input": "512x512", "fails": "worker rc=124"}
+== lib dinov2-vitg14-reg tensorrt 15:14:14
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "dinov2-vitg14-reg", "task": "features", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_
+== lib dinov3-vith16plus tensorrt 15:16:02
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "dinov3-vith16plus", "task": "features", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.15, "cuda_init_

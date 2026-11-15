@@ -6,6 +6,8 @@ SV = Path("results/raw/2026-11-15_gaps/solve")
 rd = lambda p: [json.loads(l) for l in Path(p).read_text().splitlines() if l.strip()] if Path(p).exists() else []
 SKIP = ("load: Weights", "load: Licence", "OSError")
 def merge(dst, rows, src, cmd, key):
+    if dst.endswith("speed.jsonl"):  # the floor file only takes measured rows (a failed row with input "-" breaks speed_check jobs())
+        rows = [r for r in rows if r.get("ms") is not None and r.get("input") not in (None, "-")]
     old = rd(dst)
     ok = {key(r) for r in old if not r.get("fails") and "error" not in r}
     new = {}
@@ -20,10 +22,10 @@ k3 = lambda r: (r["ref"], r["mode"], r.get("side"))
 k5 = lambda r: (r["ref"], r["mode"], r.get("side"), r.get("tier"), r.get("input"), r.get("how"))
 vda = {"video-depth-anything-metric-s"}
 cmdb = "results/raw/2026-11-15_gaps/solve/bootstrap_speed.py REF --modes MODE --sides lib --no-profile --prefix 'gpulock-verylow timeout 175' (q_boot.sh)"
-RT0 = rd(SV / "rows_retry.jsonl")
+RT0 = rd(SV / "rows_retry.jsonl") + rd(SV / "rows_retry2.jsonl") + rd(SV / "rows_boot3.jsonl")
 P = [r for r in rd(SV / "rows_boot.jsonl") if r["ref"] not in vda] + [r for r in RT0 if r["mode"] in ("portable", "kernels")]
 merge("docs/data/speed.jsonl", P, "results/raw/2026-11-15_gaps/solve/rows_boot.jsonl", cmdb, k3)
-RT = [r for r in rd(SV / "rows_retry.jsonl")]
+RT = rd(SV / "rows_retry.jsonl") + rd(SV / "rows_boot3_ct.jsonl")
 C = [r for r in RT if r["mode"] in ("compile", "tensorrt")] + [r for r in rd(SV / "rows_boot_ct.jsonl") if r["ref"] not in vda] + rd(SV / "rows_compile2.jsonl") + rd(SV / "rows_compile3.jsonl")
 merge("docs/data/speed_compile.jsonl", C, "results/raw/2026-11-15_gaps/solve/rows_boot_ct.jsonl + rows_compile2.jsonl", cmdb, k3)
 V = {k5(r): r for r in rd(SV / "rows_vda.jsonl")}

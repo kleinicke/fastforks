@@ -4,7 +4,13 @@ Source: `results/raw/2026-11-15_gaps/gapmatrix.py` on docs/data/speed*.jsonl aft
 
 Totals: 573 refs. Missing: upstream 14, upstream-default 164 (only refs with an upstream-default tier), portable 16, kernels 96 (refs without custom kernels run the portable path), compile 67, tensorrt 72. Errors (documented `unsupported:` rows): compile 9+1 OOM, tensorrt 54+2 OOM.
 
-Round 2 (gapmatrix rerun 2026-11-15 12:30, before the running queues finish): portable missing 3 + error 6 (memfof-sintel/-spring: need the `upstream/memfof` clone; resplat-base-re10k: gated; the 6 errors are 190 s step timeouts being retried by `master4.sh`; seedvr2-7b OOM), kernels missing 95 (refs without a kernels runner, incl. the six timm families below), compile missing 55, tensorrt missing 47 (34 / 42 of them queued in `master2.sh`, the rest are not cached: 26 refs in `weights_not_cached.txt`).
+Round 2 final (gapmatrix rerun 2026-11-15 ~15:25, all queues finished): portable ok 570, OOM 2 (memfof-sintel at 1080x1920, seedvr2-7b), missing 1 (resplat-base-re10k: gated weights). kernels missing 95 (refs without a kernels runner, incl. the six timm families below; not a measurement gap). compile missing 12, tensorrt missing 14 (see reasons below). New compared with the first matrix: 16 portable, ~45 compile, ~45 TensorRT rows, VDA metric-s video rows, tapnext-pp original.
+
+### Still missing after round 2, reason per ref
+- Weights not cached, would drop `/` below the 30 GB floor or no usable URL: bridgedepth-rvc-pretrain, clip-h14-378-dfn5b, clip-h14-dfn5b, clip-l14-dfn2b, foundationstereo-vit-l, megaflow, pi3, pointdit-l-512, prompt-depth-anything-l, s2m2-m (compile + tensorrt); pe-core-g14-448, pe-spatial-g14-448 (7 GB each, not downloaded). Gated: resplat-base-re10k.
+- video-depth-anything-metric-s compile / tensorrt: video pipeline (4 sliding windows, temporal head), no exportable single module and no compile adapter; portable / kernels / upstream rows exist.
+- tapnext-pp tensorrt: stateful online tracker, same limitation as tapnext (cold export + build over the 5 min lock rule); compile fails (InductorError, recorded).
+- memfof-sintel portable 1080x1920: OOM on 16 GB (as memfof-kitti); 375x1242 row exists.
 
 ## Missing, by reason
 

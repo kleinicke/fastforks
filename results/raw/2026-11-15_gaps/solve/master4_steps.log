@@ -358,3 +358,5 @@ In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
   319 | # define _POSIX_C_SOURCE        202405L
       |          ^~~~~~~~~~~~~~~
 W1115 14:18:04.810000 806857 torch/_inductor/utils.py:1806] [1/0_1] Not enough SMs to use max_autotune_gemm mode
+== lib lingbot-map tensorrt 14:20:52
+{"side": "lib", "ref": "lingbot-map", "task": "multiview", "mode": "tensorrt", "date": "2026-11-15", "input": "480x640", "fails": "worker rc=124"}
