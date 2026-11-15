@@ -25,3 +25,14 @@ Approved by the user "after verifying that each archive's extracted data exists"
 - `middlebury2014/*-imperfect.zip` (23 x ~70 MB): extracted `Middlebury/2014` holds only `*-perfect` dirs; 204 of 207 sampled members unmatched. Not extracted.
 - `models.zip` (200 MB): not checked, kept.
 HDD now has 299 GB free (after the user's SceneFlow deletion), so no pressure; kept. Ask the user whether to delete anyway.
+
+## Moved to the HDD (symlink stays) to make room for weights
+| what | size | note |
+|---|---|---|
+| experiments/012-stereo-fusion-mvs/runs/lf_cache -> /mnt/hdd/projects/same path | 190 GB | closed experiment cache. `move-to-hdd` failed (code 23) because part of the tree was already moved earlier (680 symlinks pointing at the HDD copy); redone with rsync --no-links --remove-source-files, verified no regular file left, then dir replaced by symlink |
+| weights moved to the HDD temporarily (7 blobs 46 GB, pe-core 7.5 GB, seedvr2-7b 16.5 GB) | 70 GB | all copied back to the SSD (user: weights stay on SSD), cmp-verified, HDD copy removed; no weight symlinks remain |
+
+## Totals
+- Deleted (above): about 35 GB (scratch, caches, dedup) plus 63 worktrees. Moved to HDD: 190 GB. Downloaded weights: 68.1 GB (see 2026-11-15_weights_inventory.md). / free: 16 GB at start, 190 GB now.
+- The earlier 63 worktree sizes are in raw/2026-11-15_weights_fetch/deletions_raw.log.
+- _archives: not deleted (above); the weights run left HDD at about 220 GB free.

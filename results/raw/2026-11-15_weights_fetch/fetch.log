@@ -82,3 +82,21 @@ da3-giant-1.1@1: licence Apache-2.0, weights CC-BY-NC-4.0, commercial no, 5172 M
 da3-giant-1.1@1: /home/florian/.cache/fastforks/blobs/sha256/1e/1e47a08338ca73a6d6a21d37fd060b26b993b672bc6ddf6295fe474df2592001
 23:51:22 da3-giant-1.1@1 rc=0
 downloading https://huggingface.co/timm/vit_pe_spatial_gigantic_patch14_448.fb/resolve/f2cea21ca9d5900061bee5e896031ab4e8352936/model.safetensors, 7064 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/db)
+MISSING pe-spatial-g14-448@1: https://huggingface.co/timm/vit_pe_spatial_gigantic_patch14_448.fb/resolve/f2cea21ca9d5900061bee5e896031ab4e8352936/model.safetensors: SHA-256 adaaed73d6843d87c136fd5db487fc2f74e5b0de0ed4e39ea528295276c5a6c4 != expected db69c2e41d38a72cf3f852707367934edbea3f47c3d8b07dc3e082b8caff8d8d; the download is corrupt or the upstream file changed. Retry with `fastforks download MODEL` (nothing was cached); if it persists, report the model id
+pe-spatial-g14-448@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 7064 MB
+23:55:01 pe-spatial-g14-448@1 rc=0
+downloading https://huggingface.co/timm/vit_pe_core_gigantic_patch14_448.fb/resolve/fb096c09d13bd2e3827aed4dbdffb8a6b8e0c10b/model.safetensors, 7179 MB (once; cached in /mnt/hdd/projects/fastforks_cache_cold/blobs/sha256/a0)
+pe-core-g14-448@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 7179 MB
+pe-core-g14-448@1: /mnt/hdd/projects/fastforks_cache_cold/blobs/sha256/a0/a0a499d4a7c6d35bb5f11aa2b076eaacde06e66a08176eb3b3d362d80eb91bd8
+23:58:43 pe-core-g14-448@1 (cold) rc=0
+downloading https://huggingface.co/fastforks/seedvr2-7b/resolve/main/seedvr2-7b.safetensors, 15719 MB (once; cached in /mnt/hdd/projects/fastforks_cache_cold/blobs/sha256/bf)
+downloading https://huggingface.co/fastforks/seedvr2-vae/resolve/main/seedvr2-vae.safetensors, 478 MB (once; cached in /mnt/hdd/projects/fastforks_cache_cold/blobs/sha256/bc)
+seedvr2-7b@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 16197 MB
+seedvr2-7b@1: /mnt/hdd/projects/fastforks_cache_cold/blobs/sha256/bf/bf73826841cfd31895370e92472fae58810ef456310dcc7a167e22dd673eeb7b
+seedvr2-7b@1: /mnt/hdd/projects/fastforks_cache_cold/blobs/sha256/bc/bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a
+00:07:00 seedvr2-7b@1 (cold) rc=0
+00:07:00 DONE
+downloading https://huggingface.co/timm/vit_pe_spatial_gigantic_patch14_448.fb/resolve/f2cea21ca9d5900061bee5e896031ab4e8352936/model.safetensors, 7064 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/db)
+pe-spatial-g14-448@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 7064 MB
+pe-spatial-g14-448@1: /home/florian/.cache/fastforks/blobs/sha256/db/db69c2e41d38a72cf3f852707367934edbea3f47c3d8b07dc3e082b8caff8d8d
+00:11:13 retry pe-spatial rc=0 DONE2
