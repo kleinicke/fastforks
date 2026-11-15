@@ -338,9 +338,9 @@ url = "https://megascenes.github.io/"
 
 [scannet]
 name = "ScanNet (RGB-D scans of indoor scenes)"
-licence = "ScanNet Terms of Use"  # non-commercial research terms, not re-read for the retrieval ports (2026-11-13)
+licence = "LicenseRef-noncommercial"  # ScanNet Terms of Use: non-commercial research terms, not re-read for the retrieval ports (2026-11-13)
 commercial = "no"
-url = "http://www.scan-net.org/"
+url = "https://web.archive.org/web/20261110140340/http://www.scan-net.org/"
 
 [sf-xl]
 name = "San Francisco eXtra Large (street-view images of San Francisco)"
@@ -350,14 +350,14 @@ url = "https://github.com/gmberton/CosPlace/blob/52b56e95ea62245281281f3bafd7b93
 
 [openpano]
 name = "OpenPano (perspective crops of public 360-degree panoramas: PolyHaven, HDRMaps, AmbientCG, BlenderKit)"
-licence = "mixed"  # per-source terms (PolyHaven / AmbientCG CC0, HDRMaps and BlenderKit their own), not re-read for the calibration ports (2026-11-13)
+licence = "not stated"  # mixed: per-source terms (PolyHaven / AmbientCG CC0, HDRMaps and BlenderKit their own), not re-read for the calibration ports (2026-11-13)
 commercial = "unclear"
 url = "https://github.com/cvg/GeoCalib/blob/1dedb29f94fc11b896c5f572005978aeebccd67f/siclib/datasets/README.md"
 [div2k]
 name = "DIV2K (NTIRE 2017 super-resolution, 1000 2K images)"
-licence = "academic research only"  # images collected from the Internet, copyright with their owners
+licence = "LicenseRef-research-only"  # academic research only; images collected from the Internet, copyright with their owners
 commercial = "no"
-url = "https://github.com/cvg/GeoCalib/blob/1dedb29f94fc11b896c5f572005978aeebccd67f/siclib/datasets/README.md"
+url = "https://data.vision.ee.ethz.ch/cvl/DIV2K/"
 
 [gopro]
 name = "GoPro deblurring (GOPRO_Large, Nah et al. 2017: 3214 blurred / sharp frame pairs)"
@@ -399,13 +399,13 @@ url = "https://github.com/NVlabs/ffhq-dataset/blob/4826aa6ea77aa7f1a7802b938ed7c
 name = "WIDER FACE (32k images, 394k labelled faces)"
 licence = "LicenseRef-research-only"  # "The WIDER FACE dataset is available for non-commercial research purposes only."
 commercial = "no"
-url = "http://shuoyang1213.me/WIDERFACE/"
+url = "https://web.archive.org/web/20261014221817/http://shuoyang1213.me/WIDERFACE/"
 
 [manga109]
 name = "Manga109 (109 Japanese manga volumes)"
-licence = "academic research only"  # Manga109-s is the subset for commercial use
+licence = "LicenseRef-research-only"  # academic research only; Manga109-s is the subset for commercial use
 commercial = "no"
-url = "http://www.manga109.org/en/"
+url = "https://web.archive.org/web/20261022181634/https://manga109.github.io/manga109-project-website/en/index.html"
 
 [wed]
 name = "Waterloo Exploration Database (4744 natural images)"
@@ -469,9 +469,9 @@ url = "https://github.com/ChenyunWu/PhraseCutDataset/blob/276470b7773d8a230aee5b
 
 [places365]
 name = "Places365-Challenge (8 M scene images, 365 categories)"
-licence = "non-commercial research and educational use"  # terms of use on the download page; the images are Flickr / web photos
+licence = "LicenseRef-noncommercial"  # non-commercial research and educational use; terms of use on the download page; the images are Flickr / web photos
 commercial = "no"
-url = "http://places2.csail.mit.edu/download.html"
+url = "https://web.archive.org/web/20261105071009/http://places2.csail.mit.edu/download.html"
 
 [biped]
 name = "BIPED (Barcelona Images for Perceptual Edge Detection)"
@@ -481,7 +481,7 @@ url = "https://github.com/xavysp/MBIPED/blob/91473d4ac10b36ae784e194d3e73b1497b7
 
 [vm800]
 name = "VM800 (MatAnyone video matting foregrounds)"
-licence = "not released"  # MatAnyone doc/TRAIN.md: "Due to licensing restrictions, the VM800 dataset cannot be publicly released"
+licence = "not stated"  # not released; MatAnyone doc/TRAIN.md: "Due to licensing restrictions, the VM800 dataset cannot be publicly released"
 commercial = "no"
 url = "https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/doc/TRAIN.md"
 
@@ -505,6 +505,6 @@ url = "https://github.com/nowsyn/DVM/blob/c045693867c9397ed3eb635cea7c6f2cba6c02
 
 [youtube-vis-2021]
 name = "YouTube-VIS 2021 (video instance segmentation)"
-licence = "not checked"  # terms not read for the MatAnyone port (2026-11-14)
+licence = "not stated"  # the official page (read 2026-11-15) states no licence or terms
 commercial = "unclear"
 url = "https://youtube-vos.org/dataset/vis/"
