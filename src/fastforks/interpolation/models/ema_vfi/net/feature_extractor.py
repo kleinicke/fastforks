@@ -400,7 +400,7 @@ class MotionFormer(nn.Module):
         self.depths = depths
         self.num_stages = len(embed_dims)
 
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]  # stochastic depth decay rule
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths), device="cpu")]  # stochastic depth decay rule
         cur = 0
 
         self.conv_stages = self.num_stages - len(num_heads)

@@ -12,7 +12,7 @@ shapes), so a seed and size give the same noise on every device and in every mod
 `stream` (default on, CUDA) keeps the transformer blocks in page-locked host memory and uploads one at a time
 (`fastforks.shared.host_blocks`); `quant = "nf4"` quantises the blocks' linear weights to NF4 at load (bitsandbytes'
 format, `fastforks.shared.nf4`) and expands each to bf16 per call: ~3.5x smaller transformer, a small quality cost
-(results/2026-11-14_seedvr2.md). Both are explicit options, printed when used, never silent fallbacks. The kernels
+(measured 2026-11-14). Both are explicit options, printed when used, never silent fallbacks. The kernels
 backend expands NF4 weights with one fused kernel (`fastforks.kernels.nf4`); without `quant` it is the portable path.
 """
 

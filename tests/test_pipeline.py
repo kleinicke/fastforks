@@ -77,11 +77,14 @@ def _t(img) -> torch.Tensor:
     return _as_tensor(img)
 
 
+# Process-wide pools that live on by design (started once, reused by every call): the TIFF writer and the parallel
+# decoder of `_core.image._decoded`. Any earlier test that decodes two files starts the latter.
+_PERSISTENT = ("fastforks-tiff", "fastforks-decode")
+
+
 def _threads() -> set[str]:
     return {
-        t.name
-        for t in threading.enumerate()
-        if t.name.startswith("fastforks-") and not t.name.startswith("fastforks-tiff")
+        t.name for t in threading.enumerate() if t.name.startswith("fastforks-") and not t.name.startswith(_PERSISTENT)
     }
 
 

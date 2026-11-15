@@ -44,6 +44,8 @@ def _tensors(r):
         v = getattr(r, f.name)
         if f.name == "extras":
             out += list(v.values())
+        elif f.name == "_by_view":  # StereoResult keeps its maps in one StereoView per view
+            out += [x for view in (v or {}).values() for x in _tensors(view)]
         elif isinstance(v, tuple):
             out += [x for x in v if isinstance(x, torch.Tensor)]
         elif isinstance(v, torch.Tensor):
@@ -60,7 +62,8 @@ def test_to_moves_every_tensor_and_keeps_other_fields(name):
     assert len(_tensors(m)) == len(_tensors(r))
     for f in dataclasses.fields(r):
         v = getattr(r, f.name)
-        if not isinstance(v, torch.Tensor) and f.name != "extras" and not (isinstance(v, tuple) and v and None in v):
+        tensors = isinstance(v, torch.Tensor) or f.name in {"extras", "_by_view"}
+        if not tensors and not (isinstance(v, tuple) and v and None in v):
             assert getattr(m, f.name) == v
     assert r.to(torch.device("cpu")).numpy().keys() == r.numpy().keys()
 

@@ -133,21 +133,7 @@ def _cnx_ok(blk: _Blk) -> bool:
 
 
 def _cnx_prep(blk: _Blk) -> None:
-    m = blk.mlp
-    with torch.no_grad():
-        w2, b2 = m.fc2.weight.float(), m.fc2.bias.float()
-        if blk.gamma is not None:
-            g = blk.gamma.float()
-            w2, b2 = w2 * g[:, None], b2 * g
-        dt = m.fc2.weight.dtype
-        if blk.gamma is not None:
-            # the layer scale is folded into the parameters themselves (as `cnn.fold_layer_scale` does) and the scale
-            # set to 1: a separate folded copy of every fc2 weight cost a second copy of ~40 % of the model
-            m.fc2.weight.data = w2.to(dt).contiguous()
-            m.fc2.bias.data = b2.to(dt)
-            blk.gamma.data = torch.ones_like(blk.gamma)
-        _reg(blk, {"_w2": m.fc2.weight, "_b2": m.fc2.bias})
-    grn = getattr(m, "grn", None)
+    grn = getattr(blk.mlp, "grn", None)
     if grn is not None:
         blk._grn_eps = grn.eps
 
@@ -169,13 +155,9 @@ def _cnx_portable(self: _Blk, x: torch.Tensor) -> torch.Tensor:
     h = m.act(m.fc1(h))
     if hasattr(self, "_grn_eps"):
         h = _grn(self, h)
-    g = self.gamma
-    if torch.is_grad_enabled() and any(p is not None and p.requires_grad for p in (m.fc2.weight, m.fc2.bias, g)):
-        h = m.fc2(h)  # autograd: from the parameters (`_w2` / `_b2` are detached folded copies)
-        h = h * g if g is not None else h
-    else:
-        h = F.linear(h, self._w2, self._b2)
-    return shortcut + h.permute(0, 3, 1, 2)
+    h = m.fc2(h).permute(0, 3, 1, 2)
+    g = self.gamma  # the layer scale rides on the residual add (one pass); the parameters stay as loaded (autograd)
+    return shortcut + h if g is None else torch.addcmul(shortcut, h, g.view(1, -1, 1, 1))
 
 
 def _cnx_kernels(self: _Blk, x: torch.Tensor) -> torch.Tensor:
@@ -186,7 +168,7 @@ def _cnx_kernels(self: _Blk, x: torch.Tensor) -> torch.Tensor:
     h = lin(h, self._w1, self.mlp.fc1.bias, act=self._act)
     if hasattr(self, "_grn_eps"):
         h = _grn(self, h)
-    return lin(h, self._w2_4, self._b2, res=shortcut.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+    return lin(h, self._w2_4, self._b2_g, res=shortcut.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
 
 def patch_convnext(model: nn.Module, mode: str) -> int:
@@ -214,12 +196,18 @@ def patch_convnext(model: nn.Module, mode: str) -> int:
 
 
 def _cnx_kprep(blk: _Blk) -> None:
+    fc2, g = blk.mlp.fc2, blk.gamma
+    w2, b2 = fc2.weight.detach(), fc2.bias.detach()
+    if g is not None:  # the kernels' fc2 copy carries the layer scale (its GEMM epilogue adds the residual)
+        gf = g.detach().float()
+        w2, b2 = (w2.float() * gf[:, None]).to(w2.dtype), (b2.float() * gf).to(b2.dtype)
     _reg(
         blk,
         {
             "_w_rsc": blk.conv_dw.weight.data[:, 0].permute(1, 2, 0).contiguous(),
             "_w1": _w4(blk.mlp.fc1.weight),
-            "_w2_4": _w4(blk._w2),
+            "_w2_4": _w4(w2),
+            "_b2_g": b2.contiguous(),
         },
     )
     blk._act = _gelu(blk.mlp.act)

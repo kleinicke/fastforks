@@ -87,7 +87,7 @@ def _api_class(card, first):
     import importlib  # noqa: PLC0415
 
     api = importlib.import_module(f"fastforks.{card.task}._api")
-    if card.task == "promptable_segmentation":
+    if hasattr(api, "_model_class"):  # tasks with several model classes (promptable, volume) pick one per card
         return api._model_class(first.id)
     return next(
         c

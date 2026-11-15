@@ -96,5 +96,5 @@ They are not advertised in the docs. The model pages carry a "Not in this releas
 | `save()` keywords | `save(path)` is shared, but the extra keywords still differ per result type | grew per family | one keyword set for all results, with old names warning | result classes |
 | verb table | the task verbs (`predict` / `segment` / `match` ...) are documented per page | no single table | one generated table in `docs/api.md` | `tools/gen_docs.py` |
 | `labels=` (0.1.1 name of `class_names=`) | still accepted with a FutureWarning | migration rule | remove after 2026-12-15 (with the other renamed names) | `_core/arguments.py` `legacy_labels` |
-| weak tests | several error paths are covered only by the usage probe | no unit tests yet | turn the probe cases (`results/2026-11-15_api_final_review.md`) into parametrized tests | `tests/` |
+| weak tests | several error paths are covered only by the usage probe | no unit tests yet | turn the probe cases (the 2026-11-15 API final review) into parametrized tests | `tests/` |
 | `VolumeSession.add_point(zyx)` vs `VolumeInteractive(point=)` | the same point has two keyword names | added in separate steps | one name (`point`), the other a warned alias | `volume/_api.py` |

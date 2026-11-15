@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 
+from fastforks._core.runner import host
 from fastforks.ocr._runner import (
     DET_MEAN,
     DET_STD,
@@ -93,6 +94,7 @@ class Portable(Runner):
         rec = _net("rec", rec_program, rec_params, server=server, classes=len(self.chars))
         self.rec = rec.to(ctx.device, self.dtype)
 
+    @host
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[str]]:
         """Text lines of a `[1, 3, H, W]` RGB image."""
         p = self.ctx.params

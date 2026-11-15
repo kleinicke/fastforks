@@ -54,7 +54,7 @@ Median of 5 warm calls; memory is torch's peak allocated / reserved in GiB.
 
 ## What is left for the library
 
-Done 2026-11-14 (results/2026-11-14_marigold_v2_port.md): converter `tools/convert_marigold_v2.py` without the
+Done 2026-11-14 (port measurement log of that day): converter `tools/convert_marigold_v2.py` without the
 authors' stack (bit-equal to the lab file except two cuBLAS-bf16 folded constants, see the results file), family
 `depth/models/marigold_v2` (`portable`, `kernels`, `stream` option), kernel library `nf4`, golden (the lean net in
 `exact_mask` mode), speed / memory / accuracy rows on the reference card. The 8.4 GiB file is to be hosted
@@ -66,10 +66,10 @@ authors' stack (bit-equal to the lab file except two cuBLAS-bf16 folded constant
 
 ## Sources
 
-- Scripts, logs, reference tensors: `~/projects/experiments/017-fastforks-lib/results/2026-11-14_marigold_v2_3090/`
+- Scripts, logs, reference tensors: the 2026-11-14 Marigold V2 RTX 3090 measurement folder
   on the Ubuntu box (`mv2_lean.py` the port, `mv2_kernel.py` the kernel, `mv2_dump.py` the converter that still uses
   the authors' stack, `mv2_up.py` the original baseline, `mv2_test.py` check + benchmark, `mv2_requant.py` the
   packing check, `mv2_merge.py` the rejected LoRA merge).
-- Lean weights: `/mnt/hdd/projects/data/marigold-v2/mv2_depth_lean.safetensors` there
+- Lean weights: `marigold-v2/mv2_depth_lean.safetensors` in the cold-storage data folder there
   (sha256 `4b4aee27acdba6ba91582b76ed374fe91bf1bb02bea3be491e04e71a54fe9f5d`).
-- Earlier study on the 16 GB card: `results/2026-11-14_marigold_v2.md` in the same experiment folder.
+- Earlier study on the 16 GB card: the 2026-11-14 Marigold V2 measurement in the same folder.

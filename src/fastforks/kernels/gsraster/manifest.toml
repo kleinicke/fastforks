@@ -6,7 +6,7 @@ sources_sha256 = "218db3a067d0c480e2925fb1023fbb10caac8572146b2e1f00dfa61e5c3940
 kind = "cubin"
 url = "https://huggingface.co/fastforks/kernels/resolve/main/{lib}/{file}"
 licence = "Apache-2.0"
-derived_from = "gsplat (nerfstudio-project/gsplat, Apache-2.0): fully_fused_projection (antialiased EWA), isect_tiles keys and rasterize_to_pixels_3dgs_fwd, and our exp 001 fork's 4-pixels-per-thread forward; forward only, degree-3 SH colours fused into the projection, torch sort for the intersections; plus a brute-force exact kNN (own code)"
+derived_from = "gsplat (nerfstudio-project/gsplat, Apache-2.0): fully_fused_projection (antialiased EWA), isect_tiles keys and rasterize_to_pixels_3dgs_fwd, and our gsplat fork's 4-pixels-per-thread forward; forward only, degree-3 SH colours fused into the projection, torch sort for the intersections; plus a brute-force exact kNN (own code)"
 
 [toolchain]
 nvcc = "Build cuda_13.1.r13.1/compiler.37061995_0"

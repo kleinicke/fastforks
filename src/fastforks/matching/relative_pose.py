@@ -49,7 +49,7 @@ MIN_MATCHES_F = 7
 # Per round (all unfinished pairs at once): hypotheses (kernels; portable: fewer, its solver is slower and needs
 # more memory), matches each candidate is pre-scored on, candidates per pair scored on all matches (the best of the
 # pre-score), inlier refits of the local optimisation (in `_LO_DTYPE`: float32 matched float64 on MegaDepth-1500 at
-# half the time). Tuned on MegaDepth-1500 (results/2026-11-12_gpu_ransac.md).
+# half the time). Tuned on MegaDepth-1500 (2026-11-12).
 _ROUND = 512
 _ROUND_PORTABLE = 128
 _SUBSET = 256

@@ -188,10 +188,22 @@ def test_seeded_noise_is_the_cpu_generator_draw(task, family, device):
     (upstream's CUDA default) is a different sample, which alone moved Marigold's ETH3D AbsRel by 0.007 (2026-11-11).
     """
     noise = __import__(f"fastforks.{task}.models.{family}.model", fromlist=["Noise"]).Noise(7)
-    shape = torch.Size((1, 4, 6, 10))
-    want = torch.randn(shape, generator=torch.Generator().manual_seed(7))
-    for dtype in (torch.float32, torch.float16, torch.bfloat16):
-        got = noise(shape, torch.device(device), dtype)[0]  # the first draw: the initial latent
+    dev = torch.device(device)
+    # Each family's Noise has its own call (the shapes and dtypes its sampler needs); the first draw is checked:
+    # SD2 (Marigold v1, Lotus, ...) casts to the run dtype, Marigold V2 keeps float32, SeedVR2 draws its posterior
+    # noise first and casts it to bf16.
+    if family == "seedvr2":
+        size = (1, 6, 10)
+        draws = [(noise(size, dev)[0], torch.Size((1, 16, *size)), torch.bfloat16)]
+    elif family == "marigold_v2":
+        shape = torch.Size((1, 4, 6, 10))
+        draws = [(noise(shape, dev), shape, torch.float32)]
+    else:
+        shape = torch.Size((1, 4, 6, 10))
+        dts = (torch.float32, torch.float16, torch.bfloat16)
+        draws = [(noise(shape, dev, dt)[0], shape, dt) for dt in dts]  # the first draw: the initial latent
+    for got, shape, dtype in draws:
+        want = torch.randn(shape, generator=torch.Generator().manual_seed(7))
         assert got.device.type == device
         torch.testing.assert_close(got.cpu(), want.to(dtype), rtol=0, atol=0)  # also checks the dtype
 

@@ -541,5 +541,5 @@ refiners 45 / 41 / 33 ms. The GPU is busy the whole call, so nothing is left on 
 - **Not measured, estimates only:** RoPE and layer scale fused into the DINOv3 blocks (15 to 20 ms guessed), the fp32
   heads in bf16, `grid_sample` fused into the local correlation, bias and activation in the GEMM epilogue.
 
-Source: `~/projects/experiments/017-fastforks-lib/results/2026-11-14_marigold_v2_3090/roma_exp/` on the Ubuntu box
+Source: the 2026-11-14 Marigold V2 RTX 3090 measurement folder (`roma_exp/`) on the Ubuntu box
 (scripts and logs; `dwtriton.py` is the fused depthwise prototype).

@@ -29,6 +29,9 @@ import cv2
 import numpy as np
 import torch
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _data import DATA
+
 ROOT = Path(__file__).resolve().parents[1]
 SCORE, NMS = 0.02, 0.45
 TIERS = {  # tier -> (mode, dtype, how, column)
@@ -123,7 +126,7 @@ def main() -> None:
     ap.add_argument("--out", type=Path, required=True)
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
-    data = Path(os.environ.get("FASTFORKS_DATA", "/home/florian/projects/data")) / "widerface"
+    data = DATA / "widerface"
     tree = _golden().reference_tree(Path(os.environ["FF_YUNET_REPO"]), _golden().REF_COMMIT)
     sys.path.insert(0, str(tree))
     import yunet_train.tasks.face.evaluation as ev  # noqa: PLC0415  # ty: ignore[unresolved-import] - upstream AP code

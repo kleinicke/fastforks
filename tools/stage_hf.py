@@ -318,8 +318,8 @@ _SNIPPET_FAMILY = {
         "result.features  # tuple of [C_i, D/s_i, H/s_i, W/s_i] float32 maps at the strides model.strides"
     ),
     "nninteractive": (
-        "s = model.session(volume)  # volume: [D, H, W] float32 CT/MRI/PET (any intensity range)\n"
-        "s.add_point((z, y, x)).mask  # [D, H, W] bool; add_box / add_scribble / positive=False refine it"
+        "result = model(volume, point=(z, y, x))  # volume: [D, H, W] float32 CT/MRI/PET; or box= / scribble=\n"
+        "result.mask  # [D, H, W] bool; model.session(volume).add_point(...) refines one object step by step"
     ),
     "insid3": (
         'result = model("photo.jpg", reference_images="ref.jpg", reference_masks=ref_mask)  # ref_mask [H, W] bool\n'
