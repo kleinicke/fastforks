@@ -132,18 +132,27 @@ def untie_to_checkpoint(net: torch.nn.Module, sd: dict[str, torch.Tensor]) -> li
     `bbox_embed.N` / `class_embed.N` parameters to layer 0, although `decoder_bbox_embed_share` is false), so
     `from_pretrained` silently drops the checkpoint's other values. For each differing tensor the outermost module
     or tensor whose aliases hold other checkpoint values gets its own copy, then the checkpoint is loaded again;
-    aliases whose values agree (a decoder list shared with the top-level heads) stay shared.
+    aliases whose values agree (a decoder list shared with the top-level heads) stay shared. A tensor that no alias
+    holds other checkpoint values for (grounding-dino-base: the checkpoint stores `model.decoder.bbox_embed`, the
+    tie target is the top-level `bbox_embed`, which stays at its initial values) gets the checkpoint values copied in.
 
     Raises:
         CheckpointMismatchError: a tensor still differs from the checkpoint afterwards.
     """
     untied: list[str] = []
+    copied: set[str] = set()
     while True:
         own = net.state_dict()
         bad = [k for k in sd if k in own and not torch.equal(own[k], sd[k].to(own[k].device, own[k].dtype))]
         if not bad:
             return untied
         paths = _shared_slots(net, sd, bad)
+        if not paths and not copied.issuperset(bad):  # a tie overwrote the loaded values with initial ones
+            copied.update(bad)
+            with torch.no_grad():
+                for k in bad:
+                    own[k].copy_(sd[k])
+            continue
         if not paths:
             what = "checkpoint"
             raise CheckpointMismatchError(what, f"{len(bad)} tensors differ after loading ({', '.join(bad[:3])})")
