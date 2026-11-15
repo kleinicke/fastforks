@@ -33,8 +33,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-status = "none"
-reason = "not built yet: a VQGAN of 3x3 convolutions with GroupNorm around a 16 x 16 transformer; fp16-accumulate convolutions (`cudnn_hacc`) are the next step"
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 
 [[papers]]
 title = "Towards Robust Blind Face Restoration with Codebook Lookup Transformer"

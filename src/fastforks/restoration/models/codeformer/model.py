@@ -125,4 +125,34 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image: (_forward(net, image.to(dtype) * 2 - 1, w).float() + 1) / 2)
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Runner):
+    """Our kernels: fp16 NHWC convolutions with fused GroupNorm / SiLU / residual epilogues, portable transformer."""
+
+    Params = Params
+    dtypes = ("float16",)
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network and prepare it for the kernels."""
+        super().__init__(ctx)
+        from .kernels.inference import forward_kernels, prepare_kernels  # noqa: PLC0415 - needs the kernel libraries
+
+        p = ctx.params
+        self.net = CodeFormer(dim_embd=512, codebook_size=1024, n_head=8, n_layers=9,
+                              connect_list=["32", "64", "128", "256"])  # fmt: skip
+        load_strict(self.net, ctx.state_dict(key=p.key), f"{ctx.variant.ref} checkpoint")
+        for m in self.net.modules():
+            if isinstance(m, AttnBlock):
+                override(m, _attn)
+        self.net.eval().to(ctx.device)
+        prepare_kernels(self.net, ctx.device)
+        self._forward = forward_kernels
+
+    pad = Portable.pad
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The restored face in [0, 1] (the network works in [-1, 1])."""
+        out = self._forward(self.net, (image * 2 - 1).half(), self.ctx.params.fidelity)
+        return {"image": (out.float() + 1) / 2}
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}
