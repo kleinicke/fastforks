@@ -31,7 +31,7 @@ import torch
 
 from fastforks._core import mps, registry, warmup
 from fastforks._core.arguments import bind_error, warn_renamed
-from fastforks._core.cards import Dtype  # noqa: TC001 - re-exported to the task APIs, which annotate with it
+from fastforks._core.cards import Dtype, planned_reason, require_available
 from fastforks._core.checkpoint import mismatch_details, torch_mismatch
 from fastforks._core.deferred_init import deferred_init, float32_default
 from fastforks._core.errors import (
@@ -471,6 +471,7 @@ class Model:
         Raises:
             BackendUnavailableError: The backend has no exportable module (`kernels`).
         """
+        require_available(self.variant, "compile")
         if self.backend.mode != "portable":
             msg = f"{self.variant.ref} ({self.backend.mode}): only the portable backend compiles (kernels are opaque)"
             raise BackendUnavailableError(msg)
@@ -812,13 +813,15 @@ def _check_args(mode: str, dtype: str | torch.dtype | None) -> tuple[bool, Dtype
     return fp32, None if fp32 else cast("Dtype", name)
 
 
-def _no_auto_kernels(
+def _no_auto_kernels(  # noqa: PLR0911 - one return per reason
     card: ModelCard, variant: Variant, dev: torch.device, *, fp32: bool, want: Dtype | None
 ) -> str | None:
     """Why `mode='auto'` skips kernels for `variant` on `dev`, or None to try it."""
     kernels_dtype = card.kernels_dtype_on(dev)
     if "kernels" not in card.modes:
         return "no kernels backend"
+    if reason := planned_reason(variant, "kernels"):
+        return f"kernels planned for 0.2.1 ({reason})"
     if fp32 and kernels_dtype != "float32":
         return "dtype='float32'"
     if dev.type == "mps" and not card.mps_kernel_libs:
@@ -869,6 +872,7 @@ def load_variant(  # noqa: PLR0913 - the arguments of `load_model`
     log = logging.getLogger(f"fastforks.{task}")
     registry.require_commercial(card, variant)
     registry.require(card, variant.ref)
+    require_available(variant, "load")
     fp32, want = _check_args(mode, dtype)  # every argument is checked before `weights` logs its warning
     dev = resolve_device(device, card)
     opts = check_options(card, {} if options is None else options, variant.ref)
@@ -896,6 +900,8 @@ def load_variant(  # noqa: PLR0913 - the arguments of `load_model`
         level = logging.WARNING if failed else logging.INFO
         log.log(level, "%s: %s; using portable", variant.ref, reason)
         mode = "portable"
+    if mode == "kernels" and "kernels" in card.modes:
+        require_available(variant, "kernels")
     if mode not in card.modes:
         msg = f"{variant.ref} has no {mode!r} backend (has: {', '.join(card.modes)})"
         if mode == "kernels" and card.no_kernels_reason:

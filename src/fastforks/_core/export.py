@@ -24,10 +24,11 @@ import tempfile
 import threading
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import torch
 
+from fastforks._core.cards import require_available
 from fastforks._core.errors import BackendUnavailableError, InputError, install_hint
 from fastforks._core.export_resize import matmul_antialias
 from fastforks._core.tasks import spec
@@ -85,13 +86,16 @@ def output_name(model: Model) -> str:
     return next(k for k in spec(model.card.task).standard if k in model.variant.outputs)
 
 
-def check_exportable(model: Model, height: int, width: int, batch: int) -> None:
-    """Raise unless `model` runs portable and the size is supported.
+def check_exportable(
+    model: Model, height: int, width: int, batch: int, feature: Literal["onnx", "tensorrt"] = "onnx"
+) -> None:
+    """Raise unless `model` runs portable, its card does not mark `feature` as `[planned]` and the size is supported.
 
     Raises:
-        BackendUnavailableError: The model runs `kernels`.
+        BackendUnavailableError: The model runs `kernels`, or `feature` is known not to work yet (planned for 0.2.1).
         InputError: The size is below the model's minimum, or `batch < 1`.
     """
+    require_available(model.variant, feature)
     if model.backend.mode != "portable":
         msg = (
             f"{model.variant.ref}: the kernels backend runs custom CUDA kernels, which ONNX and TensorRT cannot run;"
@@ -675,7 +679,7 @@ def export_tensorrt(  # noqa: PLR0913 - export_onnx's arguments plus the build w
     The engine is run once on `example_inputs`: an all-NaN output removes it and raises `BackendUnavailableError`.
     """
     height, width = resolve_size(model, height, width)
-    check_exportable(model, height, width, batch)
+    check_exportable(model, height, width, batch, "tensorrt")
     _bounds(model, height, width, size_range, batch)
     _tensorrt()
     if not torch.cuda.is_available():  # before the ONNX export: the builder fails late and cryptically without one
