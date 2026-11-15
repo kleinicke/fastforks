@@ -16,3 +16,5 @@ Portable is within 0.06 AP of the original, 2.4x faster, 0.44x peak memory. The 
 earlier full run before the MSDA change (48.25). The card has no kernels mode (kernels = portable path), so there is no
 separate kernels tier. A first attempt resumed a 500-image run into a 5000-image one and mixed image sets (31.95);
 discarded, rerun in separate directories.
+
+Note (2026-11-15): the raw per-image detection dumps (`*.dets.json`, 106 MB) are no longer tracked (gitignored); they stay on disk in `results/raw/2026-11-15_grounding_dino_ap*/` of the worktree that produced them. The summary numbers above and the `.jsonl` rows are the record.
