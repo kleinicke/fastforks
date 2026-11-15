@@ -629,9 +629,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 43 models; size 1080x1920.
 
 - Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
-- Most accurate: [`waft-a1`](models/flow.md#waft) (790.2 ms, error 2.315).
+- Most accurate: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.315).
 - Fastest commercially usable: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
-- Most accurate commercially usable: [`waft-a1`](models/flow.md#waft) (790.2 ms, error 2.315).
+- Most accurate commercially usable: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.315).
 
 | model | commercial use | KITTI 2015 train EPE (px) | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
@@ -657,8 +657,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 395.3 | – | – | – |
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | – | – | – |
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 427.4 | 1.2x vs original (1080x1920) | 1301 |
+| [`waft-a1`](models/flow.md#waft) | yes | 2.315 | 1533.1 (1080x1920) | 790.8 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
 | [`megaflow`](models/flow.md#megaflow) | yes | 1.714 † | 1588.5 (1080x1920) | 1109.0 | 733.5 | 2.2x vs original (1080x1920) | 2866 |
-| [`waft-a1`](models/flow.md#waft) | yes | 2.315 | 1533.1 (1080x1920) | 790.2 | – | – | – |
 | [`waft-a1-sintel`](models/flow.md#waft) | yes | – | 1532.7 (1080x1920) | 790.5 | – | – | – |
 | [`waft-a1-kitti`](models/flow.md#waft) | yes | – | 1533.3 (1080x1920) | 790.8 | – | – | – |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 800.4 | – | – | – |
@@ -761,7 +761,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gfpgan-v1.4`](models/restoration.md#gfpgan) | yes | 21.9 (512x512) | 21.2 | 18.0 | 1.2x vs original (512x512) | 473 |
 | [`big-lama`](models/restoration.md#lama-big-lama-inpainting) | yes | 38.0 (512x512) | 26.0 | 21.2 | 1.8x vs original (512x512) | 219 |
 | [`realesr-general-x4v3`](models/restoration.md#real-esrgan-compact) | yes | 42.1 (512x512) | 30.1 | 24.0 | 1.8x vs original (512x512) | 125 |
-| [`codeformer`](models/restoration.md#codeformer) | no | 85.7 (512x512) | 48.6 | – | – | – |
+| [`codeformer`](models/restoration.md#codeformer) | no | 85.7 (512x512) | 48.6 | 40.4 | 2.1x vs original (512x512) | 432 |
 | [`nafnet-gopro`](models/restoration.md#nafnet) | yes | 63.7 (512x512) | 60.4 | 55.3 | 1.2x vs original (512x512) | 451 |
 | [`nafnet-sidd`](models/restoration.md#nafnet) | yes | 71.6 (512x512) | 60.6 | 56.9 | 1.3x vs original (512x512) | 575 |
 | [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 97.0 | 80.2 | 1.6x vs original (512x512) | 333 |

@@ -13,7 +13,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`big-lama`](#lama) | yes | 21.2, 1.8x | 284, 0.99x |
-| [`codeformer`](#codeformer) | no | no kernels | no kernels |
+| [`codeformer`](#codeformer) | no | 40.4, 2.1x | 496, 0.46x |
 | [`dat-2-x4`](#dat) | yes | 1247, 3.9x | 2858, 1.1x |
 | [`dat-light-x4`](#dat) | yes | 268, 8.2x | 1572, 0.95x |
 | [`dat-x4`](#dat) | yes | 1421, 6.7x | 2864, 1.1x |
@@ -100,7 +100,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `codeformer` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>48.6<br>no kernels<br>30.8<br>16.3 | 959 / 1090<br>512 / 638<br>no kernels<br>407 / 458<br>593 / 642 |
+| `codeformer` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>48.6<br>40.4<br>30.8<br>16.3 | 959 / 1090<br>512 / 638<br>432 / 496<br>407 / 458<br>593 / 642 |
 
 <details><summary>Details</summary>
 
@@ -111,15 +111,14 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/LICENSE ; https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/README.md (weights: https://github.com/sczhou/CodeFormer/releases/tag/v0.1.0)
 - Training data: Flickr-Faces-HQ (FFHQ, 70k face images) (Paper Sec. 4.1: FFHQ (70 000 faces, resized to 512 x 512) with synthetic degradations (blur, downsampling, noise, JPEG).)
 - Options: `fidelity` = 0.5 (0.0 to 1.0; also `fidelity_weight`)
-- Kernel libraries: none (not built yet: a VQGAN of 3x3 convolutions with GroupNorm around a 16 x 16 transformer; fp16-accumulate convolutions (`cudnn_hacc`) are the next step)
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `codeformer`
 - Outputs: image
 - Input size: any H x W >= 512, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `codeformer` 512x512 (0.5 GiB peak allocated, 0.7 reserved)
-- no kernels: not built yet: a VQGAN of 3x3 convolutions with GroupNorm around a 16 x 16 transformer; fp16-accumulate convolutions (`cudnn_hacc`) are the next step.
 - `codeformer` 512x512, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 65 s (ONNX + engine).
 - `codeformer` original 512x512: upstream inference_codeformer.py on the aligned face, float32, w 0.5
-- `codeformer` load / first call: original 1.24 s / 0.406 s, portable 0.69 s / 0.228 s
+- `codeformer` load / first call: original 1.24 s / 0.406 s, portable 0.69 s / 0.228 s, kernels 0.65 s / 0.23 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
@@ -128,7 +127,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `codeformer` | no kernels backend | - | - |
+| `codeformer` | not measured | - | - |
 
 </details>
 
@@ -890,7 +889,7 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
 | [`big-lama`](#lama) | portable, kernels | Apache-2.0 | Apache-2.0 | places365 | yes | image |
-| [`codeformer`](#codeformer) | portable | LicenseRef-noncommercial | LicenseRef-noncommercial | ffhq | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial) | image |
+| [`codeformer`](#codeformer) | portable, kernels | LicenseRef-noncommercial | LicenseRef-noncommercial | ffhq | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial) | image |
 | [`dat-2-x4`](#dat) | portable, kernels | Apache-2.0 | Apache-2.0 | div2k, flickr2k | yes | image |
 | [`dat-light-x4`](#dat) | portable, kernels | Apache-2.0 | Apache-2.0 | div2k, flickr2k | yes | image |
 | [`dat-x4`](#dat) | portable, kernels | Apache-2.0 | Apache-2.0 | div2k, flickr2k | yes | image |

@@ -52,9 +52,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`sea-raft-s`](#sea_raft) | yes | 1.054 † | 50.4, 6.0x | 492, 0.058x |
 | [`sea-raft-s-kitti`](#sea_raft) | yes | 0.935 † | 50.5, 5.9x | 492, 0.058x |
 | [`sea-raft-s-spring`](#sea_raft) | yes | 7.757 † | 16.0, 2.6x | 192, 0.25x |
-| [`waft-a1`](#waft) | yes | 2.315 | no kernels | no kernels |
-| [`waft-a1-kitti`](#waft) | yes | – | no kernels | no kernels |
-| [`waft-a1-sintel`](#waft) | yes | – | no kernels | no kernels |
+| [`waft-a1`](#waft) | yes | 2.315 | 519, 3.0x | 2264, 0.38x |
+| [`waft-a1-kitti`](#waft) | yes | – | – | – |
+| [`waft-a1-sintel`](#waft) | yes | – | – | – |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
@@ -833,9 +833,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>790<br>no kernels | 5537 / 5916<br>3553 / 4076<br>no kernels |
-| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>no kernels | 5537 / 5936<br>3553 / 4196<br>no kernels |
-| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>no kernels | 5537 / 5916<br>3553 / 4076<br>no kernels |
+| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>519 | 5537 / 5916<br>3553 / 4076<br>1851 / 2264 |
+| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>– | 5537 / 5936<br>3553 / 4196<br>– |
+| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels | 1533<br>791<br>– | 5537 / 5916<br>3553 / 4076<br>– |
 
 <details><summary>Details</summary>
 
@@ -848,16 +848,15 @@ Commercial use: yes.
   - `waft-a1-kitti`: TartanAir, FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (TartanAir, FlyingChairs, FlyingThings3D, then fine-tuned on KITTI 2015 (5000 steps; the config does not name the starting checkpoint, counted as the TSKH stage as in SEA-RAFT))
   - `waft-a1-sintel`: TartanAir, FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (TartanAir, FlyingChairs, FlyingThings3D, then the mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH))
 - Options: `iters` = 5 (>= 1)
-- Kernel libraries: none (no kernels mode was built for it; Depth Anything's fast ViT kernels would fit)
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `waft-a1`, `waft-a1-kitti`, `waft-a1-sintel`
 - Outputs: flow
 - Input size: any H x W >= 112, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `waft-a1` 1080x1920 (3.5 GiB peak allocated, 4.0 reserved); `waft-a1-kitti` 1080x1920 (3.5 GiB peak allocated, 4.1 reserved); `waft-a1-sintel` 1080x1920 (3.5 GiB peak allocated, 4.0 reserved)
-- no kernels: no kernels mode was built for it; Depth Anything's fast ViT kernels would fit.
 - `waft-a1` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t.json), iters=5
 - `waft-a1-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-kitti.json), iters=5
 - `waft-a1-sintel` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-sintel.json), iters=5
-- `waft-a1` load / first call: original 5.87 s / 3.409 s, portable 0.51 s / 0.79 s
+- `waft-a1` load / first call: original 5.87 s / 3.409 s, portable 0.51 s / 0.79 s, kernels 0.57 s / 0.21 s (375x1242)
 - `waft-a1-kitti` load / first call: original 4.06 s / 2.874 s, portable 0.54 s / 0.79 s
 - `waft-a1-sintel` load / first call: original 2.93 s / 2.873 s, portable 0.51 s / 0.79 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -878,9 +877,9 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `waft-a1` | no kernels backend | - | - |
-| `waft-a1-kitti` | no kernels backend | - | - |
-| `waft-a1-sintel` | no kernels backend | - | - |
+| `waft-a1` | not measured | - | - |
+| `waft-a1-kitti` | not measured | - | - |
+| `waft-a1-sintel` | not measured | - | - |
 
 </details>
 
@@ -932,9 +931,9 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`sea-raft-s`](#sea_raft) | portable, kernels | BSD-3-Clause | BSD-3-Clause | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 | [`sea-raft-s-kitti`](#sea_raft) | portable, kernels | BSD-3-Clause | BSD-3-Clause | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 | [`sea-raft-s-spring`](#sea_raft) | portable, kernels | BSD-3-Clause | BSD-3-Clause | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k, spring | yes | flow |
-| [`waft-a1`](#waft) | portable | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow | yes | flow |
-| [`waft-a1-kitti`](#waft) | portable | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
-| [`waft-a1-sintel`](#waft) | portable | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
+| [`waft-a1`](#waft) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow | yes | flow |
+| [`waft-a1-kitti`](#waft) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
+| [`waft-a1-sintel`](#waft) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 
 </details>
 

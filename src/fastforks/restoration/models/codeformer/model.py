@@ -129,7 +129,6 @@ class Kernels(Runner):
     """Our kernels: fp16 NHWC convolutions with fused GroupNorm / SiLU / residual epilogues, portable transformer."""
 
     Params = Params
-    dtypes = ("float16",)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and prepare it for the kernels."""
