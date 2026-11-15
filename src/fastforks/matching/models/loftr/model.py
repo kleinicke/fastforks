@@ -23,7 +23,7 @@ from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import conv_ep
 
-from .net.loftr import LoFTR, BasicBlock, ResNetFPN_8_2
+from .net.loftr import BasicBlock, LoFTR, ResNetFPN_8_2
 
 if TYPE_CHECKING:
     from fastforks.matching._runner import Context
@@ -121,30 +121,34 @@ class Portable(Runner):
 
 def _affines(backbone: ResNetFPN_8_2) -> None:
     """The eval BatchNorms of the backbone as fp32 affines `(s, t)` next to their conv (plain attributes)."""
-    pairs = [(backbone.conv1, backbone.bn1)]
+    pairs: list[tuple[nn.Module, nn.Module]] = [(backbone.conv1, backbone.bn1)]
     for block in backbone.modules():
         if isinstance(block, BasicBlock):
             pairs += [(block.conv1, block.bn1), (block.conv2, block.bn2)]
             if block.downsample is not None:
                 pairs.append((block.downsample[0], block.downsample[1]))
     for conv, bn in pairs:
-        conv._affine = cnn_kernels.bn_affine(bn, conv)  # noqa: SLF001
+        conv.__dict__["_affine"] = cnn_kernels.bn_affine(bn, conv)
+
+
+def _affine(conv: nn.Module) -> tuple[torch.Tensor, torch.Tensor]:
+    return conv.__dict__["_affine"]
 
 
 def _block_forward(self: BasicBlock, x: torch.Tensor) -> torch.Tensor:
     """`relu(bn2(conv2(relu(bn1(conv1(x))))) + shortcut)` with the BN and ReLU in the conv epilogues."""
     relu = cnn_kernels.ACT["relu"]
-    y = conv_ep(self.conv1, x, *self.conv1._affine, relu)  # noqa: SLF001
-    r = x if self.downsample is None else conv_ep(self.downsample[0], x, *self.downsample[0]._affine, 0)  # noqa: SLF001
+    y = conv_ep(self.conv1, x, *_affine(self.conv1), relu)
+    r = x if self.downsample is None else conv_ep(self.downsample[0], x, *_affine(self.downsample[0]), 0)
     pad = self.conv2.weight.shape[0] - r.shape[1]  # 196 channels: the conv pads its output to a multiple of 8
     if pad:
         r = F.pad(r, (0, 0, 0, 0, 0, pad)).contiguous(memory_format=torch.channels_last)
-    return conv_ep(self.conv2, y, *self.conv2._affine, relu, r=r)  # noqa: SLF001
+    return conv_ep(self.conv2, y, *_affine(self.conv2), relu, r=r)
 
 
 def _fpn_forward(self: ResNetFPN_8_2, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """`ResNetFPN_8_2.forward` with the stem conv + BN + ReLU fused."""
-    x0 = conv_ep(self.conv1, x, *self.conv1._affine, cnn_kernels.ACT["relu"])  # noqa: SLF001
+    x0 = conv_ep(self.conv1, x, *_affine(self.conv1), cnn_kernels.ACT["relu"])
     x1 = self.layer1(x0)
     x2 = self.layer2(x1)
     x3 = self.layer3(x2)
