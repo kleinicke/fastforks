@@ -25,7 +25,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anycalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.4<br>29.4<br>21.3<br>25.5<br>fails: ONNX export: conversion failed | 1343 / 1352<br>705 / 742<br>741 / 816<br>719 / 756<br>– |
+| `anycalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.4<br>29.4<br>21.3<br>25.5<br>planned for 0.2.1 | 1343 / 1352<br>705 / 742<br>741 / 816<br>719 / 756<br>– |
 
 <details><summary>Details</summary>
 
@@ -38,6 +38,7 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`, `cudnn_hacc`
 - Variants: `anycalib-pinhole`
+- Not in this release (planned for 0.2.1): `anycalib-pinhole` ONNX / TensorRT export: the ONNX converter cannot decompose the exported graph (ConversionError, step 2/3)
 - Outputs: intrinsics, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anycalib-pinhole` 3000x4000 (1.0 GiB peak allocated, 1.1 reserved)
@@ -77,7 +78,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>82.3<br>82.5<br>73.1<br>fails: unsupported: torch.export: data-dependent guard ((norm_x ==  | 502 / 558<br>320 / 378<br>279 / 342<br>246 / 300<br>– |
+| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>82.3<br>82.5<br>73.1<br>planned for 0.2.1 | 502 / 558<br>320 / 378<br>279 / 342<br>246 / 300<br>– |
 
 <details><summary>Details</summary>
 
@@ -90,6 +91,7 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `geocalib-pinhole`
+- Not in this release (planned for 0.2.1): `geocalib-pinhole` ONNX / TensorRT export: torch.export stops at a data-dependent branch ((norm_x == 0).any())
 - Outputs: intrinsics, gravity, roll, pitch, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `geocalib-pinhole` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)

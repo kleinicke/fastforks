@@ -45,5 +45,6 @@ venue = "ICLR 2026"
 
 [[variants]]
 id = "pi3"
+planned = { onnx = "the ONNX converter fails on the exported program (ConversionError, step 3/3)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "model.safetensors", size = 3834909248, sha256 = "33580e4702ac671558aedeab1148fd08118f7ce45bdbeb99f3e3cf340062875d", url = "https://huggingface.co/yyfz233/Pi3/resolve/ae722e7039287d0c8fde9f11f197f804f44b510c/model.safetensors" }]

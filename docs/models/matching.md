@@ -84,8 +84,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.8<br>40.6<br>35.1<br>29.5<br>fails: unsupported: torch.export: data-dependent guard (masks.sum() | 1305 / 1364<br>1300 / 1404<br>1238 / 1324<br>1653 / 1680<br>– |
-| `disk-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 117<br>116<br>52.1<br>113<br>fails: ONNX export: torch.export failed | 1955 / 2412<br>1950 / 2398<br>736 / 778<br>1375 / 1502<br>– |
+| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.8<br>40.6<br>35.1<br>29.5<br>planned for 0.2.1 | 1305 / 1364<br>1300 / 1404<br>1238 / 1324<br>1653 / 1680<br>– |
+| `disk-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 117<br>116<br>52.1<br>113<br>planned for 0.2.1 | 1955 / 2412<br>1950 / 2398<br>736 / 778<br>1375 / 1502<br>– |
 
 <details><summary>Details</summary>
 
@@ -98,6 +98,7 @@ Commercial use: yes.
 - Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 0)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `aliked-lightglue`, `disk-lightglue`
+- Not in this release (planned for 0.2.1): `aliked-lightglue` ONNX / TensorRT export: torch.export stops at a data-dependent branch (masks.sum() == 0); `disk-lightglue` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-lightglue` 3000x4000 (1.5 GiB peak allocated, 2.0 reserved); `disk-lightglue` 3000x4000 (2.2 GiB peak allocated, 2.9 reserved)
@@ -148,8 +149,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>–<br>164<br>fails: unsupported: TensorRT ITopK supports K <= 3840 only; the key | 1734 / 1992<br>1535 / 1654<br>–<br>1893 / 2434<br>– |
-| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 666<br>592<br>–<br>330<br>fails: TensorRT engine build failed | 2335 / 2472<br>2142 / 2334<br>–<br>2881 / 3316<br>– |
+| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>–<br>164<br>planned for 0.2.1 | 1734 / 1992<br>1535 / 1654<br>–<br>1893 / 2434<br>– |
+| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 666<br>592<br>–<br>330<br>planned for 0.2.1 | 2335 / 2472<br>2142 / 2334<br>–<br>2881 / 3316<br>– |
 
 <details><summary>Details</summary>
 
@@ -162,6 +163,7 @@ Commercial use: yes.
 - Options: `size` = 784 (>= 56), `max_keypoints` = 10000 (>= 1)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `dedode-v2-b`, `dedode-v2-g`
+- Not in this release (planned for 0.2.1): `dedode-v2-b` TensorRT export: TensorRT TopK supports K <= 3840; the keypoint top-k is larger; `dedode-v2-g` TensorRT export: TensorRT TopK supports K <= 3840; the keypoint top-k is larger
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dedode-v2-b` 3000x4000 (1.9 GiB peak allocated, 3.8 reserved); `dedode-v2-g` 3000x4000 (2.5 GiB peak allocated, 4.5 reserved)
@@ -212,8 +214,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>–<br>176<br>fails: unsupported: torch.export: data-dependent guard in loftr.py: | 1739 / 1870<br>796 / 904<br>–<br>1149 / 1232<br>– |
-| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>111<br>–<br>71.0<br>fails: ONNX export: torch.export failed | 1751 / 1910<br>796 / 904<br>–<br>634 / 684<br>– |
+| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>–<br>176<br>planned for 0.2.1 | 1739 / 1870<br>796 / 904<br>–<br>1149 / 1232<br>– |
+| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>111<br>–<br>71.0<br>planned for 0.2.1 | 1751 / 1910<br>796 / 904<br>–<br>634 / 684<br>– |
 
 <details><summary>Details</summary>
 
@@ -226,6 +228,7 @@ Commercial use: yes.
 - Options: `long_side` = 840 (>= 0)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `loftr-outdoor`, `loftr-indoor`
+- Not in this release (planned for 0.2.1): `loftr-outdoor` ONNX / TensorRT export: torch.export stops at a data-dependent branch (loftr.py:190); `loftr-indoor` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loftr-outdoor` 3000x4000 (1.9 GiB peak allocated, 2.8 reserved); `loftr-indoor` 3000x4000 (2.0 GiB peak allocated, 2.8 reserved)
@@ -276,7 +279,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>308<br>no kernels<br>285<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>1767 / 1878<br>no kernels<br>2870 / 3216<br>– |
+| `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>308<br>no kernels<br>285<br>planned for 0.2.1 | –<br>1767 / 1878<br>no kernels<br>2870 / 3216<br>– |
 
 <details><summary>Details</summary>
 
@@ -289,6 +292,7 @@ Commercial use: yes.
 - Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 16), `size` = 784 (>= 56)
 - Kernel libraries: none (not implemented: data-dependent keypoint and match counts. Portable is 307.9 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1790 vs 1843 MB (reserved 2562 vs 3398), matches 1030 vs 1038-1039)
 - Variants: `loma-b`
+- Not in this release (planned for 0.2.1): `loma-b` ONNX / TensorRT export: the export fails in the network call (negative tensor dimension -1)
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loma-b` 3000x4000 (2.4 GiB peak allocated, 3.6 reserved)
@@ -325,7 +329,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `romav1` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>376<br>356<br>deferred (build >5 min)<br>fails: ONNX export: conversion failed | 3887 / 4094<br>1720 / 1820<br>1720 / 1860<br>–<br>– |
+| `romav1` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>376<br>356<br>deferred (build >5 min)<br>planned for 0.2.1 | 3887 / 4094<br>1720 / 1820<br>1720 / 1860<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -339,6 +343,7 @@ Commercial use: yes.
 - Options: `coarse_size` = 560 (>= 14), `fine_size` = 864 (>= 0)
 - Kernel libraries: `fastbb`
 - Variants: `romav1`
+- Not in this release (planned for 0.2.1): `romav1` ONNX / TensorRT export: the ONNX converter fails on the exported program (ConversionError, step 3/3)
 - Outputs: warp, certainty
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `romav1` 3000x4000 (1.9 GiB peak allocated, 2.2 reserved)
@@ -441,8 +446,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.89<br>7.17<br>no kernels<br>5.65<br>fails: unsupported: torch.export: data-dependent guard in the NMS / | 128 / 174<br>122 / 154<br>no kernels<br>186 / 212<br>– |
-| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>no kernels<br>16.2<br>fails: ONNX export: torch.export failed | 448 / 478<br>445 / 476<br>no kernels<br>262 / 278<br>– |
+| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.89<br>7.17<br>no kernels<br>5.65<br>planned for 0.2.1 | 128 / 174<br>122 / 154<br>no kernels<br>186 / 212<br>– |
+| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>no kernels<br>16.2<br>planned for 0.2.1 | 448 / 478<br>445 / 476<br>no kernels<br>262 / 278<br>– |
 
 <details><summary>Details</summary>
 
@@ -455,6 +460,7 @@ Commercial use: yes.
 - Options: `max_keypoints` = 4096 (>= 1), `long_side` = 0 (>= 0)
 - Kernel libraries: none (not implemented: data-dependent keypoint counts (NMS, top-k, match filtering); the extractor is a small CNN)
 - Variants: `xfeat`, `xfeat-lighterglue`
+- Not in this release (planned for 0.2.1): `xfeat` ONNX / TensorRT export: torch.export stops at a data-dependent branch (NMS / keypoint selection); `xfeat-lighterglue` ONNX / TensorRT export: torch.export stops at a data-dependent branch (NMS / keypoint selection)
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `xfeat` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved); `xfeat-lighterglue` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved)

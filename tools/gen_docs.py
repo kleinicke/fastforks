@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 import _devices
 import goldens
 from fastforks._core import licences, registry
+from fastforks._core.cards import PLANNED_RELEASE, planned_reason
 from fastforks._core.sizes import card_size_lines
 from fastforks._core.tasks import spec
 
@@ -451,9 +452,15 @@ def _engine_part(model_id: str) -> str:
 
 @functools.cache
 def _compile_rows() -> dict[tuple[str, str], dict]:
-    """docs/data/speed_compile.jsonl: the latest row per (model id, mode)."""
+    """docs/data/speed_compile.jsonl: the latest row per (model id, mode); a card-`[planned]` mode reads `planned`."""
     path = ROOT / "docs" / "data" / "speed_compile.jsonl"
-    return {(r["ref"], r["mode"]): r for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])}
+    rows = {(r["ref"], r["mode"]): r for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])}
+    variants = {v.id: v for t in registry.TASKS for _, v in registry.cards(t).values()}
+    for (ref, mode), r in rows.items():
+        if (v := variants.get(ref)) and mode in {"compile", "tensorrt"} and planned_reason(v, mode):
+            rows[ref, mode] = {**r, "fails": PLANNED}  # gated in this release: no time from an older build
+            rows[ref, mode].pop("ms", None)
+    return rows
 
 
 def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]], list[str]]:
@@ -1208,6 +1215,7 @@ def render(task: str) -> str:
                 else ""
             ),
             f"- Variants: {', '.join(_variant(v) for v in card.variants)}",
+            *_planned_line(card),
             f"- Outputs: {', '.join(_output(card, o) for o in card.outputs)}"
             + "".join(f"; {k}: `{val}`" for k, val in card.output_info.items()),
             *card_size_lines(card),
@@ -1627,7 +1635,7 @@ def _bench_block() -> str:
 _COMPILE_BEGIN, _COMPILE_END = "<!-- compile:begin", "<!-- compile:end -->"
 
 
-DEFERRED = "deferred: measure later (build >5 min)"  # `fails` of a row whose build / export ran over the 5 min lock rule
+DEFERRED = "deferred: measure later (build >5 min)"  # `fails` of a row whose build / export ran over the 5 min lock
 _FAIL_REASONS = (  # (pattern in the recorded error, short reason for the table); first match wins
     (r"^deferred", DEFERRED),
     (r"cannot parse .*_aa and operator: Resize", "TensorRT: antialiased resize not supported"),
@@ -1656,8 +1664,25 @@ def _fail_reason(msg: str) -> str:
     return re.sub(r"\x1b\[\d+m|/tmp/\S+/", "", msg.removeprefix("run: "))[:60]
 
 
+PLANNED = f"planned for {PLANNED_RELEASE}"  # a card-`[planned]` feature: not available in this release
+
+
+def _planned_line(card: ModelCard) -> list[str]:
+    """`- Not in this release` for the card's `[planned]` features (they raise "planned for 0.2.1")."""
+    what = {"load": "loading", "compile": "compile()", "onnx": "ONNX / TensorRT export", "tensorrt": "TensorRT export"}
+    parts = [
+        f"`{v.id}` {what.get(f, f)}: {reason.rstrip('.')}"
+        for v in card.variants
+        for f, reason in v.planned.items()
+        if not (f == "tensorrt" and "onnx" in v.planned)
+    ]
+    return [f"- Not in this release (planned for {PLANNED_RELEASE}): {'; '.join(parts)}"] if parts else []
+
+
 def _fail_cell(msg: str) -> str:
-    """`deferred (build >5 min)` for a build over the lock limit (not a failure), else `fails: reason`."""
+    """`deferred (build >5 min)` (over the lock limit), `planned for 0.2.1` (card `[planned]`) or `fails: reason`."""
+    if msg == PLANNED:
+        return PLANNED
     return "deferred (build >5 min)" if msg.startswith("deferred") else f"fails: {_fail_reason(msg)}"
 
 

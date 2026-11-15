@@ -56,6 +56,7 @@ venue = "TPAMI 2026"
 
 [[variants]]
 id = "track-on2"  # upstream trackon2_dinov3_checkpoint.pt; TAP-Vid DAVIS delta_avg 79.9 (upstream README)
+planned = { onnx = "torch.export stops at a data-dependent branch (model.py:107)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [
   { name = "trackon2_dinov3_checkpoint.pt", size = 93901966, sha256 = "0e319c279cbdf51a5fc761b47dc1969520e8cfccfb57dc5a019a8c56e1039cd4", url = "https://huggingface.co/gorkaydemir/track_on2/resolve/672a47c4614f6d661edc36b7999a5bb5c3a5d2c9/trackon2_dinov3_checkpoint.pt" },
@@ -64,6 +65,7 @@ weights = [
 
 [[variants]]
 id = "track-on-r"  # upstream track_on_r.pt (Track-On2 fine-tuned on real videos); TAP-Vid DAVIS delta_avg 80.3 (upstream README)
+planned = { onnx = "the export fails in the network call (ValueError: expected 4 values, got 2)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [
   { name = "track_on_r.pt", size = 93892091, sha256 = "a77165e6e84b8c4ffe735a6da5fb8554bcd616bb522a3a911fae22abe9f2e214", url = "https://huggingface.co/gorkaydemir/track_on_r/resolve/9401fe5c9ec6e21fb4f6070f05ac9ce75e3c9845/track_on_r.pt" },

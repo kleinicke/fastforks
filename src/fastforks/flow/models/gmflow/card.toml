@@ -74,12 +74,14 @@ weights = [{ name = "gmflow-scale1-mixdata-train320x576-4c3a6e9a.pth", size = 18
 
 [[variants]]
 id = "gmflow-scale2-things"  # upstream gmflow-scale2-things-36579974.pth; zero-shot on Sintel / KITTI
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin error on the attention graph)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { scales = 2 }
 weights = [{ name = "gmflow-scale2-things-36579974.pth", size = 18915017, sha256 = "365799747d9f1dbd81af80a190688b78585ddb1d781c35acc2874d2543854674", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-things-36579974.pth" }]
 
 [[variants]]
 id = "gmflow-scale2-sintel"  # upstream gmflow-scale2-sintel-3ed1cf48.pth
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin error on the attention graph)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { scales = 2 }
 licence = { training_data = ["flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "FlyingChairs, FlyingThings3D, then upstream's 'sintel' stage: Sintel, KITTI 2015, HD1K and FlyingThings3D" }
@@ -87,6 +89,7 @@ weights = [{ name = "gmflow-scale2-sintel-3ed1cf48.pth", size = 18915017, sha256
 
 [[variants]]
 id = "gmflow-scale2-mixdata"  # upstream gmflow-scale2-mixdata-train320x576-9ff1c094.pth
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin error on the attention graph)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { scales = 2 }
 licence = { training_data = ["unstated"], training_note = "MODEL_ZOO.md: \"trained on several mixed public datasets\" (not listed)" }
@@ -94,12 +97,14 @@ weights = [{ name = "gmflow-scale2-mixdata-train320x576-9ff1c094.pth", size = 18
 
 [[variants]]
 id = "gmflow-scale2-regrefine6-things"  # upstream gmflow-scale2-regrefine6-things-776ed612.pth; zero-shot on Sintel / KITTI
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin error on the attention graph)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { scales = 2, refine = 6 }
 weights = [{ name = "gmflow-scale2-regrefine6-things-776ed612.pth", size = 29500177, sha256 = "776ed612efb8617abf0fa73ef1bd097c96eb9d99db50c292e4b12442ee6cc4a8", url = "https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-regrefine6-things-776ed612.pth" }]
 
 [[variants]]
 id = "gmflow-scale2-regrefine6-sintelft"  # upstream gmflow-scale2-regrefine6-sintelft-6e39e2b9.pth; upstream's Sintel submission model
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin error on the attention graph)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { scales = 2, refine = 6 }
 licence = { training_data = ["flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "FlyingChairs, FlyingThings3D, the 'sintel' stage (Sintel, KITTI 2015, HD1K, FlyingThings3D), then fine-tuned on Sintel" }
@@ -107,6 +112,7 @@ weights = [{ name = "gmflow-scale2-regrefine6-sintelft-6e39e2b9.pth", size = 295
 
 [[variants]]
 id = "gmflow-scale2-regrefine6-kitti"  # upstream gmflow-scale2-regrefine6-kitti15-25b554d7.pth; upstream's KITTI 2015 submission model
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin error on the attention graph)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { scales = 2, refine = 6 }
 licence = { training_data = ["flyingchairs", "sceneflow", "kitti", "unstated"], training_note = "FlyingChairs, FlyingThings3D, Virtual KITTI 2 (no dataset entry here yet, hence 'unstated'), then KITTI 2012 + 2015 (upstream scripts/gmflow_scale2_regrefine6_train.sh, stages vkitti2 and kitti_mix)" }
@@ -114,6 +120,7 @@ weights = [{ name = "gmflow-scale2-regrefine6-kitti15-25b554d7.pth", size = 2950
 
 [[variants]]
 id = "gmflow-scale2-regrefine6-mixdata"  # upstream gmflow-scale2-regrefine6-mixdata-train320x576-4e7b215d.pth
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin error on the attention graph)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { scales = 2, refine = 6 }
 licence = { training_data = ["unstated"], training_note = "MODEL_ZOO.md: \"trained on several mixed public datasets\" (not listed)" }

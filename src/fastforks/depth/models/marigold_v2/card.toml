@@ -55,6 +55,7 @@ venue = "ACM TOG (SIGGRAPH Asia 2026)"
 
 [[variants]]
 id = "marigold-v2-depth"
+planned = { onnx = "the NF4 transformer expands its weights per call; no ONNX path yet" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [
   { name = "marigold-v2-depth-log-stage2-nf4.safetensors", size = 8974251334, sha256 = "4b4aee27acdba6ba91582b76ed374fe91bf1bb02bea3be491e04e71a54fe9f5d", url = "https://huggingface.co/fastforks/marigold-v2-depth/resolve/main/marigold-v2-depth-log-stage2-nf4.safetensors" },

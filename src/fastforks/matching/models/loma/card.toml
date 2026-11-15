@@ -52,6 +52,7 @@ venue = "ECCV 2026"
 
 [[variants]]
 id = "loma-b"  # DaD detector + DeDoDe-G descriptor + the 256-d, 4-head, 9-layer matcher (upstream README default `loma_B`)
+planned = { onnx = "the export fails in the network call (negative tensor dimension -1)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { dim = 256, heads = 4, layers = 9 }
 weights = [

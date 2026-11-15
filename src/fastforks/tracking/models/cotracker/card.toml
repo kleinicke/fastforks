@@ -48,6 +48,7 @@ weights = [{ name = "scaled_offline.pth", size = 101890938, sha256 = "2670d4562e
 
 [[variants]]
 id = "cotracker3-online"  # upstream scaled_online.pth: sliding 16-frame windows, step 8, as CoTrackerOnlinePredictor
+planned = { onnx = "torch.export fails (TorchExportError, step 1/3 of the ONNX export)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { online = true, window_len = 16 }
 weights = [{ name = "scaled_online.pth", size = 101695610, sha256 = "205d34789f19699d64b22cf93f9b697f15f28d4025240e31532e504109837218", url = "https://huggingface.co/facebook/cotracker3/resolve/bf55ea50d4390e1820a267f131cd6587240fb2c5/scaled_online.pth" }]

@@ -48,6 +48,7 @@ venue = "CVPR 2024"
 
 [[variants]]
 id = "romav1"  # upstream roma_outdoor.pth (roma_outdoor()); MegaDepth-1500 AUC@5/10/20 62.6 / 76.7 / 86.3 (paper)
+planned = { onnx = "the ONNX converter fails on the exported program (ConversionError, step 3/3)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [
   { name = "roma_outdoor.pth", size = 445647516, sha256 = "c7a45c80d41ad788a63c641d1b686d7cb3f297f40097c6f4e75039889e5cc8ba", url = "https://github.com/Parskatt/storage/releases/download/roma/roma_outdoor.pth" },

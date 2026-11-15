@@ -35,8 +35,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>391<br>221<br>284<br>fails: ONNX export: torch.export failed | 2100 / 2318<br>993 / 1238<br>1076 / 1288<br>1273 / 1358<br>– |
-| `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>217<br>229<br>fails: ONNX export: torch.export failed | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
+| `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>391<br>221<br>284<br>planned for 0.2.1 | 2100 / 2318<br>993 / 1238<br>1076 / 1288<br>1273 / 1358<br>– |
+| `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>217<br>229<br>planned for 0.2.1 | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
 
 <details><summary>Details</summary>
 
@@ -49,6 +49,7 @@ Commercial use: yes.
 - Options: `iters` = 4 (>= 1)
 - Kernel libraries: `fvm_conv`
 - Variants: `alltracker`, `alltracker-tiny`
+- Not in this release (planned for 0.2.1): `alltracker` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export); `alltracker-tiny` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `alltracker` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `alltracker-tiny` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
@@ -165,7 +166,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `cotracker3-offline` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>162<br>154<br>135<br>25.9 | 2221 / 2480<br>755 / 882<br>799 / 916<br>755 / 902<br>519 / 586 |
-| `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 328<br>184<br>176<br>159<br>fails: ONNX export: torch.export failed | 1659 / 1886<br>755 / 906<br>798 / 922<br>701 / 846<br>– |
+| `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 328<br>184<br>176<br>159<br>planned for 0.2.1 | 1659 / 1886<br>755 / 906<br>798 / 922<br>701 / 846<br>– |
 
 <details><summary>Details</summary>
 
@@ -177,6 +178,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Training data: Upstream paper: trained on synthetic Kubric MOVi-F sequences, then fine-tuned by pseudo-labelling about 15k real internet videos with other trackers (not released). No dataset entry here yet.
 - Kernel libraries: `fvm_conv`
 - Variants: `cotracker3-offline`, `cotracker3-online`
+- Not in this release (planned for 0.2.1): `cotracker3-online` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `cotracker3-offline` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `cotracker3-online` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
@@ -227,8 +229,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>188<br>173<br>82.6<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 719 / 784<br>603 / 656<br>614 / 660<br>1117 / 1140<br>– |
-| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 706 / 812<br>759 / 842<br>596 / 642<br>1000 / 1034<br>– |
+| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>188<br>173<br>82.6<br>planned for 0.2.1 | 719 / 784<br>603 / 656<br>614 / 660<br>1117 / 1140<br>– |
+| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>planned for 0.2.1 | 706 / 812<br>759 / 842<br>596 / 642<br>1000 / 1034<br>– |
 
 <details><summary>Details</summary>
 
@@ -240,6 +242,7 @@ Commercial use: yes.
 - Training data: Upstream README: trained on the panning Kubric MOVi-E sequences (synthetic, released as hamacojr/LocoTrack-panning-MOVi-E). No dataset entry here yet.
 - Kernel libraries: `fvm_conv`
 - Variants: `locotrack-b`, `locotrack-s`
+- Not in this release (planned for 0.2.1): `locotrack-b` ONNX / TensorRT export: the export fails in the network call (ValueError: expected 4 values, got 2); `locotrack-s` ONNX / TensorRT export: the export fails in the network call (ValueError: expected 4 values, got 2)
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `locotrack-b` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `locotrack-s` 3000x4000 (5.4 GiB peak allocated, 5.8 reserved)
@@ -289,7 +292,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>529<br>382<br>398<br>deferred (build >5 min) | 1721 / 1902<br>1220 / 1294<br>1313 / 1374<br>1164 / 1272<br>– |
-| `tapnext-pp` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile | 1493<br>529<br>–<br>fails: Inductor: Triton kernel does not compile (torch bug) | 1527 / 1718<br>1220 / 1294<br>–<br>– |
+| `tapnext-pp` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile | 1493<br>529<br>–<br>planned for 0.2.1 | 1527 / 1718<br>1220 / 1294<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -302,6 +305,7 @@ Commercial use: yes.
 - Training data: Upstream: TAPNext is trained on synthetic Kubric MOVi-F sequences and fine-tuned with BootsTAP self-training on unlabelled real videos (not released); TAPNext++ is further fine-tuned on PointOdyssey and Kubric-1024 (1024-frame synthetic sequences). None has a dataset entry here yet.
 - Kernel libraries: `fvm_conv`
 - Variants: `tapnext`, `tapnext-pp`
+- Not in this release (planned for 0.2.1): `tapnext-pp` compile(): Inductor fails to compile a fused Triton kernel
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `tapnext` 3000x4000 (4.3 GiB peak allocated, 4.5 reserved); `tapnext-pp` 3000x4000 (4.3 GiB peak allocated, 4.5 reserved)
@@ -351,8 +355,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1194<br>1109<br>deferred (build >5 min)<br>fails: unsupported: torch.export: data-dependent guard in model.py: | 1403 / 1558<br>1423 / 1572<br>1368 / 1620<br>–<br>– |
-| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>deferred (build >5 min)<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>–<br>– |
+| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1194<br>1109<br>deferred (build >5 min)<br>planned for 0.2.1 | 1403 / 1558<br>1423 / 1572<br>1368 / 1620<br>–<br>– |
+| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>deferred (build >5 min)<br>planned for 0.2.1 | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -366,6 +370,7 @@ Commercial use: yes.
 - Options: `memory` = 72 (>= 1), `support_grid` = 20 (>= 0)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `track-on2`, `track-on-r`
+- Not in this release (planned for 0.2.1): `track-on2` ONNX / TensorRT export: torch.export stops at a data-dependent branch (model.py:107); `track-on-r` ONNX / TensorRT export: the export fails in the network call (ValueError: expected 4 values, got 2)
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `track-on2` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved); `track-on-r` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved)

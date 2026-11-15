@@ -727,7 +727,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5093<br>3886<br>deferred (build >5 min)<br>fails: unsupported: 20 B NF4 transformer, weights expanded per line | –<br>1408 / 1698<br>1498 / 1780<br>–<br>– |
+| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5093<br>3886<br>deferred (build >5 min)<br>planned for 0.2.1 | –<br>1408 / 1698<br>1498 / 1780<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -741,6 +741,7 @@ Commercial use: yes.
 - Options: `seed` = 2026, `long_side` = 0 (>= 0), `exact_mask` = False, `stream` = True
 - Kernel libraries: `nf4`
 - Variants: `marigold-v2-depth`
+- Not in this release (planned for 0.2.1): `marigold-v2-depth` ONNX / TensorRT export: the NF4 transformer expands its weights per call; no ONNX path yet
 - Outputs: depth; kind: `affine_invariant_log`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-v2-depth` 1988x2880 (12.8 GiB peak allocated, 13.5 reserved)
@@ -900,7 +901,7 @@ Commercial use: yes.
 | `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>61.6<br>33.3<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1007 / 1172<br>932 / 1048<br>836 / 992<br>768 / 852 |
 | `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>83.9<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>1163 / 1312<br>1093 / 1208<br>972 / 1172<br>1044 / 1092 |
 | `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>144<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610<br>1411 / 1634<br>1882 / 1936 |
-| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 843<br>486<br>332<br>149<br>fails: BackendCompilerFailed: backend='inductor' raised: AssertionE<br>fails: ONNX export: torch.export failed | 2812 / 2990<br>2505 / 2630<br>1678 / 1926<br>1626 / 1762<br>–<br>– |
+| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 843<br>486<br>332<br>149<br>planned for 0.2.1<br>planned for 0.2.1 | 2812 / 2990<br>2505 / 2630<br>1678 / 1926<br>1626 / 1762<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -914,6 +915,7 @@ Commercial use: yes.
 - Options: `resolution_level` = 9 (0 to 9), `normals` = False
 - Kernel libraries: `fastbb`, `dpt_fused`, `sparse_conv`
 - Variants: `moge-2-vits-normal`, `moge-2-vitb-normal`, `moge-2-vitl-normal`, `moge-3-vitl`
+- Not in this release (planned for 0.2.1): `moge-3-vitl` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export); `moge-3-vitl` compile(): Inductor fails a value-range assertion (0 not in [2, inf])
 - Outputs: depth, points, intrinsics, mask, normals; kind: `metric`
 - Input size:
   - `moge-2-vits-normal`, `moge-2-vitl-normal`, `moge-3-vitl`: any H x W >= 8, resized or padded inside the model (ViT patch 14)
@@ -984,7 +986,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>554<br>–<br>deferred (build >5 min)<br>fails: ONNX export: torch.export failed | –<br>4958 / 6304<br>–<br>–<br>– |
+| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>554<br>–<br>deferred (build >5 min)<br>planned for 0.2.1 | –<br>4958 / 6304<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -996,6 +998,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Training data: Synthetic RGB-D datasets with virtual sparse patterns per the paper (arXiv 2411.19278)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `omni-dc`
+- Not in this release (planned for 0.2.1): `omni-dc` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
 - Outputs: depth; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 16)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `omni-dc` 1024x2048 (6.4 GiB peak allocated, 9.2 reserved)

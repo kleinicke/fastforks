@@ -54,6 +54,7 @@ venue = "CVPR 2022"
 
 [[variants]]
 id = "clipseg"
+planned = { onnx = "the export wrapper does not pass the text condition (TypeError: missing cond)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [
     { name = "clipseg-rd64-refined.config.json", size = 4732, sha256 = "c023375966d31b3b1392764f7bd91df47098ce19f62f11b0263d8eedcf708bcd", url = "https://huggingface.co/CIDAS/clipseg-rd64-refined/resolve/999e0328d9e10b484360c477313983f9afdd7050/config.json" },

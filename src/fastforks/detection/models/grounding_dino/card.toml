@@ -71,6 +71,7 @@ variants = ["mm-grounding-dino-tiny", "mm-grounding-dino-base"]
 
 [[variants]]
 id = "grounding-dino-tiny"
+planned = { onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [
     { name = "gdino-tiny.config.json", size = 1644, sha256 = "eec82c5ab66e16df12a9a212e68ac011779927c2536cf9078658e35d85f0c67a", url = "https://huggingface.co/IDEA-Research/grounding-dino-tiny/resolve/a2bb814dd30d776dcf7e30523b00659f4f141c71/config.json" },
@@ -80,6 +81,7 @@ weights = [
 
 [[variants]]
 id = "grounding-dino-base"
+planned = { onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 licence = { evidence = "https://huggingface.co/IDEA-Research/grounding-dino-base/blob/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/README.md", training_data = ["coco", "objects365"], training_note = "Grounding DINO-B: COCO, Objects365, GoldG (Flickr30k Entities + GQA / Visual Genome images), Cap4M (web image-caption pairs with pseudo-boxes), OpenImages, ODinW-35 and RefCOCO; only COCO and Objects365 have dataset ids here (the authors' model table, github.com/IDEA-Research/GroundingDINO README)." }
 weights = [
@@ -90,6 +92,7 @@ weights = [
 
 [[variants]]
 id = "mm-grounding-dino-tiny"
+planned = { onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { arch = "MMGroundingDinoForObjectDetection" }
 licence = { evidence = "https://huggingface.co/openmmlab-community/mm_grounding_dino_tiny_o365v1_goldg_v3det/blob/ef2053aa1e0cc9d9cee1df31ca919ee9aae4fc8e/README.md", training_data = ["objects365"], training_note = "MM-Grounding-DINO-T (o365v1_goldg_v3det): Objects365 v1, GoldG (Flickr30k Entities + GQA / Visual Genome images) and V3Det; no COCO, so its COCO numbers are zero-shot (mmdetection configs/mm_grounding_dino README; paper arXiv:2401.02361)." }
@@ -101,6 +104,7 @@ weights = [
 
 [[variants]]
 id = "mm-grounding-dino-base"
+planned = { onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { arch = "MMGroundingDinoForObjectDetection" }
 licence = { evidence = "https://huggingface.co/openmmlab-community/mm_grounding_dino_base_o365v1_goldg_v3det/blob/6f52a61753b22842954209e4b190b22135c57bf0/README.md", training_data = ["objects365"], training_note = "MM-Grounding-DINO-B (o365v1_goldg_v3det): Objects365 v1, GoldG (Flickr30k Entities + GQA / Visual Genome images) and V3Det; no COCO, so its COCO numbers are zero-shot (mmdetection configs/mm_grounding_dino README; paper arXiv:2401.02361)." }

@@ -55,7 +55,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `big-lama` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.0<br>26.0<br>21.2<br>23.4<br>fails: TensorRT parser: DFT node | 239 / 286<br>219 / 242<br>219 / 284<br>312 / 342<br>– |
+| `big-lama` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.0<br>26.0<br>21.2<br>23.4<br>planned for 0.2.1 | 239 / 286<br>219 / 242<br>219 / 284<br>312 / 342<br>– |
 
 <details><summary>Details</summary>
 
@@ -68,6 +68,7 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `big-lama`
+- Not in this release (planned for 0.2.1): `big-lama` TensorRT export: the TensorRT ONNX parser has no DFT (FFT convolution)
 - Outputs: image
 - Input size: any H x W >= 16, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `big-lama` 3000x4000 (5.1 GiB peak allocated, 6.8 reserved)

@@ -28,8 +28,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nnfoundation-cnn` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>274<br>227<br>211<br>170<br>fails: RuntimeError: required rank 5 tensor to use channels_last_3d | 7247 / 8734<br>3818 / 4628<br>3011 / 3110<br>2985 / 3710<br>5067 / 5110<br>– |
-| `nnfoundation-vit` | synthetic (192x192) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>1930<br>1848<br>1732<br>1440<br>fails: RuntimeError: Calculated padded input size per channel: (3 x | –<br>3930 / 4298<br>1669 / 1884<br>1669 / 1884<br>1406 / 1484<br>– |
+| `nnfoundation-cnn` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>274<br>227<br>211<br>170<br>planned for 0.2.1 | 7247 / 8734<br>3818 / 4628<br>3011 / 3110<br>2985 / 3710<br>5067 / 5110<br>– |
+| `nnfoundation-vit` | synthetic (192x192) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>1930<br>1848<br>1732<br>1440<br>planned for 0.2.1 | –<br>3930 / 4298<br>1669 / 1884<br>1669 / 1884<br>1406 / 1484<br>– |
 
 <details><summary>Details</summary>
 
@@ -42,6 +42,7 @@ Commercial use: yes.
 - Training data: 2.1 million CT, MRI and PET volumes from 125 institutional and public datasets (Human Radiome Project); the dataset list is not published with the weights. Share-alike: models fine-tuned from these weights are adapted material under CC-BY-SA-4.0.
 - Kernel libraries: `vol_norm`
 - Variants: `nnfoundation-cnn`, `nnfoundation-vit`
+- Not in this release (planned for 0.2.1): `nnfoundation-cnn` ONNX / TensorRT export: the export example does not match the 3-D input layout (channels_last_3d needs rank 5); `nnfoundation-vit` ONNX / TensorRT export: the export example is smaller than the 3-D patch kernel (8x8x8)
 - Outputs: features
 - Input size: any D x H x W volume, no resampling, one encoder pass (a fixed-grid ViT: each side up to its grid)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nnfoundation-cnn` 384x384x384 voxels (14.2 GiB peak allocated, 14.8 reserved); `nnfoundation-vit` 192x192x192 voxels (1.6 GiB peak allocated, 1.8 reserved)
@@ -74,7 +75,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 705<br>460<br>215<br>201<br>fails: TypeError: cannot unpack non-iterable NoneType object<br>fails: TypeError: 'NoneType' object is not subscriptable | 7156 / 8408<br>4076 / 4636<br>3075 / 3492<br>2643 / 3072<br>–<br>– |
+| `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 705<br>460<br>215<br>201<br>planned for 0.2.1<br>planned for 0.2.1 | 7156 / 8408<br>4076 / 4636<br>3075 / 3492<br>2643 / 3072<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -86,6 +87,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 - Training data: 120+ volumetric 3D datasets (CT, MRI, PET, 3D microscopy; readme) with simulated prompts.
 - Kernel libraries: `vol_norm`
 - Variants: `nninteractive`
+- Not in this release (planned for 0.2.1): `nninteractive` ONNX / TensorRT export: the export wrapper passes no interaction prompts (TypeError on None); `nninteractive` compile(): the compiled entry point gets no interaction prompts (TypeError on None)
 - Outputs: mask
 - Input size: any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nninteractive` 512x512x512 voxels (5.7 GiB peak allocated, 6.1 reserved)

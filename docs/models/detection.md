@@ -317,10 +317,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>no kernels<br>111<br>fails: unsupported: ONNX export: aten._is_all_true has no ONNX deco | 2541 / 2716<br>1404 / 1468<br>no kernels<br>2550 / 2664<br>– |
-| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 230<br>160<br>no kernels<br>131<br>fails: ONNX export: conversion failed | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |
-| `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 202<br>138<br>no kernels<br>111<br>fails: ONNX export: conversion failed | 2541 / 2716<br>1405 / 1470<br>no kernels<br>2555 / 2666<br>– |
-| `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 232<br>160<br>no kernels<br>132<br>fails: ONNX export: conversion failed | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |
+| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>no kernels<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1404 / 1468<br>no kernels<br>2550 / 2664<br>– |
+| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 230<br>160<br>no kernels<br>131<br>planned for 0.2.1 | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |
+| `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 202<br>138<br>no kernels<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1405 / 1470<br>no kernels<br>2555 / 2666<br>– |
+| `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 232<br>160<br>no kernels<br>132<br>planned for 0.2.1 | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |
 
 <details><summary>Details</summary>
 
@@ -339,6 +339,7 @@ Commercial use: yes.
 - Options: `score_threshold` = 0.25 (0.0 to 1.0), `max_detections` = 100 (>= 1)
 - Kernel libraries: none (not built: the portable model now samples per level without copying (deformable attention: grid_sample 11 % of the time, 2.4 ms/call of cat/stack copies removed, portable -20 % time and -26 % peak memory); the remaining cost is the grid_sample gather itself, and a fused multi-scale deformable-attention cubin (Triton prototype 12.85 -> 0.84 ms per call) is the next step but is not built; fp16-accumulate GEMMs gain nothing (tiny 112.5 vs 112.5 ms, base 127.6 vs 131.3 ms at 480x640))
 - Variants: `grounding-dino-tiny`, `grounding-dino-base`, `mm-grounding-dino-tiny`, `mm-grounding-dino-base`
+- Not in this release (planned for 0.2.1): `grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved); `mm-grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `mm-grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved)

@@ -140,7 +140,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>730<br>–<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>deferred (build >5 min) | –<br>4512 / 4770<br>–<br>–<br>– |
+| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>730<br>–<br>planned for 0.2.1<br>deferred (build >5 min) | –<br>4512 / 4770<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -153,6 +153,7 @@ Commercial use: yes.
 - Options: `long_side` = 518 (>= 14), `scale_frames` = 8 (>= 1), `window` = 64 (>= 1)
 - Kernel libraries: `fastbb`, `cudnn_hacc`
 - Variants: `lingbot-map`
+- Not in this release (planned for 0.2.1): `lingbot-map` compile(): Inductor fails to compile a fused Triton kernel (cat / cos / sin)
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-map` 3000x4000 (5.5 GiB peak allocated, 6.8 reserved)
@@ -238,7 +239,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 273<br>219<br>93.2<br>35.2<br>70.8<br>fails: unsupported: fp16 engine output is all NaN (strongly-typed f | 1441 / 1500<br>1504 / 1576<br>931 / 1226<br>702 / 760<br>818 / 860<br>– |
+| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 273<br>219<br>93.2<br>35.2<br>70.8<br>planned for 0.2.1 | 1441 / 1500<br>1504 / 1576<br>931 / 1226<br>702 / 760<br>818 / 860<br>– |
 
 <details><summary>Details</summary>
 
@@ -252,6 +253,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 - Options: `long_side` = 640 (>= 64), `refinement_steps` = 1 (>= 0)
 - Kernel libraries: `fastbb`, `igev`, `cutlass_conv`, `cudnn_hacc`, `mvsanywhere`, `dpt_fused`
 - Variants: `mvsanywhere`
+- Not in this release (planned for 0.2.1): `mvsanywhere` TensorRT export: the fp16 engine outputs all NaN (fp16 overflow, needs an fp32 island)
 - Outputs: depth, mask, sky (in `extras`), depth_range (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsanywhere` 3000x4000 (3.0 GiB peak allocated, 4.2 reserved)
@@ -290,7 +292,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mvsplat-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 279<br>181<br>172<br>115<br>fails: ONNX export: conversion failed | 2889 / 4160<br>1239 / 1532<br>1239 / 1532<br>2762 / 2810<br>– |
+| `mvsplat-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 279<br>181<br>172<br>115<br>planned for 0.2.1 | 2889 / 4160<br>1239 / 1532<br>1239 / 1532<br>2762 / 2810<br>– |
 
 <details><summary>Details</summary>
 
@@ -304,6 +306,7 @@ Commercial use: yes.
 - Options: `long_side` = 256 (>= 16)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `mvsplat-re10k`
+- Not in this release (planned for 0.2.1): `mvsplat-re10k` ONNX / TensorRT export: the ONNX converter fails on the exported program (ConversionError, step 3/3)
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsplat-re10k` 3000x4000 (3.2 GiB peak allocated, 4.4 reserved)
@@ -394,7 +397,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>821<br>560<br>752<br>fails: ONNX export: conversion failed | 5926 / 6016<br>2360 / 2416<br>2367 / 2456<br>2205 / 2334<br>– |
+| `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>821<br>560<br>752<br>planned for 0.2.1 | 5926 / 6016<br>2360 / 2416<br>2367 / 2456<br>2205 / 2334<br>– |
 
 <details><summary>Details</summary>
 
@@ -408,6 +411,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Options: `pixel_limit` = 255000 (>= 196)
 - Kernel libraries: `fastbb`
 - Variants: `pi3`
+- Not in this release (planned for 0.2.1): `pi3` ONNX / TensorRT export: the ONNX converter fails on the exported program (ConversionError, step 3/3)
 - Outputs: depth, confidence, world_points, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pi3` 3000x4000 (4.8 GiB peak allocated, 6.5 reserved)
@@ -446,7 +450,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>1723<br>–<br>deferred (build >5 min)<br>fails: TypeError: _Base.forward() missing 1 required positional arg | –<br>4995 / 5180<br>–<br>–<br>– |
+| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>1723<br>–<br>deferred (build >5 min)<br>planned for 0.2.1 | –<br>4995 / 5180<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -462,6 +466,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 - Options: `long_side` = 0 (>= 0), `refine` = 2 (>= 0)
 - Kernel libraries: `fastbb`, `cudnn_hacc`, `gsraster`
 - Variants: `resplat-small-dl3dv`, `resplat-base-re10k`
+- Not in this release (planned for 0.2.1): `resplat-small-dl3dv` ONNX / TensorRT export: the export wrapper does not pass depth_range (TypeError)
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resplat-small-dl3dv` 3000x4000 (5.9 GiB peak allocated, 7.0 reserved); `resplat-base-re10k` 3000x4000 (7.8 GiB peak allocated, 11.2 reserved)

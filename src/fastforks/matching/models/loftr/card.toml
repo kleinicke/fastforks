@@ -49,12 +49,14 @@ venue = "CVPR 2021"
 
 [[variants]]
 id = "loftr-outdoor"  # upstream outdoor_ds: trained with the original (buggy) position encoding, eval border_rm 2
+planned = { onnx = "torch.export stops at a data-dependent branch (loftr.py:190)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { temp_bug_fix = false, border_rm = 2 }
 weights = [{ name = "loftr_outdoor.ckpt", size = 46341978, sha256 = "21f5bec5968178e8bc8b7633441836fe5de4f47d861dd2cd7dc38e271b0479ec", url = "https://huggingface.co/kornia/loftr/resolve/0fb3b456cf176746709c38fa9cf80695a1c82dac/loftr_outdoor.ckpt" }]
 
 [[variants]]
 id = "loftr-indoor"  # upstream indoor_ds_new: the fixed position encoding, eval border_rm 0
+planned = { onnx = "torch.export fails (TorchExportError, step 1/3 of the ONNX export)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { temp_bug_fix = true, border_rm = 0 }
 weights = [{ name = "loftr_indoor_ds_new.ckpt", size = 46355053, sha256 = "be9ff88b323ec27889114719f668ae41aff7034b56a4c4acbd46b8b180b87ed3", url = "https://huggingface.co/kornia/loftr/resolve/0fb3b456cf176746709c38fa9cf80695a1c82dac/loftr_indoor_ds_new.ckpt" }]

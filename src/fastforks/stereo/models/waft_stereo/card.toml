@@ -58,6 +58,7 @@ weights = [{ name = "DAv2S-4.pth", size = 747814994, sha256 = "340d6bff17adff7d4
 
 [[variants]]
 id = "waft-stereo-b"
+planned = { tensorrt = "the fp16 engine outputs all NaN (fp16 overflow, needs an fp32 island)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { arch = "vitb" }
 # The checkpoint contains the (fine-tuned) Depth Anything V2 ViT-B encoder, whose weights are CC-BY-NC-4.0; the HF

@@ -46,5 +46,6 @@ venue = "ECCV 2026"
 
 [[variants]]
 id = "lingbot-map"
+planned = { compile = "Inductor fails to compile a fused Triton kernel (cat / cos / sin)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "lingbot-map.pt", size = 4632303465, sha256 = "ee665103348e07e6b826d529b8e61de8f413d5432a4f2e84970d6c8fd2e1cd72", url = "https://huggingface.co/robbyant/lingbot-map/resolve/e8984048a940fbdfa19909f8cc0c0ad834c1ee5a/lingbot-map.pt" }]
