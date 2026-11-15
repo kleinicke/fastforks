@@ -629,7 +629,7 @@ def render_card(card: ModelCard, variants: list[Variant]) -> str:
         "## Licence",
         "",
         f"Original-code strings, recorded as they are (research-use package; check them before any other use). Code: "
-        f"{lic.code}. Files: {', '.join(f'`{f}`' for f in lic.files)}.",
+        f"{lic.code}." + (f" Licence files: {', '.join(f'`{f}`' for f in lic.files)}." if lic.files else ""),
         "",
         *(
             [f"Code licence: {lic.code}; the authors do not state a separate weights licence.", ""]
