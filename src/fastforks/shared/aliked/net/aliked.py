@@ -729,7 +729,8 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         x4_up = self.upsample32(x4)  # B x dim//4 x H x W
         x1234 = torch.cat([x1, x2_up, x3_up, x4_up], dim=1)
         # ================================== score head
-        score_map = torch.sigmoid(self.score_head(x1234))
+        with torch.autocast(image.device.type, enabled=False):  # fastforks: the score head in float32 (AUC@5 -1.3 in fp16)
+            score_map = torch.sigmoid(self.score_head(x1234.float()))
         feature_map = torch.nn.functional.normalize(x1234, p=2, dim=1)
 
         # Unpads images
