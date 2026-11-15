@@ -210,10 +210,10 @@ def render_weights_card(repo: str, meta: dict, users: dict[str, list[tuple[Model
         "",
         f"Evidence that it covers the weights: {meta['licence_evidence']}",
         "",
-        f"`{'`, `'.join(meta['licence_files'])}` in this repo: the upstream licence text"
-        + (" and notice" if "NOTICE" in meta["licence_files"] else "")
-        + ", kept as the licence requires. Copyright stays with the authors. Mirrored by the fastforks maintainers;",
-        "fastforks is not affiliated with the authors.",
+        f"`{'`, `'.join(meta['licence_files'])}` in this repo: the upstream licence text, kept as the licence requires"
+        + ("; `NOTICE`: what we changed." if "notice" in meta else "."),
+        f"Copyright stays with the authors. {'Converted' if converted else 'Mirrored'} by the fastforks maintainers;"
+        " fastforks is not affiliated with the authors.",
         "",
         "## Used by",
         "",
@@ -263,6 +263,8 @@ def stage_weights(out: Path, *, standin: bool = False) -> list[str]:
             (d / name).symlink_to(src.resolve())
         for published, path in meta["licence_files"].items():
             shutil.copyfile(src_root / path, d / published)
+        if "notice" in meta:
+            (d / "NOTICE").write_text(meta["notice"])
         (d / "README.md").write_text(render_weights_card(repo, meta, users))
         ids.append(f"fastforks/{repo}")
     return ids

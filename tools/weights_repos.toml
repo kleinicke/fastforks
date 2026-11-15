@@ -8,7 +8,8 @@
 #
 # Keys: title, by (authors), upstream (repo + revision the weights come from), licence (SPDX) + licence_url +
 # licence_evidence (the upstream sentence that licenses the WEIGHTS), files (name -> sha256), licence_files
-# (published name -> path below src/fastforks), converted (absent: byte-identical copy of `source`).
+# (published name -> path below src/fastforks), converted (absent: byte-identical copy of `source`), notice (text of
+# a NOTICE file stating our changes, for converted Apache-2.0 weights).
 
 [dinov2-vits14-pretrain]
 title = "DINOv2 ViT-S/14 backbone"
@@ -62,9 +63,17 @@ source = "seedvr2_ema_3b.pth (SHA-256 6bcc5ac59447e97b100477480aebb01be2ec724c83
 licence = "Apache-2.0"
 licence_url = "https://huggingface.co/ByteDance-Seed/SeedVR2-3B/blob/37255ff8cccfb01071b87f635a5948ca8d53117c/README.md"
 licence_evidence = "Model card front matter of ByteDance-Seed/SeedVR2-3B: \"license: apache-2.0\"; code: https://github.com/ByteDance-Seed/SeedVR/blob/e4de8c24441a67e1b7df56abea10645059bb1185/LICENSE (Apache-2.0)."
-licence_files = { LICENSE = "restoration/models/seedvr2/LICENSE", NOTICE = "restoration/models/seedvr2/NOTICE" }
+licence_files = { LICENSE = "restoration/models/seedvr2/LICENSE" }
 files = { "seedvr2-3b.safetensors" = "61df4f7979f4a4005029dd93ee186e97397d326b81b585d4fdf445573b85f0a7" }
 converted = "Converted by fastforks with `tools/convert_seedvr2.py dit seedvr2_ema_3b.pth pos_emb.pt`: the linear and norm weights in bfloat16 (the values upstream's bf16 autocast uses), the AdaSingle shift / scale / gate vectors in float32, the fixed RoPE `freqs` buffers dropped, and the positive prompt embedding stored as `txt`. No retraining; same keys as upstream."
+notice = """
+SeedVR2
+Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+
+seedvr2-3b.safetensors is a modified version of seedvr2_ema_3b.pth and pos_emb.pt of ByteDance-Seed/SeedVR2-3B
+(https://huggingface.co/ByteDance-Seed, Apache License 2.0), converted by the fastforks maintainers
+(see README.md, Source): tensors cast to bfloat16 / float32 and saved as safetensors, no retraining.
+"""
 
 [seedvr2-7b]
 title = "SeedVR2 7B transformer (fastforks safetensors)"
@@ -74,9 +83,17 @@ source = "seedvr2_ema_7b.pth (SHA-256 e1b2ae25505607e61f2a7dc7967ba778aaf3e3626d
 licence = "Apache-2.0"
 licence_url = "https://huggingface.co/ByteDance-Seed/SeedVR2-7B/blob/eb0c4281d41ba3767d4f14370f0e37e9e9180c16/README.md"
 licence_evidence = "Model card front matter of ByteDance-Seed/SeedVR2-7B: \"license: apache-2.0\"; code: https://github.com/ByteDance-Seed/SeedVR/blob/e4de8c24441a67e1b7df56abea10645059bb1185/LICENSE (Apache-2.0)."
-licence_files = { LICENSE = "restoration/models/seedvr2/LICENSE", NOTICE = "restoration/models/seedvr2/NOTICE" }
+licence_files = { LICENSE = "restoration/models/seedvr2/LICENSE" }
 files = { "seedvr2-7b.safetensors" = "bf73826841cfd31895370e92472fae58810ef456310dcc7a167e22dd673eeb7b" }
 converted = "Converted by fastforks with `tools/convert_seedvr2.py dit seedvr2_ema_7b.pth pos_emb.pt`: the linear and norm weights in bfloat16 (the values upstream's bf16 autocast uses), the AdaSingle shift / scale / gate vectors in float32, the fixed RoPE `freqs` buffers dropped, and the positive prompt embedding stored as `txt`. No retraining; same keys as upstream."
+notice = """
+SeedVR2
+Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+
+seedvr2-7b.safetensors is a modified version of seedvr2_ema_7b.pth of ByteDance-Seed/SeedVR2-7B and pos_emb.pt of ByteDance-Seed/SeedVR2-3B
+(https://huggingface.co/ByteDance-Seed, Apache License 2.0), converted by the fastforks maintainers
+(see README.md, Source): tensors cast to bfloat16 / float32 and saved as safetensors, no retraining.
+"""
 
 [seedvr2-vae]
 title = "SeedVR2 causal 3-D VAE (fastforks safetensors)"
@@ -86,6 +103,14 @@ source = "ema_vae.pth (SHA-256 c7df8a67e68b7f9aca3d5d2153d2ce8ab4373687741a0f9ce
 licence = "Apache-2.0"
 licence_url = "https://huggingface.co/ByteDance-Seed/SeedVR2-3B/blob/37255ff8cccfb01071b87f635a5948ca8d53117c/README.md"
 licence_evidence = "Model card front matter of ByteDance-Seed/SeedVR2-3B and -7B: \"license: apache-2.0\"; code: https://github.com/ByteDance-Seed/SeedVR/blob/e4de8c24441a67e1b7df56abea10645059bb1185/LICENSE (Apache-2.0)."
-licence_files = { LICENSE = "restoration/models/seedvr2/LICENSE", NOTICE = "restoration/models/seedvr2/NOTICE" }
+licence_files = { LICENSE = "restoration/models/seedvr2/LICENSE" }
 files = { "seedvr2-vae.safetensors" = "bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a" }
 converted = "Converted by fastforks with `tools/convert_seedvr2.py vae ema_vae.pth`: every tensor in bfloat16 (upstream runs the VAE with `vae.dtype = bfloat16`), upstream's keys. No retraining."
+notice = """
+SeedVR2
+Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
+
+seedvr2-vae.safetensors is a modified version of ema_vae.pth of ByteDance-Seed/SeedVR2-3B
+(https://huggingface.co/ByteDance-Seed, Apache License 2.0), converted by the fastforks maintainers
+(see README.md, Source): tensors cast to bfloat16 / float32 and saved as safetensors, no retraining.
+"""
