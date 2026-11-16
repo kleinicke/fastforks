@@ -27,6 +27,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.sampling import grid_sample
+
 FACTOR = 8  # fixed: the encoders downsample by 8 (three stride-2 stages)
 
 
@@ -291,7 +293,7 @@ def _lookup(pyramid: list[torch.Tensor], coords: torch.Tensor, radius: int) -> t
         gx = 2 * gx / (cw - 1) - 1
         if ch > 1:
             gy = 2 * gy / (ch - 1) - 1
-        sampled = F.grid_sample(corr, torch.cat([gx, gy], dim=-1), mode="bilinear", align_corners=True)
+        sampled = grid_sample(corr, torch.cat([gx, gy], dim=-1), mode="bilinear", align_corners=True)
         out.append(sampled.view(b, h, w, -1))
         centroids = centroids / 2
     return torch.cat(out, dim=-1).permute(0, 3, 1, 2).contiguous()

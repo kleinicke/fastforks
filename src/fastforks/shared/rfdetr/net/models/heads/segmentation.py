@@ -19,6 +19,7 @@ from torch import Tensor, nn
 from torch.nn.grad import conv2d_input, conv2d_weight
 
 from fastforks.shared.rfdetr.net.utilities.tensors import _bilinear_grid_sample, _nearest_grid_sample
+from fastforks._core.sampling import grid_sample
 
 # ``torch.backends.cudnn.flags`` saves the current values on entry and restores them on exit. It is process-global
 # and not thread-safe: when two threads overlap, the second saves the ``False`` the first one set and restores it
@@ -430,7 +431,7 @@ def point_sample(input: Tensor, point_coords: Tensor, **kwargs: Any) -> Tensor:
         # is supported by the manual/MPS path. For other padding modes,
         # delegate to F.grid_sample to keep behavior consistent across devices.
         if padding_mode not in ("zeros", "border"):
-            output = F.grid_sample(
+            output = grid_sample(
                 input,
                 grid,
                 mode=mode,
@@ -453,7 +454,7 @@ def point_sample(input: Tensor, point_coords: Tensor, **kwargs: Any) -> Tensor:
     else:
         # Delegate to torch.nn.functional.grid_sample for the remaining modes and padding modes,
         # forwarding any remaining supported kwargs.
-        output = F.grid_sample(
+        output = grid_sample(
             input,
             grid,
             mode=mode,

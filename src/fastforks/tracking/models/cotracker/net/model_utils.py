@@ -10,6 +10,7 @@
 import torch
 import torch.nn.functional as F
 from typing import Optional, Tuple
+from fastforks._core.sampling import grid_sample
 
 
 def get_points_on_a_grid(
@@ -201,7 +202,7 @@ def bilinear_sampler(input, coords, align_corners=True, padding_mode="border"):
 
     coords -= 1
 
-    return F.grid_sample(
+    return grid_sample(
         input, coords, align_corners=align_corners, padding_mode=padding_mode
     )
 

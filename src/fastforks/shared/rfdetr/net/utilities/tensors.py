@@ -26,6 +26,7 @@ import torchvision
 from torch import Tensor
 
 from fastforks.shared.rfdetr.net.utilities.logger import get_logger
+from fastforks._core.sampling import grid_sample
 
 logger = get_logger()
 
@@ -274,7 +275,7 @@ def _bilinear_grid_sample(
     import torch.nn.functional as F  # noqa: N812
 
     if input.device.type not in ("mps", "xla"):
-        return F.grid_sample(input, grid, mode="bilinear", padding_mode=padding_mode, align_corners=align_corners)
+        return grid_sample(input, grid, mode="bilinear", padding_mode=padding_mode, align_corners=align_corners)
 
     if padding_mode not in ("zeros", "border"):
         msg = (

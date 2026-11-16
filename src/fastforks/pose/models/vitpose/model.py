@@ -25,6 +25,7 @@ import torch.nn.functional as F
 
 from fastforks._core.half import cublas_gemms, fp16_accumulate
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
+from fastforks._core.sampling import grid_sample
 from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
@@ -73,7 +74,7 @@ def crop(image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor, height: 
     gy = (y * (2 / (ih - 1)) - 1)[:, :, None].expand(-1, -1, width)
     p = centre.shape[0]
     grid = torch.stack([gx, gy], -1).reshape(1, p * height, width, 2)  # all crops from the one image: no P copies
-    out = F.grid_sample(image.float(), grid, align_corners=True, padding_mode="zeros")
+    out = grid_sample(image.float(), grid, align_corners=True, padding_mode="zeros")
     out = out.view(3, p, height, width).transpose(0, 1)
     inside = ((x >= 0) & (x <= iw - 1))[:, None, :] & ((y >= 0) & (y <= ih - 1))[:, :, None]
     return out * inside[:, None].to(out.dtype)

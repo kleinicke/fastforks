@@ -2,6 +2,7 @@
 # precision-matrix helpers belong to training / evaluation); the device comes from the inputs.
 import torch
 import torch.nn.functional as F
+from fastforks._core.sampling import grid_sample
 
 
 def get_normalized_grid(B: int, H: int, W: int, device: torch.device | None = None) -> torch.Tensor:
@@ -28,4 +29,4 @@ def bhwc_grid_sample(
     mode: str = "bilinear",
     align_corners: bool | None = None,
 ) -> torch.Tensor:
-    return F.grid_sample(x.permute(0, 3, 1, 2), grid, mode=mode, align_corners=align_corners).permute(0, 2, 3, 1)
+    return grid_sample(x.permute(0, 3, 1, 2), grid, mode=mode, align_corners=align_corners).permute(0, 2, 3, 1)

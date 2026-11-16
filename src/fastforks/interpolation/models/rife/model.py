@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import base_type, override
+from fastforks._core.sampling import grid_sample
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared.cuda_graphs import GraphCache
@@ -88,7 +89,7 @@ def _warp(src: torch.Tensor, flow: torch.Tensor, base: torch.Tensor) -> torch.Te
     d = torch.empty(2, device=flow.device)  # pixels per grid unit (filled on the device: CUDA-graph safe)
     d[0], d[1] = (w - 1.0) / 2.0, (h - 1.0) / 2.0
     fp = flow.view(b, 2, 2, fh, fw).transpose(0, 1).reshape(2 * b, 2, fh, fw).permute(0, 2, 3, 1)
-    return F.grid_sample(src, torch.addcdiv(base, fp, d), "bilinear", "border", align_corners=True)
+    return grid_sample(src, torch.addcdiv(base, fp, d), mode="bilinear", padding_mode="border", align_corners=True)
 
 
 def _upsampled(x: torch.Tensor, s: int, pts: tuple[torch.Tensor, torch.Tensor], size: tuple[int, int]) -> torch.Tensor:
@@ -98,7 +99,9 @@ def _upsampled(x: torch.Tensor, s: int, pts: tuple[torch.Tensor, torch.Tensor], 
         return F.interpolate(x, size=(h, w), mode="bilinear", align_corners=False)
     gy, gx = torch.meshgrid((py + 0.5) * (2 / h) - 1, (px + 0.5) * (2 / w) - 1, indexing="ij")
     g = torch.stack((gx, gy), -1).expand(x.shape[0], -1, -1, -1)
-    return F.grid_sample(x.float(), g, "bilinear", "border", align_corners=False)  # border = the resize's edge clamp
+    return grid_sample(
+        x.float(), g, mode="bilinear", padding_mode="border", align_corners=False
+    )  # border = the resize's edge clamp
 
 
 def _interpolate(

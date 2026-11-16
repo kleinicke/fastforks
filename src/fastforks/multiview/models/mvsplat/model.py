@@ -36,6 +36,7 @@ from torch import nn
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.sampling import grid_sample
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, f64, invert
 from fastforks.shared.group_norm import fast_group_norms
@@ -183,7 +184,7 @@ def correlation(
         g = torch.stack((2 * uv[:, 0] / (w - 1) - 1, 2 * uv[:, 1] / (h - 1) - 1), -1)  # [V, D, hw, 2]
         for j in range(0, d, DEPTH_CHUNK):
             gj = g[:, j : j + DEPTH_CHUNK].reshape(v, -1, w, 2).to(feat.dtype)
-            warped = F.grid_sample(other, gj, mode="bilinear", padding_mode="zeros", align_corners=True)
+            warped = grid_sample(other, gj, mode="bilinear", padding_mode="zeros", align_corners=True)
             warped = warped.view(v, c, -1, h, w)
             out[:, j : j + DEPTH_CHUNK] += (warped * feat[:, :, None]).sum(1, dtype=torch.float32)  # no layout copy
     return out / (len(poses) * c**0.5)

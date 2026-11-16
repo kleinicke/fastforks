@@ -2,6 +2,7 @@
 # fastforks: the cv2 / numpy / scipy imports and the data / evaluation helpers are dropped
 import torch
 import torch.nn.functional as F
+from fastforks._core.sampling import grid_sample
 
 
 class Padder:
@@ -32,7 +33,7 @@ def bilinear_sampler(img, coords, mode='bilinear', mask=False):
     ygrid = 2*ygrid/(H-1) - 1
 
     grid = torch.cat([xgrid, ygrid], dim=-1)
-    img = F.grid_sample(img, grid, align_corners=True)
+    img = grid_sample(img, grid, align_corners=True)
 
     if mask:
         mask = (xgrid > -1) & (ygrid > -1) & (xgrid < 1) & (ygrid < 1)

@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from fastforks._core.sampling import grid_sample
 
 
 def coords_grid(b, h, w, homogeneous=False, device=None):
@@ -99,6 +100,6 @@ def bilinear_sample_video(input, coords, align_corners=True, padding_mode="borde
 
     coords -= 1
 
-    return F.grid_sample(
+    return grid_sample(
         input, coords, align_corners=align_corners, padding_mode=padding_mode
     )

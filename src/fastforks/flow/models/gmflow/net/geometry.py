@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from fastforks._core.sampling import grid_sample
 
 
 def coords_grid(b, h, w, homogeneous=False, device=None):
@@ -52,7 +53,7 @@ def bilinear_sample(img, sample_coords, mode='bilinear', padding_mode='zeros', r
 
     grid = torch.stack([x_grid, y_grid], dim=-1)  # [B, H, W, 2]
 
-    img = F.grid_sample(img, grid, mode=mode, padding_mode=padding_mode, align_corners=True)
+    img = grid_sample(img, grid, mode=mode, padding_mode=padding_mode, align_corners=True)
 
     if return_mask:
         mask = (x_grid >= -1) & (y_grid >= -1) & (x_grid <= 1) & (y_grid <= 1)  # [B, H, W]

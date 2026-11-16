@@ -10,6 +10,7 @@ from torch.nn import functional as F
 from .gravity import Gravity
 from .misc import TensorWrapper, autocast
 from .utils import deg2rad, focal2fov, fov2focal, rad2rotmat
+from fastforks._core.sampling import grid_sample
 
 # flake8: noqa: E741
 # mypy: ignore-errors
@@ -409,7 +410,7 @@ class BaseCamera(TensorWrapper):
         mapx, mapy = p2d[..., 0].reshape((1, H, W)), p2d[..., 1].reshape((1, H, W))
         grid = torch.stack((mapx, mapy), dim=-1)
         grid = 2.0 * grid / torch.tensor([W - 1, H - 1]).to(grid) - 1
-        return F.grid_sample(img, grid, align_corners=True)
+        return grid_sample(img, grid, align_corners=True)
 
     def get_img_from_pano(
         self,
@@ -509,7 +510,7 @@ class BaseCamera(TensorWrapper):
             # Normalize to [-1, 1]
             grid = 2.0 * grid / torch.tensor([pano_shape[-2] - 1, pano_shape[-1] - 1]).to(grid) - 1
             # Apply grid sample
-            image = F.grid_sample(resized_pano, grid, align_corners=True)
+            image = grid_sample(resized_pano, grid, align_corners=True)
             images.append(image)
 
         return torch.concatenate(images, 0) if B > 0 else images[0]

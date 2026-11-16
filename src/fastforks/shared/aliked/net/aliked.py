@@ -39,6 +39,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.nn.modules.utils import _pair
+from fastforks._core.sampling import grid_sample
 
 
 # fastforks: torchvision.models.resnet.conv1x1 / conv3x3 (bias-free), without the torchvision dependency
@@ -228,7 +229,7 @@ class DKD(nn.Module):
                 keypoints_xy = keypoints_xy_nms + xy_residual
                 keypoints_xy = keypoints_xy / wh * 2 - 1  # (w,h) -> (-1~1,-1~1)
 
-                kptscore = torch.nn.functional.grid_sample(
+                kptscore = grid_sample(
                     scores_map[b_idx].unsqueeze(0),
                     keypoints_xy.view(1, 1, -1, 2),
                     mode="bilinear",
@@ -251,7 +252,7 @@ class DKD(nn.Module):
                     dim=1,
                 )  # Mx2
                 keypoints_xy = keypoints_xy_nms / wh * 2 - 1  # (w,h) -> (-1~1,-1~1)
-                kptscore = torch.nn.functional.grid_sample(
+                kptscore = grid_sample(
                     scores_map[b_idx].unsqueeze(0),
                     keypoints_xy.view(1, 1, -1, 2),
                     mode="bilinear",
@@ -583,7 +584,7 @@ class SDDH(nn.Module):
             pos = pos.reshape(1, N_kpts * self.n_pos, 1, 2)
 
             # sample features
-            features = F.grid_sample(
+            features = grid_sample(
                 xi.unsqueeze(0), pos, mode="bilinear", align_corners=True
             )  # [1,C,(N_kpts*n_pos),1]
             features = features.reshape(c, N_kpts, self.n_pos, 1).permute(

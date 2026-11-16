@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks.multiview._runner import invert  # fastforks: closed-form inverses (torch.inverse has no ONNX op)
+from fastforks._core.sampling import grid_sample
 
 
 def coords_grid(b, h, w, homogeneous=False, device=None):
@@ -79,7 +80,7 @@ def warp_with_pose_depth_candidates(
     if feature1.numel() > 1000000:
         grid_sample_disable_cudnn = True
     with torch.backends.cudnn.flags(enabled=not grid_sample_disable_cudnn):
-        warped_feature = F.grid_sample(
+        warped_feature = grid_sample(
             feature1,
             grid.view(b, d * h, w, 2),
             mode="bilinear",
