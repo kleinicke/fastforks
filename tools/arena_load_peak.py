@@ -4,7 +4,7 @@
 
 Per (ref, mode): alternate compaction on / off `rounds` times (model deleted and `empty_cache` between loads); per load
 `peak_reserved_mb` (max_memory_reserved since the load started), `after_reserved_mb`, `alloc_mb`, `load_s`. One JSON line
-per (ref, mode, compact) with the median over the rounds, or an `error` row (e.g. an OOM). Run under `gpulock-low`.
+per (ref, mode, compact) with the median over the rounds, or an `error` row (e.g. an OOM). Run it as a GPU job.
 """
 
 from __future__ import annotations

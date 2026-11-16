@@ -1,6 +1,6 @@
 """Score audit: completeness and plausibility of every ref's numbers (CPU only, stdlib + tomllib).
 
-    python tools/score_audit.py [--out results/2026-11-16_score_audit.md] [--csv DIR]
+    python tools/score_audit.py [--out out/score_audit.md] [--csv DIR]
 
 Per ref (card variant): original / portable / kernels / compile / TensorRT speed + peak memory, accuracy rows of the task
 (original, portable, kernels), each present or explained by a card reason (`[upstream] no_original_reason`,
@@ -34,7 +34,7 @@ PRIM = {
     "interpolation": "psnr", "restoration": "psnr", "matching": "auc5", "matting": "mad", "tracking": "aj",
     "multiview": "absrel", "retrieval": "recall@1", "calibration": "vfov_auc1", "volume": "dice",
 }
-# accuracy drifts explained in results/2026-11-15_numbers_audit.md (one step of a small-n metric / fp16 effect)
+# accuracy drifts explained in the numbers audit (one step of a small-n metric / fp16 effect)
 EXPLAINED = {("anycalib-pinhole", "portable"): 1, ("anycalib-pinhole", "kernels"): 1, ("flowseek-t", "portable"): 1,
              # n=150 every10 subset: loftr-outdoor on all 1500 pairs portable32 50.75 vs original 50.14; dedode-v2-b auc10/auc20 are
              # +0.2/+0.5 above the original on the same pairs, only auc5 (the 5 degree bin, n=150) differs
@@ -76,7 +76,7 @@ def family_dates() -> dict[tuple[str, str], str]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(ROOT / "results/2026-11-16_score_audit.md"))
+    ap.add_argument("--out", default=str(ROOT / "out/score_audit.md"))
     ap.add_argument("--csv", default="")
     ap.add_argument("--no-stale", action="store_true", help="skip the git-based stale-row check")
     a = ap.parse_args()
@@ -327,7 +327,7 @@ def main() -> int:
     lines.append(f"| **total** | {tot['refs', '']} | " + " | ".join(f"{tot[l, 'p']} / {tot[l, 'e']} / {tot[l, 'm']}" for l in labels) + f" | {tot['imp', '']} | {tot['oth', '']} |")
     lines += ["", "## Notes (2026-11-16 run)", "",
               "- The `implausible` column counts `stale?` rows too (informational: row older than the family's last source commit; `--no-stale` skips them). Real violations of the rules: 0 after the run.",
-              "- Gap-fill measured 2026-11-16 on RTX 5060 Ti (gpulock-low, one process at a time) with `results/raw/2026-11-16_score_audit/kernels_speed.py` via `queue_runner*.sh` / `eval_queue.sh`; rows merged by `merge.py`, `merge_fails.py` (placeholders 'deferred: measure later' replaced by the real failure). Base commit `5ea6bb9d`.",
+              "- Gap-fill measured 2026-11-16 on RTX 5060 Ti (a GPU job, one process at a time) with `results/raw/2026-11-16_score_audit/kernels_speed.py` via `queue_runner*.sh` / `eval_queue.sh`; rows merged by `merge.py`, `merge_fails.py` (placeholders 'deferred: measure later' replaced by the real failure). Base commit `5ea6bb9d`.",
               "- Dropped as superseded: stale video-depth-anything-s compile 1080x1920 row (compile/TRT jobs run the standard 480x640 input only).",
               "- Explained, not fixed: loftr-outdoor / dedode-v2-b auc5 on the n=150 subset (EXPLAINED in this script), track-on2 reserved memory (speed_allowlist.json).",
               "- Open: accuracy rows for portable/kernels of families without any eval row (listed below), original accuracy of marigold-v2-depth (no runnable upstream harness). `tests/test_policy.py::test_no_architecture_constants_in_model_code[matting]` fails on origin/work/ports (ben2 `_TINY`), unrelated.", ""]
