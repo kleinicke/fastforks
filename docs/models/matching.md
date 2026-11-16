@@ -326,7 +326,7 @@ Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 
 
 ### Parity
 
-CPU, float32: max |diff| <= 0.011 vs the original. GPU, portable bfloat16 and kernels float16 (the defaults): mean |diff| <= 0.002 and p99 <= 0.001 (absolute error of the output `keypoints1`).
+CPU, float32: max |diff| <= 0.011 vs the original. GPU, portable bfloat16 and kernels float16 (the defaults): mean |diff| <= 0.05 and p99 <= 0.6 (absolute error of the output `keypoints1`).
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
