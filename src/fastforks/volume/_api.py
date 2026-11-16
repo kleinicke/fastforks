@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 import math
 import os
 from dataclasses import dataclass, field
@@ -122,6 +123,9 @@ class VolumeMask(NumpyOutputs):
     options: Mapping[str, Any] = field(default_factory=dict)
 
 
+_MIN_HU_RANGE = 255.0  # a CT of a patient spans air to bone, more than 1000 HU; 8-bit images and z-scores are below
+
+
 def _volume(volume: np.ndarray | torch.Tensor, channels: int, ref: str) -> torch.Tensor:
     """`[C, D, H, W]` of a `[D, H, W]` / `[C, D, H, W]` numpy or torch volume (not yet on the device)."""
     if not isinstance(volume, (np.ndarray, torch.Tensor)):
@@ -142,6 +146,20 @@ def _volume(volume: np.ndarray | torch.Tensor, channels: int, ref: str) -> torch
         msg = f"{ref} takes {channels} channel(s), got {x.shape[0]} ({tuple(x.shape)})"
         raise InputError(msg)
     return x
+
+
+def _check_intensities(x: torch.Tensor, ref: str) -> None:
+    """NaN / inf are an error; a value range that cannot be Hounsfield units (CT) is logged once per call."""
+    lo, hi = (float(v) for v in torch.aminmax(x))
+    if not (math.isfinite(lo) and math.isfinite(hi)):
+        msg = f"the volume has NaN or infinite voxels ({int((~torch.isfinite(x)).sum())}): fill or mask them first"
+        raise InputError(msg)
+    if "totalsegmentator" in ref and hi - lo <= _MIN_HU_RANGE:
+        logging.getLogger("fastforks.volume").warning(
+            "%s expects CT in Hounsfield units (air about -1000, bone above 300) but the volume's range is %.3g to "
+            "%.3g: normalised or 8-bit data gives meaningless labels; pass the HU values (read_nifti scales them)",
+            ref, lo, hi,
+        )  # fmt: skip
 
 
 class VolumeModel(core.Model):
@@ -212,6 +230,7 @@ class VolumeModel(core.Model):
             raise InputError(msg)
         with self._session():
             x = x.to(self.device, torch.float32, non_blocking=True)
+            _check_intensities(x, self.variant.ref)
             out = self._runner(x, sp)
             labels = self._check_outputs(out, {"labels": tuple(x.shape[1:])}, cast=False)["labels"]
         return VolumeResult(labels, self.class_names, self.variant.ref, self.backend, self.options, meta)

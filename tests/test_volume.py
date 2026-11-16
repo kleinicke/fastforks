@@ -368,3 +368,32 @@ def test_volume_path_input_names_read_nifti(bad: object) -> None:
     with pytest.raises(InputError, match="numpy array or torch tensor") as e:
         _volume(bad, 1, "x")
     assert ("read_nifti" in str(e.value)) == isinstance(bad, str)
+
+
+def test_bad_spacing_nan_and_dicom_dir_give_clear_errors(folder: Path, tmp_path: Path) -> None:
+    """Spacing in metres / 10x too large and NaN input are InputErrors; DICOM paths point at pydicom; reprs are short."""
+    pytest.importorskip("nibabel")
+    model = volume.load(folder, device="cpu", mirror=False, folds=[0])
+    ct = np.random.default_rng(3).normal(0, 400, (12, 14, 10)).astype(np.float32)
+    with pytest.raises(InputError, match="spacing"):
+        model(ct, spacing=(0.0015, 0.0012, 0.0025))
+    with pytest.raises(InputError, match="spacing"):
+        model(ct, spacing=(1e5, 1e5, 1e5))
+    bad = ct.copy()
+    bad[0, 0, 0] = np.nan
+    with pytest.raises(InputError, match="NaN"):
+        model(bad, spacing=(1.0, 1.0, 1.0))
+    with pytest.raises(InputError, match="pydicom"):
+        volume.read_nifti(tmp_path)
+    with pytest.raises(InputError, match="pydicom"):
+        volume.read_nifti(tmp_path / "a.dcm")
+    _, meta = volume.read_nifti(_write_nifti(tmp_path, ct))
+    assert len(repr(meta)) < 300
+    assert len(repr(model(ct, spacing=(1.0, 1.0, 1.0)))) < 500
+
+
+def _write_nifti(tmp_path: Path, ct: np.ndarray) -> Path:
+    import nibabel as nib
+
+    nib.save(nib.Nifti1Image(ct.transpose(2, 1, 0), np.eye(4)), tmp_path / "w.nii.gz")
+    return tmp_path / "w.nii.gz"

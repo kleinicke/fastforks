@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from fastforks._core.errors import InputError, MissingDependencyError
+from fastforks._core.outputs import short_repr
 
 if TYPE_CHECKING:
     import torch
@@ -26,6 +27,8 @@ class VolumeMeta:
         header: The file's NIfTI header.
         shape: The array's `(D, H, W)`.
     """
+
+    __repr__ = short_repr
 
     spacing: tuple[float, float, float]
     affine: np.ndarray
@@ -50,7 +53,15 @@ def read_nifti(path: str | os.PathLike[str]) -> tuple[np.ndarray, VolumeMeta]:
     (`get_fdata`).
     """
     nib = _nib()
-    img = nib.load(os.fspath(path))
+    name = os.fspath(path)
+    if os.path.isdir(name) or name.lower().endswith((".dcm", ".dicom")):  # noqa: PTH112
+        msg = (
+            f"{name}: read_nifti reads NIfTI files (.nii, .nii.gz), not DICOM; load the series with pydicom or "
+            "SimpleITK into a [D, H, W] array of Hounsfield units and pass spacing=(slice, row, column) in mm "
+            "(see docs/usage.md, 'DICOM series'), or convert it to NIfTI first (dcm2niix)"
+        )
+        raise InputError(msg)
+    img = nib.load(name)
     can = nib.as_closest_canonical(img)
     data = np.asarray(can.get_fdata(dtype=np.float32))
     if data.ndim == 4:  # noqa: PLR2004 - [x, y, z, c]

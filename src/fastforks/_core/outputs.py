@@ -28,6 +28,10 @@ def _short(v: object) -> str:
     """Tensors as `Tensor[shape dtype device]`, containers of them recursively, anything else as `repr`."""
     if isinstance(v, torch.Tensor):
         return f"Tensor[{', '.join(map(str, v.shape))}; {str(v.dtype).removeprefix('torch.')}; {v.device}]"
+    if type(v).__module__ == "numpy" and hasattr(v, "shape") and getattr(v, "ndim", 0) > 0:
+        return f"ndarray[{', '.join(map(str, v.shape))}; {v.dtype}]"  # e.g. `VolumeMeta.affine`
+    if hasattr(v, "keys") and type(v).__module__.startswith("nibabel"):
+        return f"<{type(v).__name__}>"  # a NIfTI header
     if isinstance(v, tuple | list) and any(isinstance(x, torch.Tensor) for x in v):
         return f"({', '.join(_short(x) for x in v)})"
     if isinstance(v, Mapping) and any(isinstance(x, torch.Tensor) for x in v.values()):
