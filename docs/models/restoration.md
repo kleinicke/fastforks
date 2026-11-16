@@ -675,6 +675,19 @@ Commercial use: yes.
 - `seedvr2-7b` load / first call: portable 222.77 s / 3.174 s, kernels 118.43 s / 3.176 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+SeedVR2 is a generative one-step restorer, so PSNR is only a fidelity check. Each of the centre 512 px crops of DIV2K validation HR images (a tiny subset: generation is slow) is downscaled with bicubic x2 (PIL) and restored x2 by the model, one pass; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel of the uint8 output with a 2 px border cropped, averaged over the crops; PSNR to the original = RGB uint8 PSNR of our output against the authors' output of the same input and settings. The original is the authors' inference code, bf16. No perceptual metric (LPIPS) is given: the lpips package and its network weights are not part of the test environment. First frame of each clip (clips of 2 to 10 frames, x2); PSNR of our output (RGB, uint8) against the authors' output of the same clip; there is no ground truth for these clips. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `seedvr2-3b` | DIV2K validation, 4 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original | 22.02 / 0.5865 / – | 22.00 / 0.5863 / 43.13 | 22.00 / 0.5863 / 43.13 |  |
+| `seedvr2-3b` | 4 video clips (first frame), PSNR to the original's output |  | 44.56 | 44.56 |  |
+| `seedvr2-7b` | DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original | 23.16 / 0.6228 / – | 23.13 / 0.6227 / 44.85 | 23.13 / 0.6227 / 44.85 |  |
+| `seedvr2-7b` | 2 video clips (first frame), PSNR to the original's output |  | 46.14 | 46.14 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), portable and kernels: mean |diff| <= 0.01 and p99 <= 0.05 (absolute error of the output `image`).

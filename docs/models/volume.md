@@ -54,6 +54,17 @@ Commercial use: yes.
 - `nnfoundation-vit` load / first call: original 9.54 s / 2.37 s (192x192), portable 1.24 s / 1.867 s (192x192), kernels 1.27 s / 1.756 s (192x192)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. Encoder models have no task head, so they are judged by their output: the encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error the original itself has in half precision. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `nnfoundation-cnn` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0.0000 | 0.99999 / 0.0014 | 0.99999 / 0.0017 | 0.99999 / 0.0015 |  |
+| `nnfoundation-vit` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0.0000 | 0.99947 / 0.0167 | 0.99950 / 0.0165 | 0.99940 / 0.0213 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-14 to 2026-11-15.
+
 ### Parity
 
 CPU, float32: max |diff| <= 1.8e-06 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.15 % and p99 <= 1.1 % of the reference's median |value| (absolute error of the output `features`).
@@ -93,6 +104,16 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nninteractive` 512x512x512 voxels (5.7 GiB peak allocated, 6.1 reserved)
 - `nninteractive` load / first call: original 3.23 s / 1.038 s, portable 1.09 s / 0.482 s, kernels 0.65 s / 0.403 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. nnInteractive: per case 12 simulated prompts (point, box, scribble, point + box on 3 organs), one interaction each; Dice of the predicted mask against the ground-truth organ mask, mean over the runs; agreement = Dice of the mask against the original's mask. Original = the authors' code, fp16 autocast. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `nninteractive` | TotalSegmentator test subset (8 CT cases x 12 prompts), mean Dice vs the ground-truth mask / agreement with the original | 0.9688 | 0.9688 / 0.9999 | 0.9688 / 0.9999 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-15.
 
 ### Parity
 

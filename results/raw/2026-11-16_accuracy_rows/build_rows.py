@@ -42,5 +42,9 @@ if rows: put("classification", rows)
 
 rows = []
 for r in jl("seedvr2.jsonl"):
-    m = r["mode"]; r.setdefault("column", COL[m]); r.setdefault("tier", TIER[m]); rows.append(r)
+    m = r["mode"]; r.setdefault("column", COL[m]); r.setdefault("tier", TIER[m])
+    if "crop512" in r["dataset"]:
+        b = {4: "29.01 dB / SSIM 0.8075", 2: "31.03 dB / SSIM 0.8003"}[r["n"]]
+        r["note"] = f"reference: plain bicubic x2 of the same LR crops = PSNR {b} (a generative restorer scores lower: it re-draws detail and shifts tone); LPIPS not computed (package not installed in the test venv)"
+    rows.append(r)
 if rows: put("restoration", rows)

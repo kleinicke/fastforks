@@ -2363,6 +2363,19 @@ Commercial use: yes.
 - `wd-eva02-large-tagger-v3` load / first call: original 4.82 s / 0.352 s (448x448), portable 5.38 s / 0.064 s (448x448), kernels 3.61 s / 0.076 s (448x448)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Taggers have no public benchmark with their tag set, so the original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely tag. The original fp16 row shows the difference of the original itself in half precision. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `wd-vit-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.95 / 99.80 | 99.91 / 99.80 | 99.90 / 99.20 |  |
+| `wd-convnext-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.92 / 99.80 | 99.90 / 99.60 | 99.88 / 99.80 |  |
+| `wd-vit-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.87 / 99.40 | 99.88 / 99.80 |  |
+| `wd-eva02-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.84 / 99.80 | 99.84 / 99.40 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
+
 ### Parity
 
 CPU, float32: max |diff| <= 1.5e-05 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.015 and p99 <= 0.052 (absolute error of the output `logits`).

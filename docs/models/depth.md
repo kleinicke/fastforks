@@ -1037,8 +1037,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `pointdit-b-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 105<br>48.7<br>30.7<br>20.6<br>23.7<br>fails: BackendUnavailableError: onnx is not installed: pip install  | 977 / 1006<br>1214 / 1246<br>450 / 544<br>466 / 630<br>465 / 524<br>– |
-| `pointdit-l-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels | 335<br>112<br>94.6<br>61.4 | 3092 / 3148<br>3953 / 4010<br>1301 / 1410<br>1314 / 1696 |
+| `pointdit-b-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 105<br>48.7<br>30.7<br>20.6<br>23.7<br>15.5 | 977 / 1006<br>1214 / 1246<br>450 / 544<br>466 / 630<br>465 / 524<br>795 / 898 |
+| `pointdit-l-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 335<br>112<br>94.6<br>61.4<br>76.0<br>49.1 | 3092 / 3148<br>3953 / 4010<br>1301 / 1410<br>1314 / 1696<br>1316 / 1430<br>2474 / 2626 |
 
 <details><summary>Details</summary>
 
@@ -1055,7 +1055,8 @@ Commercial use: yes.
 - Outputs: points, depth; kind: `affine_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pointdit-b-512` 3000x4000 (0.8 GiB peak allocated, 1.0 reserved); `pointdit-l-512` 3000x4000 (1.6 GiB peak allocated, 2.2 reserved)
-- `pointdit-b-512` 994x1482, first call: portable + torch.compile 34 s (cold Inductor cache).
+- `pointdit-b-512` 994x1482, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 86 s (ONNX + engine).
+- `pointdit-l-512` 994x1482, first call: portable + torch.compile 57 s (cold Inductor cache), TensorRT fp16 150 s (ONNX + engine).
 - `pointdit-b-512` original (fp32) 994x1482: upstream wild-image resize (~1024 tokens), 3 Euler steps
 - `pointdit-b-512` original 994x1482: the authors' mixed-precision option (bfloat16); upstream wild-image resize (~1024 tokens), 3 Euler steps; authors bf16 autocast
 - `pointdit-l-512` original (fp32) 994x1482: upstream wild-image resize (~1024 tokens), 3 Euler steps
@@ -1131,6 +1132,17 @@ Commercial use: yes.
 - `prompt-depth-anything-s` load / first call: original 0.42 s / 0.792 s (756x1008), portable 0.37 s / 0.244 s (756x1008), kernels 1.2 s / 0.181 s (756x1008)
 - `prompt-depth-anything-l` load / first call: original 4.8 s / 0.771 s (756x1008), portable 1.5 s / 0.296 s (756x1008), kernels 2.78 s / 0.223 s (756x1008)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `prompt-depth-anything-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0217 / 0.9876 | 0.0217 / 0.9876 | 0.0208 / 0.9883 | 0.0208 / 0.9883 |  |
+| `prompt-depth-anything-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0150 / 0.9930 | 0.0151 / 0.9930 | 0.0147 / 0.9932 | 0.0147 / 0.9932 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
 
 ### Parity
 

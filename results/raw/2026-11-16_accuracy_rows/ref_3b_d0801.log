@@ -1,0 +1,10 @@
+/home/florian/projects/experiments/017-fastforks-lib/ref-venvs/seedvr/.venv/lib/python3.12/site-packages/rotary_embedding_torch/rotary_embedding_torch.py:35: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  @autocast(enabled = False)
+/home/florian/projects/experiments/017-fastforks-lib/ref-venvs/seedvr/.venv/lib/python3.12/site-packages/rotary_embedding_torch/rotary_embedding_torch.py:253: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  @autocast(enabled = False)
+/home/florian/projects/experiments/017-fastforks-lib/ref-venvs/seedvr/.venv/lib/python3.12/site-packages/diffusers/models/transformers/transformer_2d.py:34: FutureWarning: `Transformer2DModelOutput` is deprecated and will be removed in version 1.0.0. Importing `Transformer2DModelOutput` from `diffusers.models.transformer_2d` is deprecated and this will be removed in a future version. Please use `from diffusers.models.modeling_outputs import Transformer2DModelOutput`, instead.
+  deprecate("Transformer2DModelOutput", "1.0.0", deprecation_message)
+slicing_up_num: 0
+EulerSampler:   0%|          | 0/1 [00:00<?, ?it/s]EulerSampler: 100%|██████████| 1/1 [00:00<00:00,  2.19it/s]EulerSampler: 100%|██████████| 1/1 [00:00<00:00,  2.19it/s]
+3b (1, 256, 256, 3) -> (1, 512, 512, 3): load 10.2 s, first 11.91 s, run 11.91 s (median of 1), peak 7.25 / 7.26 GiB
+[rank0]:[W1116 02:43:54.072984759 ProcessGroupNCCL.cpp:1553] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())

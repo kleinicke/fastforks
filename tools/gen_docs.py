@@ -303,7 +303,8 @@ _PROTOCOL = {
         "bicubic x2 (PIL) and restored x2 by the model, one pass; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y "
         "channel of the uint8 output with a 2 px border cropped, averaged over the crops; PSNR to the original = "
         "RGB uint8 PSNR of our output against the authors' output of the same input and settings. The original is "
-        "the authors' inference code, bf16. "
+        "the authors' inference code, bf16. No perceptual metric (LPIPS) is given: the lpips package and its network "
+        "weights are not part of the test environment. "
         for d in ("div2k-val-x2-crop512-n4", "div2k-val-x2-crop512-n2")
     },
     **{

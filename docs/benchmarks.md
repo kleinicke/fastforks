@@ -1896,7 +1896,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | moge-2-vits-normal | 994x1482 | 61.6 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 1007 / 1172 | 836 / 992 | 932 / 1048 | 768 / 852 |
 | moge-3-vitl | 994x1482 | 332 ms | planned for 0.2.1 | planned for 0.2.1 | 149 ms | – | – | 1678 / 1926 | – | 1626 / 1762 | – |
 | omni-dc | 994x1482 | 554 ms | deferred (build >5 min) | planned for 0.2.1 | – | – | – | 4958 / 6304 | – | – | – |
-| pointdit-b-512 | 994x1482 | 30.7 ms | 23.7 ms | fails: BackendUnavailableError: onnx is not installed: pip install  | 20.6 ms | 33.6 s | – | 450 / 544 | 465 / 524 | 466 / 630 | – |
+| pointdit-b-512 | 994x1482 | 30.7 ms | 23.7 ms | 15.5 ms | 20.6 ms | 33.6 s | 86.5 s | 450 / 544 | 465 / 524 | 466 / 630 | 795 / 898 |
+| pointdit-l-512 | 994x1482 | 94.6 ms | 76.0 ms | 49.1 ms | 61.4 ms | 57.3 s | 150 s | 1301 / 1410 | 1316 / 1430 | 1314 / 1696 | 2474 / 2626 |
 | prompt-depth-anything-l | 756x1008 | 125 ms | 117 ms | 75.3 ms | 69.3 ms | 21.2 s | 52.5 s | 1318 / 1488 | 968 / 1148 | 1179 / 1348 | 1649 / 1714 |
 | prompt-depth-anything-s | 756x1008 | 18.4 ms | 16.3 ms | 10.5 ms | 11.4 ms | 14.7 s | 46.6 s | 363 / 442 | 260 / 322 | 297 / 384 | 368 / 410 |
 | stablenormal-turbo | 994x1482 | 289 ms | 238 ms | 118 ms | 180 ms | 76.3 s | 198 s | 3463 / 3628 | 3019 / 3106 | 3037 / 3172 | 5587 / 5626 |
