@@ -210,7 +210,7 @@ def estimate_pose(  # noqa: PLR0913 - the matches, the two intrinsics and the op
     """Essential-matrix RANSAC + `recoverPose` of pixel matches, one pair or a batch of pairs at once.
 
     Args:
-        points1: Pixel keypoints in image 1, `[N, 2]` or `[P, N, 2]` (float; tensor, numpy array or list; the pose is computed on this device).
+        points1: Pixel keypoints in image 1, `[N, 2]` or `[P, N, 2]` (float tensor, numpy array or list).
         points2: The matching keypoints in image 2, same shape.
         k1: Intrinsics of camera 1, `[3, 3]` or `[P, 3, 3]`.
         k2: Intrinsics of camera 2, same.
