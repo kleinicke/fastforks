@@ -113,8 +113,13 @@ def test_threads_download_the_same_file(tmp_path, monkeypatch):
     paths = _run_threads([lambda: locate(s, group="fam", env_var=ENV) for _ in range(6)])
     assert len(set(paths)) == 1
     assert paths[0].read_bytes() == data
-    leftovers = [p for p in files.cache_root().rglob("*") if p.is_file() and p != paths[0] and "stamps" not in p.parts]
+    leftovers = [
+        p
+        for p in files.cache_root().rglob("*")
+        if p.is_file() and not p.is_symlink() and p != paths[0] and "stamps" not in p.parts
+    ]  # the readable view link `fam/w.bin` is a symlink to the blob, not a stray file
     assert not leftovers
+    assert (files.cache_root() / "fam" / "w.bin").resolve() == paths[0].resolve()
     assert not list(files.cache_root().rglob(".download.*"))
 
 
