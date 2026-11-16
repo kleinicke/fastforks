@@ -625,8 +625,8 @@ def test_model_compile_equals_eager(ref):
         assert type(model._runner) is not runner_type
         got = model(*args, **kwargs)
         for name, w in _tensors(want).items():
-            # a few track points sit on near-ties of the cost-volume argmax
-            atol = 2e-2 if TASK[ref] == "tracking" else 2e-3
+            # a few track points sit on near-ties of the cost-volume argmax: locotrack-s needs 9.3e-3 on top of rtol
+            atol = 1.2e-2 if TASK[ref] == "tracking" else 2e-3
             torch.testing.assert_close(_tensors(got)[name].float(), w.float(), rtol=1e-3, atol=atol)
         assert model.compile(backend="eager") is model  # a repeat compile replaces the first
         assert type(model._runner).__bases__ == (runner_type,)
