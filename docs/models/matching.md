@@ -14,11 +14,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 |---|---|---|---|
 | [`aliked-flexglue`](#flexglue) | yes | no kernels | no kernels |
 | [`aliked-lightglue`](#lightglue) | yes | 35.1, 1.2x | 1324, 0.97x |
-| [`dedode-v2-b`](#dedode) | yes | – | – |
-| [`dedode-v2-g`](#dedode) | yes | – | – |
+| [`dedode-v2-b`](#dedode) | yes | 189, 1.7x | 1246, 0.63x |
+| [`dedode-v2-g`](#dedode) | yes | 332, 2.0x | 1984, 0.8x |
 | [`disk-lightglue`](#lightglue) | yes | 52.1, 2.2x | 778, 0.32x |
-| [`loftr-indoor`](#loftr) | yes | – | – |
-| [`loftr-outdoor`](#loftr) | yes | – | – |
+| [`loftr-indoor`](#loftr) | yes | 96.2, 2.5x | 886, 0.46x |
+| [`loftr-outdoor`](#loftr) | yes | 95.9, 2.5x | 886, 0.47x |
 | [`loma-b`](#loma) | yes | no kernels | no kernels |
 | [`romav1`](#romav1) | yes | 356, 1.1x | 1860, 0.45x |
 | [`romav2`](#romav2) | yes | 354, 2.1x | 2300, 0.23x |
@@ -35,7 +35,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aliked-flexglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 348<br>129<br>no kernels<br>deferred (build >5 min)<br>deferred (build >5 min) | 1801 / 1892<br>1775 / 1886<br>no kernels<br>–<br>– |
+| `aliked-flexglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 348<br>129<br>no kernels<br>96.1<br>fails: ONNX export: torch.export failed | 1801 / 1892<br>1775 / 1886<br>no kernels<br>1762 / 1826<br>– |
 
 <details><summary>Details</summary>
 
@@ -53,6 +53,7 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-flexglue` 3000x4000 (2.0 GiB peak allocated, 2.5 reserved)
 - no kernels: not implemented: data-dependent keypoint and match counts. Portable at 768x1024, 2048 keypoints, MegaDepth pair: 129.6 ms against 152.9 ms for the original with its float16 option (1.18x), peak allocated 1799 vs 1801 MB (reserved 1962 vs 1950), 760 vs 759 matches.
+- `aliked-flexglue` 768x1024, first call: portable + torch.compile 79 s (cold Inductor cache).
 - `aliked-flexglue` original 768x1024: upstream FlexGlue(mp=None).match_pair(sparse=True) + ALIKED(origin=corner), 2048 keypoints
 - `aliked-flexglue` load / first call: original 4.5 s / 1.661 s, portable 0.92 s / 1.199 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -150,8 +151,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>–<br>164<br>planned for 0.2.1 | 1734 / 1992<br>1535 / 1654<br>–<br>1893 / 2434<br>– |
-| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 666<br>592<br>–<br>330<br>planned for 0.2.1 | 2335 / 2472<br>2142 / 2334<br>–<br>2881 / 3316<br>– |
+| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>189<br>164<br>planned for 0.2.1 | 1734 / 1992<br>1535 / 1654<br>1197 / 1246<br>1893 / 2434<br>– |
+| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 666<br>592<br>332<br>330<br>planned for 0.2.1 | 2335 / 2472<br>2142 / 2334<br>1787 / 1984<br>2881 / 3316<br>– |
 
 <details><summary>Details</summary>
 
@@ -172,8 +173,8 @@ Commercial use: yes.
 - `dedode-v2-g` 768x1024, first call: portable + torch.compile 86 s (cold Inductor cache).
 - `dedode-v2-b` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor B, 10000 keypoints
 - `dedode-v2-g` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor G, 10000 keypoints
-- `dedode-v2-b` load / first call: original 3.73 s / 1.099 s, portable 0.67 s / 0.753 s
-- `dedode-v2-g` load / first call: original 6.36 s / 1.509 s, portable 1.12 s / 1.038 s
+- `dedode-v2-b` load / first call: original 3.73 s / 1.099 s, portable 0.67 s / 0.753 s, kernels 0.55 s / 0.84 s
+- `dedode-v2-g` load / first call: original 6.36 s / 1.509 s, portable 1.12 s / 1.038 s, kernels 3.01 s / 0.675 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -215,8 +216,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>–<br>176<br>planned for 0.2.1 | 1739 / 1870<br>796 / 904<br>–<br>1149 / 1232<br>– |
-| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>111<br>–<br>71.0<br>planned for 0.2.1 | 1751 / 1910<br>796 / 904<br>–<br>634 / 684<br>– |
+| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>95.9<br>176<br>planned for 0.2.1 | 1739 / 1870<br>796 / 904<br>760 / 886<br>1149 / 1232<br>– |
+| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>111<br>96.2<br>71.0<br>planned for 0.2.1 | 1751 / 1910<br>796 / 904<br>760 / 886<br>634 / 684<br>– |
 
 <details><summary>Details</summary>
 
@@ -237,8 +238,8 @@ Commercial use: yes.
 - `loftr-indoor` 768x1024, first call: portable + torch.compile 30 s (cold Inductor cache).
 - `loftr-outdoor` original 768x1024: upstream LoFTR default_cfg, temp_bug_fix False, long side 840
 - `loftr-indoor` original 768x1024: upstream LoFTR default_cfg, temp_bug_fix True, long side 840
-- `loftr-outdoor` load / first call: original 0.35 s / 0.242 s, portable 0.24 s / 0.578 s
-- `loftr-indoor` load / first call: original 1.49 s / 0.693 s, portable 0.32 s / 0.53 s
+- `loftr-outdoor` load / first call: original 0.35 s / 0.242 s, portable 0.24 s / 0.578 s, kernels 0.67 s / 0.369 s
+- `loftr-indoor` load / first call: original 1.49 s / 0.693 s, portable 0.32 s / 0.53 s, kernels 0.54 s / 0.429 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -331,7 +332,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `romav1` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>377<br>356<br>deferred (build >5 min)<br>planned for 0.2.1 | 3887 / 4094<br>1720 / 1840<br>1720 / 1860<br>–<br>– |
+| `romav1` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>377<br>356<br>247<br>planned for 0.2.1 | 3887 / 4094<br>1720 / 1840<br>1720 / 1860<br>1348 / 1476<br>– |
 
 <details><summary>Details</summary>
 
@@ -349,6 +350,7 @@ Commercial use: yes.
 - Outputs: warp, certainty
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `romav1` 3000x4000 (1.9 GiB peak allocated, 2.2 reserved)
+- `romav1` 768x1024, first call: portable + torch.compile 698 s (cold Inductor cache).
 - `romav1` original 768x1024: the authors' mixed-precision option (float16); upstream RoMa v1 match, one direction; local correlation: upstream's plain-torch path (use_custom_corr off)
 - `romav1` load / first call: original 6.28 s / 2.57 s, portable 2.34 s / 0.918 s, kernels 3.17 s / 1.026 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

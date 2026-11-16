@@ -158,8 +158,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1629<br>deferred (build >5 min)<br>deferred (build >5 min) | –<br>9899 / 10400<br>4587 / 5362<br>–<br>– |
-| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1628<br>deferred (build >5 min)<br>deferred (build >5 min) | –<br>9899 / 10400<br>4587 / 5282<br>–<br>– |
+| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1629<br>1498<br>fails: TensorRT parser: Sc node | –<br>9899 / 10400<br>4587 / 5362<br>12051 / 12880<br>– |
+| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1628<br>1498<br>fails: TensorRT parser: Sc node | –<br>9899 / 10400<br>4587 / 5282<br>12051 / 12880<br>– |
 
 <details><summary>Details</summary>
 
@@ -174,6 +174,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Outputs: frame
 - Input size: any H x W >= 128, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gimm-vfi-r` 1024x2048 (13.4 GiB peak allocated, 14.5 reserved); `gimm-vfi-r-p` 1024x2048 (13.0 GiB peak allocated, 14.2 reserved)
+- `gimm-vfi-r` 1080x1920, first call: portable + torch.compile 307 s (cold Inductor cache).
+- `gimm-vfi-r-p` 1080x1920, first call: portable + torch.compile 307 s (cold Inductor cache).
 - `gimm-vfi-r` load / first call: original 2.05 s / 1.336 s (480x854), portable 0.27 s / 2.622 s, kernels 0.59 s / 1.631 s
 - `gimm-vfi-r-p` load / first call: original 2.96 s / 1.438 s (480x854), portable 0.27 s / 0.997 s (480x854), kernels 0.58 s / 0.684 s (480x854)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

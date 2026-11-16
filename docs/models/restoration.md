@@ -143,8 +143,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1565<br>1391<br>1063<br>deferred (build >5 min) | 2443 / 2528<br>2552 / 2624<br>2282 / 2384<br>2552 / 2606<br>– |
-| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1312<br>1221<br>964<br>deferred (build >5 min) | 2436 / 2518<br>2276 / 2378<br>2276 / 2378<br>2546 / 2598<br>– |
+| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1565<br>1391<br>1063<br>1001 | 2443 / 2528<br>2552 / 2624<br>2282 / 2384<br>2552 / 2606<br>9010 / 9056 |
+| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1312<br>1221<br>964<br>921 | 2436 / 2518<br>2276 / 2378<br>2276 / 2378<br>2546 / 2598<br>9001 / 9048 |
 | `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2204<br>268<br>264<br>158<br>136 | 1606 / 1656<br>1535 / 1552<br>1445 / 1472<br>1385 / 1412<br>4144 / 4192 |
 
 <details><summary>Details</summary>
@@ -162,8 +162,8 @@ Commercial use: yes.
 - Outputs: image
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dat-x4` 1024x1024 (10.1 GiB peak allocated, 14.9 reserved); `dat-2-x4` 1024x1024 (10.1 GiB peak allocated, 14.1 reserved); `dat-light-x4` 1024x1024 (6.3 GiB peak allocated, 7.4 reserved)
-- `dat-x4` 512x512, first call: portable + torch.compile 43 s (cold Inductor cache).
-- `dat-2-x4` 512x512, first call: portable + torch.compile 44 s (cold Inductor cache).
+- `dat-x4` 512x512, first call: portable + torch.compile 43 s (cold Inductor cache), TensorRT fp16 191 s (ONNX + engine).
+- `dat-2-x4` 512x512, first call: portable + torch.compile 44 s (cold Inductor cache), TensorRT fp16 206 s (ONNX + engine).
 - `dat-light-x4` 512x512, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 75 s (ONNX + engine).
 - `dat-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-2-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
@@ -207,8 +207,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>830<br>718<br>618<br>deferred (build >5 min) | 3359 / 3944<br>2626 / 3048<br>2498 / 2766<br>1938 / 2348<br>– |
-| `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14651<br>1607<br>1399<br>1210<br>deferred (build >5 min) | 5574 / 6926<br>2692 / 3110<br>2564 / 2850<br>2005 / 2410<br>– |
+| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>830<br>718<br>618<br>731 | 3359 / 3944<br>2626 / 3048<br>2498 / 2766<br>1938 / 2348<br>9684 / 9728 |
+| `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14651<br>1607<br>1399<br>1210<br>fails: TensorRT engine build failed | 5574 / 6926<br>2692 / 3110<br>2564 / 2850<br>2005 / 2410<br>– |
 
 <details><summary>Details</summary>
 
@@ -223,7 +223,7 @@ Commercial use: yes.
 - Outputs: image
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `drct-x4` 1024x1024 (10.0 GiB peak allocated, 13.9 reserved); `drct-l-x4` 1024x1024 (10.0 GiB peak allocated, 13.9 reserved)
-- `drct-x4` 512x512, first call: portable + torch.compile 40 s (cold Inductor cache).
+- `drct-x4` 512x512, first call: portable + torch.compile 40 s (cold Inductor cache), TensorRT fp16 187 s (ONNX + engine).
 - `drct-l-x4` 512x512, first call: portable + torch.compile 67 s (cold Inductor cache).
 - `drct-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream drct_model.py test, float32, no tile
 - `drct-l-x4` original 512x512: torch.autocast(float16) around the call; upstream drct_model.py test, float32, no tile
@@ -235,10 +235,10 @@ Commercial use: yes.
 
 DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | portable | kernels | note |
-|---|---|---|---|---|
-| `drct-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.76 / 0.8388 | 30.76 / 0.8388 |  |
-| `drct-l-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.00 / 0.8434 | 31.00 / 0.8434 |  |
+| variant | dataset | original fp32 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `drct-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.76 / 0.8388 | 30.76 / 0.8388 | 30.76 / 0.8388 |  |
+| `drct-l-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.00 / 0.8434 | 31.00 / 0.8434 | 31.00 / 0.8434 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 706c6828, 2026-11-14.
 
@@ -303,9 +303,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1596<br>1427<br>1185<br>deferred (build >5 min) | 5318 / 6106<br>2426 / 2590<br>2298 / 2470<br>1811 / 2750<br>– |
+| `hat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1596<br>1427<br>1185<br>fails: TensorRT engine build failed | 5318 / 6106<br>2426 / 2590<br>2298 / 2470<br>1811 / 2750<br>– |
 | `hat-s-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2402<br>1072<br>956<br>750<br>fails: TensorRT engine build failed | 5018 / 5644<br>1984 / 2148<br>1856 / 1888<br>2352 / 3068<br>– |
-| `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1597<br>1427<br>1185<br>deferred (build >5 min) | 5318 / 6106<br>2426 / 2610<br>2298 / 2470<br>1811 / 2750<br>– |
+| `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1597<br>1427<br>1185<br>fails: TensorRT engine build failed | 5318 / 6106<br>2426 / 2610<br>2298 / 2470<br>1811 / 2750<br>– |
 
 <details><summary>Details</summary>
 
@@ -652,8 +652,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2296<br>deferred (build >5 min)<br>fails: not run: onnx is not installed in the test venv | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>–<br>– |
-| `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2712<br>2713<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>deferred (build >5 min) | –<br>6402 / 7034<br>6402 / 7034<br>–<br>– |
+| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2296<br>1941<br>fails: not run: onnx is not installed in the test venv | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>5237 / 8144<br>– |
+| `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2712<br>2713<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | –<br>6402 / 7034<br>6402 / 7034<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -670,6 +670,7 @@ Commercial use: yes.
 - Outputs: image
 - Input size: any H x W >= 8, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `seedvr2-3b` 512x512 (11.7 GiB peak allocated, 15.0 reserved); `seedvr2-7b` 512x512 (6.3 GiB peak allocated, 8.7 reserved)
+- `seedvr2-3b` 512x512, first call: portable + torch.compile 238 s (cold Inductor cache).
 - `seedvr2-3b` original 512x512: load: the authors' fp32 .pth files from the page cache (read once before)
 - `seedvr2-3b` load / first call: original 96.2 s / 13.89 s, portable 2.65 s / 2.454 s, kernels 3.27 s / 2.462 s
 - `seedvr2-7b` load / first call: portable 222.77 s / 3.174 s, kernels 118.43 s / 3.176 s

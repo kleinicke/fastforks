@@ -14,7 +14,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 |---|---|---|---|
 | [`anysplat`](#anysplat) | yes | 364, 2.0x | 5192, 0.55x |
 | [`depthsplat-small-re10k`](#depthsplat) | yes | 112, 1.1x | 5606, 0.95x |
-| [`lingbot-map`](#lingbot_map) | yes | – | – |
+| [`lingbot-map`](#lingbot_map) | yes | 515, 1.9x | 4810, 0.63x |
 | [`mapanything-apache`](#mapanything) | yes | 544, 3.6x | 4072, 0.47x |
 | [`mvsanywhere`](#mvsanywhere) | no | 35.2, 6.2x | 760, 0.51x |
 | [`mvsplat-re10k`](#mvsplat) | yes | 172, 1.6x | 1532, 0.37x |
@@ -144,7 +144,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 993<br>730<br>–<br>planned for 0.2.1<br>deferred (build >5 min) | 7141 / 7672<br>4512 / 4770<br>–<br>–<br>– |
+| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 993<br>730<br>515<br>planned for 0.2.1<br>489 | 7141 / 7672<br>4512 / 4770<br>4519 / 4810<br>–<br>6280 / 6338 |
 
 <details><summary>Details</summary>
 
@@ -161,8 +161,9 @@ Commercial use: yes.
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-map` 3000x4000 (5.5 GiB peak allocated, 6.8 reserved)
+- `lingbot-map` 480x640, first call: TensorRT fp16 181 s (ONNX + engine).
 - `lingbot-map` original 480x640: the authors' mixed-precision option (bfloat16); upstream GCTStream.inference_streaming (demo defaults, SDPA), bfloat16 aggregator
-- `lingbot-map` load / first call: original 131.28 s / 4.645 s (480x640), portable 6.58 s / 1.077 s (480x640)
+- `lingbot-map` load / first call: original 131.28 s / 4.645 s (480x640), portable 6.58 s / 1.077 s (480x640), kernels 5.69 s / 0.843 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
@@ -455,8 +456,8 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 493<br>1723<br>362<br>deferred (build >5 min)<br>planned for 0.2.1 | 5148 / 5376<br>4995 / 5180<br>4981 / 5148<br>–<br>– |
-| `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels | 2521<br>7086<br>1280 | 10139 / 12684<br>6951 / 8736<br>6944 / 8706 |
+| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 493<br>1723<br>362<br>1538<br>planned for 0.2.1 | 5148 / 5376<br>4995 / 5180<br>4981 / 5148<br>4995 / 5138<br>– |
+| `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2521<br>7086<br>1280<br>fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile <br>fails: TypeError: _Base.forward() missing 1 required positional arg | 10139 / 12684<br>6951 / 8736<br>6944 / 8706<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -476,6 +477,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resplat-small-dl3dv` 3000x4000 (5.9 GiB peak allocated, 7.0 reserved); `resplat-base-re10k` 3000x4000 (7.8 GiB peak allocated, 11.2 reserved)
+- `resplat-small-dl3dv` 480x640, first call: portable + torch.compile 243 s (cold Inductor cache).
 - `resplat-small-dl3dv` original 480x640: the authors' mixed-precision option (bfloat16); cvg/resplat@cae7ddc4cdbd EncoderReSplat, pointops + gsplat extensions, 2 refinement steps, released bfloat16 autocast
 - `resplat-base-re10k` original 480x640: the authors' mixed-precision option (bfloat16); cvg/resplat@cae7ddc4cdbd EncoderReSplat, pointops + gsplat extensions, 2 refinement steps, released bfloat16 autocast
 - `resplat-small-dl3dv` load / first call: original 16.8 s / 10.688 s (480x640), portable 0.72 s / 2.51 s (480x640), kernels 3.88 s / 2.839 s (480x640)

@@ -34,7 +34,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`memfof`](#memfof) | yes | 10.891 † | 427, 1.2x | 1418, 0.66x |
 | [`memfof-kitti`](#memfof) | yes | – | 380, 2.4x (375x1242) | 1218, 0.54x |
 | [`memfof-sintel`](#memfof) | yes | – | 1993 | 8820 |
-| [`memfof-spring`](#memfof) | yes | – | – | – |
+| [`memfof-spring`](#memfof) | yes | – | 427, 2.4x | 1398, 0.52x |
 | [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.1, 1.3x | 896, 0.2x |
 | [`neuflow-v2-sintel`](#neuflow_v2) | yes | 1.566 † | 58.9, 1.3x | 896, 0.2x |
 | [`neuflow-v2-things`](#neuflow_v2) | yes | 4.095 | 58.9, 1.3x | 896, 0.19x |
@@ -53,8 +53,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`sea-raft-s-kitti`](#sea_raft) | yes | 0.935 † | 50.7, 5.9x | 432, 0.051x |
 | [`sea-raft-s-spring`](#sea_raft) | yes | 7.757 † | 16.2, 2.6x | 172, 0.23x |
 | [`waft-a1`](#waft) | yes | 2.315 | 519, 3.0x | 2264, 0.38x |
-| [`waft-a1-kitti`](#waft) | yes | – | – | – |
-| [`waft-a1-sintel`](#waft) | yes | – | – | – |
+| [`waft-a1-kitti`](#waft) | yes | – | 519, 3.0x | 2264, 0.38x |
+| [`waft-a1-sintel`](#waft) | yes | – | 519, 3.0x | 2264, 0.38x |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
@@ -340,7 +340,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `megaflow` | synthetic (1080x1920) | original<br>portable<br>kernels | 1588<br>1109<br>734 | 8230 / 8786<br>3035 / 3246<br>2866 / 3066 |
+| `megaflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1588<br>1109<br>734<br>917<br>677 | 8230 / 8786<br>3035 / 3246<br>2866 / 3066<br>2611 / 2886<br>9265 / 9300 |
 
 <details><summary>Details</summary>
 
@@ -356,6 +356,7 @@ Commercial use: yes.
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `megaflow` 1080x1920 (3.0 GiB peak allocated, 3.2 reserved)
+- `megaflow` 1080x1920, first call: portable + torch.compile 102 s (cold Inductor cache), TensorRT fp16 214 s (ONNX + engine).
 - `megaflow` original 1080x1920: the authors' mixed-precision option (bfloat16); upstream MegaFlow, num_reg_refine=8, README recipe: bf16 autocast
 - `megaflow` load / first call: original 9.56 s / 6.769 s, portable 1.96 s / 0.758 s (375x1242), kernels 7.1 s / 0.668 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -466,7 +467,7 @@ Commercial use: yes.
 | `memfof` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 531<br>433<br>427<br>291<br>160 | 2003 / 2144<br>1911 / 2196<br>1301 / 1418<br>2452 / 2666<br>2070 / 2132 |
 | `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 927<br>386<br>380<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | 1968 / 2276<br>1619 / 1856<br>1137 / 1218<br>2041 / 2226<br>– |
 | `memfof-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>1993<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | –<br>–<br>7249 / 8820<br>–<br>– |
-| `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1035<br>433<br>–<br>291<br>160 | 2340 / 2676<br>1900 / 2196<br>–<br>2452 / 2666<br>2070 / 2112 |
+| `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1035<br>433<br>427<br>291<br>160 | 2340 / 2676<br>1900 / 2196<br>1290 / 1398<br>2452 / 2666<br>2070 / 2112 |
 
 <details><summary>Details</summary>
 
@@ -496,7 +497,7 @@ Commercial use: yes.
 - `memfof` load / first call: original 2.06 s / 1.293 s, portable 0.22 s / 0.415 s (375x1242), kernels 1.84 s / 0.286 s (375x1242)
 - `memfof-kitti` load / first call: original 2.59 s / 0.961 s (375x1242), portable 0.21 s / 0.651 s (375x1242), kernels 1.07 s / 0.565 s (375x1242)
 - `memfof-sintel` load / first call: original 1.3 s / 0.897 s (375x1242), portable 0.69 s / 0.574 s (375x1242), kernels 2.49 s / 1.994 s
-- `memfof-spring` load / first call: original 1.12 s / 1.037 s, portable 0.71 s / 0.433 s
+- `memfof-spring` load / first call: original 1.12 s / 1.037 s, portable 0.71 s / 0.433 s, kernels 0.51 s / 0.632 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -523,6 +524,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - Pairs only: the multi-frame input (a previous frame and the feature cache of upstream's video demo) is not exposed; each pair runs as the first frame of a clip.
+- Full-frame 1080x1920 runs out of memory on the RTX 5060 Ti 16 GB in the upstream original and in portable; only kernels fit (7.2 GB).
 
 </details>
 
@@ -849,9 +851,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>deferred (build >5 min) | 5537 / 5916<br>3553 / 4076<br>1851 / 2264<br>3479 / 3638<br>– |
-| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>–<br>610<br>deferred (build >5 min) | 5537 / 5936<br>3553 / 4196<br>–<br>3479 / 3758<br>– |
-| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>–<br>610<br>deferred (build >5 min) | 5537 / 5916<br>3553 / 4076<br>–<br>3479 / 3578<br>– |
+| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>343 | 5537 / 5916<br>3553 / 4076<br>1851 / 2264<br>3479 / 3638<br>1625 / 1672 |
+| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>343 | 5537 / 5936<br>3553 / 4196<br>1851 / 2264<br>3479 / 3758<br>1625 / 1672 |
+| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>343 | 5537 / 5916<br>3553 / 4076<br>1851 / 2264<br>3479 / 3578<br>1625 / 1672 |
 
 <details><summary>Details</summary>
 
@@ -869,15 +871,15 @@ Commercial use: yes.
 - Outputs: flow
 - Input size: any H x W >= 112, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `waft-a1` 1080x1920 (3.5 GiB peak allocated, 4.0 reserved); `waft-a1-kitti` 1080x1920 (3.5 GiB peak allocated, 4.1 reserved); `waft-a1-sintel` 1080x1920 (3.5 GiB peak allocated, 4.0 reserved)
-- `waft-a1` 1080x1920, first call: portable + torch.compile 85 s (cold Inductor cache).
-- `waft-a1-kitti` 1080x1920, first call: portable + torch.compile 84 s (cold Inductor cache).
-- `waft-a1-sintel` 1080x1920, first call: portable + torch.compile 85 s (cold Inductor cache).
+- `waft-a1` 1080x1920, first call: portable + torch.compile 85 s (cold Inductor cache), TensorRT fp16 166 s (ONNX + engine).
+- `waft-a1-kitti` 1080x1920, first call: portable + torch.compile 84 s (cold Inductor cache), TensorRT fp16 168 s (ONNX + engine).
+- `waft-a1-sintel` 1080x1920, first call: portable + torch.compile 85 s (cold Inductor cache), TensorRT fp16 166 s (ONNX + engine).
 - `waft-a1` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t.json), iters=5
 - `waft-a1-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-kitti.json), iters=5
 - `waft-a1-sintel` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-sintel.json), iters=5
 - `waft-a1` load / first call: original 5.87 s / 3.409 s, portable 0.51 s / 0.79 s, kernels 0.57 s / 0.21 s (375x1242)
-- `waft-a1-kitti` load / first call: original 4.06 s / 2.874 s, portable 0.54 s / 0.79 s
-- `waft-a1-sintel` load / first call: original 2.93 s / 2.873 s, portable 0.51 s / 0.79 s
+- `waft-a1-kitti` load / first call: original 4.06 s / 2.874 s, portable 0.54 s / 0.79 s, kernels 1.4 s / 0.285 s (375x1242)
+- `waft-a1-sintel` load / first call: original 2.93 s / 2.873 s, portable 0.51 s / 0.79 s, kernels 0.69 s / 0.21 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

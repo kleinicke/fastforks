@@ -1045,7 +1045,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `falconsai-nsfw-vit` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.76<br>5.74<br>2.83<br>1.61<br>deferred (build >5 min)<br>1.12 | 367 / 388<br>200 / 226<br>201 / 226<br>198 / 228<br>–<br>393 / 420 |
+| `falconsai-nsfw-vit` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.76<br>5.74<br>2.83<br>1.61<br>2.02<br>1.12 | 367 / 388<br>200 / 226<br>201 / 226<br>198 / 228<br>236 / 266<br>393 / 420 |
 
 <details><summary>Details</summary>
 
@@ -1060,7 +1060,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `nsfw-2`
 - Input size: fixed 224x224: the input is resized (short side 224) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `falconsai-nsfw-vit` 224x224 (0.2 GiB peak allocated, 0.3 reserved)
-- `falconsai-nsfw-vit` 224x224, first call: TensorRT fp16 27 s (ONNX + engine).
+- `falconsai-nsfw-vit` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 27 s (ONNX + engine).
 - `falconsai-nsfw-vit` original 224x224: .half() on 1 modules, fp16 inputs
 - `falconsai-nsfw-vit` load / first call: original 2.95 s / 0.273 s, portable 2.63 s / 0.094 s, kernels 2.42 s / 0.085 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -2337,10 +2337,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>4.01<br>4.06<br>5.33<br>deferred (build >5 min) | 426 / 442<br>231 / 242<br>235 / 242<br>234 / 284<br>282 / 302<br>– |
+| `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>4.01<br>4.06<br>5.33<br>3.32 | 426 / 442<br>231 / 242<br>235 / 242<br>234 / 284<br>282 / 302<br>421 / 446 |
 | `wd-convnext-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>9.60<br>5.59<br>4.46<br>4.45<br>3.10 | 481 / 516<br>259 / 292<br>260 / 292<br>238 / 276<br>380 / 392<br>521 / 548 |
 | `wd-vit-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.8<br>19.9<br>12.9<br>12.6<br>13.3<br>11.2 | 1287 / 1302<br>662 / 682<br>669 / 682<br>667 / 724<br>713 / 742<br>1266 / 1290 |
-| `wd-eva02-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 84.4<br>26.6<br>18.3<br>14.1<br>15.7<br>deferred (build >5 min) | 1299 / 1324<br>668 / 684<br>669 / 684<br>673 / 806<br>714 / 724<br>– |
+| `wd-eva02-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 84.4<br>26.6<br>18.3<br>14.1<br>15.7<br>12.4 | 1299 / 1324<br>668 / 684<br>669 / 684<br>673 / 806<br>714 / 724<br>1280 / 1306 |
 
 <details><summary>Details</summary>
 
@@ -2355,10 +2355,10 @@ Commercial use: yes.
 - Outputs: logits; label_set: `wd-tagger-v3`; probs: `sigmoid`
 - Input size: fixed 448x448: the input is resized (short side 448) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `wd-vit-tagger-v3` 448x448 (0.2 GiB peak allocated, 0.3 reserved); `wd-convnext-tagger-v3` 448x448 (0.3 GiB peak allocated, 0.4 reserved); `wd-vit-large-tagger-v3` 448x448 (0.7 GiB peak allocated, 0.7 reserved); `wd-eva02-large-tagger-v3` 448x448 (0.7 GiB peak allocated, 0.9 reserved)
-- `wd-vit-tagger-v3` 448x448, first call: portable + torch.compile 10 s (cold Inductor cache).
+- `wd-vit-tagger-v3` 448x448, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 19 s (ONNX + engine).
 - `wd-convnext-tagger-v3` 448x448, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `wd-vit-large-tagger-v3` 448x448, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
-- `wd-eva02-large-tagger-v3` 448x448, first call: portable + torch.compile 22 s (cold Inductor cache).
+- `wd-eva02-large-tagger-v3` 448x448, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `wd-vit-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
 - `wd-convnext-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
 - `wd-vit-large-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs

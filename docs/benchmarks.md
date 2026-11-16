@@ -576,9 +576,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| any2full-b | 994x1482 | – | 108 | 26.8 | – | – | – | 1109 / 1160 | 538 / 596 | – |
-| any2full-l | 994x1482 | – | 269 | 67.7 | – | – | – | 2436 / 2788 | 1178 / 1250 | – |
-| any2full-s | 994x1482 | – | 47.5 | 12.4 | – | – | – | 646 / 670 | 274 / 312 | – |
+| any2full-b | 994x1482 | – | 108 | 26.8 | 17.2 | 6.3x | 1.6x | 1109 / 1160 | 538 / 596 | 481 / 536 |
+| any2full-l | 994x1482 | – | 269 | 67.7 | 42.3 | 6.4x | 1.6x | 2436 / 2788 | 1178 / 1250 | 1115 / 1210 |
+| any2full-s | 994x1482 | – | 47.5 | 12.4 | 9.47 | 5.0x | 1.3x | 646 / 670 | 274 / 312 | 218 / 252 |
 | da3-giant-1.1 | 994x1482 | – | – | 71.5 | 45.2 | – | 1.6x | – | 2634 / 2728 | 2535 / 2590 |
 | da3-large-1.1 | 994x1482 | – | – | 30.0 | 17.3 | – | 1.7x | – | 988 / 1088 | 891 / 950 |
 | da3metric-large | 994x1482 | – | – | 24.3 | 15.0 | – | 1.6x | – | 811 / 868 | 802 / 848 |
@@ -594,12 +594,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | depth-anything-v2-metric-vkitti-s | 994x1482 | – | – | 7.66 | 4.67 | – | 1.6x | – | 244 / 288 | 152 / 208 |
 | depth-anything-v2-s | 518x770 | 45.5 | 38.1 | 7.73 | 4.45 | 8.6x | 1.7x | 373 / 418 | 232 / 326 | 173 / 248 |
 | depth-pro | 994x1482 | – | – | 522 | 277 | – | 1.9x | – | 3297 / 3478 | 3050 / 3198 |
-| depthfm-v1 | 994x1482 | – | OOM | 5662 | – | – | – | – | 13651 / 15150 | – |
+| depthfm-v1 | 994x1482 | – | OOM | 5662 | 3570 | – | 1.6x | – | 13651 / 15150 | 9237 / 9314 |
 | distill-any-depth-b | 994x1482 | – | – | 18.6 | 10.8 | – | 1.7x | – | 445 / 514 | 349 / 396 |
 | distill-any-depth-l | 994x1482 | – | – | 54.4 | 31.8 | – | 1.7x | – | 1022 / 1092 | 917 / 1034 |
 | distill-any-depth-s | 994x1482 | – | – | 7.65 | 4.63 | – | 1.7x | – | 244 / 288 | 152 / 208 |
-| lingbot-depth | 994x1482 | – | 297 | 280 | – | – | – | 2267 / 2338 | 1559 / 1872 | – |
-| lingbot-depth-dc | 994x1482 | – | 297 | 281 | – | – | – | 2267 / 2338 | 1559 / 1872 | – |
+| lingbot-depth | 994x1482 | – | 297 | 280 | 161 | 1.8x | 1.7x | 2267 / 2338 | 1559 / 1872 | 1453 / 1590 |
+| lingbot-depth-dc | 994x1482 | – | 297 | 281 | 161 | 1.8x | 1.7x | 2267 / 2338 | 1559 / 1872 | 1453 / 1590 |
 | lotus-normal-d-v1-1 | 994x1482 | – | 344 | 268 | 164 | 2.1x | 1.6x | 3835 / 3898 | 2777 / 2940 | 2351 / 2500 |
 | lotus-normal-g-v1-1 | 994x1482 | – | 344 | 267 | 164 | 2.1x | 1.6x | 3836 / 3898 | 2777 / 2940 | 2351 / 2500 |
 | marigold-depth-v1-1 | 994x1482 | – | – | 410 | 261 | – | 1.6x | – | 2776 / 2938 | 2343 / 2500 |
@@ -611,7 +611,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | moge-2-vitl-normal | 518x770 | 500 | 169 | 145 | 73.9 | 2.3x | 2.0x | 2326 / 2418 | 1645 / 1836 | 1481 / 1610 |
 | moge-2-vits-normal | 994x1482 | – | – | 61.6 | 33.3 | – | 1.9x | – | 1007 / 1172 | 932 / 1048 |
 | moge-3-vitl | 994x1482 | – | – | 332 | 149 | – | 2.2x | – | 1678 / 1926 | 1626 / 1762 |
-| omni-dc | 994x1482 | – | 875 | 554 | – | – | – | 5966 / 6732 | 4958 / 6304 | – |
+| omni-dc | 994x1482 | – | 875 | 554 | 510 | 1.7x | 1.1x | 5966 / 6732 | 4958 / 6304 | 4981 / 6030 |
 | pointdit-b-512 | 994x1482 | – | – | 31.1 | 20.5 | – | 1.5x | – | 446 / 504 | 462 / 630 |
 | pointdit-l-512 | 994x1482 | – | – | 94.6 | 61.3 | – | 1.5x | – | 1297 / 1430 | 1310 / 1676 |
 | prompt-depth-anything-l | 756x1008 | – | – | 125 | 69.3 | – | 1.8x | – | 1318 / 1488 | 1179 / 1348 |
@@ -619,7 +619,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | stablenormal-turbo | 994x1482 | – | 299 | 289 | 180 | 1.7x | 1.6x | 4156 / 4374 | 3463 / 3628 | 3037 / 3172 |
 | unidepth-v2-vitl14 | 994x1482 | – | – | – | 63.0 | – | – | – | – | 1153 / 1252 |
 | unik3d-vitl | 518x770 | 123 | 123 | 99.2 | 58.5 | 2.1x | 1.7x | 3220 / 3530 | 1172 / 1492 | 1070 / 1106 |
-| video-depth-anything-metric-s | 1080x1920 | – | – | – | 200 | – | – | – | – | 1967 / 2206 |
+| video-depth-anything-metric-s | 1080x1920 | – | – | 202 | 200 | – | 1.0x | – | 1962 / 2224 | 1967 / 2226 |
 | video-depth-anything-s | 1080x1920 | – | – | 202 | 200 | – | 1.0x | – | 1962 / 2204 | 1967 / 2226 |
 | zoedepth-nk | 518x770 | 295 | 250 | 114 | 80.0 | 3.1x | 1.4x | 1965 / 2124 | 1950 / 2124 | 1658 / 1960 |
 
@@ -657,13 +657,6 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | unidepth-v2-vitl14 | 132 | 132 | 99.8 | 66.4 | 2.0x | 1.5x | 3230 / 3508 | 1208 / 1472 | 1211 / 1472 |
 | unik3d-vitl | 134 | 134 | 108 | 62.9 | 2.1x | 1.7x | 3307 / 3570 | 1219 / 1492 | 1166 / 1266 |
 | zoedepth-nk | 408 | 271 | 124 | 88.9 | 3.1x | 1.4x | 2040 / 2146 | 2037 / 2124 | 1771 / 1960 |
-
-### Depth, TUM RGB-D fr1_room, 1080x1920
-
-| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
-|---|---|---|---|---|---|---|---|---|
-| video-depth-anything-metric-s | 10776 | 2005 | 1848 | 5.8x | 1.1x | 8264 / 11916 | 8203 / 8848 | 8208 / 8630 |
-| video-depth-anything-s | 11626 | – | – | – | – | 8263 / 11890 | – | – |
 
 ### Classification, synthetic
 
@@ -1056,7 +1049,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|---|---|---|
 | anysplat | 336x518 | – | 741 | 503 | 364 | 2.0x | 1.4x | 8931 / 9394 | 4842 / 4932 | 4849 / 5192 |
 | depthsplat-small-re10k | 336x518 | – | 126 | 119 | 112 | 1.1x | 1.1x | 5694 / 5892 | 5432 / 5606 | 5434 / 5606 |
-| lingbot-map | 480x640 | – | 993 | 730 | – | – | – | 7141 / 7672 | 4512 / 4770 | – |
+| lingbot-map | 480x640 | – | 993 | 730 | 515 | 1.9x | 1.4x | 7141 / 7672 | 4512 / 4770 | 4519 / 4810 |
 | mapanything-apache | 336x518 | 2875 | 1967 | 636 | 544 | 3.6x | 1.2x | 10227 / 10952 | 3697 / 4092 | 3697 / 4072 |
 | mvsanywhere | 448x672 | 273 | 219 | 93.2 | 35.2 | 6.2x | 2.7x | 1504 / 1576 | 931 / 1226 | 702 / 760 |
 | mvsplat-re10k | 336x518 | – | 279 | 181 | 172 | 1.6x | 1.0x | 2889 / 4160 | 1239 / 1532 | 1239 / 1532 |
@@ -1093,7 +1086,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | memfof | 1080x1920 | – | 531 | 433 | 427 | 1.2x | 1.0x | 2003 / 2144 | 1911 / 2196 | 1301 / 1418 |
 | memfof-kitti | 375x1242 | – | 927 | 386 | 380 | 2.4x | 1.0x | 1968 / 2276 | 1619 / 1856 | 1137 / 1218 |
 | memfof-sintel | 1080x1920 | – | OOM | OOM | 1993 | – | – | – | – | 7249 / 8820 |
-| memfof-spring | 1080x1920 | – | 1035 | 433 | – | – | – | 2340 / 2676 | 1900 / 2196 | – |
+| memfof-spring | 1080x1920 | – | 1035 | 433 | 427 | 2.4x | 1.0x | 2340 / 2676 | 1900 / 2196 | 1290 / 1398 |
 | neuflow-v2 | 1080x1920 | 171 | 75.6 | 71.2 | 59.1 | 1.3x | 1.2x | 4367 / 4556 | 2366 / 2398 | 790 / 896 |
 | neuflow-v2-sintel | 1080x1920 | 171 | 75.7 | 71.3 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2366 / 2398 | 790 / 896 |
 | neuflow-v2-things | 1080x1920 | 172 | 75.8 | 71.4 | 58.9 | 1.3x | 1.2x | 4374 / 4720 | 2366 / 2398 | 779 / 896 |
@@ -1112,8 +1105,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | sea-raft-s-kitti | 1080x1920 | 365 | 299 | 210 | 50.7 | 5.9x | 4.2x | 7323 / 8502 | 6019 / 6136 | 404 / 432 |
 | sea-raft-s-spring | 1080x1920 | 67.1 | 42.4 | 32.8 | 16.2 | 2.6x | 2.0x | 699 / 764 | 611 / 656 | 150 / 172 |
 | waft-a1 | 1080x1920 | – | 1533 | 791 | 519 | 3.0x | 1.5x | 5537 / 5916 | 3553 / 4076 | 1851 / 2264 |
-| waft-a1-kitti | 1080x1920 | – | 1533 | 791 | – | – | – | 5537 / 5936 | 3553 / 4196 | – |
-| waft-a1-sintel | 1080x1920 | – | 1533 | 791 | – | – | – | 5537 / 5916 | 3553 / 4076 | – |
+| waft-a1-kitti | 1080x1920 | – | 1533 | 791 | 519 | 3.0x | 1.5x | 5537 / 5936 | 3553 / 4196 | 1851 / 2264 |
+| waft-a1-sintel | 1080x1920 | – | 1533 | 791 | 519 | 3.0x | 1.5x | 5537 / 5916 | 3553 / 4076 | 1851 / 2264 |
 
 ### Flow, KITTI 2015, 375x1242
 
@@ -1130,11 +1123,11 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|---|---|
 | aliked-flexglue | – | 348 | 129 | – | – | – | 1801 / 1892 | 1775 / 1886 | – |
 | aliked-lightglue | – | 41.8 | 40.6 | 35.1 | 1.2x | 1.2x | 1305 / 1364 | 1300 / 1404 | 1238 / 1324 |
-| dedode-v2-b | – | 318 | 246 | – | – | – | 1734 / 1992 | 1535 / 1654 | – |
-| dedode-v2-g | – | 666 | 592 | – | – | – | 2335 / 2472 | 2142 / 2334 | – |
+| dedode-v2-b | – | 318 | 246 | 189 | 1.7x | 1.3x | 1734 / 1992 | 1535 / 1654 | 1197 / 1246 |
+| dedode-v2-g | – | 666 | 592 | 332 | 2.0x | 1.8x | 2335 / 2472 | 2142 / 2334 | 1787 / 1984 |
 | disk-lightglue | – | 117 | 116 | 52.1 | 2.2x | 2.2x | 1955 / 2412 | 1950 / 2398 | 736 / 778 |
-| loftr-indoor | – | 242 | 111 | – | – | – | 1751 / 1910 | 796 / 904 | – |
-| loftr-outdoor | – | 241 | 110 | – | – | – | 1739 / 1870 | 796 / 904 | – |
+| loftr-indoor | – | 242 | 111 | 96.2 | 2.5x | 1.1x | 1751 / 1910 | 796 / 904 | 760 / 886 |
+| loftr-outdoor | – | 241 | 110 | 95.9 | 2.5x | 1.1x | 1739 / 1870 | 796 / 904 | 760 / 886 |
 | loma-b | – | 1036 | 308 | – | – | – | 4176 / 4390 | 1767 / 1878 | – |
 | romav1 | – | 386 | 377 | 356 | 1.1x | 1.1x | 3887 / 4094 | 1720 / 1840 | 1720 / 1860 |
 | romav2 | 1412 | 741 | 546 | 354 | 2.1x | 1.5x | 9881 / 10124 | 1989 / 2596 | 1909 / 2300 |
@@ -1154,7 +1147,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | locotrack-s | 193 | 180 | 151 | 1.3x | 1.2x | 706 / 812 | 759 / 842 | 596 / 642 |
 | tapir | 187 | 182 | 141 | 1.3x | 1.3x | 498 / 574 | 463 / 548 | 463 / 548 |
 | tapnext | 909 | 528 | 381 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1205 / 1254 |
-| tapnext-pp | 1493 | 529 | – | – | – | 1527 / 1718 | 1220 / 1294 | – |
+| tapnext-pp | 1493 | 529 | 381 | 3.9x | 1.4x | 1527 / 1718 | 1220 / 1294 | 1205 / 1254 |
 | track-on-r | 2022 | 1188 | 1102 | 1.8x | 1.1x | 1801 / 1928 | 1423 / 1632 | 1368 / 1620 |
 | track-on2 | 1953 | 1193 | 1108 | 1.8x | 1.1x | 1403 / 1558 | 1423 / 1712 | 1368 / 1620 |
 
@@ -1297,9 +1290,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | selective-igev-sceneflow | 0.36 (375x1242) | 0.50 | 0.14† | 2.25 (375x1242) | 1.02† | 0.35† |
 | waft-stereo-b | 3.07 (375x1242) | 1.65 | 1.77 (375x1242) | 0.44 (375x1242) | 1.15† | 0.46 (375x1242) |
 | waft-stereo-s | 1.60 (375x1242) | 0.58 | 1.47 (375x1242) | 0.14 (375x1242) | 0.69† | 0.32 (375x1242) |
-| any2full-b | 3.73 | 6.38 | – | 0.34 | 3.34 | – |
-| any2full-l | 9.41 | 1.45 | – | 0.47 | 0.30 | – |
-| any2full-s | 2.55 | 0.31 | – | 0.74 | 0.36 | – |
+| any2full-b | 3.73 | 6.38 | 0.74 | 0.34 | 3.34 | 0.26 |
+| any2full-l | 9.41 | 1.45 | 1.50 | 0.47 | 0.30 | 0.28 |
+| any2full-s | 2.55 | 0.31 | 0.37 | 0.74 | 0.36 | 0.30 |
 | da3-giant-1.1 | 12.39 | 7.21 (518x770) | 5.38 (518x770) | 0.68 | 0.36 (518x770) | 0.37 (518x770) |
 | da3-large-1.1 | 3.46 | 1.59 (518x770) | 2.16 (518x770) | 0.45 | 0.41 (518x770) | 0.26 (518x770) |
 | da3metric-large | 2.70 | 4.84 (518x770) | 2.34 (518x770) | 0.28 | 0.24 (518x770) | 0.21 (518x770) |
@@ -1315,12 +1308,12 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | depth-anything-v2-metric-vkitti-s | 1.46 | 0.13 (518x770) | 0.96 (518x770) | 0.04 | 0.16 (518x770) | 0.05 (518x770) |
 | depth-anything-v2-s | 0.71 | 0.11 | 0.08† | 0.38 | 0.03 | 0.01 |
 | depth-pro | 17.34 | 6.20 | 4.11 | 0.74 | 0.52 | 0.27 |
-| depthfm-v1 | – | 3.58 | – | – | 6.00 | – |
+| depthfm-v1 | – | 3.58 | 4.59 | – | 6.00 | 3.73 |
 | distill-any-depth-b | 0.84 | 0.29 (518x770) | 1.13 (518x770) | 0.06 | 0.27 (518x770) | 0.04 (518x770) |
 | distill-any-depth-l | 3.03 | 0.82 (518x770) | 1.68 (518x770) | 0.14 | 0.14 (518x770) | 0.06 (518x770) |
 | distill-any-depth-s | 0.25 | 0.13 (518x770) | 0.96 (518x770) | 0.04 | 0.16 (518x770) | 0.04 (518x770) |
-| lingbot-depth | 4.81 | 1.38 | – | 1.38 | 0.53 | – |
-| lingbot-depth-dc | 7.54 | 1.29 | – | 1.36 | 0.53 | – |
+| lingbot-depth | 4.81 | 1.38 | 1.36 | 1.38 | 0.53 | 0.33 |
+| lingbot-depth-dc | 7.54 | 1.29 | 1.33 | 1.36 | 0.53 | 0.34 |
 | lotus-normal-d-v1-1 | 2.10 | 5.48 | 2.70 | 0.56 | 0.69 | 0.32 |
 | lotus-normal-g-v1-1 | 10.43 | 4.37 | 3.49 | 1.15 | 0.59 | 0.38 |
 | marigold-depth-v1-1 | 1.32 | 11.04 (518x770) | 2.49 (518x770) | 0.60 | 0.89 (518x770) | 0.50 (518x770) |
@@ -1332,7 +1325,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | moge-2-vitl-normal | 7.24 | 1.37 | 0.63† | 0.17 | 0.14 | 0.13 |
 | moge-2-vits-normal | 0.88 | 1.18 (518x770) | 0.21 (518x770) | 1.50 | 0.30 (518x770) | 0.44 (518x770) |
 | moge-3-vitl | 10.60 | 2.31 (518x770) | 1.16 (518x770) | 2.92 | 0.69 (518x770) | 0.74 (518x770) |
-| omni-dc | 9.52 | 2.47 | – | 2.04 | 1.06 | – |
+| omni-dc | 9.52 | 2.47 | 2.44 | 2.04 | 1.06 | 0.94 |
 | pointdit-b-512 | 2.57 | 1.67 (518x770) | 1.74 (518x770) | 0.11 | 0.18 (518x770) | 0.15 (518x770) |
 | pointdit-l-512 | 9.47 | 3.96 (518x770) | 3.91 (518x770) | 0.12 | 0.25 (518x770) | 0.23 (518x770) |
 | prompt-depth-anything-l | 4.80 (756x1008) | 1.50 (756x1008) | 2.78 (756x1008) | 0.77 (756x1008) | 0.30 (756x1008) | 0.22 (756x1008) |
@@ -1340,7 +1333,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | stablenormal-turbo | 6.36 | 2.94 | 3.25 | 1.13 | 0.54 | 0.35 |
 | unidepth-v2-vitl14 | 3.80 | 4.16 | 1.90 (518x770) | 0.38 | 0.15 | 0.30 (518x770) |
 | unik3d-vitl | 7.28 | 4.16 | 3.77 (518x770) | 0.57 | 0.14 | 0.30 (518x770) |
-| video-depth-anything-metric-s | 3.85 (1080x1920) | 0.51 (1080x1920) | 0.30 (480x640) | 17.09 (1080x1920) | 2.33 (1080x1920) | 0.43 (480x640) |
+| video-depth-anything-metric-s | 3.85 (1080x1920) | 0.19 (480x640) | 0.19 (480x640) | 17.09 (1080x1920) | 0.44 (480x640) | 0.50 (480x640) |
 | video-depth-anything-s | 0.26 (1080x1920) | 0.98 (480x640) | 0.38 (480x640) | 14.04 (1080x1920) | 0.54 (480x640) | 0.37 (480x640) |
 | zoedepth-nk | 8.35 | 1.92 | 0.33† | 1.53 | 0.28 | 0.12 |
 | alexnet.tv_in1k | 2.51 | 1.30 | 1.40 | 0.81 | 0.02 | 0.06 |
@@ -1675,7 +1668,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | geocalib-pinhole | 1.80 | 0.27 | 0.44 | 0.84 | 1.84 | 0.74 |
 | anysplat | 8.32 (336x518) | 4.71 (336x518) | 4.04 (336x518) | 3.07 (336x518) | 0.89 (336x518) | 0.71 (336x518) |
 | depthsplat-small-re10k | 1.83 (336x518) | 0.22 (336x518) | 1.47 (336x518) | 2.97 (336x518) | 0.97 (336x518) | 0.71 (336x518) |
-| lingbot-map | 131.28 (480x640) | 6.58 (480x640) | – | 4.64 (480x640) | 1.08 (480x640) | – |
+| lingbot-map | 131.28 (480x640) | 6.58 (480x640) | 5.69 (480x640) | 4.64 (480x640) | 1.08 (480x640) | 0.84 (480x640) |
 | mapanything-apache | 6.12 (336x518) | 2.89 (336x518) | 0.57† (336x518) | 2.62 (336x518) | 0.66 (336x518) | 0.54 (336x518) |
 | mvsanywhere | 3.21 (448x672) | 1.88 (448x672) | 1.76 (448x672) | 1.04 (448x672) | 0.22 (448x672) | 0.48 (448x672) |
 | mvsplat-re10k | 1.37 (336x518) | 0.15 (336x518) | 1.27 (336x518) | 2.82 (336x518) | 1.02 (336x518) | 0.69 (336x518) |
@@ -1707,7 +1700,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | memfof | 2.06 | 0.22 (375x1242) | 1.84 (375x1242) | 1.29 | 0.41 (375x1242) | 0.29 (375x1242) |
 | memfof-kitti | 2.59 (375x1242) | 0.21 (375x1242) | 1.07 (375x1242) | 0.96 (375x1242) | 0.65 (375x1242) | 0.56 (375x1242) |
 | memfof-sintel | 1.30 (375x1242) | 0.69 (375x1242) | 2.49 | 0.90 (375x1242) | 0.57 (375x1242) | 1.99 |
-| memfof-spring | 1.12 | 0.71 | – | 1.04 | 0.43 | – |
+| memfof-spring | 1.12 | 0.71 | 0.51 | 1.04 | 0.43 | 0.63 |
 | neuflow-v2 | 0.20 | 0.26 | 0.96 (375x1242) | 0.22 | 0.07 | 0.18 (375x1242) |
 | neuflow-v2-sintel | 0.17 | 1.29 (375x1242) | 0.95 (375x1242) | 0.08 | 0.81 (375x1242) | 0.18 (375x1242) |
 | neuflow-v2-things | 0.17 | 0.38 | 0.26 | 0.08 | 0.07 | 0.06 |
@@ -1726,15 +1719,15 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | sea-raft-s-kitti | 0.30 | 0.27 | 1.10 | 0.30 | 0.21 | 0.05 |
 | sea-raft-s-spring | 0.31 | 0.34 | 1.11 | 0.04 | 0.04 | 0.02 |
 | waft-a1 | 5.87 | 0.51 | 0.57 (375x1242) | 3.41 | 0.79 | 0.21 (375x1242) |
-| waft-a1-kitti | 4.06 | 0.54 | – | 2.87 | 0.79 | – |
-| waft-a1-sintel | 2.93 | 0.51 | – | 2.87 | 0.79 | – |
+| waft-a1-kitti | 4.06 | 0.54 | 1.40 (375x1242) | 2.87 | 0.79 | 0.28 (375x1242) |
+| waft-a1-sintel | 2.93 | 0.51 | 0.69 (375x1242) | 2.87 | 0.79 | 0.21 (375x1242) |
 | aliked-flexglue | 4.50 | 0.92 | – | 1.66 | 1.20 | – |
 | aliked-lightglue | 1.49 | 0.17 | 1.46 | 0.73 | 0.79 | 0.90 |
-| dedode-v2-b | 3.73 | 0.67 | – | 1.10 | 0.75 | – |
-| dedode-v2-g | 6.36 | 1.12 | – | 1.51 | 1.04 | – |
+| dedode-v2-b | 3.73 | 0.67 | 0.55 | 1.10 | 0.75 | 0.84 |
+| dedode-v2-g | 6.36 | 1.12 | 3.01 | 1.51 | 1.04 | 0.68 |
 | disk-lightglue | 1.43 | 0.20 | 0.57 | 0.64 | 0.63 | 0.30 |
-| loftr-indoor | 1.49 | 0.32 | – | 0.69 | 0.53 | – |
-| loftr-outdoor | 0.35 | 0.24 | – | 0.24 | 0.58 | – |
+| loftr-indoor | 1.49 | 0.32 | 0.54 | 0.69 | 0.53 | 0.43 |
+| loftr-outdoor | 0.35 | 0.24 | 0.67 | 0.24 | 0.58 | 0.37 |
 | loma-b | 8.52 | 2.53 | – | 1.37 | 1.27 | – |
 | romav1 | 6.28 | 2.34 | 3.17 | 2.57 | 0.92 | 1.03 |
 | romav2 | 5.45 | 0.85 | 0.96 | 2.09 | 0.91 | 0.62 |
@@ -1749,7 +1742,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | locotrack-s | 0.29 | 0.06 | 1.13 | 0.23 | 0.65 | 0.66 |
 | tapir | 0.35 | 0.19 | 1.13 | 0.83 | 0.84 | 0.69 |
 | tapnext | 16.92 | 2.37 | 3.01 | 2.17 | 0.67 | 0.54 |
-| tapnext-pp | 4.83 | 1.34 | – | 1.80 | 0.77 | – |
+| tapnext-pp | 4.83 | 1.34 | 1.28 | 1.80 | 0.77 | 0.67 |
 | track-on-r | 0.88 | 0.24 | 1.11 | 2.91 | 1.99 | 1.72 |
 | track-on2 | 3.77 | 1.16 | 0.63 | 3.63 | 1.96 | 1.76 |
 | ema-vfi | 2.69 | 0.83 | 0.81 | 0.50 | 0.23 | 0.21 |
@@ -1838,11 +1831,11 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | fast-acvnet-plus-sceneflow | 994x1482 | 70.5 ms | 41.9 ms | 40.9 ms | 46.5 ms | 40.6 s | 72.8 s | 651 / 756 | 549 / 830 | 651 / 716 | 1127 / 1178 |
 | fast-acvnet-sceneflow | 994x1482 | 54.7 ms | 36.2 ms | 36.7 ms | 38.1 ms | 41.8 s | 71.3 s | 653 / 756 | 584 / 698 | 654 / 716 | 563 / 576 |
 | fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 156 ms | 135 ms | 78.4 s | 157 s | 2109 / 2256 | 1613 / 1752 | 1120 / 1236 | 1342 / 1398 |
-| foundationstereo-vit-l | 994x1482 | 2990 ms | deferred (build >5 min) | deferred (build >5 min) | 1513 ms | – | – | 3141 / 3436 | – | 2818 / 3300 | – |
+| foundationstereo-vit-l | 994x1482 | 2990 ms | 2501 ms | 1513 ms | 1513 ms | 226 s | 611 s | 3141 / 3436 | 3453 / 3954 | 2818 / 3300 | 4253 / 4322 |
 | foundationstereo-vit-s | 994x1482 | 2514 ms | 2044 ms | 1196 ms | 1120 ms | 212 s | 545 s | 2493 / 2606 | 2822 / 3646 | 2169 / 2470 | 2794 / 2872 |
 | great-igev-eth3d | 994x1482 | 1085 ms | 829 ms | 940 ms | 397 ms | 224 s | 685 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6151 / 6172 |
 | great-igev-kitti | 994x1482 | 1085 ms | 830 ms | 942 ms | 396 ms | 225 s | 687 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6155 / 6234 |
-| great-igev-middlebury | 994x1482 | 1785 ms | 1676 ms | deferred (build >5 min) | 580 ms | 326 s | – | 1875 / 2078 | 5228 / 5720 | 1472 / 1642 | – |
+| great-igev-middlebury | 994x1482 | 1785 ms | 1676 ms | fails: AttributeError: 'NoneType' object has no attribute 'get_tens | 580 ms | 326 s | – | 1875 / 2078 | 5228 / 5720 | 1472 / 1642 | – |
 | great-igev-sceneflow | 994x1482 | 1085 ms | 830 ms | 944 ms | 397 ms | 224 s | 675 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6155 / 6234 |
 | gwcnet-g-sceneflow | 994x1482 | 344 ms | 417 ms | 275 ms | 238 ms | 52.6 s | 66.0 s | 2081 / 2402 | 1527 / 1864 | 1799 / 2102 | 3634 / 3648 |
 | gwcnet-gc-sceneflow | 994x1482 | 353 ms | 420 ms | 669 ms | 257 ms | 83.8 s | 117 s | 2082 / 2402 | 1774 / 2246 | 1768 / 1962 | 2732 / 2786 |
@@ -1862,7 +1855,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | las2-l | 994x1482 | 75.7 ms | 46.6 ms | 23.4 ms | 30.1 ms | 30.5 s | 97.5 s | 648 / 716 | 385 / 432 | 268 / 362 | 393 / 424 |
 | las2-m | 994x1482 | 37.1 ms | 28.6 ms | 13.2 ms | 18.1 ms | 24.0 s | 98.3 s | 584 / 664 | 252 / 300 | 235 / 336 | 343 / 386 |
 | las2-s | 994x1482 | 27.9 ms | 23.7 ms | 10.3 ms | 14.3 ms | 22.4 s | 86.9 s | 557 / 608 | 238 / 264 | 226 / 320 | 258 / 304 |
-| mocha-v1-sceneflow | 994x1482 | 1057 ms | deferred (build >5 min) | deferred (build >5 min) | 455 ms | – | – | 1632 / 1770 | – | 1588 / 1730 | – |
+| mocha-v1-sceneflow | 994x1482 | 1057 ms | 735 ms | 447 ms | 455 ms | 154 s | 371 s | 1632 / 1770 | 1129 / 1268 | 1588 / 1730 | 1466 / 1590 |
 | mocha-v2-sceneflow | 994x1482 | 1033 ms | 713 ms | 437 ms | 448 ms | 148 s | 361 s | 1632 / 1770 | 1122 / 1308 | 1587 / 1790 | 1400 / 1486 |
 | monster-mix-all | 994x1482 | 1583 ms | 1098 ms | 674 ms | 656 ms | 105 s | 391 s | 2325 / 2492 | 2081 / 2272 | 2216 / 2514 | 2898 / 2960 |
 | monster-plusplus-mix-all | 994x1482 | 1633 ms | 1126 ms | 697 ms | 657 ms | 109 s | 416 s | 2583 / 2918 | 2328 / 2532 | 2438 / 2754 | 3489 / 3552 |
@@ -1874,7 +1867,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | raft-stereo-sceneflow | 994x1482 | 746 ms | 507 ms | 333 ms | 274 ms | 100 s | 132 s | 1388 / 1492 | 780 / 988 | 722 / 758 | 1014 / 1092 |
 | rt-monster-plusplus-mix-all | 994x1482 | 113 ms | 77.0 ms | 44.1 ms | 89.5 ms | 69.4 s | 150 s | 2581 / 2618 | 2750 / 2942 | 2586 / 2640 | 1139 / 1210 |
 | s2m2-l | 994x1482 | 1017 ms | 650 ms | 497 ms | 376 ms | 144 s | 374 s | 3234 / 3816 | 3169 / 3514 | 1249 / 1568 | 2910 / 2982 |
-| s2m2-m | 994x1482 | 670 ms | 420 ms | deferred (build >5 min) | 248 ms | 126 s | – | 2289 / 2766 | 2197 / 2572 | 876 / 1162 | – |
+| s2m2-m | 994x1482 | 670 ms | 420 ms | 285 ms | 248 ms | 126 s | 305 s | 2289 / 2766 | 2197 / 2572 | 876 / 1162 | 1958 / 2002 |
 | s2m2-s | 994x1482 | 348 ms | 186 ms | 137 ms | 113 ms | 95.9 s | 363 s | 1733 / 1930 | 1579 / 1710 | 686 / 820 | 1186 / 1240 |
 | s2m2-xl | 994x1482 | 1818 ms | 1298 ms | 753 ms | 682 ms | 153 s | 408 s | 5217 / 6014 | 5594 / 6014 | 2092 / 2274 | 5283 / 5338 |
 | selective-igev-eth3d-finetune | 994x1482 | 996 ms | 691 ms | 461 ms | 351 ms | 126 s | 256 s | 1227 / 1448 | 919 / 1088 | 1051 / 1190 | 1279 / 1316 |
@@ -1886,9 +1879,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | selective-igev-sceneflow | 994x1482 | 998 ms | 692 ms | 463 ms | 349 ms | 127 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | waft-stereo-b | 994x1482 | 1137 ms | 571 ms | planned for 0.2.1 | 388 ms | 104 s | – | 5775 / 5852 | 3908 / 3936 | 1664 / 1932 | – |
 | waft-stereo-s | 994x1482 | 689 ms | 357 ms | 170 ms | 284 ms | 95.1 s | 152 s | 3293 / 3456 | 2024 / 2058 | 954 / 1102 | 1061 / 1114 |
-| any2full-b | 994x1482 | 26.8 ms | 24.2 ms | deferred (build >5 min) | – | 97.0 s | – | 538 / 596 | 442 / 496 | – | – |
-| any2full-l | 994x1482 | 67.7 ms | 63.8 ms | deferred (build >5 min) | – | 33.9 s | – | 1178 / 1250 | 987 / 1092 | – | – |
-| any2full-s | 994x1482 | 12.4 ms | deferred (build >5 min) | deferred (build >5 min) | – | – | – | 274 / 312 | – | – | – |
+| any2full-b | 994x1482 | 26.8 ms | 24.2 ms | 15.8 ms | 17.2 ms | 97.0 s | 64.4 s | 538 / 596 | 442 / 496 | 481 / 536 | 731 / 794 |
+| any2full-l | 994x1482 | 67.7 ms | 63.8 ms | 40.2 ms | 42.3 ms | 33.9 s | 79.0 s | 1178 / 1250 | 987 / 1092 | 1115 / 1210 | 1860 / 1928 |
+| any2full-s | 994x1482 | 12.4 ms | 9.88 ms | 6.72 ms | 9.47 ms | 26.4 s | 59.0 s | 274 / 312 | 223 / 294 | 218 / 252 | 366 / 398 |
 | da3-giant-1.1 | 994x1482 | 71.5 ms | 64.3 ms | 37.2 ms | 45.2 ms | 47.2 s | 84.1 s | 2634 / 2728 | 2487 / 2528 | 2535 / 2590 | 4795 / 4842 |
 | da3-large-1.1 | 994x1482 | 30.0 ms | 26.5 ms | 13.8 ms | 17.3 ms | 45.4 s | 62.6 s | 988 / 1088 | 841 / 868 | 891 / 950 | 1562 / 1622 |
 | da3metric-large | 994x1482 | 24.3 ms | 21.2 ms | 14.4 ms | 15.0 ms | 26.6 s | 58.2 s | 811 / 868 | 792 / 828 | 802 / 848 | 1465 / 1502 |
@@ -1904,24 +1897,24 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | depth-anything-v2-metric-vkitti-s | 994x1482 | 7.66 ms | 6.68 ms | 4.47 ms | 4.67 ms | 15.8 s | 29.9 s | 244 / 288 | 201 / 224 | 152 / 208 | 305 / 348 |
 | depth-anything-v2-s | 994x1482 | 7.82 ms | 6.65 ms | 4.46 ms | 4.51 ms | 15.7 s | 29.9 s | 249 / 326 | 201 / 224 | 190 / 248 | 273 / 308 |
 | depth-pro | 994x1482 | 522 ms | 488 ms | 299 ms | 277 ms | 39.2 s | 163 s | 3297 / 3478 | 3053 / 3198 | 3050 / 3198 | 4816 / 4882 |
-| depthfm-v1 | 994x1482 | 5662 ms | deferred (build >5 min) | deferred (build >5 min) | – | – | – | 13651 / 15150 | – | – | – |
+| depthfm-v1 | 994x1482 | 5662 ms | 3947 ms | fails: ONNX export: conversion failed | 3570 ms | 102 s | – | 13651 / 15150 | 9240 / 10292 | 9237 / 9314 | – |
 | distill-any-depth-b | 994x1482 | 18.6 ms | 17.0 ms | 10.8 ms | 10.8 ms | 16.2 s | 33.0 s | 445 / 514 | 340 / 394 | 349 / 396 | 539 / 614 |
 | distill-any-depth-l | 994x1482 | 54.4 ms | 51.6 ms | 32.4 ms | 31.8 ms | 20.1 s | 42.5 s | 1022 / 1092 | 850 / 910 | 917 / 1034 | 1579 / 1634 |
 | distill-any-depth-s | 994x1482 | 7.65 ms | 6.67 ms | 4.46 ms | 4.63 ms | 15.9 s | 29.9 s | 244 / 288 | 201 / 224 | 152 / 208 | 305 / 348 |
-| lingbot-depth | 994x1482 | 280 ms | deferred (build >5 min) | 188 ms | – | – | 65.5 s | 1559 / 1872 | – | – | 1821 / 1876 |
-| lingbot-depth-dc | 994x1482 | 281 ms | 252 ms | 188 ms | – | 32.4 s | 67.3 s | 1559 / 1872 | 1381 / 1572 | – | 1821 / 1876 |
+| lingbot-depth | 994x1482 | 280 ms | 251 ms | 188 ms | 161 ms | 28.0 s | 65.5 s | 1559 / 1872 | 1381 / 1572 | 1453 / 1590 | 1821 / 1876 |
+| lingbot-depth-dc | 994x1482 | 281 ms | 252 ms | 188 ms | 161 ms | 32.4 s | 67.3 s | 1559 / 1872 | 1381 / 1572 | 1453 / 1590 | 1821 / 1876 |
 | lotus-normal-d-v1-1 | 994x1482 | 268 ms | 222 ms | 107 ms | 164 ms | 63.9 s | 183 s | 2777 / 2940 | 2344 / 2416 | 2351 / 2500 | 4215 / 4242 |
 | lotus-normal-g-v1-1 | 994x1482 | 267 ms | 222 ms | 107 ms | 164 ms | 63.4 s | 183 s | 2777 / 2940 | 2344 / 2416 | 2351 / 2500 | 4213 / 4240 |
 | marigold-depth-v1-1 | 994x1482 | 410 ms | 342 ms | 172 ms | 261 ms | 127 s | 285 s | 2776 / 2938 | 2341 / 2418 | 2343 / 2500 | 4263 / 4318 |
 | marigold-normals-lcm-v0-1 | 994x1482 | 272 ms | 223 ms | 109 ms | 167 ms | 64.5 s | 182 s | 2792 / 2960 | 2348 / 2436 | 2361 / 2500 | 4220 / 4250 |
-| marigold-v2-depth | 994x1482 | 5093 ms | deferred (build >5 min) | planned for 0.2.1 | 3886 ms | – | – | 1408 / 1698 | – | 1498 / 1780 | – |
+| marigold-v2-depth | 994x1482 | 5093 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | planned for 0.2.1 | 3886 ms | – | – | 1408 / 1698 | – | 1498 / 1780 | – |
 | metric3d-vit-large | 994x1482 | 201 ms | 149 ms | 91.4 ms | 155 ms | 54.7 s | 96.6 s | 1443 / 1576 | 1126 / 1148 | 1475 / 1588 | 1867 / 1952 |
 | midas-dpt-beit-large-512 | 994x1482 | 78.8 ms | 58.8 ms | 52.2 ms | 63.9 ms | 32.6 s | 53.5 s | 992 / 1418 | 1088 / 1116 | 1003 / 1436 | 1514 / 1592 |
 | moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
 | moge-2-vitl-normal | 994x1482 | 144 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1661 / 1836 | 1411 / 1634 | 1498 / 1610 | 1882 / 1936 |
 | moge-2-vits-normal | 994x1482 | 61.6 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 1007 / 1172 | 836 / 992 | 932 / 1048 | 768 / 852 |
 | moge-3-vitl | 994x1482 | 332 ms | planned for 0.2.1 | planned for 0.2.1 | 149 ms | – | – | 1678 / 1926 | – | 1626 / 1762 | – |
-| omni-dc | 994x1482 | 554 ms | deferred (build >5 min) | planned for 0.2.1 | – | – | – | 4958 / 6304 | – | – | – |
+| omni-dc | 994x1482 | 554 ms | 411 ms | planned for 0.2.1 | 510 ms | 137 s | – | 4958 / 6304 | 4201 / 5932 | 4981 / 6030 | – |
 | pointdit-b-512 | 994x1482 | 31.1 ms | 23.7 ms | 15.5 ms | 20.5 ms | 33.6 s | 86.5 s | 446 / 504 | 465 / 524 | 462 / 630 | 795 / 898 |
 | pointdit-l-512 | 994x1482 | 94.6 ms | 76.0 ms | 49.1 ms | 61.3 ms | 57.3 s | 150 s | 1297 / 1430 | 1316 / 1430 | 1310 / 1676 | 2474 / 2626 |
 | prompt-depth-anything-l | 756x1008 | 125 ms | 117 ms | 75.3 ms | 69.3 ms | 21.2 s | 52.5 s | 1318 / 1488 | 968 / 1148 | 1179 / 1348 | 1649 / 1714 |
@@ -1929,7 +1922,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | stablenormal-turbo | 994x1482 | 289 ms | 238 ms | 118 ms | 180 ms | 76.3 s | 198 s | 3463 / 3628 | 3019 / 3106 | 3037 / 3172 | 5587 / 5626 |
 | unidepth-v2-vitl14 | 994x1482 | 99.8 ms | 96.4 ms | 64.3 ms | 63.0 ms | 31.1 s | 119 s | 1208 / 1472 | 1304 / 1392 | 1153 / 1252 | 1815 / 1842 |
 | unik3d-vitl | 994x1482 | 108 ms | 94.4 ms | 58.0 ms | 62.9 ms | 32.8 s | 105 s | 1219 / 1492 | 1258 / 1312 | 1166 / 1266 | 1609 / 1678 |
-| video-depth-anything-s | 1080x1920 | 202 ms | 1314 ms | 524 ms | 200 ms | 82.7 s | 181 s | 1962 / 2204 | 7762 / 8530 | 1967 / 2226 | 2753 / 3148 |
+| video-depth-anything-metric-s | 480x640 | 148 ms | 101 ms | 60.2 ms | 147 ms | 32.5 s | 82.1 s | 1461 / 1666 | 1143 / 1464 | 1465 / 1646 | 886 / 914 |
+| video-depth-anything-s | 480x640 | 148 ms | 100 ms | 60.3 ms | 146 ms | 34.8 s | 103 s | 1461 / 1646 | 1143 / 1344 | 1465 / 1666 | 886 / 914 |
 | zoedepth-nk | 994x1482 | 124 ms | 71.7 ms | 73.3 ms | 88.9 ms | 93.8 s | 138 s | 2037 / 2124 | 1813 / 1880 | 1771 / 1960 | 2246 / 2306 |
 | alexnet.tv_in1k | 224x224 | 0.970 ms | 0.824 ms | 0.401 ms | 0.604 ms | 4.33 s | 13.4 s | 151 / 224 | 183 / 204 | 184 / 228 | 278 / 312 |
 | coatnet_0_rw_224.sw_in1k | 224x224 | 6.49 ms | 3.59 ms | 0.849 ms | – | 12.1 s | 38.2 s | 102 / 124 | 120 / 142 | – | 158 / 170 |
@@ -1973,7 +1967,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | efficientnet_v2_s.tv_in1k | 224x224 | 10.2 ms | 5.39 ms | 1.35 ms | 1.91 ms | 12.1 s | 32.0 s | 81 / 126 | 116 / 146 | 81 / 128 | 149 / 198 |
 | efficientvit_b2.r288_in1k | 224x224 | 12.9 ms | 6.91 ms | 0.790 ms | 1.12 ms | 11.0 s | 35.3 s | 85 / 144 | 120 / 164 | 88 / 170 | 154 / 216 |
 | eva02_large_patch14_448.mim_m38m_ft_in22k_in1k | 224x224 | 18.2 ms | 14.9 ms | 12.4 ms | 14.1 ms | 21.0 s | 43.5 s | 648 / 664 | 674 / 684 | 652 / 786 | 1259 / 1286 |
-| falconsai-nsfw-vit | 224x224 | 2.83 ms | deferred (build >5 min) | 1.12 ms | 1.61 ms | – | 27.4 s | 201 / 226 | – | 198 / 228 | 393 / 420 |
+| falconsai-nsfw-vit | 224x224 | 2.83 ms | 2.02 ms | 1.12 ms | 1.61 ms | 8.29 s | 27.4 s | 201 / 226 | 236 / 266 | 198 / 228 | 393 / 420 |
 | fastvit_sa24.apple_dist_in1k | 256x256 | 6.03 ms | 3.97 ms | 0.818 ms | 1.41 ms | 8.44 s | 54.5 s | 81 / 110 | 113 / 148 | 80 / 132 | 148 / 200 |
 | fastvit_t12.apple_dist_in1k | 256x256 | 3.27 ms | 2.32 ms | 0.431 ms | 0.781 ms | 7.39 s | 39.7 s | 54 / 76 | 86 / 94 | 52 / 76 | 89 / 114 |
 | fastvit_t8.apple_dist_in1k | 256x256 | 3.25 ms | 2.55 ms | 0.368 ms | 0.709 ms | 6.81 s | 30.8 s | 45 / 72 | 77 / 92 | 45 / 76 | 78 / 108 |
@@ -2029,9 +2023,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | vit_base_patch16_224.augreg2_in21k_ft_in1k | 224x224 | 3.02 ms | 2.10 ms | 1.14 ms | 1.66 ms | 7.26 s | 28.6 s | 205 / 390 | 238 / 266 | 200 / 248 | 394 / 420 |
 | vit_so400m_patch14_siglip_378.webli_ft_in1k | 224x224 | 13.1 ms | 13.3 ms | 11.4 ms | 12.9 ms | 14.2 s | 60.7 s | 879 / 1708 | 909 / 944 | 876 / 926 | 1701 / 1752 |
 | wd-convnext-tagger-v3 | 448x448 | 5.59 ms | 4.45 ms | 3.10 ms | 4.46 ms | 12.2 s | 39.7 s | 260 / 292 | 380 / 392 | 238 / 276 | 521 / 548 |
-| wd-eva02-large-tagger-v3 | 448x448 | 18.3 ms | 15.7 ms | deferred (build >5 min) | 14.1 ms | 22.4 s | – | 669 / 684 | 714 / 724 | 673 / 806 | – |
+| wd-eva02-large-tagger-v3 | 448x448 | 18.3 ms | 15.7 ms | 12.4 ms | 14.1 ms | 22.4 s | 39.5 s | 669 / 684 | 714 / 724 | 673 / 806 | 1280 / 1306 |
 | wd-vit-large-tagger-v3 | 448x448 | 12.9 ms | 13.3 ms | 11.2 ms | 12.6 ms | 13.5 s | 36.2 s | 669 / 682 | 713 / 742 | 667 / 724 | 1266 / 1290 |
-| wd-vit-tagger-v3 | 448x448 | 4.01 ms | 5.33 ms | deferred (build >5 min) | 4.06 ms | 9.55 s | – | 235 / 242 | 282 / 302 | 234 / 284 | – |
+| wd-vit-tagger-v3 | 448x448 | 4.01 ms | 5.33 ms | 3.32 ms | 4.06 ms | 9.55 s | 18.8 s | 235 / 242 | 282 / 302 | 234 / 284 | 421 / 446 |
 | bisenet-face-parsing | 512x512 | 2.41 ms | 1.34 ms | 0.678 ms | – | 5.79 s | 12.9 s | 51 / 72 | 76 / 110 | – | 85 / 110 |
 | deeplabv3-r101-d8-ade20k | 1024x2048 | 48.0 ms | 42.1 ms | 30.6 ms | 20.5 ms | 9.60 s | 25.7 s | 450 / 492 | 450 / 512 | 356 / 414 | 1764 / 1826 |
 | deeplabv3plus-r101-d8-ade20k | 1024x2048 | 47.1 ms | 44.6 ms | 30.9 ms | 17.9 ms | 10.9 s | 23.3 s | 410 / 452 | 410 / 432 | 355 / 436 | 1683 / 1732 |
@@ -2050,7 +2044,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | segformer-b0-ade20k | 1024x2048 | 11.4 ms | 9.27 ms | 5.51 ms | 3.49 ms | 12.3 s | 60.9 s | 339 / 376 | 336 / 356 | 105 / 178 | 1480 / 1522 |
 | segformer-b2-clothes | 512x512 | 8.13 ms | 4.38 ms | 2.68 ms | 3.61 ms | 17.6 s | 63.1 s | 156 / 168 | 182 / 228 | 133 / 170 | 312 / 328 |
 | segformer-b5-ade20k | 1024x2048 | 38.7 ms | 31.4 ms | 22.8 ms | 25.4 ms | 33.8 s | 83.9 s | 546 / 590 | 543 / 630 | 294 / 432 | 2069 / 2110 |
-| segformer-b5-face-parsing | 512x512 | 21.9 ms | 14.1 ms | deferred (build >5 min) | 9.21 ms | 34.5 s | – | 278 / 292 | 305 / 352 | 257 / 294 | – |
+| segformer-b5-face-parsing | 512x512 | 21.9 ms | 14.1 ms | 6.33 ms | 9.21 ms | 34.5 s | 84.7 s | 278 / 292 | 305 / 352 | 257 / 294 | 538 / 552 |
 | segnext-mscan-b-ade20k | 1024x2048 | 28.3 ms | 40.7 ms | 23.3 ms | 12.1 ms | 24.1 s | 66.3 s | 376 / 424 | 491 / 526 | 192 / 226 | 1553 / 1622 |
 | segnext-mscan-l-ade20k | 1024x2048 | 43.1 ms | 63.6 ms | 32.3 ms | 20.7 ms | 34.9 s | 82.2 s | 417 / 458 | 532 / 578 | 277 / 320 | 1634 / 1694 |
 | segnext-mscan-s-ade20k | 1024x2048 | 18.5 ms | 24.9 ms | 18.0 ms | 8.04 ms | 17.2 s | 56.6 s | 350 / 402 | 465 / 482 | 164 / 202 | 1493 / 1544 |
@@ -2149,7 +2143,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | yolox-tiny | 800x1344 | 5.25 ms | 2.87 ms | 0.561 ms | 1.79 ms | 13.1 s | 23.7 s | 22 / 56 | 58 / 94 | 22 / 68 | 62 / 90 |
 | yolox-x | 800x1344 | 11.6 ms | 11.3 ms | 5.28 ms | 7.56 ms | 15.8 s | 24.1 s | 246 / 280 | 265 / 296 | 230 / 378 | 432 / 478 |
 | parseq | 32x128 | 3.62 ms | 8.80 ms | 1.67 ms | – | 19.9 s | 114 s | 79 / 100 | 111 / 118 | – | 148 / 168 |
-| parseq-tiny | 32x128 | 2.10 ms | 8.09 ms | 1.68 ms | – | 17.2 s | 96.8 s | 44 / 54 | 76 / 94 | – | 80 / 88 |
+| parseq-tiny | 32x128 | 2.10 ms | 1.54 ms | 1.67 ms | – | 18.0 s | 102 s | 44 / 54 | 76 / 94 | – | 82 / 90 |
 | ppocrv5-mobile | 1080x1920 | 153 ms | 115 ms | 2.68 ms | – | 75.0 s | 156 s | 289 / 448 | 292 / 448 | – | 241 / 268 |
 | ppocrv5-server | 1080x1920 | 277 ms | 277 ms | 25.1 ms | – | 105 s | 40.6 s | 1357 / 1452 | 958 / 1132 | – | 1131 / 1146 |
 | dwpose-l | 1080x1920 | 10.3 ms | 5.75 ms | 3.33 ms (network on person crops only) | 6.20 ms | 14.8 s | 20.0 s | 211 / 260 | 197 / 216 | 163 / 266 | 277 / 294 |
@@ -2263,13 +2257,14 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | geocalib-pinhole | 1080x1920 | 81.2 ms | 73.1 ms | planned for 0.2.1 | 81.8 ms | 28.4 s | – | 320 / 378 | 246 / 300 | 277 / 338 | – |
 | anysplat | 336x518 | 503 ms | 427 ms | 314 ms | 364 ms | 80.3 s | 215 s | 4842 / 4932 | 4137 / 4694 | 4849 / 5192 | 7629 / 7674 |
 | depthsplat-small-re10k | 336x518 | 119 ms | 82.2 ms | 86.4 ms | 112 ms | 80.0 s | 224 s | 5432 / 5606 | 5432 / 5526 | 5434 / 5606 | 3148 / 3194 |
-| lingbot-map | 480x640 | 730 ms | planned for 0.2.1 | deferred (build >5 min) | – | – | – | 4512 / 4770 | – | – | – |
+| lingbot-map | 480x640 | 730 ms | planned for 0.2.1 | 489 ms | 515 ms | – | 181 s | 4512 / 4770 | – | 4519 / 4810 | 6280 / 6338 |
 | mapanything-apache | 336x518 | 636 ms | 596 ms | 367 ms | 544 ms | 46.2 s | 137 s | 3697 / 4092 | 3347 / 3792 | 3697 / 4072 | 6220 / 6248 |
 | mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | planned for 0.2.1 | 35.2 ms | 153 s | – | 931 / 1226 | 818 / 860 | 702 / 760 | – |
 | mvsplat-re10k | 336x518 | 181 ms | 115 ms | planned for 0.2.1 | 172 ms | 102 s | – | 1239 / 1532 | 2762 / 2810 | 1239 / 1532 | – |
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
 | pi3 | 336x518 | 821 ms | 752 ms | planned for 0.2.1 | 559 ms | 55.6 s | – | 2360 / 2416 | 2205 / 2334 | 2367 / 2456 | – |
-| resplat-small-dl3dv | 480x640 | 1723 ms | deferred (build >5 min) | planned for 0.2.1 | 362 ms | – | – | 4995 / 5180 | – | 4981 / 5148 | – |
+| resplat-base-re10k | 480x640 | 7086 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | fails: TypeError: _Base.forward() missing 1 required positional arg | 1280 ms | – | – | 6951 / 8736 | – | 6944 / 8706 | – |
+| resplat-small-dl3dv | 480x640 | 1723 ms | 1538 ms | planned for 0.2.1 | 362 ms | 243 s | – | 4995 / 5180 | 4995 / 5138 | 4981 / 5148 | – |
 | vggt-1b | 336x518 | 651 ms | 557 ms | 424 ms | 460 ms | 74.3 s | 199 s | 3643 / 3874 | 3611 / 3856 | 3650 / 4194 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 467 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3404 / 3494 | 5657 / 5766 |
 | flowformer-small-chairs | 375x1242 | 337 ms | 250 ms | 202 ms | – | 98.7 s | 118 s | 1404 / 1698 | 2438 / 3196 | – | 2087 / 2138 |
@@ -2287,13 +2282,14 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale2-regrefine6-things | 1080x1920 | 1665 ms | 1116 ms | planned for 0.2.1 | – | 58.2 s | – | 6080 / 6230 | 10875 / 10972 | – | – |
 | gmflow-scale2-sintel | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
 | gmflow-scale2-things | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.7 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
+| megaflow | 1080x1920 | 1109 ms | 917 ms | 677 ms | 734 ms | 102 s | 214 s | 3035 / 3246 | 2611 / 2886 | 2866 / 3066 | 9265 / 9300 |
 | memflow | 1080x1920 | 964 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
 | memflow-kitti | 1080x1920 | 965 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
 | memflow-sintel | 1080x1920 | 964 ms | 1640 ms | fails: TensorRT engine build failed | 865 ms | 76.0 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 427 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 1301 / 1418 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 380 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 1137 / 1218 | – |
 | memfof-sintel | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | 1993 ms | – | – | – | – | 7249 / 8820 | – |
-| memfof-spring | 1080x1920 | 433 ms | 291 ms | 160 ms | – | 45.4 s | 95.8 s | 1900 / 2196 | 2452 / 2666 | – | 2070 / 2112 |
+| memfof-spring | 1080x1920 | 433 ms | 291 ms | 160 ms | 427 ms | 45.4 s | 95.8 s | 1900 / 2196 | 2452 / 2666 | 1290 / 1398 | 2070 / 2112 |
 | neuflow-v2 | 1080x1920 | 71.2 ms | 91.4 ms | 65.0 ms | 59.1 ms | 28.5 s | 104 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-sintel | 1080x1920 | 71.3 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
@@ -2311,18 +2307,18 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | sea-raft-s | 1080x1920 | 211 ms | 150 ms | 108 ms | 50.6 ms | 35.4 s | 68.0 s | 6019 / 6136 | 5828 / 5876 | 404 / 452 | 11043 / 11078 |
 | sea-raft-s-kitti | 1080x1920 | 210 ms | 150 ms | 108 ms | 50.7 ms | 31.8 s | 67.3 s | 6019 / 6136 | 5828 / 5876 | 404 / 432 | 11043 / 11078 |
 | sea-raft-s-spring | 1080x1920 | 32.8 ms | 23.8 ms | 3.01 ms | 16.2 ms | 21.9 s | 38.8 s | 611 / 656 | 582 / 596 | 150 / 172 | 215 / 278 |
-| waft-a1 | 1080x1920 | 791 ms | 610 ms | deferred (build >5 min) | 519 ms | 84.7 s | – | 3553 / 4076 | 3479 / 3638 | 1851 / 2264 | – |
-| waft-a1-kitti | 1080x1920 | 791 ms | 610 ms | deferred (build >5 min) | – | 84.1 s | – | 3553 / 4196 | 3479 / 3758 | – | – |
-| waft-a1-sintel | 1080x1920 | 791 ms | 610 ms | deferred (build >5 min) | – | 84.7 s | – | 3553 / 4076 | 3479 / 3578 | – | – |
-| aliked-flexglue | 768x1024 | 129 ms | deferred (build >5 min) | deferred (build >5 min) | – | – | – | 1775 / 1886 | – | – | – |
+| waft-a1 | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 3553 / 4076 | 3479 / 3638 | 1851 / 2264 | 1625 / 1672 |
+| waft-a1-kitti | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.1 s | 168 s | 3553 / 4196 | 3479 / 3758 | 1851 / 2264 | 1625 / 1672 |
+| waft-a1-sintel | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 3553 / 4076 | 3479 / 3578 | 1851 / 2264 | 1625 / 1672 |
+| aliked-flexglue | 768x1024 | 129 ms | 96.1 ms | fails: ONNX export: torch.export failed | – | 78.8 s | – | 1775 / 1886 | 1762 / 1826 | – | – |
 | aliked-lightglue | 768x1024 | 40.6 ms | 29.5 ms | planned for 0.2.1 | 35.1 ms | 30.8 s | – | 1300 / 1404 | 1653 / 1680 | 1238 / 1324 | – |
-| dedode-v2-b | 768x1024 | 246 ms | 164 ms | planned for 0.2.1 | – | 50.5 s | – | 1535 / 1654 | 1893 / 2434 | – | – |
-| dedode-v2-g | 768x1024 | 592 ms | 330 ms | planned for 0.2.1 | – | 86.4 s | – | 2142 / 2334 | 2881 / 3316 | – | – |
+| dedode-v2-b | 768x1024 | 246 ms | 164 ms | planned for 0.2.1 | 189 ms | 50.5 s | – | 1535 / 1654 | 1893 / 2434 | 1197 / 1246 | – |
+| dedode-v2-g | 768x1024 | 592 ms | 330 ms | planned for 0.2.1 | 332 ms | 86.4 s | – | 2142 / 2334 | 2881 / 3316 | 1787 / 1984 | – |
 | disk-lightglue | 768x1024 | 116 ms | 113 ms | planned for 0.2.1 | 52.1 ms | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | 736 / 778 | – |
-| loftr-indoor | 768x1024 | 111 ms | 71.0 ms | planned for 0.2.1 | – | 30.2 s | – | 796 / 904 | 634 / 684 | – | – |
-| loftr-outdoor | 768x1024 | 110 ms | 176 ms | planned for 0.2.1 | – | 33.3 s | – | 796 / 904 | 1149 / 1232 | – | – |
+| loftr-indoor | 768x1024 | 111 ms | 71.0 ms | planned for 0.2.1 | 96.2 ms | 30.2 s | – | 796 / 904 | 634 / 684 | 760 / 886 | – |
+| loftr-outdoor | 768x1024 | 110 ms | 176 ms | planned for 0.2.1 | 95.9 ms | 33.3 s | – | 796 / 904 | 1149 / 1232 | 760 / 886 | – |
 | loma-b | 768x1024 | 308 ms | 285 ms | planned for 0.2.1 | – | 104 s | – | 1767 / 1878 | 2870 / 3216 | – | – |
-| romav1 | 768x1024 | 377 ms | deferred (build >5 min) | planned for 0.2.1 | 356 ms | – | – | 1720 / 1840 | – | 1720 / 1860 | – |
+| romav1 | 768x1024 | 377 ms | 247 ms | planned for 0.2.1 | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 354 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2300 | 6694 / 6740 |
 | xfeat | 768x1024 | 7.17 ms | 5.65 ms | planned for 0.2.1 | – | 30.8 s | – | 122 / 154 | 186 / 212 | – | – |
 | xfeat-lighterglue | 768x1024 | 21.6 ms | 16.2 ms | planned for 0.2.1 | – | 39.7 s | – | 445 / 476 | 262 / 278 | – | – |
@@ -2334,33 +2330,33 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | locotrack-b | 480x854 | 188 ms | 82.6 ms | planned for 0.2.1 | 173 ms | 146 s | – | 603 / 656 | 1117 / 1140 | 614 / 660 | – |
 | locotrack-s | 480x854 | 180 ms | 74.1 ms | planned for 0.2.1 | 151 ms | 140 s | – | 759 / 842 | 1000 / 1034 | 596 / 642 | – |
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
-| tapnext | 480x854 | 528 ms | 398 ms | deferred (build >5 min) | 381 ms | 40.5 s | – | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | – |
-| tapnext-pp | 480x854 | 529 ms | planned for 0.2.1 | – | – | – | – | 1220 / 1294 | – | – | – |
-| track-on-r | 480x854 | 1188 ms | deferred (build >5 min) | planned for 0.2.1 | 1102 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |
-| track-on2 | 480x854 | 1193 ms | deferred (build >5 min) | planned for 0.2.1 | 1108 ms | – | – | 1423 / 1712 | – | 1368 / 1620 | – |
+| tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
+| tapnext-pp | 480x854 | 529 ms | planned for 0.2.1 | 69.5 ms | 381 ms | – | 362 s | 1220 / 1294 | – | 1205 / 1254 | 1498 / 1660 |
+| track-on-r | 480x854 | 1188 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | planned for 0.2.1 | 1102 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |
+| track-on2 | 480x854 | 1193 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | planned for 0.2.1 | 1108 ms | – | – | 1423 / 1712 | – | 1368 / 1620 | – |
 | ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 207 ms | 90.6 s | 90.9 s | 2827 / 3184 | 3325 / 3542 | 368 / 3566 | 1719 / 1786 |
 | ema-vfi-small | 1080x1920 | 89.4 ms | 59.6 ms | 43.7 ms | 84.4 ms | 78.5 s | 67.6 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-small-t | 1080x1920 | 89.4 ms | 59.8 ms | 43.4 ms | 84.3 ms | 77.9 s | 68.8 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-t | 1080x1920 | 233 ms | 165 ms | 125 ms | 207 ms | 84.6 s | 91.5 s | 2827 / 3184 | 3325 / 3702 | 368 / 3566 | 1719 / 1766 |
 | film | 1080x1920 | 417 ms | 332 ms | planned for 0.2.1 | 332 ms | 41.1 s | – | 2856 / 3080 | 2666 / 3192 | 2856 / 3080 | – |
-| gimm-vfi-r | 1080x1920 | 2622 ms | deferred (build >5 min) | deferred (build >5 min) | 1629 ms | – | – | 9899 / 10400 | – | 4587 / 5362 | – |
-| gimm-vfi-r-p | 1080x1920 | 2622 ms | deferred (build >5 min) | deferred (build >5 min) | 1628 ms | – | – | 9899 / 10400 | – | 4587 / 5282 | – |
+| gimm-vfi-r | 1080x1920 | 2622 ms | 1498 ms | fails: TensorRT parser: Sc node | 1629 ms | 307 s | – | 9899 / 10400 | 12051 / 12880 | 4587 / 5362 | – |
+| gimm-vfi-r-p | 1080x1920 | 2622 ms | 1498 ms | fails: TensorRT parser: Sc node | 1628 ms | 307 s | – | 9899 / 10400 | 12051 / 12880 | 4587 / 5282 | – |
 | rife-4.25 | 1080x1920 | 25.0 ms | 44.9 ms | 17.6 ms | 21.4 ms | 36.1 s | 56.3 s | 755 / 894 | 1094 / 1234 | 848 / 916 | 696 / 714 |
 | rife-4.25-lite | 1080x1920 | 21.1 ms | 42.3 ms | 14.1 ms | 18.3 ms | 34.9 s | 49.5 s | 754 / 854 | 1061 / 1374 | 834 / 896 | 696 / 714 |
 | rife-4.26 | 1080x1920 | 25.1 ms | 44.5 ms | 17.6 ms | 21.4 ms | 34.9 s | 54.9 s | 755 / 894 | 1094 / 1234 | 848 / 916 | 696 / 714 |
 | big-lama | 512x512 | 26.0 ms | 23.4 ms | planned for 0.2.1 | 21.2 ms | 25.9 s | – | 219 / 242 | 312 / 342 | 219 / 284 | – |
 | codeformer | 512x512 | 48.6 ms | 30.8 ms | 16.3 ms | 40.4 ms | 34.1 s | 64.8 s | 512 / 638 | 407 / 458 | 432 / 496 | 593 / 642 |
-| dat-2-x4 | 512x512 | 1312 ms | 964 ms | deferred (build >5 min) | 1221 ms | 44.3 s | – | 2276 / 2378 | 2546 / 2598 | 2276 / 2378 | – |
+| dat-2-x4 | 512x512 | 1312 ms | 964 ms | 921 ms | 1221 ms | 44.3 s | 206 s | 2276 / 2378 | 2546 / 2598 | 2276 / 2378 | 9001 / 9048 |
 | dat-light-x4 | 512x512 | 268 ms | 158 ms | 136 ms | 264 ms | 36.7 s | 74.8 s | 1535 / 1552 | 1385 / 1412 | 1445 / 1472 | 4144 / 4192 |
-| dat-x4 | 512x512 | 1565 ms | 1063 ms | deferred (build >5 min) | 1391 ms | 43.1 s | – | 2552 / 2624 | 2552 / 2606 | 2282 / 2384 | – |
-| drct-l-x4 | 512x512 | 1607 ms | 1210 ms | deferred (build >5 min) | 1399 ms | 67.2 s | – | 2692 / 3110 | 2005 / 2410 | 2564 / 2850 | – |
-| drct-x4 | 512x512 | 830 ms | 618 ms | deferred (build >5 min) | 718 ms | 40.5 s | – | 2626 / 3048 | 1938 / 2348 | 2498 / 2766 | – |
+| dat-x4 | 512x512 | 1565 ms | 1063 ms | 1001 ms | 1391 ms | 43.1 s | 191 s | 2552 / 2624 | 2552 / 2606 | 2282 / 2384 | 9010 / 9056 |
+| drct-l-x4 | 512x512 | 1607 ms | 1210 ms | fails: TensorRT engine build failed | 1399 ms | 67.2 s | – | 2692 / 3110 | 2005 / 2410 | 2564 / 2850 | – |
+| drct-x4 | 512x512 | 830 ms | 618 ms | 731 ms | 718 ms | 40.5 s | 187 s | 2626 / 3048 | 1938 / 2348 | 2498 / 2766 | 9684 / 9728 |
 | gfpgan-v1.4 | 512x512 | 21.2 ms | 12.5 ms | 15.8 ms | 18.0 ms | 27.3 s | 115 s | 505 / 528 | 360 / 428 | 473 / 530 | 609 / 644 |
 | hat-s-x4 | 512x512 | 1072 ms | 750 ms | fails: TensorRT engine build failed | 956 ms | 41.9 s | – | 1984 / 2148 | 2352 / 3068 | 1856 / 1888 | – |
-| hat-x4 | 512x512 | 1596 ms | 1185 ms | deferred (build >5 min) | 1427 ms | 53.4 s | – | 2426 / 2590 | 1811 / 2750 | 2298 / 2470 | – |
+| hat-x4 | 512x512 | 1596 ms | 1185 ms | fails: TensorRT engine build failed | 1427 ms | 53.4 s | – | 2426 / 2590 | 1811 / 2750 | 2298 / 2470 | – |
 | nafnet-gopro | 512x512 | 60.4 ms | 35.4 ms | 52.6 ms | 55.3 ms | 38.1 s | 66.5 s | 451 / 532 | 422 / 470 | 451 / 550 | 722 / 734 |
 | nafnet-sidd | 512x512 | 60.6 ms | 30.9 ms | 24.5 ms | 56.9 ms | 30.3 s | 33.8 s | 575 / 670 | 450 / 508 | 575 / 650 | 650 / 668 |
-| real-hat-gan-x4 | 512x512 | 1597 ms | 1185 ms | deferred (build >5 min) | 1427 ms | 54.3 s | – | 2426 / 2610 | 1811 / 2750 | 2298 / 2470 | – |
+| real-hat-gan-x4 | 512x512 | 1597 ms | 1185 ms | fails: TensorRT engine build failed | 1427 ms | 54.3 s | – | 2426 / 2610 | 1811 / 2750 | 2298 / 2470 | – |
 | realesr-general-x4v3 | 512x512 | 30.1 ms | 22.6 ms | 11.9 ms | 24.0 ms | 3.89 s | 15.3 s | 125 / 164 | 125 / 144 | 125 / 164 | 220 / 228 |
 | realesrgan-x2plus | 512x512 | 97.0 ms | 85.2 ms | 59.7 ms | 80.2 ms | 33.2 s | 40.3 s | 333 / 394 | 323 / 394 | 333 / 394 | 476 / 500 |
 | realesrgan-x4plus | 512x512 | 471 ms | 354 ms | 273 ms | 403 ms | 29.9 s | 55.2 s | 1220 / 1454 | 1091 / 1394 | 1220 / 1434 | 1546 / 1594 |
@@ -2369,8 +2365,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | restormer-deblur | 512x512 | 228 ms | 143 ms | 162 ms | 180 ms | 44.1 s | 58.3 s | 850 / 1000 | 660 / 778 | 850 / 918 | 757 / 774 |
 | restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 180 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 850 / 920 | 757 / 774 |
 | restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 179 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 850 / 940 | 757 / 774 |
-| seedvr2-3b | 512x512 | 2295 ms | deferred (build >5 min) | fails: not run: onnx is not installed in the test venv | 2296 ms | – | – | 6140 / 6772 | – | 6140 / 6772 | – |
-| seedvr2-7b | 512x512 | 2712 ms | fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat | deferred (build >5 min) | 2713 ms | – | – | 6402 / 7034 | – | 6402 / 7034 | – |
+| seedvr2-3b | 512x512 | 2295 ms | 1941 ms | fails: not run: onnx is not installed in the test venv | 2296 ms | 238 s | – | 6140 / 6772 | 5237 / 8144 | 6140 / 6772 | – |
+| seedvr2-7b | 512x512 | 2712 ms | fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2713 ms | – | – | 6402 / 7034 | – | 6402 / 7034 | – |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
 | span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |
 | swin2sr-x2 | 512x512 | 909 ms | 482 ms | 547 ms | 721 ms | 43.7 s | 112 s | 1459 / 1554 | 1308 / 1516 | 1459 / 1636 | 4941 / 4997 |

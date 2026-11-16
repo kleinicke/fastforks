@@ -28,7 +28,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `parseq` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>19.6<br>3.62<br>no kernels<br>8.80<br>1.67 | 125 / 144<br>126 / 144<br>79 / 100<br>no kernels<br>111 / 118<br>148 / 168 |
-| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.10<br>no kernels<br>8.09<br>1.68 | 56 / 58<br>56 / 58<br>44 / 54<br>no kernels<br>76 / 94<br>80 / 88 |
+| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.10<br>no kernels<br>1.54<br>1.67 | 56 / 58<br>56 / 58<br>44 / 54<br>no kernels<br>76 / 94<br>82 / 90 |
 
 <details><summary>Details</summary>
 
@@ -46,7 +46,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `parseq` 3000x4000 (0.3 GiB peak allocated, 0.3 reserved); `parseq-tiny` 3000x4000 (0.3 GiB peak allocated, 0.3 reserved)
 - no kernels: the 26-step decoding loop is launch-bound, not kernel-bound, and portable already replays it as one CUDA graph (`cuda_graphs`, exports unchanged: `module()` is the plain network): 12.6 -> 3.6 ms (parseq) and 11.6 -> 2.1 ms (parseq-tiny) vs the original 19.6 / 18.0 ms fp16, same logits and memory; SDPA / cuBLAS are already the compute and no library in the manifests helps, so a kernels mode would only repeat the graph (measured 2026-11-15).
 - `parseq` 32x128, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 114 s (ONNX + engine).
-- `parseq-tiny` 32x128, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 97 s (ONNX + engine).
+- `parseq-tiny` 32x128, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 102 s (ONNX + engine).
 - `parseq` original (fp32) 32x128, original 32x128: baudm/parseq902db043c02 strhub PARSeq + read.py transform (PIL bicubic) + Tokenizer.decode
 - `parseq-tiny` original (fp32) 32x128, original 32x128: baudm/parseq902db043c02 strhub PARSeq + read.py transform (PIL bicubic) + Tokenizer.decode
 - `parseq` load / first call: original 0.53 s / 1.043 s (32x128), portable 1.44 s / 0.257 s (32x128)

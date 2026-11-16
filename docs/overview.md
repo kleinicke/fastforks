@@ -116,48 +116,48 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`distill-any-depth-s`](models/depth.md#depth-anything-v2) | yes | 0.0529 | 35.2 (994x1482) | 7.6 | 4.6 | 7.6x vs original (994x1482) | 152 |
 | [`depth-anything-v2-metric-vkitti-s`](models/depth.md#depth-anything-v2) | yes | 0.1225 | 36.0 (994x1482) | 7.7 | 4.7 | 7.7x vs original (994x1482) | 152 |
 | [`depth-anything-v2-metric-hypersim-s`](models/depth.md#depth-anything-v2) | yes | 0.0643 | 43.6 (994x1482) | 7.7 | 4.7 | 9.3x vs original (994x1482) | 152 |
+| [`any2full-s`](models/depth.md#any2full) | yes | – | 47.5 (994x1482) | 12.4 | 9.5 | 5.0x vs original (994x1482) | 218 |
 | [`depth-anything-v2-b`](models/depth.md#depth-anything-v2) | no | 0.0462 | 63.2 (994x1482) | 18.8 | 10.5 | 6.0x vs original (994x1482) | 387 |
 | [`distill-any-depth-b`](models/depth.md#depth-anything-v2) | yes | 0.0470 | 59.8 (994x1482) | 18.6 | 10.8 | 5.5x vs original (994x1482) | 349 |
 | [`depth-anything-v2-metric-hypersim-b`](models/depth.md#depth-anything-v2) | yes | 0.0549 | 60.7 (994x1482) | 18.6 | 10.8 | 5.6x vs original (994x1482) | 349 |
 | [`depth-anything-v2-metric-vkitti-b`](models/depth.md#depth-anything-v2) | yes | 0.1089 | 60.6 (994x1482) | 18.6 | 10.8 | 5.6x vs original (994x1482) | 349 |
 | [`prompt-depth-anything-s`](models/depth.md#prompt-depth-anything) | yes | – | – | 18.4 | 11.4 (756x1008) | 1.6x vs portable | 297 |
-| [`any2full-s`](models/depth.md#any2full) | yes | – | 47.5 (994x1482) | 12.4 | – | – | – |
 | [`da3mono-large`](models/depth.md#depth-anything-3) | yes | 0.0402 | 85.2 (994x1482) | 24.1 | 14.9 | 5.7x vs original (994x1482) | 805 |
 | [`da3metric-large`](models/depth.md#depth-anything-3) | yes | 0.0398 | 85.1 (994x1482) | 24.3 | 15.0 | 5.7x vs original (994x1482) | 802 |
+| [`any2full-b`](models/depth.md#any2full) | yes | – | 108.3 (994x1482) | 26.8 | 17.2 | 6.3x vs original (994x1482) | 481 |
 | [`da3-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0468 | 165.6 (994x1482) | 30.0 | 17.3 | 9.6x vs original (994x1482) | 891 |
 | [`pointdit-b-512`](models/depth.md#pointdit) | yes | 0.0453 | 48.7 (994x1482) | 31.1 | 20.5 | 2.4x vs original (994x1482) | 462 |
-| [`any2full-b`](models/depth.md#any2full) | yes | – | 108.3 (994x1482) | 26.8 | – | – | – |
 | [`depth-anything-v2-l`](models/depth.md#depth-anything-v2) | no | 0.0439 | 140.2 (994x1482) | 55.1 | 31.1 | 4.5x vs original (994x1482) | 921 |
 | [`depth-anything-v2-metric-hypersim-l`](models/depth.md#depth-anything-v2) | yes | 0.0491 | 140.7 (994x1482) | 54.5 | 31.7 | 4.4x vs original (994x1482) | 917 |
 | [`distill-any-depth-l`](models/depth.md#depth-anything-v2) | yes | 0.0444 | 139.3 (994x1482) | 54.4 | 31.8 | 4.4x vs original (994x1482) | 917 |
 | [`depth-anything-v2-metric-vkitti-l`](models/depth.md#depth-anything-v2) | yes | 0.0968 | 140.7 (994x1482) | 54.5 | 31.9 | 4.4x vs original (994x1482) | 917 |
 | [`moge-2-vits-normal`](models/depth.md#moge) | yes | 0.0484 | 82.6 (994x1482) | 61.6 | 33.3 | 2.5x vs original (994x1482) | 932 |
 | [`moge-2-vitb-normal`](models/depth.md#moge) | yes | 0.0404 | 102.2 (994x1482) | 83.9 | 40.7 | 2.5x vs original (994x1482) | 1093 |
+| [`any2full-l`](models/depth.md#any2full) | yes | – | 268.8 (994x1482) | 67.7 | 42.3 | 6.4x vs original (994x1482) | 1115 |
 | [`da3-giant-1.1`](models/depth.md#depth-anything-3) | no | 0.0397 | 227.1 (994x1482) | 71.5 | 45.2 | 5.0x vs original (994x1482) | 2535 |
 | [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0387 | 308.2 (994x1482) | 94.9 | 59.7 | 5.2x vs original (994x1482) | 3179 |
 | [`pointdit-l-512`](models/depth.md#pointdit) | yes | 0.0410 | 112.0 (994x1482) | 94.6 | 61.3 | 1.8x vs original (994x1482) | 1310 |
 | [`unik3d-vitl`](models/depth.md#unik3d) | no | 0.0346 | 133.7 (994x1482) | 107.8 | 62.9 | 2.1x vs original (994x1482) | 1166 |
 | [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 63.0 | 2.1x vs original (994x1482) | 1153 |
 | [`midas-dpt-beit-large-512`](models/depth.md#midas-v31) | yes | 0.0487 | 333.2 (994x1482) | 78.8 | 63.9 | 5.2x vs original (994x1482) | 1003 |
-| [`any2full-l`](models/depth.md#any2full) | yes | – | 268.8 (994x1482) | 67.7 | – | – | – |
 | [`prompt-depth-anything-l`](models/depth.md#prompt-depth-anything) | yes | – | – | 124.8 | 69.3 (756x1008) | 1.8x vs portable | 1179 |
 | [`moge-2-vitl-normal`](models/depth.md#moge) | yes | 0.0357 | 170.7 (994x1482) | 144.5 | 73.4 | 2.3x vs original (994x1482) | 1498 |
 | [`zoedepth-nk`](models/depth.md#zoedepth) | yes | 0.0532 | 271.2 (994x1482) | 124.0 | 88.9 | 3.1x vs original (994x1482) | 1771 |
 | [`moge-3-vitl`](models/depth.md#moge) | yes | 0.0356 | 485.6 (994x1482) | 332.0 | 149.1 | 3.3x vs original (994x1482) | 1626 |
 | [`metric3d-vit-large`](models/depth.md#metric3d-v2) | yes | 0.0546 | 438.5 (994x1482) | 200.8 | 155.4 | 2.8x vs original (994x1482) | 1475 |
+| [`lingbot-depth-dc`](models/depth.md#lingbot-depth) | yes | – | 297.2 (994x1482) | 280.7 | 161.0 | 1.8x vs original (994x1482) | 1453 |
+| [`lingbot-depth`](models/depth.md#lingbot-depth) | yes | – | 297.1 (994x1482) | 280.3 | 161.1 | 1.8x vs original (994x1482) | 1453 |
 | [`lotus-normal-d-v1-1`](models/depth.md#lotus-normals) | yes | – | 344.3 (994x1482) | 267.6 | 164.1 | 2.1x vs original (994x1482) | 2351 |
 | [`lotus-normal-g-v1-1`](models/depth.md#lotus-normals) | yes | – | 344.1 (994x1482) | 267.5 | 164.1 | 2.1x vs original (994x1482) | 2351 |
 | [`marigold-normals-lcm-v0-1`](models/depth.md#marigold-normals-lcm) | yes | – | 279.5 (994x1482) | 272.0 | 167.1 | 1.7x vs original (994x1482) | 2361 |
 | [`stablenormal-turbo`](models/depth.md#stablenormal-turbo) | yes | – | 299.2 (994x1482) | 289.3 | 180.3 | 1.7x vs original (994x1482) | 3037 |
 | [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | – | 201.8 | 199.7 (1080x1920) | 1.0x vs portable | 1967 |
-| [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | 2004.6 | 200.2 (1080x1920) | 10.0x vs portable | 1967 |
+| [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | 201.6 | 200.0 (1080x1920) | 1.0x vs portable | 1967 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 410.0 | 261.4 | 1.7x vs original (994x1482) | 2343 |
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 522.3 | 276.6 | 2.1x vs original (994x1482) | 3050 |
-| [`lingbot-depth`](models/depth.md#lingbot-depth) | yes | – | 297.1 (994x1482) | 280.3 | – | – | – |
-| [`lingbot-depth-dc`](models/depth.md#lingbot-depth) | yes | – | 297.2 (994x1482) | 280.7 | – | – | – |
-| [`omni-dc`](models/depth.md#omni-dc) | no | – | 875.5 (994x1482) | 554.3 | – | – | – |
+| [`omni-dc`](models/depth.md#omni-dc) | no | – | 875.5 (994x1482) | 554.3 | 509.8 | 1.7x vs original (994x1482) | 4981 |
+| [`depthfm-v1`](models/depth.md#depthfm) | yes | – | OOM (994x1482) | 5662.2 | 3569.9 | 1.6x vs portable | 9237 |
 | [`marigold-v2-depth`](models/depth.md#marigold-v2) | yes | 0.0386 | OOM (994x1482) | 5093.4 | 3885.9 | 1.3x vs portable | 1498 |
-| [`depthfm-v1`](models/depth.md#depthfm) | yes | – | OOM (994x1482) | 5662.2 | – | – | – |
 
 ## Classification
 
@@ -619,9 +619,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`anysplat`](models/multiview.md#anysplat) | yes | 741.2 (336x518) | 503.2 | 363.7 | 2.0x vs original (336x518) | 4849 |
 | [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 651.5 | 459.8 | 2.1x vs original (336x518) | 3650 |
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 466.9 | 1.9x vs original (336x518) | 3404 |
+| [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 729.7 | 515.3 | 1.9x vs original (480x640) | 4519 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 820.8 | 558.7 | 1.9x vs original (336x518) | 2367 |
-| [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 729.7 | – | – | – |
 | [`resplat-base-re10k`](models/multiview.md#resplat) | no | 2520.8 (480x640) | 7085.6 | 1280.2 | 2.0x vs original (480x640) | 6944 |
 
 ## Flow
@@ -656,14 +656,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | – | – | – |
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 395.3 | – | – | – |
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | – | – | – |
+| [`memfof-spring`](models/flow.md#memfof) | yes | – | 1034.8 (1080x1920) | 432.6 | 427.0 | 2.4x vs original (1080x1920) | 1290 |
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 427.4 | 1.2x vs original (1080x1920) | 1301 |
-| [`memfof-spring`](models/flow.md#memfof) | yes | – | 1034.8 (1080x1920) | 432.6 | – | – | – |
+| [`waft-a1-sintel`](models/flow.md#waft) | yes | – | 1532.7 (1080x1920) | 790.5 | 518.5 | 3.0x vs original (1080x1920) | 1851 |
+| [`waft-a1-kitti`](models/flow.md#waft) | yes | – | 1533.3 (1080x1920) | 790.8 | 518.6 | 3.0x vs original (1080x1920) | 1851 |
 | [`waft-a1`](models/flow.md#waft) | yes | 2.315 | 1533.1 (1080x1920) | 790.8 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 555.9 | – | – | – |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 556.1 | – | – | – |
 | [`megaflow`](models/flow.md#megaflow) | yes | 1.714 † | 1588.5 (1080x1920) | 1109.0 | 733.5 | 2.2x vs original (1080x1920) | 2866 |
-| [`waft-a1-sintel`](models/flow.md#waft) | yes | – | 1532.7 (1080x1920) | 790.5 | – | – | – |
-| [`waft-a1-kitti`](models/flow.md#waft) | yes | – | 1533.3 (1080x1920) | 790.8 | – | – | – |
 | [`memflow-sintel`](models/flow.md#memflow) | yes | – | 3214.2 (1080x1920) | 964.5 | 864.5 | 3.7x vs original (1080x1920) | 968 |
 | [`memflow-kitti`](models/flow.md#memflow) | yes | 0.600 † | 3247.3 (1080x1920) | 964.7 | 864.6 | 3.8x vs original (1080x1920) | 968 |
 | [`memflow`](models/flow.md#memflow) | yes | 4.103 | 3115.6 (1080x1920) | 964.3 | 864.8 | 3.6x vs original (1080x1920) | 968 |
@@ -696,14 +696,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`xfeat-lighterglue`](models/matching.md#xfeat) | yes | 23.6 (768x1024) | 21.6 | – | – | – |
 | [`aliked-lightglue`](models/matching.md#lightglue) | yes | 41.8 (768x1024) | 40.6 | 35.1 | 1.2x vs original (768x1024) | 1238 |
 | [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.4 | 52.1 | 2.2x vs original (768x1024) | 736 |
-| [`loftr-outdoor`](models/matching.md#loftr) | yes | 241.5 (768x1024) | 109.9 | – | – | – |
-| [`loftr-indoor`](models/matching.md#loftr) | yes | 241.6 (768x1024) | 110.6 | – | – | – |
+| [`loftr-outdoor`](models/matching.md#loftr) | yes | 241.5 (768x1024) | 109.9 | 95.9 | 2.5x vs original (768x1024) | 760 |
+| [`loftr-indoor`](models/matching.md#loftr) | yes | 241.6 (768x1024) | 110.6 | 96.2 | 2.5x vs original (768x1024) | 760 |
 | [`aliked-flexglue`](models/matching.md#flexglue) | yes | 347.6 (768x1024) | 128.7 | – | – | – |
-| [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.5 | – | – | – |
+| [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.5 | 189.4 | 1.7x vs original (768x1024) | 1197 |
 | [`loma-b`](models/matching.md#loma) | yes | 1036.3 (768x1024) | 308.1 | – | – | – |
+| [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 592.5 | 331.9 | 2.0x vs original (768x1024) | 1787 |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 353.6 | 2.1x vs original (768x1024) | 1909 |
 | [`romav1`](models/matching.md#roma) | yes | 385.8 (768x1024) | 376.9 | 356.1 | 1.1x vs original (768x1024) | 1720 |
-| [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 592.5 | – | – | – |
 
 ## Tracking
 
@@ -723,7 +723,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`alltracker-tiny`](models/tracking.md#alltracker) | yes | 424.2 (480x854) | 329.9 | 217.2 | 2.0x vs original (480x854) | 978 |
 | [`alltracker`](models/tracking.md#alltracker) | yes | 485.3 (480x854) | 390.8 | 221.1 | 2.2x vs original (480x854) | 1076 |
 | [`tapnext`](models/tracking.md#tapnext) | yes | 908.8 (480x854) | 528.4 | 380.7 | 2.4x vs original (480x854) | 1205 |
-| [`tapnext-pp`](models/tracking.md#tapnext) | yes | 1492.8 (480x854) | 528.7 | – | – | – |
+| [`tapnext-pp`](models/tracking.md#tapnext) | yes | 1492.8 (480x854) | 528.7 | 380.8 | 3.9x vs original (480x854) | 1205 |
 | [`track-on-r`](models/tracking.md#track-on2) | yes | 2021.8 (480x854) | 1188.0 | 1102.3 | 1.8x vs original (480x854) | 1368 |
 | [`track-on2`](models/tracking.md#track-on2) | yes | 1952.8 (480x854) | 1192.9 | 1108.3 | 1.8x vs original (480x854) | 1368 |
 

@@ -10,7 +10,7 @@ uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 limitations = [
   "CUDA output (float16, kernels, float32 with PyTorch's default TF32 convolutions) differs from the CPU by ~0.2 px mean / 4 px p99 at 720x1280: the argmin flips on near-equal tile costs. Full float32 (`torch.backends.cudnn.allow_tf32 = False`) matches the CPU to 0.00002 px.",
   "The weights are the authors' frozen TensorFlow graphs read without TensorFlow; the FlyingThings and Middlebury d160 / d288 graphs are not included.",
-  "The original code is TensorFlow and was not timed.",
+  "The original code is TensorFlow (frozen graph run with TensorFlow 2.21 on the GPU); its time is the upstream row, its memory is the TensorFlow peak (TensorFlow has no reserved-memory counter).",
 ]
 
 [upstream]
