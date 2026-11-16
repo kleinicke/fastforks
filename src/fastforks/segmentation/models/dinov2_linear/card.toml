@@ -39,6 +39,12 @@ label_set = "ade20k-150"
 # Not added: ViT-g/14 (its SwiGLU FFN is not supported by the fast ViT path) and the `ms` (multi-scale, 4-layer)
 # and `m2f` heads.
 
+[[papers]]
+title = "DINOv2: Learning Robust Visual Features without Supervision"
+url = "https://arxiv.org/abs/2304.07193"
+date = "2023-04-14"
+venue = "TMLR 2024"
+
 [[variants]]
 id = "dinov2-s-linear-ade20k"
 revision = 1

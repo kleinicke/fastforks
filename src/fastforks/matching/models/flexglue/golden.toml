@@ -1,0 +1,19 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.0001
+cpu_min_recall = 0.99
+cpu_min_match = 0.99
+gpu_mean = 0.0052
+gpu_p99 = 0.012
+gpu_min_recall = 0.99
+gpu_min_match = 0.98
+
+[refs."aliked-flexglue@1"]
+sha256 = "4d085560790898e70f567bb9d143aad09ac13701195f3237b675f1f35dd67643"
+upstream = "https://github.com/cvg/FlexGlue@99920296d082c9405ebfd612d674efe288e74881"
+settings = "CPU float32, upstream FlexGlue(mp=None).match_pair(sparse=True) with ALIKED(origin='corner', max_num_keypoints=2048) (LightGlue resize 1024), describe 512x512, threshold 0.1, max_distance_px 3.0, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"

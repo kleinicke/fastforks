@@ -13,6 +13,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import base_type, override
 from fastforks._optimize.conv_ops import dwconv
 from fastforks.kernels.fastbb import Flash64
+from fastforks.shared.rfdetr.build import export_path
 
 LIBRARY = "fastbb"
 HEAD_DIM = 64  # fixed: fastbb's supported head dimension
@@ -98,10 +99,4 @@ def use_fp16_accumulate(net: Any) -> None:  # noqa: ANN401 - lazy vendored LWDET
 def prepare_graph(net: Any) -> None:  # noqa: ANN401 - lazy vendored LWDETR API
     """Select the authors' graph-safe inference path without bound-method reference cycles."""
     net.transformer.enable_cuda_graph_capture()
-    net.export()
-    for module in net.modules():
-        if "_forward_origin" in module.__dict__:
-            # Upstream export saves its bound forward and installs a bound forward_export.
-            # In inference no code restores that saved method; class overrides preserve eager destruction.
-            override(module, base_type(module).forward_export)
-            del module.__dict__["_forward_origin"]
+    export_path(net)

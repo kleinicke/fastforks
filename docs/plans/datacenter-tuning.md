@@ -516,11 +516,30 @@ Measured on the RTX 5060 Ti, 768x1024 pair, card options 800 / 1280, bf16: kerne
 torch.compile 576 ms (first call 254 s), TensorRT 353 ms (engine build 109 s + ONNX export 76 s), original bf16
 741 ms and fp32 1412 ms. Peak reserved: kernels 2944, portable 3160, original bf16 10124 MiB.
 On CUDA the eval BatchNorms are folded (VGG and refiner depthwise convs), the VGG runs channels-last and the
-refiners' 1x1 convs run as GEMMs with the bias in the epilogue (-17 % vs the unfolded NCHW path). Kernels stays
-1.17x TensorRT: the remaining gap is the depthwise-conv bias + ReLU and the feature concatenations, which TensorRT
-fuses. TensorRT has no bf16 ConvTranspose: the export rewrites the DPT head's stride == kernel deconvolutions as a
+refiners' 1x1 convs run as GEMMs with the bias in the epilogue (-17 % vs the unfolded NCHW path). Since 2026-11-14
+the kernels mode runs the refiner blocks' depthwise 5x5 conv + bias + ReLU as one `romav2` kernel (bit-identical to
+cuDNN's three ops, 3.5x faster than cuDNN's depthwise conv alone): kernels 407 -> 354 ms, on par with TensorRT. TensorRT has no bf16 ConvTranspose: the export rewrites the DPT head's stride == kernel deconvolutions as a
 1x1 conv + DepthToSpace. Untested for datacenter GPUs: a fused depthwise conv + bias + ReLU (cuDNN's
 `cudnn_convolution_relu` made the whole call 1177 instead of 412 ms on sm_120 for these depthwise shapes).
 
 Source: the RoMa v2 rows in `docs/data/speed.jsonl`, `docs/data/speed_compile.jsonl` and
 `results/raw/2026-11-11_port_romav2/` (profile/ has the per-step trials).
+
+**RTX 3090 (sm_86, GeForce, rented 2026-11-14), same pair and options.** Survey rows, golden pass
+(`docs/data/speed/rtx-3090-24gb.jsonl`): kernels 298 ms (peak 1883 MiB allocated / 2340 reserved), portable 560 ms
+(1965 / 2356). Lab numbers of the same session: original bf16 without its `fused_local_corr` extension 445 ms
+(9863 / 12356 MiB); settings turbo 46 ms, fast 75 ms, base 110 ms; `matches(5000)` 0.45 ms; `estimate_pose` 4.3 ms
+with kernels and 42 ms portable; the whole chain 302 ms. Stages of the kernels run: DINOv3 80, matcher 49, VGG 50,
+refiners 45 / 41 / 33 ms. The GPU is busy the whole call, so nothing is left on the host side.
+
+- **Fused depthwise 5x5 conv + bias + ReLU, measured.** An exact fused kernel (Triton prototype, output bit-identical)
+  took 16 ms off the call (5.5 %). Shipped as the CUDA kernel `romav2_dw5_bias_relu_bf16` (2026-11-14, -13 % on the
+  5060 Ti); not re-measured on the 3090.
+- **`PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`** lowers peak reserved by 376 MiB at the same speed.
+- **Rejected on this card:** `cudnn.benchmark` (no gain), cuDNN's conv + ReLU (3.2x slower, as on sm_120), TF32
+  (5.6 ms for a changed output).
+- **Not measured, estimates only:** RoPE and layer scale fused into the DINOv3 blocks (15 to 20 ms guessed), the fp32
+  heads in bf16, `grid_sample` fused into the local correlation, bias and activation in the GEMM epilogue.
+
+Source: the 2026-11-14 Marigold V2 RTX 3090 measurement folder (`roma_exp/`) on the Ubuntu box
+(scripts and logs; `dwtriton.py` is the fused depthwise prototype).

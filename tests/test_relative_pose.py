@@ -347,3 +347,55 @@ def test_auto_missing_kernels_warns_once(monkeypatch: pytest.MonkeyPatch, caplog
     assert len(calls) == 1
     with pytest.raises(KernelUnavailableError):
         rp._solver("kernels", dev)
+
+
+def _pair_inputs() -> tuple:
+    pts1, pts2, k, _, _, _ = scene(1, 60, 0.0)
+    return pts1[0], pts2[0], k[0]
+
+
+@pytest.mark.parametrize("kind", ["numpy", "list", "float64"])
+def test_estimators_accept_numpy_lists_and_float64(kind):
+    """Points / intrinsics / masks as numpy arrays, nested lists or float64 tensors work like float32 tensors."""
+    p1, p2, k = _pair_inputs()
+    ref = estimate_pose(p1, p2, k, k, mode="portable")
+
+    def conv(t: torch.Tensor):
+        return {"numpy": t.numpy(), "list": t.tolist(), "float64": t.double()}[kind]
+
+    mask = torch.ones(p1.shape[0], dtype=torch.bool)
+    got = estimate_pose(
+        conv(p1), conv(p2), conv(k), conv(k), mask=conv(mask) if kind != "float64" else mask, mode="portable"
+    )
+    assert got.inliers.shape == ref.inliers.shape
+    assert estimate_fundamental(conv(p1), conv(p2), mode="portable").F.shape == (3, 3)
+
+
+def test_estimators_reject_bad_intrinsics_and_types():
+    p1, p2, k = _pair_inputs()
+    with pytest.raises(InputError, match="k1 must be"):
+        estimate_pose(p1, p2, k[:2], k, mode="portable")
+    with pytest.raises(InputError, match="points1 must be"):
+        estimate_pose(object(), p2, k, k, mode="portable")
+
+
+@pytest.mark.parametrize("n", [0, -5, 1.5, "a", True])
+def test_matches_rejects_bad_n(n):
+    result = MatchingResult(
+        warp=torch.rand(2, 8, 8) * 8, certainty=torch.rand(8, 8), model="test@1", backend="portable"
+    )
+    with pytest.raises(InputError, match="n must be a positive integer"):
+        result.matches(n)
+
+
+def test_matches_caps_huge_n_and_results_have_short_reprs():
+    result = MatchingResult(
+        warp=torch.rand(2, 8, 8) * 8, certainty=torch.rand(8, 8), model="test@1", backend="portable"
+    )
+    assert len(repr(result)) < 300
+    assert "Tensor[2, 8, 8; float32; cpu]" in repr(result)
+    p1, _ = result.matches(10**9)  # no memory blow-up: at most the pixels (here 64)
+    assert p1.shape[0] <= 64
+    v = result.verify()
+    assert len(repr(v)) < 600
+    assert 0.0 <= float(v.inlier_ratio) <= 1.0

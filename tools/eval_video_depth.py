@@ -144,7 +144,7 @@ def predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
 
     def call(frames: np.ndarray) -> np.ndarray:
         x = torch.from_numpy(frames).cuda().permute(0, 3, 1, 2).float().div(255)
-        return getattr(m(x), key).float().cpu().numpy()
+        return getattr(m.video(x), key).float().cpu().numpy()
 
     return call
 

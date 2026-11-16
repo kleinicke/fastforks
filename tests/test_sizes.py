@@ -44,7 +44,8 @@ def test_tested_max_and_not_measured():
 
 
 # refs without a measured largest size, with the reason (cards never say "not measured" for anything else)
-UNMEASURED: dict[str, str] = {}  # ref: why it has no tested size
+UNMEASURED: dict[str, str] = {  # ref: why it has no tested size
+}
 
 
 def test_every_ref_has_a_tested_size():
@@ -75,8 +76,7 @@ def _stub(  # noqa: PLR0913 - a stub with the fields the tests vary
     model.card = SimpleNamespace(task=task, family=family)
     model.variant = SimpleNamespace(ref="x@1", outputs=("depth",))
     model.backend = SimpleNamespace(mode="portable")
-    model.export_size = lambda: default
-    model.size_range = lambda: SizeRange(min_size=min_size, multiple=multiple, native=native)
+    model.size_range = lambda: SizeRange(min_size=min_size, multiple=multiple, native=native, export_size=default)
     return model
 
 

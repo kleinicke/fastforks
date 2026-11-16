@@ -31,6 +31,7 @@ from torch import nn
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.patch import is_base, override
+from fastforks._core.runner import host
 from fastforks.calibration._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc, dpt_fused
 from fastforks.shared.cuda_graphs import GraphCache
@@ -193,6 +194,7 @@ class _AnyCalib(Runner):
         """float32 rays `[B, 3, h, w]` of the network input `x` (float32 in [0, 1])."""
         raise NotImplementedError
 
+    @host
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Pinhole intrinsics and vertical field of view of `[B, 3, H, W]` RGB in `[0, 1]`."""
         p = self.ctx.params

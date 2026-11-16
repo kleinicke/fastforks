@@ -27,9 +27,9 @@ Concept models (SAM 3, `"text"` in `model.prompts`; `load("sam3")` is typed as `
 | `text` | `text` | the concept, e.g. `"yellow school bus"` |
 | `input_boxes` `[N, 4]` | `input_boxes` `[B, N, 4]` | exemplar boxes of one prompt, `(x0, y0, x1, y1)` in input pixels; alone (original text `"visual"`) or with `text`; at most 256, `x1 > x0`, `y1 > y0`, within one image size of the image; an empty set needs `text` |
 | `input_boxes_labels` `[N]` | `input_boxes_labels` `[B, N]` | 1 positive, 0 negative (default all 1); no padding label |
-| `threshold` | `confidence_threshold` | default 0.5 |
+| `score_threshold` | `confidence_threshold` | default 0.5 |
 
-`text`, `input_boxes_labels` and `threshold` on SAM / SAM 2 raise `InputError` (earlier `threshold` was ignored).
+`text`, `input_boxes_labels` and `score_threshold` on SAM / SAM 2 raise `InputError`.
 
 Embeddings remember the model, backend and load options; a prompt call with embeddings from another model or other
 options raises `InputError`.

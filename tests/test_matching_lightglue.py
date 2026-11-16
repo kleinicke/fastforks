@@ -27,7 +27,7 @@ def test_matches_index_the_keypoints() -> None:
     p1, p2 = r.matches()
     assert torch.equal(p1, k1[[4, 1]])
     assert torch.equal(p2, k2[[0, 2]])
-    p1, p2 = r.matches(threshold=0.5)
+    p1, p2 = r.matches(score_threshold=0.5)
     assert torch.equal(p1, k1[[4]])
     assert torch.equal(p2, k2[[0]])
 

@@ -249,7 +249,7 @@ def test_run_many_rig_and_views(dummy, tmp_path):
         only_right[0].left  # noqa: B018
     with pytest.raises(InputError, match="pass rig="):
         only_right[0].depth()
-    assert "PairResult(" in repr(only_right[0])
+    assert "StereoResult(" in repr(only_right[0])
     np.testing.assert_array_equal(only_right[0].disparity, dummy(*pairs[0], views="right").disparity.numpy())
     # size= and focal= reach the rectification, as in a single call
     sized = next(iter(dummy.run_many(lefts[:1], rights[:1], rig=rig, size=(2 * H, 2 * W), focal=90.0)))

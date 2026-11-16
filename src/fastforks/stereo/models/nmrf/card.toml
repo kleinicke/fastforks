@@ -1,7 +1,7 @@
 schema = 2
 name = "NMRF"
 summary = "NMRF (Guan et al. 2024): neural Markov random field with disparity proposals from a group-wise cost volume, CSWin label-seed propagation and window-attention inference at 1/8 resolution plus a 1/4 refinement."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 
 [upstream]
@@ -37,6 +37,12 @@ mps_kernels = ["stereo_metal"]
 # 51.8 vs 58.5 ms.
 
 # Upstream also publishes a KITTI fine-tune and Swin-T models (need MSDeformAttn; not added).
+
+[[papers]]
+title = "Neural Markov Random Field for Stereo Matching"
+url = "https://arxiv.org/abs/2403.11193"
+date = "2024-03-17"
+venue = "CVPR 2024"
 
 [[variants]]
 id = "nmrf-sceneflow"

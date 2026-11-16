@@ -22,11 +22,19 @@ r = model("kitchen.jpg", input_boxes=[[40, 60, 120, 150]])  # every object like 
 r = model("kitchen.jpg", text="mug", input_boxes=[[40, 60, 120, 150], [300, 80, 380, 170]], input_boxes_labels=[1, 0])
 ```
 
-SAM 2 also tracks objects through a video (`track`; prompts on the first frame, `VideoSegmentationResult`):
+INSID3 segments in a target image what reference masks mark in reference images (`InContextModelId`,
+`InContextSegmentationModel`, `InContextSegmentationResult`):
+
+```python
+model = ps.load("insid3-vitl16", mode="kernels")
+r = model("target.jpg", reference_images=["cat.jpg"], reference_masks=[cat_mask])  # r.masks [H, W] bool
+```
+
+SAM 2 also tracks objects through a video (`video`; prompts on the first frame, `VideoSegmentationResult`):
 
 ```python
 model = ps.load("sam2.1-hiera-tiny", mode="kernels")
-r = model.track(frames, input_points=[[[210, 350]], [[600, 300]]], input_labels=[[1], [1]])  # two objects
+r = model.video(frames, input_points=[[[210, 350]], [[600, 300]]], input_labels=[[1], [1]])  # two objects
 r.masks  # [T, 2, H, W] bool; or input_boxes=[[x0, y0, x1, y1]], input_masks=frame0_mask ([H, W])
 ```
 
@@ -34,16 +42,16 @@ r.masks  # [T, 2, H, W] bool; or input_boxes=[[x0, y0, x1, y1]], input_masks=fra
 prompt side.
 """
 
-from fastforks._core.cards import ModelCard
-from fastforks._core.export import TensorRTEngine
-from fastforks._core.image import ImageLike
-from fastforks._core.sizes import SizeRange
+from fastforks._core.arguments import renamed_attributes
+from fastforks._core.shared_types import OLD_TASK_NAMES
 from fastforks.promptable_segmentation._api import (
-    Backend,
     ConceptModelId,
     ConceptSegmentationModel,
     ConceptSegmentationResult,
     ImageEmbeddings,
+    InContextModelId,
+    InContextSegmentationModel,
+    InContextSegmentationResult,
     PromptableSegmentationModel,
     PromptableSegmentationResult,
     PromptLike,
@@ -54,20 +62,20 @@ from fastforks.promptable_segmentation._api import (
 )
 
 __all__ = [
-    "Backend",
     "ConceptModelId",
     "ConceptSegmentationModel",
     "ConceptSegmentationResult",
     "ImageEmbeddings",
-    "ImageLike",
-    "ModelCard",
+    "InContextModelId",
+    "InContextSegmentationModel",
+    "InContextSegmentationResult",
     "PromptLike",
     "PromptableSegmentationModel",
     "PromptableSegmentationResult",
-    "SizeRange",
-    "TensorRTEngine",
     "VideoSegmentationResult",
     "list_models",
     "load",
     "model_card",
 ]
+
+__getattr__ = renamed_attributes(__name__, OLD_TASK_NAMES)  # the shared types: `fastforks.<Name>`

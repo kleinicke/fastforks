@@ -1,4 +1,4 @@
-"""`model_card(id).contract()`, option bounds, classification `labels=` and the MPS hook (CPU, no weights)."""
+"""`model_card(id).contract()`, option bounds, classification `class_names=` and the MPS hook (CPU, no weights)."""
 
 from __future__ import annotations
 
@@ -133,21 +133,21 @@ def test_detection_threshold_uses_the_card_bounds():
 
 
 @pytest.mark.parametrize(
-    ("labels", "match"),
+    ("names", "match"),
     [
-        (["cat", "dog"], "labels has 2 names, the classifier head has 1000 classes"),
+        (["cat", "dog"], "class_names has 2 names, the classifier head has 1000 classes"),
         ("cat", "sequence of class-name strings"),
         ([1] * 1000, "sequence of class-name strings"),
         ([], "sequence of class-name strings"),
     ],
 )
-def test_labels_are_checked_before_loading(labels, match, monkeypatch):
-    monkeypatch.setattr(core, "load_model", lambda *_a, **_k: pytest.fail("loaded before the labels check"))
+def test_class_names_are_checked_before_loading(names, match, monkeypatch):
+    monkeypatch.setattr(core, "load_model", lambda *_a, **_k: pytest.fail("loaded before the class_names check"))
     with pytest.raises(OptionsError, match=match):
-        classification.load("resnet50", device="cpu", labels=labels)
+        classification.load("resnet50", device="cpu", class_names=names)
 
 
-def test_labels_rename_the_classes(monkeypatch):
+def test_class_names_rename_the_classes(monkeypatch):
     card, v = registry.resolve("classification", "resnet50")
     names = [*card.params, *v.params, *card.options]
     params = dataclasses.make_dataclass("Params", names, frozen=True)
@@ -161,8 +161,8 @@ def test_labels_rename_the_classes(monkeypatch):
             return {"logits": logits}
 
     monkeypatch.setattr(registry, "import_model", lambda _card: types.SimpleNamespace(RUNNERS={"portable": Dummy}))
-    labels = (f"c{i}" for i in range(1000))  # any iterable of strings
-    m = classification.load("resnet50", mode="portable", device="cpu", labels=labels)
+    names = (f"c{i}" for i in range(1000))  # any iterable of strings
+    m = classification.load("resnet50", mode="portable", device="cpu", class_names=names)
     assert m.class_names[7] == "c7"
     assert m.id2label[999] == "c999"
     r = m(torch.rand(3, 64, 64))
@@ -230,12 +230,15 @@ _NOT_OUTPUTS = {  # result fields that are metadata, not outputs
     "model", "backend", "options", "class_names", "kind", "extras", "views", "layers", "grid",
     "num_prefix_tokens", "num_register_tokens", "labels", "keypoint_names", "skeleton", "to_list", "multi_label",
 }  # fmt: skip
+_RUN_MANY = {"index", "left_path", "right_path", "path", "error", "existing"}  # per-pair fields
 _RESULTS = {
     "detection": "DetectionResult",
     "pose": "PoseResult",
     "flow": "FlowResult",
     "matching": "MatchingResult SparseMatchingResult",
     "matting": "MattingResult",
+    "edges": "EdgesResult",
+    "ocr": "OCRResult",
     "interpolation": "InterpolationResult",
     "retrieval": "RetrievalResult",
     "calibration": "CalibrationResult",
@@ -257,11 +260,15 @@ def test_contract_lists_every_result_field():
 
     for task, name in ((t, n) for t, names in _RESULTS.items() for n in names.split()):
         cls = getattr(importlib.import_module(f"fastforks.{task}._api"), name)
-        names = {f.name for f in dataclasses.fields(cls)} | {
+        names = {f.name for f in dataclasses.fields(cls) if not f.name.startswith("_")} | {
             n for n, v in vars(cls).items() if not n.startswith("_") and (isinstance(v, property) or callable(v))
         }
         listed = {k for mid in registry.cards(task) for k in model_card(task, mid).contract().outputs}
         keep = names - _NOT_OUTPUTS - {"save", "save_scene", "depth"}  # writers; StereoResult.depth raises (no rig)
+        if name == "StereoResult":  # the maps are the main view's (`PairViews`); the fields say how it was run
+            keep = (keep | {"disparity", "confidence"}) - {"rectification", "calibrated", *_RUN_MANY}
+        if name == "PoseResult":
+            keep -= {"masks"}  # an `Instances` field pose leaves `None`
         assert keep <= listed, (task, keep - listed)
 
 

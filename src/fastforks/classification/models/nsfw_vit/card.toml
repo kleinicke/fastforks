@@ -43,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 [output]
 label_set = "nsfw-2"
 
+[[papers]]
+title = "Falconsai/nsfw_image_detection"
+url = "https://huggingface.co/Falconsai/nsfw_image_detection"
+date = "2023-10-13"
+venue = "Model card"
+
 [[variants]]
 id = "falconsai-nsfw-vit"
 revision = 1

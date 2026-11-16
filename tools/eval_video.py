@@ -1,4 +1,4 @@
-"""DAVIS 2017 val J&F of the video-tracking models (`track`, SAM 2), per tier, on the same sequences.
+"""DAVIS 2017 val J&F of the video-tracking models (`video`, SAM 2), per tier, on the same sequences.
 
     FASTFORKS_KERNEL_PATH=build/kernels python tools/eval_video.py run --models sam2.1-hiera-tiny \
         --tiers portable,kernels --every 3 --out raw/
@@ -16,7 +16,7 @@ Tiers: fastforks `portable`, `kernels` (card default dtype). The authors' `SAM2V
 `init_state` loads the JPEG folder with their own resize. Its CUDA connected-components extension is not built
 there, so hole filling uses scipy (8-connectivity, as the extension) on the 256 x 256 masks.
 
-Timing: one sequence per call (fastforks: `track` on the decoded frames; original: `init_state` + `add_new_mask` +
+Timing: one sequence per call (fastforks: `video` on the decoded frames; original: `init_state` + `add_new_mask` +
 `propagate_in_video`), synchronised, per frame; after one untimed warm-up sequence. Each sequence appends one record
 to `<out>/<model>__<tier>.jsonl`; a run resumes after the last finished sequence and stops after `--budget` seconds.
 """
@@ -107,7 +107,7 @@ def scores(gt: np.ndarray, pred: np.ndarray, ids: list[int]) -> tuple[list[float
 
 
 class Ours:
-    """A fastforks tier: `track` with every object's frame-0 mask."""
+    """A fastforks tier: `video` with every object's frame-0 mask."""
 
     def __init__(self, ref: str, tier: str) -> None:  # noqa: D107
         import fastforks.promptable_segmentation as seg  # noqa: PLC0415
@@ -118,7 +118,7 @@ class Ours:
     def __call__(self, jpgs: list[Path], frames: list[np.ndarray], first: np.ndarray, ids: list[int]) -> np.ndarray:
         """`[T, P, H, W]` bool masks of the objects `ids` (labels of `first`)."""
         _ = jpgs
-        r = self.model.track(frames, input_masks=np.stack([first == i for i in ids]).astype(np.uint8))
+        r = self.model.video(frames, input_masks=np.stack([first == i for i in ids]).astype(np.uint8))
         return r.masks.cpu().numpy()  # [T, P, H, W]
 
 

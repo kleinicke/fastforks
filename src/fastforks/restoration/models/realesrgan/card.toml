@@ -23,6 +23,8 @@ min_size = 4
 [params]
 scale = 4
 num_block = 23
+num_feat = 64
+num_grow = 32
 
 [modes.portable]
 cuda_dtype = "float16"  # inference_realesrgan.py default (`--fp32` for float32)
@@ -30,6 +32,12 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions, channels-last
+
+[[papers]]
+title = "Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data"
+url = "https://arxiv.org/abs/2107.10833"
+date = "2021-07-22"
+venue = "ICCVW 2021"
 
 [[variants]]
 id = "realesrgan-x4plus"

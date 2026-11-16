@@ -6,23 +6,23 @@
 
 Input: one RGB image. Output: ImageNet-1k class logits.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`alexnet`](#alexnet) | yes | 0.604, 1.9x | 228, 0.8x |
-| [`coatnet_0_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_1_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_2_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_nano_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_1_rw2_224`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_1_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_2_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | – | – |
+| [`coatnet_0_rw_224`](#coatnet) | yes | no kernels | no kernels |
+| [`coatnet_1_rw_224`](#coatnet) | yes | no kernels | no kernels |
+| [`coatnet_2_rw_224`](#coatnet) | yes | no kernels | no kernels |
+| [`coatnet_nano_rw_224`](#coatnet) | yes | no kernels | no kernels |
+| [`coatnet_rmlp_1_rw2_224`](#coatnet) | yes | no kernels | no kernels |
+| [`coatnet_rmlp_1_rw_224`](#coatnet) | yes | no kernels | no kernels |
+| [`coatnet_rmlp_2_rw_224`](#coatnet) | yes | no kernels | no kernels |
+| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | no kernels | no kernels |
+| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | no kernels | no kernels |
+| [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | no kernels | no kernels |
 | [`convnext_base.fb_in1k`](#convnext) | yes | 2.01, 3.9x | 236, 0.59x |
 | [`convnext_base`](#convnext) | yes | 2.00, 3.9x | 236, 0.59x |
 | [`convnext_base.fb_in22k_ft_in1k_384`](#convnext) | yes | 3.00, 3.7x | 232, 0.53x |
@@ -36,47 +36,47 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`convnext_tiny.fb_in22k_ft_in1k`](#convnext) | yes | 1.15, 3.6x | 110, 0.64x |
 | [`convnext_tiny.fb_in22k_ft_in1k_384`](#convnext) | yes | 1.56, 2.9x | 110, 0.52x |
 | [`convnextv2_base`](#convnextv2) | no | 2.94, 3.7x | 380, 0.91x |
-| [`davit_base`](#davit) | yes | – | – |
-| [`davit_small`](#davit) | yes | – | – |
-| [`davit_tiny`](#davit) | yes | – | – |
+| [`davit_base`](#davit) | yes | no kernels | no kernels |
+| [`davit_small`](#davit) | yes | no kernels | no kernels |
+| [`davit_tiny`](#davit) | yes | no kernels | no kernels |
 | [`deit_base_patch16_224`](#deit) | yes | 1.64, 3.3x | 370, 0.96x |
-| [`densenet121`](#densenet) | yes | 1.28, 8.4x | 132, 1.4x |
-| [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.93, 2.2x | 950, 0.78x |
-| [`efficientformer_l1`](#efficientformer) | yes | – | – |
-| [`efficientformer_l3`](#efficientformer) | yes | – | – |
-| [`efficientformer_l7`](#efficientformer) | yes | – | – |
-| [`efficientformerv2_l`](#efficientformerv2) | yes | – | – |
-| [`efficientformerv2_s0`](#efficientformerv2) | yes | – | – |
-| [`efficientformerv2_s1`](#efficientformerv2) | yes | – | – |
-| [`efficientformerv2_s2`](#efficientformerv2) | yes | – | – |
+| [`densenet121`](#densenet) | yes | 1.29, 8.3x | 92, 1.0x |
+| [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.95, 2.2x | 672, 0.55x |
+| [`efficientformer_l1`](#efficientformer) | yes | no kernels | no kernels |
+| [`efficientformer_l3`](#efficientformer) | yes | no kernels | no kernels |
+| [`efficientformer_l7`](#efficientformer) | yes | no kernels | no kernels |
+| [`efficientformerv2_l`](#efficientformerv2) | yes | no kernels | no kernels |
+| [`efficientformerv2_s0`](#efficientformerv2) | yes | no kernels | no kernels |
+| [`efficientformerv2_s1`](#efficientformerv2) | yes | no kernels | no kernels |
+| [`efficientformerv2_s2`](#efficientformerv2) | yes | no kernels | no kernels |
 | [`efficientnet_b0`](#efficientnet) | yes | 0.769, 7.3x | 118, 1.5x |
-| [`efficientnet_b4`](#efficientnet) | yes | 2.00, 5.5x | 180, 1.0x |
-| [`efficientnet_v2_s`](#efficientnetv2) | yes | 1.89, 6.4x | 188, 1.2x |
-| [`efficientvit_b2`](#efficientvit) | yes | 1.10, 9.7x | 212, 1.3x |
-| [`eva02_large_patch14_448`](#eva02) | yes | 14.1, 2.3x | 1386, 1.1x |
+| [`efficientnet_b4`](#efficientnet) | yes | 2.02, 5.5x | 118, 0.68x |
+| [`efficientnet_v2_s`](#efficientnetv2) | yes | 1.91, 6.4x | 128, 0.81x |
+| [`efficientvit_b2`](#efficientvit) | yes | 1.12, 9.5x | 170, 1.1x |
+| [`eva02_large_patch14_448`](#eva02) | yes | 14.1, 2.3x | 786, 0.61x |
 | [`falconsai-nsfw-vit`](#nsfw_vit) | yes | 1.61, 3.6x | 228, 1.0x |
-| [`fastvit_sa24`](#fastvit) | yes | 1.40, 5.1x (256x256) | 150, 1.1x |
+| [`fastvit_sa24`](#fastvit) | yes | 1.41, 5.0x (256x256) | 132, 0.93x |
 | [`fastvit_t12.apple_dist_in1k`](#fastvit) | yes | 0.781, 4.6x (256x256) | 76, 0.95x |
-| [`fastvit_t8.apple_dist_in1k`](#fastvit) | yes | 0.703, 4.4x (256x256) | 76, 1.1x |
-| [`focalnet_base_lrf`](#focalnet) | yes | – | – |
-| [`focalnet_base_srf`](#focalnet) | yes | – | – |
-| [`focalnet_small_lrf`](#focalnet) | yes | – | – |
-| [`focalnet_small_srf`](#focalnet) | yes | – | – |
-| [`focalnet_tiny_lrf`](#focalnet) | yes | – | – |
-| [`focalnet_tiny_srf`](#focalnet) | yes | – | – |
-| [`hgnetv2_b0`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b1`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b2`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b3`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b4`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b5`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b6`](#hgnetv2) | yes | – | – |
-| [`inception_v3`](#inception_v3) | yes | 1.30, 6.1x | 228, 1.3x |
+| [`fastvit_t8.apple_dist_in1k`](#fastvit) | yes | 0.709, 4.3x (256x256) | 76, 1.1x |
+| [`focalnet_base_lrf`](#focalnet) | yes | no kernels | no kernels |
+| [`focalnet_base_srf`](#focalnet) | yes | no kernels | no kernels |
+| [`focalnet_small_lrf`](#focalnet) | yes | no kernels | no kernels |
+| [`focalnet_small_srf`](#focalnet) | yes | no kernels | no kernels |
+| [`focalnet_tiny_lrf`](#focalnet) | yes | no kernels | no kernels |
+| [`focalnet_tiny_srf`](#focalnet) | yes | no kernels | no kernels |
+| [`hgnetv2_b0`](#hgnetv2) | yes | no kernels | no kernels |
+| [`hgnetv2_b1`](#hgnetv2) | yes | no kernels | no kernels |
+| [`hgnetv2_b2`](#hgnetv2) | yes | no kernels | no kernels |
+| [`hgnetv2_b3`](#hgnetv2) | yes | no kernels | no kernels |
+| [`hgnetv2_b4`](#hgnetv2) | yes | no kernels | no kernels |
+| [`hgnetv2_b5`](#hgnetv2) | yes | no kernels | no kernels |
+| [`hgnetv2_b6`](#hgnetv2) | yes | no kernels | no kernels |
+| [`inception_v3`](#inception_v3) | yes | 1.31, 6.0x | 208, 1.2x |
 | [`mobilenet_v2`](#mobilenetv2) | yes | 0.439, 8.2x | 92, 1.3x |
 | [`mobilenet_v3_large`](#mobilenetv3) | yes | 0.545, 7.9x | 114, 1.5x |
-| [`mobilenetv1_100`](#mobilenetv1) | yes | 0.370, 5.9x | 114, 1.6x |
+| [`mobilenetv1_100`](#mobilenetv1) | yes | 0.382, 5.7x | 72, 1.0x |
 | [`mobilenetv4_conv_medium`](#mobilenetv4) | yes | 0.641, 9.0x | 124, 1.3x |
-| [`regnety_160`](#regnet) | yes | 1.86, 6.5x | 316, 0.76x |
+| [`regnety_160`](#regnet) | yes | 1.87, 6.5x | 276, 0.66x |
 | [`repvit_m0_9`](#repvit) | yes | 0.776, 10.9x | 76, 0.97x |
 | [`repvit_m0_9.dist_450e_in1k`](#repvit) | yes | 0.767, 11.1x | 76, 0.97x |
 | [`repvit_m1_0`](#repvit) | yes | 0.786, 11.2x | 78, 0.95x |
@@ -87,15 +87,15 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`repvit_m1_5.dist_450e_in1k`](#repvit) | yes | 1.19, 11.7x | 94, 0.94x |
 | [`repvit_m2_3`](#repvit) | yes | 1.66, 10.8x | 130, 0.83x |
 | [`repvit_m2_3.dist_450e_in1k`](#repvit) | yes | 1.70, 10.8x | 130, 0.83x |
-| [`resnet152`](#resnet) | yes | 1.83, 7.0x | 266, 0.92x |
-| [`resnet18`](#resnet) | yes | 0.459, 4.2x | 150, 1.2x |
+| [`resnet152`](#resnet) | yes | 1.85, 6.9x | 224, 0.78x |
+| [`resnet18`](#resnet) | yes | 0.472, 4.0x | 110, 0.85x |
 | [`resnet50`](#resnet) | yes | 0.826, 5.7x | 162, 1.0x |
-| [`shufflenet_v2_x1_0`](#shufflenetv2) | yes | 0.787, 6.1x | 116, 2.4x |
-| [`shvit_s1`](#shvit) | yes | – | – |
-| [`shvit_s2`](#shvit) | yes | – | – |
-| [`shvit_s3`](#shvit) | yes | – | – |
-| [`shvit_s4`](#shvit) | yes | – | – |
-| [`squeezenet1_1`](#squeezenet) | yes | 0.359, 4.8x | 12, 0.43x |
+| [`shufflenet_v2_x1_0`](#shufflenetv2) | yes | 0.804, 6.0x | 76, 1.6x |
+| [`shvit_s1`](#shvit) | yes | no kernels | no kernels |
+| [`shvit_s2`](#shvit) | yes | no kernels | no kernels |
+| [`shvit_s3`](#shvit) | yes | no kernels | no kernels |
+| [`shvit_s4`](#shvit) | yes | no kernels | no kernels |
+| [`squeezenet1_1`](#squeezenet) | yes | 0.376, 4.6x | 12, 0.43x |
 | [`starnet_s1`](#starnet) | yes | 0.683, 6.7x | 56, 0.97x |
 | [`starnet_s2`](#starnet) | yes | 0.578, 6.3x | 58, 0.91x |
 | [`starnet_s3`](#starnet) | yes | 0.715, 6.9x | 64, 0.84x |
@@ -107,12 +107,12 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`tiny_vit_21m_512`](#tinyvit) | yes | 3.13, 2.6x (512x512) | 258, 0.45x |
 | [`tiny_vit_5m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.846, 7.0x | 78, 0.93x |
 | [`vgg16`](#vgg) | yes | 1.50, 2.4x | 388, 0.62x |
-| [`vit_base_patch16_224`](#vit) | yes | 1.65, 3.3x | 370, 0.96x |
-| [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.8, 2.0x | 1346, 0.77x |
-| [`wd-convnext-tagger-v3`](#wd_tagger) | yes | 4.45, 2.2x (448x448) | 358, 1.2x |
+| [`vit_base_patch16_224`](#vit) | yes | 1.66, 3.3x | 248, 0.64x |
+| [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.9, 2.0x | 926, 0.53x |
+| [`wd-convnext-tagger-v3`](#wd_tagger) | yes | 4.46, 2.2x (448x448) | 276, 0.95x |
 | [`wd-eva02-large-tagger-v3`](#wd_tagger) | yes | 14.1, 1.9x (448x448) | 806, 1.2x |
-| [`wd-vit-large-tagger-v3`](#wd_tagger) | yes | 12.5, 1.6x (448x448) | 724, 1.1x |
-| [`wd-vit-tagger-v3`](#wd_tagger) | yes | 4.05, 1.4x (448x448) | 284, 1.2x |
+| [`wd-vit-large-tagger-v3`](#wd_tagger) | yes | 12.6, 1.6x (448x448) | 724, 1.1x |
+| [`wd-vit-tagger-v3`](#wd_tagger) | yes | 4.06, 1.4x (448x448) | 284, 1.2x |
 
 <a id="alexnet"></a>
 
@@ -128,7 +128,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [ImageNet Classification with Deep Convolutional Neural Networks](https://papers.nips.cc/paper_files/paper/2012/hash/c399862d3b9d6b76c8436e924a68c45b-Abstract.html), NeurIPS 2012, 2012-12-03
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://code.google.com/archive/p/cuda-convnet/> (cuda-convnet (C++/CUDA)): The authors' cuda-convnet code is obsolete; torchvision's PyTorch AlexNet carries usable ImageNet weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -173,19 +175,20 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `coatnet_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.88<br>10.6<br>7.23<br>–<br>4.71<br>0.709 | 105 / 114<br>124 / 146<br>74 / 86<br>–<br>96 / 126<br>102 / 124 |
-| `coatnet_rmlp_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.95<br>12.1<br>8.09<br>–<br>9.89<br>0.868 | 121 / 154<br>124 / 146<br>78 / 106<br>–<br>110 / 126<br>122 / 144 |
-| `coatnet_0_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.64<br>9.59<br>6.49<br>–<br>3.59<br>0.849 | 156 / 180<br>194 / 210<br>102 / 124<br>–<br>120 / 142<br>158 / 170 |
-| `coatnet_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.7<br>10.7<br>–<br>5.58<br>1.38 | 225 / 254<br>277 / 294<br>132 / 158<br>–<br>149 / 176<br>231 / 250 |
-| `coatnet_rmlp_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.0<br>18.4<br>12.4<br>–<br>6.54<br>1.47 | 213 / 234<br>278 / 296<br>131 / 156<br>–<br>155 / 176<br>243 / 262 |
-| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.9<br>18.3<br>12.3<br>–<br>6.63<br>1.55 | 226 / 254<br>278 / 296<br>132 / 158<br>–<br>162 / 176<br>257 / 276 |
-| `coatnet_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>15.7<br>11.9<br>–<br>5.53<br>1.73 | 376 / 410<br>466 / 470<br>207 / 240<br>–<br>211 / 240<br>374 / 416 |
-| `coatnet_rmlp_2_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>15.1<br>–<br>6.34<br>1.92 | 376 / 410<br>466 / 472<br>207 / 240<br>–<br>238 / 260<br>404 / 446 |
-| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>12.8<br>–<br>6.52<br>1.87 | 376 / 410<br>466 / 470<br>207 / 240<br>–<br>238 / 260<br>402 / 444 |
-| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 27.9<br>17.9<br>13.9<br>–<br>6.92<br>3.69 | 520 / 566<br>516 / 528<br>296 / 330<br>–<br>326 / 370<br>464 / 500 |
+| `coatnet_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.88<br>10.6<br>7.23<br>no kernels<br>4.71<br>0.709 | 105 / 114<br>124 / 146<br>74 / 86<br>no kernels<br>96 / 126<br>102 / 124 |
+| `coatnet_rmlp_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.95<br>12.1<br>8.09<br>no kernels<br>9.89<br>0.868 | 121 / 154<br>124 / 146<br>78 / 106<br>no kernels<br>110 / 126<br>122 / 144 |
+| `coatnet_0_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.64<br>9.59<br>6.49<br>no kernels<br>3.59<br>0.849 | 156 / 180<br>194 / 210<br>102 / 124<br>no kernels<br>120 / 142<br>158 / 170 |
+| `coatnet_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.7<br>10.7<br>no kernels<br>5.58<br>1.38 | 225 / 254<br>277 / 294<br>132 / 158<br>no kernels<br>149 / 176<br>231 / 250 |
+| `coatnet_rmlp_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.0<br>18.4<br>12.4<br>no kernels<br>6.54<br>1.47 | 213 / 234<br>278 / 296<br>131 / 156<br>no kernels<br>155 / 176<br>243 / 262 |
+| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.9<br>18.3<br>12.3<br>no kernels<br>6.63<br>1.55 | 226 / 254<br>278 / 296<br>132 / 158<br>no kernels<br>162 / 176<br>257 / 276 |
+| `coatnet_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>15.7<br>11.9<br>no kernels<br>5.53<br>1.73 | 376 / 410<br>466 / 470<br>207 / 240<br>no kernels<br>211 / 240<br>374 / 416 |
+| `coatnet_rmlp_2_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>15.1<br>no kernels<br>6.34<br>1.92 | 376 / 410<br>466 / 472<br>207 / 240<br>no kernels<br>238 / 260<br>404 / 446 |
+| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>12.8<br>no kernels<br>6.52<br>1.87 | 376 / 410<br>466 / 470<br>207 / 240<br>no kernels<br>238 / 260<br>402 / 444 |
+| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 27.9<br>17.9<br>13.9<br>no kernels<br>6.92<br>3.69 | 520 / 566<br>516 / 528<br>296 / 330<br>no kernels<br>326 / 370<br>464 / 500 |
 
 <details><summary>Details</summary>
 
+- Paper: [CoAtNet: Marrying Convolution and Attention for All Data Sizes](https://arxiv.org/abs/2106.04803), NeurIPS 2021, 2021-06-09
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
@@ -203,6 +206,7 @@ Commercial use: yes.
   - `coatnet_0_rw_224.sw_in1k`, `coatnet_1_rw_224.sw_in1k`, `coatnet_rmlp_1_rw_224.sw_in1k`, `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k`, `coatnet_2_rw_224.sw_in12k_ft_in1k`, `coatnet_rmlp_2_rw_224.sw_in1k`, `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
   - `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k`: fixed 384x384: the input is resized (short side 384) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `coatnet_nano_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `coatnet_rmlp_nano_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `coatnet_0_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `coatnet_1_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_1_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.2 reserved); `coatnet_2_rw_224.sw_in12k_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_2_rw_224.sw_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` 384x384 (0.3 GiB peak allocated, 0.3 reserved)
+- no kernels: not implemented: MBConv stages plus attention with a relative position bias: needs its own runner.
 - `coatnet_nano_rw_224.sw_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 32 s (ONNX + engine).
 - `coatnet_rmlp_nano_rw_224.sw_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `coatnet_0_rw_224.sw_in1k` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 38 s (ONNX + engine).
@@ -298,7 +302,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [A ConvNet for the 2020s](https://arxiv.org/abs/2201.03545), CVPR 2022, 2022-01-10
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/facebookresearch/ConvNeXt> (PyTorch): timm ships a maintained re-implementation with the same Meta ImageNet-1k/22k weights and a uniform API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/convnext_base.fb_in22k_ft_in1k/blob/67758fcbcf9f007ec7630bf8636b74a8f24e52a0/README.md>
@@ -420,7 +426,9 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 <details><summary>Details</summary>
 
+- Paper: [ConvNeXt V2: Co-designing and Scaling ConvNets with Masked Autoencoders](https://arxiv.org/abs/2301.00808), CVPR 2023, 2023-01-02
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/facebookresearch/ConvNeXt-V2> (PyTorch): timm re-implements the architecture and hosts the converted FCMAE fine-tuned weights.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: CC-BY-NC-4.0
 - Licence evidence: <https://huggingface.co/timm/convnextv2_base.fcmae_ft_in22k_in1k/blob/9e250ed8f88b436472d2b24af26f82a8aa8c719d/README.md>
@@ -465,13 +473,15 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `davit_tiny.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.93<br>9.88<br>6.33<br>–<br>3.10<br>1.03 | 158 / 174<br>196 / 204<br>96 / 116<br>–<br>125 / 136<br>159 / 166 |
-| `davit_small.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>18.8<br>12.8<br>–<br>5.54<br>1.92 | 239 / 262<br>319 / 324<br>136 / 150<br>–<br>166 / 190<br>234 / 254 |
-| `davit_base.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.4<br>20.0<br>11.7<br>–<br>5.48<br>2.28 | 390 / 416<br>537 / 548<br>212 / 224<br>–<br>242 / 262<br>403 / 422 |
+| `davit_tiny.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.93<br>9.88<br>6.33<br>no kernels<br>3.10<br>1.03 | 158 / 174<br>196 / 204<br>96 / 116<br>no kernels<br>125 / 136<br>159 / 166 |
+| `davit_small.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>18.8<br>12.8<br>no kernels<br>5.54<br>1.92 | 239 / 262<br>319 / 324<br>136 / 150<br>no kernels<br>166 / 190<br>234 / 254 |
+| `davit_base.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.4<br>20.0<br>11.7<br>no kernels<br>5.48<br>2.28 | 390 / 416<br>537 / 548<br>212 / 224<br>no kernels<br>242 / 262<br>403 / 422 |
 
 <details><summary>Details</summary>
 
+- Paper: [DaViT: Dual Attention Vision Transformers](https://arxiv.org/abs/2204.03645), ECCV 2022, 2022-04-07
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/dingmyu/davit> (PyTorch): timm carries the architecture and the converted authors' checkpoints in its own, simpler API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/davit_tiny.msft_in1k/blob/982f32c73d98f9966df4a7178b32b820bed3c1b1/README.md>
@@ -481,6 +491,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `davit_tiny.msft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `davit_small.msft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `davit_base.msft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved)
+- no kernels: not implemented: window attention and channel attention with depthwise position convolutions: needs its own runner.
 - `davit_tiny.msft_in1k` 224x224, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `davit_small.msft_in1k` 224x224, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
 - `davit_base.msft_in1k` 224x224, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 71 s (ONNX + engine).
@@ -530,7 +541,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Training data-efficient image transformers & distillation through attention](https://arxiv.org/abs/2012.12877), ICML 2021, 2020-12-23
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/facebookresearch/deit> (PyTorch): The authors' code is PyTorch, but timm's re-implementation is the maintained one and hosts the fb_in1k weights.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/deit_base_patch16_224.fb_in1k/blob/b78cc5532a69df6bcad9c3a8d76653fd20b31ac6/README.md>
@@ -575,11 +588,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `densenet121.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>13.6<br>9.41<br>1.28<br>5.49<br>0.686 | 78 / 92<br>80 / 102<br>53 / 90<br>83 / 132<br>89 / 112<br>85 / 106 |
+| `densenet121.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>13.6<br>9.68<br>1.29<br>5.49<br>0.686 | 78 / 92<br>80 / 102<br>53 / 70<br>53 / 92<br>89 / 112<br>85 / 106 |
 
 <details><summary>Details</summary>
 
+- Paper: [Densely Connected Convolutional Networks](https://arxiv.org/abs/1608.06993), CVPR 2017, 2016-08-25
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/liuzhuang13/DenseNet> (Lua Torch (the same repo also lists Caffe/PyTorch ports by the authors)): The authors' code is Lua Torch; torchvision's PyTorch port carries ImageNet weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -591,8 +606,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `densenet121.tv_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved)
 - `densenet121.tv_in1k` 224x224, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `densenet121.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `densenet121.tv_in1k` load / first call: original 1.22 s / 0.556 s, portable 0.41 s / 0.094 s, kernels 1.89 s / 0.045 s
-- Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `densenet121.tv_in1k` load / first call: original 1.22 s / 0.556 s, portable 1.71 s / 0.165 s, kernels 2.01 s / 0.044 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -624,11 +639,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov2_vitl14_lc` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.4<br>10.8<br>5.43<br>4.93<br>5.09<br>4.22 | 1210 / 1224<br>1782 / 1806<br>623 / 1228<br>890 / 950<br>660 / 688<br>1233 / 1262 |
+| `dinov2_vitl14_lc` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.4<br>10.8<br>5.43<br>4.95<br>5.09<br>4.22 | 1210 / 1224<br>1782 / 1806<br>623 / 1228<br>623 / 672<br>660 / 688<br>1233 / 1262 |
 
 <details><summary>Details</summary>
 
+- Paper: [DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/abs/2304.07193), TMLR 2024, 2023-04-14
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/facebookresearch/dinov2> (PyTorch): timm's port carries the same backbone weights and the linear head in a standard model interface.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_large_patch14_dinov2.lvd142m/blob/4741e1cafbf45415e77074bb0cb42dba76c8684a/README.md>
@@ -673,13 +690,15 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientformer_l1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.87<br>6.40<br>3.72<br>–<br>1.69<br>0.335 | 87 / 98<br>104 / 124<br>93 / 104<br>–<br>125 / 144<br>128 / 142 |
-| `efficientformer_l3.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>11.0<br>6.37<br>–<br>2.57<br>0.750 | 164 / 172<br>214 / 236<br>161 / 216<br>–<br>193 / 216<br>227 / 286 |
-| `efficientformer_l7.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.9<br>9.65<br>–<br>3.69<br>1.40 | 363 / 378<br>505 / 522<br>300 / 324<br>–<br>332 / 364<br>460 / 490 |
+| `efficientformer_l1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.87<br>6.40<br>3.72<br>no kernels<br>1.69<br>0.335 | 87 / 98<br>104 / 124<br>93 / 104<br>no kernels<br>125 / 144<br>128 / 142 |
+| `efficientformer_l3.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>11.0<br>6.37<br>no kernels<br>2.57<br>0.750 | 164 / 172<br>214 / 236<br>161 / 216<br>no kernels<br>193 / 216<br>227 / 286 |
+| `efficientformer_l7.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.9<br>9.65<br>no kernels<br>3.69<br>1.40 | 363 / 378<br>505 / 522<br>300 / 324<br>no kernels<br>332 / 364<br>460 / 490 |
 
 <details><summary>Details</summary>
 
+- Paper: [EfficientFormer: Vision Transformers at MobileNet Speed](https://arxiv.org/abs/2206.01191), NeurIPS 2022, 2022-06-02
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/snap-research/EfficientFormer> (PyTorch): timm carries the architecture and the converted authors' checkpoints in its own, simpler API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/efficientformer_l1.snap_dist_in1k/blob/8738a58190800aaf5995f453b05f643df453a565/README.md>
@@ -689,6 +708,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientformer_l1.snap_dist_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `efficientformer_l3.snap_dist_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `efficientformer_l7.snap_dist_in1k` 224x224 (0.3 GiB peak allocated, 0.3 reserved)
+- no kernels: not built yet: pooling blocks with Conv-BN MLPs and LayerNorm transformer blocks with learned attention bias tables need a dedicated kernels runner.
 - `efficientformer_l1.snap_dist_in1k` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `efficientformer_l3.snap_dist_in1k` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
 - `efficientformer_l7.snap_dist_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
@@ -734,14 +754,16 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientformerv2_s0.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.16<br>11.8<br>7.62<br>–<br>3.34<br>0.550 | 55 / 62<br>55 / 64<br>44 / 64<br>–<br>76 / 104<br>78 / 100 |
-| `efficientformerv2_s1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.1<br>14.9<br>8.91<br>–<br>3.91<br>0.632 | 65 / 72<br>70 / 80<br>50 / 88<br>–<br>82 / 108<br>86 / 126 |
-| `efficientformerv2_s2.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.2<br>21.8<br>13.9<br>–<br>5.55<br>0.919 | 91 / 116<br>108 / 116<br>64 / 104<br>–<br>96 / 124<br>100 / 142 |
-| `efficientformerv2_l.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.9<br>29.0<br>17.1<br>–<br>7.32<br>1.20 | 145 / 168<br>186 / 198<br>93 / 144<br>–<br>125 / 184<br>161 / 214 |
+| `efficientformerv2_s0.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.16<br>11.8<br>7.62<br>no kernels<br>3.34<br>0.550 | 55 / 62<br>55 / 64<br>44 / 64<br>no kernels<br>76 / 104<br>78 / 100 |
+| `efficientformerv2_s1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.1<br>14.9<br>8.91<br>no kernels<br>3.91<br>0.632 | 65 / 72<br>70 / 80<br>50 / 88<br>no kernels<br>82 / 108<br>86 / 126 |
+| `efficientformerv2_s2.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.2<br>21.8<br>13.9<br>no kernels<br>5.55<br>0.919 | 91 / 116<br>108 / 116<br>64 / 104<br>no kernels<br>96 / 124<br>100 / 142 |
+| `efficientformerv2_l.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.9<br>29.0<br>17.1<br>no kernels<br>7.32<br>1.20 | 145 / 168<br>186 / 198<br>93 / 144<br>no kernels<br>125 / 184<br>161 / 214 |
 
 <details><summary>Details</summary>
 
+- Paper: [Rethinking Vision Transformers for MobileNet Size and Speed](https://arxiv.org/abs/2212.08059), ICCV 2023, 2022-12-15
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/snap-research/EfficientFormer> (PyTorch): timm carries the architecture and the converted authors' checkpoints in its own, simpler API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/efficientformerv2_s0.snap_dist_in1k/blob/aa226e91a076e760bc7957e5990f19f6ae322c5f/README.md>
@@ -751,6 +773,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientformerv2_s0.snap_dist_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `efficientformerv2_s1.snap_dist_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `efficientformerv2_s2.snap_dist_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `efficientformerv2_l.snap_dist_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved)
+- no kernels: not built yet: Conv-BN blocks with depthwise 3x3, feature-map attention with learned bias tables and strided depthwise convolutions need a dedicated kernels runner.
 - `efficientformerv2_s0.snap_dist_in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `efficientformerv2_s1.snap_dist_in1k` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `efficientformerv2_s2.snap_dist_in1k` 224x224, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
@@ -802,11 +825,13 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `efficientnet_b0.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.64<br>7.91<br>4.98<br>0.769<br>2.88<br>0.536 | 64 / 78<br>64 / 84<br>48 / 96<br>78 / 118<br>80 / 96<br>81 / 92 |
-| `efficientnet_b4.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.1<br>15.7<br>10.0<br>2.00<br>5.39<br>1.63 | 156 / 190<br>147 / 174<br>89 / 114<br>111 / 180<br>124 / 154<br>157 / 200 |
+| `efficientnet_b4.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.1<br>15.7<br>9.93<br>2.02<br>5.39<br>1.63 | 156 / 190<br>147 / 174<br>89 / 114<br>90 / 118<br>124 / 154<br>157 / 200 |
 
 <details><summary>Details</summary>
 
+- Paper: [EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks](https://arxiv.org/abs/1905.11946), ICML 2019, 2019-05-28
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet> (TensorFlow): The authors' code is TensorFlow; torchvision's PyTorch port provides the tv_in1k weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -823,8 +848,9 @@ Commercial use: yes.
 - `efficientnet_b0.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `efficientnet_b4.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `efficientnet_b0.tv_in1k` load / first call: original 1.25 s / 2.863 s, portable 0.17 s / 0.378 s, kernels 1.53 s / 0.063 s
-- `efficientnet_b4.tv_in1k` load / first call: original 0.41 s / 1.72 s, portable 0.37 s / 0.061 s, kernels 1.94 s / 0.065 s
-- Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `efficientnet_b4.tv_in1k` load / first call: original 0.41 s / 1.72 s, portable 1.83 s / 0.948 s, kernels 2.11 s / 0.09 s
+- Protocol, `efficientnet_b0.tv_in1k`: median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- Protocol, `efficientnet_b4.tv_in1k`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -858,11 +884,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientnet_v2_s.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.1<br>16.6<br>10.2<br>1.89<br>5.39<br>1.35 | 137 / 158<br>159 / 176<br>81 / 106<br>114 / 188<br>116 / 146<br>149 / 198 |
+| `efficientnet_v2_s.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.1<br>16.6<br>10.2<br>1.91<br>5.39<br>1.35 | 137 / 158<br>159 / 176<br>81 / 126<br>81 / 128<br>116 / 146<br>149 / 198 |
 
 <details><summary>Details</summary>
 
+- Paper: [EfficientNetV2: Smaller Models and Faster Training](https://arxiv.org/abs/2104.00298), ICML 2021, 2021-04-01
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/google/automl/tree/master/efficientnetv2> (TensorFlow): The authors' code is TensorFlow; torchvision's PyTorch implementation carries its own ImageNet weights (tv_in1k, not Google's).
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -874,8 +902,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientnet_v2_s.tv_in1k` 384x384 (0.1 GiB peak allocated, 0.1 reserved)
 - `efficientnet_v2_s.tv_in1k` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 32 s (ONNX + engine).
 - `efficientnet_v2_s.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `efficientnet_v2_s.tv_in1k` load / first call: original 1.48 s / 0.969 s, portable 0.35 s / 0.043 s, kernels 1.9 s / 0.053 s
-- Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `efficientnet_v2_s.tv_in1k` load / first call: original 1.48 s / 0.969 s, portable 1.78 s / 0.424 s, kernels 2.11 s / 0.057 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -907,11 +935,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientvit_b2.r288_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.7<br>11.9<br>1.10<br>6.91<br>0.790 | 144 / 160<br>173 / 194<br>85 / 124<br>120 / 212<br>120 / 164<br>154 / 216 |
+| `efficientvit_b2.r288_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.7<br>12.9<br>1.12<br>6.91<br>0.790 | 144 / 160<br>173 / 194<br>85 / 144<br>88 / 170<br>120 / 164<br>154 / 216 |
 
 <details><summary>Details</summary>
 
+- Paper: [EfficientViT: Multi-Scale Linear Attention for High-Resolution Dense Prediction](https://arxiv.org/abs/2205.14756), ICCV 2023, 2022-05-29
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/mit-han-lab/efficientvit> (PyTorch): timm ships a PyTorch port of the model with the released ImageNet weights, which fits the shared classification interface.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/efficientvit_b2.r288_in1k/blob/891530d0c5a400dd2d4549c81d433661b192abe1/README.md>
@@ -923,8 +953,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientvit_b2.r288_in1k` 288x288 (0.1 GiB peak allocated, 0.1 reserved)
 - `efficientvit_b2.r288_in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `efficientvit_b2.r288_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `efficientvit_b2.r288_in1k` load / first call: original 1.84 s / 1.888 s, portable 0.4 s / 0.039 s, kernels 1.92 s / 0.051 s
-- Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `efficientvit_b2.r288_in1k` load / first call: original 1.84 s / 1.888 s, portable 2.31 s / 0.726 s, kernels 2.43 s / 0.072 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -944,6 +974,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 |---|---|---|---|
 | `efficientvit_b2.r288_in1k` | 0.01737 / 0.06142 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
+### Limitations
+
+- Portable float16 at batch 1 is launch-bound: timm's linear attention casts q, k, v to float32 and back in every LiteMLA block (needed for a stable division), so 224x224 runs 12-13 ms against 10.7 ms for the float32 original and 14.7 ms for the fp16-autocast original; the kernels mode runs 1.1 ms.
+
 </details>
 
 <a id="eva02"></a>
@@ -956,11 +990,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 83.7<br>32.1<br>18.0<br>14.1<br>14.9<br>12.4 | 1260 / 1284<br>1819 / 1864<br>648 / 1206<br>1236 / 1386<br>674 / 684<br>1259 / 1286 |
+| `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 83.7<br>32.1<br>18.2<br>14.1<br>14.9<br>12.4 | 1260 / 1284<br>1819 / 1864<br>648 / 664<br>652 / 786<br>674 / 684<br>1259 / 1286 |
 
 <details><summary>Details</summary>
 
+- Paper: [EVA-02: A Visual Representation for Neon Genesis](https://arxiv.org/abs/2303.11331), Image and Vision Computing 2024 (vol. 149, 105171), 2023-03-20
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/baaivision/EVA> (PyTorch): timm re-implements the model with the released weights in a uniform API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/timm/eva02_large_patch14_448.mim_m38m_ft_in22k_in1k/blob/fae13da496eea422cb162dfdb693dc125b68f04d/README.md>
@@ -972,8 +1008,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` 448x448 (0.7 GiB peak allocated, 0.8 reserved)
 - `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` 224x224, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 44 s (ONNX + engine).
 - `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` load / first call: original 6.98 s / 0.389 s, portable 2.8 s / 0.02 s, kernels 3.61 s / 0.096 s
-- Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` load / first call: original 6.98 s / 0.389 s, portable 4.54 s / 0.173 s, kernels 5.89 s / 0.165 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -993,6 +1029,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 |---|---|---|---|
 | `eva02_large_patch14_448.mim_m38m_ft_in22k_in1k` | 0.00154 / 0.00587 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
+### Limitations
+
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~80 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+
 </details>
 
 <a id="nsfw_vit"></a>
@@ -1005,10 +1045,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `falconsai-nsfw-vit` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.76<br>5.74<br>2.83<br>1.61<br>fails: timeout after 290 s<br>1.12 | 367 / 388<br>200 / 226<br>201 / 226<br>198 / 228<br>–<br>393 / 420 |
+| `falconsai-nsfw-vit` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.76<br>5.74<br>2.83<br>1.61<br>deferred (build >5 min)<br>1.12 | 367 / 388<br>200 / 226<br>201 / 226<br>198 / 228<br>–<br>393 / 420 |
 
 <details><summary>Details</summary>
 
+- Paper: [Falconsai/nsfw_image_detection](https://huggingface.co/Falconsai/nsfw_image_detection), Model card, 2023-10-13
 - Original code: <https://huggingface.co/Falconsai/nsfw_image_detection> at `96cb0d0342c7`
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
@@ -1048,13 +1089,15 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `fastvit_sa24.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.10<br>10.9<br>6.05<br>1.40<br>3.97<br>0.818 | 129 / 142<br>157 / 176<br>81 / 110<br>80 / 150<br>113 / 148<br>148 / 200 |
-| `fastvit_t8.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.07<br>4.91<br>3.30<br>0.703<br>2.55<br>0.368 | 56 / 72<br>57 / 76<br>45 / 72<br>45 / 76<br>77 / 92<br>78 / 108 |
+| `fastvit_sa24.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.10<br>10.9<br>6.03<br>1.41<br>3.97<br>0.818 | 129 / 142<br>157 / 176<br>81 / 110<br>80 / 132<br>113 / 148<br>148 / 200 |
+| `fastvit_t8.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.07<br>4.91<br>3.25<br>0.709<br>2.55<br>0.368 | 56 / 72<br>57 / 76<br>45 / 72<br>45 / 76<br>77 / 92<br>78 / 108 |
 | `fastvit_t12.apple_dist_in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.61<br>5.66<br>3.27<br>0.781<br>2.32<br>0.431 | 74 / 80<br>77 / 84<br>54 / 76<br>52 / 76<br>86 / 94<br>89 / 114 |
 
 <details><summary>Details</summary>
 
+- Paper: [FastViT: A Fast Hybrid Vision Transformer using Structural Reparameterization](https://arxiv.org/abs/2303.14189), ICCV 2023, 2023-03-24
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/apple/ml-fastvit> (PyTorch): timm carries the architecture and the apple_dist_in1k weights in its own, simpler API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: LicenseRef-Apple-Sample-Code
 - Licence evidence: <https://huggingface.co/timm/fastvit_sa24.apple_dist_in1k/blob/0b86f2b98f83274e9f03b6ddbcb3942b84efb839/README.md>
@@ -1074,8 +1117,8 @@ Commercial use: yes.
 - `fastvit_t8.apple_dist_in1k` original 256x256: torch.autocast(float16) around the call; timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
 - `fastvit_t12.apple_dist_in1k` original (fp32) 256x256: timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
 - `fastvit_t12.apple_dist_in1k` original 256x256: torch.autocast(float16) around the call; timm FastViT with authors' reparameterized inference recipe; fusion is outside the timed call
-- `fastvit_sa24.apple_dist_in1k` load / first call: original 0.31 s / 0.028 s (256x256), portable 3.4 s / 0.585 s (256x256), kernels 2.3 s / 0.002 s (256x256)
-- `fastvit_t8.apple_dist_in1k` load / first call: original 0.21 s / 0.976 s (256x256), portable 1.76 s / 0.548 s (256x256), kernels 1.95 s / 0.045 s (256x256)
+- `fastvit_sa24.apple_dist_in1k` load / first call: original 0.31 s / 0.028 s (256x256), portable 2.45 s / 0.818 s (256x256), kernels 2.77 s / 0.046 s (256x256)
+- `fastvit_t8.apple_dist_in1k` load / first call: original 0.21 s / 0.976 s (256x256), portable 2.1 s / 0.851 s (256x256), kernels 1.83 s / 0.047 s (256x256)
 - `fastvit_t12.apple_dist_in1k` load / first call: original 0.14 s / 0.708 s (256x256), portable 1.81 s / 0.406 s (256x256), kernels 2.01 s / 0.044 s (256x256)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -1113,16 +1156,18 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `focalnet_tiny_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>10.4<br>7.36<br>–<br>3.72<br>0.864 | 157 / 178<br>197 / 206<br>95 / 118<br>–<br>120 / 136<br>159 / 188 |
-| `focalnet_small_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>20.1<br>14.0<br>–<br>6.90<br>1.49 | 239 / 252<br>320 / 336<br>136 / 152<br>–<br>161 / 190<br>234 / 256 |
-| `focalnet_base_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>20.0<br>14.2<br>–<br>6.94<br>1.74 | 390 / 414<br>542 / 558<br>211 / 234<br>–<br>234 / 272<br>401 / 430 |
-| `focalnet_tiny_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.92<br>11.4<br>8.07<br>–<br>3.94<br>0.952 | 158 / 180<br>199 / 208<br>95 / 118<br>–<br>120 / 138<br>158 / 186 |
-| `focalnet_small_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.8<br>22.0<br>15.8<br>–<br>7.28<br>1.70 | 241 / 254<br>323 / 338<br>136 / 152<br>–<br>162 / 192<br>265 / 286 |
-| `focalnet_base_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.0<br>22.1<br>15.5<br>–<br>7.47<br>2.08 | 393 / 416<br>546 / 560<br>212 / 234<br>–<br>235 / 274<br>404 / 432 |
+| `focalnet_tiny_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>10.4<br>7.36<br>no kernels<br>3.72<br>0.864 | 157 / 178<br>197 / 206<br>95 / 118<br>no kernels<br>120 / 136<br>159 / 188 |
+| `focalnet_small_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>20.1<br>14.0<br>no kernels<br>6.90<br>1.49 | 239 / 252<br>320 / 336<br>136 / 152<br>no kernels<br>161 / 190<br>234 / 256 |
+| `focalnet_base_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>20.0<br>14.2<br>no kernels<br>6.94<br>1.74 | 390 / 414<br>542 / 558<br>211 / 234<br>no kernels<br>234 / 272<br>401 / 430 |
+| `focalnet_tiny_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.92<br>11.4<br>8.07<br>no kernels<br>3.94<br>0.952 | 158 / 180<br>199 / 208<br>95 / 118<br>no kernels<br>120 / 138<br>158 / 186 |
+| `focalnet_small_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.8<br>22.0<br>15.8<br>no kernels<br>7.28<br>1.70 | 241 / 254<br>323 / 338<br>136 / 152<br>no kernels<br>162 / 192<br>265 / 286 |
+| `focalnet_base_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.0<br>22.1<br>15.5<br>no kernels<br>7.47<br>2.08 | 393 / 416<br>546 / 560<br>212 / 234<br>no kernels<br>235 / 274<br>404 / 432 |
 
 <details><summary>Details</summary>
 
+- Paper: [Focal Modulation Networks](https://arxiv.org/abs/2203.11926), NeurIPS 2022, 2022-03-22
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/microsoft/FocalNet> (PyTorch): timm carries the architecture and the converted authors' checkpoints in its own, simpler API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/timm/focalnet_tiny_srf.ms_in1k/blob/de75c3a73e9ed84fee554a7138d4bac119751645/README.md>
@@ -1132,6 +1177,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 248) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `focalnet_tiny_srf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_small_srf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_base_srf.ms_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `focalnet_tiny_lrf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_small_lrf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_base_lrf.ms_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved)
+- no kernels: not implemented: LayerNorm blocks with depthwise convolutions and gated sums: needs its own runner.
 - `focalnet_tiny_srf.ms_in1k` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
 - `focalnet_small_srf.ms_in1k` 224x224, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 65 s (ONNX + engine).
 - `focalnet_base_srf.ms_in1k` 224x224, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 64 s (ONNX + engine).
@@ -1192,17 +1238,19 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hgnetv2_b0.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.45<br>5.89<br>3.46<br>–<br>1.78<br>0.334 | 65 / 70<br>68 / 72<br>48 / 70<br>–<br>78 / 110<br>77 / 100 |
-| `hgnetv2_b1.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.57<br>6.17<br>3.47<br>–<br>1.84<br>0.307 | 66 / 94<br>70 / 92<br>50 / 68<br>–<br>80 / 108<br>81 / 104 |
-| `hgnetv2_b2.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.25<br>7.98<br>4.55<br>–<br>2.33<br>0.383 | 89 / 114<br>98 / 118<br>59 / 94<br>–<br>89 / 134<br>91 / 128 |
-| `hgnetv2_b3.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.16<br>9.30<br>5.22<br>–<br>2.55<br>0.436 | 112 / 134<br>127 / 140<br>76 / 114<br>–<br>99 / 152<br>100 / 150 |
-| `hgnetv2_b4.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.06<br>8.41<br>4.53<br>–<br>2.66<br>0.463 | 131 / 140<br>147 / 166<br>82 / 116<br>–<br>107 / 134<br>139 / 182 |
-| `hgnetv2_b5.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.4<br>13.8<br>7.04<br>–<br>4.13<br>0.758 | 213 / 222<br>260 / 280<br>114 / 150<br>–<br>146 / 190<br>209 / 250 |
-| `hgnetv2_b6.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.5<br>17.9<br>9.44<br>–<br>5.44<br>1.42 | 354 / 376<br>465 / 490<br>198 / 224<br>–<br>217 / 264<br>347 / 394 |
+| `hgnetv2_b0.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.45<br>5.89<br>3.46<br>no kernels<br>1.78<br>0.334 | 65 / 70<br>68 / 72<br>48 / 70<br>no kernels<br>78 / 110<br>77 / 100 |
+| `hgnetv2_b1.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.57<br>6.17<br>3.47<br>no kernels<br>1.84<br>0.307 | 66 / 94<br>70 / 92<br>50 / 68<br>no kernels<br>80 / 108<br>81 / 104 |
+| `hgnetv2_b2.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.25<br>7.98<br>4.55<br>no kernels<br>2.33<br>0.383 | 89 / 114<br>98 / 118<br>59 / 94<br>no kernels<br>89 / 134<br>91 / 128 |
+| `hgnetv2_b3.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.16<br>9.30<br>5.22<br>no kernels<br>2.55<br>0.436 | 112 / 134<br>127 / 140<br>76 / 114<br>no kernels<br>99 / 152<br>100 / 150 |
+| `hgnetv2_b4.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.06<br>8.41<br>4.53<br>no kernels<br>2.66<br>0.463 | 131 / 140<br>147 / 166<br>82 / 116<br>no kernels<br>107 / 134<br>139 / 182 |
+| `hgnetv2_b5.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.4<br>13.8<br>7.04<br>no kernels<br>4.13<br>0.758 | 213 / 222<br>260 / 280<br>114 / 150<br>no kernels<br>146 / 190<br>209 / 250 |
+| `hgnetv2_b6.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.5<br>17.9<br>9.44<br>no kernels<br>5.44<br>1.42 | 354 / 376<br>465 / 490<br>198 / 224<br>no kernels<br>217 / 264<br>347 / 394 |
 
 <details><summary>Details</summary>
 
+- Paper: [PP-HGNetV2](https://github.com/PaddlePaddle/PaddleClas/blob/develop/docs/zh_CN/models/ImageNet1k/PP-HGNetV2.md), PaddleClas docs, 2023-09-26
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/PaddlePaddle/PaddleClas> (PaddlePaddle): timm carries the architecture and the converted PaddleClas checkpoints in its own PyTorch API; the original is PaddlePaddle.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/hgnetv2_b0.ssld_stage2_ft_in1k/blob/9e0a904b210d65e4fcd6582f8ca6e0921fac2650/README.md>
@@ -1212,6 +1260,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 232) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hgnetv2_b0.ssld_stage2_ft_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `hgnetv2_b1.ssld_stage2_ft_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `hgnetv2_b2.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b3.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b4.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b5.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b6.ssld_stage2_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved)
+- no kernels: not built yet: the portable CNN path is validated; HGNetV2 aggregation blocks need a dedicated kernels runner.
 - `hgnetv2_b0.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 21 s (ONNX + engine).
 - `hgnetv2_b1.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 20 s (ONNX + engine).
 - `hgnetv2_b2.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 23 s (ONNX + engine).
@@ -1277,11 +1326,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `inception_v3.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.88<br>10.3<br>5.21<br>1.30<br>3.03<br>0.685 | 155 / 180<br>185 / 206<br>120 / 166<br>150 / 228<br>152 / 184<br>184 / 234 |
+| `inception_v3.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.88<br>10.3<br>5.13<br>1.31<br>3.03<br>0.685 | 155 / 180<br>185 / 206<br>120 / 164<br>118 / 208<br>152 / 184<br>184 / 234 |
 
 <details><summary>Details</summary>
 
+- Paper: [Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/abs/1512.00567), CVPR 2016, 2015-12-02
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/tensorflow/models/tree/master/research/slim> (TensorFlow): The authors' code is TensorFlow (TF-Slim); torchvision's PyTorch port carries the converted ImageNet weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -1293,8 +1344,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `inception_v3.tv_in1k` 299x299 (0.1 GiB peak allocated, 0.2 reserved)
 - `inception_v3.tv_in1k` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 22 s (ONNX + engine).
 - `inception_v3.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `inception_v3.tv_in1k` load / first call: original 1.62 s / 0.403 s, portable 0.28 s / 0.04 s, kernels 1.86 s / 0.048 s
-- Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `inception_v3.tv_in1k` load / first call: original 1.62 s / 0.403 s, portable 1.7 s / 0.096 s, kernels 2.1 s / 0.048 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -1330,7 +1381,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/abs/1801.04381), CVPR 2018, 2018-01-13
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/tensorflow/models/tree/master/research/slim/nets/mobilenet> (TensorFlow): The authors' code is TensorFlow; torchvision's PyTorch module is used, and the tv2 weights are torchvision's own retraining recipe, not the paper's checkpoint.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -1379,7 +1432,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Searching for MobileNetV3](https://arxiv.org/abs/1905.02244), ICCV 2019, 2019-05-06
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/tensorflow/models/tree/master/research/slim/nets/mobilenet> (TensorFlow): The authors' code is TensorFlow; torchvision's PyTorch port provides the tv2 re-trained weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -1424,11 +1479,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mobilenetv1_100.ra4_e3600_r224_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2.19<br>2.96<br>1.77<br>0.370<br>1.21<br>0.176 | 59 / 72<br>58 / 74<br>44 / 72<br>76 / 114<br>77 / 90<br>77 / 106 |
+| `mobilenetv1_100.ra4_e3600_r224_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2.19<br>2.96<br>1.77<br>0.382<br>1.21<br>0.176 | 59 / 72<br>58 / 74<br>44 / 70<br>43 / 72<br>77 / 90<br>77 / 106 |
 
 <details><summary>Details</summary>
 
+- Paper: [MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications](https://arxiv.org/abs/1704.04861), arXiv, 2017-04-17
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet_v1.md> (TensorFlow): The authors' code is TensorFlow; timm's PyTorch implementation provides the weights used here (timm-trained ra4 recipe, not Google's checkpoint).
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/mobilenetv1_100.ra4_e3600_r224_in1k/blob/6e88b523abded44469eafcd52f7832d5e0300b1b/README.md>
@@ -1440,8 +1497,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mobilenetv1_100.ra4_e3600_r224_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved)
 - `mobilenetv1_100.ra4_e3600_r224_in1k` 224x224, first call: portable + torch.compile 5 s (cold Inductor cache), TensorRT fp16 14 s (ONNX + engine).
 - `mobilenetv1_100.ra4_e3600_r224_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `mobilenetv1_100.ra4_e3600_r224_in1k` load / first call: original 1.34 s / 1.502 s, portable 0.06 s / 0.011 s, kernels 1.7 s / 0.049 s
-- Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `mobilenetv1_100.ra4_e3600_r224_in1k` load / first call: original 1.34 s / 1.502 s, portable 1.8 s / 0.35 s, kernels 2.22 s / 0.052 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -1477,7 +1534,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [MobileNetV4 -- Universal Models for the Mobile Ecosystem](https://arxiv.org/abs/2404.10518), ECCV 2024, 2024-04-16
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/tensorflow/models/blob/master/official/vision/modeling/backbones/mobilenet.py> (TensorFlow): The authors' code is TensorFlow; timm's PyTorch implementation carries its own ImageNet-1k weights (e500_r256_in1k).
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/mobilenetv4_conv_medium.e500_r256_in1k/blob/ad66898c045c1b5223ea3f2c0830b74cf2e75bac/README.md>
@@ -1522,11 +1581,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `regnety_160.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.1<br>12.2<br>8.34<br>1.86<br>5.42<br>1.78 | 385 / 418<br>512 / 524<br>208 / 250<br>229 / 316<br>236 / 290<br>364 / 420 |
+| `regnety_160.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.1<br>12.2<br>8.08<br>1.87<br>5.42<br>1.78 | 385 / 418<br>512 / 524<br>208 / 250<br>202 / 276<br>236 / 290<br>364 / 420 |
 
 <details><summary>Details</summary>
 
+- Paper: [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678), CVPR 2020, 2020-03-30
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/facebookresearch/pycls> (PyTorch): torchvision re-implements RegNet and provides its own retrained tv2 weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -1538,8 +1599,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `regnety_160.tv2_in1k` 224x224 (0.3 GiB peak allocated, 0.3 reserved)
 - `regnety_160.tv2_in1k` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 28 s (ONNX + engine).
 - `regnety_160.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `regnety_160.tv2_in1k` load / first call: original 3.07 s / 0.484 s, portable 1.08 s / 0.042 s, kernels 2.22 s / 0.055 s
-- Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `regnety_160.tv2_in1k` load / first call: original 3.07 s / 0.484 s, portable 2.94 s / 0.237 s, kernels 2.74 s / 0.054 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -1584,7 +1645,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [RepViT: Revisiting Mobile CNN From ViT Perspective](https://arxiv.org/abs/2307.09283), CVPR 2024, 2023-07-18
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/THU-MIG/RepViT> (PyTorch): timm carries the architecture and the converted authors' checkpoints in its own, simpler API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/repvit_m1_1.dist_450e_in1k/blob/ff441038a42982fff1c8c75be7c794f9ba76db72/README.md>
@@ -1678,13 +1741,15 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `resnet18.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.91<br>2.44<br>1.48<br>0.459<br>1.04<br>0.220 | 94 / 130<br>105 / 130<br>61 / 90<br>90 / 150<br>91 / 108<br>89 / 120 |
+| `resnet18.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.91<br>2.44<br>1.44<br>0.472<br>1.04<br>0.220 | 94 / 130<br>105 / 130<br>59 / 88<br>58 / 110<br>91 / 108<br>89 / 120 |
 | `resnet50.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.74<br>5.84<br>3.15<br>0.826<br>2.10<br>0.466 | 148 / 162<br>180 / 192<br>89 / 142<br>116 / 162<br>119 / 138<br>152 / 166 |
-| `resnet152.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.8<br>16.3<br>8.36<br>1.83<br>4.55<br>1.09 | 280 / 288<br>378 / 390<br>155 / 186<br>182 / 266<br>185 / 240<br>282 / 334 |
+| `resnet152.tv2_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.8<br>16.3<br>8.51<br>1.85<br>4.55<br>1.09 | 280 / 288<br>378 / 390<br>153 / 200<br>152 / 224<br>185 / 240<br>282 / 334 |
 
 <details><summary>Details</summary>
 
+- Paper: [Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385), CVPR 2016, 2015-12-10
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/KaimingHe/deep-residual-networks> (Caffe): The authors' code and weights are Caffe; torchvision's PyTorch implementation is used, and the tv/tv2 weights are torchvision's own trainings.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -1702,10 +1767,11 @@ Commercial use: yes.
 - `resnet18.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `resnet50.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
 - `resnet152.tv2_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `resnet18.tv_in1k` load / first call: original 0.27 s / 0.004 s, portable 0.07 s / 0.003 s, kernels 1.48 s / 0.041 s
+- `resnet18.tv_in1k` load / first call: original 0.27 s / 0.004 s, portable 1.25 s / 0.059 s, kernels 1.4 s / 0.042 s
 - `resnet50.tv2_in1k` load / first call: original 0.51 s / 0.007 s, portable 0.16 s / 0.003 s, kernels 1.48 s / 0.041 s
-- `resnet152.tv2_in1k` load / first call: original 2.34 s / 0.243 s, portable 0.43 s / 0.024 s, kernels 1.88 s / 0.041 s
-- Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `resnet152.tv2_in1k` load / first call: original 2.34 s / 0.243 s, portable 2.01 s / 0.089 s, kernels 2.33 s / 0.039 s
+- Protocol, `resnet18.tv_in1k`, `resnet152.tv2_in1k`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+- Protocol, `resnet50.tv2_in1k`: median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
 
@@ -1741,11 +1807,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `shufflenet_v2_x1_0.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.79<br>6.53<br>3.71<br>0.787<br>1.98<br>0.329 | 45 / 68<br>47 / 48<br>41 / 72<br>87 / 116<br>71 / 88<br>70 / 80 |
+| `shufflenet_v2_x1_0.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.79<br>6.53<br>3.72<br>0.804<br>1.98<br>0.329 | 45 / 68<br>47 / 48<br>39 / 48<br>55 / 76<br>71 / 88<br>70 / 80 |
 
 <details><summary>Details</summary>
 
+- Paper: [ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design](https://arxiv.org/abs/1807.11164), ECCV 2018, 2018-07-30
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/megvii-model/ShuffleNet-Series> (PyTorch): The authors' (Megvii) repo is not the maintained source of the ImageNet weights; torchvision's port is.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -1757,8 +1825,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `shufflenet_v2_x1_0.tv_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved)
 - `shufflenet_v2_x1_0.tv_in1k` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 17 s (ONNX + engine).
 - `shufflenet_v2_x1_0.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `shufflenet_v2_x1_0.tv_in1k` load / first call: original 1.13 s / 1.146 s, portable 0.14 s / 0.016 s, kernels 1.55 s / 0.078 s
-- Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `shufflenet_v2_x1_0.tv_in1k` load / first call: original 1.13 s / 1.146 s, portable 1.44 s / 0.36 s, kernels 1.3 s / 0.106 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -1778,6 +1846,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 |---|---|---|---|
 | `shufflenet_v2_x1_0.tv_in1k` | 0.00435 / 0.01481 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
+### Limitations
+
+- At 224 x 224 portable runs 5.0 ms / 39 MB (fp32 original 4.8 ms / 45 MB, fp16 original 6.5 ms / 47 MB); kernels run 0.80 ms but peak 55 MB allocated / 76 MB reserved (original 47 / 45 MB) from cuDNN workspaces of the small convolutions.
+
 </details>
 
 <a id="shvit"></a>
@@ -1790,14 +1862,16 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `shvit_s1.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.41<br>11.1<br>6.75<br>–<br>3.11<br>0.510 | 60 / 66<br>70 / 76<br>47 / 58<br>–<br>78 / 98<br>77 / 90 |
-| `shvit_s2.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.37<br>11.1<br>6.76<br>–<br>3.90<br>0.533 | 80 / 102<br>99 / 120<br>56 / 88<br>–<br>88 / 128<br>87 / 120 |
-| `shvit_s3.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.40<br>12.5<br>8.11<br>–<br>3.64<br>0.575 | 92 / 110<br>115 / 134<br>62 / 112<br>–<br>94 / 132<br>92 / 144 |
-| `shvit_s4.in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>14.6<br>9.31<br>–<br>4.11<br>0.658 | 103 / 118<br>129 / 146<br>67 / 118<br>–<br>99 / 138<br>101 / 154 |
+| `shvit_s1.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.41<br>11.1<br>6.75<br>no kernels<br>3.11<br>0.510 | 60 / 66<br>70 / 76<br>47 / 58<br>no kernels<br>78 / 98<br>77 / 90 |
+| `shvit_s2.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.37<br>11.1<br>6.76<br>no kernels<br>3.90<br>0.533 | 80 / 102<br>99 / 120<br>56 / 88<br>no kernels<br>88 / 128<br>87 / 120 |
+| `shvit_s3.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.40<br>12.5<br>8.11<br>no kernels<br>3.64<br>0.575 | 92 / 110<br>115 / 134<br>62 / 112<br>no kernels<br>94 / 132<br>92 / 144 |
+| `shvit_s4.in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>14.6<br>9.31<br>no kernels<br>4.11<br>0.658 | 103 / 118<br>129 / 146<br>67 / 118<br>no kernels<br>99 / 138<br>101 / 154 |
 
 <details><summary>Details</summary>
 
+- Paper: [SHViT: Single-Head Vision Transformer with Memory Efficient Macro Design](https://arxiv.org/abs/2401.16456), CVPR 2024, 2024-01-29
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/ysj9909/SHViT> (PyTorch): timm carries the architecture and the converted authors' checkpoints in its own, simpler API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/timm/shvit_s1.in1k/blob/d5c0c27b0d05c630284a3946882590e4054f1108/README.md>
@@ -1809,6 +1883,7 @@ Commercial use: yes.
   - `shvit_s1.in1k`, `shvit_s2.in1k`, `shvit_s3.in1k`: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
   - `shvit_s4.in1k`: fixed 256x256: the input is resized (short side 292) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `shvit_s1.in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `shvit_s2.in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `shvit_s3.in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `shvit_s4.in1k` 256x256 (0.1 GiB peak allocated, 0.1 reserved)
+- no kernels: not built yet: convolutions with BatchNorm plus single-head attention on feature maps need a dedicated kernels runner.
 - `shvit_s1.in1k` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 23 s (ONNX + engine).
 - `shvit_s2.in1k` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 24 s (ONNX + engine).
 - `shvit_s3.in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
@@ -1859,11 +1934,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `squeezenet1_1.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.72<br>2.63<br>1.82<br>0.359<br>1.13<br>0.214 | 11 / 28<br>10 / 30<br>41 / 72<br>8 / 12<br>39 / 48<br>38 / 40 |
+| `squeezenet1_1.tv_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1.72<br>2.63<br>1.78<br>0.376<br>1.13<br>0.214 | 11 / 28<br>10 / 30<br>7 / 28<br>8 / 12<br>39 / 48<br>38 / 40 |
 
 <details><summary>Details</summary>
 
+- Paper: [SqueezeNet: AlexNet-level accuracy with 50x fewer parameters and <0.5MB model size](https://arxiv.org/abs/1602.07360), arXiv, 2016-02-24
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://github.com/forresti/SqueezeNet> (Caffe): The authors' code is Caffe; torchvision's PyTorch port carries ported ImageNet weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -1875,8 +1952,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `squeezenet1_1.tv_in1k` 224x224 (0.0 GiB peak allocated, 0.0 reserved)
 - `squeezenet1_1.tv_in1k` 224x224, first call: portable + torch.compile 4 s (cold Inductor cache), TensorRT fp16 9 s (ONNX + engine).
 - `squeezenet1_1.tv_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `squeezenet1_1.tv_in1k` load / first call: original 1.09 s / 0.374 s, portable 0.05 s / 0.02 s, kernels 1.44 s / 0.028 s
-- Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `squeezenet1_1.tv_in1k` load / first call: original 1.09 s / 0.374 s, portable 1.19 s / 0.059 s, kernels 1.33 s / 0.081 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -1915,7 +1992,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Rewrite the Stars](https://arxiv.org/abs/2403.19967), CVPR 2024, 2024-03-29
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/ma-xu/Rewrite-the-Stars> (PyTorch): timm carries the architecture and the converted authors' checkpoints in its own, simpler API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/starnet_s1.in1k/blob/e3fbe6d1e24b6293fa6e7b897f380bd62f77e01f/README.md>
@@ -1979,7 +2058,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Swin Transformer: Hierarchical Vision Transformer using Shifted Windows](https://arxiv.org/abs/2103.14030), ICCV 2021, 2021-03-25
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/microsoft/Swin-Transformer> (PyTorch): timm re-implements the model and hosts the released weights in a uniform API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/timm/swin_base_patch4_window7_224.ms_in22k_ft_in1k/blob/a6a1eb2321b4f556fa0fa243fb777d47679f13c9/README.md>
@@ -2032,7 +2113,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [TinyViT: Fast Pretraining Distillation for Small Vision Transformers](https://arxiv.org/abs/2207.10666), ECCV 2022, 2022-07-21
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/microsoft/Cream/tree/main/TinyViT> (PyTorch): timm carries the architecture and the converted authors' checkpoints in its own, simpler API.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/tiny_vit_21m_224.dist_in22k_ft_in1k/blob/bcd5d68c5650bf4d65a0a1262f28b699a4d1c35f/README.md>
@@ -2104,7 +2187,9 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [Very Deep Convolutional Networks for Large-Scale Image Recognition](https://arxiv.org/abs/1409.1556), ICLR 2015, 2014-09-04
 - Original code: <https://github.com/pytorch/vision> at `1f1a920d685d`
+- Authors' code, not used: <https://www.robots.ox.ac.uk/~vgg/research/very_deep/> (Caffe): The authors released Caffe models only; torchvision's PyTorch port carries the ImageNet weights.
 - Code licence: BSD-3-Clause (permissive); files: 
 - Weights licence: BSD-3-Clause (assumed from code)
 - Licence evidence: <https://github.com/pytorch/vision/blob/1f1a920d685d46dfbe187934b785b7ecb7a182f2/LICENSE>
@@ -2149,11 +2234,14 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vit_base_patch16_224.augreg2_in21k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.33<br>5.48<br>3.02<br>1.65<br>2.10<br>1.14 | 371 / 386<br>531 / 548<br>205 / 390<br>300 / 370<br>238 / 266<br>394 / 420 |
+| `vit_base_patch16_224.augreg2_in21k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.33<br>5.48<br>3.02<br>1.66<br>2.10<br>1.14 | 371 / 386<br>531 / 548<br>205 / 390<br>200 / 248<br>238 / 266<br>394 / 420 |
 
 <details><summary>Details</summary>
 
+- Paper: [An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale](https://arxiv.org/abs/2010.11929), ICLR 2021, 2020-10-22
+- Paper: [How to train your ViT? Data, Augmentation, and Regularization in Vision Transformers](https://arxiv.org/abs/2106.10270), TMLR 2022, 2021-06-18
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/google-research/vision_transformer> (JAX): The authors' code is JAX; timm's PyTorch port carries the converted AugReg weights (further fine-tuned by timm).
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_base_patch16_224.augreg2_in21k_ft_in1k/blob/063c6c38a5d8510b2e57df480445e94b231dad2c/README.md>
@@ -2198,11 +2286,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vit_so400m_patch14_siglip_378.webli_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.9<br>25.8<br>13.1<br>12.8<br>13.3<br>11.4 | 1710 / 1744<br>2495 / 2564<br>879 / 1708<br>1216 / 1346<br>909 / 944<br>1701 / 1752 |
+| `vit_so400m_patch14_siglip_378.webli_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.9<br>25.8<br>13.1<br>12.9<br>13.3<br>11.4 | 1710 / 1744<br>2495 / 2564<br>879 / 1708<br>876 / 926<br>909 / 944<br>1701 / 1752 |
 
 <details><summary>Details</summary>
 
+- Paper: [Sigmoid Loss for Language Image Pre-Training](https://arxiv.org/abs/2303.15343), ICCV 2023, 2023-03-27
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
+- Authors' code, not used: <https://github.com/google-research/big_vision> (JAX): The authors' code is JAX (big_vision); timm's PyTorch port carries the converted weights, fine-tuned on ImageNet-1k.
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_so400m_patch14_siglip_378.webli_ft_in1k/blob/efb07b5711bda4e3eb24630db9879e0832615ad4/README.md>
@@ -2247,13 +2337,14 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>3.98<br>4.05<br>5.33<br>fails: timeout after 290 s | 426 / 442<br>231 / 242<br>235 / 242<br>234 / 284<br>282 / 302<br>– |
-| `wd-convnext-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>9.60<br>5.62<br>4.45<br>4.45<br>3.10 | 481 / 516<br>259 / 292<br>340 / 374<br>318 / 358<br>380 / 392<br>521 / 548 |
-| `wd-vit-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.8<br>19.9<br>12.9<br>12.5<br>13.3<br>11.2 | 1287 / 1302<br>662 / 682<br>669 / 682<br>667 / 724<br>713 / 742<br>1266 / 1290 |
-| `wd-eva02-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 84.4<br>26.6<br>18.3<br>14.1<br>15.7<br>fails: timeout after 290 s | 1299 / 1324<br>668 / 684<br>669 / 684<br>673 / 806<br>714 / 724<br>– |
+| `wd-vit-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.0<br>5.78<br>4.01<br>4.06<br>5.33<br>deferred (build >5 min) | 426 / 442<br>231 / 242<br>235 / 242<br>234 / 284<br>282 / 302<br>– |
+| `wd-convnext-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>9.60<br>5.59<br>4.46<br>4.45<br>3.10 | 481 / 516<br>259 / 292<br>260 / 292<br>238 / 276<br>380 / 392<br>521 / 548 |
+| `wd-vit-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 76.8<br>19.9<br>12.9<br>12.6<br>13.3<br>11.2 | 1287 / 1302<br>662 / 682<br>669 / 682<br>667 / 724<br>713 / 742<br>1266 / 1290 |
+| `wd-eva02-large-tagger-v3` | synthetic (448x448) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 84.4<br>26.6<br>18.3<br>14.1<br>15.7<br>deferred (build >5 min) | 1299 / 1324<br>668 / 684<br>669 / 684<br>673 / 806<br>714 / 724<br>– |
 
 <details><summary>Details</summary>
 
+- Paper: [WD ViT Tagger v3](https://huggingface.co/SmilingWolf/wd-vit-tagger-v3), Model card, 2024-03-04
 - Original code: <https://github.com/huggingface/pytorch-image-models> at `0df212b369a5`
 - Code licence: Apache-2.0 (permissive); files: 
 - Weights licence: Apache-2.0
@@ -2272,11 +2363,24 @@ Commercial use: yes.
 - `wd-convnext-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
 - `wd-vit-large-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
 - `wd-eva02-large-tagger-v3` original 448x448: .half() on 1 modules, fp16 inputs
-- `wd-vit-tagger-v3` load / first call: original 2.33 s / 0.318 s (448x448), portable 2.44 s / 0.09 s (448x448), kernels 2.28 s / 0.092 s (448x448)
-- `wd-convnext-tagger-v3` load / first call: original 2.92 s / 0.484 s (448x448), portable 2.72 s / 0.273 s (448x448), kernels 2.4 s / 0.096 s (448x448)
-- `wd-vit-large-tagger-v3` load / first call: original 4.74 s / 0.439 s (448x448), portable 5.54 s / 0.091 s (448x448), kernels 4.68 s / 0.063 s (448x448)
-- `wd-eva02-large-tagger-v3` load / first call: original 4.82 s / 0.352 s (448x448), portable 5.38 s / 0.064 s (448x448), kernels 3.61 s / 0.076 s (448x448)
+- `wd-vit-tagger-v3` load / first call: original 2.33 s / 0.318 s (448x448), portable 2.25 s / 0.088 s (448x448), kernels 2.47 s / 0.06 s (448x448)
+- `wd-convnext-tagger-v3` load / first call: original 2.92 s / 0.484 s (448x448), portable 2.34 s / 0.236 s (448x448), kernels 2.5 s / 0.066 s (448x448)
+- `wd-vit-large-tagger-v3` load / first call: original 4.74 s / 0.439 s (448x448), portable 5.56 s / 0.108 s (448x448), kernels 4.5 s / 0.07 s (448x448)
+- `wd-eva02-large-tagger-v3` load / first call: original 4.82 s / 0.352 s (448x448), portable 4.58 s / 0.147 s (448x448), kernels 4.22 s / 0.079 s (448x448)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Taggers have no public benchmark with their tag set, so the original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely tag. The original fp16 row shows the difference of the original itself in half precision. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `wd-vit-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.95 / 99.80 | 99.91 / 99.80 | 99.90 / 99.20 |  |
+| `wd-convnext-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.92 / 99.80 | 99.90 / 99.60 | 99.88 / 99.80 |  |
+| `wd-vit-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.87 / 99.40 | 99.88 / 99.80 |  |
+| `wd-eva02-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.84 / 99.80 | 99.84 / 99.40 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
 
 ### Parity
 
@@ -2292,6 +2396,7 @@ CPU, float32: max |diff| <= 1.5e-05 vs the original. GPU, float16 (the default),
 ### Limitations
 
 - An image with an alpha channel is not composited on white first, as the reference script does: pass RGB.
+- Kernels allocate as much as portable (673 vs 669 MB) but reserve 806 vs 684 MB (graph / kernel workspace blocks); both are below the float32 original (1299 / 1324 MB).
 
 </details>
 

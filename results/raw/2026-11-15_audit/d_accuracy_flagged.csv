@@ -1,0 +1,8 @@
+task,ref,dataset,mode,metric,original,value,rel_diff_pct,worse,flagged,tolerance_in_card,orig_dtype,mode_dtype,n,orig_n
+calibration,anycalib-pinhole,lamar2k-every10,portable,vfov_auc1,24.5,24.0,-2.04,True,True,False,float32,float16,200,200
+calibration,anycalib-pinhole,lamar2k-every10,kernels,vfov_auc1,24.5,24.0,-2.04,True,True,False,float32,float16,200,200
+flow,flowseek-t,kitti2015-train,portable,epe,1.2604,1.3479,6.94,True,True,False,float32,float16,200,200
+flow,waft-a1,kitti2015-train,portable,epe,2.3954,2.3152,-3.35,False,True,False,float32,float16,100,100
+matching,loftr-outdoor,megadepth1500-every10,portable,auc5,53.82,52.11,-3.18,True,True,False,float32,float32,150,150
+multiview,vggt-omega-1b-512,dtu-scans1-9-24-33-75-view24,kernels,absrel,0.005,0.0051,2.0,False,True,False,float32,float16,5,5
+stereo,s2m2-l,eth3d,kernels,bad,0.84,0.82,-2.38,False,True,False,float32,float16,27,27

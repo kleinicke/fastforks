@@ -48,6 +48,20 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]
 
+[[papers]]
+title = "Depth Anything V2"
+url = "https://arxiv.org/abs/2406.09414"
+date = "2024-06-13"
+venue = "NeurIPS 2024"
+variants = ["depth-anything-v2-s", "depth-anything-v2-b", "depth-anything-v2-l", "depth-anything-v2-metric-hypersim-s", "depth-anything-v2-metric-hypersim-b", "depth-anything-v2-metric-hypersim-l", "depth-anything-v2-metric-vkitti-s", "depth-anything-v2-metric-vkitti-b", "depth-anything-v2-metric-vkitti-l"]
+
+[[papers]]
+title = "Distill Any Depth: Distillation Creates a Stronger Monocular Depth Estimator"
+url = "https://arxiv.org/abs/2502.19204"
+date = "2025-02-26"
+venue = "arXiv"
+variants = ["distill-any-depth-s", "distill-any-depth-b", "distill-any-depth-l"]
+
 [[variants]]
 id = "depth-anything-v2-s"
 revision = 1

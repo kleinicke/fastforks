@@ -61,14 +61,18 @@ def test_no_internal_text_or_base_model(staged):
         text = readme.read_text()
         for bad in ("exp 0", "results/", "/home/"):
             assert bad not in text, (readme, bad)
-        assert "base_model" not in text, readme
+        front = yaml.safe_load(text.split("---")[1])
+        assert "fastforks-card" in front["tags"], readme
+        for repo in front.get("base_model", []):  # only the authors' own repos, and each is named in the card
+            assert repo.split("/")[0] in set(stage_hf.AUTHOR_HF.values()), (readme, repo)
+            assert f"https://huggingface.co/{repo}/resolve/" in text, (readme, repo)
 
 
 def test_assumed_weights_licence_is_not_firm(staged):
     out, _ = staged
     text = (out / "psmnet" / "README.md").read_text()
     assert 'license: "other"' in text
-    assert 'license_name: "mit-code-weights-unstated"' in text
+    assert 'license_name: "see-model-card"' in text
     assert "the authors do not state a separate weights licence" in text
 
 
@@ -87,7 +91,7 @@ def _api_class(card, first):
     import importlib  # noqa: PLC0415
 
     api = importlib.import_module(f"fastforks.{card.task}._api")
-    if card.task == "promptable_segmentation":
+    if hasattr(api, "_model_class"):  # tasks with several model classes (promptable, volume) pick one per card
         return api._model_class(first.id)
     return next(
         c
@@ -138,3 +142,50 @@ def test_quickstarts_match_the_call_contract():
                 assert not given & {"input_points", "input_labels"}
             nc = licences.weights_commercial(card.variant_licence(first).weights_licence) == "no"
             assert nc == (registry.NONCOMMERCIAL_ENV in text), card.family
+
+
+def test_licence_headers_are_valid_hf_ids(staged):
+    out, _ = staged
+    ids = set(stage_hf._HF_LICENCES.values()) | {"other"}
+    for readme in out.glob("*/README.md"):
+        front = yaml.safe_load(readme.read_text().split("---")[1])
+        assert front["license"] in ids, readme
+        if front["license"] == "other":
+            assert not re.search(r"weights-unstated|licenseref", front["license_name"]), readme
+        assert "Files: ." not in readme.read_text(), readme
+    assert 'license: "cc-by-sa-4.0"' in (out / "nnfoundation" / "README.md").read_text()
+
+
+def test_sd2_derived_cards_carry_the_openrail_note(staged):
+    out, _ = staged
+    for fam in stage_hf.SD2_DERIVED:
+        text = (out / stage_hf.repo_name(fam) / "README.md").read_text()
+        assert 'license: "openrail++"' in text
+        assert "OpenRAIL++-M use restrictions" in text, fam
+
+
+def test_goldens_exclude_copyleft_outputs():
+    assert "coex-sceneflow@1" in stage_hf.EXCLUDED_GOLDENS
+
+
+def test_create_repos_is_resumable_and_backs_off():
+    existing, made, waits = {"fastforks/a"}, [], []
+    calls = {"n": 0}
+
+    class Rate(Exception):
+        code = 429
+
+    def create(r):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise Rate
+        made.append(r)
+
+    ids = [f"fastforks/{c}" for c in "abcde"]
+    got = stage_hf.create_repos(
+        ids, exists=lambda r: r in existing, create=create, batch=2, pause=1, sleep=waits.append
+    )
+    assert got == made == ids[1:]  # `a` exists; the first create hit a 429 and was retried
+    assert waits == [1, 1]  # backoff 1 s after the 429, then the pause before round two
+    assert stage_hf.create_repos(ids, exists=lambda r: True, create=create, dry_run=False) == []
+    assert stage_hf.create_repos(ids, exists=lambda r: False, create=create, dry_run=True) == ids

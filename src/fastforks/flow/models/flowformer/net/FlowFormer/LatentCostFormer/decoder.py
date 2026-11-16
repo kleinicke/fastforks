@@ -252,8 +252,8 @@ class MemoryDecoder(nn.Module):
 
             # flow = delta_flow
             coords1 = coords1 + delta_flow
-            flow_up = self.upsample_flow(coords1 - coords0, up_mask)
-            flow_predictions.append(flow_up)
+            if self.training or idx == self.depth - 1:  # modified: only the last iteration's upsampled flow is returned
+                flow_predictions.append(self.upsample_flow(coords1 - coords0, up_mask))
         
         if self.training:
             return flow_predictions

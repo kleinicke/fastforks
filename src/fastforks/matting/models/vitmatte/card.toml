@@ -33,6 +33,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["dpt_fused", "cudnn_hacc", "igev", "cutlass_conv"]
 
+[[papers]]
+title = "ViTMatte: Boosting Image Matting with Pretrained Plain Vision Transformers"
+url = "https://arxiv.org/abs/2305.15272"
+date = "2023-05-24"
+venue = "Information Fusion 2024"
+
 [[variants]]
 id = "vitmatte-s"  # ViTMatte-S, Composition-1k (hustvl/vitmatte-small-composition-1k)
 revision = 1

@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 import torch
 
-from fastforks import ModelNotFoundError, OptionsError, stereo
+from fastforks import Backend, ModelNotFoundError, OptionsError, stereo
 from fastforks._core import registry
 from fastforks._core.instances import Instances
 from fastforks.stereo._runner import Runner
@@ -83,7 +83,7 @@ def test_numpy_skips_none_and_converts_bfloat16():
         num_prefix_tokens=0,
         num_register_tokens=0,
         model="x@1",
-        backend=stereo.Backend("portable", "cpu", "float32", ()),
+        backend=Backend("portable", "cpu", "float32", ()),
     )
     out = r.numpy()
     assert set(out) == {"last_hidden_state", "hidden_states"}
@@ -100,7 +100,7 @@ def test_numpy_of_instances():
         masks=torch.ones(2, 3, 3, dtype=torch.bool),
         class_names=(),
         model="x@1",
-        backend=stereo.Backend("portable", "cpu", "float32", ()),
+        backend=Backend("portable", "cpu", "float32", ()),
     )
     out = r.numpy()
     assert set(out) == {"boxes", "scores", "masks"}

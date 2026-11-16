@@ -1,0 +1,53 @@
+schema = 2
+name = "BiSeNet face parsing"
+summary = "BiSeNet (Yu et al. 2018) face parsing from face-parsing.PyTorch: a ResNet-18 context path with attention refinement and feature fusion, 19 CelebAMask-HQ face-part classes (skin, brows, eyes, glasses, ears, earrings, nose, mouth, lips, neck, necklace, cloth, hair, hat) on a 512 x 512 face crop. The parser that GFPGAN / CodeFormer pipelines use through facexlib; MIT code and weights."
+tier = "experimental"
+outputs = ["logits"]
+uses = ["seginfer"]  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/xinntao/facexlib"
+commit = "260620ae93990a300f4b16448df9bb459f1caba9"  # facexlib/parsing (bisenet.py, resnet.py): the network of face-parsing.PyTorch without its torchvision download; the weights file is facexlib's release asset
+
+[[upstream.official]]
+repo = "https://github.com/zllrunning/face-parsing.PyTorch"
+framework = "PyTorch"
+reason = "The network and the 79999_iter checkpoint are face-parsing.PyTorch's; facexlib carries them with a pinned GitHub release URL (the original is a Google Drive file). The test protocol (512 x 512 PIL bilinear, ImageNet normalisation, net(x)[0]) is test.py's."
+
+[licence]
+code = "MIT"  # face-parsing.PyTorch LICENSE and facexlib LICENSE
+weights = "MIT"  # no separate weights licence: the release asset of the MIT repository (face-parsing.PyTorch's checkpoint)
+files = ["LICENSE"]
+training_data = ["imagenet-1k", "celebamask-hq"]
+training_note = "face-parsing.PyTorch train.py: CelebAMask-HQ (non-commercial research only), ResNet-18 initialised from torchvision's ImageNet weights."
+evidence = "https://github.com/zllrunning/face-parsing.PyTorch/blob/d2e684cf1588b46145635e8fe7bcc29544e5537e/LICENSE ; https://github.com/xinntao/facexlib/blob/260620ae93990a300f4b16448df9bb459f1caba9/LICENSE ; https://github.com/xinntao/facexlib/blob/260620ae93990a300f4b16448df9bb459f1caba9/facexlib/parsing/__init__.py"
+
+[io]
+# Size: any H x W >= 1 (default min_size = 1). The image is resized to 512 x 512 whatever its aspect ratio (an aligned face crop is the intended input) and the logits are resized back.
+input = "imagenet"
+pad = "none"
+
+[params]
+resize = ["fixed", 512, 512]  # test.py: img.resize((512, 512), Image.BILINEAR)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+status = "none"
+reason = "measured slower: cudnn_hacc fp16-accumulate convolutions 2.77 ms vs 2.41 ms portable (512x512)"
+
+[output]
+label_set = "celebamask-hq-19-bisenet"
+
+[[papers]]
+title = "BiSeNet: Bilateral Segmentation Network for Real-time Semantic Segmentation"
+url = "https://arxiv.org/abs/1808.00897"
+date = "2018-08-02"
+venue = "ECCV 2018"
+
+[[variants]]
+id = "bisenet-face-parsing"
+revision = 1
+weights = [{ name = "parsing_bisenet.pth", size = 53289463, sha256 = "468e13ca13a9b43cc0881a9f99083a430e9c0a38abd935431d1c28ee94b26567", url = "https://github.com/xinntao/facexlib/releases/download/v0.2.0/parsing_bisenet.pth" }]

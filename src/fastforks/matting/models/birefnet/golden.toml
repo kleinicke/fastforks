@@ -19,6 +19,13 @@ sha256 = "6830dbb19ac678b8a1c0da947ec56a90b80204ac3692c2f8d953cdf949efa2bd"
 upstream = "https://huggingface.co/ZhengPeng7/BiRefNet@e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4"
 settings = "CPU float32, HF birefnet.py + weights BiRefNet@e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4, 1024x1024 bilinear antialiased, ImageNet normalisation, sigmoid, bicubic back, coffee.png, torch 2.14.1+cu130"
 
+[refs."rmbg-2.0@1"]
+sha256 = "f72e1ae635323409ab273257eae60903bbdc0ab286e4e61975e76eb2cfa02203"
+upstream = "https://huggingface.co/briaai/RMBG-2.0@2fd7b4b0f2393ddb39a267fb62df6c010928a6c6"
+settings = "CPU float32, HF birefnet.py + weights briaai/RMBG-2.0@2fd7b4b0f2393ddb39a267fb62df6c010928a6c6, 1024x1024 bilinear antialiased, ImageNet normalisation, sigmoid, bicubic back, coffee.png, torch 2.14.1+cu130"
+gpu_mean = 0.00013  # RMBG-2.0 in fp16 is further from fp32 than BiRefNet (9e-05 / 3.8e-04; DIS-VD MAE as fp32)
+gpu_p99 = 0.00055
+
 [validated."birefnet-lite@1"]
 kernels = ["deform_conv@a38662ea1bfc:sm_120"]
 symbols = {"deform_conv" = {"deform_conv_fwd" = "3d728397880ef467"}}
@@ -36,3 +43,12 @@ torch = "2.14.1+cu130"
 date = "2026-11-12"
 mean_px = 0.0
 p99_px = 0.0
+
+[validated."rmbg-2.0@1"]
+kernels = ["deform_conv@a38662ea1bfc:sm_120"]
+symbols = {"deform_conv" = {"deform_conv_fwd" = "3d728397880ef467"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 9e-05
+p99_px = 0.00038

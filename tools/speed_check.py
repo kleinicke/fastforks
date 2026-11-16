@@ -10,16 +10,17 @@
     python tools/speed_check.py run --trace-diff --out trace.jsonl --forks plugin.py; ... trace-diff trace.jsonl
 
 `run` measures one (ref, mode) per subprocess (a timeout or crash becomes an error row), appends JSON rows to `--out`.
-Protocol per input (smallest first, same inputs as the floor rows: real KITTI / Middlebury images where the floor
-names them, else the task's synthetic `bench_inputs`): first call, 3 warm-up calls, peak reset, then 3 rounds of 5
-timed calls (CUDA-synchronised); `ms` = median of the round medians, `noise` = (max - min) / median of the round
-medians, peaks = max over the first and the timed calls. Each (ref, side, mode) runs in a fresh process (`cold`):
-`torch_import_s`, `cuda_init_s`, `import_s` (the fastforks task module), `load_s` (the load call until the model is on
-the GPU; fork side: the fork's own imports included), per input `first_call_s` and its peak (`peak_first_*_mb`;
-`first_call_cold` on the job's first input, later inputs are a new shape in the warm process). Each row also records
-the time of the task runner alone on the tensors the full call passed it (`core_ms`) and a short profile of the full
-call on one input per task (CUDA time share of layout copies / casts, other elementwise kernels, host syncs per call,
-top kernels). `export` turns the library rows into floor rows (the fields of docs/data/speed.jsonl).
+Protocol per input (smallest first, same inputs as the floor rows: real KITTI / Middlebury images where the floor names
+them, else the task's synthetic `bench_inputs`; their build's cached memory released): first call, 3 warm-up calls, peak
+reset, then 3 rounds of 5 timed calls (CUDA-synchronised); `ms` = median of the round medians, `noise` = (max - min) /
+median of the round medians, peaks = max over the first and the timed calls. Each (ref, side, mode) runs in a fresh
+process (`cold`): `torch_import_s`, `cuda_init_s`, `import_s` (the fastforks task module), `load_s` (the load call until
+the model is on the GPU; fork side: the fork's own imports included), per input `first_call_s` and its peak
+(`peak_first_*_mb`; `first_call_cold` on the job's first input, later inputs are a new shape in the warm process). Each
+row also records the time of the task runner alone on the tensors the full call passed it (`core_ms`) and a short
+profile of the full call on one input per task (CUDA time share of layout copies / casts, other elementwise kernels,
+host syncs per call, top kernels). `export` turns the library rows into floor rows (the fields of
+docs/data/speed.jsonl).
 
 `run --modes compile tensorrt --out docs/data/speed_compile.jsonl` measures, per ref of the floor's portable rows at the
 task's standard input (`STANDARD`, else its smallest), `model.compile()` on portable (`compile`: a fresh process
@@ -102,6 +103,7 @@ STANDARD = {  # the task's standard input of docs/benchmarks.md (tools/gen_docs.
     "retrieval": "480x640",
     "calibration": "1080x1920",
     "restoration": "512x512",
+    "ocr": "1080x1920",
 }
 PROFILE_INPUT = {
     "stereo": "994x1482",
@@ -111,6 +113,15 @@ PROFILE_INPUT = {
 }
 COPY = ("copy", "memcpy", "nchwtonhwc", "nhwctonchw", "transpose", "catarraybatched", "convert", "permute")
 SYNC = ("cudaStreamSynchronize", "cudaDeviceSynchronize", "cudaEventSynchronize", "aten::_local_scalar_dense")
+
+
+def scene_of(r: dict[str, Any]) -> str:
+    """The input a row was measured on: a real scene of SCENES or "synthetic" (bench_inputs).
+
+    Rows of one input label on different scenes are different measurements (las2-s 375x1242 portable: KITTI 20.5 ms,
+    synthetic 13.9 ms); comparing them hid regressions when a wrong `$FASTFORKS_DATA` fell back to synthetic inputs.
+    """
+    return next((k for k in SCENES if r.get("scene", "").startswith(k)), "synthetic")
 
 
 def floor_rows() -> list[dict[str, Any]]:
@@ -128,13 +139,18 @@ def jobs(only: Iterable[str] = (), modes: Iterable[str] = MODES) -> list[dict[st
     `compile` / `tensorrt` jobs are the refs of the floor's portable rows, with their standard input only.
     """
     out: dict[tuple[str, str], dict[str, Any]] = {}
-    only, want = set(only), set(modes)
+    only, want = _floor_refs(only), set(modes)
     read = (want - set(NEW_MODES)) | ({"portable"} if want & set(NEW_MODES) else set())
     for r in floor_rows():
         if r["mode"] not in read or (only and r["ref"] not in only):
             continue
         j = out.setdefault((r["ref"], r["mode"]), {"ref": r["ref"], "task": r["task"], "mode": r["mode"], "inputs": []})
-        j["inputs"].append({"label": r["input"], "scene": r.get("scene", "")})
+        inp = {"label": r["input"], "scene": r.get("scene", "")}
+        same = next((i for i in j["inputs"] if i["label"] == inp["label"]), None)
+        if same is None:
+            j["inputs"].append(inp)
+        elif scene_of(same) == "synthetic":  # one job per input; the real scene wins (one call, one row)
+            same["scene"] = inp["scene"]
     for j in out.values():
         j["inputs"].sort(key=lambda i: _px(i["label"]))
     found = []
@@ -145,6 +161,29 @@ def jobs(only: Iterable[str] = (), modes: Iterable[str] = MODES) -> list[dict[st
             std = next((i for i in j["inputs"] if i["label"] == STANDARD.get(j["task"])), j["inputs"][0])
             found += [{**j, "mode": m, "inputs": [std]} for m in NEW_MODES if m in want]
     return found
+
+
+def _floor_refs(names: Iterable[str]) -> set[str]:
+    """Floor refs of `--only` names: a floor ref as is, a model id (`geocalib`) as its variant's ref; else an error.
+
+    An unknown name used to select no job, so `run` ended without a row or a message.
+    """
+    refs = {r["ref"] for r in floor_rows()}
+    out = set()
+    for name in names:
+        if name not in refs:
+            from fastforks._core.registry import resolve_any  # noqa: PLC0415 - only for a name that is no floor ref
+
+            try:
+                name = resolve_any(name)[1].ref  # noqa: PLW2901
+            except Exception as e:  # noqa: BLE001 - any lookup failure is the same user error
+                msg = f"--only {name}: no floor rows and no model of that id ({e})"
+                raise SystemExit(msg) from None
+            if name not in refs:
+                msg = f"--only: model ref {name} has no floor rows in {FLOOR}"
+                raise SystemExit(msg)
+        out.add(name)
+    return out
 
 
 def files_hash(files: Iterable[str]) -> str:
@@ -183,6 +222,8 @@ def lib_inputs(model: Any, task: str, ref: str, inp: dict[str, str]) -> tuple[tu
         h, w = w, h
     args, kw = bench_inputs(model, BenchSize(h, w, VIEWS.get(ref, 8)))
     scene = next((p for k, p in SCENES.items() if inp["scene"].startswith(k)), None)
+    if scene is not None and not scene.exists():  # the row is "synthetic" then and is compared to synthetic rows only
+        print(f"note: {scene} missing ($FASTFORKS_DATA={DATA}): {ref} {inp['label']} on synthetic inputs", flush=True)
     if scene is not None and scene.exists():  # else the synthetic bench inputs (no local datasets)
         left = _image(scene)
         if task == "flow":
@@ -342,23 +383,36 @@ def _lib_job(
     calls = []
     runner = m._runner  # noqa: SLF001 - the task's own runner contract
     for inp in spec["inputs"]:
-        args, kw = lib_inputs(m, spec["task"], spec["ref"], inp)
+        # Each input is built just before its own timing and dropped after it: building all inputs up front held the
+        # later, larger ones during every earlier peak (raft-large kernels 375x1242: 133 MiB vs 85 with the
+        # 1080x1920 pair held).
+        box: dict[str, Any] = {}
         cap = _Capture(runner)
 
-        def full(a: tuple[Any, ...] = args, k: dict[str, Any] = kw) -> Any:  # noqa: ANN401
+        def inputs(i: dict[str, str] = inp, b: dict[str, Any] = box) -> tuple[tuple[Any, ...], dict[str, Any]]:
+            if "args" not in b:
+                b["args"] = lib_inputs(m, spec["task"], spec["ref"], i)
+                torch.cuda.empty_cache()  # as speed_original after its input prep: peaks of the call, not the build
+            return b["args"]
+
+        def full(*, prepare: bool = False, i: Callable[[], Any] = inputs) -> Any:  # noqa: ANN401
+            a, k = i()
+            if prepare:
+                return None
             with torch.inference_mode():
                 return m(*a, **k)
 
-        def core(*, release: bool = False, c: _Capture = cap, a: tuple[Any, ...] = args, k: dict[str, Any] = kw) -> Any:  # noqa: ANN401
+        def core(*, release: bool = False, c: _Capture = cap, b: dict[str, Any] = box) -> Any:  # noqa: ANN401
             # The runner's tensors are recorded here, after the peaks were measured, and dropped again after the
             # core timing: holding them during the full-call rows added two padded fp32 images to every peak.
             if release:
                 c.__dict__["_args"] = None
+                b.clear()
                 return None
             if c.__dict__["_args"] is None:
                 m._runner = c  # noqa: SLF001 - records the runner's tensors of this input
                 try:
-                    full(a, k)
+                    full()
                 finally:
                     m._runner = runner  # noqa: SLF001
             fn, ca, ck = c.__dict__["_args"]
@@ -390,6 +444,8 @@ def speed_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: 
                 from fastforks._core import kernels  # noqa: PLC0415
 
                 kernels.reset_fallbacks()
+            if core is not None:
+                full(prepare=True)  # this input only (lib side)
             row |= measure(full)
             if core is not None:
                 row["core_ms"] = core_ms(core)
@@ -418,6 +474,7 @@ def speed_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: 
 def _fail(row: dict[str, Any], spec: dict[str, Any], msg: str) -> None:
     """Record a failure: `fails: <short reason>` for compile / tensorrt rows, else the long `error`."""
     if spec["mode"] in NEW_MODES:
+        print("FAIL (full):", msg[-3000:], flush=True)  # the row keeps 160 characters; the log keeps the cause
         row["fails"] = " ".join(msg.split())[:160]
     else:
         row["error"] = msg[:600]
@@ -426,9 +483,9 @@ def _fail(row: dict[str, Any], spec: dict[str, Any], msg: str) -> None:
 def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int, int]:  # noqa: ANN401
     """(batch or views, h, w) of the image the network takes in one timed call (`module()` takes the same).
 
-    The runner's first image argument (classification: the crop, multi-view: `[views, 3, H, W]`); detection, whose
-    `module()` starts after the resize, and pose, whose `module()` takes the box crops: the first 3-channel image a
-    submodule gets, if one does (R-CNN: the runner's).
+    The runner's first image argument (classification: the crop, multi-view: `[views, 3, H, W]`); detection and OCR,
+    whose `module()` starts after the resize, and pose, whose `module()` takes the box crops: the first 3-channel
+    image a submodule gets, if one does (R-CNN: the runner's).
     """
     import torch  # noqa: PLC0415
 
@@ -441,14 +498,18 @@ def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int
 
     runner = model._runner  # noqa: SLF001 - the task's own runner contract
     cap = model._runner = _Capture(runner)  # noqa: SLF001
-    handle = torch.nn.modules.module.register_module_forward_pre_hook(hook) if task in {"detection", "pose"} else None
+    hooked = task in {"detection", "pose", "ocr"}
+    handle = torch.nn.modules.module.register_module_forward_pre_hook(hook) if hooked else None
     try:
         full()
     finally:
         model._runner = runner  # noqa: SLF001
         if handle is not None:
             handle.remove()
-    seen += [a.shape for a in cap.__dict__["_args"][1] if isinstance(a, torch.Tensor)][:1]
+    args = cap.__dict__["_args"][1]
+    if task == "tracking":  # the runner takes (frames fn, n, size (H, W), queries): `module()` takes the whole video
+        return 1, *(int(v) for v in args[2])
+    seen += [a.shape for a in args if isinstance(a, torch.Tensor)][:1]
     n, _, h, w = seen[0]
     return n, h, w
 
@@ -488,7 +549,7 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
             torch.cuda.empty_cache()
             free0 = torch.cuda.mem_get_info()[0]
             engine = TensorRTEngine(engine_path)
-            row |= measure(lambda: engine(*inputs))
+            row |= measure(lambda e=engine: e(*inputs))
             row["device_mb"] = round((free0 - torch.cuda.mem_get_info()[0]) / 2**20)
             # peak = engine memory + torch-side peak (the allocator does not see the engine's memory)
             for k in ("alloc", "reserved"):
@@ -496,6 +557,18 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
                 row[f"peak_{k}_mb"] += row["device_mb"]
             if all_nan(engine.run(*inputs)) is not None:
                 _fail(row, spec, "wrong output: an engine output is all NaN")
+            # start with an already built engine: load the engine file + the first call (cold = onnx export + build)
+            del engine
+            gc.collect()
+            torch.cuda.empty_cache()
+            t0 = time.perf_counter()
+            again = TensorRTEngine(engine_path)
+            row["engine_load_s"] = round(time.perf_counter() - t0, 3)
+            t0 = time.perf_counter()
+            again.run(*inputs)
+            _sync()
+            row["engine_first_call_s"] = round(time.perf_counter() - t0, 3)
+            del again
     except Exception as e:  # noqa: BLE001 - recorded as a failed row
         _fail(row, spec, f"{type(e).__name__}: {e}")
     _append(out, row)
@@ -599,6 +672,19 @@ MODEL_STEPS: list[Callable[[Any, dict[str, Any], dict[str, Any], list[Any], Path
 """Per-model steps of a worker, run on the already loaded model (e.g. a golden output check can be appended)."""
 
 
+def _warm_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: list[Any], out: Path) -> None:  # noqa: ANN401
+    del model
+    row = {**common, "input": calls[0][0]}
+    t0 = time.perf_counter()
+    try:
+        calls[0][1]()
+        _sync()
+        row["first_call_s"] = round(time.perf_counter() - t0, 3)
+    except Exception as e:  # noqa: BLE001 - recorded as a failed row
+        _fail(row, spec, f"{type(e).__name__}: {e}")
+    _append(out, row)
+
+
 def worker(spec: dict[str, Any]) -> int:
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     t0 = time.perf_counter()
@@ -647,6 +733,9 @@ def worker(spec: dict[str, Any]) -> int:
         k = json.dumps(info["backend"]["kernels"]) + torch.__version__
         common |= {"code_hash": files_hash(files) + hashlib.sha256(k.encode()).hexdigest()[:8], "files": files}
     common |= {**info, "base_alloc_mb": round(base)}
+    if spec.get("warm"):  # warm-cache start: only the first call (the compile of an already cached graph)
+        _warm_step(model, spec, common, calls, out)
+        return 0
     steps = [trace_step] if spec.get("trace") else [trt_step] if spec["mode"] == "tensorrt" else MODEL_STEPS
     for step in steps:
         step(model, spec, common, calls, out)
@@ -704,19 +793,46 @@ def _changed(rows: list[dict[str, Any]], job: dict[str, Any], since: str) -> boo
     return files is None or bool(changed & set(files))
 
 
+def _warm_start(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env: dict[str, str], cache: str) -> None:
+    """Second start of a compile job on the caches the first one filled: `compile_warm_s` = its first call."""
+    tmp = Path(cache) / "warm.jsonl"
+    cmd2 = [*cmd[:-1], json.dumps({**spec, "out": str(tmp), "warm": True})]
+    try:
+        subprocess.run(cmd2, env=env, timeout=a.timeout, check=False)
+    except subprocess.TimeoutExpired:
+        return
+    got = read_rows(tmp)
+    if not got or got[0].get("first_call_s") is None:
+        return
+    rows = read_rows(a.out)
+    rows[-1]["compile_warm_s"] = got[0]["first_call_s"]
+    a.out.write_text("".join(json.dumps(r) + "\n" for r in rows))
+
+
 def _launch(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env: dict[str, str]) -> None:
     """One worker of `spec`; a crash or timeout without a row becomes an error row (`fails` for compile / tensorrt)."""
-    cache = tempfile.mkdtemp(prefix="ff-compile-cache-") if spec["mode"] == "compile" else ""
+    prebuilt = getattr(a, "cache_dir", "")  # a cache filled by an earlier (unlocked) cold run: this start is the warm one
+    cache = (prebuilt or tempfile.mkdtemp(prefix="ff-compile-cache-")) if spec["mode"] == "compile" else ""
     if cache:  # empty Inductor / Triton caches: the first call is a cold compile
         env |= {"TORCHINDUCTOR_CACHE_DIR": f"{cache}/inductor", "TRITON_CACHE_DIR": f"{cache}/triton"}
+    cache_keep = cache if getattr(a, "warm_start", False) and not prebuilt else ""  # kept for the warm-cache start
     before = len(read_rows(a.out))
     try:
         rc = subprocess.run(cmd, env=env, timeout=a.timeout, check=False).returncode
     except subprocess.TimeoutExpired:
         rc = "timeout"
     finally:
-        if cache:
+        if cache and not cache_keep and not prebuilt:
             shutil.rmtree(cache, ignore_errors=True)
+    if rc == 0 and cache_keep and len(read_rows(a.out)) == before + 1:
+        _warm_start(a, spec, cmd, env, cache_keep)
+    if cache_keep:
+        shutil.rmtree(cache_keep, ignore_errors=True)
+    if prebuilt and a.cold_from and rc == 0 and len(read_rows(a.out)) == before + 1:  # cold time from the unlocked build run
+        rows, cold = read_rows(a.out), next(iter(read_rows(Path(a.cold_from))[::-1]), {})
+        if cold.get("compile_s") and "fails" not in cold:
+            rows[-1] |= {"compile_warm_s": rows[-1].get("compile_s"), "compile_s": cold["compile_s"]}
+            a.out.write_text("".join(json.dumps(r) + "\n" for r in rows))
     if rc == 0 or len(read_rows(a.out)) != before:
         return
     row = {
@@ -775,8 +891,12 @@ def run(a: argparse.Namespace) -> int:
     return check(a.out) if a.check else 0
 
 
+def _key(r: dict[str, Any]) -> tuple[str, str, str]:
+    return r["ref"], r["mode"], r["input"]
+
+
 def _floor_index() -> dict[tuple[str, str, str], dict[str, Any]]:
-    return {(r["ref"], r["mode"], r["input"]): r for r in floor_rows() if r["mode"] in MODES}
+    return {_key(r): r for r in floor_rows() if r["mode"] in MODES}
 
 
 def latest(rows: list[dict[str, Any]], side: str = "lib") -> dict[tuple[str, str, str], dict[str, Any]]:
@@ -788,9 +908,10 @@ def latest(rows: list[dict[str, Any]], side: str = "lib") -> dict[tuple[str, str
 
 
 def check(path: Path) -> int:
-    floor, bad = _floor_index(), 0
+    floor = {(*_key(r), scene_of(r)): r for r in floor_rows() if r["mode"] in MODES}
+    bad = 0
     for key, r in sorted(latest(read_rows(path)).items()):
-        f = floor.get(key)
+        f = floor.get((*key, scene_of(r)))
         if f is None:
             continue
         tol = 1 + max(TOL_MS, r.get("noise", 0))
@@ -813,13 +934,13 @@ def check(path: Path) -> int:
 
 
 def static_violations() -> list[tuple[str, str]]:
-    """(key, message) of floor rows slower than a mode they must not lose to (same ref and input)."""
-    by: dict[tuple[str, str], dict[str, float]] = {}
+    """(key, message) of floor rows slower than a mode they must not lose to (same ref, input and scene)."""
+    by: dict[tuple[str, str, str], dict[str, float]] = {}
     for r in floor_rows():
         if "ms" in r:  # an OOM original has no time
-            by.setdefault((r["ref"], r["input"]), {})[r["mode"]] = r["ms"]
+            by.setdefault((r["ref"], r["input"], scene_of(r)), {})[r["mode"]] = r["ms"]
     out = []
-    for (ref, inp), ms in sorted(by.items()):
+    for (ref, inp, _scene), ms in sorted(by.items()):
         origs = [m for m in ("upstream", "upstream-default") if m in ms]
         orig = min(origs, key=ms.__getitem__) if origs else ""
         pairs = [("kernels", "portable")] + [(m, orig) for m in MODES if orig]
@@ -993,6 +1114,11 @@ def main() -> int:
     p.add_argument("--forks", default="")
     p.add_argument("--force", action="store_true", help="measure again even if the code did not change")
     p.add_argument("--no-profile", action="store_true")
+    p.add_argument(
+        "--warm-start", action="store_true", help="compile: a second start on the filled caches (compile_warm_s)"
+    )
+    p.add_argument("--cache-dir", default="", help="compile: Inductor / Triton caches of an earlier cold run (kept)")
+    p.add_argument("--cold-from", default="", help="with --cache-dir: that cold run's jsonl (its compile_s is the cold time)")
     p.add_argument("--trace-diff", action="store_true", help="kernel-group trace rows (one input) instead of timings")
     p.add_argument("--check", action="store_true")
     for name in ("check", "report"):

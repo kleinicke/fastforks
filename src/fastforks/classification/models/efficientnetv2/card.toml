@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/google/automl/tree/master/efficientnetv2"
+framework = "TensorFlow"
+reason = "The authors' code is TensorFlow; torchvision's PyTorch implementation carries its own ImageNet weights (tv_in1k, not Google's)."
+
 [licence]
 code = "BSD-3-Clause"  # torchvision
 weights = "assumed from code"  # torchvision states no separate weights licence
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "EfficientNetV2: Smaller Models and Faster Training"
+url = "https://arxiv.org/abs/2104.00298"
+date = "2021-04-01"
+venue = "ICML 2021"
 
 [[variants]]
 id = "efficientnet_v2_s.tv_in1k"

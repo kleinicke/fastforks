@@ -41,6 +41,12 @@ mps_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["cudnn_hacc"]
 
+[[papers]]
+title = "StableNormal: Reducing Diffusion Variance for Stable and Sharp Normal"
+url = "https://arxiv.org/abs/2406.16864"
+date = "2024-06-24"
+venue = "SIGGRAPH Asia 2024"
+
 [[variants]]
 id = "stablenormal-turbo"  # upstream hubconf StableNormal_turbo: Stable-X/yoso-normal-v0-3, t_start 0
 revision = 1

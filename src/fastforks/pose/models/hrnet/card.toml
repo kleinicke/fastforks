@@ -9,6 +9,11 @@ outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
 repo = "https://github.com/open-mmlab/mmpose"
 commit = "5408bc76f5b848cf925a0d1857899011d8c5b497"  # v1.3.2; net.py condenses the HRNet backbone and HeatmapHead, model.py the MSRAHeatmap codec (Apache-2.0, OpenMMLab)
 
+[[upstream.official]]
+repo = "https://github.com/leoxiaobin/deep-high-resolution-net.pytorch"
+framework = "PyTorch"
+reason = "The mmpose port loads the model-zoo checkpoints retrained and evaluated in the OpenMMLab pipeline, with its own heatmap codec, instead of the authors' original scripts and weights."
+
 [licence]
 code = "Apache-2.0"  # open-mmlab/mmpose LICENSE
 weights = "Apache-2.0"  # the model zoo checkpoints are released with the repository (README: Apache 2.0)
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the net
 
 [output]
 label_set = "coco-keypoints-17"
+
+[[papers]]
+title = "Deep High-Resolution Representation Learning for Human Pose Estimation"
+url = "https://arxiv.org/abs/1902.09212"
+date = "2019-02-25"
+venue = "CVPR 2019"
 
 [[variants]]
 id = "hrnet-w32"  # HRNet-W32, 256 x 192; COCO val AP 74.6 (detector boxes, flip test)

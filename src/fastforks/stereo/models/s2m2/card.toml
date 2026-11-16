@@ -34,6 +34,12 @@ mps_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["s2m2", "s2m2_cutlass", "cudnn_hacc"]
 
+[[papers]]
+title = "S2M2: Scalable Stereo Matching Model for Reliable Depth Estimation"
+url = "https://arxiv.org/abs/2507.13229"
+date = "2025-07-17"
+venue = "ICCV 2025"
+
 [[variants]]
 id = "s2m2-s"
 revision = 1

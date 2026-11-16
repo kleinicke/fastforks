@@ -8,7 +8,7 @@ import torch
 from PIL import Image
 
 from fastforks import matching
-from fastforks._core import cli
+from fastforks._core import cli, registry
 from fastforks._core.errors import InputError, MissingDependencyError, OptionsError
 from fastforks.matching import relative_pose, sfm
 from fastforks.matching._api import MatchingResult, SparseMatchingResult
@@ -89,7 +89,7 @@ def test_matcher_options_reach_load(scene, monkeypatch):
     sfm.colmap_database(
         scene / "img", scene / "db.db", retrieval=None, matcher_options={"long_side": 1600}, dtype="float16"
     )
-    assert (seen["options"], seen["dtype"]) == ({"long_side": 1600}, "float16")
+    assert (seen["long_side"], seen["dtype"]) == (1600, "float16")
 
 
 class FakeReconstruction:
@@ -207,3 +207,16 @@ def test_reconstruct_names_the_sfm_extra_without_pycolmap(scene, monkeypatch):
     with pytest.raises(MissingDependencyError, match=r"fastforks-core\[sfm\]"):
         sfm.reconstruct(scene / "img", scene / "out")
     assert not (scene / "out").exists()
+
+
+def test_default_matcher_is_loma_b(scene, monkeypatch):
+    """The default matcher (LoMa-B, the most accurate, 2026-11-14) reaches `load` from the API and from the CLI."""
+    seen = []
+    monkeypatch.setattr(matching, "load", lambda ref, **_k: seen.append(ref) or FakeMatcher())
+    assert sfm.DEFAULT_MATCHER == "loma-b"
+    assert (
+        "pairs" in registry.cards("matching")["loma-b"][1].outputs
+    )  # sparse: `_sparse` keypoints, `dense_matches` unused
+    sfm.colmap_database(scene / "img", scene / "db.db", retrieval=None)
+    cli.main(["sfm", str(scene / "img"), str(scene / "cli.db"), "--retrieval", "none"])
+    assert seen == ["loma-b", "loma-b"]

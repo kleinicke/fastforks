@@ -16,6 +16,16 @@ limitations = [
 repo = "https://github.com/huggingface/transformers"
 commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/IDEA-Research/GroundingDINO"
+framework = "PyTorch"
+reason = "fastforks follows the Hugging Face transformers port, which loads the IDEA-Research/grounding-dino-* weights, instead of the authors' repository."
+
+[[upstream.official]]
+repo = "https://github.com/open-mmlab/mmdetection"
+framework = "PyTorch"
+reason = "The MM-Grounding-DINO authors' code lives in MMDetection; fastforks follows the Hugging Face transformers port that loads the converted weights."
+
 [licence]
 code = "Apache-2.0"  # transformers; the original IDEA-Research/GroundingDINO is Apache-2.0 too
 weights = "Apache-2.0"  # the IDEA-Research/grounding-dino-* model cards: license apache-2.0
@@ -40,13 +50,28 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 status = "none"
-reason = "not built yet: fp16-accumulate GEMMs gain nothing (tiny 112.5 vs 112.5 ms, base 127.6 vs 131.3 ms at 480x640); the time is in the deformable attention (grid_sample) and many small ops, which needs a multi-scale deformable attention kernel and per-size CUDA graphs"
+reason = "not built: the portable model now samples per level without copying (deformable attention: grid_sample 11 % of the time, 2.4 ms/call of cat/stack copies removed, portable -20 % time and -26 % peak memory); the remaining cost is the grid_sample gather itself, and a fused multi-scale deformable-attention cubin (Triton prototype 12.85 -> 0.84 ms per call) is the next step but is not built; fp16-accumulate GEMMs gain nothing (tiny 112.5 vs 112.5 ms, base 127.6 vs 131.3 ms at 480x640)"
 
 [output]
 label_set = "coco-80"  # the default queries; `text=` replaces them per call
 
+[[papers]]
+title = "Grounding DINO: Marrying DINO with Grounded Pre-Training for Open-Set Object Detection"
+url = "https://arxiv.org/abs/2303.05499"
+date = "2023-03-09"
+venue = "ECCV 2024"
+variants = ["grounding-dino-tiny", "grounding-dino-base"]
+
+[[papers]]
+title = "An Open and Comprehensive Pipeline for Unified Object Grounding and Detection"
+url = "https://arxiv.org/abs/2401.02361"
+date = "2024-01-04"
+venue = "arXiv"
+variants = ["mm-grounding-dino-tiny", "mm-grounding-dino-base"]
+
 [[variants]]
 id = "grounding-dino-tiny"
+planned = { onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [
     { name = "gdino-tiny.config.json", size = 1644, sha256 = "eec82c5ab66e16df12a9a212e68ac011779927c2536cf9078658e35d85f0c67a", url = "https://huggingface.co/IDEA-Research/grounding-dino-tiny/resolve/a2bb814dd30d776dcf7e30523b00659f4f141c71/config.json" },
@@ -56,6 +81,7 @@ weights = [
 
 [[variants]]
 id = "grounding-dino-base"
+planned = { onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 licence = { evidence = "https://huggingface.co/IDEA-Research/grounding-dino-base/blob/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/README.md", training_data = ["coco", "objects365"], training_note = "Grounding DINO-B: COCO, Objects365, GoldG (Flickr30k Entities + GQA / Visual Genome images), Cap4M (web image-caption pairs with pseudo-boxes), OpenImages, ODinW-35 and RefCOCO; only COCO and Objects365 have dataset ids here (the authors' model table, github.com/IDEA-Research/GroundingDINO README)." }
 weights = [
@@ -66,6 +92,7 @@ weights = [
 
 [[variants]]
 id = "mm-grounding-dino-tiny"
+planned = { onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { arch = "MMGroundingDinoForObjectDetection" }
 licence = { evidence = "https://huggingface.co/openmmlab-community/mm_grounding_dino_tiny_o365v1_goldg_v3det/blob/ef2053aa1e0cc9d9cee1df31ca919ee9aae4fc8e/README.md", training_data = ["objects365"], training_note = "MM-Grounding-DINO-T (o365v1_goldg_v3det): Objects365 v1, GoldG (Flickr30k Entities + GQA / Visual Genome images) and V3Det; no COCO, so its COCO numbers are zero-shot (mmdetection configs/mm_grounding_dino README; paper arXiv:2401.02361)." }
@@ -77,6 +104,7 @@ weights = [
 
 [[variants]]
 id = "mm-grounding-dino-base"
+planned = { onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { arch = "MMGroundingDinoForObjectDetection" }
 licence = { evidence = "https://huggingface.co/openmmlab-community/mm_grounding_dino_base_o365v1_goldg_v3det/blob/6f52a61753b22842954209e4b190b22135c57bf0/README.md", training_data = ["objects365"], training_note = "MM-Grounding-DINO-B (o365v1_goldg_v3det): Objects365 v1, GoldG (Flickr30k Entities + GQA / Visual Genome images) and V3Det; no COCO, so its COCO numbers are zero-shot (mmdetection configs/mm_grounding_dino README; paper arXiv:2401.02361)." }

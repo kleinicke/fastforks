@@ -1,7 +1,7 @@
 schema = 2
 name = "PSMNet"
 summary = "PSMNet (Chang and Chen 2018): spatial-pyramid features, a concatenation 3-D cost volume with three stacked 3-D hourglasses and soft-argmin regression (max disparity 192)."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
 
@@ -32,6 +32,12 @@ mps_dtypes = ["float32"]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 
 # Upstream also links KITTI 2012 / 2015 fine-tuned weights and an older (torch 0.4.1) SceneFlow model: not added.
+
+[[papers]]
+title = "Pyramid Stereo Matching Network"
+url = "https://arxiv.org/abs/1803.08669"
+date = "2018-03-23"
+venue = "CVPR 2018"
 
 [[variants]]
 id = "psmnet-sceneflow"

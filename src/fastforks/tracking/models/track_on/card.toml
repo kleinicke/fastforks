@@ -5,10 +5,12 @@ tier = "experimental"
 outputs = ["tracks", "visibility"]
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (fastbb flash attention in kernels)
 limitations = [
+  "At 480 x 854 portable / kernels peak 1423 / 1368 MB, above the float32 original (1236 MB) but 2.4x / 2.6x faster (1194 / 1109 vs 2861 ms); the original under fp16 autocast needs 1403 MB, like portable.",
   "Frames are resized to 384 x 512 (the size the learned position embedding was trained at), whatever their size and aspect ratio.",
   "Upstream adds a 20 x 20 grid of support points on frame 0 to every call (option support_grid); they are tracked with the user's queries, so a call costs at least 400 tracked points.",
   "Online: a query only sees the frames from its own frame on; frames before it return the query position with visibility 0.",
   "One video per call; all queries of a call share the video.",
+  "Track-On2 peaks 1423 MB, 20 MB (1.4 %) above the fp16 original (1403 MB), and runs 15 % faster. The 1236 MB original variant is the fp32 one, which is 2.4x slower.",
 ]
 licence_notes = [
   "The DINOv3 ViT-S+/16 weights and net/dinov3.py are under the DINOv3 License (Meta: attribution and conditions apply); read it before commercial use. The Track-On code and checkpoints are MIT.",
@@ -47,8 +49,15 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]  # ViT-S+ blocks: packed q/k/v and gate/up fp16-accumulate GEMMs with fused epilogues, fused RoPE, flash attention; the rest fp16 autocast with fp16 accumulation
 
+[[papers]]
+title = "Track-On2: Enhancing Online Point Tracking with Memory"
+url = "https://arxiv.org/abs/2509.19115"
+date = "2025-09-23"
+venue = "TPAMI 2026"
+
 [[variants]]
 id = "track-on2"  # upstream trackon2_dinov3_checkpoint.pt; TAP-Vid DAVIS delta_avg 79.9 (upstream README)
+planned = { onnx = "torch.export stops at a data-dependent branch (model.py:107)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [
   { name = "trackon2_dinov3_checkpoint.pt", size = 93901966, sha256 = "0e319c279cbdf51a5fc761b47dc1969520e8cfccfb57dc5a019a8c56e1039cd4", url = "https://huggingface.co/gorkaydemir/track_on2/resolve/672a47c4614f6d661edc36b7999a5bb5c3a5d2c9/trackon2_dinov3_checkpoint.pt" },
@@ -57,6 +66,7 @@ weights = [
 
 [[variants]]
 id = "track-on-r"  # upstream track_on_r.pt (Track-On2 fine-tuned on real videos); TAP-Vid DAVIS delta_avg 80.3 (upstream README)
+planned = { onnx = "the export fails in the network call (ValueError: expected 4 values, got 2)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [
   { name = "track_on_r.pt", size = 93892091, sha256 = "a77165e6e84b8c4ffe735a6da5fb8554bcd616bb522a3a911fae22abe9f2e214", url = "https://huggingface.co/gorkaydemir/track_on_r/resolve/9401fe5c9ec6e21fb4f6070f05ac9ce75e3c9845/track_on_r.pt" },

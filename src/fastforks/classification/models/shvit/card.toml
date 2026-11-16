@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/ysj9909/SHViT"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
 [licence]
 code = "Apache-2.0"  # timm
 # The checkpoints are the authors' (ysj9909/SHViT, MIT: https://github.com/ysj9909/SHViT/blob/main/LICENSE; GitHub
@@ -40,6 +45,12 @@ reason = "not built yet: convolutions with BatchNorm plus single-head attention 
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "SHViT: Single-Head Vision Transformer with Memory Efficient Macro Design"
+url = "https://arxiv.org/abs/2401.16456"
+date = "2024-01-29"
+venue = "CVPR 2024"
 
 [[variants]]
 id = "shvit_s1.in1k"

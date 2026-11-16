@@ -6,14 +6,14 @@
 
 Input: one RGB image. Output: the camera intrinsics `[3, 3]` and, where the model estimates them, the gravity direction in the camera frame, roll, pitch and vertical field of view.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`anycalib-pinhole`](#anycalib) | yes | 21.3, 1.8x | 816, 0.6x |
-| [`geocalib-pinhole`](#geocalib) | yes | 82.5, 1.3x | 342, 0.61x |
+| [`anycalib-pinhole`](#anycalib) | yes | 21.5, 1.8x | 812, 0.6x |
+| [`geocalib-pinhole`](#geocalib) | yes | 81.8, 1.3x | 338, 0.61x |
 
 <a id="anycalib"></a>
 
@@ -25,10 +25,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anycalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.4<br>29.4<br>21.3<br>25.5<br>fails: ONNX export: conversion failed | 1343 / 1352<br>705 / 742<br>741 / 816<br>719 / 756<br>– |
+| `anycalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.4<br>29.4<br>21.5<br>25.5<br>planned for 0.2.1 | 1343 / 1352<br>705 / 742<br>739 / 812<br>719 / 756<br>– |
 
 <details><summary>Details</summary>
 
+- Paper: [AnyCalib: On-Manifold Learning for Model-Agnostic Single-View Camera Calibration](https://arxiv.org/abs/2503.12701), ICCV 2025, 2025-03-16
 - Original code: <https://github.com/javrtg/AnyCalib> at `027a8497d893`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`
 - Weights licence: Apache-2.0
@@ -37,12 +38,13 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`, `cudnn_hacc`
 - Variants: `anycalib-pinhole`
+- Not in this release (planned for 0.2.1): `anycalib-pinhole` ONNX / TensorRT export: the ONNX converter cannot decompose the exported graph (ConversionError, step 2/3)
 - Outputs: intrinsics, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anycalib-pinhole` 3000x4000 (1.0 GiB peak allocated, 1.1 reserved)
 - `anycalib-pinhole` 1080x1920, first call: portable + torch.compile 17 s (cold Inductor cache).
 - `anycalib-pinhole` original 1080x1920: torch.autocast(float16) around the call; javrtg/AnyCalib@027a8497d893 AnyCalib.predict (pinhole), its resize / crop / linear + GN fit
-- `anycalib-pinhole` load / first call: original 4.09 s / 0.578 s, portable 0.6 s / 0.452 s, kernels 1.59 s / 0.329 s
+- `anycalib-pinhole` load / first call: original 4.09 s / 0.578 s, portable 1.73 s / 0.685 s, kernels 1.53 s / 0.371 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -64,6 +66,10 @@ CPU, float32: max |diff| <= 0.00019 vs the original. GPU, float16 (the default),
 |---|---|---|---|
 | `anycalib-pinhole` | 0.06214 / 0.33598 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
+### Limitations
+
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~80 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+
 </details>
 
 <a id="geocalib"></a>
@@ -76,10 +82,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>82.3<br>82.5<br>73.1<br>fails: ONNX export: torch.export failed | 502 / 558<br>320 / 378<br>279 / 342<br>246 / 300<br>– |
+| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>81.2<br>81.8<br>73.1<br>planned for 0.2.1 | 502 / 558<br>320 / 378<br>277 / 338<br>246 / 300<br>– |
 
 <details><summary>Details</summary>
 
+- Paper: [GeoCalib: Learning Single-image Calibration with Geometric Optimization](https://arxiv.org/abs/2409.06704), ECCV 2024, 2024-09-10
 - Original code: <https://github.com/cvg/GeoCalib> at `1dedb29f94fc`
 - Code licence: Apache-2.0 (permissive); files: `LICENSE`, `LICENSE-WEIGHTS`
 - Weights licence: CC-BY-4.0
@@ -88,12 +95,13 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `geocalib-pinhole`
+- Not in this release (planned for 0.2.1): `geocalib-pinhole` ONNX / TensorRT export: torch.export stops at a data-dependent branch ((norm_x == 0).any())
 - Outputs: intrinsics, gravity, roll, pitch, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `geocalib-pinhole` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
 - `geocalib-pinhole` 1080x1920, first call: portable + torch.compile 28 s (cold Inductor cache).
 - `geocalib-pinhole` original 1080x1920: torch.autocast(float16) around the call; cvg/GeoCalibdedb29f94fc GeoCalib.calibrate (pinhole), its kornia resize / crop / LM fit
-- `geocalib-pinhole` load / first call: original 1.8 s / 0.841 s, portable 0.27 s / 1.725 s, kernels 1.25 s / 0.924 s
+- `geocalib-pinhole` load / first call: original 1.8 s / 0.841 s, portable 0.27 s / 1.837 s, kernels 0.44 s / 0.745 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -135,4 +143,4 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | id | dataset | licence | commercial use |
 |---|---|---|---|
 | `lvd-142m` | [LVD-142M (DINOv2's curated web-image set, not released)](https://arxiv.org/abs/2304.07193) | not stated | unclear |
-| `openpano` | [OpenPano (perspective crops of public 360-degree panoramas: PolyHaven, HDRMaps, AmbientCG, BlenderKit)](https://github.com/cvg/GeoCalib/blob/main/siclib/datasets/README.md) | mixed | unclear |
+| `openpano` | [OpenPano (perspective crops of public 360-degree panoramas: PolyHaven, HDRMaps, AmbientCG, BlenderKit)](https://github.com/cvg/GeoCalib/blob/1dedb29f94fc11b896c5f572005978aeebccd67f/siclib/datasets/README.md) | not stated | unclear |

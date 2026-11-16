@@ -23,7 +23,7 @@ every load, and concurrent processes never rewrite a shared database.
 With `FASTFORKS_OFFLINE=1` (or `HF_HUB_OFFLINE=1`) nothing is downloaded: steps 1 to 3 run as usual and a file that
 is not found raises an error naming the file and the `fastforks download` command that fetches it.
 
-Our own Hugging Face repos (`huggingface.co/fastforks/...`: kernel binaries, golden outputs, weight mirrors) can be
+Our own Hugging Face repos (`huggingface.co/fastforks/...`: kernel binaries, golden outputs, converted weights) can be
 redirected to a stand-in with the same layout: `FASTFORKS_HF_ENDPOINT=file:///path/to/standin` (or another server)
 replaces `https://huggingface.co` in their URLs. Other URLs are never rewritten. For private repos (pre-release),
 `HF_TOKEN` is sent as a bearer token to those URLs only, and not along a redirect (the file host gets none).
@@ -73,7 +73,9 @@ HF_ENDPOINT_ENV = "FASTFORKS_HF_ENDPOINT"
 OFFLINE_ENV = "FASTFORKS_OFFLINE"
 READ_CACHES_ENV = "FASTFORKS_READ_CACHES"
 _OUR_HF = re.compile(r"https://huggingface\.co/((?:datasets/)?fastforks/.+)")
-MIRROR_URL = "https://huggingface.co/fastforks/mirrors/resolve/main/{group}/{name}"
+MIRROR_URL = "https://huggingface.co/fastforks/mirrors/resolve/main/{group}/{name}"  # `mirror = true`: no card uses it since 2026-11-15 (the legacy repo `fastforks/mirrors` is private; weights whose licence is only assumed are not hosted)
+# `mirror = "<repo>"`: a weights repo as fallback host (no card uses it since 2026-11-15: only converted weights get a repo, cards point at it by `url`)
+WEIGHTS_REPO_URL = "https://huggingface.co/fastforks/{repo}/resolve/main/{name}"
 _HF_FILE = re.compile(r"https://huggingface\.co/(?P<repo>[^/]+/[^/]+)/resolve/(?P<rev>[^/]+)/(?P<file>.+)")
 
 
@@ -90,8 +92,8 @@ class FileSpec:
             `sha256` and `size` are those of the member.
         archive_sha256: SHA-256 of the archive at `url` (members only), checked before the archive is opened.
         archive_size: Size of the archive in bytes (members only); the fetch stops beyond it.
-        mirror: URL of the same bytes (the member itself for an archive member) in our mirror repo, tried when `url`
-            fails; `None` if not mirrored.
+        mirror: URL of the same bytes (the member itself for an archive member) in our mirror repos (`MIRROR_URL`, or
+            the weights' own repo `WEIGHTS_REPO_URL`), tried when `url` fails; `None` if not mirrored.
     """
 
     name: str
@@ -380,6 +382,14 @@ def _remember(path: Path, sha256: str) -> None:
             tmp.unlink(missing_ok=True)
 
 
+def stamped(path: Path, spec: FileSpec) -> bool:
+    """Whether `path` was verified against `spec` and is unchanged since (its stamp; nothing is hashed)."""
+    try:
+        return json.loads(_stamp_file(path).read_text()) == _stamp(path, spec.sha256)
+    except (OSError, ValueError):
+        return False
+
+
 def verify(path: Path, spec: FileSpec) -> None:
     """Check `path` against `spec` (size, then SHA-256 unless already verified unchanged).
 
@@ -389,11 +399,7 @@ def verify(path: Path, spec: FileSpec) -> None:
     if spec.size is not None and path.stat().st_size != spec.size:
         msg = f"{path}: size {path.stat().st_size} != expected {spec.size}"
         raise WeightsHashError(msg)
-    try:
-        known = json.loads(_stamp_file(path).read_text())
-    except (OSError, ValueError):
-        known = None
-    if known == _stamp(path, spec.sha256):
+    if stamped(path, spec):
         return
     digest = sha256_of(path)
     if digest != spec.sha256:

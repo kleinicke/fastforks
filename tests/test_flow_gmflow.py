@@ -83,15 +83,17 @@ def test_forward_is_upstreams() -> None:
             num_reg_refine=3,
             task="flow",
         )["flow_preds"][-1]
-    torch.testing.assert_close(ours, ref, rtol=0, atol=1e-4)
+    # the matching softmax runs as a fused SDPA kernel here and as matmul + softmax in the vendored
+    # global_correlation_softmax
+    # (other summation order): random weights amplify the float32 rounding through 3 refinements to about 2e-3 px
+    torch.testing.assert_close(ours, ref, rtol=0, atol=5e-3)
 
 
-def test_chunked_attention_is_the_same(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fused_attention_is_softmax_matmul() -> None:
     torch.manual_seed(0)
     query, key, value = torch.randn(2, 96, 16), torch.randn(2, 96, 16), torch.randn(2, 96, 2)
-    whole = family.attend(query, key, value)
-    monkeypatch.setattr(family, "CHUNK_ELEMENTS", 2 * 96 * 10)  # 10 rows per chunk
-    torch.testing.assert_close(family.attend(query, key, value), whole, rtol=0, atol=1e-6)
+    plain = torch.softmax(query @ key.transpose(1, 2) / 16**0.5, dim=-1) @ value
+    torch.testing.assert_close(family.attend(query, key, value), plain, rtol=0, atol=1e-5)
 
 
 @pytest.fixture(scope="module")

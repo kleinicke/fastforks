@@ -110,6 +110,7 @@ def test_export_adapter_does_not_keep_network_alive():
         def __init__(self):
             super().__init__()
             self.transformer = SimpleNamespace(enable_cuda_graph_capture=lambda: None)
+            self._export = False  # the upstream LWDETR flag export_path() checks (export once)
 
         def forward(self, value):
             return value
@@ -118,6 +119,7 @@ def test_export_adapter_does_not_keep_network_alive():
             return value + 1
 
         def export(self):
+            self._export = True
             self._forward_origin = self.forward
             self.forward = self.forward_export
 

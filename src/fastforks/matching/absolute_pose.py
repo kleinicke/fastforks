@@ -67,7 +67,7 @@ def estimate_absolute_pose(  # noqa: PLR0913 - the matches, the intrinsics and t
     """P3P RANSAC + refinement of pixel-to-world matches, one camera or a batch at once.
 
     Args:
-        points2d: Pixel keypoints, `[N, 2]` or `[P, N, 2]` (float; any device, the pose is computed there).
+        points2d: Pixel keypoints, `[N, 2]` or `[P, N, 2]` (float tensor, numpy array or list).
         points3d: The matching world points, `[N, 3]` or `[P, N, 3]`.
         k: Intrinsics, `[3, 3]` or `[P, 3, 3]`.
         threshold: Inlier threshold in pixels (reprojection error).
@@ -82,6 +82,8 @@ def estimate_absolute_pose(  # noqa: PLR0913 - the matches, the intrinsics and t
         InputError: Shapes do not match, fewer than 4 matches, or a non-positive threshold.
         KernelUnavailableError: `mode="kernels"` without a usable kernel binary / CUDA device.
     """
+    points2d = rp._tensor(points2d, "points2d")  # noqa: SLF001
+    points3d = rp._tensor(points3d, "points3d", points2d.device)  # noqa: SLF001
     batched = points2d.dim() == 3  # noqa: PLR2004 - [P, N, 2]
     p2, p3 = (p.reshape(-1, *p.shape[-2:]).to(torch.float32) for p in (points2d, points3d))
     if points2d.shape[:-1] != points3d.shape[:-1] or p2.shape[-1] != 2 or p3.shape[-1] != 3 or p2.dim() != 3:  # noqa: PLR2004
@@ -89,7 +91,7 @@ def estimate_absolute_pose(  # noqa: PLR0913 - the matches, the intrinsics and t
         msg = f"points2d and points3d must be [N, 2] and [N, 3] (or [P, N, 2] and [P, N, 3]), got {got}"
         raise InputError(msg)
     _, _, _, valid = rp._check(p2, p2, threshold, mask, MIN_MATCHES)  # noqa: SLF001 - shared checks
-    k = k.reshape(-1, 3, 3).to(torch.float32).expand(p2.shape[0], 3, 3)
+    k = rp._intrinsics(k, "k", p2)  # noqa: SLF001
     solver = rp._solver(mode, p2.device)  # noqa: SLF001
     pose = _estimate(p2, p3, k, valid, threshold, solver)
     if batched:

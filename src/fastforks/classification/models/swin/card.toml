@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/microsoft/Swin-Transformer"
+framework = "PyTorch"
+reason = "timm re-implements the model and hosts the released weights in a uniform API."
+
 [licence]
 code = "Apache-2.0"  # timm
 weights = "MIT"  # the timm Hugging Face model card
@@ -39,6 +44,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows"
+url = "https://arxiv.org/abs/2103.14030"
+date = "2021-03-25"
+venue = "ICCV 2021"
 
 [[variants]]
 id = "swin_base_patch4_window7_224.ms_in22k_ft_in1k"

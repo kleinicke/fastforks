@@ -5,6 +5,10 @@ tier = "experimental"
 outputs = ["pred_masks", "iou_scores"]
 uses = ["cuda_graphs", "sam_prompt"]  # fastforks.shared modules this family imports
 
+limitations = [
+  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
+]
+
 [upstream]
 repo = "https://github.com/ChaoningZhang/MobileSAM"
 commit = "f706ad9c4eb7f219c00d9050e46328518ffb65d2"
@@ -29,6 +33,12 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # fused fp16 convolutions of the image encoder; the prompt decode of up to 4 prompts replays a CUDA graph (float32, bit-identical; `release_graphs()` frees them)
+
+[[papers]]
+title = "Faster Segment Anything: Towards Lightweight SAM for Mobile Applications"
+url = "https://arxiv.org/abs/2306.14289"
+date = "2023-06-25"
+venue = "arXiv"
 
 [[variants]]
 id = "mobile-sam"

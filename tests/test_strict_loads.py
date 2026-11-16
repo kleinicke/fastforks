@@ -129,10 +129,25 @@ def test_untie_restores_every_checkpoint_head(by_parameter):
     assert seginfer.untie_to_checkpoint(net, sd) == []
 
 
+@pytest.mark.parametrize("by_parameter", [False, True])
+def test_untie_copies_values_a_tie_overwrote_with_initial_ones(by_parameter):
+    """grounding-dino-base: the checkpoint stores the decoder's head, the tie target (top-level) kept its init."""
+    net, sd = (
+        _tied_heads(by_parameter=by_parameter),
+        {k: v for k, v in _checkpoint().items() if k.startswith("heads.0")},
+    )
+    with torch.no_grad():
+        for p in net.parameters():
+            p.zero_()
+    assert seginfer.untie_to_checkpoint(net, sd) == []
+    own = net.state_dict()
+    assert all(torch.equal(own[k], v) for k, v in sd.items())
+    assert all(torch.equal(own[k], own[f"dec.{k}"]) for k in own if k.startswith("heads."))
+
+
 def test_untie_raises_when_a_value_cannot_be_restored():
     net, sd = _tied_heads(), _checkpoint()
-    sd = {k: v for k, v in sd.items() if k.startswith("heads.0")} | {"heads.0.0.weight": torch.zeros(2, 2)}
-    net.register_load_state_dict_pre_hook(lambda _m, d, *_a: d.pop("heads.0.0.weight", None))
+    sd = {k: v for k, v in sd.items() if k.startswith("heads.0")} | {"heads.0.0.weight": torch.full((2, 2), torch.nan)}
     with pytest.raises(CheckpointMismatchError, match="tensors differ after loading"):
         seginfer.untie_to_checkpoint(net, sd)
 

@@ -51,7 +51,10 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
 - Promptable segmentation: SAM / SAM 2 `miou_best` (the candidate with the best predicted IoU of three) and
   `miou_single`, one interior point per non-crowd instance of the same 500 COCO images. SAM 3 (concept prompts):
   `box_map` / `mask_map`, one text prompt per COCO category present in the image, threshold 0.5; dataset key
-  `coco-val2017-every10-text` (same images, another benchmark).
+  `coco-val2017-every10-text` (same images, another benchmark). INSID3 (in-context): `miou` on one-shot episodes, 3
+  (reference, target) pairs per COCO class drawn with seed 0 from the val2017 images whose class covers >= 2 %, the
+  class's non-crowd instances as one mask, foreground IoU summed per class and averaged over the 80 classes; dataset
+  key `coco-val2017-oneshot-k3`.
 - Features: kNN `top1` (k = 20, cosine, similarity-weighted) of the CLS feature at 224x224, ImageNet val split into two
   seeded disjoint subsets (10000 memory, 5000 test).
 - Optical flow: `epe` (mean over pairs of the per-pair mean end-point error, px) and `fl_all` (% of all valid pixels,
@@ -92,7 +95,14 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
 - Restoration: `psnr` (dB) and `ssim` on the Y channel (BT.601) of the output, rounded to uint8, against the HR image,
   `scale` px border cropped, on the 100 DIV2K validation images from the official bicubic LR images (`div2k-val-x4`,
   `div2k-val-x2`, the model's scale), one pass without tiles, measured with `tools/eval_restoration.py`; `ms_per_image`
-  is the median time of a call.
+  is the median time of a call. Deblurring / denoising / deraining (RGB PSNR / SSIM, no crop, as the NAFNet / Restormer
+  code; deraining on Y as Restormer's MATLAB script): GoPro test (1111 frames, `gopro-test-everyN`), SIDD validation
+  (1280 256 x 256 crops, `sidd-val`), Rain100L / Rain100H (`rain100l`, `rain100h`); Restormer's GoPro images at full
+  size, NAFNet's too (both padded internally). `-everyN`: every N-th image in sorted order.
+- Face detection: `ap_easy`, `ap_medium`, `ap_hard`, WIDER FACE val box AP (IoU 0.5, the official toolkit's code via
+  libfacedetection.train, scores normalised over the set), every 4th image in the ground truth's order (807 images,
+  `widerface-val-every4`), each image at its own size, score threshold 0.02, NMS IoU 0.45; measured with
+  `tools/eval_widerface.py`.
 - Multiview: `absrel`, `d125` (% within 1.25) on DTU scans 1, 9, 24, 33, 75 (reference view 24 + 7 sources, 640x512),
   median-scaled for uncalibrated models; calibrated MVS also `mae_mm`, `le2mm`, `le4mm`. `n` = scans.
 
@@ -135,6 +145,19 @@ Rows with `side` = `upstream` and `mode` = `upstream-tensorrt` are a like-for-li
 show: a TensorRT fp16 engine built from the original network (`da3mono-large`). `timed` says what one call covers,
 `net_input` the resolution the original runs its network at, and `note` the ONNX export route.
 
+Rows with `side` = `upstream` and `mode` = `upstream-network-default` (fp32) / `upstream-network` (the authors'
+autocast) time the pose originals' network alone (`tools/speed_original.py --part network`): the crops of all person
+boxes are made by the original's own pipeline before the timing and passed as one batch; the decode is not timed.
+`timed` says what one call covers. The `speed.jsonl` original rows of the same models include crop and decode, as the
+library's call does; these rows separate the two. The website shows them, the docs tables do not.
+
+Rows with `mode` = `portable-sections` / `kernels-sections` split one fastforks pose call (bench input, 15 people) into
+its steps, each timed on its own with the device synchronised before and after: `crop_ms` (the GPU crops of all boxes),
+`network_ms` (the network on the crops; with `network_has_decode` the kernels' CUDA graph of network + decode) and
+`rest_ms` = `ms` − crop − network (decode, the mapping back to the image, input conversion). The website shows them
+as notes under the speed rows and adds crop + rest to the TensorRT engine time (which covers the network only) as an
+estimated full call; the docs tables do not show them.
+
 ## Non-default options: `speed_options.jsonl`
 
 Speed and peak memory of a model loaded with a non-default option (`options`, e.g. `{"long_side": 1008}` of Depth
@@ -175,7 +198,8 @@ one row per run; every row says where its numbers came from.
 - Matches: RoMa v2 (`romav2`, kernels mode, bfloat16, kernel build `romav2@1c8e19405d40`) on MegaDepth-1500, 5000
   matches per pair sampled 5 times (`tools/eval_matching.py match`), saved once and read by every solver.
   `matches_sha256` (SHA-256 over the sorted `.npz` files, first 16 hex digits) pins the exact matches; `matches` is the
-  directory's name. Pose AUC@5/10/20 (`auc5`, `auc10`, `auc20`) over all `n` = 5 x `n_pairs` poses, threshold 0.5 px.
+  directory's name. Pose AUC@5/10/20 (`auc5`, `auc10`, `auc20`) over all `n` = 5 x `n_pairs` poses. `threshold` (px) is
+  each solver's best: 1.0 for PoseLib and ours (the `estimate_pose` default), 0.5 for OpenCV and USAC.
 - Throughput rows (no `--stop`, 1500 pairs): `pairs_per_s` is wall-clock over all poses. CPU solvers run one pair per
   call in `jobs` single-threaded processes; the GPU solver takes `batch` pairs per call. `ms_per_pair_single` (CPU) and
   `ms_single_pair_median` (GPU) are the median time of one pair alone.
@@ -183,7 +207,7 @@ one row per run; every row says where its numbers came from.
   subset.
 - Trust fields: `commit` (the checkout that ran, `src_dirty` true if `src` or `tools` had uncommitted changes),
   `versions` (torch, OpenCV, NumPy, PoseLib), `cpu_model`, `gpu`, `loadavg_1min` (1-minute load average when the run
-  started: CPU throughput depends on other work on the machine; the rows here are from runs started below 2), `kernel`
+  started: CPU throughput depends on other work on the machine; the rows here are from runs started at about 2 or below), `kernel`
   (kernels rows: the RANSAC binary loaded, by file name = build, SHA-256 prefix, and `local build` = not yet published,
   read from `FASTFORKS_KERNEL_PATH` and checked against the manifest), `command` (paths reduced to file names), `date`.
 

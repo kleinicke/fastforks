@@ -14,7 +14,8 @@ Keypoints are mapped back to input pixels (pixel centres at integers: upstream's
 On CUDA the validated dtype is bfloat16 as upstream on Ampere and newer (float16 where upstream falls back to it):
 the VGG encoders and the refiners under autocast, the DINOv2 with weights and input in that dtype, the matcher under
 autocast; logits, keypoint sampling, the description sampling and the match filter stay float32. On CUDA the eval
-BatchNorms are folded into their convs and the convolutions run channels-last (cuDNN's depthwise 5 x 5).
+BatchNorms are folded into their convs and the convolutions run channels-last (cuDNN's depthwise 5 x 5); the DINOv2
+runs fused `scaled_dot_product_attention` (as upstream) with its LayerScales folded into the linears before them.
 """
 
 from __future__ import annotations
@@ -38,7 +39,7 @@ from fastforks.shared.dedode import (
     VGGDINOv2,
     describe_keypoints,
 )
-from fastforks.shared.depth_anything_v2 import DINOv2
+from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, sdpa_attention
 
 from .net.dad import sample_keypoints
 from .net.loma import LoMaNet, filter_matches
@@ -120,13 +121,17 @@ class Matcher(nn.Module):
     def describe(self, image: torch.Tensor) -> Described:
         """Keypoints (normalised coordinates) and their descriptions of one image."""
         p = self.params
+        keypoints = self._detect(image)  # the detector's input and logits are freed before the descriptor runs
+        grid = self.descriptor(self._resize(image, (p.size, p.size)))
+        return keypoints, describe_keypoints(grid, keypoints)
+
+    def _detect(self, image: torch.Tensor) -> torch.Tensor:
+        p = self.params
         h, w = image.shape[-2:]
         scale = p.long_side / max(h, w)
         det = self._resize(image, (int(scale * h) // STRIDE * STRIDE, int(scale * w) // STRIDE * STRIDE))
         logits = self.detector((det - self.mean) / self.std)
-        keypoints = sample_keypoints(logits, p.max_keypoints, NMS_SIZE, SUBPIXEL_TEMP)
-        grid = self.descriptor(self._resize(image, (p.size, p.size)))
-        return keypoints, describe_keypoints(grid, keypoints)
+        return sample_keypoints(logits, p.max_keypoints, NMS_SIZE, SUBPIXEL_TEMP)
 
     @staticmethod
     def to_input(keypoints: torch.Tensor, image: torch.Tensor) -> torch.Tensor:
@@ -176,7 +181,9 @@ def load_matcher(ctx: Context) -> Matcher:
     for name, sd in parts.items():
         net.get_submodule(name).load_state_dict(sd, strict=True)
     net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    sdpa_attention(net.dinov2)  # upstream's DINOv2 attention is `scaled_dot_product_attention`
     if ctx.device.type == "cuda":  # not on CPU: the float32 reference parity
+        fold_layer_scale(net.dinov2)
         fold_batch_norms(net)
         for m in net.modules():
             if isinstance(m, ConvRefiner):

@@ -1,11 +1,17 @@
-"""Super-resolution accuracy: DIV2K validation, bicubic LR -> HR.
+"""Restoration accuracy: DIV2K validation (super-resolution, bicubic LR -> HR) or the variant's own test set.
 
-`FASTFORKS_DATA`/restoration/div2k/DIV2K_valid_HR/08xx.png and DIV2K_valid_LR_bicubic/X<s>/08xxx<s>.png (the 100
-validation images, s = the model's scale; dataset `div2k-val-x<s>`; `--every 2`: every 2nd, `div2k-val-x<s>-every2`),
-one pass each at its own size, no tiles. Scoring:
+Super-resolution: `FASTFORKS_DATA`/restoration/div2k/DIV2K_valid_HR/08xx.png and
+DIV2K_valid_LR_bicubic/X<s>/08xxx<s>.png (the 100 validation images, s = the model's scale; dataset `div2k-val-x<s>`;
+`--every 2`: every 2nd, `div2k-val-x<s>-every2`), one pass each at its own size, no tiles. Scoring:
 the output rounded to 8 bits, its Y channel (BT.601, `16 + 65.481 R + 128.553 G + 24.966 B` on [0, 1] RGB, / 255)
 against the HR image's, `s` px border cropped; PSNR = -10 log10(MSE) and SSIM (Gaussian 11 x 11, sigma 1.5,
 K = 0.01 / 0.03, data range 1, valid region) per image, averaged over the images.
+
+Scale-1 variants (`SETS`, the sets and channels their papers report): `FASTFORKS_DATA`/restoration/<dir>/{input,target}/
+*.png, no border: GoPro test (1111 frames, RGB), SIDD validation (the 1280 256 x 256 sRGB crops of
+NAFNet's / Restormer's `.lmdb`, written out as PNGs, RGB), Rain100L / Rain100H test (Y); on RGB, PSNR over all
+channels and SSIM the mean of the per-channel SSIMs (BasicSR's `calculate_psnr` / `calculate_ssim`, `test_y_channel`
+false). Upstream's SIDD numbers score the float output; here every set scores the 8-bit one.
 
 Tiers: `upstream` / `upstream16` (the original as `tools/_original.py` `LOCAL[family]` builds it, e.g. `RealESRGANer`
 fp32 / inference_realesrgan.py's default half; `upstream16` only for originals with an fp16 option of their own),
@@ -43,10 +49,31 @@ TIERS = {  # tier -> (mode, dtype, how, column)
 HOW = {  # family -> tier -> `how`, where not Real-ESRGAN's
     "span": {"upstream": "BasicSR SRModel.test, float32"},
     "swinir": {"upstream": "main_test_swinir.py, float32"},
+    "swin2sr": {"upstream": "main_test_swin2sr.py, float32"},
+    "nafnet": {"upstream": "ImageRestorationModel.test, float32"},
     "hat": {"upstream": "hat_model.py test, float32"},
     "dat": {"upstream": "dat_model.py test, float32"},
+    "drct": {"upstream": "drct_model.py test, float32"},
+    "realplksr": {"upstream": "neosr test.py (net(lq), clamped), float32"},
     "codeformer": {"upstream": "inference_codeformer.py, float32"},
 }
+
+
+_GOPRO = ("gopro-test", "gopro/GoPro/test/GoPro", False)
+_SIDD = ("sidd-val", "sidd/val", False)
+SETS = {  # scale-1 variant -> [(dataset, directory under restoration/, Y channel)]
+    "nafnet-gopro": [_GOPRO],
+    "nafnet-sidd": [_SIDD],
+    "restormer-deblur": [_GOPRO],
+    "restormer-sidd": [_SIDD],
+    "restormer-derain": [("rain100l", "rain/test/Rain100L", True), ("rain100h", "rain/test/Rain100H", True)],
+}
+
+
+def set_pairs(directory: str) -> list[tuple[Path, Path]]:
+    """(input, target) paths of a scale-1 set."""
+    root = Path(os.environ["FASTFORKS_DATA"]) / "restoration" / directory
+    return [(p, root / "target" / p.name) for p in sorted((root / "input").glob("*.png"))]
 
 
 def pairs(scale: int) -> list[tuple[Path, Path]]:
@@ -67,9 +94,11 @@ def _y(rgb: torch.Tensor) -> torch.Tensor:
     return ((16 + (rgb.double() * w[:, None, None]).sum(0)) / 255)[None, None]
 
 
-def score(pred: torch.Tensor, gt: torch.Tensor, border: int) -> tuple[float, float]:
-    """PSNR and SSIM on Y of `[3, H, W]` images in [0, 1] (the prediction already rounded to 8 bits)."""
-    p, g = (_y(t)[..., border:-border, border:-border] for t in (pred, gt))
+def score(pred: torch.Tensor, gt: torch.Tensor, border: int, *, y: bool = True) -> tuple[float, float]:
+    """PSNR and SSIM on Y (or RGB) of `[3, H, W]` images in [0, 1] (the prediction already rounded to 8 bits)."""
+    h, w = pred.shape[-2:]
+    crop = (..., slice(border, h - border), slice(border, w - border))
+    p, g = ((_y(t) if y else t.double()[:, None])[crop] for t in (pred, gt))  # RGB: channels as the batch
     psnr = float(-10 * torch.log10((p - g).square().mean()))
     k = torch.exp(-((torch.arange(11, device=p.device, dtype=torch.float64) - 5) ** 2) / (2 * 1.5**2))
     k = k / k.sum()
@@ -118,37 +147,49 @@ def main() -> None:
             mode, dtype, how, column = TIERS[tier]
             fn, scale, family = predictor(ref, tier)
             how = HOW.get(family, {}).get(tier, how)
-            data = pairs(scale)[:: a.every]
-            dataset = f"div2k-val-x{scale}" + (f"-every{a.every}" if a.every > 1 else "")
-            fn(torch.rand(3, 1024 // scale, 1536 // scale, device="cuda"))
-            torch.cuda.reset_peak_memory_stats()
-            scores, times = [], []
-            with ThreadPoolExecutor(4) as pool:  # decode the next images while the GPU runs
-                for lr, hr in pool.map(read, data):
-                    x, gt = (torch.from_numpy(f).cuda().permute(2, 0, 1).float() / 255 for f in (lr, hr))
-                    torch.cuda.synchronize()
-                    t = time.perf_counter()
-                    with torch.inference_mode():
-                        out = fn(x)
-                    torch.cuda.synchronize()
-                    times.append(time.perf_counter() - t)
-                    h, w = out.shape[-2:]
-                    scores.append(score((out.clamp(0, 1) * 255).round() / 255, gt[:, :h, :w], scale))
-            psnr, ssim = np.mean(scores, 0)
-            metrics = {"psnr": round(float(psnr), 2), "ssim": round(float(ssim), 4)}
-            row = {
-                "ref": ref, "task": "restoration", "tier": tier, "mode": mode, "dtype": dtype, "how": how,
-                "commit": commit.stdout.strip(), "gpu": torch.cuda.get_device_name(), "torch": torch.__version__,
-                "date": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
-                "command": "python tools/eval_restoration.py " + " ".join(sys.argv[1:]),
-                "dataset": dataset, **metrics, "n": len(data), "metrics": metrics,
-                "ms_per_image": round(float(np.median(times)) * 1e3, 2),
-                "peak_alloc_mb": round(torch.cuda.max_memory_allocated() / 2**20),
-                "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20), "column": column,
-            }  # fmt: skip
-            print(json.dumps(row), flush=True)
-            with (a.out / "rows.jsonl").open("a") as f:
-                f.write(json.dumps(row) + "\n")
+            for name, directory, y in SETS.get(ref, [(f"div2k-val-x{scale}", None, True)]):
+                data = (pairs(scale) if directory is None else set_pairs(directory))[:: a.every]
+                dataset = name + (f"-every{a.every}" if a.every > 1 else "")
+                border = scale if directory is None else 0
+                try:
+                    fn(torch.rand(3, 1024 // scale, 1536 // scale, device="cuda"))
+                except torch.OutOfMemoryError:  # warm-up only: the images decide
+                    torch.cuda.empty_cache()
+                torch.cuda.reset_peak_memory_stats()
+                scores, times, error = [], [], None
+                with ThreadPoolExecutor(4) as pool:  # decode the next images while the GPU runs
+                    for lr, hr in pool.map(read, data):
+                        x, gt = (torch.from_numpy(f).cuda().permute(2, 0, 1).float() / 255 for f in (lr, hr))
+                        torch.cuda.synchronize()
+                        t = time.perf_counter()
+                        try:
+                            with torch.inference_mode():
+                                out = fn(x)
+                        except torch.OutOfMemoryError as e:  # the row says so (fp32 originals on large images)
+                            error = f"OOM, {lr.shape[0]}x{lr.shape[1]}: {str(e).splitlines()[0]}"
+                            break
+                        torch.cuda.synchronize()
+                        times.append(time.perf_counter() - t)
+                        h, w = out.shape[-2:]
+                        scores.append(score((out.clamp(0, 1) * 255).round() / 255, gt[:, :h, :w], border, y=y))
+                metrics = {}
+                if error is None:
+                    psnr, ssim = np.mean(scores, 0)
+                    metrics = {"psnr": round(float(psnr), 2), "ssim": round(float(ssim), 4)}
+                row = {
+                    "ref": ref, "task": "restoration", "tier": tier, "mode": mode, "dtype": dtype, "how": how,
+                    "commit": commit.stdout.strip(), "gpu": torch.cuda.get_device_name(), "torch": torch.__version__,
+                    "date": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+                    "command": "python tools/eval_restoration.py " + " ".join(sys.argv[1:]),
+                    "dataset": dataset, **metrics, "n": len(data), "metrics": metrics,
+                    "ms_per_image": round(float(np.median(times)) * 1e3, 2) if error is None else None,
+                    "peak_alloc_mb": round(torch.cuda.max_memory_allocated() / 2**20),
+                    "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20), "column": column,
+                    **({} if error is None else {"error": error}),
+                }  # fmt: skip
+                print(json.dumps(row), flush=True)
+                with (a.out / "rows.jsonl").open("a") as f:
+                    f.write(json.dumps(row) + "\n")
             del fn
             torch.cuda.empty_cache()
 

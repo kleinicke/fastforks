@@ -1,0 +1,50 @@
+schema = 2
+name = "GIMM-VFI"
+summary = "GIMM-VFI (Guo et al., NeurIPS 2024), the RAFT-based GIMM-VFI-R: arbitrary-time video frame interpolation. RAFT estimates the flow between both frames in both directions; a generalizable implicit motion model (a SIREN MLP on time and position, conditioned on the forward-splatted flow latents) predicts the flow at the requested time; an AMT-style decoder refines it with the bidirectional feature correlation and blends both warped frames. Any time in [0, 1]. `gimm-vfi-r` is trained for accuracy, `gimm-vfi-r-p` adds an LPIPS loss for sharper, perceptually better frames."
+tier = "experimental"
+outputs = ["frame"]
+uses = []  # fastforks.shared modules this family imports
+
+[upstream]
+repo = "https://github.com/GSeanCDAT/GIMM-VFI"
+commit = "dbc56449994a3c2e045d46fd46bed570239913f8"  # net/ = src/models/generalizable_INR/{gimmvfi_r.py, modules/, raft/}; the call is src/video_Nx.py
+
+[licence]
+code = "LicenseRef-noncommercial"  # S-Lab License 1.0: redistribution and use for non-commercial purposes; no share-alike clause
+weights = "LicenseRef-noncommercial"  # the Hugging Face repo GSean/GIMM-VFI states no licence: the weights inherit the code's S-Lab License 1.0
+files = ["LICENSE"]
+training_data = ["vimeo90k"]
+training_note = "configs/gimmvfi/gimmvfi_r_arb.yaml: Vimeo-90K septuplets with arbitrary-time targets; the RAFT flow estimator starts from the raft-things checkpoint (FlyingChairs + FlyingThings3D)."
+evidence = "https://github.com/GSeanCDAT/GIMM-VFI/blob/dbc56449994a3c2e045d46fd46bed570239913f8/LICENSE ; https://github.com/GSeanCDAT/GIMM-VFI/blob/dbc56449994a3c2e045d46fd46bed570239913f8/README.md (weights: https://huggingface.co/GSean/GIMM-VFI)"
+
+[io]
+input = "0-1"  # video_Nx.py load_image divides by 255
+min_size = 128  # RAFT's 1/64 correlation level must be >= 2 px (align_corners lookups divide by size - 1)
+pad = { multiple = 32, mode = "centre", fill = "replicate" }  # utils.InputPadder(shape, 32): replicate, centred
+
+[params]
+iters = 20  # GIMMVFI_R.raft_iter
+ds_factor = 1.0  # video_Nx.py --ds-factor: scale of the flow estimation (0.5 / 0.25 for 2K / 4K in X4K.py), synthesis at full size
+
+[modes.portable]
+cuda_dtype = "float16"  # float16 autocast; the correlation lookups sample in float32
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["raft_flow", "cudnn_hacc"]  # the correlation windows on the fly (four levels, 256 channels, radius 4) instead of the three all-pairs volumes; the full-size decoder convs with float16 accumulation; otherwise the portable float16 network
+
+[[papers]]
+title = "Generalizable Implicit Motion Modeling for Video Frame Interpolation"
+url = "https://arxiv.org/abs/2407.08680"
+date = "2024-07-11"
+venue = "NeurIPS 2024"
+
+[[variants]]
+id = "gimm-vfi-r"
+revision = 1
+weights = [{ name = "gimmvfi_r_arb.pt", size = 79305223, sha256 = "1dff0ac3ca91483950eff814818115ff90cc3d16070089cc8cc3090eb3ee76f2", url = "https://huggingface.co/GSean/GIMM-VFI/resolve/ab7735cdcfbd2e03c1bf2819380a25e8a4f321d1/gimmvfi_r_arb.pt" }]
+
+[[variants]]
+id = "gimm-vfi-r-p"  # README: "perceptually enhanced", trained with an additional LPIPS loss
+revision = 1
+weights = [{ name = "gimmvfi_r_arb_lpips.pt", size = 79308129, sha256 = "b33e41536850594c01551978c4b63b1acd291c60d22310fbb6a4e57ac375033f", url = "https://huggingface.co/GSean/GIMM-VFI/resolve/ab7735cdcfbd2e03c1bf2819380a25e8a4f321d1/gimmvfi_r_arb_lpips.pt" }]

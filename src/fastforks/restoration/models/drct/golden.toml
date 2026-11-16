@@ -1,0 +1,38 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 2e-06
+gpu_mean = 0.00071
+gpu_p99 = 0.0027
+
+[refs."drct-l-x4@1"]
+sha256 = "8b3844179475e9c3813e9428852b22dc86b9ca2f494755e8be53cd92360cb6e0"
+upstream = "https://github.com/ming053l/DRCT@c0a8b51e69241cf7f8ae598053235ff498517935"
+settings = "CPU float32, drct_model.py test: reflect padding to a multiple of 16, net_g_ema(img), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."drct-x4@1"]
+sha256 = "a4edb00bc42782f7fdebba4ca0ae70962a003b8fb1f3dc57188949aaf2b887d9"
+upstream = "https://github.com/ming053l/DRCT@c0a8b51e69241cf7f8ae598053235ff498517935"
+settings = "CPU float32, drct_model.py test: reflect padding to a multiple of 16, net_g_ema(img), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[validated."drct-l-x4@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00047
+p99_px = 0.00175
+
+[validated."drct-x4@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00043
+p99_px = 0.00158

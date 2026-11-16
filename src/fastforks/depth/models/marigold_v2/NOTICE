@@ -1,0 +1,13 @@
+Marigold V2
+Copyright 2026 Huawei Technologies Co., Ltd. (HUAWEI Bayer Lab)
+
+The network in net/ re-implements Marigold V2 (https://github.com/huawei-bayerlab/marigold-v2, Apache License 2.0;
+its NOTICE credits the Marigold files it derives from: Copyright 2023-2025 ETH Zurich, Apache License 2.0) without
+diffusers, bitsandbytes and peft: the Qwen-Image-Edit-2509 transformer (Qwen team, Alibaba Cloud,
+https://huggingface.co/Qwen/Qwen-Image-Edit-2509, Apache License 2.0) with Marigold V2's depth LoRA folded in as
+separate factors, and the Qwen-Image VAE with Marigold V2's fine-tuned decoder on a single frame.
+
+The weights are not included. fastforks downloads one converted file (see card.toml): the transformer quantised to
+NF4 (4 bit, blocks of 64, bitsandbytes' 16 code values, MIT) as Marigold V2 loads it, the LoRA factors, the
+constants of the fixed timestep and of the fixed prompt (Qwen2.5-VL text embeddings shipped by Marigold V2, Apache
+License 2.0), and the VAE as 2-D weights in bf16. Both originals and the converted file are Apache License 2.0.

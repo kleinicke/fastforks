@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/dingmyu/davit"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
 [licence]
 code = "Apache-2.0"  # timm
 # The checkpoints are the authors' (dingmyu/davit, MIT: https://github.com/dingmyu/davit/blob/main/LICENSE), converted to
@@ -39,6 +44,12 @@ reason = "not implemented: window attention and channel attention with depthwise
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "DaViT: Dual Attention Vision Transformers"
+url = "https://arxiv.org/abs/2204.03645"
+date = "2022-04-07"
+venue = "ECCV 2022"
 
 [[variants]]
 id = "davit_tiny.msft_in1k"

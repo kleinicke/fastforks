@@ -9,6 +9,11 @@ uses = ["cuda_graphs", "seginfer"]  # fastforks.shared modules this family impor
 repo = "https://github.com/open-mmlab/mmsegmentation"
 commit = "c685fe6767c4cadf6b051983ca6208f1b9d1ccb8"  # v1.2.2; net.py condenses its MSCAN backbone and LightHamHead
 
+[[upstream.official]]
+repo = "https://github.com/Visual-Attention-Network/SegNeXt"
+framework = "PyTorch"
+reason = "The mmsegmentation port carries the architecture and the model-zoo checkpoints without the authors' mmsegmentation fork."
+
 [licence]
 code = "Apache-2.0"  # open-mmlab/mmsegmentation LICENSE; the authors' repository (Visual-Attention-Network/SegNeXt) is Apache-2.0 too: https://github.com/Visual-Attention-Network/SegNeXt/blob/main/LICENSE
 weights = "Apache-2.0"  # the model zoo checkpoints are released with the repository (README: Apache 2.0)
@@ -29,7 +34,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["seg_conv", "cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3", "seg_up"]  # fastforks._optimize.ops loads the fvm five; SegNeXt runs seg_conv (strip / 5x5 depthwise) and fvm_conv (MLP 3x3 + GELU)
+kernels = ["seg_conv", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3", "seg_up"]  # fastforks._optimize.ops loads the fvm five; SegNeXt runs seg_conv (strip / 5x5 depthwise) and fvm_conv (MLP 3x3 + GELU)
 # Every depthwise conv of the blocks as one direct NHWC kernel (cuDNN's channels-last depthwise convs are 2.5-5x
 # slower than PyTorch's NCHW one, which the portable runner uses), the 1x1 convs as fp16-accumulate cuBLAS GEMMs with
 # the bias fused, the two logits resizes as one `seg_up` pass, a CUDA graph per repeated input shape up to 512x512.
@@ -39,6 +44,12 @@ label_set = "ade20k-150"
 
 # The head's matrix factorisation starts from fixed bases here; upstream draws random ones on every call (its logits
 # change from run to run by more than rounding), so goldens and accuracy compare against upstream seeded the same way.
+
+[[papers]]
+title = "SegNeXt: Rethinking Convolutional Attention Design for Semantic Segmentation"
+url = "https://arxiv.org/abs/2209.08575"
+date = "2022-09-18"
+venue = "NeurIPS 2022"
 
 [[variants]]
 # MSCAN-T; config segnext_mscan-t_1xb16-adamw-160k_ade20k-512x512

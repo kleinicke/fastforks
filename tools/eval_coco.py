@@ -114,7 +114,7 @@ def _load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401 - a model of e
         # DETR OKS evaluation keeps the top 100 query/class pairs, then only the person class.
         # Public inference defaults to threshold 0.5.
         opts = {"score_threshold": 0.0} if ref.startswith("rf-detr-keypoint") else None
-        return pos.load(ref, mode=mode, device="cuda", dtype=dtype, options=opts)
+        return pos.load(ref, mode=mode, device="cuda", dtype=dtype, **(opts or {}))
 
     # RT-DETRv2 / D-FINE / LW-DETR mAP: the official postprocessor (all queries, no threshold); defaults: 0.05 / 100
     all300 = ref.startswith(
@@ -125,7 +125,7 @@ def _load(task: str, ref: str, tier: str) -> Any:  # noqa: ANN401 - a model of e
         opts = {"score_threshold": 0.001, "max_detections": 300}
     if ref.startswith("yolox"):  # the reference's COCO evaluator: test_conf 0.01, every box after NMS
         opts = {"score_threshold": 0.01, "max_detections": 1000}
-    return (det if task == "detection" else seg).load(ref, mode=mode, device="cuda", options=opts, dtype=dtype)
+    return (det if task == "detection" else seg).load(ref, mode=mode, device="cuda", **(opts or {}), dtype=dtype)
 
 
 def _cat_map(model: Any, coco: Any) -> list[int]:  # noqa: ANN401
@@ -212,7 +212,7 @@ def _concept(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> t
         tp = 0.0
         for c in cats:
             t2 = _sync()
-            r = model(emb, text=names[c], threshold=CONCEPT_THRESHOLD)
+            r = model(emb, text=names[c], score_threshold=CONCEPT_THRESHOLD)
             tp += _sync() - t2
             k = min(100, len(r.scores))
             b, s = r.boxes[:k].float().cpu().numpy(), r.scores[:k].float().cpu().numpy()

@@ -5,9 +5,12 @@ from __future__ import annotations
 import difflib
 import functools
 import inspect
+import sys
+import warnings
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
-from fastforks._core.errors import ArgumentError
+from fastforks._core.errors import ArgumentError, OptionsError, UnknownOptionError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -42,11 +45,85 @@ def bind_error(
     return None
 
 
+REMOVAL = "2026-12-15"  # renamed 0.1.1 names keep working, with a FutureWarning, until this date
+
+
+def warn_renamed(old: str, new: str, *, stacklevel: int = 3) -> None:
+    """A `FutureWarning` that `old` is renamed to `new` and goes away after `REMOVAL`."""
+    warnings.warn(f"{old} is renamed to {new}; the old name is removed after {REMOVAL}", FutureWarning, stacklevel)
+
+
+def renamed_attributes(module: str, renames: Mapping[str, tuple[str, object]]) -> Callable[[str], Any]:
+    """A module `__getattr__` that serves the old names `renames` (old -> (new name shown, the object)), warned."""
+
+    def __getattr__(name: str) -> Any:  # noqa: ANN401, N807 - any attribute
+        if name not in renames:
+            msg = f"module {module!r} has no attribute {name!r}"
+            raise AttributeError(msg)
+        new, target = renames[name]
+        # `from m import name` first probes via `hasattr` in `importlib._handle_fromlist`: warn once, at the real access
+        if not sys._getframe(1).f_code.co_filename.startswith("<frozen importlib"):  # noqa: SLF001
+            warn_renamed(f"{module}.{name}", new)
+        return target
+
+    return __getattr__
+
+
+def legacy_labels(class_names: object, options: dict[str, object]) -> object:
+    """`class_names`, or the 0.1.1 `labels=` popped from `options` (warned); both given is an error."""
+    if "labels" not in options:
+        return class_names
+    warn_renamed("load(..., labels=)", "load(..., class_names=)", stacklevel=5)
+    if class_names is not None:
+        msg = "labels= is the old name of class_names=: pass only class_names="
+        raise OptionsError(msg)
+    return options.pop("labels")
+
+
+def _option_kwargs(fn: Callable[..., Any], kwargs: dict[str, Any]) -> dict[str, Any]:
+    """`kwargs` of a `load(..., **options)` call with a legacy `options={...}` merged in (warned)."""
+    legacy = kwargs.pop("options", None)
+    if legacy is None:
+        return kwargs
+    warn_renamed("load(..., options={...})", "load(..., **options)", stacklevel=4)
+    if not isinstance(legacy, Mapping):
+        msg = f"options must be a dict such as {{'iters': 8}}, got {type(legacy).__name__}"
+        raise OptionsError(msg)
+    params = inspect.signature(fn).parameters
+    if clash := sorted(k for k in legacy if k in params or k in kwargs):
+        msg = f"options={{...}} has {clash}: each is a load() argument or is also given as a keyword"
+        raise OptionsError(msg)
+    return {**kwargs, **legacy}
+
+
+def _typo(fn: Callable[..., Any], kwargs: dict[str, Any]) -> UnknownOptionError | None:
+    """An `UnknownOptionError` for an option keyword close to a `load` argument (`mdoe=`) that is no card option."""
+    params = [n for n, p in inspect.signature(fn).parameters.items() if p.kind is inspect.Parameter.KEYWORD_ONLY]
+    for k in kwargs:
+        if k in params or not (close := difflib.get_close_matches(k, params, n=1, cutoff=0.7)):
+            continue
+        from fastforks._core import registry  # noqa: PLC0415 - only on a near miss
+
+        if k not in registry.option_names():
+            return UnknownOptionError(
+                f"{fn.__module__}.load(...) got an unexpected keyword argument {k!r} (did you mean {close[0]!r}?); "
+                f"valid: {', '.join(params)}, or the model's options"
+            )
+    return None
+
+
 def typo_checked_load(fn: Callable[P, R]) -> Callable[P, R]:
-    """`fn` (a `load` function) with a keyword typo (`mdoe=`) reported as `ArgumentError`; free on the success path."""
+    """`fn` (a `load(model, *, ..., **options)` function) with keyword typos reported as `ArgumentError`.
+
+    A keyword close to one of `fn`'s arguments that is no card's option (`mdoe=`) is a typo; the legacy
+    `options={...}` is merged into the keywords with a `FutureWarning`. Free on the success path.
+    """
 
     @functools.wraps(fn)
     def load(*args: P.args, **kwargs: P.kwargs) -> R:
+        kwargs = _option_kwargs(fn, kwargs)  # ty: ignore[invalid-assignment]
+        if err := _typo(fn, kwargs):
+            raise err
         try:
             return fn(*args, **kwargs)
         except TypeError as e:

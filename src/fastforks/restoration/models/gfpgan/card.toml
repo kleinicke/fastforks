@@ -1,0 +1,44 @@
+schema = 2
+name = "GFPGAN"
+summary = "GFPGAN v1.4 (Wang et al., CVPR 2021): blind face restoration with a generative facial prior: a U-Net encoder whose features modulate (spatial feature transform) a pretrained StyleGAN2 face generator. Input: an aligned 512 x 512 face crop (FFHQ alignment); detecting, aligning and pasting the face back are not part of the model."
+tier = "experimental"
+outputs = ["image"]
+
+[upstream]
+repo = "https://github.com/TencentARC/GFPGAN"
+commit = "7552a7791caad982045a7bbe5634bbf1cd5c8679"  # gfpgan/archs/gfpganv1_clean_arch.py, stylegan2_clean_arch.py; the call is gfpgan/utils.py GFPGANer.enhance (net(x, return_rgb=False)[0] on the [-1, 1] aligned face)
+
+[licence]
+code = "Apache-2.0"  # the clean architecture (BasicSR, Apache-2.0); not the original StyleGAN2 CUDA ops (NVIDIA licence) or the DFDNet-derived code the LICENSE lists
+weights = "Apache-2.0"  # GFPGANv1.4.pth, a GitHub release of the same repository; no separate weight licence
+files = ["LICENSE"]
+training_data = ["ffhq"]
+training_note = "Paper Sec. 4.1: FFHQ (70 000 faces, resized to 512 x 512) with synthetic degradations (blur, downsampling, noise, JPEG); the StyleGAN2 prior is also trained on FFHQ."
+evidence = "https://github.com/TencentARC/GFPGAN/blob/7552a7791caad982045a7bbe5634bbf1cd5c8679/LICENSE ; https://github.com/TencentARC/GFPGAN/blob/7552a7791caad982045a7bbe5634bbf1cd5c8679/README.md (weights: https://github.com/TencentARC/GFPGAN/releases/tag/v1.3.0)"
+
+[io]
+input = "0-1"  # the runner maps [0, 1] to the network's [-1, 1] and back (upstream: normalize(0.5, 0.5), tensor2img(min_max=(-1, 1)))
+min_size = 512  # exactly the aligned 512 x 512 crop (the runner rejects other sizes)
+
+[params]
+scale = 1
+size = 512
+key = "params_ema"
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]
+
+[[papers]]
+title = "Towards Real-World Blind Face Restoration with Generative Facial Prior"
+url = "https://arxiv.org/abs/2101.04061"
+date = "2021-01-11"
+venue = "CVPR 2021"
+
+[[variants]]
+id = "gfpgan-v1.4"
+revision = 1
+weights = [{ name = "GFPGANv1.4.pth", size = 348632874, sha256 = "e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad", url = "https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.4.pth" }]

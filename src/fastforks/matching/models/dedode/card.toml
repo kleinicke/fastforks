@@ -40,11 +40,18 @@ cuda_dtype = "float16"  # as upstream: encoders and refiners under float16 autoc
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-status = "none"
-reason = "not implemented yet"
+dtype = "float16"  # the VGG and refiner convs as fused fp16 channels-last conv + BatchNorm + ReLU (the BN is not folded); dedode-v2-g: 12 % faster, peak memory -3 % (the peak is in the DINOv2 descriptor, as portable), AUC@5 -0.2 on 1500 pairs
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+
+[[papers]]
+title = "DeDoDe v2: Analyzing and Improving the DeDoDe Keypoint Detector"
+url = "https://arxiv.org/abs/2404.08928"
+date = "2024-04-13"
+venue = "CVPR Workshops 2024"
 
 [[variants]]
 id = "dedode-v2-b"  # DeDoDe-L v2 detector + DeDoDe-B descriptor (upstream README default)
+planned = { tensorrt = "TensorRT TopK supports K <= 3840; the keypoint top-k is larger" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { descriptor = "B" }
 weights = [
@@ -54,6 +61,7 @@ weights = [
 
 [[variants]]
 id = "dedode-v2-g"  # DeDoDe-L v2 detector + DeDoDe-G descriptor (VGG19 + frozen DINOv2 ViT-L/14)
+planned = { tensorrt = "TensorRT TopK supports K <= 3840; the keypoint top-k is larger" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { descriptor = "G" }
 weights = [

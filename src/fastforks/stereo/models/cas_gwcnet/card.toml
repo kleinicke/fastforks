@@ -1,7 +1,7 @@
 schema = 2
 name = "Cas-GwcNet"
 summary = "Cas-GwcNet (cascade stereo, Gu et al. 2020): two-stage cascade cost volume (48 then 24 disparity hypotheses, the second narrowed around the first result) on GwcNet-style 3-D hourglasses; group-wise correlation + concatenation (gc) or concatenation (c) volumes."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
 
@@ -38,6 +38,12 @@ mps_dtypes = ["float32", "float16"]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 
 # Upstream also links a KITTI 2015 fine-tuned Cas-GwcNet-c: not added.
+
+[[papers]]
+title = "Cascade Cost Volume for High-Resolution Multi-View Stereo and Stereo Matching"
+url = "https://arxiv.org/abs/1912.06378"
+date = "2019-12-13"
+venue = "CVPR 2020"
 
 [[variants]]
 id = "cas-gwcnet-gc-sceneflow"

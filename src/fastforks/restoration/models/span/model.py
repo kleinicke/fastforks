@@ -17,7 +17,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
-from fastforks._core.patch import override
+from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Forward, Runner
 
@@ -90,7 +90,7 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
-            if type(m) is torch.nn.Conv2d:
+            if is_base(m, torch.nn.Conv2d):
                 m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last)
                 override(m, _hacc_conv)
 
@@ -105,7 +105,7 @@ RUNNERS = {"portable": Portable, "kernels": Kernels}
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
-    """`load_file`: a SPAN state dict as a variant and its params (feature channels, scale); keys unchanged."""
+    """`load(path)`: a SPAN state dict as a variant and its params (feature channels, scale); keys unchanged."""
     if "block_1.c1_r.sk.weight" not in sd or "conv_1.sk.weight" not in sd:
         return None
     first, up = sd["conv_1.sk.weight"], sd.get("upsampler.0.weight")

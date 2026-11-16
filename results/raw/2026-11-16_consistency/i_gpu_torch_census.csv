@@ -1,0 +1,6 @@
+kind,gpu,torch,rows
+eval,NVIDIA GeForce RTX 5060 Ti,2.14.1+cu130,2940
+eval,NVIDIA GeForce RTX 5060 Ti,,13
+speed,NVIDIA GeForce RTX 5060 Ti,2.10.0+cu130,10
+speed,NVIDIA GeForce RTX 5060 Ti,2.14.1+cu130,3260
+speed,NVIDIA GeForce RTX 5060 Ti,,16

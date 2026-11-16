@@ -310,6 +310,8 @@ class MultiViewModel(core.Model):
             msg = f"{self.variant.ref} takes at least {r.min_views} and {most} views, got {n}"
             raise InputError(msg)
         k = self._camera("intrinsics", r.intrinsics, intrinsics, n, (3, 3))
+        if k is not None and intrinsics is not None:
+            self._check_principal_point(k, x.shape[-2], x.shape[-1])
         c2w = self._camera("cam_to_world", r.cam_to_world, cam_to_world, n, (4, 4))
         run_c2w = c2w
         if c2w is not None and c2w.device.type != self.device.type:  # float64 on MPS (kept on the CPU): float32
@@ -429,6 +431,20 @@ class MultiViewModel(core.Model):
         if t.dtype == torch.float64 and self.device.type == "mps":  # no float64 on MPS: kept on the CPU
             return t.cpu().contiguous()
         return t.to(self.device).contiguous()
+
+    def _check_principal_point(self, k: torch.Tensor, h: int, w: int) -> None:
+        """Normalised or identity matrices (principal point near the corner) are not pixel intrinsics: refuse them.
+
+        Garbage geometry gave NaN points and a device-side assert in a kernel (the CUDA context is dead afterwards).
+        """
+        cx, cy = k[:, 0, 2], k[:, 1, 2]
+        if bool(((cx < 0.1 * w) | (cx > 0.9 * w) | (cy < 0.1 * h) | (cy > 0.9 * h)).any()):
+            msg = (
+                f"intrinsics: the principal point (K[0, 2], K[1, 2]) must lie inside the image (here {w} x {h} px), "
+                "not near a corner: intrinsics are OpenCV pixel matrices, e.g. [[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]], "
+                "not normalised ones or the identity"
+            )
+            raise InputError(msg)
 
     def _depth_range(self, value: tuple[float, float] | None) -> torch.Tensor | None:
         use = self._runner.depth_range

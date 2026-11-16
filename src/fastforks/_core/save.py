@@ -13,8 +13,9 @@ CLOUD_SUFFIXES = (".ply", ".las", ".laz")
 def save(path: str | Path, thing: Any, **kwargs: Any) -> None:  # noqa: ANN401 - results, maps and clouds
     """Write `thing` to `path`; the suffix selects the format.
 
-    - A result with a `save` method (stereo, depth, multi-view, segmentation and promptable segmentation results):
-      `thing.save(path, **kwargs)`.
+    - A result with a `save` method: `thing.save(path, **kwargs)`. Maps (stereo, depth, multi-view, segmentation,
+      matting, edges), images (restoration, interpolation: `.png` / `.jpg` / `.npy`), flow (`.flo` / `.npy`), volume
+      labels (`.nii.gz` / `.npy`), and instances (detection, concept segmentation, pose) as `.json`.
     - A `PointCloud` (or an array / tensor `[..., 3]` of points) to `.ply` (binary PLY) or `.las` / `.laz` (LAS 1.2,
       0.1 mm integer coordinates); invalid points are dropped, `colors=` is
       optional; `max_depth=` drops points with z beyond it (metres; default: all finite points); `axes=` writes the
@@ -24,8 +25,8 @@ def save(path: str | Path, thing: Any, **kwargs: Any) -> None:  # noqa: ANN401 -
       `.npy` (float32; integer and bool maps keep their dtype), `.pfm` or `.png` (integer and bool maps only, exact:
       e.g. one detection or SAM 3 mask, `fastforks.save("m.png", result.masks[i])`).
 
-    Results without a `save` method (detection, concept segmentation, classification, features) are refused: write
-    their arrays with `numpy.save`, or one mask as above.
+    Results without a `save` method (e.g. classification, features) are refused: write their arrays with
+    `numpy.save`, or one mask as above.
 
     Args:
         path: Output file.

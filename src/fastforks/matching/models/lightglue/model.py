@@ -21,10 +21,12 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch import nn
 
+from fastforks._core.runner import host
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared.aliked import ALIKED
+from fastforks.shared.deform_conv import modulated_deform_conv
 from fastforks.shared.lightglue import LightGlue, match_many, resize_long
 
-from .net.aliked import ALIKED
 from .net.disk import DISK
 
 if TYPE_CHECKING:
@@ -54,6 +56,7 @@ class Matcher(nn.Module):
         p = params
         if p.extractor == "aliked":
             self.extractor = ALIKED(
+                modulated_deform_conv,
                 model_name="aliked-n16",
                 max_num_keypoints=p.max_keypoints,
                 detection_threshold=p.detection_threshold,
@@ -143,6 +146,7 @@ class Portable(Runner):
         del image1, image2
         return self.net.match(*described)
 
+    @host
     def match_many(self, described: list[tuple[Any, Any]]) -> list[dict[str, torch.Tensor]]:
         """`match` of many pairs in one packed LightGlue forward (`fastforks.shared.lightglue.match_many`)."""
         outs = match_many(self.net.matcher, described)
@@ -161,4 +165,23 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2))
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Portable with DISK's U-Net on fp16 NHWC `conv_ep` convolutions; ALIKED's dense network in fp16."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the networks and switch the extractor to its kernels path."""
+        super().__init__(ctx)
+        if ctx.params.extractor == "disk":
+            from .kernels.inference import prepare_disk  # noqa: PLC0415 - needs the kernel libraries
+
+            disk = self.net.extractor
+            assert isinstance(disk, DISK)  # noqa: S101 - narrows the union for the type checker
+            disk.fp16 = False
+            prepare_disk(disk, ctx.device)
+
+    def module(self) -> torch.nn.Module:
+        """No exportable module: the extractor runs kernel launches."""
+        return Runner.module(self)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

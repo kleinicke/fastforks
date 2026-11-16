@@ -5,7 +5,7 @@ tier: detection models take an RGB uint8 HWC image and return `boxes` (xyxy px),
 `class_names`), `masks` ([N, H, W] bool or None), sorted by descending score, after the card's score threshold;
 promptable models have `prompts`, `get_image_embeddings(img)` and `model(emb, input_points=, input_labels=,
 multimask_output=)` -> `masks` [P, C, H, W] bool, `iou_scores` [P, C]; the concept model (SAM 3) takes
-`model(emb, text=, threshold=)` -> `boxes`, `scores`, `masks`.
+`model(emb, text=, score_threshold=)` -> `boxes`, `scores`, `masks`.
 
 Code paths (each family's venv, `bench/bench_upstream.py list`):
 

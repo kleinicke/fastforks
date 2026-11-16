@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://code.google.com/archive/p/cuda-convnet/"
+framework = "cuda-convnet (C++/CUDA)"
+reason = "The authors' cuda-convnet code is obsolete; torchvision's PyTorch AlexNet carries usable ImageNet weights."
+
 [licence]
 code = "BSD-3-Clause"  # torchvision
 weights = "assumed from code"  # torchvision states no separate weights licence
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "ImageNet Classification with Deep Convolutional Neural Networks"
+url = "https://papers.nips.cc/paper_files/paper/2012/hash/c399862d3b9d6b76c8436e924a68c45b-Abstract.html"
+date = "2012-12-03"
+venue = "NeurIPS 2012"
 
 [[variants]]
 id = "alexnet.tv_in1k"

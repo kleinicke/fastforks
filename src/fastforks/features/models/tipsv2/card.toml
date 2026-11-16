@@ -39,6 +39,18 @@ mps_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]
 
+[[papers]]
+title = "TIPSv2: Advancing Vision-Language Pretraining with Enhanced Patch-Text Alignment"
+url = "https://arxiv.org/abs/2604.12012"
+date = "2026-04-13"
+venue = "CVPR 2026"
+
+[[papers]]
+title = "TIPS: Text-Image Pretraining with Spatial awareness"
+url = "https://arxiv.org/abs/2410.16512"
+date = "2024-10-21"
+venue = "ICLR 2025"
+
 [[variants]]
 id = "tipsv2-b14"
 revision = 1

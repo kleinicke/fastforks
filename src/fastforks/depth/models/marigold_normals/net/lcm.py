@@ -28,7 +28,9 @@ class LCM:
         self._coef = {t: self._coefficients(t, p) for t, p in zip(self.timesteps, nxt, strict=True)}
 
     def _coefficients(self, t: int, prev: int | None) -> tuple[torch.Tensor, ...]:
-        """`sqrt(a_t)`, `sqrt(1 - a_t)`, `c_out`, `c_skip`, `sqrt(a_prev)`, `sqrt(1 - a_prev)` (0-d float32 CPU)."""
+        """`sqrt(a_t)`, `sqrt(1 - a_t)`, `c_out`, `c_skip`, `sqrt(a_prev)`, `sqrt(1 - a_prev)` (0-d float32 CPU
+        tensors, computed outside the step: a select from the CPU `alphas_cumprod` inside the compiled step crashes
+        Inductor, see marigold/net/ddim.py `DDIM.step`)."""
         a_t = self.alphas_cumprod[t]
         p = t if prev is None else prev
         a_prev = self.alphas_cumprod[p] if p >= 0 else self.final_alpha_cumprod

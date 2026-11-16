@@ -17,6 +17,11 @@ licence_notes = [
 repo = "https://github.com/NVIDIA/tao_pytorch_backend"
 commit = "77fb1a4bca02de3ea43de333a5822d57694b6b22"
 
+[[upstream.official]]
+repo = "https://github.com/NVlabs/FoundationStereo"
+framework = "PyTorch"
+reason = "The research repos (NVlabs/FoundationStereo, NVlabs/Fast-FoundationStereo) have non-commercial licences; NVIDIA's TAO code is Apache-2.0 and its commercial checkpoints load there."
+
 [licence]
 code = "Apache-2.0"  # NVIDIA TAO PyTorch (all vendored files, incl. its Depth Anything V2 / EdgeNeXt copies)
 weights = "LicenseRef-NVIDIA-Open-Model-License"
@@ -44,6 +49,20 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "fs", "fs_cutlass", "cfs", "ffs_cutlass"]
+
+[[papers]]
+title = "FoundationStereo: Zero-Shot Stereo Matching"
+url = "https://arxiv.org/abs/2501.09898"
+date = "2025-01-17"
+venue = "CVPR 2025"
+variants = ["c-foundationstereo-s"]
+
+[[papers]]
+title = "Fast-FoundationStereo: Real-Time Zero-Shot Stereo Matching"
+url = "https://arxiv.org/abs/2512.11130"
+date = "2025-12-11"
+venue = "CVPR 2026"
+variants = ["c-fast-foundationstereo", "fast-foundationstereo"]
 
 [[variants]]
 id = "c-foundationstereo-s"

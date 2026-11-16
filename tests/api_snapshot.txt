@@ -1,0 +1,1041 @@
+class fastforks._core.cards.ModelCard(builtins.object)
+class fastforks._core.export.TensorRTEngine(builtins.object)
+class fastforks._core.instances.Instances(fastforks._core.outputs.NumpyOutputs)
+class fastforks._core.model.Backend(builtins.object)
+class fastforks._core.model.Model(builtins.object)
+class fastforks._core.outputs.MapOutputs(fastforks._core.outputs.NumpyOutputs)
+class fastforks._core.outputs.NumpyOutputs(builtins.object)
+class fastforks._core.sizes.SizeRange(builtins.object)
+class fastforks._optimize.FastModel(torch.nn.modules.module.Module)
+class fastforks.calibration._api.CalibrationModel(fastforks._core.model.Model)
+class fastforks.calibration._api.CalibrationResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.classification._api.ClassificationModel(fastforks._core.model.Model)
+class fastforks.classification._api.ClassificationResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.depth._api.DepthModel(fastforks._core.model.Model)
+class fastforks.depth._api.DepthResult(fastforks._core.outputs.MapOutputs)
+class fastforks.detection._api.DetectionModel(fastforks._core.model.Model)
+class fastforks.detection._api.DetectionResult(fastforks._core.instances.Instances)
+class fastforks.detection._tracks.ByteTracker(builtins.object)
+class fastforks.detection._tracks.ObjectTracks(builtins.object)
+class fastforks.edges._api.EdgesModel(fastforks._core.model.Model)
+class fastforks.edges._api.EdgesResult(fastforks._core.outputs.MapOutputs)
+class fastforks.features._api.FeaturesModel(fastforks._core.model.Model)
+class fastforks.features._api.FeaturesResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.flow._api.FlowModel(fastforks._core.model.Model)
+class fastforks.flow._api.FlowResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.interpolation._api.InterpolationModel(fastforks._core.model.Model)
+class fastforks.interpolation._api.InterpolationResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.matching._api.MatchingModel(fastforks._core.model.Model)
+class fastforks.matching._api.MatchingResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.matching._api.SparseMatchingResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.matching._api.VerifiedMatches(builtins.object)
+class fastforks.matching.absolute_pose.AbsolutePose(builtins.object)
+class fastforks.matching.relative_pose.FundamentalMatrix(builtins.object)
+class fastforks.matching.relative_pose.RelativePose(builtins.object)
+class fastforks.matching.sfm.DatabaseStats(builtins.object)
+class fastforks.matching.sfm.ReconstructionStats(builtins.object)
+class fastforks.matting._api.MattingModel(fastforks._core.model.Model)
+class fastforks.matting._api.MattingResult(fastforks._core.outputs.MapOutputs)
+class fastforks.matting._api.VideoMattingResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.multiview._api.MultiViewModel(fastforks._core.model.Model)
+class fastforks.multiview._api.MultiViewResult(fastforks._core.outputs.MapOutputs)
+class fastforks.multiview._gaussians.Gaussians(builtins.object)
+class fastforks.ocr._api.OCRModel(fastforks._core.model.Model)
+class fastforks.ocr._api.OCRResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.pose._api.PoseModel(fastforks._core.model.Model)
+class fastforks.pose._api.PoseResult(fastforks._core.instances.Instances)
+class fastforks.promptable_segmentation._api.ConceptSegmentationModel(fastforks.promptable_segmentation._api.PromptableSegmentationModel)
+class fastforks.promptable_segmentation._api.ConceptSegmentationResult(fastforks._core.instances.Instances)
+class fastforks.promptable_segmentation._api.ImageEmbeddings(builtins.object)
+class fastforks.promptable_segmentation._api.InContextSegmentationModel(fastforks.promptable_segmentation._api.PromptableSegmentationModel)
+class fastforks.promptable_segmentation._api.InContextSegmentationResult(fastforks._core.outputs.MapOutputs)
+class fastforks.promptable_segmentation._api.PromptableSegmentationModel(fastforks._core.model.Model)
+class fastforks.promptable_segmentation._api.PromptableSegmentationResult(fastforks._core.outputs.MapOutputs)
+class fastforks.promptable_segmentation._api.VideoSegmentationResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.restoration._api.RestorationModel(fastforks._core.model.Model)
+class fastforks.restoration._api.RestorationResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.retrieval._api.RetrievalModel(fastforks._core.model.Model)
+class fastforks.retrieval._api.RetrievalResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.segmentation._api.SegmentationModel(fastforks._core.model.Model)
+class fastforks.segmentation._api.SegmentationResult(fastforks._core.outputs.MapOutputs)
+class fastforks.stereo._api.StereoModel(fastforks._core.model.Model)
+class fastforks.stereo.calibrated.PairViews(builtins.object)
+class fastforks.stereo.calibrated.StereoResult(fastforks.stereo.calibrated.PairViews)
+class fastforks.stereo.calibrated.StereoView(fastforks._core.outputs.MapOutputs)
+class fastforks.stereo.geometry.cameras.Camera(typing.Protocol)
+class fastforks.stereo.geometry.cameras.DoubleSphere(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras.E57Cylindrical(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras.E57Pinhole(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras.E57Spherical(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras.EUCM(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras.FOV(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras.Fisheye624(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras.KB4(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras.Pinhole(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras.PinholeOpenCV(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras.ThinPrismFisheye(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras.UCM(fastforks.stereo.geometry.cameras._Base)
+class fastforks.stereo.geometry.cameras._Base(builtins.object)
+class fastforks.stereo.geometry.rectify.Rectification(builtins.object)
+class fastforks.stereo.geometry.rig.PointCloud(builtins.tuple)
+class fastforks.stereo.geometry.rig.RectifiedRig(builtins.object)
+class fastforks.stereo.geometry.rig.StereoRig(builtins.object)
+class fastforks.tracking._api.TrackingModel(fastforks._core.model.Model)
+class fastforks.tracking._api.TrackingResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.volume._api.VolumeEncoder(fastforks._core.model.Model)
+class fastforks.volume._api.VolumeFeatures(fastforks._core.outputs.NumpyOutputs)
+class fastforks.volume._api.VolumeInteractive(fastforks._core.model.Model)
+class fastforks.volume._api.VolumeMask(fastforks._core.outputs.NumpyOutputs)
+class fastforks.volume._api.VolumeModel(fastforks._core.model.Model)
+class fastforks.volume._api.VolumeResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.volume._api.VolumeSession(builtins.object)
+class fastforks.volume._nifti.VolumeMeta(builtins.object)
+cli fastforks bench: --device
+cli fastforks bench: --dtype
+cli fastforks bench: --mode
+cli fastforks bench: --runs
+cli fastforks bench: --size
+cli fastforks bench: --views
+cli fastforks bench: model
+cli fastforks download: --all-archs
+cli fastforks download: --arch
+cli fastforks download: --check
+cli fastforks download: --commercial-only
+cli fastforks download: --dry-run
+cli fastforks download: --kernels
+cli fastforks download: --kernels-only
+cli fastforks download: models
+cli fastforks export: --format
+cli fastforks export: --fp16
+cli fastforks export: --output/-o
+cli fastforks export: --size
+cli fastforks export: --size-range
+cli fastforks export: model
+cli fastforks info: model
+cli fastforks list: --commercial
+cli fastforks list: --exclude
+cli fastforks list: --format
+cli fastforks list: --runnable
+cli fastforks list: --task
+cli fastforks list: --tier
+cli fastforks list: pattern
+cli fastforks sfm: --device
+cli fastforks sfm: --dtype
+cli fastforks sfm: --k
+cli fastforks sfm: --mapper
+cli fastforks sfm: --matcher
+cli fastforks sfm: --mode
+cli fastforks sfm: --reconstruct
+cli fastforks sfm: --retrieval
+cli fastforks sfm: --single-camera
+cli fastforks sfm: --threshold
+cli fastforks sfm: images
+cli fastforks sfm: out
+cli fastforks stereo run: --bits
+cli fastforks stereo run: --device
+cli fastforks stereo run: --focal
+cli fastforks stereo run: --format
+cli fastforks stereo run: --max-depth
+cli fastforks stereo run: --mode
+cli fastforks stereo run: --model
+cli fastforks stereo run: --out
+cli fastforks stereo run: --rig
+cli fastforks stereo run: --size
+cli fastforks stereo run: --skip-errors
+cli fastforks stereo run: --skip-existing
+cli fastforks stereo run: left
+cli fastforks stereo run: right
+def fastforks._core.cards.ModelCard.contract(self) -> 'Contract'
+def fastforks._core.cards.ModelCard.kernel_libs_on(self, device: 'torch.device') -> 'tuple[str, ...]'
+def fastforks._core.cards.ModelCard.kernels_dtype_on(self, device: 'torch.device') -> 'Dtype'
+def fastforks._core.cards.ModelCard.option_bounds(self, name: 'str') -> 'str'
+def fastforks._core.cards.ModelCard.status(self, variant: 'Variant') -> 'Status'
+def fastforks._core.cards.ModelCard.variant_licence(self, variant: 'Variant') -> 'Licence'
+def fastforks._core.export.TensorRTEngine.__call__(self, *inputs: 'torch.Tensor', **named: 'torch.Tensor') -> 'torch.Tensor'
+def fastforks._core.export.TensorRTEngine.run(self, *inputs: 'torch.Tensor', **named: 'torch.Tensor') -> 'dict[str, torch.Tensor]'
+def fastforks._core.instances.Instances.cpu(self) -> 'Self'
+def fastforks._core.instances.Instances.save(self, path: 'str | Path') -> 'None'
+def fastforks._core.instances.Instances.to_list(self) -> 'list[dict[str, Any]]'
+def fastforks._core.model.Model.compile(self, **kwargs: 'Any') -> 'Self'
+def fastforks._core.model.Model.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
+def fastforks._core.model.Model.export_onnx(self, path: 'str | Path', height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1, size_range: 'SizeBounds | None' = None) -> 'Path'
+def fastforks._core.model.Model.export_size(self) -> 'tuple[int, int] | None'
+def fastforks._core.model.Model.export_tensorrt(self, path: 'str | Path', height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1, size_range: 'SizeBounds | None' = None) -> 'Path'
+def fastforks._core.model.Model.module(self) -> 'torch.nn.Module'
+def fastforks._core.model.Model.release_graphs(self) -> 'None'
+def fastforks._core.model.Model.size_range(self) -> 'SizeRange'
+def fastforks._core.outputs.MapOutputs.save(self, path: 'str | Path', key: 'str | None' = None, bits: 'int | None' = None) -> 'None'
+def fastforks._core.outputs.NumpyOutputs.cpu(self) -> 'Self'
+def fastforks._core.outputs.NumpyOutputs.numpy(self) -> 'dict[str, Any]'
+def fastforks._core.outputs.NumpyOutputs.to(self, device: 'str | torch.device') -> 'Self'
+def fastforks._core.sizes.SizeRange.describe(self, *, tested: 'bool' = True) -> 'str'
+def fastforks._core.sizes.SizeRange.example(self) -> 'tuple[int, int]'
+def fastforks._optimize.FastModel.forward(self, x: 'torch.Tensor | None' = None, *args: 'object', **kwargs: 'object') -> 'object'
+def fastforks._optimize.FastModel.load_state_dict(self, state_dict: 'Mapping[str, Any]', strict: 'bool' = True, assign: 'bool' = False) -> 'Any'
+def fastforks._optimize.FastModel.traceable(self) -> 'FastModel'
+def fastforks._optimize.FastModel.train(self, mode: 'bool' = True) -> 'FastModel'
+def fastforks.base_type(module: 'object') -> 'type[Any]'
+def fastforks.calibration._api.CalibrationModel.__call__(self, image: 'ImageLike') -> 'CalibrationResult'
+def fastforks.calibration.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.calibration.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.calibration._api.CalibrationModel
+def fastforks.calibration.model_card(model: 'str') -> 'ModelCard'
+def fastforks.classification._api.ClassificationModel.__call__(self, image: 'ImageLike') -> 'ClassificationResult'
+def fastforks.classification._api.ClassificationModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
+def fastforks.classification._api.ClassificationResult.top(self, k: 'int' = 5) -> 'list[tuple[str, float]] | list[list[tuple[str, float]]]'
+def fastforks.classification.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.classification.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, class_names: 'Sequence[str] | None' = None, **options: 'object') -> 'ClassificationModel'
+def fastforks.classification.model_card(model: 'str') -> 'ModelCard'
+def fastforks.depth.DepthKind(*args, **kwargs)
+def fastforks.depth._api.DepthModel.__call__(self, image: 'ImageLike', *, intrinsics: 'ArrayLike | None' = None, prompt_depth: 'ArrayLike | None' = None) -> 'DepthResult'
+def fastforks.depth._api.DepthModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
+def fastforks.depth._api.DepthModel.video(self, frames: 'Sequence[ImageLike] | np.ndarray | torch.Tensor') -> 'DepthResult'
+def fastforks.depth._api.DepthResult.save(self, path: 'str | Path', key: 'str | None' = None, bits: 'int | None' = None, *, max_depth: 'float | None' = None, axes: 'str' = 'opencv') -> 'None'
+def fastforks.depth.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.depth.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.depth._api.DepthModel
+def fastforks.depth.model_card(model: 'str') -> 'ModelCard'
+def fastforks.describe_models(models: 'Sequence[str] | None' = None, **filters: 'Any') -> 'str'
+def fastforks.detection._api.DetectionModel.__call__(self, image: 'ImageLike', *, score_threshold: 'float | None' = None, text: 'Sequence[str] | None' = None) -> 'DetectionResult | list[DetectionResult]'
+def fastforks.detection._tracks.ByteTracker.reset(self) -> 'None'
+def fastforks.detection._tracks.ByteTracker.update(self, detections: 'Any') -> 'ObjectTracks'
+def fastforks.detection.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.detection.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.detection._api.DetectionModel
+def fastforks.detection.model_card(model: 'str') -> 'ModelCard'
+def fastforks.detection.track_objects(video: 'Iterable[Any]', detector: 'Callable[..., Any] | None' = None, *, classes: 'Sequence[int | str] | None' = None, **tracker: 'float') -> 'list[ObjectTracks]'
+def fastforks.edges._api.EdgesModel.__call__(self, image: 'ImageLike') -> 'EdgesResult'
+def fastforks.edges.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.edges.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.edges._api.EdgesModel
+def fastforks.edges.model_card(model: 'str') -> 'ModelCard'
+def fastforks.features._api.FeaturesModel.__call__(self, image: 'ImageLike', *, size: 'Size' = None, layers: 'Layers' = ()) -> 'FeaturesResult'
+def fastforks.features._api.FeaturesModel.module(self) -> 'torch.nn.Module'
+def fastforks.features._api.FeaturesResult.feature_map(self, layer: 'int | None' = None) -> 'torch.Tensor'
+def fastforks.features.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.features.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.features._api.FeaturesModel
+def fastforks.features.model_card(model: 'str') -> 'ModelCard'
+def fastforks.flow._api.FlowModel.__call__(self, image1: 'ImageLike', image2: 'ImageLike') -> 'FlowResult'
+def fastforks.flow._api.FlowModel.module(self) -> 'torch.nn.Module'
+def fastforks.flow._api.FlowResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
+def fastforks.flow.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.flow.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.flow._api.FlowModel
+def fastforks.flow.model_card(model: 'str') -> 'ModelCard'
+def fastforks.interpolation._api.InterpolationModel.__call__(self, image1: 'ImageLike', image2: 'ImageLike', *, timestep: 'float' = 0.5) -> 'InterpolationResult'
+def fastforks.interpolation._api.InterpolationModel.module(self) -> 'torch.nn.Module'
+def fastforks.interpolation._api.InterpolationResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
+def fastforks.interpolation.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.interpolation.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.interpolation._api.InterpolationModel
+def fastforks.interpolation.model_card(model: 'str') -> 'ModelCard'
+def fastforks.list_models(filter: 'str | Sequence[str]' = '*', *, task: 'str | None' = None, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, class_names: 'Sequence[str] | None' = None, **options: 'object') -> 'Model'
+def fastforks.matching._api.MatchingModel.__call__(self, image1: 'ImageLike', image2: 'ImageLike') -> 'MatchingResult | SparseMatchingResult | list[SparseMatchingResult]'
+def fastforks.matching._api.MatchingModel.match_pairs(self, images: 'Sequence[ImageLike]', pairs: 'Iterable[tuple[int, int]]', *, cache_mb: 'float' = 512.0) -> 'Iterator[MatchingResult | SparseMatchingResult]'
+def fastforks.matching._api.MatchingModel.module(self) -> 'torch.nn.Module'
+def fastforks.matching._api.MatchingResult.matches(self, n: 'int' = 5000, *, threshold: 'float' = 0.05, seed: 'int' = 0, balanced: 'bool' = True) -> 'tuple[torch.Tensor, torch.Tensor]'
+def fastforks.matching._api.MatchingResult.verify(self, k1: 'torch.Tensor | None' = None, k2: 'torch.Tensor | None' = None, *, n: 'int' = 5000, seed: 'int' = 0, threshold: 'float | None' = None, mode: 'Mode' = 'auto') -> 'VerifiedMatches'
+def fastforks.matching._api.SparseMatchingResult.matches(self, *, score_threshold: 'float' = 0.0) -> 'tuple[torch.Tensor, torch.Tensor]'
+def fastforks.matching._api.SparseMatchingResult.verify(self, k1: 'torch.Tensor | None' = None, k2: 'torch.Tensor | None' = None, *, threshold: 'float | None' = None, mode: 'Mode' = 'auto') -> 'VerifiedMatches'
+def fastforks.matching.absolute_pose.estimate_absolute_pose(points2d: 'torch.Tensor', points3d: 'torch.Tensor', k: 'torch.Tensor', *, threshold: 'float' = 2.0, mask: 'torch.Tensor | None' = None, mode: "Literal['auto', 'portable', 'kernels']" = 'auto') -> 'AbsolutePose'
+def fastforks.matching.estimate_absolute_pose(points2d: 'torch.Tensor', points3d: 'torch.Tensor', k: 'torch.Tensor', *, threshold: 'float' = 2.0, mask: 'torch.Tensor | None' = None, mode: "Literal['auto', 'portable', 'kernels']" = 'auto') -> 'AbsolutePose'
+def fastforks.matching.estimate_fundamental(points1: 'torch.Tensor', points2: 'torch.Tensor', *, threshold: 'float' = 0.5, mask: 'torch.Tensor | None' = None, mode: "Literal['auto', 'portable', 'kernels']" = 'auto') -> 'FundamentalMatrix'
+def fastforks.matching.estimate_pose(points1: 'torch.Tensor', points2: 'torch.Tensor', k1: 'torch.Tensor', k2: 'torch.Tensor', *, threshold: 'float' = 1.0, mask: 'torch.Tensor | None' = None, mode: "Literal['auto', 'portable', 'kernels']" = 'auto') -> 'RelativePose'
+def fastforks.matching.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.matching.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.matching._api.MatchingModel
+def fastforks.matching.model_card(model: 'str') -> 'ModelCard'
+def fastforks.matching.relative_pose.estimate_fundamental(points1: 'torch.Tensor', points2: 'torch.Tensor', *, threshold: 'float' = 0.5, mask: 'torch.Tensor | None' = None, mode: "Literal['auto', 'portable', 'kernels']" = 'auto') -> 'FundamentalMatrix'
+def fastforks.matching.relative_pose.estimate_pose(points1: 'torch.Tensor', points2: 'torch.Tensor', k1: 'torch.Tensor', k2: 'torch.Tensor', *, threshold: 'float' = 1.0, mask: 'torch.Tensor | None' = None, mode: "Literal['auto', 'portable', 'kernels']" = 'auto') -> 'RelativePose'
+def fastforks.matching.sfm.colmap_database(images: 'str | os.PathLike[str]', database: 'str | os.PathLike[str]', *, matcher: 'str' = 'loma-b', matcher_options: 'Mapping[str, Any] | None' = None, retrieval: 'str | None' = 'megaloc', k: 'int' = 20, threshold: 'float' = 4.0, single_camera: 'bool' = False, dense_matches: 'int' = 4096, mode: "Literal['auto', 'portable', 'kernels']" = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None) -> 'DatabaseStats'
+def fastforks.matching.sfm.reconstruct(images: 'str | os.PathLike[str]', out: 'str | os.PathLike[str]', *, mapper: "Literal['incremental', 'global']" = 'incremental', **options: 'Any') -> 'ReconstructionStats'
+def fastforks.matting._api.MattingModel.__call__(self, image: 'ImageLike', *, trimap: 'ImageLike | None' = None, mask: 'ImageLike | None' = None) -> 'MattingResult'
+def fastforks.matting._api.MattingModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
+def fastforks.matting._api.MattingModel.video(self, frames: 'Sequence[ImageLike] | np.ndarray | torch.Tensor', *, mask: 'ImageLike') -> 'VideoMattingResult'
+def fastforks.matting.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.matting.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.matting._api.MattingModel
+def fastforks.matting.model_card(model: 'str') -> 'ModelCard'
+def fastforks.model_card(model: 'str') -> 'ModelCard'
+def fastforks.multiview.MultiViewKind(*args, **kwargs)
+def fastforks.multiview._api.MultiViewModel.__call__(self, images: 'Images', *, intrinsics: 'ArrayLike | None' = None, cam_to_world: 'ArrayLike | None' = None, reference: 'int | Sequence[int]' = 0, depth_range: 'tuple[float, float] | None' = None) -> 'MultiViewResult'
+def fastforks.multiview._api.MultiViewModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
+def fastforks.multiview._api.MultiViewResult.save(self, path: 'str | Path', key: 'str | None' = None, bits: 'int | None' = None, *, view: 'int | None' = None, max_depth: 'float | None' = None, axes: 'str' = 'opencv') -> 'None'
+def fastforks.multiview._api.MultiViewResult.save_scene(self, folder: 'str | Path', format: 'SceneFormat', *, image_names: 'Sequence[str | os.PathLike[str]] | None' = None, max_points: 'int | None' = 100000) -> 'None'
+def fastforks.multiview._gaussians.Gaussians.save(self, path: 'str | os.PathLike[str]') -> 'None'
+def fastforks.multiview.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.multiview.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.multiview._api.MultiViewModel
+def fastforks.multiview.model_card(model: 'str') -> 'ModelCard'
+def fastforks.multiview.unproject(depth: 'torch.Tensor', intrinsics: 'torch.Tensor', cam_to_world: 'torch.Tensor | None' = None) -> 'torch.Tensor'
+def fastforks.ocr._api.OCRModel.__call__(self, image: 'ImageLike') -> 'OCRResult | list[OCRResult]'
+def fastforks.ocr.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.ocr.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.ocr._api.OCRModel
+def fastforks.ocr.model_card(model: 'str') -> 'ModelCard'
+def fastforks.patch(model: 'nn.Module', *, mode: 'str' = 'auto', device: 'torch.device | str | None' = None, dtype: 'str | torch.dtype | None' = None) -> 'FastModel'
+def fastforks.pose._api.PoseModel.__call__(self, image: 'ImageLike', *, boxes: 'BoxesLike | Sequence[BoxesLike] | None' = None) -> 'PoseResult | list[PoseResult]'
+def fastforks.pose._api.PoseResult.to_list(self) -> 'list[dict[str, Any]]'
+def fastforks.pose.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.pose.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.pose._api.PoseModel
+def fastforks.pose.model_card(model: 'str') -> 'ModelCard'
+def fastforks.promptable_segmentation.ConceptModelId(*args, **kwargs)
+def fastforks.promptable_segmentation.InContextModelId(*args, **kwargs)
+def fastforks.promptable_segmentation._api.ConceptSegmentationModel.__call__(self, image: 'ImageLike | ImageEmbeddings', *, input_points: 'PromptLike | None' = None, input_labels: 'PromptLike | None' = None, input_boxes: 'PromptLike | None' = None, input_masks: 'PromptLike | None' = None, multimask_output: 'bool' = True, text: 'str | None' = None, input_boxes_labels: 'PromptLike | None' = None, score_threshold: 'float | None' = None, threshold: 'float | None' = None) -> 'ConceptSegmentationResult'
+def fastforks.promptable_segmentation._api.InContextSegmentationModel.__call__(self, image: 'ImageLike | ImageEmbeddings', *, reference_images: 'ImageLike | ImageEmbeddings | Sequence[ImageLike]', reference_masks: 'PromptLike | Sequence[PromptLike]') -> 'InContextSegmentationResult'
+def fastforks.promptable_segmentation._api.PromptableSegmentationModel.__call__(self, image: 'ImageLike | ImageEmbeddings', *, input_points: 'PromptLike | None' = None, input_labels: 'PromptLike | None' = None, input_boxes: 'PromptLike | None' = None, input_masks: 'PromptLike | None' = None, multimask_output: 'bool' = True, text: 'str | None' = None, input_boxes_labels: 'PromptLike | None' = None, score_threshold: 'float | None' = None, threshold: 'float | None' = None) -> 'PromptableSegmentationResult | ConceptSegmentationResult'
+def fastforks.promptable_segmentation._api.PromptableSegmentationModel.get_image_embeddings(self, image: 'ImageLike') -> 'ImageEmbeddings'
+def fastforks.promptable_segmentation._api.PromptableSegmentationModel.video(self, frames: 'Sequence[ImageLike] | np.ndarray | torch.Tensor', *, input_points: 'PromptLike | None' = None, input_labels: 'PromptLike | None' = None, input_boxes: 'PromptLike | None' = None, input_masks: 'PromptLike | None' = None) -> 'VideoSegmentationResult'
+def fastforks.promptable_segmentation.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.promptable_segmentation.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> 'PromptableSegmentationModel'
+def fastforks.promptable_segmentation.model_card(model: 'str') -> 'ModelCard'
+def fastforks.read_images(sources: 'Iterable[str | os.PathLike[str] | bytes | bytearray | io.BytesIO]', *, workers: 'int' = 4) -> 'Iterator[np.ndarray]'
+def fastforks.restoration._api.RestorationModel.__call__(self, image: 'ImageLike', *, mask: 'ImageLike | None' = None, tile: 'int | None' = None) -> 'RestorationResult'
+def fastforks.restoration._api.RestorationModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
+def fastforks.restoration._api.RestorationModel.module(self) -> 'torch.nn.Module'
+def fastforks.restoration._api.RestorationResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
+def fastforks.restoration.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.restoration.load(model: 'str | os.PathLike[str]', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.restoration._api.RestorationModel
+def fastforks.restoration.model_card(model: 'str') -> 'ModelCard'
+def fastforks.retrieval._api.RetrievalModel.__call__(self, image: 'ImageLike') -> 'RetrievalResult'
+def fastforks.retrieval.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.retrieval.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.retrieval._api.RetrievalModel
+def fastforks.retrieval.model_card(model: 'str') -> 'ModelCard'
+def fastforks.retrieval.pairs(descriptors: 'torch.Tensor | RetrievalResult', k: 'int' = 20) -> 'torch.Tensor'
+def fastforks.retrieval.top_k(query: 'torch.Tensor | RetrievalResult', database: 'torch.Tensor | RetrievalResult | None' = None, k: 'int' = 10) -> 'tuple[torch.Tensor, torch.Tensor]'
+def fastforks.save(path: 'str | Path', thing: 'Any', **kwargs: 'Any') -> 'None'
+def fastforks.segmentation._api.SegmentationModel.__call__(self, image: 'ImageLike', *, logits: 'bool' = False) -> 'SegmentationResult'
+def fastforks.segmentation.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.segmentation.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.segmentation._api.SegmentationModel
+def fastforks.segmentation.model_card(model: 'str') -> 'ModelCard'
+def fastforks.stereo._api.StereoModel.__call__(self, left: 'ImageLike', right: 'ImageLike', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None) -> 'StereoResult'
+def fastforks.stereo._api.StereoModel.module(self) -> 'torch.nn.Module'
+def fastforks.stereo._api.StereoModel.run_many(self, lefts: 'Images', rights: 'Images', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None, save_to: 'str | os.PathLike[str] | None' = None, save_format: 'str' = '.tif', bits: 'int | None' = None, max_depth: 'float | None' = None, skip_existing: 'bool' = False, on_error: 'OnError' = 'raise', prefetch: 'int | None' = None, readers: 'int | None' = None, writers: 'int | None' = None, warmup: 'bool' = False) -> 'Pipeline[StereoResult]'
+def fastforks.stereo.calibrated.PairViews.cpu(self) -> 'Self'
+def fastforks.stereo.calibrated.PairViews.depth(self, *, euclidean: 'bool' = False) -> 'Map'
+def fastforks.stereo.calibrated.PairViews.numpy(self) -> 'dict[str, Any]'
+def fastforks.stereo.calibrated.PairViews.points(self, *, frame: 'Frame' = 'camera', colors: 'bool' = True) -> 'PointCloud'
+def fastforks.stereo.calibrated.PairViews.save(self, path: 'str | Path', key: 'str | None' = None, bits: 'int | None' = None, *, max_depth: 'float | None' = None, axes: 'str' = 'opencv') -> 'None'
+def fastforks.stereo.calibrated.PairViews.to(self, device: 'str | torch.device') -> 'Self'
+def fastforks.stereo.calibrated.PairViews.valid(self, *, grid: 'Grid' = 'original') -> 'Map'
+def fastforks.stereo.calibrated.StereoView.cpu(self) -> 'Self'
+def fastforks.stereo.calibrated.StereoView.depth(self, *, euclidean: 'bool' = False) -> 'Map'
+def fastforks.stereo.calibrated.StereoView.numpy(self) -> 'dict[str, Any]'
+def fastforks.stereo.calibrated.StereoView.points(self, *, frame: 'Frame' = 'camera', colors: 'bool' = True) -> 'PointCloud'
+def fastforks.stereo.calibrated.StereoView.save(self, path: 'str | Path', key: 'str | None' = None, bits: 'int | None' = None, *, max_depth: 'float | None' = None, axes: 'str' = 'opencv') -> 'None'
+def fastforks.stereo.calibrated.StereoView.to(self, device: 'str | torch.device') -> 'Self'
+def fastforks.stereo.calibrated.StereoView.valid(self, *, grid: 'Grid' = 'original') -> 'Map'
+def fastforks.stereo.geometry.camera(model_id: 'str', width: 'int', height: 'int', fx: 'float', fy: 'float', cx: 'float', cy: 'float', *coefficients: 'float') -> 'Camera'
+def fastforks.stereo.geometry.cameras.Camera.project(self, points: 'ArrayT') -> 'tuple[ArrayT, ArrayT]'
+def fastforks.stereo.geometry.cameras.Camera.resized(self, size: 'tuple[int, int]') -> 'Camera'
+def fastforks.stereo.geometry.cameras.Camera.unproject(self, pixels: 'ArrayT') -> 'tuple[ArrayT, ArrayT]'
+def fastforks.stereo.geometry.cameras._Base.project(self, points: 'ArrayT') -> 'tuple[ArrayT, ArrayT]'
+def fastforks.stereo.geometry.cameras._Base.resized(self, size: 'tuple[int, int]') -> 'Self'
+def fastforks.stereo.geometry.cameras._Base.unproject(self, pixels: 'ArrayT') -> 'tuple[ArrayT, ArrayT]'
+def fastforks.stereo.geometry.read_calib(path: 'str | Path', format: 'CalibFormat | None' = None, *, cameras: 'tuple[int, int] | None' = None, size: 'tuple[int, int] | None' = None, unit: "Literal['m', 'cm', 'mm'] | float | None" = None, right: 'str | Path | None' = None, names: 'tuple[str, str] | None' = None) -> 'StereoRig | RectifiedRig'
+def fastforks.stereo.geometry.rectify(rig: 'StereoRig', *, size: 'tuple[int, int] | None' = None, focal: 'float | None' = None, alpha: 'float | None' = None, fov_max: 'float' = 120.0) -> 'Rectification'
+def fastforks.stereo.geometry.rectify.Rectification.depth(self, disparity: 'ArrayT', *, euclidean: 'bool' = False, view: 'View' = 'left') -> 'ArrayT'
+def fastforks.stereo.geometry.rectify.Rectification.maps(self, device: 'str | torch.device' = 'cpu') -> 'tuple[torch.Tensor, torch.Tensor]'
+def fastforks.stereo.geometry.rectify.Rectification.point_cloud(self, disparity: 'ArrayT', *, colors: 'ArrayT | None' = None, frame: 'Frame' = 'rectified', view: 'View' = 'left') -> 'PointCloud'
+def fastforks.stereo.geometry.rectify.Rectification.prepare(self, device: 'str | torch.device' = 'cuda', *, background: 'bool' = False) -> 'None'
+def fastforks.stereo.geometry.rectify.Rectification.remap(self, left: 'ArrayT', right: 'ArrayT', *, device: 'str | torch.device | None' = None, return_valid: 'bool' = False) -> 'tuple[ArrayT, ...]'
+def fastforks.stereo.geometry.rectify.Rectification.unrectify(self, depth: 'ArrayT', *, device: 'str | torch.device | None' = None, euclidean: 'bool' = False, view: 'View' = 'left') -> 'ArrayT'
+def fastforks.stereo.geometry.rig.RectifiedRig.depth(self, disparity: 'ArrayT', *, euclidean: 'bool' = False, view: 'View' = 'left') -> 'ArrayT'
+def fastforks.stereo.geometry.rig.RectifiedRig.point_cloud(self, disparity: 'ArrayT', *, colors: 'ArrayT | None' = None, frame: 'Frame' = 'rectified', view: 'View' = 'left') -> 'PointCloud'
+def fastforks.stereo.geometry.rig.RectifiedRig.resized(self, size: 'tuple[int, int]') -> 'RectifiedRig'
+def fastforks.stereo.geometry.rig.StereoRig.from_poses(left: 'Camera', right: 'Camera', *, left_to_world: 'ArrayLike', right_to_world: 'ArrayLike', unit: "Literal['m', 'cm', 'mm'] | float" = 'm', axes: "Literal['opencv', 'opengl']" = 'opencv') -> 'StereoRig'
+def fastforks.stereo.geometry.rig.StereoRig.resized(self, size: 'tuple[int, int]') -> 'StereoRig'
+def fastforks.stereo.geometry.write_las(path: 'str | os.PathLike[str]', points: 'np.ndarray | torch.Tensor', colors: 'np.ndarray | torch.Tensor | None' = None, *, axes: 'str' = 'opencv', frame: 'str | None' = None, units: 'str' = 'metres') -> 'int'
+def fastforks.stereo.geometry.write_ply(path: 'str | os.PathLike[str]', points: 'np.ndarray | torch.Tensor', colors: 'np.ndarray | torch.Tensor | None' = None, *, axes: 'str' = 'opencv', frame: 'str | None' = None, units: 'str' = 'metres') -> 'int'
+def fastforks.stereo.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.stereo.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.stereo._api.StereoModel
+def fastforks.stereo.model_card(model: 'str') -> 'ModelCard'
+def fastforks.stereo.pipeline.natural_key(text: 'str') -> 'tuple[list[int | str], str]'
+def fastforks.stereo.pipeline.run_many(model: 'StereoModel', lefts: 'Images', rights: 'Images', *, rig: 'Rig | None' = None, views: 'Views' = 'left', size: 'tuple[int, int] | None' = None, focal: 'float | None' = None, save_to: 'str | os.PathLike[str] | None' = None, save_format: 'str' = '.tif', bits: 'int | None' = None, max_depth: 'float | None' = None, skip_existing: 'bool' = False, on_error: 'OnError' = 'raise', prefetch: 'int | None' = None, readers: 'int | None' = None, writers: 'int | None' = None, warmup: 'bool' = False, _overlap: 'bool' = True) -> 'Pipeline[StereoResult]'
+def fastforks.tracking._api.TrackingModel.__call__(self, video: 'Sequence[ImageLike] | np.ndarray | torch.Tensor', queries: 'Any') -> 'TrackingResult'
+def fastforks.tracking._api.TrackingModel.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
+def fastforks.tracking._api.TrackingModel.module(self) -> 'torch.nn.Module'
+def fastforks.tracking.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.tracking.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.tracking._api.TrackingModel
+def fastforks.tracking.model_card(model: 'str') -> 'ModelCard'
+def fastforks.volume._api.VolumeEncoder.__call__(self, volume: 'np.ndarray | torch.Tensor') -> 'VolumeFeatures'
+def fastforks.volume._api.VolumeInteractive.__call__(self, volume: 'np.ndarray | torch.Tensor', *, point: 'Sequence[float] | None' = None, box: 'Sequence[Sequence[float]] | None' = None, scribble: 'np.ndarray | torch.Tensor | None' = None, positive: 'bool' = True) -> 'VolumeMask'
+def fastforks.volume._api.VolumeInteractive.session(self, volume: 'np.ndarray | torch.Tensor') -> 'VolumeSession'
+def fastforks.volume._api.VolumeModel.__call__(self, volume: 'np.ndarray | torch.Tensor', *, spacing: 'Sequence[float] | None' = None, meta: 'VolumeMeta | None' = None) -> 'VolumeResult'
+def fastforks.volume._api.VolumeModel.module(self) -> 'torch.nn.Module'
+def fastforks.volume._api.VolumeModel.networks(self) -> 'tuple[torch.nn.Module, ...]'
+def fastforks.volume._api.VolumeResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
+def fastforks.volume._api.VolumeSession.add_box(self, box: 'Sequence[Sequence[float]]', *, positive: 'bool' = True) -> 'VolumeMask'
+def fastforks.volume._api.VolumeSession.add_point(self, zyx: 'Sequence[float]', *, positive: 'bool' = True) -> 'VolumeMask'
+def fastforks.volume._api.VolumeSession.add_scribble(self, mask: 'np.ndarray | torch.Tensor', *, positive: 'bool' = True) -> 'VolumeMask'
+def fastforks.volume._api.VolumeSession.reset(self) -> 'None'
+def fastforks.volume.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
+def fastforks.volume.load(model: 'str | os.PathLike[str]', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, folds: 'Sequence[int] | None' = None, step: 'float | None' = None, mirror: 'bool | None' = None, checkpoint: 'str | None' = None, **options: 'object') -> fastforks.volume._api.VolumeModel
+def fastforks.volume.model_card(model: 'str') -> 'ModelCard'
+def fastforks.volume.read_nifti(path: 'str | os.PathLike[str]') -> 'tuple[np.ndarray, VolumeMeta]'
+def fastforks.volume.write_nifti(path: 'str | os.PathLike[str]', labels: 'np.ndarray | torch.Tensor', meta: 'VolumeMeta') -> 'None'
+field fastforks._core.cards.ModelCard.family: str
+field fastforks._core.cards.ModelCard.io: Io
+field fastforks._core.cards.ModelCard.kernel_libs: tuple[str, ...]
+field fastforks._core.cards.ModelCard.kernels_dtype: Dtype
+field fastforks._core.cards.ModelCard.licence: Licence
+field fastforks._core.cards.ModelCard.licence_notes: tuple[str, ...]
+field fastforks._core.cards.ModelCard.limitations: tuple[str, ...]
+field fastforks._core.cards.ModelCard.modes: tuple[Mode, ...]
+field fastforks._core.cards.ModelCard.mps_kernel_libs: tuple[str, ...]
+field fastforks._core.cards.ModelCard.mps_kernels_dtype: Dtype | None
+field fastforks._core.cards.ModelCard.name: str
+field fastforks._core.cards.ModelCard.no_kernels_reason: str
+field fastforks._core.cards.ModelCard.no_original_reason: str
+field fastforks._core.cards.ModelCard.official: tuple[Official, ...]
+field fastforks._core.cards.ModelCard.option_aliases: Mapping[str, str]
+field fastforks._core.cards.ModelCard.option_choices: Mapping[str, tuple[Any, ...]]
+field fastforks._core.cards.ModelCard.option_effect: Mapping[str, OptionEffect]
+field fastforks._core.cards.ModelCard.option_max: Mapping[str, float]
+field fastforks._core.cards.ModelCard.option_min: Mapping[str, float]
+field fastforks._core.cards.ModelCard.options: Mapping[str, Any]
+field fastforks._core.cards.ModelCard.output_info: Mapping[str, Any]
+field fastforks._core.cards.ModelCard.outputs: tuple[str, ...]
+field fastforks._core.cards.ModelCard.papers: tuple[Paper, ...]
+field fastforks._core.cards.ModelCard.params: Mapping[str, Any]
+field fastforks._core.cards.ModelCard.portable_cuda_dtype: Dtype
+field fastforks._core.cards.ModelCard.portable_mps_dtypes: tuple[Dtype, ...]
+field fastforks._core.cards.ModelCard.summary: str
+field fastforks._core.cards.ModelCard.task: str
+field fastforks._core.cards.ModelCard.tier: Tier
+field fastforks._core.cards.ModelCard.upstream: str
+field fastforks._core.cards.ModelCard.upstream_commit: str
+field fastforks._core.cards.ModelCard.uses: tuple[str, ...]
+field fastforks._core.cards.ModelCard.variant_ref: str | None
+field fastforks._core.cards.ModelCard.variants: tuple[Variant, ...]
+field fastforks._core.instances.Instances.backend: Backend
+field fastforks._core.instances.Instances.boxes: torch.Tensor
+field fastforks._core.instances.Instances.class_names: tuple[str, ...]
+field fastforks._core.instances.Instances.labels: torch.Tensor | None
+field fastforks._core.instances.Instances.masks: torch.Tensor | None
+field fastforks._core.instances.Instances.model: str
+field fastforks._core.instances.Instances.options: Mapping[str, Any]
+field fastforks._core.instances.Instances.scores: torch.Tensor
+field fastforks._core.model.Backend.checkpoint: tuple[str, ...]
+field fastforks._core.model.Backend.device: str
+field fastforks._core.model.Backend.dtype: Dtype
+field fastforks._core.model.Backend.kernels: tuple[str, ...]
+field fastforks._core.model.Backend.library: str
+field fastforks._core.model.Backend.mode: Literal['portable', 'kernels']
+field fastforks._core.model.Backend.weights: tuple[str, ...]
+field fastforks._core.sizes.SizeRange.encoder: int
+field fastforks._core.sizes.SizeRange.export_size: tuple[int, int] | None
+field fastforks._core.sizes.SizeRange.min_size: int
+field fastforks._core.sizes.SizeRange.multiple: int
+field fastforks._core.sizes.SizeRange.native: tuple[int, int] | None
+field fastforks._core.sizes.SizeRange.patch: int
+field fastforks._core.sizes.SizeRange.reject_below: int
+field fastforks._core.sizes.SizeRange.resize: int
+field fastforks._core.sizes.SizeRange.tested_alloc_mib: int
+field fastforks._core.sizes.SizeRange.tested_max: tuple[int, int] | None
+field fastforks._core.sizes.SizeRange.tested_reserved_mib: int
+field fastforks.calibration._api.CalibrationResult.backend: Backend
+field fastforks.calibration._api.CalibrationResult.extras: Mapping[str, torch.Tensor]
+field fastforks.calibration._api.CalibrationResult.gravity: torch.Tensor | None
+field fastforks.calibration._api.CalibrationResult.intrinsics: torch.Tensor
+field fastforks.calibration._api.CalibrationResult.model: str
+field fastforks.calibration._api.CalibrationResult.options: Mapping[str, Any]
+field fastforks.calibration._api.CalibrationResult.pitch: torch.Tensor | None
+field fastforks.calibration._api.CalibrationResult.roll: torch.Tensor | None
+field fastforks.calibration._api.CalibrationResult.vfov: torch.Tensor | None
+field fastforks.classification._api.ClassificationResult.backend: Backend
+field fastforks.classification._api.ClassificationResult.class_names: tuple[str, ...]
+field fastforks.classification._api.ClassificationResult.logits: torch.Tensor
+field fastforks.classification._api.ClassificationResult.model: str
+field fastforks.classification._api.ClassificationResult.multi_label: bool
+field fastforks.classification._api.ClassificationResult.options: Mapping[str, Any]
+field fastforks.depth._api.DepthResult.backend: Backend
+field fastforks.depth._api.DepthResult.confidence: torch.Tensor | None
+field fastforks.depth._api.DepthResult.depth: torch.Tensor | None
+field fastforks.depth._api.DepthResult.extras: Mapping[str, torch.Tensor]
+field fastforks.depth._api.DepthResult.intrinsics: torch.Tensor | None
+field fastforks.depth._api.DepthResult.inverse_depth: torch.Tensor | None
+field fastforks.depth._api.DepthResult.kind: DepthKind
+field fastforks.depth._api.DepthResult.mask: torch.Tensor | None
+field fastforks.depth._api.DepthResult.model: str
+field fastforks.depth._api.DepthResult.normals: torch.Tensor | None
+field fastforks.depth._api.DepthResult.options: Mapping[str, Any]
+field fastforks.depth._api.DepthResult.points: torch.Tensor | None
+field fastforks.detection._tracks.ObjectTracks.boxes: torch.Tensor
+field fastforks.detection._tracks.ObjectTracks.ids: torch.Tensor
+field fastforks.detection._tracks.ObjectTracks.labels: torch.Tensor | None
+field fastforks.detection._tracks.ObjectTracks.scores: torch.Tensor
+field fastforks.edges._api.EdgesResult.backend: Backend
+field fastforks.edges._api.EdgesResult.edges: torch.Tensor
+field fastforks.edges._api.EdgesResult.lines: torch.Tensor | list[torch.Tensor] | None
+field fastforks.edges._api.EdgesResult.model: str
+field fastforks.edges._api.EdgesResult.options: Mapping[str, Any]
+field fastforks.features._api.FeaturesResult.backend: Backend
+field fastforks.features._api.FeaturesResult.grid: tuple[int, int]
+field fastforks.features._api.FeaturesResult.hidden_states: tuple[torch.Tensor | None, ...] | None
+field fastforks.features._api.FeaturesResult.last_hidden_state: torch.Tensor
+field fastforks.features._api.FeaturesResult.layers: tuple[int, ...]
+field fastforks.features._api.FeaturesResult.model: str
+field fastforks.features._api.FeaturesResult.num_prefix_tokens: int
+field fastforks.features._api.FeaturesResult.num_register_tokens: int
+field fastforks.features._api.FeaturesResult.options: Mapping[str, Any]
+field fastforks.features._api.FeaturesResult.pooler_output: torch.Tensor | None
+field fastforks.flow._api.FlowResult.backend: Backend
+field fastforks.flow._api.FlowResult.flow: torch.Tensor
+field fastforks.flow._api.FlowResult.model: str
+field fastforks.flow._api.FlowResult.options: Mapping[str, Any]
+field fastforks.interpolation._api.InterpolationResult.backend: Backend
+field fastforks.interpolation._api.InterpolationResult.frame: torch.Tensor
+field fastforks.interpolation._api.InterpolationResult.model: str
+field fastforks.interpolation._api.InterpolationResult.options: Mapping[str, Any]
+field fastforks.matching._api.MatchingResult.backend: Backend
+field fastforks.matching._api.MatchingResult.certainty: torch.Tensor | None
+field fastforks.matching._api.MatchingResult.model: str
+field fastforks.matching._api.MatchingResult.options: Mapping[str, Any]
+field fastforks.matching._api.MatchingResult.warp: torch.Tensor
+field fastforks.matching._api.SparseMatchingResult.backend: Backend
+field fastforks.matching._api.SparseMatchingResult.keypoints1: torch.Tensor
+field fastforks.matching._api.SparseMatchingResult.keypoints2: torch.Tensor
+field fastforks.matching._api.SparseMatchingResult.model: str
+field fastforks.matching._api.SparseMatchingResult.options: Mapping[str, Any]
+field fastforks.matching._api.SparseMatchingResult.pairs: torch.Tensor
+field fastforks.matching._api.SparseMatchingResult.scores: torch.Tensor
+field fastforks.matching._api.VerifiedMatches.geometry: RelativePose | FundamentalMatrix
+field fastforks.matching._api.VerifiedMatches.inliers: torch.Tensor
+field fastforks.matching._api.VerifiedMatches.points1: torch.Tensor
+field fastforks.matching._api.VerifiedMatches.points2: torch.Tensor
+field fastforks.matching._api.VerifiedMatches.scores: torch.Tensor
+field fastforks.matching.absolute_pose.AbsolutePose.R: torch.Tensor
+field fastforks.matching.absolute_pose.AbsolutePose.inliers: torch.Tensor
+field fastforks.matching.absolute_pose.AbsolutePose.ok: torch.Tensor
+field fastforks.matching.absolute_pose.AbsolutePose.t: torch.Tensor
+field fastforks.matching.relative_pose.FundamentalMatrix.F: torch.Tensor
+field fastforks.matching.relative_pose.FundamentalMatrix.inliers: torch.Tensor
+field fastforks.matching.relative_pose.FundamentalMatrix.ok: torch.Tensor
+field fastforks.matching.relative_pose.RelativePose.E: torch.Tensor
+field fastforks.matching.relative_pose.RelativePose.R: torch.Tensor
+field fastforks.matching.relative_pose.RelativePose.inliers: torch.Tensor
+field fastforks.matching.relative_pose.RelativePose.ok: torch.Tensor
+field fastforks.matching.relative_pose.RelativePose.t: torch.Tensor
+field fastforks.matching.sfm.DatabaseStats.images: int
+field fastforks.matching.sfm.DatabaseStats.pairs: int
+field fastforks.matching.sfm.DatabaseStats.peak_mb: dict[str, float]
+field fastforks.matching.sfm.DatabaseStats.seconds: dict[str, float]
+field fastforks.matching.sfm.DatabaseStats.verified: int
+field fastforks.matching.sfm.ReconstructionStats.database: DatabaseStats
+field fastforks.matching.sfm.ReconstructionStats.mapper: str
+field fastforks.matching.sfm.ReconstructionStats.model: Path | None
+field fastforks.matching.sfm.ReconstructionStats.models: int
+field fastforks.matching.sfm.ReconstructionStats.points: int
+field fastforks.matching.sfm.ReconstructionStats.registered: int
+field fastforks.matching.sfm.ReconstructionStats.seconds: float
+field fastforks.matting._api.MattingResult.alpha: torch.Tensor
+field fastforks.matting._api.MattingResult.backend: Backend
+field fastforks.matting._api.MattingResult.model: str
+field fastforks.matting._api.MattingResult.options: Mapping[str, Any]
+field fastforks.matting._api.VideoMattingResult.alpha: torch.Tensor
+field fastforks.matting._api.VideoMattingResult.backend: Backend
+field fastforks.matting._api.VideoMattingResult.model: str
+field fastforks.matting._api.VideoMattingResult.options: Mapping[str, Any]
+field fastforks.multiview._api.MultiViewResult.backend: Backend
+field fastforks.multiview._api.MultiViewResult.cam_to_world: torch.Tensor | None
+field fastforks.multiview._api.MultiViewResult.confidence: torch.Tensor | None
+field fastforks.multiview._api.MultiViewResult.depth: torch.Tensor | None
+field fastforks.multiview._api.MultiViewResult.extras: Mapping[str, torch.Tensor]
+field fastforks.multiview._api.MultiViewResult.gaussians: Gaussians | None
+field fastforks.multiview._api.MultiViewResult.intrinsics: torch.Tensor | None
+field fastforks.multiview._api.MultiViewResult.kind: MultiViewKind
+field fastforks.multiview._api.MultiViewResult.mask: torch.Tensor | None
+field fastforks.multiview._api.MultiViewResult.model: str
+field fastforks.multiview._api.MultiViewResult.options: Mapping[str, Any]
+field fastforks.multiview._api.MultiViewResult.views: tuple[int, ...]
+field fastforks.multiview._api.MultiViewResult.world_points: torch.Tensor | None
+field fastforks.multiview._gaussians.Gaussians.harmonics: torch.Tensor
+field fastforks.multiview._gaussians.Gaussians.means: torch.Tensor
+field fastforks.multiview._gaussians.Gaussians.opacities: torch.Tensor
+field fastforks.multiview._gaussians.Gaussians.rotations: torch.Tensor
+field fastforks.multiview._gaussians.Gaussians.scales: torch.Tensor
+field fastforks.ocr._api.OCRResult.backend: Backend
+field fastforks.ocr._api.OCRResult.boxes: torch.Tensor
+field fastforks.ocr._api.OCRResult.model: str
+field fastforks.ocr._api.OCRResult.options: Mapping[str, Any]
+field fastforks.ocr._api.OCRResult.scores: torch.Tensor
+field fastforks.ocr._api.OCRResult.texts: list[str]
+field fastforks.pose._api.PoseResult.class_names: tuple[str, ...]
+field fastforks.pose._api.PoseResult.keypoint_names: tuple[str, ...]
+field fastforks.pose._api.PoseResult.keypoint_scores: torch.Tensor
+field fastforks.pose._api.PoseResult.keypoints: torch.Tensor
+field fastforks.pose._api.PoseResult.labels: torch.Tensor | None
+field fastforks.pose._api.PoseResult.masks: torch.Tensor | None
+field fastforks.pose._api.PoseResult.skeleton: tuple[tuple[int, int], ...]
+field fastforks.promptable_segmentation._api.ImageEmbeddings.backend: Backend
+field fastforks.promptable_segmentation._api.ImageEmbeddings.features: Mapping[str, torch.Tensor]
+field fastforks.promptable_segmentation._api.ImageEmbeddings.image_size: tuple[int, int]
+field fastforks.promptable_segmentation._api.ImageEmbeddings.model: str
+field fastforks.promptable_segmentation._api.ImageEmbeddings.options: Mapping[str, Any]
+field fastforks.promptable_segmentation._api.InContextSegmentationResult.backend: Backend
+field fastforks.promptable_segmentation._api.InContextSegmentationResult.masks: torch.Tensor
+field fastforks.promptable_segmentation._api.InContextSegmentationResult.model: str
+field fastforks.promptable_segmentation._api.InContextSegmentationResult.options: Mapping[str, Any]
+field fastforks.promptable_segmentation._api.InContextSegmentationResult.similarity: torch.Tensor
+field fastforks.promptable_segmentation._api.PromptableSegmentationResult.backend: Backend
+field fastforks.promptable_segmentation._api.PromptableSegmentationResult.iou_scores: torch.Tensor
+field fastforks.promptable_segmentation._api.PromptableSegmentationResult.masks: torch.Tensor
+field fastforks.promptable_segmentation._api.PromptableSegmentationResult.model: str
+field fastforks.promptable_segmentation._api.PromptableSegmentationResult.options: Mapping[str, Any]
+field fastforks.promptable_segmentation._api.PromptableSegmentationResult.pred_masks: torch.Tensor
+field fastforks.promptable_segmentation._api.VideoSegmentationResult.backend: Backend
+field fastforks.promptable_segmentation._api.VideoSegmentationResult.masks: torch.Tensor
+field fastforks.promptable_segmentation._api.VideoSegmentationResult.model: str
+field fastforks.promptable_segmentation._api.VideoSegmentationResult.object_score_logits: torch.Tensor
+field fastforks.promptable_segmentation._api.VideoSegmentationResult.options: Mapping[str, Any]
+field fastforks.promptable_segmentation._api.VideoSegmentationResult.pred_masks: torch.Tensor
+field fastforks.restoration._api.RestorationResult.backend: Backend
+field fastforks.restoration._api.RestorationResult.image: torch.Tensor
+field fastforks.restoration._api.RestorationResult.model: str
+field fastforks.restoration._api.RestorationResult.options: Mapping[str, Any]
+field fastforks.retrieval._api.RetrievalResult.backend: Backend
+field fastforks.retrieval._api.RetrievalResult.descriptor: torch.Tensor
+field fastforks.retrieval._api.RetrievalResult.model: str
+field fastforks.retrieval._api.RetrievalResult.options: Mapping[str, Any]
+field fastforks.segmentation._api.SegmentationResult.backend: Backend
+field fastforks.segmentation._api.SegmentationResult.class_names: tuple[str, ...]
+field fastforks.segmentation._api.SegmentationResult.labels: torch.Tensor
+field fastforks.segmentation._api.SegmentationResult.logits: torch.Tensor | None
+field fastforks.segmentation._api.SegmentationResult.model: str
+field fastforks.segmentation._api.SegmentationResult.options: Mapping[str, Any]
+field fastforks.stereo.calibrated.StereoResult._by_view: Mapping[str, StereoView] | None
+field fastforks.stereo.calibrated.StereoResult.backend: Backend
+field fastforks.stereo.calibrated.StereoResult.calibrated: bool
+field fastforks.stereo.calibrated.StereoResult.error: Exception | None
+field fastforks.stereo.calibrated.StereoResult.existing: bool
+field fastforks.stereo.calibrated.StereoResult.index: int | None
+field fastforks.stereo.calibrated.StereoResult.left_path: Path | None
+field fastforks.stereo.calibrated.StereoResult.model: str
+field fastforks.stereo.calibrated.StereoResult.options: Mapping[str, Any]
+field fastforks.stereo.calibrated.StereoResult.path: Path | None
+field fastforks.stereo.calibrated.StereoResult.rectification: Geometry | None
+field fastforks.stereo.calibrated.StereoResult.right_path: Path | None
+field fastforks.stereo.calibrated.StereoResult.views: str
+field fastforks.stereo.calibrated.StereoView.confidence: Map | None
+field fastforks.stereo.calibrated.StereoView.disparity: Map
+field fastforks.stereo.calibrated.StereoView.extras: Mapping[str, Map]
+field fastforks.stereo.calibrated.StereoView.name: str
+field fastforks.stereo.calibrated.StereoView.rectification: Geometry | None
+field fastforks.stereo.geometry.cameras.DoubleSphere.alpha: float
+field fastforks.stereo.geometry.cameras.DoubleSphere.xi: float
+field fastforks.stereo.geometry.cameras.EUCM.alpha: float
+field fastforks.stereo.geometry.cameras.EUCM.beta: float
+field fastforks.stereo.geometry.cameras.FOV.w: float
+field fastforks.stereo.geometry.cameras.Fisheye624.k0: float
+field fastforks.stereo.geometry.cameras.Fisheye624.k1: float
+field fastforks.stereo.geometry.cameras.Fisheye624.k2: float
+field fastforks.stereo.geometry.cameras.Fisheye624.k3: float
+field fastforks.stereo.geometry.cameras.Fisheye624.k4: float
+field fastforks.stereo.geometry.cameras.Fisheye624.k5: float
+field fastforks.stereo.geometry.cameras.Fisheye624.p0: float
+field fastforks.stereo.geometry.cameras.Fisheye624.p1: float
+field fastforks.stereo.geometry.cameras.Fisheye624.s0: float
+field fastforks.stereo.geometry.cameras.Fisheye624.s1: float
+field fastforks.stereo.geometry.cameras.Fisheye624.s2: float
+field fastforks.stereo.geometry.cameras.Fisheye624.s3: float
+field fastforks.stereo.geometry.cameras.KB4.k1: float
+field fastforks.stereo.geometry.cameras.KB4.k2: float
+field fastforks.stereo.geometry.cameras.KB4.k3: float
+field fastforks.stereo.geometry.cameras.KB4.k4: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.k1: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.k2: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.k3: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.k4: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.k5: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.k6: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.p1: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.p2: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.s1: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.s2: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.s3: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.s4: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.tx: float
+field fastforks.stereo.geometry.cameras.PinholeOpenCV.ty: float
+field fastforks.stereo.geometry.cameras.ThinPrismFisheye.k1: float
+field fastforks.stereo.geometry.cameras.ThinPrismFisheye.k2: float
+field fastforks.stereo.geometry.cameras.ThinPrismFisheye.k3: float
+field fastforks.stereo.geometry.cameras.ThinPrismFisheye.k4: float
+field fastforks.stereo.geometry.cameras.ThinPrismFisheye.p1: float
+field fastforks.stereo.geometry.cameras.ThinPrismFisheye.p2: float
+field fastforks.stereo.geometry.cameras.ThinPrismFisheye.sx1: float
+field fastforks.stereo.geometry.cameras.ThinPrismFisheye.sy1: float
+field fastforks.stereo.geometry.cameras.UCM.xi: float
+field fastforks.stereo.geometry.cameras._Base.cx: float
+field fastforks.stereo.geometry.cameras._Base.cy: float
+field fastforks.stereo.geometry.cameras._Base.fx: float
+field fastforks.stereo.geometry.cameras._Base.fy: float
+field fastforks.stereo.geometry.cameras._Base.height: int
+field fastforks.stereo.geometry.cameras._Base.width: int
+field fastforks.stereo.geometry.rectify.Rectification.P1: np.ndarray
+field fastforks.stereo.geometry.rectify.Rectification.P2: np.ndarray
+field fastforks.stereo.geometry.rectify.Rectification.Q: np.ndarray
+field fastforks.stereo.geometry.rectify.Rectification.R1: np.ndarray
+field fastforks.stereo.geometry.rectify.Rectification.R2: np.ndarray
+field fastforks.stereo.geometry.rectify.Rectification._cache: dict[tuple[str, str], Any]
+field fastforks.stereo.geometry.rectify.Rectification._lock: threading.RLock
+field fastforks.stereo.geometry.rectify.Rectification.rig: StereoRig
+field fastforks.stereo.geometry.rectify.Rectification.roi_left: tuple[int, int, int, int]
+field fastforks.stereo.geometry.rectify.Rectification.roi_right: tuple[int, int, int, int]
+field fastforks.stereo.geometry.rectify.Rectification.size: tuple[int, int]
+field fastforks.stereo.geometry.rig.PointCloud.colors: ForwardRef('np.ndarray | torch.Tensor | None')
+field fastforks.stereo.geometry.rig.PointCloud.points: ForwardRef('np.ndarray | torch.Tensor')
+field fastforks.stereo.geometry.rig.PointCloud.valid: ForwardRef('np.ndarray | torch.Tensor')
+field fastforks.stereo.geometry.rig.RectifiedRig.baseline: float
+field fastforks.stereo.geometry.rig.RectifiedRig.cx: float | None
+field fastforks.stereo.geometry.rig.RectifiedRig.cy: float | None
+field fastforks.stereo.geometry.rig.RectifiedRig.doffs: float
+field fastforks.stereo.geometry.rig.RectifiedRig.f: float
+field fastforks.stereo.geometry.rig.RectifiedRig.size: tuple[int, int] | None
+field fastforks.stereo.geometry.rig.StereoRig.R: np.ndarray
+field fastforks.stereo.geometry.rig.StereoRig.T: np.ndarray
+field fastforks.stereo.geometry.rig.StereoRig.left: Camera
+field fastforks.stereo.geometry.rig.StereoRig.right: Camera
+field fastforks.tracking._api.TrackingResult.backend: Backend
+field fastforks.tracking._api.TrackingResult.model: str
+field fastforks.tracking._api.TrackingResult.options: Mapping[str, Any]
+field fastforks.tracking._api.TrackingResult.tracks: torch.Tensor
+field fastforks.tracking._api.TrackingResult.visibility: torch.Tensor | None
+field fastforks.volume._api.VolumeFeatures.backend: Backend
+field fastforks.volume._api.VolumeFeatures.features: tuple[torch.Tensor, ...]
+field fastforks.volume._api.VolumeFeatures.model: str
+field fastforks.volume._api.VolumeFeatures.options: Mapping[str, Any]
+field fastforks.volume._api.VolumeFeatures.strides: tuple[int, ...]
+field fastforks.volume._api.VolumeMask.backend: Backend
+field fastforks.volume._api.VolumeMask.mask: torch.Tensor
+field fastforks.volume._api.VolumeMask.model: str
+field fastforks.volume._api.VolumeMask.options: Mapping[str, Any]
+field fastforks.volume._api.VolumeResult.backend: Backend
+field fastforks.volume._api.VolumeResult.class_names: Mapping[int, str]
+field fastforks.volume._api.VolumeResult.labels: torch.Tensor
+field fastforks.volume._api.VolumeResult.meta: VolumeMeta | None
+field fastforks.volume._api.VolumeResult.model: str
+field fastforks.volume._api.VolumeResult.options: Mapping[str, Any]
+field fastforks.volume._nifti.VolumeMeta.affine: np.ndarray
+field fastforks.volume._nifti.VolumeMeta.header: Any
+field fastforks.volume._nifti.VolumeMeta.shape: tuple[int, int, int]
+field fastforks.volume._nifti.VolumeMeta.spacing: tuple[float, float, float]
+name fastforks.ArgumentError = class fastforks._core.errors.ArgumentError
+name fastforks.Backend = class fastforks._core.model.Backend
+name fastforks.BackendUnavailableError = class fastforks._core.errors.BackendUnavailableError
+name fastforks.CardError = class fastforks._core.errors.CardError
+name fastforks.CheckpointMismatchError = class fastforks._core.errors.CheckpointMismatchError
+name fastforks.FastModel = class fastforks._optimize.FastModel
+name fastforks.FastforksError = class fastforks._core.errors.FastforksError
+name fastforks.ImageLike
+name fastforks.InputError = class fastforks._core.errors.InputError
+name fastforks.KernelUnavailableError = class fastforks._core.errors.KernelUnavailableError
+name fastforks.LicenceError = class fastforks._core.errors.LicenceError
+name fastforks.MissingDependencyError = class fastforks._core.errors.MissingDependencyError
+name fastforks.Model = class fastforks._core.model.Model
+name fastforks.ModelCard = class fastforks._core.cards.ModelCard
+name fastforks.ModelNotFoundError = class fastforks._core.errors.ModelNotFoundError
+name fastforks.OptionsError = class fastforks._core.errors.OptionsError
+name fastforks.SizeRange = class fastforks._core.sizes.SizeRange
+name fastforks.TensorRTEngine = class fastforks._core.export.TensorRTEngine
+name fastforks.WeightsDownloadError = class fastforks._core.errors.WeightsDownloadError
+name fastforks.WeightsError = class fastforks._core.errors.WeightsError
+name fastforks.WeightsHashError = class fastforks._core.errors.WeightsHashError
+name fastforks.__version__
+name fastforks.calibration.CalibrationModel = class fastforks.calibration._api.CalibrationModel
+name fastforks.calibration.CalibrationResult = class fastforks.calibration._api.CalibrationResult
+name fastforks.classification.ClassificationModel = class fastforks.classification._api.ClassificationModel
+name fastforks.classification.ClassificationResult = class fastforks.classification._api.ClassificationResult
+name fastforks.depth.DepthModel = class fastforks.depth._api.DepthModel
+name fastforks.depth.DepthResult = class fastforks.depth._api.DepthResult
+name fastforks.detection.ByteTracker = class fastforks.detection._tracks.ByteTracker
+name fastforks.detection.DetectionModel = class fastforks.detection._api.DetectionModel
+name fastforks.detection.DetectionResult = class fastforks.detection._api.DetectionResult
+name fastforks.detection.ObjectTracks = class fastforks.detection._tracks.ObjectTracks
+name fastforks.edges.EdgesModel = class fastforks.edges._api.EdgesModel
+name fastforks.edges.EdgesResult = class fastforks.edges._api.EdgesResult
+name fastforks.features.FeaturesModel = class fastforks.features._api.FeaturesModel
+name fastforks.features.FeaturesResult = class fastforks.features._api.FeaturesResult
+name fastforks.flow.FlowModel = class fastforks.flow._api.FlowModel
+name fastforks.flow.FlowResult = class fastforks.flow._api.FlowResult
+name fastforks.interpolation.InterpolationModel = class fastforks.interpolation._api.InterpolationModel
+name fastforks.interpolation.InterpolationResult = class fastforks.interpolation._api.InterpolationResult
+name fastforks.matching.AbsolutePose = class fastforks.matching.absolute_pose.AbsolutePose
+name fastforks.matching.FundamentalMatrix = class fastforks.matching.relative_pose.FundamentalMatrix
+name fastforks.matching.MatchingModel = class fastforks.matching._api.MatchingModel
+name fastforks.matching.MatchingResult = class fastforks.matching._api.MatchingResult
+name fastforks.matching.RelativePose = class fastforks.matching.relative_pose.RelativePose
+name fastforks.matching.SparseMatchingResult = class fastforks.matching._api.SparseMatchingResult
+name fastforks.matching.VerifiedMatches = class fastforks.matching._api.VerifiedMatches
+name fastforks.matching.absolute_pose.AbsolutePose = class fastforks.matching.absolute_pose.AbsolutePose
+name fastforks.matching.relative_pose.FundamentalMatrix = class fastforks.matching.relative_pose.FundamentalMatrix
+name fastforks.matching.relative_pose.RelativePose = class fastforks.matching.relative_pose.RelativePose
+name fastforks.matching.sfm.DEFAULT_MATCHER
+name fastforks.matching.sfm.DatabaseStats = class fastforks.matching.sfm.DatabaseStats
+name fastforks.matching.sfm.ReconstructionStats = class fastforks.matching.sfm.ReconstructionStats
+name fastforks.matting.MattingModel = class fastforks.matting._api.MattingModel
+name fastforks.matting.MattingResult = class fastforks.matting._api.MattingResult
+name fastforks.matting.VideoMattingResult = class fastforks.matting._api.VideoMattingResult
+name fastforks.multiview.Gaussians = class fastforks.multiview._gaussians.Gaussians
+name fastforks.multiview.MultiViewModel = class fastforks.multiview._api.MultiViewModel
+name fastforks.multiview.MultiViewResult = class fastforks.multiview._api.MultiViewResult
+name fastforks.ocr.OCRModel = class fastforks.ocr._api.OCRModel
+name fastforks.ocr.OCRResult = class fastforks.ocr._api.OCRResult
+name fastforks.pose.PoseModel = class fastforks.pose._api.PoseModel
+name fastforks.pose.PoseResult = class fastforks.pose._api.PoseResult
+name fastforks.promptable_segmentation.ConceptSegmentationModel = class fastforks.promptable_segmentation._api.ConceptSegmentationModel
+name fastforks.promptable_segmentation.ConceptSegmentationResult = class fastforks.promptable_segmentation._api.ConceptSegmentationResult
+name fastforks.promptable_segmentation.ImageEmbeddings = class fastforks.promptable_segmentation._api.ImageEmbeddings
+name fastforks.promptable_segmentation.InContextSegmentationModel = class fastforks.promptable_segmentation._api.InContextSegmentationModel
+name fastforks.promptable_segmentation.InContextSegmentationResult = class fastforks.promptable_segmentation._api.InContextSegmentationResult
+name fastforks.promptable_segmentation.PromptLike
+name fastforks.promptable_segmentation.PromptableSegmentationModel = class fastforks.promptable_segmentation._api.PromptableSegmentationModel
+name fastforks.promptable_segmentation.PromptableSegmentationResult = class fastforks.promptable_segmentation._api.PromptableSegmentationResult
+name fastforks.promptable_segmentation.VideoSegmentationResult = class fastforks.promptable_segmentation._api.VideoSegmentationResult
+name fastforks.restoration.RestorationModel = class fastforks.restoration._api.RestorationModel
+name fastforks.restoration.RestorationResult = class fastforks.restoration._api.RestorationResult
+name fastforks.retrieval.RetrievalModel = class fastforks.retrieval._api.RetrievalModel
+name fastforks.retrieval.RetrievalResult = class fastforks.retrieval._api.RetrievalResult
+name fastforks.segmentation.SegmentationModel = class fastforks.segmentation._api.SegmentationModel
+name fastforks.segmentation.SegmentationResult = class fastforks.segmentation._api.SegmentationResult
+name fastforks.stereo.StereoModel = class fastforks.stereo._api.StereoModel
+name fastforks.stereo.StereoResult = class fastforks.stereo.calibrated.StereoResult
+name fastforks.stereo.StereoView = class fastforks.stereo.calibrated.StereoView
+name fastforks.stereo.geometry.Camera = class fastforks.stereo.geometry.cameras.Camera
+name fastforks.stereo.geometry.DoubleSphere = class fastforks.stereo.geometry.cameras.DoubleSphere
+name fastforks.stereo.geometry.E57Cylindrical = class fastforks.stereo.geometry.cameras.E57Cylindrical
+name fastforks.stereo.geometry.E57Pinhole = class fastforks.stereo.geometry.cameras.E57Pinhole
+name fastforks.stereo.geometry.E57Spherical = class fastforks.stereo.geometry.cameras.E57Spherical
+name fastforks.stereo.geometry.EUCM = class fastforks.stereo.geometry.cameras.EUCM
+name fastforks.stereo.geometry.FOV = class fastforks.stereo.geometry.cameras.FOV
+name fastforks.stereo.geometry.Fisheye624 = class fastforks.stereo.geometry.cameras.Fisheye624
+name fastforks.stereo.geometry.KB4 = class fastforks.stereo.geometry.cameras.KB4
+name fastforks.stereo.geometry.Pinhole = class fastforks.stereo.geometry.cameras.Pinhole
+name fastforks.stereo.geometry.PinholeOpenCV = class fastforks.stereo.geometry.cameras.PinholeOpenCV
+name fastforks.stereo.geometry.PointCloud = class fastforks.stereo.geometry.rig.PointCloud
+name fastforks.stereo.geometry.Rectification = class fastforks.stereo.geometry.rectify.Rectification
+name fastforks.stereo.geometry.RectifiedRig = class fastforks.stereo.geometry.rig.RectifiedRig
+name fastforks.stereo.geometry.StereoRig = class fastforks.stereo.geometry.rig.StereoRig
+name fastforks.stereo.geometry.ThinPrismFisheye = class fastforks.stereo.geometry.cameras.ThinPrismFisheye
+name fastforks.stereo.geometry.UCM = class fastforks.stereo.geometry.cameras.UCM
+name fastforks.stereo.pipeline.IMAGE_SUFFIXES
+name fastforks.stereo.pipeline.Images
+name fastforks.stereo.pipeline.Rig
+name fastforks.tracking.TrackingModel = class fastforks.tracking._api.TrackingModel
+name fastforks.tracking.TrackingResult = class fastforks.tracking._api.TrackingResult
+name fastforks.volume.VolumeEncoder = class fastforks.volume._api.VolumeEncoder
+name fastforks.volume.VolumeFeatures = class fastforks.volume._api.VolumeFeatures
+name fastforks.volume.VolumeInteractive = class fastforks.volume._api.VolumeInteractive
+name fastforks.volume.VolumeMask = class fastforks.volume._api.VolumeMask
+name fastforks.volume.VolumeMeta = class fastforks.volume._nifti.VolumeMeta
+name fastforks.volume.VolumeModel = class fastforks.volume._api.VolumeModel
+name fastforks.volume.VolumeResult = class fastforks.volume._api.VolumeResult
+name fastforks.volume.VolumeSession = class fastforks.volume._api.VolumeSession
+option calibration.anycalib.cuda_graphs
+option calibration.geocalib.cuda_graphs
+option depth.any2full.short_side
+option depth.depth_anything_3.long_side aliases process_res
+option depth.depth_anything_v2.short_side aliases input_size
+option depth.depthfm.ensemble aliases ensemble_size
+option depth.depthfm.long_side aliases processing_res
+option depth.depthfm.seed
+option depth.depthfm.steps aliases num_steps
+option depth.lingbot_depth.resolution_level
+option depth.lotus.long_side aliases processing_res
+option depth.lotus.seed
+option depth.marigold.long_side aliases processing_res
+option depth.marigold.seed
+option depth.marigold.steps
+option depth.marigold_normals.long_side aliases processing_res
+option depth.marigold_normals.seed
+option depth.marigold_normals.steps
+option depth.marigold_v2.exact_mask
+option depth.marigold_v2.long_side
+option depth.marigold_v2.seed
+option depth.marigold_v2.stream
+option depth.midas.input_size
+option depth.moge.normals
+option depth.moge.resolution_level
+option depth.pointdit.steps
+option depth.pointdit.tokens
+option depth.prompt_depth_anything.max_size
+option depth.stablenormal.long_side aliases processing_res
+option depth.stablenormal.seed
+option depth.unidepth_v2.confidence
+option depth.unik3d.confidence
+option depth.unik3d.resolution_level
+option depth.video_depth_anything.short_side aliases input_size
+option depth.zoedepth.flip
+option depth.zoedepth.pad_input
+option detection.detr.max_detections
+option detection.detr.score_threshold
+option detection.dfine.cuda_graphs
+option detection.dfine.max_detections
+option detection.dfine.score_threshold
+option detection.grounding_dino.max_detections
+option detection.grounding_dino.score_threshold
+option detection.lwdetr.cuda_graphs
+option detection.lwdetr.max_detections
+option detection.lwdetr.score_threshold
+option detection.owlv2.cuda_graphs
+option detection.owlv2.max_detections
+option detection.owlv2.score_threshold
+option detection.rcnn.max_detections
+option detection.rcnn.score_threshold
+option detection.rfdetr.max_detections
+option detection.rfdetr.score_threshold
+option detection.rtdetrv2.cuda_graphs
+option detection.rtdetrv2.max_detections
+option detection.rtdetrv2.score_threshold
+option detection.rtmdet.cuda_graphs
+option detection.rtmdet.max_detections
+option detection.rtmdet.score_threshold
+option detection.yolox.cuda_graphs
+option detection.yolox.max_detections
+option detection.yolox.score_threshold
+option edges.anyline.short_side aliases detect_resolution,resolution
+option edges.hed.safe
+option edges.hed.short_side aliases detect_resolution,resolution
+option edges.lineart.short_side aliases detect_resolution,resolution
+option edges.lineart_anime.short_side aliases detect_resolution,resolution
+option edges.mlsd.short_side aliases detect_resolution,resolution
+option edges.mlsd.thr_d
+option edges.mlsd.thr_v
+option edges.pidinet.apply_filter
+option edges.pidinet.safe
+option edges.pidinet.short_side aliases detect_resolution,resolution
+option edges.teed.safe_steps
+option edges.teed.short_side aliases detect_resolution,resolution
+option features.c_radio.fp16_accumulate
+option features.c_radio.fp32_accumulate
+option features.clip.fp16_accumulate
+option features.clip.fp32_accumulate
+option features.dinov2.fp16_accumulate
+option features.dinov3.fp16_accumulate
+option features.perception_encoder.fp16_accumulate
+option features.perception_encoder.fp32_accumulate
+option features.siglip2.fp16_accumulate
+option features.siglip2.fp32_accumulate
+option features.tipsv2.fp16_accumulate
+option flow.flowformer.iters
+option flow.flowseek.iters
+option flow.megaflow.iters
+option flow.memflow.iters
+option flow.memfof.iters
+option flow.neuflow_v2.iters
+option flow.raft.iters
+option flow.recover.iters
+option flow.sea_raft.iters
+option flow.waft.iters
+option interpolation.ema_vfi.cuda_graphs
+option interpolation.ema_vfi.tta
+option interpolation.film.cuda_graphs
+option interpolation.rife.cuda_graphs
+option matching.dedode.max_keypoints
+option matching.dedode.size
+option matching.flexglue.long_side
+option matching.flexglue.max_keypoints
+option matching.flexglue.size
+option matching.lightglue.long_side
+option matching.lightglue.max_keypoints
+option matching.loftr.long_side
+option matching.loma.long_side
+option matching.loma.max_keypoints
+option matching.loma.size
+option matching.romav1.coarse_size
+option matching.romav1.fine_size
+option matching.romav2.coarse_size
+option matching.romav2.fine_size
+option matching.romav2.keep_descriptors
+option matching.xfeat.long_side
+option matching.xfeat.max_keypoints
+option matting.matanyone.dilate aliases r_dilate
+option matting.matanyone.erode aliases r_erode
+option matting.matanyone.warmup aliases n_warmup
+option multiview.anysplat.long_side
+option multiview.anysplat.voxel_size
+option multiview.depthsplat.long_side
+option multiview.lingbot_map.long_side
+option multiview.lingbot_map.scale_frames
+option multiview.lingbot_map.window
+option multiview.mapanything.long_side aliases resolution
+option multiview.mvsanywhere.long_side
+option multiview.mvsanywhere.refinement_steps
+option multiview.mvsplat.long_side
+option multiview.pi3.pixel_limit
+option multiview.resplat.long_side
+option multiview.resplat.refine
+option multiview.vggt.long_side
+option multiview.vggt_omega.area_side aliases resolution
+option ocr.parseq.cuda_graphs
+option ocr.ppocrv5.box_threshold aliases text_det_box_thresh
+option ocr.ppocrv5.unclip_ratio aliases text_det_unclip_ratio
+option pose.hrnet.flip_test
+option pose.retinaface.score_threshold
+option pose.rfdetr_keypoint.score_threshold
+option pose.rtmo.score_threshold
+option pose.rtmpose.flip_test
+option pose.vitpose.fp32_accumulate
+option pose.yunet.score_threshold
+option promptable_segmentation.clipseg.cuda_graphs
+option promptable_segmentation.sam2.samurai
+option restoration.codeformer.fidelity aliases fidelity_weight
+option restoration.lama.cuda_graphs
+option restoration.seedvr2.quant
+option restoration.seedvr2.seed
+option restoration.seedvr2.stream
+option stereo.c_foundationstereo.iters
+option stereo.coex.cuda_graphs
+option stereo.crestereo.iters
+option stereo.defom_stereo.iters
+option stereo.defom_stereo.scale_iters
+option stereo.dlnr.iters
+option stereo.fast_acvnet.cuda_graphs
+option stereo.foundationstereo.iters
+option stereo.great_igev.cuda_graphs
+option stereo.great_igev.iters
+option stereo.hitnet.cuda_graphs
+option stereo.igev_plusplus.cuda_graphs
+option stereo.igev_plusplus.iters
+option stereo.igev_stereo.iters
+option stereo.las2.cuda_graphs
+option stereo.mocha_stereo.iters
+option stereo.monster.iters
+option stereo.monster_plusplus.iters
+option stereo.raft_stereo.iters
+option stereo.rt_monster_plusplus.cuda_graphs
+option stereo.selective_igev.iters
+option tracking.alltracker.iters
+option tracking.track_on.memory
+option tracking.track_on.support_grid
+property fastforks._core.cards.ModelCard.extras -> tuple[str, ...]
+property fastforks._core.cards.ModelCard.module -> str
+property fastforks._core.cards.ModelCard.requires -> tuple[str, ...]
+property fastforks._optimize.FastModel.original -> nn.Module
+property fastforks.classification._api.ClassificationModel.class_names -> tuple[str, ...]
+property fastforks.classification._api.ClassificationModel.data_config -> dict[str, Any]
+property fastforks.classification._api.ClassificationModel.id2label -> dict[int, str]
+property fastforks.classification._api.ClassificationModel.num_classes -> int
+property fastforks.classification._api.ClassificationResult.probs -> torch.Tensor
+property fastforks.detection._api.DetectionModel.open_vocabulary -> bool
+property fastforks.features._api.FeaturesResult.cls_token -> torch.Tensor
+property fastforks.features._api.FeaturesResult.patch_tokens -> torch.Tensor
+property fastforks.features._api.FeaturesResult.register_tokens -> torch.Tensor
+property fastforks.matching._api.MatchingModel.sparse -> bool
+property fastforks.matching._api.VerifiedMatches.inlier_ratio -> torch.Tensor
+property fastforks.multiview._api.MultiViewResult.extrinsics -> torch.Tensor | None
+property fastforks.multiview._gaussians.Gaussians.sh_degree -> int
+property fastforks.restoration._api.RestorationModel.scale -> int
+property fastforks.retrieval._api.RetrievalModel.dim -> int
+property fastforks.stereo.calibrated.PairViews.confidence -> Map | None
+property fastforks.stereo.calibrated.PairViews.disparity -> Map | None
+property fastforks.stereo.calibrated.PairViews.extras -> Mapping[str, Map]
+property fastforks.stereo.calibrated.PairViews.left -> StereoView | None
+property fastforks.stereo.calibrated.PairViews.right -> StereoView | None
+property fastforks.stereo.calibrated.PairViews.view -> str
+property fastforks.stereo.geometry.cameras.Camera.cx -> float
+property fastforks.stereo.geometry.cameras.Camera.cy -> float
+property fastforks.stereo.geometry.cameras.Camera.fx -> float
+property fastforks.stereo.geometry.cameras.Camera.fy -> float
+property fastforks.stereo.geometry.cameras.Camera.height -> int
+property fastforks.stereo.geometry.cameras.Camera.size -> tuple[int, int]
+property fastforks.stereo.geometry.cameras.Camera.width -> int
+property fastforks.stereo.geometry.cameras._Base.coefficients -> tuple[float, ...]
+property fastforks.stereo.geometry.cameras._Base.size -> tuple[int, int]
+property fastforks.stereo.geometry.rectify.Rectification.baseline -> float
+property fastforks.stereo.geometry.rectify.Rectification.f -> float
+property fastforks.stereo.geometry.rectify.Rectification.rectified -> RectifiedRig
+property fastforks.stereo.geometry.rig.StereoRig.baseline -> float
+property fastforks.tracking._api.TrackingResult.visible -> torch.Tensor | None
+property fastforks.volume._api.VolumeSession.mask -> VolumeMask

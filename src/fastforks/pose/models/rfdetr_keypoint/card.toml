@@ -69,6 +69,12 @@ kernels = ["fastbb"]
 [output]
 label_set = "coco-keypoints-17"
 
+[[papers]]
+title = "RF-DETR: Neural Architecture Search for Real-Time Detection Transformers"
+url = "https://arxiv.org/abs/2511.09554"
+date = "2025-11-12"
+venue = "ICLR 2026"
+
 [[variants]]
 id = "rf-detr-keypoint-preview"
 revision = 1

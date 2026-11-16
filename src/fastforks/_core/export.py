@@ -24,10 +24,11 @@ import tempfile
 import threading
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import torch
 
+from fastforks._core.cards import require_available
 from fastforks._core.errors import BackendUnavailableError, InputError, install_hint
 from fastforks._core.export_resize import matmul_antialias
 from fastforks._core.tasks import spec
@@ -85,13 +86,16 @@ def output_name(model: Model) -> str:
     return next(k for k in spec(model.card.task).standard if k in model.variant.outputs)
 
 
-def check_exportable(model: Model, height: int, width: int, batch: int) -> None:
-    """Raise unless `model` runs portable and the size is supported.
+def check_exportable(
+    model: Model, height: int, width: int, batch: int, feature: Literal["onnx", "tensorrt"] = "onnx"
+) -> None:
+    """Raise unless `model` runs portable, its card does not mark `feature` as `[planned]` and the size is supported.
 
     Raises:
-        BackendUnavailableError: The model runs `kernels`.
+        BackendUnavailableError: The model runs `kernels`, or `feature` is known not to work yet (planned for 0.2.1).
         InputError: The size is below the model's minimum, or `batch < 1`.
     """
+    require_available(model.variant, feature)
     if model.backend.mode != "portable":
         msg = (
             f"{model.variant.ref}: the kernels backend runs custom CUDA kernels, which ONNX and TensorRT cannot run;"
@@ -120,6 +124,9 @@ off-trace and max sizes). Every other family exports at a fixed size only."""
 
 DYNAMIC_UNSUPPORTED = {
     "prompt_depth_anything": "the dynamic-shape spec would also resize the depth prompt, which has a size of its own",
+    "lingbot_depth": "the dynamic-shape spec would also resize the depth map, which has a size of its own",
+    "any2full": "the dynamic-shape spec would also resize the depth map, which has a size of its own",
+    "omni_dc": "the conjugate-gradient solve has a data-dependent step count (no export at all)",
     "depth_anything_v2": "the model rounds a symbolic size (Python `round()`), which torch.export cannot trace",
     "hitnet": "the traced graph fixes the height (the engine would only look dynamic)",
     "moge": "the traced graph fixes the input size (the file would only look dynamic)",
@@ -252,13 +259,15 @@ def export_onnx(  # noqa: PLR0913 - the size, the batch and the optional dynamic
 ) -> Path:
     """Write `model.module()` at `[batch, 3, height, width]` to an ONNX file.
 
-    The size defaults to `model.export_size()` where the task has one (classification, features); else it is required.
+    The size defaults to `model.size_range().export_size` where the task has one (classification, features); else it
+    is required.
     `size_range=((min_h, min_w), (max_h, max_w))` makes height and width dynamic axes of the graph within these bounds
     (the graph is traced at `(height, width)`); the default is a fixed size. A dynamic file is checked: its image
     inputs must have symbolic H / W, and with `onnxruntime` installed it runs at the corners of the range
     (`probe_sizes`) and must match eager `module()` there (`DYNAMIC_TOLERANCE`); a file that fails is removed
     (`InputError`). A size range is refused up front for families outside `DYNAMIC_VERIFIED` (`fixed_size_reason`).
     """
+    require_available(model.variant, "onnx")  # before the size: a gated export says so first
     return _export_onnx(model, path, height, width, batch=batch, size_range=size_range, run=True)
 
 
@@ -445,9 +454,9 @@ def resolve_size(model: Model, height: int | None, width: int | None) -> tuple[i
         raise InputError(msg)
     if height is not None and width is not None:
         return height, width
-    default = model.export_size()
+    rng = model.size_range()
+    default = rng.export_size
     if default is None:
-        rng = model.size_range()
         eh, ew = rng.example()
         msg = (
             f"{model.variant.ref}: give an export size (this task has no default); valid sizes: "
@@ -457,13 +466,16 @@ def resolve_size(model: Model, height: int | None, width: int | None) -> tuple[i
     return default
 
 
-def _fix_folded_weight_casts(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Model
-    """Cast float32 weight constants of fp16 / bf16 convolutions to the input's dtype; returns how many it replaced.
+_WEIGHT_CAST_OPS = {"Conv", "ConvTranspose", "InstanceNormalization"}  # weight / scale + bias take the input's dtype
 
-    Under autocast a convolution casts its float32 weights to fp16 / bf16. The exporter's constant folding (torch 2.14,
-    onnxscript 0.7) stores some of these casts as float32 initializers again (seen in LAS2 fp16, on the weights the
-    two feature passes share; DEFOM bf16), which onnxruntime and TensorRT reject. The replacement is the value the cast
-    computes.
+
+def _fix_folded_weight_casts(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Model
+    """Cast float32 weight constants of fp16 / bf16 convolutions (and instance norms: scale, bias) to the input's dtype.
+
+    Returns how many it replaced. Under autocast a convolution casts its float32 weights to fp16 / bf16. The
+    exporter's constant folding (torch 2.14, onnxscript 0.7) stores some of these casts as float32 initializers again
+    (seen in LAS2 fp16, on the weights the two feature passes share; DEFOM bf16; TAPIR's instance norms), which
+    onnxruntime and TensorRT reject. The replacement is the value the cast computes.
     """
     try:
         import onnx_ir as ir  # noqa: PLC0415 - comes with onnxscript (optional)
@@ -473,7 +485,7 @@ def _fix_folded_weight_casts(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Mo
 
     fixed = 0
     for node in model.graph.all_nodes():
-        x = node.inputs[0] if node.op_type in {"Conv", "ConvTranspose"} and node.inputs else None
+        x = node.inputs[0] if node.op_type in _WEIGHT_CAST_OPS and node.inputs else None
         if x is None or x.dtype not in {ir.DataType.FLOAT16, ir.DataType.BFLOAT16}:
             continue
         for i, v in enumerate(node.inputs[1:], 1):
@@ -667,8 +679,9 @@ def export_tensorrt(  # noqa: PLR0913 - export_onnx's arguments plus the build w
     bound, opt = `(height, width)`, max = upper bound); dynamic engines are not faster than fixed ones, see export.md.
     The engine is run once on `example_inputs`: an all-NaN output removes it and raises `BackendUnavailableError`.
     """
+    require_available(model.variant, "tensorrt")  # before the size: a gated export says so first
     height, width = resolve_size(model, height, width)
-    check_exportable(model, height, width, batch)
+    check_exportable(model, height, width, batch, "tensorrt")
     _bounds(model, height, width, size_range, batch)
     _tensorrt()
     if not torch.cuda.is_available():  # before the ONNX export: the builder fails late and cryptically without one

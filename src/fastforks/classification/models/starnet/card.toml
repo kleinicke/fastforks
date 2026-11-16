@@ -9,6 +9,11 @@ uses = ["libnet", "cuda_graphs"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/ma-xu/Rewrite-the-Stars"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
 [licence]
 code = "Apache-2.0"  # timm
 # The checkpoints are the authors' (ma-xu/Rewrite-the-Stars, Apache-2.0:
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "Rewrite the Stars"
+url = "https://arxiv.org/abs/2403.19967"
+date = "2024-03-29"
+venue = "CVPR 2024"
 
 [[variants]]
 id = "starnet_s1.in1k"

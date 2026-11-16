@@ -126,7 +126,7 @@ def _load(device: str, mode: Mode, **options: object) -> detection.DetectionMode
         registry.weights(card, variant, allow_download=False)
     except WeightsError as e:
         pytest.skip(f"weights of {REF} not available locally: {e}")
-    return detection.load(REF, mode=mode, device=device, options=options)
+    return detection.load(REF, mode=mode, device=device, **(options or {}))
 
 
 RUNS = [

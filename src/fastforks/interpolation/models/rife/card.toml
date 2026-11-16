@@ -36,6 +36,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulate convs and transposed convs, the residual scales folded, one CUDA graph per input shape
 
+[[papers]]
+title = "Real-Time Intermediate Flow Estimation for Video Frame Interpolation"
+url = "https://arxiv.org/abs/2011.06294"
+date = "2020-11-12"
+venue = "ECCV 2022"
+
 [[variants]]
 id = "rife-4.25"  # README: "recommended to choose 4.25 by default"
 revision = 1

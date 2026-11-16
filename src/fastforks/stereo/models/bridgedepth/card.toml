@@ -1,7 +1,7 @@
 schema = 2
 name = "BridgeDepth"
 summary = "BridgeDepth (Guan et al. 2025): Depth Anything V2 (ViT-L) features combined with NMRF stereo hypotheses; window-attention message passing between mono and stereo embeddings, inference at 1/8 resolution plus a 1/4 refinement."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
 licence_notes = [
@@ -44,13 +44,21 @@ mps_kernels = ["stereo_metal"]
 # Scene Flow pretraining checkpoint for fine-tuning; fails on real images: not added), rvc and the KITTI / ETH3D /
 # Middlebury fine-tunes (not added yet).
 
+[[papers]]
+title = "BridgeDepth: Bridging Monocular and Stereo Reasoning with Latent Alignment"
+url = "https://arxiv.org/abs/2508.04611"
+date = "2025-08-06"
+venue = "ICCV 2025"
+
 [[variants]]
 id = "bridgedepth-sf"
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin tactic check)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "bridge_sf.pth", size = 1386085217, sha256 = "d2cd44b6f749ca5b0b901ed23df13e0454dc210e79b304c41c245f7085bba829", url = "https://huggingface.co/aeolusguan/BridgeDepth/resolve/4a96016c4cf01473f90ba80ff5983af7cfb026d3/bridge_sf.pth" }]
 
 [[variants]]
 id = "bridgedepth-rvc-pretrain"
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin tactic check)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { backbone = "convnext", backbone_channels = 128 }
 licence = { training_data = ["sceneflow", "falling_things", "crestereo", "tartanair", "sintel", "unstated"], training_note = "configs/rvc_pretrain.yaml: Scene Flow, Falling Things, CREStereo, TartanAir, CARLA high-res, Sintel, Virtual KITTI 2 (started from l_sf, Scene Flow); README recommends it for in-the-wild use" }

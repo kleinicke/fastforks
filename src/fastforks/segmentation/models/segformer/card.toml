@@ -9,6 +9,11 @@ uses = ["cuda_graphs", "seginfer"]  # fastforks.shared modules this family impor
 repo = "https://github.com/huggingface/transformers"
 commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/NVlabs/SegFormer"
+framework = "PyTorch"
+reason = "The authors' code needs mmsegmentation; the transformers port is self-contained."
+
 [licence]
 code = "Apache-2.0"  # transformers
 weights = "LicenseRef-NVIDIA-Source-Code-License-NC"  # the model cards link NVlabs/SegFormer's LICENSE (non-commercial)
@@ -36,6 +41,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3", "seg_up"] 
 
 [output]
 label_set = "ade20k-150"
+
+[[papers]]
+title = "SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers"
+url = "https://arxiv.org/abs/2105.15203"
+date = "2021-05-31"
+venue = "NeurIPS 2021"
 
 [[variants]]
 id = "segformer-b0-ade20k"

@@ -55,7 +55,7 @@ def build(tree: Path, dinov3: Path, ckpt: Path, *, amp: bool = False) -> Any:  #
     torch.hub.load = local
     torch.hub.load_state_dict_from_url = lambda *_a, **_kw: sd
     if not amp:
-        torch.autocast = lambda *_a, **_kw: contextlib.nullcontext()  # ty: ignore[invalid-assignment]
+        torch.autocast = lambda *_a, **_kw: contextlib.nullcontext()
     from romav2.features import Descriptor  # noqa: PLC0415  # reference checkout
     from romav2.romav2 import RoMaV2  # noqa: PLC0415
 

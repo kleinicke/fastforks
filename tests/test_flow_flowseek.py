@@ -80,7 +80,7 @@ def weights(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.mark.slow
 def test_odd_size_and_export(weights: Path) -> None:
-    model = flow.load("flowseek-t", weights=weights, device="cpu", options={"iters": 1})
+    model = flow.load("flowseek-t", weights=weights, device="cpu", iters=1)
     a, b = _pair(131, 150)
     out = model(a, b).flow
     assert out.shape == (1, 2, 131, 150)

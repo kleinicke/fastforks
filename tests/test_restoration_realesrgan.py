@@ -79,3 +79,15 @@ def test_tile_starts_and_ramps_match_comfyui() -> None:
 def test_bad_tile_is_rejected(anime: restoration.RestorationModel, tile: object) -> None:
     with pytest.raises(InputError, match="tile"):
         anime(synthetic_image(8, 8, torch.device("cpu")), tile=tile)
+
+
+def test_out_of_memory_in_one_pass_suggests_tile(anime: restoration.RestorationModel, monkeypatch: pytest.MonkeyPatch) -> None:
+    def oom(*_a: object, **_k: object) -> None:
+        raise torch.OutOfMemoryError("CUDA out of memory")
+
+    monkeypatch.setattr(anime, "_run", oom)
+    img = synthetic_image(64, 64, torch.device("cpu"))
+    with pytest.raises(torch.OutOfMemoryError, match=r"tile=512"):
+        anime(img)
+    with pytest.raises(torch.OutOfMemoryError, match=r"^CUDA out of memory$"):
+        anime(img, tile=64)

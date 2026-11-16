@@ -1,0 +1,39 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.0
+cpu_label_mismatch = 0.001
+gpu_mean = 0.003
+gpu_p99 = 0.5
+
+[refs."totalsegmentator-total-3mm@1"]
+sha256 = "92d0188c4aeb2149c4f9f81a85e7fc3befc29483de214fce0312936181548efd"
+upstream = "https://github.com/wasserth/TotalSegmentator@184fa4765456492b2ab81a981cc387465906b003"
+settings = "CPU float32, totalsegmentator(ml=True, fast=True, device='cpu') on s0013 ct.nii.gz, centre crop (96, 128, 128) (z, y, x) RAS, torch 2.10.0+cu130"
+
+[refs."totalsegmentator-total@1"]
+sha256 = "9647e359f73e37292650dc96a41c140f0a9ff976c24d3b8b25ec4b73146d75eb"
+upstream = "https://github.com/wasserth/TotalSegmentator@184fa4765456492b2ab81a981cc387465906b003"
+settings = "CPU float32, totalsegmentator(ml=True, fast=False, device='cpu') on s0013 ct.nii.gz, centre crop (96, 128, 128) (z, y, x) RAS, torch 2.10.0+cu130"
+
+[validated."totalsegmentator-total-3mm@1"]
+kernels = ["vol_norm@44036d4da567:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "25ce125fd5d7b2ac", "in_final_h" = "7e4e2736f3fa180b", "in_stats_h" = "0a69cc1aa662739a"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.0006
+p99_px = 0.0
+
+[validated."totalsegmentator-total@1"]
+kernels = ["vol_norm@44036d4da567:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "25ce125fd5d7b2ac", "in_final_h" = "7e4e2736f3fa180b", "in_stats_h" = "0a69cc1aa662739a"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 7e-05
+p99_px = 0.0

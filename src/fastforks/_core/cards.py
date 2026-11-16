@@ -9,14 +9,15 @@ CONTRIBUTING.md ("Model cards").
 from __future__ import annotations
 
 import dataclasses
+import re
 import tomllib
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar, get_args
 
 from fastforks._core import licences, tasks
-from fastforks._core.errors import CardError, install_hint
-from fastforks._core.files import MIRROR_URL, FileSpec
+from fastforks._core.errors import BackendUnavailableError, CardError, install_hint
+from fastforks._core.files import MIRROR_URL, WEIGHTS_REPO_URL, FileSpec
 from fastforks._core.labels import label_set
 from fastforks._core.licences import CodeClass, Commercial
 
@@ -38,6 +39,13 @@ PadFill = Literal["replicate", "zero", "family"]
 InputRange = Literal["0-255", "0-1", "imagenet", "mean_std"]
 Interpolation = Literal["bilinear", "bicubic", "nearest"]
 OptionEffect = Literal["speed", "precision"]
+Feature = Literal["load", "kernels", "compile", "onnx", "tensorrt"]
+"""What a card can mark as not working yet (`[planned]`): loading at all, the kernels backend, `Model.compile()`,
+`export_onnx` (also blocks `export_tensorrt`, which exports ONNX first) or `export_tensorrt`."""
+RELEASE = "0.2.0"
+"""The release these cards describe; `[planned]` features are not available in it."""
+PLANNED_RELEASE = "0.2.1"
+"""The release the `[planned]` features are planned for (internal list: docs/plans/KNOWN_BROKEN_0.2.1.md)."""
 
 SCHEMA = 2
 _T = TypeVar("_T")
@@ -62,8 +70,13 @@ _CODE_REQUIRES: Mapping[tuple[str, str], tuple[str, ...]] = MappingProxyType(
         ("segmentation", "eomt"): ("transformers",),
         ("segmentation", "mask2former"): ("transformers", "scipy"),
         ("segmentation", "oneformer"): ("transformers", "scipy"),
+        ("detection", "grounding_dino"): ("transformers",),
+        ("promptable_segmentation", "clipseg"): ("transformers",),
+        ("detection", "lwdetr"): ("transformers",),
+        ("detection", "owlv2"): ("transformers",),
         ("detection", "rcnn"): ("torchvision",),
         ("detection", "rtmdet"): ("torchvision",),
+        ("detection", "yolox"): ("torchvision",),
     }
 )
 
@@ -163,6 +176,42 @@ class Io:
 
 
 @dataclass(frozen=True)
+class Paper:
+    """A publication the family's models come from (card `[[papers]]`).
+
+    Attributes:
+        title: Exact title.
+        url: Abstract page (arXiv `abs/` where there is one).
+        date: First public release, `YYYY-MM-DD` (the arXiv v1 date where there is one).
+        venue: Where it was published, e.g. `"CVPR 2024"`, or `"arXiv"`.
+        variants: Ids of the variants it covers; empty: all of the family's.
+    """
+
+    title: str
+    url: str
+    date: str
+    venue: str
+    variants: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Official:
+    """The authors' own implementation, where `upstream` is not it (card `[[upstream.official]]`).
+
+    Attributes:
+        repo: URL of the authors' code; empty if they released none.
+        framework: Its framework, e.g. `"TensorFlow"`, `"JAX"`, `"PyTorch"`.
+        reason: Why fastforks follows `upstream` instead, one sentence.
+        variants: Ids of the variants it covers (a family of models from several authors); empty: all.
+    """
+
+    repo: str
+    framework: str
+    reason: str
+    variants: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Variant:
     """One loadable model, e.g. `s2m2-s` revision 1.
 
@@ -179,6 +228,8 @@ class Variant:
         default_tag: For timm-style ids `<name>.<tag>` (e.g. `resnet50.tv2_in1k`): this variant is what the untagged
             `<name>` loads, as `timm.create_model("resnet50")` picks its default pretrained tag. At most one variant
             per `<name>` and task (checked by the registry).
+        planned: Features known not to work yet -> why (the family's card `[planned]` with the variant's `planned`
+            overrides); using one raises `BackendUnavailableError` "not available in 0.2.0, planned for 0.2.1".
     """
 
     id: str
@@ -190,6 +241,7 @@ class Variant:
     outputs: tuple[str, ...] = ()
     output_info: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
     default_tag: bool = False
+    planned: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
 
     @property
     def ref(self) -> str:
@@ -212,7 +264,7 @@ class ModelCard:
         licence: Licensing and training data of the family.
         io: Input handling of the family (a variant may override fields; see `Variant.io`).
         params: Architecture parameters shared by all variants (e.g. `max_disp`, the encoder); variants override them.
-        options: Load-time options (`load(..., options=)`) with their validated defaults.
+        options: Load-time options (`load(..., **options)`) with their validated defaults.
         option_min: Lower bounds of numeric options (card `{ default = ..., min = ... }`); checked at load.
         option_max: Upper bounds of numeric options (card `max = ...`); checked at load.
         option_choices: Allowed values of options with a fixed set (card `choices = [...]`); checked at load.
@@ -247,6 +299,11 @@ class ModelCard:
         licence_notes: Short factual licence notes (1-3 sentences each) on why a variant's commercial status is not a
             plain `yes`/`no` from its licence strings (inherited non-commercial terms, custom licence terms, unclear
             training-data terms); empty if there is nothing to add.
+        papers: The publications the variants come from (card `[[papers]]`).
+        official: The authors' own implementations where `upstream` is a port of them (e.g. timm, transformers, a
+            PyTorch port of TensorFlow code); empty if `upstream` is the authors' code.
+        no_original_reason: Why the original code was not timed (card `[upstream] no_original_reason`: no runnable
+            public code or checkpoint, or it cannot run on the benchmark GPU); empty if it was or can be.
     """
 
     family: str
@@ -278,6 +335,9 @@ class ModelCard:
     option_max: Mapping[str, float] = field(default_factory=lambda: MappingProxyType({}))
     option_choices: Mapping[str, tuple[Any, ...]] = field(default_factory=lambda: MappingProxyType({}))
     option_effect: Mapping[str, OptionEffect] = field(default_factory=lambda: MappingProxyType({}))
+    papers: tuple[Paper, ...] = ()
+    official: tuple[Official, ...] = ()
+    no_original_reason: str = ""
     option_aliases: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
     variant_ref: str | None = None
 
@@ -474,6 +534,10 @@ def _sha256(t: dict[str, Any], where: str) -> str:
     return sha
 
 
+_REPO = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
+_NOT_WEIGHTS_REPOS = frozenset({"kernels", "goldens", "reference-outputs", "mirrors", "fastforks"})
+
+
 def _file_spec(t: dict[str, Any], where: str, family: str) -> FileSpec:
     _unknown_keys(t, {"name", "sha256", "size", "url", "member", "archive", "mirror"}, where)
     member = _opt_str(t, "member", where)
@@ -486,10 +550,9 @@ def _file_spec(t: dict[str, Any], where: str, family: str) -> FileSpec:
     if archive:
         _unknown_keys(archive, {"sha256", "size"}, f"{where} archive")
     name = _get(t, "name", str, where)
-    for key in ("url", "mirror"):
-        if isinstance(t.get(key), str) and not t[key].startswith("https://"):
-            msg = f"{where}: {key} must be an https:// URL"
-            raise CardError(msg)
+    if isinstance(t.get("url"), str) and not t["url"].startswith("https://"):
+        msg = f"{where}: url must be an https:// URL"
+        raise CardError(msg)
     return FileSpec(
         name=name,
         sha256=_sha256(t, where),
@@ -498,8 +561,25 @@ def _file_spec(t: dict[str, Any], where: str, family: str) -> FileSpec:
         member=member,
         archive_sha256=_sha256(archive, f"{where} archive") if archive else None,
         archive_size=_get(archive, "size", int, f"{where} archive") if archive else None,
-        mirror=MIRROR_URL.format(group=family, name=name) if "mirror" in t and _get(t, "mirror", bool, where) else None,
+        mirror=_mirror(t.get("mirror", False), family, name, t["url"], where),
     )
+
+
+def _mirror(value: object, family: str, name: str, url: str, where: str) -> str | None:
+    """The fallback URL of a weight file.
+
+    `mirror = "<repo>"`: the weights' own repo `fastforks/<repo>`, holding the file under its original name (the last
+    part of `url`; cards may name it differently). `true`: `fastforks/mirrors/<family>/<name>`.
+    """
+    if isinstance(value, str):
+        if not _REPO.fullmatch(value) or value in _NOT_WEIGHTS_REPOS:
+            msg = f"{where}: mirror {value!r} must be a weights repo name ([a-z0-9] words joined by '-')"
+            raise CardError(msg)
+        return WEIGHTS_REPO_URL.format(repo=value, name=url.rpartition("/")[2])
+    if not isinstance(value, bool):
+        msg = f"{where}: 'mirror' must be a repo name or bool, got {type(value).__name__}"
+        raise CardError(msg)
+    return MIRROR_URL.format(group=family, name=name) if value else None
 
 
 def _training_data(value: object, where: str) -> tuple[str, ...]:
@@ -607,10 +687,16 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
     _unknown_keys(
         data,
         {"schema", "name", "summary", "tier", "outputs", "uses", "upstream", "licence", "io", "params", "options"}
-        | {"modes", "variants", "output", "limitations", "licence_notes"},
+        | {"modes", "variants", "output", "limitations", "licence_notes", "papers", "planned"},
         where,
     )
+    planned = _planned(_get(data, "planned", dict, where) if "planned" in data else {}, f"{where} [planned]")
     up = _get(data, "upstream", dict, where)
+    _unknown_keys(up, {"repo", "commit", "official", "no_original_reason"}, f"{where} [upstream]")
+    no_original_reason = up.get("no_original_reason", "")
+    if not isinstance(no_original_reason, str) or "\n" in no_original_reason or len(no_original_reason) > 400:  # noqa: PLR2004
+        msg = f"{where} [upstream] no_original_reason: one line of at most 400 characters"
+        raise CardError(msg)
     outputs = _str_tuple(_get(data, "outputs", list, where), f"{where} outputs")
     output_t = _get(data, "output", dict, where) if "output" in data else {}
     output_info = _output(task, outputs, output_t, where)
@@ -635,7 +721,9 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
     for i, v in enumerate(_get(data, "variants", list, where)):
         vw = f"{where} [[variants]] #{i}"
         _unknown_keys(
-            v, {"id", "revision", "weights", "params", "licence", "io", "outputs", "output", "default_tag"}, vw
+            v,
+            {"id", "revision", "weights", "params", "licence", "io", "outputs", "output", "default_tag", "planned"},
+            vw,
         )
         default_tag = _get(v, "default_tag", bool, vw) if "default_tag" in v else False
         if default_tag and "." not in _get(v, "id", str, vw):
@@ -656,11 +744,23 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
                 outputs=v_outputs,
                 output_info=_output(task, v_outputs, v_output, vw) if "outputs" in v or "output" in v else output_info,
                 default_tag=default_tag,
+                planned=_freeze({**planned, **_planned(_get(v, "planned", dict, vw), f"{vw} planned")})
+                if "planned" in v
+                else _freeze(planned),
             )
         )
     if not variants:
         msg = f"{where}: no variants"
         raise CardError(msg)
+    ids = {v.id for v in variants}
+    papers = tuple(_paper(p, ids, f"{where} [[papers]] #{i}") for i, p in enumerate(_get(data, "papers", list, where)))
+    if not papers:
+        msg = f"{where}: no [[papers]] (the publication of the models; a tech report or model card if there is none)"
+        raise CardError(msg)
+    official = tuple(
+        _official(o, ids, f"{where} [[upstream.official]] #{i}")
+        for i, o in enumerate(_get(up, "official", list, where) if "official" in up else [])
+    )
     options = (
         {k: _option(v, f"{where} [options] {k}") for k, v in _get(data, "options", dict, where).items()}
         if "options" in data
@@ -699,7 +799,80 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
         mps_kernels_dtype=_literal(max_t["mps_dtype"], Dtype, f"{where} [modes.kernels]")
         if "mps_dtype" in max_t
         else None,
+        papers=papers,
+        official=official,
+        no_original_reason=no_original_reason.strip(),
     )
+
+
+def _paper(t: dict[str, Any], ids: set[str], where: str) -> Paper:
+    _unknown_keys(t, {"title", "url", "date", "venue", "variants"}, where)
+    date = _get(t, "date", str, where)
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        msg = f"{where}: date must be YYYY-MM-DD, got {date!r}"
+        raise CardError(msg)
+    url = _get(t, "url", str, where)
+    if not url.startswith("https://"):
+        msg = f"{where}: url must be https, got {url!r}"
+        raise CardError(msg)
+    variants = _str_tuple(t.get("variants", []), f"{where} variants")
+    if unknown := set(variants) - ids:
+        msg = f"{where}: variants {sorted(unknown)} are not in this card"
+        raise CardError(msg)
+    return Paper(_get(t, "title", str, where), url, date, _get(t, "venue", str, where), variants)
+
+
+def _official(t: dict[str, Any], ids: set[str], where: str) -> Official:
+    _unknown_keys(t, {"repo", "framework", "reason", "variants"}, where)
+    variants = _str_tuple(t.get("variants", []), f"{where} variants")
+    if unknown := set(variants) - ids:
+        msg = f"{where}: variants {sorted(unknown)} are not in this card"
+        raise CardError(msg)
+    reason = _get(t, "reason", str, where).strip()
+    if not reason:
+        msg = f"{where}: empty reason (why fastforks follows upstream instead of the authors' code)"
+        raise CardError(msg)
+    repo = _get(t, "repo", str, where) if "repo" in t else ""
+    return Official(repo, _get(t, "framework", str, where), reason, variants)
+
+
+def _planned(t: dict[str, Any], where: str) -> dict[str, str]:
+    """`[planned]` / a variant's `planned`: feature -> a non-empty reason (why it does not work yet)."""
+    _unknown_keys(t, set(get_args(Feature)), where)
+    for k, v in t.items():
+        if not isinstance(v, str) or not v.strip():
+            msg = f"{where} {k}: the reason must be a non-empty string (why it does not work yet)"
+            raise CardError(msg)
+    return dict(t)
+
+
+def planned_reason(variant: Variant, feature: Feature) -> str | None:
+    """Why `feature` of `variant` is not available in this release, or `None` if it is (onnx also blocks tensorrt)."""
+    planned = getattr(variant, "planned", {})  # a stand-in variant (tests, wrappers) plans nothing
+    reason = planned.get(feature)
+    if reason is None and feature == "tensorrt":
+        reason = planned.get("onnx")
+    return reason
+
+
+def require_available(variant: Variant, feature: Feature) -> None:
+    """Raise if the card marks `feature` of `variant` as `[planned]` (known not to work in this release).
+
+    Raises:
+        BackendUnavailableError: "`<ref>`: <feature> is not available in 0.2.0, planned for 0.2.1: <reason>".
+    """
+    reason = planned_reason(variant, feature)
+    if reason is not None:
+        what = {"load": "loading", "compile": "compile()", "onnx": "export_onnx", "tensorrt": "export_tensorrt"}
+        msg = (
+            f"{variant.ref}: {what.get(feature, feature)} is not available in {RELEASE}, planned for"
+            f" {PLANNED_RELEASE}: {reason.rstrip('.')}"
+        )
+        if feature == "kernels":
+            msg += "; use mode='portable'"
+        elif feature in {"onnx", "tensorrt", "compile"}:
+            msg += "; the portable and kernels backends run as usual"
+        raise BackendUnavailableError(msg)
 
 
 def _no_kernels_reason(max_t: dict[str, Any], where: str) -> str:
@@ -777,10 +950,22 @@ def _number(x: object) -> bool:
     return isinstance(x, int | float) and not isinstance(x, bool)
 
 
+# Keywords of the task loaders (`load(model, *, mode=..., **options)`): no option or alias may use one.
+LOAD_ARGUMENTS = frozenset(
+    (
+        *("model", "mode", "device", "dtype", "weights", "options", "labels", "class_names"),
+        *("folds", "step", "mirror", "checkpoint"),
+    )
+)
+
+
 def _aliases(options: Mapping[str, _Opt], where: str) -> Mapping[str, str]:
     """`alias -> option` of all options; an alias must not be an option name or belong to two options."""
     out: dict[str, str] = {}
     for name, opt in options.items():
+        if clash := {name, *opt.aliases} & LOAD_ARGUMENTS:
+            msg = f"{where} [options] {name}: {sorted(clash)} is a load() argument (options are load keywords)"
+            raise CardError(msg)
         for a in opt.aliases:
             if a in options or a in out:
                 msg = f"{where} [options] {name}: alias {a!r} is already an option name or alias"
@@ -844,10 +1029,12 @@ def _reasons(lic: Licence, cls: CodeClass) -> tuple[str, ...]:
 
 
 def _notes(lic: Licence) -> tuple[str, ...]:
-    """Caveats that do not change the status: assumed weights licence, restrictive / unclear / unstated data."""
+    """Caveats that do not change the status: assumed or share-alike weights licence, restrictive / unclear data."""
     out = []
     if lic.weights == licences.ASSUMED:
         out.append("weights licence not stated by the original authors; assumed to be the code licence")
+    elif lic.weights != licences.OTHER and licences.licence_class(lic.weights) == "copyleft":
+        out.append(f"share-alike: weights {lic.weights}; fine-tuned or adapted weights keep this licence")
     known = licences.datasets()
     out.extend(
         "data: unstated"

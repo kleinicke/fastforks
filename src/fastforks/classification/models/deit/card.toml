@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/facebookresearch/deit"
+framework = "PyTorch"
+reason = "The authors' code is PyTorch, but timm's re-implementation is the maintained one and hosts the fb_in1k weights."
+
 [licence]
 code = "Apache-2.0"  # timm
 weights = "Apache-2.0"  # the timm Hugging Face model card
@@ -39,6 +44,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "Training data-efficient image transformers & distillation through attention"
+url = "https://arxiv.org/abs/2012.12877"
+date = "2020-12-23"
+venue = "ICML 2021"
 
 [[variants]]
 id = "deit_base_patch16_224.fb_in1k"

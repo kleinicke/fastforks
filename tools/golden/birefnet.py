@@ -1,12 +1,13 @@
 """BiRefNet goldens from the weights' own code (the HF repos' `birefnet.py`).
 
 Reference: `birefnet.py` + `BiRefNet_config.py` of the HF snapshot (ZhengPeng7/BiRefNet `HF_REVISION["birefnet"]`,
-ZhengPeng7/BiRefNet_lite `HF_REVISION["birefnet-lite"]`, unpatched; needs transformers, timm, kornia, einops), CPU
-float32, the safetensors loaded strictly, on scikit-image's `coffee.png` (CC0, Rachel Michetti; `IMAGE_SHA256`; stored
-as `input`; the synthetic test image is all background for one model and all foreground for the other). Pre- and
-post-processing as the HF model card on float tensors: resize to 1024 x 1024 (bilinear, antialiased: torchvision
-`Resize` on tensors), ImageNet normalisation, `model(x)[-1].sigmoid()`, bicubic resize back to the image size, clamped
-to [0, 1] (the card resizes the 8-bit mask with PIL; float keeps the golden free of rounding).
+ZhengPeng7/BiRefNet_lite `HF_REVISION["birefnet-lite"]`, briaai/RMBG-2.0 `HF_REVISION["rmbg-2.0"]`, unpatched; needs
+transformers, timm, kornia, einops), CPU float32, the safetensors loaded strictly, on scikit-image's `coffee.png` (CC0,
+Rachel Michetti; `IMAGE_SHA256`; stored as `input`; the synthetic test image is all background for one model and all
+foreground for the other). Pre- and post-processing as the HF model card on float tensors: resize to 1024 x 1024
+(bilinear, antialiased: torchvision `Resize` on tensors), ImageNet normalisation, `model(x)[-1].sigmoid()`, bicubic
+resize back to the image size, clamped to [0, 1] (the card resizes the 8-bit mask with PIL; float keeps the golden free
+of rounding).
 
     FASTFORKS_GOLDEN_PATH=... python tools/golden/birefnet.py birefnet <HF snapshot> <weights.safetensors> COFFEE_PNG
 """
@@ -27,10 +28,11 @@ import torch.nn.functional as F
 from _common import write
 from PIL import Image
 
-UPSTREAM = "https://huggingface.co/ZhengPeng7"
+UPSTREAM = "https://huggingface.co"
 HF_REVISION = {
-    "birefnet": ("BiRefNet", "e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4"),
-    "birefnet-lite": ("BiRefNet_lite", "aa62cd87eafb9cc43056d08ef3615a14628b831d"),
+    "birefnet": ("ZhengPeng7/BiRefNet", "e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4"),
+    "birefnet-lite": ("ZhengPeng7/BiRefNet_lite", "aa62cd87eafb9cc43056d08ef3615a14628b831d"),
+    "rmbg-2.0": ("briaai/RMBG-2.0", "2fd7b4b0f2393ddb39a267fb62df6c010928a6c6"),  # gated, CC BY-NC 4.0
 }
 IMAGE_SHA256 = "cc02f8ca188b167c775a7101b5d767d1e71792cf762c33d6fa15a4599b5a8de7"  # skimage 0.26 data/coffee.png
 SIZE = 1024

@@ -40,6 +40,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the CSP
 [output]
 label_set = "coco-keypoints-17"
 
+[[papers]]
+title = "RTMO: Towards High-Performance One-Stage Real-Time Multi-Person Pose Estimation"
+url = "https://arxiv.org/abs/2312.07526"
+date = "2023-12-12"
+venue = "CVPR 2024"
+
 [[variants]]
 id = "rtmo-t"  # RTMO-t, 416 x 416; body7 COCO val AP 57.4
 revision = 1

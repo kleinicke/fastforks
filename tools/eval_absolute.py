@@ -32,6 +32,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _data import DATA
 from eval_matching import LONG_SIDE, N_RUNS, load_pairs, pose_auc
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -188,7 +189,7 @@ def gpu(items: list[Item], mode: str, batch: int, latency_items: int, *, thr: fl
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", type=Path, default=Path("/home/florian/projects/data/matching/megadepth1500"))
+    ap.add_argument("--root", type=Path, default=DATA / "matching" / "megadepth1500")
     ap.add_argument("--matches", type=Path, required=True)
     ap.add_argument("--method", required=True, choices=("opencv", "poselib", "portable", "kernels"))
     ap.add_argument("--n", type=int, default=1000, help="2D-3D matches per set")

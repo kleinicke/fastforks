@@ -9,6 +9,11 @@ uses = ["cuda_graphs", "libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/microsoft/Cream/tree/main/TinyViT"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
 [licence]
 code = "Apache-2.0"  # timm
 # The checkpoints are Microsoft's (microsoft/Cream, TinyViT, MIT:
@@ -42,6 +47,12 @@ kernels = ["fvm_conv"]  # _optimize.conv_ops (fvm_conv): the only library this f
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "TinyViT: Fast Pretraining Distillation for Small Vision Transformers"
+url = "https://arxiv.org/abs/2207.10666"
+date = "2022-07-21"
+venue = "ECCV 2022"
 
 [[variants]]
 id = "tiny_vit_5m_224.dist_in22k_ft_in1k"  # no default tag: timm's default for tiny_vit_5m_224 is .dist_in22k (21841 classes), not ported

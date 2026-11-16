@@ -38,6 +38,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["raft_flow"]  # the correlation windows on the fly (four levels, 256 channels, radius 4) instead of the all-pairs volume; the network stays the portable fp16 one
 
+[[papers]]
+title = "MemFlow: Optical Flow Estimation and Prediction with Memory"
+url = "https://arxiv.org/abs/2404.04808"
+date = "2024-04-07"
+venue = "CVPR 2024"
+
 [[variants]]
 id = "memflow"  # upstream MemFlowNet_things (configs/things_memflownet.py), the general checkpoint
 revision = 1

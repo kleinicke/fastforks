@@ -6,6 +6,7 @@ outputs = ["logits"]
 uses = ["libnet"]  # fastforks.shared modules this family imports
 limitations = [
   "An image with an alpha channel is not composited on white first, as the reference script does: pass RGB.",
+  "Kernels allocate as much as portable (673 vs 669 MB) but reserve 806 vs 684 MB (graph / kernel workspace blocks); both are below the float32 original (1299 / 1324 MB).",
 ]
 # Multi-label: `probs` is the sigmoid of each logit. Classes 0-3 are the ratings (general, sensitive, questionable,
 # explicit), 4-8109 general tags, 8110-10860 characters; the reference script keeps general tags above 0.35 and
@@ -48,6 +49,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 [output]
 label_set = "wd-tagger-v3"  # selected_tags.csv of the repos (the same file in all five)
 probs = "sigmoid"
+
+[[papers]]
+title = "WD ViT Tagger v3"
+url = "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3"
+date = "2024-03-04"
+venue = "Model card"
 
 [[variants]]
 id = "wd-vit-tagger-v3"

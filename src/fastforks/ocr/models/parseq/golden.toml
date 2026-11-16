@@ -1,0 +1,22 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.001
+gpu_mean = 0.01
+gpu_p99 = 0.01
+# boxes in px; texts as code points (gpu_extra: |diff| / median code point, so any changed character fails)
+gpu_extra = [["scores", 0.02, 0.05], ["texts", 1e-6, 1e-6]]
+
+[refs."parseq-tiny@1"]
+sha256 = "3e57385a0db5a8bbc1c3c57d4ebb1cba3af1e79e899c00c749cd91a94a19fcbf"
+upstream = "https://github.com/baudm/parseq@1902db043c029a7e03a3818c616c06600af574be"
+settings = "CPU float32, read.py transform (PIL bicubic), refine 1, demo_images/art-01107.jpg, torch 2.14.1+cu130"
+
+[refs."parseq@1"]
+sha256 = "5087e34266bb6cafc7a4fcc078d91f65a00efdef3219c8e072d084a76c0a5144"
+upstream = "https://github.com/baudm/parseq@1902db043c029a7e03a3818c616c06600af574be"
+settings = "CPU float32, read.py transform (PIL bicubic), refine 1, demo_images/art-01107.jpg, torch 2.14.1+cu130"

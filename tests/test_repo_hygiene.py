@@ -13,6 +13,9 @@ SKIP_SUFFIXES = (
     ".cu",
     ".jsonl",
 )  # .cu comments are hashed into the kernel manifests; rows are cleaned by the release script
+# results/ is the maintainers' measurement log on the work branches: each file records the exact command, machine
+# paths and GPU queue of a run by design (reproducibility). It never ships: main and the wheels have no results/.
+SKIP_DIRS = ("results/",)
 
 
 def _tracked() -> list[str]:
@@ -24,7 +27,7 @@ def test_no_machine_specific_strings():
     hits = []
     for name in _tracked():
         path = ROOT / name
-        if name in SKIP or name.endswith(SKIP_SUFFIXES) or not path.is_file():
+        if name in SKIP or name.endswith(SKIP_SUFFIXES) or name.startswith(SKIP_DIRS) or not path.is_file():
             continue
         try:
             text = path.read_text()

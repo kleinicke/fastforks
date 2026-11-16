@@ -1,0 +1,222 @@
+"""Runners of nnU-Net v2 model folders and checkpoints (`load(path)`, TotalSegmentator, the DKFZ families).
+
+A variant lists one or more parts (nnU-Net model folders `<dataset>/<trainer>__<plans>__<configuration>`): every
+part is nnU-Net v2's `predict_single_npy_array` (`fastforks.volume._nnunet`), the fold networks of a part are averaged,
+and the parts' label maps are merged in order (later parts win). The weight files per part are `plans.json`,
+`dataset.json` and `fold_<k>/<checkpoint>`, or (`embedded`) one bare checkpoint whose `init_args` hold the plans, the
+dataset json and the configuration (nnU-Net v2 writes them into every checkpoint).
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar
+
+import torch
+
+from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, load_strict, restricted_load
+from fastforks._core.errors import WeightsError
+from fastforks._core.patch import base_type, override
+from fastforks.volume._nnunet import Plan, Predictor, UNet, read_plan
+from fastforks.volume._runner import Runner
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from fastforks.volume._runner import Context
+
+__all__ = ["CHECKPOINT_GLOBALS", "Kernels", "Params", "Portable", "fused_norm_act", "weight_names"]
+
+_FILES = ("plans.json", "dataset.json")
+# besides the tensors: training state (numpy scalars and arrays in `logging` / `_best_ema`, the device in `init_args`)
+CHECKPOINT_GLOBALS = {
+    **NUMPY_ARRAYS,
+    **{(m, "scalar"): Inert for m in ("numpy._core.multiarray", "numpy.core.multiarray")},
+    **{("numpy.dtypes", f"{t}DType"): Inert for t in ("Float64", "Float32", "Int64", "Int32", "Bool")},
+    ("_codecs", "encode"): latin1_encode,
+    ("torch", "device"): Inert,
+}
+
+
+@dataclass(frozen=True)
+class Params:
+    """Card `[params]` + variant `params`.
+
+    Attributes:
+        parts: nnU-Net model folders (`<dataset>/<trainer>__<plans>__<configuration>`), merged in this order;
+            `embedded`: the checkpoint files.
+        folds: Folds to ensemble (`fold_<k>/<checkpoint>` in every part; ignored when `embedded`).
+        step: Sliding-window step (fraction of the patch).
+        mirror: Test-time mirroring along the axes the checkpoints allow.
+        configuration: The plans configuration, or empty: the part name's last `__` field (nnU-Net's layout).
+        checkpoint: Checkpoint file name in every fold folder.
+        embedded: The parts are bare checkpoints; plans, dataset json and configuration come from their `init_args`.
+    """
+
+    parts: tuple[str, ...]
+    folds: tuple[int, ...] = (0,)
+    step: float = 0.5
+    mirror: bool = True
+    configuration: str = ""
+    checkpoint: str = "checkpoint_final.pth"
+    embedded: bool = False
+
+
+def weight_names(
+    parts: Sequence[str], folds: Sequence[int], checkpoint: str = "checkpoint_final.pth", *, embedded: bool = False
+) -> list[str]:
+    """The weight file names of a variant, in the order the runner reads them."""
+    if embedded:
+        return list(parts)
+    return [f"{p}/{f}" for p in parts for f in (*_FILES, *(f"fold_{k}/{checkpoint}" for k in folds))]
+
+
+def _json(path: Path) -> dict[str, Any]:
+    return json.loads(Path(path).read_text())
+
+
+def _init_args(path: Path) -> dict[str, Any]:
+    ckpt = restricted_load(path, CHECKPOINT_GLOBALS)
+    init = ckpt.get("init_args") if isinstance(ckpt, dict) else None
+    if not isinstance(init, dict) or not {"plans", "dataset_json", "configuration"} <= init.keys():
+        msg = f"{path}: not an nnU-Net v2 checkpoint (no init_args with plans, dataset_json and configuration)"
+        raise WeightsError(msg)
+    return init
+
+
+def _mirror_axes(path: Path, plan: Plan) -> tuple[int, ...]:
+    """The checkpoint's `inference_allowed_mirroring_axes` as axes of the 3D window (2D: + 1)."""
+    ckpt = restricted_load(path, CHECKPOINT_GLOBALS)
+    axes = tuple(ckpt.get("inference_allowed_mirroring_axes") or ()) if isinstance(ckpt, dict) else ()
+    return tuple(int(a) + (3 - plan.dims) for a in axes)
+
+
+class Portable(Runner):
+    """Plain PyTorch: float16 networks in `channels_last_3d` on CUDA, two windows per network call.
+
+    cuDNN's 3D convolutions are channels-last (no layout transposes); InstanceNorm + LeakyReLU is one per-channel
+    scale / shift (`InstanceNorm3d` is slow on channels-last).
+    """
+
+    dtypes = ("float32", "float16")
+    Params = Params
+    windows: ClassVar[int] = 2
+
+    def __init__(self, ctx: Context) -> None:
+        """Read the plans and the fold checkpoints of every part."""
+        super().__init__(ctx)
+        p: Params = ctx.params
+        files = ctx.weights()
+        self.parts: list[Predictor] = []
+        labels: list[Mapping[int, str]] = []
+        i = 0
+        for part in p.parts:
+            if p.embedded:
+                init = _init_args(files[i])
+                plans, ds, conf = init["plans"], init["dataset_json"], str(init["configuration"])
+                ckpts = [i]
+            else:
+                plans, ds = _json(files[i]), _json(files[i + 1])
+                conf = p.configuration or part.rsplit("__", 1)[-1]
+                ckpts = list(range(i + len(_FILES), i + len(_FILES) + len(p.folds)))
+            i = ckpts[-1] + 1
+            plan = read_plan(plans, ds, conf)
+            channels = len(ds.get("channel_names", ds.get("modality", {"0": ""})))
+            nets = [self._net(k, plan, channels) for k in ckpts]
+            mirror = _mirror_axes(files[ckpts[0]], plan) if p.mirror else ()
+            self.parts.append(self._predictor(plan, nets, mirror))
+            self.channels = channels
+            labels.append(plan.labels)
+        self.class_names = self._names(labels)
+        index = {n: k for k, n in self.class_names.items()}
+        self._luts = []
+        for part, lab in zip(self.parts, labels, strict=True):
+            lut = torch.zeros(part.plan.n_labels, dtype=torch.int16)
+            for k, n in lab.items():
+                if n not in index:
+                    msg = f"{ctx.variant.ref}: class {n!r} is not in the class list"
+                    raise WeightsError(msg)
+                lut[k] = index[n]
+            self._luts.append(lut.to(ctx.device))
+        self._dtype = torch.uint8 if max(self.class_names, default=0) <= 255 else torch.int16  # noqa: PLR2004
+
+    def _names(self, labels: Sequence[Mapping[int, str]]) -> dict[int, str]:
+        """The merged map's label -> name: every part's names, numbered in order of appearance (one part: its own)."""
+        if len(labels) == 1:
+            return dict(labels[0])
+        out: dict[int, str] = {}
+        for lab in labels:
+            for _, n in sorted(lab.items()):
+                if n not in out.values():
+                    out[len(out) + 1] = n
+        return out
+
+    def _net(self, index: int, plan: Plan, channels: int) -> torch.nn.Module:
+        """The network of weight file `index` (a fold checkpoint)."""
+        net = UNet(plan, channels)
+        sd = self.ctx.state_dict(index, key="network_weights", strip="", extra=CHECKPOINT_GLOBALS)
+        load_strict(net, UNet.state_dict_of(sd, plan.dims), f"{self.ctx.variant.ref} checkpoint")
+        net.eval().requires_grad_(requires_grad=False).to(self.ctx.device, self._dtype_of())
+        if self.ctx.device.type == "cuda":
+            net = net.to(memory_format=torch.channels_last_3d)
+        return net
+
+    def _dtype_of(self) -> torch.dtype:
+        return torch.float16 if self.ctx.dtype == "float16" else torch.float32
+
+    def _predictor(self, plan: Plan, nets: list[torch.nn.Module], mirror: tuple[int, ...]) -> Predictor:
+        return Predictor(
+            plan,
+            nets,
+            step=self.ctx.params.step,
+            mirror_axes=mirror,
+            batch=self.windows,
+            amp=None,
+            channels_last=self.ctx.device.type == "cuda",
+            dtype=self._dtype_of(),
+        )
+
+    def networks(self) -> tuple[torch.nn.Module, ...]:
+        """Every fold network of every part."""
+        return tuple(n for part in self.parts for n in part.nets)
+
+    def segment(self, volume: torch.Tensor, spacing: Sequence[float]) -> torch.Tensor:
+        """The merged labels of every part on the grid of `volume`."""
+        out = self._luts[0][self.parts[0](volume, spacing).long()]
+        for part, lut in zip(self.parts[1:], self._luts[1:], strict=True):
+            m = lut[part(volume, spacing).long()]
+            out = torch.where(m != 0, m, out)
+        return out.to(self._dtype)
+
+    def __call__(self, volume: torch.Tensor, spacing: Sequence[float]) -> dict[str, torch.Tensor]:
+        """Labels of one volume on its grid."""
+        return {"labels": self.segment(volume, spacing)}
+
+
+def fused_norm_act(self: Any, y: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - a `_ConvNormAct`
+    """`norm_act` of a `_ConvNormAct` with `vol_norm` (in place), the portable one where the kernel does not apply."""
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels only
+
+    if vol_norm.supported(y):
+        return vol_norm.norm_act_(y, self.norm.weight, self.norm.bias, self.norm.eps, self.slope)
+    return base_type(self).norm_act(self, y)
+
+
+class Kernels(Portable):
+    """Portable + InstanceNorm + (Leaky)ReLU as one in-place two-pass kernel (`vol_norm`) on the fp16 feature maps."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Load `vol_norm` first, then the networks."""
+        from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels only
+
+        vol_norm.load(ctx.device)
+        super().__init__(ctx)
+
+    def _net(self, index: int, plan: Plan, channels: int) -> torch.nn.Module:
+        net = super()._net(index, plan, channels)
+        for m in net.modules():
+            if hasattr(m, "norm_act"):
+                override(m, fused_norm_act, "norm_act")
+        return net

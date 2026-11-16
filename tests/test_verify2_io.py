@@ -25,6 +25,7 @@ def _images(d, *names):
 
 class _Fake:
     device = torch.device("cpu")
+    variant, backend, options = types.SimpleNamespace(ref="fake@1"), "portable", {}
 
     def __call__(self, left, right):  # noqa: ARG002
         z = torch.zeros(left.shape[0], *left.shape[-2:])

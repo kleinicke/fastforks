@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 
 from fastforks import InputError
-from fastforks.stereo import write_disparity
+from fastforks.stereo.io import write_disparity
 
 D = np.array([[0.0, 1.5, 300.0], [2.25, 4.0, 8.0]], np.float32)
 

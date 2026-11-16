@@ -88,3 +88,90 @@ extern "C" __global__ void __launch_bounds__(256)
                              float scale) {
     local_corr_body<48, 1>(f0, f1, warp, out, b, h, w, scale);
 }
+
+// Refiner blocks: depthwise 5x5 conv (padding 2, zeros outside) + bias + ReLU of a channels-last bf16 map, one pass
+// instead of cuDNN's conv, the bias add and the ReLU. Rounding as those three ops: fp32 sum over (ky, kx) in row-major
+// order, rounded to bf16 (the conv's output), + bias in fp32, rounded to bf16, ReLU.
+// x, out: [B, H, W, C] bf16 contiguous (NHWC); wt: [25, C] bf16 (tap-major, the conv weight transposed); bias: [C].
+// One thread: 8 channels (16-byte loads) x TX consecutive x of one row; consecutive threads take consecutive channel
+// groups (coalesced). C must be a multiple of 8.
+
+#include <cuda_bf16.h>
+
+template <int TX>
+__device__ __forceinline__ void dw5_body(const uint4* __restrict__ x, const uint4* __restrict__ wt,
+                                         const uint4* __restrict__ bias, uint4* __restrict__ out, int b, int h, int w,
+                                         int c) {
+    constexpr int K = 5, P = 2, L = TX + K - 1;
+    const int g8 = c >> 3, nxt = (w + TX - 1) / TX;
+    long long t = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (t >= (long long)b * h * nxt * g8) return;
+    const int cg = (int)(t % g8);
+    t /= g8;
+    const int x0 = (int)(t % nxt) * TX;
+    t /= nxt;
+    const int y = (int)(t % h);
+    const long long n = t / h;
+    float acc[TX][8];
+#pragma unroll
+    for (int i = 0; i < TX; ++i)
+#pragma unroll
+        for (int k = 0; k < 8; ++k) acc[i][k] = 0.f;
+#pragma unroll
+    for (int ky = 0; ky < K; ++ky) {
+        const int yy = y + ky - P;
+        if (yy < 0 || yy >= h) continue;  // zero row: adds nothing (exact, as + 0 * w)
+        const uint4* row = x + ((n * h + yy) * w) * g8 + cg;
+        uint4 v[L];
+#pragma unroll
+        for (int j = 0; j < L; ++j) {
+            const int xx = x0 + j - P;
+            v[j] = (xx >= 0 && xx < w) ? __ldg(row + (long long)xx * g8) : make_uint4(0, 0, 0, 0);
+        }
+#pragma unroll
+        for (int kx = 0; kx < K; ++kx) {
+            const uint4 wq = __ldg(wt + (ky * K + kx) * g8 + cg);
+            const __nv_bfloat162* wp = reinterpret_cast<const __nv_bfloat162*>(&wq);
+            float wf[8];
+#pragma unroll
+            for (int k = 0; k < 4; ++k) {
+                const float2 f = __bfloat1622float2(wp[k]);
+                wf[2 * k] = f.x;
+                wf[2 * k + 1] = f.y;
+            }
+#pragma unroll
+            for (int i = 0; i < TX; ++i) {
+                const __nv_bfloat162* vp = reinterpret_cast<const __nv_bfloat162*>(&v[i + kx]);
+#pragma unroll
+                for (int k = 0; k < 4; ++k) {
+                    const float2 f = __bfloat1622float2(vp[k]);
+                    acc[i][2 * k] = fmaf(f.x, wf[2 * k], acc[i][2 * k]);
+                    acc[i][2 * k + 1] = fmaf(f.y, wf[2 * k + 1], acc[i][2 * k + 1]);
+                }
+            }
+        }
+    }
+    const uint4 bq = __ldg(bias + cg);
+    const __nv_bfloat162* bp = reinterpret_cast<const __nv_bfloat162*>(&bq);
+    uint4* o = out + ((n * h + y) * w + x0) * g8 + cg;
+#pragma unroll
+    for (int i = 0; i < TX; ++i) {
+        if (x0 + i >= w) break;
+        uint4 r;
+        __nv_bfloat162* rp = reinterpret_cast<__nv_bfloat162*>(&r);
+#pragma unroll
+        for (int k = 0; k < 4; ++k) {
+            const float2 bf = __bfloat1622float2(bp[k]);
+            const float a0 = __bfloat162float(__float2bfloat16_rn(acc[i][2 * k])) + bf.x;
+            const float a1 = __bfloat162float(__float2bfloat16_rn(acc[i][2 * k + 1])) + bf.y;
+            rp[k] = __floats2bfloat162_rn(a0 > 0.f ? a0 : 0.f, a1 > 0.f ? a1 : 0.f);  // ReLU: +0 for <= 0 and -0
+        }
+        o[(long long)i * g8] = r;
+    }
+}
+
+extern "C" __global__ void __launch_bounds__(256)
+    romav2_dw5_bias_relu_bf16(const uint4* x, const uint4* wt, const uint4* bias, uint4* out, int b, int h, int w,
+                              int c) {
+    dw5_body<4>(x, wt, bias, out, b, h, w, c);
+}

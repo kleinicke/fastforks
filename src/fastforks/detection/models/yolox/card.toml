@@ -8,6 +8,7 @@ limitations = [
   "The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what the reference calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.",
   "Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.",
   "One label per box (the cell's best class), as upstream: a cell does not report a second class.",
+  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~45 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
 ]
 
 [upstream]
@@ -46,6 +47,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the who
 
 [output]
 label_set = "coco-80"
+
+[[papers]]
+title = "YOLOX: Exceeding YOLO Series in 2021"
+url = "https://arxiv.org/abs/2107.08430"
+date = "2021-07-18"
+venue = "arXiv"
 
 [[variants]]
 id = "yolox-tiny"  # YOLOX-Tiny at 416 x 416; COCO val AP 32.8 (README)

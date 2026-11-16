@@ -7,6 +7,8 @@ violation fails too, so the list shrinks with each fix. Re-measuring against the
 
 import json
 
+import pytest
+
 import speed_check
 
 
@@ -35,3 +37,11 @@ def test_tensorrt_rows_fail_on_all_nan_outputs():
     assert all_nan({"depth": nan}) == "depth"
     assert all_nan((torch.ones(2), torch.tensor([float("nan"), 1.0]), torch.zeros(0))) is None
     assert all_nan(torch.zeros(3, dtype=torch.long)) is None
+
+
+def test_only_takes_model_ids_and_rejects_unknown_names():
+    """`--only` with a name that is no floor ref used to select nothing, so `run` ended without a row or an error."""
+    ref = speed_check.floor_rows()[0]["ref"]
+    assert speed_check._floor_refs([ref]) == {ref}
+    with pytest.raises(SystemExit, match="no-such-model"):
+        speed_check._floor_refs(["no-such-model"])

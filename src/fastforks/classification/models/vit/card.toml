@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/google-research/vision_transformer"
+framework = "JAX"
+reason = "The authors' code is JAX; timm's PyTorch port carries the converted AugReg weights (further fine-tuned by timm)."
+
 [licence]
 code = "Apache-2.0"  # timm
 weights = "Apache-2.0"  # the timm Hugging Face model card
@@ -41,6 +46,18 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale"
+url = "https://arxiv.org/abs/2010.11929"
+date = "2020-10-22"
+venue = "ICLR 2021"
+
+[[papers]]
+title = "How to train your ViT? Data, Augmentation, and Regularization in Vision Transformers"
+url = "https://arxiv.org/abs/2106.10270"
+date = "2021-06-18"
+venue = "TMLR 2022"
 
 [[variants]]
 id = "vit_base_patch16_224.augreg2_in21k_ft_in1k"

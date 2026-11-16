@@ -11,7 +11,7 @@ from PIL import Image
 
 from fastforks import InputError, WeightsError, detection
 from fastforks._core import registry
-from fastforks.detection._resize import pil_bilinear
+from fastforks.shared.pil_resize import pil_bicubic, pil_bilinear
 from synth import image
 
 if TYPE_CHECKING:
@@ -41,11 +41,13 @@ def _cuda(device: str) -> None:
 
 @pytest.mark.parametrize("device", DEVICES)
 @pytest.mark.parametrize(("size", "out"), SIZES)
-def test_pil_bilinear_is_bit_exact(size: tuple[int, int], out: tuple[int, int], device: str) -> None:
+@pytest.mark.parametrize("cubic", [False, True], ids=["bilinear", "bicubic"])
+def test_pil_resize_is_bit_exact(size: tuple[int, int], out: tuple[int, int], device: str, cubic: bool) -> None:  # noqa: FBT001 - parametrized
     _cuda(device)
     rgb = np.random.default_rng(sum(size + out)).integers(0, 256, (*size, 3), dtype=np.uint8)
-    want = np.asarray(Image.fromarray(rgb).resize(out[::-1], Image.Resampling.BILINEAR))
-    got = pil_bilinear(torch.from_numpy(rgb).permute(2, 0, 1)[None].float().to(device), out)
+    filt = Image.Resampling.BICUBIC if cubic else Image.Resampling.BILINEAR
+    want = np.asarray(Image.fromarray(rgb).resize(out[::-1], filt))
+    got = (pil_bicubic if cubic else pil_bilinear)(torch.from_numpy(rgb).permute(2, 0, 1)[None].float().to(device), out)
     assert got.dtype == torch.float32
     np.testing.assert_array_equal(got[0].permute(1, 2, 0).cpu().numpy(), want)
 
@@ -56,7 +58,7 @@ def _load(ref: str, device: str, mode: Mode, **options: object) -> detection.Det
         registry.weights(card, variant, allow_download=False)
     except WeightsError as e:
         pytest.skip(f"weights of {ref} not available locally: {e}")
-    return detection.load(ref, mode=mode, device=device, options=options)
+    return detection.load(ref, mode=mode, device=device, **(options or {}))
 
 
 @pytest.mark.slow

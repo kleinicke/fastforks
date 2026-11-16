@@ -23,16 +23,23 @@ min_size = 512  # exactly the aligned 512 x 512 crop (the runner rejects other s
 [params]
 scale = 1
 size = 512
-fidelity = 0.5  # w, inference_codeformer.py's default
 key = "params_ema"
+
+[options]
+fidelity = { default = 0.5, min = 0.0, max = 1.0, aliases = ["fidelity_weight"] }  # w: 0 = the codebook face, 1 = closer to the input (inference_codeformer.py's default 0.5)
 
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-status = "none"
-reason = "not built yet: a VQGAN of 3x3 convolutions with GroupNorm around a 16 x 16 transformer; fp16-accumulate convolutions (`cudnn_hacc`) are the next step"
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+
+[[papers]]
+title = "Towards Robust Blind Face Restoration with Codebook Lookup Transformer"
+url = "https://arxiv.org/abs/2206.11253"
+date = "2022-06-22"
+venue = "NeurIPS 2022"
 
 [[variants]]
 id = "codeformer"

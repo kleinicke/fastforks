@@ -158,10 +158,10 @@ def test_flip_test_matches_portable(ref: str) -> None:
     """RTMPose `flip_test=True` (off in the goldens): the Kernels runner against the fp32 portable one."""
     img, boxes = _photo(ref)
     flip = {"flip_test": True}
-    want = _load(ref, "portable", dtype="float32", options=flip)(img, boxes=boxes)
+    want = _load(ref, "portable", dtype="float32", **(flip or {}))(img, boxes=boxes)
     plain = _load(ref, "portable", dtype="float32")(img, boxes=boxes)
     assert not torch.equal(want.keypoint_scores, plain.keypoint_scores)  # the option reaches the runner
-    model = _load(ref, options=flip)
+    model = _load(ref, **(flip or {}))
     for call in range(3):  # eager, capture, replay
         _assert_same_pose(model, model(img, boxes=boxes), want, f"{ref} flip_test call {call}")
     cache = model._runner.graphs.cache

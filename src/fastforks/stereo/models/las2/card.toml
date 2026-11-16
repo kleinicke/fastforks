@@ -1,12 +1,12 @@
 schema = 2
 name = "LiteAnyStereo V2"
 summary = "LiteAnyStereo V2: efficient zero-shot stereo with FasterNet-T0 features, a correlation volume and FasterNet 2-D cost aggregation (sizes S / M / L), or a group-wise volume with a selective-GRU update (H)."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "fasternet"]  # fastforks.shared modules this family imports
 limitations = [
   "The original code's LAS1 (LiteAnyStereo.pth, another architecture) is not included.",
-  "Portable LAS2-H is faster than the original code but allocates more memory.",
+  "Portable LAS2-H at 375 x 1242 is faster than the original code (35.6 vs 36.4 ms) but peaks 13 MB (3.7 %) higher (365 vs 352 MB). Kernels at 994 x 1482 allocate less than the original (917 vs 1022 MB) but reserve more (1248 vs 1084 MB): graph / cuDNN workspace blocks.",
 ]
 licence_notes = [
   "Trained on a mixture that includes NVIDIA's FSD dataset and Dynamic Replica, whose terms for commercial use of trained models are unclear (the repository lists no data terms); the status does not depend on the training data.",
@@ -45,7 +45,7 @@ mps_kernels = ["stereo_metal"]
 # CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 1M (up to 1280x720)
 # replays a CUDA graph, captured on a shape's 4th call (below), at most 2 shapes per model (LAS2-M 640x480 4.0 ms,
 # before the `stereo_ops` kernels 8.7 ms; eager 18.7 ms). The graph pool stays reserved (up to ~2x eager reserved memory) until `model.release_graphs()`;
-# `options={"cuda_graphs": False}` turns it off. Larger inputs are GPU-bound and run eagerly
+# `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly
 # New sizes (`cudnn_hacc` per-shape dispatch): a new padded size builds its fp16-accumulate cuDNN plans on its first
 # call (all calls give the same output) and captures its CUDA graph on the 4th (time after 4 warm-up calls per size); a
 # stream of new sizes around 640x480 costs LAS2-S 20.8 ms per call (with the deferral below 17.5).
@@ -56,6 +56,12 @@ mps_kernels = ["stereo_metal"]
 # repeat 16 and 8 times: LAS2-S 16.6 vs 20.3, LAS2-H 33.8 vs 36.0 (before the cheaper plan builds 20.6 / 37.7)
 
 # Upstream also publishes LAS1 (LiteAnyStereo.pth, a different architecture): not part of this family.
+
+[[papers]]
+title = "Lite Any Stereo V2: Faster and Stronger Efficient Zero-Shot Stereo Matching"
+url = "https://arxiv.org/abs/2606.24457"
+date = "2026-06-23"
+venue = "arXiv"
 
 [[variants]]
 id = "las2-s"
@@ -77,6 +83,7 @@ weights = [{ name = "LAS2_L.pth", size = 109270797, sha256 = "12f86f758b0aa6cd59
 
 [[variants]]
 id = "las2-h"
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin autotuner skips all tactics)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { size = "h" }
 weights = [{ name = "LAS2_H.pth", size = 46698761, sha256 = "758585a25c3a332711f92a28ad1437e08080fb714ad1146de7cf2c01ce8479f4", url = "https://huggingface.co/tomtomtommi/LiteAnyStereoV2/resolve/17788d91618646fa781a14462e2926a034b9f49d/LAS2_H.pth" }]

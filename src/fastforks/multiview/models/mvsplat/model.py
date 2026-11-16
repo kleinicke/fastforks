@@ -38,6 +38,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, f64, invert
+from fastforks.shared.group_norm import fast_group_norms
 
 from .net.backbone.multiview_transformer import MultiViewFeatureTransformer
 from .net.backbone.unimatch.backbone import CNNEncoder
@@ -399,6 +400,7 @@ class _Base(Runner):
     def __init__(self, ctx: Context) -> None:
         super().__init__(ctx)
         self.net = _net(ctx)
+        fast_group_norms(self.net)  # the depth refiner's full-size GroupNorms (channels-last in float16)
         self.half = ctx.dtype == "float16"
         if self.half:
             self.net.half().to(memory_format=torch.channels_last)

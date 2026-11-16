@@ -44,7 +44,7 @@ def test_warp_in_image2_pixels(coarse: int, fine: int) -> None:
 
 def test_sizes_must_be_multiples() -> None:
     with pytest.raises(ValueError, match="multiple of 14"):
-        matching.load("romav1", device="cpu", options={"coarse_size": 100})
+        matching.load("romav1", device="cpu", coarse_size=100)
 
 
 def _upstream_local_correlation(f0: torch.Tensor, f1: torch.Tensor, r: int, warp: torch.Tensor) -> torch.Tensor:

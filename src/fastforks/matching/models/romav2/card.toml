@@ -41,6 +41,12 @@ mps_dtypes = ["float32"]
 dtype = "bfloat16"  # as portable (fp16 would overflow upstream's bf16 regions)
 kernels = ["romav2"]  # the refiners' local correlation in one pass (integer-window dot products, shared bilinear weights) instead of 49 / 9 grid_sample passes; the rest is the portable bf16 path
 
+[[papers]]
+title = "RoMa v2: Harder Better Faster Denser Feature Matching"
+url = "https://arxiv.org/abs/2511.15706"
+date = "2025-11-19"
+venue = "ECCV 2026"
+
 [[variants]]
 id = "romav2"  # upstream romav2.0.1.pt (RoMaV2() default weights); MegaDepth-1500 AUC@5/10/20 62.8 / 77.0 / 86.6 (paper)
 revision = 1

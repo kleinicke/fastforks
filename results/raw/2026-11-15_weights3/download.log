@@ -1,0 +1,55 @@
+15:47:05 dinov2-vitg14-reg 4336 MB (free 50518 MB)
+dinov2-vitg14-reg@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 4336 MB
+dinov2-vitg14-reg@1: /home/florian/.cache/fastforks/blobs/sha256/74/746ecb8c6301c645c5c855be91687d274587d6e48fdaec4a729753160b34a283
+15:47:06 dinov2-vitl14-reg 1161 MB (free 50518 MB)
+dinov2-vitl14-reg@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 1161 MB
+dinov2-vitl14-reg@1: /home/florian/.cache/fastforks/blobs/sha256/36/36e4deffbaef061a2576705b0c36f93621e2ae20bf6274694821b0b492551b51
+15:47:08 dinov3-vitl16 1156 MB (free 50518 MB)
+dinov3-vitl16@1: licence LicenseRef-DINOv3-License, weights LicenseRef-DINOv3-License, commercial yes, 1156 MB
+dinov3-vitl16@1: /home/florian/.cache/huggingface/hub/models--facebook--dinov3-vitl16-pretrain-lvd1689m/snapshots/ea8dc2863c51be0a264bab82070e3e8836b02d51/model.safetensors
+15:47:09 dinov3-vith16plus 3207 MB (free 50518 MB)
+dinov3-vith16plus@1: licence LicenseRef-DINOv3-License, weights LicenseRef-DINOv3-License, commercial yes, 3207 MB
+dinov3-vith16plus@1: /home/florian/.cache/huggingface/hub/models--facebook--dinov3-vith16plus-pretrain-lvd1689m/snapshots/c807c9eeea853df70aec4069e6f56b28ddc82acc/model.safetensors
+15:47:11 moge-3-vitl 1413 MB (free 50518 MB)
+moge-3-vitl@1: licence MIT, weights MIT, commercial yes, 1413 MB
+moge-3-vitl@1: /home/florian/.cache/fastforks/blobs/sha256/9b/9b41b7b9f65ad80aab7ad686f5e9cc0d1fd33f1964022618dfbcd52fc1fb7925
+15:47:12 fast-acvnet-plus-kitti15 13 MB (free 50518 MB)
+fast-acvnet-plus-kitti15@1: licence MIT, weights MIT (assumed from code), commercial yes, 13 MB
+fast-acvnet-plus-kitti15@1: /home/florian/.cache/fastforks/blobs/sha256/bf/bf4c8ef707eb6d878c104b227f668bdcc389ddd27871869850ce1e15494a0516
+15:47:13 clip-l14-dfn2b 1160 MB (free 50518 MB)
+downloading https://huggingface.co/timm/vit_large_patch14_clip_224.dfn2b/resolve/0052124c38aa20f89fb2b186b6c2599ffa91ca5b/model.safetensors, 1160 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/7a)
+clip-l14-dfn2b@1: licence Apache-2.0, weights LicenseRef-Apple-AMLR, commercial no, 1160 MB
+clip-l14-dfn2b@1: /home/florian/.cache/fastforks/blobs/sha256/7a/7a20e7340404cb03ae1e21cae8afaf3f8db6407cf37b85b589a5c9d06272413e
+15:47:51 clip-h14-dfn5b 2411 MB (free 49359 MB)
+downloading https://huggingface.co/timm/vit_huge_patch14_clip_224.dfn5b/resolve/f578dd8feffd415d1dd999618fe2fc55ed262d78/model.safetensors, 2411 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/7e)
+clip-h14-dfn5b@1: licence Apache-2.0, weights LicenseRef-Apple-AMLR, commercial no, 2411 MB
+clip-h14-dfn5b@1: /home/florian/.cache/fastforks/blobs/sha256/7e/7ebd4bca4bae0bb780bddff4f39dcc723c0756643b89f1795d88957e12e8086d
+15:49:15 clip-h14-378-dfn5b 2414 MB (free 46947 MB)
+downloading https://huggingface.co/timm/vit_huge_patch14_clip_378.dfn5b/resolve/ae5cf5b82fdef1db1128b946ef3635ec99b5660a/model.safetensors, 2414 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/81)
+clip-h14-378-dfn5b@1: licence Apache-2.0, weights LicenseRef-Apple-AMLR, commercial no, 2414 MB
+clip-h14-378-dfn5b@1: /home/florian/.cache/fastforks/blobs/sha256/81/81d5bf47b916583e0e1ad4d74863823a8eac90de7752ef921fc9e14df3c78b30
+15:50:33 s2m2-m 309 MB (free 44534 MB)
+downloading https://huggingface.co/minimok/s2m2/resolve/880bc49f2a7cf54a42570f8550c46cb57454bac9/CH192NTR2.pth, 309 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/6e)
+s2m2-m@1: licence CC-BY-NC-4.0, weights CC-BY-NC-4.0, commercial no, 309 MB
+s2m2-m@1: /home/florian/.cache/fastforks/blobs/sha256/6e/6e767e0977dd0a81a51021429f82b1c8451fd2534862170cb18a0019a33ae8ad
+15:50:44 foundationstereo-vit-l 3146 MB (free 44225 MB)
+downloading https://drive.usercontent.google.com/download?export=download&confirm=t&id=1Yh_2o9QCUrVqZrnAXZ7RUr0zTp3JrMKe, 3146 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/60)
+foundationstereo-vit-l@1: licence LicenseRef-NVIDIA-Source-Code-License-NC AND Apache-2.0, weights LicenseRef-NVIDIA-Source-Code-License-NC, commercial no, 3146 MB
+foundationstereo-vit-l@1: /home/florian/.cache/fastforks/blobs/sha256/60/60e79bde9c6a00acea551625ff814fe06e5a6806e2c0c9829baee248de87c5f1
+15:52:36 prompt-depth-anything-l 1297 MB (free 41079 MB)
+downloading https://huggingface.co/depth-anything/prompt-depth-anything-vitl/resolve/573ab70c94c27d96f0bc70f81f670d2b0a62d571/model.ckpt, 1297 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/4b)
+prompt-depth-anything-l@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 1297 MB
+prompt-depth-anything-l@1: /home/florian/.cache/fastforks/blobs/sha256/4b/4b3a3e0a60ea68e719cad3b2e22da8c95ce78f9559ee04824c064a2a06b0f10f
+15:53:19 megaflow 3572 MB (free 39782 MB)
+downloading https://huggingface.co/Kristen-Z/MegaFlow/resolve/b4c5c33800b8fa88e047d2eb70ae74b0feca606d/megaflow-flow.safetensors, 3572 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/6b)
+megaflow@1: licence Apache-2.0, weights Apache-2.0, commercial yes, 3572 MB
+megaflow@1: /home/florian/.cache/fastforks/blobs/sha256/6b/6b8524bdce14f35abeaebdd11a315d28f7845a67d2f03225270243fe84423790
+15:55:16 pi3 3657 MB (free 36210 MB)
+downloading https://huggingface.co/yyfz233/Pi3/resolve/ae722e7039287d0c8fde9f11f197f804f44b510c/model.safetensors, 3657 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/33)
+pi3@1: licence BSD-3-Clause, weights CC-BY-NC-4.0, commercial no, 3657 MB
+pi3@1: /home/florian/.cache/fastforks/blobs/sha256/33/33580e4702ac671558aedeab1148fd08118f7ce45bdbeb99f3e3cf340062875d
+15:57:16 bridgedepth-rvc-pretrain 1373 MB (free 32553 MB)
+downloading https://huggingface.co/aeolusguan/BridgeDepth/resolve/4a96016c4cf01473f90ba80ff5983af7cfb026d3/bridge_rvc_pretrain.pth, 1373 MB (once; cached in /home/florian/.cache/fastforks/blobs/sha256/4c)
+bridgedepth-rvc-pretrain@1: licence MIT, weights CC-BY-NC-4.0, commercial no, 1373 MB
+bridgedepth-rvc-pretrain@1: /home/florian/.cache/fastforks/blobs/sha256/4c/4cb8d0395e6733a92f1d998077dc08b4e6b17a1b4f9cd814593cf8cf8c8842f9
+15:58:01 done

@@ -26,7 +26,8 @@ EMPTY_PROMPT_77 = [*EMPTY_PROMPT, *[0] * 75]
 _VAE_ATTENTION = {".to_q.": ".query.", ".to_k.": ".key.", ".to_v.": ".value.", ".to_out.0.": ".proj_attn."}
 
 
-def _old_attention_names(key: str) -> str:
+def old_attention_names(key: str) -> str:
+    """A VAE key of diffusers >= 0.14 -> the 0.8 attention names of `vae.py` (other keys unchanged)."""
     for new, old in _VAE_ATTENTION.items():
         if ".attentions." in key and new in key:
             return key.replace(new, old)
@@ -61,7 +62,7 @@ def load_net(ctx: Context, prompt: list[int] = EMPTY_PROMPT, **unet: Any) -> SD2
     with torch.device(ctx.device):
         net = SD2Net(len(prompt), **unet)
     net.unet.load_state_dict(ctx.state_dict(0, strip=""))
-    net.vae.load_state_dict({_old_attention_names(k): v for k, v in ctx.state_dict(1, strip="").items()})
+    net.vae.load_state_dict({old_attention_names(k): v for k, v in ctx.state_dict(1, strip="").items()})
     net.empty_text.copy_(embed)
     return net.eval()
 

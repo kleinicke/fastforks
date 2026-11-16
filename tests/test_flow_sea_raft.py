@@ -82,7 +82,7 @@ def small_weights(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def test_odd_size_is_padded(small_weights: Path) -> None:
-    model = flow.load("sea-raft-s", weights=small_weights, device="cpu", options={"iters": 1})
+    model = flow.load("sea-raft-s", weights=small_weights, device="cpu", iters=1)
     a, b = _pair(131, 173)  # neither a multiple of 8: replicate padding, cropped again
     out = model(a, b).flow
     assert out.shape == (1, 2, 131, 173)
@@ -93,8 +93,8 @@ def test_odd_size_is_padded(small_weights: Path) -> None:
 def test_spring_runs_at_half_resolution(small_weights: Path, size: tuple[int, int]) -> None:
     """`scale = -1` is upstream's `calc_flow`: halve the pair, run, upsample the flow and double it."""
     h, w = size
-    full = flow.load("sea-raft-s", weights=small_weights, device="cpu", options={"iters": 1})
-    half = flow.load("sea-raft-s-spring", weights=small_weights, device="cpu", options={"iters": 1})
+    full = flow.load("sea-raft-s", weights=small_weights, device="cpu", iters=1)
+    half = flow.load("sea-raft-s-spring", weights=small_weights, device="cpu", iters=1)
     a, b = _pair(h, w)
     got = half(a, b).flow
     assert got.shape == (1, 2, h, w)
@@ -113,8 +113,8 @@ def test_spring_runs_at_half_resolution(small_weights: Path, size: tuple[int, in
 
 def test_spring_min_size(small_weights: Path) -> None:
     a, b = _pair(200, 240)
-    flow.load("sea-raft-s", weights=small_weights, device="cpu", options={"iters": 1})(a, b)
-    half = flow.load("sea-raft-s-spring", weights=small_weights, device="cpu", options={"iters": 1})
+    flow.load("sea-raft-s", weights=small_weights, device="cpu", iters=1)(a, b)
+    half = flow.load("sea-raft-s-spring", weights=small_weights, device="cpu", iters=1)
     with pytest.raises(InputError, match="256"):  # 100x120 after the halving: under the 128 px of the pyramid
         half(a, b)
 
@@ -169,7 +169,7 @@ def _load(ref: str, mode: str, **options: int) -> flow.FlowModel:
         pytest.skip("no CUDA")
     try:
         dtype = {"dtype": "float32"} if mode == "portable" else {}
-        return flow.load(ref, mode=mode, device="cuda", options=options or None, **dtype)
+        return flow.load(ref, mode=mode, device="cuda", **(options or {}), **dtype)
     except WeightsError as e:
         pytest.skip(f"{ref} weights not available: {e}")
 

@@ -1,9 +1,13 @@
 schema = 2
 name = "EfficientViT-SAM"
 summary = "EfficientViT-SAM (Zhang, Cai et al. 2024, MIT Han lab): Segment Anything with the ViT-H image encoder replaced by an EfficientViT (conv stages + ReLU linear attention) distilled from it; SAM's prompt encoder and mask decoder, so points, boxes and mask logits work the same. The portable `module()` is the image encoder only."
-tier = "experimental"
+tier = "stable"
 outputs = ["pred_masks", "iou_scores"]
 uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+
+limitations = [
+  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
+]
 
 [upstream]
 repo = "https://github.com/mit-han-lab/efficientvit"
@@ -29,6 +33,12 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # fused fp16 image encoder; the prompt decode of up to 4 prompts replays a CUDA graph (float32, bit-identical; `release_graphs()` frees them)
+
+[[papers]]
+title = "EfficientViT-SAM: Accelerated Segment Anything Model Without Accuracy Loss"
+url = "https://arxiv.org/abs/2402.05008"
+date = "2024-02-07"
+venue = "CVPR 2024 Workshop (Efficient Large Vision Models)"
 
 [[variants]]
 id = "efficientvit-sam-l0"

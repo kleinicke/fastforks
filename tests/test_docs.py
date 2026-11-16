@@ -1,9 +1,14 @@
+import ast
+import importlib
 import inspect
 import json
 import re
 import subprocess
 import sys
+import textwrap
 import tomllib
+import types
+import typing
 from pathlib import Path
 
 import pytest
@@ -12,6 +17,7 @@ import fastforks
 import gen_docs
 from fastforks import ModelNotFoundError, stereo
 from fastforks._core import licences, registry
+from fastforks._core.api import is_path
 from fastforks.stereo import geometry
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -78,6 +84,8 @@ def test_quoted_model_ids_resolve():
     assert len({model_id for _, _, model_id in quoted}) >= 5, "the id patterns no longer match the docs"
     bad = []
     for where, task, model_id in quoted:
+        if is_path(model_id):  # `restoration.load("4x-UltraSharp.pth")`: a checkpoint file, not an id
+            continue
         if _PENDING.get(model_id) == task and task is not None and registry.task_of(model_id) != task:
             continue
         try:
@@ -185,7 +193,8 @@ def test_eval_overlap_marked_in_measured_columns():
     assert rows["raft-stereo-middlebury", "ETH3D"] == ""
     assert "trained on" in rows["hitnet-eth3d", "ETH3D"]
     assert "trained on" in rows["selective-igev-middlebury-finetune", "Middlebury"]
-    assert rows["igev-stereo-eth3d", "ETH3D"] == "possibly in the training data"
+    assert "trained on" in rows["igev-stereo-eth3d", "ETH3D"]  # the card lists ETH3D (submission model)
+    assert rows["bridgedepth-rvc-pretrain", "ETH3D"] == "possibly in the training data"
     assert rows["aanet-sceneflow", "Middlebury"] == ""
 
 
@@ -273,7 +282,7 @@ def test_summary_times_are_rounded_on_every_page():
         table = page.read_text().split("kernels time (ms)", 1)[-1].split("\n\n", 1)[0]
         for line in table.splitlines()[2:]:
             ms = line.split("|")[-3].strip().split(",")[0].split(" ")[0]
-            if ms in (gen_docs._DASH, "OOM"):
+            if ms in (gen_docs._DASH, "OOM", "no"):  # "no kernels": the family has no kernels backend
                 continue
             checked += 1
             assert ms == gen_docs._ms_str(float(ms)), (page.name, ms)
@@ -393,3 +402,265 @@ def test_original_eval_cells_come_from_their_tier():
                 last[r["ref"], r["mode"], r.get("dataset")] = r
         bad = [(*k, r.get("tier")) for k, r in last.items() if "tier" in r and r["tier"] not in want[k[1]]]
         assert not bad, f"{path.name}: {bad}"
+
+
+# Python examples: model ids, load keywords, call / method keywords and result attributes, read with `ast` (nothing
+# runs). Docstring examples count too (the fenced blocks in the package's module docstrings).
+_PY_FENCE = re.compile(r"^( *)```(?:python|py)\n(.*?)^\1```", re.MULTILINE | re.DOTALL)
+_PATH_SUFFIXES = (".pth", ".pt", ".safetensors", ".ckpt", ".bin", ".onnx")
+
+
+def _python_blocks() -> list[tuple[str, int, str]]:
+    """(file, first line, code) of every ```python block of the docs and of the public modules' docstrings."""
+    src = sorted((ROOT / "src" / "fastforks").rglob("*.py"))
+    public = [p for p in src if "models" not in p.parts and (p.stem in {"__init__", "_api"} or p.stem[0] != "_")]
+    blocks = []
+    for path in [*_DOC_FILES, *sorted((ROOT / "docs" / "models").glob("*.md")), *public]:
+        text = path.read_text()
+        blocks += [
+            (path.relative_to(ROOT).as_posix(), text.count("\n", 0, m.start()) + 2, textwrap.dedent(m[2]))
+            for m in _PY_FENCE.finditer(text)
+        ]
+    return blocks
+
+
+def _model_classes(task: str) -> list[type]:
+    mod = importlib.import_module(f"fastforks.{task}")
+    found = [getattr(mod, n) for n in mod.__all__]
+    return [c for c in found if inspect.isclass(c) and issubclass(c, fastforks.Model)] or [fastforks.Model]
+
+
+def _result_classes(fn: object, owner: object) -> list[type]:
+    """The fastforks classes `fn` returns: a class itself, else the names in its return annotation (resolved in the
+    modules of `fn` and `owner`); empty if unresolvable."""
+    if inspect.isclass(fn):
+        return [fn]
+    try:
+        ret = inspect.signature(fn).return_annotation
+    except (TypeError, ValueError):
+        return []
+    names = re.findall(r"[A-Za-z_]\w*", ret) if isinstance(ret, str) else [getattr(ret, "__name__", "")]
+    ns = {**vars(sys.modules[owner.__module__]), **getattr(fn, "__globals__", {})}
+    return [ns[n] for n in names if inspect.isclass(ns.get(n)) and ns[n].__module__.startswith("fastforks")]
+
+
+def _resolve(path: str) -> object:
+    """The object a dotted `fastforks...` path names; `None` if there is none."""
+    module, _, name = path.rpartition(".")
+    try:
+        return getattr(importlib.import_module(module), name, None)
+    except ImportError:
+        return None
+
+
+def _has(classes: list[type], attr: str) -> bool:
+    return any(hasattr(c, attr) or attr in getattr(c, "__dataclass_fields__", {}) for c in classes)
+
+
+def _bind(fn: object, call: ast.Call, *, bound: bool) -> str | None:
+    """Why `call`'s arguments do not fit `fn`'s signature; `None` if they do (or cannot be checked)."""
+    if any(isinstance(a, ast.Starred) for a in call.args) or any(k.arg is None for k in call.keywords):
+        return None
+    try:
+        sig = inspect.signature(fn)
+    except (TypeError, ValueError):
+        return None
+    try:
+        sig.bind(*([None] * (len(call.args) + (not bound))), **{k.arg: None for k in call.keywords if k.arg})
+    except TypeError as e:
+        return str(e)
+    return _bad_literal(fn, call)
+
+
+def _literals(tp: object) -> set[object] | None:
+    """The values of a `Literal[...]` (also inside a union); `None` if any member is another type."""
+    if typing.get_origin(tp) is typing.Literal:
+        return set(typing.get_args(tp))
+    if typing.get_origin(tp) in (typing.Union, types.UnionType):
+        parts = [_literals(a) if a is not type(None) else set() for a in typing.get_args(tp)]
+        return None if any(p is None for p in parts) else set().union(*parts)
+    return None
+
+
+def _bad_literal(fn: object, call: ast.Call) -> str | None:
+    """A literal keyword value that the parameter's `Literal[...]` annotation does not allow (placeholders pass)."""
+    try:
+        hints = typing.get_type_hints(fn)
+    except Exception:  # noqa: BLE001 - unresolvable forward references: nothing to check
+        return None
+    for k in call.keywords:
+        if k.arg in hints and isinstance(k.value, ast.Constant) and k.value.value is not None:
+            allowed = _literals(hints[k.arg])
+            if allowed is not None and k.value.value not in allowed:
+                return f"{k.arg}={k.value.value!r} is not one of {sorted(map(repr, allowed))}"
+    return None
+
+
+class _Examples(ast.NodeVisitor):
+    """Checks one block; `env` maps names to ("module", path) / ("model", task, id) / ("result", classes)."""
+
+    def __init__(self, where: str, line: int, env: dict[str, tuple]) -> None:
+        self.where, self.line, self.env, self.problems = where, line, env, []
+
+    def bad(self, node: ast.AST, msg: str) -> None:
+        self.problems.append(f"{self.where}:{self.line + getattr(node, 'lineno', 1) - 1}: {msg}")
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for a in node.names:
+            if a.name.startswith("fastforks"):
+                self.env[a.asname or a.name.split(".")[0]] = ("module", a.name if a.asname else "fastforks")
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        if node.module and node.module.startswith("fastforks"):
+            for a in node.names:
+                path = f"{node.module}.{a.name}"
+                self.env[a.asname or a.name] = ("module", path) if path.count(".") < 3 else ("other",)
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        self.visit(node.value)
+        kind = self.infer(node.value)
+        for t in node.targets:
+            if isinstance(t, ast.Name):
+                self.env[t.id] = kind
+
+    def infer(self, node: ast.AST) -> tuple:  # noqa: PLR0911 - one case per expression kind
+        if isinstance(node, ast.Name):
+            return self.env.get(node.id, ("other",))
+        if isinstance(node, ast.Attribute):
+            base = self.infer(node.value)
+            if base[0] == "module":
+                path = f"{base[1]}.{node.attr}"
+                return ("module", path) if node.attr in (*registry.TASKS, "geometry") else ("func", path)
+            return ("other",)
+        if not isinstance(node, ast.Call):
+            return ("other",)
+        func = self.infer(node.func)
+        if func[0] == "func" and func[1].rsplit(".", 1)[-1] == "load":
+            return self.load(node, func[1].rsplit(".", 1)[0])
+        if func[0] == "func":
+            obj = _resolve(func[1])
+            return ("result", _result_classes(obj, obj)) if obj is not None else ("other",)
+        if func[0] == "model":
+            return ("result", [r for c in _model_classes(func[1]) for r in _result_classes(c.__call__, c)])
+        if isinstance(node.func, ast.Attribute):
+            owner = self.infer(node.func.value)
+            classes = _model_classes(owner[1]) if owner[0] == "model" else owner[1] if owner[0] == "result" else []
+            fns = [(getattr(c, node.func.attr), c) for c in classes if callable(getattr(c, node.func.attr, None))]
+            if found := [r for f, c in fns for r in _result_classes(f, c)]:
+                return ("result", found)
+        return ("other",)
+
+    def load(self, node: ast.Call, module: str) -> tuple:
+        arg = node.args[0] if node.args else None
+        if not (isinstance(arg, ast.Constant) and isinstance(arg.value, str)):
+            return ("other",)
+        model_id = arg.value
+        if "/" in model_id or "\\" in model_id or model_id.endswith(_PATH_SUFFIXES):
+            return ("model", module.removeprefix("fastforks."), None) if module != "fastforks" else ("other",)
+        task = registry.task_of(model_id.split("@")[0])
+        if task is None or module not in {"fastforks", f"fastforks.{task}"}:
+            self.bad(node, f"{module}.load({model_id!r}): no such model in that task")
+            return ("other",)
+        card, _ = registry.resolve(task, model_id)
+        loader = importlib.import_module(module).load
+        params = set(inspect.signature(loader).parameters)
+        names = set(card.options) | set(card.option_aliases)
+        for k in node.keywords:
+            if k.arg == "options":
+                self.bad(node, f"load({model_id!r}, options=...): the 0.1.1 form; pass options as keywords")
+            elif k.arg and k.arg not in params and k.arg not in names:
+                self.bad(node, f"load({model_id!r}, {k.arg}=...): not a load argument or an option of the card")
+        return ("model", task, model_id)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        self.generic_visit(node)
+        func = self.infer(node.func)
+        if func[0] == "func" and not func[1].endswith(".load"):
+            obj = _resolve(func[1])
+            if obj is None:
+                self.bad(node, f"{func[1]}: no such name")
+            elif why := _bind(obj, node, bound=True):
+                self.bad(node, f"{func[1]}(...): {why}")
+            return
+        if func[0] == "model":
+            classes, name, bound = _model_classes(func[1]), "__call__", False
+        elif isinstance(node.func, ast.Attribute) and (owner := self.infer(node.func.value))[0] in {"model", "result"}:
+            classes = _model_classes(owner[1]) if owner[0] == "model" else owner[1]
+            name, bound = node.func.attr, False
+        else:
+            return
+        fns = [getattr(c, name) for c in classes if callable(getattr(c, name, None))]
+        if classes and not fns:
+            self.bad(node, f"{name}: no such method of {[c.__name__ for c in classes]}")
+        elif fns and all(why := [_bind(f, node, bound=bound) for f in fns]):
+            self.bad(node, f"{name}(...): {why[0]}")
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        self.generic_visit(node)
+        owner = self.infer(node.value)
+        if owner[0] == "result" and owner[1] and not _has(owner[1], node.attr):
+            self.bad(node, f".{node.attr}: not a field of {[c.__name__ for c in owner[1]]}")
+
+
+def test_python_examples_use_real_ids_options_and_signatures():
+    """Every ```python block of the docs and docstrings loads ids that exist, with load arguments / card options that
+    exist, and calls models and results with keywords their signatures take (`ast` only; nothing runs)."""
+    problems = []
+    blocks = _python_blocks()
+    assert len(blocks) > 50, "the block pattern no longer matches the docs"
+    env: dict[str, tuple] = {}
+    for i, (where, line, code) in enumerate(blocks):
+        # the blocks of one file share their imports; other names (`model`, ...) are per block
+        env = {k: v for k, v in env.items() if v[0] in {"module", "func"}} if i and blocks[i - 1][0] == where else {}
+        try:
+            tree = ast.parse(code)
+        except SyntaxError as e:
+            problems.append(f"{where}:{line + (e.lineno or 1) - 1}: not valid Python ({e.msg})")
+            continue
+        v = _Examples(where, line, env)
+        v.visit(tree)
+        problems += v.problems
+    assert not problems, "\n".join(sorted(set(problems)))
+
+
+def test_example_check_rejects_a_literal_outside_the_annotation():
+    def fn(*, mode: typing.Literal["a", "b"] | None = None, n: int = 1) -> None: ...
+
+    bad = ast.parse("fn(mode='c', n=3)").body[0].value
+    good = ast.parse("fn(mode='a', n=x)").body[0].value
+    assert "mode='c'" in (_bind(fn, bad, bound=True) or "")
+    assert _bind(fn, good, bound=True) is None
+
+
+def test_oom_row_older_than_a_timed_row_is_stale(tmp_path, monkeypatch):
+    """An OOM row only marks a cell while no measured row of the same key is as new (seedvr2-7b before streaming)."""
+    data = tmp_path / "docs" / "data"
+    data.mkdir(parents=True)
+    rows = [
+        {"ref": "a", "mode": "portable", "input": "1x1", "status": "oom", "date": "2026-11-14"},
+        {"ref": "a", "mode": "portable", "input": "1x1", "ms": 5.0, "side": "lib", "date": "2026-11-14"},
+        {"ref": "b", "mode": "portable", "input": "1x1", "status": "oom", "date": "2026-11-15"},
+        {"ref": "b", "mode": "portable", "input": "1x1", "ms": 5.0, "side": "lib", "date": "2026-11-14"},
+    ]
+    (data / "speed.jsonl").write_text("\n".join(json.dumps(r) for r in rows))
+    monkeypatch.setattr(gen_docs, "ROOT", tmp_path)
+    gen_docs._oom.cache_clear()
+    try:
+        assert gen_docs._oom() == {("b", "portable", "1x1")}
+    finally:
+        gen_docs._oom.cache_clear()
+
+
+def test_no_original_reason_only_without_an_original_row():
+    """A card states why its original was not timed only while docs/data has no timed upstream row of its variants."""
+    from fastforks._core import registry  # noqa: PLC0415
+
+    timed = {
+        json.loads(line)["ref"]
+        for line in (ROOT / "docs" / "data" / "speed.jsonl").read_text().splitlines()
+        if '"upstream' in line and '"ms"' in line and json.loads(line).get("ms") is not None
+    }
+    for task in registry.TASKS:
+        for card, _ in registry.cards(task).values():
+            if card.no_original_reason:
+                assert not timed & {v.id for v in card.variants}, card.name

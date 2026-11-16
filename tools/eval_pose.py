@@ -35,6 +35,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _data import DATA
 from eval_matching import LONG_SIDE, N_RUNS, load_pairs, pose_auc
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -247,7 +248,7 @@ def provenance(method: str, matches: Path) -> dict:
 
 def main() -> None:  # noqa: PLR0915 - the options
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", type=Path, default=Path("/home/florian/projects/data/matching/megadepth1500"))
+    ap.add_argument("--root", type=Path, default=DATA / "matching" / "megadepth1500")
     ap.add_argument("--matches", type=Path, required=True)
     ap.add_argument("--method", required=True, choices=("opencv", "usac", "poselib", "portable", "kernels"))
     ap.add_argument("--jobs", type=int, default=1, help="processes for the CPU methods")

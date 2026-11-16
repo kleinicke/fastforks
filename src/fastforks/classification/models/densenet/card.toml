@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/liuzhuang13/DenseNet"
+framework = "Lua Torch (the same repo also lists Caffe/PyTorch ports by the authors)"
+reason = "The authors' code is Lua Torch; torchvision's PyTorch port carries ImageNet weights."
+
 [licence]
 code = "BSD-3-Clause"  # torchvision
 weights = "assumed from code"  # torchvision states no separate weights licence
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "Densely Connected Convolutional Networks"
+url = "https://arxiv.org/abs/1608.06993"
+date = "2016-08-25"
+venue = "CVPR 2017"
 
 [[variants]]
 id = "densenet121.tv_in1k"

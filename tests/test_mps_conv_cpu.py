@@ -85,8 +85,8 @@ def test_autocast_dtype():
 
 
 # Metal runners with nothing for `mps.adapt`: vitpose runs its transposed convolutions as GEMMs + a Metal overlap-add
-# (`deconv4s2_relu`); rtmpose (CSPNeXt + SimCC) has none
-OWN_DECONV = {"vitpose", "rtmpose"}
+# (`deconv4s2_relu`); rtmpose (CSPNeXt + SimCC), raft and sea_raft (convex upsampling, no transposed conv) have none
+OWN_DECONV = {"vitpose", "rtmpose", "raft", "sea_raft"}
 
 
 def test_metal_runners_adapt():

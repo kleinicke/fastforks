@@ -16,6 +16,8 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.tracing import in_onnx_export
+
 _GRID_Y_MAX = 65535
 _NCHW = 4
 
@@ -42,7 +44,7 @@ def grid_sample(
         and padding_mode == "zeros"
         and input.is_cuda
         and input.dim() == _NCHW
-        and not (torch.compiler.is_exporting() or torch.jit.is_tracing() or torch.onnx.is_in_onnx_export())
+        and not (torch.compiler.is_exporting() or torch.jit.is_tracing() or in_onnx_export())
         and input.shape[0] > cudnn_max_rows(input.shape[1], grid.shape[1], grid.shape[2])
     ):
         # the direct call skips autocast's fp32 cast of grid_sample; do it here

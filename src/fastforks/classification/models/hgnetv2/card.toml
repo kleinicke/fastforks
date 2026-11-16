@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/PaddlePaddle/PaddleClas"
+framework = "PaddlePaddle"
+reason = "timm carries the architecture and the converted PaddleClas checkpoints in its own PyTorch API; the original is PaddlePaddle."
+
 [licence]
 code = "Apache-2.0"  # timm
 # The checkpoints are PaddleClas' (PP-HGNetV2 SSLD stage 2, Apache-2.0:
@@ -39,6 +44,12 @@ reason = "not built yet: the portable CNN path is validated; HGNetV2 aggregation
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "PP-HGNetV2"
+url = "https://github.com/PaddlePaddle/PaddleClas/blob/develop/docs/zh_CN/models/ImageNet1k/PP-HGNetV2.md"
+date = "2023-09-26"
+venue = "PaddleClas docs"
 
 [[variants]]
 id = "hgnetv2_b0.ssld_stage2_ft_in1k"

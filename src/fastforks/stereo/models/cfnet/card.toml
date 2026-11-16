@@ -1,7 +1,7 @@
 schema = 2
 name = "CFNet"
 summary = "CFNet (Shen et al. 2021): cascade and fused cost volumes (fused 1/8-1/32 3-D volumes), then two refinement stages that adapt to the uncertainty of the disparity (max disparity 192)."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
 
@@ -35,6 +35,12 @@ mps_kernels = ["stereo_metal"]
 # different sizes, this cancels out the gain (95.9 vs 94.3 ms mean per pair).
 
 # Upstream also links a model fine-tuned on KITTI / ETH3D / Middlebury (Robust Vision Challenge): not added yet.
+
+[[papers]]
+title = "CFNet: Cascade and Fused Cost Volume for Robust Stereo Matching"
+url = "https://arxiv.org/abs/2104.04314"
+date = "2021-04-09"
+venue = "CVPR 2021"
 
 [[variants]]
 id = "cfnet-sceneflow"

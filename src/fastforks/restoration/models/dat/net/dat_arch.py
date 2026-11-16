@@ -775,7 +775,7 @@ class DAT(nn.Module):
         )
 
         curr_dim = embed_dim
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, np.sum(depth))]  # stochastic depth decay rule
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, np.sum(depth), device="cpu")]  # stochastic depth decay rule
 
         self.layers = nn.ModuleList()
         for i in range(self.num_layers):

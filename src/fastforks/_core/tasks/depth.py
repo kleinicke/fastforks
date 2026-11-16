@@ -4,9 +4,11 @@ from typing import Literal, get_args
 
 from fastforks._core.tasks._base import VALUE_KEYS, TaskSpec
 
-DepthKind = Literal["metric", "scale_invariant", "affine_invariant", "affine_invariant_inverse", "none"]
-"""What depth / inverse depth / points mean: metres, up to scale, up to scale and shift, inverse up to both, or none
-(a normals-only model)."""
+DepthKind = Literal[
+    "metric", "scale_invariant", "affine_invariant", "affine_invariant_log", "affine_invariant_inverse", "none"
+]
+"""What depth / inverse depth / points mean: metres, up to scale, up to scale and shift, log depth up to scale and
+shift (`affine_invariant_log`: `log(metres) = a * depth + b`), inverse up to both, or none (a normals-only model)."""
 
 SPEC = TaskSpec(
     standard=("depth", "inverse_depth", "points", "intrinsics", "confidence", "mask", "normals"),

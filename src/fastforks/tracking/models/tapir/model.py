@@ -17,7 +17,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
-from fastforks._core.half import fp16_accumulate
+from fastforks._core.half import fp16_accumulate, half_weights
 from fastforks.tracking._runner import Forward, NoParams, Runner
 
 from .net.tapir import SIZE, TAPIR, PIPsConvBlock
@@ -64,6 +64,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
             lowres.append(b)
         q = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]  # (t, y, x)
         f = net.features(torch.cat(hires), torch.cat(lowres), q)
+        del hires, lowres  # the per-chunk copies
         points, vis = [], []
         for s in range(0, q.shape[1], QUERY_CHUNK):
             c = slice(s, s + QUERY_CHUNK)
@@ -86,6 +87,8 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = build(ctx).eval().requires_grad_(requires_grad=False).to(ctx.device)
         self.amp = torch.float16 if ctx.dtype == "float16" else None
+        if self.amp is not None:
+            half_weights(self.net, channels_last=False)
 
     def __call__(
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor

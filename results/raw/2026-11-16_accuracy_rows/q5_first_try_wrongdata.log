@@ -1,0 +1,20 @@
+== lib pointdit-l-512 compile 01:12:18
+note: /home/florian/.cache/fastforks/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/.cache/fastforks/data): pointdit-l-512 994x1482 on synthetic inputs
+In file included from /home/florian/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/include/python3.13/Python.h:14,
+                 from /home/florian/projects/experiments/017-fastforks-lib/wt-ports/.venv/lib/python3.13/site-packages/triton/backends/nvidia/driver.c:9:
+/home/florian/.local/share/uv/python/cpython-3.13.16-linux-x86_64-gnu/include/python3.13/pyconfig.h:1988:9: warning: ‘_POSIX_C_SOURCE’ redefined
+ 1988 | #define _POSIX_C_SOURCE 200809L
+      |         ^~~~~~~~~~~~~~~
+In file included from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdlib.h:26,
+                 from /home/florian/projects/experiments/017-fastforks-lib/wt-ports/.venv/lib/python3.13/site-packages/triton/backends/nvidia/include/cuda.h:56,
+                 from /home/florian/projects/experiments/017-fastforks-lib/wt-ports/.venv/lib/python3.13/site-packages/triton/backends/nvidia/driver.c:1:
+/usr/include/features.h:319:10: note: this is the location of the previous definition
+  319 | # define _POSIX_C_SOURCE        202405L
+      |          ^~~~~~~~~~~~~~~
+W1116 01:18:15.782000 1200549 torch/_inductor/utils.py:1806] [0/0] Not enough SMs to use max_autotune_gemm mode
+{"side": "lib", "ref": "pointdit-l-512", "task": "depth", "mode": "compile", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-16", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 2.42, "cuda_init_s": 0.3
+== lib pointdit-l-512 tensorrt 01:18:51
+note: /home/florian/.cache/fastforks/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/.cache/fastforks/data): pointdit-l-512 994x1482 on synthetic inputs
+FAIL (full): BackendUnavailableError: onnx is not installed: pip install 'fastforks-core[onnx]' (or 'pip install fastforks' for everything; from a git checkout: pip install -e '.[onnx]')
+{"side": "lib", "ref": "pointdit-l-512", "task": "depth", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-16", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.94, "cuda_init_s": 0.

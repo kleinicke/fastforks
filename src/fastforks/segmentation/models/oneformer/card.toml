@@ -9,6 +9,11 @@ uses = ["maskformer", "seginfer"]  # fastforks.shared modules this family import
 repo = "https://github.com/huggingface/transformers"
 commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/SHI-Labs/OneFormer"
+framework = "PyTorch"
+reason = "The Hugging Face transformers port loads the authors' ADE20K Swin-L checkpoint without detectron2 or custom CUDA ops."
+
 [licence]
 code = "Apache-2.0"  # transformers
 weights = "MIT"  # the Hugging Face model card (license: mit); SHI-Labs/OneFormer is MIT
@@ -36,6 +41,12 @@ kernels = ["fvm_seg", "seg_up"]
 
 [output]
 label_set = "ade20k-150"
+
+[[papers]]
+title = "OneFormer: One Transformer to Rule Universal Image Segmentation"
+url = "https://arxiv.org/abs/2211.06220"
+date = "2022-11-10"
+venue = "CVPR 2023"
 
 [[variants]]
 id = "oneformer-swinl-ade20k"

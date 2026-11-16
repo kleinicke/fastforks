@@ -38,6 +38,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc"]
 
+[[papers]]
+title = "DepthSplat: Connecting Gaussian Splatting and Depth"
+url = "https://arxiv.org/abs/2410.13862"
+date = "2024-10-17"
+venue = "CVPR 2025"
+
 [[variants]]
 id = "depthsplat-small-re10k"
 revision = 1

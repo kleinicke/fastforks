@@ -36,7 +36,7 @@ def test_matches_vendored_upstream(tmp_path: Path) -> None:
     m = restoration.load("codeformer", weights=tmp_path / "w.pth", device="cpu", dtype="float32")
     img = torch.rand(1, 3, 512, 512)
     with torch.inference_mode():
-        want = ((net(img * 2 - 1, w=card.params["fidelity"], adain=True)[0] + 1) / 2).clamp(0, 1)
+        want = ((net(img * 2 - 1, w=card.options["fidelity"], adain=True)[0] + 1) / 2).clamp(0, 1)
         got = m(img).image
         exported = m.module()(img)
     torch.testing.assert_close(got, want, rtol=0, atol=1e-4)

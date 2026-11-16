@@ -1,0 +1,24 @@
+14:05:52 start efficientvit_b2.r288_in1k
+14:06:04 end efficientvit_b2.r288_in1k rc=0
+14:06:04 start fastvit_t8.apple_dist_in1k
+14:06:14 end fastvit_t8.apple_dist_in1k rc=0
+14:06:14 start squeezenet1_1.tv_in1k
+14:06:21 end squeezenet1_1.tv_in1k rc=0
+14:06:21 start ben2
+14:06:34 end ben2 rc=0
+14:06:34 start flowformer-small-things
+14:06:48 end flowformer-small-things rc=0
+14:06:48 start moge-3-vitl
+14:07:24 end moge-3-vitl rc=0
+14:07:24 start gmflow-scale1-things
+14:07:49 end gmflow-scale1-things rc=0
+14:07:49 start swin2sr-x4
+14:08:41 end swin2sr-x4 rc=0
+14:08:41 start moge-2-vits-normal
+14:08:53 end moge-2-vits-normal rc=0
+14:08:53 start seedvr2-3b
+14:08:59 end seedvr2-3b rc=0
+14:09:04 orig efficientvit_b2.r288_in1k rc=0
+14:09:10 orig fastvit_t8.apple_dist_in1k rc=0
+14:09:13 orig squeezenet1_1.tv_in1k rc=0
+done

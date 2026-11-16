@@ -1,0 +1,190 @@
+== lib stablenormal-turbo tensorrt 05:29:28
+/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/_core/export.py:311: UserWarning: Exporting a model while it is in training mode. Please ensure that this is intended, as it may lead to different behavior during inference. Calling model.eval() before export is recommended.
+  program = torch.onnx.export(
+FAIL (full): OSError: [Errno 122] Disk quota exceeded
+{"side": "lib", "ref": "stablenormal-turbo", "task": "depth", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+== lib defom-stereo-vitl-sceneflow tensorrt 05:30:05
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): defom-stereo-vitl-sceneflow 994x1482 on synthetic inputs
+FAIL (full): OSError: [Errno 122] Disk quota exceeded
+{"side": "lib", "ref": "defom-stereo-vitl-sceneflow", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cu
+== lib dinov2-vitg14 tensorrt 05:31:28
+FAIL (full): OSError: problem writing element 8910848 to file
+{"side": "lib", "ref": "dinov2-vitg14", "task": "features", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.08, "cuda_init_s": 
+== lib great-igev-middlebury tensorrt 05:31:50
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): great-igev-middlebury 994x1482 on synthetic inputs
+W1115 05:33:00.074000 183565 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._s' is not one of the initializers
+W1115 05:33:00.074000 183565 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._t' is not one of the initializers
+W1115 05:33:00.075000 183565 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._s' is not one of the initializers
+W1115 05:33:00.075000 183565 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._t' is not one of the initializers
+W1115 05:33:00.075000 183565 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._s' is not one of the initializers
+W1115 05:33:00.075000 183565 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._t' is not one of the initializers
+W1115 05:33:00.075000 183565 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._s' is not one of the initializers
+W1115 05:33:00.075000 183565 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._t' is not one of the initializers
+{"side": "lib", "ref": "great-igev-middlebury", "task": "stereo", "mode": "tensorrt", "date": "2026-11-15", "input": "994x1482", "fails": "worker rc=124"}
+== lib waft-stereo-b tensorrt 05:36:46
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): waft-stereo-b 994x1482 on synthetic inputs
+FAIL (full): OSError: [Errno 122] Disk quota exceeded
+{"side": "lib", "ref": "waft-stereo-b", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.28, "cuda_init_s": 0.
+== lib igev-stereo-kitti12 tensorrt 05:40:14
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-kitti12 994x1482 on synthetic inputs
+== lib stablenormal-turbo tensorrt 05:40:21
+/home/florian/projects/experiments/017-fastforks-lib/wt-ports-gaps/src/fastforks/_core/export.py:311: UserWarning: Exporting a model while it is in training mode. Please ensure that this is intended, as it may lead to different behavior during inference. Calling model.eval() before export is recommended.
+  program = torch.onnx.export(
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "stablenormal-turbo", "task": "depth", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s"
+== lib defom-stereo-vitl-sceneflow tensorrt 05:44:03
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): defom-stereo-vitl-sceneflow 994x1482 on synthetic inputs
+[Autotuner]: No valid tactics to print (all tactics failed)
+Internal Error: MyelinCheckException: autotuner.cpp:3441: CHECK(sorted_ids.size() > 0) failed. Must have costs
+[TRT] [E] Error Code: 9: Skipping tactic 0x0000000000000000 due to exception [myelin_graph.h:1295: attachExceptionMsgToGraph] MyelinCheckException: autotuner.cpp:3441: CHECK(sorted_ids.size() > 0) failed. Must have costs In compileGraph at /_src/optimizer/myelin/codeGenerator.cpp:2011
+[TRT] [E] IBuilder::buildSerializedNetwork: Error Code 10: Internal Error (Could not find any implementation for node {ForeignNode[scalar_tensor_default_31...node_select_77]}. In computeCosts at /_src/optimizer/common/tactic/optimizer.cpp:4254)
+FAIL (full): BackendUnavailableError: TensorRT engine build failed: Error Code: 9: Skipping tactic 0x0000000000000000 due to exception [myelin_graph.h:1295: attachExceptionMsgToGraph] MyelinCheckException: autotuner.cpp:3441: CHECK(sorted_ids.size() > 0) failed. Must . Try float32 (no --fp16), or export the ONNX file (--format onnx) and build it with another TensorRT version
+{"side": "lib", "ref": "defom-stereo-vitl-sceneflow", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cu
+== lib dinov2-vitg14 tensorrt 05:48:34
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "dinov2-vitg14", "task": "features", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.34, "cuda_init_s": 
+== lib great-igev-middlebury tensorrt 05:49:34
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): great-igev-middlebury 994x1482 on synthetic inputs
+W1115 05:50:44.890000 195185 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._s' is not one of the initializers
+W1115 05:50:44.891000 195185 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._t' is not one of the initializers
+W1115 05:50:44.891000 195185 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._s' is not one of the initializers
+W1115 05:50:44.891000 195185 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._t' is not one of the initializers
+W1115 05:50:44.891000 195185 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._s' is not one of the initializers
+W1115 05:50:44.891000 195185 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._t' is not one of the initializers
+W1115 05:50:44.892000 195185 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._s' is not one of the initializers
+W1115 05:50:44.892000 195185 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._t' is not one of the initializers
+{"side": "lib", "ref": "great-igev-middlebury", "task": "stereo", "mode": "tensorrt", "date": "2026-11-15", "input": "994x1482", "fails": "worker rc=124"}
+== lib waft-stereo-b tensorrt 05:54:30
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): waft-stereo-b 994x1482 on synthetic inputs
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+FAIL (full): wrong output: an engine output is all NaN
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "waft-stereo-b", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+== lib igev-stereo-kitti12 tensorrt 05:58:08
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-kitti12 994x1482 on synthetic inputs
+W1115 05:58:48.093000 200007 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._s' is not one of the initializers
+W1115 05:58:48.094000 200007 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._t' is not one of the initializers
+W1115 05:58:48.094000 200007 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._s' is not one of the initializers
+W1115 05:58:48.094000 200007 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._t' is not one of the initializers
+W1115 05:58:48.094000 200007 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._s' is not one of the initializers
+W1115 05:58:48.094000 200007 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._t' is not one of the initializers
+W1115 05:58:48.094000 200007 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._s' is not one of the initializers
+W1115 05:58:48.094000 200007 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._t' is not one of the initializers
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "igev-stereo-kitti12", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.5, "cuda_init_s
+== lib igev-stereo-kitti15 tensorrt 06:01:58
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): igev-stereo-kitti15 994x1482 on synthetic inputs
+W1115 06:02:59.679000 202993 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._s' is not one of the initializers
+W1115 06:02:59.680000 202993 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._t' is not one of the initializers
+W1115 06:02:59.680000 202993 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._s' is not one of the initializers
+W1115 06:02:59.680000 202993 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._t' is not one of the initializers
+W1115 06:02:59.680000 202993 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._s' is not one of the initializers
+W1115 06:02:59.680000 202993 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._t' is not one of the initializers
+W1115 06:02:59.680000 202993 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._s' is not one of the initializers
+W1115 06:02:59.680000 202993 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._t' is not one of the initializers
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "igev-stereo-kitti15", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+== lib mocha-v1-sceneflow tensorrt 06:06:09
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): mocha-v1-sceneflow 994x1482 on synthetic inputs
+W1115 06:07:08.467000 204814 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._s' is not one of the initializers
+W1115 06:07:08.468000 204814 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._t' is not one of the initializers
+W1115 06:07:08.468000 204814 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._s' is not one of the initializers
+W1115 06:07:08.468000 204814 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._t' is not one of the initializers
+W1115 06:07:08.468000 204814 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._s' is not one of the initializers
+W1115 06:07:08.468000 204814 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._t' is not one of the initializers
+W1115 06:07:08.468000 204814 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._s' is not one of the initializers
+W1115 06:07:08.468000 204814 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._t' is not one of the initializers
+{"side": "lib", "ref": "mocha-v1-sceneflow", "task": "stereo", "mode": "tensorrt", "date": "2026-11-15", "input": "994x1482", "fails": "worker rc=124"}
+== lib selective-igev-eth3d-train tensorrt 06:11:05
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-eth3d-train 994x1482 on synthetic inputs
+W1115 06:11:49.729000 207537 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._s' is not one of the initializers
+W1115 06:11:49.730000 207537 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._t' is not one of the initializers
+W1115 06:11:49.730000 207537 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._s' is not one of the initializers
+W1115 06:11:49.730000 207537 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._t' is not one of the initializers
+W1115 06:11:49.730000 207537 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._s' is not one of the initializers
+W1115 06:11:49.730000 207537 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._t' is not one of the initializers
+W1115 06:11:49.730000 207537 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._s' is not one of the initializers
+W1115 06:11:49.730000 207537 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._t' is not one of the initializers
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "selective-igev-eth3d-train", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.03, "cud
+== lib selective-igev-kitti12 tensorrt 06:15:42
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-kitti12 994x1482 on synthetic inputs
+W1115 06:16:26.743000 210835 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._s' is not one of the initializers
+W1115 06:16:26.744000 210835 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._t' is not one of the initializers
+W1115 06:16:26.744000 210835 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._s' is not one of the initializers
+W1115 06:16:26.744000 210835 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._t' is not one of the initializers
+W1115 06:16:26.744000 210835 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._s' is not one of the initializers
+W1115 06:16:26.744000 210835 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._t' is not one of the initializers
+W1115 06:16:26.745000 210835 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._s' is not one of the initializers
+W1115 06:16:26.745000 210835 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._t' is not one of the initializers
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "selective-igev-kitti12", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_in
+== lib selective-igev-kitti15 tensorrt 06:20:15
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-kitti15 994x1482 on synthetic inputs
+W1115 06:20:59.863000 213500 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._s' is not one of the initializers
+W1115 06:20:59.864000 213500 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._t' is not one of the initializers
+W1115 06:20:59.864000 213500 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._s' is not one of the initializers
+W1115 06:20:59.864000 213500 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._t' is not one of the initializers
+W1115 06:20:59.864000 213500 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._s' is not one of the initializers
+W1115 06:20:59.864000 213500 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._t' is not one of the initializers
+W1115 06:20:59.864000 213500 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._s' is not one of the initializers
+W1115 06:20:59.864000 213500 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._t' is not one of the initializers
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "selective-igev-kitti15", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.12, "cuda_in
+== lib selective-igev-middlebury-finetune tensorrt 06:24:48
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-middlebury-finetune 994x1482 on synthetic inputs
+W1115 06:25:33.431000 216003 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._s' is not one of the initializers
+W1115 06:25:33.432000 216003 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._t' is not one of the initializers
+W1115 06:25:33.432000 216003 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._s' is not one of the initializers
+W1115 06:25:33.432000 216003 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._t' is not one of the initializers
+W1115 06:25:33.432000 216003 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._s' is not one of the initializers
+W1115 06:25:33.432000 216003 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._t' is not one of the initializers
+W1115 06:25:33.432000 216003 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._s' is not one of the initializers
+W1115 06:25:33.432000 216003 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._t' is not one of the initializers
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "selective-igev-middlebury-finetune", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.
+== lib selective-igev-middlebury-train tensorrt 06:29:24
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-middlebury-train 994x1482 on synthetic inputs
+W1115 06:31:53.440000 223431 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._s' is not one of the initializers
+W1115 06:31:53.440000 223431 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._t' is not one of the initializers
+W1115 06:31:53.440000 223431 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._s' is not one of the initializers
+W1115 06:31:53.440000 223431 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._t' is not one of the initializers
+W1115 06:31:53.440000 223431 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._s' is not one of the initializers
+W1115 06:31:53.441000 223431 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._t' is not one of the initializers
+W1115 06:31:53.441000 223431 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._s' is not one of the initializers
+W1115 06:31:53.441000 223431 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._t' is not one of the initializers
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "selective-igev-middlebury-train", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.06,
+== lib selective-igev-sceneflow tensorrt 06:35:43
+note: /home/florian/projects/data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png missing ($FASTFORKS_DATA=/home/florian/projects/data): selective-igev-sceneflow 994x1482 on synthetic inputs
+W1115 06:36:27.708000 225917 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._s' is not one of the initializers
+W1115 06:36:27.708000 225917 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer2.0.downsample.1._t' is not one of the initializers
+W1115 06:36:27.708000 225917 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._s' is not one of the initializers
+W1115 06:36:27.708000 225917 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer3.0.downsample.1._t' is not one of the initializers
+W1115 06:36:27.709000 225917 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._s' is not one of the initializers
+W1115 06:36:27.709000 225917 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer4.0.downsample.1._t' is not one of the initializers
+W1115 06:36:27.709000 225917 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._s' is not one of the initializers
+W1115 06:36:27.709000 225917 torch/onnx/_internal/exporter/_core.py:1298] Tensor 'net.net.cnet.layer5.0.downsample.1._t' is not one of the initializers
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "selective-igev-sceneflow", "task": "stereo", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.4, "cuda_i
+== lib tapnext tensorrt 06:40:15
+{"side": "lib", "ref": "tapnext", "task": "tracking", "mode": "tensorrt", "date": "2026-11-15", "input": "480x854", "fails": "worker rc=124"}
+== lib mvsanywhere tensorrt 06:45:11
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+FAIL (full): wrong output: an engine output is all NaN
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "mvsanywhere", "task": "multiview", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.04, "cuda_init_s": 0
+== lib sam-vit-h tensorrt 06:50:25
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+[TRT] [W] Using default stream in enqueueV3() may lead to performance issues due to additional calls to cudaStreamSynchronize() by TensorRT to ensure correct synchronization. Please use non-default stream instead.
+{"side": "lib", "ref": "sam-vit-h", "task": "promptable_segmentation", "mode": "tensorrt", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cud

@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/snap-research/EfficientFormer"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
 [licence]
 code = "Apache-2.0"  # timm
 # The checkpoints are Snap Research's (snap-research/EfficientFormer; its LICENSE is an MIT-style grant by Snap Inc.
@@ -40,6 +45,12 @@ reason = "not built yet: pooling blocks with Conv-BN MLPs and LayerNorm transfor
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "EfficientFormer: Vision Transformers at MobileNet Speed"
+url = "https://arxiv.org/abs/2206.01191"
+date = "2022-06-02"
+venue = "NeurIPS 2022"
 
 [[variants]]
 id = "efficientformer_l1.snap_dist_in1k"

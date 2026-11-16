@@ -42,8 +42,14 @@ assert model._AFTER_DYNAMO, "the eager label step waits for dynamo"
 scores, sizes = torch.randn(1, 5, 4, 6), [(8, 12)]
 want = seginfer.upsample_argmax(scores, sizes)
 assert "torch._dynamo" not in sys.modules, "an eager call must not import dynamo"
-model._import_dynamo()
-assert not model._AFTER_DYNAMO
+class Kernels:  # a kernels runner: its entry point is opaque to dynamo
+    compiled_methods = ("__call__",)
+    def __call__(self, x):
+        frames.append(torch.compiler.is_compiling())
+        return x + 1
+runner = Kernels()
+model._kernels_entry_points(runner)
+assert "torch._dynamo" not in sys.modules, "a kernels load must not import dynamo"
 frames = []
 def count(fn):
     def run(*a, **k):
@@ -51,13 +57,15 @@ def count(fn):
         return fn(*a, **k)
     return run
 torch.nn.functional.interpolate = count(torch.nn.functional.interpolate)  # `_argmax` calls it through `F`
-got = torch.compile(lambda s: seginfer.upsample_argmax(s, sizes), backend="eager")(scores)
+got = torch.compile(lambda s: seginfer.upsample_argmax(s, sizes), backend="eager")(scores)  # imports dynamo
+assert not model._AFTER_DYNAMO, "the import armed every waiting wrapper"
 assert torch.equal(got, want)
-print("eager" if frames == [False] else f"traced {frames}")
+assert torch.equal(torch.compile(lambda x: runner(x) * 2, backend="eager")(scores), (scores + 1) * 2)
+print("eager" if frames == [False, False] else f"traced {frames}")
 """
 
 
 @pytest.mark.slow
-def test_seginfer_import_leaves_dynamo_out_and_labels_run_eagerly_in_compile():
+def test_loads_leave_dynamo_out_and_its_import_arms_the_eager_wrappers():
     out = subprocess.run([sys.executable, "-c", EAGER], capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "eager"

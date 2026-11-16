@@ -124,6 +124,7 @@ class Portable(Runner):
     """The vendored network with fused SDPA attention: float32, or on CUDA a fp16 ViT and an autocast decoder."""
 
     intrinsics = "optional"
+    assumed_camera = "the canonical camera (focal length 1000 px at the network input)"
     dtypes = ("float32", "float16")
     batch = None
     Params = NoParams
@@ -229,6 +230,7 @@ class Kernels(Runner):
     """
 
     intrinsics = "optional"
+    assumed_camera = "the canonical camera (focal length 1000 px at the network input)"
     batch = None
     Params = NoParams
 

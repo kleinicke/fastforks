@@ -20,7 +20,10 @@ einshape and dm-tree on the path): `upstream` (fp32) and `upstream16` (float16 a
 continuous. TAPNext online as their evaluation (the first frame with the queries, then one frame at a time with the
 state); TAPIR / BootsTAPIR offline (the whole video at once; visible where `(1 - sigmoid(occlusion)) * (1 -
 sigmoid(expected_dist)) > 0.5`); LocoTrack the same (`$LOCOTRACK_SRC`, a KU-CVLAB/LocoTrack checkout with einops,
-through `tools/golden/locotrack.py` `track`). Track-On2 / Track-On-R (`$TRACK_ON_SRC`, a gorkaydemir/track_on
+through `tools/golden/locotrack.py` `track`). CoTracker3 (`$COTRACKER_SRC`, a facebookresearch/co-tracker checkout)
+through `tools/golden/cotracker.py` `track`: upstream's predictors (offline: the whole video with a 6 x 6 support
+grid, visible where sigmoid(vis) > 0.9; online: 16-frame windows, visible where sigmoid(vis) x sigmoid(conf) > 0.6),
+the 256 x 256 frames resized to 384 x 512 by the model. Track-On2 / Track-On-R (`$TRACK_ON_SRC`, a gorkaydemir/track_on
 checkout) through `tools/golden/track_on.py` `track`, online on the 256 x 256 frames as upstream's evaluation.
 AllTracker (both tiers and the original) gets the original frames, queries in their pixels, and resizes them itself
 to 384 x 512 (upstream's evaluation resizes the originals with cv2 bilinear); the predictions are scaled to 256 x 256
@@ -63,6 +66,7 @@ WEIGHT = {
 TAPIR_REFS = ("bootstapir", "tapir")
 TRACK_ON_REFS = ("track-on2", "track-on-r")
 LOCOTRACK_REFS = ("locotrack-b", "locotrack-s")
+COTRACKER_REFS = ("cotracker3-offline", "cotracker3-online")
 NATIVE_REFS = ("alltracker", "alltracker-tiny")  # fed the original frames (they resize to their own 384 x 512)
 
 
@@ -196,6 +200,24 @@ class OriginalLocoTrack:
         return tracks.transpose(0, 1).cpu().numpy() + 0.5, (vis.T <= 0.5).cpu().numpy()  # noqa: PLR2004
 
 
+class OriginalCoTracker(OriginalLocoTrack):
+    """The authors' CoTracker3 through `tools/golden/cotracker.py` `track` (`$COTRACKER_SRC`, CUDA).
+
+    Offline (the whole video, 6 x 6 support grid) or online (16-frame windows, step 8), as upstream's predictors.
+    """
+
+    def __init__(self, ref: str, tier: str) -> None:  # noqa: D107
+        sys.path.insert(0, str(Path(__file__).parent / "golden"))
+        import cotracker as g  # noqa: PLC0415
+
+        file, online = g.MODELS[f"{ref}@1"]
+        root = Path(os.environ["FASTFORKS_WEIGHTS_PATH"]) / "cotracker"
+        self.g = g
+        self.model = g.load(Path(os.environ["COTRACKER_SRC"]), root / file, online).cuda()
+        self.backend = _Upstream(tier)
+        self.backend.name = "CoTracker3"
+
+
 class _Upstream:
     def __init__(self, tier: str) -> None:
         self.mode, self.dtype, self.how = "upstream", torch.float16 if tier == "upstream16" else torch.float32, None
@@ -300,6 +322,8 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:
         if ref in TRACK_ON_REFS
         else OriginalLocoTrack
         if ref in LOCOTRACK_REFS
+        else OriginalCoTracker
+        if ref in COTRACKER_REFS
         else Original
     )
     model = (orig if tier.startswith("upstream") else Ours)(ref, tier)

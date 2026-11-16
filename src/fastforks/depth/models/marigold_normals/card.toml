@@ -17,6 +17,11 @@ kind = "none"  # normals only
 repo = "https://github.com/huggingface/diffusers"
 commit = "086bf95"  # v0.41.0
 
+[[upstream.official]]
+repo = "https://github.com/prs-eth/Marigold"
+framework = "PyTorch"
+reason = "The prs-eth/marigold-normals-lcm-v0-1 weights are published as a diffusers pipeline, so fastforks follows the diffusers implementation rather than the authors' own repository."
+
 [licence]
 code = "Apache-2.0"
 weights = "Apache-2.0"
@@ -40,6 +45,12 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]
+
+[[papers]]
+title = "Marigold: Affordable Adaptation of Diffusion-Based Image Generators for Image Analysis"
+url = "https://arxiv.org/abs/2505.09358"
+date = "2025-05-14"
+venue = "arXiv"
 
 [[variants]]
 id = "marigold-normals-lcm-v0-1"

@@ -20,6 +20,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.tracing import in_onnx_export
 
 PATCH = 16
 REGISTERS = 4
@@ -132,9 +133,15 @@ class DINOv3ViT(nn.Module):
         self._rope: dict[tuple, tuple[torch.Tensor, torch.Tensor]] = {}
 
     def load(
-        self, sd: dict[str, torch.Tensor], stream_scale: float = 1.0, what: str = "DINOv3 checkpoint"
+        self,
+        sd: dict[str, torch.Tensor],
+        stream_scale: float = 1.0,
+        what: str = "DINOv3 checkpoint",
+        dtype: torch.dtype | None = None,
     ) -> DINOv3ViT:
-        """Assign the HF state dict strictly, folding `stream_scale` (a power of two) into the stream weights.
+        """Assign the HF state dict strictly in `dtype`, folding `stream_scale` (a power of two) into the stream.
+
+        The fold runs before the cast; `dtype` defaults to the network's.
 
         Raises:
             WeightsError: The state dict does not fit (names `what` and the first keys).
@@ -146,7 +153,7 @@ class DINOv3ViT(nn.Module):
             for m in self.modules():
                 if isinstance(m, nn.LayerNorm):
                     m.eps = self.cfg.eps / s**2
-        load_strict(self, sd, what, assign=True)
+        load_strict(self, sd, what, assign=True, dtype=dtype)
         self.stream_scale = s
         return self
 
@@ -195,7 +202,7 @@ class DINOv3ViT(nn.Module):
         cos, sin = rope  # padded tables (`rope_padded`): RoPE in place on q and k together
         qk = qkv[:2]
         rolled = qk.roll(d // 2, -1)  # before the in-place scale: `[x2, x1]` of the unscaled q / k
-        if torch.onnx.is_in_onnx_export():  # out of place: no in-place op on a view in the graph
+        if in_onnx_export():  # out of place: no in-place op on a view in the graph
             qk = torch.addcmul(qk * cos, rolled, sin)
         else:
             qk.mul_(cos).addcmul_(rolled, sin)
@@ -204,7 +211,7 @@ class DINOv3ViT(nn.Module):
 
     def block(self, blk: _Layer, x: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         """One pre-norm block (SDPA attention); `rope` = padded `(cos, sin')` in the dtype of `x`."""
-        if torch.onnx.is_in_onnx_export():  # ONNX addcmul promotes to fp32: plain ops for the export
+        if in_onnx_export():  # ONNX addcmul promotes to fp32: plain ops for the export
             x = x + self.attention(blk, blk.norm1(x), rope) * blk.layer_scale1.lambda1
             return x + blk.mlp(blk.norm2(x)) * blk.layer_scale2.lambda1
         x = torch.addcmul(x, self.attention(blk, blk.norm1(x), rope), blk.layer_scale1.lambda1)

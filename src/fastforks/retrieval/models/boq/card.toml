@@ -31,6 +31,12 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]
 
+[[papers]]
+title = "BoQ: A Place is Worth a Bag of Learnable Queries"
+url = "https://arxiv.org/abs/2405.07364"
+date = "2024-05-12"
+venue = "CVPR 2024"
+
 [[variants]]
 id = "boq-dinov2"
 revision = 1

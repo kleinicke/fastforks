@@ -33,6 +33,12 @@ mps_dtypes = ["float32"]
 status = "none"
 reason = "no kernels mode was built for it; SEA-RAFT's engine and the Depth Anything kernels would fit and could be combined"
 
+[[papers]]
+title = "FlowSeek: Optical Flow Made Easier with Depth Foundation Models and Motion Bases"
+url = "https://arxiv.org/abs/2509.05297"
+date = "2025-09-05"
+venue = "ICCV 2025"
+
 [[variants]]
 id = "flowseek-t"  # upstream flowseek_T_TartanCT_TSKH.pth (the fine-tuned checkpoint; scripts/eval.sh uses it for Spring and LayeredFlow)
 revision = 1

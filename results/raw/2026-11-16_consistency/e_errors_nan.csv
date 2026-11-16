@@ -1,0 +1,80 @@
+file,line,ref,mode,input,status,error,by_design_orig_oom
+speed.jsonl,1149,great-igev-middlebury,upstream,994x1482,oom,OutOfMemoryError: CUDA out of memory. Tried to allocate 6.61 GiB. GPU 0 has a total capacity of 15.48 GiB of which 1.57 ,True
+speed.jsonl,1150,great-igev-middlebury,upstream-default,994x1482,oom,OutOfMemoryError: CUDA out of memory. Tried to allocate 6.61 GiB. GPU 0 has a total capacity of 15.48 GiB of which 1.49 ,True
+speed.jsonl,2136,flowformer-small-chairs,portable,1080x1920,oom,run: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.76 GiB. GPU 0 has a total capacity of 15.48 GiB of which,False
+speed.jsonl,2137,flowformer-small-things,portable,1080x1920,oom,run: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.76 GiB. GPU 0 has a total capacity of 15.48 GiB of which,False
+speed.jsonl,2138,flowformer-small-sintel,portable,1080x1920,oom,run: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.76 GiB. GPU 0 has a total capacity of 15.48 GiB of which,False
+speed.jsonl,2139,flowformer-small-chairs,upstream-default,1080x1920,oom,"OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 15.76 GiB. GPU 0 has a total capacity of 15.48 GiB of which",True
+speed.jsonl,2141,flowformer-small-chairs,upstream,1080x1920,oom,"OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 7.88 GiB. GPU 0 has a total capacity of 15.48 GiB of which ",True
+speed.jsonl,2143,flowformer-small-things,upstream-default,1080x1920,oom,"OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 15.76 GiB. GPU 0 has a total capacity of 15.48 GiB of which",True
+speed.jsonl,2145,flowformer-small-things,upstream,1080x1920,oom,"OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 7.88 GiB. GPU 0 has a total capacity of 15.48 GiB of which ",True
+speed.jsonl,2147,flowformer-small-sintel,upstream-default,1080x1920,oom,"OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 15.76 GiB. GPU 0 has a total capacity of 15.48 GiB of which",True
+speed.jsonl,2149,flowformer-small-sintel,upstream,1080x1920,oom,"OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 7.88 GiB. GPU 0 has a total capacity of 15.48 GiB of which ",True
+speed.jsonl,2186,c-foundationstereo-s,upstream-default,994x1482,oom,OutOfMemoryError: CUDA out of memory. Tried to allocate 15.51 GiB. GPU 0 has a total capacity of 15.48 GiB of which 4.52,True
+speed.jsonl,2583,memflow,upstream,1080x1920,oom,"OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 GiB. GPU 0 has a total capacity of 15.48 GiB of which ",True
+speed.jsonl,2587,memflow-sintel,upstream,1080x1920,oom,"OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 GiB. GPU 0 has a total capacity of 15.48 GiB of which ",True
+speed.jsonl,2591,memflow-kitti,upstream,1080x1920,oom,"OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 GiB. GPU 0 has a total capacity of 15.48 GiB of which ",True
+speed.jsonl,2850,gimm-vfi-r,upstream,1080x1920,oom,OutOfMemoryError: CUDA out of memory. Tried to allocate 1020.00 MiB. GPU 0 has a total capacity of 15.48 GiB of which 90,True
+speed.jsonl,2852,gimm-vfi-r,upstream,1080x1920,oom,OutOfMemoryError: CUDA out of memory. Tried to allocate 1020.00 MiB. GPU 0 has a total capacity of 15.48 GiB of which 70,True
+speed.jsonl,2878,gimm-vfi-r-p,upstream,1080x1920,oom,OutOfMemoryError: CUDA out of memory. Tried to allocate 1020.00 MiB. GPU 0 has a total capacity of 15.48 GiB of which 90,True
+speed.jsonl,2880,gimm-vfi-r-p,upstream,1080x1920,oom,OutOfMemoryError: CUDA out of memory. Tried to allocate 1020.00 MiB. GPU 0 has a total capacity of 15.48 GiB of which 70,True
+speed.jsonl,2913,marigold-v2-depth,upstream,994x1482,oom,"OutOfMemoryError: the authors' stack (diffusers QwenImageEditPipeline, bitsandbytes NF4, peft LoRA) needs 13.8 GiB alloc",True
+speed.jsonl,2914,marigold-v2-depth,upstream,518x770,oom,"OutOfMemoryError: the authors' stack needs 13.8-15.0 GiB allocated at 512-768 square (RTX 3090, docs/plans/marigold-v2-p",True
+speed.jsonl,2982,seedvr2-7b,portable,512x512,oom,OutOfMemoryError: CUDA out of memory. Tried to allocate 108.00 MiB. GPU 0 has a total capacity of 15.48 GiB of which 58.,False
+speed.jsonl,2983,seedvr2-7b,kernels,512x512,oom,OutOfMemoryError: CUDA out of memory. Tried to allocate 108.00 MiB. GPU 0 has a total capacity of 15.48 GiB of which 58.,False
+speed.jsonl,2985,seedvr2-7b,upstream,512x512,oom,OutOfMemoryError: the authors' default keeps the whole 16.5 GB bf16 transformer on the GPU for the step (15.5 GiB card);,True
+speed.jsonl,2990,nnfoundation-vit,upstream-default,192x192,oom,"OutOfMemoryError: CUDA out of memory. Tried to allocate 11.39 GiB (timm Eva fp32 SDPA math path, 13824 tokens). GPU 0 ha",True
+speed.jsonl,3068,memfof-kitti,upstream,1080x1920,,"OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 GiB. GPU 0 has a total capacity of 15.48 GiB of which ",False
+speed.jsonl,3070,memfof-sintel,upstream,1080x1920,oom,"OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 GiB. GPU 0 has a total capacity of 15.48 GiB of which ",True
+speed.jsonl,3231,memfof-sintel,portable,1080x1920,oom,run: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 GiB. GPU 0 has a total capacity of 15.48 GiB of which ,False
+depth_eval.jsonl,285,zoedepth-nk,upstream-fp16,nyu,error,non-finite output (> 1 % of the pixels) on 77 of 654 items,False
+depth_eval.jsonl,286,zoedepth-nk,upstream-fp16,ibims,error,non-finite output (> 1 % of the pixels) on 1 of 100 items,False
+depth_eval.jsonl,287,zoedepth-nk,upstream-fp16,eth3d,error,non-finite output (> 1 % of the pixels) on 2 of 27 items,False
+multiview_eval.jsonl,13,patchmatchnet,upstream-fp16,dtu-scans1-9-24-33-75-view24,error,"call: _LinAlgError: linalg.inv: (Batch element 0): The diagonal element 4 is zero, the inversion could not be completed ",False
+stereo_eval.jsonl,35,bridgedepth-rvc-pretrain,upstreamhalf,eth3d,error,call: RuntimeError: invalid dtype for bias - should match query's dtype,False
+stereo_eval.jsonl,36,bridgedepth-rvc-pretrain,upstreamhalf,middH,error,call: RuntimeError: invalid dtype for bias - should match query's dtype,False
+stereo_eval.jsonl,47,bridgedepth-sf,upstreamhalf,eth3d,error,call: RuntimeError: invalid dtype for bias - should match query's dtype,False
+stereo_eval.jsonl,48,bridgedepth-sf,upstreamhalf,middH,error,call: RuntimeError: invalid dtype for bias - should match query's dtype,False
+stereo_eval.jsonl,64,c-foundationstereo-s,portable32,middH,error,"OOM, middH: call: OutOfMemoryError: CUDA out of memory. Tried to allocate 5.28 GiB. GPU 0 has a total capacity of 15.48 ",False
+stereo_eval.jsonl,66,c-foundationstereo-s,upstream,middH,error,"OOM, middH: call: OutOfMemoryError: CUDA out of memory. Tried to allocate 14.39 GiB. GPU 0 has a total capacity of 15.48",True
+stereo_eval.jsonl,68,c-foundationstereo-s,upstream16,middH,error,"call: AcceleratorError: CUDA error: invalid argument
+Search for `cudaErrorInvalidValue' in https://docs.nvidia.com/cuda/",False
+stereo_eval.jsonl,70,c-foundationstereo-s,upstream-fp16,middH,error,"OOM, middH: call: OutOfMemoryError: CUDA out of memory. Tried to allocate 14.39 GiB. GPU 0 has a total capacity of 15.48",True
+stereo_eval.jsonl,91,cas-gwcnet-gc-sceneflow,upstream-fp16,eth3d,error,non-finite output (> 1 % of the pixels) on 27 of 27 items,False
+stereo_eval.jsonl,92,cas-gwcnet-gc-sceneflow,upstream-fp16,middH,error,non-finite output (> 1 % of the pixels) on 15 of 15 items,False
+stereo_eval.jsonl,93,cas-gwcnet-gc-sceneflow,upstreamhalf,eth3d,error,non-finite output (> 1 % of the pixels) on 27 of 27 items,False
+stereo_eval.jsonl,94,cas-gwcnet-gc-sceneflow,upstreamhalf,middH,error,non-finite output (> 1 % of the pixels) on 15 of 15 items,False
+stereo_eval.jsonl,103,cfnet-sceneflow,upstream-fp16,eth3d,error,non-finite output (> 1 % of the pixels) on 27 of 27 items,False
+stereo_eval.jsonl,104,cfnet-sceneflow,upstream-fp16,middH,error,non-finite output (> 1 % of the pixels) on 15 of 15 items,False
+stereo_eval.jsonl,105,cfnet-sceneflow,upstreamhalf,eth3d,error,non-finite output (> 1 % of the pixels) on 27 of 27 items,False
+stereo_eval.jsonl,106,cfnet-sceneflow,upstreamhalf,middH,error,non-finite output (> 1 % of the pixels) on 15 of 15 items,False
+stereo_eval.jsonl,138,defom-stereo-vitl-sceneflow,upstream-fp16,eth3d,error,non-finite output (> 1 % of the pixels) on 27 of 27 items,False
+stereo_eval.jsonl,139,defom-stereo-vitl-sceneflow,upstream-fp16,middH,error,non-finite output (> 1 % of the pixels) on 15 of 15 items,False
+stereo_eval.jsonl,170,fast-acvnet-generalization,upstreamhalf,eth3d,error,call: RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same,False
+stereo_eval.jsonl,171,fast-acvnet-generalization,upstreamhalf,middH,error,call: RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same,False
+stereo_eval.jsonl,182,fast-acvnet-kitti12,upstreamhalf,eth3d,error,call: RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same,False
+stereo_eval.jsonl,183,fast-acvnet-kitti12,upstreamhalf,middH,error,call: RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same,False
+stereo_eval.jsonl,194,fast-acvnet-kitti15,upstreamhalf,eth3d,error,call: RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same,False
+stereo_eval.jsonl,195,fast-acvnet-kitti15,upstreamhalf,middH,error,call: RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same,False
+stereo_eval.jsonl,206,fast-acvnet-plus-generalization,upstreamhalf,eth3d,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,207,fast-acvnet-plus-generalization,upstreamhalf,middH,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,218,fast-acvnet-plus-kitti12,upstreamhalf,eth3d,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,219,fast-acvnet-plus-kitti12,upstreamhalf,middH,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,230,fast-acvnet-plus-kitti15,upstreamhalf,eth3d,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,231,fast-acvnet-plus-kitti15,upstreamhalf,middH,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,242,fast-acvnet-plus-sceneflow,upstreamhalf,eth3d,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,243,fast-acvnet-plus-sceneflow,upstreamhalf,middH,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,254,fast-acvnet-sceneflow,upstreamhalf,eth3d,error,call: RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same,False
+stereo_eval.jsonl,255,fast-acvnet-sceneflow,upstreamhalf,middH,error,call: RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same,False
+stereo_eval.jsonl,313,great-igev-middlebury,upstream,middH,error,"OOM, middH: call: OutOfMemoryError: CUDA out of memory. Tried to allocate 6.13 GiB. GPU 0 has a total capacity of 15.48 ",True
+stereo_eval.jsonl,315,great-igev-middlebury,upstream-fp16,middH,error,"OOM, middH: call: OutOfMemoryError: CUDA out of memory. Tried to allocate 6.13 GiB. GPU 0 has a total capacity of 15.48 ",True
+stereo_eval.jsonl,578,nmrf-sceneflow,upstreamhalf,eth3d,error,call: RuntimeError: expected scalar type Float but found Half,False
+stereo_eval.jsonl,579,nmrf-sceneflow,upstreamhalf,middH,error,call: RuntimeError: expected scalar type Float but found Half,False
+stereo_eval.jsonl,642,s2m2-l,upstreamhalf,eth3d,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,643,s2m2-l,upstreamhalf,middH,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,654,s2m2-m,upstreamhalf,eth3d,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,655,s2m2-m,upstreamhalf,middH,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,666,s2m2-s,upstreamhalf,eth3d,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,667,s2m2-s,upstreamhalf,middH,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,678,s2m2-xl,upstreamhalf,eth3d,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False
+stereo_eval.jsonl,679,s2m2-xl,upstreamhalf,middH,error,call: RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but ,False

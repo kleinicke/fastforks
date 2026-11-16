@@ -94,6 +94,20 @@ def _reg(mod: _Blk, bufs: dict[str, torch.Tensor | None]) -> None:
         mod.register_buffer(k, None if v is None else v.detach(), persistent=False)
 
 
+def _adopt(bufs: dict[str, torch.Tensor | None], params: dict[str, torch.Tensor | None], gammas: tuple) -> None:
+    """Kernels path (no autograd, reads only the buffers): a folded buffer replaces its parameter's storage.
+
+    No second copy of proj / fc1 / fc2 next to the original (CLIP ViT-B kernels 228 -> 172 MB). A folded layer scale
+    becomes 1 so the module stays exact; a reload (load_state_dict) restores the originals and folds again.
+    """
+    for k, p in params.items():
+        if p is not None and bufs.get(k) is not None and bufs[k].data_ptr() != p.data_ptr():
+            p.data = bufs[k].reshape(p.shape)
+    for g in gammas:
+        if g is not None:
+            g.data = torch.ones_like(g)
+
+
 def _alias(params: list[nn.Parameter], packed: torch.Tensor, rows: list[int] | None = None) -> None:
     """Point `params` at row slices of `packed` (which holds exactly their values) instead of their own storage.
 
@@ -133,18 +147,7 @@ def _cnx_ok(blk: _Blk) -> bool:
 
 
 def _cnx_prep(blk: _Blk) -> None:
-    m = blk.mlp
-    with torch.no_grad():
-        w2, b2 = m.fc2.weight.float(), m.fc2.bias.float()
-        if blk.gamma is not None:
-            g = blk.gamma.float()
-            w2, b2 = w2 * g[:, None], b2 * g
-        dt = m.fc2.weight.dtype
-        if blk.gamma is None:
-            _reg(blk, {"_w2": m.fc2.weight, "_b2": m.fc2.bias})
-        else:
-            _reg(blk, {"_w2": w2.to(dt).contiguous(), "_b2": b2.to(dt)})
-    grn = getattr(m, "grn", None)
+    grn = getattr(blk.mlp, "grn", None)
     if grn is not None:
         blk._grn_eps = grn.eps
 
@@ -166,13 +169,9 @@ def _cnx_portable(self: _Blk, x: torch.Tensor) -> torch.Tensor:
     h = m.act(m.fc1(h))
     if hasattr(self, "_grn_eps"):
         h = _grn(self, h)
-    g = self.gamma
-    if torch.is_grad_enabled() and any(p is not None and p.requires_grad for p in (m.fc2.weight, m.fc2.bias, g)):
-        h = m.fc2(h)  # autograd: from the parameters (`_w2` / `_b2` are detached folded copies)
-        h = h * g if g is not None else h
-    else:
-        h = F.linear(h, self._w2, self._b2)
-    return shortcut + h.permute(0, 3, 1, 2)
+    h = m.fc2(h).permute(0, 3, 1, 2)
+    g = self.gamma  # the layer scale rides on the residual add (one pass); the parameters stay as loaded (autograd)
+    return shortcut + h if g is None else torch.addcmul(shortcut, h, g.view(1, -1, 1, 1))
 
 
 def _cnx_kernels(self: _Blk, x: torch.Tensor) -> torch.Tensor:
@@ -183,7 +182,7 @@ def _cnx_kernels(self: _Blk, x: torch.Tensor) -> torch.Tensor:
     h = lin(h, self._w1, self.mlp.fc1.bias, act=self._act)
     if hasattr(self, "_grn_eps"):
         h = _grn(self, h)
-    return lin(h, self._w2_4, self._b2, res=shortcut.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+    return lin(h, self._w2_4, self._b2_g, res=shortcut.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
 
 def patch_convnext(model: nn.Module, mode: str) -> int:
@@ -211,12 +210,22 @@ def patch_convnext(model: nn.Module, mode: str) -> int:
 
 
 def _cnx_kprep(blk: _Blk) -> None:
+    fc2, g = blk.mlp.fc2, blk.gamma
+    if g is not None:
+        # the kernels' GEMM epilogue adds the residual, so the layer scale is folded into fc2 itself and set to 1 (the
+        # portable fallback stays exact; a separate folded copy of every fc2 weight cost ~40 % of the model). The
+        # kernels path has no autograd, so the parameters may change here (portable keeps them as loaded).
+        with torch.no_grad():
+            gf = g.float()
+            w2, b2 = (fc2.weight.float() * gf[:, None]).to(fc2.weight.dtype), (fc2.bias.float() * gf).to(fc2.bias.dtype)
+            fc2.weight.data, fc2.bias.data, g.data = w2.contiguous(), b2, torch.ones_like(g)
     _reg(
         blk,
         {
             "_w_rsc": blk.conv_dw.weight.data[:, 0].permute(1, 2, 0).contiguous(),
             "_w1": _w4(blk.mlp.fc1.weight),
-            "_w2_4": _w4(blk._w2),
+            "_w2_4": _w4(fc2.weight),
+            "_b2_g": fc2.bias,
         },
     )
     blk._act = _gelu(blk.mlp.act)
@@ -342,6 +351,20 @@ def _vit_prep(mod: _Blk) -> None:
             if g2 is not None:
                 w2, b2 = w2 * g2.float()[:, None], b2 * g2.float()
             bufs["_w_fc2"], bufs["_b_fc2"] = _w4(w2.to(dt)), b2.to(dt)
+        _adopt(
+            bufs,
+            {
+                "_w_proj": a.proj.weight,
+                "_b_proj": a.proj.bias,
+                "_w_fc1": m.fc1.weight,
+                "_b_fc1": m.fc1.bias,
+                "_w_fc2": m.fc2.weight,
+                "_b_fc2": m.fc2.bias,
+                "_ln2_w": getattr(n2, "weight", None),
+                "_ln2_b": getattr(n2, "bias", None),
+            },
+            (g1, g2),
+        )
     _reg(mod, bufs)
 
 
@@ -714,6 +737,11 @@ def _pe_prep(blk: _Blk) -> None:
                 "_w_fc2": _w4(m.fc2.weight) if blk.gamma_2 is None else _w4(w2.to(dt)),
                 "_b_fc2": m.fc2.bias if blk.gamma_2 is None else b2.to(dt),
             },
+        )
+        _adopt(
+            blk._buffers,
+            {"_w_proj": a.proj.weight, "_b_proj": a.proj.bias, "_w_fc2": m.fc2.weight, "_b_fc2": m.fc2.bias},
+            (blk.gamma_1, blk.gamma_2),
         )
 
 

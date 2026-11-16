@@ -21,7 +21,7 @@ float32, batching, locking and the device guard.
 from __future__ import annotations
 
 import abc
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from fastforks._core import runner as core
 from fastforks._core.preprocess import scale
@@ -54,6 +54,8 @@ class Runner(core.Runner):
     match_reads_images = True
     """Whether `match` reads the images; if not, `match_pairs` decodes only images whose `describe` is not kept."""
 
+    compiled_methods: ClassVar[tuple[str, ...]] = ("__call__", "describe", "match")  # `match_many` packs: host
+
     match_streams = 1
     """Pairs `match_pairs` matches at once on CUDA (a `match` that does not read the images), each on its own thread
     and stream: for a `match` that waits for the GPU often (LightGlue: adaptive depth and width sync every layer),
@@ -74,6 +76,7 @@ class Runner(core.Runner):
     matches_many = False
     """Whether `match_many` is implemented: `match_pairs` then matches `_AT_ONCE_WINDOW` pairs per call with it."""
 
+    @core.host
     def match_many(self, described: list[tuple[Any, Any]]) -> list[dict[str, torch.Tensor]]:
         """`match` of many pairs at once (a `match` that does not read the images), one result per pair."""
         raise NotImplementedError

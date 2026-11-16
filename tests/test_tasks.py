@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import types
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, assert_type, get_args
 
 import numpy as np
@@ -23,6 +24,7 @@ from fastforks import (
     matting,
     multiview,
     promptable_segmentation,
+    restoration,
     segmentation,
 )
 from fastforks._core import registry, tasks
@@ -36,6 +38,7 @@ from fastforks.calibration._runner import Runner as CalibrationRunner
 from fastforks.classification._runner import Runner as ClsRunner
 from fastforks.depth._runner import Runner as DepthRunner
 from fastforks.detection._runner import Runner as DetRunner
+from fastforks.edges._runner import Runner as EdgesRunner
 from fastforks.features._runner import Forward
 from fastforks.features._runner import Runner as FeatRunner
 from fastforks.flow._runner import Runner as FlowRunner
@@ -43,6 +46,7 @@ from fastforks.interpolation._runner import Runner as InterpolationRunner
 from fastforks.matching._runner import Runner as MatchingRunner
 from fastforks.matting._runner import Runner as MattingRunner
 from fastforks.multiview._runner import Runner as MultiViewRunner
+from fastforks.ocr._runner import Runner as OCRRunner
 from fastforks.pose._runner import Runner as PoseRunner
 from fastforks.promptable_segmentation._api import MAX_EXEMPLARS, ConceptModelId, _model_class
 from fastforks.promptable_segmentation._runner import Runner as PromptRunner
@@ -57,7 +61,7 @@ W0 = {"name": "w.pth", "size": 1, "sha256": "0" * 64, "url": "https://example.co
 pytestmark = pytest.mark.usefixtures("card_min_size")  # tiny images through fake runners
 
 
-def card_data(outputs, output, io=None):
+def card_data(outputs, output, io=None, params=None):
     return {
         "schema": 2,
         "name": "Fake",
@@ -66,19 +70,21 @@ def card_data(outputs, output, io=None):
         "outputs": outputs,
         "output": output,
         "upstream": {"repo": "https://example.com/fake", "commit": "0" * 40},
+        "papers": [{"title": "Fake", "url": "https://example.com/paper", "date": "2020-01-01", "venue": "arXiv"}],
         "licence": {"code": "MIT", "weights": "MIT", "files": [], "training_data": ["unstated"]},
         "io": io or {"input": "0-1"},
         "modes": {"portable": {"cuda_dtype": "float32"}},
         "variants": [{"id": "fake", "revision": 1, "weights": [W0]}],
+        **({"params": params} if params else {}),
     }
 
 
 @pytest.fixture
 def fake(monkeypatch):
-    """`fake(task, runner, outputs, output, io)`: make `<task>.load("fake")` build `runner`."""
+    """`fake(task, runner, outputs, output, io, params)`: make `<task>.load("fake")` build `runner`."""
 
-    def install(task, runner, outputs, output, io=None):
-        card = parse_card(card_data(outputs, output, io), family="fake", task=task, where="fake card")
+    def install(task, runner, outputs, output, io=None, params=None):  # noqa: PLR0913, PLR0917 - the card fields
+        card = parse_card(card_data(outputs, output, io, params), family="fake", task=task, where="fake card")
         monkeypatch.setattr(registry, "resolve", lambda t, _m: (card, card.variants[0]) if t == task else None)
         monkeypatch.setattr(registry, "import_model", lambda _c: types.SimpleNamespace(RUNNERS={"portable": runner}))
 
@@ -95,6 +101,19 @@ class Depth(DepthRunner):
         if intrinsics is None:
             out["intrinsics"] = torch.eye(3).expand(image.shape[0], 3, 3)
         return out
+
+
+class DepthAssumingCamera(Depth):
+    assumed_camera = "a 300 px focal length"
+
+
+def test_metric_depth_without_intrinsics_warns_when_a_camera_is_assumed(fake):
+    fake("depth", DepthAssumingCamera, ["depth", "mask", "intrinsics"], {"kind": "metric"})
+    m = depth.load("fake", device="cpu")
+    img = np.full((6, 7, 3), 255, np.uint8)
+    with pytest.warns(UserWarning, match="300 px focal length"):
+        m(img)
+    assert m(img, intrinsics=np.eye(3)).depth is not None  # given: no warning (filterwarnings = error)
 
 
 def test_depth(fake):
@@ -160,7 +179,7 @@ def test_matting_trimap(fake):
         m(img, trimap=np.zeros((4, 6), np.uint8))
     with pytest.raises(InputError, match="do not match"):
         m(img, trimap=np.zeros((3, 4, 5, 1), np.uint8))
-    assert matting.model_card("fake").contract().inputs == {"image": "required", "trimap": "required"}
+    assert matting.model_card("fake").contract().inputs == {"image": "required", "trimap": "required", "mask": "unused"}
     assert matting.model_card("fake").contract().export["inputs"] == ("image", "trimap")
     image, trimap = m.example_inputs(32, 48, batch=2)
     assert image.shape == (2, 3, 32, 48)
@@ -179,8 +198,65 @@ def test_matting_trimap(fake):
     plain = matting.load("fake", device="cpu")
     with pytest.raises(InputError, match="does not use a trimap"):
         plain(img, trimap=tri)
-    assert matting.model_card("fake").contract().inputs == {"image": "required", "trimap": "unused"}
+    assert matting.model_card("fake").contract().inputs == {"image": "required", "trimap": "unused", "mask": "unused"}
     assert matting.model_card("fake").contract().export["inputs"] == ("image",)
+    assert len(plain.example_inputs(32, 48)) == 1
+
+
+@dataclass(frozen=True)
+class ScaleOne:
+    scale: int
+
+
+class Inpaint(RestorationRunner):
+    batch = 1
+    mask = "required"
+    Params = ScaleOne
+
+    def __call__(self, image):
+        assert image.shape[1] == 4  # RGB + the mask channel
+        return {"image": image[:, :3] * (1 - image[:, 3:])}
+
+    def module(self):
+        return Forward(torch.nn.Identity(), lambda _net, image: self(image)["image"])
+
+
+def test_restoration_mask(fake):
+    """Inpainting: the mask is required, binarised (nonzero = fill), one for a batch, size checked; others refuse it."""
+    fake("restoration", Inpaint, ["image"], {}, params={"scale": 1})
+    m = restoration.load("fake", device="cpu")
+    img = np.full((2, 4, 5, 3), 255, np.uint8)
+    mask = np.zeros((4, 5), np.uint8)
+    mask[1:3, 1:3] = 7  # any nonzero value marks the hole
+    r = m(img, mask=mask)  # one mask for both images, chunked one image per call
+    want = torch.ones(2, 3, 4, 5)
+    want[..., 1:3, 1:3] = 0
+    torch.testing.assert_close(r.image, want)
+    torch.testing.assert_close(m(img, mask=mask, tile=33).image, want)
+    with pytest.raises(InputError, match="needs a mask"):
+        m(img)
+    with pytest.raises(InputError, match="do not match"):
+        m(img, mask=np.zeros((4, 6), np.uint8))
+    assert restoration.model_card("fake").contract().inputs == {"image": "required", "mask": "required"}
+    assert restoration.model_card("fake").contract().export["inputs"] == ("image", "mask")
+    image, m_in = m.example_inputs(32, 48, batch=2)
+    assert m_in.shape == (2, 1, 32, 48)
+    torch.testing.assert_close(m.module()(image, m_in), image * (1 - m_in))
+    args, kwargs = bench_inputs(m, BenchSize(32, 48))
+    assert len(args) == 1
+    assert kwargs["mask"].shape == (1, 1, 32, 48)
+
+    class Plain(RestorationRunner):
+        Params = ScaleOne
+
+        def __call__(self, image):
+            return {"image": image}
+
+    fake("restoration", Plain, ["image"], {}, params={"scale": 1})
+    plain = restoration.load("fake", device="cpu")
+    with pytest.raises(InputError, match="does not use a mask"):
+        plain(img, mask=mask)
+    assert restoration.model_card("fake").contract().inputs == {"image": "required", "mask": "unused"}
     assert len(plain.example_inputs(32, 48)) == 1
 
 
@@ -377,6 +453,19 @@ def test_promptable_segmentation_bad_prompts(fake, kwargs, match):
         promptable_segmentation.load("fake", device="cpu")(np.zeros((8, 12, 3), np.uint8), **kwargs)
 
 
+def test_promptable_segmentation_points_must_be_pixels_in_the_image(fake):
+    """A point outside the image (x / y swapped) raises; padding points are exempt; 0..1 fractions warn."""
+    fake("promptable_segmentation", Prompt, ["pred_masks", "iou_scores"], {})
+    m = promptable_segmentation.load("fake", device="cpu")
+    img = np.zeros((8, 12, 3), np.uint8)
+    with pytest.raises(InputError, match="outside"):
+        m(img, input_points=[[2.0, 11.0]], input_labels=[1])
+    assert m(img, input_points=[[[6.0, 2.0], [-10.0, -10.0]]], input_labels=[[1, -1]]).masks.shape[-2:] == (8, 12)
+    big = np.zeros((64, 64, 3), np.uint8)
+    with pytest.warns(UserWarning, match="not fractions"):
+        m(big, input_points=[[0.5, 0.5]], input_labels=[1])
+
+
 def test_promptable_segmentation_rejects_foreign_embeddings_and_batches(fake):
     fake("promptable_segmentation", Prompt, ["pred_masks", "iou_scores"], {})
     m = promptable_segmentation.load("fake", device="cpu")
@@ -418,7 +507,7 @@ def test_concept_segmentation(fake):
     assert r.masks[0, :, :3].all()
     assert not r.masks[0, :, 3:].any()
     assert r.masks[1, :, :9].all()
-    assert len(m(m.get_image_embeddings(img), text="coin", threshold=0.1)) == 3
+    assert len(m(m.get_image_embeddings(img), text="coin", score_threshold=0.1)) == 3
     none = m(img, text="giraffe")  # nothing found: empty, well-shaped
     assert len(none) == 0
     assert none.masks is not None
@@ -554,7 +643,7 @@ def test_concept_model_ids():
     ("kwargs", "match"),
     [
         ({"text": "coin"}, "takes no text"),
-        ({"input_boxes": [0, 0, 1, 1], "threshold": 0.3}, "not a concept model"),
+        ({"input_boxes": [0, 0, 1, 1], "score_threshold": 0.3}, "not a concept model"),
         ({"input_boxes": [0, 0, 1, 1], "input_boxes_labels": [1]}, "not a concept model"),
     ],
 )
@@ -603,6 +692,8 @@ def test_resize_crop_bicubic_stays_in_range():
         "flow",
         "matching",
         "matting",
+        "edges",
+        "ocr",
         "tracking",
         "interpolation",
         "retrieval",
@@ -619,6 +710,8 @@ def test_runner_without_call_cannot_be_built(task):
     base["flow"] = FlowRunner
     base["matching"] = MatchingRunner
     base["matting"] = MattingRunner
+    base["edges"] = EdgesRunner
+    base["ocr"] = OCRRunner
     base["tracking"] = TrackingRunner
     base["interpolation"] = InterpolationRunner
     base["retrieval"] = RetrievalRunner
@@ -847,7 +940,7 @@ def test_multiview_feed_forward(fake):
 def test_multiview_calibrated(fake):
     fake("multiview", Calibrated, ["depth", "mask", "range"], {"kind": "metric"})
     m = multiview.load("fake", device="cpu")
-    k = np.diag([5.0, 5.0, 1.0])
+    k = np.array([[5.0, 0, 2.5], [0, 5.0, 2.0], [0, 0, 1]])  # 5 x 4 px views
     c2w = np.stack([np.eye(4)] * 3)
     c2w[:, 0, 3] = [1.0, 2.0, 3.0]
     r = m(_views(), intrinsics=k, cam_to_world=c2w, reference=[2, 0])
@@ -878,6 +971,9 @@ def test_multiview_calibrated(fake):
             m(_views(), **bad)
     with pytest.raises(InputError, match="at most 4"):
         m(_views(5), intrinsics=k, cam_to_world=np.stack([np.eye(4)] * 5))
+    for corner in (np.eye(3), np.diag([0.8, 0.8, 1.0])):  # identity / normalised matrices are not pixel intrinsics
+        with pytest.raises(InputError, match="principal point"):
+            m(_views(), intrinsics=corner, cam_to_world=c2w)
 
 
 def test_unproject_round_trip():
@@ -981,6 +1077,16 @@ def test_bench_inputs_pose(fake):
     r = m(*args, **kwargs)
     assert r.boxes.shape == (3, 4)
     assert r.keypoints.shape[0] == r.keypoint_scores.shape[0] == len(r) == 3
+
+
+def test_pose_boxes_as_fractions_warn(fake):
+    """Boxes in 0..1 (a normalised detector output) are tiny pixel boxes: warn, do not fail."""
+    fake("pose", Pose, ["keypoints", "keypoint_scores", "boxes", "scores"], {"label_set": "coco-keypoints-17"})
+    m = importlib.import_module("fastforks.pose").load("fake", device="cpu")
+    img = np.zeros((64, 64, 3), np.uint8)
+    with pytest.warns(UserWarning, match="not fractions"):
+        m(img, boxes=[[0.1, 0.1, 0.9, 0.9]])
+    assert m(img, boxes=[[1.0, 1.0, 40.0, 50.0]]).keypoints.shape[0] == 1
 
 
 def _tagged_card(*variants):
@@ -1189,8 +1295,8 @@ def test_concept_threshold_validated_and_recorded(fake):
     m = promptable_segmentation.load("fake", device="cpu")
     img = np.zeros((8, 12, 3), np.uint8)
     for bad in (float("nan"), float("inf"), -0.1, 1.5, True, "0.5"):  # R2-15: scores are in [0, 1]
-        with pytest.raises(InputError, match="threshold"):
-            m(img, text="coin", threshold=bad)
-    assert m(img, text="coin").options["threshold"] == 0.5  # R2-15: the default is recorded too
-    assert len(m(img, text="coin", threshold=1)) == 0  # the bounds are allowed
-    assert m(img, text="coin", threshold=0.1).options["threshold"] == 0.1
+        with pytest.raises(InputError, match="score_threshold"):
+            m(img, text="coin", score_threshold=bad)
+    assert m(img, text="coin").options["score_threshold"] == 0.5  # R2-15: the default is recorded too
+    assert len(m(img, text="coin", score_threshold=1)) == 0  # the bounds are allowed
+    assert m(img, text="coin", score_threshold=0.1).options["score_threshold"] == 0.1

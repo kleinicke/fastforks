@@ -85,7 +85,7 @@ def main() -> None:
     for card, variant in registry.cards("restoration").values():
         if card.family != FAMILY:
             continue
-        p = {**card.params, **variant.params}
+        p = {**card.params, **card.options, **variant.params}
         net = build(tree, a.weights / variant.weights[0].name, p)
         x = torch.from_numpy(img.astype(np.float32) / 255).permute(2, 0, 1)[None]
         out = run(net, x, p["fidelity"]).numpy()

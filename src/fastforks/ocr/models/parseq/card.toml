@@ -1,0 +1,50 @@
+schema = 2
+name = "PARSeq (scene text recognition)"
+summary = "PARSeq (Bautista and Atienza, ECCV 2022): a ViT encoder over the word crop (32 x 128) and one two-stream Transformer decoder layer trained with permuted autoregressive sequence modelling; reads one cropped word or short line (94 characters: Latin letters, digits, ASCII punctuation; no space). Greedy autoregressive decoding plus one refinement pass, as upstream `read.py`. A recogniser only: the whole input is one line (one quad over the image); pair it with a detector (e.g. `ppocrv5-mobile` boxes) for full pages."
+tier = "experimental"
+outputs = ["boxes", "texts", "scores"]
+uses = ["cuda_graphs", "pil_resize"]
+
+[upstream]
+repo = "https://github.com/baudm/parseq"
+commit = "1902db043c029a7e03a3818c616c06600af574be"  # net.py = strhub/models/parseq/{model,modules}.py + timm VisionTransformer; the call is read.py
+
+[licence]
+code = "Apache-2.0"
+weights = "assumed from code"  # the release v1.0.0 assets carry no licence of their own
+files = ["LICENSE", "NOTICE"]
+training_data = ["unstated"]
+training_note = "The README does not say which data the released checkpoints were trained on; the paper's best models use its real-data union (COCO-Text, RCTW17, Uber-Text, ArT, LSVT, MLT19, ReCTS, TextOCR, OpenVINO; Datasets.md)."
+evidence = "https://github.com/baudm/parseq/blob/1902db043c029a7e03a3818c616c06600af574be/LICENSE"
+
+[io]
+input = "0-255"  # the runner resizes to 32 x 128 (antialiased bicubic, 8-bit levels as PIL) and normalises to [-1, 1]
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # CUDA: replay the 26-step decoding loop from a CUDA graph (second call of a batch size; false: eager, no graph pool)
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+status = "none"
+reason = "the 26-step decoding loop is launch-bound, not kernel-bound, and portable already replays it as one CUDA graph (`cuda_graphs`, exports unchanged: `module()` is the plain network): 12.6 -> 3.6 ms (parseq) and 11.6 -> 2.1 ms (parseq-tiny) vs the original 19.6 / 18.0 ms fp16, same logits and memory; SDPA / cuBLAS are already the compute and no library in the manifests helps, so a kernels mode would only repeat the graph (measured 2026-11-15)"
+
+[[papers]]
+title = "Scene Text Recognition with Permuted Autoregressive Sequence Models"
+url = "https://arxiv.org/abs/2207.06966"
+date = "2022-07-14"
+venue = "ECCV 2022"
+
+[[variants]]
+id = "parseq"
+revision = 1
+params = { dim = 384, enc_heads = 6, dec_heads = 12 }
+weights = [{ name = "parseq-bb5792a6.pt", size = 95392675, sha256 = "bb5792a68e367476abca029cbf8699abc805f3d3dc7e57aae45c8ec4f7b7cd00", url = "https://github.com/baudm/parseq/releases/download/v1.0.0/parseq-bb5792a6.pt" }]
+
+[[variants]]
+id = "parseq-tiny"
+revision = 1
+params = { dim = 192, enc_heads = 3, dec_heads = 6 }
+weights = [{ name = "parseq_tiny-e7a21b54.pt", size = 24136675, sha256 = "e7a21b543c98e67414a584c93b1dbb71c26e9463ae4aaa391d54e833660a4711", url = "https://github.com/baudm/parseq/releases/download/v1.0.0/parseq_tiny-e7a21b54.pt" }]

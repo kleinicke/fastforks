@@ -1,4 +1,4 @@
-"""Multi-object tracking (`tracking.ByteTracker`, `shared.box_kalman`): assignment, Kalman filter, reference values."""
+"""Multi-object tracking (`detection.ByteTracker`, `shared.box_kalman`): assignment, Kalman filter, reference values."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ import pytest
 import torch
 
 from fastforks._core.errors import InputError
+from fastforks.detection import ByteTracker, ObjectTracks, track_objects
+from fastforks.detection._tracks import linear_assignment
 from fastforks.shared import box_kalman
-from fastforks.tracking import ByteTracker, ObjectTracks, track_objects
-from fastforks.tracking.objects import linear_assignment
 
 
 def _brute(cost: np.ndarray, limit: float) -> float:
@@ -51,6 +51,19 @@ def test_kalman_follows_constant_velocity() -> None:
     np.testing.assert_allclose(cov, cov.transpose(0, 2, 1), atol=1e-9)
     xyxy = np.array([[10.0, 20.0, 50.0, 100.0]])
     np.testing.assert_allclose(box_kalman.to_xyxy(box_kalman.to_xyah(xyxy)), xyxy)
+
+
+def test_kalman_torch_matches_numpy() -> None:  # SAMURAI runs the filter on torch tensors (its device)
+    r = np.random.default_rng(0)
+    meas = np.concatenate([r.uniform(0, 500, (5, 2)), r.uniform(0.3, 3, (5, 1)), r.uniform(10, 200, (5, 1))], 1)
+    ref = box_kalman.initiate(meas)
+    got = box_kalman.initiate(torch.from_numpy(meas))
+    for k in range(10):
+        z = meas + k + r.normal(0, 2, meas.shape)
+        ref = box_kalman.update(*box_kalman.predict(*ref), z)
+        got = box_kalman.update(*box_kalman.predict(*got), torch.from_numpy(z))
+    for a, b in zip(ref, got, strict=True):
+        np.testing.assert_allclose(b.numpy(), a, rtol=1e-10, atol=1e-10)
 
 
 def _scene(seed: int, frames: int = 120, n: int = 12) -> list[np.ndarray]:
@@ -116,8 +129,10 @@ def test_low_score_detections_extend_tracks() -> None:
     assert len(tracker.update(np.array([[*box, 0.65]]))) == 0  # below track_thresh + 0.1: no new track
 
 
-def test_detection_result_and_labels() -> None:
+def test_detection_result_and_classes() -> None:
     class Dets:
+        class_names = ("person", "bicycle", "car")
+
         def __init__(self, boxes: list, scores: list, labels: list) -> None:
             self.boxes, self.scores, self.labels = torch.tensor(boxes), torch.tensor(scores), torch.tensor(labels)
 
@@ -125,14 +140,32 @@ def test_detection_result_and_labels() -> None:
             return Dets(self.boxes[keep].tolist(), self.scores[keep].tolist(), self.labels[keep].tolist())
 
     frames = [Dets([[0.0, 0, 10, 20], [50, 50, 70, 90]], [0.9, 0.9], [0, 2])] * 3
-    out = track_objects(frames, labels=[2])
-    assert out[-1].labels.tolist() == [2]
-    assert out[-1].boxes.tolist() == [[50.0, 50.0, 70.0, 90.0]]
+    for classes in ([2], ["car"]):
+        out = track_objects(frames, classes=classes)
+        assert out[-1].labels.tolist() == [2]
+        assert out[-1].boxes.tolist() == [[50.0, 50.0, 70.0, 90.0]]
+    with pytest.raises(InputError, match="unknown class 'bus'"):
+        track_objects(frames, classes=["bus"])
     with pytest.raises(InputError):
-        track_objects([np.zeros((0, 5))], labels=[0])
+        track_objects([np.zeros((0, 5))], classes=[0])
 
 
 @pytest.mark.parametrize("bad", [np.zeros((3, 4)), [[0, 0, 1, 1, np.nan]], "boxes"])
 def test_bad_detections(bad: object) -> None:
     with pytest.raises(InputError):
         ByteTracker().update(bad)
+
+
+def test_tracking_queries_must_be_pixels_in_the_frame() -> None:
+    import warnings  # noqa: PLC0415
+
+    from fastforks.tracking._api import _check_in_image  # noqa: PLC0415
+
+    _check_in_image(torch.tensor([[0.0, 100.0, 50.0]]), (80, 120))
+    with pytest.raises(InputError, match="x and y swapped"):
+        _check_in_image(torch.tensor([[0.0, 50.0, 100.0]]), (80, 120))
+    with pytest.warns(UserWarning, match="not fractions"):
+        _check_in_image(torch.tensor([[0.0, 0.5, 0.5]]), (80, 120))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        _check_in_image(torch.tensor([[0.0, 0.0, 0.0]]), (16, 16))  # a tiny frame: no fraction guess

@@ -5,15 +5,23 @@ import torch.nn.functional as F
 from .utils import split_feature, merge_splits, split_feature_1d, merge_splits_1d
 
 
+def sdpa(q, k, v, attn_mask=None):
+    """softmax(q k^T / sqrt(C) + mask) v as one fused kernel (fastforks: replaces upstream's matmul / softmax / matmul,
+    which wrote the [L, L] scores; same maths). Value channels are padded to a multiple of 8 (2-channel flow values)."""
+    pad = -v.size(-1) % 8
+    if pad:
+        v = F.pad(v, (0, pad))
+    if attn_mask is not None:
+        attn_mask = attn_mask.to(q.dtype)
+    # contiguous: a transposed token layout (last stride != 1) drops the fused kernel to the math path
+    out = F.scaled_dot_product_attention(q.contiguous(), k.contiguous(), v.contiguous(), attn_mask=attn_mask)
+    return out[..., :-pad] if pad else out
+
+
 def single_head_full_attention(q, k, v):
-    # q, k, v: [B, L, C]
     assert q.dim() == k.dim() == v.dim() == 3
 
-    scores = torch.matmul(q, k.permute(0, 2, 1)) / (q.size(2) ** .5)  # [B, L, L]
-    attn = torch.softmax(scores, dim=2)  # [B, L, L]
-    out = torch.matmul(attn, v)  # [B, L, C]
-
-    return out
+    return sdpa(q, k, v)  # [B, L, C]
 
 
 def single_head_full_attention_1d(q, k, v,
@@ -82,15 +90,8 @@ def single_head_split_window_attention(q, k, v,
     k = split_feature(k, num_splits=num_splits, channel_last=True)
     v = split_feature(v, num_splits=num_splits, channel_last=True)
 
-    scores = torch.matmul(q.view(b_new, -1, c), k.view(b_new, -1, c).permute(0, 2, 1)
-                          ) / scale_factor  # [B*K*K, H/K*W/K, H/K*W/K]
-
-    if with_shift:
-        scores += attn_mask.repeat(b, 1, 1)
-
-    attn = torch.softmax(scores, dim=-1)
-
-    out = torch.matmul(attn, v.view(b_new, -1, c))  # [B*K*K, H/K*W/K, C]
+    mask = attn_mask.repeat(b, 1, 1) if with_shift else None  # [B*K*K, H/K*W/K, H/K*W/K]
+    out = sdpa(q.view(b_new, -1, c), k.view(b_new, -1, c), v.view(b_new, -1, c), mask)  # [B*K*K, H/K*W/K, C]
 
     out = merge_splits(out.view(b_new, h // num_splits, w // num_splits, c),
                        num_splits=num_splits, channel_last=True)  # [B, H, W, C]
@@ -206,10 +207,7 @@ class SelfAttnPropagation(nn.Module):
 
         value = flow.view(b, flow.size(1), h * w).permute(0, 2, 1)  # [B, H*W, 2]
 
-        scores = torch.matmul(query, key.permute(0, 2, 1)) / (c ** 0.5)  # [B, H*W, H*W]
-        prob = torch.softmax(scores, dim=-1)
-
-        out = torch.matmul(prob, value)  # [B, H*W, 2]
+        out = sdpa(query, key, value)  # [B, H*W, 2]
         out = out.view(b, h, w, value.size(-1)).permute(0, 3, 1, 2)  # [B, 2, H, W]
 
         return out

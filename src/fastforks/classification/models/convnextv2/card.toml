@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/facebookresearch/ConvNeXt-V2"
+framework = "PyTorch"
+reason = "timm re-implements the architecture and hosts the converted FCMAE fine-tuned weights."
+
 [licence]
 code = "Apache-2.0"  # timm
 weights = "CC-BY-NC-4.0"  # the timm Hugging Face model card
@@ -39,6 +44,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "ConvNeXt V2: Co-designing and Scaling ConvNets with Masked Autoencoders"
+url = "https://arxiv.org/abs/2301.00808"
+date = "2023-01-02"
+venue = "CVPR 2023"
 
 [[variants]]
 id = "convnextv2_base.fcmae_ft_in22k_in1k"

@@ -4,7 +4,7 @@ summary = "FlowFormer Small (ECCV 2022): convolutional features, a latent cost-m
 tier = "experimental"
 outputs = ["flow"]
 uses = ["libnet"]
-limitations = ["Only the Small architecture is included.", "No custom kernels backend is implemented.", "Full-frame cost memory grows quadratically with input area; upstream tiled evaluation is not included. Full-frame 1080p exceeded the RTX 5060 Ti 16GB memory in portable and original fp32/fp16 runs."]
+limitations = ["Only the Small architecture is included.", "No custom kernels backend: the time is in cuDNN TF32 convolutions and the float32 aggregation matmul, and lowering precision changes EPE.", "Portable runs float32 (the validated dtype): 338 ms and 1410 MB at 375x1242 against 303 ms and 2382 MB for the fp16-autocast original (EPE identical to the float32 original); switching the default to fp16 needs a full accuracy re-validation.", "Full-frame cost memory grows quadratically with input area; upstream tiled evaluation is not included. Full-frame 1080p exceeded the RTX 5060 Ti 16GB memory in portable and original fp32/fp16 runs."]
 
 [upstream]
 repo = "https://github.com/drinkingcoder/FlowFormer-Official"
@@ -65,22 +65,28 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 status = "none"
-reason = "Latent cost memory and recurrent attention need a dedicated kernel implementation."
+reason = "Measured 2026-11-15: time is cuDNN TF32 convolutions plus the float32 aggregation matmul; fp16 aggregation (NaN at scale 1024, worse EPE) and SDPA (slower, EPE changed) were tried and dropped."
+
+[[papers]]
+title = "FlowFormer: A Transformer Architecture for Optical Flow"
+url = "https://arxiv.org/abs/2203.16194"
+date = "2022-03-30"
+venue = "ECCV 2022"
 
 [[variants]]
 id = "flowformer-small-chairs"
 revision = 1
 licence = { training_data = ["flyingchairs"] }
-weights = [{ name = "flowformer-small-chairs.pth", size = 25038043, sha256 = "353914dcbf903f14d6dd518c95a0318098b40f932b672d4a8a0a269e73cd5eb2", url = "https://drive.google.com/uc?export=download&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/chairs.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
+weights = [{ name = "flowformer-small-chairs.pth", size = 25038043, sha256 = "353914dcbf903f14d6dd518c95a0318098b40f932b672d4a8a0a269e73cd5eb2", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/chairs.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
 
 [[variants]]
 id = "flowformer-small-things"
 revision = 1
 licence = { training_data = ["flyingchairs", "sceneflow"] }
-weights = [{ name = "flowformer-small-things.pth", size = 25038043, sha256 = "6bd2b44f31700c88196aecbdda70456f75491f8056503d27f349d3905c61b109", url = "https://drive.google.com/uc?export=download&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/things.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
+weights = [{ name = "flowformer-small-things.pth", size = 25038043, sha256 = "6bd2b44f31700c88196aecbdda70456f75491f8056503d27f349d3905c61b109", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/things.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
 
 [[variants]]
 id = "flowformer-small-sintel"
 revision = 1
 licence = { training_data = ["flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"] }
-weights = [{ name = "flowformer-small-sintel.pth", size = 25038043, sha256 = "0ed780e005042ce406a3178330d071cd67a8337738d909a4b61fc18e7e9feeff", url = "https://drive.google.com/uc?export=download&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/sintel.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]
+weights = [{ name = "flowformer-small-sintel.pth", size = 25038043, sha256 = "0ed780e005042ce406a3178330d071cd67a8337738d909a4b61fc18e7e9feeff", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1EpmZu6fOZBE0az-UaEmSMVi0pGHVEuQE", member = "flowformer-small/sintel.pth", archive = { size = 68978784, sha256 = "72af283adfa448a22cc9f3d1b6c46f4f018e2a5d5eb4f2f659c84c734700512c" } }]

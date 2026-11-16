@@ -2,6 +2,171 @@
 
 ## Unreleased
 
+### API changes
+
+- Features known not to work in this release are gated: a card's `planned = { onnx = "reason" }` (also `load`,
+  `kernels`, `compile`, `tensorrt`) makes that call raise `BackendUnavailableError: ... not available in 0.2.0,
+  planned for 0.2.1: <reason>` before any work; `mode="auto"` skips gated kernels. The model pages list them.
+Renames in the tasks and models added since 0.1.1 (0.1.1 names change only as listed under "Renamed 0.1.1 names",
+with a warning; `tests/api_snapshot.txt` freezes the public API from now on):
+
+- Edges option `resolution` -> `short_side` (`resolution` and `detect_resolution` stay accepted as aliases).
+- Matching: `SparseMatchingResult.matches(threshold=)` -> `matches(score_threshold=)` (keyword-only).
+- Lists in, lists out (all single-image and pair tasks, also the 0.1.1 ones, where lists were rejected): a list of
+  images gives a list of results; arguments that come one per image (`intrinsics`, `boxes`, prompts, masks) are then
+  lists of the same length.
+- Results: `save(path)` on restoration / interpolation (`.png` / `.jpg` / `.npy`), flow (`.flo` / `.npy`), volume
+  (`.nii.gz` / `.npy`) results and on `Instances` (detection, concept segmentation, pose: `to_list()` as `.json`); a
+  batch takes `{i}` in the path. `PoseResult` is an `Instances` (indexing selects people with their keypoints).
+  `fastforks.matting.VideoMattingResult` is exported.
+- Pose: `model(image, boxes)` -> `model(image, boxes=...)` (keyword-only).
+- Volume: `model(volume, spacing)` -> `model(volume, spacing=...)` or `model(volume, meta=...)` (keyword-only, one of
+  the two; with `meta` from `read_nifti`, `result.save("x.nii.gz")` writes the labels on the file's grid).
+- One video verb: SAM 2 / SAM 3 / MatAnyone `track(video, ...)` -> `video(frames, ...)`; Video Depth Anything
+  `model(frames)` (the batch was one video) -> `model.video(frames)`, and a batch is now independent images.
+- Object tracking moved to detection: `tracking.ByteTracker` / `tracking.ObjectTracks` /
+  `tracking.track_objects(labels=)` -> `detection.ByteTracker` / `detection.ObjectTracks` /
+  `detection.track_objects(classes=)` (class names or ids).
+- Loaders: one `load` per task. `restoration.load_file(path)` -> `restoration.load(path)` (`checkpoint_family` is
+  private); `volume.load_nnunet(path, ...)` -> `volume.load(path, folds=, step=, mirror=, checkpoint=)`. A model
+  argument is a path iff it is a `PathLike`, contains `/` or `\`, or ends in `.pth .pt .safetensors .ckpt .bin .onnx`.
+
+### Renamed 0.1.1 names (the old names keep working with a `FutureWarning` until 2026-12-15, then they are removed)
+
+- `load(model, options={"iters": 16})` -> `load(model, iters=16)` (every task and `fastforks.load`). `mode`, `device`,
+  `dtype`, `weights` (and the task's own arguments) stay explicit; no card option may use one of these names.
+- Stereo: one result type, `StereoResult`, for a plain call, a calibrated call (`rig=`, `views=`) and each pair of
+  `run_many`: `stereo.StereoPairResult` / `stereo.PairResult` -> `stereo.StereoResult` (`r.left` / `r.right` are the
+  `StereoView`s, `r.disparity`, `r.depth()`, ... the main view's). `disparity` / `confidence` / `extras` are
+  properties now, not constructor fields; the 0.1.1 constructor `StereoResult(disparity, confidence, extras, model,
+  backend, options)` still works with a `FutureWarning`. `stereo.pipeline.PairViews` is
+  `stereo.calibrated.PairViews`. The fields of the old types (`rectification`, `views`, `backend`,
+  `options`, `calibrated`, `index`, `left_path`, `right_path`, `path`, `error`, `existing`) are `StereoResult`
+  fields (the `run_many` ones None / False for a call).
+- `stereo.write_disparity` (`write_disparity(path, d)`) -> `result.save(path)` (`StereoResult` / `StereoView`; a `.png` is the
+  KITTI uint16 format, as before).
+- Classification: `labels` (`load(model, labels=[...])`) -> `load(model, class_names=[...])`
+  (`classification.load` and `fastforks.load`; the name of the model and result attribute).
+- Promptable segmentation (SAM 3 concept prompts): `threshold` (`model(image, text=..., threshold=0.3)`) ->
+  `score_threshold=` (as detection); `result.options["score_threshold"]` records the one used (was `"threshold"`).
+- The shared types are only top level: `fastforks.depth.ModelCard` (and `Backend`, `ImageLike`, `SizeRange`,
+  `TensorRTEngine` in every task package) -> `fastforks.ModelCard` etc.
+- Lists in, lists out: an argument that comes one per image (`boxes`, `intrinsics`, `mask`, prompts) is split only when it
+  is a `list`; a tuple, array or tensor is one value shared by every image (before, a tuple of the same length was split).
+- One error class for a typo among the `load` keywords: `UnknownOptionError` (an `OptionsError` and an `ArgumentError`).
+  A model argument that is a bare name of a local file or folder, or a missing path, says how a path is written.
+- `export_size` (`model.export_size()`) -> `model.size_range().export_size` (a `SizeRange` field).
+
+### Models and fixes
+
+- YuNet face detection (`yunet-n`, `yunet-s`, pose with RetinaFace; BSD-3-Clause code and weights): boxes, scores
+  and five landmarks for the whole image at its own size (padded to 32), decoding and NMS on the GPU (RetinaFace's
+  NMS), the kernels runner through `optimize` (fused conv kernels). 1080x1920 incl. upload and NMS: yunet-n 2.22 ms kernels, 2.95 ms
+  portable (0.79 ms TensorRT network) vs 7.9 ms original fp32 (6.04 ms autocast), peak allocated 84 MB vs 181 MB
+  (134 MB); yunet-s 2.00 / 2.67 ms vs 6.56 ms (5.55 ms), 84 MB vs 149 MB (118 MB). WIDER FACE val every 4th image
+  (807) AP easy / medium / hard as the original fp32: yunet-n 0.894 / 0.884 / 0.810, yunet-s 0.885 / 0.868 / 0.764
+  (`tools/eval_widerface.py`). RetinaFace's NMS builds the pair IoUs in 256-row blocks (low eval thresholds made
+  the n x n matrix hundreds of MB).
+
+- Restormer deblurring / deraining / denoising (`restormer-deblur`, `restormer-derain`, `restormer-sidd`, restoration;
+  MIT code and weights): the transposed (channel) attention of all heads as one block-masked float32 Gram matrix and
+  softmax (upstream normalises q and k in the input dtype, which overflows in float16), float32 LayerNorms. 512x512:
+  225 ms kernels, 228 ms portable (143 ms compile) vs 528 ms original fp32 (234 ms `.half()`; SIDD 495 / 218 ms),
+  peak allocated 850 MB vs 2400 MB (1221 MB `.half()`). PSNR / SSIM as the original fp32: GoPro test every 15th
+  32.85 / 0.9405 (RGB), SIDD validation every 2nd 39.98 / 0.9226 (RGB), Rain100L 39.08 / 0.9785 and Rain100H 31.48 /
+  0.9054 (Y). Rain13K training data: no stated terms (labelled).
+
+- NAFNet deblurring / denoising (`nafnet-gopro`, `nafnet-sidd`, restoration; MIT code and weights): any size (the
+  network pads to 16 itself), GoPro with the TLC local-mean pooling (`NAFNetLocal`, one float32 buffer instead of the
+  four upstream integral images). float16 overflows in the residual stream and the channel attention, so they carry
+  1 / 16 and 1 / 64 (exact: weights and norm epsilons scaled at load). 512x512: GoPro 55.3 ms kernels, 60.4 ms
+  portable (35.4 ms compile) vs 118.3 ms original fp32 (63.7 ms `.half()`), peak allocated 451 MB vs 834 MB (484 MB
+  `.half()`); SIDD 56.9 / 60.6 ms vs 145.7 ms (71.6 ms), 575 MB vs 1081 MB (608 MB). PSNR / SSIM (RGB) as the
+  original fp32: GoPro test every 4th 33.73 / 0.9468, SIDD validation 40.21 / 0.9243.
+
+- Swin2SR super-resolution (`swin2sr-x4`, `swin2sr-x2`, `swin2sr-x4-real`, restoration; Apache-2.0 code and weights):
+  the Swin V2 cosine window attention as one SDPA call, the shifted-window masks made on the GPU once per size, the
+  last group's output scaled by 1 / 32 before the final norm (float16 overflows there; exact in the weights). The
+  shared shifted-window mask (also SwinIR, HAT, DRCT) is now cached in the attention's dtype. 512x512 x4: 745 ms
+  kernels, 932 ms portable vs 3304 ms original fp32 (2922 ms `.half()`), peak allocated 1459 MB vs 2798 MB (1488 MB
+  `.half()`); x2: 720 / 909 ms (482 ms compile) vs 3407 ms (2565 ms); x4-real: 752 / 958 ms (508 ms compile) vs
+  3316 ms (2527 ms), 1459 MB vs 4596 MB (2321 MB). DIV2K validation PSNR / SSIM (Y) as the original fp32: x4 30.89 /
+  0.842 (every 2nd), x2 36.43 / 0.9423 (every 4th), x4-real 29.04 / 0.8021. torch.compile of x4 runs over 290 s.
+
+- PP-OCRv5 text detection + recognition (`ppocrv5-server`, `ppocrv5-mobile`, new `fastforks.ocr` task; Apache-2.0
+  code and weights): image -> text-line quads, texts and scores, as PaddleOCR 3's `PaddleOCR` pipeline without the
+  document and line orientation steps; the Paddle inference weights read without Paddle, DB boxes and CTC decoding
+  exact (OpenCV resizes, contours and pyclipper re-done in NumPy / torch), connected components on the GPU. 1080x1920
+  text page: server 277 ms portable fp16 vs 762 ms original fp32 (PaddlePaddle's float16 server detector overflows and
+  reads nothing), peak 1.4 / 1.5 GB vs 2.4 / 2.9 GB; mobile 153 ms (115 ms compile) vs 418 ms original fp16 (619 ms
+  fp32), 289 / 448 MB vs 393 / 1005 MB; TensorRT of the detector alone 25 / 2.7 ms. 13 PaddleOCR sample images:
+  CPU float32 texts and boxes identical to PaddleOCR (526 / 474 lines); GPU float16 character error 0.13 % / 0.43 %
+  (PaddleOCR's own GPU vs CPU difference: 0.65 % / 0.12 %). No kernels runner.
+
+- PARSeq scene-text recognition (`parseq`, `parseq-tiny`, ocr; Apache-2.0 code and weights): one word crop -> text and
+  confidence, as upstream `read` (32x128 PIL bicubic resize, autoregressive decoding with refinement). 32x128 crop:
+  12.6 ms portable fp16 vs 15.9 ms original fp32 / 19.6 ms fp16, peak 79 / 98 MB vs 125 / 144 MB; tiny 11.6 ms vs
+  14.6 / 18.0 ms, 44 / 54 MB vs 56 / 58 MB; compile 8.8 / 8.1 ms, TensorRT 1.67 / 1.68 ms. 204 crops (6 upstream demo
+  images + 198 PP-OCRv5 line crops): float32 texts identical to upstream on CPU and GPU; float16 199 / 204 and 195 / 204
+  identical (the misses are out-of-domain lines). No kernels runner.
+
+- MatAnyone video matting (`matanyone`, matting; NTU S-Lab License 1.0 code and weights: non-commercial): one object
+  from a mask on the first frame (`video`; an image is a one-frame video), the `process_video` loop with its memory,
+  options `warmup` / `dilate` / `erode`. 1080x1920 video: 161 ms per frame portable vs 198 ms original fp16 (261 ms
+  fp32), peak 2.8 GB vs 6.2 GB (readout chunked, top-k over the last dim); one image 1204 ms vs 1220 ms. YouTubeMatte 512x288 (every 2nd clip: 32 x 100 frames,
+  the authors' settings) MAD x 1000 2.64, MSE x 1000 1.00, dtSSD x 100 1.65, the same as the original in fp16 and
+  fp32; parity on CPU exact. No kernels runner.
+
+- DRCT super-resolution (`drct-x4`, `drct-l-x4`, restoration; MIT code and weights): window attention as one SDPA
+  call, the shifted-window masks made on the GPU once per size (original: on the CPU in every call), the
+  relative-position biases gathered at load. 512x512 DRCT x4: 730 ms kernels, 830 ms portable (618 ms compile) vs 8044
+  ms original fp32 (7492 ms `.half()`), peak 2.6 GB vs 6.1 GB; DRCT-L: 1422 / 1607 ms (1210 ms compile) vs 14847 ms,
+  2.7 GB vs 6.3 GB. DIV2K validation (every 2nd image: 50) PSNR 30.76 / SSIM 0.8388 (L: 31.00 / 0.8434) in every tier;
+  the original fp32 runs out of memory on these image sizes (16 GB), parity on CPU within 2e-6. TensorRT fails at
+  512x512 (engine build out of memory / over 290 s).
+
+- BiSeNet face parsing (`bisenet-face-parsing`, segmentation; MIT code and weights): face-parsing.PyTorch's
+  19-class model from facexlib, BatchNorms folded, auxiliary heads skipped. 512x512: 2.41 ms portable vs 5.21 ms
+  original fp32, peak 51 / 72 MB vs 128 / 152 MB; labels agree with the original on 99.97 % of the pixels (24 faces).
+
+- GFPGAN v1.4 face restoration (`gfpgan-v1.4`, restoration; Apache-2.0 code and weights): one aligned 512 x 512
+  face; the checkpoint's stored noise instead of new random noise per call, cheaper skip convolutions. 18.0 ms
+  kernels, 21.2 ms portable (12.5 ms compile) vs 41.1 ms original fp32 (21.9 ms `.half()`), peak 473 / 530 MB vs
+  1084 / 1208 MB. On 24 real faces 57.7 dB PSNR (portable float32) / 53.7 dB (fp16) to the original with the same
+  noise; the original's own random noise gives 47.4 dB.
+
+- RealPLKSR super-resolution (`realplksr-nomoswebphoto-x4`, restoration; Apache-2.0 code, CC-BY-4.0 weights):
+  neosr's large-kernel CNN; GroupNorm from per-channel statistics (PyTorch's channels-last GroupNorm is slow).
+  512x512: 130 ms kernels, 182 ms portable vs 444 ms original fp32 (267 ms `.half()`), peak 179 / 216 MB vs
+  480 / 630 MB. DIV2K validation (50 images) PSNR 26.99 / SSIM 0.7481 in every tier, as the original. `load_file`
+  reads other RealPLKSR checkpoints (pixel-shuffle upsampler).
+
+- Real-ESRGAN Compact super-resolution (`realesr-general-x4v3`, restoration; BSD-3-Clause code and weights):
+  SRVGGNetCompact, `load_file` reads other Compact checkpoints (any scale, width and depth). 512x512: 24.0 ms kernels,
+  30.1 ms portable vs 77.6 ms original fp32 (42.1 ms fp16), peak 125 / 164 MB vs 313 / 366 MB. DIV2K validation
+  (every 2nd image: 50) PSNR 26.70 / SSIM 0.7701 in every tier, as the original.
+
+- Restoration `load_file`: RRDBNet (ESRGAN) checkpoints of any width, growth channels and depth (e.g. 32-block
+  community models) and x1 models (pixel-unshuffled by 4) load; before, only 64 / 32 channels at x4 / x2.
+
+- RMBG-2.0 (`rmbg-2.0`, matting; BiRefNet Swin-L with BRIA's weights, MIT code, CC BY-NC 4.0 weights, gated): a
+  variant of `birefnet`. 1080x1920: 121 ms kernels, 132 ms portable (TensorRT 88 ms) vs 384 ms original fp32 (149 ms
+  fp16), peak 1.7 / 1.9 GB vs 3.3 / 3.8 GB (fp16 1.7 / 2.0). DIS-VD (235 images) MAE 0.0205 in every tier, as the
+  original.
+
+- Shared Swin v1 (BiRefNet, BEN2, InSPyReNet): the window-attention bias mask is contiguous, so SDPA uses its fused
+  kernels instead of the math path. 1080x1920 kernels: BiRefNet 214 -> 121 ms, BiRefNet-lite 59 -> 48 ms, BEN2
+  173 -> 104 ms; portable InSPyReNet 159 -> 109 ms; peak memory unchanged.
+
+- RetinaFace face detection (`retinaface-resnet50`, `retinaface-mobilenet0.25`, pose task; MIT code and weights):
+  `model(image)` finds faces with a box and five landmarks (eyes, nose, mouth corners), facexlib's `detect_faces`
+  at the image's own size. 1080x1920: ResNet-50 11.7 ms kernels, 24.3 ms portable vs 81.0 ms original fp32
+  (79.4 ms autocast), peak 379 / 464 MB vs 545 / 648 MB; MobileNet-0.25 2.7 ms kernels, 3.4 ms portable vs 75.9 ms.
+
+- CodeFormer: the load option `fidelity` (alias `fidelity_weight`, 0..1) replaces the fixed 0.5.
+
+- Restoration `load_file`: HAT and DAT checkpoints are recognised by their keys, as SwinIR's.
+
 - MVSplat feed-forward Gaussian splatting (`mvsplat-re10k`, multiview; MIT code and weights): posed, calibrated views
   with a depth range to depth and `result.gaussians`, the scene scaled to near = 1 as DepthSplat. Window attention as
   one SDPA call, the cost volume in fp16 chunks of depth candidates. 8 views 336x518: 178 ms kernels, 186 ms portable
@@ -126,6 +291,27 @@
   (24.5 ms fp16), peak 1.0 GB vs 1.9 GB. DAVIS 2017 (180 triplets) PSNR 27.13 kernels / portable vs 27.13 original
   fp32 (27.03 fp16); the warps sample in float32.
 
+- GIMM-VFI frame interpolation (`gimm-vfi-r`, `gimm-vfi-r-p`, interpolation; nc: S-Lab License 1.0 code and weights):
+  RAFT flow, a continuous motion field and the softsplat synthesis of upstream `GIMMVFI_R`, any timestep in [0, 1],
+  frames replicate-padded to a multiple of 32 as upstream. 1080x1920 pair: 1.63 s kernels (the correlation windows on
+  the fly, fp16-accumulate decoder convs), 2.62 s portable; the original runs out of memory in fp32 and fp16 (16 GB);
+  peak 5.4 GB kernels, 10.4 GB portable (reserved). 480x854: 289 ms kernels, 468 ms portable vs 657 ms original fp32
+  (498 ms fp16), peak 1.6 GB vs 4.8 GB. DAVIS 2017 (180 triplets) PSNR 28.94 (`-p` 28.81) in every tier as the
+  original.
+
+- EMA-VFI frame interpolation (`ema-vfi`, `ema-vfi-small`, `ema-vfi-t`, `ema-vfi-small-t`, interpolation; Apache-2.0):
+  upstream `MultiScaleFlow` with the inter-frame attention backbone, the `-t` checkpoints for any timestep, frames
+  replicate-padded to a multiple of 32 as upstream; `tta` option as upstream `fast_TTA`. 1080x1920 pair (`ema-vfi`):
+  207 ms kernels, 234 ms portable vs 502 ms original fp32 (296 ms fp16); peak 3.2 GB portable vs 6.4 GB (reserved).
+  DAVIS 2017 (180 triplets) PSNR 27.67 / 27.44 / 29.07 / 28.65 in every tier as the original.
+
+- FILM frame interpolation (`film`, interpolation; Apache-2.0): the Style `film_net` as dajes/frame-interpolation-pytorch
+  ports it (the release TorchScript weights load into plain modules), frames zero-padded to a multiple of 64 as
+  upstream; both directions run in one batch, the flows and warps in float32 (warps as row gathers). 1080x1920 pair:
+  444 ms kernels (fp16-accumulate convs, CUDA graph), 528 ms portable vs 872 ms original fp32 (464 ms fp16, whose
+  float16 warp grid costs 0.17 dB); peak 5.1 GB portable vs 7.2 GB fp32 (reserved). DAVIS 2017 (180 triplets) PSNR
+  27.63 portable / kernels vs 27.63 original fp32 (27.46 fp16).
+
 - New task `fastforks.retrieval` (image retrieval / visual place recognition): one unit-length global descriptor per
   image, `top_k` (exact cosine top-k on the GPU, chunked) and `pairs` (image pairs for 3-D reconstruction).
 
@@ -139,14 +325,14 @@
   vs 13.5 ms original fp32 (7.44 ms `half()`), peak 256 MB vs 430 MB. St Lucia recall@1 99.86 for all modes and the
   original. The ResNet-50 variant is not ported.
 
-- SAMURAI motion-aware tracking (`samurai` option of the `sam2.1-hiera-*` cards, `track`; Apache-2.0 code, the SAM 2.1
+- SAMURAI motion-aware tracking (`samurai` option of the `sam2.1-hiera-*` cards, `video`; Apache-2.0 code, the SAM 2.1
   weights): a Kalman filter on each object's mask box picks among the multimask outputs once stable (weighted with the
   predicted IoU, `kf_score_weight` 0.25, 0.15 for large) and the memory bank keeps the confident frames; several
   objects at once. LaSOT subset (6 videos, 10.5k frames, base-plus fp16): AUC 73.58 kernels / 76.93 portable vs 73.73
   original SAMURAI (portable recovers the target on mouse-8; without it 81.20 / 81.19 vs 81.37), 52.5 ms per frame
   kernels, 59.2 ms portable vs 90.9 ms original.
 
-- Multi-object tracking (`tracking.ByteTracker`, `tracking.track_objects`; MIT, after ByteTrack): ByteTrack's two-stage
+- Multi-object tracking (`detection.ByteTracker`, `detection.track_objects(classes=)`; MIT, after ByteTrack): ByteTrack's two-stage
   association of per-frame detections (D-FINE / RT-DETR / RF-DETR results or `[N, 5]` arrays), batched Kalman filter
   (`shared/box_kalman`, also for SAMURAI) and an exact linear assignment without scipy. MOT17 train with D-FINE-X
   person detections: identical tracks to the official ByteTrack (0 id differences in 5316 frames, boxes within
@@ -232,7 +418,7 @@
   as upstream. 24-frame 480x854 video, 256 queries: 382 ms kernels, 529 ms portable vs 1541 ms original fp32;
   TAP-Vid DAVIS (first) AJ 66.56 kernels vs 66.55 original.
 
-- SAM 2.1 video (`track` of `sam2.1-hiera-*`; Apache-2.0 code and weights): objects prompted on the first frame
+- SAM 2.1 video (`video` of `sam2.1-hiera-*`; Apache-2.0 code and weights): objects prompted on the first frame
   (points, boxes or masks) are followed through a video with the original memory attention / memory encoder.
   Tiny on DAVIS 2017 val (480p): 59 ms/frame portable, 63 ms kernels vs 282 ms original fp32 (90 ms fp16), peak
   1.3 GB vs 2.1 GB; J&F 87.53 portable, 87.54 kernels and original.

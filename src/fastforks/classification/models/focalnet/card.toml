@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/microsoft/FocalNet"
+framework = "PyTorch"
+reason = "timm carries the architecture and the converted authors' checkpoints in its own, simpler API."
+
 [licence]
 code = "Apache-2.0"  # timm
 # The checkpoints are the authors' (microsoft/FocalNet, MIT: https://github.com/microsoft/FocalNet/blob/main/LICENSE),
@@ -39,6 +44,12 @@ reason = "not implemented: LayerNorm blocks with depthwise convolutions and gate
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "Focal Modulation Networks"
+url = "https://arxiv.org/abs/2203.11926"
+date = "2022-03-22"
+venue = "NeurIPS 2022"
 
 [[variants]]
 id = "focalnet_tiny_srf.ms_in1k"

@@ -6,7 +6,7 @@
 
 Input: one RGB image. Output: a global descriptor `[D]` (unit L2 norm) for image retrieval / visual place recognition; `fastforks.retrieval.top_k` and `pairs` find the nearest images (cosine similarity) on the GPU.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 480x640: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured.
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 480x640: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -29,6 +29,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [BoQ: A Place is Worth a Bag of Learnable Queries](https://arxiv.org/abs/2405.07364), CVPR 2024, 2024-05-12
 - Original code: <https://github.com/amaralibey/Bag-of-Queries> at `1a4965ea7dfd`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT
@@ -79,6 +80,7 @@ Commercial use: yes.
 
 <details><summary>Details</summary>
 
+- Paper: [MegaLoc: One Retrieval to Place Them All](https://arxiv.org/abs/2502.17237), CVPRW 2025, 2025-02-24
 - Original code: <https://github.com/gmberton/MegaLoc> at `5fe0dd697c4a`
 - Code licence: MIT (permissive); files: `LICENSE`
 - Weights licence: MIT
@@ -133,8 +135,8 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | id | dataset | licence | commercial use |
 |---|---|---|---|
 | `lvd-142m` | [LVD-142M (DINOv2's curated web-image set, not released)](https://arxiv.org/abs/2304.07193) | not stated | unclear |
-| `gsv-cities` | [GSV-Cities (Google Street View images of 62k places in 40 cities)](https://github.com/amaralibey/gsv-cities) | not checked | unclear |
+| `gsv-cities` | [GSV-Cities (Google Street View images of 62k places in 40 cities)](https://github.com/amaralibey/gsv-cities/blob/77ffffc23115e5ba966e108895343693ec49cbb2/README.md) | not stated | unclear |
 | `msls` | [Mapillary Street-Level Sequences](https://www.mapillary.com/dataset/places) | CC-BY-NC-SA-4.0 | no |
-| `megascenes` | [MegaScenes (Internet photo collections of scenes from Wikimedia Commons)](https://megascenes.github.io/) | not checked | unclear |
-| `scannet` | [ScanNet (RGB-D scans of indoor scenes)](http://www.scan-net.org/) | ScanNet Terms of Use | no |
-| `sf-xl` | [San Francisco eXtra Large (street-view images of San Francisco)](https://github.com/gmberton/CosPlace) | not checked | unclear |
+| `megascenes` | [MegaScenes (Internet photo collections of scenes from Wikimedia Commons)](https://megascenes.github.io/) | not stated | unclear |
+| `scannet` | [ScanNet (RGB-D scans of indoor scenes)](https://web.archive.org/web/20261110140340/http://www.scan-net.org/) | LicenseRef-noncommercial | no |
+| `sf-xl` | [San Francisco eXtra Large (street-view images of San Francisco)](https://github.com/gmberton/CosPlace/blob/52b56e95ea62245281281f3bafd7b9390d19a0fd/README.md) | not stated | unclear |

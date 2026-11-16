@@ -176,7 +176,7 @@ def write_tiff(path: str | Path, a: np.ndarray, bits: int | None = None, descrip
         f.writelines(out)
 
 
-def atomic_write(path: str | Path, write: Callable[[Path], None]) -> None:
+def atomic_write(path: str | os.PathLike[str], write: Callable[[Path], None]) -> None:
     """`write(tmp)` to a hidden file next to `path`, then rename it to `path`: readers never see a partial file.
 
     The temporary name keeps the suffix (the writers pick the format by it) and is the same on every run, so a run
@@ -203,7 +203,7 @@ def write_map(
     - `.pfm`: float32 (Middlebury / SceneFlow convention, bottom row first).
     - `.png`: integer and bool maps only, exact: a bool mask as a 1-bit black / white PNG, an integer map (labels) in
       0..255 as 8-bit, in 0..65535 as 16-bit. Float maps are refused (a stereo disparity `.png` is KITTI's format:
-      `fastforks.stereo.io.write_disparity`).
+      `StereoResult.save`).
 
     Raises:
         InputError: Unknown suffix, not a 2-D map, a `.png` of a float map or of values outside 0..65535, or `bits`
@@ -287,7 +287,42 @@ def write_png_x256(path: str | Path, a: np.ndarray) -> None:
     Image.fromarray(np.clip(a * _PNG_SCALE, 0, _U16).round().astype(np.uint16)).save(path)
 
 
-def check_suffix(path: str | Path, accepted: tuple[str, ...], what: str) -> str:
+IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".npy")
+"""The suffixes `write_rgb` writes."""
+FLOW_SUFFIXES = (".flo", ".npy")
+"""The suffixes `write_flow` writes."""
+_FLO_TAG = 202021.25  # Middlebury .flo magic ("PIEH")
+
+
+def write_rgb(path: str | Path, a: np.ndarray) -> None:
+    """An RGB image `[3, H, W]` float in `[0, 1]`: `.png` / `.jpg` 8-bit (rounded, clipped), `.npy` float32 as is."""
+    path = Path(path)
+    if path.suffix.lower() == ".npy":
+        with path.open("wb") as f:
+            np.save(f, np.asarray(a, dtype=np.float32))
+        return
+    from PIL import Image  # noqa: PLC0415 - only for this format
+
+    u8 = (np.clip(np.nan_to_num(a.transpose(1, 2, 0)), 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+    if path.suffix.lower() == ".png":
+        Image.fromarray(u8).save(path)
+    else:
+        Image.fromarray(u8).save(path, quality=95)
+
+
+def write_flow(path: str | Path, a: np.ndarray) -> None:
+    """A flow `[2, H, W]` (dx, dy): `.flo` (Middlebury: `[H, W, 2]` float32 after a 12-byte header) or `.npy` as is."""
+    path = Path(path)
+    a = np.asarray(a, dtype=np.float32)
+    with path.open("wb") as f:
+        if path.suffix.lower() == ".npy":
+            np.save(f, a)
+            return
+        f.write(np.array([_FLO_TAG], "<f4").tobytes() + np.array([a.shape[2], a.shape[1]], "<i4").tobytes())
+        f.write(np.ascontiguousarray(a.transpose(1, 2, 0), dtype="<f4").tobytes())
+
+
+def check_suffix(path: str | os.PathLike[str], accepted: tuple[str, ...], what: str) -> str:
     """The lower-case suffix of `path`; `InputError` naming the `accepted` ones if it is not one of them."""
     suffix = Path(path).suffix.lower()
     if suffix not in accepted:

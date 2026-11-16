@@ -1,0 +1,1263 @@
+== lib foundationstereo-vit-l kernels 15:19:38
+Running as unit: run-p859412-i30237171.service; invocation ID: a1f50b29896241e7ba5f825d194e9c13
+{"side": "lib", "ref": "foundationstereo-vit-l", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.939s
+             CPU time consumed: 6.489s
+                   Memory peak: 2.7G (swap: 0B)
+== lib monster-sceneflow kernels 15:19:41
+Running as unit: run-p859550-i30234547.service; invocation ID: a6b06e2d9dc24d65beea866101b4e3b1
+{"side": "lib", "ref": "monster-sceneflow", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.671s
+             CPU time consumed: 6.485s
+                   Memory peak: 2.5G (swap: 0B)
+== lib monster-plusplus-mix-all kernels 15:19:44
+Running as unit: run-p859702-i30181244.service; invocation ID: d074188ba813429692b21fdf990d887e
+{"side": "lib", "ref": "monster-plusplus-mix-all", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.705s
+             CPU time consumed: 6.416s
+                   Memory peak: 2.5G (swap: 0B)
+== lib s2m2-m kernels 15:19:47
+Running as unit: run-p859848-i30197915.service; invocation ID: 2e1c6cf867024d42b03cc73a496353c5
+{"side": "lib", "ref": "s2m2-m", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, "inp
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.255s
+             CPU time consumed: 4.209s
+                   Memory peak: 1.3G (swap: 0B)
+== lib depth-pro kernels 15:19:49
+Running as unit: run-p859992-i30234624.service; invocation ID: edac64f4a8264710af5b21d00c4594c8
+{"side": "lib", "ref": "depth-pro", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "in
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.893s
+             CPU time consumed: 9.808s
+                   Memory peak: 4.4G (swap: 0B)
+== lib bridgedepth-rvc-pretrain kernels 15:19:52
+Running as unit: run-p860129-i30237210.service; invocation ID: f37cfde5496543e2ad3b60088a8a5346
+{"side": "lib", "ref": "bridgedepth-rvc-pretrain", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.295s
+             CPU time consumed: 5.964s
+                   Memory peak: 1.9G (swap: 0B)
+== lib da3-giant-1.1 kernels 15:19:54
+Running as unit: run-p860281-i30158459.service; invocation ID: 44c6e0c126cf4db8956e8f2db0159b56
+{"side": "lib", "ref": "da3-giant-1.1", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.302s
+             CPU time consumed: 4.662s
+                   Memory peak: 1.2G (swap: 0B)
+== lib da3nested-giant-large-1.1 kernels 15:19:58
+Running as unit: run-p860406-i30241334.service; invocation ID: 255f19e0e5c44298bbbbe3d3bcd73624
+{"side": "lib", "ref": "da3nested-giant-large-1.1", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.103s
+             CPU time consumed: 4.708s
+                   Memory peak: 1.2G (swap: 0B)
+== lib raft-large-things kernels 15:20:01
+Running as unit: run-p860548-i30217083.service; invocation ID: 95fe538024ea473f9189f1ea4b0b5d62
+{"side": "lib", "ref": "raft-large-things", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.921s
+             CPU time consumed: 2.937s
+                   Memory peak: 598.7M (swap: 0B)
+== lib raft-large kernels 15:20:03
+Running as unit: run-p860692-i30245369.service; invocation ID: a491db8057f248d2b5ebdf4ffbc5806c
+{"side": "lib", "ref": "raft-large", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "inp
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.909s
+             CPU time consumed: 2.902s
+                   Memory peak: 598.9M (swap: 0B)
+== lib raft-large-kitti kernels 15:20:05
+Running as unit: run-p860823-i30245386.service; invocation ID: 41dc99872de344f38359039bf38abca9
+{"side": "lib", "ref": "raft-large-kitti", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.904s
+             CPU time consumed: 2.927s
+                   Memory peak: 598.7M (swap: 0B)
+== lib raft-small kernels 15:20:07
+Running as unit: run-p860947-i30249543.service; invocation ID: c3357347e91a4f949d6d59d095e85b37
+{"side": "lib", "ref": "raft-small", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "inp
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.899s
+             CPU time consumed: 2.928s
+                   Memory peak: 598.5M (swap: 0B)
+== lib sea-raft-m kernels 15:20:09
+Running as unit: run-p861084-i30249552.service; invocation ID: f9a341c2048149dd9e871ad77c6b5a09
+{"side": "lib", "ref": "sea-raft-m", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.19, "in
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.902s
+             CPU time consumed: 2.922s
+                   Memory peak: 598.5M (swap: 0B)
+== lib sea-raft-m-kitti kernels 15:20:11
+Running as unit: run-p861215-i30249582.service; invocation ID: e0861e65c0fd435f8a744e2791481e14
+{"side": "lib", "ref": "sea-raft-m-kitti", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.913s
+             CPU time consumed: 2.937s
+                   Memory peak: 598.7M (swap: 0B)
+== lib sea-raft-m-spring kernels 15:20:13
+Running as unit: run-p861341-i30241395.service; invocation ID: 5a4cde70ed774db9860b604013d33348
+{"side": "lib", "ref": "sea-raft-m-spring", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.901s
+             CPU time consumed: 2.928s
+                   Memory peak: 598.3M (swap: 0B)
+== lib sea-raft-m-things kernels 15:20:15
+Running as unit: run-p861479-i30249595.service; invocation ID: 3189e32c7bde47beb43e28043ec0090b
+{"side": "lib", "ref": "sea-raft-m-things", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.896s
+             CPU time consumed: 2.920s
+                   Memory peak: 598.5M (swap: 0B)
+== lib sea-raft-s kernels 15:20:17
+Running as unit: run-p861616-i30249607.service; invocation ID: c3aeab187eb14fdb8da5895063877556
+{"side": "lib", "ref": "sea-raft-s", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "inp
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.925s
+             CPU time consumed: 2.935s
+                   Memory peak: 599M (swap: 0B)
+== lib sea-raft-s-kitti kernels 15:20:19
+Running as unit: run-p861752-i30245488.service; invocation ID: 0f447bee1ce14b20bbbc7630953f7f54
+{"side": "lib", "ref": "sea-raft-s-kitti", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.904s
+             CPU time consumed: 2.922s
+                   Memory peak: 598.2M (swap: 0B)
+== lib sea-raft-s-spring kernels 15:20:21
+Running as unit: run-p861882-i30237426.service; invocation ID: bfe948bd93b24acdb1966a0203fb16cd
+{"side": "lib", "ref": "sea-raft-s-spring", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.900s
+             CPU time consumed: 2.915s
+                   Memory peak: 599.1M (swap: 0B)
+== lib clip-l14-dfn2b kernels 15:20:23
+Running as unit: run-p862008-i30245530.service; invocation ID: f2b214dd57dd423b82cbd1294fd778a8
+{"side": "lib", "ref": "clip-l14-dfn2b", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.125s
+             CPU time consumed: 3.326s
+                   Memory peak: 965.8M (swap: 0B)
+== lib clip-h14-dfn5b kernels 15:20:25
+Running as unit: run-p862152-i30245549.service; invocation ID: 9e72c10a01ad41059c6ef53dc50c6fae
+{"side": "lib", "ref": "clip-h14-dfn5b", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.124s
+             CPU time consumed: 3.314s
+                   Memory peak: 958.5M (swap: 0B)
+== lib clip-h14-378-dfn5b kernels 15:20:27
+Running as unit: run-p862275-i30234908.service; invocation ID: ec42443f53b948619a287aa245b91423
+{"side": "lib", "ref": "clip-h14-378-dfn5b", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.104s
+             CPU time consumed: 3.290s
+                   Memory peak: 958.8M (swap: 0B)
+== lib pe-core-g14-448 kernels 15:20:30
+Running as unit: run-p862412-i30249676.service; invocation ID: efecab11be624872b2ae908e284eb352
+{"side": "lib", "ref": "pe-core-g14-448", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.147s
+             CPU time consumed: 3.350s
+                   Memory peak: 958M (swap: 0B)
+== lib pe-spatial-g14-448 kernels 15:20:32
+Running as unit: run-p862543-i30201213.service; invocation ID: 7e951e6d74ea49a886c9159f9f5c16b3
+{"side": "lib", "ref": "pe-spatial-g14-448", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.110s
+             CPU time consumed: 3.304s
+                   Memory peak: 958.6M (swap: 0B)
+== lib neuflow-v2-things kernels 15:20:34
+Running as unit: run-p862681-i30234949.service; invocation ID: e41f3e77b9e348feb60724a69748004a
+{"side": "lib", "ref": "neuflow-v2-things", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.896s
+             CPU time consumed: 2.925s
+                   Memory peak: 598.5M (swap: 0B)
+== lib neuflow-v2 kernels 15:20:36
+Running as unit: run-p862813-i30198098.service; invocation ID: bdaef18455294e56bef40af0518b29f6
+{"side": "lib", "ref": "neuflow-v2", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.19, "in
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.924s
+             CPU time consumed: 2.925s
+                   Memory peak: 599.1M (swap: 0B)
+== lib neuflow-v2-sintel kernels 15:20:38
+Running as unit: run-p862942-i30245618.service; invocation ID: 68e8cec8a075497c99864ef79cb9dd95
+{"side": "lib", "ref": "neuflow-v2-sintel", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.928s
+             CPU time consumed: 2.946s
+                   Memory peak: 599.1M (swap: 0B)
+== lib romav2 kernels 15:20:40
+Running as unit: run-p863096-i30245638.service; invocation ID: 1400e2fd450648bdb05c5f341820797a
+{"side": "lib", "ref": "romav2", "task": "matching", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "inp
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.923s
+             CPU time consumed: 2.951s
+                   Memory peak: 603.6M (swap: 0B)
+== lib memfof kernels 15:20:42
+Running as unit: run-p863229-i30198116.service; invocation ID: c33fac2e07814e60901a16fe6bd9ba07
+{"side": "lib", "ref": "memfof", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "input"
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.918s
+             CPU time consumed: 2.942s
+                   Memory peak: 599.1M (swap: 0B)
+== lib memfof-kitti kernels 15:20:44
+Running as unit: run-p863367-i30217174.service; invocation ID: af34ac43c3ea4182b462faae58490614
+{"side": "lib", "ref": "memfof-kitti", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2, "
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.906s
+             CPU time consumed: 2.938s
+                   Memory peak: 598.6M (swap: 0B)
+== lib tapnext kernels 15:20:46
+Running as unit: run-p863497-i30230805.service; invocation ID: 9b9b11f6d0b84cf79280a24810e45fd7
+{"side": "lib", "ref": "tapnext", "task": "tracking", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "co
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 15.355s
+             CPU time consumed: 21.940s
+                   Memory peak: 4.4G (swap: 0B)
+== lib vitmatte-s kernels 15:21:02
+Running as unit: run-p863692-i30249837.service; invocation ID: 9a27679cbabf4e0a8e6775973d9813bd
+{"side": "lib", "ref": "vitmatte-s", "task": "matting", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda_init_s": 0.19,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 5.501s
+             CPU time consumed: 7.668s
+                   Memory peak: 1.6G (swap: 0B)
+== lib vitmatte-b kernels 15:21:07
+Running as unit: run-p863860-i30217198.service; invocation ID: 51e3bfaeb15046ecb7390cffb7861ac2
+{"side": "lib", "ref": "vitmatte-b", "task": "matting", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.984s
+             CPU time consumed: 10.157s
+                   Memory peak: 2.1G (swap: 0B)
+== lib anysplat kernels 15:21:14
+Running as unit: run-p864036-i30235132.service; invocation ID: 1e84dd68a5a24603ba6005899f90f78e
+{"side": "lib", "ref": "anysplat", "task": "multiview", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 16.674s
+             CPU time consumed: 25.784s
+                   Memory peak: 8.4G (swap: 0B)
+== lib depthsplat-small-re10k kernels 15:21:31
+Running as unit: run-p864247-i30158627.service; invocation ID: 076578fa424f4332bc0b1469800a5a0a
+{"side": "lib", "ref": "depthsplat-small-re10k", "task": "multiview", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.074s
+             CPU time consumed: 10.929s
+                   Memory peak: 2.4G (swap: 0B)
+== lib tapir kernels 15:21:38
+Running as unit: run-p864410-i30245806.service; invocation ID: 9bc56f66e5c646e0b2eace66bd10ff21
+{"side": "lib", "ref": "tapir", "task": "tracking", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.03, "cuda_init_s": 0.21, "co
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.563s
+             CPU time consumed: 8.148s
+                   Memory peak: 1.3G (swap: 0B)
+== lib bootstapir kernels 15:21:45
+Running as unit: run-p864587-i30237607.service; invocation ID: 0e6869aded754b61937ba80c46e5d7b9
+{"side": "lib", "ref": "bootstapir", "task": "tracking", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.976s
+             CPU time consumed: 9.889s
+                   Memory peak: 1.4G (swap: 0B)
+== lib stablenormal-turbo kernels 15:21:53
+Running as unit: run-p864755-i30245852.service; invocation ID: 91f4e90408934672a459edc2f054df42
+{"side": "lib", "ref": "stablenormal-turbo", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s":
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 11.860s
+             CPU time consumed: 22.746s
+                   Memory peak: 4.8G (swap: 0B)
+== lib alltracker kernels 15:22:05
+Running as unit: run-p864941-i30245873.service; invocation ID: 83ff2aec51634e399c27245ebed76c74
+{"side": "lib", "ref": "alltracker", "task": "tracking", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 8.843s
+             CPU time consumed: 10.761s
+                   Memory peak: 1.3G (swap: 0B)
+== lib alltracker-tiny kernels 15:22:14
+Running as unit: run-p865115-i30245900.service; invocation ID: 465d29dfa8964051822523278e6f2c34
+{"side": "lib", "ref": "alltracker-tiny", "task": "tracking", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 9.001s
+             CPU time consumed: 10.628s
+                   Memory peak: 1.6G (swap: 0B)
+== lib lw-detr-tiny-coco kernels 15:22:23
+Running as unit: run-p865291-i30235274.service; invocation ID: 4df3f9c601024f1daf4ab0cb72a03f3d
+{"side": "lib", "ref": "lw-detr-tiny-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.08, "cuda_init_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.131s
+             CPU time consumed: 9.260s
+                   Memory peak: 2G (swap: 0B)
+== lib lw-detr-small-coco kernels 15:22:30
+Running as unit: run-p865462-i30235294.service; invocation ID: 37bf7a0496d4468bbf27c6d05960ceeb
+{"side": "lib", "ref": "lw-detr-small-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.105s
+             CPU time consumed: 9.120s
+                   Memory peak: 1.9G (swap: 0B)
+== lib lw-detr-medium-coco kernels 15:22:37
+Running as unit: run-p865656-i30245978.service; invocation ID: d50204a0581f4cb9b8a66269917b7b6b
+{"side": "lib", "ref": "lw-detr-medium-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.138s
+             CPU time consumed: 9.408s
+                   Memory peak: 1.9G (swap: 0B)
+== lib lw-detr-large-coco kernels 15:22:43
+Running as unit: run-p865838-i30241755.service; invocation ID: 3058999c37f042f8aa35d06643828f87
+{"side": "lib", "ref": "lw-detr-large-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.958s
+             CPU time consumed: 9.971s
+                   Memory peak: 2.1G (swap: 0B)
+== lib lw-detr-xlarge-coco kernels 15:22:50
+Running as unit: run-p866015-i30231048.service; invocation ID: 2d14250d27724767ab3ab86992731474
+{"side": "lib", "ref": "lw-detr-xlarge-coco", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.609s
+             CPU time consumed: 10.637s
+                   Memory peak: 2.3G (swap: 0B)
+== lib romav1 kernels 15:22:57
+Running as unit: run-p866202-i30235468.service; invocation ID: 94784957eef948f682448459323833ce
+{"side": "lib", "ref": "romav1", "task": "matching", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.22, "i
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.248s
+             CPU time consumed: 4.931s
+                   Memory peak: 2.1G (swap: 0B)
+== lib rife-4.25 kernels 15:22:59
+Running as unit: run-p866334-i30235489.service; invocation ID: 88c3355d610542ea865bf510e3d9c26b
+{"side": "lib", "ref": "rife-4.25", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.441s
+             CPU time consumed: 5.261s
+                   Memory peak: 1.5G (swap: 0B)
+== lib rife-4.25-lite kernels 15:23:02
+Running as unit: run-p866493-i30231132.service; invocation ID: f2a6813585f84bbca977e80439de0cdb
+{"side": "lib", "ref": "rife-4.25-lite", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.314s
+             CPU time consumed: 5.213s
+                   Memory peak: 1.5G (swap: 0B)
+== lib megaloc kernels 15:23:06
+Running as unit: run-p866633-i30226032.service; invocation ID: 6e5a6e7f25364bfe8d3fcb68227a2641
+{"side": "lib", "ref": "megaloc", "task": "retrieval", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "c
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.238s
+             CPU time consumed: 6.400s
+                   Memory peak: 2.6G (swap: 0B)
+== lib boq-dinov2 kernels 15:23:09
+Running as unit: run-p866776-i30231154.service; invocation ID: b2f1d7c8a7dd495a9eec4bf0adb5e3db
+{"side": "lib", "ref": "boq-dinov2", "task": "retrieval", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s": 0.2
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.675s
+             CPU time consumed: 5.111s
+                   Memory peak: 1.3G (swap: 0B)
+== lib geocalib-pinhole kernels 15:23:12
+Running as unit: run-p866940-i30158724.service; invocation ID: 5bef31473d5d4ad68d492df7559405a8
+{"side": "lib", "ref": "geocalib-pinhole", "task": "calibration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.074s
+             CPU time consumed: 8.610s
+                   Memory peak: 2G (swap: 0B)
+== lib anycalib-pinhole kernels 15:23:18
+Running as unit: run-p867107-i30235635.service; invocation ID: 914edea5b9ed459dbf58140f5864383a
+{"side": "lib", "ref": "anycalib-pinhole", "task": "calibration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 4.323s
+             CPU time consumed: 8.179s
+                   Memory peak: 3G (swap: 0B)
+== lib span-x4 kernels 15:23:23
+Running as unit: run-p867260-i30246071.service; invocation ID: e632df48a3824ab4b8f91c28eb06cb78
+{"side": "lib", "ref": "span-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.27,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.168s
+             CPU time consumed: 3.603s
+                   Memory peak: 975.6M (swap: 0B)
+== lib span-x2 kernels 15:23:25
+Running as unit: run-p867404-i30246094.service; invocation ID: 47bc34262618433badcdabdf419e932d
+{"side": "lib", "ref": "span-x2", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.104s
+             CPU time consumed: 3.520s
+                   Memory peak: 969.6M (swap: 0B)
+== lib u2net kernels 15:23:27
+Running as unit: run-p867551-i30246115.service; invocation ID: 18b702de4ae84d3d843ccbc800a2d0f0
+{"side": "lib", "ref": "u2net", "task": "matting", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "commi
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.147s
+             CPU time consumed: 5.572s
+                   Memory peak: 1.6G (swap: 0B)
+== lib u2netp kernels 15:23:30
+Running as unit: run-p867682-i30235735.service; invocation ID: f62fd388dfd345bb9c329c2f92d97a12
+{"side": "lib", "ref": "u2netp", "task": "matting", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, "com
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.023s
+             CPU time consumed: 4.945s
+                   Memory peak: 1.4G (swap: 0B)
+== lib u2net-human-seg kernels 15:23:33
+Running as unit: run-p867834-i30198331.service; invocation ID: 57a5435fe02c4d0d9490b7bc67a4bbd2
+{"side": "lib", "ref": "u2net-human-seg", "task": "matting", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.391s
+             CPU time consumed: 5.564s
+                   Memory peak: 1.6G (swap: 0B)
+== lib isnet-general-use kernels 15:23:37
+Running as unit: run-p867989-i30246189.service; invocation ID: 6928ab944b3b4d5cb1f21952f4dadbfc
+{"side": "lib", "ref": "isnet-general-use", "task": "matting", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.076s
+             CPU time consumed: 5.722s
+                   Memory peak: 1.5G (swap: 0B)
+== lib isnet kernels 15:23:40
+Running as unit: run-p868129-i30237729.service; invocation ID: dce237fedce448308fa76f9782210311
+{"side": "lib", "ref": "isnet", "task": "matting", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "commi
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.091s
+             CPU time consumed: 5.761s
+                   Memory peak: 1.6G (swap: 0B)
+== lib track-on-r kernels 15:23:43
+Running as unit: run-p868285-i30220990.service; invocation ID: 48fffba783854fa8828d0c7ee97925bf
+{"side": "lib", "ref": "track-on-r", "task": "tracking", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 34.496s
+             CPU time consumed: 36.858s
+                   Memory peak: 2.1G (swap: 0B)
+== lib locotrack-s kernels 15:24:18
+Running as unit: run-p868629-i30253232.service; invocation ID: 1bc03543d3b045a393333c91097056d1
+{"side": "lib", "ref": "locotrack-s", "task": "tracking", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.946s
+             CPU time consumed: 8.481s
+                   Memory peak: 1.3G (swap: 0B)
+== lib yolox-tiny kernels 15:24:25
+Running as unit: run-p868794-i30246296.service; invocation ID: 91bcaa5a763449c787a01ac9be100208
+{"side": "lib", "ref": "yolox-tiny", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 4.626s
+             CPU time consumed: 6.246s
+                   Memory peak: 1.7G (swap: 0B)
+== lib yolox-s kernels 15:24:30
+Running as unit: run-p868937-i30253246.service; invocation ID: d8765bb9a82642a5810b32ecdea1336c
+{"side": "lib", "ref": "yolox-s", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.26, "
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 4.292s
+             CPU time consumed: 6.496s
+                   Memory peak: 1.8G (swap: 0B)
+== lib yolox-m kernels 15:24:34
+Running as unit: run-p869090-i30246343.service; invocation ID: e5bb8ff7cb204a939ab9fe03afcb3367
+{"side": "lib", "ref": "yolox-m", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.190s
+             CPU time consumed: 5.795s
+                   Memory peak: 1.7G (swap: 0B)
+== lib yolox-l kernels 15:24:37
+Running as unit: run-p869231-i30235958.service; invocation ID: 9814ed0b62bc49d68f57bc4f1ba7e34c
+{"side": "lib", "ref": "yolox-l", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda_init_s": 0.2, "
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 4.717s
+             CPU time consumed: 8.136s
+                   Memory peak: 2G (swap: 0B)
+== lib yolox-x kernels 15:24:42
+Running as unit: run-p869392-i30226214.service; invocation ID: 5c972805bb54452d9cbee00750f89273
+{"side": "lib", "ref": "yolox-x", "task": "detection", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "i
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.127s
+             CPU time consumed: 3.830s
+                   Memory peak: 1.2G (swap: 0B)
+== lib memflow kernels 15:24:45
+Running as unit: run-p869537-i30237807.service; invocation ID: 3d83c5027e2b46ceb05e8373cfb2431f
+{"side": "lib", "ref": "memflow", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, "inpu
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.931s
+             CPU time consumed: 2.947s
+                   Memory peak: 598.7M (swap: 0B)
+== lib memflow-sintel kernels 15:24:47
+Running as unit: run-p869678-i30236022.service; invocation ID: 0efdd95f87ce4ac9b7f7e69cc9b88f41
+{"side": "lib", "ref": "memflow-sintel", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.957s
+             CPU time consumed: 2.948s
+                   Memory peak: 598.5M (swap: 0B)
+== lib memflow-kitti kernels 15:24:49
+Running as unit: run-p869820-i30231456.service; invocation ID: 45401d5ebeaf46f48b7d47cde10831e5
+{"side": "lib", "ref": "memflow-kitti", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.27,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.013s
+             CPU time consumed: 2.988s
+                   Memory peak: 598.5M (swap: 0B)
+== lib realesrgan-x4plus kernels 15:24:51
+Running as unit: run-p869960-i30237838.service; invocation ID: 3a88546c4fe64b0587d0f48bc0d1c708
+{"side": "lib", "ref": "realesrgan-x4plus", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 13.927s
+             CPU time consumed: 16.700s
+                   Memory peak: 1.4G (swap: 0B)
+== lib realesrgan-x2plus kernels 15:25:05
+Running as unit: run-p870173-i30236094.service; invocation ID: 6f53c1075d1f4b0c87c7e7c2e6b7064c
+{"side": "lib", "ref": "realesrgan-x2plus", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 4.869s
+             CPU time consumed: 7.472s
+                   Memory peak: 1.4G (swap: 0B)
+== lib realesrgan-x4plus-anime-6b kernels 15:25:10
+Running as unit: run-p870327-i30246508.service; invocation ID: 34bfff32e5c3410f8087543033fa3131
+{"side": "lib", "ref": "realesrgan-x4plus-anime-6b", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.281s
+             CPU time consumed: 8.045s
+                   Memory peak: 1.3G (swap: 0B)
+== lib swinir-m-x4 kernels 15:25:16
+Running as unit: run-p870502-i30246519.service; invocation ID: a9e5375016e944c1a46de81ab41b53f0
+{"side": "lib", "ref": "swinir-m-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 18.923s
+             CPU time consumed: 21.892s
+                   Memory peak: 1.5G (swap: 0B)
+== lib swinir-m-x4-real kernels 15:25:35
+Running as unit: run-p870787-i30236197.service; invocation ID: cb56ad340e5e4e02a9864ffcd662e4ae
+{"side": "lib", "ref": "swinir-m-x4-real", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 19.211s
+             CPU time consumed: 22.911s
+                   Memory peak: 1.5G (swap: 0B)
+== lib swinir-l-x4-real kernels 15:25:54
+Running as unit: run-p871022-i30236225.service; invocation ID: db7fd3274d09427e99d5a2762e2a4bcd
+{"side": "lib", "ref": "swinir-l-x4-real", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 32.158s
+             CPU time consumed: 36.541s
+                   Memory peak: 1.6G (swap: 0B)
+== lib prompt-depth-anything-s kernels 15:26:27
+Running as unit: run-p871330-i30236264.service; invocation ID: ee2d2a2dd55549c1b0c27c371fca356d
+{"side": "lib", "ref": "prompt-depth-anything-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_ini
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.882s
+             CPU time consumed: 5.434s
+                   Memory peak: 1.1G (swap: 0B)
+== lib prompt-depth-anything-l kernels 15:26:30
+Running as unit: run-p871463-i30221129.service; invocation ID: ca52efc286cc4d9d9ec41fb9e879c160
+{"side": "lib", "ref": "prompt-depth-anything-l", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.270s
+             CPU time consumed: 5.450s
+                   Memory peak: 1.8G (swap: 0B)
+== lib c-radio-v4-so400m kernels 15:26:32
+Running as unit: run-p871607-i30257170.service; invocation ID: 901290c871114382ad9c7fe09c59c66c
+{"side": "lib", "ref": "c-radio-v4-so400m", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+{"side": "lib", "ref": "c-radio-v4-so400m", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.620s
+             CPU time consumed: 9.930s
+                   Memory peak: 4.6G (swap: 0B)
+== lib c-radio-v4-h kernels 15:26:39
+Running as unit: run-p871775-i30189345.service; invocation ID: 05e00dd68ecc4e84ba42ffc683e7b6e7
+{"side": "lib", "ref": "c-radio-v4-h", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+{"side": "lib", "ref": "c-radio-v4-h", "task": "features", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.557s
+             CPU time consumed: 11.763s
+                   Memory peak: 6.2G (swap: 0B)
+== lib pi3 kernels 15:26:47
+Running as unit: run-p871956-i30236314.service; invocation ID: 0b4bb757e46f4f1da11b840a8c708231
+{"side": "lib", "ref": "pi3", "task": "multiview", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, "inp
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.746s
+             CPU time consumed: 8.289s
+                   Memory peak: 4.4G (swap: 0B)
+== lib hat-x4 kernels 15:26:49
+Running as unit: run-p872088-i30238019.service; invocation ID: 3ea4a9e79cd84e8c92507c2e177d119c
+{"side": "lib", "ref": "hat-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 42.924s
+             CPU time consumed: 46.741s
+                   Memory peak: 1.5G (swap: 0B)
+== lib real-hat-gan-x4 kernels 15:27:32
+Running as unit: run-p872469-i30236422.service; invocation ID: 88420a1038434836b9e950913243b584
+{"side": "lib", "ref": "real-hat-gan-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 43.137s
+             CPU time consumed: 46.822s
+                   Memory peak: 1.6G (swap: 0B)
+== lib hat-s-x4 kernels 15:28:16
+Running as unit: run-p872846-i30236476.service; invocation ID: 6889336e5ce249cab003ede1753646b3
+{"side": "lib", "ref": "hat-s-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 29.823s
+             CPU time consumed: 33.301s
+                   Memory peak: 1.4G (swap: 0B)
+== lib dat-2-x4 kernels 15:28:46
+Running as unit: run-p873139-i30246799.service; invocation ID: 16ab518227204b86a9abf68597bb5275
+{"side": "lib", "ref": "dat-2-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.22
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 39.002s
+             CPU time consumed: 44.841s
+                   Memory peak: 2.7G (swap: 0B)
+== lib dat-light-x4 kernels 15:29:25
+Running as unit: run-p873506-i30236549.service; invocation ID: 5ca697eb35284678ad3ed2e631cc8853
+{"side": "lib", "ref": "dat-light-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 10.927s
+             CPU time consumed: 15.872s
+                   Memory peak: 2.7G (swap: 0B)
+== lib wd-vit-tagger-v3 kernels 15:29:36
+Running as unit: run-p873686-i30236572.service; invocation ID: 68cbc53aac634491bf880b5d08d49c72
+{"side": "lib", "ref": "wd-vit-tagger-v3", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 5.444s
+             CPU time consumed: 10.208s
+                   Memory peak: 2.4G (swap: 0B)
+== lib wd-vit-large-tagger-v3 kernels 15:29:41
+Running as unit: run-p873856-i30236582.service; invocation ID: b2f12af9fe0f456ea8d598e30cd143b2
+{"side": "lib", "ref": "wd-vit-large-tagger-v3", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "c
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.134s
+             CPU time consumed: 3.318s
+                   Memory peak: 959.3M (swap: 0B)
+== lib wd-eva02-large-tagger-v3 kernels 15:29:44
+Running as unit: run-p873987-i30242301.service; invocation ID: 6b5d944c95684a37baeefe73f243ee2f
+{"side": "lib", "ref": "wd-eva02-large-tagger-v3", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01,
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.116s
+             CPU time consumed: 3.315s
+                   Memory peak: 958.9M (swap: 0B)
+== lib falconsai-nsfw-vit kernels 15:29:46
+Running as unit: run-p874132-i30238142.service; invocation ID: da18d03eb90e4cd390bf201cee8309d1
+{"side": "lib", "ref": "falconsai-nsfw-vit", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 5.443s
+             CPU time consumed: 9.924s
+                   Memory peak: 2G (swap: 0B)
+== lib segformer-b2-clothes kernels 15:29:51
+Running as unit: run-p874285-i30246965.service; invocation ID: e9dcbfd470b34d5bb655fdd4327d5076
+{"side": "lib", "ref": "segformer-b2-clothes", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 0.99, "cuda
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.333s
+             CPU time consumed: 9.850s
+                   Memory peak: 1.6G (swap: 0B)
+== lib segformer-b5-face-parsing kernels 15:29:59
+Running as unit: run-p874469-i30221238.service; invocation ID: b3d44eb471474b1a91c53e16f0ffd0f9
+{"side": "lib", "ref": "segformer-b5-face-parsing", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.09, 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.450s
+             CPU time consumed: 11.547s
+                   Memory peak: 1.9G (swap: 0B)
+== lib insid3-vitl16 kernels 15:30:06
+Running as unit: run-p874679-i30238170.service; invocation ID: 159e230d91d446af97bd6afefbd9eb82
+{"side": "lib", "ref": "insid3-vitl16", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "c
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 9.097s
+             CPU time consumed: 9.740s
+                   Memory peak: 2.9G (swap: 0B)
+== lib mvsplat-re10k kernels 15:30:16
+Running as unit: run-p874870-i30250940.service; invocation ID: 846555403447418480cdc9c39b54fa4b
+{"side": "lib", "ref": "mvsplat-re10k", "task": "multiview", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 8.260s
+             CPU time consumed: 10.324s
+                   Memory peak: 2.1G (swap: 0B)
+== lib retinaface-resnet50 kernels 15:30:24
+Running as unit: run-p875036-i30198673.service; invocation ID: 1282d3b70b18448c98c46f0306949afd
+{"side": "lib", "ref": "retinaface-resnet50", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.818s
+             CPU time consumed: 5.368s
+                   Memory peak: 1.7G (swap: 0B)
+== lib retinaface-mobilenet0.25 kernels 15:30:28
+Running as unit: run-p875183-i30242333.service; invocation ID: 489b58f1080f4c0e9f66c0fb1ae44b6b
+{"side": "lib", "ref": "retinaface-mobilenet0.25", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_ini
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.945s
+             CPU time consumed: 4.713s
+                   Memory peak: 1.5G (swap: 0B)
+== lib megaflow kernels 15:30:31
+Running as unit: run-p875330-i30238232.service; invocation ID: 1e55f44996724044be9a054393e3e51b
+{"side": "lib", "ref": "megaflow", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.19, "inpu
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.091s
+             CPU time consumed: 3.256s
+                   Memory peak: 959.3M (swap: 0B)
+== lib recover-cx kernels 15:30:33
+Running as unit: run-p875462-i30221266.service; invocation ID: 1a02796d49a94787a5895385a45d6e91
+{"side": "lib", "ref": "recover-cx", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "com
+{"side": "lib", "ref": "recover-cx", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "com
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.705s
+             CPU time consumed: 9.668s
+                   Memory peak: 1.7G (swap: 0B)
+== lib recover-rn kernels 15:30:41
+Running as unit: run-p875641-i30232275.service; invocation ID: c9548885ee894488bdcba8b9ddd07bf2
+{"side": "lib", "ref": "recover-rn", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, "c
+{"side": "lib", "ref": "recover-rn", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, "c
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 5.151s
+             CPU time consumed: 7.700s
+                   Memory peak: 1.6G (swap: 0B)
+== lib recover-mn kernels 15:30:46
+Running as unit: run-p875814-i30265564.service; invocation ID: 198d68988f064f0d9dbfb41c843942ea
+{"side": "lib", "ref": "recover-mn", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "com
+{"side": "lib", "ref": "recover-mn", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "com
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 5.601s
+             CPU time consumed: 7.623s
+                   Memory peak: 1.7G (swap: 0B)
+== lib rmbg-2.0 kernels 15:30:52
+Running as unit: run-p875968-i30242373.service; invocation ID: 06dfe0b93e704f4e8f87713925b3f2c0
+{"side": "lib", "ref": "rmbg-2.0", "task": "matting", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.21, "
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.009s
+             CPU time consumed: 4.115s
+                   Memory peak: 1.4G (swap: 0B)
+== lib gfpgan-v1.4 kernels 15:30:54
+Running as unit: run-p876107-i30242388.service; invocation ID: a320d65f0fbc4b6dbc7a00b04dfc0b74
+{"side": "lib", "ref": "gfpgan-v1.4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.958s
+             CPU time consumed: 6.564s
+                   Memory peak: 2G (swap: 0B)
+== lib realesr-general-x4v3 kernels 15:30:58
+Running as unit: run-p876261-i30238301.service; invocation ID: 6cd66d6ca5384b84a38b687b1e55f64a
+{"side": "lib", "ref": "realesr-general-x4v3", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_i
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.958s
+             CPU time consumed: 4.448s
+                   Memory peak: 1001.1M (swap: 0B)
+== lib realplksr-nomoswebphoto-x4 kernels 15:31:01
+Running as unit: run-p876406-i30251078.service; invocation ID: 731dbd9d91834aae90e340454b0394ff
+{"side": "lib", "ref": "realplksr-nomoswebphoto-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.332s
+             CPU time consumed: 8.516s
+                   Memory peak: 1.5G (swap: 0B)
+== lib clipseg kernels 15:31:07
+Running as unit: run-p876573-i30232353.service; invocation ID: 2a2e380a62eb47fb97cdf23e1a80cc9d
+{"side": "lib", "ref": "clipseg", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+{"side": "lib", "ref": "clipseg", "task": "promptable_segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_in
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.100s
+             CPU time consumed: 10.762s
+                   Memory peak: 2.3G (swap: 0B)
+== lib big-lama kernels 15:31:15
+Running as unit: run-p876758-i30265675.service; invocation ID: 371c99e291fc4c9abcb9861cdeeab556
+{"side": "lib", "ref": "big-lama", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.25
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.706s
+             CPU time consumed: 6.799s
+                   Memory peak: 1.7G (swap: 0B)
+== lib gimm-vfi-r kernels 15:31:18
+Running as unit: run-p876910-i30238349.service; invocation ID: 5b243d7f21b64e0285695351769bd06a
+{"side": "lib", "ref": "gimm-vfi-r", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s":
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.909s
+             CPU time consumed: 2.929s
+                   Memory peak: 598.9M (swap: 0B)
+== lib ema-vfi kernels 15:31:20
+Running as unit: run-p877048-i30242475.service; invocation ID: 71abe3a1c57949f09ec589547c805f41
+{"side": "lib", "ref": "ema-vfi", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s": 0.
+{"side": "lib", "ref": "ema-vfi", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s": 0.
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 11.840s
+             CPU time consumed: 16.931s
+                   Memory peak: 1.9G (swap: 0B)
+== lib ema-vfi-small kernels 15:31:32
+Running as unit: run-p877255-i30247294.service; invocation ID: 1302baa808b642429e0de15bea8ebeaa
+{"side": "lib", "ref": "ema-vfi-small", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+{"side": "lib", "ref": "ema-vfi-small", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.493s
+             CPU time consumed: 9.232s
+                   Memory peak: 1.7G (swap: 0B)
+== lib gimm-vfi-r-p kernels 15:31:39
+Running as unit: run-p877420-i30217807.service; invocation ID: 618367d2bdd9485aab928574550cd0ed
+{"side": "lib", "ref": "gimm-vfi-r-p", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.926s
+             CPU time consumed: 2.951s
+                   Memory peak: 598.5M (swap: 0B)
+== lib ema-vfi-t kernels 15:31:41
+Running as unit: run-p877554-i30265771.service; invocation ID: dadbe50c165a4a6fb9fbcf6ba15f9d70
+{"side": "lib", "ref": "ema-vfi-t", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+{"side": "lib", "ref": "ema-vfi-t", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 11.922s
+             CPU time consumed: 17.109s
+                   Memory peak: 1.9G (swap: 0B)
+== lib ema-vfi-small-t kernels 15:31:53
+Running as unit: run-p877754-i30238404.service; invocation ID: 64efa8cd62154e70be5c5b6c305a7dd2
+{"side": "lib", "ref": "ema-vfi-small-t", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_ini
+{"side": "lib", "ref": "ema-vfi-small-t", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_ini
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 6.488s
+             CPU time consumed: 9.275s
+                   Memory peak: 1.7G (swap: 0B)
+== lib drct-x4 kernels 15:32:00
+Running as unit: run-p877913-i30181954.service; invocation ID: 557a280c92d242f885b98311a0eac6c4
+{"side": "lib", "ref": "drct-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s": 0.19
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 22.850s
+             CPU time consumed: 26.249s
+                   Memory peak: 1.6G (swap: 0B)
+== lib drct-l-x4 kernels 15:32:23
+Running as unit: run-p878161-i30217914.service; invocation ID: 2d9cdc3ab97d43e4baf2b92730ce5f6d
+{"side": "lib", "ref": "drct-l-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.26, "cuda_init_s": 0.
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 42.650s
+             CPU time consumed: 47.421s
+                   Memory peak: 1.8G (swap: 0B)
+== lib marigold-v2-depth kernels 15:33:05
+Running as unit: run-p878535-i30238421.service; invocation ID: 09a14b5997334970adcf84c6df9c0d36
+marigold-v2-depth@1: stream=True, transformer blocks are uploaded per block from pinned host memory
+{"side": "lib", "ref": "marigold-v2-depth", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+          Finished with result: exit-code
+Main processes terminated with: code=exited, status=124/n/a
+               Service runtime: 2min 56.682s
+             CPU time consumed: 3min 14.230s
+                   Memory peak: 15G (swap: 1.9G)
+== lib cotracker3-offline kernels 15:36:02
+Running as unit: run-p879597-i30269697.service; invocation ID: a2e6485317cb4466a5bd75896f260a1c
+{"side": "lib", "ref": "cotracker3-offline", "task": "tracking", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.03, "cuda_init_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.531s
+             CPU time consumed: 10.228s
+                   Memory peak: 1.6G (swap: 0B)
+== lib cotracker3-online kernels 15:36:10
+Running as unit: run-p879772-i30251470.service; invocation ID: be3d27b472e149a9806f88da394b2401
+{"side": "lib", "ref": "cotracker3-online", "task": "tracking", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s"
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.868s
+             CPU time consumed: 10.809s
+                   Memory peak: 1.6G (swap: 0B)
+== lib swin2sr-x2 kernels 15:36:18
+Running as unit: run-p879936-i30266041.service; invocation ID: 9fc7a19dde23424fa3783093c2d3423e
+{"side": "lib", "ref": "swin2sr-x2", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 23.308s
+             CPU time consumed: 26.877s
+                   Memory peak: 1.6G (swap: 0B)
+== lib nafnet-gopro kernels 15:36:41
+Running as unit: run-p880196-i30266062.service; invocation ID: 12558ff9dc4245a7bbc640d44a96baee
+{"side": "lib", "ref": "nafnet-gopro", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 5.068s
+             CPU time consumed: 8.744s
+                   Memory peak: 1.8G (swap: 0B)
+== lib nafnet-sidd kernels 15:36:46
+Running as unit: run-p880351-i30253432.service; invocation ID: 1e833500c95847b793e0d4b65ffc3622
+{"side": "lib", "ref": "nafnet-sidd", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 4.783s
+             CPU time consumed: 8.885s
+                   Memory peak: 2.1G (swap: 0B)
+== lib restormer-deblur kernels 15:36:51
+Running as unit: run-p880505-i30253453.service; invocation ID: 023838b600a944cbbac1d921709fd2d0
+{"side": "lib", "ref": "restormer-deblur", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.999s
+             CPU time consumed: 11.023s
+                   Memory peak: 1.6G (swap: 0B)
+== lib restormer-derain kernels 15:36:59
+Running as unit: run-p880679-i30247673.service; invocation ID: 7a8d278757004ccab06cdf334e59ec4d
+{"side": "lib", "ref": "restormer-derain", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 8.355s
+             CPU time consumed: 11.307s
+                   Memory peak: 1.6G (swap: 0B)
+== lib yunet-n kernels 15:37:08
+Running as unit: run-p880846-i30266139.service; invocation ID: 021f6ae4454e474cbc9ec2f49d48c40c
+{"side": "lib", "ref": "yunet-n", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.2, "commit
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.833s
+             CPU time consumed: 4.465s
+                   Memory peak: 1.4G (swap: 0B)
+== lib yunet-s kernels 15:37:11
+Running as unit: run-p881003-i30247726.service; invocation ID: b945b1dd4b2b43e3b6739048551a66b1
+{"side": "lib", "ref": "yunet-s", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.27, "commi
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.829s
+             CPU time consumed: 4.475s
+                   Memory peak: 1.4G (swap: 0B)
+== lib totalsegmentator-total-3mm kernels 15:37:14
+Running as unit: run-p881137-i30199043.service; invocation ID: 9bed56c9690f4235bcba0274bdddadbf
+{"side": "lib", "ref": "totalsegmentator-total-3mm", "task": "volume", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.966s
+             CPU time consumed: 2.990s
+                   Memory peak: 599.7M (swap: 0B)
+== lib totalsegmentator-total kernels 15:37:16
+Running as unit: run-p881281-i30251623.service; invocation ID: 292e33173142434ba257c8ff90de2b67
+{"side": "lib", "ref": "totalsegmentator-total", "task": "volume", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_ini
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.986s
+             CPU time consumed: 3.018s
+                   Memory peak: 599M (swap: 0B)
+== lib seedvr2-3b kernels 15:37:18
+Running as unit: run-p881406-i30266286.service; invocation ID: 6e05126cf95244e2b39f1bf92fbc7a90
+seedvr2-3b@1: stream=True, transformer blocks are uploaded per block from pinned host memory
+{"side": "lib", "ref": "seedvr2-3b", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.315s
+             CPU time consumed: 4.606s
+                   Memory peak: 1.2G (swap: 0B)
+== lib seedvr2-7b kernels 15:37:21
+Running as unit: run-p881565-i30247757.service; invocation ID: a228b5765070407d956562d67d14f293
+seedvr2-7b@1: stream=True, transformer blocks are uploaded per block from pinned host memory
+{"side": "lib", "ref": "seedvr2-7b", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 2.952s
+             CPU time consumed: 4.572s
+                   Memory peak: 1.1G (swap: 0B)
+== lib nnfoundation-cnn kernels 15:37:24
+Running as unit: run-p881728-i30266328.service; invocation ID: 33a64cd471d5456eb96272273778ee9a
+{"side": "lib", "ref": "nnfoundation-cnn", "task": "volume", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.918s
+             CPU time consumed: 2.944s
+                   Memory peak: 598.6M (swap: 0B)
+== lib nnfoundation-vit kernels 15:37:27
+Running as unit: run-p881858-i30242888.service; invocation ID: 09b2dbe0c96f4538bab422a7a51c3b19
+{"side": "lib", "ref": "nnfoundation-vit", "task": "volume", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.895s
+             CPU time consumed: 2.924s
+                   Memory peak: 598.9M (swap: 0B)
+== lib nninteractive kernels 15:37:28
+Running as unit: run-p881981-i30218010.service; invocation ID: 9117c378d39c4fc5b386ee37442476e6
+{"side": "lib", "ref": "nninteractive", "task": "volume", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.922s
+             CPU time consumed: 2.939s
+                   Memory peak: 598.5M (swap: 0B)
+== lib pointdit-b-512 kernels 15:37:31
+Running as unit: run-p882125-i30238638.service; invocation ID: 5bec3e0b6147404498e25de8968a18c1
+{"side": "lib", "ref": "pointdit-b-512", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.951s
+             CPU time consumed: 2.983s
+                   Memory peak: 603.5M (swap: 0B)
+== lib pointdit-l-512 kernels 15:37:33
+Running as unit: run-p882250-i30247844.service; invocation ID: de85fc4a0123489baa3045fc7c24368b
+{"side": "lib", "ref": "pointdit-l-512", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1.933s
+             CPU time consumed: 2.970s
+                   Memory peak: 601.2M (swap: 0B)
+== lib waft-a1 kernels 15:37:35
+Running as unit: run-p882389-i30218038.service; invocation ID: 68dcb00615c640ef9a33ba6b16f72e62
+{"side": "lib", "ref": "waft-a1", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.27, "comm
+{"side": "lib", "ref": "waft-a1", "task": "flow", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.27, "comm
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 24.432s
+             CPU time consumed: 27.490s
+                   Memory peak: 1.9G (swap: 0B)
+== lib codeformer kernels 15:37:59
+Running as unit: run-p882635-i30218061.service; invocation ID: 88b03d7ada8049a6a657f6d18fcbd573
+{"side": "lib", "ref": "codeformer", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 4.375s
+             CPU time consumed: 7.938s
+                   Memory peak: 2G (swap: 0B)
+== lib film kernels 15:38:04
+Running as unit: run-p882789-i30266496.service; invocation ID: 6bb36790238f47009f1b9cc17611b248
+{"side": "lib", "ref": "film", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, 
+{"side": "lib", "ref": "film", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.21, 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 16.543s
+             CPU time consumed: 19.631s
+                   Memory peak: 1.6G (swap: 0B)
+== lib aliked-lightglue kernels 15:38:20
+Running as unit: run-p882999-i30242942.service; invocation ID: a9f45f9e44ba48bb8bfe8734e8afed9b
+{"side": "lib", "ref": "aliked-lightglue", "task": "matching", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s"
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 4.320s
+             CPU time consumed: 6.657s
+                   Memory peak: 1.9G (swap: 0B)
+== lib disk-lightglue kernels 15:38:25
+Running as unit: run-p883161-i30251791.service; invocation ID: a35e4c56e9dc4b9186d9d4683f582707
+{"side": "lib", "ref": "disk-lightglue", "task": "matching", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 4.437s
+             CPU time consumed: 6.623s
+                   Memory peak: 1.7G (swap: 0B)
+== lib restormer-sidd kernels 15:38:29
+Running as unit: run-p883309-i30266550.service; invocation ID: 324dd56690214e208e1ee1d6a016c7be
+{"side": "lib", "ref": "restormer-sidd", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.979s
+             CPU time consumed: 10.929s
+                   Memory peak: 1.7G (swap: 0B)
+== lib c-foundationstereo-s kernels 15:38:37
+Running as unit: run-p883481-i30238716.service; invocation ID: e7814b22a6374816b11fe2f650006f7c
+{"side": "lib", "ref": "c-foundationstereo-s", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+{"side": "lib", "ref": "c-foundationstereo-s", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 1min 4.013s
+             CPU time consumed: 1min 8.245s
+                   Memory peak: 2.2G (swap: 0B)
+== lib dat-x4 kernels 15:39:42
+Running as unit: run-p883955-i30247971.service; invocation ID: 42231ea63eae45a189eeed0e6f2aca9a
+{"side": "lib", "ref": "dat-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2, 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 42.965s
+             CPU time consumed: 49.842s
+                   Memory peak: 2.7G (swap: 0B)
+== lib locotrack-b kernels 15:40:25
+Running as unit: run-p884316-i30238751.service; invocation ID: b23741fc00734e1f91eafce2ea01ead7
+{"side": "lib", "ref": "locotrack-b", "task": "tracking", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.704s
+             CPU time consumed: 9.300s
+                   Memory peak: 1.4G (swap: 0B)
+== lib marigold-depth-v1-1 kernels 15:40:32
+Running as unit: run-p884477-i30238765.service; invocation ID: b73c7829e0534941a433706fbdb3d7e4
+{"side": "lib", "ref": "marigold-depth-v1-1", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+{"side": "lib", "ref": "marigold-depth-v1-1", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s":
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 27.753s
+             CPU time consumed: 26.638s
+                   Memory peak: 6.5G (swap: 0B)
+== lib moge-2-vits-normal kernels 15:41:00
+Running as unit: run-p884753-i30202134.service; invocation ID: 65b0efe4586d47b79d297e97f68e8d47
+{"side": "lib", "ref": "moge-2-vits-normal", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.3, "cuda_init_s": 
+{"side": "lib", "ref": "moge-2-vits-normal", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.3, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 5.389s
+             CPU time consumed: 9.052s
+                   Memory peak: 1.8G (swap: 0B)
+== lib moge-3-vitl kernels 15:41:06
+Running as unit: run-p884916-i30238788.service; invocation ID: 7d492c9e4c7842baa97bc6e046ba9372
+{"side": "lib", "ref": "moge-3-vitl", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.26, 
+{"side": "lib", "ref": "moge-3-vitl", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.26, 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 12.552s
+             CPU time consumed: 20.797s
+                   Memory peak: 3.9G (swap: 0B)
+== lib patchmatchnet kernels 15:41:18
+Running as unit: run-p885106-i30266846.service; invocation ID: 50531e65ef4d417c950d9a6e229b3ee8
+{"side": "lib", "ref": "patchmatchnet", "task": "multiview", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.699s
+             CPU time consumed: 5.232s
+                   Memory peak: 1.3G (swap: 0B)
+== lib pspnet-r101-d8-ade20k kernels 15:41:22
+Running as unit: run-p885271-i30266882.service; invocation ID: 19926aecf0334fed8dd0cfbc6639d5ee
+{"side": "lib", "ref": "pspnet-r101-d8-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda
+{"side": "lib", "ref": "pspnet-r101-d8-ade20k", "task": "segmentation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 4.506s
+             CPU time consumed: 7.044s
+                   Memory peak: 1.8G (swap: 0B)
+== lib rife-4.26 kernels 15:41:27
+Running as unit: run-p885432-i30266914.service; invocation ID: f0a67e9d17b9446fb2553c178caf48fc
+{"side": "lib", "ref": "rife-4.26", "task": "interpolation", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.570s
+             CPU time consumed: 5.390s
+                   Memory peak: 1.5G (swap: 0B)
+== lib rt-monster-plusplus-mix-all kernels 15:41:31
+Running as unit: run-p885577-i30266969.service; invocation ID: 4503b79e4afb4175bb0b5266bba69d44
+{"side": "lib", "ref": "rt-monster-plusplus-mix-all", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda
+{"side": "lib", "ref": "rt-monster-plusplus-mix-all", "task": "stereo", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 7.335s
+             CPU time consumed: 10.501s
+                   Memory peak: 1.9G (swap: 0B)
+== lib swin2sr-x4-real kernels 15:41:38
+Running as unit: run-p885736-i30252202.service; invocation ID: 84f90154997f4ea2ac1081e3054d1e6b
+{"side": "lib", "ref": "swin2sr-x4-real", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 24.062s
+             CPU time consumed: 27.803s
+                   Memory peak: 1.6G (swap: 0B)
+== lib swin2sr-x4 kernels 15:42:02
+Running as unit: run-p886008-i30248191.service; invocation ID: 389910a39c744abb8683ccfa3075b2ad
+{"side": "lib", "ref": "swin2sr-x4", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0, "cuda_init_s": 0.
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 23.690s
+             CPU time consumed: 26.864s
+                   Memory peak: 1.6G (swap: 0B)
+== lib swinir-m-x2 kernels 15:42:26
+Running as unit: run-p886262-i30252315.service; invocation ID: a7be143de85b4a7c9bcbf99b32749438
+{"side": "lib", "ref": "swinir-m-x2", "task": "restoration", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 18.960s
+             CPU time consumed: 21.541s
+                   Memory peak: 1.5G (swap: 0B)
+== lib track-on2 kernels 15:42:45
+Running as unit: run-p886502-i30267079.service; invocation ID: e4b27ede34ba4f1d9c31dc15d3e0d019
+{"side": "lib", "ref": "track-on2", "task": "tracking", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cuda_init_s": 0.2, 
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 34.504s
+             CPU time consumed: 37.353s
+                   Memory peak: 2.1G (swap: 0B)
+== lib vitpose-base kernels 15:43:20
+Running as unit: run-p886817-i30252421.service; invocation ID: ce188e51fe914ae98b91d6ddc9ff905b
+{"side": "lib", "ref": "vitpose-base", "task": "pose", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.02, "cuda_init_s": 0.2, "
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 3.529s
+             CPU time consumed: 7.166s
+                   Memory peak: 2G (swap: 0B)
+== lib wd-convnext-tagger-v3 kernels 15:43:23
+Running as unit: run-p886978-i30270626.service; invocation ID: 8ccf0dcaadd443a786fe9a0378fe6fef
+{"side": "lib", "ref": "wd-convnext-tagger-v3", "task": "classification", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "c
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 5.768s
+             CPU time consumed: 10.261s
+                   Memory peak: 2.5G (swap: 0B)
+== lib video-depth-anything-metric-s kernels 15:43:29
+Running as unit: run-p887129-i30248320.service; invocation ID: 82df7c252cb14208b0bb540d28d37e2f
+{"side": "lib", "ref": "video-depth-anything-metric-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cu
+{"side": "lib", "ref": "video-depth-anything-metric-s", "task": "depth", "mode": "kernels", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.01, "cu
+          Finished with result: success
+Main processes terminated with: code=exited, status=0/SUCCESS
+               Service runtime: 12.954s
+             CPU time consumed: 15.198s
+                   Memory peak: 1.3G (swap: 0B)
+done

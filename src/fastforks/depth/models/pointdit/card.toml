@@ -1,0 +1,66 @@
+schema = 2
+name = "PointDiT"
+summary = "PointDiT (Xu et al., Google 2026): monocular geometry as generation; a pixel-space diffusion transformer denoises a point map in 3 Euler steps, conditioned on frozen DINOv3 features of the image. Outputs an affine-invariant point map and its depth."
+tier = "experimental"
+outputs = ["points", "depth"]
+limitations = [
+  "Affine-invariant output: points up to an unknown scale and 3-D shift, depth (their z) up to scale and shift; align before use.",
+  "Trained at 512 x 512: inputs are resized to about `tokens` 16-pixel patches at their aspect ratio (bilinear) and the point map is resized back with nearest, as the original's wild-image path.",
+  "Kernels mode captures CUDA graphs: the graph's private memory pool and static outputs stay reserved after the call, so peak reserved is above portable by ~85 MiB (b), more for l (peak allocated is equal or lower); `cuda_graphs=false` or `release_graphs()` frees it at the cost of launch overhead.",
+]
+licence_notes = [
+  "The PointDiT code and weights are Apache-2.0; the frozen DINOv3 ViT-B/16 and ViT-L/16 encoders are under the DINOv3 License (Meta: attribution and conditions apply; gated on Hugging Face); read it before commercial use.",
+]
+
+[output]
+kind = "affine_invariant"
+
+[upstream]
+repo = "https://github.com/google-research/pointdit"
+commit = "11f53a30aeb4d34d49d2beda655ee6f19b2ad7f8"  # model.py, denoiser.py generate, engine.py wild-image resize; the encoder is the DINOv3 hub model (= features dinov3)
+
+[licence]
+code = "Apache-2.0"
+weights = "LicenseRef-DINOv3-License"  # PointDiT weights Apache-2.0; the DINOv3 encoder weights: DINOv3 License
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "Mixture of synthetic and real point-map datasets (\"mixdata\") per the PointDiT paper; the DINOv3 encoder: LVD-1689M (not released)"
+evidence = "https://github.com/google-research/pointdit/blob/11f53a30aeb4d34d49d2beda655ee6f19b2ad7f8/LICENSE (Apache-2.0); https://huggingface.co/haofeixu/pointdit (license: apache-2.0); encoder: https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m (DINOv3 License, gated)"
+
+[io]
+input = "imagenet"  # the runner resizes to ~`tokens` patches (bilinear, no antialias) and normalises
+pad = "none"
+
+[options]
+tokens = { default = 1024, min = 1 }  # target 16-px patch count of the resize (the original: (512 / 16)^2)
+steps = { default = 3, min = 1 }  # Euler steps (the original's evaluation: 3)
+
+[modes.portable]
+cuda_dtype = "float16"
+
+[modes.kernels]
+kernels = ["fastbb", "dpt_fused"]
+
+[[papers]]
+title = "PointDiT: Pixel-Space Diffusion for Monocular Geometry Estimation"
+url = "https://arxiv.org/abs/2607.02515"
+date = "2026-07-02"
+venue = "ICML 2026"
+
+[[variants]]
+id = "pointdit-b-512"
+revision = 1
+params = { arch = "b", encoder = "dinov3-vitb16" }
+weights = [
+  { name = "dinov3-vitb16-pretrain-lvd1689m/model.safetensors", size = 342662192, sha256 = "9a21ac3df0c63839d62612dda6f454d816c25611cc7a52966ed5a5a94921dc8b", url = "https://huggingface.co/facebook/dinov3-vitb16-pretrain-lvd1689m/resolve/5931719e67bbdb9737e363e781fb0c67687896bc/model.safetensors" },
+  { name = "pointditb-512-mixdata-nodinov3-1d42aacf.pth", size = 1097860526, sha256 = "1d42aacfd6aaf97c8bd96b0ce5e23bd880cd01b2efbb2ac80ccf8876fde3034b", url = "https://huggingface.co/haofeixu/pointdit/resolve/956a6f4279c20b59adfc1ea2038603514f4fe5dc/pointditb-512-mixdata-nodinov3-1d42aacf.pth" },
+]
+
+[[variants]]
+id = "pointdit-l-512"
+revision = 1
+params = { arch = "l", encoder = "dinov3-vitl16" }
+weights = [
+  { name = "dinov3-vitl16-pretrain-lvd1689m/model.safetensors", size = 1212559808, sha256 = "dcb2e45127cccbf1601e5f42fef165eea275c8e5213197e8dcf3f48822718179", url = "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m/resolve/ea8dc2863c51be0a264bab82070e3e8836b02d51/model.safetensors" },
+  { name = "pointditl-512-mixdata-nodinov3-240c1a4f.pth", size = 3746762238, sha256 = "240c1a4fc9a26d8623153027e5a5110fec14335c9920fedb1c92df76e287394a", url = "https://huggingface.co/haofeixu/pointdit/resolve/956a6f4279c20b59adfc1ea2038603514f4fe5dc/pointditl-512-mixdata-nodinov3-240c1a4f.pth" },
+]

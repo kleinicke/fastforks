@@ -1,7 +1,7 @@
 schema = 2
 name = "MonSter++"
 summary = "MonSter++ (Cheng et al. 2025), accuracy model (the MonSter network, max disparity 416): Depth Anything V2 (ViT-L) monocular branch + IGEV-style geometry volume, with stereo and mono ConvGRUs that refine each other, 32 iterations."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "depth_anything_v2", "monster_fit"]  # fastforks.shared modules this family imports
 
@@ -41,6 +41,12 @@ mps_kernels = ["stereo_metal"]
 # rounding: upstream itself moves by 0.132 px max when the left image changes by 1e-3 grey levels (ours: 0.090).
 # Upstream also publishes KITTI / Middlebury / ETH3D fine-tunes (same Hugging Face repo); not added yet (not local).
 # RT-MonSter++ (same repository, a different network) is the family rt_monster_plusplus.
+
+[[papers]]
+title = "MonSter++: Unified Stereo Matching, Multi-view Stereo, and Real-time Stereo with Monodepth Priors"
+url = "https://arxiv.org/abs/2501.08643"
+date = "2025-01-15"
+venue = "arXiv"
 
 [[variants]]
 id = "monster-plusplus-mix-all"

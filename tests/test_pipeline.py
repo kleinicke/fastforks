@@ -23,7 +23,8 @@ from PIL import Image
 from fastforks import InputError
 from fastforks._core import pipeline as core
 from fastforks.stereo import geometry as g
-from fastforks.stereo.pipeline import PairResult, natural_key, run_many
+from fastforks.stereo.calibrated import StereoResult
+from fastforks.stereo.pipeline import natural_key, run_many
 from synth import pair
 
 H, W = 48, 64
@@ -32,6 +33,8 @@ KERNEL, CAMERA, OOM = "kernel failed", "camera unplugged", "CUDA out of memory (
 
 class Fake:
     """A stand-in stereo model: disparity = mean(left) - mean(right) per pixel, float32, on `device`."""
+
+    variant, backend, options = types.SimpleNamespace(ref="fake@1"), "portable", {}  # what each StereoResult names
 
     def __init__(self, device: str = "cpu", sleep_cycles: int = 0) -> None:
         self.device = torch.device(device)
@@ -74,11 +77,14 @@ def _t(img) -> torch.Tensor:
     return _as_tensor(img)
 
 
+# Process-wide pools that live on by design (started once, reused by every call): the TIFF writer and the parallel
+# decoder of `_core.image._decoded`. Any earlier test that decodes two files starts the latter.
+_PERSISTENT = ("fastforks-tiff", "fastforks-decode")
+
+
 def _threads() -> set[str]:
     return {
-        t.name
-        for t in threading.enumerate()
-        if t.name.startswith("fastforks-") and not t.name.startswith("fastforks-tiff")
+        t.name for t in threading.enumerate() if t.name.startswith("fastforks-") and not t.name.startswith(_PERSISTENT)
     }
 
 
@@ -336,6 +342,7 @@ def test_other_errors_raise_even_with_skip():
 
     class M:
         device = fake.device
+        variant, backend, options = Fake.variant, Fake.backend, Fake.options
 
         def __call__(self, left, right):
             if fake.calls == 6:
@@ -568,6 +575,7 @@ def test_autocast_of_the_caller_applies():
 
     class M:
         device = torch.device("cpu")
+        variant, backend, options = Fake.variant, Fake.backend, Fake.options
 
         def __call__(self, left, right):
             seen.append(torch.is_autocast_enabled("cpu"))
@@ -816,6 +824,7 @@ def test_gpu_errors_raise_with_skip():
 
     class M:
         device = torch.device("cuda")
+        variant, backend, options = Fake.variant, Fake.backend, Fake.options
 
         def __call__(self, *_):
             raise torch.cuda.OutOfMemoryError(OOM)
@@ -826,7 +835,7 @@ def test_gpu_errors_raise_with_skip():
     assert _no_threads()
 
 
-def test_pair_result_is_exported():
+def test_stereo_result_is_exported():
     from fastforks import stereo  # noqa: PLC0415
 
-    assert stereo.PairResult is PairResult
+    assert stereo.StereoResult is StereoResult

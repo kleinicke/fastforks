@@ -15,8 +15,7 @@ from fastforks._core import files, model
 from fastforks._core.errors import ArgumentError
 from fastforks.classification._api import ClassificationResult
 from fastforks.promptable_segmentation import _api as sam
-from fastforks.stereo._api import StereoResult
-from fastforks.stereo.calibrated import resolve_geometry
+from fastforks.stereo.calibrated import plain_result, resolve_geometry
 
 
 def test_missing_dependency_error(monkeypatch):
@@ -88,7 +87,7 @@ def test_kernel_downloads_announce_once_per_burst():
 
 
 def test_stereo_result_depth_needs_rig():
-    res = StereoResult(torch.zeros(4, 4), None, {}, "m", model.Backend("portable", "cpu", "fp32"))
+    res = plain_result(torch.zeros(4, 4), None, {}, "m", model.Backend("portable", "cpu", "fp32"))
     with pytest.raises(InputError, match="rig="):
         res.depth()
 

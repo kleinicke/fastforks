@@ -1,0 +1,13 @@
+[W1115 09:17:29.474861279 CUDACachingAllocator.cpp:528] expandable_segments: memory mapping failed with OOM on device 0 while trying to map 20971520 bytes (free: 2293760, total: 16617177088).
+[W1115 09:17:30.711127004 CUDACachingAllocator.cpp:528] expandable_segments: memory mapping failed with OOM on device 0 while trying to map 20971520 bytes (free: 21168128, total: 16617177088).
+[W1115 09:17:30.799293680 CUDACachingAllocator.cpp:528] expandable_segments: memory mapping failed with OOM on device 0 while trying to map 20971520 bytes (free: 2293760, total: 16617177088).
+[W1115 09:17:40.668152337 CUDACachingAllocator.cpp:528] expandable_segments: memory mapping failed with OOM on device 0 while trying to map 20971520 bytes (free: 21168128, total: 16617177088).
+[W1115 09:17:42.351712109 CUDACachingAllocator.cpp:528] expandable_segments: memory mapping failed with OOM on device 0 while trying to map 20971520 bytes (free: 19070976, total: 16617177088).
+[W1115 09:17:42.440837968 CUDACachingAllocator.cpp:528] expandable_segments: memory mapping failed with OOM on device 0 while trying to map 20971520 bytes (free: 21168128, total: 16617177088).
+{"ref": "memfof-kitti", "tier": "upstream", "input": "1080x1920", "ms": null, "peak_reserved_mb": null, "error": "OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 GiB. GPU 0 has a total capacity of 15.48 GiB of which 3.89 GiB is free. Including non-PyTorch memory, this process has 11.57 GiB memory in use. Of the allocated memory 11.26 GiB is allocated by PyTorch, and 139.41 MiB is reserved by PyTorch but unallocated."}
+{"ref": "memfof-kitti", "tier": "upstream", "input": "375x1242", "ms": 927.23, "peak_reserved_mb": 2276, "error": null}
+{"ref": "memfof-sintel", "tier": "upstream", "input": "1080x1920", "ms": null, "peak_reserved_mb": null, "error": "OOM, OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 GiB. GPU 0 has a total capacity of 15.48 GiB of which 3.87 GiB is free. Including non-PyTorch memory, this process has 11.59 GiB memory in use. Of the allocated memory 11.26 GiB is allocated by PyTorch, and 159.41 MiB is reserved by PyTorch but unallocated."}
+{"ref": "memfof-sintel", "tier": "upstream", "input": "375x1242", "ms": 894.5, "peak_reserved_mb": 2176, "error": null}
+{"ref": "memfof-spring", "tier": "upstream", "input": "1080x1920", "ms": 1034.79, "peak_reserved_mb": 2676, "error": null}
+{"ref": "memfof-spring", "tier": "upstream", "input": "375x1242", "ms": 208.11, "peak_reserved_mb": 682, "error": null}
+rc=0

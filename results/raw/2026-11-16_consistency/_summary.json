@@ -1,0 +1,23 @@
+{
+ "speed: ref x size comparisons": "759",
+ "speed: refs compared": "562",
+ "a_kernels_alloc_above_orig: rows / refs": "7 / 7",
+ "a_kernels_reserved_above_orig: rows / refs": "29 / 29",
+ "a_portable_alloc_above_orig: rows / refs": "14 / 12",
+ "a_portable_reserved_above_orig: rows / refs": "22 / 21",
+ "b_portable_slower_than_orig: rows / refs": "18 / 16",
+ "c_kernels_alloc_above_portable: rows / refs": "73 / 63",
+ "c_kernels_reserved_above_portable: rows / refs": "202 / 176",
+ "c_kernels_slower_than_portable: rows / refs": "1 / 1",
+ "i_mixed_torch_in_comparison: rows / refs": "13 / 10",
+ "(d) accuracy comparisons (primary metric, portable/kernels vs original fp32)": "1281",
+ "(d) flagged > 2 % relative, worse / better": "4 / 3  (refs worse: 3)",
+ "(e) error/oom/nan rows total": "78",
+ "(e) of them by design (original OOM)": "25",
+ "(e) NOT by design": "53",
+ "(f) rows with missing fields (by field)": "1969 rows; command=1525, commit=943, torch=29, peak_reserved_mb=10, peak_alloc_mb=8, protocol=2, ms=1, n=1",
+ "(h) eval duplicates (same ref+mode+dataset), identical / differing": "1 / 14",
+ "(h) speed duplicate groups; ms spread > 10 % (contradictory)": "150; 23",
+ "(i) distinct (gpu, torch) combos in main tables": "5",
+ "(g) card text hits (stale markers / speed claims, to check)": "Counter({'stale_marker_in_card': 38, 'speed_claim_in_card': 6})"
+}

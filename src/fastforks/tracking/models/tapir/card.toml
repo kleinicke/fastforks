@@ -33,6 +33,20 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["fvm_conv"]  # the PIPs mixer: depthwise temporal convs (GELU-tanh epilogue) and GEMMs with fused GELU-tanh / residual epilogues, fp16 accumulation
 
+[[papers]]
+title = "TAPIR: Tracking Any Point with per-frame Initialization and temporal Refinement"
+url = "https://arxiv.org/abs/2306.08637"
+date = "2023-06-14"
+venue = "ICCV 2023"
+variants = ["tapir"]
+
+[[papers]]
+title = "BootsTAP: Bootstrapped Training for Tracking-Any-Point"
+url = "https://arxiv.org/abs/2402.00847"
+date = "2024-02-01"
+venue = "ACCV 2024"
+variants = ["bootstapir"]
+
 [[variants]]
 id = "bootstapir"  # upstream BootsTAPIR (bootstapir_checkpoint_v2.pt); TAP-Vid DAVIS first AJ 62.4 at 256 x 256 (upstream README)
 revision = 1

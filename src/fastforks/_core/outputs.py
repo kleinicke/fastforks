@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
@@ -10,7 +11,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 import torch
 
 from fastforks._core.errors import InputError
-from fastforks._core.io import MAP_SUFFIXES, check_suffix, write_map
+from fastforks._core.io import MAP_SUFFIXES, atomic_write, check_suffix, write_map
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -23,6 +24,31 @@ def _array(t: torch.Tensor) -> np.ndarray:
     return (t.float() if t.dtype is torch.bfloat16 else t).numpy()  # numpy has no bfloat16
 
 
+def _short(v: object) -> str:
+    """Tensors as `Tensor[shape dtype device]`, containers of them recursively, anything else as `repr`."""
+    if isinstance(v, torch.Tensor):
+        return f"Tensor[{', '.join(map(str, v.shape))}; {str(v.dtype).removeprefix('torch.')}; {v.device}]"
+    if type(v).__module__ == "numpy" and hasattr(v, "shape") and getattr(v, "ndim", 0) > 0:
+        return f"ndarray[{', '.join(map(str, v.shape))}; {v.dtype}]"  # e.g. `VolumeMeta.affine`
+    if hasattr(v, "keys") and type(v).__module__.startswith("nibabel"):
+        return f"<{type(v).__name__}>"  # a NIfTI header
+    if isinstance(v, tuple | list) and any(isinstance(x, torch.Tensor) for x in v):
+        return f"({', '.join(_short(x) for x in v)})"
+    if isinstance(v, Mapping) and any(isinstance(x, torch.Tensor) for x in v.values()):
+        return "{" + ", ".join(f"{k!r}: {_short(x)}" for k, x in v.items()) + "}"
+    if dataclasses.is_dataclass(v) and not isinstance(v, type):
+        return short_repr(v)
+    return repr(v)
+
+
+def short_repr(self: object) -> str:
+    """`__repr__` of the results: the shapes of the tensors instead of their values."""
+    fields = ", ".join(
+        f"{f.name}={_short(getattr(self, f.name))}" for f in dataclasses.fields(cast("Any", self)) if f.repr
+    )
+    return f"{type(self).__name__}({fields})"
+
+
 class NumpyOutputs:
     """Mixin of the result dataclasses: their tensors as NumPy arrays."""
 
@@ -30,6 +56,8 @@ class NumpyOutputs:
         """Allow `torch.load(path)` (`weights_only=True`) of a `torch.save`d result: its class holds only tensors."""
         super().__init_subclass__(**kwargs)
         torch.serialization.add_safe_globals([cls])
+        if "__repr__" not in cls.__dict__:  # in the class dict, so the dataclass decorator keeps it
+            cls.__repr__ = short_repr  # type: ignore[assignment, method-assign]
 
     def numpy(self) -> dict[str, Any]:
         """The tensor outputs as NumPy arrays by field name.
@@ -165,3 +193,27 @@ class MapOutputs(NumpyOutputs):
         """
         check_suffix(path, self._save_suffixes, type(self).__name__)
         write_map(Path(path), self._map(key), bits, self._description(key))
+
+
+def save_images(
+    path: str | os.PathLike[str],
+    t: torch.Tensor,
+    what: str,
+    suffixes: tuple[str, ...],
+    write: Callable[[Path, np.ndarray], None],
+) -> None:
+    """`write` one `[C, H, W]` tensor to `path`, or each of a batch `[B, C, H, W]` to `path` with `{i}` = the index.
+
+    Raises:
+        InputError: Unknown suffix, or a batch and a path without `{i}`.
+    """
+    check_suffix(path, suffixes, what)
+    a = _array(t)
+    if a.ndim == 3:  # noqa: PLR2004 - one image
+        atomic_write(path, lambda tmp: write(tmp, a))
+        return
+    if "{i}" not in os.fspath(path):
+        msg = f"{what} holds a batch of {a.shape[0]}: put {{i}} in the path (e.g. 'out_{{i}}.png'), one file per image"
+        raise InputError(msg)
+    for i, item in enumerate(a):
+        atomic_write(os.fspath(path).replace("{i}", str(i)), lambda tmp, item=item: write(tmp, item))

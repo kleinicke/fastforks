@@ -84,3 +84,26 @@ def test_pose_and_vit_wrappers_check_shapes_and_pass_contiguous_args():
     with pytest.raises(ValueError, match="pe_rope"):
         vit_metal.pe_rope(lib, qkv, torch.randn(5, 16), 1)  # the prefix token has no row
     assert all(a.is_contiguous() for args, _ in calls for a in args if isinstance(a, torch.Tensor))
+
+
+def test_flow_wrapper_checks_shapes_and_passes_contiguous_args():
+    """`flow_metal.CorrWindows` takes NCHW feature maps (strided or not) and rejects what the kernel cannot read."""
+    from fastforks.kernels import flow_metal  # noqa: PLC0415
+
+    calls: list = []
+    lib = _any_lib(calls)
+    fmap1 = torch.randn(2, 9, 7, 128).permute(0, 3, 1, 2)  # [2, 128, 9, 7], channels-last strides
+    levels = [torch.randn(2, 128, 9, 7), torch.randn(2, 128, 4, 3)]
+    corr = flow_metal.CorrWindows(lib, fmap1, levels, 3)
+    assert corr(torch.zeros(2, 7, 9).transpose(1, 2).expand(2, 2, 9, 7)).shape == (2, 2 * 49, 9, 7)
+    ((args, kw),) = calls
+    assert all(a.is_contiguous() for a in args if isinstance(a, torch.Tensor))
+    assert kw["threads"] == 2 * 9 * 7 * 2 * 32
+    with pytest.raises(ValueError, match="coords"):
+        corr(torch.zeros(2, 2, 7, 9))
+    with pytest.raises(ValueError, match="channels"):
+        flow_metal.CorrWindows(lib, torch.randn(1, 96, 4, 4), [torch.randn(1, 96, 4, 4)], 3)
+    with pytest.raises(ValueError, match="radius"):
+        flow_metal.CorrWindows(lib, fmap1, levels, flow_metal.MAX_RADIUS + 1)
+    with pytest.raises(ValueError, match="levels"):
+        flow_metal.CorrWindows(lib, fmap1, [torch.randn(2, 128, 9, 7).half()], 3)

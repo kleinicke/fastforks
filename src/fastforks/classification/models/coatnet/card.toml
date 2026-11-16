@@ -42,6 +42,12 @@ reason = "not implemented: MBConv stages plus attention with a relative position
 [output]
 label_set = "imagenet-1k"
 
+[[papers]]
+title = "CoAtNet: Marrying Convolution and Attention for All Data Sizes"
+url = "https://arxiv.org/abs/2106.04803"
+date = "2021-06-09"
+venue = "NeurIPS 2021"
+
 [[variants]]
 id = "coatnet_nano_rw_224.sw_in1k"
 default_tag = true

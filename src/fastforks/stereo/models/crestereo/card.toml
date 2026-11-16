@@ -1,7 +1,7 @@
 schema = 2
 name = "CREStereo"
 summary = "CREStereo (Li et al. 2022): cascaded recurrent stereo with adaptive group correlation (2-D / 1-D local search, learned offsets, cross attention at 1/16), a 1/16 -> 1/8 -> 1/4 GRU cascade and two passes (half, then full resolution) of 20 iterations each."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
 limitations = [
@@ -11,6 +11,11 @@ limitations = [
 [upstream]
 repo = "https://github.com/megvii-research/CREStereo"
 commit = "ad3a1613bdedd88b93247e5f002cb7c80799762d"  # MegEngine original; net/ is our PyTorch translation of it
+
+[[upstream.official]]
+repo = "https://github.com/megvii-research/CREStereo"
+framework = "MegEngine"
+reason = "MegEngine has no build for current GPUs (sm_120); the benchmarked original is a community PyTorch translation that loads the authors' weights."
 
 [licence]
 code = "Apache-2.0"
@@ -36,7 +41,13 @@ mps_dtypes = ["float32", "float16"]
 kernels = ["crestereo", "fastbb", "igev", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
 
+[[papers]]
+title = "Practical Stereo Matching via Cascaded Recurrent Network with Adaptive Correlation"
+url = "https://arxiv.org/abs/2203.11483"
+date = "2022-03-22"
+venue = "CVPR 2022"
+
 [[variants]]
 id = "crestereo-eth3d"
 revision = 1
-weights = [{ mirror = true, name = "crestereo_eth3d.mge", size = 21738986, sha256 = "6a11b16a121d36077231ee65a793c7e60ba91d8fe7fe9475688fb5145c44596e", url = "https://drive.usercontent.google.com/download?id=1Wx_-zDQh7BUFBmN9im_26DFpnf3AkXj4&export=download&confirm=t" }]
+weights = [{ name = "crestereo_eth3d.mge", size = 21738986, sha256 = "6a11b16a121d36077231ee65a793c7e60ba91d8fe7fe9475688fb5145c44596e", url = "https://drive.usercontent.google.com/download?id=1Wx_-zDQh7BUFBmN9im_26DFpnf3AkXj4&export=download&confirm=t" }]

@@ -1,23 +1,34 @@
-"""Stage our Hugging Face repos (kernel binaries, golden outputs, weight mirrors) in a local directory (no upload).
+"""Stage our Hugging Face repos (kernel binaries, golden outputs, converted weights) in a local directory (no upload).
 
     uv run python tools/stage_hf.py kernels OUT [--from build/kernels] [--standin]
-    uv run python tools/stage_hf.py goldens OUT --from $FASTFORKS_GOLDEN_PATH [--standin]
+    uv run python tools/stage_hf.py goldens OUT --from $FASTFORKS_GOLDEN_PATH [--from DIR2 ...] [--skip-missing] [--standin]
     FASTFORKS_WEIGHTS_PATH=... uv run python tools/stage_hf.py mirrors OUT [--standin]
+    FASTFORKS_WEIGHTS_PATH=... uv run python tools/stage_hf.py weights OUT [--standin]
     uv run python tools/stage_hf.py cards OUT
     uv run python tools/stage_hf.py cards --check-live
+    uv run python tools/stage_hf.py create CARDS_DIR [--dry-run] [--batch 20] [--pause 60]
 
 `kernels` copies the files the committed `manifest.toml`s list (hash- and size-checked) to `OUT/<lib>/<file>`, the
 layout of the manifests' `url`, and writes the repo card. `goldens` copies every `<ref>.npz` of the `golden.toml`
 files (hash-checked) to `OUT/<ref>.npz`, the layout `tools/fetch_goldens.py` reads, with a card listing the model
 each output comes from. `mirrors` copies the weights whose card entry has `mirror = true` from the local weight
-store (hash-checked) to `OUT/<family>/<file>`, with a card naming each file's licence and original URL. The tool
-prints the upload command; it never uploads.
+store (hash-checked) to `OUT/<family>/<file>`, with a card naming each file's licence and original URL (the first
+mirrors, `mirror = true`; no card uses it since 2026-11-15, the repo is private). `weights` stages one repo per distinct weight file, named after the weights
+(`tools/weights_repos.toml`, only weights we changed; cards point at it by `url`), as `OUT/<repo>/` with symlinks to
+the hash-checked local files, the upstream licence files and a README naming source, licence, SHA-256 and the cards
+that use it. The tool prints the upload command; it never uploads.
 
 `cards` writes one model card (README.md only, no weights) per model family to `OUT/<repo name>/README.md`, the
 repos `fastforks/<family>`, from the model cards, the golden tolerances, `docs/benchmarks.md` and `docs/data/`, and
 prints the repo ids. Each card ends with a comment naming the fastforks commit and date it was staged from.
 `cards --check-live` downloads the published card of every repo (anonymously, read-only), prints the repos whose
 card differs from the freshly staged one (the commit comment is ignored) and exits 1 if there are any.
+
+`create` makes the (empty) model repos `fastforks/<dir>` for the sub-directories of a staged directory (e.g. of
+`cards`), in batches of `--batch` (default 20) with `--pause` seconds between batches and exponential backoff on
+HTTP 429. It is resumable: repos that already exist are skipped, so after an interruption run the same command
+again. `--dry-run` only prints what it would create (no token needed). Creating needs `HF_TOKEN` and the
+maintainers' OK; it never uploads files.
 
 With `--standin`, OUT is the root of a local stand-in for huggingface.co and the repo is staged at
 `OUT/<repo>/resolve/main/` (datasets under `OUT/datasets/`); `FASTFORKS_HF_ENDPOINT=file://OUT` then makes fastforks
@@ -29,10 +40,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
 import urllib.error
 import urllib.request
@@ -44,7 +57,7 @@ import gen_docs
 import goldens as store
 from fastforks._core import licences, registry
 from fastforks._core.errors import WeightsError
-from fastforks._core.files import MIRROR_URL, FileSpec, locate, sha256_of
+from fastforks._core.files import MIRROR_URL, WEIGHTS_REPO_URL, FileSpec, locate, sha256_of
 from fastforks._core.registry import WEIGHTS_PATH_ENV
 from fastforks._core.sizes import card_size_lines
 
@@ -55,6 +68,7 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[1]
 KERNELS = ROOT / "src" / "fastforks" / "kernels"
+WEIGHTS_REPOS = Path(__file__).with_name("weights_repos.toml")
 GITHUB = "https://github.com/kleinicke/fastforks"
 KERNELS_REPO = "https://huggingface.co/fastforks/kernels"
 HF_URL = r"https://huggingface\.co/([^/]+/[^/]+)/resolve/"
@@ -63,6 +77,7 @@ REPOS = {
     "kernels": ("fastforks/kernels", "model"),
     "goldens": ("fastforks/reference-outputs", "dataset"),
     "mirrors": ("fastforks/mirrors", "model"),
+    "weights": ("fastforks/<weights>", "model"),
     "cards": ("fastforks/<family>", "model"),
 }
 
@@ -95,8 +110,19 @@ def stage_kernels(src: Path, out: Path) -> list[str]:
     return rows
 
 
-def stage_goldens(src: Path, out: Path) -> list[str]:
-    """Copy the golden outputs; return the card's table rows."""
+# Outputs left out of the public dataset: coex is GPL-3.0 code (policy: no copyleft).
+EXCLUDED_GOLDENS = frozenset({"coex-sceneflow@1"})
+
+
+def _find_golden(srcs: list[Path], ref: str, sha256: str) -> Path | None:
+    """First `<ref>.npz` in the source directories whose SHA-256 matches, else None."""
+    return next((p for d in srcs if (p := d / f"{ref}.npz").is_file() and sha256_of(p) == sha256), None)
+
+
+def stage_goldens(srcs: list[Path], out: Path, skip_missing: bool = False) -> list[str]:
+    """Copy the golden outputs (hash-checked, first matching source directory); return the card's table rows.
+
+    With `skip_missing`, refs with no matching local file are reported on stderr and left out (partial staging)."""
     cards = {v.ref: (card, v) for t in registry.TASKS for card, v in registry.cards(t).values()}
     rows = []
     out.mkdir(parents=True, exist_ok=True)
@@ -104,8 +130,15 @@ def stage_goldens(src: Path, out: Path) -> list[str]:
         for ref, entry in sorted(refs.items()):
             if ref not in cards:
                 sys.exit(f"{ref}: no card variant (a stale golden ref?)")
-            _check(src / f"{ref}.npz", entry["sha256"])
-            shutil.copyfile(src / f"{ref}.npz", out / f"{ref}.npz")
+            if ref in EXCLUDED_GOLDENS:
+                continue
+            src = _find_golden(srcs, ref, entry["sha256"])
+            if src is None:
+                if skip_missing:
+                    print(f"skipped (no local file with the recorded SHA-256): {ref}", file=sys.stderr)
+                    continue
+                sys.exit(f"{ref}: no file with the recorded SHA-256 in {', '.join(map(str, srcs))}")
+            shutil.copyfile(src, out / f"{ref}.npz")
             card, v = cards[ref]
             st = card.status(v)
             rows.append(f"| `{ref}` | {card.family} | {card.licence.code} | {st.weights} | {entry['upstream']} |")
@@ -114,13 +147,13 @@ def stage_goldens(src: Path, out: Path) -> list[str]:
 
 
 def mirrored() -> dict[str, list[tuple[ModelCard, Variant, FileSpec]]]:
-    """`<family>/<file>` -> [(card, variant, spec)] of every weight file that has a mirror."""
+    """`<family>/<file>` -> [(card, variant, spec)] of every weight file mirrored in `fastforks/mirrors`."""
     out: dict[str, list[tuple[ModelCard, Variant, FileSpec]]] = {}
     for t in registry.TASKS:
         for card, v in registry.cards(t).values():
             for spec in v.weights:
-                if spec.mirror is not None:
-                    path = spec.mirror.removeprefix(MIRROR_URL.partition("{group}")[0])
+                if spec.mirror is not None and spec.mirror.startswith(prefix := MIRROR_URL.partition("{group}")[0]):
+                    path = spec.mirror.removeprefix(prefix)
                     out.setdefault(path, []).append((card, v, spec))
     return out
 
@@ -143,11 +176,137 @@ def stage_mirrors(out: Path) -> list[str]:
     return rows
 
 
+def weights_repos() -> dict[str, dict]:
+    """`tools/weights_repos.toml`: repo name -> its table (title, licence, files name -> sha256, ...)."""
+    return {k: v for k, v in tomllib.loads(WEIGHTS_REPOS.read_text()).items() if k != "discuss_later"}
+
+
+def weight_users() -> dict[str, list[tuple[ModelCard, Variant, FileSpec]]]:
+    """SHA-256 -> [(card, variant, spec)] of every weight file of every card."""
+    out: dict[str, list[tuple[ModelCard, Variant, FileSpec]]] = {}
+    for t in registry.TASKS:
+        for card, v in registry.cards(t).values():
+            for spec in v.weights:
+                out.setdefault(spec.sha256, []).append((card, v, spec))
+    return out
+
+
+def weights_repo_of(spec: FileSpec) -> tuple[str, str] | None:
+    """(repo, file) of the weights repo `spec` points at by its `url` or its `mirror`, `None` for none."""
+    pattern = re.escape(WEIGHTS_REPO_URL).replace(r"\{repo\}", "([a-z0-9-]+)").replace(r"\{name\}", "([^/]+)")
+    for url in (spec.url, spec.mirror):
+        if url and (m := re.fullmatch(pattern, url)) and m[1] not in RESERVED_REPOS:
+            return m[1], m[2]
+    return None
+
+
+def _mib(size: int) -> str:
+    return f"{size / 2**20:,.1f} MiB" if size < 2**30 else f"{size / 2**30:,.2f} GiB"
+
+
+def render_weights_card(repo: str, meta: dict, users: dict[str, list[tuple[ModelCard, Variant, FileSpec]]]) -> str:
+    """README.md of the weights repo `fastforks/<repo>`."""
+    files = [(name, sha, users[sha]) for name, sha in meta["files"].items()]
+    lic = meta["licence"]
+    converted = meta.get("converted")
+    refs = sorted({(card.family, v.ref) for _, _, uses in files for card, v, _ in uses})
+    front = {"license": _HF_LICENCES[lic], "tags": f"[fastforks, weights, {KIND_TAGS['weights']}]"}
+    lines = ["---", *(f"{k}: {v}" for k, v in front.items()), "---", f"# {meta['title']}", ""]
+    what = "converted to safetensors (see Source)" if converted else "an unchanged, byte-identical copy"
+    lines += [
+        f"Weights by {meta['by']}, {what}, hosted for [fastforks]({GITHUB}). This repo is named after the weights,",
+        "not after a model: every fastforks model that uses these exact bytes (same SHA-256) points here.",
+        "",
+        "## Files",
+        "",
+        "| file | size | SHA-256 |",
+        "|---|---|---|",
+        *(f"| `{n}` | {_mib(uses[0][2].size or 0)} ({uses[0][2].size} bytes) | `{sha}` |" for n, sha, uses in files),
+        "",
+        "## Source",
+        "",
+        f"- Upstream: {meta['upstream']}",
+        f"- Original file: {meta['source']}",
+        f"- {converted}"
+        if converted
+        else "- Byte-identical copy of the original file: nothing was retrained, converted or changed.",
+        *([f"- Precision: {meta['precision']}."] if "precision" in meta else []),
+        *([f"- Conversion script: `{Path(meta['script']).name}` in this repo (also `{meta['script']}` in fastforks)."]
+          if "script" in meta else []),
+        "",
+        "## Licence",
+        "",
+        f"{lic}, the authors' licence: {meta['licence_url']}",
+        "",
+        f"Evidence that it covers the weights: {meta['licence_evidence']}",
+        "",
+        f"`{'`, `'.join(meta['licence_files'])}` in this repo: the upstream licence text, kept as the licence requires"
+        + ("; `NOTICE`: what we changed." if "notice" in meta else "."),
+        f"Copyright stays with the authors. {'Converted' if converted else 'Mirrored'} by the fastforks maintainers;"
+        " fastforks is not affiliated with the authors.",
+        "",
+        "## Used by",
+        "",
+        "| fastforks model | family |",
+        "|---|---|",
+        *(f"| `{ref}` | {fam} |" for fam, ref in refs),
+        "",
+        "## How fastforks downloads it",
+        "",
+        "fastforks downloads the file on first use and checks it against the SHA-256 above (nothing unverified is",
+        "loaded); `fastforks download MODEL` fetches it ahead of time.",
+    ]
+    if converted:
+        lines.append("These converted files exist only here, so this repo is the download URL in the model cards.")
+    else:
+        lines.append("The authors' URL comes first; this repo is the fallback when that URL fails.")
+    lines += [
+        "Without fastforks: `hf download fastforks/" + repo + " " + files[0][0] + "`.",
+        "",
+        source_line(),
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def stage_weights(out: Path, *, standin: bool = False) -> list[str]:
+    """Stage every weights repo; returns the repo ids.
+
+    `OUT/<repo>/` (stand-in: `OUT/fastforks/<repo>/resolve/main/`) gets symlinks to the hash-checked local weights,
+    the licence files and a README.
+    """
+    users, src_root = weight_users(), ROOT / "src" / "fastforks"
+    ids = []
+    for repo, meta in sorted(weights_repos().items()):
+        if repo in RESERVED_REPOS or repo in {repo_name(f) for f in _families()}:
+            sys.exit(f"{repo}: reserved or a family's card repo")
+        d = out / "fastforks" / repo / "resolve" / "main" if standin else out / repo
+        d.mkdir(parents=True)
+        for name, sha in meta["files"].items():
+            if sha not in users:
+                sys.exit(f"{repo}/{name}: no card pins {sha}")
+            card, _, spec = users[sha][0]
+            try:
+                src = locate(spec, group=card.family, env_var=WEIGHTS_PATH_ENV, allow_download=False)
+            except WeightsError as e:
+                sys.exit(f"{repo}/{name}: {e}")
+            _check(src, sha, spec.size)
+            (d / name).symlink_to(src.resolve())
+        for published, path in meta["licence_files"].items():
+            shutil.copyfile(src_root / path, d / published)
+        if "script" in meta:
+            shutil.copyfile(ROOT / meta["script"], d / Path(meta["script"]).name)
+        if "notice" in meta:
+            (d / "NOTICE").write_text(meta["notice"])
+        (d / "README.md").write_text(render_weights_card(repo, meta, users))
+        ids.append(f"fastforks/{repo}")
+    return ids
+
+
 KERNELS_CARD = """\
 ---
 license: other
 license_name: per-library
-tags: [cuda, kernels, fastforks]
+tags: [cuda, kernels, fastforks, fastforks-kernels]
 ---
 # fastforks kernels
 
@@ -184,7 +343,7 @@ MIRRORS_CARD = """\
 ---
 license: other
 license_name: per-file
-tags: [stereo, weights, fastforks]
+tags: [stereo, weights, fastforks, fastforks-weights]
 ---
 # fastforks weight mirrors
 
@@ -209,7 +368,38 @@ _HF_LICENCES = {
     "CC-BY-4.0": "cc-by-4.0",
     "CC-BY-NC-4.0": "cc-by-nc-4.0",
     "CC-BY-NC-SA-4.0": "cc-by-nc-sa-4.0",
+    "CC-BY-NC-ND-4.0": "cc-by-nc-nd-4.0",
+    "CC-BY-SA-4.0": "cc-by-sa-4.0",
+    "CC-BY-SA-3.0": "cc-by-sa-3.0",
+    "CC-BY-NC-SA-3.0": "cc-by-nc-sa-3.0",
+    "CC0-1.0": "cc0-1.0",
+    "ISC": "isc",
+    "Zlib": "zlib",
+    "Unlicense": "unlicense",
+    "WTFPL": "wtfpl",
+    "LicenseRef-CreativeML-OpenRAIL-PlusPlus-M": "openrail++",
+    "LicenseRef-CreativeML-OpenRAIL-M": "creativeml-openrail-m",
 }
+SEE_CARD = "see-model-card"  # `license_name` when the terms are a combination: they are spelled out in the card body
+# Fine-tuned from Stable Diffusion 2: its CreativeML OpenRAIL++-M use restrictions pass down to the weights.
+SD2_DERIVED = frozenset({"lotus", "stablenormal", "marigold_normals"})
+# `base_model:` front matter only where the weights file is fetched from the original authors' own HF repo (not a
+# timm / community re-upload, not a backbone): family -> owners of the author repos. Extend only when certain.
+AUTHOR_HF = {
+    **dict.fromkeys(("dinov3", "dinov3_convnext", "sam3", "vggt", "vggt_omega", "mapanything", "cotracker"), "facebook"),
+    **dict.fromkeys(("sapiens", "mask2former"), "facebook"),
+    **dict.fromkeys(
+        ("depth_anything_v2", "depth_anything_3", "prompt_depth_anything", "video_depth_anything"), "depth-anything"
+    ),
+    "oneformer": "shi-labs", "clipseg": "CIDAS", "owlv2": "google", "tipsv2": "google", "moge": "Ruicheng",
+    "marigold": "prs-eth", "marigold_normals": "prs-eth", "nnfoundation": "MIC-DKFZ", "nninteractive": "MIC-DKFZ",
+    "nsfw_vit": "Falconsai", "ben2": "PramaLLC", "birefnet": "ZhengPeng7", "c_radio": "nvidia",
+    "c_foundationstereo": "nvidia", "grounding_dino": "IDEA-Research", "lingbot_depth": "robbyant",
+    "lingbot_map": "robbyant", "alltracker": "aharley", "stablenormal": "Stable-X", "lotus": "jingheya",
+    "efficientvit_sam": "mit-han-lab", "metric3d": "JUGGHM", "unidepth_v2": "lpiccinelli", "unik3d": "lpiccinelli",
+    "vitmatte": "hustvl", "ppocrv5": "PaddlePaddle",
+}  # fmt: skip
+KIND_TAGS = {"cards": "fastforks-card", "weights": "fastforks-weights", "kernels": "fastforks-kernels"}
 _PIPELINE = {
     "stereo": "depth-estimation",
     "flow": "image-to-image",
@@ -228,6 +418,9 @@ _PIPELINE = {
     "tracking": "keypoint-detection",  # no point-tracking pipeline on the Hub: query points tracked over time
     "interpolation": "image-to-image",  # no frame-interpolation pipeline on the Hub: two frames -> the middle one
     "restoration": "image-to-image",
+    "edges": "image-to-image",  # no line-detection pipeline on the Hub
+    "volume": "image-segmentation",
+    "ocr": "image-to-text",
 }
 _TASK_TAGS = {
     "stereo": ["stereo", "stereo-matching", "disparity"],
@@ -247,6 +440,9 @@ _TASK_TAGS = {
     "retrieval": ["image-retrieval", "visual-place-recognition", "global-descriptor"],
     "calibration": ["camera-calibration", "single-image-calibration", "gravity-estimation"],
     "restoration": ["super-resolution", "image-upscaling", "image-restoration"],
+    "edges": ["edge-detection", "line-art", "controlnet-preprocessor"],
+    "volume": ["medical-imaging", "3d-segmentation", "ct-segmentation"],
+    "ocr": ["ocr", "text-recognition", "text-detection"],
 }
 _SNIPPET = {
     "stereo": 'result = model("left.png", "right.png")\nresult.{out}  # [H, W] float32 tensor, input resolution',
@@ -270,6 +466,15 @@ _SNIPPET = {
         "result.{out}  # [V, H, W] float32 tensor; result.kind says what the maps mean"
     ),
     "matching": ('result = model("view1.jpg", "view2.jpg")\nresult.{out}  # [2, H1, W1] float32: x, y in view2 pixels'),
+    "edges": 'result = model("photo.jpg")\nresult.{out}  # [H, W] float32 in [0, 1], 1 = line, input resolution',
+    "volume": (
+        "result = model(ct, spacing=spacing)  # ct: [D, H, W] float32 HU volume; spacing: (z, y, x) in mm\n"
+        "result.{out}  # [D, H, W] uint8 label per voxel; result.class_names[k] names label k"
+    ),
+    "ocr": (
+        'result = model("receipt.jpg")\nresult.texts  # the text lines in reading order\n'
+        "result.boxes, result.scores  # [N, 4, 2] quads in input pixels, [N] confidences"
+    ),
     "matting": 'result = model("photo.jpg")\nresult.{out}  # [H, W] float32 in [0, 1], input resolution',
     "retrieval": (
         'result = model("photo.jpg")\nresult.{out}  # [D] float32, unit norm\n'
@@ -298,6 +503,18 @@ _SNIPPET = {
 }
 # Families whose call differs from their task's snippet (the family's runner decides, see tests/test_hf_cards.py).
 _SNIPPET_FAMILY = {
+    "nnfoundation": (
+        "result = model(volume)  # volume: [D, H, W] float32 (CT or MRI, no resampling; z-scored inside)\n"
+        "result.features  # tuple of [C_i, D/s_i, H/s_i, W/s_i] float32 maps at the strides model.strides"
+    ),
+    "nninteractive": (
+        "result = model(volume, point=(z, y, x))  # volume: [D, H, W] float32 CT/MRI/PET; or box= / scribble=\n"
+        "result.mask  # [D, H, W] bool; model.session(volume).add_point(...) refines one object step by step"
+    ),
+    "insid3": (
+        'result = model("photo.jpg", reference_images="ref.jpg", reference_masks=ref_mask)  # ref_mask [H, W] bool\n'
+        "result.masks  # [M, H, W] bool: the referenced concept in photo.jpg"
+    ),
     "sam3": (
         'result = model("photo.jpg", text="coin")  # a concept: every instance of it; or input_boxes= exemplar boxes\n'
         "result.boxes, result.scores, result.masks  # [N, 4], [N], [N, H, W] bool"
@@ -360,24 +577,30 @@ def _benchmark_tables() -> list[tuple[str, list[str], dict[str, list[list[str]]]
 
 
 def _licence_front(card: ModelCard, variants: list[Variant]) -> dict[str, str]:
-    """HF licence keys: the SPDX id of the weights if HF knows it, else `other` + name + link."""
+    """HF licence keys. Header rule: the WEIGHTS licence, never the code licence. A single weights licence HF knows
+    is its id; otherwise `other` + a plain `license_name` (one custom licence: its name; several, or only
+    `assumed from code`: `see-model-card`, `mixed-see-variant-table` for variants that differ) + a link. The
+    details (code licence, evidence, assumptions) are in the card body."""
     found = {card.variant_licence(v).weights_licence for v in variants}
     link = next((card.variant_licence(v).evidence for v in variants if card.variant_licence(v).evidence), None)
     link = link.split()[0].rstrip(";,.") if link and link.startswith("http") else card.upstream
     slug = lambda t: re.sub(r"[^a-z0-9.]+", "-", t.lower()).removeprefix("licenseref-").strip("-")  # noqa: E731
+    if card.family in SD2_DERIVED:  # the Stable Diffusion 2 licence (OpenRAIL++) binds the derived weights
+        return {"license": "openrail++"}
     if assumed_weights(card, variants):  # the authors state no weights licence: no firm id
         return {
             "license": "other",
-            "license_name": "no-licence-stated"
-            if slug(card.licence.code) == "none"
-            else f"{slug(card.licence.code)}-code-weights-unstated",
+            "license_name": "no-licence-stated" if slug(card.licence.code) == "none" else SEE_CARD,
             "license_link": link,
         }
     if len(found) == 1 and (only := next(iter(found))) in _HF_LICENCES:
         return {"license": _HF_LICENCES[only]}
-    name = "mixed-see-variant-table" if len(found) > 1 else slug(next(iter(found)))
-    if name == "none":
-        name = "no-licence-stated"
+    if len(found) > 1:
+        name = "mixed-see-variant-table"
+    elif re.search(r"\s(AND|OR)\s", only := next(iter(found))):
+        name = SEE_CARD
+    else:
+        name = "no-licence-stated" if (name := slug(only)) == "none" else name
     return {"license": "other", "license_name": name, "license_link": link}
 
 
@@ -422,8 +645,10 @@ def render_card(card: ModelCard, variants: list[Variant]) -> str:
         "library_name": "fastforks",
         "pipeline_tag": _PIPELINE[task],
         **_licence_front(card, variants),
-        "tags": list(dict.fromkeys([task, *_TASK_TAGS[task], "cuda", "pytorch", "fastforks"])),
+        "tags": list(dict.fromkeys([task, *_TASK_TAGS[task], "cuda", "pytorch", "fastforks", KIND_TAGS["cards"]])),
     }
+    if authors := [r for r in base if r.split("/")[0] == AUTHOR_HF.get(card.family)]:
+        front["base_model"] = authors
     first = variants[0]
     author_repos = ", ".join(f"<https://huggingface.co/{r}>" for r in base)
     lines = [
@@ -463,11 +688,21 @@ def render_card(card: ModelCard, variants: list[Variant]) -> str:
         "## Licence",
         "",
         f"Original-code strings, recorded as they are (research-use package; check them before any other use). Code: "
-        f"{lic.code}. Files: {', '.join(f'`{f}`' for f in lic.files)}.",
+        f"{lic.code}." + (f" Licence files: {', '.join(f'`{f}`' for f in lic.files)}." if lic.files else ""),
         "",
         *(
             [f"Code licence: {lic.code}; the authors do not state a separate weights licence.", ""]
             if assumed_weights(card, variants)
+            else []
+        ),
+        *(
+            [
+                "Derived from Stable Diffusion 2: the CreativeML OpenRAIL++-M use restrictions (Attachment A, "
+                "<https://huggingface.co/stabilityai/stable-diffusion-2/blob/main/LICENSE-MODEL>) apply to these "
+                "weights and to their redistribution, in addition to the terms above.",
+                "",
+            ]
+            if card.family in SD2_DERIVED
             else []
         ),
         f"Training data: {gen_docs.data_text(lic.training_data, lic.training_note)}.",
@@ -620,12 +855,13 @@ def staged_cards() -> dict[str, str]:
 
 
 def fetch_live(repo_id: str) -> str | None:
-    """The published README.md of a public repo (anonymous GET); None if the repo or the file does not exist yet."""
+    """The published README.md of a public repo (anonymous GET); None if the repo or the file does not exist yet
+    (HF answers 404, or 401 for a repo that does not exist / is private, to anonymous requests)."""
     try:
         with urllib.request.urlopen(f"https://huggingface.co/{repo_id}/raw/main/README.md", timeout=30) as r:
             return r.read().decode()
     except urllib.error.HTTPError as e:
-        if e.code == HTTPStatus.NOT_FOUND:
+        if e.code in (HTTPStatus.NOT_FOUND, HTTPStatus.UNAUTHORIZED):
             return None
         raise
 
@@ -647,54 +883,147 @@ def stage_cards(out: Path) -> list[str]:
 def check_live() -> None:
     """Print the repos whose published card differs from the staged one; exit 1 if any (read-only)."""
     cards = staged_cards()
-    diff = differing(cards)
+    lives = {r: fetch_live(r) for r in cards}
+    diff = differing(cards, lives.get)
     for repo_id in diff:
-        print(f"differs: {repo_id}")
+        print(f"{'missing' if lives[repo_id] is None else 'differs'}: {repo_id}")
     print(f"{len(diff)} of {len(cards)} live cards differ from the staged ones")
     sys.exit(1 if diff else 0)
 
 
+def hf_repo_exists(repo_id: str) -> bool:
+    """True if the public model repo exists (anonymous API GET; 401/404 = not there or private)."""
+    try:
+        with urllib.request.urlopen(f"https://huggingface.co/api/models/{repo_id}", timeout=30):
+            return True
+    except urllib.error.HTTPError as e:
+        if e.code in (HTTPStatus.NOT_FOUND, HTTPStatus.UNAUTHORIZED):
+            return False
+        raise
+
+
+def hf_create_repo(repo_id: str) -> None:
+    """Create a public, empty model repo (needs `HF_TOKEN`; `huggingface_hub` is imported only here)."""
+    from huggingface_hub import HfApi  # noqa: PLC0415
+
+    HfApi(token=os.environ["HF_TOKEN"]).create_repo(repo_id, repo_type="model", private=False, exist_ok=True)
+
+
+def create_repos(
+    ids: list[str],
+    *,
+    exists: Callable[[str], bool] = hf_repo_exists,
+    create: Callable[[str], None] = hf_create_repo,
+    batch: int = 20,
+    pause: float = 60,
+    retries: int = 6,
+    sleep: Callable[[float], None] = time.sleep,
+    dry_run: bool = False,
+) -> list[str]:
+    """Create the repos that do not exist yet, `batch` per round with `pause` s between rounds; a 429 (or any
+    HTTP error with that status) is retried with a doubling wait (`pause`, 2 `pause`, ...) up to `retries` times.
+    Returns the repo ids created (dry run: that would be created). Safe to re-run after an interruption."""
+    todo = [r for r in ids if not exists(r)]
+    print(f"{len(ids) - len(todo)} of {len(ids)} repos exist; {len(todo)} to create", file=sys.stderr)
+    done: list[str] = []
+    for i in range(0, len(todo), batch):
+        if i:
+            sleep(pause)
+        for repo_id in todo[i : i + batch]:
+            if dry_run:
+                print(f"would create {repo_id}")
+                done.append(repo_id)
+                continue
+            for attempt in range(retries + 1):
+                try:
+                    create(repo_id)
+                    break
+                except Exception as e:  # noqa: BLE001  # huggingface_hub's HfHubHTTPError carries `.response`
+                    status = getattr(getattr(e, "response", None), "status_code", getattr(e, "code", None))
+                    if status != HTTPStatus.TOO_MANY_REQUESTS or attempt == retries:
+                        raise
+                    wait = pause * 2**attempt
+                    print(f"429 on {repo_id}: waiting {wait:.0f} s", file=sys.stderr)
+                    sleep(wait)
+            print(f"created {repo_id}", flush=True)
+            done.append(repo_id)
+    return done
+
+
+def _create_main(a: argparse.Namespace) -> None:
+    if not a.out.is_dir():
+        sys.exit(f"{a.out} is not a staged directory")
+    if not a.dry_run and "HF_TOKEN" not in os.environ:
+        sys.exit("HF_TOKEN is not set (use --dry-run to list what would be created)")
+    ids = [f"fastforks/{d.name}" for d in sorted(a.out.iterdir()) if d.is_dir()]
+    done = create_repos(ids, batch=a.batch, pause=a.pause, dry_run=a.dry_run)
+    print(f"{'would create' if a.dry_run else 'created'} {len(done)} repos")
+
+
 def _args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("what", choices=sorted(REPOS))
+    ap.add_argument("what", choices=[*sorted(REPOS), "create"])
     ap.add_argument(
         "out", type=Path, nargs="?", help="staging directory (must not exist; with --standin: the stand-in root)"
     )
-    ap.add_argument("--from", dest="src", type=Path, help="source directory (default for kernels: build/kernels)")
+    ap.add_argument(
+        "--from",
+        dest="src",
+        type=Path,
+        action="append",
+        help="source directory (default for kernels: build/kernels); goldens: repeatable, first hash match wins",
+    )
+    ap.add_argument("--skip-missing", action="store_true", help="goldens: leave out refs with no local file")
     ap.add_argument("--check-live", action="store_true", help="cards: compare with the published cards, upload nothing")
     ap.add_argument("--standin", action="store_true", help="stage into a huggingface.co stand-in rooted at OUT")
+    ap.add_argument("--dry-run", action="store_true", help="create: print the repos that would be created")
+    ap.add_argument("--batch", type=int, default=20, help="create: repos per round")
+    ap.add_argument("--pause", type=float, default=60, help="create: seconds between rounds (doubles on HTTP 429)")
     a = ap.parse_args()
     if a.check_live and a.what != "cards":
         ap.error("--check-live is for cards")
     if a.out is None and not a.check_live:
         ap.error("OUT is required")
+    if a.standin and a.what == "cards":
+        ap.error("cards has no --standin")
     return a
+
+
+def _main_weights(out: Path, *, standin: bool) -> None:
+    if out.exists():
+        sys.exit(f"{out} exists; pick a new directory")
+    print("\n".join(ids := stage_weights(out, standin=standin)))
+    print(f"use it: FASTFORKS_HF_ENDPOINT=file://{out.resolve()}" if standin else f"staged {len(ids)} repos in {out}")
 
 
 def main() -> None:
     a = _args()
+    if a.what == "create":
+        _create_main(a)
+        return
     if a.check_live:
         check_live()
+    if a.what == "weights":
+        _main_weights(a.out, standin=a.standin)
+        return
     repo, kind = REPOS[a.what]
     out = a.out / ("datasets/" if kind == "dataset" else "") / repo / "resolve" / "main" if a.standin else a.out
     if out.exists():
         sys.exit(f"{out} exists; pick a new directory")
     if a.what == "cards":
-        if a.standin:
-            sys.exit("cards has no --standin")
         out.mkdir(parents=True)
         for repo_id in (ids := stage_cards(out)):
             print(repo_id)
         print(f"staged {len(ids)} model cards in {out}")
         return
     if a.what == "kernels":
-        rows, card = stage_kernels(a.src or ROOT / "build" / "kernels", out), KERNELS_CARD
+        rows, card = stage_kernels((a.src or [ROOT / "build" / "kernels"])[0], out), KERNELS_CARD
     elif a.what == "mirrors":
         rows, card = stage_mirrors(out), MIRRORS_CARD
     elif a.src is None:
         sys.exit("goldens need --from DIR")
     else:
-        rows, card = stage_goldens(a.src, out), GOLDENS_CARD
+        rows, card = stage_goldens(a.src, out, a.skip_missing), GOLDENS_CARD
     (out / "README.md").write_text(card + "\n".join(rows) + "\n")
     print(f"staged {len(rows)} entries in {out}")
     if a.standin:

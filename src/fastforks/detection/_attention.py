@@ -6,6 +6,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.tracing import in_onnx_export
+
 
 class Attention(nn.Module):
     """`nn.MultiheadAttention` (batch first, no masks) with its parameter names, as scaled-dot-product attention."""
@@ -54,9 +56,14 @@ def sample_maps(
     b, q, heads, n = weights.shape
     dh = maps[0].shape[1]
     grids = (2 * loc - 1).permute(0, 2, 1, 3, 4).flatten(0, 1).split(points, dim=-2)  # per level [B*heads, Q, p, 2]
-    sampled = [
-        F.grid_sample(v, g, mode="bilinear", padding_mode="zeros", align_corners=False)
-        for v, g in zip(maps, grids, strict=True)
-    ]
-    weights = weights.permute(0, 2, 1, 3).reshape(b * heads, 1, q, n)
-    return (torch.cat(sampled, dim=-1) * weights).sum(-1).reshape(b, heads * dh, q).transpose(1, 2)
+    dtype = maps[0].dtype
+    if in_onnx_export() and dtype != torch.float32:
+        # fp32 island of the exported graph: TensorRT's fp16 GridSample returns NaN / huge values (D-FINE-X at 800x1344)
+        maps, grids = [v.float() for v in maps], [g.float() for g in grids]
+    weights = weights.permute(0, 2, 1, 3).reshape(b * heads, 1, q, n).split(points, dim=-1)
+    out = None
+    for v, g, w in zip(maps, grids, weights, strict=True):  # fastforks: per level, no cat of the samples (a copy)
+        s = F.grid_sample(v, g, mode="bilinear", padding_mode="zeros", align_corners=False).to(dtype)
+        s = (s * w).sum(-1)
+        out = s if out is None else out + s
+    return out.reshape(b, heads * dh, q).transpose(1, 2)

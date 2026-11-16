@@ -7,7 +7,7 @@ import torch
 
 from fastforks import matching
 from fastforks._core import registry
-from fastforks.shared.dedode import VGG11_BN, dual_softmax_match, get_grid, vgg_bn_features
+from fastforks.shared.dedode import VGG11_BN, describe_keypoints, dual_softmax_match, get_grid, vgg_bn_features
 
 
 def test_cards() -> None:
@@ -46,3 +46,15 @@ def test_dual_softmax_match() -> None:
     assert pairs.tolist() == [[0, 1], [1, 2], [2, 0], [3, 5], [4, 4], [5, 3]]
     assert bool((scores > 0.01).all())
     assert len(dual_softmax_match(d, d, inv_temp=20, threshold=1.0)[0]) == 0
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
+def test_describe_keypoints_is_grid_sample(dtype: torch.dtype) -> None:
+    """The gathered bilinear samples equal upstream's `grid_sample(grid.float())` bit for bit, edges included."""
+    g = torch.Generator().manual_seed(0)
+    grid = torch.randn(1, 8, 13, 17, generator=g).to(dtype)
+    kp = torch.rand(300, 2, generator=g) * 2.2 - 1.1  # some keypoints beyond the border: zero padding there
+    kp[:4] = torch.tensor([[-1.0, -1.0], [1.0, 1.0], [-1.0, 1.0], [0.0, 0.0]])
+    want = torch.nn.functional.grid_sample(grid.float(), kp[None, None], mode="bilinear", align_corners=False)
+    # the four taps are summed in the same order; the difference is the kernel's fused multiply-adds
+    torch.testing.assert_close(describe_keypoints(grid, kp), want[0, :, 0].mT, rtol=0, atol=1e-3)

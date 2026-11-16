@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import functools
 import logging
 import os
 import threading
@@ -17,6 +18,7 @@ from typing import TYPE_CHECKING, Literal, Self, TypeAlias, cast
 import numpy as np
 import torch
 
+from fastforks._core.arguments import renamed_attributes, warn_renamed
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.image import checked_ranges
 from fastforks._core.io import MAP_SUFFIXES, check_suffix
@@ -193,7 +195,7 @@ def run_views(
         # the mirrored pair of "both" has the pixel values just checked by the left run
         with checked_ranges() if i else contextlib.nullcontext():
             res = model(left, right) if view == "left" else model(right.flip(-1), left.flip(-1))
-        out = {"disparity": res.disparity, "confidence": res.confidence, **res.extras}
+        out: dict[str, Any] = {"disparity": res.disparity, "confidence": res.confidence, **res.extras}
         if view == "right":
             out = {k: None if v is None else v.flip(-1) for k, v in out.items()}
         maps[view] = out
@@ -436,7 +438,7 @@ class StereoView(MapOutputs):
         - `.tif` / `.tiff` / `.npy` / `.pfm`: one `[H, W]` map as in `MapOutputs.save`; `key` is `"depth"`,
           `"disparity"`, `"confidence"` or an extras name (default: depth with a `rig`, else disparity).
         - `.png`: KITTI uint16 of the disparity in this view's rectified frame (x 256, 0 = invalid), as
-          `StereoResult.save`; a PNG cannot hold depth, so any other `key` raises `OptionsError`.
+          `MapOutputs`; a PNG cannot hold depth, so any other `key` raises `OptionsError`.
 
         Args:
             path: Output file.
@@ -495,7 +497,7 @@ def make_view(  # noqa: PLR0913
 
 
 class PairViews:
-    """The view access shared by `StereoPairResult` and `run_many`'s `PairResult`.
+    """The view access of `StereoResult`.
 
     `left` and `right` are the `StereoView`s; `disparity`, `confidence`, `extras`, `depth()`, `valid()`,
     `points()`, `save()` and `numpy()` are those of the main view `view`: the one that was run, or the left one
@@ -578,11 +580,9 @@ class PairViews:
         return self._moved_views(lambda v: v.cpu())
 
     def _moved_views(self, move: Callable[[StereoView], StereoView]) -> Self:
-        new = dataclasses.replace(cast("Any", self))
         by_view = self.__dict__.get("_by_view")
-        if by_view is not None:
-            object.__setattr__(new, "_by_view", {n: move(v) for n, v in by_view.items()})
-        return new
+        moved = None if by_view is None else {n: move(v) for n, v in by_view.items()}
+        return dataclasses.replace(cast("Any", self), _by_view=moved)
 
     def numpy(self) -> dict[str, Any]:
         """The main view's maps as arrays (`StereoView.numpy`); `result.right.numpy()` for the other one."""
@@ -598,32 +598,96 @@ class PairViews:
         axes: str = "opencv",
     ) -> None:
         """Write the main view's map or point cloud (`StereoView.save`; `result.right.save` for the right one)."""
+        check_suffix(path, StereoView._save_suffixes, type(self).__name__)  # noqa: SLF001 - the view's formats
         self._main().save(path, key, bits, max_depth=max_depth, axes=axes)
 
 
-@dataclasses.dataclass(frozen=True)
-class StereoPairResult(PairViews):
-    """Output of a calibrated (or two-view) stereo call: one `StereoView` per view that was run.
+@dataclasses.dataclass(frozen=True, eq=False)
+class StereoResult(PairViews):
+    """Output of a stereo model call and of each pair of `StereoModel.run_many`: one `StereoView` per view run.
 
     ```python
+    r = model("left.png", "right.png")  # rectified pair: r.disparity [H, W]
     r = model(left, right, rig="calib.yaml", views="both")
     r.depth()  # the left camera's depth (the main view), as r.left.depth()
     r.right.disparity, r.right.points()  # the right camera's maps and cloud
     ```
 
+    `disparity`, `confidence`, `extras`, `depth()`, `points()`, `save()`, ... are those of the main view `view`.
+    Disparity is in pixels of the input images (`x_left - x_right >= 0`) at their resolution (any internal resizing
+    is undone), `[H, W]` or `[B, H, W]` for a batch; float32 tensors on the model's device from a call, read-only
+    numpy arrays from `run_many` with non-tensor inputs. Without `rig`, `depth()` and `points()` raise `InputError`.
+    A `run_many` result with `save_to`, a skipped output or an error holds no maps: `left`, `right` and
+    `disparity` are None.
+
     Attributes:
-        rectification: The `Rectification` (or `RectifiedRig`) used, or None.
-        views: `"left"`, `"right"` or `"both"`.
         model: Versioned model id, e.g. `"s2m2-s@1"`.
         backend: The backend that produced the result.
-        options: Load options that differ from the validated defaults.
+        options: Load options that differ from the validated defaults (they change the numerics).
+        views: The views that were run: `"left"`, `"right"` or `"both"`.
+        rectification: The `Rectification` (or `RectifiedRig`) used, or None.
+        calibrated: Whether `rig` was given (`depth()` then works).
+        index: `run_many`: position of the pair in the input (None for a call).
+        left_path: `run_many`: path of the left image, or None for an array.
+        right_path: `run_many`: path of the right image, or None for an array.
+        path: `run_many`: the file written with `save_to` (also for an output that `skip_existing` found).
+        error: `run_many`: the error of this pair with `on_error="skip"`.
+        existing: `run_many`: the output already existed and `skip_existing` left it alone (nothing was computed).
     """
 
-    rectification: Geometry | None
-    views: str
     model: str
     backend: Backend
     options: Mapping[str, Any] = dataclasses.field(default_factory=dict)
+    views: str = "left"
+    rectification: Geometry | None = None
+    calibrated: bool = False
+    index: int | None = None
+    left_path: Path | None = None
+    right_path: Path | None = None
+    path: Path | None = None
+    error: Exception | None = None
+    existing: bool = False
+    _by_view: Mapping[str, StereoView] | None = dataclasses.field(default=None, repr=False, kw_only=True)
+
+
+_new_init = StereoResult.__init__
+
+
+@functools.wraps(_new_init)
+def _init_compat(self: StereoResult, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401 - both signatures
+    """The 0.1.1 `StereoResult(disparity, confidence, extras, model, backend, options)` still builds a result."""
+    if "disparity" not in kwargs and not (args and not isinstance(args[0], str)):
+        _new_init(self, *args, **kwargs)
+        return
+    warn_renamed(
+        "StereoResult(disparity=, confidence=, extras=, ...)",
+        "a result from a model call (maps are held in `StereoView`s: `result.left`)",
+    )
+    names = ("disparity", "confidence", "extras", "model", "backend", "options")
+    given = {**dict(zip(names, args, strict=False)), **kwargs}
+    maps = {"disparity": given.pop("disparity"), "confidence": given.pop("confidence", None), **given.pop("extras", {})}
+    _new_init(self, **given)
+    object.__setattr__(self, "_by_view", {"left": make_view("left", maps, None)})
+
+
+StereoResult.__init__ = _init_compat  # ty: ignore[invalid-assignment]
+
+
+def plain_result(  # noqa: PLR0913, PLR0917 - the maps, then what every result names
+    disparity: torch.Tensor,
+    confidence: torch.Tensor | None,
+    extras: Mapping[str, torch.Tensor],
+    model: str,
+    backend: Backend,
+    options: Mapping[str, Any] | None = None,
+    *,
+    device: torch.device | None = None,
+) -> StereoResult:
+    """The `StereoResult` of a plain call (rectified pair, left view): maps of the left view, no rectification."""
+    result = StereoResult(model, backend, options or {})
+    maps = {"disparity": disparity, "confidence": confidence, **extras}
+    object.__setattr__(result, "_by_view", {"left": make_view("left", maps, None, device=device)})
+    return result
 
 
 def build_result(
@@ -632,9 +696,14 @@ def build_result(
     images: tuple[torch.Tensor, torch.Tensor],
     maps: dict[str, dict[str, Any]],
     views: Views,
-) -> StereoPairResult:
-    """The `StereoPairResult` of `run_views` outputs (maps and images already without a batch axis if needed)."""
-    result = StereoPairResult(geometry, views, model.variant.ref, model.backend, model.options)
+) -> StereoResult:
+    """The `StereoResult` of `run_views` outputs (maps and images already without a batch axis if needed)."""
+    result = StereoResult(
+        model.variant.ref, model.backend, model.options, views, geometry, calibrated=geometry is not None
+    )
     by_view = {v: make_view(v, m, geometry, image=images[side_of(v)], device=model.device) for v, m in maps.items()}
     object.__setattr__(result, "_by_view", by_view)
     return result
+
+
+__getattr__ = renamed_attributes(__name__, {"StereoPairResult": ("fastforks.stereo.StereoResult", StereoResult)})

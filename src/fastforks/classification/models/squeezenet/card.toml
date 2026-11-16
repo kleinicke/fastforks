@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/forresti/SqueezeNet"
+framework = "Caffe"
+reason = "The authors' code is Caffe; torchvision's PyTorch port carries ported ImageNet weights."
+
 [licence]
 code = "BSD-3-Clause"  # torchvision
 weights = "assumed from code"  # torchvision states no separate weights licence
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "SqueezeNet: AlexNet-level accuracy with 50x fewer parameters and <0.5MB model size"
+url = "https://arxiv.org/abs/1602.07360"
+date = "2016-02-24"
+venue = "arXiv"
 
 [[variants]]
 id = "squeezenet1_1.tv_in1k"

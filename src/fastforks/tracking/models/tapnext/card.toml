@@ -33,6 +33,20 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 kernels = ["fvm_conv"]  # GEMMs with fused bias / GELU-tanh gate / residual epilogues, fp16 accumulation
 
+[[papers]]
+title = "TAPNext: Tracking Any Point (TAP) as Next Token Prediction"
+url = "https://arxiv.org/abs/2504.05579"
+date = "2025-04-08"
+venue = "arXiv"
+variants = ["tapnext"]
+
+[[papers]]
+title = "TAPNext++: What's Next for Tracking Any Point (TAP)?"
+url = "https://arxiv.org/abs/2604.10582"
+date = "2026-04-12"
+venue = "arXiv"
+variants = ["tapnext-pp"]
+
 [[variants]]
 id = "tapnext"  # upstream BootsTAPNext-B (bootstapnext_ckpt.npz, JAX); TAP-Vid DAVIS first AJ 65.25 (upstream README)
 revision = 1
@@ -40,5 +54,6 @@ weights = [{ name = "bootstapnext_ckpt.npz", size = 776980182, sha256 = "19de6b1
 
 [[variants]]
 id = "tapnext-pp"  # upstream TAPNext++ 256 (tapnextpp_ckpt.pt, a Lightning checkpoint with optimizer state); TAP-Vid DAVIS first AJ 65.6 (upstream README); long videos, re-detection after occlusion
+planned = { compile = "Inductor fails to compile a fused Triton kernel" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "tapnextpp_ckpt.pt", size = 2532282370, sha256 = "cb96a43444ccb4fbdb25d800b88c7ba196179a526e78f01b021a16b1c1eff6da", url = "https://storage.googleapis.com/dm-tapnet/tapnextpp/tapnextpp_ckpt.pt" }]
