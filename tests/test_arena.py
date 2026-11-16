@@ -6,7 +6,13 @@ import pytest
 import torch
 from torch import nn
 
-from fastforks.shared.arena import compact
+from fastforks.shared import arena
+from fastforks.shared.arena import compact, compact_runner
+
+
+@pytest.fixture(autouse=True)
+def _small_nets(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(arena, "_MIN_BYTES", 0)  # the unit nets are far below the size threshold
 
 
 def _net(device: str) -> nn.Module:
@@ -71,3 +77,72 @@ def test_compact_leaves_no_holes_in_reserved_memory() -> None:
     compact(net)
     torch.cuda.empty_cache()
     assert torch.cuda.memory_reserved() - base <= live + (4 << 20)
+
+
+def test_threshold_leaves_small_nets_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(arena, "_MIN_BYTES", 128 << 20)
+    net = _net("cuda" if torch.cuda.is_available() else "cpu")
+    ptrs = [p.data_ptr() for p in net.parameters()]
+    compact(net)
+    assert [p.data_ptr() for p in net.parameters()] == ptrs
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_plain_tensor_alias_skips_the_whole_network() -> None:
+    net = _net("cuda")
+    net.keep = net[0].weight.data  # a plain attribute (a kernel's packed-weight alias) views a registered storage
+    ptrs = [p.data_ptr() for p in net.parameters()]
+    compact(net)
+    assert [p.data_ptr() for p in net.parameters()] == ptrs
+    assert net.keep.data_ptr() == net[0].weight.data_ptr()
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_arena_oom_skips_compaction(monkeypatch: pytest.MonkeyPatch) -> None:
+    net = _net("cuda")
+    ptrs = [p.data_ptr() for p in net.parameters()]
+    real = torch.empty
+
+    def boom(*a: object, **k: object) -> torch.Tensor:
+        if k.get("dtype") == torch.uint8 and a and a[0] != 0:
+            raise torch.cuda.OutOfMemoryError("test")
+        return real(*a, **k)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(torch, "empty", boom)
+    compact(net)
+    monkeypatch.undo()
+    assert [p.data_ptr() for p in net.parameters()] == ptrs
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_tied_weights_stay_tied_and_cuda_graph_captures_after_compaction() -> None:
+    net = nn.Linear(16, 16).cuda().half()
+    net.tied = nn.Linear(16, 16, bias=False).cuda().half()
+    net.tied.weight = net.weight  # one Parameter in two modules
+    compact(net)
+    assert net.tied.weight is net.weight
+    x = torch.randn(4, 16, device="cuda", dtype=torch.half)
+    net(x)
+    g = torch.cuda.CUDAGraph()
+    with torch.no_grad(), torch.cuda.graph(g):
+        y = net.tied(net(x))
+    g.replay()
+    torch.cuda.synchronize()
+    assert torch.equal(y, net.tied(net(x)))
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_compact_runner_handles_attribute_modules() -> None:
+    class R:
+        def networks(self) -> list[nn.Module]:
+            raise NotImplementedError
+
+    r = R()
+    r.net = _net("cuda")  # type: ignore[attr-defined]
+    want = {k: v.clone() for k, v in r.net.state_dict().items()}  # type: ignore[attr-defined]
+    compact_runner(r)
+    assert all(torch.equal(want[k], v) for k, v in r.net.state_dict().items())  # type: ignore[attr-defined]
