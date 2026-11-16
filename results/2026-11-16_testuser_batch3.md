@@ -20,7 +20,7 @@ Fresh venv (`uv venv --python 3.12` + `uv pip install <worktree>`), scratch dir,
 - Pose: top-down models need boxes (clear error); xywh boxes rejected clearly; `PoseResult.save("x.png")` errors (hint mentions np.save of boxes, odd); the face6 model error says "person boxes" for face boxes.
 - Matting: alpha .png refused (message says .tif).
 - Multi-view: views must be exactly one size (clear error; a 426 vs 425 px pair from two crops is a typical trap); ReSplat needs intrinsics (clear); AnySplat, VGGT, PatchmatchNet OK incl. .ply save.
-- Interpolation: `timestep` outside [0, 1] rejected clearly; result attribute is `.images`-style (guessing `.image` fails, docs show it); sizes must match.
+- Interpolation: `timestep` outside [0, 1] rejected clearly; result attribute is `.frame` (a guessed `.image` fails with a plain AttributeError); sizes must match.
 - Normals: lotus-normal unit vectors OK; `result.save` for normals refuses with a clear message (recipe added).
 - Intrinsics: geocalib OK (f ~ 409 px, vfov 0.96 rad on a 640 x 426 photo).
 - OCR: ppocrv5 returns an empty list on a photo without text (fine); `OCRResult.save` missing: not added (users write `json.dumps(texts)` themselves; not clearly worth the code).
