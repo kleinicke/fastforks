@@ -354,6 +354,38 @@ def blob_path(sha256: str, root: Path | None = None) -> Path:
     return (root or cache_root()) / "blobs" / "sha256" / sha256[:2] / sha256
 
 
+def link_view(spec: FileSpec, group: str) -> bool:
+    """Link `<cache>/<group>/<spec.name>` to the cache blob of `spec` (a browsable view; returns whether it is there).
+
+    A relative symlink, so the cache folder can move. Only blobs of our own cache are linked (never a copy found in
+    another tool's cache). Best effort: a real file at that path is left alone, a stale link is replaced atomically,
+    and a read-only cache or a platform without symlinks is skipped silently. Lookups never use the view.
+    """
+    root = cache_root()
+    name = Path(spec.name)
+    blob = blob_path(spec.sha256, root)
+    link = root / group / name
+    if group in ("blobs", "stamps") or ".." in name.parts or name.is_absolute():
+        return False
+    try:
+        if not blob.is_file() or (link.exists() and not link.is_symlink()):
+            return False
+        target = Path(os.path.relpath(blob, link.parent))
+        if link.is_symlink() and link.readlink() == target:
+            return True
+        link.parent.mkdir(parents=True, exist_ok=True)
+        tmp = link.with_name(f".{link.name}.{os.getpid()}.lnk")
+        try:
+            tmp.symlink_to(target)
+            tmp.replace(link)  # atomic; only ever replaces a link (a real file was excluded above)
+        finally:
+            tmp.unlink(missing_ok=True)
+    except (OSError, NotImplementedError) as e:  # read-only cache, no symlink permission (Windows)
+        log.debug("no view link %s: %s", link, e)
+        return False
+    return True
+
+
 def _stamp_file(path: Path) -> Path:
     key = hashlib.sha256(str(path.resolve()).encode()).hexdigest()
     return cache_root() / "stamps" / key[:2] / f"{key}.json"
@@ -666,6 +698,7 @@ def locate(  # noqa: PLR0913 - the arguments of the fetch choke point
     cached = blob_path(spec.sha256)
     corrupt = _corrupt(cached, spec)
     if cached.is_file() and corrupt is None:
+        link_view(spec, group)
         return cached
     other = _from_other_caches(spec)  # also after a corrupt blob: another tool's verified copy still serves (TM-6)
     if other is not None:
@@ -680,9 +713,11 @@ def locate(  # noqa: PLR0913 - the arguments of the fetch choke point
         raise _not_local(spec, model or group, env_var, mismatched, hint=hint if is_offline else None)
     if mismatched:  # the user put a copy there on purpose: say why it is not used
         log.warning("not using %s; downloading it instead", "; ".join(mismatched))
-    return _download_or_mirror(
+    path = _download_or_mirror(
         spec, spec.url, cached, group=group, env_var=env_var, siblings=siblings, mismatched=mismatched, burst=burst
     )
+    link_view(spec, group)
+    return path
 
 
 def _corrupt(cached: Path, spec: FileSpec) -> WeightsHashError | None:

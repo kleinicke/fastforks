@@ -469,7 +469,12 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   containers see [Docker images](docker.md).
   `fastforks download --kernels-only --all-archs` fetches every kernel binary (~240 MiB; one GPU target ~34 MiB)
   without weights; the files land in `FASTFORKS_CACHE` (default: the platform user cache, `~/.cache/fastforks` on
-  Linux). The cache is content-addressed (`blobs/sha256/<ab>/<sha256>`), so a copy of it is not a
+  Linux). The cache is content-addressed (`blobs/sha256/<ab>/<sha256>`; lookups use that path). Next to it,
+  `<family>/<file name as on the card>` (kernels: `<lib>/<lib>-<hash>-<arch>.fatbin`) are relative symlinks to the blobs,
+  so the folder is browsable and has the `FASTFORKS_WEIGHTS_PATH` / `FASTFORKS_KERNEL_PATH` layout (the cache folder
+  itself works as either); they are made whenever a file is resolved or downloaded, `fastforks cache link` rebuilds them
+  for everything already cached, and they are skipped where symlinks are not allowed. Copy a cache with a tool that follows
+  or keeps links (`cp -a`, `rsync -a`), or only `blobs`; a copy of `blobs` alone is not a
   `FASTFORKS_KERNEL_PATH`: that wants the manifest's file names, `<dir>/<lib>/<lib>-<hash>-<arch>.fatbin` (or `.so`;
   `<dir>/<name>` also works), e.g. `kernels/fs/fs-f6f8de2cca1e-sm_80.fatbin` (names: `fastforks/kernels/<lib>/manifest.toml`).
   `fastforks download --kernels --arch sm_80` prints `<lib>-<hash>:<arch>: <cache path>` per file; copy each path to that

@@ -5,6 +5,7 @@
     fastforks info MODEL
     fastforks download [MODEL ...] [--kernels | --kernels-only] [--arch sm_XX[,sm_YY] | --all-archs] [--commercial-only]
                        [--dry-run | --check]
+    fastforks cache link
     fastforks bench MODEL [--mode auto|portable|kernels] [--dtype float32|float16|bfloat16] [--device DEV] [--size HxW]
                     [--views N] [--runs N]
     fastforks export MODEL --format onnx|trt [--size HxW [--size-range MINxMIN:MAXxMAX]] [--fp16] [--output PATH]
@@ -27,6 +28,10 @@ resolves from (a last `RUN` of a Dockerfile, where those other places are empty)
 the rest: every other model and binary is still fetched, the failures are printed as `MISSING` lines at the end, and
 the exit code is 1. With `FASTFORKS_OFFLINE=1` (or `HF_HUB_OFFLINE=1`) no model download is attempted at all: a file
 that is not local raises an error that names the file and the command.
+
+`cache link` (re)builds the browsable view `<cache>/<family>/<file name>` (kernels: `<cache>/<lib>/<name>`),
+as relative symlinks to the blobs, for every file of every card and kernel manifest that is in the cache; the view is
+also made whenever a file is resolved or downloaded. Nothing outside the cache is touched.
 
 `bench` times one model of any task on synthetic input (the task's `bench_inputs`: an image, a pair for stereo,
 `--views` views for multi-view; median wall time and peak CUDA memory; on Apple MPS the Metal driver's memory after the
@@ -65,7 +70,7 @@ from typing import TYPE_CHECKING, Any, get_args
 from fastforks._core import registry
 from fastforks._core.cards import LIBRARY_EXTRA, Commercial, Tier
 from fastforks._core.errors import BackendUnavailableError, FastforksError, LicenceError, OptionsError, install_hint
-from fastforks._core.files import OFFLINE_ENV, _human_size, cache_root, env_flag, locate, offline, present
+from fastforks._core.files import OFFLINE_ENV, _human_size, cache_root, env_flag, link_view, locate, offline, present
 from fastforks._core.kernels import KERNEL_PATH_ENV, for_driver, read_manifest, select_target
 from fastforks._core.sizes import EXAMPLE_SIZE, size_range
 
@@ -372,6 +377,22 @@ def _download(args: argparse.Namespace) -> int:
     for line in missing:
         print(f"MISSING {line}", file=sys.stderr)
     return 1 if missing else 0
+
+
+def _cache_link(_args: argparse.Namespace) -> int:
+    """Link every weight file and kernel binary that is in the cache into the `<cache>/<group>/<name>` view."""
+    specs = [(card.family, w) for card, v in _all_cards().values() for w in v.weights]
+    for lib in sorted({lib for card, _ in _all_cards().values() for lib in card.kernel_libs}):
+        specs += [(lib, f) for _, f in _kernel_files(lib, archs=[], all_archs=True)]
+    shas: dict[tuple[str, str], set[str]] = {}
+    for g, w in specs:
+        if link_view(w, g):
+            shas.setdefault((g, w.name), set()).add(w.sha256)
+    print(f"{len(shas)} files linked under {cache_root()} ({len(specs)} listed by the cards, the rest not cached)")
+    for (g, name), found in sorted(shas.items()):
+        if len(found) > 1:
+            print(f"note: {g}/{name} is used by files with different contents; the view shows one", file=sys.stderr)
+    return 0
 
 
 def _size_text(n: int) -> str:
@@ -1022,6 +1043,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="fetch nothing; exit 1 if a file cannot be resolved without network (prints where from)",
     )
     p.set_defaults(run=_download)
+    p = sub.add_parser("cache", help="the cache folder").add_subparsers(required=True)
+    p.add_parser("link", help="(re)build the browsable <family>/<file name> view of the cache").set_defaults(
+        run=_cache_link
+    )
     p = sub.add_parser("bench", help="time one model on synthetic input (an image; a pair for stereo)")
     p.add_argument("model", help="model id (see `fastforks list`)")
     p.add_argument(
