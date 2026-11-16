@@ -23,23 +23,23 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | no kernels | no kernels |
 | [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | no kernels | no kernels |
 | [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`convnext_base.fb_in1k`](#convnext) | yes | 2.01, 3.9x | 236, 0.59x |
-| [`convnext_base`](#convnext) | yes | 2.00, 3.9x | 236, 0.59x |
-| [`convnext_base.fb_in22k_ft_in1k_384`](#convnext) | yes | 3.00, 3.7x | 232, 0.53x |
-| [`convnext_large.fb_in1k`](#convnext) | yes | 3.29, 3.2x | 434, 0.51x |
+| [`convnext_base.fb_in1k`](#convnext) | yes | 2.00, 3.9x | 236, 0.59x |
+| [`convnext_base`](#convnext) | yes | 2.01, 3.9x | 236, 0.59x |
+| [`convnext_base.fb_in22k_ft_in1k_384`](#convnext) | yes | 3.05, 3.7x | 232, 0.53x |
+| [`convnext_large.fb_in1k`](#convnext) | yes | 3.28, 3.2x | 434, 0.51x |
 | [`convnext_large`](#convnext) | yes | 3.28, 3.2x | 434, 0.51x |
-| [`convnext_large.fb_in22k_ft_in1k_384`](#convnext) | yes | 5.20, 2.2x | 454, 0.51x |
-| [`convnext_small.fb_in1k`](#convnext) | yes | 1.84, 4.0x | 152, 0.6x |
+| [`convnext_large.fb_in22k_ft_in1k_384`](#convnext) | yes | 5.21, 2.2x | 454, 0.51x |
+| [`convnext_small.fb_in1k`](#convnext) | yes | 1.84, 4.1x | 152, 0.6x |
 | [`convnext_small.fb_in22k_ft_in1k`](#convnext) | yes | 1.84, 4.1x | 152, 0.6x |
-| [`convnext_small.fb_in22k_ft_in1k_384`](#convnext) | yes | 2.52, 3.2x | 152, 0.52x |
+| [`convnext_small.fb_in22k_ft_in1k_384`](#convnext) | yes | 2.53, 3.2x | 152, 0.52x |
 | [`convnext_tiny.fb_in1k`](#convnext) | yes | 1.15, 3.5x | 110, 0.65x |
 | [`convnext_tiny.fb_in22k_ft_in1k`](#convnext) | yes | 1.15, 3.6x | 110, 0.64x |
 | [`convnext_tiny.fb_in22k_ft_in1k_384`](#convnext) | yes | 1.56, 2.9x | 110, 0.52x |
-| [`convnextv2_base`](#convnextv2) | no | 2.94, 3.7x | 380, 0.91x |
+| [`convnextv2_base`](#convnextv2) | no | 2.96, 3.6x | 238, 0.57x |
 | [`davit_base`](#davit) | yes | no kernels | no kernels |
 | [`davit_small`](#davit) | yes | no kernels | no kernels |
 | [`davit_tiny`](#davit) | yes | no kernels | no kernels |
-| [`deit_base_patch16_224`](#deit) | yes | 1.64, 3.3x | 370, 0.96x |
+| [`deit_base_patch16_224`](#deit) | yes | 1.66, 3.3x | 248, 0.64x |
 | [`densenet121`](#densenet) | yes | 1.29, 8.3x | 92, 1.0x |
 | [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.95, 2.2x | 672, 0.55x |
 | [`efficientformer_l1`](#efficientformer) | yes | no kernels | no kernels |
@@ -100,12 +100,12 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`starnet_s2`](#starnet) | yes | 0.578, 6.3x | 58, 0.91x |
 | [`starnet_s3`](#starnet) | yes | 0.715, 6.9x | 64, 0.84x |
 | [`starnet_s4`](#starnet) | yes | 0.912, 7.5x | 72, 0.84x |
-| [`swin_base_patch4_window7_224`](#swin) | yes | 2.15, 7.0x | 300, 0.72x |
-| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.930, 6.4x | 84, 0.75x |
-| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 1.18, 5.1x | 106, 0.67x |
-| [`tiny_vit_21m_384`](#tinyvit) | yes | 1.79, 3.3x (384x384) | 178, 0.61x |
+| [`swin_base_patch4_window7_224`](#swin) | yes | 2.16, 6.9x | 238, 0.57x |
+| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.934, 6.4x | 84, 0.75x |
+| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 1.19, 5.1x | 106, 0.67x |
+| [`tiny_vit_21m_384`](#tinyvit) | yes | 1.80, 3.2x (384x384) | 178, 0.61x |
 | [`tiny_vit_21m_512`](#tinyvit) | yes | 3.13, 2.6x (512x512) | 258, 0.45x |
-| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.846, 7.0x | 78, 0.93x |
+| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](#tinyvit) | yes | 0.858, 6.9x | 78, 0.93x |
 | [`vgg16`](#vgg) | yes | 1.50, 2.4x | 388, 0.62x |
 | [`vit_base_patch16_224`](#vit) | yes | 1.66, 3.3x | 248, 0.64x |
 | [`vit_so400m_patch14_siglip_378`](#siglip) | yes | 12.9, 2.0x | 926, 0.53x |
@@ -287,18 +287,18 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `convnext_tiny.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.05<br>6.14<br>3.20<br>1.15<br>2.09<br>0.682 | 155 / 170<br>198 / 216<br>119 / 130<br>92 / 110<br>150 / 170<br>184 / 200 |
-| `convnext_small.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.44<br>11.3<br>5.69<br>1.84<br>3.47<br>1.16 | 238 / 252<br>321 / 338<br>181 / 190<br>134 / 152<br>211 / 230<br>278 / 294 |
-| `convnext_base.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.77<br>11.2<br>5.57<br>2.01<br>3.37<br>1.45 | 390 / 398<br>541 / 566<br>291 / 296<br>208 / 236<br>323 / 334<br>482 / 494 |
-| `convnext_large.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>11.5<br>5.59<br>3.29<br>3.45<br>2.50 | 828 / 854<br>1166 / 1180<br>603 / 632<br>419 / 434<br>642 / 652<br>986 / 1006 |
-| `convnext_tiny.fb_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.11<br>6.13<br>3.21<br>1.15<br>2.08<br>0.687 | 155 / 172<br>198 / 216<br>119 / 130<br>92 / 110<br>150 / 170<br>184 / 200 |
-| `convnext_small.fb_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.51<br>11.3<br>5.73<br>1.84<br>3.50<br>1.17 | 238 / 252<br>321 / 338<br>181 / 190<br>134 / 152<br>211 / 230<br>278 / 294 |
-| `convnext_base.fb_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.78<br>11.3<br>5.66<br>2.00<br>3.37<br>1.45 | 390 / 398<br>541 / 566<br>291 / 296<br>208 / 236<br>323 / 334<br>482 / 494 |
-| `convnext_large.fb_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>11.5<br>5.57<br>3.28<br>3.44<br>2.50 | 828 / 854<br>1166 / 1180<br>603 / 632<br>419 / 434<br>642 / 652<br>986 / 1006 |
-| `convnext_tiny.fb_in22k_ft_in1k_384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.59<br>6.05<br>3.15<br>1.56<br>2.05<br>0.970 | 182 / 210<br>204 / 216<br>133 / 152<br>96 / 110<br>162 / 170<br>192 / 226 |
-| `convnext_small.fb_in22k_ft_in1k_384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.04<br>11.2<br>5.51<br>2.52<br>3.36<br>1.68 | 264 / 292<br>328 / 338<br>194 / 212<br>138 / 152<br>223 / 232<br>317 / 350 |
-| `convnext_base.fb_in22k_ft_in1k_384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.6<br>11.2<br>5.48<br>3.00<br>3.41<br>2.31 | 423 / 436<br>549 / 562<br>309 / 334<br>213 / 232<br>336 / 354<br>493 / 522 |
-| `convnext_large.fb_in22k_ft_in1k_384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.9<br>11.5<br>5.99<br>5.20<br>5.80<br>4.23 | 864 / 894<br>1177 / 1260<br>629 / 654<br>426 / 454<br>654 / 672<br>1001 / 1040 |
+| `convnext_tiny.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.05<br>6.14<br>3.31<br>1.15<br>2.09<br>0.682 | 155 / 170<br>198 / 216<br>94 / 110<br>92 / 110<br>150 / 170<br>184 / 200 |
+| `convnext_small.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.44<br>11.3<br>5.97<br>1.84<br>3.47<br>1.16 | 238 / 252<br>321 / 338<br>136 / 150<br>134 / 152<br>211 / 230<br>278 / 294 |
+| `convnext_base.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.77<br>11.2<br>5.84<br>2.00<br>3.37<br>1.45 | 390 / 398<br>541 / 566<br>211 / 234<br>208 / 236<br>323 / 334<br>482 / 494 |
+| `convnext_large.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>11.5<br>5.81<br>3.28<br>3.45<br>2.50 | 828 / 854<br>1166 / 1180<br>423 / 432<br>419 / 434<br>642 / 652<br>986 / 1006 |
+| `convnext_tiny.fb_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.11<br>6.13<br>3.34<br>1.15<br>2.08<br>0.687 | 155 / 172<br>198 / 216<br>94 / 110<br>92 / 110<br>150 / 170<br>184 / 200 |
+| `convnext_small.fb_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.51<br>11.3<br>5.84<br>1.84<br>3.50<br>1.17 | 238 / 252<br>321 / 338<br>136 / 150<br>134 / 152<br>211 / 230<br>278 / 294 |
+| `convnext_base.fb_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.78<br>11.3<br>5.84<br>2.01<br>3.37<br>1.45 | 390 / 398<br>541 / 566<br>211 / 234<br>208 / 236<br>323 / 334<br>482 / 494 |
+| `convnext_large.fb_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>11.5<br>5.88<br>3.28<br>3.44<br>2.50 | 828 / 854<br>1166 / 1180<br>423 / 432<br>419 / 434<br>642 / 652<br>986 / 1006 |
+| `convnext_tiny.fb_in22k_ft_in1k_384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.59<br>6.05<br>3.30<br>1.56<br>2.05<br>0.970 | 182 / 210<br>204 / 216<br>108 / 132<br>96 / 110<br>162 / 170<br>192 / 226 |
+| `convnext_small.fb_in22k_ft_in1k_384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.04<br>11.2<br>5.82<br>2.53<br>3.36<br>1.68 | 264 / 292<br>328 / 338<br>150 / 172<br>138 / 152<br>223 / 232<br>317 / 350 |
+| `convnext_base.fb_in22k_ft_in1k_384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.6<br>11.2<br>5.79<br>3.05<br>3.41<br>2.31 | 423 / 436<br>549 / 562<br>229 / 252<br>213 / 232<br>336 / 354<br>493 / 522 |
+| `convnext_large.fb_in22k_ft_in1k_384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.9<br>11.5<br>6.11<br>5.21<br>5.80<br>4.23 | 864 / 894<br>1177 / 1260<br>449 / 492<br>426 / 454<br>654 / 672<br>1001 / 1040 |
 
 <details><summary>Details</summary>
 
@@ -422,7 +422,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `convnextv2_base.fcmae_ft_in22k_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.6<br>10.2<br>2.94<br>3.85<br>2.13 | 395 / 418<br>542 / 566<br>299 / 376<br>318 / 380<br>324 / 356<br>486 / 518 |
+| `convnextv2_base.fcmae_ft_in22k_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>14.6<br>10.2<br>2.96<br>3.85<br>2.13 | 395 / 418<br>542 / 566<br>220 / 234<br>206 / 238<br>324 / 356<br>486 / 518 |
 
 <details><summary>Details</summary>
 
@@ -440,7 +440,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `convnextv2_base.fcmae_ft_in22k_in1k` 224x224 (0.3 GiB peak allocated, 0.4 reserved)
 - `convnextv2_base.fcmae_ft_in22k_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `convnextv2_base.fcmae_ft_in22k_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `convnextv2_base.fcmae_ft_in22k_in1k` load / first call: original 2.7 s / 0.631 s, portable 1.23 s / 0.029 s, kernels 2.12 s / 0.158 s
+- `convnextv2_base.fcmae_ft_in22k_in1k` load / first call: original 2.7 s / 0.631 s, portable 2.09 s / 0.331 s, kernels 2.12 s / 0.158 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -537,7 +537,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `deit_base_patch16_224.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.39<br>5.46<br>2.98<br>1.64<br>2.09<br>1.12 | 371 / 386<br>531 / 548<br>203 / 386<br>300 / 370<br>238 / 266<br>394 / 420 |
+| `deit_base_patch16_224.fb_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.39<br>5.46<br>2.89<br>1.66<br>2.09<br>1.12 | 371 / 386<br>531 / 548<br>203 / 226<br>200 / 248<br>238 / 266<br>394 / 420 |
 
 <details><summary>Details</summary>
 
@@ -555,7 +555,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `deit_base_patch16_224.fb_in1k` 224x224 (0.2 GiB peak allocated, 0.3 reserved)
 - `deit_base_patch16_224.fb_in1k` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 28 s (ONNX + engine).
 - `deit_base_patch16_224.fb_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `deit_base_patch16_224.fb_in1k` load / first call: original 2.52 s / 0.309 s, portable 0.72 s / 0.004 s, kernels 1.96 s / 0.067 s
+- `deit_base_patch16_224.fb_in1k` load / first call: original 2.52 s / 0.309 s, portable 1.97 s / 0.101 s, kernels 1.96 s / 0.067 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -2054,7 +2054,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `swin_base_patch4_window7_224.ms_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.0<br>19.1<br>10.8<br>2.15<br>4.19<br>1.48 | 389 / 416<br>538 / 550<br>213 / 394<br>246 / 300<br>243 / 270<br>404 / 432 |
+| `swin_base_patch4_window7_224.ms_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.0<br>19.1<br>10.8<br>2.16<br>4.19<br>1.48 | 389 / 416<br>538 / 550<br>211 / 230<br>218 / 238<br>243 / 270<br>404 / 432 |
 
 <details><summary>Details</summary>
 
@@ -2072,7 +2072,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `swin_base_patch4_window7_224.ms_in22k_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.3 reserved)
 - `swin_base_patch4_window7_224.ms_in22k_ft_in1k` 224x224, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 64 s (ONNX + engine).
 - `swin_base_patch4_window7_224.ms_in22k_ft_in1k` original 224x224: torch.autocast(fp16) around the forward
-- `swin_base_patch4_window7_224.ms_in22k_ft_in1k` load / first call: original 2.71 s / 0.414 s, portable 0.94 s / 0.026 s, kernels 2.28 s / 0.087 s
+- `swin_base_patch4_window7_224.ms_in22k_ft_in1k` load / first call: original 2.71 s / 0.414 s, portable 2.03 s / 0.138 s, kernels 2.28 s / 0.087 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -2105,11 +2105,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `tiny_vit_5m_224.dist_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.92<br>8.54<br>5.19<br>0.846<br>2.92<br>0.514 | 71 / 84<br>71 / 90<br>52 / 82<br>48 / 78<br>81 / 102<br>86 / 118 |
-| `tiny_vit_11m_224.dist_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.95<br>8.27<br>5.19<br>0.930<br>2.92<br>0.513 | 95 / 112<br>106 / 122<br>64 / 90<br>60 / 84<br>93 / 130<br>98 / 128 |
-| `tiny_vit_21m_224.dist_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.05<br>8.37<br>5.26<br>1.18<br>2.95<br>0.714 | 143 / 158<br>168 / 188<br>87 / 146<br>83 / 106<br>114 / 166<br>153 / 216 |
-| `tiny_vit_21m_384.dist_in22k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.84<br>7.95<br>4.97<br>1.79<br>2.79<br>1.31 | 275 / 298<br>270 / 290<br>157 / 186<br>132 / 178<br>174 / 204<br>255 / 298 |
-| `tiny_vit_21m_512.dist_in22k_ft_in1k` | synthetic (512x512) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.2<br>8.13<br>4.92<br>3.13<br>3.14<br>2.13 | 554 / 598<br>525 / 570<br>310 / 342<br>237 / 258<br>314 / 362<br>499 / 518 |
+| `tiny_vit_5m_224.dist_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.92<br>8.54<br>4.73<br>0.858<br>2.92<br>0.514 | 71 / 84<br>71 / 90<br>52 / 62<br>48 / 78<br>81 / 102<br>86 / 118 |
+| `tiny_vit_11m_224.dist_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.95<br>8.27<br>4.75<br>0.934<br>2.92<br>0.513 | 95 / 112<br>106 / 122<br>64 / 86<br>60 / 84<br>93 / 130<br>98 / 128 |
+| `tiny_vit_21m_224.dist_in22k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.05<br>8.37<br>4.83<br>1.19<br>2.95<br>0.714 | 143 / 158<br>168 / 188<br>87 / 106<br>83 / 106<br>114 / 166<br>153 / 216 |
+| `tiny_vit_21m_384.dist_in22k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.84<br>7.95<br>4.54<br>1.80<br>2.79<br>1.31 | 275 / 298<br>270 / 290<br>157 / 184<br>132 / 178<br>174 / 204<br>255 / 298 |
+| `tiny_vit_21m_512.dist_in22k_ft_in1k` | synthetic (512x512) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.2<br>8.13<br>4.46<br>3.13<br>3.14<br>2.13 | 554 / 598<br>525 / 570<br>310 / 344<br>237 / 258<br>314 / 362<br>499 / 518 |
 
 <details><summary>Details</summary>
 

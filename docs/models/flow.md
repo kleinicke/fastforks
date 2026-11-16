@@ -38,20 +38,20 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.1, 1.3x | 896, 0.2x |
 | [`neuflow-v2-sintel`](#neuflow_v2) | yes | 1.566 † | 58.9, 1.3x | 896, 0.2x |
 | [`neuflow-v2-things`](#neuflow_v2) | yes | 4.095 | 58.9, 1.3x | 896, 0.19x |
-| [`raft-large`](#raft) | yes | 1.526 † | 83.5, 5.7x | 372, 0.034x |
-| [`raft-large-kitti`](#raft) | yes | 0.614 † | 83.6, 5.7x | 352, 0.032x |
-| [`raft-large-things`](#raft) | yes | 4.834 | 83.1, 5.8x | 352, 0.032x |
-| [`raft-small`](#raft) | yes | 7.834 | 36.3, 5.4x | 224, 0.021x |
+| [`raft-large`](#raft) | yes | 1.526 † | 83.4, 5.7x | 352, 0.032x |
+| [`raft-large-kitti`](#raft) | yes | 0.614 † | 84.2, 5.7x | 352, 0.032x |
+| [`raft-large-things`](#raft) | yes | 4.834 | 83.5, 5.8x | 352, 0.032x |
+| [`raft-small`](#raft) | yes | 7.834 | 36.5, 5.4x | 204, 0.019x |
 | [`recover-cx`](#recover) | yes | 1.043 † | 89.8, 2.0x | 892, 0.76x |
 | [`recover-mn`](#recover) | yes | 1.681 † | 41.8, 2.5x | 676, 0.65x |
 | [`recover-rn`](#recover) | yes | 1.292 † | 51.3, 2.5x | 672, 0.64x |
-| [`sea-raft-m`](#sea_raft) | yes | 0.880 † | 73.1, 5.0x | 514, 0.06x |
-| [`sea-raft-m-kitti`](#sea_raft) | yes | 0.808 † | 73.1, 5.0x | 514, 0.06x |
-| [`sea-raft-m-spring`](#sea_raft) | yes | 6.783 † | 23.2, 2.4x | 214, 0.26x |
-| [`sea-raft-m-things`](#sea_raft) | yes | 4.307 | 73.1, 5.0x | 514, 0.06x |
-| [`sea-raft-s`](#sea_raft) | yes | 1.054 † | 50.4, 6.0x | 492, 0.058x |
-| [`sea-raft-s-kitti`](#sea_raft) | yes | 0.935 † | 50.5, 5.9x | 492, 0.058x |
-| [`sea-raft-s-spring`](#sea_raft) | yes | 7.757 † | 16.0, 2.6x | 192, 0.25x |
+| [`sea-raft-m`](#sea_raft) | yes | 0.880 † | 73.4, 5.0x | 454, 0.053x |
+| [`sea-raft-m-kitti`](#sea_raft) | yes | 0.808 † | 73.3, 5.0x | 454, 0.053x |
+| [`sea-raft-m-spring`](#sea_raft) | yes | 6.783 † | 23.5, 2.4x | 194, 0.24x |
+| [`sea-raft-m-things`](#sea_raft) | yes | 4.307 | 73.0, 5.0x | 454, 0.053x |
+| [`sea-raft-s`](#sea_raft) | yes | 1.054 † | 50.6, 5.9x | 452, 0.053x |
+| [`sea-raft-s-kitti`](#sea_raft) | yes | 0.935 † | 50.7, 5.9x | 432, 0.051x |
+| [`sea-raft-s-spring`](#sea_raft) | yes | 7.757 † | 16.2, 2.6x | 172, 0.23x |
 | [`waft-a1`](#waft) | yes | 2.315 | 519, 3.0x | 2264, 0.38x |
 | [`waft-a1-kitti`](#waft) | yes | – | – | – |
 | [`waft-a1-sintel`](#waft) | yes | – | – | – |
@@ -609,10 +609,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `raft-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>83.5<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>342 / 372<br>5886 / 5924<br>– |
-| `raft-large-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 481<br>566<br>291<br>83.1<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>333 / 352<br>5886 / 5924<br>– |
-| `raft-large-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>83.6<br>195<br>fails: TensorRT engine build failed | 13489 / 13818<br>7164 / 10928<br>5930 / 6058<br>333 / 352<br>5886 / 5924<br>– |
-| `raft-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>395<br>144<br>36.3<br>110<br>fails: unsupported: engine build needs more than the 16 GB of this  | 13441 / 13686<br>7032 / 10888<br>5669 / 5706<br>197 / 224<br>5704 / 5728<br>– |
+| `raft-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>83.4<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>332 / 352<br>5886 / 5924<br>– |
+| `raft-large-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 481<br>566<br>291<br>83.5<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>332 / 352<br>5886 / 5924<br>– |
+| `raft-large-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>84.2<br>195<br>fails: TensorRT engine build failed | 13489 / 13818<br>7164 / 10928<br>5930 / 6058<br>332 / 352<br>5886 / 5924<br>– |
+| `raft-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>395<br>144<br>36.5<br>110<br>fails: unsupported: engine build needs more than the 16 GB of this  | 13441 / 13686<br>7032 / 10888<br>5669 / 5706<br>196 / 204<br>5704 / 5728<br>– |
 
 <details><summary>Details</summary>
 
@@ -748,13 +748,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sea-raft-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.1<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
-| `sea-raft-m-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.1<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
-| `sea-raft-m-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 96.1<br>56.7<br>46.8<br>23.2<br>34.6<br>4.43 | 759 / 858<br>761 / 812<br>652 / 700<br>181 / 214<br>624 / 640<br>291 / 318 |
-| `sea-raft-m-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.1<br>192<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>435 / 514<br>5869 / 5920<br>11110 / 11130 |
-| `sea-raft-s` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>300<br>211<br>50.4<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>6019 / 6136<br>415 / 492<br>5828 / 5876<br>11043 / 11078 |
-| `sea-raft-s-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>299<br>210<br>50.5<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>6019 / 6136<br>415 / 492<br>5828 / 5876<br>11043 / 11078 |
-| `sea-raft-s-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 67.1<br>42.4<br>32.8<br>16.0<br>23.8<br>3.01 | 718 / 814<br>699 / 764<br>611 / 656<br>160 / 192<br>582 / 596<br>215 / 278 |
+| `sea-raft-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.4<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>425 / 454<br>5869 / 5920<br>11110 / 11130 |
+| `sea-raft-m-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.3<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>425 / 454<br>5869 / 5920<br>11110 / 11130 |
+| `sea-raft-m-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 96.1<br>56.7<br>46.8<br>23.5<br>34.6<br>4.43 | 759 / 858<br>761 / 812<br>652 / 700<br>170 / 194<br>624 / 640<br>291 / 318 |
+| `sea-raft-m-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.0<br>192<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>425 / 454<br>5869 / 5920<br>11110 / 11130 |
+| `sea-raft-s` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>300<br>211<br>50.6<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>6019 / 6136<br>404 / 452<br>5828 / 5876<br>11043 / 11078 |
+| `sea-raft-s-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 365<br>299<br>210<br>50.7<br>150<br>108 | 8462 / 8554<br>7323 / 8502<br>6019 / 6136<br>404 / 432<br>5828 / 5876<br>11043 / 11078 |
+| `sea-raft-s-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 67.1<br>42.4<br>32.8<br>16.2<br>23.8<br>3.01 | 718 / 814<br>699 / 764<br>611 / 656<br>150 / 172<br>582 / 596<br>215 / 278 |
 
 <details><summary>Details</summary>
 

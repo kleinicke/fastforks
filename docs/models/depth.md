@@ -15,11 +15,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`any2full-b`](#any2full) | yes | – | – | – |
 | [`any2full-l`](#any2full) | yes | – | – | – |
 | [`any2full-s`](#any2full) | yes | – | – | – |
-| [`da3-giant-1.1`](#depth_anything_3) | no | 0.0397 | 44.2, 5.1x | 2710, 0.42x |
-| [`da3-large-1.1`](#depth_anything_3) | no | 0.0468 | 17.1, 9.7x | 1090, 0.38x |
-| [`da3metric-large`](#depth_anything_3) | yes | 0.0398 | 14.7, 5.8x | 868, 0.35x |
-| [`da3mono-large`](#depth_anything_3) | yes | 0.0402 | 14.6, 5.8x | 868, 0.35x |
-| [`da3nested-giant-large-1.1`](#depth_anything_3) | no | 0.0387 | 58.2, 5.3x | 3378, 0.44x |
+| [`da3-giant-1.1`](#depth_anything_3) | no | 0.0397 | 45.2, 5.0x | 2590, 0.4x |
+| [`da3-large-1.1`](#depth_anything_3) | no | 0.0468 | 17.3, 9.6x | 950, 0.33x |
+| [`da3metric-large`](#depth_anything_3) | yes | 0.0398 | 15.0, 5.7x | 848, 0.35x |
+| [`da3mono-large`](#depth_anything_3) | yes | 0.0402 | 14.9, 5.7x | 868, 0.35x |
+| [`da3nested-giant-large-1.1`](#depth_anything_3) | no | 0.0387 | 59.7, 5.2x | 3238, 0.42x |
 | [`depth-anything-v2-b`](#depth_anything_v2) | no | 0.0462 | 10.5, 6.0x | 436, 0.46x |
 | [`depth-anything-v2-l`](#depth_anything_v2) | no | 0.0439 | 31.1, 4.5x | 1034, 0.44x |
 | [`depth-anything-v2-metric-hypersim-b`](#depth_anything_v2) | yes | 0.0549 | 10.8, 5.6x | 396, 0.41x |
@@ -124,11 +124,11 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `da3mono-large` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 127<br>85.2<br>24.1<br>14.6<br>21.2<br>14.4 | 2419 / 2450<br>2997 / 3052<br>814 / 868<br>814 / 868<br>792 / 828<br>1463 / 1520 |
-| `da3metric-large` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>85.1<br>24.3<br>14.7<br>21.2<br>14.4 | 2418 / 2450<br>2996 / 3050<br>811 / 868<br>811 / 868<br>792 / 828<br>1465 / 1502 |
-| `da3-large-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 208<br>166<br>30.0<br>17.1<br>26.5<br>13.8 | 2797 / 2872<br>3374 / 3472<br>988 / 1088<br>985 / 1090<br>841 / 868<br>1562 / 1622 |
-| `da3-giant-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 410<br>227<br>71.5<br>44.2<br>64.3<br>37.2 | 6428 / 6496<br>8590 / 8718<br>2634 / 2728<br>2628 / 2710<br>2487 / 2528<br>4795 / 4842 |
-| `da3nested-giant-large-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 533<br>308<br>94.9<br>58.2<br>85.4<br>51.9 | 7702 / 7760<br>10332 / 10402<br>3271 / 3374<br>3271 / 3378<br>3124 / 3194<br>6152 / 6226 |
+| `da3mono-large` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 127<br>85.2<br>24.1<br>14.9<br>21.2<br>14.4 | 2419 / 2450<br>2997 / 3052<br>814 / 868<br>805 / 868<br>792 / 828<br>1463 / 1520 |
+| `da3metric-large` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>85.1<br>24.3<br>15.0<br>21.2<br>14.4 | 2418 / 2450<br>2996 / 3050<br>811 / 868<br>802 / 848<br>792 / 828<br>1465 / 1502 |
+| `da3-large-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 208<br>166<br>30.0<br>17.3<br>26.5<br>13.8 | 2797 / 2872<br>3374 / 3472<br>988 / 1088<br>891 / 950<br>841 / 868<br>1562 / 1622 |
+| `da3-giant-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 410<br>227<br>71.5<br>45.2<br>64.3<br>37.2 | 6428 / 6496<br>8590 / 8718<br>2634 / 2728<br>2535 / 2590<br>2487 / 2528<br>4795 / 4842 |
+| `da3nested-giant-large-1.1` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 533<br>308<br>94.9<br>59.7<br>85.4<br>51.9 | 7702 / 7760<br>10332 / 10402<br>3271 / 3374<br>3179 / 3238<br>3124 / 3194<br>6152 / 6226 |
 
 <details><summary>Details</summary>
 
@@ -159,12 +159,11 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 - `da3metric-large` original 994x1482: original default (api.py): torch.autocast(bfloat16)
 - `da3-large-1.1` original (fp32) 994x1482: float32 (the authors' autocast off)
 - `da3-large-1.1` original 994x1482: original default (api.py): torch.autocast(bfloat16)
-- `da3mono-large` load / first call: original 2.96 s / 0.282 s, portable 2.4 s / 0.209 s (504x504), kernels 1.44† s / 0.018 s
-- `da3metric-large` load / first call: original 2.7 s / 0.283 s, portable 4.84 s / 0.243 s (518x770), kernels 0.3† s / 0.016 s
-- `da3-large-1.1` load / first call: original 3.46 s / 0.45 s, portable 1.59 s / 0.408 s (518x770), kernels 0.31† s / 0.027 s
-- `da3-giant-1.1` load / first call: original 12.39 s / 0.684 s, portable 7.21 s / 0.357 s (518x770), kernels 0.9† s / 0.061 s
-- `da3nested-giant-large-1.1` load / first call: original 28.67 s / 1.626 s, portable 18.24 s / 0.455 s (518x770), kernels 2.73† s / 0.07 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `da3mono-large` load / first call: original 2.96 s / 0.282 s, portable 2.4 s / 0.209 s (504x504), kernels 2.23 s / 0.17 s (504x504)
+- `da3metric-large` load / first call: original 2.7 s / 0.283 s, portable 4.84 s / 0.243 s (518x770), kernels 2.34 s / 0.215 s (518x770)
+- `da3-large-1.1` load / first call: original 3.46 s / 0.45 s, portable 1.59 s / 0.408 s (518x770), kernels 2.16 s / 0.26 s (518x770)
+- `da3-giant-1.1` load / first call: original 12.39 s / 0.684 s, portable 7.21 s / 0.357 s (518x770), kernels 5.38 s / 0.369 s (518x770)
+- `da3nested-giant-large-1.1` load / first call: original 28.67 s / 1.626 s, portable 18.24 s / 0.455 s (518x770), kernels 7.35 s / 0.184 s (518x770)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -1227,7 +1226,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `unidepth-v2-vitl14` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>132<br>99.8<br>63.0<br>96.4<br>64.3 | 3230 / 3508<br>3230 / 3508<br>1208 / 1472<br>1166 / 1252<br>1304 / 1392<br>1815 / 1842 |
+| `unidepth-v2-vitl14` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>132<br>99.8<br>63.0<br>96.4<br>64.3 | 3230 / 3508<br>3230 / 3508<br>1208 / 1472<br>1153 / 1252<br>1304 / 1392<br>1815 / 1842 |
 
 <details><summary>Details</summary>
 

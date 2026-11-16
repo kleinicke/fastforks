@@ -22,8 +22,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`pi3`](#pi3) | no | 559, 1.9x | 2456, 0.41x |
 | [`resplat-base-re10k`](#resplat) | no | 1280, 2.0x | 8706, 0.69x |
 | [`resplat-small-dl3dv`](#resplat) | yes | 362, 1.4x | 5148, 0.96x |
-| [`vggt-1b`](#vggt) | no | 458, 2.1x | 4654, 0.63x |
-| [`vggt-omega-1b-512`](#vggt_omega) | no | 464, 2.0x | 3518, 0.6x |
+| [`vggt-1b`](#vggt) | no | 460, 2.1x | 4194, 0.57x |
+| [`vggt-omega-1b-512`](#vggt_omega) | no | 467, 1.9x | 3494, 0.59x |
 
 <a id="anysplat"></a>
 
@@ -507,7 +507,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vggt-1b` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2502<br>965<br>651<br>458<br>557<br>424 | 6958 / 7358<br>8688 / 9158<br>3691 / 4674<br>3702 / 4654<br>3611 / 3856<br>6421 / 6472 |
+| `vggt-1b` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2502<br>965<br>651<br>460<br>557<br>424 | 6958 / 7358<br>8688 / 9158<br>3643 / 3874<br>3650 / 4194<br>3611 / 3856<br>6421 / 6472 |
 
 <details><summary>Details</summary>
 
@@ -527,8 +527,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `vggt-1b` 336x518, first call: portable + torch.compile 74 s (cold Inductor cache), TensorRT fp16 199 s (ONNX + engine).
 - `vggt-1b` original (fp32) 336x518: float32 (the authors' autocast off)
 - `vggt-1b` original 336x518: original default (README / demo): torch.autocast(bfloat16)
-- `vggt-1b` load / first call: original 19.37 s / 1.289 s (336x518), portable 4.98 s / 0.689 s (336x518), kernels 5.99† s / 0.459 s (336x518)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `vggt-1b` load / first call: original 19.37 s / 1.289 s (336x518), portable 6.78 s / 1.025 s (336x518), kernels 7.03 s / 0.751 s (336x518)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -561,7 +560,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2650<br>906<br>726<br>464<br>589<br>377 | 5765 / 5912<br>7495 / 7654<br>3421 / 3518<br>3422 / 3518<br>3082 / 3154<br>5657 / 5766 |
+| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2650<br>906<br>726<br>467<br>589<br>377 | 5765 / 5912<br>7495 / 7654<br>3421 / 3518<br>3404 / 3494<br>3082 / 3154<br>5657 / 5766 |
 
 <details><summary>Details</summary>
 
@@ -581,8 +580,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 - `vggt-omega-1b-512` 336x518, first call: portable + torch.compile 66 s (cold Inductor cache), TensorRT fp16 187 s (ONNX + engine).
 - `vggt-omega-1b-512` original (fp32) 336x518: float32 (the authors' autocast off)
 - `vggt-omega-1b-512` original 336x518: original default VGGTOmega(autocast=True): bfloat16 aggregator, float32 heads
-- `vggt-omega-1b-512` load / first call: original 16.31 s / 1.1 s (336x518), portable 3.31 s / 0.734 s (336x518), kernels 2.27† s / 0.461 s (336x518)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `vggt-omega-1b-512` load / first call: original 16.31 s / 1.1 s (336x518), portable 3.31 s / 0.734 s (336x518), kernels 5.24 s / 0.752 s (336x518)
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured

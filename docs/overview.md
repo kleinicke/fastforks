@@ -55,7 +55,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`raft-stereo-sceneflow`](models/stereo.md#raft-stereo) | yes | 2.60 | 1036.7 (994x1482) | 745.6 | 274.1 | 3.8x vs original (994x1482) | 722 |
 | [`raft-stereo-middlebury`](models/stereo.md#raft-stereo) | yes | 2.79 | 1036.7 (994x1482) | 745.6 | 274.2 | 3.8x vs original (994x1482) | 722 |
 | [`raft-stereo-eth3d`](models/stereo.md#raft-stereo) | yes | 2.61 † | 1036.7 (994x1482) | 745.6 | 274.6 | 3.8x vs original (994x1482) | 722 |
-| [`waft-stereo-s`](models/stereo.md#waft-stereo) | yes | 0.95 ? | 689.3 (994x1482) | 689.0 | 281.2 | 2.5x vs original (994x1482) | 1113 |
+| [`waft-stereo-s`](models/stereo.md#waft-stereo) | yes | 0.95 ? | 689.3 (994x1482) | 689.0 | 283.9 | 2.4x vs original (994x1482) | 954 |
 | [`igev-stereo-eth3d`](models/stereo.md#igev-stereo) | yes | 0.56 † | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
 | [`igev-stereo-kitti12`](models/stereo.md#igev-stereo) | yes | 26.02 | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
 | [`igev-stereo-kitti15`](models/stereo.md#igev-stereo) | yes | 24.63 | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
@@ -72,7 +72,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | no | 1.22 ? | 470.1 (994x1482) | 441.6 | 353.6 | 1.3x vs original (994x1482) | 2361 |
 | [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 8.09 | 566.7 (994x1482) | 471.6 | 357.5 | 1.6x vs original (994x1482) | 2272 |
 | [`s2m2-l`](models/stereo.md#s2m2) | no | 0.82 ? | 1004.7 (994x1482) | 1016.8 | 375.8 | 2.7x vs original (994x1482) | 1249 |
-| [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1137.2 | 384.9 | 3.0x vs original (994x1482) | 1906 |
+| [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1137.2 | 387.9 | 2.9x vs original (994x1482) | 1664 |
 | [`igev-plusplus-middlebury`](models/stereo.md#igev) | yes | 18.46 ? | 1277.9 (994x1482) | 1080.0 | 393.4 | 3.2x vs original (994x1482) | 1272 |
 | [`igev-plusplus-kitti15`](models/stereo.md#igev) | yes | 25.50 | 1277.9 (994x1482) | 1080.4 | 393.9 | 3.2x vs original (994x1482) | 1272 |
 | [`igev-plusplus-kitti12`](models/stereo.md#igev) | yes | 26.78 | 1277.9 (994x1482) | 1080.1 | 394.3 | 3.2x vs original (994x1482) | 1272 |
@@ -104,7 +104,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 
 - Fastest: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
 - Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.9 ms, error 0.0346).
-- Best trade-off: [`da3mono-large`](models/depth.md#depth-anything-3) (14.6 ms, error 0.0402).
+- Best trade-off: [`da3mono-large`](models/depth.md#depth-anything-3) (14.9 ms, error 0.0402).
 - Fastest commercially usable: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
 - Most accurate commercially usable: [`moge-3-vitl`](models/depth.md#moge) (149.1 ms, error 0.0356).
 
@@ -122,9 +122,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`depth-anything-v2-metric-vkitti-b`](models/depth.md#depth-anything-v2) | yes | 0.1089 | 60.6 (994x1482) | 18.6 | 10.8 | 5.6x vs original (994x1482) | 349 |
 | [`prompt-depth-anything-s`](models/depth.md#prompt-depth-anything) | yes | – | – | 18.4 | 11.4 (756x1008) | 1.6x vs portable | 297 |
 | [`any2full-s`](models/depth.md#any2full) | yes | – | 47.5 (994x1482) | 12.4 | – | – | – |
-| [`da3mono-large`](models/depth.md#depth-anything-3) | yes | 0.0402 | 85.2 (994x1482) | 24.1 | 14.6 | 5.8x vs original (994x1482) | 814 |
-| [`da3metric-large`](models/depth.md#depth-anything-3) | yes | 0.0398 | 85.1 (994x1482) | 24.3 | 14.7 | 5.8x vs original (994x1482) | 811 |
-| [`da3-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0468 | 165.6 (994x1482) | 30.0 | 17.1 | 9.7x vs original (994x1482) | 985 |
+| [`da3mono-large`](models/depth.md#depth-anything-3) | yes | 0.0402 | 85.2 (994x1482) | 24.1 | 14.9 | 5.7x vs original (994x1482) | 805 |
+| [`da3metric-large`](models/depth.md#depth-anything-3) | yes | 0.0398 | 85.1 (994x1482) | 24.3 | 15.0 | 5.7x vs original (994x1482) | 802 |
+| [`da3-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0468 | 165.6 (994x1482) | 30.0 | 17.3 | 9.6x vs original (994x1482) | 891 |
 | [`pointdit-b-512`](models/depth.md#pointdit) | yes | 0.0453 | 48.7 (994x1482) | 31.1 | 20.5 | 2.4x vs original (994x1482) | 462 |
 | [`any2full-b`](models/depth.md#any2full) | yes | – | 108.3 (994x1482) | 26.8 | – | – | – |
 | [`depth-anything-v2-l`](models/depth.md#depth-anything-v2) | no | 0.0439 | 140.2 (994x1482) | 55.1 | 31.1 | 4.5x vs original (994x1482) | 921 |
@@ -133,11 +133,11 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`depth-anything-v2-metric-vkitti-l`](models/depth.md#depth-anything-v2) | yes | 0.0968 | 140.7 (994x1482) | 54.5 | 31.9 | 4.4x vs original (994x1482) | 917 |
 | [`moge-2-vits-normal`](models/depth.md#moge) | yes | 0.0484 | 82.6 (994x1482) | 61.6 | 33.3 | 2.5x vs original (994x1482) | 932 |
 | [`moge-2-vitb-normal`](models/depth.md#moge) | yes | 0.0404 | 102.2 (994x1482) | 83.9 | 40.7 | 2.5x vs original (994x1482) | 1093 |
-| [`da3-giant-1.1`](models/depth.md#depth-anything-3) | no | 0.0397 | 227.1 (994x1482) | 71.5 | 44.2 | 5.1x vs original (994x1482) | 2628 |
-| [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0387 | 308.2 (994x1482) | 94.9 | 58.2 | 5.3x vs original (994x1482) | 3271 |
+| [`da3-giant-1.1`](models/depth.md#depth-anything-3) | no | 0.0397 | 227.1 (994x1482) | 71.5 | 45.2 | 5.0x vs original (994x1482) | 2535 |
+| [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0387 | 308.2 (994x1482) | 94.9 | 59.7 | 5.2x vs original (994x1482) | 3179 |
 | [`pointdit-l-512`](models/depth.md#pointdit) | yes | 0.0410 | 112.0 (994x1482) | 94.6 | 61.3 | 1.8x vs original (994x1482) | 1310 |
 | [`unik3d-vitl`](models/depth.md#unik3d) | no | 0.0346 | 133.7 (994x1482) | 107.8 | 62.9 | 2.1x vs original (994x1482) | 1166 |
-| [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 63.0 | 2.1x vs original (994x1482) | 1166 |
+| [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 63.0 | 2.1x vs original (994x1482) | 1153 |
 | [`midas-dpt-beit-large-512`](models/depth.md#midas-v31) | yes | 0.0487 | 333.2 (994x1482) | 78.8 | 63.9 | 5.2x vs original (994x1482) | 1003 |
 | [`any2full-l`](models/depth.md#any2full) | yes | – | 268.8 (994x1482) | 67.7 | – | – | – |
 | [`prompt-depth-anything-l`](models/depth.md#prompt-depth-anything) | yes | – | – | 124.8 | 69.3 (756x1008) | 1.8x vs portable | 1179 |
@@ -189,41 +189,41 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`repvit_m1_0`](models/classification.md#repvit) | yes | 8.8 (224x224) | 5.3 | 0.8 | 11.2x vs original (224x224) | 48 |
 | [`shufflenet_v2_x1_0`](models/classification.md#shufflenetv2) | yes | 4.8 (224x224) | 3.7 | 0.8 | 6.0x vs original (224x224) | 55 |
 | [`resnet50`](models/classification.md#resnet) | yes | 4.7 (224x224) | 3.1 | 0.8 | 5.7x vs original (224x224) | 116 |
-| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | yes | 5.9 (224x224) | 5.2 | 0.8 | 7.0x vs original (224x224) | 48 |
+| [`tiny_vit_5m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | yes | 5.9 (224x224) | 4.7 | 0.9 | 6.9x vs original (224x224) | 48 |
 | [`starnet_s4`](models/classification.md#starnet) | yes | 6.8 (224x224) | 5.6 | 0.9 | 7.5x vs original (224x224) | 51 |
-| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | yes | 6.0 (224x224) | 5.2 | 0.9 | 6.4x vs original (224x224) | 60 |
+| [`tiny_vit_11m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | yes | 6.0 (224x224) | 4.7 | 0.9 | 6.4x vs original (224x224) | 60 |
 | [`efficientvit_b2`](models/classification.md#efficientvit-mit) | yes | 10.7 (224x224) | 12.9 | 1.1 | 9.5x vs original (224x224) | 88 |
-| [`convnext_tiny.fb_in1k`](models/classification.md#convnext) | yes | 4.0 (224x224) | 3.2 | 1.1 | 3.5x vs original (224x224) | 92 |
-| [`convnext_tiny.fb_in22k_ft_in1k`](models/classification.md#convnext) | yes | 4.1 (224x224) | 3.2 | 1.1 | 3.6x vs original (224x224) | 92 |
-| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | yes | 6.0 (224x224) | 5.3 | 1.2 | 5.1x vs original (224x224) | 83 |
+| [`convnext_tiny.fb_in22k_ft_in1k`](models/classification.md#convnext) | yes | 4.1 (224x224) | 3.3 | 1.1 | 3.6x vs original (224x224) | 92 |
+| [`convnext_tiny.fb_in1k`](models/classification.md#convnext) | yes | 4.0 (224x224) | 3.3 | 1.1 | 3.5x vs original (224x224) | 92 |
 | [`repvit_m1_5`](models/classification.md#repvit) | yes | 13.9 (224x224) | 8.6 | 1.2 | 11.8x vs original (224x224) | 62 |
+| [`tiny_vit_21m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | yes | 6.0 (224x224) | 4.8 | 1.2 | 5.1x vs original (224x224) | 83 |
 | [`repvit_m1_5.dist_450e_in1k`](models/classification.md#repvit) | yes | 13.9 (224x224) | 8.7 | 1.2 | 11.7x vs original (224x224) | 62 |
 | [`densenet121`](models/classification.md#densenet) | yes | 10.7 (224x224) | 9.7 | 1.3 | 8.3x vs original (224x224) | 53 |
 | [`inception_v3`](models/classification.md#inception-v3) | yes | 7.9 (224x224) | 5.1 | 1.3 | 6.0x vs original (224x224) | 118 |
 | [`fastvit_sa24`](models/classification.md#fastvit) | yes | – | 6.0 | 1.4 (256x256) | 4.3x vs portable | 80 |
 | [`vgg16`](models/classification.md#vgg) | yes | 3.6 (224x224) | 2.0 | 1.5 | 2.4x vs original (224x224) | 332 |
-| [`convnext_tiny.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 4.6 (224x224) | 3.2 | 1.6 | 2.9x vs original (224x224) | 96 |
+| [`convnext_tiny.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 4.6 (224x224) | 3.3 | 1.6 | 2.9x vs original (224x224) | 96 |
 | [`falconsai-nsfw-vit`](models/classification.md#falconsai-nsfw-vit) | yes | 5.7 (224x224) | 2.8 | 1.6 | 3.6x vs original (224x224) | 198 |
-| [`deit_base_patch16_224`](models/classification.md#deit) | yes | 5.5 (224x224) | 3.0 | 1.6 | 3.3x vs original (224x224) | 300 |
 | [`repvit_m2_3`](models/classification.md#repvit) | yes | 17.9 (224x224) | 11.1 | 1.7 | 10.8x vs original (224x224) | 79 |
 | [`vit_base_patch16_224`](models/classification.md#vision-transformer) | yes | 5.5 (224x224) | 3.0 | 1.7 | 3.3x vs original (224x224) | 200 |
+| [`deit_base_patch16_224`](models/classification.md#deit) | yes | 5.5 (224x224) | 2.9 | 1.7 | 3.3x vs original (224x224) | 200 |
 | [`repvit_m2_3.dist_450e_in1k`](models/classification.md#repvit) | yes | 18.2 (224x224) | 10.9 | 1.7 | 10.8x vs original (224x224) | 79 |
-| [`tiny_vit_21m_384`](models/classification.md#tinyvit) | yes | – | 5.0 | 1.8 (384x384) | 2.8x vs portable | 132 |
-| [`convnext_small.fb_in1k`](models/classification.md#convnext) | yes | 7.4 (224x224) | 5.7 | 1.8 | 4.0x vs original (224x224) | 134 |
-| [`convnext_small.fb_in22k_ft_in1k`](models/classification.md#convnext) | yes | 7.5 (224x224) | 5.7 | 1.8 | 4.1x vs original (224x224) | 134 |
+| [`tiny_vit_21m_384`](models/classification.md#tinyvit) | yes | – | 4.5 | 1.8 (384x384) | 2.5x vs portable | 132 |
+| [`convnext_small.fb_in1k`](models/classification.md#convnext) | yes | 7.4 (224x224) | 6.0 | 1.8 | 4.1x vs original (224x224) | 134 |
+| [`convnext_small.fb_in22k_ft_in1k`](models/classification.md#convnext) | yes | 7.5 (224x224) | 5.8 | 1.8 | 4.1x vs original (224x224) | 134 |
 | [`resnet152`](models/classification.md#resnet) | yes | 12.8 (224x224) | 8.5 | 1.9 | 6.9x vs original (224x224) | 152 |
 | [`regnety_160`](models/classification.md#regnet) | yes | 12.1 (224x224) | 8.1 | 1.9 | 6.5x vs original (224x224) | 202 |
 | [`efficientnet_v2_s`](models/classification.md#efficientnetv2) | yes | 12.1 (224x224) | 10.2 | 1.9 | 6.4x vs original (224x224) | 81 |
-| [`convnext_base`](models/classification.md#convnext) | yes | 7.8 (224x224) | 5.7 | 2.0 | 3.9x vs original (224x224) | 208 |
-| [`convnext_base.fb_in1k`](models/classification.md#convnext) | yes | 7.8 (224x224) | 5.6 | 2.0 | 3.9x vs original (224x224) | 208 |
+| [`convnext_base.fb_in1k`](models/classification.md#convnext) | yes | 7.8 (224x224) | 5.8 | 2.0 | 3.9x vs original (224x224) | 208 |
+| [`convnext_base`](models/classification.md#convnext) | yes | 7.8 (224x224) | 5.8 | 2.0 | 3.9x vs original (224x224) | 208 |
 | [`efficientnet_b4`](models/classification.md#efficientnet) | yes | 11.1 (224x224) | 9.9 | 2.0 | 5.5x vs original (224x224) | 90 |
-| [`swin_base_patch4_window7_224`](models/classification.md#swin-transformer) | yes | 15.0 (224x224) | 10.8 | 2.1 | 7.0x vs original (224x224) | 246 |
-| [`convnext_small.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 8.0 (224x224) | 5.5 | 2.5 | 3.2x vs original (224x224) | 138 |
-| [`convnextv2_base`](models/classification.md#convnext-v2) | no | 10.7 (224x224) | 10.2 | 2.9 | 3.7x vs original (224x224) | 318 |
-| [`convnext_base.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 11.2 (224x224) | 5.5 | 3.0 | 3.7x vs original (224x224) | 213 |
-| [`tiny_vit_21m_512`](models/classification.md#tinyvit) | yes | – | 4.9 | 3.1 (512x512) | 1.6x vs portable | 237 |
-| [`convnext_large`](models/classification.md#convnext) | yes | 10.7 (224x224) | 5.6 | 3.3 | 3.2x vs original (224x224) | 419 |
-| [`convnext_large.fb_in1k`](models/classification.md#convnext) | yes | 10.7 (224x224) | 5.6 | 3.3 | 3.2x vs original (224x224) | 419 |
+| [`swin_base_patch4_window7_224`](models/classification.md#swin-transformer) | yes | 15.0 (224x224) | 10.8 | 2.2 | 6.9x vs original (224x224) | 218 |
+| [`convnext_small.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 8.0 (224x224) | 5.8 | 2.5 | 3.2x vs original (224x224) | 138 |
+| [`convnextv2_base`](models/classification.md#convnext-v2) | no | 10.7 (224x224) | 10.2 | 3.0 | 3.6x vs original (224x224) | 206 |
+| [`convnext_base.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 11.2 (224x224) | 5.8 | 3.0 | 3.7x vs original (224x224) | 213 |
+| [`tiny_vit_21m_512`](models/classification.md#tinyvit) | yes | – | 4.5 | 3.1 (512x512) | 1.4x vs portable | 237 |
+| [`convnext_large`](models/classification.md#convnext) | yes | 10.7 (224x224) | 5.9 | 3.3 | 3.2x vs original (224x224) | 419 |
+| [`convnext_large.fb_in1k`](models/classification.md#convnext) | yes | 10.7 (224x224) | 5.8 | 3.3 | 3.2x vs original (224x224) | 419 |
 | [`hgnetv2_b0`](models/classification.md#hgnetv2) | yes | 4.5 (224x224) | 3.5 | – | – | – |
 | [`hgnetv2_b1`](models/classification.md#hgnetv2) | yes | 4.6 (224x224) | 3.5 | – | – | – |
 | [`efficientformer_l1`](models/classification.md#efficientformer) | yes | 4.9 (224x224) | 3.7 | – | – | – |
@@ -232,7 +232,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`hgnetv2_b4`](models/classification.md#hgnetv2) | yes | 7.1 (224x224) | 4.5 | – | – | – |
 | [`hgnetv2_b2`](models/classification.md#hgnetv2) | yes | 6.2 (224x224) | 4.6 | – | – | – |
 | [`dinov2_vitl14_lc`](models/classification.md#dinov2-linear) | yes | 10.8 (224x224) | 5.4 | 4.9 | 2.2x vs original (224x224) | 623 |
-| [`convnext_large.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 11.5 (224x224) | 6.0 | 5.2 | 2.2x vs original (224x224) | 426 |
+| [`convnext_large.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | yes | 11.5 (224x224) | 6.1 | 5.2 | 2.2x vs original (224x224) | 426 |
 | [`hgnetv2_b3`](models/classification.md#hgnetv2) | yes | 7.2 (224x224) | 5.2 | – | – | – |
 | [`davit_tiny`](models/classification.md#davit) | yes | 6.9 (224x224) | 6.3 | – | – | – |
 | [`efficientformer_l3`](models/classification.md#efficientformer) | yes | 8.4 (224x224) | 6.4 | – | – | – |
@@ -386,24 +386,24 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`yolox-tiny`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 9.8 (800x1344) | 5.6 | 1.8 | 5.4x vs original (800x1344) | 22 |
-| [`rtmdet-nano-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 12.9 (800x1344) | 7.5 | 2.1 | 6.1x vs original (800x1344) | 11 |
+| [`yolox-tiny`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 9.8 (800x1344) | 5.3 | 1.8 | 5.5x vs original (800x1344) | 22 |
+| [`rtmdet-nano-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 12.9 (800x1344) | 7.4 | 1.8 | 7.1x vs original (800x1344) | 9 |
 | [`lw-detr-tiny-coco`](models/detection.md#lw-detr-vit-tiny--small--medium--large--xlarge) | yes | 16.4 (800x1344) | 7.4 | 2.2 | 7.5x vs original (800x1344) | 94 |
-| [`yolox-s`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 10.4 (800x1344) | 5.5 | 2.4 | 4.3x vs original (800x1344) | 40 |
-| [`rf-detr-n-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 10.5 (800x1344) | 9.4 | 2.5 | 4.2x vs original (800x1344) | 114 |
-| [`deim-n-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 24.6 (800x1344) | 10.2 | 2.5 | 9.8x vs original (800x1344) | 93 |
-| [`dfine-n-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 24.3 (800x1344) | 10.3 | 2.5 | 9.7x vs original (800x1344) | 93 |
-| [`rtmdet-tiny-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 10.7 (800x1344) | 6.0 | 2.7 | 3.9x vs original (800x1344) | 40 |
+| [`rf-detr-n-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 10.5 (800x1344) | 9.4 | 2.4 | 4.4x vs original (800x1344) | 117 |
+| [`yolox-s`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 10.4 (800x1344) | 5.3 | 2.4 | 4.3x vs original (800x1344) | 40 |
+| [`deim-n-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 24.6 (800x1344) | 10.4 | 2.5 | 10.0x vs original (800x1344) | 94 |
+| [`rtmdet-tiny-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 10.7 (800x1344) | 5.7 | 2.5 | 4.3x vs original (800x1344) | 29 |
+| [`dfine-n-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 24.3 (800x1344) | 10.4 | 2.5 | 9.8x vs original (800x1344) | 94 |
+| [`rtmdet-s-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 12.1 (800x1344) | 6.1 | 2.7 | 4.4x vs original (800x1344) | 38 |
 | [`lw-detr-small-coco`](models/detection.md#lw-detr-vit-tiny--small--medium--large--xlarge) | yes | 19.9 (800x1344) | 8.8 | 2.8 | 7.1x vs original (800x1344) | 99 |
-| [`rtmdet-s-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 12.1 (800x1344) | 6.2 | 3.0 | 4.1x vs original (800x1344) | 48 |
-| [`rf-detr-s-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 11.2 (800x1344) | 10.1 | 3.4 | 3.2x vs original (800x1344) | 125 |
+| [`rf-detr-s-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 11.2 (800x1344) | 10.0 | 3.3 | 3.3x vs original (800x1344) | 128 |
 | [`yolox-m`](models/detection.md#yolox-tiny--s--m--l--x) | yes | 12.4 (800x1344) | 6.0 | 3.4 | 3.6x vs original (800x1344) | 77 |
 | [`rf-detr-seg-n-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 13.0 (800x1344) | 11.7 | 3.7 | 3.5x vs original (800x1344) | 125 |
 | [`deim-s-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 26.4 (800x1344) | 11.3 | 3.7 | 7.1x vs original (800x1344) | 108 |
 | [`dfine-s-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 25.7 (800x1344) | 11.4 | 3.8 | 6.8x vs original (800x1344) | 108 |
 | [`lw-detr-medium-coco`](models/detection.md#lw-detr-vit-tiny--small--medium--large--xlarge) | yes | 23.3 (800x1344) | 8.8 | 3.8 | 6.2x vs original (800x1344) | 131 |
+| [`rf-detr-m-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 11.8 (800x1344) | 10.6 | 3.9 | 3.0x vs original (800x1344) | 136 |
 | [`rtmdet-m-person`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 14.1 (800x1344) | 7.2 | 3.9 | 3.6x vs original (800x1344) | 75 |
-| [`rf-detr-m-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 11.8 (800x1344) | 11.3 | 3.9 | 3.0x vs original (800x1344) | 133 |
 | [`rtdetrv2-s-coco`](models/detection.md#rt-detrv2-resnet-vd-s--m--m--l--x) | yes | 14.1 (800x1344) | 9.6 | 4.1 | 3.4x vs original (800x1344) | 137 |
 | [`rtmdet-m-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 14.7 (800x1344) | 7.5 | 4.3 | 3.4x vs original (800x1344) | 75 |
 | [`rf-detr-seg-s-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 13.0 (800x1344) | 12.0 | 4.3 | 3.0x vs original (800x1344) | 132 |
@@ -412,7 +412,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`deim-m-coco`](models/detection.md#d-fine-hgnetv2-n--s--m--l--x) | yes | 31.4 (800x1344) | 13.8 | 5.1 | 6.2x vs original (800x1344) | 129 |
 | [`rtdetrv2-m-coco`](models/detection.md#rt-detrv2-resnet-vd-s--m--m--l--x) | yes | 17.1 (800x1344) | 10.0 | 5.2 | 3.3x vs original (800x1344) | 159 |
 | [`rf-detr-l-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 11.8 (800x1344) | 10.6 | 5.3 | 2.2x vs original (800x1344) | 149 |
-| [`rf-detr-seg-m-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 14.4 (800x1344) | 13.2 | 5.4 | 2.7x vs original (800x1344) | 144 |
+| [`rf-detr-seg-m-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 14.4 (800x1344) | 13.3 | 5.3 | 2.7x vs original (800x1344) | 141 |
 | [`rtdetrv2-ms-coco`](models/detection.md#rt-detrv2-resnet-vd-s--m--m--l--x) | yes | 22.5 (800x1344) | 11.1 | 5.4 | 4.2x vs original (800x1344) | 169 |
 | [`rtmdet-l-coco`](models/detection.md#rtmdet-cspnext-tiny--s--m--l--x-nano-and-m-person-detectors) | yes | 19.5 (800x1344) | 9.6 | 5.5 | 3.5x vs original (800x1344) | 149 |
 | [`lw-detr-large-coco`](models/detection.md#lw-detr-vit-tiny--small--medium--large--xlarge) | yes | 22.8 (800x1344) | 10.2 | 5.6 | 4.0x vs original (800x1344) | 192 |
@@ -465,50 +465,50 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`yunet-s`](models/pose.md#yunet) | yes | 5.5 (1080x1920) | 2.7 | 2.0 | 2.8x vs original (1080x1920) | 84 |
 | [`yunet-n`](models/pose.md#yunet) | yes | 6.0 (1080x1920) | 2.9 | 2.2 | 2.7x vs original (1080x1920) | 84 |
 | [`retinaface-mobilenet0.25`](models/pose.md#retinaface) | yes | 75.9 (1080x1920) | 3.4 | 2.7 | 27.7x vs original (1080x1920) | 105 |
+| [`rtmpose-t`](models/pose.md#rtmpose) | yes | 150.9 (1080x1920) | 4.6 | 2.9 | 52.0x vs original (1080x1920) | 105 |
 | [`rtmpose-t-halpe26`](models/pose.md#rtmpose) | yes | 171.7 (1080x1920) | 4.6 | 2.9 | 59.2x vs original (1080x1920) | 105 |
-| [`rtmpose-t`](models/pose.md#rtmpose) | yes | 150.9 (1080x1920) | 4.5 | 2.9 | 52.0x vs original (1080x1920) | 129 |
-| [`rtmpose-s`](models/pose.md#rtmpose) | yes | 160.8 (1080x1920) | 4.9 | 3.0 | 53.4x vs original (1080x1920) | 133 |
-| [`rtmpose-s-halpe26`](models/pose.md#rtmpose) | yes | 171.7 (1080x1920) | 5.0 | 3.0 | 56.5x vs original (1080x1920) | 133 |
+| [`rtmpose-s-halpe26`](models/pose.md#rtmpose) | yes | 171.7 (1080x1920) | 5.0 | 3.0 | 56.3x vs original (1080x1920) | 110 |
+| [`rtmpose-s`](models/pose.md#rtmpose) | yes | 160.8 (1080x1920) | 4.9 | 3.1 | 52.1x vs original (1080x1920) | 109 |
 | [`dwpose-t`](models/pose.md#rtmpose) | yes | 160.1 (1080x1920) | 4.6 | 3.2 | 50.6x vs original (1080x1920) | 109 |
-| [`dwpose-s`](models/pose.md#rtmpose) | yes | 172.8 (1080x1920) | 5.0 | 3.3 | 52.3x vs original (1080x1920) | 138 |
+| [`dwpose-s`](models/pose.md#rtmpose) | yes | 172.8 (1080x1920) | 5.2 | 3.3 | 51.6x vs original (1080x1920) | 115 |
 | [`rtmpose-t-face6`](models/pose.md#rtmpose) | yes | 187.9 (1080x1920) | 4.5 | 3.6 | 52.1x vs original (1080x1920) | 123 |
 | [`rtmpose-s-face6`](models/pose.md#rtmpose) | yes | 237.1 (1080x1920) | 5.0 | 3.7 | 63.4x vs original (1080x1920) | 128 |
-| [`rtmpose-m`](models/pose.md#rtmpose) | yes | 178.7 (1080x1920) | 6.3 | 4.4 | 40.4x vs original (1080x1920) | 148 |
-| [`rtmpose-m-halpe26`](models/pose.md#rtmpose) | yes | 179.5 (1080x1920) | 6.4 | 4.5 | 40.2x vs original (1080x1920) | 149 |
-| [`dwpose-m`](models/pose.md#rtmpose) | yes | 164.3 (1080x1920) | 7.3 | 4.9 | 33.8x vs original (1080x1920) | 157 |
-| [`rtmpose-m-ap10k`](models/pose.md#rtmpose) | yes | 186.3 (1080x1920) | 8.0 | 5.4 | 34.5x vs original (1080x1920) | 163 |
-| [`rtmpose-m-hand5`](models/pose.md#rtmpose) | yes | 192.1 (1080x1920) | 8.0 | 5.4 | 35.3x vs original (1080x1920) | 163 |
-| [`rtmpose-l`](models/pose.md#rtmpose) | yes | 161.2 (1080x1920) | 8.9 | 5.6 | 28.6x vs original (1080x1920) | 175 |
-| [`rtmpose-l-halpe26`](models/pose.md#rtmpose) | yes | 164.4 (1080x1920) | 9.1 | 5.7 | 29.1x vs original (1080x1920) | 176 |
-| [`rtmpose-m-face6`](models/pose.md#rtmpose) | yes | 198.4 (1080x1920) | 8.7 | 5.8 | 34.3x vs original (1080x1920) | 169 |
+| [`rtmpose-m`](models/pose.md#rtmpose) | yes | 178.7 (1080x1920) | 6.4 | 4.5 | 39.7x vs original (1080x1920) | 125 |
+| [`rtmpose-m-halpe26`](models/pose.md#rtmpose) | yes | 179.5 (1080x1920) | 6.4 | 4.5 | 39.7x vs original (1080x1920) | 125 |
+| [`dwpose-m`](models/pose.md#rtmpose) | yes | 164.3 (1080x1920) | 7.3 | 4.9 | 33.8x vs original (1080x1920) | 133 |
+| [`rtmpose-m-ap10k`](models/pose.md#rtmpose) | yes | 186.3 (1080x1920) | 8.0 | 5.4 | 34.4x vs original (1080x1920) | 139 |
+| [`rtmpose-m-hand5`](models/pose.md#rtmpose) | yes | 192.1 (1080x1920) | 8.1 | 5.5 | 35.2x vs original (1080x1920) | 139 |
+| [`rtmpose-l-halpe26`](models/pose.md#rtmpose) | yes | 164.4 (1080x1920) | 9.1 | 5.7 | 28.9x vs original (1080x1920) | 152 |
+| [`rtmpose-l`](models/pose.md#rtmpose) | yes | 161.2 (1080x1920) | 9.0 | 5.7 | 28.3x vs original (1080x1920) | 152 |
+| [`rtmpose-m-face6`](models/pose.md#rtmpose) | yes | 198.4 (1080x1920) | 8.7 | 5.8 | 34.4x vs original (1080x1920) | 145 |
 | [`vitpose-plus-small`](models/pose.md#vitpose--vitpose) | yes | 104.1 (1080x1920) | 7.8 | 6.1 | 17.2x vs original (1080x1920) | 145 |
-| [`dwpose-l`](models/pose.md#rtmpose) | yes | 178.0 (1080x1920) | 10.2 | 6.2 | 28.7x vs original (1080x1920) | 186 |
+| [`dwpose-l`](models/pose.md#rtmpose) | yes | 178.0 (1080x1920) | 10.3 | 6.2 | 28.7x vs original (1080x1920) | 163 |
 | [`rtmo-s`](models/pose.md#rtmo) | yes | 11.4 (1080x1920) | 7.5 | 6.3 | 1.8x vs original (1080x1920) | 142 |
 | [`rtmo-t`](models/pose.md#rtmo) | yes | 11.3 (1080x1920) | 7.6 | 6.3 | 1.8x vs original (1080x1920) | 121 |
 | [`rtmo-m`](models/pose.md#rtmo) | yes | 14.3 (1080x1920) | 8.7 | 6.8 | 2.1x vs original (1080x1920) | 166 |
 | [`rtmw-m`](models/pose.md#rtmpose) | yes | 169.4 (1080x1920) | 10.9 | 7.5 | 22.5x vs original (1080x1920) | 164 |
 | [`rtmo-l`](models/pose.md#rtmo) | yes | 17.1 (1080x1920) | 10.8 | 8.3 | 2.1x vs original (1080x1920) | 208 |
-| [`rtmpose-m-384`](models/pose.md#rtmpose) | yes | 167.2 (1080x1920) | 13.1 | 9.0 | 18.6x vs original (1080x1920) | 202 |
-| [`rtmpose-m-halpe26-384`](models/pose.md#rtmpose) | yes | 192.0 (1080x1920) | 13.2 | 9.0 | 21.3x vs original (1080x1920) | 203 |
-| [`rf-detr-keypoint-preview`](models/pose.md#rf-detr-keypoint) | yes | 19.3 (1080x1920) | 18.3 | 9.5 | 2.0x vs original (1080x1920) | 176 |
+| [`rtmpose-m-384`](models/pose.md#rtmpose) | yes | 167.2 (1080x1920) | 13.3 | 9.2 | 18.1x vs original (1080x1920) | 178 |
+| [`rtmpose-m-halpe26-384`](models/pose.md#rtmpose) | yes | 192.0 (1080x1920) | 13.4 | 9.3 | 20.7x vs original (1080x1920) | 179 |
+| [`rf-detr-keypoint-preview`](models/pose.md#rf-detr-keypoint) | yes | 19.3 (1080x1920) | 18.2 | 9.5 | 2.0x vs original (1080x1920) | 176 |
 | [`hrnet-w32`](models/pose.md#hrnet) | yes | 176.0 (1080x1920) | 20.3 | 9.8 | 18.0x vs original (1080x1920) | 155 |
-| [`rtmw-l`](models/pose.md#rtmpose) | yes | 202.7 (1080x1920) | 15.1 | 10.2 | 19.8x vs original (1080x1920) | 232 |
-| [`rtmpose-l-384`](models/pose.md#rtmpose) | yes | 171.2 (1080x1920) | 19.3 | 11.2 | 15.3x vs original (1080x1920) | 229 |
-| [`rtmpose-l-halpe26-384`](models/pose.md#rtmpose) | yes | 206.2 (1080x1920) | 19.3 | 11.2 | 18.4x vs original (1080x1920) | 230 |
+| [`rtmw-l`](models/pose.md#rtmpose) | yes | 202.7 (1080x1920) | 15.3 | 10.0 | 20.3x vs original (1080x1920) | 217 |
+| [`rtmpose-l-384`](models/pose.md#rtmpose) | yes | 171.2 (1080x1920) | 19.4 | 11.4 | 14.9x vs original (1080x1920) | 217 |
+| [`rtmpose-l-halpe26-384`](models/pose.md#rtmpose) | yes | 206.2 (1080x1920) | 19.5 | 11.5 | 18.0x vs original (1080x1920) | 218 |
 | [`retinaface-resnet50`](models/pose.md#retinaface) | yes | 79.4 (1080x1920) | 24.3 | 11.7 | 6.8x vs original (1080x1920) | 379 |
-| [`vitpose-plus-base`](models/pose.md#vitpose--vitpose) | yes | 113.1 (1080x1920) | 19.9 | 11.9 | 9.5x vs original (1080x1920) | 274 |
+| [`vitpose-plus-base`](models/pose.md#vitpose--vitpose) | yes | 113.1 (1080x1920) | 17.9 | 11.9 | 9.5x vs original (1080x1920) | 274 |
 | [`vitpose-base`](models/pose.md#vitpose--vitpose) | yes | 105.4 (1080x1920) | 17.8 | 12.0 | 8.8x vs original (1080x1920) | 274 |
-| [`vitpose-base-simple`](models/pose.md#vitpose--vitpose) | yes | 109.1 (1080x1920) | 20.1 | 12.1 | 9.0x vs original (1080x1920) | 295 |
-| [`dwpose-l-384`](models/pose.md#rtmpose) | yes | 193.8 (1080x1920) | 21.2 | 12.5 | 15.5x vs original (1080x1920) | 240 |
-| [`rtmw-x`](models/pose.md#rtmpose) | yes | 207.0 (1080x1920) | 23.9 | 14.3 | 14.5x vs original (1080x1920) | 298 |
+| [`vitpose-base-simple`](models/pose.md#vitpose--vitpose) | yes | 109.1 (1080x1920) | 18.1 | 12.1 | 9.0x vs original (1080x1920) | 295 |
+| [`dwpose-l-384`](models/pose.md#rtmpose) | yes | 193.8 (1080x1920) | 21.4 | 12.7 | 15.2x vs original (1080x1920) | 229 |
+| [`rtmw-x`](models/pose.md#rtmpose) | yes | 207.0 (1080x1920) | 24.0 | 14.4 | 14.3x vs original (1080x1920) | 289 |
 | [`hrnet-w48`](models/pose.md#hrnet) | yes | 199.9 (1080x1920) | 32.0 | 15.6 | 12.8x vs original (1080x1920) | 222 |
-| [`rtmpose-x-halpe26-384`](models/pose.md#rtmpose) | yes | 217.4 (1080x1920) | 33.5 | 18.7 | 11.6x vs original (1080x1920) | 280 |
-| [`hrnet-w32-384`](models/pose.md#hrnet) | yes | 189.8 (1080x1920) | 38.8 | 19.7 | 9.7x vs original (1080x1920) | 250 |
-| [`rtmw-l-384`](models/pose.md#rtmpose) | yes | 274.5 (1080x1920) | 31.5 | 20.2 | 13.6x vs original (1080x1920) | 286 |
+| [`rtmpose-x-halpe26-384`](models/pose.md#rtmpose) | yes | 217.4 (1080x1920) | 33.8 | 19.1 | 11.4x vs original (1080x1920) | 280 |
+| [`hrnet-w32-384`](models/pose.md#hrnet) | yes | 189.8 (1080x1920) | 39.2 | 19.7 | 9.7x vs original (1080x1920) | 250 |
+| [`rtmw-l-384`](models/pose.md#rtmpose) | yes | 274.5 (1080x1920) | 31.8 | 20.6 | 13.3x vs original (1080x1920) | 276 |
 | [`vitpose-plus-large`](models/pose.md#vitpose--vitpose) | yes | 165.3 (1080x1920) | 53.7 | 33.2 | 5.0x vs original (1080x1920) | 706 |
-| [`hrnet-w48-384`](models/pose.md#hrnet) | yes | 244.5 (1080x1920) | 70.5 | 34.2 | 7.1x vs original (1080x1920) | 317 |
+| [`hrnet-w48-384`](models/pose.md#hrnet) | yes | 244.5 (1080x1920) | 70.7 | 34.2 | 7.1x vs original (1080x1920) | 317 |
 | [`rtmw-x-384`](models/pose.md#rtmpose) | yes | 290.6 (1080x1920) | 50.6 | 50.9 | 5.7x vs original (1080x1920) | 496 |
-| [`vitpose-plus-huge`](models/pose.md#vitpose--vitpose) | yes | 242.4 (1080x1920) | 104.4 | 62.5 | 3.9x vs original (1080x1920) | 1351 |
+| [`vitpose-plus-huge`](models/pose.md#vitpose--vitpose) | yes | 242.4 (1080x1920) | 101.7 | 62.5 | 3.9x vs original (1080x1920) | 1351 |
 
 ## Features
 
@@ -521,14 +521,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 |---|---|---|---|---|---|---|
 | [`pe-spatial-t16-512`](models/features.md#perception-encoder) | yes | 6.6 (224x224) | 4.5 | 0.7 | 9.8x vs original (224x224) | 53 |
 | [`pe-core-t16-384`](models/features.md#perception-encoder) | yes | 6.7 (224x224) | 4.7 | 0.7 | 9.9x vs original (224x224) | 53 |
-| [`dinov3-vits16`](models/features.md#dinov3-vit) | yes | 6.5 (224x224) | 3.5 | 0.8 | 8.2x vs original (224x224) | 44 |
+| [`dinov3-vits16`](models/features.md#dinov3-vit) | yes | 6.5 (224x224) | 3.4 | 0.8 | 8.2x vs original (224x224) | 44 |
 | [`dinov2-vits14`](models/features.md#dinov2) | yes | 3.3 (224x224) | 3.0 | 0.8 | 4.0x vs original (224x224) | 80 |
 | [`dinov2-vits14-reg`](models/features.md#dinov2) | yes | 4.1 (224x224) | 3.0 | 0.8 | 4.9x vs original (224x224) | 80 |
 | [`pe-spatial-s16-512`](models/features.md#perception-encoder) | yes | 6.7 (224x224) | 4.5 | 0.9 | 7.3x vs original (224x224) | 78 |
 | [`pe-core-s16-384`](models/features.md#perception-encoder) | yes | 7.0 (224x224) | 4.8 | 1.0 | 7.3x vs original (224x224) | 82 |
-| [`convnext_tiny.fb_in22k`](models/features.md#convnext) | yes | 3.9 (224x224) | 3.2 | 1.1 | 3.6x vs original (224x224) | 88 |
+| [`convnext_tiny.fb_in22k`](models/features.md#convnext) | yes | 3.9 (224x224) | 3.3 | 1.1 | 3.5x vs original (224x224) | 88 |
 | [`dinov3-convnext-tiny`](models/features.md#dinov3-convnext) | yes | 3.0 (224x224) | 3.0 | 1.2 | 2.4x vs original (224x224) | 59 |
-| [`dinov3-vitb16`](models/features.md#dinov3-vit) | yes | 7.0 (224x224) | 3.7 | 1.3 | 5.5x vs original (224x224) | 168 |
+| [`dinov3-vitb16`](models/features.md#dinov3-vit) | yes | 7.0 (224x224) | 3.6 | 1.3 | 5.5x vs original (224x224) | 168 |
 | [`clip-b16-laion2b`](models/features.md#clip) | yes | 5.3 (224x224) | 3.1 | 1.4 | 3.9x vs original (224x224) | 203 |
 | [`clip-b16-openai`](models/features.md#clip) | yes | 5.7 (224x224) | 3.4 | 1.4 | 4.2x vs original (224x224) | 203 |
 | [`c-radio-v3-b`](models/features.md#c-radiov3--v4) | yes | 5.8 (224x224) | 3.0 | 1.4 | 4.2x vs original (224x224) | 214 |
@@ -539,19 +539,19 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`tipsv2-b14`](models/features.md#tipsv2) | yes | 7.0 (224x224) | 2.9 | 1.5 | 4.7x vs original (224x224) | 206 |
 | [`dinov2-vitb14`](models/features.md#dinov2) | yes | 4.5 (224x224) | 2.9 | 1.5 | 3.0x vs original (224x224) | 208 |
 | [`dinov2-vitb14-reg`](models/features.md#dinov2) | yes | 4.3 (224x224) | 2.9 | 1.5 | 2.8x vs original (224x224) | 208 |
-| [`convnext_small.fb_in22k`](models/features.md#convnext) | yes | 7.5 (224x224) | 5.6 | 1.8 | 4.2x vs original (224x224) | 130 |
-| [`convnext_base.fb_in22k`](models/features.md#convnext) | yes | 7.7 (224x224) | 5.6 | 2.0 | 3.9x vs original (224x224) | 204 |
+| [`convnext_small.fb_in22k`](models/features.md#convnext) | yes | 7.5 (224x224) | 5.9 | 1.8 | 4.2x vs original (224x224) | 130 |
+| [`convnext_base.fb_in22k`](models/features.md#convnext) | yes | 7.7 (224x224) | 5.8 | 2.0 | 3.9x vs original (224x224) | 204 |
 | [`dinov3-convnext-small`](models/features.md#dinov3-convnext) | yes | 6.0 (224x224) | 5.4 | 2.0 | 3.0x vs original (224x224) | 100 |
 | [`dinov3-convnext-base`](models/features.md#dinov3-convnext) | yes | 7.4 (224x224) | 5.7 | 2.2 | 3.4x vs original (224x224) | 174 |
-| [`dinov3-vitl16`](models/features.md#dinov3-vit) | yes | 17.7 (224x224) | 6.7 | 3.0 | 5.8x vs original (224x224) | 616 |
-| [`convnext_large.fb_in22k`](models/features.md#convnext) | yes | 10.5 (224x224) | 5.5 | 3.2 | 3.3x vs original (224x224) | 413 |
+| [`dinov3-vitl16`](models/features.md#dinov3-vit) | yes | 17.7 (224x224) | 6.5 | 3.0 | 5.8x vs original (224x224) | 616 |
+| [`convnext_large.fb_in22k`](models/features.md#convnext) | yes | 10.5 (224x224) | 5.8 | 3.2 | 3.3x vs original (224x224) | 413 |
 | [`c-radio-v3-l`](models/features.md#c-radiov3--v4) | yes | 10.7 (224x224) | 5.5 | 3.3 | 3.3x vs original (224x224) | 645 |
 | [`siglip2-l16-512`](models/features.md#siglip-2) | yes | 11.1 (224x224) | 5.7 | 3.4 | 3.3x vs original (224x224) | 644 |
 | [`siglip2-l16-256`](models/features.md#siglip-2) | yes | 11.1 (224x224) | 5.7 | 3.4 | 3.3x vs original (224x224) | 643 |
 | [`dinov3-convnext-large`](models/features.md#dinov3-convnext) | yes | 9.6 (224x224) | 5.4 | 3.6 | 2.7x vs original (224x224) | 409 |
+| [`c-radio-v4-so400m`](models/features.md#c-radiov3--v4) | yes | 11.5 (224x224) | 6.2 | 4.1 | 2.8x vs original (224x224) | 861 |
 | [`siglip2-so400m16-256`](models/features.md#siglip-2) | yes | 12.6 (224x224) | 6.4 | 4.2 | 3.0x vs original (224x224) | 857 |
 | [`siglip2-so400m16-512`](models/features.md#siglip-2) | yes | 12.4 (224x224) | 6.4 | 4.2 | 2.9x vs original (224x224) | 858 |
-| [`c-radio-v4-so400m`](models/features.md#c-radiov3--v4) | yes | 11.5 (224x224) | 6.3 | 4.2 | 2.7x vs original (224x224) | 864 |
 | [`siglip2-so400m14-224`](models/features.md#siglip-2) | yes | 12.4 (224x224) | 6.4 | 4.3 | 2.9x vs original (224x224) | 858 |
 | [`siglip2-so400m14-378`](models/features.md#siglip-2) | yes | 12.5 (224x224) | 6.4 | 4.3 | 2.9x vs original (224x224) | 860 |
 | [`tipsv2-l14`](models/features.md#tipsv2) | yes | 14.2 (224x224) | 6.2 | 4.6 | 3.1x vs original (224x224) | 624 |
@@ -564,7 +564,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`clip-l14-laion2b`](models/features.md#clip) | yes | 10.1 (224x224) | 6.0 | 4.8 | 2.1x vs original (224x224) | 622 |
 | [`pe-spatial-l14-448`](models/features.md#perception-encoder) | yes | 17.2 (224x224) | 8.8 | 4.9 | 3.5x vs original (224x224) | 623 |
 | [`pe-core-l14-336`](models/features.md#perception-encoder) | yes | 17.7 (224x224) | 9.1 | 5.0 | 3.6x vs original (224x224) | 648 |
-| [`c-radio-v4-h`](models/features.md#c-radiov3--v4) | yes | 17.1 (224x224) | 8.9 | 7.4 | 2.3x vs original (224x224) | 1289 |
+| [`c-radio-v4-h`](models/features.md#c-radiov3--v4) | yes | 17.1 (224x224) | 8.9 | 7.4 | 2.3x vs original (224x224) | 1286 |
 | [`c-radio-v3-h`](models/features.md#c-radiov3--v4) | yes | 17.0 (224x224) | 8.9 | 7.4 | 2.3x vs original (224x224) | 1286 |
 | [`clip-h14-378-dfn5b`](models/features.md#clip) | no | 19.5 (224x224) | 11.4 | 8.2 | 2.4x vs original (224x224) | 1251 |
 | [`clip-h14-laion2b`](models/features.md#clip) | yes | 19.3 (224x224) | 11.2 | 8.3 | 2.3x vs original (224x224) | 1250 |
@@ -617,8 +617,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`mvsplat-re10k`](models/multiview.md#mvsplat) | yes | 279.3 (336x518) | 180.9 | 172.5 | 1.6x vs original (336x518) | 1239 |
 | [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | 493.4 (480x640) | 1723.4 | 362.1 | 1.4x vs original (480x640) | 4981 |
 | [`anysplat`](models/multiview.md#anysplat) | yes | 741.2 (336x518) | 503.2 | 363.7 | 2.0x vs original (336x518) | 4849 |
-| [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 651.2 | 458.4 | 2.1x vs original (336x518) | 3702 |
-| [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 464.4 | 2.0x vs original (336x518) | 3422 |
+| [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 651.5 | 459.8 | 2.1x vs original (336x518) | 3650 |
+| [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 466.9 | 1.9x vs original (336x518) | 3404 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 820.8 | 558.7 | 1.9x vs original (336x518) | 2367 |
 | [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 729.7 | – | – | – |
@@ -628,29 +628,29 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 43 models; size 1080x1920.
 
-- Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
+- Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.2 ms).
 - Most accurate: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.315).
-- Fastest commercially usable: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.0 ms).
+- Fastest commercially usable: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.2 ms).
 - Most accurate commercially usable: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.315).
 
 | model | commercial use | KITTI 2015 train EPE (px) | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
-| [`sea-raft-s-spring`](models/flow.md#sea-raft) | yes | 7.757 † | 42.4 (1080x1920) | 32.8 | 16.0 | 2.6x vs original (1080x1920) | 160 |
-| [`sea-raft-m-spring`](models/flow.md#sea-raft) | yes | 6.783 † | 56.7 (1080x1920) | 46.8 | 23.2 | 2.4x vs original (1080x1920) | 181 |
-| [`raft-small`](models/flow.md#raft) | yes | 7.834 | 196.1 (1080x1920) | 144.2 | 36.3 | 5.4x vs original (1080x1920) | 197 |
+| [`sea-raft-s-spring`](models/flow.md#sea-raft) | yes | 7.757 † | 42.4 (1080x1920) | 32.8 | 16.2 | 2.6x vs original (1080x1920) | 150 |
+| [`sea-raft-m-spring`](models/flow.md#sea-raft) | yes | 6.783 † | 56.7 (1080x1920) | 46.8 | 23.5 | 2.4x vs original (1080x1920) | 170 |
+| [`raft-small`](models/flow.md#raft) | yes | 7.834 | 196.1 (1080x1920) | 144.2 | 36.5 | 5.4x vs original (1080x1920) | 196 |
 | [`recover-mn`](models/flow.md#recover) | yes | 1.681 † | 102.7 (1080x1920) | 45.5 | 41.8 | 2.5x vs original (1080x1920) | 580 |
-| [`sea-raft-s`](models/flow.md#sea-raft) | yes | 1.054 † | 299.6 (1080x1920) | 210.6 | 50.4 | 6.0x vs original (1080x1920) | 415 |
-| [`sea-raft-s-kitti`](models/flow.md#sea-raft) | yes | 0.935 † | 299.0 (1080x1920) | 210.4 | 50.5 | 5.9x vs original (1080x1920) | 415 |
+| [`sea-raft-s`](models/flow.md#sea-raft) | yes | 1.054 † | 299.6 (1080x1920) | 210.6 | 50.6 | 5.9x vs original (1080x1920) | 404 |
+| [`sea-raft-s-kitti`](models/flow.md#sea-raft) | yes | 0.935 † | 299.0 (1080x1920) | 210.4 | 50.7 | 5.9x vs original (1080x1920) | 404 |
 | [`recover-rn`](models/flow.md#recover) | yes | 1.292 † | 130.3 (1080x1920) | 64.1 | 51.3 | 2.5x vs original (1080x1920) | 590 |
 | [`neuflow-v2-things`](models/flow.md#neuflow-v2) | yes | 4.095 | 75.8 (1080x1920) | 71.4 | 58.9 | 1.3x vs original (1080x1920) | 779 |
 | [`neuflow-v2-sintel`](models/flow.md#neuflow-v2) | yes | 1.566 † | 75.7 (1080x1920) | 71.3 | 58.9 | 1.3x vs original (1080x1920) | 790 |
 | [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.577 † | 75.6 (1080x1920) | 71.2 | 59.1 | 1.3x vs original (1080x1920) | 790 |
-| [`sea-raft-m-things`](models/flow.md#sea-raft) | yes | 4.307 | 367.3 (1080x1920) | 270.3 | 73.1 | 5.0x vs original (1080x1920) | 435 |
-| [`sea-raft-m-kitti`](models/flow.md#sea-raft) | yes | 0.808 † | 367.3 (1080x1920) | 269.9 | 73.1 | 5.0x vs original (1080x1920) | 435 |
-| [`sea-raft-m`](models/flow.md#sea-raft) | yes | 0.880 † | 366.9 (1080x1920) | 270.3 | 73.1 | 5.0x vs original (1080x1920) | 435 |
-| [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 291.5 | 83.1 | 5.8x vs original (1080x1920) | 333 |
-| [`raft-large`](models/flow.md#raft) | yes | 1.526 † | 479.5 (1080x1920) | 290.9 | 83.5 | 5.7x vs original (1080x1920) | 342 |
-| [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 291.0 | 83.6 | 5.7x vs original (1080x1920) | 333 |
+| [`sea-raft-m-things`](models/flow.md#sea-raft) | yes | 4.307 | 367.3 (1080x1920) | 270.3 | 73.0 | 5.0x vs original (1080x1920) | 425 |
+| [`sea-raft-m-kitti`](models/flow.md#sea-raft) | yes | 0.808 † | 367.3 (1080x1920) | 269.9 | 73.3 | 5.0x vs original (1080x1920) | 425 |
+| [`sea-raft-m`](models/flow.md#sea-raft) | yes | 0.880 † | 366.9 (1080x1920) | 270.3 | 73.4 | 5.0x vs original (1080x1920) | 425 |
+| [`raft-large`](models/flow.md#raft) | yes | 1.526 † | 479.5 (1080x1920) | 290.9 | 83.4 | 5.7x vs original (1080x1920) | 332 |
+| [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 291.5 | 83.5 | 5.8x vs original (1080x1920) | 332 |
+| [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 291.0 | 84.2 | 5.7x vs original (1080x1920) | 332 |
 | [`recover-cx`](models/flow.md#recover) | yes | 1.043 † | 178.6 (1080x1920) | 107.2 | 89.8 | 2.0x vs original (1080x1920) | 733 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | – | – | 385.6 | 380.0 (375x1242) | 1.0x vs portable | 1137 |
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | – | – | – |
@@ -787,7 +787,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1426.7 | 2.1x vs original (512x512) | 2298 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1596.7 | 1426.9 | 2.1x vs original (512x512) | 2298 |
 | [`seedvr2-3b`](models/restoration.md#seedvr2) | yes | 13150.0 (512x512) | 2295.0 | 2295.8 | 5.7x vs original (512x512) | 6140 |
-| [`seedvr2-7b`](models/restoration.md#seedvr2) | yes | OOM (512x512) | 2714.8 | 2711.5 | 1.0x vs portable | 6419 |
+| [`seedvr2-7b`](models/restoration.md#seedvr2) | yes | OOM (512x512) | 2712.4 | 2713.0 | 1.0x vs portable | 6402 |
 
 ## Volume
 

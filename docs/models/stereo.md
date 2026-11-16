@@ -81,8 +81,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`selective-igev-middlebury-finetune`](#selective_igev) | yes | 24.24 | 349, 4.2x | 1390, 0.65x |
 | [`selective-igev-middlebury-train`](#selective_igev) | yes | 10.25 | 349, 4.2x | 1390, 0.65x |
 | [`selective-igev-sceneflow`](#selective_igev) | yes | 6.06 | 349, 4.2x | 1390, 0.65x |
-| [`waft-stereo-b`](#waft_stereo) | no | 0.74 ? | 385, 3.0x | 2152, 0.37x |
-| [`waft-stereo-s`](#waft_stereo) | yes | 0.95 ? | 281, 2.5x | 1282, 0.38x |
+| [`waft-stereo-b`](#waft_stereo) | no | 0.74 ? | 388, 2.9x | 1932, 0.33x |
+| [`waft-stereo-s`](#waft_stereo) | yes | 0.95 ? | 284, 2.4x | 1102, 0.32x |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
@@ -1865,8 +1865,8 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>689<br>281<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>1113 / 1282<br>2024 / 2058<br>1061 / 1114 |
-| `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1898<br>1140<br>1137<br>385<br>571<br>planned for 0.2.1 | 7348 / 7528<br>5743 / 5876<br>5775 / 5852<br>1906 / 2152<br>3908 / 3936<br>– |
+| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>689<br>284<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>954 / 1102<br>2024 / 2058<br>1061 / 1114 |
+| `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1898<br>1140<br>1137<br>388<br>571<br>planned for 0.2.1 | 7348 / 7528<br>5743 / 5876<br>5775 / 5852<br>1664 / 1932<br>3908 / 3936<br>– |
 
 <details><summary>Details</summary>
 

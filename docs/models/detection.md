@@ -14,14 +14,14 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 |---|---|---|---|
 | [`deim-l-coco`](#dfine) | yes | 6.50, 5.6x | 216, 0.67x |
 | [`deim-m-coco`](#dfine) | yes | 5.08, 6.2x | 184, 0.74x |
-| [`deim-n-coco`](#dfine) | yes | 2.50, 9.8x | 122, 0.98x |
+| [`deim-n-coco`](#dfine) | yes | 2.46, 10.0x | 118, 0.95x |
 | [`deim-s-coco`](#dfine) | yes | 3.73, 7.1x | 170, 0.94x |
 | [`deim-x-coco`](#dfine) | yes | 9.53, 4.3x | 298, 0.59x |
 | [`detr-r101-coco`](#detr) | yes | 13.7, 5.8x | 328, 0.52x |
 | [`detr-r50-coco`](#detr) | yes | 9.93, 5.6x | 272, 0.5x |
 | [`dfine-l-coco`](#dfine) | yes | 6.53, 5.7x | 216, 0.66x |
 | [`dfine-m-coco`](#dfine) | yes | 5.07, 6.1x | 184, 0.72x |
-| [`dfine-n-coco`](#dfine) | yes | 2.52, 9.7x | 122, 1.0x |
+| [`dfine-n-coco`](#dfine) | yes | 2.48, 9.8x | 118, 0.97x |
 | [`dfine-s-coco`](#dfine) | yes | 3.75, 6.8x | 170, 0.92x |
 | [`dfine-x-coco`](#dfine) | yes | 9.59, 4.7x | 298, 0.61x |
 | [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.5, 2.1x | 450, 0.64x |
@@ -38,12 +38,12 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`owlv2-b16`](#owlv2) | yes | 23.7, 3.9x | 612, 0.64x |
 | [`owlv2-l14`](#owlv2) | yes | 110, 1.9x | 1184, 0.45x |
 | [`rf-detr-l-coco`](#rfdetr) | yes | 5.30, 2.2x | 206, 0.86x |
-| [`rf-detr-m-coco`](#rfdetr) | yes | 3.90, 3.0x | 180, 1.0x |
-| [`rf-detr-n-coco`](#rfdetr) | yes | 2.46, 4.2x | 142, 0.89x |
-| [`rf-detr-s-coco`](#rfdetr) | yes | 3.44, 3.2x | 170, 0.71x |
+| [`rf-detr-m-coco`](#rfdetr) | yes | 3.86, 3.0x | 178, 1.0x |
+| [`rf-detr-n-coco`](#rfdetr) | yes | 2.39, 4.4x | 142, 0.89x |
+| [`rf-detr-s-coco`](#rfdetr) | yes | 3.33, 3.3x | 172, 0.72x |
 | [`rf-detr-seg-2xl-coco`](#rfdetr) | yes | 16.0, 1.6x | 312, 0.89x |
 | [`rf-detr-seg-l-coco`](#rfdetr) | yes | 6.60, 2.3x | 208, 0.42x |
-| [`rf-detr-seg-m-coco`](#rfdetr) | yes | 5.36, 2.7x | 204, 0.48x |
+| [`rf-detr-seg-m-coco`](#rfdetr) | yes | 5.31, 2.7x | 202, 0.48x |
 | [`rf-detr-seg-n-coco`](#rfdetr) | yes | 3.68, 3.5x | 170, 0.57x |
 | [`rf-detr-seg-s-coco`](#rfdetr) | yes | 4.28, 3.0x | 178, 0.47x |
 | [`rf-detr-seg-xl-coco`](#rfdetr) | yes | 10.4, 1.8x | 268, 1.1x |
@@ -55,14 +55,14 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`rtmdet-l-coco`](#rtmdet) | yes | 5.52, 3.5x | 286, 0.91x |
 | [`rtmdet-m-coco`](#rtmdet) | yes | 4.27, 3.4x | 182, 0.92x |
 | [`rtmdet-m-person`](#rtmdet) | yes | 3.89, 3.6x | 182, 0.92x |
-| [`rtmdet-nano-person`](#rtmdet) | yes | 2.11, 6.1x | 52, 1.7x |
-| [`rtmdet-s-coco`](#rtmdet) | yes | 2.97, 4.1x | 96, 1.0x |
-| [`rtmdet-tiny-coco`](#rtmdet) | yes | 2.74, 3.9x | 84, 1.3x |
+| [`rtmdet-nano-person`](#rtmdet) | yes | 1.82, 7.1x | 52, 1.7x |
+| [`rtmdet-s-coco`](#rtmdet) | yes | 2.75, 4.4x | 94, 1.0x |
+| [`rtmdet-tiny-coco`](#rtmdet) | yes | 2.46, 4.3x | 66, 1.0x |
 | [`rtmdet-x-coco`](#rtmdet) | yes | 8.30, 2.9x | 378, 0.73x |
 | [`yolox-l`](#yolox) | yes | 5.02, 3.0x | 250, 0.84x |
 | [`yolox-m`](#yolox) | yes | 3.44, 3.6x | 184, 1.1x |
-| [`yolox-s`](#yolox) | yes | 2.43, 4.3x | 92, 1.0x |
-| [`yolox-tiny`](#yolox) | yes | 1.80, 5.4x | 88, 1.5x |
+| [`yolox-s`](#yolox) | yes | 2.43, 4.3x | 94, 1.0x |
+| [`yolox-tiny`](#yolox) | yes | 1.79, 5.5x | 68, 1.2x |
 | [`yolox-x`](#yolox) | yes | 7.56, 2.3x | 378, 0.75x |
 
 <a id="dfine"></a>
@@ -75,12 +75,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.3<br>29.1<br>10.3<br>2.52<br>5.43<br>0.942 | 91 / 122<br>92 / 126<br>88 / 116<br>93 / 122<br>101 / 118<br>113 / 128 |
+| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.3<br>29.1<br>10.4<br>2.48<br>5.43<br>0.942 | 91 / 122<br>92 / 126<br>92 / 114<br>94 / 118<br>101 / 118<br>113 / 128 |
 | `dfine-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.7<br>31.9<br>11.4<br>3.75<br>5.63<br>1.65 | 180 / 204<br>152 / 184<br>108 / 128<br>108 / 170<br>131 / 152<br>147 / 160 |
 | `dfine-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 30.8<br>38.2<br>13.7<br>5.07<br>6.79<br>2.49 | 231 / 264<br>209 / 256<br>129 / 142<br>129 / 184<br>149 / 166<br>204 / 232 |
 | `dfine-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 37.1<br>44.9<br>16.6<br>6.53<br>7.91<br>3.19 | 281 / 328<br>278 / 350<br>155 / 172<br>151 / 216<br>175 / 198<br>219 / 256 |
 | `dfine-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.9<br>54.6<br>18.6<br>9.59<br>11.0<br>5.03 | 452 / 488<br>476 / 536<br>230 / 258<br>231 / 298<br>245 / 284<br>342 / 374 |
-| `deim-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.6<br>10.2<br>2.50<br>5.44<br>1.01 | 93 / 124<br>88 / 116<br>93 / 122<br>101 / 118<br>113 / 128 |
+| `deim-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.6<br>10.4<br>2.46<br>5.44<br>1.01 | 93 / 124<br>92 / 114<br>94 / 118<br>101 / 118<br>113 / 128 |
 | `deim-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 26.4<br>11.3<br>3.73<br>5.63<br>1.68 | 154 / 180<br>108 / 128<br>108 / 170<br>131 / 152<br>163 / 176 |
 | `deim-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 31.4<br>13.8<br>5.08<br>6.73<br>2.54 | 210 / 250<br>129 / 142<br>129 / 184<br>149 / 166<br>204 / 232 |
 | `deim-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 36.1<br>16.3<br>6.50<br>7.99<br>3.39 | 264 / 322<br>155 / 172<br>151 / 216<br>175 / 198<br>229 / 266 |
@@ -548,13 +548,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rf-detr-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>9.43<br>2.46<br>4.58<br>1.15 | 118 / 160<br>114 / 140<br>114 / 142<br>141 / 156<br>179 / 208 |
-| `rf-detr-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.2<br>10.1<br>3.44<br>4.56<br>1.83 | 189 / 238<br>126 / 148<br>125 / 170<br>150 / 162<br>188 / 214 |
-| `rf-detr-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.8<br>11.3<br>3.90<br>4.92<br>2.10 | 140 / 174<br>136 / 156<br>133 / 180<br>156 / 166<br>194 / 216 |
+| `rf-detr-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>9.39<br>2.39<br>4.58<br>1.15 | 118 / 160<br>117 / 140<br>117 / 142<br>141 / 156<br>179 / 208 |
+| `rf-detr-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.2<br>10.0<br>3.33<br>4.56<br>1.83 | 189 / 238<br>128 / 148<br>128 / 172<br>150 / 162<br>188 / 214 |
+| `rf-detr-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.8<br>10.6<br>3.86<br>4.92<br>2.10 | 140 / 174<br>136 / 156<br>136 / 178<br>156 / 166<br>194 / 216 |
 | `rf-detr-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.8<br>10.6<br>5.30<br>5.32<br>2.87 | 219 / 240<br>149 / 184<br>149 / 206<br>164 / 182<br>203 / 222 |
 | `rf-detr-seg-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>11.7<br>3.68<br>6.59<br>1.52 | 255 / 298<br>125 / 148<br>125 / 170<br>158 / 166<br>189 / 218 |
 | `rf-detr-seg-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>12.0<br>4.28<br>6.55<br>2.00 | 327 / 382<br>132 / 154<br>132 / 178<br>162 / 190<br>197 / 224 |
-| `rf-detr-seg-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.4<br>13.2<br>5.36<br>6.86<br>2.50 | 381 / 424<br>141 / 180<br>144 / 204<br>172 / 194<br>208 / 228 |
+| `rf-detr-seg-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.4<br>13.3<br>5.31<br>6.86<br>2.50 | 381 / 424<br>141 / 180<br>141 / 202<br>172 / 194<br>208 / 228 |
 | `rf-detr-seg-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>14.1<br>6.60<br>7.08<br>3.30 | 459 / 492<br>150 / 168<br>150 / 208<br>190 / 208<br>218 / 234 |
 | `rf-detr-seg-xl-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.7<br>18.1<br>10.4<br>10.8<br>5.20 | 182 / 248<br>177 / 206<br>178 / 268<br>212 / 246<br>302 / 326 |
 | `rf-detr-seg-2xl-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.6<br>26.0<br>16.0<br>16.9<br>8.62 | 287 / 352<br>207 / 228<br>209 / 312<br>245 / 308<br>334 / 366 |
@@ -737,12 +737,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rtmdet-tiny-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>13.8<br>6.04<br>2.74<br>3.43<br>0.962 | 73 / 96<br>48 / 64<br>40 / 56<br>40 / 84<br>64 / 94<br>80 / 122 |
-| `rtmdet-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.1<br>14.5<br>6.21<br>2.97<br>3.56<br>1.19 | 86 / 106<br>73 / 92<br>53 / 82<br>48 / 96<br>76 / 98<br>93 / 130 |
+| `rtmdet-tiny-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.7<br>13.8<br>5.74<br>2.46<br>3.43<br>0.962 | 73 / 96<br>48 / 64<br>36 / 56<br>29 / 66<br>64 / 94<br>80 / 122 |
+| `rtmdet-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.1<br>14.5<br>6.13<br>2.75<br>3.56<br>1.19 | 86 / 106<br>73 / 92<br>49 / 82<br>38 / 94<br>76 / 98<br>93 / 130 |
 | `rtmdet-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.7<br>17.8<br>7.50<br>4.27<br>4.78<br>2.39 | 168 / 200<br>168 / 198<br>92 / 112<br>75 / 182<br>115 / 130<br>156 / 212 |
 | `rtmdet-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.5<br>20.4<br>9.59<br>5.52<br>10.6<br>3.59 | 295 / 316<br>332 / 356<br>170 / 210<br>149 / 286<br>178 / 226<br>283 / 318 |
 | `rtmdet-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 32.2<br>24.2<br>13.1<br>8.30<br>11.8<br>6.17 | 480 / 518<br>585 / 604<br>254 / 298<br>229 / 378<br>271 / 292<br>471 / 504 |
-| `rtmdet-nano-person` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.9<br>16.0<br>7.45<br>2.11<br>4.23<br>0.769 | 14 / 30<br>12 / 30<br>9 / 28<br>11 / 52<br>48 / 64<br>49 / 58 |
+| `rtmdet-nano-person` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.9<br>16.0<br>7.39<br>1.82<br>4.23<br>0.769 | 14 / 30<br>12 / 30<br>9 / 28<br>9 / 52<br>48 / 64<br>49 / 58 |
 | `rtmdet-m-person` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.1<br>16.3<br>7.18<br>3.89<br>4.44<br>2.38 | 168 / 200<br>168 / 198<br>92 / 112<br>75 / 182<br>115 / 128<br>153 / 190 |
 
 <details><summary>Details</summary>
@@ -840,8 +840,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `yolox-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.79<br>5.58<br>1.80<br>2.87<br>0.561 | 32 / 58<br>60 / 92<br>22 / 88<br>58 / 94<br>62 / 90 |
-| `yolox-s` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.4<br>5.55<br>2.43<br>2.95<br>1.02 | 67 / 90<br>79 / 100<br>40 / 92<br>74 / 96<br>86 / 126 |
+| `yolox-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.79<br>5.25<br>1.79<br>2.87<br>0.561 | 32 / 58<br>22 / 56<br>22 / 68<br>58 / 94<br>62 / 90 |
+| `yolox-s` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.4<br>5.27<br>2.43<br>2.95<br>1.02 | 67 / 90<br>46 / 60<br>40 / 94<br>74 / 96<br>86 / 126 |
 | `yolox-m` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.4<br>6.03<br>3.44<br>3.70<br>2.03 | 142 / 160<br>87 / 112<br>77 / 184<br>111 / 132<br>152 / 194 |
 | `yolox-l` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.1<br>7.66<br>5.02<br>6.15<br>3.10 | 265 / 298<br>151 / 170<br>139 / 250<br>173 / 208<br>279 / 324 |
 | `yolox-x` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.2<br>11.6<br>7.56<br>11.3<br>5.28 | 450 / 504<br>246 / 280<br>230 / 378<br>265 / 296<br>432 / 478 |

@@ -34,7 +34,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`restormer-derain`](#restormer) | yes | 180, 1.3x | 920, 0.65x |
 | [`restormer-sidd`](#restormer) | yes | 179, 1.2x | 940, 0.66x |
 | [`seedvr2-3b`](#seedvr2) | yes | 2296, 5.7x | 6772, 0.44x |
-| [`seedvr2-7b`](#seedvr2) | yes | 2712 | 8880 |
+| [`seedvr2-7b`](#seedvr2) | yes | 2713 | 7034 |
 | [`span-x2`](#span) | yes | 14.9, 1.6x | 522, 0.81x |
 | [`span-x4`](#span) | yes | 14.6, 1.8x | 522, 0.81x |
 | [`swin2sr-x2`](#swin2sr) | yes | 721, 3.6x | 1636, 1.0x |
@@ -653,7 +653,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2296<br>deferred (build >5 min)<br>fails: not run: onnx is not installed in the test venv | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>–<br>– |
-| `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2715<br>2712<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>deferred (build >5 min) | –<br>6419 / 8880<br>6419 / 8880<br>–<br>– |
+| `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2712<br>2713<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>deferred (build >5 min) | –<br>6402 / 7034<br>6402 / 7034<br>–<br>– |
 
 <details><summary>Details</summary>
 
