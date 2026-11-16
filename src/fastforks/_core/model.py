@@ -49,6 +49,7 @@ from fastforks._core.files import stamped
 from fastforks._core.kernels import begin_call, checked, cuda_device
 from fastforks._core.runner import Context, Runner
 from fastforks._core.sizes import SizeRange, size_range
+from fastforks.shared.arena import compact_runner
 from fastforks._core.tasks import spec
 
 if TYPE_CHECKING:
@@ -1212,6 +1213,7 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
         claim_kernels_device(device)
     adapt_to_device(runner, mode, device)
     if device.type == "cuda":
+        compact_runner(runner)  # the build's freed copies / casts leave holes in the reserved memory: one arena
         warmup.wait(device)  # the loaded model starts on a clean device: no warm-up step (cuBLAS workspace) still live
         torch.cuda.empty_cache()  # nor the build's freed buffers (device checkpoint copies, casts) as reserved memory
     backend = Backend(

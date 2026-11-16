@@ -26,7 +26,7 @@ def test_compact_keeps_values_and_shares_one_arena_cpu_untouched() -> None:
 
 @pytest.mark.gpu
 @pytest.mark.slow
-def test_compact_gpu_one_storage_per_dtype_aligned_ties_kept() -> None:
+def test_compact_gpu_one_storage_aligned_ties_and_views_kept() -> None:
     net = _net("cuda")
     want = {k: v.clone() for k, v in net.state_dict().items()}
     net.alias = nn.Parameter(net[2].weight.data, requires_grad=False)  # shares storage with 2.weight: stays shared
@@ -36,6 +36,23 @@ def test_compact_gpu_one_storage_per_dtype_aligned_ties_kept() -> None:
     assert len({p.untyped_storage().data_ptr() for p in arena}) == 1
     assert all(p.data_ptr() % 512 == 0 for p in arena)
     assert net.alias.data_ptr() == net[2].weight.data_ptr()
+    assert net[2].weight.untyped_storage().data_ptr() == net.alias.untyped_storage().data_ptr()
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_compact_keeps_views_of_one_storage_and_buffers() -> None:
+    net = nn.Module()
+    packed = torch.arange(24, dtype=torch.float16, device="cuda")
+    net.a = nn.Parameter(packed[:8].view(2, 4), requires_grad=False)  # views of one packed storage
+    net.b = nn.Parameter(packed[8:].view(4, 4)[:, :2], requires_grad=False)  # not contiguous
+    net.register_buffer("c", torch.ones(3, device="cuda"))
+    want = [t.clone() for t in (net.a, net.b, net.c)]
+    del packed
+    compact(net)
+    assert all(torch.equal(w, t) for w, t in zip(want, (net.a, net.b, net.c), strict=True))
+    assert net.a.untyped_storage().data_ptr() == net.b.untyped_storage().data_ptr()
+    assert net.b.stride() == (4, 1)
 
 
 @pytest.mark.gpu

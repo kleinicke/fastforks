@@ -21,7 +21,6 @@ from fastforks.features._runner import Forward, Runner
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.kernels.fastbb import load as load_kernels
-from fastforks.shared.arena import compact
 from fastforks.shared.cuda_graphs import CAPTURE_LOCK, GraphCache, capture_stream
 from fastforks.shared.depth_anything_v2.fast_vit import HEAD_DIM, _flash, _fp16_accumulate
 
@@ -61,10 +60,7 @@ def _network(
     with torch.device("meta"):
         net = DINOv3ViT(CONFIGS[ctx.params.arch])
     sd = _state(ctx) if sd is None else sd
-    net = net.load(sd, stream_scale, f"{ctx.variant.ref} checkpoint", dtype).eval().pack()
-    return cast(
-        "DINOv3ViT", compact(net)
-    )  # one allocation: the build's freed fp32 copies leave no holes in the reserved memory
+    return net.load(sd, stream_scale, f"{ctx.variant.ref} checkpoint", dtype).eval().pack()
 
 
 def _init(runner: Runner, arch: str) -> None:
