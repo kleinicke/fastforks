@@ -157,6 +157,24 @@ DICOM series: `volume.read_dicom("series_folder")` (needs `pip install "fastfork
 `(ct, meta)` as `read_nifti`: slices sorted by position, Hounsfield units, RAS-canonical `[D, H, W]` (no flipping),
 spacing and affine from the tags; `model(ct, meta=meta)` and `write_nifti` work as above. Give a folder with one series.
 
+Detections to a picture and to COCO-style records (`det` as above; one image):
+
+```python
+from PIL import Image, ImageDraw
+
+image = Image.open("street.jpg")
+result = det(image, score_threshold=0.5)  # the default 0.05 keeps up to 100 mostly spurious boxes
+draw = ImageDraw.Draw(image)
+for d in result.to_list():  # box = (x0, y0, x1, y1) pixels; label = index into det.class_names (not a COCO category id)
+    draw.rectangle(d["box"], outline="red", width=2)
+    draw.text(d["box"][:2], f'{d["class_name"]} {d["score"]:.2f}', fill="red")
+image.save("detections.png")
+coco = [  # COCO results format: bbox = [x, y, width, height]; category_id: look the name up in your annotation file
+    {"image_id": 1, "category_name": d["class_name"], "score": d["score"], "bbox": [d["box"][0], d["box"][1], d["box"][2] - d["box"][0], d["box"][3] - d["box"][1]]}
+    for d in result.to_list()
+]
+```
+
 Dense matching of two photos ([models](models/matching.md), [API](api/matching.md)): warp, matches, geometry and a plot (PIL only):
 
 ```python

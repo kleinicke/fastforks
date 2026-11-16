@@ -4,7 +4,7 @@
 from fastforks import detection
 
 model = detection.load("mask-rcnn-r50-fpn-3x-coco", mode="kernels")
-result = model("street.jpg")
+result = model("street.jpg", score_threshold=0.5)  # default 0.05: up to 100 boxes, most of them spurious
 for d in result.to_list():  # best first
     print(d["class_name"], d["score"], d["box"])  # d["mask"]: [H, W] bool (mask models)
 ```
