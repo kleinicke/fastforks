@@ -56,6 +56,8 @@ def _size(model: Any) -> Any:  # noqa: ANN401
         return BenchSize(32, 64, 4)
     if model.card.task in ("multiview", "tracking", "interpolation"):
         return BenchSize(side, side + side // 4, 4)
+    if model.card.task == "restoration":  # face restorers take exactly one square crop
+        return BenchSize(side, side, 8)
     return BenchSize(side, side + side // 4, 8)
 
 
