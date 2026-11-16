@@ -35,7 +35,12 @@ from _data import DATA
 ROOT = Path(__file__).resolve().parents[1]
 SCORE, NMS = 0.02, 0.45
 TIERS = {  # tier -> (mode, dtype, how, column)
-    "upstream": ("upstream", "float32", "authors' code (YuNet: build_yunet + YuNetPostprocessor; RetinaFace: facexlib detect_faces), float32", "original fp32"),
+    "upstream": (
+        "upstream",
+        "float32",
+        "authors' code (YuNet: build_yunet + YuNetPostprocessor; RetinaFace: facexlib detect_faces), float32",
+        "original fp32",
+    ),
     "portable32": ("portable32", "float32", None, "portable32"),
     "portable": ("portable", "float16", None, "portable"),
     "kernels": ("kernels", "float16", None, "kernels"),
@@ -56,25 +61,38 @@ def _family(ref: str) -> str:
 
 
 def _retinaface(ref: str, tier: str) -> Any:  # noqa: ANN401
-    """RetinaFace (`FF_FACEXLIB_REPO`, `FF_RETINAFACE_WEIGHTS`): facexlib `detect_faces` at its own size (conf 0.02, NMS 0.4)."""
+    """RetinaFace (`FF_FACEXLIB_REPO`, `FF_RETINAFACE_WEIGHTS`): facexlib `detect_faces`, own size (conf 0.02)."""
     if tier == "upstream":
         sys.path.insert(0, str(ROOT / "tools" / "golden"))
         import retinaface as g  # noqa: PLC0415
+
         from fastforks._core import registry  # noqa: PLC0415
 
         card, variant = next((c, v) for c, v in registry.cards("pose").values() if v.id == ref)
         tree = g.reference_tree(Path(os.environ["FF_FACEXLIB_REPO"]), g.REF_COMMIT)
-        net = g.build(tree, Path(os.environ["FF_RETINAFACE_WEIGHTS"]) / variant.weights[0].name, {**card.params, **variant.params}["backbone"], "cuda").cuda()
+        net = g.build(
+            tree,
+            Path(os.environ["FF_RETINAFACE_WEIGHTS"]) / variant.weights[0].name,
+            {**card.params, **variant.params}["backbone"],
+            "cuda",
+        ).cuda()
 
         def up(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-            det = torch.from_numpy(g.run(net, np.ascontiguousarray(x[0].permute(1, 2, 0).cpu().numpy().astype(np.uint8)), SCORE, 0.4)).reshape(-1, 15)
+            det = torch.from_numpy(
+                g.run(net, np.ascontiguousarray(x[0].permute(1, 2, 0).cpu().numpy().astype(np.uint8)), SCORE, 0.4)
+            ).reshape(-1, 15)
             return det[:, :4], det[:, 4]
 
         return up
     from fastforks import pose  # noqa: PLC0415
     from fastforks.pose.models.retinaface.model import faces  # noqa: PLC0415
 
-    m = pose.load(ref, mode="kernels" if tier == "kernels" else "portable", device="cuda", **({"dtype": "float32"} if tier == "portable32" else {}))
+    m = pose.load(
+        ref,
+        mode="kernels" if tier == "kernels" else "portable",
+        device="cuda",
+        **({"dtype": "float32"} if tier == "portable32" else {}),
+    )
 
     def lib(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         out = faces(m._runner.dense(x.flip(1) / 255), *x.shape[-2:], SCORE, 0.4)  # noqa: SLF001 - the evaluation thresholds

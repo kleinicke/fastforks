@@ -2354,9 +2354,10 @@ def _mvsplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - ad
 
 
 def _resplat(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
-    """Upstream `EncoderReSplat` + `forward_update` (2 refinement steps) as `tools/golden/resplat.py`, on the GPU with
-    the real `pointops` and gsplat extensions (upstream's own decoder call), the runner's resizing (long side = the
-    checkpoint's training size, the runner's default).
+    """Upstream `EncoderReSplat` + `forward_update` (2 refinement steps) as `tools/golden/resplat.py`.
+
+    On the GPU with the real `pointops` and gsplat extensions (upstream's own decoder call), the runner's resizing (long
+    side = the checkpoint's training size, the runner's default).
 
     `FF_RESPLAT_REPO`: a checkout with the pinned commit; `FF_RESPLAT_SITE`: `einops`, `jaxtyping`, `e3nn`, plus
     `pointops` built for this GPU (`setup.py build_ext` of `src/model/encoder/pointops`, `TORCH_CUDA_ARCH_LIST=12.0`).
@@ -2553,7 +2554,7 @@ class _LocalPromptFp16(_LocalPrompt):
 
 
 def _any2full(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
-    """Upstream `Any2Full.forward(image, prompt_depth)` (run script defaults: `init_scailing`) as `tools/golden/any2full.py`.
+    """Upstream `Any2Full.forward(image, prompt_depth)` (run script defaults: `init_scailing`) as the golden.
 
     float32 on CUDA, no precision option of its own. The image is ImageNet-normalised, the prompt nearest-resized to the
     image (upstream needs it at the image size; zero = hole); upstream resizes both to a 14-multiple itself and back.
@@ -2571,7 +2572,7 @@ def _any2full(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_ANY2FULL_REPO"]), g.REF_COMMIT)))
     from model.ours.any2full import Any2Full  # noqa: PLC0415  # reference checkout  # ty: ignore[unresolved-import]
 
-    arch = next(k for k, v in g.VARIANTS.items() if v == full.split("@")[0])
+    arch = next(k for k, v in g.VARIANTS.items() if v == full.split("@", maxsplit=1)[0])
     args = types.SimpleNamespace(init_scailing=True, max_depth=1e3, min_depth=1e-6)
     net = Any2Full(encoder=arch, da_ckpt_path=None, args=args)
     (weights,) = registry.weights(card, variant, allow_download=False)
@@ -2593,11 +2594,12 @@ def _any2full(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
 
 
 def _lingbot_depth(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
-    """Upstream `MDMModel.infer(image, depth_in, resolution_level=9, apply_mask=False)` as `tools/golden/lingbot_depth.py`.
+    """Upstream `MDMModel.infer(image, depth_in, resolution_level=9, apply_mask=False)` as the golden `lingbot_depth`.
 
     fp16 = the authors' `use_fp16` (their default: bfloat16 autocast around the forward); fp32 = it off. Without
     xFormers (not built for this torch) the per-sample token lists of its nested block run one sample at a time (the
-    golden's patch; one sample here, so the same work). Needs `FF_LINGBOT_DEPTH_REPO`: a checkout with the pinned commit.
+    golden's patch; one sample here, so the same work). Needs `FF_LINGBOT_DEPTH_REPO`: a checkout with the pinned
+    commit.
     """
     import torch  # noqa: PLC0415
 
@@ -2627,7 +2629,7 @@ def _lingbot_depth(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT00
 
 
 def _depthfm(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
-    """Upstream `DepthFM.predict_depth` with the `inference.py` defaults (2 steps, ensemble 4, input size) as the golden.
+    """Upstream `DepthFM.predict_depth` with the `inference.py` defaults (2 steps, ensemble 4, input size): the golden.
 
     The input is resized to multiples of 64 (as `inference.py`, there with PIL), scaled to [-1, 1], noise drawn inside.
     fp16 = the authors' `--dtype fp16` (their default: `torch.autocast(float16)`), fp32 = `--dtype fp32`. Needs
@@ -2663,8 +2665,10 @@ def _depthfm(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - ad
 
 
 def _lingbot_map(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 - adapter signature
-    """Upstream `GCTStream.inference_streaming` (demo defaults: SDPA, 3D RoPE, 8 scale frames, window 64, 4 camera
-    iterations) as `tools/golden/lingbot_map.py`, called with the views as a sequence (long side 518, bicubic).
+    """Upstream `GCTStream.inference_streaming` as `tools/golden/lingbot_map.py`.
+
+    Demo defaults (SDPA, 3D RoPE, 8 scale frames, window 64, 4 camera iterations), called with the views as a sequence
+    (long side 518, bicubic).
 
     fp16 = the demo's precision (bfloat16 autocast, the aggregator cast to bfloat16, heads in fp32); fp32 = none of it.
     Needs `FF_LINGBOT_MAP_REPO`: a checkout with the pinned commit.
@@ -2690,7 +2694,9 @@ def _lingbot_map(a: Any, full: str, fp16: bool) -> Any:  # noqa: ANN401, FBT001 
     net = net.cuda().eval()
     if fp16:
         net.aggregator = net.aggregator.to(torch.bfloat16)
-    a.note = "upstream GCTStream.inference_streaming (demo defaults, SDPA), " + ("bfloat16 aggregator" if fp16 else "float32")
+    a.note = "upstream GCTStream.inference_streaming (demo defaults, SDPA), " + (
+        "bfloat16 aggregator" if fp16 else "float32"
+    )
 
     @torch.inference_mode()
     def call(images: Any) -> Any:  # noqa: ANN401 - [V, 3, H, W] uint8 CUDA

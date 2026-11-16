@@ -20,12 +20,12 @@ from typing import Any
 import numpy as np
 
 
-def _outputs(model_id: str, mode: str, task: str | None, compact: bool) -> tuple[dict[str, Any], float, float]:
+def _outputs(model_id: str, mode: str, *, compact: bool) -> tuple[dict[str, Any], float, float]:
     import torch  # noqa: PLC0415
 
     import fastforks  # noqa: PLC0415
-    from fastforks._core.bench import bench_inputs  # noqa: PLC0415
     from family_smoke import _size  # noqa: PLC0415
+    from fastforks._core.bench import bench_inputs  # noqa: PLC0415
 
     os.environ["FASTFORKS_ARENA"] = "1" if compact else "0"
     try:
@@ -52,8 +52,8 @@ def _diff(a: dict[str, Any], b: dict[str, Any]) -> float:
     worst = 0.0
     if a.keys() != b.keys():
         return float("inf")
-    for k in a:
-        for x, y in zip(a[k], b[k], strict=True):
+    for k, av in a.items():
+        for x, y in zip(av, b[k], strict=True):
             if x is None and y is None:
                 continue
             if x.shape != y.shape:
@@ -89,14 +89,14 @@ def main() -> None:
                     if mode != "auto" and mode not in registry.cards(task)[ref][0].modes:
                         continue
                     row["task"] = task
-                    on, row["alloc_mb_on"], row["reserved_mb_on"] = _outputs(ref, mode, task, True)
-                    off, row["alloc_mb_off"], row["reserved_mb_off"] = _outputs(ref, mode, task, False)
+                    on, row["alloc_mb_on"], row["reserved_mb_on"] = _outputs(ref, mode, compact=True)
+                    off, row["alloc_mb_off"], row["reserved_mb_off"] = _outputs(ref, mode, compact=False)
                     d = _diff(on, off)
                     row["max_abs"] = d
                     if d == 0:
                         row["status"] = "same"
                     else:
-                        on2, *_ = _outputs(ref, mode, task, True)
+                        on2, *_ = _outputs(ref, mode, compact=True)
                         d2 = _diff(on, on2)
                         row["self_noise"] = d2
                         row["status"] = "noise" if d <= d2 else "DIFF"

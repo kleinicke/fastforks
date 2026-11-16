@@ -1,7 +1,8 @@
 """Stage our Hugging Face repos (kernel binaries, golden outputs, converted weights) in a local directory (no upload).
 
     uv run python tools/stage_hf.py kernels OUT [--from build/kernels] [--standin]
-    uv run python tools/stage_hf.py goldens OUT --from $FASTFORKS_GOLDEN_PATH [--from DIR2 ...] [--skip-missing] [--standin]
+    uv run python tools/stage_hf.py goldens OUT --from $FASTFORKS_GOLDEN_PATH [--from DIR2 ...] [--skip-missing]
+        [--standin]
     FASTFORKS_WEIGHTS_PATH=... uv run python tools/stage_hf.py mirrors OUT [--standin]
     FASTFORKS_WEIGHTS_PATH=... uv run python tools/stage_hf.py weights OUT [--standin]
     uv run python tools/stage_hf.py cards OUT
@@ -13,7 +14,8 @@ layout of the manifests' `url`, and writes the repo card. `goldens` copies every
 files (hash-checked) to `OUT/<ref>.npz`, the layout `tools/fetch_goldens.py` reads, with a card listing the model
 each output comes from. `mirrors` copies the weights whose card entry has `mirror = true` from the local weight
 store (hash-checked) to `OUT/<family>/<file>`, with a card naming each file's licence and original URL (the first
-mirrors, `mirror = true`; no card uses it since 2026-11-15, the repo is private). `weights` stages one repo per distinct weight file, named after the weights
+mirrors, `mirror = true`; no card uses it since 2026-11-15, the repo is private). `weights` stages one repo per
+distinct weight file, named after the weights
 (`tools/weights_repos.toml`, only weights we changed; cards point at it by `url`), as `OUT/<repo>/` with symlinks to
 the hash-checked local files, the upstream licence files and a README naming source, licence, SHA-256 and the cards
 that use it. The tool prints the upload command; it never uploads.
@@ -35,7 +37,7 @@ With `--standin`, OUT is the root of a local stand-in for huggingface.co and the
 download from it exactly as it will from the published repos.
 """
 
-# ruff: noqa: ISC004, SLF001  # card text joins f-strings in lists; reuses the private renderers of gen_docs
+# ruff: noqa: ISC004, SLF001, D205, C901, PLR0913  # f-string lists; private gen_docs renderers; wrapped docstring summaries; `main` dispatches subcommands
 from __future__ import annotations
 
 import argparse
@@ -119,10 +121,11 @@ def _find_golden(srcs: list[Path], ref: str, sha256: str) -> Path | None:
     return next((p for d in srcs if (p := d / f"{ref}.npz").is_file() and sha256_of(p) == sha256), None)
 
 
-def stage_goldens(srcs: list[Path], out: Path, skip_missing: bool = False) -> list[str]:
+def stage_goldens(srcs: list[Path], out: Path, *, skip_missing: bool = False) -> list[str]:
     """Copy the golden outputs (hash-checked, first matching source directory); return the card's table rows.
 
-    With `skip_missing`, refs with no matching local file are reported on stderr and left out (partial staging)."""
+    With `skip_missing`, refs with no matching local file are reported on stderr and left out (partial staging).
+    """
     cards = {v.ref: (card, v) for t in registry.TASKS for card, v in registry.cards(t).values()}
     rows = []
     out.mkdir(parents=True, exist_ok=True)
@@ -231,8 +234,11 @@ def render_weights_card(repo: str, meta: dict, users: dict[str, list[tuple[Model
         if converted
         else "- Byte-identical copy of the original file: nothing was retrained, converted or changed.",
         *([f"- Precision: {meta['precision']}."] if "precision" in meta else []),
-        *([f"- Conversion script: `{Path(meta['script']).name}` in this repo (also `{meta['script']}` in fastforks)."]
-          if "script" in meta else []),
+        *(
+            [f"- Conversion script: `{Path(meta['script']).name}` in this repo (also `{meta['script']}` in fastforks)."]
+            if "script" in meta
+            else []
+        ),
         "",
         "## Licence",
         "",
@@ -386,7 +392,9 @@ SD2_DERIVED = frozenset({"lotus", "stablenormal", "marigold_normals"})
 # `base_model:` front matter only where the weights file is fetched from the original authors' own HF repo (not a
 # timm / community re-upload, not a backbone): family -> owners of the author repos. Extend only when certain.
 AUTHOR_HF = {
-    **dict.fromkeys(("dinov3", "dinov3_convnext", "sam3", "vggt", "vggt_omega", "mapanything", "cotracker"), "facebook"),
+    **dict.fromkeys(
+        ("dinov3", "dinov3_convnext", "sam3", "vggt", "vggt_omega", "mapanything", "cotracker"), "facebook"
+    ),
     **dict.fromkeys(("sapiens", "mask2former"), "facebook"),
     **dict.fromkeys(
         ("depth_anything_v2", "depth_anything_3", "prompt_depth_anything", "video_depth_anything"), "depth-anything"
@@ -580,7 +588,8 @@ def _licence_front(card: ModelCard, variants: list[Variant]) -> dict[str, str]:
     """HF licence keys. Header rule: the WEIGHTS licence, never the code licence. A single weights licence HF knows
     is its id; otherwise `other` + a plain `license_name` (one custom licence: its name; several, or only
     `assumed from code`: `see-model-card`, `mixed-see-variant-table` for variants that differ) + a link. The
-    details (code licence, evidence, assumptions) are in the card body."""
+    details (code licence, evidence, assumptions) are in the card body.
+    """
     found = {card.variant_licence(v).weights_licence for v in variants}
     link = next((card.variant_licence(v).evidence for v in variants if card.variant_licence(v).evidence), None)
     link = link.split()[0].rstrip(";,.") if link and link.startswith("http") else card.upstream
@@ -856,7 +865,8 @@ def staged_cards() -> dict[str, str]:
 
 def fetch_live(repo_id: str) -> str | None:
     """The published README.md of a public repo (anonymous GET); None if the repo or the file does not exist yet
-    (HF answers 404, or 401 for a repo that does not exist / is private, to anonymous requests)."""
+    (HF answers 404, or 401 for a repo that does not exist / is private, to anonymous requests).
+    """
     try:
         with urllib.request.urlopen(f"https://huggingface.co/{repo_id}/raw/main/README.md", timeout=30) as r:
             return r.read().decode()
@@ -922,7 +932,8 @@ def create_repos(
 ) -> list[str]:
     """Create the repos that do not exist yet, `batch` per round with `pause` s between rounds; a 429 (or any
     HTTP error with that status) is retried with a doubling wait (`pause`, 2 `pause`, ...) up to `retries` times.
-    Returns the repo ids created (dry run: that would be created). Safe to re-run after an interruption."""
+    Returns the repo ids created (dry run: that would be created). Safe to re-run after an interruption.
+    """
     todo = [r for r in ids if not exists(r)]
     print(f"{len(ids) - len(todo)} of {len(ids)} repos exist; {len(todo)} to create", file=sys.stderr)
     done: list[str] = []
@@ -938,7 +949,7 @@ def create_repos(
                 try:
                     create(repo_id)
                     break
-                except Exception as e:  # noqa: BLE001  # huggingface_hub's HfHubHTTPError carries `.response`
+                except Exception as e:  # huggingface_hub's HfHubHTTPError carries `.response`
                     status = getattr(getattr(e, "response", None), "status_code", getattr(e, "code", None))
                     if status != HTTPStatus.TOO_MANY_REQUESTS or attempt == retries:
                         raise
@@ -1023,7 +1034,7 @@ def main() -> None:
     elif a.src is None:
         sys.exit("goldens need --from DIR")
     else:
-        rows, card = stage_goldens(a.src, out, a.skip_missing), GOLDENS_CARD
+        rows, card = stage_goldens(a.src, out, skip_missing=a.skip_missing), GOLDENS_CARD
     (out / "README.md").write_text(card + "\n".join(rows) + "\n")
     print(f"staged {len(rows)} entries in {out}")
     if a.standin:

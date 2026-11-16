@@ -67,7 +67,12 @@ calibrated = multiview.model_card(a.ref).family in {
     "mvsplat",
     "resplat",
 }  # calibrated MVS: cameras are inputs
-RANGE = multiview.model_card(a.ref).family in {"patchmatchnet", "depthsplat", "mvsplat", "resplat"}  # these need the depth range
+RANGE = multiview.model_card(a.ref).family in {
+    "patchmatchnet",
+    "depthsplat",
+    "mvsplat",
+    "resplat",
+}  # these need the depth range
 MM_NEAR, MM_FAR = 425.0, 935.0  # DTU depth range
 D125, MM2, MM4 = 1.25, 2.0, 4.0
 

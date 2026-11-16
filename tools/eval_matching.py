@@ -166,7 +166,7 @@ def _fastforks(ref: str, mode: str) -> tuple[Any, str, dict]:
     return call, backend["dtype"], {"backend": backend}
 
 
-def _original(ref: str, mode: str) -> tuple[Any, str, dict]:
+def _original(ref: str, mode: str) -> tuple[Any, str, dict]:  # noqa: C901 - one branch per original code base
     import os  # noqa: PLC0415
 
     from _original import _golden  # noqa: PLC0415  # tools/

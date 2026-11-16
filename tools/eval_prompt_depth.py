@@ -1,15 +1,16 @@
-"""Metric depth of Prompt Depth Anything (original fp32 / fp16, portable, kernels) on NYUv2 and iBims-1 with a simulated depth prompt.
+"""Metric depth of Prompt Depth Anything (original, portable, kernels) on NYUv2 and iBims-1 (simulated prompt).
 
     FASTFORKS_KERNEL_PATH=... python tools/eval_prompt_depth.py --ref prompt-depth-anything-l --out raw.jsonl
-    python tools/eval_prompt_depth.py --ref any2full-b --tiers upstream,portable,kernels --out raw.jsonl   # other depth-completion families
+    python tools/eval_prompt_depth.py --ref any2full-b --tiers upstream,portable,kernels --out raw.jsonl   # others
 
-Prompt = the ground-truth depth reduced to 192 x 256 (the size of an iPhone LiDAR map): mean of the valid GT pixels of each
-cell, cells without valid pixels take the nearest filled cell. Metric AbsRel / delta1 (no scale fit) over the valid GT pixels at
-the GT size; the prediction is resized bilinearly where its size differs. NYUv2 every `--every`th image, iBims-1 all.
-Other families (Any2Full, LingBot-Depth, OMNI-DC): the same prompt and metrics; their original = the bench adapter of
-`tools/_original.py` (`upstream` fp32, `upstream-fp16` = its `upstream16` tier). Prompt Depth Anything's original = DepthAnything/PromptDA at the pinned commit (area resize to the network size, `predict`), fp32 or
-`torch.autocast(float16)`. One JSON line per tier and dataset (the `docs/data/depth_eval.jsonl` row), plus one `prompt-only`
-line: the bilinear upsampled prompt itself as a reference level.
+Prompt = the ground-truth depth reduced to 192 x 256 (the size of an iPhone LiDAR map): mean of the valid GT pixels of
+each cell, cells without valid pixels take the nearest filled cell. Metric AbsRel / delta1 (no scale fit) over the valid
+GT pixels at the GT size; the prediction is resized bilinearly where its size differs. NYUv2 every `--every`th image,
+iBims-1 all. Other families (Any2Full, LingBot-Depth, OMNI-DC): the same prompt and metrics; their original = the bench
+adapter of `tools/_original.py` (`upstream` fp32, `upstream-fp16` = its `upstream16` tier). Prompt Depth Anything's
+original = DepthAnything/PromptDA at the pinned commit (area resize to the network size, `predict`), fp32 or
+`torch.autocast(float16)`. One JSON line per tier and dataset (the `docs/data/depth_eval.jsonl` row), plus one
+`prompt-only` line: the bilinear upsampled prompt itself as a reference level.
 """
 
 from __future__ import annotations
@@ -29,8 +30,13 @@ from scipy.ndimage import distance_transform_edt
 
 from eval_stereo_depth import depth_items
 
+_EPS = 1e-6  # valid-pixel count floor of the prompt pooling
+_DELTA1 = 1.25  # the delta1 threshold
 UP = Path(os.environ.get("PROMPTDA_REPO", "upstream/PromptDA"))
-CKPT = {"prompt-depth-anything-l": ("vitl", "prompt_depth_anything_vitl.ckpt"), "prompt-depth-anything-s": ("vits", "prompt_depth_anything_vits.ckpt")}
+CKPT = {
+    "prompt-depth-anything-l": ("vitl", "prompt_depth_anything_vitl.ckpt"),
+    "prompt-depth-anything-s": ("vits", "prompt_depth_anything_vits.ckpt"),
+}
 SETS = {"nyu": "nyu-prompt-every{}", "ibims": "ibims-prompt"}
 
 
@@ -39,8 +45,8 @@ def make_prompt(gt: np.ndarray, hw: tuple[int, int] = (192, 256)) -> np.ndarray:
     g = torch.from_numpy(np.nan_to_num(gt, nan=0.0)).float()[None, None]
     m = (torch.from_numpy(np.isfinite(gt) & (gt > 0)).float())[None, None]
     num, den = F.adaptive_avg_pool2d(g * m, hw), F.adaptive_avg_pool2d(m, hw)
-    p = (num / den.clamp_min(1e-6))[0, 0].numpy()
-    empty = den[0, 0].numpy() < 1e-6
+    p = (num / den.clamp_min(_EPS))[0, 0].numpy()
+    empty = den[0, 0].numpy() < _EPS
     if empty.any():
         idx = distance_transform_edt(empty, return_distances=False, return_indices=True)
         p = p[tuple(idx)]
@@ -53,10 +59,14 @@ def net_size(h: int, w: int, max_size: int = 1008) -> tuple[int, int]:
 
 
 class Tier:
-    def __init__(self, ref: str, tier: str) -> None:
+    """One precision tier of one family: the original, portable or kernels runner behind one call."""
+
+    def __init__(self, ref: str, tier: str) -> None:  # noqa: D107
         self.tier = tier
         self.gen = None
-        if tier.startswith("upstream") and ref not in CKPT:  # other depth-completion families: the bench adapter of `tools/_original.py`
+        if (
+            tier.startswith("upstream") and ref not in CKPT
+        ):  # other depth-completion families: the bench adapter of `tools/_original.py`
             import _original  # noqa: PLC0415
 
             self.gen = _original.load("depth", ref, "upstream16" if tier == "upstream-fp16" else tier)
@@ -66,7 +76,13 @@ class Tier:
             from promptda.promptda import PromptDA  # noqa: PLC0415
 
             enc, ck = CKPT[ref]
-            self.orig = PromptDA(encoder=enc, ckpt_path=str(Path(os.environ.get("FF_WEIGHTS", "data/ff-weights")) / "prompt-da" / ck)).eval().cuda()
+            self.orig = (
+                PromptDA(
+                    encoder=enc, ckpt_path=str(Path(os.environ.get("FF_WEIGHTS", "data/ff-weights")) / "prompt-da" / ck)
+                )
+                .eval()
+                .cuda()
+            )
             self.mode, self.dtype = tier, "float16" if tier == "upstream-fp16" else "float32"
         else:
             from fastforks import depth  # noqa: PLC0415
@@ -74,7 +90,7 @@ class Tier:
             self.orig, self.model = None, depth.load(ref, mode=tier, device="cuda")
             self.mode, self.dtype = tier, str(self.model.backend.dtype).removeprefix("torch.")
 
-    def __call__(self, img: np.ndarray, prompt: np.ndarray) -> torch.Tensor:
+    def __call__(self, img: np.ndarray, prompt: np.ndarray) -> torch.Tensor:  # noqa: D102
         p = torch.from_numpy(prompt).cuda()
         im = torch.from_numpy(img).permute(2, 0, 1).contiguous().cuda()
         if self.gen is not None:
@@ -93,7 +109,11 @@ def metrics(pred: torch.Tensor, gt: np.ndarray) -> tuple[float, float, int]:
         pred = F.interpolate(pred[None, None], tuple(g.shape), mode="bilinear", align_corners=False)[0, 0]
     m = torch.isfinite(g) & (g > 0) & torch.isfinite(pred)
     a, b = pred.clamp(min=1e-3)[m], g[m]
-    return ((a - b).abs() / b).mean().item(), (torch.maximum(a / b, b / a) < 1.25).float().mean().item(), int(m.sum())
+    return (
+        ((a - b).abs() / b).mean().item(),
+        (torch.maximum(a / b, b / a) < _DELTA1).float().mean().item(),
+        int(m.sum()),
+    )
 
 
 def main() -> None:
@@ -101,17 +121,32 @@ def main() -> None:
     ap.add_argument("--ref", default="prompt-depth-anything-l")
     ap.add_argument("--tiers", default="upstream,upstream-fp16,portable,kernels")
     ap.add_argument("--every", type=int, default=4, help="NYUv2: every N-th image")
-    ap.add_argument("--ibims-every", type=int, default=1, help="iBims-1: every N-th image (dataset `ibims-prompt-everyN` if > 1)")
+    ap.add_argument(
+        "--ibims-every", type=int, default=1, help="iBims-1: every N-th image (dataset `ibims-prompt-everyN` if > 1)"
+    )
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
-    commit = subprocess.run(["git", "-C", str(Path(__file__).resolve().parents[1]), "log", "-1", "--format=%h", "--", "src"], capture_output=True, text=True, check=False).stdout.strip()
+    commit = subprocess.run(
+        ["git", "-C", str(Path(__file__).resolve().parents[1]), "log", "-1", "--format=%h", "--", "src"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
     cmd = "python " + " ".join(sys.argv)
     items = {ds: [(k, ld) for k, ld in depth_items(ds)][:: a.every if ds == "nyu" else a.ibims_every] for ds in SETS}
     data = {ds: [(k, *ld()) for k, ld in it] for ds, it in items.items()}  # (key, image, gt); ~ 264 images
     prompts = {ds: [make_prompt(gt) for _, _, gt in d] for ds, d in data.items()}
     base = {}
     for ds, d in data.items():
-        r = [metrics(F.interpolate(torch.from_numpy(p)[None, None].cuda(), gt.shape, mode="bilinear", align_corners=False)[0, 0], gt) for p, (_, _, gt) in zip(prompts[ds], d)]
+        r = [
+            metrics(
+                F.interpolate(torch.from_numpy(p)[None, None].cuda(), gt.shape, mode="bilinear", align_corners=False)[
+                    0, 0
+                ],
+                gt,
+            )
+            for p, (_, _, gt) in zip(prompts[ds], d, strict=False)
+        ]
         base[ds] = (float(np.mean([x[0] for x in r])), float(np.mean([x[1] for x in r])))
     for tier in a.tiers.split(","):
         pr = Tier(a.ref, tier)
@@ -120,7 +155,7 @@ def main() -> None:
             torch.cuda.synchronize()
             torch.cuda.reset_peak_memory_stats()
             res, t = [], 0.0
-            for (key, img, gt), p in zip(d, prompts[ds]):
+            for (_key, img, gt), p in zip(d, prompts[ds], strict=False):
                 torch.cuda.synchronize()
                 t0 = time.perf_counter()
                 out = pr(img, p)
@@ -128,15 +163,35 @@ def main() -> None:
                 t += time.perf_counter() - t0
                 res.append(metrics(out, gt))
             rel, d1 = float(np.mean([x[0] for x in res])), float(np.mean([x[1] for x in res]))
-            dsn = SETS[ds].format(a.every) if ds == "nyu" else SETS[ds] + (f"-every{a.ibims_every}" if a.ibims_every > 1 else "")
-            row = {"ref": a.ref, "task": "depth", "tier": tier, "mode": pr.mode, "dtype": pr.dtype, "dataset": dsn, "n": len(d), "n_images": len(d),
-                   "met_absrel": round(rel, 4), "met_d1": round(d1, 4), "metrics": {"met_absrel": round(rel, 4), "met_d1": round(d1, 4)},
-                   "prompt_only": {"absrel": round(base[ds][0], 4), "d1": round(base[ds][1], 4)},
-                   "ms_per_img": round(1e3 * t / len(d), 2), "peak_alloc_mb": round(torch.cuda.max_memory_allocated() / 2**20),
-                   "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20), "commit": commit,
-                   "gpu": torch.cuda.get_device_name(), "torch": torch.__version__, "date": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "command": cmd}
+            dsn = (
+                SETS[ds].format(a.every)
+                if ds == "nyu"
+                else SETS[ds] + (f"-every{a.ibims_every}" if a.ibims_every > 1 else "")
+            )
+            row = {
+                "ref": a.ref,
+                "task": "depth",
+                "tier": tier,
+                "mode": pr.mode,
+                "dtype": pr.dtype,
+                "dataset": dsn,
+                "n": len(d),
+                "n_images": len(d),
+                "met_absrel": round(rel, 4),
+                "met_d1": round(d1, 4),
+                "metrics": {"met_absrel": round(rel, 4), "met_d1": round(d1, 4)},
+                "prompt_only": {"absrel": round(base[ds][0], 4), "d1": round(base[ds][1], 4)},
+                "ms_per_img": round(1e3 * t / len(d), 2),
+                "peak_alloc_mb": round(torch.cuda.max_memory_allocated() / 2**20),
+                "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20),
+                "commit": commit,
+                "gpu": torch.cuda.get_device_name(),
+                "torch": torch.__version__,
+                "date": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "command": cmd,
+            }
             print(json.dumps(row), flush=True)
-            with open(a.out, "a") as f:
+            with Path(a.out).open("a") as f:
                 f.write(json.dumps(row) + "\n")
         del pr
         torch.cuda.empty_cache()
