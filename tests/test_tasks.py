@@ -940,7 +940,7 @@ def test_multiview_feed_forward(fake):
 def test_multiview_calibrated(fake):
     fake("multiview", Calibrated, ["depth", "mask", "range"], {"kind": "metric"})
     m = multiview.load("fake", device="cpu")
-    k = np.diag([5.0, 5.0, 1.0])
+    k = np.array([[5.0, 0, 2.5], [0, 5.0, 2.0], [0, 0, 1]])  # 5 x 4 px views
     c2w = np.stack([np.eye(4)] * 3)
     c2w[:, 0, 3] = [1.0, 2.0, 3.0]
     r = m(_views(), intrinsics=k, cam_to_world=c2w, reference=[2, 0])
@@ -971,6 +971,9 @@ def test_multiview_calibrated(fake):
             m(_views(), **bad)
     with pytest.raises(InputError, match="at most 4"):
         m(_views(5), intrinsics=k, cam_to_world=np.stack([np.eye(4)] * 5))
+    for corner in (np.eye(3), np.diag([0.8, 0.8, 1.0])):  # identity / normalised matrices are not pixel intrinsics
+        with pytest.raises(InputError, match="principal point"):
+            m(_views(), intrinsics=corner, cam_to_world=c2w)
 
 
 def test_unproject_round_trip():
