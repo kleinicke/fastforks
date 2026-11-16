@@ -39,10 +39,10 @@ directory.
 | `FASTFORKS_NONCOMMERCIAL` | `1` = also download weights with non-commercial licences (off in every install, also `fastforks`) |
 | `FASTFORKS_COMMERCIAL_ONLY` | `1` = refuse (and hide from `list`, `download`) every model not cleared for commercial use |
 | `FASTFORKS_HF_ENDPOINT` | redirects only our own Hugging Face repos (kernels, mirrored weights) to a mirror or `file://` stand-in, not the authors' hosts; for a full mirror use `FASTFORKS_WEIGHTS_PATH` |
+| `HF_TOKEN` | sent only to our own Hugging Face repos (private or rate-limited access); other repos: `huggingface_hub`'s own login |
 
 The three on/off variables take `1/true/yes/on` or `0/false/no/off/empty` (any case); any other value raises
 `OptionsError`. `mode` and `device` are load arguments; there are no `FASTFORKS_MODE` / `FASTFORKS_DEVICE` variables.
-| `HF_TOKEN` | sent only to our own Hugging Face repos (private or rate-limited access); other repos: `huggingface_hub`'s own login |
 
 ## Quickstart per task
 
