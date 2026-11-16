@@ -3,7 +3,7 @@ name = "LoFTR"
 summary = "LoFTR (Sun et al., CVPR 2021): detector-free dense matching. A ResNet-FPN gives 1/8 and 1/2 resolution features; a linear-attention transformer matches the 1/8 cells of both images (dual-softmax, mutual nearest neighbours above a confidence threshold) and a second transformer refines each match to sub-pixel precision in a 5 x 5 window at 1/2 resolution. Returns the matched points of both images, their (identity) index pairs and the coarse confidence."
 tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports (fp16-accumulate conv kernels)
 limitations = [
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; every match is its own keypoint pair (`pairs` is `[[0, 0], [1, 1], ...]`).",
   "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
