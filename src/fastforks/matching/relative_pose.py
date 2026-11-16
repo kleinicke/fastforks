@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Literal, Protocol
 import torch
 
 from fastforks._core.errors import InputError, KernelUnavailableError
+from fastforks._core.outputs import short_repr
 
 if TYPE_CHECKING:
     from fastforks._core.kernels import CubinModule
@@ -89,6 +90,8 @@ class RelativePose:
     inliers: torch.Tensor
     ok: torch.Tensor
 
+    __repr__ = short_repr
+
 
 @dataclass(frozen=True)
 class FundamentalMatrix:
@@ -103,6 +106,8 @@ class FundamentalMatrix:
     F: torch.Tensor
     inliers: torch.Tensor
     ok: torch.Tensor
+
+    __repr__ = short_repr
 
 
 def estimate_fundamental(

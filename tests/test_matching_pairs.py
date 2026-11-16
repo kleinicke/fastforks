@@ -12,6 +12,7 @@ from PIL import Image
 
 from fastforks import matching
 from fastforks._core import registry
+from fastforks._core.errors import InputError
 from fastforks._core.image import decode_image
 from fastforks.matching import _api as matching_api
 from fastforks.matching import _pairs
@@ -220,3 +221,13 @@ def test_match_pairs_uses_match_many_per_window(monkeypatch):
         assert torch.equal(result.keypoints1, single.keypoints1)
         assert torch.equal(result.keypoints2, single.keypoints2)
         assert torch.equal(result.pairs, single.pairs)
+
+
+def test_match_pairs_rejects_bad_indices(monkeypatch):
+    monkeypatch.setattr(registry, "import_model", lambda _card: types.SimpleNamespace(RUNNERS={"portable": Dummy}))
+    model = matching.load("romav2", device="cpu", mode="portable")
+    images = [np.zeros((16, 24, 3), np.uint8)] * 2
+    with pytest.raises(InputError, match=r"pair \(0, 5\) indexes outside the 2 images"):
+        list(model.match_pairs(images, [(0, 5)]))
+    with pytest.raises(InputError, match="indexes outside"):
+        list(model.match_pairs(images, [(-1, 0)]))

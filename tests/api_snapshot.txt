@@ -377,6 +377,7 @@ field fastforks._core.cards.ModelCard.mps_kernel_libs: tuple[str, ...]
 field fastforks._core.cards.ModelCard.mps_kernels_dtype: Dtype | None
 field fastforks._core.cards.ModelCard.name: str
 field fastforks._core.cards.ModelCard.no_kernels_reason: str
+field fastforks._core.cards.ModelCard.no_original_reason: str
 field fastforks._core.cards.ModelCard.official: tuple[Official, ...]
 field fastforks._core.cards.ModelCard.option_aliases: Mapping[str, str]
 field fastforks._core.cards.ModelCard.option_choices: Mapping[str, tuple[Any, ...]]
@@ -1012,6 +1013,7 @@ property fastforks.features._api.FeaturesResult.cls_token -> torch.Tensor
 property fastforks.features._api.FeaturesResult.patch_tokens -> torch.Tensor
 property fastforks.features._api.FeaturesResult.register_tokens -> torch.Tensor
 property fastforks.matching._api.MatchingModel.sparse -> bool
+property fastforks.matching._api.VerifiedMatches.inlier_ratio -> torch.Tensor
 property fastforks.multiview._api.MultiViewResult.extrinsics -> torch.Tensor | None
 property fastforks.multiview._gaussians.Gaussians.sh_degree -> int
 property fastforks.restoration._api.RestorationModel.scale -> int

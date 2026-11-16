@@ -16,7 +16,7 @@ from fastforks._core.bench import BenchInputs, BenchSize, synthetic_pair
 from fastforks._core.errors import CardError, InputError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch, to_rgb_batches, unbatch
 from fastforks._core.model import Backend
-from fastforks._core.outputs import NumpyOutputs
+from fastforks._core.outputs import NumpyOutputs, short_repr
 from fastforks.matching._pairs import DecodedImages, PairCache
 from fastforks.matching._runner import scale
 from fastforks.matching.relative_pose import FundamentalMatrix, RelativePose, estimate_fundamental, estimate_pose
@@ -55,6 +55,11 @@ class VerifiedMatches:
         inliers: `[N]` bool: the matches that agree with `geometry`.
         geometry: The `RelativePose` (`R`, `t`, `E`, `ok`) if intrinsics were given, else the `FundamentalMatrix`
             (`F`, `ok`).
+
+    `geometry.ok` only says that a model with enough inliers was found: a fundamental matrix fits some matches of ANY
+    two images (the epipolar constraint is one equation per match), so unrelated photos give `ok=True` with a few
+    percent inliers. Judge a pair by `inlier_ratio` (332 of 5000 matches, 7 %, for two unrelated photos; overlapping views
+    reach far higher) and by the inliers among the confident matches (`inliers & (scores > 0.5)`).
     """
 
     points1: torch.Tensor
@@ -62,6 +67,13 @@ class VerifiedMatches:
     scores: torch.Tensor
     inliers: torch.Tensor
     geometry: RelativePose | FundamentalMatrix
+
+    __repr__ = short_repr
+
+    @property
+    def inlier_ratio(self) -> torch.Tensor:
+        """Fraction of the matches that are inliers: `[]` (`[P]` for batches)."""
+        return self.inliers.float().mean(-1)
 
 
 def _verify(  # noqa: PLR0913, PLR0917 - the matches and the estimators' arguments
@@ -118,7 +130,8 @@ class MatchingResult(NumpyOutputs):
         spreads the matches over the image.
 
         Args:
-            n: Matches per pair (fewer if fewer pixels have a non-zero certainty).
+            n: Matches per pair (fewer if fewer pixels have a non-zero certainty; at most 100 000: more are cut to that
+                instead of running out of memory).
             threshold: Certainty from which pixels are drawn with equal probability.
             seed: Of the sampling.
             balanced: Density balancing of the candidates (see above).
@@ -137,7 +150,7 @@ class MatchingResult(NumpyOutputs):
         else:
             c = self.certainty.reshape(b, h * w)
             weight = torch.where(c > threshold, 1.0, c)
-        n = min(n, int((weight > 0).sum(1).min()))
+        n = min(n, int((weight > 0).sum(1).min()), _MAX_MATCHES)
         if n < 1:
             msg = "no pixel of the first image has a certainty above zero"
             raise InputError(msg)
@@ -196,6 +209,7 @@ class MatchingResult(NumpyOutputs):
         return _verify(points1, points2, scores, k1, k2, threshold, mode)
 
 
+_MAX_MATCHES = 100_000  # cap of `matches`' `n`: the density balancing draws 4 n candidates (a 1.6 GB matrix at the cap)
 _MIN_DENSITY = 10.0  # upstream RoMa: candidates with fewer close neighbours are (nearly) never drawn
 _DENSITY_REFERENCES = 2048  # points the density is estimated from
 
@@ -376,6 +390,10 @@ class MatchingModel(core.Model):
             InputError: Unsupported or too small images.
         """
         pairs = [(int(i), int(j)) for i, j in pairs]
+        for i, j in pairs:
+            if not (0 <= i < len(images) and 0 <= j < len(images)):
+                msg = f"pair ({i}, {j}) indexes outside the {len(images)} images (indices are 0..{len(images) - 1})"
+                raise InputError(msg)
         cache = PairCache(pairs, int(cache_mb * 2**20))
         lazy = self.sparse and not self._runner.match_reads_images
         with DecodedImages(images, pairs, int(DECODED_MB * 2**20), lambda i: lazy and i in cache.kept) as decoded:

@@ -386,3 +386,16 @@ def test_matches_rejects_bad_n(n):
     )
     with pytest.raises(InputError, match="n must be a positive integer"):
         result.matches(n)
+
+
+def test_matches_caps_huge_n_and_results_have_short_reprs():
+    result = MatchingResult(
+        warp=torch.rand(2, 8, 8) * 8, certainty=torch.rand(8, 8), model="test@1", backend="portable"
+    )
+    assert len(repr(result)) < 300
+    assert "Tensor[2, 8, 8; float32; cpu]" in repr(result)
+    p1, _ = result.matches(10**9)  # no memory blow-up: at most the pixels (here 64)
+    assert p1.shape[0] <= 64
+    v = result.verify()
+    assert len(repr(v)) < 600
+    assert 0.0 <= float(v.inlier_ratio) <= 1.0
