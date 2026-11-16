@@ -52,6 +52,7 @@ _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export capture
     "track-on-r@1": "point tracking: a data-dependent scalar read per step (card limitation)",
     "geocalib-pinhole@1": "the Levenberg-Marquardt loop branches and logs on its convergence: 35 graph breaks (card limitation)",
     "resplat-small-dl3dv@1": "the portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (card limitation)",
+    "cotracker3-online@1": "point tracking: the online window loop is data-dependent (6 graph breaks; export guards on data; card limitation)",
     "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
 }
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
@@ -59,6 +60,7 @@ _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.
     " antialiased bicubic gradients; non-strict torch.export still captures this fixed-shape inference",
     "rf-detr-seg-n-coco@1": "pinned upstream disables Dynamo for positional interpolation (as RF-DETR keypoint);"
     " non-strict torch.export still captures this fixed-shape inference",
+    "grounding-dino-tiny@1": "transformers' torch_compilable_check calls Tensor.item() (15 graph breaks); torch.export captures",
     "zoedepth-nk@1": "the NK model routes each image to the NYU or KITTI head by the argmax of its domain logits"
     " (.item(); the export runs both heads and selects)",
 }
@@ -119,8 +121,9 @@ def _load(ref: str) -> Any:
     return sweep_model(ref)
 
 
-_NATIVE_SIZE = {  # fixed-size nets whose card has no native size
+_NATIVE_SIZE = {  # nets that need one size (position embeddings, top-k over the tokens) the card does not give
     "clipseg": (352, 352),
+    "grounding-dino-tiny": (320, 320),  # the 900-query top-k needs at least 900 encoder tokens
     "owlv2-b16": (960, 960),
     "parseq-tiny": (32, 128),
     "vitpose-plus-small": (256, 192),
@@ -181,7 +184,10 @@ def _skip_without_module(ref: str) -> None:
 def test_module_in_eval_mode(ref):
     """`module()` is in eval mode, submodules included: export would trace training-mode branches."""
     _skip_without_module(ref)
-    module = _load(ref).module()
+    try:
+        module = _load(ref).module()
+    except BackendUnavailableError as e:  # a family without an exportable module (MatAnyone's video memory)
+        pytest.skip(str(e))
     training = [name or type(module).__name__ for name, m in module.named_modules() if m.training]
     assert not training, f"{ref}: module() in training mode: {training[:5]}"
 
