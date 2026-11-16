@@ -37,7 +37,9 @@ from fastforks import (
     stereo,
 )
 from fastforks._core import registry
+from fastforks._core.bench import BenchSize, bench_inputs
 from fastforks._core.errors import WeightsError
+from fastforks._core.sizes import size_range
 from fastforks.kernels import cudnn_hacc
 from synth import clip, image, pair, prompts, scene, size, track_queries
 
@@ -85,7 +87,9 @@ OUTPUTS = (  # the outputs checked, where a result has them
     "descriptor",
     "intrinsics",
     "image",
+    "normals",
 )
+BENCH_TASKS = ("depth", "pose", "matting", "restoration")
 A, B, C = (243, 333), (307, 451), (259, 397)  # odd sizes off every tile; B > A, both small enough for graphs
 LARGE = (1001, 1497)
 VIEWS = {A: (120, 160), B: (144, 200), C: (132, 180), LARGE: (240, 320)}  # multiview scenes (4 views)
@@ -121,15 +125,19 @@ def _call(m: Any, task: str, hw: tuple[int, int]) -> dict[str, torch.Tensor]:
         r = m(image(*hw), text="coin") if "text" in m.prompts else m(image(*hw), **prompts()[""])
     elif task == "segmentation":
         r = m(image(*hw), logits=True)
-    elif task == "pose":
-        h, w = hw
-        r = m(image(*hw), boxes=[[w * 0.1, h * 0.1, w * 0.5, h * 0.9], [w * 0.5, h * 0.2, w * 0.9, h * 0.8]])
+    elif task in BENCH_TASKS:  # inputs the family needs beyond an image (prompt depth, intrinsics, boxes, trimap, mask)
+        sr = size_range(m.variant, m.card)
+        h, w = size(max(sr.reject_below, sr.min_size), *hw)
+        if task == "restoration":  # face restorers take one square crop
+            h = w = max(h, w)
+        r = m(*(b := bench_inputs(m, BenchSize(h, w, 4)))[0], **b[1])
     else:
         r = m(image(*hw))
     out = {k: getattr(r, k, None) for k in OUTPUTS}
     return {k: v.float() for k, v in out.items() if isinstance(v, torch.Tensor) and v.is_floating_point()}
 
 
+@pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric models guess a camera; the stream checks graphs
 @pytest.mark.parametrize(("task", "ref"), REFS, ids=[r for _, r in REFS])
 def test_size_stream(task: str, ref: str, monkeypatch: pytest.MonkeyPatch) -> None:
     if not torch.cuda.is_available():
