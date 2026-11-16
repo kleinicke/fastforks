@@ -462,7 +462,8 @@ class Kernels(Portable):
         core.temb.clear()
         core.updateformer = _updateformer(core.net.updateformer, core.in_pad)
         for p in core.net.updateformer.parameters():  # the closures hold the fp16 filters: no 2nd copy
-            p.data = p.data.new_empty(0)
+            if p.ndim > 1:  # the LayerNorms (1-D) are still read from the module at call time
+                p.data = p.data.new_empty(0)
         w1, w2 = _w4(core.c1w), _w4(core.c2w)
 
         def mlp(x: torch.Tensor) -> torch.Tensor:
