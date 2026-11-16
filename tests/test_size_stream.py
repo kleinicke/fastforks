@@ -78,6 +78,7 @@ OUTPUTS = (  # the outputs checked, where a result has them
     "last_hidden_state",
     "pred_masks",
     "iou_scores",
+    "similarity",
     "scores",
     "boxes",
     "keypoints",
