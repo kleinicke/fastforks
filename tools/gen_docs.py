@@ -43,6 +43,8 @@ _DATASETS = {
     },
     "depth": {
         "nyu": "NYUv2 test, AbsRel / delta1",
+        "nyu-prompt-every4": "NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
+        "ibims-prompt": "iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
         "ibims": "iBims-1, AbsRel / delta1",
         "eth3d": "ETH3D two-view train left, AbsRel / delta1",
         "middH": "Middlebury 2014 trainingH left, AbsRel / delta1",
@@ -74,7 +76,10 @@ _DATASETS = {
         "5000 test images)"
     },
     "multiview": {"dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %"},
-    "classification": {"imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %"},
+    "classification": {
+        "imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %",
+        "coco-val2017-first500-tags": "COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement %",
+    },
     "pose": {
         "coco-val2017-every10-keypoints-gtbox": "COCO val2017, every 10th image, GT person boxes, keypoint AP",
         "coco-val2017-every1-keypoints-gtbox": "COCO val2017, ground-truth person boxes, keypoint AP",
@@ -86,6 +91,10 @@ _DATASETS = {
     "volume": {
         "totalseg-subset-3mm": "TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice",
         "totalseg-subset-1.5mm": "TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice",
+        "totalseg-nninteractive-prompts-96": "TotalSegmentator test subset (8 CT cases x 12 prompts), mean Dice vs the "
+        "ground-truth mask",
+        "totalseg-featparity-8": "TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: "
+        "cosine (worst case) / relative L2",
     },
     "interpolation": {"davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM"},
     "restoration": {
@@ -93,6 +102,10 @@ _DATASETS = {
         "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every4": "DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x2-crop512-n4": "DIV2K validation, 4 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",
+        "div2k-val-x2-crop512-n2": "DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",
+        "seedvr2-clips-n4": "4 video clips (first frame), PSNR to the original's output",
+        "seedvr2-clips-n2": "2 video clips (first frame), PSNR to the original's output",
         "div2k-val-x2-every4": "DIV2K validation (every 4th: 25 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
         "gopro-test-every4": "GoPro test (every 4th: 278 frames), deblurring, PSNR / SSIM (RGB)",
         "gopro-test-every15": "GoPro test (every 15th: 75 frames), deblurring, PSNR / SSIM (RGB)",
@@ -135,6 +148,10 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "stereo": ((("bad", "{:.2f}", ""), ("epe", "{:.3f}", "")), "n_pairs", "pairs"),
     "depth": ((("rel_absrel", "{:.4f}", ""), ("rel_d1", "{:.4f}", "")), "n_images", "images"),
     **{
+        ("depth", d): ((("met_absrel", "{:.4f}", ""), ("met_d1", "{:.4f}", "")), "n_images", "images")
+        for d in ("nyu-prompt-every4", "ibims-prompt")
+    },
+    **{
         ("depth", d): (
             (("ang_mean", "{:.2f}", ""), ("ang_median", "{:.2f}", ""), ("a11.25", "{:.2f}", ""), ("a30", "{:.2f}", "")),
             "n_images",
@@ -164,6 +181,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "features": ((("top1", "{:.2f}", ""),), "n", "images"),
     "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
+    ("classification", "coco-val2017-first500-tags"): (
+        (("tag_f1", "{:.2f}", ""), ("top1_agree", "{:.2f}", "")),
+        "n",
+        "images",
+    ),
     "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
     ("pose", "widerface-val-every4"): (
         (("ap_easy", "{:.3f}", ""), ("ap_medium", "{:.3f}", ""), ("ap_hard", "{:.3f}", "")),
@@ -173,7 +195,18 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
     "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
     "volume": ((("dice", "{:.4f}", ""),), "n", "cases"),
+    ("volume", "totalseg-nninteractive-prompts-96"): (
+        (("dice", "{:.4f}", ""), ("agree", "{:.4f}", " / agreement with the original")),
+        "n",
+        "prompted runs",
+    ),
+    ("volume", "totalseg-featparity-8"): ((("cos_min", "{:.5f}", ""), ("rel_l2", "{:.4f}", "")), "n", "cases"),
     "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
+    **{
+        ("restoration", d): ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", ""), ("psnr_orig", "{:.2f}", "")), "n", "images")
+        for d in ("div2k-val-x2-crop512-n4", "div2k-val-x2-crop512-n2")
+    },
+    **{("restoration", d): ((("psnr_orig", "{:.2f}", ""),), "n", "clips") for d in ("seedvr2-clips-n4", "seedvr2-clips-n2")},
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
@@ -201,6 +234,20 @@ _PROTOCOL = {
     "all its pixels with Kinect depth, mean over sequences. ",
     ("depth", "nyu-normals"): "Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's "
     "evaluation sets), mean over images. ",
+    ("depth", "nyu-prompt-every4"): "Prompt depth models: the prompt is a 192x256 low-resolution depth built from the "
+    "ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth "
+    "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
+    "comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with "
+    "a LiDAR prompt, L1 in mm): they compare our modes with the original. ",
+    ("depth", "ibims-prompt"): "Prompt depth models: the prompt is a 192x256 low-resolution depth built from the "
+    "ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth "
+    "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
+    "comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with "
+    "a LiDAR prompt, L1 in mm): they compare our modes with the original. ",
+    ("classification", "coco-val2017-first500-tags"): "Taggers have no public benchmark with their tag set, so the "
+    "original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of "
+    "the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely "
+    "tag. The original fp16 row shows the difference of the original itself in half precision. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
     ("segmentation", "coco-val2017-persons-every10"): "Any body part counts as person; ground truth = the COCO person "
     "masks. ",
@@ -248,7 +295,21 @@ _PROTOCOL = {
         "real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, "
         "not with PSNR-oriented upscalers. "
         for d in _DATASETS["restoration"]
-        if d.startswith("div2k")
+        if d.startswith("div2k") and "crop" not in d
+    },
+    **{
+        ("restoration", d): "SeedVR2 is a generative one-step restorer, so PSNR is only a fidelity check. Each of the "
+        "centre 512 px crops of DIV2K validation HR images (a tiny subset: generation is slow) is downscaled with "
+        "bicubic x2 (PIL) and restored x2 by the model, one pass; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y "
+        "channel of the uint8 output with a 2 px border cropped, averaged over the crops; PSNR to the original = "
+        "RGB uint8 PSNR of our output against the authors' output of the same input and settings. The original is "
+        "the authors' inference code, bf16. "
+        for d in ("div2k-val-x2-crop512-n4", "div2k-val-x2-crop512-n2")
+    },
+    **{
+        ("restoration", d): "First frame of each clip (clips of 2 to 10 frames, x2); PSNR of our output (RGB, uint8) "
+        "against the authors' output of the same clip; there is no ground truth for these clips. "
+        for d in ("seedvr2-clips-n4", "seedvr2-clips-n2")
     },
     **{
         ("restoration", d): "Each degraded image at its own size, one pass without tiles (the model pads internally); "
@@ -268,6 +329,14 @@ _PROTOCOL = {
     "its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over "
     "the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and "
     "is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. ",
+    ("volume", "totalseg-nninteractive-prompts-96"): "nnInteractive: per case 12 simulated prompts (point, box, "
+    "scribble, point + box on 3 organs), one interaction each; Dice of the predicted mask against the ground-truth "
+    "organ mask, mean over the runs; agreement = Dice of the mask against the original's mask. Original = the "
+    "authors' code, fp16 autocast. ",
+    ("volume", "totalseg-featparity-8"): "Encoder models have no task head, so they are judged by their output: the "
+    "encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean "
+    "over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error "
+    "the original itself has in half precision. ",
     "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
     "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
     "output rounded to uint8, on RGB in [0, 1], averaged over the triplets. ",
