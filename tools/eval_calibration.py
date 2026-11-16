@@ -10,7 +10,7 @@ Tiers: `upstream` / `upstream16` (the authors' `GeoCalib.calibrate`, the family'
 `torch.autocast` float16; no precision option of its own; `FF_<FAMILY>_REPO` = the upstream checkout), `portable32`,
 `portable`, `kernels`.
 
-    python tools/eval_calibration.py geocalib-pinhole --tiers upstream,portable,kernels --every 10 --out results/raw/x
+    python tools/eval_calibration.py geocalib-pinhole --tiers upstream,portable,kernels --every 10 --out out/x
 """
 
 from __future__ import annotations

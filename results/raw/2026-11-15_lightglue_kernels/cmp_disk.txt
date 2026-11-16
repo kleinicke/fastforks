@@ -1,1 +1,0 @@
-disk-lightglue kernels n=30 kp-recall 0.9828 (min 0.9448) match-in-both 0.9648 (min 0.9006) matches portable 876 kernels 874

@@ -1,3 +1,0 @@
-{"model": "nafnet-gopro", "mode": "auto", "status": "ok", "load_s": 0.8, "call_s": 0.2, "backend": "Backend(mode='kernels', device='cuda:0', dtype='float16', kernels=('cudnn_hacc@cudnn92400',), checkpoint=())", "task": "restoration"}
-{"model": "nafnet-gopro", "mode": "kernels", "status": "ok", "load_s": 0.2, "call_s": 0.0, "backend": "Backend(mode='kernels', device='cuda:0', dtype='float16', kernels=('cudnn_hacc@cudnn92400',), checkpoint=())", "task": "restoration"}
-{"model": "nafnet-gopro", "mode": "portable", "status": "ok", "load_s": 0.2, "call_s": 0.1, "backend": "Backend(mode='portable', device='cuda:0', dtype='float16', kernels=(), checkpoint=())", "task": "restoration"}

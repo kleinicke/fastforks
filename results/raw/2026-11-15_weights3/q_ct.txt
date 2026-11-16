@@ -1,8 +1,0 @@
-clip-l14-dfn2b
-clip-h14-dfn5b
-clip-h14-378-dfn5b
-s2m2-m
-foundationstereo-vit-l
-prompt-depth-anything-l
-pi3
-bridgedepth-rvc-pretrain

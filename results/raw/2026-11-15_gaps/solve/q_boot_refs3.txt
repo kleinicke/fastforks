@@ -1,2 +1,0 @@
-memfof-sintel
-memfof-spring

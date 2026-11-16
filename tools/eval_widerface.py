@@ -10,7 +10,7 @@ set, 1000 thresholds, IoU 0.5) on the subset (`FF_YUNET_REPO`: a libfacedetectio
 Tiers: `upstream` (`build_yunet` + `YuNetPostprocessor`, float32, as `tools/golden/yunet.py`; `FF_YUNET_WEIGHTS`),
 `portable32`, `portable`, `kernels` (the library's network and decoding at the evaluation thresholds).
 
-    python tools/eval_widerface.py yunet-n --tiers upstream,portable32,portable,kernels --every 4 --out results/raw/x
+    python tools/eval_widerface.py yunet-n --tiers upstream,portable32,portable,kernels --every 4 --out out/x
 """
 
 from __future__ import annotations

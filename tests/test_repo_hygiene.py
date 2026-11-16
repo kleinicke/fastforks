@@ -13,8 +13,7 @@ SKIP_SUFFIXES = (
     ".cu",
     ".jsonl",
 )  # .cu comments are hashed into the kernel manifests; rows are cleaned by the release script
-# results/ is the maintainers' measurement log on the work branches: each file records the exact command, machine
-# paths and GPU queue of a run by design (reproducibility). It never ships: main and the wheels have no results/.
+# results/ (maintainers' measurement log, archived outside the repo; gitignored) never ships.
 SKIP_DIRS = ("results/",)
 
 

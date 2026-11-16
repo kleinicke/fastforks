@@ -25,7 +25,7 @@ Tiers: `upstream` / `upstream16` (the HF `birefnet.py` of the weights, fp32 / th
 pre- and post-processing, `tools/golden/birefnet.py`; `FF_BIREFNET_HF` = a directory with the HF snapshots
 `<ref>/birefnet.py`), `portable32`, `portable`, `kernels`.
 
-    python tools/eval_matting.py birefnet-lite --tiers portable,kernels --every 2 --out results/raw/x
+    python tools/eval_matting.py birefnet-lite --tiers portable,kernels --every 2 --out out/x
 """
 
 from __future__ import annotations

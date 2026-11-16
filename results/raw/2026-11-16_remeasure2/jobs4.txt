@@ -1,3 +1,0 @@
-dinov3-vits16 portable
-dinov3-vitb16 portable
-dinov3-vitl16 portable

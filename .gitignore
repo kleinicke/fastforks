@@ -7,3 +7,4 @@ __pycache__/
 /site/
 *.tmp
 *.dets.json
+results/

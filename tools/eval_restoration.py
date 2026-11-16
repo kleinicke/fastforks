@@ -17,7 +17,7 @@ Tiers: `upstream` / `upstream16` (the original as `tools/_original.py` `LOCAL[fa
 fp32 / inference_realesrgan.py's default half; `upstream16` only for originals with an fp16 option of their own),
 `portable32`, `portable`, `kernels`.
 
-    python tools/eval_restoration.py realesrgan-x4plus --tiers portable,kernels --out results/raw/x
+    python tools/eval_restoration.py realesrgan-x4plus --tiers portable,kernels --out out/x
 """
 
 from __future__ import annotations

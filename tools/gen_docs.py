@@ -416,7 +416,7 @@ def _speed_rows() -> dict[str, list[dict]]:
         row = json.loads(line)
         if row.get("status") == "oom" or (
             "error" in row and "ms" not in row
-        ):  # no time: _oom reads OOM; errors stay in results/
+        ):  # no time: _oom reads OOM; errors stay in the maintainers' archive
             continue
         if not row.get("cold") or "ms" in row:  # speed_check rows: a fresh process, warm timings included
             rows.setdefault(row["ref"], []).append(row)

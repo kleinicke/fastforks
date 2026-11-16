@@ -11,7 +11,7 @@ Tiers: `upstream` / `upstream16` (the family's `tools/_original.py` adapter, fp3
 `--fp16`, `FF_RIFE_REPO` = a hzwer/Practical-RIFE clone, `FF_RIFE_RELEASES` = one unpacked release per variant id;
 GIMM-VFI: `FF_GIMM_VFI_REPO`, see `_gimm_vfi`), `portable32`, `portable`, `kernels`.
 
-    python tools/eval_interpolation.py rife-4.25 --tiers portable,kernels --out results/raw/x
+    python tools/eval_interpolation.py rife-4.25 --tiers portable,kernels --out out/x
 """
 
 from __future__ import annotations

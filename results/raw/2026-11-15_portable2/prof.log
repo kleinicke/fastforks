@@ -1,8 +1,0 @@
-== lib efficientvit_b2.r288_in1k portable 14:12:29
-USDT:2026-11-15 14:12:34 802948:802948 SyncActivityProfilerHandler.cpp:39] profiler_start
-USDT:2026-11-15 14:12:34 802948:802948 SyncActivityProfilerHandler.cpp:46] profiler_stop
-{"side": "lib", "ref": "efficientvit_b2.r288_in1k", "task": "classification", "mode": "portable", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.0
-== lib fastvit_t8.apple_dist_in1k portable 14:12:36
-USDT:2026-11-15 14:12:40 803170:803170 SyncActivityProfilerHandler.cpp:39] profiler_start
-USDT:2026-11-15 14:12:40 803170:803170 SyncActivityProfilerHandler.cpp:46] profiler_stop
-{"side": "lib", "ref": "fastvit_t8.apple_dist_in1k", "task": "classification", "mode": "portable", "gpu": "NVIDIA GeForce RTX 5060 Ti", "torch": "2.14.1+cu130", "date": "2026-11-15", "protocol": "first call, 3 warm-up, peak reset, median of 3 rounds x median of 5", "cold": true, "torch_import_s": 1.

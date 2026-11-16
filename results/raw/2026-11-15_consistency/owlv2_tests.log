@@ -1,6 +1,0 @@
-.s......                                                                 [100%]
-=========================== short test summary info ============================
-SKIPPED [1] tests/test_golden.py:564: same code as a CPU-checked variant (size / weights only); the GPU goldens check it; FASTFORKS_HEAVY_CPU_TESTS=1 runs it
-7 passed, 1 skipped, 2962 deselected in 18.16s
-......                                                                   [100%]
-6 passed in 4.63s

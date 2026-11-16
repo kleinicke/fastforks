@@ -2,7 +2,7 @@
 # unchanged upstream weights are not mirrored (the cards point at the authors' hosts). A repo needs: the weights'
 # own licence checked (permissive, ungated), name = upstream stem + dtype tag (`-bf16`, `-nf4`), and a README that states
 # the source, the precision and the conversion script. `tools/stage_hf.py weights OUT` stages each repo from this
-# table and the cards. Plan and licence checks: results/2026-11-15_weights_repo_plan.md, results/2026-11-15_hf_only_changed.md.
+# table and the cards. Licence checks are kept in the maintainers' archive.
 #
 # Keys: title, by (authors), upstream (repo + revision the weights come from), licence (SPDX) + licence_url +
 # licence_evidence (the upstream sentence that licenses the WEIGHTS), files (name -> sha256), licence_files

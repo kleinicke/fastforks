@@ -496,8 +496,7 @@ Portable is launch-bound (about 1 ms of CUDA time per call, 241-297 launches) an
 reparameterized fp32 original (3.07 / 3.61 ms); the gap is in `speed_allowlist.json` as open. Untested for
 datacenter GPUs: CUDA graphs for portable at small batches, and the kernels runner at batch > 1.
 
-Source: the FastViT rows in `docs/data/speed.jsonl`, `docs/data/speed_compile.jsonl` and
-`results/raw/2026-11-11_port_fastvit/launch_probe.json`.
+Source: the FastViT rows in `docs/data/speed.jsonl` and `docs/data/speed_compile.jsonl`.
 
 ## Pose: HRNet W32 / W48
 
@@ -507,8 +506,7 @@ Portable is launch-bound (four parallel branches of small convs plus the fuse la
 kernels; TensorRT is fastest. Untested for datacenter GPUs: CUDA graphs for the portable crop batch.
 The 384 variants show argmax flips on flat heatmaps under fp16 (p99 up to 3.2 px), which set the golden p99 bound.
 
-Source: the HRNet rows in `docs/data/speed.jsonl`, `docs/data/speed_compile.jsonl` and
-`results/raw/2026-11-11_port_hrnet/`.
+Source: the HRNet rows in `docs/data/speed.jsonl` and `docs/data/speed_compile.jsonl`.
 
 ## Matching: RoMa v2
 
@@ -522,8 +520,7 @@ cuDNN's three ops, 3.5x faster than cuDNN's depthwise conv alone): kernels 407 -
 1x1 conv + DepthToSpace. Untested for datacenter GPUs: a fused depthwise conv + bias + ReLU (cuDNN's
 `cudnn_convolution_relu` made the whole call 1177 instead of 412 ms on sm_120 for these depthwise shapes).
 
-Source: the RoMa v2 rows in `docs/data/speed.jsonl`, `docs/data/speed_compile.jsonl` and
-`results/raw/2026-11-11_port_romav2/` (profile/ has the per-step trials).
+Source: the RoMa v2 rows in `docs/data/speed.jsonl` and `docs/data/speed_compile.jsonl`.
 
 **RTX 3090 (sm_86, GeForce, rented 2026-11-14), same pair and options.** Survey rows, golden pass
 (`docs/data/speed/rtx-3090-24gb.jsonl`): kernels 298 ms (peak 1883 MiB allocated / 2340 reserved), portable 560 ms

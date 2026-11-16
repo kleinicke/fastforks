@@ -1,3 +1,0 @@
-raft-large-kitti kernels
-rtmpose-l portable
-da3-large-1.1 kernels
