@@ -139,6 +139,30 @@ seg.labels  # [D, H, W] uint8 class index on the input grid; seg.class_names {1:
 volume.write_nifti("seg.nii.gz", seg.labels.cpu().numpy(), meta)  # on the grid of ct.nii.gz
 ```
 
+Dense matching of two photos ([models](models/matching.md), [API](api/matching.md)): warp, matches, geometry and a plot (PIL only):
+
+```python
+from fastforks import matching
+from PIL import Image, ImageDraw
+
+result = matching.load("romav2")("a.jpg", "b.jpg")  # paths, PIL images, numpy arrays or tensors; sizes may differ
+result.warp, result.certainty  # [2, H1, W1] (x, y) in pixels of image 2, [H1, W1] in [0, 1]
+v = result.verify()  # 5000 sampled matches + fundamental-matrix RANSAC (no intrinsics needed): v.geometry.F
+points1, points2 = v.points1[v.inliers].cpu().numpy(), v.points2[v.inliers].cpu().numpy()  # [N, 2] pixels
+pose = matching.estimate_pose(points1, points2, K1, K2)  # numpy / list / tensor inputs; pose.R, pose.t (unit length)
+
+a, b = Image.open("a.jpg").convert("RGB"), Image.open("b.jpg").convert("RGB")
+canvas = Image.new("RGB", (a.width + b.width, max(a.height, b.height)))
+canvas.paste(a, (0, 0)), canvas.paste(b, (a.width, 0))
+draw = ImageDraw.Draw(canvas)
+for (x1, y1), (x2, y2) in zip(points1[::5], points2[::5]):
+    draw.line([x1, y1, x2 + a.width, y2], fill=(255, 0, 0))
+canvas.save("matches.png")
+```
+
+Two unrelated photos still give a fundamental matrix (`ok=True`: 7 matches always fit one); judge a pair by
+`v.inliers.sum()` and `result.certainty.mean()`, not by `ok`. A list of path pairs gives a list of results; a `[B, 3, H, W]` batch one result with a leading batch dimension.
+
 How a call runs: the model card (`card.toml`) is resolved to a variant (the id and revision); the variant and `mode` select a
 runner (portable or kernels backend) with its weights; the task API (`<task>.load`) wraps the runner and turns the input into
 tensors; calling it returns the typed result, whose `.backend` records what ran. The exceptions follow.
