@@ -46,6 +46,11 @@ _ONNX_KNOWN_MISMATCH = {  # open: the export runs, ONNX Runtime disagrees (or re
 _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export captures it: documented
     "aliked-lightglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
     "xfeat@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+    "aliked-flexglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+    "loma-b@1": "sparse matching: the match count is data-dependent (nonzero; card limitation)",
+    "alltracker-tiny@1": "point tracking: the track set is data-dependent (unique; card limitation)",
+    "track-on-r@1": "point tracking: a data-dependent scalar read per step (card limitation)",
+    "geocalib-pinhole@1": "the Levenberg-Marquardt loop branches and logs on its convergence: 35 graph breaks (card limitation)",
     "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
 }
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
