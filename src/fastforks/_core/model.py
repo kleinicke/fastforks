@@ -1213,7 +1213,8 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
         claim_kernels_device(device)
     adapt_to_device(runner, mode, device)
     if device.type == "cuda":
-        compact_runner(runner)  # the build's freed copies / casts leave holes in the reserved memory: one arena
+        if os.environ.get("FASTFORKS_ARENA") == "1":  # experimental, off by default (not verified on every family)
+            compact_runner(runner)  # the build's freed copies / casts leave holes in the reserved memory: one arena
         warmup.wait(device)  # the loaded model starts on a clean device: no warm-up step (cuBLAS workspace) still live
         torch.cuda.empty_cache()  # nor the build's freed buffers (device checkpoint copies, casts) as reserved memory
     backend = Backend(

@@ -24,12 +24,10 @@ def _outputs(model_id: str, mode: str, task: str | None, compact: bool) -> tuple
     import torch  # noqa: PLC0415
 
     import fastforks  # noqa: PLC0415
-    from fastforks._core import model as core_model  # noqa: PLC0415
     from fastforks._core.bench import bench_inputs  # noqa: PLC0415
     from family_smoke import _size  # noqa: PLC0415
 
-    real = core_model.compact_runner
-    core_model.compact_runner = real if compact else (lambda _r: None)
+    os.environ["FASTFORKS_ARENA"] = "1" if compact else "0"
     try:
         gc.collect()
         torch.cuda.empty_cache()
@@ -45,7 +43,7 @@ def _outputs(model_id: str, mode: str, task: str | None, compact: bool) -> tuple
         del m, res, r
         return out, alloc, reserved
     finally:
-        core_model.compact_runner = real
+        os.environ.pop("FASTFORKS_ARENA", None)
         gc.collect()
         torch.cuda.empty_cache()
 
@@ -61,7 +59,12 @@ def _diff(a: dict[str, Any], b: dict[str, Any]) -> float:
             if x.shape != y.shape:
                 return float("inf")
             if not np.array_equal(x, y, equal_nan=True):
-                worst = max(worst, float(np.nanmax(np.abs(x.astype(np.float64) - y.astype(np.float64)))) if x.dtype.kind in "fiu" else 1.0)
+                worst = max(
+                    worst,
+                    float(np.nanmax(np.abs(x.astype(np.float64) - y.astype(np.float64))))
+                    if x.dtype.kind in "fiu"
+                    else 1.0,
+                )
     return worst
 
 

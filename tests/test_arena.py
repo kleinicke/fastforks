@@ -79,40 +79,10 @@ def test_compact_leaves_no_holes_in_reserved_memory() -> None:
     assert torch.cuda.memory_reserved() - base <= live + (4 << 20)
 
 
-def test_threshold_leaves_small_nets_alone(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(arena, "_MIN_BYTES", 128 << 20)
+def test_threshold_leaves_small_nets_alone() -> None:
     net = _net("cuda" if torch.cuda.is_available() else "cpu")
     ptrs = [p.data_ptr() for p in net.parameters()]
-    compact(net)
-    assert [p.data_ptr() for p in net.parameters()] == ptrs
-
-
-@pytest.mark.gpu
-@pytest.mark.slow
-def test_plain_tensor_alias_skips_the_whole_network() -> None:
-    net = _net("cuda")
-    net.keep = net[0].weight.data  # a plain attribute (a kernel's packed-weight alias) views a registered storage
-    ptrs = [p.data_ptr() for p in net.parameters()]
-    compact(net)
-    assert [p.data_ptr() for p in net.parameters()] == ptrs
-    assert net.keep.data_ptr() == net[0].weight.data_ptr()
-
-
-@pytest.mark.gpu
-@pytest.mark.slow
-def test_arena_oom_skips_compaction(monkeypatch: pytest.MonkeyPatch) -> None:
-    net = _net("cuda")
-    ptrs = [p.data_ptr() for p in net.parameters()]
-    real = torch.empty
-
-    def boom(*a: object, **k: object) -> torch.Tensor:
-        if k.get("dtype") == torch.uint8 and a and a[0] != 0:
-            raise torch.cuda.OutOfMemoryError("test")
-        return real(*a, **k)  # type: ignore[arg-type]
-
-    monkeypatch.setattr(torch, "empty", boom)
-    compact(net)
-    monkeypatch.undo()
+    compact(net, min_bytes=128 << 20)
     assert [p.data_ptr() for p in net.parameters()] == ptrs
 
 

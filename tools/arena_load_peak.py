@@ -22,10 +22,8 @@ def _load(model_id: str, mode: str, compact: bool) -> dict[str, float]:
     import torch  # noqa: PLC0415
 
     import fastforks  # noqa: PLC0415
-    from fastforks._core import model as core_model  # noqa: PLC0415
 
-    real = core_model.compact_runner
-    core_model.compact_runner = real if compact else (lambda _r: None)
+    os.environ["FASTFORKS_ARENA"] = "1" if compact else "0"
     try:
         gc.collect()
         torch.cuda.empty_cache()
@@ -42,7 +40,7 @@ def _load(model_id: str, mode: str, compact: bool) -> dict[str, float]:
         del m
         return row
     finally:
-        core_model.compact_runner = real
+        os.environ.pop("FASTFORKS_ARENA", None)
         gc.collect()
         torch.cuda.empty_cache()
 
