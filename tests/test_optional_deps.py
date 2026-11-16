@@ -44,10 +44,14 @@ GUARDED = {  # (file under src/fastforks, function) -> the guarded helper that m
     ("detection/_ops.py", "ops"),
     ("_core/export.py", "_tensorrt"),
     ("_core/export.py", "_fix_folded_weight_casts"),
+    ("_core/export.py", "_bf16_deconvolutions_as_convs"),
     ("_core/export.py", "_probe_dynamic_onnx"),  # after an export, which needs onnx
     ("stereo/geometry/ply.py", "write_las"),
     ("matching/sfm.py", "reconstruct"),
 }
+
+
+VENDORED = ("shared/rfdetr/net/",)  # vendored upstream code with top-level imports; its families declare `requires`
 
 
 def _imported(node: ast.AST) -> list[str]:
@@ -87,7 +91,8 @@ def _scan(tree: ast.AST, path: str, found: list[str], func: str = "", *, typing_
                 _scan(ast.Module([child], []), path, found, func, typing_only=typing_only)
             continue
         names = [*_imported(node), *_string_import(node)]
-        if not typing_only and (bad := OPTIONAL.intersection(names)) and (path, func) not in GUARDED:
+        guarded = (path, func) in GUARDED or path.startswith(VENDORED)
+        if not typing_only and (bad := OPTIONAL.intersection(names)) and not guarded:
             found.append(f"{path}:{node.lineno} imports {', '.join(sorted(bad))} outside a guarded helper")
         _scan(node, path, found, func, typing_only=typing_only)
 

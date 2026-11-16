@@ -77,6 +77,8 @@ _CODE_REQUIRES: Mapping[tuple[str, str], tuple[str, ...]] = MappingProxyType(
         ("detection", "rcnn"): ("torchvision",),
         ("detection", "rtmdet"): ("torchvision",),
         ("detection", "yolox"): ("torchvision",),
+        ("detection", "rfdetr"): ("torchvision", "transformers"),  # vendored `shared.rfdetr.net` (DINOv2 backbone)
+        ("pose", "rfdetr_keypoint"): ("torchvision", "transformers"),
     }
 )
 
