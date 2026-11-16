@@ -58,7 +58,7 @@ def _runner(device: str, *, cuda_graphs: bool) -> tuple[object, torch.Tensor]:
 
 def test_no_graph_on_cpu() -> None:
     runner, _ = _runner("cpu", cuda_graphs=True)
-    assert runner._graphs is None  # noqa: SLF001
+    assert runner._graphs is None
     runner.release_graphs()
 
 
@@ -72,9 +72,11 @@ def test_graph_replay_matches_eager() -> None:
         out = graphed(img)
         assert out["texts"] == ref["texts"]
         torch.testing.assert_close(out["scores"], ref["scores"], rtol=0, atol=1e-5)
-    assert len(graphed._graphs.graphs) == 1  # noqa: SLF001
+    assert len(graphed._graphs.graphs) == 1
     x = to_input(img)
     with torch.no_grad():
-        torch.testing.assert_close(graphed._graphs.run((x.device, x.dtype, tuple(x.shape)), x), eager.net(x), rtol=0, atol=1e-4)  # noqa: SLF001
+        torch.testing.assert_close(
+            graphed._graphs.run((x.device, x.dtype, tuple(x.shape)), x), eager.net(x), rtol=0, atol=1e-4
+        )
     graphed.release_graphs()
-    assert not graphed._graphs.graphs  # noqa: SLF001
+    assert not graphed._graphs.graphs

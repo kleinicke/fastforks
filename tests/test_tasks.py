@@ -103,6 +103,19 @@ class Depth(DepthRunner):
         return out
 
 
+class DepthAssumingCamera(Depth):
+    assumed_camera = "a 300 px focal length"
+
+
+def test_metric_depth_without_intrinsics_warns_when_a_camera_is_assumed(fake):
+    fake("depth", DepthAssumingCamera, ["depth", "mask", "intrinsics"], {"kind": "metric"})
+    m = depth.load("fake", device="cpu")
+    img = np.full((6, 7, 3), 255, np.uint8)
+    with pytest.warns(UserWarning, match="300 px focal length"):
+        m(img)
+    assert m(img, intrinsics=np.eye(3)).depth is not None  # given: no warning (filterwarnings = error)
+
+
 def test_depth(fake):
     fake("depth", Depth, ["depth", "mask", "intrinsics"], {"kind": "metric"})
     m = depth.load("fake", device="cpu")
@@ -438,6 +451,19 @@ def test_promptable_segmentation_bad_prompts(fake, kwargs, match):
     fake("promptable_segmentation", Prompt, ["pred_masks", "iou_scores"], {})
     with pytest.raises(InputError, match=match):
         promptable_segmentation.load("fake", device="cpu")(np.zeros((8, 12, 3), np.uint8), **kwargs)
+
+
+def test_promptable_segmentation_points_must_be_pixels_in_the_image(fake):
+    """A point outside the image (x / y swapped) raises; padding points are exempt; 0..1 fractions warn."""
+    fake("promptable_segmentation", Prompt, ["pred_masks", "iou_scores"], {})
+    m = promptable_segmentation.load("fake", device="cpu")
+    img = np.zeros((8, 12, 3), np.uint8)
+    with pytest.raises(InputError, match="outside"):
+        m(img, input_points=[[2.0, 11.0]], input_labels=[1])
+    assert m(img, input_points=[[[6.0, 2.0], [-10.0, -10.0]]], input_labels=[[1, -1]]).masks.shape[-2:] == (8, 12)
+    big = np.zeros((64, 64, 3), np.uint8)
+    with pytest.warns(UserWarning, match="not fractions"):
+        m(big, input_points=[[0.5, 0.5]], input_labels=[1])
 
 
 def test_promptable_segmentation_rejects_foreign_embeddings_and_batches(fake):
@@ -914,7 +940,7 @@ def test_multiview_feed_forward(fake):
 def test_multiview_calibrated(fake):
     fake("multiview", Calibrated, ["depth", "mask", "range"], {"kind": "metric"})
     m = multiview.load("fake", device="cpu")
-    k = np.diag([5.0, 5.0, 1.0])
+    k = np.array([[5.0, 0, 2.5], [0, 5.0, 2.0], [0, 0, 1]])  # 5 x 4 px views
     c2w = np.stack([np.eye(4)] * 3)
     c2w[:, 0, 3] = [1.0, 2.0, 3.0]
     r = m(_views(), intrinsics=k, cam_to_world=c2w, reference=[2, 0])
@@ -945,6 +971,9 @@ def test_multiview_calibrated(fake):
             m(_views(), **bad)
     with pytest.raises(InputError, match="at most 4"):
         m(_views(5), intrinsics=k, cam_to_world=np.stack([np.eye(4)] * 5))
+    for corner in (np.eye(3), np.diag([0.8, 0.8, 1.0])):  # identity / normalised matrices are not pixel intrinsics
+        with pytest.raises(InputError, match="principal point"):
+            m(_views(), intrinsics=corner, cam_to_world=c2w)
 
 
 def test_unproject_round_trip():
@@ -1048,6 +1077,16 @@ def test_bench_inputs_pose(fake):
     r = m(*args, **kwargs)
     assert r.boxes.shape == (3, 4)
     assert r.keypoints.shape[0] == r.keypoint_scores.shape[0] == len(r) == 3
+
+
+def test_pose_boxes_as_fractions_warn(fake):
+    """Boxes in 0..1 (a normalised detector output) are tiny pixel boxes: warn, do not fail."""
+    fake("pose", Pose, ["keypoints", "keypoint_scores", "boxes", "scores"], {"label_set": "coco-keypoints-17"})
+    m = importlib.import_module("fastforks.pose").load("fake", device="cpu")
+    img = np.zeros((64, 64, 3), np.uint8)
+    with pytest.warns(UserWarning, match="not fractions"):
+        m(img, boxes=[[0.1, 0.1, 0.9, 0.9]])
+    assert m(img, boxes=[[1.0, 1.0, 40.0, 50.0]]).keypoints.shape[0] == 1
 
 
 def _tagged_card(*variants):

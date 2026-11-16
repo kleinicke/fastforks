@@ -4,7 +4,7 @@ summary = "MEMFOF (Bargatin et al. 2025): memory-efficient multi-frame optical f
 tier = "experimental"
 outputs = ["flow"]
 uses = []  # fastforks.shared modules this family imports
-limitations = ["Pairs only: the multi-frame input (a previous frame and the feature cache of upstream's video demo) is not exposed; each pair runs as the first frame of a clip."]
+limitations = ["Pairs only: the multi-frame input (a previous frame and the feature cache of upstream's video demo) is not exposed; each pair runs as the first frame of a clip.", "Full-frame 1080x1920 runs out of memory on the RTX 5060 Ti 16 GB in the upstream original and in portable; only kernels fit (7.2 GB)."]
 
 [upstream]
 repo = "https://github.com/msu-video-group/memfof"

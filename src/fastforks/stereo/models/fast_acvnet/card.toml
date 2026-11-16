@@ -5,6 +5,10 @@ tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "mobilenetv2"]  # fastforks.shared modules this family imports
 
+limitations = [
+  "Kernels at 994 x 1482 reserve 960 MB vs 756 MB portable (peak allocated 664 vs 651 MB; original 1441 MB), 34 % faster; the difference is cached allocator blocks of the CUDA graph / cuDNN workspaces.",
+]
+
 [upstream]
 repo = "https://github.com/gangweix/Fast-ACVNet"
 commit = "61d5375e1816f124f4417cea506eeaddac1504e4"

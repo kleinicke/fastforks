@@ -74,7 +74,7 @@ flowformer = "FlowFormer Small (ECCV 2022): convolutional features and a latent 
 # --- depth
 depth_anything_3 = "ByteDance's Depth Anything 3: depth from one image, with relative, metric and multi-view versions. The licence differs by variant, see the table."
 depth_anything_v2 = "Depth Anything V2: relative depth from one image, in small, base and large. The licence differs by size, see the table."
-video_depth_anything = "Video Depth Anything (ByteDance): depth of a whole video, consistent from frame to frame, in windows of 32 frames on the Depth Anything V2 Small encoder; relative and metric. Apache-2.0 code and weights (Small only)."
+video_depth_anything = "Video Depth Anything (ByteDance): depth of a whole clip via `model.video(frames)` (a plain call treats frames as independent), consistent over time; relative and metric. Apache-2.0 code and weights (Small only)."
 prompt_depth_anything = "Prompt Depth Anything: metric depth from one image plus a low-resolution depth prompt (for example a phone LiDAR map), in small and large."
 omni_dc = "OMNI-DC: metric depth completion for any sparse pattern; it predicts depth gradients at three scales and integrates them with the sparse points, helped by Depth Anything V2 Large. BSD-3 code, weights non-commercial (they include Depth Anything V2 Large)."
 any2full = "Any2Full: metric depth completion that prompts Depth Anything V2 with a sparse depth map of any pattern and density, in small, base and large. Apache-2.0 code and weights."

@@ -436,7 +436,7 @@ class _Base(Runner):
         images: torch.Tensor,
         intrinsics: torch.Tensor,
         cam_to_world: torch.Tensor,
-        depth_range: torch.Tensor | None,
+        depth_range: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """The runner's inputs -> depth, confidence (input size) and the refined Gaussians, in the input frame."""
         p = self.ctx.params
@@ -518,7 +518,7 @@ class Kernels(_Base):
         images: torch.Tensor,
         intrinsics: torch.Tensor,
         cam_to_world: torch.Tensor,
-        depth_range: torch.Tensor | None,
+        depth_range: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """`_Base.forward` with fp16-accumulate GEMMs."""
         with fp16_accumulate():

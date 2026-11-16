@@ -21,6 +21,7 @@ import gc
 import hashlib
 import os
 import re
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -295,7 +296,9 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         r = m(*pair(*size(m.variant.io.min_size)))
         maps = {"disparity": r.disparity, "confidence": r.confidence, **r.extras}
     elif task == "depth":
-        r = m(img, **prompt_kwargs(m))
+        with warnings.catch_warnings():  # metric3d / da3metric without intrinsics: the golden is the assumed camera
+            warnings.filterwarnings("ignore", message=".*without intrinsics")
+            r = m(img, **prompt_kwargs(m))
         maps = {**{k: getattr(r, k) for k in spec("depth").standard}, **r.extras}
     elif task == "multiview":
         r, maps = _scene(m)
@@ -527,7 +530,8 @@ def cpu_parity(ref: str, want: dict[str, np.ndarray], got: dict[str, torch.Tenso
         if g.shape != v.shape:
             lines.append(f"FAIL {k}: shape {g.shape}, golden {v.shape}")
             continue
-        if k in {"labels", "mask"}:  # volume label maps / masks: argmax ties at class borders flip voxels
+        if k in {"labels", "mask"} and "cpu_label_mismatch" in tol:  # volume label maps / masks: argmax ties at class
+            # borders flip voxels (detection class labels compare like any output)
             frac = float((g != v).mean())
             bound = tol["cpu_label_mismatch"]
             lines.append(f"{'FAIL ' * (frac > bound)}{k} {v.shape}: {frac:.2e} of the voxels differ (bound {bound})")

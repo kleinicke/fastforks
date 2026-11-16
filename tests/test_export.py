@@ -46,6 +46,20 @@ _ONNX_KNOWN_MISMATCH = {  # open: the export runs, ONNX Runtime disagrees (or re
 _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export captures it: documented
     "aliked-lightglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
     "xfeat@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+    "aliked-flexglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+    "loma-b@1": "sparse matching: the match count is data-dependent (nonzero; card limitation)",
+    "alltracker-tiny@1": "point tracking: the track set is data-dependent (unique; card limitation)",
+    "track-on-r@1": "point tracking: a data-dependent scalar read per step (card limitation)",
+    "geocalib-pinhole@1": (
+        "the Levenberg-Marquardt loop branches and logs on its convergence: 35 graph breaks (card limitation)"
+    ),
+    "resplat-small-dl3dv@1": (
+        "the portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (card limitation)"
+    ),
+    "cotracker3-online@1": (
+        "point tracking: the online window loop is data-dependent "
+        "(6 graph breaks; export guards on data; card limitation)"
+    ),
     "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
 }
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
@@ -53,6 +67,9 @@ _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.
     " antialiased bicubic gradients; non-strict torch.export still captures this fixed-shape inference",
     "rf-detr-seg-n-coco@1": "pinned upstream disables Dynamo for positional interpolation (as RF-DETR keypoint);"
     " non-strict torch.export still captures this fixed-shape inference",
+    "grounding-dino-tiny@1": (
+        "transformers' torch_compilable_check calls Tensor.item() (15 graph breaks); torch.export captures"
+    ),
     "zoedepth-nk@1": "the NK model routes each image to the NYU or KITTI head by the argmax of its domain logits"
     " (.item(); the export runs both heads and selects)",
 }
@@ -113,7 +130,20 @@ def _load(ref: str) -> Any:
     return sweep_model(ref)
 
 
+_NATIVE_SIZE = {  # nets that need one size (position embeddings, top-k over the tokens) the card does not give
+    "clipseg": (352, 352),
+    "grounding-dino-tiny": (320, 320),  # the 900-query top-k needs at least 900 encoder tokens
+    "owlv2-b16": (960, 960),
+    "parseq-tiny": (32, 128),
+    "vitpose-plus-small": (256, 192),
+}
+
+
 def _shape(model: Any) -> tuple[int, ...]:
+    # a net fixed to one size (position embeddings)
+    native = _NATIVE_SIZE.get(model.variant.id) or model.size_range().native
+    if native:
+        return (*SHAPE[:2], *native)
     return (*SHAPE[:2], *size(model.size_range().min_size, *SHAPE[2:]))
 
 
@@ -131,6 +161,10 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
         return model.example_inputs(*_shape(model)[2:], batch=2)
     if TASK[ref] in {"stereo", "flow", "matching", "interpolation"}:
         return pair
+    if TASK[ref] == "restoration" and model._runner.mask == "required":  # inpainting: the image and its mask
+        return model.example_inputs(*pair[0].shape[2:])
+    if hasattr(model._runner, "condition"):  # CLIPSeg: the image, then the projected text embedding
+        return (pair[0], model._runner.condition("a cat"))
     extra = prompt_kwargs(model)  # depth: the image, then the prompt [1, 1, h, w] of a model that requires one
     return (pair[0], *(torch.as_tensor(v)[None, None] for v in extra.values()))
 
@@ -160,7 +194,10 @@ def _skip_without_module(ref: str) -> None:
 def test_module_in_eval_mode(ref):
     """`module()` is in eval mode, submodules included: export would trace training-mode branches."""
     _skip_without_module(ref)
-    module = _load(ref).module()
+    try:
+        module = _load(ref).module()
+    except BackendUnavailableError as e:  # a family without an exportable module (MatAnyone's video memory)
+        pytest.skip(str(e))
     training = [name or type(module).__name__ for name, m in module.named_modules() if m.training]
     assert not training, f"{ref}: module() in training mode: {training[:5]}"
 
@@ -193,15 +230,19 @@ def _check_export_names(ref: str, model: Any, module: torch.nn.Module, out: Any)
 @pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.filterwarnings("ignore:The .grad attribute of a Tensor that is not a leaf")  # dynamo reads .grad
+@pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric3d / da3metric: the assumed camera is fine here
 @pytest.mark.parametrize("ref", SMALLEST)
-def test_module_compile_export(ref):  # noqa: C901, PLR0912 - one branch per task
+def test_module_compile_export(ref):  # noqa: C901, PLR0912, PLR0915 - one branch per task
     _skip_without_module(ref)
     if ref in _NOT_TRACEABLE:
         pytest.xfail(_NOT_TRACEABLE[ref])
     if ref in _CPU_RAM_HEAVY and not os.environ.get("FASTFORKS_HEAVY_CPU_TESTS"):
         pytest.skip(_CPU_RAM_HEAVY[ref])
     model = _load(ref)
-    module = model.module()
+    try:
+        module = model.module()
+    except BackendUnavailableError as e:  # a family without an exportable module (MatAnyone's video memory)
+        pytest.skip(str(e))
     inputs = _inputs(ref, model)
     with torch.inference_mode():
         want = module(*inputs)
@@ -224,7 +265,8 @@ def test_module_compile_export(ref):  # noqa: C901, PLR0912 - one branch per tas
         assert torch.equal(want[0], model(*(x[0] for x in inputs)).frame)
     elif TASK[ref] == "restoration":  # [B, 3, H, W] in [0, 1] -> [B, 3, sH, sW], as the model call
         assert want.shape == (1, 3, *(model.scale * n for n in inputs[0].shape[2:]))
-        assert torch.equal(want[0], model(inputs[0][0]).image)
+        kw = {"mask": inputs[1][0, 0]} if len(inputs) > 1 else {}  # inpainting: the mask of the image
+        assert torch.equal(want[0], model(inputs[0][0], **kw).image)
     elif TASK[ref] == "features":  # -> last_hidden_state [B, N, C], as the model call with the default size
         assert torch.equal(want[0], model(inputs[0][0]).last_hidden_state)
     elif TASK[ref] == "classification":  # transformed images -> logits, as the model call on the raw image
@@ -358,7 +400,8 @@ def test_onnx_multiview(ref, tmp_path):
 
 def _main_map_name(ref: str) -> str:
     card, variant = registry.resolve(TASK[ref], ref)
-    return next(k for k in spec(card.task).standard if k in variant.outputs)
+    name = next(k for k in spec(card.task).standard if k in variant.outputs)
+    return f"{name}_out" if name in spec(card.task).inputs else name  # an output named like an input gets `_out`
 
 
 @pytest.mark.model
@@ -582,7 +625,9 @@ def test_model_compile_equals_eager(ref):
         assert type(model._runner) is not runner_type
         got = model(*args, **kwargs)
         for name, w in _tensors(want).items():
-            torch.testing.assert_close(_tensors(got)[name].float(), w.float(), rtol=1e-3, atol=2e-3)
+            # a few track points sit on near-ties of the cost-volume argmax: locotrack-s needs 9.3e-3 on top of rtol
+            atol = 1.2e-2 if TASK[ref] == "tracking" else 2e-3
+            torch.testing.assert_close(_tensors(got)[name].float(), w.float(), rtol=1e-3, atol=atol)
         assert model.compile(backend="eager") is model  # a repeat compile replaces the first
         assert type(model._runner).__bases__ == (runner_type,)
     finally:

@@ -3,7 +3,7 @@
 The authors' code (huawei-bayerlab/marigold-v2 with diffusers, bitsandbytes NF4 and peft) needs CUDA and more than
 16 GB, so the usual CPU float32 reference run is not possible here. The golden is the family's own network
 (`net/`) on the GPU with the option `exact_mask = True`, which passes upstream's all-true attention mask to SDPA: on an
-RTX 3090 that output equals the authors' bit for bit at 512, 768 and 1024 px (results/2026-11-14_marigold_v2_3090);
+RTX 3090 that output equals the authors' bit for bit at 512, 768 and 1024 px (measured 2026-11-14);
 the lean checkpoint equals the converter's output tensor by tensor. Run with the family's own venv:
 
     FASTFORKS_GOLDEN_PATH=... python tools/golden/marigold_v2.py

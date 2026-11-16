@@ -104,14 +104,19 @@ def _pointops() -> types.ModuleType:
     return m
 
 
-def network(repo: Path, variant: str, ckpt: Path) -> torch.nn.Module:
-    """`EncoderReSplat` with the released config of `variant` from the checkout at `REF_COMMIT`, CPU float32, eval."""
+def network(repo: Path, variant: str, ckpt: Path, *, native: bool = False, **overrides: object) -> torch.nn.Module:
+    """`EncoderReSplat` with the released config of `variant` from the checkout at `REF_COMMIT`, CPU float32, eval.
+
+    `native`: the real `pointops` extension (on sys.path, built for the GPU) instead of the brute-force stand-in;
+    `overrides`: config fields on top of the released ones (e.g. `use_amp=False`).
+    """
     tree = reference_tree(repo, REF_COMMIT)
     for name in PACKAGES:  # empty parents: their __init__ pull in training code, datasets and gsplat
         m = types.ModuleType(name)
         m.__path__ = [str(tree / name.replace(".", "/"))]
         sys.modules[name] = m
-    sys.modules["pointops"] = _pointops()
+    if not native:
+        sys.modules["pointops"] = _pointops()
     import torchvision.models
 
     resnet18 = torchvision.models.resnet18  # upstream asks for ImageNet weights; the checkpoint holds them
@@ -127,7 +132,8 @@ def network(repo: Path, variant: str, ckpt: Path) -> torch.nn.Module:
         init_rotation_identity=False,
     )  # fmt: skip
     vis = EncoderVisualizerReSplatCfg(num_samples=8, min_resolution=256, export_ply=False)
-    cfg = EncoderReSplatCfg(name="resplat", visualizer=vis, gaussian_adapter=adapter, **(CONFIG | VARIANTS[variant][0]))
+    fields = CONFIG | VARIANTS[variant][0] | overrides
+    cfg = EncoderReSplatCfg(name="resplat", visualizer=vis, gaussian_adapter=adapter, **fields)
     enc = EncoderReSplat(cfg)
     torchvision.models.resnet18 = resnet18
     sd = torch.load(ckpt, map_location="cpu", weights_only=True)["state_dict"]
@@ -148,6 +154,32 @@ class Renderer:
         img = render(g.means[0], g.covariances[0], g.opacities[0], g.harmonics[0], c2w[0], k[0], *size,
                      float(near[0, 0]), float(far[0, 0]))  # fmt: skip
         return SimpleNamespace(color=img[None])
+
+
+class NativeRenderer:
+    """Upstream's `GSplatDecoderSplattingCUDA.forward` (gsplat `rasterization`, packed, antialiased) on the GPU."""
+
+    def forward(  # noqa: PLR0913, PLR0917 - upstream's decoder signature
+        self, g: object, c2w: torch.Tensor, k: torch.Tensor, near: torch.Tensor, far: torch.Tensor,
+        size: tuple[int, int],
+    ) -> SimpleNamespace:  # fmt: skip
+        """Render the views of `g` with gsplat (`.color` only)."""
+        import math
+
+        from gsplat.rendering import rasterization  # ty: ignore[unresolved-import]
+
+        h, w = size
+        colors = g.harmonics.permute(0, 1, 3, 2)
+        k = k.clone()
+        k[:, :, 0] *= w
+        k[:, :, 1] *= h
+        out, _, _ = rasterization(
+            means=g.means, quats=g.rotations_unnorm, scales=g.scales, opacities=g.opacities, colors=colors,
+            sh_degree=int(math.sqrt(colors.shape[-2])) - 1, viewmats=c2w.inverse(), Ks=k, width=w, height=h,
+            near_plane=near[0, 0].item(), far_plane=far[0, 0].item(), eps2d=0.1, rasterize_mode="antialiased",
+            packed=True, absgrad=False, sparse_grad=False, render_mode="RGB+ED", covars=g.covariances,
+        )  # fmt: skip
+        return SimpleNamespace(color=out[..., :3].permute(0, 1, 4, 2, 3))
 
 
 def sh_basis(d: np.ndarray) -> np.ndarray:
@@ -183,24 +215,42 @@ def sh_rotation(r: np.ndarray) -> np.ndarray:
     return out.T
 
 
-def predict(enc: torch.nn.Module, s: dict[str, np.ndarray], variant: str) -> dict[str, np.ndarray]:
-    """Upstream forward + refinement (b = 1) on the scene `s` with the runner's pre/post-processing."""
-    _, near, far, multiple, long_side = VARIANTS[variant]
-    img = torch.from_numpy(s["images"]).permute(0, 3, 1, 2).float() / 255
+TRAIN_LONG_SIDE = {"resplat-small-dl3dv": 448, "resplat-base-re10k": 256}  # the runner's default network long side
+
+
+def context(
+    img: torch.Tensor, k: torch.Tensor, c2w: torch.Tensor, variant: str, long_side: int | None = None
+) -> tuple[dict, torch.Tensor, tuple]:
+    """The runner's pre-processing of `img` [V, 3, H, W] 0-1, pixel `k` and `c2w` [V, 4, 4].
+
+    Returns (upstream context dict for b = 1, the middle view's pose, (network H, W)); `long_side`: the golden's unless
+    given.
+    """
+    _, near, far, multiple, golden_side = VARIANTS[variant]
+    long_side = long_side or golden_side
     v, _, h0, w0 = img.shape
     f = long_side / max(h0, w0)
     h, w = (max(multiple, round(x * f / multiple) * multiple) for x in (h0, w0))
-    x = F.interpolate(img, (h, w), mode="bicubic", align_corners=False, antialias=True).clamp(0, 1)
-    k = torch.from_numpy(s["intrinsics"]).double().clone()
+    x = F.interpolate(img.float(), (h, w), mode="bicubic", align_corners=False, antialias=True).clamp(0, 1)
+    k = k.double().clone()
     k[:, :2, 2] += 0.5
     k[:, 0] /= w0
     k[:, 1] /= h0
-    c2w = torch.from_numpy(s["cam_to_world"]).double()
+    c2w = c2w.double()
     mid = c2w[v // 2]
     c2w_net = torch.linalg.inv(mid)[None] @ c2w
-    near_t, far_t = (torch.full((1, v), d) for d in (near, far))
-    context = {"image": x[None], "intrinsics": k.float()[None], "extrinsics": c2w_net.float()[None], "near": near_t,
-               "far": far_t}  # fmt: skip
+    near_t, far_t = (torch.full((1, v), d, device=img.device) for d in (near, far))
+    ctx = {"image": x[None], "intrinsics": k.float()[None], "extrinsics": c2w_net.float()[None], "near": near_t,
+           "far": far_t}  # fmt: skip
+    return ctx, mid, (h, w)
+
+
+def predict(enc: torch.nn.Module, s: dict[str, np.ndarray], variant: str) -> dict[str, np.ndarray]:
+    """Upstream forward + refinement (b = 1) on the scene `s` with the runner's pre/post-processing."""
+    img = torch.from_numpy(s["images"]).permute(0, 3, 1, 2).float() / 255
+    v, _, h0, w0 = img.shape
+    context_, mid, _ = context(img, torch.from_numpy(s["intrinsics"]), torch.from_numpy(s["cam_to_world"]), variant)
+    c2w = torch.from_numpy(s["cam_to_world"]).double()
     probs = []
     predictor = enc.depth_predictor.forward
 
@@ -212,8 +262,8 @@ def predict(enc: torch.nn.Module, s: dict[str, np.ndarray], variant: str) -> dic
     enc.depth_predictor.forward = hook
     try:
         with torch.no_grad():
-            out = enc(context, global_step=0)
-            ref = enc.forward_update(context, None, out["condition_features"], out["gaussians"], Renderer())
+            out = enc(context_, global_step=0)
+            ref = enc.forward_update(context_, None, out["condition_features"], out["gaussians"], Renderer())
     finally:
         enc.depth_predictor.forward = predictor
     g = ref["gaussian"][-1]

@@ -13,6 +13,7 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 from torch import nn
+from fastforks._core.sampling import grid_sample
 
 ENTMAX_K = 512  # fixed: upstream `entmax15_window_readout` top-k
 WINDOW_RADIUS = 1  # fixed: upstream `entmax15_window_readout` radius (a 3 x 3 window around the maximum)
@@ -136,7 +137,7 @@ def cell_centers(h: int, w: int, scale: tuple[float, float], device: torch.devic
 
 def sample_features(features: torch.Tensor, pts: torch.Tensor) -> torch.Tensor:
     """Bilinearly sample (B, C, H, W) features at points (B, N, 2) in [-1, 1]."""
-    out = F.grid_sample(features, pts[:, None], "bilinear", padding_mode="border", align_corners=False)
+    out = grid_sample(features, pts[:, None], mode="bilinear", padding_mode="border", align_corners=False)
     return out[:, :, 0].transpose(1, 2)
 
 

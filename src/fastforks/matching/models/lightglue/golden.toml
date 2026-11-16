@@ -16,7 +16,7 @@ gpu_p99 = 0.012
 gpu_min_recall = 0.9971
 gpu_min_match = 0.9913
 # kernels (disk: fp16 NHWC conv_ep path, recorded after the golden): different keypoints survive the top-k cut; task
-# accuracy is above portable (MegaDepth-1500 AUC@5 43.39 vs 42.71, results/2026-11-15_lightglue_kernels.md)
+# accuracy is above portable (MegaDepth-1500 AUC@5 43.39 vs 42.71, 2026-11-15)
 gpu_min_recall_kernels = 0.985
 gpu_min_match_kernels = 0.97
 gpu_mean_kernels = 0.02

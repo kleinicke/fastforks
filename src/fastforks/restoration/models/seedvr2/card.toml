@@ -3,6 +3,7 @@ name = "SeedVR2"
 summary = "SeedVR2 (Wang et al., ByteDance Seed 2025): one-step video restoration and super-resolution by a diffusion transformer (NaDiT, adversarially post-trained) on the latents of a causal 3-D VAE. `seedvr2-3b` and `seedvr2-7b` are the 3 B and 7 B transformers (same VAE); frames are restored one at a time."
 tier = "experimental"
 outputs = ["image"]
+uses = ["host_blocks", "nf4"]  # fastforks.shared modules this family imports (NF4 weights, host-streamed blocks)
 limitations = [
   "Generative restoration: the output depends on `seed` (one CPU generator draws the VAE posterior noise and the diffusion noise, upstream's default 666); other seeds give other plausible details.",
   "One frame per call: the clip mode of the original (temporal attention over 4n + 1 frames) is not used by this image API.",
@@ -59,8 +60,8 @@ venue = "arXiv"
 id = "seedvr2-3b"
 revision = 1
 weights = [
-  { name = "seedvr2-3b.safetensors", size = 6784909160, sha256 = "61df4f7979f4a4005029dd93ee186e97397d326b81b585d4fdf445573b85f0a7", url = "https://huggingface.co/fastforks/seedvr2-3b/resolve/main/seedvr2-3b.safetensors" },
-  { name = "seedvr2-vae.safetensors", size = 501325110, sha256 = "bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a", url = "https://huggingface.co/fastforks/seedvr2-vae/resolve/main/seedvr2-vae.safetensors" },
+  { name = "seedvr2-3b.safetensors", size = 6784909160, sha256 = "61df4f7979f4a4005029dd93ee186e97397d326b81b585d4fdf445573b85f0a7", url = "https://huggingface.co/fastforks/seedvr2-3b-bf16/resolve/main/seedvr2-3b.safetensors" },
+  { name = "seedvr2-vae.safetensors", size = 501325110, sha256 = "bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a", url = "https://huggingface.co/fastforks/seedvr2-vae-bf16/resolve/main/seedvr2-vae.safetensors" },
 ]
 
 [[variants]]
@@ -68,6 +69,6 @@ id = "seedvr2-7b"
 revision = 1
 params = { variant = "7b" }
 weights = [
-  { name = "seedvr2-7b.safetensors", size = 16482579008, sha256 = "bf73826841cfd31895370e92472fae58810ef456310dcc7a167e22dd673eeb7b", url = "https://huggingface.co/fastforks/seedvr2-7b/resolve/main/seedvr2-7b.safetensors" },
-  { name = "seedvr2-vae.safetensors", size = 501325110, sha256 = "bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a", url = "https://huggingface.co/fastforks/seedvr2-vae/resolve/main/seedvr2-vae.safetensors" },
+  { name = "seedvr2-7b.safetensors", size = 16482579008, sha256 = "bf73826841cfd31895370e92472fae58810ef456310dcc7a167e22dd673eeb7b", url = "https://huggingface.co/fastforks/seedvr2-7b-bf16/resolve/main/seedvr2-7b.safetensors" },
+  { name = "seedvr2-vae.safetensors", size = 501325110, sha256 = "bcf7f47d490efcfdce05659510baec78e6bb8301ae6b2dee584a09bdfa54cd4a", url = "https://huggingface.co/fastforks/seedvr2-vae-bf16/resolve/main/seedvr2-vae.safetensors" },
 ]

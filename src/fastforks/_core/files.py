@@ -23,7 +23,7 @@ every load, and concurrent processes never rewrite a shared database.
 With `FASTFORKS_OFFLINE=1` (or `HF_HUB_OFFLINE=1`) nothing is downloaded: steps 1 to 3 run as usual and a file that
 is not found raises an error naming the file and the `fastforks download` command that fetches it.
 
-Our own Hugging Face repos (`huggingface.co/fastforks/...`: kernel binaries, golden outputs, weight mirrors) can be
+Our own Hugging Face repos (`huggingface.co/fastforks/...`: kernel binaries, golden outputs, converted weights) can be
 redirected to a stand-in with the same layout: `FASTFORKS_HF_ENDPOINT=file:///path/to/standin` (or another server)
 replaces `https://huggingface.co` in their URLs. Other URLs are never rewritten. For private repos (pre-release),
 `HF_TOKEN` is sent as a bearer token to those URLs only, and not along a redirect (the file host gets none).
@@ -73,7 +73,12 @@ HF_ENDPOINT_ENV = "FASTFORKS_HF_ENDPOINT"
 OFFLINE_ENV = "FASTFORKS_OFFLINE"
 READ_CACHES_ENV = "FASTFORKS_READ_CACHES"
 _OUR_HF = re.compile(r"https://huggingface\.co/((?:datasets/)?fastforks/.+)")
+# `mirror = true`: no card uses it since 2026-11-15 (the legacy repo `fastforks/mirrors` is private; weights whose
+# licence is only assumed are not hosted)
 MIRROR_URL = "https://huggingface.co/fastforks/mirrors/resolve/main/{group}/{name}"
+# `mirror = "<repo>"`: a weights repo as fallback host (no card uses it since 2026-11-15: only converted weights get a
+# repo, cards point at it by `url`)
+WEIGHTS_REPO_URL = "https://huggingface.co/fastforks/{repo}/resolve/main/{name}"
 _HF_FILE = re.compile(r"https://huggingface\.co/(?P<repo>[^/]+/[^/]+)/resolve/(?P<rev>[^/]+)/(?P<file>.+)")
 
 
@@ -90,8 +95,8 @@ class FileSpec:
             `sha256` and `size` are those of the member.
         archive_sha256: SHA-256 of the archive at `url` (members only), checked before the archive is opened.
         archive_size: Size of the archive in bytes (members only); the fetch stops beyond it.
-        mirror: URL of the same bytes (the member itself for an archive member) in our mirror repo, tried when `url`
-            fails; `None` if not mirrored.
+        mirror: URL of the same bytes (the member itself for an archive member) in our mirror repos (`MIRROR_URL`, or
+            the weights' own repo `WEIGHTS_REPO_URL`), tried when `url` fails; `None` if not mirrored.
     """
 
     name: str
@@ -350,6 +355,38 @@ def blob_path(sha256: str, root: Path | None = None) -> Path:
         msg = f"not a lower-case hex SHA-256: {sha256!r}"
         raise ValueError(msg)
     return (root or cache_root()) / "blobs" / "sha256" / sha256[:2] / sha256
+
+
+def link_view(spec: FileSpec, group: str) -> bool:
+    """Link `<cache>/<group>/<spec.name>` to the cache blob of `spec` (a browsable view; returns whether it is there).
+
+    A relative symlink, so the cache folder can move. Only blobs of our own cache are linked (never a copy found in
+    another tool's cache). Best effort: a real file at that path is left alone, a stale link is replaced atomically,
+    and a read-only cache or a platform without symlinks is skipped silently. Lookups never use the view.
+    """
+    root = cache_root()
+    name = Path(spec.name)
+    blob = blob_path(spec.sha256, root)
+    link = root / group / name
+    if group in ("blobs", "stamps") or ".." in name.parts or name.is_absolute():
+        return False
+    try:
+        if not blob.is_file() or (link.exists() and not link.is_symlink()):
+            return False
+        target = Path(os.path.relpath(blob, link.parent))
+        if link.is_symlink() and link.readlink() == target:
+            return True
+        link.parent.mkdir(parents=True, exist_ok=True)
+        tmp = link.with_name(f".{link.name}.{os.getpid()}.lnk")
+        try:
+            tmp.symlink_to(target)
+            tmp.replace(link)  # atomic; only ever replaces a link (a real file was excluded above)
+        finally:
+            tmp.unlink(missing_ok=True)
+    except (OSError, NotImplementedError) as e:  # read-only cache, no symlink permission (Windows)
+        log.debug("no view link %s: %s", link, e)
+        return False
+    return True
 
 
 def _stamp_file(path: Path) -> Path:
@@ -664,6 +701,7 @@ def locate(  # noqa: PLR0913 - the arguments of the fetch choke point
     cached = blob_path(spec.sha256)
     corrupt = _corrupt(cached, spec)
     if cached.is_file() and corrupt is None:
+        link_view(spec, group)
         return cached
     other = _from_other_caches(spec)  # also after a corrupt blob: another tool's verified copy still serves (TM-6)
     if other is not None:
@@ -678,9 +716,11 @@ def locate(  # noqa: PLR0913 - the arguments of the fetch choke point
         raise _not_local(spec, model or group, env_var, mismatched, hint=hint if is_offline else None)
     if mismatched:  # the user put a copy there on purpose: say why it is not used
         log.warning("not using %s; downloading it instead", "; ".join(mismatched))
-    return _download_or_mirror(
+    path = _download_or_mirror(
         spec, spec.url, cached, group=group, env_var=env_var, siblings=siblings, mismatched=mismatched, burst=burst
     )
+    link_view(spec, group)
+    return path
 
 
 def _corrupt(cached: Path, spec: FileSpec) -> WeightsHashError | None:

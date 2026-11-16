@@ -44,6 +44,9 @@ def _cpu_net(ctx: Context) -> BEN_Base:
     return net.eval()
 
 
+_TINY = 1e-8  # fixed: our floor of the normalisation divisors (constant image / map: not 0 / 0)
+
+
 class _Matting(Runner):
     """Resize, normalise, network, sigmoid, resize back, min-max."""
 
@@ -61,7 +64,7 @@ class _Matting(Runner):
         y = self._net(scale(x, self.ctx.io).to(self.dtype)).float().sigmoid()
         y = F.interpolate(y, image.shape[-2:], mode="bilinear", align_corners=False)[:, 0]
         lo, hi = y.amin((1, 2), keepdim=True), y.amax((1, 2), keepdim=True)
-        return {"alpha": (y - lo) / (hi - lo)}
+        return {"alpha": (y - lo) / (hi - lo).clamp_min(_TINY)}
 
     def module(self) -> torch.nn.Module:
         """The network with its pre- and post-processing: `[B, 3, H, W]` in `[0, 1]` -> alpha `[B, H, W]`."""

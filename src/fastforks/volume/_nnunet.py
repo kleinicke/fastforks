@@ -23,7 +23,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.errors import WeightsError
+from fastforks._core.errors import InputError, WeightsError
 from fastforks.volume import _resample
 
 if TYPE_CHECKING:
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 __all__ = ["Encoder", "Norm", "Plan", "Predictor", "UNet", "gaussian", "read_plan", "sliding_steps"]
 
+_MAX_RESAMPLED_VOXELS = 10**9  # 4 GB as float32: above it a wrong spacing is far likelier than a real scan
 _DNA = "dynamic_network_architectures.architectures.unet."
 _ARCHS = {_DNA + "PlainConvUNet": "plain", _DNA + "ResidualEncoderUNet": "resenc"}
 _NORMS = (
@@ -608,6 +609,15 @@ class Predictor:
         shape = tuple(x.shape[1:])
         target = self.target_spacing(sp)
         new = _resample.new_shape(shape, sp, target)
+        voxels = math.prod(new) * x.shape[0]
+        if min(new) < 1 or voxels > _MAX_RESAMPLED_VOXELS:
+            msg = (
+                f"resampling the {tuple(volume.shape[1:])} volume from {tuple(spacing)} mm to the model's "
+                f"{tuple(self.target_spacing(sp))} mm gives {tuple(new)} voxels"
+                f"{'' if min(new) < 1 else f' ({voxels * 4 / 2**30:.0f} GiB as float32)'}: is the spacing in mm "
+                "and in (D, H, W) order? Crop the volume or pass a coarser grid if it is right"
+            )
+            raise InputError(msg)
         fn, kw = p.resample_data
         return _resample.resample(x, new, sp, target, fn, kw), box, shape
 

@@ -5,6 +5,10 @@ tier = "stable"
 outputs = ["pred_masks", "iou_scores"]
 uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 
+limitations = [
+  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
+]
+
 [upstream]
 repo = "https://github.com/mit-han-lab/efficientvit"
 commit = "de7d7733cc0329f391b33f1f459271562ec27bd5"

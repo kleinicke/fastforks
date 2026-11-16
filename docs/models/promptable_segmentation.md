@@ -6,31 +6,31 @@
 
 Input: one image plus a point, box or text prompt. Output: masks with quality scores.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1024x1024: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`clipseg`](#clipseg) | yes | 2.75, 5.6x | 362, 0.9x |
-| [`efficientvit-sam-l0`](#efficientvit_sam) | yes | 4.45, 5.9x | 256, 1.1x |
-| [`efficientvit-sam-l1`](#efficientvit_sam) | yes | 5.79, 5.2x | 284, 1.0x |
-| [`efficientvit-sam-l2`](#efficientvit_sam) | yes | 6.83, 5.0x | 312, 0.91x |
+| [`clipseg`](#clipseg) | yes | 2.76, 5.6x | 362, 0.9x |
+| [`efficientvit-sam-l0`](#efficientvit_sam) | yes | 4.55, 5.8x | 236, 1.0x |
+| [`efficientvit-sam-l1`](#efficientvit_sam) | yes | 5.47, 5.5x | 264, 0.95x |
+| [`efficientvit-sam-l2`](#efficientvit_sam) | yes | 6.54, 5.3x | 292, 0.85x |
 | [`efficientvit-sam-xl0`](#efficientvit_sam) | yes | 9.75, 2.9x | 492, 0.73x |
-| [`efficientvit-sam-xl1`](#efficientvit_sam) | yes | 15.3, 2.7x | 728, 0.71x |
+| [`efficientvit-sam-xl1`](#efficientvit_sam) | yes | 15.3, 2.7x | 686, 0.67x |
 | [`insid3-vitl16`](#insid3) | yes | 157, 4.5x | 1228, 0.7x |
-| [`mobile-sam`](#mobile_sam) | yes | 6.86, 3.4x | 296, 1.0x |
+| [`mobile-sam`](#mobile_sam) | yes | 7.22, 3.3x | 296, 1.0x |
 | [`sam-hq-vit-b`](#sam_hq) | yes | 36.8, 2.8x | 564, 0.32x |
-| [`sam-hq-vit-h`](#sam_hq) | yes | 144, 2.2x | 1708, 0.4x |
-| [`sam-hq-vit-l`](#sam_hq) | yes | 81.4, 2.5x | 1046, 0.35x |
+| [`sam-hq-vit-h`](#sam_hq) | yes | 143, 2.2x | 1688, 0.39x |
+| [`sam-hq-vit-l`](#sam_hq) | yes | 81.9, 2.5x | 1026, 0.34x |
 | [`sam-vit-b`](#sam) | yes | 37.0, 2.7x | 420, 0.23x |
 | [`sam-vit-h`](#sam) | yes | 143, 2.1x | 1524, 0.28x |
 | [`sam-vit-l`](#sam) | yes | 81.5, 2.4x | 862, 0.25x |
-| [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.1, 1.9x | 524, 0.6x |
-| [`sam2.1-hiera-large`](#sam2) | yes | 48.8, 1.8x | 828, 0.55x |
+| [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.4, 1.9x | 464, 0.53x |
+| [`sam2.1-hiera-large`](#sam2) | yes | 49.1, 1.8x | 808, 0.53x |
 | [`sam2.1-hiera-small`](#sam2) | yes | 15.6, 2.7x | 386, 0.58x |
 | [`sam2.1-hiera-tiny`](#sam2) | yes | 13.9, 2.7x | 362, 0.57x |
-| [`sam3`](#sam3) | yes | 116, 2.4x | 2264, 0.58x |
+| [`sam3`](#sam3) | yes | 117, 2.4x | 2264, 0.58x |
 
 <a id="clipseg"></a>
 
@@ -42,7 +42,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels<br>TensorRT fp16 | 15.3<br>4.45<br>2.75<br>fails: TypeError: Portable.module.<locals>.<lambda>() missing 1 req | 346 / 404<br>328 / 356<br>335 / 362<br>– |
+| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>4.46<br>2.76<br>3.19<br>planned for 0.2.1 | 346 / 404<br>328 / 356<br>335 / 362<br>348 / 374<br>– |
 
 <details><summary>Details</summary>
 
@@ -54,11 +54,13 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fvm_conv`
 - Variants: `clipseg`
+- Not in this release (planned for 0.2.1): `clipseg` ONNX / TensorRT export: the export wrapper does not pass the text condition (TypeError: missing cond)
 - Outputs: boxes, scores, masks
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `clipseg` 3000x4000 (0.7 GiB peak allocated, 0.9 reserved)
+- `clipseg` 1024x1024, first call: portable + torch.compile 10 s (cold Inductor cache).
 - `clipseg` original 1024x1024: .half() on 1 modules, fp16 inputs; transformers CLIPSegProcessor (CPU) + CLIPSegForImageSegmentation, text tower per call, masks at logits > 0
-- `clipseg` load / first call: original 3.05 s / 0.021 s, portable 3.9 s / 0.264 s, kernels 3.64 s / 0.26 s
+- `clipseg` load / first call: original 3.05 s / 0.021 s, portable 4.93 s / 0.287 s, kernels 4.54 s / 0.236 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
@@ -71,6 +73,7 @@ CPU, float32: max |diff| <= 0.0005 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- No accuracy measurement: CLIPSeg is scored on PhraseCut and Pascal-5i one-shot splits, which are not part of the evaluation data here; tiers are compared by output parity and speed only.
 - Requires the optional transformers library (the network is its `CLIPSegForImageSegmentation`).
 - The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port with the authors' weights (CIDAS/clipseg-rd64-refined); the authors' timojl/clipseg code was not run.
 - Text prompts only (no box exemplars or visual prompts); one instance per prompt: its mask is every pixel above probability 0.5, its score the highest pixel probability, its box the mask's bounding box.
@@ -88,11 +91,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientvit-sam-l0` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 26.9<br>26.3<br>12.7<br>4.45<br>6.44<br>5.56 (image encoder only) | 251 / 290<br>211 / 232<br>171 / 210<br>176 / 256<br>188 / 228<br>404 / 428 |
-| `efficientvit-sam-l1` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 30.1<br>29.9<br>14.4<br>5.79<br>11.3<br>7.30 (image encoder only) | 300 / 316<br>260 / 278<br>195 / 234<br>203 / 284<br>212 / 252<br>517 / 578 |
-| `efficientvit-sam-l2` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 34.4<br>34.4<br>17.8<br>6.83<br>10.8<br>9.65 (image encoder only) | 352 / 382<br>313 / 344<br>221 / 260<br>232 / 312<br>238 / 278<br>633 / 690 |
+| `efficientvit-sam-l0` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 26.9<br>26.3<br>11.1<br>4.55<br>6.44<br>5.56 (image encoder only) | 251 / 290<br>211 / 232<br>158 / 190<br>164 / 236<br>188 / 228<br>404 / 428 |
+| `efficientvit-sam-l1` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 30.1<br>29.9<br>14.4<br>5.47<br>11.3<br>7.30 (image encoder only) | 300 / 316<br>260 / 278<br>183 / 234<br>191 / 264<br>212 / 252<br>517 / 578 |
+| `efficientvit-sam-l2` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 34.4<br>34.4<br>17.8<br>6.54<br>10.8<br>9.65 (image encoder only) | 352 / 382<br>313 / 344<br>209 / 240<br>219 / 292<br>238 / 278<br>633 / 690 |
 | `efficientvit-sam-xl0` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 46.9<br>28.2<br>19.0<br>9.75<br>14.2<br>22.7 (image encoder only) | 814 / 828<br>654 / 670<br>433 / 506<br>401 / 492<br>397 / 424<br>1288 / 1328 |
-| `efficientvit-sam-xl1` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 72.6<br>40.9<br>28.9<br>15.3<br>22.9<br>38.4 (image encoder only) | 1143 / 1182<br>984 / 1022<br>598 / 676<br>582 / 728<br>562 / 616<br>1894 / 1960 |
+| `efficientvit-sam-xl1` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 72.6<br>40.9<br>28.9<br>15.3<br>22.9<br>38.4 (image encoder only) | 1143 / 1182<br>984 / 1022<br>586 / 676<br>569 / 686<br>562 / 616<br>1894 / 1960 |
 
 <details><summary>Details</summary>
 
@@ -121,11 +124,11 @@ Commercial use: yes.
 - `efficientvit-sam-xl0` original 1024x1024: torch.autocast(float16) around the call; upstream EfficientViTSamPredictor.set_image + predict (centre point, multimask_output=True)
 - `efficientvit-sam-xl1` original (fp32) 1024x1024: upstream EfficientViTSamPredictor.set_image + predict (centre point, multimask_output=True)
 - `efficientvit-sam-xl1` original 1024x1024: torch.autocast(float16) around the call; upstream EfficientViTSamPredictor.set_image + predict (centre point, multimask_output=True)
-- `efficientvit-sam-l0` load / first call: original 0.35 s / 0.817 s, portable 0.83 s / 0.723 s, kernels 1.63 s / 0.253 s
-- `efficientvit-sam-l1` load / first call: original 0.31 s / 0.032 s, portable 0.76 s / 0.694 s, kernels 1.64 s / 0.254 s
-- `efficientvit-sam-l2` load / first call: original 0.39 s / 0.037 s, portable 0.93 s / 0.658 s, kernels 1.78 s / 0.248 s
+- `efficientvit-sam-l0` load / first call: original 0.35 s / 0.817 s, portable 1.36 s / 0.743 s, kernels 0.81 s / 0.239 s
+- `efficientvit-sam-l1` load / first call: original 0.31 s / 0.032 s, portable 0.86 s / 0.667 s, kernels 0.9 s / 0.235 s
+- `efficientvit-sam-l2` load / first call: original 0.39 s / 0.037 s, portable 0.93 s / 0.667 s, kernels 1.0 s / 0.24 s
 - `efficientvit-sam-xl0` load / first call: original 0.62 s / 0.592 s, portable 2.67 s / 0.519 s, kernels 2.14 s / 0.259 s
-- `efficientvit-sam-xl1` load / first call: original 1.06 s / 0.041 s, portable 2.32 s / 0.534 s, kernels 2.51 s / 0.238 s
+- `efficientvit-sam-xl1` load / first call: original 1.06 s / 0.041 s, portable 3.24 s / 0.531 s, kernels 3.21 s / 0.238 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -154,6 +157,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | `efficientvit-sam-xl0` | 0.00539 / 0.01405 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 | `efficientvit-sam-xl1` | 0.00311 / 0.00859 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
+### Limitations
+
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+
 </details>
 
 <a id="insid3"></a>
@@ -166,7 +173,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `insid3-vitl16` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels | 1649<br>713<br>255<br>157 | 1665 / 1746<br>2148 / 2226<br>986 / 1228<br>987 / 1228 |
+| `insid3-vitl16` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1649<br>713<br>255<br>157<br>235<br>64.1 (image encoder only) | 1665 / 1746<br>2148 / 2226<br>986 / 1228<br>987 / 1228<br>985 / 1206<br>1339 / 1508 |
 
 <details><summary>Details</summary>
 
@@ -181,6 +188,7 @@ Commercial use: yes.
 - Outputs: similarity, masks
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 1024x1024 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `insid3-vitl16` 1080x1920 (1.0 GiB peak allocated, 1.3 reserved)
+- `insid3-vitl16` 1024x1024, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `insid3-vitl16` original (fp32) 1024x1024: visinf/INSID3@0c165a10cf52 set_reference + set_target + segment, its encoder autocast off
 - `insid3-vitl16` original 1024x1024: the authors' mixed-precision option (bfloat16); visinf/INSID3@0c165a10cf52 set_reference + set_target + segment, bf16 autocast (as shipped)
 - `insid3-vitl16` load / first call: original 1.06 s / 1.114 s, portable 2.69 s / 0.441 s, kernels 1.39 s / 0.464 s
@@ -216,7 +224,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mobile-sam` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 30.3<br>23.5<br>10.5<br>6.86<br>6.22<br>4.99 (image encoder only) | 319 / 368<br>207 / 286<br>183 / 210<br>215 / 296<br>203 / 232<br>219 / 252 |
+| `mobile-sam` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 30.3<br>23.5<br>10.5<br>7.22<br>6.22<br>4.99 (image encoder only) | 319 / 368<br>207 / 286<br>171 / 190<br>203 / 296<br>203 / 232<br>219 / 252 |
 
 <details><summary>Details</summary>
 
@@ -233,7 +241,7 @@ Commercial use: yes.
 - `mobile-sam` 1024x1024, first call: portable + torch.compile 25 s (cold Inductor cache), TensorRT fp16 61 s (ONNX + engine).
 - `mobile-sam` original (fp32) 1024x1024: upstream SamPredictor.set_image + predict (centre point, multimask_output=True)
 - `mobile-sam` original 1024x1024: torch.autocast(float16) around the call; upstream SamPredictor.set_image + predict (centre point, multimask_output=True)
-- `mobile-sam` load / first call: original 0.21 s / 1.006 s, portable 0.71 s / 0.465 s, kernels 1.6 s / 0.295 s
+- `mobile-sam` load / first call: original 0.21 s / 1.006 s, portable 0.71 s / 0.419 s, kernels 0.82 s / 0.309 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -254,6 +262,10 @@ CPU, float32: max |diff| <= 0.0013 vs the original. GPU, float16 (the default), 
 |---|---|---|---|
 | `mobile-sam` | 0.00536 / 0.02698 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
+### Limitations
+
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+
 </details>
 
 <a id="sam_hq"></a>
@@ -266,9 +278,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam-hq-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>103<br>49.7<br>36.8<br>39.4<br>28.0 (image encoder only) | 2886 / 2934<br>1704 / 1756<br>388 / 422<br>433 / 564<br>372 / 422<br>609 / 642 |
-| `sam-hq-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 412<br>202<br>118<br>81.4<br>97.0<br>68.3 (image encoder only) | 4545 / 4576<br>2969 / 3018<br>846 / 902<br>889 / 1046<br>822 / 902<br>1482 / 1538 |
-| `sam-hq-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 738<br>311<br>217<br>144<br>187<br>125 (image encoder only) | 5848 / 5896<br>4266 / 4318<br>1500 / 1566<br>1541 / 1708<br>1476 / 1526<br>2790 / 2818 |
+| `sam-hq-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>103<br>49.8<br>36.8<br>39.4<br>28.0 (image encoder only) | 2886 / 2934<br>1704 / 1756<br>375 / 422<br>420 / 564<br>372 / 422<br>609 / 642 |
+| `sam-hq-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 412<br>202<br>118<br>81.9<br>97.0<br>68.3 (image encoder only) | 4545 / 4576<br>2969 / 3018<br>834 / 882<br>877 / 1026<br>822 / 902<br>1482 / 1538 |
+| `sam-hq-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 738<br>311<br>217<br>143<br>187<br>125 (image encoder only) | 5848 / 5896<br>4266 / 4318<br>1488 / 1566<br>1528 / 1688<br>1476 / 1526<br>2790 / 2818 |
 
 <details><summary>Details</summary>
 
@@ -291,9 +303,9 @@ Commercial use: yes.
 - `sam-hq-vit-l` original 1024x1024: torch.autocast(float16) around the call; upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
 - `sam-hq-vit-h` original (fp32) 1024x1024: upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
 - `sam-hq-vit-h` original 1024x1024: torch.autocast(float16) around the call; upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
-- `sam-hq-vit-b` load / first call: original 0.77 s / 0.192 s, portable 0.27 s / 0.415 s, kernels 1.06 s / 0.353 s
-- `sam-hq-vit-l` load / first call: original 1.98 s / 0.205 s, portable 0.76 s / 0.409 s, kernels 1.64 s / 0.403 s
-- `sam-hq-vit-h` load / first call: original 3.92 s / 0.317 s, portable 1.34 s / 0.518 s, kernels 2.29 s / 0.467 s
+- `sam-hq-vit-b` load / first call: original 0.77 s / 0.192 s, portable 0.69 s / 0.386 s, kernels 0.97 s / 0.378 s
+- `sam-hq-vit-l` load / first call: original 1.98 s / 0.205 s, portable 1.35 s / 0.432 s, kernels 1.25 s / 0.419 s
+- `sam-hq-vit-h` load / first call: original 3.92 s / 0.317 s, portable 2.27 s / 0.522 s, kernels 2.01 s / 0.481 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -317,6 +329,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | `sam-hq-vit-b` | 0.00121 / 0.00352 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 | `sam-hq-vit-l` | 0.00286 / 0.0111 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 | `sam-hq-vit-h` | 0.00141 / 0.00561 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
+
+### Limitations
+
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~125 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
@@ -394,8 +410,8 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `sam2.1-hiera-tiny` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 66.3<br>38.0<br>16.6<br>13.9<br>14.2<br>8.56 (image encoder only) | 622 / 676<br>577 / 636<br>304 / 382<br>316 / 362<br>270 / 322<br>414 / 446 |
 | `sam2.1-hiera-small` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 74.8<br>41.8<br>18.8<br>15.6<br>14.9<br>9.93 (image encoder only) | 649 / 698<br>618 / 662<br>318 / 366<br>330 / 386<br>283 / 326<br>429 / 452 |
-| `sam2.1-hiera-base-plus` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 107<br>47.2<br>32.0<br>25.1<br>26.4<br>16.7 (image encoder only) | 830 / 868<br>823 / 870<br>412 / 464<br>426 / 524<br>365 / 404<br>588 / 620 |
-| `sam2.1-hiera-large` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>86.4<br>68.0<br>48.8<br>59.5<br>38.1 (image encoder only) | 1474 / 1518<br>1656 / 1724<br>742 / 768<br>760 / 828<br>678 / 748<br>1212 / 1232 |
+| `sam2.1-hiera-base-plus` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 107<br>47.2<br>31.9<br>25.4<br>26.4<br>16.7 (image encoder only) | 830 / 868<br>823 / 870<br>400 / 444<br>414 / 464<br>365 / 404<br>588 / 620 |
+| `sam2.1-hiera-large` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>86.4<br>68.0<br>49.1<br>59.5<br>38.1 (image encoder only) | 1474 / 1518<br>1656 / 1724<br>730 / 768<br>748 / 808<br>678 / 748<br>1212 / 1232 |
 
 <details><summary>Details</summary>
 
@@ -420,10 +436,11 @@ Commercial use: yes.
 - `sam2.1-hiera-large` original 1024x1024: torch.autocast(float16) around the call
 - `sam2.1-hiera-tiny` load / first call: original 0.41 s / 0.147 s, portable 0.25 s / 0.017† s, kernels 0.11† s / 0.014† s
 - `sam2.1-hiera-small` load / first call: original 0.48 s / 0.136 s, portable 0.36 s / 0.019† s, kernels 0.13† s / 0.016† s
-- `sam2.1-hiera-base-plus` load / first call: original 0.74 s / 0.143 s, portable 0.43 s / 0.032† s, kernels 0.19† s / 0.025† s
-- `sam2.1-hiera-large` load / first call: original 1.95 s / 0.184 s, portable 1.1 s / 0.068† s, kernels 0.39† s / 0.049† s
+- `sam2.1-hiera-base-plus` load / first call: original 0.74 s / 0.143 s, portable 0.8 s / 0.032 s (840x1297), kernels 1.15 s / 0.026 s (840x1297)
+- `sam2.1-hiera-large` load / first call: original 1.95 s / 0.184 s, portable 1.46 s / 0.069 s (840x1297), kernels 2.07 s / 0.05 s (840x1297)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
-- Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- Protocol, `sam2.1-hiera-tiny`, `sam2.1-hiera-small`: median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- Protocol, `sam2.1-hiera-base-plus`, `sam2.1-hiera-large`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -466,7 +483,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>281<br>179<br>116<br>168<br>89.5 (image encoder only) | 3865 / 3934<br>5255 / 5334<br>1922 / 2004<br>2019 / 2264<br>1910 / 2004<br>2926 / 2944 |
+| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>281<br>179<br>117<br>168<br>89.5 (image encoder only) | 3865 / 3934<br>5255 / 5334<br>1910 / 1984<br>1974 / 2264<br>1910 / 2004<br>2926 / 2944 |
 
 <details><summary>Details</summary>
 
@@ -483,9 +500,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam3` 1080x1920 (1.9 GiB peak allocated, 2.1 reserved)
 - `sam3` 1024x1024, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `sam3` original 1024x1024: torch.autocast(fp16) around the forward
-- `sam3` load / first call: original 1.12 s / 0.957 s (840x1297), portable 2.95 s / 0.181† s, kernels 0.7† s / 0.116† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
-- Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `sam3` load / first call: original 1.12 s / 0.957 s (840x1297), portable 3.85 s / 0.18 s (840x1297), kernels 4.03 s / 0.116 s (840x1297)
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -504,6 +520,10 @@ CPU, float32: max |diff| <= 0.0005 vs the original. GPU, float16 (the default), 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `sam3` | 0.13504 / 0.77076 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
+
+### Limitations
+
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~300 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 

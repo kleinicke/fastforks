@@ -94,6 +94,7 @@ pip install "fastforks-core[onnx]"               # ONNX export
 pip install "fastforks-core[tensorrt]"           # TensorRT export
 pip install "fastforks-core[sfm]"                # pycolmap: `fastforks sfm --reconstruct` (the COLMAP mapper)
 pip install "fastforks-core[nifti]"              # nibabel: `fastforks.volume.read_nifti` / `write_nifti`
+pip install "fastforks-core[dicom]"              # + pydicom: `fastforks.volume.read_dicom`
 pip install "fastforks-core[libs]"               # timm, torchvision, transformers and ONNX at once
 ```
 
@@ -104,7 +105,7 @@ Without an extra, every task works except these (`MissingDependencyError` names 
 | classification | `[timm]` (11 models) or `[torchvision]` (15 models) |
 | segmentation | `[transformers]` (SegFormer, Mask2Former, ...); the other 10 models need none |
 | detection | `[torchvision]` for the R-CNN models |
-| volume | `[nifti]` for `read_nifti` / `write_nifti` only |
+| volume | `[nifti]` for `read_nifti` / `write_nifti`, `[dicom]` for `read_dicom` |
 | stereo, depth, features, promptable segmentation, multi-view | none |
 | ONNX / TensorRT export | `[onnx]` / `[tensorrt]` |
 

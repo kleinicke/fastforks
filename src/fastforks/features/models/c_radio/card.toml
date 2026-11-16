@@ -12,6 +12,7 @@ limitations = [
   "kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",
   "Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.",
   "`fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).",
+  "Kernels at 224 x 224 peak above portable for c-radio-v3-b (281 vs 214 MB; original 589 MB), about the size of one extra fc2 copy (57 MB) plus ~30 MB of CUDA-graph capture; the extra copies are not shared with the original parameters.",
 ]
 licence_notes = [
   "The weights are governed by the NVIDIA Open Model License Agreement, which allows commercial use (the model card: 'ready for commercial/non-commercial use'). Our code is timm's VisionTransformer plus our own walk; no NVIDIA code is vendored.",

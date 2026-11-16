@@ -105,6 +105,7 @@ class Portable(Runner):
                 bqkv = torch.cat([a.q_proj.bias, a.k_proj.bias, a.v_proj.bias])
             lay.register_buffer("ff_wqkv", qkv.detach(), persistent=False)
             lay.register_buffer("ff_bqkv", bqkv.detach(), persistent=False)
+            del a.q_proj, a.k_proj, a.v_proj  # the merged qkv replaces them (one copy of the weights)
         self.mean = torch.tensor(MEAN, device=ctx.device).view(1, 3, 1, 1)
         self.std = torch.tensor(STD, device=ctx.device).view(1, 3, 1, 1)
         self.tokenizer = ClipTokenizer(paths[2], paths[3], context=CONTEXT)
@@ -242,6 +243,9 @@ class Kernels(Portable):
             bufs["ff_k_b1"] = b1.half()
             for k, v in {**bufs, "ff_k_2": _w4(w2)}.items():
                 lay.register_buffer(k, v.detach(), persistent=False)
+            del lay.ff_wqkv  # the fused filters replace the Linear weights (the biases stay), as in CLIPSeg
+            for mod, name in ((a.out_proj, "weight"), (m.fc1, "weight"), (m.fc1, "bias"), (m.fc2, "weight")):
+                mod.register_parameter(name, None)
         self.graphs = GraphCache(self._joined, graphs=1) if ctx.params.cuda_graphs else None
 
     def layer(self, lay: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - an Owlv2EncoderLayer

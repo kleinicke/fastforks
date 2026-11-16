@@ -3,9 +3,11 @@ name = "PointDiT"
 summary = "PointDiT (Xu et al., Google 2026): monocular geometry as generation; a pixel-space diffusion transformer denoises a point map in 3 Euler steps, conditioned on frozen DINOv3 features of the image. Outputs an affine-invariant point map and its depth."
 tier = "experimental"
 outputs = ["points", "depth"]
+uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (CUDA graphs, the DINOv2 ViT fast path)
 limitations = [
   "Affine-invariant output: points up to an unknown scale and 3-D shift, depth (their z) up to scale and shift; align before use.",
   "Trained at 512 x 512: inputs are resized to about `tokens` 16-pixel patches at their aspect ratio (bilinear) and the point map is resized back with nearest, as the original's wild-image path.",
+  "Kernels mode captures CUDA graphs: the graph's private memory pool and static outputs stay reserved after the call, so peak reserved is above portable by ~85 MiB (b), more for l (peak allocated is equal or lower); `cuda_graphs=false` or `release_graphs()` frees it at the cost of launch overhead.",
 ]
 licence_notes = [
   "The PointDiT code and weights are Apache-2.0; the frozen DINOv3 ViT-B/16 and ViT-L/16 encoders are under the DINOv3 License (Meta: attribution and conditions apply; gated on Hugging Face); read it before commercial use.",

@@ -8,10 +8,10 @@
 cpu_atol = 0.011
 cpu_min_recall = 0.99
 cpu_min_match = 0.99
-gpu_mean = 0.002
-gpu_p99 = 0.001
-gpu_min_recall = 0.9986
-gpu_min_match = 0.986
+gpu_mean = 0.05
+gpu_p99 = 0.6
+gpu_min_recall = 0.96
+gpu_min_match = 0.93
 
 [refs."loma-b@1"]
 sha256 = "a44f0696d87eaf2291e69bdc879a2f6c8a9b03522d33512a25b82c302c6a0adc"

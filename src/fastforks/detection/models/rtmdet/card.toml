@@ -8,6 +8,7 @@ limitations = [
   "The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what mmdetection calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.",
   "Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.",
   "The person detectors' released config names COCO only; the training config stored in the checkpoints (and the file name) also lists Objects365.",
+  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~65 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
 ]
 
 [upstream]

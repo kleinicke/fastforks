@@ -6,13 +6,13 @@
 
 Input: one RGB image (trimap-guided models also a trimap: background / unknown / foreground). Output: an alpha matte `[H, W]` in [0, 1] at the input size: 1 = foreground (background removal, dichotomous / salient object segmentation).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). The accuracy column is lower-is-better (DIS-VD MAE).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak. The accuracy column is lower-is-better (DIS-VD MAE).
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | DIS-VD MAE ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`ben2`](#ben2) | yes | 0.0403 | 104, 1.9x | 2238, 0.81x |
+| [`ben2`](#ben2) | yes | 0.0403 | 104, 1.9x | 1698, 0.61x |
 | [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1916, 0.99x |
 | [`birefnet-lite`](#birefnet) | yes | – | 48.1, 1.6x | 960, 0.99x |
 | [`inspyrenet`](#inspyrenet) | yes | – | no kernels | no kernels |
@@ -24,8 +24,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`u2net`](#u2net) | yes | – | 8.83, 1.8x | 260, 0.52x |
 | [`u2net-human-seg`](#u2net) | yes | – | 9.05, 1.8x | 260, 0.52x |
 | [`u2netp`](#u2net) | yes | – | 9.80, 1.5x | 172, 0.55x |
-| [`vitmatte-b`](#vitmatte) | yes | – | 147, 1.7x | 1710, 0.33x |
-| [`vitmatte-s`](#vitmatte) | yes | – | 83.8, 1.7x | 1444, 0.56x |
+| [`vitmatte-b`](#vitmatte) | yes | – | 148, 1.7x | 1552, 0.3x |
+| [`vitmatte-s`](#vitmatte) | yes | – | 84.1, 1.7x | 1404, 0.54x |
 
 <a id="ben2"></a>
 
@@ -37,7 +37,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ben2` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 201<br>110<br>104<br>103<br>58.2 | 2466 / 2772<br>1681 / 1976<br>1942 / 2238<br>813 / 916<br>1280 / 1326 |
+| `ben2` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 201<br>110<br>104<br>103<br>58.2 | 2466 / 2772<br>1681 / 1956<br>1430 / 1698<br>813 / 916<br>1280 / 1326 |
 
 <details><summary>Details</summary>
 
@@ -262,7 +262,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels | 1220<br>1205<br>no kernels | 2978 / 3208<br>2719 / 2908<br>no kernels |
+| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>1205<br>no kernels<br>fails: load: BackendUnavailableError: matanyone@1 (portable) has no<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2719 / 2908<br>no kernels<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -272,12 +272,12 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/LICENSE ; https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/README.md (weights: https://github.com/pq-yang/MatAnyone/releases/tag/v1.0.0)
 - Training data: VM800 (MatAnyone video matting foregrounds), Composition-1k (Adobe Deep Image Matting), Distinctions-646 (image matting), BG-20k (background images), DVM background set (video backgrounds), COCO 2017 (train, instance annotations), YouTube-VIS 2021 (video instance segmentation), Supervisely Person Dataset (human segmentation) (doc/TRAIN.md: matting on VM800 (not released) and ImageMatte (Distinctions-646 + Adobe Image Matting), backgrounds from BG-20k and DVM, segmentation on COCO, YouTube-VIS 2021 and Supervisely Person.)
 - Options: `warmup` = 10 (>= 0; also `n_warmup`), `dilate` = 10 (>= 0; also `r_dilate`), `erode` = 10 (>= 0; also `r_erode`)
-- Kernel libraries: none (not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable already runs 6 % faster than the original fp16)
+- Kernel libraries: none (not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable runs 1.2 % faster than the original fp16 at 1080x1920 (1205 vs 1220 ms) with 9 % lower peak allocated memory (2719 vs 2978 MB) and identical task accuracy (YouTubeMatte MAD 2.636 both); against the original fp32 at 512x288 portable fp16 is 5 % slower per frame (20.5 vs 19.4 ms) with 24 % less memory, so the speed bar holds at 1080p and against fp16 only)
 - Variants: `matanyone`
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `matanyone` 3000x4000 (14.5 GiB peak allocated, 15.1 reserved)
-- no kernels: not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable already runs 6 % faster than the original fp16.
+- no kernels: not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable runs 1.2 % faster than the original fp16 at 1080x1920 (1205 vs 1220 ms) with 9 % lower peak allocated memory (2719 vs 2978 MB) and identical task accuracy (YouTubeMatte MAD 2.636 both); against the original fp32 at 512x288 portable fp16 is 5 % slower per frame (20.5 vs 19.4 ms) with 24 % less memory, so the speed bar holds at 1080p and against fp16 only.
 - `matanyone` original 1080x1920: the authors' mixed-precision option (float16); pq-yang/MatAnyone@e5ddc534c1ff process_video loop on frames in memory, cv2 mask closing
 - `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -374,8 +374,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vitmatte-s` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 140<br>102<br>83.8<br>81.9<br>54.6 | 2536 / 2582<br>1401 / 1524<br>1337 / 1444<br>1025 / 1284<br>876 / 920 |
-| `vitmatte-b` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 257<br>182<br>147<br>157<br>108 | 5070 / 5128<br>1548 / 1692<br>1484 / 1710<br>1166 / 1472<br>1233 / 1262 |
+| `vitmatte-s` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 140<br>102<br>84.1<br>81.9<br>54.6 | 2536 / 2582<br>1401 / 1524<br>1305 / 1404<br>1025 / 1284<br>876 / 920 |
+| `vitmatte-b` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 257<br>182<br>148<br>157<br>108 | 5070 / 5128<br>1548 / 1692<br>1452 / 1552<br>1166 / 1472<br>1233 / 1262 |
 
 <details><summary>Details</summary>
 

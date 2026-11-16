@@ -9,6 +9,8 @@ limitations = [
   "Frames are resized to 384 x 512 (upstream's default evaluation size), whatever their size and aspect ratio. Upstream reports higher accuracy at larger sizes (TAP-Vid DAVIS AJ 65.9 at 448 x 768, 67.2 at 768 x 1024); the size is a card parameter.",
   "Tracks are sampled bilinearly at the query position; upstream's evaluation rounds the query to the nearest pixel.",
   "One video per call; all queries of a call share the video.",
+  "Kernels hold packed conv weights next to the originals the call reads (+31 MiB) and fragment the allocator: peak reserved is ~70 MiB above portable.",
+  "No exportable module: the track set is data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
 ]
 
 [upstream]
@@ -50,11 +52,13 @@ venue = "ICCV 2025"
 
 [[variants]]
 id = "alltracker"  # upstream alltracker.pth; TAP-Vid DAVIS AJ 63.3 at 384 x 512 (upstream README)
+planned = { onnx = "torch.export fails (TorchExportError, step 1/3 of the ONNX export)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "alltracker.pth", size = 66005722, sha256 = "ffd9ebcfb6d206d594b646999a150540f92c049cf9b2bf940facf7123f62aa1d", url = "https://huggingface.co/aharley/alltracker/resolve/c8ba31225828cab9ec512d0627f0f826e641a877/alltracker.pth" }]
 
 [[variants]]
 id = "alltracker-tiny"  # upstream alltracker_tiny.pth (Net(16, use_basicencoder=True, no_split=True))
+planned = { onnx = "torch.export fails (TorchExportError, step 1/3 of the ONNX export)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { encoder = "basic" }
 weights = [{ name = "alltracker_tiny.pth", size = 25236708, sha256 = "43991b4fcee5bec0f828e7cc556ef3cfa379fc44874f56ccb531f59f5aaf234e", url = "https://huggingface.co/aharley/alltracker/resolve/c8ba31225828cab9ec512d0627f0f826e641a877/alltracker_tiny.pth" }]

@@ -3,6 +3,9 @@ name = "NMRF"
 summary = "NMRF (Guan et al. 2024): neural Markov random field with disparity proposals from a group-wise cost volume, CSWin label-seed propagation and window-attention inference at 1/8 resolution plus a 1/4 refinement."
 tier = "stable"
 outputs = ["disparity"]
+limitations = [
+  "ONNX Runtime resolves top-k ties differently from PyTorch on noise pairs: nmrf-sceneflow differs by up to 0.56 px (mean 0.006) on a synthetic textured pair.",
+]
 
 [upstream]
 repo = "https://github.com/aeolusguan/NMRF"

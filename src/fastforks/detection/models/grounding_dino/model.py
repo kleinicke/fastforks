@@ -91,7 +91,7 @@ def phrase_masks(ids: list[int], separators: set[int]) -> tuple[torch.Tensor, to
     return att, pos
 
 
-def _msda(value, shapes, shapes_list, start, loc, weights, step):  # noqa: ANN001, ANN202, ARG001 - transformers' signature
+def _msda(value, shapes, shapes_list, start, loc, weights, step):  # noqa: ANN001, ANN202, ARG001, PLR0913, PLR0917 - transformers' signature
     """`MultiScaleDeformableAttention.forward` on `deformable_sample`: `[B, Q, heads * dh]`, no stack of the samples."""
     points = loc.shape[4]
     return deformable_sample(value, loc.flatten(3, 4), weights.flatten(3), shapes_list, points)

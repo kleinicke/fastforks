@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from .geometry import coords_grid, generate_window_grid, normalize_coords
+from fastforks._core.sampling import grid_sample
 
 
 def global_correlation_softmax(feature0, feature1,
@@ -62,7 +63,7 @@ def local_correlation_softmax(feature0, feature1, local_radius,
 
     # normalize coordinates to [-1, 1]
     sample_coords_norm = normalize_coords(sample_coords, h, w)  # [-1, 1]
-    window_feature = F.grid_sample(feature1, sample_coords_norm,
+    window_feature = grid_sample(feature1, sample_coords_norm,
                                    padding_mode=padding_mode, align_corners=True
                                    ).permute(0, 2, 1, 3)  # [B, H*W, C, (2R+1)^2]
     feature0_view = feature0.permute(0, 2, 3, 1).view(b, h * w, 1, c)  # [B, H*W, 1, C]
@@ -111,7 +112,7 @@ def local_correlation_with_flow(feature0, feature1,
 
     # normalize coordinates to [-1, 1]
     sample_coords_norm = normalize_coords(sample_coords, h, w)  # [-1, 1]
-    window_feature = F.grid_sample(feature1, sample_coords_norm,
+    window_feature = grid_sample(feature1, sample_coords_norm,
                                    padding_mode=padding_mode, align_corners=True
                                    ).permute(0, 2, 1, 3)  # [B, H*W, C, (2R+1)^2]
     feature0_view = feature0.permute(0, 2, 3, 1).view(b, h * w, 1, c)  # [B, H*W, 1, C]
@@ -176,7 +177,7 @@ def local_correlation_softmax_stereo(feature0, feature1, local_radius,
 
     # normalize coordinates to [-1, 1]
     sample_coords_norm = normalize_coords(sample_coords, h, w)  # [-1, 1]
-    window_feature = F.grid_sample(feature1, sample_coords_norm,
+    window_feature = grid_sample(feature1, sample_coords_norm,
                                    padding_mode='zeros', align_corners=True
                                    ).permute(0, 2, 1, 3)  # [B, H*W, C, (2R+1)]
     feature0_view = feature0.permute(0, 2, 3, 1).contiguous().view(b, h * w, 1, c)  # [B, H*W, 1, C]
@@ -275,7 +276,7 @@ def warp_with_pose_depth_candidates(feature1, intrinsics, pose, depth,
     # sample features
     # ref: https://github.com/pytorch/pytorch/issues/88380
     with torch.backends.cudnn.flags(enabled=not grid_sample_disable_cudnn):
-        warped_feature = F.grid_sample(feature1, grid.view(b, d * h, w, 2), mode='bilinear',
+        warped_feature = grid_sample(feature1, grid.view(b, d * h, w, 2), mode='bilinear',
                                     padding_mode='zeros',
                                     align_corners=True).view(b, c, d, h, w)  # [B, C, D, H, W]
 

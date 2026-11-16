@@ -3,7 +3,7 @@ name = "WAFT"
 summary = "WAFT (Wang & Deng 2025), version a1: optical flow without a cost volume. A frozen Depth Anything V2 Small and a ResNet18 encoder give half-resolution features; each of 5 iterations warps the second image's features by the current flow and a small ViT-S (patch 8) refines the flow, which is convex-upsampled to full resolution. The authors' released weights; the network is ported from princeton-vl/WAFT. `waft-a1` is the general checkpoint the authors recommend for downstream use (TartanAir, FlyingChairs, FlyingThings3D); `-kitti` and `-sintel` are their benchmark fine-tunes."
 tier = "experimental"
 outputs = ["flow"]
-uses = ["depth_anything_v2", "timm_blocks"]  # fastforks.shared modules this family imports (DINOv2 ViT-S + DPT head, the timm ViT and ResNet blocks)
+uses = ["cnn_kernels", "depth_anything_v2", "timm_blocks"]  # fastforks.shared modules this family imports (DINOv2 ViT-S + DPT head, the timm ViT and ResNet blocks)
 
 [upstream]
 repo = "https://github.com/princeton-vl/WAFT"
@@ -41,16 +41,16 @@ venue = "arXiv"
 [[variants]]
 id = "waft-a1"  # upstream config/a1/tar-c-t.json, the checkpoint the README recommends for downstream applications
 revision = 1
-weights = [{ mirror = true, name = "waft-a1-tar-c-t.pth", size = 256886970, sha256 = "9f4b24f48b3937eca690a12b73bc3190effde6d4d4c87db01998fe63d846397f", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1CxzBQx0iSg6AyIgt6MF0ROlF_cAeZLPC" }]
+weights = [{ name = "waft-a1-tar-c-t.pth", size = 256886970, sha256 = "9f4b24f48b3937eca690a12b73bc3190effde6d4d4c87db01998fe63d846397f", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1CxzBQx0iSg6AyIgt6MF0ROlF_cAeZLPC" }]
 
 [[variants]]
 id = "waft-a1-kitti"  # upstream config/a1/tar-c-t-kitti.json (its KITTI submission)
 revision = 1
 licence = { training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "TartanAir, FlyingChairs, FlyingThings3D, then fine-tuned on KITTI 2015 (5000 steps; the config does not name the starting checkpoint, counted as the TSKH stage as in SEA-RAFT)" }
-weights = [{ mirror = true, name = "waft-a1-tar-c-t-kitti.pth", size = 256890618, sha256 = "b600f7821a529c0ca014efc228e77f32e0e20f4e0a5a88c29bebf0e635e4092b", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1hzpxBe80BmPCXjo9DvSszdCRsio5vLaB" }]
+weights = [{ name = "waft-a1-tar-c-t-kitti.pth", size = 256890618, sha256 = "b600f7821a529c0ca014efc228e77f32e0e20f4e0a5a88c29bebf0e635e4092b", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1hzpxBe80BmPCXjo9DvSszdCRsio5vLaB" }]
 
 [[variants]]
 id = "waft-a1-sintel"  # upstream config/a1/tar-c-t-sintel.json (its Sintel submission)
 revision = 1
 licence = { training_data = ["tartanair", "flyingchairs", "sceneflow", "sintel-flow", "kitti", "hd1k"], training_note = "TartanAir, FlyingChairs, FlyingThings3D, then the mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH)" }
-weights = [{ mirror = true, name = "waft-a1-tar-c-t-sintel.pth", size = 256889402, sha256 = "e3d95a6df6ec641ef29c766be658aae8698d00b899dc75742d23ff2cd9cf9d4e", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1pAsbH0Orb5mFo4CLCYi4dSm6FjxrOqO3" }]
+weights = [{ name = "waft-a1-tar-c-t-sintel.pth", size = 256889402, sha256 = "e3d95a6df6ec641ef29c766be658aae8698d00b899dc75742d23ff2cd9cf9d4e", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1pAsbH0Orb5mFo4CLCYi4dSm6FjxrOqO3" }]

@@ -82,8 +82,13 @@ class fastforks.stereo.geometry.rig.RectifiedRig(builtins.object)
 class fastforks.stereo.geometry.rig.StereoRig(builtins.object)
 class fastforks.tracking._api.TrackingModel(fastforks._core.model.Model)
 class fastforks.tracking._api.TrackingResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.volume._api.VolumeEncoder(fastforks._core.model.Model)
+class fastforks.volume._api.VolumeFeatures(fastforks._core.outputs.NumpyOutputs)
+class fastforks.volume._api.VolumeInteractive(fastforks._core.model.Model)
+class fastforks.volume._api.VolumeMask(fastforks._core.outputs.NumpyOutputs)
 class fastforks.volume._api.VolumeModel(fastforks._core.model.Model)
 class fastforks.volume._api.VolumeResult(fastforks._core.outputs.NumpyOutputs)
+class fastforks.volume._api.VolumeSession(builtins.object)
 class fastforks.volume._nifti.VolumeMeta(builtins.object)
 cli fastforks bench: --device
 cli fastforks bench: --dtype
@@ -344,13 +349,21 @@ def fastforks.tracking._api.TrackingModel.module(self) -> 'torch.nn.Module'
 def fastforks.tracking.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.tracking.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.tracking._api.TrackingModel
 def fastforks.tracking.model_card(model: 'str') -> 'ModelCard'
+def fastforks.volume._api.VolumeEncoder.__call__(self, volume: 'np.ndarray | torch.Tensor') -> 'VolumeFeatures'
+def fastforks.volume._api.VolumeInteractive.__call__(self, volume: 'np.ndarray | torch.Tensor', *, point: 'Sequence[float] | None' = None, box: 'Sequence[Sequence[float]] | None' = None, scribble: 'np.ndarray | torch.Tensor | None' = None, positive: 'bool' = True) -> 'VolumeMask'
+def fastforks.volume._api.VolumeInteractive.session(self, volume: 'np.ndarray | torch.Tensor') -> 'VolumeSession'
 def fastforks.volume._api.VolumeModel.__call__(self, volume: 'np.ndarray | torch.Tensor', *, spacing: 'Sequence[float] | None' = None, meta: 'VolumeMeta | None' = None) -> 'VolumeResult'
 def fastforks.volume._api.VolumeModel.module(self) -> 'torch.nn.Module'
 def fastforks.volume._api.VolumeModel.networks(self) -> 'tuple[torch.nn.Module, ...]'
 def fastforks.volume._api.VolumeResult.save(self, path: 'str | os.PathLike[str]') -> 'None'
+def fastforks.volume._api.VolumeSession.add_box(self, box: 'Sequence[Sequence[float]]', *, positive: 'bool' = True) -> 'VolumeMask'
+def fastforks.volume._api.VolumeSession.add_point(self, zyx: 'Sequence[float]', *, positive: 'bool' = True) -> 'VolumeMask'
+def fastforks.volume._api.VolumeSession.add_scribble(self, mask: 'np.ndarray | torch.Tensor', *, positive: 'bool' = True) -> 'VolumeMask'
+def fastforks.volume._api.VolumeSession.reset(self) -> 'None'
 def fastforks.volume.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.volume.load(model: 'str | os.PathLike[str]', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, folds: 'Sequence[int] | None' = None, step: 'float | None' = None, mirror: 'bool | None' = None, checkpoint: 'str | None' = None, **options: 'object') -> fastforks.volume._api.VolumeModel
 def fastforks.volume.model_card(model: 'str') -> 'ModelCard'
+def fastforks.volume.read_dicom(path: 'str | os.PathLike[str]') -> 'tuple[np.ndarray, VolumeMeta]'
 def fastforks.volume.read_nifti(path: 'str | os.PathLike[str]') -> 'tuple[np.ndarray, VolumeMeta]'
 def fastforks.volume.write_nifti(path: 'str | os.PathLike[str]', labels: 'np.ndarray | torch.Tensor', meta: 'VolumeMeta') -> 'None'
 field fastforks._core.cards.ModelCard.family: str
@@ -365,6 +378,7 @@ field fastforks._core.cards.ModelCard.mps_kernel_libs: tuple[str, ...]
 field fastforks._core.cards.ModelCard.mps_kernels_dtype: Dtype | None
 field fastforks._core.cards.ModelCard.name: str
 field fastforks._core.cards.ModelCard.no_kernels_reason: str
+field fastforks._core.cards.ModelCard.no_original_reason: str
 field fastforks._core.cards.ModelCard.official: tuple[Official, ...]
 field fastforks._core.cards.ModelCard.option_aliases: Mapping[str, str]
 field fastforks._core.cards.ModelCard.option_choices: Mapping[str, tuple[Any, ...]]
@@ -679,6 +693,15 @@ field fastforks.tracking._api.TrackingResult.model: str
 field fastforks.tracking._api.TrackingResult.options: Mapping[str, Any]
 field fastforks.tracking._api.TrackingResult.tracks: torch.Tensor
 field fastforks.tracking._api.TrackingResult.visibility: torch.Tensor | None
+field fastforks.volume._api.VolumeFeatures.backend: Backend
+field fastforks.volume._api.VolumeFeatures.features: tuple[torch.Tensor, ...]
+field fastforks.volume._api.VolumeFeatures.model: str
+field fastforks.volume._api.VolumeFeatures.options: Mapping[str, Any]
+field fastforks.volume._api.VolumeFeatures.strides: tuple[int, ...]
+field fastforks.volume._api.VolumeMask.backend: Backend
+field fastforks.volume._api.VolumeMask.mask: torch.Tensor
+field fastforks.volume._api.VolumeMask.model: str
+field fastforks.volume._api.VolumeMask.options: Mapping[str, Any]
 field fastforks.volume._api.VolumeResult.backend: Backend
 field fastforks.volume._api.VolumeResult.class_names: Mapping[int, str]
 field fastforks.volume._api.VolumeResult.labels: torch.Tensor
@@ -792,9 +815,14 @@ name fastforks.stereo.pipeline.Images
 name fastforks.stereo.pipeline.Rig
 name fastforks.tracking.TrackingModel = class fastforks.tracking._api.TrackingModel
 name fastforks.tracking.TrackingResult = class fastforks.tracking._api.TrackingResult
+name fastforks.volume.VolumeEncoder = class fastforks.volume._api.VolumeEncoder
+name fastforks.volume.VolumeFeatures = class fastforks.volume._api.VolumeFeatures
+name fastforks.volume.VolumeInteractive = class fastforks.volume._api.VolumeInteractive
+name fastforks.volume.VolumeMask = class fastforks.volume._api.VolumeMask
 name fastforks.volume.VolumeMeta = class fastforks.volume._nifti.VolumeMeta
 name fastforks.volume.VolumeModel = class fastforks.volume._api.VolumeModel
 name fastforks.volume.VolumeResult = class fastforks.volume._api.VolumeResult
+name fastforks.volume.VolumeSession = class fastforks.volume._api.VolumeSession
 option calibration.anycalib.cuda_graphs
 option calibration.geocalib.cuda_graphs
 option depth.any2full.short_side
@@ -820,6 +848,8 @@ option depth.marigold_v2.stream
 option depth.midas.input_size
 option depth.moge.normals
 option depth.moge.resolution_level
+option depth.pointdit.steps
+option depth.pointdit.tokens
 option depth.prompt_depth_anything.max_size
 option depth.stablenormal.long_side aliases processing_res
 option depth.stablenormal.seed
@@ -929,6 +959,7 @@ option multiview.resplat.long_side
 option multiview.resplat.refine
 option multiview.vggt.long_side
 option multiview.vggt_omega.area_side aliases resolution
+option ocr.parseq.cuda_graphs
 option ocr.ppocrv5.box_threshold aliases text_det_box_thresh
 option ocr.ppocrv5.unclip_ratio aliases text_det_unclip_ratio
 option pose.hrnet.flip_test
@@ -983,6 +1014,7 @@ property fastforks.features._api.FeaturesResult.cls_token -> torch.Tensor
 property fastforks.features._api.FeaturesResult.patch_tokens -> torch.Tensor
 property fastforks.features._api.FeaturesResult.register_tokens -> torch.Tensor
 property fastforks.matching._api.MatchingModel.sparse -> bool
+property fastforks.matching._api.VerifiedMatches.inlier_ratio -> torch.Tensor
 property fastforks.multiview._api.MultiViewResult.extrinsics -> torch.Tensor | None
 property fastforks.multiview._gaussians.Gaussians.sh_degree -> int
 property fastforks.restoration._api.RestorationModel.scale -> int
@@ -1007,3 +1039,4 @@ property fastforks.stereo.geometry.rectify.Rectification.f -> float
 property fastforks.stereo.geometry.rectify.Rectification.rectified -> RectifiedRig
 property fastforks.stereo.geometry.rig.StereoRig.baseline -> float
 property fastforks.tracking._api.TrackingResult.visible -> torch.Tensor | None
+property fastforks.volume._api.VolumeSession.mask -> VolumeMask

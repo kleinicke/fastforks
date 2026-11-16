@@ -462,6 +462,9 @@ def test_convnext_layer_scale_fold_adds_no_weight_copy():
     seen: dict[int, int] = {}
     for t in [*fast.net.parameters(), *fast.net.buffers()]:
         seen[t.untyped_storage().data_ptr()] = t.untyped_storage().nbytes()
-    own = sum(p.untyped_storage().nbytes() for p in {p.untyped_storage().data_ptr(): p for p in fast.net.parameters()}.values())
+    own = sum(
+        p.untyped_storage().nbytes()
+        for p in {p.untyped_storage().data_ptr(): p for p in fast.net.parameters()}.values()
+    )
     assert sum(seen.values()) == own  # no buffer owns storage a parameter does not
     torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-5)

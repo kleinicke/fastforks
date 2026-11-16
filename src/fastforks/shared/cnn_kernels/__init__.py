@@ -313,10 +313,23 @@ def fold_bn(conv: nn.Conv2d, bn: nn.BatchNorm2d) -> None:
         getattr(bn, name).data.fill_(v)
 
 
+_STATS_CHUNK_BYTES = 1 << 25  # fp32 temporary of one statistics pass: 32 MiB
+
+
 def instance_stats(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """Per-sample, per-channel mean and (biased) variance over the spatial dims, fp32."""
-    var, mean = torch.var_mean(x.float(), dim=tuple(range(2, x.dim())), keepdim=True, unbiased=False)
-    return mean, var
+    dims = tuple(range(2, x.dim()))
+    if x.dtype == torch.float32 or x.numel() * 4 <= _STATS_CHUNK_BYTES:
+        var, mean = torch.var_mean(x.float(), dim=dims, keepdim=True, unbiased=False)
+        return mean, var
+    # a full fp32 copy of a large fp16 map is the peak of the network (268 MB of 1.7 GB for a 1x128x1024x1024 map): the
+    # statistics are per channel, so channel slices (a bounded fp32 temporary) give the same result
+    c = x.shape[1]
+    step = max(1, c * _STATS_CHUNK_BYTES // (x.numel() * 4))
+    parts = [
+        torch.var_mean(x[:, i : i + step].float(), dim=dims, keepdim=True, unbiased=False) for i in range(0, c, step)
+    ]
+    return torch.cat([m for _, m in parts], 1), torch.cat([v for v, _ in parts], 1)
 
 
 def instance_norm(x: torch.Tensor, eps: float, act: int = 0) -> torch.Tensor:

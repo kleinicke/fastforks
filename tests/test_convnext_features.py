@@ -1,8 +1,9 @@
-"""ConvNeXt features: kernels vs portable fp16 beyond the golden pair (B=1, 128x160, synthetic), and the output layout.
+"""ConvNeXt features: kernels vs portable fp32 beyond the golden pair (B=1, 128x160, synthetic), and the output layout.
 
 ConvNeXt-L at batch 2 (eager first call, then the captured graph) and at a size above `_GRAPH_PIXELS` (always eager).
-Bounds: the family's golden GPU tolerances (mean / p99 of |diff| over the median |portable| value). The layout test
-runs the smallest variant on the CPU.
+Bounds: the family's golden GPU tolerances (mean / p99 of |diff| over the median |portable| value). The reference is
+fp32: the fp16 portable run is itself ~0.08-0.10 (p99) from fp32 at 224, as far from the kernels as they are from it.
+The layout test runs the smallest variant on the CPU.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ def models() -> tuple[features.FeaturesModel, features.FeaturesModel]:
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     try:
-        port = features.load(REF, mode="portable", device="cuda", dtype="float16")
+        port = features.load(REF, mode="portable", device="cuda", dtype="float32")
         fast = features.load(REF, mode="kernels", device="cuda")
     except WeightsError as e:
         pytest.skip(f"{REF} weights not available: {e}")

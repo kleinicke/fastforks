@@ -46,5 +46,6 @@ venue = "ECCV 2024"
 
 [[variants]]
 id = "mvsplat-re10k"
+planned = { onnx = "the ONNX converter fails on the exported program (ConversionError, step 3/3)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "re10k.ckpt", size = 48019233, sha256 = "83d0d9eaa753fa4a1f925288dc1f90b8c3297fad0ab0f6ed1f11a1c5946da25a", url = "https://drive.usercontent.google.com/download?id=1Y5OAJN9AX5yMjkbyxag5OnwacdjPnl-N&export=download&confirm=t" }]

@@ -6,7 +6,7 @@ outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "fasternet"]  # fastforks.shared modules this family imports
 limitations = [
   "The original code's LAS1 (LiteAnyStereo.pth, another architecture) is not included.",
-  "Portable LAS2-H is faster than the original code but allocates more memory.",
+  "Portable LAS2-H at 375 x 1242 is faster than the original code (35.6 vs 36.4 ms) but peaks 13 MB (3.7 %) higher (365 vs 352 MB). Kernels at 994 x 1482 allocate less than the original (917 vs 1022 MB) but reserve more (1248 vs 1084 MB): graph / cuDNN workspace blocks.",
 ]
 licence_notes = [
   "Trained on a mixture that includes NVIDIA's FSD dataset and Dynamic Replica, whose terms for commercial use of trained models are unclear (the repository lists no data terms); the status does not depend on the training data.",
@@ -83,6 +83,7 @@ weights = [{ name = "LAS2_L.pth", size = 109270797, sha256 = "12f86f758b0aa6cd59
 
 [[variants]]
 id = "las2-h"
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin autotuner skips all tactics)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { size = "h" }
 weights = [{ name = "LAS2_H.pth", size = 46698761, sha256 = "758585a25c3a332711f92a28ad1437e08080fb714ad1146de7cf2c01ce8479f4", url = "https://huggingface.co/tomtomtommi/LiteAnyStereoV2/resolve/17788d91618646fa781a14462e2926a034b9f49d/LAS2_H.pth" }]

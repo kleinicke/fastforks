@@ -5,6 +5,11 @@ tier = "experimental"
 outputs = ["flow"]
 uses = []  # fastforks.shared modules this family imports
 
+limitations = [
+  "Portable at 375 x 1242 runs 15.1 ms vs 12.2 ms for the authors' fp16 lookup (24 % slower, launch-bound; at 1080 x 1920 it is faster, 71.4 vs 75.8 ms): lookup, matching and upsampling stay float32 on purpose (lower KITTI EPE); fp16 lookup or channels_last did not help.",
+  "Kernels (raft_flow) run 12.0 ms / 205 MB, faster than the original, but the binary is not on Hugging Face yet; it is built locally and found through FASTFORKS_KERNEL_PATH.",
+]
+
 [upstream]
 repo = "https://github.com/neufieldrobotics/NeuFlow_v2"
 commit = "204b5e3744461d90303b9ff82caa7a1bb56a2ca2"  # net.py ports NeuFlow/neuflow.py, backbone_v7.py, transformer.py, matching.py, corr.py, refine.py, upsample.py

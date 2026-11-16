@@ -116,6 +116,8 @@ class Kernels(Runner):
             out = self._cache.run(key, left, right)
             if out is not None:
                 return {"disparity": out}
+        elif self._cache is not None and self._cache.graphs:  # a GPU-bound input: no small shape's pool next to it
+            self._cache.release()
         return {"disparity": self._forward(self.net, left, right)}
 
 

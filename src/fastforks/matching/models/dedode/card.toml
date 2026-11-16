@@ -3,7 +3,7 @@ name = "DeDoDe v2"
 summary = "DeDoDe v2 (Edstedt et al., 3DV 2024; detector v2: CVPR Workshops 2024): detect, don't describe, describe, don't detect. A VGG19 network with convolutional refiners finds 10000 keypoints per image (the detector, retrained in v2), a separate descriptor network (VGG19, or VGG19 + a frozen DINOv2 ViT-L/14 for -G) describes them, and the descriptions are matched as mutual maxima of a dual softmax. Returns both keypoint sets, the index pairs of the matches and their probability."
 tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
-uses = ["dedode", "depth_anything_v2"]  # fastforks.shared modules this family imports (the nets; the DINOv2 ViT-L/14 of -G)
+uses = ["cnn_kernels", "dedode", "depth_anything_v2"]  # fastforks.shared modules this family imports (the nets; the DINOv2 ViT-L/14 of -G)
 limitations = [
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
@@ -51,6 +51,7 @@ venue = "CVPR Workshops 2024"
 
 [[variants]]
 id = "dedode-v2-b"  # DeDoDe-L v2 detector + DeDoDe-B descriptor (upstream README default)
+planned = { tensorrt = "TensorRT TopK supports K <= 3840; the keypoint top-k is larger" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { descriptor = "B" }
 weights = [
@@ -60,6 +61,7 @@ weights = [
 
 [[variants]]
 id = "dedode-v2-g"  # DeDoDe-L v2 detector + DeDoDe-G descriptor (VGG19 + frozen DINOv2 ViT-L/14)
+planned = { tensorrt = "TensorRT TopK supports K <= 3840; the keypoint top-k is larger" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { descriptor = "G" }
 weights = [

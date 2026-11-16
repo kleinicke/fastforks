@@ -481,6 +481,7 @@ def family(
         "mps_kernel_libs": list(card.mps_kernel_libs),
         "mps_dtypes": list(card.portable_mps_dtypes),
         "no_kernels_reason": card.no_kernels_reason,
+        "no_original_reason": card.no_original_reason,
         "options": [
             {"name": k, "default": val, "bounds": card.option_bounds(k), "effect": card.option_effect.get(k, "output")}
             for k, val in card.options.items()

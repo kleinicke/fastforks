@@ -4,6 +4,7 @@
 from fastforks import volume
 
 ct, meta = volume.read_nifti("ct.nii.gz")  # [D, H, W] float32, RAS-canonical; needs fastforks-core[nifti]
+# ct, meta = volume.read_dicom("series_folder")  # same convention from a DICOM series; needs fastforks-core[dicom]
 model = volume.load("totalsegmentator-total")
 result = model(ct, meta=meta)  # or spacing=(d, h, w) in mm
 result.labels  # [D, H, W] uint8 labels on the input grid; result.class_names[k] names label k
@@ -31,7 +32,7 @@ from fastforks.volume._api import (
     load,
     model_card,
 )
-from fastforks.volume._nifti import VolumeMeta, read_nifti, write_nifti
+from fastforks.volume._nifti import VolumeMeta, read_dicom, read_nifti, write_nifti
 
 __all__ = [
     "VolumeEncoder",
@@ -45,6 +46,7 @@ __all__ = [
     "list_models",
     "load",
     "model_card",
+    "read_dicom",
     "read_nifti",
     "write_nifti",
 ]

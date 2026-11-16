@@ -11,7 +11,7 @@ also scored without the fit (`abs_absrel`, `abs_d1`).
 Tiers: `upstream` / `upstream16` (the original `infer_video_depth`, fp32 / its `fp32=False` autocast; `FF_VDA_REPO` =
 a clone of DepthAnything/Video-Depth-Anything), `portable32`, `portable`, `kernels`.
 
-    python tools/eval_video_depth.py video-depth-anything-s --tiers portable,kernels --frames 110 --out results/raw/x
+    python tools/eval_video_depth.py video-depth-anything-s --tiers portable,kernels --frames 110 --out out/x
 """
 
 from __future__ import annotations

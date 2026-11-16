@@ -6,68 +6,68 @@
 
 Input: one RGB image. Output: dense patch features and a pooled image feature.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 224x224: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`c-radio-v3-b`](#c_radio) | yes | 1.35, 4.2x | 326, 0.7x |
-| [`c-radio-v3-g`](#c_radio) | yes | 10.6, 2.8x | 3230, 0.71x |
-| [`c-radio-v3-h`](#c_radio) | yes | 7.42, 2.3x | 1828, 0.69x |
-| [`c-radio-v3-l`](#c_radio) | yes | 3.26, 3.3x | 946, 0.74x |
-| [`c-radio-v4-h`](#c_radio) | yes | 7.41, 2.3x | 1308, 0.21x |
-| [`c-radio-v4-so400m`](#c_radio) | yes | 4.25, 2.7x | 908, 0.22x |
-| [`clip-b16-laion2b`](#clip) | yes | 1.36, 3.9x | 310, 0.74x |
-| [`clip-b16-openai`](#clip) | yes | 1.35, 4.2x | 370, 0.89x |
-| [`clip-h14-378-dfn5b`](#clip) | no | 8.22, 2.4x | 2212, 0.85x |
-| [`clip-h14-dfn5b`](#clip) | no | 8.22, 2.4x | 2192, 0.84x |
-| [`clip-h14-laion2b`](#clip) | yes | 8.26, 2.3x | 1792, 0.69x |
-| [`clip-l14-336-openai`](#clip) | yes | 4.75, 2.3x | 1090, 0.88x |
-| [`clip-l14-datacompxl`](#clip) | yes | 4.77, 2.1x | 930, 0.77x |
-| [`clip-l14-dfn2b`](#clip) | no | 4.75, 2.2x | 1110, 0.91x |
-| [`clip-l14-laion2b`](#clip) | yes | 4.77, 2.1x | 930, 0.77x |
-| [`clip-l14-openai`](#clip) | yes | 4.74, 2.3x | 1110, 0.91x |
+| [`c-radio-v3-b`](#c_radio) | yes | 1.36, 4.2x | 248, 0.53x |
+| [`c-radio-v3-g`](#c_radio) | yes | 10.7, 2.8x | 2310, 0.51x |
+| [`c-radio-v3-h`](#c_radio) | yes | 7.43, 2.3x | 1308, 0.49x |
+| [`c-radio-v3-l`](#c_radio) | yes | 3.28, 3.3x | 706, 0.55x |
+| [`c-radio-v4-h`](#c_radio) | yes | 7.40, 2.3x | 1308, 0.21x |
+| [`c-radio-v4-so400m`](#c_radio) | yes | 4.14, 2.8x | 908, 0.22x |
+| [`clip-b16-laion2b`](#clip) | yes | 1.36, 3.9x | 230, 0.55x |
+| [`clip-b16-openai`](#clip) | yes | 1.36, 4.2x | 250, 0.6x |
+| [`clip-h14-378-dfn5b`](#clip) | no | 8.24, 2.4x | 1312, 0.5x |
+| [`clip-h14-dfn5b`](#clip) | no | 8.54, 2.3x | 1292, 0.5x |
+| [`clip-h14-laion2b`](#clip) | yes | 8.27, 2.3x | 1272, 0.49x |
+| [`clip-l14-336-openai`](#clip) | yes | 4.76, 2.3x | 668, 0.54x |
+| [`clip-l14-datacompxl`](#clip) | yes | 4.76, 2.1x | 670, 0.55x |
+| [`clip-l14-dfn2b`](#clip) | no | 4.76, 2.2x | 690, 0.57x |
+| [`clip-l14-laion2b`](#clip) | yes | 4.76, 2.1x | 670, 0.55x |
+| [`clip-l14-openai`](#clip) | yes | 4.76, 2.3x | 690, 0.57x |
 | [`convnext_base.fb_in22k`](#convnext_features) | yes | 1.96, 3.9x | 216, 0.54x |
 | [`convnext_large.fb_in22k`](#convnext_features) | yes | 3.23, 3.3x | 434, 0.52x |
 | [`convnext_small.fb_in22k`](#convnext_features) | yes | 1.79, 4.2x | 150, 0.6x |
-| [`convnext_tiny.fb_in22k`](#convnext_features) | yes | 1.09, 3.6x | 110, 0.65x |
-| [`dinov2-vitb14`](#dinov2) | yes | 1.48, 3.0x | 290, 0.75x |
-| [`dinov2-vitb14-reg`](#dinov2) | yes | 1.50, 2.9x | 288, 0.75x |
+| [`convnext_tiny.fb_in22k`](#convnext_features) | yes | 1.10, 3.5x | 110, 0.65x |
+| [`dinov2-vitb14`](#dinov2) | yes | 1.50, 3.0x | 228, 0.59x |
+| [`dinov2-vitb14-reg`](#dinov2) | yes | 1.52, 2.8x | 228, 0.59x |
 | [`dinov2-vitg14`](#dinov2) | yes | 12.8, 2.7x | 2250, 0.51x |
 | [`dinov2-vitg14-reg`](#dinov2) | yes | 12.7, 2.7x | 2250, 0.51x |
-| [`dinov2-vitl14`](#dinov2) | yes | 4.59, 2.1x | 714, 0.58x |
-| [`dinov2-vitl14-reg`](#dinov2) | yes | 4.60, 2.3x | 714, 0.58x |
+| [`dinov2-vitl14`](#dinov2) | yes | 4.62, 2.1x | 648, 0.53x |
+| [`dinov2-vitl14-reg`](#dinov2) | yes | 4.60, 2.3x | 648, 0.53x |
 | [`dinov2-vits14`](#dinov2) | yes | 0.827, 4.0x | 122, 0.92x |
-| [`dinov2-vits14-reg`](#dinov2) | yes | 0.814, 5.0x | 142, 1.1x |
-| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.18, 3.4x | 214, 0.54x |
-| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.59, 2.7x | 494, 0.55x |
-| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.99, 3.0x | 152, 0.55x |
-| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.18, 2.5x | 112, 0.69x |
+| [`dinov2-vits14-reg`](#dinov2) | yes | 0.832, 4.9x | 102, 0.77x |
+| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.19, 3.4x | 214, 0.54x |
+| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.61, 2.7x | 452, 0.5x |
+| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.98, 3.0x | 132, 0.48x |
+| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.22, 2.4x | 110, 0.68x |
 | [`dinov3-vitb16`](#dinov3) | yes | 1.26, 5.5x | 210, 0.54x |
 | [`dinov3-vith16plus`](#dinov3) | yes | 8.45, 3.1x | 1672, 0.51x |
-| [`dinov3-vitl16`](#dinov3) | yes | 3.03, 5.8x | 652, 0.54x |
-| [`dinov3-vits16`](#dinov3) | yes | 0.792, 8.2x | 62, 0.47x |
-| [`pe-core-b16-224`](#perception_encoder) | yes | 1.47, 4.9x | 348, 0.79x |
-| [`pe-core-g14-448`](#perception_encoder) | yes | 17.0, 3.1x | 5256, 0.7x |
-| [`pe-core-l14-336`](#perception_encoder) | yes | 4.96, 3.6x | 932, 0.74x |
-| [`pe-core-s16-384`](#perception_encoder) | yes | 0.951, 7.4x | 128, 0.88x |
+| [`dinov3-vitl16`](#dinov3) | yes | 3.04, 5.8x | 650, 0.54x |
+| [`dinov3-vits16`](#dinov3) | yes | 0.793, 8.2x | 68, 0.52x |
+| [`pe-core-b16-224`](#perception_encoder) | yes | 1.47, 4.9x | 268, 0.61x |
+| [`pe-core-g14-448`](#perception_encoder) | yes | 17.0, 3.1x | 3696, 0.49x |
+| [`pe-core-l14-336`](#perception_encoder) | yes | 4.97, 3.6x | 672, 0.53x |
+| [`pe-core-s16-384`](#perception_encoder) | yes | 0.957, 7.3x | 104, 0.71x |
 | [`pe-core-t16-384`](#perception_encoder) | yes | 0.683, 9.9x | 82, 1.2x |
-| [`pe-spatial-b16-512`](#perception_encoder) | yes | 1.39, 5.1x | 328, 0.78x |
-| [`pe-spatial-g14-448`](#perception_encoder) | yes | 16.9, 3.1x | 5156, 0.7x |
-| [`pe-spatial-l14-448`](#perception_encoder) | yes | 4.86, 3.5x | 932, 0.77x |
-| [`pe-spatial-s16-512`](#perception_encoder) | yes | 0.916, 7.3x | 126, 0.88x |
+| [`pe-spatial-b16-512`](#perception_encoder) | yes | 1.40, 5.0x | 248, 0.59x |
+| [`pe-spatial-g14-448`](#perception_encoder) | yes | 16.9, 3.1x | 3676, 0.5x |
+| [`pe-spatial-l14-448`](#perception_encoder) | yes | 4.87, 3.5x | 672, 0.55x |
+| [`pe-spatial-s16-512`](#perception_encoder) | yes | 0.922, 7.3x | 104, 0.72x |
 | [`pe-spatial-t16-512`](#perception_encoder) | yes | 0.666, 9.8x | 82, 1.2x |
-| [`siglip2-b16-256`](#siglip2) | yes | 1.43, 4.3x | 350, 0.8x |
-| [`siglip2-b16-512`](#siglip2) | yes | 1.43, 4.2x | 368, 0.84x |
-| [`siglip2-g16-256`](#siglip2) | yes | 10.6, 2.9x | 3232, 0.71x |
-| [`siglip2-g16-384`](#siglip2) | yes | 10.6, 2.9x | 3230, 0.71x |
-| [`siglip2-l16-256`](#siglip2) | yes | 3.31, 3.3x | 930, 0.73x |
-| [`siglip2-l16-512`](#siglip2) | yes | 3.31, 3.4x | 930, 0.73x |
-| [`siglip2-so400m14-224`](#siglip2) | yes | 4.30, 2.9x | 1230, 0.68x |
-| [`siglip2-so400m14-378`](#siglip2) | yes | 4.29, 2.9x | 1250, 0.69x |
-| [`siglip2-so400m16-256`](#siglip2) | yes | 4.19, 3.0x | 1232, 0.68x |
-| [`siglip2-so400m16-512`](#siglip2) | yes | 4.18, 3.0x | 1250, 0.69x |
+| [`siglip2-b16-256`](#siglip2) | yes | 1.43, 4.3x | 248, 0.57x |
+| [`siglip2-b16-512`](#siglip2) | yes | 1.44, 4.2x | 268, 0.61x |
+| [`siglip2-g16-256`](#siglip2) | yes | 10.7, 2.9x | 2312, 0.51x |
+| [`siglip2-g16-384`](#siglip2) | yes | 10.7, 2.9x | 2312, 0.51x |
+| [`siglip2-l16-256`](#siglip2) | yes | 3.36, 3.3x | 670, 0.53x |
+| [`siglip2-l16-512`](#siglip2) | yes | 3.35, 3.3x | 670, 0.53x |
+| [`siglip2-so400m14-224`](#siglip2) | yes | 4.32, 2.9x | 892, 0.49x |
+| [`siglip2-so400m14-378`](#siglip2) | yes | 4.33, 2.9x | 912, 0.5x |
+| [`siglip2-so400m16-256`](#siglip2) | yes | 4.21, 3.0x | 890, 0.49x |
+| [`siglip2-so400m16-512`](#siglip2) | yes | 4.21, 2.9x | 910, 0.5x |
 | [`tipsv2-b14`](#tipsv2) | yes | 1.49, 4.7x | 226, 0.59x |
 | [`tipsv2-l14`](#tipsv2) | yes | 4.58, 3.1x | 648, 0.53x |
 
@@ -81,12 +81,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `c-radio-v3-b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.31<br>5.75<br>3.04<br>1.35<br>7.33<br>1.19 | 415 / 466<br>589 / 626<br>217 / 246<br>284 / 326<br>278 / 306<br>427 / 454 |
-| `c-radio-v3-l` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.8<br>10.7<br>5.53<br>3.26<br>11.8<br>3.06 | 1263 / 1278<br>1838 / 1878<br>648 / 686<br>888 / 946<br>710 / 746<br>1297 / 1350 |
-| `c-radio-v3-h` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 34.5<br>17.0<br>8.90<br>7.42<br>18.1<br>6.62 | 2595 / 2666<br>3810 / 4110<br>1289 / 1308<br>1789 / 1828<br>1350 / 1386<br>2558 / 2586 |
-| `c-radio-v3-g` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 58.0<br>29.5<br>14.6<br>10.6<br>25.5<br>10.3 | 4514 / 4554<br>6672 / 6804<br>2266 / 2308<br>3166 / 3230<br>2329 / 2368<br>4483 / 4530 |
-| `c-radio-v4-so400m` | synthetic (224x224) | original<br>portable<br>kernels | 11.5<br>6.33<br>4.25 | 4115 / 4150<br>864 / 906<br>864 / 908 |
-| `c-radio-v4-h` | synthetic (224x224) | original<br>portable<br>kernels | 17.1<br>8.92<br>7.41 | 6214 / 6250<br>1289 / 1308<br>1289 / 1308 |
+| `c-radio-v3-b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.31<br>5.75<br>3.04<br>1.36<br>7.33<br>1.19 | 415 / 466<br>589 / 626<br>217 / 246<br>214 / 248<br>278 / 306<br>427 / 454 |
+| `c-radio-v3-l` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.8<br>10.7<br>5.53<br>3.28<br>11.8<br>3.06 | 1263 / 1278<br>1838 / 1878<br>648 / 686<br>645 / 706<br>710 / 746<br>1297 / 1350 |
+| `c-radio-v3-h` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 34.5<br>17.0<br>8.90<br>7.43<br>18.1<br>6.62 | 2595 / 2666<br>3810 / 4110<br>1289 / 1308<br>1286 / 1308<br>1350 / 1386<br>2558 / 2586 |
+| `c-radio-v3-g` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 58.0<br>29.5<br>14.6<br>10.7<br>25.5<br>10.3 | 4514 / 4554<br>6672 / 6804<br>2266 / 2308<br>2263 / 2310<br>2329 / 2368<br>4483 / 4530 |
+| `c-radio-v4-so400m` | synthetic (224x224) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>6.22<br>4.14<br>14.2<br>3.75 | 4115 / 4150<br>861 / 906<br>861 / 908<br>927 / 966<br>1695 / 1740 |
+| `c-radio-v4-h` | synthetic (224x224) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>8.91<br>7.40<br>17.9<br>6.64 | 6214 / 6250<br>1286 / 1308<br>1286 / 1308<br>1351 / 1388<br>2558 / 2586 |
 
 <details><summary>Details</summary>
 
@@ -106,6 +106,8 @@ Commercial use: yes.
 - `c-radio-v3-l` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `c-radio-v3-h` 224x224, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 45 s (ONNX + engine).
 - `c-radio-v3-g` 224x224, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 57 s (ONNX + engine).
+- `c-radio-v4-so400m` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 49 s (ONNX + engine).
+- `c-radio-v4-h` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
 - `c-radio-v3-b` original (fp32) 224x224: hf_model.RADIOModel (trust_remote_code) summary, transformers 5.19.0
 - `c-radio-v3-b` original 224x224: torch.autocast(fp16) around the forward; hf_model.RADIOModel (trust_remote_code) summary, transformers 5.19.0
 - `c-radio-v3-l` original (fp32) 224x224: hf_model.RADIOModel (trust_remote_code) summary, transformers 5.19.0
@@ -161,6 +163,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.
 - Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.
 - `fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).
+- Kernels at 224 x 224 peak above portable for c-radio-v3-b (281 vs 214 MB; original 589 MB), about the size of one extra fc2 copy (57 MB) plus ~30 MB of CUDA-graph capture; the extra copies are not shared with the original parameters.
 
 </details>
 
@@ -174,16 +177,16 @@ Commercial use: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `cl
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `clip-b16-openai` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.28<br>5.65<br>3.35<br>1.35<br>2.39<br>1.11 | 371 / 418<br>544 / 580<br>204 / 226<br>324 / 370<br>237 / 266<br>394 / 422 |
-| `clip-l14-openai` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.0<br>10.8<br>6.16<br>4.74<br>6.17<br>4.14 | 1210 / 1214<br>1779 / 1812<br>623 / 666<br>1054 / 1110<br>658 / 686<br>1230 / 1280 |
-| `clip-l14-336-openai` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.1<br>10.8<br>6.16<br>4.75<br>6.36<br>4.25 | 1211 / 1236<br>1779 / 1814<br>625 / 646<br>1056 / 1090<br>658 / 686<br>1235 / 1264 |
-| `clip-b16-laion2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.22<br>5.29<br>3.09<br>1.36<br>2.41<br>1.12 | 369 / 418<br>544 / 580<br>202 / 226<br>270 / 310<br>237 / 266<br>394 / 422 |
-| `clip-l14-laion2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.6<br>10.1<br>5.98<br>4.77<br>6.19<br>4.19 | 1205 / 1214<br>1779 / 1812<br>621 / 666<br>862 / 930<br>658 / 686<br>1232 / 1282 |
-| `clip-h14-laion2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47.2<br>19.3<br>11.2<br>8.26<br>11.6<br>7.84 | 2524 / 2580<br>3720 / 4032<br>1249 / 1268<br>1750 / 1792<br>1289 / 1310<br>2467 / 2492 |
-| `clip-l14-datacompxl` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.6<br>10.1<br>5.99<br>4.77<br>6.24<br>4.19 | 1205 / 1214<br>1779 / 1812<br>621 / 666<br>862 / 930<br>658 / 686<br>1232 / 1282 |
-| `clip-l14-dfn2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 22.0<br>10.6<br>6.16<br>4.75 | 1210 / 1214<br>1779 / 1812<br>623 / 666<br>1054 / 1110 |
-| `clip-h14-dfn5b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 47.5<br>19.4<br>11.4<br>8.22 | 2529 / 2600<br>3720 / 4038<br>1252 / 1268<br>2150 / 2192 |
-| `clip-h14-378-dfn5b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 47.9<br>19.5<br>11.4<br>8.22 | 2530 / 2600<br>3722 / 4038<br>1254 / 1288<br>2153 / 2212 |
+| `clip-b16-openai` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.28<br>5.65<br>3.35<br>1.36<br>2.39<br>1.11 | 371 / 418<br>544 / 580<br>204 / 226<br>203 / 250<br>237 / 266<br>394 / 422 |
+| `clip-l14-openai` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.0<br>10.8<br>6.16<br>4.76<br>6.17<br>4.14 | 1210 / 1214<br>1779 / 1812<br>623 / 666<br>622 / 690<br>658 / 686<br>1230 / 1280 |
+| `clip-l14-336-openai` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.1<br>10.8<br>6.16<br>4.76<br>6.36<br>4.25 | 1211 / 1236<br>1779 / 1814<br>625 / 646<br>622 / 668<br>658 / 686<br>1235 / 1264 |
+| `clip-b16-laion2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.22<br>5.29<br>3.09<br>1.36<br>2.41<br>1.12 | 369 / 418<br>544 / 580<br>202 / 226<br>203 / 230<br>237 / 266<br>394 / 422 |
+| `clip-l14-laion2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.6<br>10.1<br>5.98<br>4.76<br>6.19<br>4.19 | 1205 / 1214<br>1779 / 1812<br>621 / 666<br>622 / 670<br>658 / 686<br>1232 / 1282 |
+| `clip-h14-laion2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47.2<br>19.3<br>11.2<br>8.27<br>11.6<br>7.84 | 2524 / 2580<br>3720 / 4032<br>1249 / 1268<br>1250 / 1272<br>1289 / 1310<br>2467 / 2492 |
+| `clip-l14-datacompxl` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.6<br>10.1<br>5.99<br>4.76<br>6.24<br>4.19 | 1205 / 1214<br>1779 / 1812<br>621 / 666<br>622 / 670<br>658 / 686<br>1232 / 1282 |
+| `clip-l14-dfn2b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.0<br>10.6<br>6.16<br>4.76<br>6.16<br>4.14 | 1210 / 1214<br>1779 / 1812<br>623 / 666<br>622 / 690<br>658 / 686<br>1230 / 1280 |
+| `clip-h14-dfn5b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47.5<br>19.4<br>11.4<br>8.54<br>11.5<br>7.76 | 2529 / 2600<br>3720 / 4038<br>1252 / 1268<br>1250 / 1292<br>1289 / 1310<br>2465 / 2490 |
+| `clip-h14-378-dfn5b` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47.9<br>19.5<br>11.4<br>8.24<br>11.8<br>7.85 | 2530 / 2600<br>3722 / 4038<br>1254 / 1288<br>1251 / 1312<br>1290 / 1328<br>2468 / 2510 |
 
 <details><summary>Details</summary>
 
@@ -218,6 +221,9 @@ Commercial use: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `cl
 - `clip-l14-laion2b` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 32 s (ONNX + engine).
 - `clip-h14-laion2b` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `clip-l14-datacompxl` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 32 s (ONNX + engine).
+- `clip-l14-dfn2b` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 27 s (ONNX + engine).
+- `clip-h14-dfn5b` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
+- `clip-h14-378-dfn5b` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 59 s (ONNX + engine).
 - `clip-b16-openai` original (fp32) 224x224: timm 1.0.30 create_model(dynamic_img_size=True), forward_head(pre_logits=True)
 - `clip-b16-openai` original 224x224: torch.autocast(fp16) around the forward; timm 1.0.30 create_model(dynamic_img_size=True), forward_head(pre_logits=True)
 - `clip-l14-openai` original (fp32) 224x224: timm 1.0.30 create_model(dynamic_img_size=True), forward_head(pre_logits=True)
@@ -293,6 +299,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 - `fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).
 - fp16 error against the fp32 original is higher than for the other ViTs on L/14 DataComp (mean 2.8 % portable, 4.8 % kernels): one residual channel sits near 120, where fp16 steps are 0.06, about 10 % of the median activation. No overflow; float32 portable gives 0.3 %.
 - DFN weights: the relative error (mean 1.3-3.9 % portable, 3.9-6.5 % kernels) is measured against a median |output| of only 0.015-0.021 (other weights: 0.5-0.6) with values up to 0.7; `fp32_accumulate = true` lowers kernels to about 1.5 %.
+- Kernels at 224 x 224 peak above portable (B/16 257 vs 204 MB, L/14 814 vs 623 MB; original 544 / 1779 MB): the QuickGELU fold keeps a folded copy of each fc2 weight next to the original parameter, and the second call's CUDA-graph capture adds ~30 MB.
 
 </details>
 
@@ -306,10 +313,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `convnext_tiny.fb_in22k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.89<br>5.91<br>3.18<br>1.09<br>2.08<br>0.726 | 151 / 170<br>194 / 214<br>117 / 130<br>88 / 110<br>148 / 170<br>183 / 200 |
-| `convnext_small.fb_in22k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.51<br>11.2<br>5.64<br>1.79<br>3.36<br>1.16 | 234 / 252<br>318 / 336<br>179 / 190<br>130 / 150<br>210 / 230<br>277 / 292 |
-| `convnext_base.fb_in22k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.68<br>11.2<br>5.57<br>1.96<br>3.21<br>1.51 | 386 / 398<br>537 / 544<br>289 / 296<br>204 / 216<br>321 / 334<br>480 / 494 |
-| `convnext_large.fb_in22k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>11.5<br>5.53<br>3.23<br>3.34<br>2.50 | 822 / 834<br>1160 / 1180<br>600 / 612<br>413 / 434<br>639 / 650<br>983 / 1006 |
+| `convnext_tiny.fb_in22k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.89<br>5.91<br>3.26<br>1.10<br>2.08<br>0.726 | 151 / 170<br>194 / 214<br>93 / 108<br>88 / 110<br>148 / 170<br>183 / 200 |
+| `convnext_small.fb_in22k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.51<br>11.2<br>5.92<br>1.79<br>3.36<br>1.16 | 234 / 252<br>318 / 336<br>134 / 150<br>130 / 150<br>210 / 230<br>277 / 292 |
+| `convnext_base.fb_in22k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.68<br>11.2<br>5.80<br>1.96<br>3.21<br>1.51 | 386 / 398<br>537 / 544<br>209 / 214<br>204 / 216<br>321 / 334<br>480 / 494 |
+| `convnext_large.fb_in22k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>11.5<br>5.82<br>3.23<br>3.34<br>2.50 | 822 / 834<br>1160 / 1180<br>420 / 430<br>413 / 434<br>639 / 650<br>983 / 1006 |
 
 <details><summary>Details</summary>
 
@@ -379,13 +386,13 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `dinov2-vits14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3.30<br>4.40<br>2.95<br>0.827<br>2.02<br>0.601 | 121 / 132<br>160 / 166<br>79 / 98<br>80 / 122<br>111 / 140<br>141 / 160 |
-| `dinov2-vits14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.11<br>5.59<br>2.98<br>0.814<br>2.19<br>0.614 | 121 / 132<br>160 / 168<br>80 / 98<br>112 / 142<br>111 / 118<br>145 / 164 |
-| `dinov2-vitb14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.90<br>4.50<br>2.92<br>1.48<br>2.20<br>1.30 | 371 / 386<br>530 / 548<br>205 / 226<br>237 / 290<br>240 / 266<br>367 / 384 |
-| `dinov2-vitb14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.00<br>4.30<br>2.94<br>1.50<br>2.30<br>1.33 | 371 / 386<br>530 / 548<br>207 / 226<br>237 / 288<br>240 / 246<br>399 / 402 |
-| `dinov2-vitl14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.8<br>9.80<br>6.12<br>4.59<br>6.03<br>4.25 | 1205 / 1224<br>1777 / 1784<br>622 / 646<br>655 / 714<br>661 / 666<br>1235 / 1262 |
-| `dinov2-vitl14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 22.5<br>10.7<br>6.17<br>4.60 | 1205 / 1226<br>1777 / 1786<br>625 / 646<br>655 / 714 |
+| `dinov2-vits14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.11<br>5.59<br>2.98<br>0.832<br>2.19<br>0.614 | 121 / 132<br>160 / 168<br>80 / 98<br>80 / 102<br>111 / 118<br>145 / 164 |
+| `dinov2-vitb14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.90<br>4.50<br>2.92<br>1.50<br>2.20<br>1.30 | 371 / 386<br>530 / 548<br>205 / 226<br>208 / 228<br>240 / 266<br>367 / 384 |
+| `dinov2-vitb14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.00<br>4.30<br>2.94<br>1.52<br>2.30<br>1.33 | 371 / 386<br>530 / 548<br>207 / 226<br>208 / 228<br>240 / 246<br>399 / 402 |
+| `dinov2-vitl14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.8<br>9.80<br>6.13<br>4.62<br>6.03<br>4.25 | 1205 / 1224<br>1777 / 1784<br>622 / 644<br>627 / 648<br>661 / 666<br>1235 / 1262 |
+| `dinov2-vitl14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.5<br>10.7<br>6.38<br>4.60<br>6.17<br>4.27 | 1205 / 1226<br>1777 / 1786<br>624 / 646<br>627 / 648<br>661 / 666<br>1237 / 1242 |
 | `dinov2-vitg14` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 86.4<br>33.9<br>18.9<br>12.8<br>18.3<br>12.0 | 4389 / 4406<br>6542 / 6548<br>2216 / 2230<br>2222 / 2250<br>2267 / 2290<br>4392 / 4410 |
-| `dinov2-vitg14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 86.6<br>34.2<br>18.7<br>12.7 | 4389 / 4406<br>6542 / 6568<br>2217 / 2228<br>2222 / 2250 |
+| `dinov2-vitg14-reg` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 86.6<br>34.2<br>18.7<br>12.7<br>18.3<br>12.0 | 4389 / 4406<br>6542 / 6568<br>2217 / 2228<br>2222 / 2250<br>2267 / 2290<br>4400 / 4418 |
 
 <details><summary>Details</summary>
 
@@ -405,7 +412,9 @@ Commercial use: yes.
 - `dinov2-vitb14` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `dinov2-vitb14-reg` 224x224, first call: portable + torch.compile 6 s (cold Inductor cache), TensorRT fp16 29 s (ONNX + engine).
 - `dinov2-vitl14` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
+- `dinov2-vitl14-reg` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `dinov2-vitg14` 224x224, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 46 s (ONNX + engine).
+- `dinov2-vitg14-reg` 224x224, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 57 s (ONNX + engine).
 - `dinov2-vits14` original 224x224: torch.autocast(fp16) around the forward
 - `dinov2-vits14-reg` original (fp32) 224x224, original 224x224: dinov2 forward_features CLS
 - `dinov2-vitb14` original 224x224: torch.autocast(fp16) around the forward
@@ -418,8 +427,8 @@ Commercial use: yes.
 - `dinov2-vits14-reg` load / first call: original 1.32 s / 0.107 s, portable 0.21 s / 0.126 s, kernels 0.08 s / 0.167 s
 - `dinov2-vitb14` load / first call: original 1.51 s / 0.006 s, portable 0.27 s / 0.205 s, kernels 0.19 s / 0.191 s
 - `dinov2-vitb14-reg` load / first call: original 1.71 s / 0.035 s, portable 0.59 s / 0.042 s, kernels 0.21 s / 0.205 s
-- `dinov2-vitl14` load / first call: original 7.06 s / 0.013 s, portable 0.57 s / 0.148 s, kernels 0.57 s / 0.179 s
-- `dinov2-vitl14-reg` load / first call: original 4.6 s / 0.068 s, portable 0.66 s / 0.113 s, kernels 0.56 s / 0.205 s
+- `dinov2-vitl14` load / first call: original 7.06 s / 0.013 s, portable 2.3 s / 0.094 s, kernels 2.31 s / 0.123 s
+- `dinov2-vitl14-reg` load / first call: original 4.6 s / 0.068 s, portable 2.08 s / 0.093 s, kernels 2.11 s / 0.123 s
 - `dinov2-vitg14` load / first call: original 19.29 s / 0.046 s, portable 4.37 s / 0.104 s, kernels 2.22 s / 0.162 s
 - `dinov2-vitg14-reg` load / first call: original 14.67 s / 0.089 s, portable 4.32 s / 0.033 s, kernels 15.39 s / 0.149 s
 - Protocol, `dinov2-vits14`, `dinov2-vits14-reg`, `dinov2-vitb14`, `dinov2-vitb14-reg`, `dinov2-vitl14`, `dinov2-vitl14-reg`, `dinov2-vitg14`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -469,10 +478,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov3-convnext-tiny` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2.96<br>4.47<br>3.04<br>1.18<br>1.96<br>0.681 | 151 / 162<br>198 / 206<br>93 / 108<br>86 / 112<br>123 / 148<br>126 / 158 |
-| `dinov3-convnext-small` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.97<br>8.09<br>5.42<br>1.99<br>3.41<br>1.17 | 233 / 274<br>328 / 348<br>134 / 150<br>127 / 152<br>165 / 188<br>232 / 252 |
-| `dinov3-convnext-base` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.38<br>8.24<br>5.71<br>2.18<br>3.41<br>1.45 | 384 / 394<br>535 / 552<br>208 / 232<br>200 / 214<br>241 / 252<br>400 / 430 |
-| `dinov3-convnext-large` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>9.59<br>5.45<br>3.59<br>4.30<br>2.50 | 819 / 898<br>1163 / 1252<br>419 / 430<br>441 / 494<br>459 / 470<br>804 / 824 |
+| `dinov3-convnext-tiny` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2.96<br>4.47<br>3.04<br>1.22<br>1.96<br>0.681 | 151 / 162<br>198 / 206<br>93 / 108<br>59 / 110<br>123 / 148<br>126 / 158 |
+| `dinov3-convnext-small` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.97<br>8.09<br>5.42<br>1.98<br>3.41<br>1.17 | 233 / 274<br>328 / 348<br>134 / 150<br>100 / 132<br>165 / 188<br>232 / 252 |
+| `dinov3-convnext-base` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.38<br>8.24<br>5.71<br>2.19<br>3.41<br>1.45 | 384 / 394<br>535 / 552<br>208 / 232<br>174 / 214<br>241 / 252<br>400 / 430 |
+| `dinov3-convnext-large` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>9.59<br>5.45<br>3.61<br>4.30<br>2.50 | 819 / 898<br>1163 / 1252<br>419 / 430<br>409 / 452<br>459 / 470<br>804 / 824 |
 
 <details><summary>Details</summary>
 
@@ -533,10 +542,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov3-vits16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.47<br>9.16<br>3.54<br>0.792<br>2.18<br>0.564 | 119 / 132<br>158 / 166<br>76 / 78<br>44 / 62<br>109 / 138<br>107 / 120 |
-| `dinov3-vitb16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.95<br>9.33<br>3.68<br>1.26<br>2.35<br>1.14 | 367 / 390<br>527 / 550<br>200 / 206<br>168 / 210<br>236 / 306<br>393 / 480 |
-| `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 19.2<br>17.7<br>6.69<br>3.03 | 1199 / 1212<br>1772 / 1812<br>616 / 626<br>616 / 652 |
-| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels | 48.0<br>25.9<br>12.5<br>8.45 | 3255 / 3276<br>4849 / 4876<br>1646 / 1668<br>1645 / 1672 |
+| `dinov3-vits16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.47<br>9.16<br>3.40<br>0.793<br>2.18<br>0.564 | 119 / 132<br>158 / 166<br>76 / 104<br>44 / 68<br>109 / 138<br>107 / 120 |
+| `dinov3-vitb16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.95<br>9.33<br>3.59<br>1.26<br>2.35<br>1.14 | 367 / 390<br>527 / 550<br>200 / 226<br>168 / 210<br>236 / 306<br>393 / 480 |
+| `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.2<br>17.7<br>6.52<br>3.04<br>4.91<br>2.98 | 1199 / 1212<br>1772 / 1812<br>616 / 646<br>616 / 650<br>655 / 846<br>1226 / 1418 |
+| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.0<br>25.9<br>12.5<br>8.45<br>11.6<br>7.86 | 3255 / 3276<br>4849 / 4876<br>1646 / 1666<br>1645 / 1672<br>1699 / 2008<br>3280 / 3628 |
 
 <details><summary>Details</summary>
 
@@ -554,6 +563,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dinov3-vits16` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved); `dinov3-vitb16` 3000x4000 (1.6 GiB peak allocated, 2.0 reserved); `dinov3-vitl16` 3000x4000 (2.4 GiB peak allocated, 2.9 reserved); `dinov3-vith16plus` 3000x4000 (4.2 GiB peak allocated, 4.9 reserved)
 - `dinov3-vits16` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `dinov3-vitb16` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
+- `dinov3-vitl16` 224x224, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
+- `dinov3-vith16plus` 224x224, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 99 s (ONNX + engine).
 - `dinov3-vits16` original 224x224: torch.autocast(fp16) around the forward
 - `dinov3-vitb16` original 224x224: torch.autocast(fp16) around the forward
 - `dinov3-vitl16` original 224x224: torch.autocast(fp16) around the forward
@@ -606,15 +617,15 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `pe-core-t16-384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.74<br>9.04<br>4.68<br>0.683<br>2.29<br>0.432 | 58 / 80<br>68 / 70<br>48 / 56<br>53 / 82<br>78 / 96<br>79 / 88 |
-| `pe-core-s16-384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.02<br>9.28<br>4.80<br>0.951<br>2.39<br>0.581 | 128 / 146<br>171 / 180<br>83 / 102<br>100 / 128<br>113 / 122<br>145 / 166 |
-| `pe-core-b16-224` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.14<br>9.35<br>4.97<br>1.47<br>2.50<br>1.17 | 397 / 440<br>584 / 620<br>218 / 266<br>285 / 348<br>251 / 286<br>409 / 460 |
-| `pe-core-l14-336` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.3<br>17.7<br>9.09<br>4.96<br>6.53<br>4.34 | 1255 / 1266<br>1848 / 1888<br>650 / 668<br>889 / 932<br>683 / 706<br>1260 / 1286 |
-| `pe-core-g14-448` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 97.7<br>52.4<br>25.4<br>17.0<br>24.5<br>15.0 | 7286 / 7490<br>10848 / 11330<br>3642 / 3670<br>5180 / 5256<br>3667 / 3690<br>7189 / 7230 |
+| `pe-core-s16-384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.02<br>9.28<br>4.80<br>0.957<br>2.39<br>0.581 | 128 / 146<br>171 / 180<br>83 / 102<br>82 / 104<br>113 / 122<br>145 / 166 |
+| `pe-core-b16-224` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.14<br>9.35<br>4.97<br>1.47<br>2.50<br>1.17 | 397 / 440<br>584 / 620<br>218 / 266<br>218 / 268<br>251 / 286<br>409 / 460 |
+| `pe-core-l14-336` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.3<br>17.7<br>9.09<br>4.97<br>6.53<br>4.34 | 1255 / 1266<br>1848 / 1888<br>650 / 668<br>648 / 672<br>683 / 706<br>1260 / 1286 |
+| `pe-core-g14-448` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 97.7<br>52.4<br>25.7<br>17.0<br>24.5<br>15.0 | 7286 / 7490<br>10848 / 11330<br>3640 / 3670<br>3640 / 3696<br>3667 / 3690<br>7189 / 7230 |
 | `pe-spatial-t16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.56<br>8.73<br>4.48<br>0.666<br>2.12<br>0.426 | 56 / 78<br>66 / 68<br>49 / 56<br>53 / 82<br>77 / 96<br>78 / 88 |
-| `pe-spatial-s16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.70<br>8.79<br>4.51<br>0.916<br>2.67<br>0.580 | 121 / 144<br>161 / 178<br>81 / 100<br>98 / 126<br>110 / 120<br>142 / 144 |
-| `pe-spatial-b16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.02<br>8.79<br>4.74<br>1.39<br>2.67<br>1.20 | 369 / 418<br>544 / 580<br>207 / 226<br>274 / 328<br>237 / 266<br>397 / 422 |
-| `pe-spatial-l14-448` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.0<br>17.2<br>8.84<br>4.86<br>6.59<br>4.35 | 1206 / 1216<br>1780 / 1816<br>626 / 668<br>865 / 932<br>658 / 686<br>1235 / 1284 |
-| `pe-spatial-g14-448` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 97.9<br>52.7<br>25.5<br>16.9<br>24.3<br>14.9 | 7171 / 7380<br>10688 / 11178<br>3584 / 3612<br>5123 / 5156<br>3608 / 3630<br>7136 / 7156 |
+| `pe-spatial-s16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.70<br>8.79<br>4.51<br>0.922<br>2.67<br>0.580 | 121 / 144<br>161 / 178<br>81 / 100<br>78 / 104<br>110 / 120<br>142 / 144 |
+| `pe-spatial-b16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.02<br>8.79<br>4.74<br>1.40<br>2.67<br>1.20 | 369 / 418<br>544 / 580<br>207 / 226<br>204 / 248<br>237 / 266<br>397 / 422 |
+| `pe-spatial-l14-448` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.0<br>17.2<br>8.84<br>4.87<br>6.59<br>4.35 | 1206 / 1216<br>1780 / 1816<br>626 / 668<br>623 / 672<br>658 / 686<br>1235 / 1284 |
+| `pe-spatial-g14-448` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 97.9<br>52.7<br>25.7<br>16.9<br>24.3<br>14.9 | 7171 / 7380<br>10688 / 11178<br>3582 / 3592<br>3583 / 3676<br>3608 / 3630<br>7136 / 7156 |
 
 <details><summary>Details</summary>
 
@@ -663,12 +674,12 @@ Commercial use: yes.
 - `pe-core-s16-384` load / first call: original 5.7 s / 0.184 s, portable – s / 0.096 s, kernels – s / 0.044 s
 - `pe-core-b16-224` load / first call: original 14.55 s / 0.191 s, portable – s / 0.292 s, kernels – s / 0.07 s
 - `pe-core-l14-336` load / first call: original 41.39 s / 0.205 s, portable – s / 0.113 s, kernels – s / 0.051 s
-- `pe-core-g14-448` load / first call: original 232.98 s / 0.281 s, portable – s / 0.2 s, kernels – s / 0.126 s
+- `pe-core-g14-448` load / first call: original 232.98 s / 0.281 s, portable 27.16 s / 0.564 s, kernels 15.98 s / 0.115 s
 - `pe-spatial-t16-512` load / first call: original 3.09 s / 0.157 s, portable – s / 0.1 s, kernels – s / 0.077 s
 - `pe-spatial-s16-512` load / first call: original 5.4 s / 0.163 s, portable – s / 0.084 s, kernels – s / 0.057 s
 - `pe-spatial-b16-512` load / first call: original 13.65 s / 0.158 s, portable – s / 0.095 s, kernels – s / 0.071 s
 - `pe-spatial-l14-448` load / first call: original 44.48 s / 0.17 s, portable – s / 0.089 s, kernels – s / 0.06 s
-- `pe-spatial-g14-448` load / first call: original 227.9 s / 0.358 s, portable – s / 0.219 s, kernels – s / 0.32 s
+- `pe-spatial-g14-448` load / first call: original 227.9 s / 0.358 s, portable 21.43 s / 0.229 s, kernels 18.93 s / 0.172 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -680,13 +691,14 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | `pe-core-s16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 45.56 | 45.54 | 45.48 | 45.38 |  |
 | `pe-core-b16-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.54 | 58.56 | 58.54 | 58.50 |  |
 | `pe-core-l14-336` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.98 | 66.06 | 65.96 | 66.28 |  |
+| `pe-core-g14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 60.42 | 60.48 | 60.40 | 60.48 |  |
 | `pe-spatial-t16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 5.52 | 5.54 | 5.50 | 5.46 |  |
 | `pe-spatial-s16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 8.02 | 8.06 | 8.02 | 7.98 |  |
 | `pe-spatial-b16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 13.58 | 13.64 | 13.56 | 13.58 |  |
 | `pe-spatial-l14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 17.10 | 17.14 | 17.14 | 17.12 |  |
 | `pe-spatial-g14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 16.36 | 16.30 | 16.32 | 16.30 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-13.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-16.
 
 ### Parity
 
@@ -710,6 +722,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.
 - Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.
 - `fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~70 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
@@ -723,16 +736,16 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `siglip2-b16-256` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.29<br>6.11<br>3.28<br>1.43<br>2.53<br>1.13 | 394 / 438<br>583 / 620<br>216 / 248<br>284 / 350<br>250 / 266<br>407 / 440 |
-| `siglip2-b16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.32<br>5.99<br>3.31<br>1.43<br>2.75<br>1.14 | 396 / 438<br>583 / 618<br>219 / 266<br>287 / 368<br>251 / 286<br>408 / 460 |
-| `siglip2-l16-256` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.4<br>11.1<br>5.71<br>3.31<br>5.15<br>2.93 | 1249 / 1270<br>1843 / 1890<br>643 / 668<br>883 / 930<br>679 / 708<br>1253 / 1282 |
-| `siglip2-l16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.5<br>11.1<br>5.70<br>3.31<br>5.38<br>2.91 | 1251 / 1268<br>1846 / 1888<br>647 / 666<br>887 / 930<br>681 / 706<br>1252 / 1278 |
-| `siglip2-so400m14-224` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.9<br>12.4<br>6.38<br>4.30<br>6.71<br>3.77 | 1700 / 1812<br>2515 / 2632<br>858 / 868<br>1182 / 1230<br>887 / 908<br>1659 / 1674 |
-| `siglip2-so400m14-378` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.9<br>12.5<br>6.38<br>4.29<br>6.98<br>3.79 | 1702 / 1812<br>2516 / 2632<br>861 / 908<br>1185 / 1250<br>888 / 926<br>1660 / 1712 |
-| `siglip2-so400m16-256` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.8<br>12.6<br>6.42<br>4.19<br>6.62<br>3.60 | 1696 / 1816<br>2515 / 2636<br>857 / 868<br>1181 / 1232<br>894 / 908<br>1657 / 1672 |
-| `siglip2-so400m16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.8<br>12.4<br>6.40<br>4.18<br>7.02<br>3.61 | 1700 / 1816<br>2518 / 2636<br>861 / 906<br>1185 / 1250<br>896 / 928<br>1658 / 1712 |
-| `siglip2-g16-256` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 59.8<br>30.9<br>14.7<br>10.6<br>15.3<br>9.99 | 4528 / 4568<br>6733 / 6854<br>2262 / 2290<br>3163 / 3232<br>2307 / 2348<br>4441 / 4474 |
-| `siglip2-g16-384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 59.9<br>31.0<br>14.7<br>10.6<br>16.9<br>10.2 | 4529 / 4568<br>6735 / 6854<br>2264 / 2288<br>3165 / 3230<br>2308 / 2348<br>4442 / 4474 |
+| `siglip2-b16-256` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.29<br>6.11<br>3.28<br>1.43<br>2.53<br>1.13 | 394 / 438<br>583 / 620<br>216 / 248<br>216 / 248<br>250 / 266<br>407 / 440 |
+| `siglip2-b16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.32<br>5.99<br>3.31<br>1.44<br>2.75<br>1.14 | 396 / 438<br>583 / 618<br>219 / 266<br>217 / 268<br>251 / 286<br>408 / 460 |
+| `siglip2-l16-256` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.4<br>11.1<br>5.71<br>3.36<br>5.15<br>2.93 | 1249 / 1270<br>1843 / 1890<br>643 / 668<br>643 / 670<br>679 / 708<br>1253 / 1282 |
+| `siglip2-l16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.5<br>11.1<br>5.70<br>3.35<br>5.38<br>2.91 | 1251 / 1268<br>1846 / 1888<br>647 / 666<br>644 / 670<br>681 / 706<br>1252 / 1278 |
+| `siglip2-so400m14-224` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.9<br>12.4<br>6.38<br>4.32<br>6.71<br>3.77 | 1700 / 1812<br>2515 / 2632<br>858 / 868<br>858 / 892<br>887 / 908<br>1659 / 1674 |
+| `siglip2-so400m14-378` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.9<br>12.5<br>6.38<br>4.33<br>6.98<br>3.79 | 1702 / 1812<br>2516 / 2632<br>861 / 908<br>860 / 912<br>888 / 926<br>1660 / 1712 |
+| `siglip2-so400m16-256` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.8<br>12.6<br>6.42<br>4.21<br>6.62<br>3.60 | 1696 / 1816<br>2515 / 2636<br>857 / 868<br>857 / 890<br>894 / 908<br>1657 / 1672 |
+| `siglip2-so400m16-512` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 22.8<br>12.4<br>6.40<br>4.21<br>7.02<br>3.61 | 1700 / 1816<br>2518 / 2636<br>861 / 906<br>858 / 910<br>896 / 928<br>1658 / 1712 |
+| `siglip2-g16-256` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 59.8<br>30.9<br>14.7<br>10.7<br>15.3<br>9.99 | 4528 / 4568<br>6733 / 6854<br>2261 / 2288<br>2262 / 2312<br>2307 / 2348<br>4441 / 4474 |
+| `siglip2-g16-384` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 59.9<br>31.0<br>14.7<br>10.7<br>16.9<br>10.2 | 4529 / 4568<br>6735 / 6854<br>2262 / 2288<br>2263 / 2312<br>2308 / 2348<br>4442 / 4474 |
 
 <details><summary>Details</summary>
 
@@ -785,8 +798,8 @@ Commercial use: yes.
 - `siglip2-so400m14-378` load / first call: original 54.79 s / 0.198 s, portable – s / 0.082 s, kernels – s / 0.069 s
 - `siglip2-so400m16-256` load / first call: original 54.53 s / 0.2 s, portable – s / 0.084 s, kernels – s / 0.07 s
 - `siglip2-so400m16-512` load / first call: original 54.67 s / 0.196 s, portable – s / 0.079 s, kernels – s / 0.067 s
-- `siglip2-g16-256` load / first call: original 140.56 s / 0.218 s, portable – s / 0.103 s, kernels – s / 0.078 s
-- `siglip2-g16-384` load / first call: original 139.99 s / 0.217 s, portable – s / 0.083 s, kernels – s / 0.071 s
+- `siglip2-g16-256` load / first call: original 140.56 s / 0.218 s, portable 13.75 s / 0.111 s, kernels 10.31 s / 0.131 s
+- `siglip2-g16-384` load / first call: original 139.99 s / 0.217 s, portable 9.63 s / 0.092 s, kernels 9.84 s / 0.08 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

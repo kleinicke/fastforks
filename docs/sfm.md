@@ -15,8 +15,8 @@ fastforks sfm scene/images scene/out --reconstruct --matcher aliked-lightglue   
 from fastforks.matching import sfm
 
 stats = sfm.colmap_database("scene/images", "scene/database.db", k=30)  # the default matcher, loma-b
-print(stats.verified, stats.seconds)        # per stage: retrieval, matching (incl. verification), database
-rec = sfm.reconstruct("scene/images", "scene/out", k=30)   # + pycolmap's mapper; rec.model = scene/out/sparse/0
+print(stats.verified, stats.seconds)  # per stage: retrieval, matching (incl. verification), database
+rec = sfm.reconstruct("scene/images", "scene/out", k=30)  # + pycolmap's mapper; rec.model = scene/out/sparse/0
 print(rec.registered, rec.points, rec.seconds)
 ```
 
@@ -112,5 +112,4 @@ Recommendation:
 The default compute dtype (bfloat16 for `loma-b`) loses no SfM accuracy: in float32 the poses are the same within
 the run-to-run range (garden 97.7 vs 97.7, facade 59.0 vs 59.8) at 2x the front-end time.
 
-Details, every single run and the noise measurements: `results/2026-11-14_sfm_scenes.md` and
-`results/2026-11-13_sfm_lightglue.md` in the experiment repository.
+Every single run and the noise measurements are kept in the maintainers' measurement log (2026-11-13, 2026-11-14).

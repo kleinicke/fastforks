@@ -7,7 +7,7 @@ size on construction, sums from a cumulative sum, replicate-padded); here the wi
 box sums are float32 as upstream's. Each block's channel LayerNorm runs as `F.layer_norm` over the channel dimension
 of a channels-last view (upstream: per-pixel mean / variance as an autograd function); its affine and the block's
 residual scales (`beta`, `gamma`) are folded into the 1 x 1 convs next to them at load. The residual stream runs
-scaled by 1 / 16 and the channel attention by 1 / 64 (exact: weights and norm epsilons scaled at load), as float16
+scaled by 1 / 1024 and the channel attention by 1 / 64 (exact: weights and norm epsilons scaled at load), as float16
 overflows them on small inputs (upstream's `.half()` too). On CUDA the network runs channels-last.
 """
 
@@ -109,7 +109,7 @@ def _fold(m: NAFBlock) -> None:
     del m.beta, m.gamma
 
 
-_STREAM, _GATE = 1 / 16, 1 / 64  # powers of two: exact in the weights
+_STREAM, _GATE = 1 / 1024, 1 / 64  # powers of two: exact in the weights
 
 
 def _scale_stream(net: NAFNet) -> None:
@@ -118,7 +118,10 @@ def _scale_stream(net: NAFNet) -> None:
     Upstream's GoPro model reaches ~2e5 in the stream of its deepest levels and ~6e5 in `x * sca(x)` on a 101 x 151
     image (~3e3 on GoPro frames). The stream is linear in `intro`, `downs` (their bias), each block's conv3 / conv5
     and the skips; the blocks' norms see it scale-free once their eps is scaled by `_STREAM^2`; `ending` takes the
-    factor back. `sca`'s 1 x 1 conv carries `_GATE`, conv3 takes it back.
+    factor back. `sca`'s 1 x 1 conv carries `_GATE`, conv3 takes it back. 1 / 16 was not enough: low-contrast noise
+    (uniform noise at 10 % contrast, the smoke test's synthetic image) took the deepest blocks' `conv3` to ~5e5 (true
+    scale), so `inp + conv3` overflowed to inf and the next norm gave NaN. 1 / 1024 keeps those inputs finite with the
+    same accuracy as 1 / 256 .. 1 / 4096 (float16 keeps relative precision; the norms are scale-free).
     """
     with torch.no_grad():
         net.intro.weight.mul_(_STREAM)

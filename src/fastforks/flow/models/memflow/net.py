@@ -30,6 +30,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.sampling import grid_sample
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -199,7 +201,7 @@ class CorrBlock:
             xy = centre / 2**i + self.delta
             hh, ww = corr.shape[-2:]
             grid = torch.cat([2 * xy[..., :1] / (ww - 1) - 1, 2 * xy[..., 1:] / (hh - 1) - 1], dim=-1)
-            out.append(F.grid_sample(corr, grid, align_corners=True).view(b, h, w, -1))
+            out.append(grid_sample(corr, grid, align_corners=True).view(b, h, w, -1))
         return torch.cat(out, dim=-1).permute(0, 3, 1, 2).contiguous()
 
 

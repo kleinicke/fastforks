@@ -10,6 +10,10 @@ licence_notes = [
   "Upstream's Gaussian head file (vggt_dpt_gs_head.py) carries a stale Naver CC BY-NC-SA header from DUSt3R although the class used here is new code on the VGGT DPT head; this family reimplements that head (GSHead in model.py) and vendors none of the Naver-headed files.",
 ]
 
+limitations = [
+  "Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv output (257 MiB in the DPT head) fragments the allocator: peak reserved is ~260 MiB above portable.",
+]
+
 [output]
 kind = "scale_invariant"  # the scene is normalised as VGGT: depth, points, translations and Gaussians share one unknown scale
 

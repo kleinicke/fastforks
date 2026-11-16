@@ -30,6 +30,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.sampling import grid_sample
+
 FACTOR = 8  # fixed: the encoders downsample by 8 (three stride-2 stages)
 
 
@@ -220,7 +222,7 @@ def _lookup(pyramid: list[torch.Tensor], coords: torch.Tensor, radius: int) -> t
         ch, cw = corr.shape[-2:]
         gx, gy = (centroids / 2**i + delta).split([1, 1], dim=-1)
         grid = torch.cat([2 * gx / (cw - 1) - 1, 2 * gy / (ch - 1) - 1], dim=-1)
-        out.append(F.grid_sample(corr, grid, align_corners=True).view(b, h, w, -1))
+        out.append(grid_sample(corr, grid, align_corners=True).view(b, h, w, -1))
     return torch.cat(out, dim=-1).permute(0, 3, 1, 2).contiguous()
 
 

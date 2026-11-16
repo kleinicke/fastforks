@@ -5,6 +5,10 @@ tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "depth_anything_v2", "monster_fit"]  # fastforks.shared modules this family imports
 
+limitations = [
+  "Kernels at 994 x 1482 peak 2631 MB (reserved 3436) vs 2581 MB (2658) portable and 2922 MB original, 21 % faster than portable; the difference is cached CUDA-graph / cuDNN workspace blocks.",
+]
+
 [upstream]
 repo = "https://github.com/Junda24/MonSter-plusplus"
 commit = "9167101af8fbe93c706707daa7a8181089c8b1b4"

@@ -393,6 +393,10 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+dicom = [
+    { name = "nibabel" },
+    { name = "pydicom" },
+]
 libs = [
     { name = "onnx" },
     { name = "onnxruntime" },
@@ -485,6 +489,7 @@ requires-dist = [
     { name = "isal", marker = "(python_full_version < '3.15' and platform_machine == 'arm64' and platform_python_implementation == 'CPython' and sys_platform == 'darwin') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'darwin') or (python_full_version < '3.15' and platform_machine == 'aarch64' and platform_python_implementation == 'CPython' and sys_platform == 'linux') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'linux') or (python_full_version < '3.15' and platform_machine == 'AMD64' and platform_python_implementation == 'CPython' and sys_platform == 'win32') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'win32')", specifier = ">=1.8" },
     { name = "laspy", specifier = ">=2.5" },
     { name = "lazrs", marker = "(python_full_version < '3.15' and platform_machine == 'arm64' and platform_python_implementation == 'CPython' and sys_platform == 'darwin') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'darwin') or (python_full_version < '3.15' and platform_machine == 'aarch64' and platform_python_implementation == 'CPython' and sys_platform == 'linux') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'linux') or (python_full_version < '3.15' and platform_machine == 'AMD64' and platform_python_implementation == 'CPython' and sys_platform == 'win32') or (python_full_version < '3.15' and platform_machine == 'x86_64' and platform_python_implementation == 'CPython' and sys_platform == 'win32')", specifier = ">=0.6" },
+    { name = "nibabel", marker = "extra == 'dicom'", specifier = ">=5" },
     { name = "nibabel", marker = "extra == 'nifti'", specifier = ">=5" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "onnx", marker = "extra == 'onnx'", specifier = ">=1.18" },
@@ -493,6 +498,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=10.1" },
     { name = "platformdirs", specifier = ">=4.2" },
     { name = "pycolmap", marker = "extra == 'sfm'", specifier = ">=3.11" },
+    { name = "pydicom", marker = "extra == 'dicom'", specifier = ">=2.4" },
     { name = "safetensors", specifier = ">=0.4" },
     { name = "scipy", marker = "extra == 'transformers'", specifier = ">=1.10" },
     { name = "tensorrt", marker = "extra == 'tensorrt'", specifier = ">=10.13" },
@@ -501,7 +507,7 @@ requires-dist = [
     { name = "torchvision", marker = "extra == 'torchvision'", specifier = ">=0.23" },
     { name = "transformers", marker = "extra == 'transformers'", specifier = ">=5.19,<6" },
 ]
-provides-extras = ["kernels", "onnx", "tensorrt", "timm", "torchvision", "nifti", "transformers", "sfm", "libs"]
+provides-extras = ["kernels", "onnx", "tensorrt", "timm", "torchvision", "dicom", "nifti", "transformers", "sfm", "libs"]
 
 [package.metadata.requires-dev]
 cpu = [
@@ -1931,6 +1937,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/dd/af/d4595d1551ddb15b34180205fa2b2ffa77007de15114a7354ec41bc78da7/pycolmap-4.2.1-cp314-cp314-macosx_14_0_arm64.whl", hash = "sha256:19a07d12d0e8a08f072d61161abed3898c96d618c3806c748b9e90c0f134e7bd", size = 20801481, upload-time = "2026-09-29T17:04:58.587Z" },
     { url = "https://files.pythonhosted.org/packages/aa/98/4dfb5f6a977376fa409d557d9c8df4c44c3e6398666a1dd9586a529068cf/pycolmap-4.2.1-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:7fe254ce4d810d3dfc1602fcf6773fc588778e44c54dfa9886266cfecf10d8c1", size = 38201358, upload-time = "2026-09-29T17:05:04.077Z" },
     { url = "https://files.pythonhosted.org/packages/26/ed/c6dc48fc07fdbb83e78d2a659c8f97417def4b2e922a064078aa5a2b0428/pycolmap-4.2.1-cp314-cp314-win_amd64.whl", hash = "sha256:db0f5d7f3a90869bbaf798a726a9fac5850e114a3cc317c2ae915698c52316ce", size = 24685176, upload-time = "2026-09-29T17:05:08.477Z" },
+]
+
+[[package]]
+name = "pydicom"
+version = "3.0.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7a/de/52aaf905f1f0ae7aba85996e2592ea2c1fe49157f3cfbcd1871965bdb51d/pydicom-3.0.2.tar.gz", hash = "sha256:5942bfc2d72c6fa4b3b5b62c527f54b7f2355f21d6f5d296df6bb30188df6a4f", size = 2886792, upload-time = "2026-03-19T21:46:20.935Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/46/e0/60466c6d712dad2cf807df315e39863e91609ffd1064ecb835994460bbda/pydicom-3.0.2-py3-none-any.whl", hash = "sha256:abf971a5440f84dbaf42c4b6758e30e62480902584f8b270b9a5d146e278a07b", size = 2376822, upload-time = "2026-03-19T21:46:19.042Z" },
 ]
 
 [[package]]

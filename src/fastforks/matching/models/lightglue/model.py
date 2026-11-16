@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch import nn
 
+from fastforks._core.checkpoint import load_strict
 from fastforks._core.runner import host
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared.aliked import ALIKED
@@ -108,9 +109,9 @@ class Matcher(nn.Module):
 def load_matcher(ctx: Context) -> Matcher:
     """The matcher with the variant's weights (file 0: LightGlue, file 1: the extractor), eval, on `ctx.device`."""
     net = Matcher(ctx.params)
-    net.matcher.load_weights(ctx.state_dict(0))
+    net.matcher.load_weights(ctx.state_dict(0), f"{ctx.variant.ref} checkpoint")
     sd = ctx.state_dict(1, key="extractor" if ctx.params.extractor == "disk" else None)
-    net.extractor.load_state_dict(sd, strict=True)
+    load_strict(net.extractor, sd, f"{ctx.variant.ref} checkpoint")
     net = net.eval().requires_grad_(requires_grad=False).to(ctx.device)
     if ctx.torch_dtype == torch.float16:
         net.extractor.fp16 = True

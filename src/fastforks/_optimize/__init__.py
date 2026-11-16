@@ -440,6 +440,7 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
     net: nn.Module = model
     if conv_like:
         net, rep = fold.fold_bn(model)
+        net.to(dev)  # timm's re-parameterization (TinyViT `ConvNorm.fuse`) builds its fused convs on the CPU
         report.update(rep)
         if isinstance(net, fx.GraphModule):  # before `.half()`: the LayerScale gammas fold into float32 weights
             from . import cnn  # noqa: PLC0415

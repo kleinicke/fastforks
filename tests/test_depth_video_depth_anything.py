@@ -122,7 +122,8 @@ def test_video_and_batch(monkeypatch: pytest.MonkeyPatch) -> None:
     torch.testing.assert_close(v.inverse_depth[:, 0, 0], torch.tensor([0.0, 10 / 255 + 1, 20 / 255 + 2]))
     torch.testing.assert_close(m.video(np.stack(frames)).inverse_depth, v.inverse_depth)
     _Frames.calls = []
-    b = m(np.stack(frames))
+    with pytest.warns(UserWarning, match=r"model\.video\(frames\)"):
+        b = m(np.stack(frames))
     assert _Frames.calls == [1, 1, 1]
     torch.testing.assert_close(b.inverse_depth[:, 0, 0], torch.tensor([0.0, 10 / 255, 20 / 255]))
     with pytest.raises(InputError, match="no frames"):

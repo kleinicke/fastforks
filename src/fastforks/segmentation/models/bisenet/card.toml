@@ -3,6 +3,7 @@ name = "BiSeNet face parsing"
 summary = "BiSeNet (Yu et al. 2018) face parsing from face-parsing.PyTorch: a ResNet-18 context path with attention refinement and feature fusion, 19 CelebAMask-HQ face-part classes (skin, brows, eyes, glasses, ears, earrings, nose, mouth, lips, neck, necklace, cloth, hair, hat) on a 512 x 512 face crop. The parser that GFPGAN / CodeFormer pipelines use through facexlib; MIT code and weights."
 tier = "experimental"
 outputs = ["logits"]
+limitations = ["No accuracy measurement: face parsing is scored on CelebAMask-HQ, which is not part of the evaluation data here (no public mirror with a clear licence); tiers are compared by output parity and speed only."]
 uses = ["seginfer"]  # fastforks.shared modules this family imports
 
 [upstream]

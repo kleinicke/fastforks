@@ -44,10 +44,13 @@ def resize(image: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
     return F.interpolate(image[None], size=size, mode="bicubic", align_corners=False, antialias=True).clamp(0, 1)
 
 
-def build(files: list[Path], params: dict) -> Callable[[torch.Tensor, torch.Tensor], dict[str, torch.Tensor]]:
+def build(
+    files: list[Path], params: dict, device: str = "cpu"
+) -> Callable[[torch.Tensor, torch.Tensor], dict[str, torch.Tensor]]:
     """Upstream LoMa on the CPU in float32: `[3, H, W]` pair in [0, 1] -> keypoints (input pixels), pairs, scores.
 
-    `params`: the card's params, variant params and options merged. The reference checkout's `src` must be on
+    `params`: the card's params, variant params and options merged; `device`: where the net and the call run (the speed
+    harness passes "cuda"; the goldens stay on the CPU). The reference checkout's `src` must be on
     `sys.path`; DaD and the DINOv2 construction weights come from the torch hub cache.
     """
     import loma  # noqa: PLC0415  # reference checkout
@@ -67,13 +70,14 @@ def build(files: list[Path], params: dict) -> Callable[[torch.Tensor, torch.Tens
             m.amp_dtype = torch.float32
     dino = net._descriptor.encoder.frozen_dinov2  # noqa: SLF001
     dino.dinov2_vitl14 = dino.dinov2_vitl14.float()
-    net.eval()
+    net.eval().to(device)
     thr, size, long_side = params["threshold"], int(params["size"]), int(params["long_side"])
     num = int(params["max_keypoints"])
 
     @torch.inference_mode()
     def run(image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         out = []
+        image1, image2 = image1.to(device), image2.to(device)
         for t in (image1, image2):
             h, w = t.shape[-2:]
             s = long_side / max(h, w)
@@ -84,7 +88,7 @@ def build(files: list[Path], params: dict) -> Callable[[torch.Tensor, torch.Tens
         scores = net(out[0][0], out[1][0], out[0][1], out[1][1])["scores"]
         m0, _, mscores0, _ = filter_matches(scores, thr)
         idx = torch.nonzero(m0[0] > -1)[:, 0]
-        px = [(o[0][0] + 1) / 2 * torch.tensor([t.shape[-1], t.shape[-2]]) - 0.5
+        px = [(o[0][0] + 1) / 2 * torch.tensor([t.shape[-1], t.shape[-2]], device=device) - 0.5
               for o, t in zip(out, (image1, image2), strict=True)]  # fmt: skip
         return {
             "keypoints1": px[0],

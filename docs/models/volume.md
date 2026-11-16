@@ -6,7 +6,7 @@
 
 Input: a CT volume `[D, H, W]` in Hounsfield units and its voxel spacing in mm (`volume.read_nifti` reads both from a NIfTI file). Output: a class index per voxel `[D, H, W]` on the input grid (0 = background). Encoder models (nnFoundation) take a CT or MRI volume and give its encoder feature maps.
 
-Measured on RTX 5060 Ti, torch 2.10.0+cu130, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 200x200: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
+Measured on RTX 5060 Ti, torch 2.10.0+cu130, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 200x200: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -28,8 +28,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nnfoundation-cnn` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>274<br>227<br>211<br>170<br>fails: RuntimeError: required rank 5 tensor to use channels_last_3d | 7247 / 8734<br>3818 / 4628<br>3011 / 3110<br>2985 / 3710<br>5067 / 5110<br>– |
-| `nnfoundation-vit` | synthetic (192x192) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>1930<br>1848<br>1732<br>1440<br>fails: RuntimeError: Calculated padded input size per channel: (3 x | –<br>3930 / 4298<br>1669 / 1884<br>1669 / 1884<br>1406 / 1484<br>– |
+| `nnfoundation-cnn` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>274<br>226<br>211<br>170<br>planned for 0.2.1 | 7247 / 8734<br>3818 / 4628<br>3011 / 3130<br>2985 / 3710<br>5067 / 5110<br>– |
+| `nnfoundation-vit` | synthetic (192x192) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>1930<br>1848<br>1732<br>1440<br>planned for 0.2.1 | –<br>3930 / 4298<br>1669 / 1884<br>1669 / 1884<br>1406 / 1484<br>– |
 
 <details><summary>Details</summary>
 
@@ -40,6 +40,7 @@ Commercial use: yes.
 - Training data: 2.1 million CT, MRI and PET volumes from 125 institutional and public datasets (Human Radiome Project); the dataset list is not published with the weights. Share-alike: models fine-tuned from these weights are adapted material under CC-BY-SA-4.0.
 - Kernel libraries: `vol_norm`
 - Variants: `nnfoundation-cnn`, `nnfoundation-vit`
+- Not in this release (planned for 0.2.1): `nnfoundation-cnn` ONNX / TensorRT export: the export example does not match the 3-D input layout (channels_last_3d needs rank 5); `nnfoundation-vit` ONNX / TensorRT export: the export example is smaller than the 3-D patch kernel (8x8x8)
 - Outputs: features
 - Input size: any D x H x W volume, no resampling, one encoder pass (a fixed-grid ViT: each side up to its grid)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nnfoundation-cnn` 384x384x384 voxels (14.2 GiB peak allocated, 14.8 reserved); `nnfoundation-vit` 192x192x192 voxels (1.6 GiB peak allocated, 1.8 reserved)
@@ -47,9 +48,20 @@ Commercial use: yes.
 - `nnfoundation-vit` 192x192, first call: portable + torch.compile 69 s (cold Inductor cache).
 - `nnfoundation-cnn` original (fp32) 200x200, original 200x200: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
 - `nnfoundation-vit` original 192x192: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
-- `nnfoundation-cnn` load / first call: original 1.18 s / 0.69 s, portable 0.67 s / 0.328 s, kernels 0.39 s / 0.291 s
+- `nnfoundation-cnn` load / first call: original 1.18 s / 0.69 s, portable 0.56 s / 0.269 s, kernels 0.39 s / 0.291 s
 - `nnfoundation-vit` load / first call: original 9.54 s / 2.37 s (192x192), portable 1.24 s / 1.867 s (192x192), kernels 1.27 s / 1.756 s (192x192)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. Encoder models have no task head, so they are judged by their output: the encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error the original itself has in half precision. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `nnfoundation-cnn` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0.0000 | 0.99999 / 0.0014 | 0.99999 / 0.0017 | 0.99999 / 0.0015 |  |
+| `nnfoundation-vit` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0.0000 | 0.99947 / 0.0167 | 0.99950 / 0.0165 | 0.99940 / 0.0213 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-14 to 2026-11-15.
 
 ### Parity
 
@@ -59,6 +71,10 @@ CPU, float32: max |diff| <= 1.8e-06 vs the original. GPU, float16 (the default),
 |---|---|---|---|
 | `nnfoundation-cnn` | 0.00067 / 0.00463 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@44036d4da567:sm_120` |
 | `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@44036d4da567:sm_120` |
+
+### Limitations
+
+- Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv maps (1.4 GiB and 0.3 GiB workspaces) fragments the allocator: peak reserved is ~580 MiB above portable.
 
 </details>
 
@@ -72,7 +88,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 705<br>460<br>215<br>201<br>fails: TypeError: cannot unpack non-iterable NoneType object<br>fails: TypeError: 'NoneType' object is not subscriptable | 7156 / 8408<br>4076 / 4636<br>3075 / 3492<br>2643 / 3072<br>–<br>– |
+| `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 705<br>460<br>215<br>201<br>planned for 0.2.1<br>planned for 0.2.1 | 7156 / 8408<br>4076 / 4636<br>3075 / 3492<br>2643 / 3072<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -83,11 +99,22 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 - Training data: 120+ volumetric 3D datasets (CT, MRI, PET, 3D microscopy; readme) with simulated prompts.
 - Kernel libraries: `vol_norm`
 - Variants: `nninteractive`
+- Not in this release (planned for 0.2.1): `nninteractive` ONNX / TensorRT export: the export wrapper passes no interaction prompts (TypeError on None); `nninteractive` compile(): the compiled entry point gets no interaction prompts (TypeError on None)
 - Outputs: mask
 - Input size: any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nninteractive` 512x512x512 voxels (5.7 GiB peak allocated, 6.1 reserved)
 - `nninteractive` load / first call: original 3.23 s / 1.038 s, portable 1.09 s / 0.482 s, kernels 0.65 s / 0.403 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. nnInteractive: per case 12 simulated prompts (point, box, scribble, point + box on 3 organs), one interaction each; Dice of the predicted mask against the ground-truth organ mask, mean over the runs; agreement = Dice of the mask against the original's mask. Original = the authors' code, fp16 autocast. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `nninteractive` | TotalSegmentator test subset (8 CT cases x 12 prompts), mean Dice vs the ground-truth mask / agreement with the original | 0.9688 | 0.9688 / 0.9999 | 0.9688 / 0.9999 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-15.
 
 ### Parity
 

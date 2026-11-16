@@ -25,8 +25,9 @@ binaries via `FASTFORKS_KERNEL_PATH` (e.g. `build/kernels` after `tools/build_ke
 ~20 GB RAM on the CPU (Marigold's `torch.export`) are skipped unless `FASTFORKS_HEAVY_CPU_TESTS=1`; run them alone.
 The ONNX export tests (ONNX Runtime against `module()`, ~30 min on the CPU) run only for a release, with
 `FASTFORKS_ONNX_TESTS=1`.
-`tools/stage_hf.py` stages the kernel binaries, the goldens and the weight mirrors for their Hugging Face repos
-(`fastforks/kernels`, dataset `fastforks/reference-outputs`, `fastforks/mirrors`) and prints the upload command; uploads are a
+`tools/stage_hf.py` stages the kernel binaries, the goldens and the weights repos for their Hugging Face repos
+(`fastforks/kernels`, dataset `fastforks/reference-outputs`, the private legacy repo `fastforks/mirrors` (no card uses it), and `weights`: one repo per weight
+file we changed, named upstream stem + dtype, from `tools/weights_repos.toml`) and prints the upload command; uploads are a
 maintainer step. With `--standin` it builds a local copy of those repos under OUT instead, and
 `FASTFORKS_HF_ENDPOINT=file://OUT` points every download from them there (other URLs are unchanged), so new kernel
 builds and goldens can be tested end to end before they are published.
@@ -132,8 +133,11 @@ Checklist:
    per-variant overrides in the variant's `licence = {...}`). The commercial status is computed, never written: see
    `ModelCard.status`. The code class decides the distribution (`dists.toml`).
 2. **Upstream pin.** `upstream.commit` is the commit the vendored code comes from. Keep per-file licence headers.
-3. **Weights.** Only the authors' URLs (or a mirror if the licence clearly allows redistribution). Record `size` and
-   `sha256`; `tools/check_urls.py` checks the URLs nightly.
+3. **Weights.** Only the authors' URLs; unchanged upstream weights are never mirrored. Record `size` and `sha256`;
+   `tools/check_urls.py` checks the URLs nightly. A Hugging Face weights repo `fastforks/<upstream stem>-<dtype>` exists
+   only for weights we changed (converted / quantized): licence checked (the weights' own, permissive, ungated), the README
+   states the source, the precision and the conversion script (`tools/weights_repos.toml`, one table per repo; the card
+   points at it by `url`).
 4. **Dependencies.** Strip or vendor anything outside the allowlist. Code used by more than one family (e.g. a
    backbone) goes into `src/fastforks/shared/<module>/` with its LICENSE and a `meta.toml` (permissive only); list
    it in the card's `uses`. Families never import each other (`tests/test_policy.py`).

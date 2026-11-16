@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
@@ -125,7 +126,7 @@ class TrackingModel(core.Model):
 
         Raises:
             InputError: An empty or mixed-size video, too small frames, or queries that are not `[Q, 3]`, have a
-                frame index outside the video or a non-integer one.
+                frame index outside the video or a non-integer one, or a position outside the frames (x and y swapped).
         """
         if isinstance(video, str | bytes) or not hasattr(video, "__len__") or not hasattr(video, "__getitem__"):
             msg = f"video must be a sequence of frames or a [T, ...] frame batch, got {type(video).__name__}"
@@ -145,6 +146,7 @@ class TrackingModel(core.Model):
             return x
 
         q, single = _queries(queries, n)
+        _check_in_image(q, size)
         with self._session():
             out = self._runner(frame, n, size, q.to(self.device))
         maps = self._check_outputs(out, {"tracks": (n, q.shape[0], 2), "visibility": (n, q.shape[0])})
@@ -231,3 +233,23 @@ def bench_inputs(model: TrackingModel, size: BenchSize) -> BenchInputs:
 
 
 list_models, model_card, load = task_api(TASK, TrackingModel)
+
+
+def _check_in_image(q: torch.Tensor, size: tuple[int, int]) -> None:
+    """Queries are `(t, x, y)` in pixels: raise for a point outside the frame (x, y swapped), warn for 0..1 fractions.
+
+    Raises:
+        InputError: A query position outside the `H x W` frame.
+    """
+    h, w = size
+    x, y = q[:, 1], q[:, 2]
+    if bool((x < -0.5).any() or (x > w - 0.5).any() or (y < -0.5).any() or (y > h - 0.5).any()):  # noqa: PLR2004
+        msg = (
+            f"queries are (t, x, y) with x, y in pixels of the {w}x{h} (WxH) frames; "
+            "got a point outside them (x and y swapped?)"
+        )
+        raise InputError(msg)
+    if min(h, w) >= 32 and bool((x <= 1).all() and (y <= 1).all()):  # noqa: PLR2004 - not tiny test frames
+        warnings.warn(
+            "all query positions are <= 1 pixel: queries are (t, x, y) in pixels, not fractions", stacklevel=3
+        )

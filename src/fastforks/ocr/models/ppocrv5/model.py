@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 
+from fastforks._core.checkpoint import load_strict
+from fastforks._core.runner import host
 from fastforks.ocr._runner import (
     DET_MEAN,
     DET_STD,
@@ -64,10 +66,7 @@ def _net(kind: str, program: Path, params: Path, *, server: bool, classes: int =
     net, layers = build(kind, server, classes)
     arrays = convert.state_dict(convert.read(program, params), layers)
     state = {k: torch.from_numpy(v.copy()) for k, v in arrays.items()}
-    missing, unexpected = net.load_state_dict(state, strict=False)
-    if unexpected or any(not k.endswith("num_batches_tracked") for k in missing):
-        msg = f"PP-OCRv5 {kind}: missing {missing}, unexpected {unexpected}"
-        raise ValueError(msg)
+    load_strict(net, state, f"PP-OCRv5 {kind} weights", not_in_checkpoint=("num_batches_tracked",))
     return net.eval()
 
 
@@ -93,6 +92,7 @@ class Portable(Runner):
         rec = _net("rec", rec_program, rec_params, server=server, classes=len(self.chars))
         self.rec = rec.to(ctx.device, self.dtype)
 
+    @host
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[str]]:
         """Text lines of a `[1, 3, H, W]` RGB image."""
         p = self.ctx.params

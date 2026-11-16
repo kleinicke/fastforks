@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeAlias
 
@@ -195,6 +196,12 @@ class DepthModel(core.Model):
         """
         x = to_rgb_batch(image, self.device)
         self._check_size(x)
+        if self._runner.video and x.shape[0] > 1:
+            warnings.warn(
+                f"{self.variant.ref} is a video model but a batch of {x.shape[0]} images is depth-estimated frame by "
+                "frame, not as a clip (flicker); use model.video(frames) for temporal consistency",
+                stacklevel=2,
+            )
         k = self._intrinsics(intrinsics, x.shape[0])
         p = self._prompt(prompt_depth, x.shape[0])
         maps = self._batched(self._runner, x, k) if p is None else self._batched(self._runner, x, k, p)
@@ -315,6 +322,12 @@ class DepthModel(core.Model):
             if use == "required":
                 msg = f"{self.variant.ref} needs the camera intrinsics (intrinsics=[3, 3] pixel matrix)"
                 raise InputError(msg)
+            if use == "optional" and self._runner.assumed_camera:
+                warnings.warn(
+                    f"{self.variant.ref} was called without intrinsics: its metres assume "
+                    f"{self._runner.assumed_camera}, wrong for a real camera; pass intrinsics=K (3 x 3, pixels)",
+                    stacklevel=5,
+                )
             return None
         if use == "unused":
             msg = f"{self.variant.ref} does not use camera intrinsics; call it without them"

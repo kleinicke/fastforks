@@ -16,7 +16,7 @@ gpu_p99 = 1.0e-3
 gpu_min_recall = 0.9986
 gpu_min_match = 0.986
 # kernels (fp16 NHWC conv_ep path, recorded after the golden): measured mean 0.0020 px, match 0.9859, a hair past the
-# portable bounds; task accuracy is within noise of portable (results/2026-11-15_dedode_kernels.md)
+# portable bounds; task accuracy is within noise of portable (2026-11-15)
 gpu_mean_kernels = 0.0030
 gpu_min_match_kernels = 0.98
 

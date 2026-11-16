@@ -47,12 +47,12 @@ venue = "CVPR 2019"
 id = "gwcnet-gc-sceneflow"
 revision = 1
 # GwcNet-gc: group-wise correlation + concatenation volume
-weights = [{ mirror = true, name = "sceneflow/gwcnet-gc/checkpoint_000015.ckpt", size = 83149942, sha256 = "95c9647f4896af1c9a3f2bb2e9989a569dde57c31b5a1b7830379b1d3434d13a", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1qiOTocPfLaK9effrLmBadqNtBKT4QX4S", member = "sceneflow/gwcnet-gc/checkpoint_000015.ckpt", archive = { size = 297833080, sha256 = "24a44903daf43c8b1fb5dad3d18f8e16868431ad6a2dad662892158e57dad45c" } }]
+weights = [{ name = "sceneflow/gwcnet-gc/checkpoint_000015.ckpt", size = 83149942, sha256 = "95c9647f4896af1c9a3f2bb2e9989a569dde57c31b5a1b7830379b1d3434d13a", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1qiOTocPfLaK9effrLmBadqNtBKT4QX4S", member = "sceneflow/gwcnet-gc/checkpoint_000015.ckpt", archive = { size = 297833080, sha256 = "24a44903daf43c8b1fb5dad3d18f8e16868431ad6a2dad662892158e57dad45c" } }]
 params = { concat_volume = true }
 
 [[variants]]
 id = "gwcnet-g-sceneflow"
 revision = 1
 # GwcNet-g: group-wise correlation volume only
-weights = [{ mirror = true, name = "sceneflow/gwcnet-g/checkpoint_000015.ckpt", size = 78452197, sha256 = "ea0f406dc1abd18302b956225c92be7e63722a9e0cb08b9f091a0207b9b6302b", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1qiOTocPfLaK9effrLmBadqNtBKT4QX4S", member = "sceneflow/gwcnet-g/checkpoint_000015.ckpt", archive = { size = 297833080, sha256 = "24a44903daf43c8b1fb5dad3d18f8e16868431ad6a2dad662892158e57dad45c" } }]
+weights = [{ name = "sceneflow/gwcnet-g/checkpoint_000015.ckpt", size = 78452197, sha256 = "ea0f406dc1abd18302b956225c92be7e63722a9e0cb08b9f091a0207b9b6302b", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1qiOTocPfLaK9effrLmBadqNtBKT4QX4S", member = "sceneflow/gwcnet-g/checkpoint_000015.ckpt", archive = { size = 297833080, sha256 = "24a44903daf43c8b1fb5dad3d18f8e16868431ad6a2dad662892158e57dad45c" } }]
 params = { concat_volume = false }

@@ -53,8 +53,16 @@ def DropPath(drop_prob: float) -> nn.Module:  # noqa: N802 - the timm class name
     return nn.Identity()
 
 
+def shift_mask(  # noqa: PLR0913 - window geometry
+    h: int, w: int, window: int, shift: int, device: torch.device, *, dtype: torch.dtype = torch.float32
+) -> torch.Tensor:
+    """The cached `_shift_mask` (dynamo cannot trace through lru_cache; the compiled graph holds the mask anyway)."""
+    fn = _shift_mask.__wrapped__ if torch.compiler.is_compiling() else _shift_mask
+    return fn(h, w, window, shift, device, dtype=dtype)
+
+
 @functools.lru_cache(maxsize=16)
-def shift_mask(  # noqa: PLR0913 - the map size, window, shift and where / how the mask is cached
+def _shift_mask(  # noqa: PLR0913 - the map size, window, shift and where / how the mask is cached
     h: int, w: int, window: int, shift: int, device: torch.device, *, dtype: torch.dtype = torch.float32
 ) -> torch.Tensor:
     """`[nW, window**2, window**2]` 0 / -100 mask of the shifted windows of an `h` x `w` map (SwinIR's), in `dtype`.

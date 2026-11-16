@@ -5,6 +5,10 @@ tier = "stable"
 outputs = ["logits"]
 uses = ["libnet"]  # fastforks.shared modules this family imports
 
+limitations = [
+  "At 224 x 224 portable runs 5.0 ms / 39 MB (fp32 original 4.8 ms / 45 MB, fp16 original 6.5 ms / 47 MB); kernels run 0.80 ms but peak 55 MB allocated / 76 MB reserved (original 47 / 45 MB) from cuDNN workspaces of the small convolutions.",
+]
+
 [upstream]
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library

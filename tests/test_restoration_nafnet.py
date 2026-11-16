@@ -62,3 +62,29 @@ def test_rejects_non_rgb(tmp_path: Path) -> None:
     torch.save(NAFNet(img_channel=1, **KW).state_dict(), tmp_path / "w.pth")
     with pytest.raises(WeightsError, match="input channels"):
         restoration.load(tmp_path / "w.pth", mode="portable", device="cpu", dtype="float32")
+
+
+@pytest.mark.gpu
+@pytest.mark.model
+@pytest.mark.slow
+@pytest.mark.filterwarnings("ignore")
+@pytest.mark.parametrize("mode", ["portable", "kernels"])
+@pytest.mark.parametrize("model", ["nafnet-gopro", "nafnet-sidd"])
+def test_float16_finite_on_stress_inputs(model: str, mode: str) -> None:
+    """float16 stays finite on low-contrast noise (the stream once overflowed), constant and saturated images."""
+    if not torch.cuda.is_available():
+        pytest.skip("needs CUDA")
+    gen = torch.Generator().manual_seed(1)
+    noise = torch.rand(1, 3, 256, 320, generator=gen)
+    inputs = {
+        "noise10": (0.5 + 0.1 * (noise - 0.5)).clamp(0, 1),
+        "noise_full": noise,
+        "synthetic": synthetic_image(256, 320, torch.device("cpu")),
+        "const0": torch.zeros(1, 3, 256, 320),
+        "const1": torch.ones(1, 3, 256, 320),
+        "binary": (noise > 0.5).float(),
+    }
+    m = restoration.load(model, mode=mode)
+    for name, x in inputs.items():
+        out = m._runner(x.cuda())["image"]
+        assert torch.isfinite(out).all(), f"{model} [{mode}] {name}: NaN / inf in float16"

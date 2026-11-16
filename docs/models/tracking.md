@@ -6,24 +6,24 @@
 
 Input: a video (its frames in order) and query points `(t, x, y)`. Output: the position of every query in every frame and the probability that it is visible there.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 480x854: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 480x854: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`alltracker`](#alltracker) | yes | 221, 2.2x | 1288, 0.56x |
-| [`alltracker-tiny`](#alltracker) | yes | 233, 1.8x | 1166, 0.53x |
+| [`alltracker-tiny`](#alltracker) | yes | 217, 2.0x | 1166, 0.53x |
 | [`bootstapir`](#tapir) | yes | 192, 1.3x | 628, 0.81x |
-| [`cotracker3-offline`](#cotracker) | no | 154, 1.6x | 916, 0.37x |
-| [`cotracker3-online`](#cotracker) | no | 176, 1.9x | 922, 0.49x |
+| [`cotracker3-offline`](#cotracker) | no | 154, 1.6x | 882, 0.36x |
+| [`cotracker3-online`](#cotracker) | no | 176, 1.9x | 888, 0.47x |
 | [`locotrack-b`](#locotrack) | yes | 173, 1.2x | 660, 0.84x |
-| [`locotrack-s`](#locotrack) | yes | 151, 1.3x | 822, 1.0x |
+| [`locotrack-s`](#locotrack) | yes | 151, 1.3x | 642, 0.79x |
 | [`tapir`](#tapir) | yes | 141, 1.3x | 548, 0.95x |
-| [`tapnext`](#tapnext) | yes | 382, 2.4x | 1374, 0.72x |
-| [`tapnext-pp`](#tapnext) | yes | – | – |
+| [`tapnext`](#tapnext) | yes | 381, 2.4x | 1254, 0.66x |
+| [`tapnext-pp`](#tapnext) | yes | 381, 3.9x | 1254, 0.73x |
 | [`track-on-r`](#track_on) | yes | 1102, 1.8x | 1620, 0.84x |
-| [`track-on2`](#track_on) | yes | 1109, 1.8x | 1620, 1.0x |
+| [`track-on2`](#track_on) | yes | 1108, 1.8x | 1620, 1.0x |
 
 <a id="alltracker"></a>
 
@@ -35,8 +35,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>391<br>221<br>284<br>fails: ONNX export: torch.export failed | 2100 / 2318<br>993 / 1238<br>1076 / 1288<br>1273 / 1358<br>– |
-| `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>233<br>229<br>fails: ONNX export: torch.export failed | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
+| `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>391<br>221<br>284<br>planned for 0.2.1 | 2100 / 2318<br>993 / 1238<br>1076 / 1288<br>1273 / 1358<br>– |
+| `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>217<br>229<br>planned for 0.2.1 | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
 
 <details><summary>Details</summary>
 
@@ -48,6 +48,7 @@ Commercial use: yes.
 - Options: `iters` = 4 (>= 1)
 - Kernel libraries: `fvm_conv`
 - Variants: `alltracker`, `alltracker-tiny`
+- Not in this release (planned for 0.2.1): `alltracker` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export); `alltracker-tiny` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `alltracker` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `alltracker-tiny` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
@@ -55,7 +56,7 @@ Commercial use: yes.
 - `alltracker-tiny` 480x854, first call: portable + torch.compile 103 s (cold Inductor cache).
 - `alltracker` original 480x854: the authors' mixed-precision option (float16); aharley/alltracker@e7553135e7b3 Net.forward, 384 x 512, 4 iters
 - `alltracker-tiny` original 480x854: the authors' mixed-precision option (float16); aharley/alltracker@e7553135e7b3 Net.forward, 384 x 512, 4 iters
-- `alltracker` load / first call: original 1.68 s / 1.309 s, portable 0.22 s / 0.848 s, kernels 0.98 s / 0.452 s
+- `alltracker` load / first call: original 1.68 s / 1.309 s, portable 0.89 s / 2.078 s, kernels 0.26 s / 0.493 s
 - `alltracker-tiny` load / first call: original 1.22 s / 1.398 s, portable 0.06 s / 0.731 s, kernels 0.96 s / 0.54 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -86,6 +87,8 @@ CPU, float32: max |diff| <= 2.3e-05 vs the original. GPU, float16 (the default),
 - Frames are resized to 384 x 512 (upstream's default evaluation size), whatever their size and aspect ratio. Upstream reports higher accuracy at larger sizes (TAP-Vid DAVIS AJ 65.9 at 448 x 768, 67.2 at 768 x 1024); the size is a card parameter.
 - Tracks are sampled bilinearly at the query position; upstream's evaluation rounds the query to the nearest pixel.
 - One video per call; all queries of a call share the video.
+- Kernels hold packed conv weights next to the originals the call reads (+31 MiB) and fragment the allocator: peak reserved is ~70 MiB above portable.
+- No exportable module: the track set is data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
 
 </details>
 
@@ -161,8 +164,8 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `cotracker3-offline` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp16 | 244<br>162<br>154<br>25.9 | 2221 / 2480<br>755 / 882<br>799 / 916<br>519 / 586 |
-| `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp16 | 328<br>184<br>176<br>fails: ONNX export: torch.export failed | 1659 / 1886<br>755 / 906<br>798 / 922<br>– |
+| `cotracker3-offline` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>162<br>154<br>135<br>25.9 | 2221 / 2480<br>755 / 882<br>757 / 882<br>755 / 902<br>519 / 586 |
+| `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 328<br>184<br>176<br>159<br>planned for 0.2.1 | 1659 / 1886<br>755 / 906<br>757 / 888<br>701 / 846<br>– |
 
 <details><summary>Details</summary>
 
@@ -173,14 +176,16 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Training data: Upstream paper: trained on synthetic Kubric MOVi-F sequences, then fine-tuned by pseudo-labelling about 15k real internet videos with other trackers (not released). No dataset entry here yet.
 - Kernel libraries: `fvm_conv`
 - Variants: `cotracker3-offline`, `cotracker3-online`
+- Not in this release (planned for 0.2.1): `cotracker3-online` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `cotracker3-offline` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `cotracker3-online` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
-- `cotracker3-offline` 480x854, first call: TensorRT fp16 157 s (ONNX + engine).
+- `cotracker3-offline` 480x854, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 157 s (ONNX + engine).
+- `cotracker3-online` 480x854, first call: portable + torch.compile 38 s (cold Inductor cache).
 - `cotracker3-offline` original 480x854: the authors' mixed-precision option (float16); facebookresearch/co-tracker@82e02e802975 as its predictor, offline (whole video, 6 x 6 support grid), frames resized to 384 x 512
 - `cotracker3-online` original 480x854: the authors' mixed-precision option (float16); facebookresearch/co-tracker@82e02e802975 as its predictor, online (16-frame windows, step 8), frames resized to 384 x 512
 - `cotracker3-offline` load / first call: original 0.65 s / 0.866 s, portable 0.28 s / 0.416 s, kernels 0.19 s / 0.52 s
-- `cotracker3-online` load / first call: original 0.54 s / 0.536 s, portable 0.65 s / 0.39 s, kernels 0.18 s / 0.537 s
+- `cotracker3-online` load / first call: original 0.54 s / 0.536 s, portable 0.27 s / 0.472 s, kernels 0.18 s / 0.515 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -209,6 +214,7 @@ CPU, float32: max |diff| <= 6e-05 vs the original. GPU, float16 (the default), p
 - cotracker3-offline holds the features of every frame (about 4 MB per frame in float16); cotracker3-online processes 16-frame windows and only keeps the tracks.
 - Visibility is upstream's score, rescaled so that 0.5 is upstream's threshold: the offline predictor's visibility > 0.9, the online predictor's visibility x confidence > 0.6.
 - One video per call; all queries of a call share the video.
+- cotracker3-online: the online window loop is data-dependent (6 graph breaks; `torch.export` guards on data), so no ONNX / TensorRT export; cotracker3-offline exports.
 
 </details>
 
@@ -222,8 +228,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>188<br>173<br>82.6<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 719 / 784<br>603 / 656<br>614 / 660<br>1117 / 1140<br>– |
-| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 706 / 812<br>759 / 842<br>764 / 822<br>1000 / 1034<br>– |
+| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>188<br>173<br>82.6<br>planned for 0.2.1 | 719 / 784<br>603 / 656<br>614 / 660<br>1117 / 1140<br>– |
+| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>planned for 0.2.1 | 706 / 812<br>759 / 842<br>596 / 642<br>1000 / 1034<br>– |
 
 <details><summary>Details</summary>
 
@@ -234,6 +240,7 @@ Commercial use: yes.
 - Training data: Upstream README: trained on the panning Kubric MOVi-E sequences (synthetic, released as hamacojr/LocoTrack-panning-MOVi-E). No dataset entry here yet.
 - Kernel libraries: `fvm_conv`
 - Variants: `locotrack-b`, `locotrack-s`
+- Not in this release (planned for 0.2.1): `locotrack-b` ONNX / TensorRT export: the export fails in the network call (ValueError: expected 4 values, got 2); `locotrack-s` ONNX / TensorRT export: the export fails in the network call (ValueError: expected 4 values, got 2)
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `locotrack-b` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `locotrack-s` 3000x4000 (5.4 GiB peak allocated, 5.8 reserved)
@@ -282,8 +289,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>529<br>382<br>398<br>fails: unsupported: engine build exceeds 5 min lock rule (cold ONNX | 1721 / 1902<br>1220 / 1294<br>1313 / 1374<br>1164 / 1272<br>– |
-| `tapnext-pp` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile | 1493<br>529<br>–<br>fails: Inductor: Triton kernel does not compile (torch bug) | 1527 / 1718<br>1220 / 1294<br>–<br>– |
+| `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>528<br>381<br>398<br>69.4 | 1721 / 1902<br>1220 / 1294<br>1205 / 1254<br>1164 / 1272<br>1498 / 1660 |
+| `tapnext-pp` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1493<br>529<br>381<br>planned for 0.2.1<br>69.5 | 1527 / 1718<br>1220 / 1294<br>1205 / 1254<br>–<br>1498 / 1660 |
 
 <details><summary>Details</summary>
 
@@ -294,14 +301,16 @@ Commercial use: yes.
 - Training data: Upstream: TAPNext is trained on synthetic Kubric MOVi-F sequences and fine-tuned with BootsTAP self-training on unlabelled real videos (not released); TAPNext++ is further fine-tuned on PointOdyssey and Kubric-1024 (1024-frame synthetic sequences). None has a dataset entry here yet.
 - Kernel libraries: `fvm_conv`
 - Variants: `tapnext`, `tapnext-pp`
+- Not in this release (planned for 0.2.1): `tapnext-pp` compile(): Inductor fails to compile a fused Triton kernel
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `tapnext` 3000x4000 (4.3 GiB peak allocated, 4.5 reserved); `tapnext-pp` 3000x4000 (4.3 GiB peak allocated, 4.5 reserved)
-- `tapnext` 480x854, first call: portable + torch.compile 41 s (cold Inductor cache).
+- `tapnext` 480x854, first call: portable + torch.compile 41 s (cold Inductor cache), TensorRT fp16 366 s (ONNX + engine).
+- `tapnext-pp` 480x854, first call: TensorRT fp16 362 s (ONNX + engine).
 - `tapnext` original 480x854: the authors' mixed-precision option (float16); upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)
 - `tapnext-pp` original 480x854: upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)
-- `tapnext` load / first call: original 16.92 s / 2.165 s, portable 2.72 s / 0.692 s, kernels 2.63 s / 0.56 s
-- `tapnext-pp` load / first call: original 4.83 s / 1.802 s, portable 1.34 s / 0.772 s
+- `tapnext` load / first call: original 16.92 s / 2.165 s, portable 2.37 s / 0.666 s, kernels 3.01 s / 0.542 s
+- `tapnext-pp` load / first call: original 4.83 s / 1.802 s, portable 1.34 s / 0.772 s, kernels 1.28 s / 0.665 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -343,8 +352,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1194<br>1109<br>fails: worker rc=124<br>fails: unsupported: torch.export: data-dependent guard in model.py: | 1403 / 1558<br>1423 / 1572<br>1368 / 1620<br>–<br>– |
-| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>fails: worker rc=124<br>fails: ValueError: not enough values to unpack (expected 4, got 2) | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>–<br>– |
+| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1193<br>1108<br>fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile <br>planned for 0.2.1 | 1403 / 1558<br>1423 / 1712<br>1368 / 1620<br>–<br>– |
+| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile <br>planned for 0.2.1 | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -357,12 +366,13 @@ Commercial use: yes.
 - Options: `memory` = 72 (>= 1), `support_grid` = 20 (>= 0)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `track-on2`, `track-on-r`
+- Not in this release (planned for 0.2.1): `track-on2` ONNX / TensorRT export: torch.export stops at a data-dependent branch (model.py:107); `track-on-r` ONNX / TensorRT export: the export fails in the network call (ValueError: expected 4 values, got 2)
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `track-on2` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved); `track-on-r` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved)
 - `track-on2` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
 - `track-on-r` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
-- `track-on2` load / first call: original 3.77 s / 3.626 s, portable 0.66 s / 2.268 s, kernels 0.27 s / 1.777 s
+- `track-on2` load / first call: original 3.77 s / 3.626 s, portable 1.16 s / 1.956 s, kernels 0.63 s / 1.762 s
 - `track-on-r` load / first call: original 0.88 s / 2.907 s, portable 0.24 s / 1.989 s, kernels 1.11 s / 1.72 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -387,10 +397,13 @@ CPU, float32: max |diff| <= 1.8e-05 vs the original. GPU, float16 (the default),
 
 ### Limitations
 
+- At 480 x 854 portable / kernels peak 1423 / 1368 MB, above the float32 original (1236 MB) but 2.4x / 2.6x faster (1194 / 1109 vs 2861 ms); the original under fp16 autocast needs 1403 MB, like portable.
 - Frames are resized to 384 x 512 (the size the learned position embedding was trained at), whatever their size and aspect ratio.
 - Upstream adds a 20 x 20 grid of support points on frame 0 to every call (option support_grid); they are tracked with the user's queries, so a call costs at least 400 tracked points.
 - Online: a query only sees the frames from its own frame on; frames before it return the query position with visibility 0.
 - One video per call; all queries of a call share the video.
+- Track-On2 peaks 1423 MB, 20 MB (1.4 %) above the fp16 original (1403 MB), and runs 15 % faster. The 1236 MB original variant is the fp32 one, which is 2.4x slower.
+- No exportable module: every step reads a data-dependent scalar (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
 
 </details>
 

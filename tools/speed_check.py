@@ -811,7 +811,9 @@ def _warm_start(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env
 
 def _launch(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env: dict[str, str]) -> None:
     """One worker of `spec`; a crash or timeout without a row becomes an error row (`fails` for compile / tensorrt)."""
-    prebuilt = getattr(a, "cache_dir", "")  # a cache filled by an earlier (unlocked) cold run: this start is the warm one
+    prebuilt = getattr(
+        a, "cache_dir", ""
+    )  # a cache filled by an earlier (unlocked) cold run: this start is the warm one
     cache = (prebuilt or tempfile.mkdtemp(prefix="ff-compile-cache-")) if spec["mode"] == "compile" else ""
     if cache:  # empty Inductor / Triton caches: the first call is a cold compile
         env |= {"TORCHINDUCTOR_CACHE_DIR": f"{cache}/inductor", "TRITON_CACHE_DIR": f"{cache}/triton"}
@@ -828,7 +830,9 @@ def _launch(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env: di
         _warm_start(a, spec, cmd, env, cache_keep)
     if cache_keep:
         shutil.rmtree(cache_keep, ignore_errors=True)
-    if prebuilt and a.cold_from and rc == 0 and len(read_rows(a.out)) == before + 1:  # cold time from the unlocked build run
+    if (
+        prebuilt and a.cold_from and rc == 0 and len(read_rows(a.out)) == before + 1
+    ):  # cold time from the unlocked build run
         rows, cold = read_rows(a.out), next(iter(read_rows(Path(a.cold_from))[::-1]), {})
         if cold.get("compile_s") and "fails" not in cold:
             rows[-1] |= {"compile_warm_s": rows[-1].get("compile_s"), "compile_s": cold["compile_s"]}
@@ -1118,7 +1122,9 @@ def main() -> int:
         "--warm-start", action="store_true", help="compile: a second start on the filled caches (compile_warm_s)"
     )
     p.add_argument("--cache-dir", default="", help="compile: Inductor / Triton caches of an earlier cold run (kept)")
-    p.add_argument("--cold-from", default="", help="with --cache-dir: that cold run's jsonl (its compile_s is the cold time)")
+    p.add_argument(
+        "--cold-from", default="", help="with --cache-dir: that cold run's jsonl (its compile_s is the cold time)"
+    )
     p.add_argument("--trace-diff", action="store_true", help="kernel-group trace rows (one input) instead of timings")
     p.add_argument("--check", action="store_true")
     for name in ("check", "report"):

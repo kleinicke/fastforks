@@ -4,6 +4,9 @@ summary = "MonSter (Cheng et al. 2025): Depth Anything V2 (ViT-L) monocular bran
 tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "depth_anything_v2", "monster_fit"]  # fastforks.shared modules this family imports
+limitations = [
+  "ONNX Runtime differs from PyTorch at a few pixels: monster-mix-all differs at 7 of 12288 pixels by up to 0.3 px on the test pair.",
+]
 
 [upstream]
 repo = "https://github.com/Junda24/MonSter"

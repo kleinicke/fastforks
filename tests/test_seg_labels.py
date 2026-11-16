@@ -130,6 +130,6 @@ def test_mmseg_kernels_graphs(monkeypatch: pytest.MonkeyPatch) -> None:
     big = torch.rand(1, 3, 512, 640, device="cuda", generator=gen)
     for _ in range(3):
         r(big)
-    assert len(g.cache.graphs) == 1
+    assert not g.cache.graphs  # a GPU-bound input frees the small shapes' graphs (and runs eagerly)
     m.release_graphs()
     assert not g.cache.graphs

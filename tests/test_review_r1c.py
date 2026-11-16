@@ -98,7 +98,7 @@ def test_depth_intrinsics_are_copied_and_checked(fake):  # R1-1, R1-46
 def test_multiview_camera_checks(fake):  # R1-46
     fake("multiview", Calibrated, ["depth", "mask", "range"], {"kind": "metric"})
     m = multiview.load("fake", device="cpu")
-    k = np.diag([5.0, 5.0, 1.0])
+    k = np.array([[5.0, 0, 2.5], [0, 5.0, 2.0], [0, 0, 1]])  # pixel intrinsics of a 5 x 4 view
     c2w = np.stack([np.eye(4)] * 3)
     c2w[:, 0, 3] = [1.0, 2.0, 3.0]
     rot = np.array([[0.0, -1, 0], [1, 0, 0], [0, 0, 1]])  # a rigid rotation passes
@@ -115,7 +115,7 @@ def test_multiview_camera_checks(fake):  # R1-46
         with pytest.raises(InputError, match=match):
             m(_views(), intrinsics=k, cam_to_world=bad)
     with pytest.raises(InputError, match="fx"):
-        m(_views(), intrinsics=np.diag([0.0, 5.0, 1.0]), cam_to_world=c2w)
+        m(_views(), intrinsics=np.where(np.eye(3) == 1, [0.0, 5.0, 1.0], k), cam_to_world=c2w)
 
 
 def _mv(depth_, views):

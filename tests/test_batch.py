@@ -13,6 +13,9 @@ from test_golden import SMALLEST, TASK, sweep_model
 
 LOAD_ONCE = True  # conftest runs the tests of one ref together: `sweep_model` loads it once
 
+_BATCH_COUPLED = {  # the batch is one problem, in the pinned upstream design
+    "geocalib-pinhole@1": "the Levenberg-Marquardt damping, singularity check and early stop are batch-wide",
+}
 SIZE = (67, 99)  # small and odd: exercises padding and cropping
 
 
@@ -25,8 +28,9 @@ def _maps(result: object) -> dict[str, torch.Tensor]:
 
 @pytest.mark.slow
 @pytest.mark.model
+@pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric3d / da3metric: the assumed camera is fine here
 @pytest.mark.parametrize("ref", SMALLEST)
-def test_batch_equals_singles(ref):
+def test_batch_equals_singles(ref):  # noqa: C901 - one branch per task family
     task = TASK[ref]
     if task == "promptable_segmentation":
         pytest.skip("one image per call with prompts (batched prompts: tests/test_tasks.py)")
@@ -36,6 +40,8 @@ def test_batch_equals_singles(ref):
         pytest.skip("volume: one volume per call")
     if task == "multiview":
         pytest.skip("multiview: the leading dim holds the views of one scene (they attend to each other), not a batch")
+    if ref in _BATCH_COUPLED:
+        pytest.xfail(_BATCH_COUPLED[ref])
     model = sweep_model(ref)
     hw = size(model.variant.io.min_size, *SIZE)
     inputs = [
@@ -44,8 +50,12 @@ def test_batch_equals_singles(ref):
     ]
     boxes = [[0.1 * hw[1], 0.1 * hw[0], 0.9 * hw[1], 0.9 * hw[0]]]  # one person box per image
     extra = {"boxes": [boxes, boxes]} if task == "pose" and model.needs_boxes else {}
-    kws = [prompt_kwargs(model, s) for s in (0, 1)]  # a depth prompt per image, if the model needs one
+    guide = np.zeros(hw, np.uint8)  # inpainting / matting models that require a mask or trimap: the centre block
+    guide[hw[0] // 4 : 3 * hw[0] // 4, hw[1] // 4 : 3 * hw[1] // 4] = 255
+    guides = {n: guide for n in ("mask", "trimap") if getattr(model._runner, n, None) == "required"}
+    kws = [prompt_kwargs(model, s) | guides for s in (0, 1)]  # a depth prompt per image, if the model needs one
     extra |= {k: np.stack([kw[k] for kw in kws]) for k in kws[0]}
+    extra |= {k: v[..., None] for k, v in extra.items() if k in guides}  # a gray batch is BHW1
     batch = model(*(np.stack(xs) for xs in zip(*inputs, strict=True)), **extra)
     if isinstance(batch, list):  # per-image results (detection, pose, sparse matching: their counts differ)
         assert isinstance(batch, list)

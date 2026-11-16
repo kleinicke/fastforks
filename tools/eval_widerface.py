@@ -10,7 +10,7 @@ set, 1000 thresholds, IoU 0.5) on the subset (`FF_YUNET_REPO`: a libfacedetectio
 Tiers: `upstream` (`build_yunet` + `YuNetPostprocessor`, float32, as `tools/golden/yunet.py`; `FF_YUNET_WEIGHTS`),
 `portable32`, `portable`, `kernels` (the library's network and decoding at the evaluation thresholds).
 
-    python tools/eval_widerface.py yunet-n --tiers upstream,portable32,portable,kernels --every 4 --out results/raw/x
+    python tools/eval_widerface.py yunet-n --tiers upstream,portable32,portable,kernels --every 4 --out out/x
 """
 
 from __future__ import annotations
@@ -29,10 +29,18 @@ import cv2
 import numpy as np
 import torch
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _data import DATA
+
 ROOT = Path(__file__).resolve().parents[1]
 SCORE, NMS = 0.02, 0.45
 TIERS = {  # tier -> (mode, dtype, how, column)
-    "upstream": ("upstream", "float32", "build_yunet + YuNetPostprocessor, float32", "original fp32"),
+    "upstream": (
+        "upstream",
+        "float32",
+        "authors' code (YuNet: build_yunet + YuNetPostprocessor; RetinaFace: facexlib detect_faces), float32",
+        "original fp32",
+    ),
     "portable32": ("portable32", "float32", None, "portable32"),
     "portable": ("portable", "float16", None, "portable"),
     "kernels": ("kernels", "float16", None, "kernels"),
@@ -46,8 +54,57 @@ def _golden() -> Any:  # noqa: ANN401 - tools/golden/yunet.py
     return yunet
 
 
+def _family(ref: str) -> str:
+    from fastforks._core import registry  # noqa: PLC0415
+
+    return next(c.family for c, v in registry.cards("pose").values() if v.id == ref)
+
+
+def _retinaface(ref: str, tier: str) -> Any:  # noqa: ANN401
+    """RetinaFace (`FF_FACEXLIB_REPO`, `FF_RETINAFACE_WEIGHTS`): facexlib `detect_faces`, own size (conf 0.02)."""
+    if tier == "upstream":
+        sys.path.insert(0, str(ROOT / "tools" / "golden"))
+        import retinaface as g  # noqa: PLC0415
+
+        from fastforks._core import registry  # noqa: PLC0415
+
+        card, variant = next((c, v) for c, v in registry.cards("pose").values() if v.id == ref)
+        tree = g.reference_tree(Path(os.environ["FF_FACEXLIB_REPO"]), g.REF_COMMIT)
+        net = g.build(
+            tree,
+            Path(os.environ["FF_RETINAFACE_WEIGHTS"]) / variant.weights[0].name,
+            {**card.params, **variant.params}["backbone"],
+            "cuda",
+        ).cuda()
+
+        def up(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+            det = torch.from_numpy(
+                g.run(net, np.ascontiguousarray(x[0].permute(1, 2, 0).cpu().numpy().astype(np.uint8)), SCORE, 0.4)
+            ).reshape(-1, 15)
+            return det[:, :4], det[:, 4]
+
+        return up
+    from fastforks import pose  # noqa: PLC0415
+    from fastforks.pose.models.retinaface.model import faces  # noqa: PLC0415
+
+    m = pose.load(
+        ref,
+        mode="kernels" if tier == "kernels" else "portable",
+        device="cuda",
+        **({"dtype": "float32"} if tier == "portable32" else {}),
+    )
+
+    def lib(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        out = faces(m._runner.dense(x.flip(1) / 255), *x.shape[-2:], SCORE, 0.4)  # noqa: SLF001 - the evaluation thresholds
+        return out["boxes"], out["scores"]
+
+    return lib
+
+
 def predictor(ref: str, tier: str, tree: Path) -> Any:  # noqa: ANN401
     """`[1, 3, H, W]` BGR 0..255 float CUDA -> (`[n, 4]` x0 y0 x1 y1, `[n]` scores) of `tier`."""
+    if _family(ref) == "retinaface":
+        return _retinaface(ref, tier)
     if tier == "upstream":
         g = _golden()
         from fastforks._core import registry  # noqa: PLC0415
@@ -123,7 +180,7 @@ def main() -> None:
     ap.add_argument("--out", type=Path, required=True)
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
-    data = Path(os.environ.get("FASTFORKS_DATA", "/home/florian/projects/data")) / "widerface"
+    data = DATA / "widerface"
     tree = _golden().reference_tree(Path(os.environ["FF_YUNET_REPO"]), _golden().REF_COMMIT)
     sys.path.insert(0, str(tree))
     import yunet_train.tasks.face.evaluation as ev  # noqa: PLC0415  # ty: ignore[unresolved-import] - upstream AP code

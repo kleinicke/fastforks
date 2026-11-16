@@ -38,6 +38,7 @@ def test_batched_network_is_independent() -> None:
     params = Params(**card.params, iters=2)
     torch.manual_seed(0)
     net = FlowFormer(params).eval()
+    net.memory_decoder.update_block.gru.fuse()  # the runner fuses z and r after loading
     a, b = torch.rand(2, 3, 64, 96) * 255, torch.rand(2, 3, 64, 96) * 255
     with torch.inference_mode():
         batch = net(a, b)[0]

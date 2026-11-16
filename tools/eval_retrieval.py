@@ -10,7 +10,7 @@ Tiers: `upstream` / `upstream16` / `upstreamhalf` (the authors' model code with 
 family's `tools/golden/<family>.py`: fp32 / `torch.autocast` float16 / `half()`, as `tools/_original.py`; neither
 author ships a precision option; `FF_<FAMILY>_REPO` = the upstream checkout), `portable32`, `portable`, `kernels`.
 
-    python tools/eval_retrieval.py megaloc --tiers upstream,portable,kernels --every 5 --out results/raw/x
+    python tools/eval_retrieval.py megaloc --tiers upstream,portable,kernels --every 5 --out out/x
 """
 
 from __future__ import annotations

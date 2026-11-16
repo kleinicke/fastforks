@@ -7,6 +7,9 @@ licence_notes = [
 ]
 outputs = ["depth", "normals", "confidence"]
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the fast ViT)
+limitations = [
+  "metric3d-vit-large: the kernels runner prepares its buffers at load, so the model right after load holds more than portable; the run peak is within 2 % of portable's.",
+]
 
 [output]
 kind = "metric"  # metres with the given intrinsics (fx); without them the canonical camera is assumed

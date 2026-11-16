@@ -31,6 +31,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.sampling import grid_sample
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -242,7 +244,7 @@ def _lookup(corr: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
     coords = (_grid(flow) + flow).permute(0, 2, 3, 1).reshape(b * h * w, 1, 1, 2) + delta
     x, y = coords.unbind(-1)
     grid = torch.stack([2 * x / (w - 1) - 1, 2 * y / (h - 1) - 1], dim=-1)
-    out = F.grid_sample(corr, grid, align_corners=True)
+    out = grid_sample(corr, grid, align_corners=True)
     return out.view(b, h, w, -1).permute(0, 3, 1, 2)
 
 

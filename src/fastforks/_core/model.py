@@ -31,7 +31,7 @@ import torch
 
 from fastforks._core import mps, registry, warmup
 from fastforks._core.arguments import bind_error, warn_renamed
-from fastforks._core.cards import Dtype  # noqa: TC001 - re-exported to the task APIs, which annotate with it
+from fastforks._core.cards import Dtype, planned_reason, require_available
 from fastforks._core.checkpoint import mismatch_details, torch_mismatch
 from fastforks._core.deferred_init import deferred_init, float32_default
 from fastforks._core.errors import (
@@ -50,6 +50,7 @@ from fastforks._core.kernels import begin_call, checked, cuda_device
 from fastforks._core.runner import Context, Runner
 from fastforks._core.sizes import SizeRange, size_range
 from fastforks._core.tasks import spec
+from fastforks.shared.arena import compact_runner
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator, Sequence
@@ -444,7 +445,7 @@ class Model:
             BackendUnavailableError: The backend has no exportable module (e.g. `kernels`).
         """
         try:
-            return self._runner.module()
+            return self._runner.module().eval()  # export traces no training-mode branches, whatever the runner built
         except NotImplementedError as e:
             msg = f"{self.variant.ref} ({self.backend.mode}) has no exportable module: {e}"
             raise BackendUnavailableError(msg) from e
@@ -471,6 +472,7 @@ class Model:
         Raises:
             BackendUnavailableError: The backend has no exportable module (`kernels`).
         """
+        require_available(self.variant, "compile")
         if self.backend.mode != "portable":
             msg = f"{self.variant.ref} ({self.backend.mode}): only the portable backend compiles (kernels are opaque)"
             raise BackendUnavailableError(msg)
@@ -812,13 +814,15 @@ def _check_args(mode: str, dtype: str | torch.dtype | None) -> tuple[bool, Dtype
     return fp32, None if fp32 else cast("Dtype", name)
 
 
-def _no_auto_kernels(
+def _no_auto_kernels(  # noqa: PLR0911 - one return per reason
     card: ModelCard, variant: Variant, dev: torch.device, *, fp32: bool, want: Dtype | None
 ) -> str | None:
     """Why `mode='auto'` skips kernels for `variant` on `dev`, or None to try it."""
     kernels_dtype = card.kernels_dtype_on(dev)
     if "kernels" not in card.modes:
         return "no kernels backend"
+    if reason := planned_reason(variant, "kernels"):
+        return f"kernels planned for 0.2.1 ({reason})"
     if fp32 and kernels_dtype != "float32":
         return "dtype='float32'"
     if dev.type == "mps" and not card.mps_kernel_libs:
@@ -848,7 +852,7 @@ def load_model(  # noqa: PLR0913 - the arguments of every task's `load`
     )
 
 
-def load_variant(  # noqa: PLR0913 - the arguments of `load_model`
+def load_variant(  # noqa: C901, PLR0913 - the arguments of `load_model`
     task: str,
     card: ModelCard,
     variant: Variant,
@@ -869,6 +873,7 @@ def load_variant(  # noqa: PLR0913 - the arguments of `load_model`
     log = logging.getLogger(f"fastforks.{task}")
     registry.require_commercial(card, variant)
     registry.require(card, variant.ref)
+    require_available(variant, "load")
     fp32, want = _check_args(mode, dtype)  # every argument is checked before `weights` logs its warning
     dev = resolve_device(device, card)
     opts = check_options(card, {} if options is None else options, variant.ref)
@@ -879,7 +884,8 @@ def load_variant(  # noqa: PLR0913 - the arguments of `load_model`
     if fp32 and mode == "kernels" and card.kernels_dtype_on(dev) != "float32":
         msg = "kernels runs reduced-precision kernels here; use mode='portable' with dtype='float32'"
         raise OptionsError(msg)
-    if mode == "auto":
+    auto = mode == "auto"
+    if auto:
         reason = _no_auto_kernels(card, variant, dev, fp32=fp32, want=want)
         if reason is None:
             try:
@@ -896,14 +902,23 @@ def load_variant(  # noqa: PLR0913 - the arguments of `load_model`
         level = logging.WARNING if failed else logging.INFO
         log.log(level, "%s: %s; using portable", variant.ref, reason)
         mode = "portable"
+    if mode == "kernels" and "kernels" in card.modes:
+        require_available(variant, "kernels")
     if mode not in card.modes:
         msg = f"{variant.ref} has no {mode!r} backend (has: {', '.join(card.modes)})"
         if mode == "kernels" and card.no_kernels_reason:
             msg += f": {card.no_kernels_reason}"
         raise BackendUnavailableError(msg)
-    return _build(
-        cls, card, variant, mode=mode, device=dev, options=opts, fp32=fp32, want=want, weights=files, state=state
-    )
+    try:
+        return _build(
+            cls, card, variant, mode=mode, device=dev, options=opts, fp32=fp32, want=want, weights=files, state=state
+        )
+    except OptionsError as e:
+        if not (auto and want is not None and "cannot compute in" in str(e)):
+            raise
+        have = card.kernels_dtype_on(dev) if "kernels" in card.modes else "none"
+        msg = f"{e} (mode='auto' found no backend for {want} on {dev.type}: the kernels backend computes in {have})"
+        raise OptionsError(msg) from e
 
 
 def user_weights(variant: Variant, path: str | os.PathLike[str], log: logging.Logger | None = None) -> tuple[Path, ...]:
@@ -1198,6 +1213,8 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
         claim_kernels_device(device)
     adapt_to_device(runner, mode, device)
     if device.type == "cuda":
+        if os.environ.get("FASTFORKS_ARENA") == "1":  # experimental, off by default (not verified on every family)
+            compact_runner(runner)  # the build's freed copies / casts leave holes in the reserved memory: one arena
         warmup.wait(device)  # the loaded model starts on a clean device: no warm-up step (cuBLAS workspace) still live
         torch.cuda.empty_cache()  # nor the build's freed buffers (device checkpoint copies, casts) as reserved memory
     backend = Backend(

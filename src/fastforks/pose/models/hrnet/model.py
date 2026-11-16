@@ -19,7 +19,6 @@ score says they were not found.
 
 from __future__ import annotations
 
-import copy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -121,9 +120,9 @@ class Kernels(Portable):
     """
 
     def __init__(self, ctx: Context) -> None:
-        """The portable network, then its optimized copy."""
+        """The portable network, then its optimized version (replaces it: a second set of weights was 121 MiB)."""
         super().__init__(ctx)
-        self.fast = optimize(copy.deepcopy(self.net).float(), mode="kernels", device=ctx.device, family="cnn")
+        self.net = self.fast = optimize(self.net.float(), mode="kernels", device=ctx.device, family="cnn")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """float32 heatmaps of normalised float32 crops."""

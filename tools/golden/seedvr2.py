@@ -3,7 +3,7 @@
 The authors' code (ByteDance-Seed/SeedVR with flash-attn and apex) runs only on CUDA in bf16, and the 3 B / 7 B
 transformers in float32 do not fit this machine's CPU budget for a reference run, so the usual CPU float32 golden is not
 possible. The golden is the family's network (`net/`) on the GPU in its portable mode; its parity with the authors'
-code (`tools/seedvr2_reference.py`, same converted weights, same seeded noise) is in results/2026-11-14_seedvr2.md.
+code (`tools/seedvr2_reference.py`, same converted weights, same seeded noise) was checked on 2026-11-14.
 A ref's golden.toml `options` are its mode (the 7 B: `quant = "nf4"`).
 Input: `tests/synth.py image(101, 151)` stored as `input`; output `image` `[3, 2H, 2W]`. Run with the family's venv:
 

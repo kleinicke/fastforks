@@ -4,8 +4,9 @@
 
 The originals of `tools/_original.py` `load(task, ref, "upstream")` (the adapters of `bench/bench_upstream.py`, where
 it lives: `FF_BENCH_DIR`, and `_original.LOCAL`) on the device's backend: `.cuda()` and `torch.cuda` calls are pointed
-at mps / cpu, and the "cuda" strings of bench_upstream and `_original` become the device; `FF_ORIG_ROOT` replaces the
-measuring machine's `/home/florian/projects` (`experiments/*/repos`, `experiments/*/weights`, `data/gated_models`).
+at mps / cpu, and the "cuda" strings of bench_upstream and `_original` become the device; `FF_ORIG_ROOT` replaces
+the measuring machine's root `FF_BENCH_HOME` as written in bench_upstream.py (`experiments/*/repos`,
+`experiments/*/weights`, `data/gated_models`).
 VENV holds the families' upstream dependencies.
 
 Per ref, in its own process: the original's fp32 build (no autocast, upstream precision flags off), the synthetic
@@ -34,8 +35,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 import _devices
 import speed_survey as ss
 
-HOME = "/home/florian/projects"  # fixed: the measuring machine's root in bench_upstream.py
-
 
 def _shim(dev: str) -> None:
     """`.cuda()`, `torch.cuda` synchronisation / cache / memory calls -> `dev` (memory: the process footprint)."""
@@ -60,7 +59,7 @@ def _shim(dev: str) -> None:
 
 def _rewritten(name: str, path: Path, dev: str) -> Any:  # noqa: ANN401 - the module
     """Module `name` from `path` with its "cuda" strings -> `dev` and the measuring machine's root -> FF_ORIG_ROOT."""
-    src = path.read_text().replace('"cuda"', "_FF_DEV").replace(HOME, os.environ["FF_ORIG_ROOT"])
+    src = path.read_text().replace('"cuda"', "_FF_DEV").replace(os.environ["FF_BENCH_HOME"], os.environ["FF_ORIG_ROOT"])
     mod = types.ModuleType(name)
     mod.__file__ = str(path)
     setattr(mod, "_FF_DEV", dev)  # noqa: B010 - the name the rewritten source reads

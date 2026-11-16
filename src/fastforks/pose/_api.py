@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -187,6 +188,11 @@ class PoseModel(core.Model):
         if boxes is not None and boxes.shape[0] == 0:
             out = {"keypoints": x.new_zeros(0, k, 2), "keypoint_scores": x.new_zeros(0, k), "scores": x.new_zeros(0)}
         else:
+            if boxes is not None and min(x.shape[-2:]) >= 32 and float(boxes.max()) <= 1:  # noqa: PLR2004 - fractions
+                warnings.warn(
+                    "all boxes are <= 1: they are pixels of the image, not fractions (multiply by the width / height)",
+                    stacklevel=4,
+                )
             with self._session():
                 out = self._runner(x, boxes)
         p = out["keypoints"].shape[0]

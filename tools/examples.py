@@ -30,6 +30,9 @@ import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _data import DATA
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -181,7 +184,7 @@ INPUT_OF = {
 }
 FACE = (150, 20, 350, 220)  # the astronaut's face (x0, y0, x1, y1)
 OPEN_VOCAB = ["person", "flag", "helmet"]  # open-vocabulary detectors' queries on the astronaut
-VOLUME = Path("/home/florian/projects/data/totalsegmentator_subset/s0013/ct.nii.gz")
+VOLUME = DATA / "totalsegmentator_subset" / "s0013" / "ct.nii.gz"
 DEGRADED_BY_REF = {
     "nafnet-gopro": "blur",
     "restormer-deblur": "blur",

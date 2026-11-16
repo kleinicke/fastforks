@@ -6,7 +6,7 @@
 
 Input: one RGB image. Output: the text lines in reading order: a quad `[N, 4, 2]` per line, its text and a confidence `[N]` (text detector + recogniser; recognisers alone read the whole image as one line).
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -28,7 +28,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `parseq` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>19.6<br>3.62<br>no kernels<br>8.80<br>1.67 | 125 / 144<br>126 / 144<br>79 / 100<br>no kernels<br>111 / 118<br>148 / 168 |
-| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.10<br>no kernels<br>8.09<br>1.68 | 56 / 58<br>56 / 58<br>44 / 54<br>no kernels<br>76 / 94<br>80 / 88 |
+| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.10<br>no kernels<br>1.54<br>1.67 | 56 / 58<br>56 / 58<br>44 / 54<br>no kernels<br>76 / 94<br>82 / 90 |
 
 <details><summary>Details</summary>
 
@@ -38,14 +38,14 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/baudm/parseq/blob/1902db043c029a7e03a3818c616c06600af574be/LICENSE>
 - Training data: The README does not say which data the released checkpoints were trained on; the paper's best models use its real-data union (COCO-Text, RCTW17, Uber-Text, ArT, LSVT, MLT19, ReCTS, TextOCR, OpenVINO; Datasets.md).
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: none (the 26-step decoding loop is launch-bound, not kernel-bound, and portable already replays it as one CUDA graph (`cuda_graphs`, exports unchanged: `module()` is the plain network): 12.6 -> 3.6 ms (parseq) and 11.6 -> 2.1 ms (parseq-tiny) vs the original 19.6 / 18.0 ms fp16, same logits and memory; SDPA / cuBLAS are already the compute and no library in the manifests helps, so a kernels mode would only repeat the graph (2026-11-15, results/2026-11-15_parseq_graph.md))
+- Kernel libraries: none (the 26-step decoding loop is launch-bound, not kernel-bound, and portable already replays it as one CUDA graph (`cuda_graphs`, exports unchanged: `module()` is the plain network): 12.6 -> 3.6 ms (parseq) and 11.6 -> 2.1 ms (parseq-tiny) vs the original 19.6 / 18.0 ms fp16, same logits and memory; SDPA / cuBLAS are already the compute and no library in the manifests helps, so a kernels mode would only repeat the graph (measured 2026-11-15))
 - Variants: `parseq`, `parseq-tiny`
 - Outputs: boxes, texts, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `parseq` 3000x4000 (0.3 GiB peak allocated, 0.3 reserved); `parseq-tiny` 3000x4000 (0.3 GiB peak allocated, 0.3 reserved)
-- no kernels: the 26-step decoding loop is launch-bound, not kernel-bound, and portable already replays it as one CUDA graph (`cuda_graphs`, exports unchanged: `module()` is the plain network): 12.6 -> 3.6 ms (parseq) and 11.6 -> 2.1 ms (parseq-tiny) vs the original 19.6 / 18.0 ms fp16, same logits and memory; SDPA / cuBLAS are already the compute and no library in the manifests helps, so a kernels mode would only repeat the graph (2026-11-15, results/2026-11-15_parseq_graph.md).
+- no kernels: the 26-step decoding loop is launch-bound, not kernel-bound, and portable already replays it as one CUDA graph (`cuda_graphs`, exports unchanged: `module()` is the plain network): 12.6 -> 3.6 ms (parseq) and 11.6 -> 2.1 ms (parseq-tiny) vs the original 19.6 / 18.0 ms fp16, same logits and memory; SDPA / cuBLAS are already the compute and no library in the manifests helps, so a kernels mode would only repeat the graph (measured 2026-11-15).
 - `parseq` 32x128, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 114 s (ONNX + engine).
-- `parseq-tiny` 32x128, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 97 s (ONNX + engine).
+- `parseq-tiny` 32x128, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 102 s (ONNX + engine).
 - `parseq` original (fp32) 32x128, original 32x128: baudm/parseq902db043c02 strhub PARSeq + read.py transform (PIL bicubic) + Tokenizer.decode
 - `parseq-tiny` original (fp32) 32x128, original 32x128: baudm/parseq902db043c02 strhub PARSeq + read.py transform (PIL bicubic) + Tokenizer.decode
 - `parseq` load / first call: original 0.53 s / 1.043 s (32x128), portable 1.44 s / 0.257 s (32x128)

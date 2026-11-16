@@ -16,7 +16,7 @@ Do not start it while more than two other GPU workstreams are active.
 - Known gaps to close first:
   - Models with no original row: raft (4), sea_raft (7), vitpose (6), hrnet (4), parts of rtmpose, moge-3, 4 depth and 2 stereo models on `main`.
   - Models with no eval row at all: dfine, clip, siglip2, perception_encoder, c_radio, rtmpose hand/face/ap10k.
-- Output: one table per task in `results/raw/<date>_audit/quality.md` with columns model, reference tier, reference value, ours fp16, ours fp32, delta, verdict.
+- Output: one table per task (quality) with columns model, reference tier, reference value, ours fp16, ours fp32, delta, verdict.
 
 ## 2. Portable speed and memory versus the original
 
@@ -46,7 +46,7 @@ Do not start it while more than two other GPU workstreams are active.
 
 ## Status 2026-11-12: steps 1 and 3 from existing rows
 
-Script and tables: `results/raw/2026-11-12_audit/` in the experiment folder (`audit.py`, `quality.md`, `speed.md`; no GPU).
+Script and tables: kept in the maintainers' archive (`audit.py`, `quality.md`, `speed.md`; no GPU).
 
 - Quality: 512 model × dataset rows, 14 flagged (11 models, all stereo except `depth-pro` ETH3D and `romav2`); worst `defom-stereo-vitl-sceneflow`, `igev-plusplus-middlebury`.
 - No original row: `c-foundationstereo-s`, `great-igev-middlebury` (original OOM), the 6 ViTPose variants. No eval row: 39 ids (CLIP, SigLIP 2, PE, C-RADIO, RTMPose ap10k / face / hand).

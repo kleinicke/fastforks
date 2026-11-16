@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 import _devices
 import goldens
 from fastforks._core import licences, registry
+from fastforks._core.cards import PLANNED_RELEASE, planned_reason
 from fastforks._core.sizes import card_size_lines
 from fastforks._core.tasks import spec
 
@@ -42,7 +43,10 @@ _DATASETS = {
     },
     "depth": {
         "nyu": "NYUv2 test, AbsRel / delta1",
+        "nyu-prompt-every4": "NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
+        "ibims-prompt": "iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
         "ibims": "iBims-1, AbsRel / delta1",
+        "nyu-first100": "NYUv2 test (first 100 images), AbsRel / delta1",
         "eth3d": "ETH3D two-view train left, AbsRel / delta1",
         "middH": "Middlebury 2014 trainingH left, AbsRel / delta1",
         "nyu-normals": "NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg",
@@ -73,7 +77,10 @@ _DATASETS = {
         "5000 test images)"
     },
     "multiview": {"dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %"},
-    "classification": {"imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %"},
+    "classification": {
+        "imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %",
+        "coco-val2017-first500-tags": "COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement %",  # noqa: E501
+    },
     "pose": {
         "coco-val2017-every10-keypoints-gtbox": "COCO val2017, every 10th image, GT person boxes, keypoint AP",
         "coco-val2017-every1-keypoints-gtbox": "COCO val2017, ground-truth person boxes, keypoint AP",
@@ -85,6 +92,10 @@ _DATASETS = {
     "volume": {
         "totalseg-subset-3mm": "TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice",
         "totalseg-subset-1.5mm": "TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice",
+        "totalseg-nninteractive-prompts-96": "TotalSegmentator test subset (8 CT cases x 12 prompts), mean Dice vs the "
+        "ground-truth mask",
+        "totalseg-featparity-8": "TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: "
+        "cosine (worst case) / relative L2",
     },
     "interpolation": {"davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM"},
     "restoration": {
@@ -92,6 +103,10 @@ _DATASETS = {
         "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every4": "DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x2-crop512-n4": "DIV2K validation, 4 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
+        "div2k-val-x2-crop512-n2": "DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
+        "seedvr2-clips-n4": "4 video clips (first frame), PSNR to the original's output",
+        "seedvr2-clips-n2": "2 video clips (first frame), PSNR to the original's output",
         "div2k-val-x2-every4": "DIV2K validation (every 4th: 25 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
         "gopro-test-every4": "GoPro test (every 4th: 278 frames), deblurring, PSNR / SSIM (RGB)",
         "gopro-test-every15": "GoPro test (every 15th: 75 frames), deblurring, PSNR / SSIM (RGB)",
@@ -134,6 +149,10 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "stereo": ((("bad", "{:.2f}", ""), ("epe", "{:.3f}", "")), "n_pairs", "pairs"),
     "depth": ((("rel_absrel", "{:.4f}", ""), ("rel_d1", "{:.4f}", "")), "n_images", "images"),
     **{
+        ("depth", d): ((("met_absrel", "{:.4f}", ""), ("met_d1", "{:.4f}", "")), "n_images", "images")
+        for d in ("nyu-prompt-every4", "ibims-prompt")
+    },
+    **{
         ("depth", d): (
             (("ang_mean", "{:.2f}", ""), ("ang_median", "{:.2f}", ""), ("a11.25", "{:.2f}", ""), ("a30", "{:.2f}", "")),
             "n_images",
@@ -163,6 +182,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "features": ((("top1", "{:.2f}", ""),), "n", "images"),
     "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
+    ("classification", "coco-val2017-first500-tags"): (
+        (("tag_f1", "{:.2f}", ""), ("top1_agree", "{:.2f}", "")),
+        "n",
+        "images",
+    ),
     "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
     ("pose", "widerface-val-every4"): (
         (("ap_easy", "{:.3f}", ""), ("ap_medium", "{:.3f}", ""), ("ap_hard", "{:.3f}", "")),
@@ -172,7 +196,25 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
     "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
     "volume": ((("dice", "{:.4f}", ""),), "n", "cases"),
+    ("volume", "totalseg-nninteractive-prompts-96"): (
+        (("dice", "{:.4f}", ""), ("agree", "{:.4f}", " / agreement with the original")),
+        "n",
+        "prompted runs",
+    ),
+    ("volume", "totalseg-featparity-8"): ((("cos_min", "{:.5f}", ""), ("rel_l2", "{:.4f}", "")), "n", "cases"),
     "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
+    **{
+        ("restoration", d): (
+            (("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", ""), ("psnr_orig", "{:.2f}", "")),
+            "n",
+            "images",
+        )
+        for d in ("div2k-val-x2-crop512-n4", "div2k-val-x2-crop512-n2")
+    },
+    **{
+        ("restoration", d): ((("psnr_orig", "{:.2f}", ""),), "n", "clips")
+        for d in ("seedvr2-clips-n4", "seedvr2-clips-n2")
+    },
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
@@ -200,6 +242,20 @@ _PROTOCOL = {
     "all its pixels with Kinect depth, mean over sequences. ",
     ("depth", "nyu-normals"): "Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's "
     "evaluation sets), mean over images. ",
+    ("depth", "nyu-prompt-every4"): "Prompt depth models: the prompt is a 192x256 low-resolution depth built from the "
+    "ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth "
+    "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
+    "comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with "
+    "a LiDAR prompt, L1 in mm): they compare our modes with the original. ",
+    ("depth", "ibims-prompt"): "Prompt depth models: the prompt is a 192x256 low-resolution depth built from the "
+    "ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth "
+    "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
+    "comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with "
+    "a LiDAR prompt, L1 in mm): they compare our modes with the original. ",
+    ("classification", "coco-val2017-first500-tags"): "Taggers have no public benchmark with their tag set, so the "
+    "original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of "
+    "the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely "
+    "tag. The original fp16 row shows the difference of the original itself in half precision. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
     ("segmentation", "coco-val2017-persons-every10"): "Any body part counts as person; ground truth = the COCO person "
     "masks. ",
@@ -247,7 +303,22 @@ _PROTOCOL = {
         "real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, "
         "not with PSNR-oriented upscalers. "
         for d in _DATASETS["restoration"]
-        if d.startswith("div2k")
+        if d.startswith("div2k") and "crop" not in d
+    },
+    **{
+        ("restoration", d): "SeedVR2 is a generative one-step restorer, so PSNR is only a fidelity check. Each of the "
+        "centre 512 px crops of DIV2K validation HR images (a tiny subset: generation is slow) is downscaled with "
+        "bicubic x2 (PIL) and restored x2 by the model, one pass; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y "
+        "channel of the uint8 output with a 2 px border cropped, averaged over the crops; PSNR to the original = "
+        "RGB uint8 PSNR of our output against the authors' output of the same input and settings. The original is "
+        "the authors' inference code, bf16. No perceptual metric (LPIPS) is given: the lpips package and its network "
+        "weights are not part of the test environment. "
+        for d in ("div2k-val-x2-crop512-n4", "div2k-val-x2-crop512-n2")
+    },
+    **{
+        ("restoration", d): "First frame of each clip (clips of 2 to 10 frames, x2); PSNR of our output (RGB, uint8) "
+        "against the authors' output of the same clip; there is no ground truth for these clips. "
+        for d in ("seedvr2-clips-n4", "seedvr2-clips-n2")
     },
     **{
         ("restoration", d): "Each degraded image at its own size, one pass without tiles (the model pads internally); "
@@ -267,6 +338,14 @@ _PROTOCOL = {
     "its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over "
     "the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and "
     "is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. ",
+    ("volume", "totalseg-nninteractive-prompts-96"): "nnInteractive: per case 12 simulated prompts (point, box, "
+    "scribble, point + box on 3 organs), one interaction each; Dice of the predicted mask against the ground-truth "
+    "organ mask, mean over the runs; agreement = Dice of the mask against the original's mask. Original = the "
+    "authors' code, fp16 autocast. ",
+    ("volume", "totalseg-featparity-8"): "Encoder models have no task head, so they are judged by their output: the "
+    "encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean "
+    "over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error "
+    "the original itself has in half precision. ",
     "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
     "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
     "output rounded to uint8, on RGB in [0, 1], averaged over the triplets. ",
@@ -343,7 +422,9 @@ def _speed_rows() -> dict[str, list[dict]]:
     rows: dict[str, list[dict]] = {}
     for line in path.read_text().splitlines() if path.is_file() else []:
         row = json.loads(line)
-        if row.get("status") == "oom" or "error" in row:  # no time: OOM rows are read by _oom, errors stay in results/
+        if row.get("status") == "oom" or (
+            "error" in row and "ms" not in row
+        ):  # no time: _oom reads OOM; errors stay in the maintainers' archive
             continue
         if not row.get("cold") or "ms" in row:  # speed_check rows: a fresh process, warm timings included
             rows.setdefault(row["ref"], []).append(row)
@@ -355,11 +436,21 @@ def _oom() -> frozenset[tuple[str, str, str]]:
     """(ref, mode, input) of the speed.jsonl rows that ran out of GPU memory (`status: "oom"`, no time)."""
     path = ROOT / "docs" / "data" / "speed.jsonl"
     lines = path.read_text().splitlines() if path.is_file() else []
-    rows = [json.loads(line) for line in lines if '"oom"' in line]
-    return frozenset((r["ref"], r["mode"], r["input"]) for r in rows if r.get("status") == "oom")
+    rows = [json.loads(line) for line in lines if line.strip()]
+    timed: dict[tuple[str, str, str], str] = {}  # newest date of a measured (ms) row per key
+    for r in rows:
+        if r.get("status") != "oom" and "ms" in r and r.get("ms") is not None:
+            key = (r["ref"], r["mode"], r["input"])
+            timed[key] = max(timed.get(key, ""), r.get("date", ""))
+    return frozenset(  # an OOM row not newer than a measured row of its key is stale (e.g. before streaming)
+        (r["ref"], r["mode"], r["input"])
+        for r in rows
+        if r.get("status") == "oom" and timed.get((r["ref"], r["mode"], r["input"]), "") < r.get("date", "")
+    )
 
 
 NM = "not measured"
+_NO_ORIG = "n/a"  # original cell of a card whose original cannot be run; the reason is a note under the table
 _NOK = "no kernels"  # kernels cell of a card without a kernels mode; the card's reason is a note under the table
 DASH = "\u2013"
 _SPEED_MODES = ("upstream-default", "upstream", "portable", "kernels")  # fixed line order inside a table cell
@@ -451,9 +542,15 @@ def _engine_part(model_id: str) -> str:
 
 @functools.cache
 def _compile_rows() -> dict[tuple[str, str], dict]:
-    """docs/data/speed_compile.jsonl: the latest row per (model id, mode)."""
+    """docs/data/speed_compile.jsonl: the latest row per (model id, mode); a card-`[planned]` mode reads `planned`."""
     path = ROOT / "docs" / "data" / "speed_compile.jsonl"
-    return {(r["ref"], r["mode"]): r for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])}
+    rows = {(r["ref"], r["mode"]): r for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])}
+    variants = {v.id: v for t in registry.TASKS for _, v in registry.cards(t).values()}
+    for (ref, mode), r in rows.items():
+        if (v := variants.get(ref)) and mode in {"compile", "tensorrt"} and planned_reason(v, mode):
+            rows[ref, mode] = {**r, "fails": PLANNED}  # gated in this release: no time from an older build
+            rows[ref, mode].pop("ms", None)
+    return rows
 
 
 def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]], list[str]]:
@@ -464,7 +561,7 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
         if r is None or r["input"] != size:
             continue
         if "fails" in r:
-            lines.append((label, f"fails: {_fail_reason(r['fails'])}", DASH))
+            lines.append((label, _fail_cell(r["fails"]), DASH))
             continue
         name = "TensorRT fp32" if r.get("engine_dtype") == "float32" else label
         ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
@@ -659,8 +756,11 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
     measured_all = list(card.variants)
     notes = []
     nok = "kernels" not in card.modes
-    if nok and card.no_kernels_reason:
-        notes.append(f"- {_NOK}: {card.no_kernels_reason.rstrip('.')}.")
+    notes += [
+        f"- {label}: {reason.rstrip('.')}."
+        for label, reason in ((_NOK, nok and card.no_kernels_reason), ("original not timed", card.no_original_reason))
+        if reason
+    ]
     given: dict[tuple[str, str], list[str]] = {}
     dups = same_as(
         [v.id for v in measured if v.id in rows],
@@ -1134,7 +1234,9 @@ def render(task: str) -> str:
             "Where measured (one variant per family), a variant's table also lists portable under `torch.compile` "
             "and the fp16 TensorRT engine of portable ([export](../export.md); "
             "memory: the engine's device memory + torch's peak). "
-            f"{_DASH} = not measured; no kernels = the family has no kernels backend (reason under its table)."
+            f"{_DASH} = not measured; no kernels = the family has no kernels backend (reason under its table). "
+            "Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few "
+            "percent to some tens of percent more than portable at the same allocated peak."
             + (f" The accuracy column is lower-is-better ({_OVERVIEW_ACC[task][2]})." if task in _OVERVIEW_ACC else "")
         ),
         "",
@@ -1193,6 +1295,7 @@ def render(task: str) -> str:
                 else ""
             ),
             f"- Variants: {', '.join(_variant(v) for v in card.variants)}",
+            *_planned_line(card),
             f"- Outputs: {', '.join(_output(card, o) for o in card.outputs)}"
             + "".join(f"; {k}: `{val}`" for k, val in card.output_info.items()),
             *card_size_lines(card),
@@ -1355,7 +1458,7 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
             mine = {(r["mode"], r["input"]): r for r in speed.get(v.id, [])}
             at = _at(speed.get(v.id, []), size)  # a speed row of the same input beats the older cell
             if size == _OWN:
-                at = next((i for m, i in mine if m == "kernels"), size)
+                at = next((i for want in ("kernels", "portable") for m, i in mine if m == want), size)
             mx, pt = (
                 _fixed_cell(mine.get((m, at)), fixed.get((v.id, m), {}).get(size)) for m in ("kernels", "portable")
             )
@@ -1382,7 +1485,9 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
                     "kernels": mx,
                     "portable": pt,
                     "original": orig["ms"] if orig else None,
+                    "no_orig": card.no_original_reason if orig is None else "",
                     "orig_oom": orig is None and (v.id, "upstream", osz) in _oom(),
+                    "port_oom": pt is None and (v.id, "portable", size) in _oom(),
                     "orig_size": osz,
                     "speedup": speedup,
                     "error": a_row[key] if a_row else None,
@@ -1462,10 +1567,10 @@ def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
         cells += [
             f"OOM ({r['orig_size']})"
             if r["orig_oom"]
-            else _DASH
+            else (_NO_ORIG if r["no_orig"] else _DASH)
             if r["original"] is None
             else f"{r['original']:.1f} ({r['orig_size']})",
-            _ms(r["portable"]),
+            f"OOM ({r['orig_size']})" if r["port_oom"] else _ms(r["portable"]),
             _ms(r["kernels"]) + (f" ({r['at']})" if r["at"] != std and std != _OWN and r["kernels"] else ""),
             _DASH if sp is None else f"{sp[0]:.1f}x vs {sp[1]}",
             str(r["kernels"][1]) if isinstance(r["kernels"], tuple) else _DASH,
@@ -1474,6 +1579,11 @@ def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
     lines += _md_table(head, body)
     for m in (_DAGGER, "?"):
         lines += ["", _LEGEND[m]] if m in marks else []
+    why: dict[str, list[str]] = {}
+    for r in rows:
+        if r["no_orig"] and r["original"] is None:
+            why.setdefault(r["no_orig"], []).append(f"`{r['id']}`")
+    lines += [f"- Original not timed ({', '.join(ids)}): {reason.rstrip('.')}." for reason, ids in why.items()]
     return lines
 
 
@@ -1612,7 +1722,9 @@ def _bench_block() -> str:
 _COMPILE_BEGIN, _COMPILE_END = "<!-- compile:begin", "<!-- compile:end -->"
 
 
+DEFERRED = "deferred: measure later (build >5 min)"  # `fails` of a row whose build / export ran over the 5 min lock
 _FAIL_REASONS = (  # (pattern in the recorded error, short reason for the table); first match wins
+    (r"^deferred", DEFERRED),
     (r"cannot parse .*_aa and operator: Resize", "TensorRT: antialiased resize not supported"),
     (r"cannot parse .*operator: (\w+)", r"TensorRT parser: \1 node"),
     (r"engine build failed.*\[myelin", "TensorRT bug: Myelin internal error"),
@@ -1639,12 +1751,34 @@ def _fail_reason(msg: str) -> str:
     return re.sub(r"\x1b\[\d+m|/tmp/\S+/", "", msg.removeprefix("run: "))[:60]
 
 
+PLANNED = f"planned for {PLANNED_RELEASE}"  # a card-`[planned]` feature: not available in this release
+
+
+def _planned_line(card: ModelCard) -> list[str]:
+    """`- Not in this release` for the card's `[planned]` features (they raise "planned for 0.2.1")."""
+    what = {"load": "loading", "compile": "compile()", "onnx": "ONNX / TensorRT export", "tensorrt": "TensorRT export"}
+    parts = [
+        f"`{v.id}` {what.get(f, f)}: {reason.rstrip('.')}"
+        for v in card.variants
+        for f, reason in v.planned.items()
+        if not (f == "tensorrt" and "onnx" in v.planned)
+    ]
+    return [f"- Not in this release (planned for {PLANNED_RELEASE}): {'; '.join(parts)}"] if parts else []
+
+
+def _fail_cell(msg: str) -> str:
+    """`deferred (build >5 min)` (over the lock limit), `planned for 0.2.1` (card `[planned]`) or `fails: reason`."""
+    if msg == PLANNED:
+        return PLANNED
+    return "deferred (build >5 min)" if msg.startswith("deferred") else f"fails: {_fail_reason(msg)}"
+
+
 def _compile_ms(r: dict | None) -> str:
     """The time cell of a compile / tensorrt row: `N ms`, `fails: reason`, or a dash."""
     if r is None:
         return DASH
     if "fails" in r:
-        return f"fails: {_fail_reason(r['fails'])}"
+        return _fail_cell(r["fails"])
     fp32 = ", fp32 engine" if r.get("engine_dtype") == "float32" else ""  # the fp16 engine misses the golden tolerance
     return f"{_ms_str(r['ms'])} ms{fp32}" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
 

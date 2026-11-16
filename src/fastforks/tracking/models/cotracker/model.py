@@ -38,6 +38,7 @@ from torch import nn
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.patch import override
 from fastforks.tracking._runner import Forward, Runner
 
 from .net.blocks import Attention
@@ -122,7 +123,7 @@ class Core:
             net.updateformer.half()
         for m in net.updateformer.modules():
             if isinstance(m, Attention):
-                m.forward = _sdpa.__get__(m)  # ty: ignore[invalid-assignment]  # per-instance override
+                override(m, _sdpa)
         fc1, fc2 = net.corr_mlp.fc1, net.corr_mlp.fc2
         self.k_pad = (-fc1.in_features) % 8 if half else 0  # 2401 -> 2408 (aligned fp16 rows)
         self.c1w = F.pad(fc1.weight.detach(), (0, self.k_pad)).to(self.dt)
@@ -460,6 +461,9 @@ class Kernels(Portable):
         core.in_pad = (-core.net.input_dim) % 8  # 1110 -> 1112
         core.temb.clear()
         core.updateformer = _updateformer(core.net.updateformer, core.in_pad)
+        for p in core.net.updateformer.parameters():  # the closures hold the fp16 filters: no 2nd copy
+            if p.ndim > 1:  # the LayerNorms (1-D) are still read from the module at call time
+                p.data = p.data.new_empty(0)
         w1, w2 = _w4(core.c1w), _w4(core.c2w)
 
         def mlp(x: torch.Tensor) -> torch.Tensor:

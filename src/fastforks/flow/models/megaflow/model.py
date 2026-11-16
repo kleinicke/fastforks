@@ -29,6 +29,7 @@ from torch import nn
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.sampling import grid_sample
 from fastforks.flow._runner import Forward, Runner
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 
@@ -130,7 +131,7 @@ def local_corr(f0: torch.Tensor, f1: torch.Tensor, flow: torch.Tensor) -> torch.
     out = []
     for s in range(0, h * w, CHUNK):
         g = (xy[:, s : s + CHUNK, None] + win) * norm - 1  # [B, m, 81, 2]
-        wf = F.grid_sample(f1f, g, padding_mode="zeros", align_corners=True)  # [B, C, m, 81]
+        wf = grid_sample(f1f, g, padding_mode="zeros", align_corners=True)  # [B, C, m, 81]
         out.append((torch.einsum("bcmk,bmc->bmk", wf, a[:, s : s + CHUNK].float()) / math.sqrt(c)).to(f0.dtype))
     return torch.cat(out, 1).view(b, h, w, -1).permute(0, 3, 1, 2)
 

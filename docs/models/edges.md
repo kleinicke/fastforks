@@ -6,7 +6,7 @@
 
 Input: one RGB image. Output: a line / edge map `[H, W]` in [0, 1] at the input size (1 = line), the ControlNet preprocessors (line art, HED, PiDiNet, TEED / Anyline); M-LSD also returns straight line segments.
 
-Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table).
+Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 1080x1920: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
@@ -44,6 +44,7 @@ Commercial use: yes.
 - Options: `short_side` = 1280 (>= 64; also `resolution`; also `detect_resolution`)
 - Kernel libraries: none (the MTEED CNN plus a GPU blend, a few ms; no custom kernel measured to pay off)
 - Variants: `anyline`
+- Not in this release (planned for 0.2.1): `anyline` TensorRT export: the TensorRT ONNX parser rejects an Expand node
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anyline` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved)
@@ -212,6 +213,7 @@ Commercial use: yes.
 - Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `thr_v` = 0.1 (0.0 to 1.0), `thr_d` = 0.1 (>= 0.0)
 - Kernel libraries: none (a MobileNetV2 CNN (cuDNN); decoding is a few small ops; no custom kernel measured to pay off)
 - Variants: `mlsd`
+- Not in this release (planned for 0.2.1): `mlsd` TensorRT export: the TensorRT ONNX parser rejects BitwiseAnd
 - Outputs: edges, lines
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mlsd` 1080x1920 (0.1 GiB peak allocated, 0.2 reserved)

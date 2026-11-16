@@ -154,3 +154,18 @@ def test_detection_result_and_classes() -> None:
 def test_bad_detections(bad: object) -> None:
     with pytest.raises(InputError):
         ByteTracker().update(bad)
+
+
+def test_tracking_queries_must_be_pixels_in_the_frame() -> None:
+    import warnings  # noqa: PLC0415
+
+    from fastforks.tracking._api import _check_in_image  # noqa: PLC0415
+
+    _check_in_image(torch.tensor([[0.0, 100.0, 50.0]]), (80, 120))
+    with pytest.raises(InputError, match="x and y swapped"):
+        _check_in_image(torch.tensor([[0.0, 50.0, 100.0]]), (80, 120))
+    with pytest.warns(UserWarning, match="not fractions"):
+        _check_in_image(torch.tensor([[0.0, 0.5, 0.5]]), (80, 120))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        _check_in_image(torch.tensor([[0.0, 0.0, 0.0]]), (16, 16))  # a tiny frame: no fraction guess

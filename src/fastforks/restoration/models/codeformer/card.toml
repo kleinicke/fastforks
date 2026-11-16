@@ -3,6 +3,8 @@ name = "CodeFormer"
 summary = "CodeFormer (Zhou et al., NeurIPS 2022): blind face restoration with a learned codebook: a VQGAN encoder, a transformer that predicts the code of each of the 16 x 16 latent positions, and the VQGAN decoder with controllable feature fusion from the encoder (fidelity w). Input: an aligned 512 x 512 face crop (FFHQ alignment); detecting, aligning and pasting the face back are not part of the model."
 tier = "experimental"
 outputs = ["image"]
+limitations = ["No accuracy measurement: blind face restoration is scored on CelebA-Test / LFW / WebPhoto (FID, NIQE, identity distance), which are not part of the evaluation data here; tiers are compared by output parity and speed only."]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports (fp16-accumulate conv / epilogue kernels)
 
 [upstream]
 repo = "https://github.com/sczhou/CodeFormer"

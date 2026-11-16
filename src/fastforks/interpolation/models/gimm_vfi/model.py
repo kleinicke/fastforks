@@ -24,6 +24,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.patch import base_type, override
+from fastforks._core.sampling import grid_sample
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 
@@ -84,7 +85,7 @@ def _sample(vol: torch.Tensor, xy: torch.Tensor) -> torch.Tensor:
     n, _, h, w = vol.shape
     if vol.dtype == torch.float32:
         g = torch.stack((2 * xy[..., 0] / (w - 1) - 1, 2 * xy[..., 1] / (h - 1) - 1), -1)
-        return F.grid_sample(vol, g[:, None], align_corners=True)[:, 0, 0]
+        return grid_sample(vol, g[:, None], align_corners=True)[:, 0, 0]
     flat = vol.reshape(n, h * w)
     x0, y0 = xy[..., 0].floor(), xy[..., 1].floor()
     out = xy.new_zeros(xy.shape[:-1])

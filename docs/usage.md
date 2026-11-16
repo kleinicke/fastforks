@@ -39,10 +39,10 @@ directory.
 | `FASTFORKS_NONCOMMERCIAL` | `1` = also download weights with non-commercial licences (off in every install, also `fastforks`) |
 | `FASTFORKS_COMMERCIAL_ONLY` | `1` = refuse (and hide from `list`, `download`) every model not cleared for commercial use |
 | `FASTFORKS_HF_ENDPOINT` | redirects only our own Hugging Face repos (kernels, mirrored weights) to a mirror or `file://` stand-in, not the authors' hosts; for a full mirror use `FASTFORKS_WEIGHTS_PATH` |
+| `HF_TOKEN` | sent only to our own Hugging Face repos (private or rate-limited access); other repos: `huggingface_hub`'s own login |
 
 The three on/off variables take `1/true/yes/on` or `0/false/no/off/empty` (any case); any other value raises
 `OptionsError`. `mode` and `device` are load arguments; there are no `FASTFORKS_MODE` / `FASTFORKS_DEVICE` variables.
-| `HF_TOKEN` | sent only to our own Hugging Face repos (private or rate-limited access); other repos: `huggingface_hub`'s own login |
 
 ## Quickstart per task
 
@@ -77,6 +77,10 @@ models differ in the camera: `metric3d-vit-large` and `da3metric-large` need the
 too small for a real camera), `unidepth-v2-vitl14`, `unik3d-vitl`, `depth-pro` and MoGe estimate the camera (given
 `intrinsics=` replace `fx`) and return it as `result.intrinsics`, `zoedepth-nk` takes none. `fastforks info MODEL` shows `kind`.
 
+Video depth: `depth.load("video-depth-anything-s").video(frames)` takes the frames of one clip (a list of images or a `[T, H, W, 3]` array)
+and returns `[T, H, W]` maps that are consistent over time. Calling the model itself with a list or batch treats every
+frame as an independent image (flicker; the call warns for a video model).
+
 Other tasks work the same way (families built on timm, torchvision or transformers need that extra):
 
 ```python
@@ -94,7 +98,16 @@ features.load("dinov2-vitb14")("cat.jpg").pooler_output  # image embedding; .las
 import torch
 
 from fastforks import (
-    calibration, detection, edges, flow, matting, multiview, ocr, pose, promptable_segmentation, retrieval,
+    calibration,
+    detection,
+    edges,
+    flow,
+    matting,
+    multiview,
+    ocr,
+    pose,
+    promptable_segmentation,
+    retrieval,
 )
 
 det = detection.load("faster-rcnn-r50-fpn-3x-coco")
@@ -130,7 +143,7 @@ cam.intrinsics, cam.roll, cam.pitch, cam.vfov  # [3, 3] (pixels of the input), r
 checkpoint via `volume.load(path, folds=..., step=..., mirror=...)`:
 
 ```python
-# read_nifti / write_nifti need: pip install "fastforks-core[nifti]"
+# read_nifti / write_nifti need: pip install "fastforks-core[nifti]" (read_dicom: [dicom])
 from fastforks import volume
 
 ct, meta = volume.read_nifti("ct.nii.gz")  # [D, H, W] float32 (RAS-canonical), meta.spacing in mm
@@ -138,6 +151,106 @@ seg = volume.load("totalsegmentator-total-3mm")(ct, meta=meta)  # or spacing=(d,
 seg.labels  # [D, H, W] uint8 class index on the input grid; seg.class_names {1: "spleen", ...}
 volume.write_nifti("seg.nii.gz", seg.labels.cpu().numpy(), meta)  # on the grid of ct.nii.gz
 ```
+
+The input must be a CT in Hounsfield units (air about -1000, soft tissue 0 to 100; not normalised, not uint8) with axes
+`[D, H, W]` (slice axis first) and `spacing` in mm in that order. Organ volumes in mL:
+
+```python
+import numpy as np
+
+ml = float(np.prod(meta.spacing)) / 1000  # mL per voxel
+labels = seg.labels.cpu().numpy()
+volumes = {name: round(float((labels == i).sum()) * ml) for i, name in seg.class_names.items() if (labels == i).any()}
+```
+
+DICOM series: `volume.read_dicom("series_folder")` (needs `pip install "fastforks-core[dicom]"`) returns the same
+`(ct, meta)` as `read_nifti`: slices sorted by position, Hounsfield units, RAS-canonical `[D, H, W]` (no flipping),
+spacing and affine from the tags; `model(ct, meta=meta)` and `write_nifti` work as above. Give a folder with one series.
+
+Detections to a picture and to COCO-style records (`det` as above; one image):
+
+```python
+from PIL import Image, ImageDraw
+
+image = Image.open("street.jpg")
+result = det(image, score_threshold=0.5)  # the default 0.05 keeps up to 100 mostly spurious boxes
+draw = ImageDraw.Draw(image)
+for d in result.to_list():  # box = (x0, y0, x1, y1) pixels; label = index into det.class_names (not a COCO category id)
+    draw.rectangle(d["box"], outline="red", width=2)
+    draw.text(d["box"][:2], f"{d['class_name']} {d['score']:.2f}", fill="red")
+image.save("detections.png")
+coco = [  # COCO results format: bbox = [x, y, width, height]; category_id: look the name up in your annotation file
+    {
+        "image_id": 1,
+        "category_name": d["class_name"],
+        "score": d["score"],
+        "bbox": [d["box"][0], d["box"][1], d["box"][2] - d["box"][0], d["box"][3] - d["box"][1]],
+    }
+    for d in result.to_list()
+]
+```
+
+Background removal to a transparent PNG (`alpha.save` writes float maps as .tif / .npy only, a .png holds integer maps):
+
+```python
+from PIL import Image
+from fastforks import matting
+
+image = Image.open("photo.jpg").convert("RGB")
+alpha = matting.load("birefnet-lite")(image).alpha  # [H, W] in [0, 1]
+cutout = image.copy()
+cutout.putalpha(Image.fromarray((alpha.cpu().numpy() * 255).round().astype("uint8")))
+cutout.save("cutout.png")
+```
+
+Keypoints to a picture (`people` from the pose example above; `people.skeleton` lists the limbs as index pairs):
+
+```python
+from PIL import Image, ImageDraw
+
+image = Image.open("street.jpg").convert("RGB")
+draw = ImageDraw.Draw(image)
+for kp, sc in zip(people.keypoints.cpu().tolist(), people.keypoint_scores.cpu().tolist()):
+    for a, b in people.skeleton:
+        if sc[a] > 0.3 and sc[b] > 0.3:
+            draw.line([*kp[a], *kp[b]], fill="lime", width=2)
+image.save("pose.png")
+```
+
+Surface normals as a normal-map picture (`lotus-normal-d-v1-1`; MoGe returns normals only with `depth.load("moge-2-vitb-normal", normals=True)`;
+`result.save` writes depth maps, not normals):
+
+```python
+from PIL import Image
+from fastforks import depth
+
+normals = depth.load("lotus-normal-d-v1-1")("photo.jpg").normals  # [H, W, 3] unit vectors, x right, y down, z forward
+Image.fromarray(((normals.cpu().numpy() + 1) * 127.5).round().astype("uint8")).save("normals.png")
+```
+
+Dense matching of two photos ([models](models/matching.md), [API](api/matching.md)): warp, matches, geometry and a plot (PIL only):
+
+```python
+from fastforks import matching
+from PIL import Image, ImageDraw
+
+result = matching.load("romav2")("a.jpg", "b.jpg")  # paths, PIL images, numpy arrays or tensors; sizes may differ
+result.warp, result.certainty  # [2, H1, W1] (x, y) in pixels of image 2, [H1, W1] in [0, 1]
+v = result.verify()  # 5000 sampled matches + fundamental-matrix RANSAC (no intrinsics needed): v.geometry.F
+points1, points2 = v.points1[v.inliers].cpu().numpy(), v.points2[v.inliers].cpu().numpy()  # [N, 2] pixels
+pose = matching.estimate_pose(points1, points2, K1, K2)  # numpy / list / tensor inputs; pose.R, pose.t (unit length)
+
+a, b = Image.open("a.jpg").convert("RGB"), Image.open("b.jpg").convert("RGB")
+canvas = Image.new("RGB", (a.width + b.width, max(a.height, b.height)))
+canvas.paste(a, (0, 0)), canvas.paste(b, (a.width, 0))
+draw = ImageDraw.Draw(canvas)
+for (x1, y1), (x2, y2) in zip(points1[::5], points2[::5]):
+    draw.line([x1, y1, x2 + a.width, y2], fill=(255, 0, 0))
+canvas.save("matches.png")
+```
+
+Two unrelated photos still give a fundamental matrix (`ok=True`: 7 matches always fit one); judge a pair by
+`v.inliers.sum()` and `result.certainty.mean()`, not by `ok`. A list of path pairs gives a list of results; a `[B, 3, H, W]` batch one result with a leading batch dimension.
 
 How a call runs: the model card (`card.toml`) is resolved to a variant (the id and revision); the variant and `mode` select a
 runner (portable or kernels backend) with its weights; the task API (`<task>.load`) wraps the runner and turns the input into
@@ -371,7 +484,12 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   containers see [Docker images](docker.md).
   `fastforks download --kernels-only --all-archs` fetches every kernel binary (~240 MiB; one GPU target ~34 MiB)
   without weights; the files land in `FASTFORKS_CACHE` (default: the platform user cache, `~/.cache/fastforks` on
-  Linux). The cache is content-addressed (`blobs/sha256/<ab>/<sha256>`), so a copy of it is not a
+  Linux). The cache is content-addressed (`blobs/sha256/<ab>/<sha256>`; lookups use that path). Next to it,
+  `<family>/<file name as on the card>` (kernels: `<lib>/<lib>-<hash>-<arch>.fatbin`) are relative symlinks to the blobs,
+  so the folder is browsable and has the `FASTFORKS_WEIGHTS_PATH` / `FASTFORKS_KERNEL_PATH` layout (the cache folder
+  itself works as either); they are made whenever a file is resolved or downloaded, `fastforks cache link` rebuilds them
+  for everything already cached, and they are skipped where symlinks are not allowed. Copy a cache with a tool that follows
+  or keeps links (`cp -a`, `rsync -a`), or only `blobs`; a copy of `blobs` alone is not a
   `FASTFORKS_KERNEL_PATH`: that wants the manifest's file names, `<dir>/<lib>/<lib>-<hash>-<arch>.fatbin` (or `.so`;
   `<dir>/<name>` also works), e.g. `kernels/fs/fs-f6f8de2cca1e-sm_80.fatbin` (names: `fastforks/kernels/<lib>/manifest.toml`).
   `fastforks download --kernels --arch sm_80` prints `<lib>-<hash>:<arch>: <cache path>` per file; copy each path to that
@@ -623,7 +741,9 @@ Or keep the high-level API and compile in place (`kernels` raises `BackendUnavai
 ```python
 model.compile()  # every task call now runs compiled; again with other arguments replaces it
 model.export_onnx("m.onnx", 384, 1248)
-model.export_tensorrt("m.engine", 384, 1248)  # on the target GPU; then fastforks.TensorRTEngine("m.engine")(left, right)
+model.export_tensorrt(
+    "m.engine", 384, 1248
+)  # on the target GPU; then fastforks.TensorRTEngine("m.engine")(left, right)
 ```
 
 ```

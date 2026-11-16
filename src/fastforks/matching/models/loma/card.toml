@@ -42,7 +42,7 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 status = "none"
-reason = "not implemented yet"
+reason = "not implemented: data-dependent keypoint and match counts. Portable is 307.9 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1790 vs 1843 MB (reserved 2562 vs 3398), matches 1030 vs 1038-1039"
 
 [[papers]]
 title = "LoMa: Local Feature Matching Revisited"
@@ -52,6 +52,7 @@ venue = "ECCV 2026"
 
 [[variants]]
 id = "loma-b"  # DaD detector + DeDoDe-G descriptor + the 256-d, 4-head, 9-layer matcher (upstream README default `loma_B`)
+planned = { onnx = "the export fails in the network call (negative tensor dimension -1)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { dim = 256, heads = 4, layers = 9 }
 weights = [

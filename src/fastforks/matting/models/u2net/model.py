@@ -53,6 +53,9 @@ def _cpu_net(ctx: Context, *, fold: bool) -> torch.nn.Module:
     return net.eval()
 
 
+_TINY = 1e-8  # fixed: our floor of the normalisation divisors (constant image / map: not 0 / 0)
+
+
 class _Matting(Runner):
     """Resize, divide by the maximum, normalise, network (`d0`), min-max, resize back."""
 
@@ -67,10 +70,10 @@ class _Matting(Runner):
         """Alpha `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
         s = self.ctx.params.size
         x = F.interpolate(image, (s, s), mode="bilinear", align_corners=False, antialias=True)
-        x = x / x.amax((1, 2, 3), keepdim=True)
+        x = x / x.amax((1, 2, 3), keepdim=True).clamp_min(_TINY)  # a black image stays black, not 0 / 0
         y = self._net(scale(x, self.ctx.io).to(self.dtype)).float()
         lo, hi = y.amin((1, 2, 3), keepdim=True), y.amax((1, 2, 3), keepdim=True)
-        y = (y - lo) / (hi - lo)
+        y = (y - lo) / (hi - lo).clamp_min(_TINY)  # a constant map stays 0, not 0 / 0
         return {"alpha": F.interpolate(y, image.shape[-2:], mode="bilinear", align_corners=False)[:, 0]}
 
     def module(self) -> torch.nn.Module:
