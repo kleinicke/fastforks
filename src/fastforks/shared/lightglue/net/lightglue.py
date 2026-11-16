@@ -7,6 +7,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.checkpoint import load_strict
+
 FlashCrossAttention = None  # fastforks: the optional flash_attn package is not used (PyTorch SDPA)
 
 if FlashCrossAttention or hasattr(F, "scaled_dot_product_attention"):
@@ -413,7 +415,8 @@ class LightGlue(nn.Module):
         # static lengths LightGlue is compiled for (only used with torch.compile)
         self.static_lengths = None
 
-    def load_weights(self, state_dict: dict) -> None:  # fastforks: the upstream __init__ loading, without download
+    def load_weights(self, state_dict: dict, what: str = "LightGlue weights") -> None:
+        # fastforks: the upstream __init__ loading, without download
         # rename old state dict entries
         for i in range(self.conf.n_layers):
             pattern = f"self_attn.{i}", f"transformers.{i}.self_attn"
@@ -422,9 +425,7 @@ class LightGlue(nn.Module):
             state_dict = {k.replace(*pattern): v for k, v in state_dict.items()}
         # the v0.1_arxiv files carry unused `log_assignment.{i}.r` entries (upstream loads with strict=False)
         state_dict = {k: v for k, v in state_dict.items() if not (k.startswith("log_assignment.") and k.endswith(".r"))}
-        missing, unexpected = self.load_state_dict(state_dict, strict=False)
-        if unexpected or set(missing) - {"confidence_thresholds"}:
-            raise RuntimeError(f"LightGlue weights: missing {missing}, unexpected {unexpected}")
+        load_strict(self, state_dict, what, not_in_checkpoint=("confidence_thresholds",))
 
     def compile(
         self, mode="reduce-overhead", static_lengths=[256, 512, 768, 1024, 1280, 1536]

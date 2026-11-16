@@ -18,6 +18,7 @@ import torch
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.checkpoint import load_strict
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared.lightglue import LightGlue, resize_long
 
@@ -110,11 +111,12 @@ class Matcher(nn.Module):
 def load_matcher(ctx: Context) -> Matcher:
     """The matcher with the variant's weights (file 0: XFeat, file 1: LighterGlue), eval, on `ctx.device`."""
     net = Matcher(ctx.params)
-    net.xfeat.net.load_state_dict(ctx.state_dict(0), strict=True)
+    load_strict(net.xfeat.net, ctx.state_dict(0), f"{ctx.variant.ref} checkpoint")
     if net.matcher is not None:  # upstream LighterGlue: drop the `matcher.` prefix, then LightGlue's renames
         sd = ctx.state_dict(1)  # also holds a training-time XFeat copy (`extractor.*`) upstream ignores (strict=False)
         net.matcher.load_weights(
-            {k.replace("matcher.", ""): v for k, v in sd.items() if not k.startswith("extractor.")}
+            {k.replace("matcher.", ""): v for k, v in sd.items() if not k.startswith("extractor.")},
+            f"{ctx.variant.ref} checkpoint",
         )
     net.eval().requires_grad_(requires_grad=False)
     for m in net.xfeat.net.modules():  # BatchNorm (eval statistics) folded into the conv before it
