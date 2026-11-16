@@ -67,7 +67,7 @@ def estimate_absolute_pose(  # noqa: PLR0913 - the matches, the intrinsics and t
     """P3P RANSAC + refinement of pixel-to-world matches, one camera or a batch at once.
 
     Args:
-        points2d: Pixel keypoints, `[N, 2]` or `[P, N, 2]` (float; tensor, numpy array or list; the pose is computed on this device).
+        points2d: Pixel keypoints, `[N, 2]` or `[P, N, 2]` (float tensor, numpy array or list).
         points3d: The matching world points, `[N, 3]` or `[P, N, 3]`.
         k: Intrinsics, `[3, 3]` or `[P, 3, 3]`.
         threshold: Inlier threshold in pixels (reprojection error).
