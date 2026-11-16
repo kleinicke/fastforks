@@ -27,6 +27,8 @@ def pack(tmp_path_factory: pytest.TempPathFactory) -> Any:
     mm = types.ModuleType("comfy.model_management")
     mm.unload_all_models = lambda: calls.append("comfy")
     mm.soft_empty_cache = lambda: calls.append("empty")
+    mm.throw_exception_if_processing_interrupted = lambda: None
+    mm.intermediate_device = lambda: torch.device("cpu")
     comfy = types.ModuleType("comfy")
     comfy.model_management = mm
     fp = types.ModuleType("folder_paths")
@@ -270,6 +272,30 @@ def test_node_model_lists(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     assert ids(nodes.NsfwCheck) == {"falconsai-nsfw-vit"}
     assert ids(nodes.Parse) == {"segformer-b2-clothes", "segformer-b5-face-parsing"}
     assert {"segformer-b2-clothes", "segnext-mscan-t-ade20k"} <= ids(nodes.SemanticSegment)
+    clips = ids(nodes.VideoDepth)
+    assert clips == {"video-depth-anything-s", "video-depth-anything-metric-s"}
+    assert not clips & ids(nodes.Depth)  # video models run as a clip in Video depth, not frame by frame
+    assert "depth-anything-v2-s" in ids(nodes.Depth)
+
+
+def test_video_depth_scales_the_clip(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """One min / max for the whole clip (per-frame scaling would flicker); the model runs the frames as one video."""
+    nodes = pack.nodes
+    seen: list[tuple[int, ...]] = []
+
+    class Clip:
+        device = torch.device("cpu")
+
+        def video(self, frames: torch.Tensor) -> types.SimpleNamespace:
+            seen.append(tuple(frames.shape))
+            inv = torch.stack([torch.full((4, 6), 1.0), torch.full((4, 6), 2.0), torch.full((4, 6), 3.0)])
+            return types.SimpleNamespace(depth=None, inverse_depth=inv)
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Clip())
+    (out,) = nodes.VideoDepth().run(frames=torch.rand(3, 4, 6, 3), model="m", backend="auto", dtype="auto")
+    assert seen == [(3, 3, 4, 6)]
+    assert out.shape == (3, 4, 6, 3)
+    assert [out[t].mean().item() for t in range(3)] == pytest.approx([0.0, 0.5, 1.0])
 
 
 def test_wd_tags(pack: Any) -> None:
@@ -279,3 +305,24 @@ def test_wd_tags(pack: Any) -> None:
     probs[0], probs[4], probs[5], probs[8110], probs[8111] = 0.99, 0.4, 0.9, 0.8, 0.5
     assert pack.nodes.wd_tags(probs, names, 0.35, 0.75) == "g5, char_a, g4"
     assert pack.nodes.wd_tags(probs, names, 0.95, 0.95) == ""
+
+
+def test_every_node_matches_the_library(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every node: a non-empty model list of existing cards, `run` arguments = inputs, a display name."""
+    import inspect  # noqa: PLC0415
+
+    import fastforks  # noqa: PLC0415
+
+    nodes = pack.nodes
+    monkeypatch.setattr(nodes, "upscale_files", list)
+    for name, node in nodes.NODE_CLASS_MAPPINGS.items():
+        spec = node.INPUT_TYPES()
+        assert name in nodes.NODE_DISPLAY_NAME_MAPPINGS
+        assert set(inspect.signature(node.run).parameters) - {"self"} == set(spec["required"]) | set(
+            spec.get("optional", {})
+        ), name
+        if "model" in spec["required"]:
+            labels = spec["required"]["model"][0]
+            assert labels, f"{name}: no models listed"
+            for label in labels:
+                fastforks.model_card(nodes.model_id(label))

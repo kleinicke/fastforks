@@ -15,7 +15,7 @@ portable backend; to be confirmed on a Windows machine with these steps.
 1. `python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\comfyui-fastforks\requirements.txt` installs
    fastforks-core without replacing the bundled torch (pip must keep the installed torch; if it tries to upgrade it,
    the `torch` pin of fastforks-core is too narrow).
-2. ComfyUI starts, the 8 `fastforks` nodes appear, no import error in the console.
+2. ComfyUI starts, the 20 `fastforks` nodes appear, no import error in the console.
 3. Depth with `depth-anything-v2-s`, `backend=auto`: one warning "kernels ... built for Linux x86-64", output
    matches the Linux result within the depth family tolerance.
 4. Remove background (`birefnet-lite`), Segment (`sam2.1-hiera-small`), Interpolate (`rife-4.26`): run, outputs look
@@ -23,3 +23,5 @@ portable backend; to be confirmed on a Windows machine with these steps.
 5. Long paths: the weights cache under `%LOCALAPPDATA%` stays below 260 characters (Hugging Face snapshot paths are
    the longest); if not, set `FASTFORKS_CACHE=C:\ff`.
 6. `backend=portable` with `dtype=float16`, then `bfloat16` on an RTX 20xx (no bf16): the error names the dtype.
+7. Video depth (`video-depth-anything-s`) on a 4-frame batch, then Depth: the Depth list holds no video model; the clip
+   output has one 0-1 scale over all frames. Upscale with a `.pth` in `models/upscale_models` (`file: ...`).

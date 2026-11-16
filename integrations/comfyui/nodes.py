@@ -96,7 +96,7 @@ def upscale_files() -> list[str]:
         path = folder_paths.get_full_path("upscale_models", name)
         mtime = Path(path).stat().st_mtime
         if _files.get(path, (None,))[0] != mtime:
-            _files[path] = (mtime, restoration._api._checkpoint_family(path))
+            _files[path] = (mtime, restoration._api._checkpoint_family(path))  # noqa: SLF001 - no public check yet
         if _files[path][1]:
             entries.append(_FILE + name)
     return entries
@@ -217,6 +217,21 @@ class _Node:
     RETURN_TYPES: ClassVar[tuple[str, ...]] = ()
 
 
+_VIDEO_DEPTH = frozenset({"video_depth_anything"})  # depth families that run a whole clip (`model.video`), not frames
+
+
+def _depth_ids(*, video: bool) -> list[str]:
+    """Depth model ids that return depth / inverse depth: the clip models (`video`) or the image models."""
+    outputs = {"depth", "inverse_depth"}
+    return _ids(
+        "depth",
+        lambda m: (
+            bool(outputs & set(fastforks.model_card(m).outputs))
+            and (fastforks.model_card(m).family in _VIDEO_DEPTH) == video
+        ),
+    )
+
+
 class Depth(_Node):
     """Relative or metric depth as a gray image (near = white), e.g. for depth ControlNets."""
 
@@ -226,8 +241,7 @@ class Depth(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        ids = _ids("depth", lambda m: bool({"depth", "inverse_depth"} & set(fastforks.model_card(m).outputs)))
-        return {"required": {"image": ("IMAGE",), **common(ids, "depth-anything-v2-s")}}
+        return {"required": {"image": ("IMAGE",), **common(_depth_ids(video=False), "depth-anything-v2-s")}}
 
     def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
         """Run the model on every image."""
@@ -238,6 +252,27 @@ class Depth(_Node):
             return convert.depth_image(r.depth, r.inverse_depth)
 
         return (convert.to_image(each(image.shape[0], one), _out_device()),)
+
+
+class VideoDepth(_Node):
+    """Depth of a frame batch as one clip (Video Depth Anything): consistent over time, one scale for the clip."""
+
+    DESCRIPTION = "Depth maps of a frame batch run as one video (near = white; one scale for all frames, no flicker)."
+    RETURN_TYPES = ("IMAGE",)
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        return {"required": {"frames": ("IMAGE",), **common(_depth_ids(video=True), "video-depth-anything-s")}}
+
+    def run(self, *, frames: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
+        """Run the model on the frames as one video."""
+        m = load(model, backend, dtype)
+        _mm().throw_exception_if_processing_interrupted()
+        video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
+        r = m.video(video)  # ty: ignore[unresolved-attribute]
+        maps = convert.depth_image(r.depth, r.inverse_depth)  # [3, T, H, W]: scaled by the clip's min and max
+        return (convert.to_image([maps[:, t] for t in range(maps.shape[1])], _out_device()),)
 
 
 class Normals(_Node):
@@ -895,6 +930,7 @@ class FaceRestore(_Node):
 
 NODE_CLASS_MAPPINGS = {
     "FastforksDepth": Depth,
+    "FastforksVideoDepth": VideoDepth,
     "FastforksNormals": Normals,
     "FastforksRemoveBackground": RemoveBackground,
     "FastforksSegment": Segment,
@@ -916,6 +952,7 @@ NODE_CLASS_MAPPINGS = {
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FastforksDepth": "Depth (fastforks)",
+    "FastforksVideoDepth": "Video depth (fastforks)",
     "FastforksNormals": "Normals (fastforks)",
     "FastforksRemoveBackground": "Remove background (fastforks)",
     "FastforksSegment": "Segment (SAM, fastforks)",

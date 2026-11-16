@@ -18,7 +18,8 @@ Once fastforks is on PyPI, ComfyUI-Manager and the Comfy registry install the pa
 
 | Node | Inputs | Outputs |
 |---|---|---|
-| Depth | IMAGE | IMAGE: inverse depth scaled to 0-1 per image (near = white) |
+| Depth | IMAGE | IMAGE: inverse depth scaled to 0-1 per image (near = white); image models only |
+| Video depth | IMAGE batch (frames of one clip) | IMAGE batch: Video Depth Anything run as one clip, one 0-1 scale for all frames (no flicker) |
 | Normals | IMAGE | IMAGE: normal map (red = right, green = up, blue = towards the camera) |
 | Remove background | IMAGE, trimap MASK (ViTMatte only) | IMAGE (RGBA), MASK (alpha) |
 | Segment (SAM) | IMAGE, points `x,y; x,y`, box `x0,y0,x1,y1`, text (SAM 3) | MASK |

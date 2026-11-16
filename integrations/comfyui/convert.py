@@ -88,7 +88,7 @@ def depth_image(depth: torch.Tensor | None, inverse_depth: torch.Tensor | None) 
         return torch.zeros(_RGB, *inv.shape, device=inv.device)
     lo, hi = inv[valid].min(), inv[valid].max()
     scaled = torch.where(valid, (inv - lo) / (hi - lo).clamp_min(torch.finfo(torch.float32).tiny), 0)
-    return scaled.unsqueeze(0).expand(_RGB, -1, -1)
+    return scaled.unsqueeze(0).expand(_RGB, *inv.shape)
 
 
 def normals_image(normals: torch.Tensor) -> torch.Tensor:
