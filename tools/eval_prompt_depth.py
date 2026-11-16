@@ -1,11 +1,13 @@
 """Metric depth of Prompt Depth Anything (original fp32 / fp16, portable, kernels) on NYUv2 and iBims-1 with a simulated depth prompt.
 
     FASTFORKS_KERNEL_PATH=... python tools/eval_prompt_depth.py --ref prompt-depth-anything-l --out raw.jsonl
+    python tools/eval_prompt_depth.py --ref any2full-b --tiers upstream,portable,kernels --out raw.jsonl   # other depth-completion families
 
 Prompt = the ground-truth depth reduced to 192 x 256 (the size of an iPhone LiDAR map): mean of the valid GT pixels of each
 cell, cells without valid pixels take the nearest filled cell. Metric AbsRel / delta1 (no scale fit) over the valid GT pixels at
 the GT size; the prediction is resized bilinearly where its size differs. NYUv2 every `--every`th image, iBims-1 all.
-The original = DepthAnything/PromptDA at the pinned commit (area resize to the network size, `predict`), fp32 or
+Other families (Any2Full, LingBot-Depth, OMNI-DC): the same prompt and metrics; their original = the bench adapter of
+`tools/_original.py` (`upstream` fp32, `upstream-fp16` = its `upstream16` tier). Prompt Depth Anything's original = DepthAnything/PromptDA at the pinned commit (area resize to the network size, `predict`), fp32 or
 `torch.autocast(float16)`. One JSON line per tier and dataset (the `docs/data/depth_eval.jsonl` row), plus one `prompt-only`
 line: the bilinear upsampled prompt itself as a reference level.
 """
@@ -53,7 +55,13 @@ def net_size(h: int, w: int, max_size: int = 1008) -> tuple[int, int]:
 class Tier:
     def __init__(self, ref: str, tier: str) -> None:
         self.tier = tier
-        if tier.startswith("upstream"):
+        self.gen = None
+        if tier.startswith("upstream") and ref not in CKPT:  # other depth-completion families: the bench adapter of `tools/_original.py`
+            import _original  # noqa: PLC0415
+
+            self.gen = _original.load("depth", ref, "upstream16" if tier == "upstream-fp16" else tier)
+            self.orig, self.mode, self.dtype = None, tier, self.gen.dtype
+        elif tier.startswith("upstream"):
             sys.path.insert(0, str(UP))
             from promptda.promptda import PromptDA  # noqa: PLC0415
 
@@ -69,6 +77,8 @@ class Tier:
     def __call__(self, img: np.ndarray, prompt: np.ndarray) -> torch.Tensor:
         p = torch.from_numpy(prompt).cuda()
         im = torch.from_numpy(img).permute(2, 0, 1).contiguous().cuda()
+        if self.gen is not None:
+            return self.gen(*self.gen.prep((im, p))).float().squeeze()
         if self.orig is None:
             return self.model(im, prompt_depth=p).depth.float().squeeze()
         x = F.interpolate(im[None].float() / 255, net_size(*im.shape[-2:]), mode="area")
@@ -90,12 +100,13 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--ref", default="prompt-depth-anything-l")
     ap.add_argument("--tiers", default="upstream,upstream-fp16,portable,kernels")
-    ap.add_argument("--every", type=int, default=4)
+    ap.add_argument("--every", type=int, default=4, help="NYUv2: every N-th image")
+    ap.add_argument("--ibims-every", type=int, default=1, help="iBims-1: every N-th image (dataset `ibims-prompt-everyN` if > 1)")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     commit = subprocess.run(["git", "-C", str(Path(__file__).resolve().parents[1]), "log", "-1", "--format=%h", "--", "src"], capture_output=True, text=True, check=False).stdout.strip()
     cmd = "python " + " ".join(sys.argv)
-    items = {ds: [(k, ld) for k, ld in depth_items(ds)][:: a.every if ds == "nyu" else 1] for ds in SETS}
+    items = {ds: [(k, ld) for k, ld in depth_items(ds)][:: a.every if ds == "nyu" else a.ibims_every] for ds in SETS}
     data = {ds: [(k, *ld()) for k, ld in it] for ds, it in items.items()}  # (key, image, gt); ~ 264 images
     prompts = {ds: [make_prompt(gt) for _, _, gt in d] for ds, d in data.items()}
     base = {}
@@ -117,7 +128,7 @@ def main() -> None:
                 t += time.perf_counter() - t0
                 res.append(metrics(out, gt))
             rel, d1 = float(np.mean([x[0] for x in res])), float(np.mean([x[1] for x in res]))
-            dsn = SETS[ds].format(a.every)
+            dsn = SETS[ds].format(a.every) if ds == "nyu" else SETS[ds] + (f"-every{a.ibims_every}" if a.ibims_every > 1 else "")
             row = {"ref": a.ref, "task": "depth", "tier": tier, "mode": pr.mode, "dtype": pr.dtype, "dataset": dsn, "n": len(d), "n_images": len(d),
                    "met_absrel": round(rel, 4), "met_d1": round(d1, 4), "metrics": {"met_absrel": round(rel, 4), "met_d1": round(d1, 4)},
                    "prompt_only": {"absrel": round(base[ds][0], 4), "d1": round(base[ds][1], 4)},

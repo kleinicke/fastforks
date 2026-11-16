@@ -383,7 +383,7 @@ def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, P
     return 3 if again else 0
 
 
-def summary_rows(out: Path) -> list[dict[str, Any]]:  # noqa: C901 - one branch per row kind
+def summary_rows(out: Path, limit: int = 0) -> list[dict[str, Any]]:  # noqa: C901 - one branch per row kind
     """One docs row per model, tier and dataset from the per-item files under `out`."""
     res = []
     for per in sorted(p for task in ("stereo", "depth") for p in (out / task).glob("*__*.jsonl")):  # not coco/
@@ -404,6 +404,7 @@ def summary_rows(out: Path) -> list[dict[str, Any]]:  # noqa: C901 - one branch 
             if not rs and ds in NORMALS_SETS:
                 continue  # a depth model: no normals rows
             want = len((stereo_items if task == "stereo" else depth_items)(ds))
+            want = min(want, limit) if limit else want  # `--limit` pilot: the first N items are the whole set
             row = dict(base, dataset=ds)
             if err and len(rs) < want:
                 res.append(row | {"error": err, "n": len(rs)})
@@ -449,7 +450,7 @@ def main() -> None:
     if a.cmd == "rows":
         from acc_collect import choose  # noqa: PLC0415 - acc_collect imports this module
 
-        rows = summary_rows(Path(a.out))
+        rows = summary_rows(Path(a.out), a.limit)
         choose(rows)  # docs modes: `upstream16` (or `upstreamac`) is `upstream-fp16`, not the original's `upstream`
         for r in rows:
             print(json.dumps(r))

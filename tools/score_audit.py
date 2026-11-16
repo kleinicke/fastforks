@@ -176,8 +176,9 @@ def main() -> int:
             o_err = [r for mm in ("upstream", "upstream-fp16") for r in e.get(mm, []) if r.get("error")]
             sib = (not e) and fam in fam_eval
             present("accuracy original", o_e or o_err, no_orig or not e, "no original accuracy row")
-            present("accuracy portable", p_e, sib, "no portable accuracy row")
-            present("accuracy kernels", k_e, (k_none and kmode.get("reason")) or sib, "no kernels accuracy row")
+            no_acc = re.search(r"No accuracy measurement", " ".join(card.get("limitations", [])))  # the card names why (no public evaluation set)
+            present("accuracy portable", p_e, sib or no_acc, "no portable accuracy row")
+            present("accuracy kernels", k_e, (k_none and kmode.get("reason")) or sib or no_acc, "no kernels accuracy row")
         # --- plausibility: speed per input
         by_in = collections.defaultdict(dict)
         for m in ("upstream", "upstream-default", "portable", "kernels"):
