@@ -445,7 +445,7 @@ class Model:
             BackendUnavailableError: The backend has no exportable module (e.g. `kernels`).
         """
         try:
-            return self._runner.module()
+            return self._runner.module().eval()  # export traces no training-mode branches, whatever the runner built
         except NotImplementedError as e:
             msg = f"{self.variant.ref} ({self.backend.mode}) has no exportable module: {e}"
             raise BackendUnavailableError(msg) from e

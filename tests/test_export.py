@@ -113,7 +113,18 @@ def _load(ref: str) -> Any:
     return sweep_model(ref)
 
 
+_NATIVE_SIZE = {  # fixed-size nets whose card has no native size
+    "clipseg": (352, 352),
+    "owlv2-b16": (960, 960),
+    "parseq-tiny": (32, 128),
+    "vitpose-plus-small": (256, 192),
+}
+
+
 def _shape(model: Any) -> tuple[int, ...]:
+    native = _NATIVE_SIZE.get(model.variant.id) or model.size_range().native  # a net fixed to one size (position embeddings)
+    if native:
+        return (*SHAPE[:2], *native)
     return (*SHAPE[:2], *size(model.size_range().min_size, *SHAPE[2:]))
 
 
@@ -131,6 +142,8 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
         return model.example_inputs(*_shape(model)[2:], batch=2)
     if TASK[ref] in {"stereo", "flow", "matching", "interpolation"}:
         return pair
+    if hasattr(model._runner, "condition"):  # CLIPSeg: the image, then the projected text embedding
+        return (pair[0], model._runner.condition("a cat"))
     extra = prompt_kwargs(model)  # depth: the image, then the prompt [1, 1, h, w] of a model that requires one
     return (pair[0], *(torch.as_tensor(v)[None, None] for v in extra.values()))
 
@@ -193,6 +206,7 @@ def _check_export_names(ref: str, model: Any, module: torch.nn.Module, out: Any)
 @pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.filterwarnings("ignore:The .grad attribute of a Tensor that is not a leaf")  # dynamo reads .grad
+@pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric3d / da3metric: the assumed camera is fine here
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_module_compile_export(ref):  # noqa: C901, PLR0912 - one branch per task
     _skip_without_module(ref)
@@ -358,7 +372,8 @@ def test_onnx_multiview(ref, tmp_path):
 
 def _main_map_name(ref: str) -> str:
     card, variant = registry.resolve(TASK[ref], ref)
-    return next(k for k in spec(card.task).standard if k in variant.outputs)
+    name = next(k for k in spec(card.task).standard if k in variant.outputs)
+    return f"{name}_out" if name in spec(card.task).inputs else name  # an output named like an input gets `_out`
 
 
 @pytest.mark.model

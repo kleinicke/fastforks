@@ -113,7 +113,7 @@ class Portable(Runner):
         def fn(_net: Any, x: torch.Tensor) -> tuple[torch.Tensor, ...]:  # noqa: ANN401 - the network
             return self.dense(x)
 
-        return Forward(self.net, fn)
+        return Forward(self.net, fn, output_names=("head_s8", "head_s16", "head_s32"))
 
 
 RUNNERS = {"portable": Portable, "kernels": Portable}

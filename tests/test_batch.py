@@ -25,6 +25,7 @@ def _maps(result: object) -> dict[str, torch.Tensor]:
 
 @pytest.mark.slow
 @pytest.mark.model
+@pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric3d / da3metric: the assumed camera is fine here
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_batch_equals_singles(ref):
     task = TASK[ref]

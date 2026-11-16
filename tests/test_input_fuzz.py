@@ -184,6 +184,7 @@ def test_pil_sample_types(model, tmp_path):
 
 @pytest.mark.slow
 @pytest.mark.model
+@pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric3d / da3metric: the assumed camera is fine here
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_tiny_and_odd_sizes(ref, monkeypatch):
     """Tiny and odd sizes give finite maps of the input size, or an `InputError` below `size_range().reject_below`.
@@ -208,8 +209,10 @@ def test_tiny_and_odd_sizes(ref, monkeypatch):
             main = r.flow
             assert main.shape == (2, h, w), (h, w)
         else:
-            main = r.disparity if task == "stereo" else r.depth if r.depth is not None else r.inverse_depth
-            assert main.shape == (h, w), (h, w)
+            main = r.disparity if task == "stereo" else next(
+                x for x in (r.depth, r.inverse_depth, r.normals) if x is not None
+            )  # normal-estimation models give normals only
+            assert main.shape[:2] == (h, w), (h, w)
         assert torch.isfinite(main).all(), (h, w)
 
 
