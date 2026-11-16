@@ -20,10 +20,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`locotrack-b`](#locotrack) | yes | 173, 1.2x | 660, 0.84x |
 | [`locotrack-s`](#locotrack) | yes | 151, 1.3x | 642, 0.79x |
 | [`tapir`](#tapir) | yes | 141, 1.3x | 548, 0.95x |
-| [`tapnext`](#tapnext) | yes | 382, 2.4x | 1374, 0.72x |
+| [`tapnext`](#tapnext) | yes | 381, 2.4x | 1254, 0.66x |
 | [`tapnext-pp`](#tapnext) | yes | – | – |
 | [`track-on-r`](#track_on) | yes | 1102, 1.8x | 1620, 0.84x |
-| [`track-on2`](#track_on) | yes | 1109, 1.8x | 1620, 1.0x |
+| [`track-on2`](#track_on) | yes | 1108, 1.8x | 1620, 1.0x |
 
 <a id="alltracker"></a>
 
@@ -57,7 +57,7 @@ Commercial use: yes.
 - `alltracker-tiny` 480x854, first call: portable + torch.compile 103 s (cold Inductor cache).
 - `alltracker` original 480x854: the authors' mixed-precision option (float16); aharley/alltracker@e7553135e7b3 Net.forward, 384 x 512, 4 iters
 - `alltracker-tiny` original 480x854: the authors' mixed-precision option (float16); aharley/alltracker@e7553135e7b3 Net.forward, 384 x 512, 4 iters
-- `alltracker` load / first call: original 1.68 s / 1.309 s, portable 0.22 s / 0.848 s, kernels 0.98 s / 0.452 s
+- `alltracker` load / first call: original 1.68 s / 1.309 s, portable 0.89 s / 2.078 s, kernels 0.26 s / 0.493 s
 - `alltracker-tiny` load / first call: original 1.22 s / 1.398 s, portable 0.06 s / 0.731 s, kernels 0.96 s / 0.54 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -291,7 +291,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>531<br>382<br>398<br>deferred (build >5 min) | 1721 / 1902<br>1220 / 1294<br>1313 / 1374<br>1164 / 1272<br>– |
+| `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>528<br>381<br>398<br>deferred (build >5 min) | 1721 / 1902<br>1220 / 1294<br>1205 / 1254<br>1164 / 1272<br>– |
 | `tapnext-pp` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile | 1493<br>529<br>–<br>planned for 0.2.1 | 1527 / 1718<br>1220 / 1294<br>–<br>– |
 
 <details><summary>Details</summary>
@@ -312,7 +312,7 @@ Commercial use: yes.
 - `tapnext` 480x854, first call: portable + torch.compile 41 s (cold Inductor cache).
 - `tapnext` original 480x854: the authors' mixed-precision option (float16); upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)
 - `tapnext-pp` original 480x854: upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)
-- `tapnext` load / first call: original 16.92 s / 2.165 s, portable 2.71 s / 0.715 s, kernels 2.56 s / 0.593 s
+- `tapnext` load / first call: original 16.92 s / 2.165 s, portable 2.37 s / 0.666 s, kernels 3.01 s / 0.542 s
 - `tapnext-pp` load / first call: original 4.83 s / 1.802 s, portable 1.34 s / 0.772 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -355,7 +355,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1194<br>1109<br>deferred (build >5 min)<br>planned for 0.2.1 | 1403 / 1558<br>1423 / 1572<br>1368 / 1620<br>–<br>– |
+| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1193<br>1108<br>deferred (build >5 min)<br>planned for 0.2.1 | 1403 / 1558<br>1423 / 1712<br>1368 / 1620<br>–<br>– |
 | `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>deferred (build >5 min)<br>planned for 0.2.1 | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>–<br>– |
 
 <details><summary>Details</summary>
@@ -376,7 +376,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `track-on2` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved); `track-on-r` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved)
 - `track-on2` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
 - `track-on-r` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
-- `track-on2` load / first call: original 3.77 s / 3.626 s, portable 0.66 s / 2.268 s, kernels 0.27 s / 1.777 s
+- `track-on2` load / first call: original 3.77 s / 3.626 s, portable 1.16 s / 1.956 s, kernels 0.63 s / 1.762 s
 - `track-on-r` load / first call: original 0.88 s / 2.907 s, portable 0.24 s / 1.989 s, kernels 1.11 s / 1.72 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

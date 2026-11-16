@@ -37,7 +37,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`seedvr2-7b`](#seedvr2) | yes | 2712 | 8880 |
 | [`span-x2`](#span) | yes | 14.9, 1.6x | 522, 0.81x |
 | [`span-x4`](#span) | yes | 14.6, 1.8x | 522, 0.81x |
-| [`swin2sr-x2`](#swin2sr) | yes | 720, 3.6x | 1636, 1.0x |
+| [`swin2sr-x2`](#swin2sr) | yes | 721, 3.6x | 1636, 1.0x |
 | [`swin2sr-x4`](#swin2sr) | yes | 745, 3.9x | 1736, 0.8x |
 | [`swin2sr-x4-real`](#swin2sr) | yes | 751, 3.4x | 1734, 0.65x |
 | [`swinir-l-x4-real`](#swinir) | yes | 1036, 3.6x | 1934, 0.7x |
@@ -74,7 +74,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `big-lama` 3000x4000 (5.1 GiB peak allocated, 6.8 reserved)
 - `big-lama` 512x512, first call: portable + torch.compile 26 s (cold Inductor cache).
 - `big-lama` original 512x512: .half() on 1 modules, fp16 inputs; advimman/lama@786f5936b27f FFCResNetGenerator, predict.py padding / masking / paste-back
-- `big-lama` load / first call: original 0.52 s / 0.327 s, portable 0.31 s / 0.267 s, kernels 0.65 s / 0.122 s
+- `big-lama` load / first call: original 0.52 s / 0.327 s, portable 0.81 s / 0.246 s, kernels 0.72 s / 0.15 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Parity
@@ -776,7 +776,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `swin2sr-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2922<br>932<br>745<br>496<br>556 | 1488 / 2160<br>1463 / 2276<br>1459 / 1736<br>1308 / 1556<br>5410 / 5470 |
-| `swin2sr-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2565<br>909<br>720<br>482<br>547 | 1488 / 1578<br>1459 / 1554<br>1459 / 1636<br>1308 / 1516<br>4941 / 4997 |
+| `swin2sr-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2565<br>909<br>721<br>482<br>547 | 1488 / 1578<br>1459 / 1554<br>1459 / 1636<br>1308 / 1516<br>4941 / 4997 |
 | `swin2sr-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2527<br>958<br>751<br>508<br>562 | 2321 / 2660<br>2354 / 2774<br>1459 / 1734<br>1308 / 1556<br>5409 / 5468 |
 
 <details><summary>Details</summary>
@@ -799,7 +799,7 @@ Commercial use: yes.
 - `swin2sr-x2` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
 - `swin2sr-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
 - `swin2sr-x4` load / first call: original 1.63 s / 3.583 s, portable 0.48 s / 1.16 s, kernels 0.57 s / 1.023 s
-- `swin2sr-x2` load / first call: original 1.81 s / 4.125 s, portable 0.37 s / 1.226 s, kernels 0.56 s / 0.844 s
+- `swin2sr-x2` load / first call: original 1.81 s / 4.125 s, portable 0.49 s / 1.154 s, kernels 0.62 s / 0.863 s
 - `swin2sr-x4-real` load / first call: original 1.89 s / 3.754 s, portable 0.47 s / 1.179 s, kernels 0.57 s / 0.882 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

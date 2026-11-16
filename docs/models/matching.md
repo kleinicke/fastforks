@@ -331,7 +331,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `romav1` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>376<br>356<br>deferred (build >5 min)<br>planned for 0.2.1 | 3887 / 4094<br>1720 / 1820<br>1720 / 1860<br>–<br>– |
+| `romav1` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>377<br>356<br>deferred (build >5 min)<br>planned for 0.2.1 | 3887 / 4094<br>1720 / 1840<br>1720 / 1860<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -350,7 +350,7 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `romav1` 3000x4000 (1.9 GiB peak allocated, 2.2 reserved)
 - `romav1` original 768x1024: the authors' mixed-precision option (float16); upstream RoMa v1 match, one direction; local correlation: upstream's plain-torch path (use_custom_corr off)
-- `romav1` load / first call: original 6.28 s / 2.57 s, portable 1.09 s / 0.834 s, kernels 1.96 s / 0.862 s
+- `romav1` load / first call: original 6.28 s / 2.57 s, portable 2.34 s / 0.918 s, kernels 3.17 s / 1.026 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

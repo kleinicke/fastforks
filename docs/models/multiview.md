@@ -19,7 +19,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`mvsanywhere`](#mvsanywhere) | no | 35.2, 6.2x | 760, 0.51x |
 | [`mvsplat-re10k`](#mvsplat) | yes | 172, 1.6x | 1532, 0.37x |
 | [`patchmatchnet`](#patchmatchnet) | yes | 29.5, 7.4x | 772, 0.61x |
-| [`pi3`](#pi3) | no | 560, 1.9x | 2456, 0.41x |
+| [`pi3`](#pi3) | no | 559, 1.9x | 2456, 0.41x |
 | [`resplat-base-re10k`](#resplat) | no | 1280, 2.0x | 8706, 0.69x |
 | [`resplat-small-dl3dv`](#resplat) | yes | 362, 1.4x | 5148, 0.96x |
 | [`vggt-1b`](#vggt) | no | 458, 2.1x | 4654, 0.63x |
@@ -35,7 +35,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anysplat` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>504<br>364<br>427<br>314 | 8931 / 9394<br>4842 / 4932<br>4852 / 5192<br>4137 / 4694<br>7629 / 7674 |
+| `anysplat` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>503<br>364<br>427<br>314 | 8931 / 9394<br>4842 / 4932<br>4849 / 5192<br>4137 / 4694<br>7629 / 7674 |
 
 <details><summary>Details</summary>
 
@@ -55,7 +55,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anysplat` 3000x4000 (6.5 GiB peak allocated, 9.4 reserved)
 - `anysplat` 336x518, first call: portable + torch.compile 80 s (cold Inductor cache), TensorRT fp16 215 s (ONNX + engine).
 - `anysplat` original 336x518: the authors' mixed-precision option (bfloat16); InternRobotics/AnySplat@5f5e208a7dd5 EncoderAnySplat inference, long side 448, voxel_size 0.002
-- `anysplat` load / first call: original 8.32 s / 3.068 s (336x518), portable 2.46 s / 0.891 s (336x518), kernels 3.98 s / 0.73 s (336x518)
+- `anysplat` load / first call: original 8.32 s / 3.068 s (336x518), portable 4.71 s / 0.891 s (336x518), kernels 4.04 s / 0.708 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -398,7 +398,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>821<br>560<br>752<br>planned for 0.2.1 | 5926 / 6016<br>2360 / 2416<br>2367 / 2456<br>2205 / 2334<br>– |
+| `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>821<br>559<br>752<br>planned for 0.2.1 | 5926 / 6016<br>2360 / 2416<br>2367 / 2456<br>2205 / 2334<br>– |
 
 <details><summary>Details</summary>
 
@@ -418,7 +418,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pi3` 3000x4000 (4.8 GiB peak allocated, 6.5 reserved)
 - `pi3` 336x518, first call: portable + torch.compile 56 s (cold Inductor cache).
 - `pi3` original 336x518: the authors' mixed-precision option (bfloat16); yyfz/Pi3@9fa3ddb3f8d5 Pi3.forward, PIXEL_LIMIT 255000
-- `pi3` load / first call: original 10.64 s / 4.059 s (336x518), portable 2.35 s / 1.242 s (336x518), kernels 3.54 s / 0.69 s (336x518)
+- `pi3` load / first call: original 10.64 s / 4.059 s (336x518), portable 3.46 s / 1.284 s (336x518), kernels 3.78 s / 0.7 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

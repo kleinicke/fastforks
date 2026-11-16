@@ -28,7 +28,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nnfoundation-cnn` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>274<br>227<br>211<br>170<br>planned for 0.2.1 | 7247 / 8734<br>3818 / 4628<br>3011 / 3110<br>2985 / 3710<br>5067 / 5110<br>– |
+| `nnfoundation-cnn` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>274<br>226<br>211<br>170<br>planned for 0.2.1 | 7247 / 8734<br>3818 / 4628<br>3011 / 3130<br>2985 / 3710<br>5067 / 5110<br>– |
 | `nnfoundation-vit` | synthetic (192x192) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>1930<br>1848<br>1732<br>1440<br>planned for 0.2.1 | –<br>3930 / 4298<br>1669 / 1884<br>1669 / 1884<br>1406 / 1484<br>– |
 
 <details><summary>Details</summary>
@@ -50,7 +50,7 @@ Commercial use: yes.
 - `nnfoundation-vit` 192x192, first call: portable + torch.compile 69 s (cold Inductor cache).
 - `nnfoundation-cnn` original (fp32) 200x200, original 200x200: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
 - `nnfoundation-vit` original 192x192: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
-- `nnfoundation-cnn` load / first call: original 1.18 s / 0.69 s, portable 0.67 s / 0.328 s, kernels 0.39 s / 0.291 s
+- `nnfoundation-cnn` load / first call: original 1.18 s / 0.69 s, portable 0.56 s / 0.269 s, kernels 0.39 s / 0.291 s
 - `nnfoundation-vit` load / first call: original 9.54 s / 2.37 s (192x192), portable 1.24 s / 1.867 s (192x192), kernels 1.27 s / 1.756 s (192x192)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

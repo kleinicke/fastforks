@@ -29,7 +29,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`depth-anything-v2-metric-vkitti-l`](#depth_anything_v2) | yes | 0.0968 | 31.9, 4.4x | 1034, 0.44x |
 | [`depth-anything-v2-metric-vkitti-s`](#depth_anything_v2) | yes | 0.1225 | 4.67, 7.7x | 208, 0.5x |
 | [`depth-anything-v2-s`](#depth_anything_v2) | yes | 0.0509 | 4.51, 9.1x | 248, 0.59x |
-| [`depth-pro`](#depth_pro) | no | 0.0425 | 271, 2.1x | 3778, 0.88x |
+| [`depth-pro`](#depth_pro) | no | 0.0425 | 274, 2.1x | 3938, 0.92x |
 | [`depthfm-v1`](#depthfm) | yes | – | – | – |
 | [`distill-any-depth-b`](#depth_anything_v2) | yes | 0.0470 | 10.8, 5.5x | 396, 0.41x |
 | [`distill-any-depth-l`](#depth_anything_v2) | yes | 0.0444 | 31.8, 4.4x | 1034, 0.44x |
@@ -48,15 +48,15 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 33.3, 2.5x | 1048, 0.83x |
 | [`moge-3-vitl`](#moge) | yes | 0.0356 | 149, 3.3x | 1762, 0.67x |
 | [`omni-dc`](#omni_dc) | no | – | – | – |
-| [`pointdit-b-512`](#pointdit) | yes | 0.0453 | 20.6, 2.4x | 630, 0.63x |
-| [`pointdit-l-512`](#pointdit) | yes | 0.0410 | 61.4, 1.8x | 1696, 0.54x |
+| [`pointdit-b-512`](#pointdit) | yes | 0.0453 | 20.5, 2.4x | 630, 0.63x |
+| [`pointdit-l-512`](#pointdit) | yes | 0.0410 | 61.3, 1.8x | 1676, 0.53x |
 | [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 69.3, 6.3x (756x1008) | 1348, 0.35x |
 | [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 11.4, 6.8x (756x1008) | 384, 0.35x |
 | [`stablenormal-turbo`](#stablenormal) | yes | – | 180, 1.7x | 3172, 0.73x |
 | [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 63.0, 2.1x | 1252, 0.36x |
 | [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.9, 2.1x | 1266, 0.35x |
 | [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 200, 53.8x (1080x1920) | 2206, 0.19x |
-| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 1284, 9.1x (1080x1920) | 8782, 0.74x |
+| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 200, 58.2x (1080x1920) | 2226, 0.19x |
 | [`zoedepth-nk`](#zoedepth) | yes | 0.0532 | 88.9, 3.1x | 1960, 0.91x |
 
 <a id="any2full"></a>
@@ -397,7 +397,7 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depth-pro` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1776<br>569<br>518<br>271<br>488<br>299 | 8170 / 9020<br>3828 / 4294<br>3306 / 3498<br>3667 / 3778<br>3053 / 3198<br>4816 / 4882 |
+| `depth-pro` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1776<br>569<br>522<br>274<br>488<br>299 | 8170 / 9020<br>3828 / 4294<br>3297 / 3478<br>3626 / 3938<br>3053 / 3198<br>4816 / 4882 |
 
 <details><summary>Details</summary>
 
@@ -415,9 +415,8 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depth-pro` 3000x4000 (3.4 GiB peak allocated, 4.0 reserved)
 - `depth-pro` 994x1482, first call: portable + torch.compile 39 s (cold Inductor cache), TensorRT fp16 163 s (ONNX + engine).
 - `depth-pro` original 994x1482: torch.autocast(fp16) around the forward; fp16 = original's own precision=float16 model
-- `depth-pro` load / first call: original 17.34 s / 0.745 s, portable 4.67 s / 0.584 s, kernels 1.11† s / 0.371 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
-- Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
+- `depth-pro` load / first call: original 17.34 s / 0.745 s, portable 6.2 s / 0.522 s, kernels 4.11 s / 0.265 s
+- Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
@@ -1037,8 +1036,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `pointdit-b-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 105<br>48.7<br>30.7<br>20.6<br>23.7<br>15.5 | 977 / 1006<br>1214 / 1246<br>450 / 544<br>466 / 630<br>465 / 524<br>795 / 898 |
-| `pointdit-l-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 335<br>112<br>94.6<br>61.4<br>76.0<br>49.1 | 3092 / 3148<br>3953 / 4010<br>1301 / 1410<br>1314 / 1696<br>1316 / 1430<br>2474 / 2626 |
+| `pointdit-b-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 105<br>48.7<br>31.1<br>20.5<br>23.7<br>15.5 | 977 / 1006<br>1214 / 1246<br>446 / 504<br>462 / 630<br>465 / 524<br>795 / 898 |
+| `pointdit-l-512` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 335<br>112<br>94.6<br>61.3<br>76.0<br>49.1 | 3092 / 3148<br>3953 / 4010<br>1297 / 1430<br>1310 / 1676<br>1316 / 1430<br>2474 / 2626 |
 
 <details><summary>Details</summary>
 
@@ -1061,8 +1060,8 @@ Commercial use: yes.
 - `pointdit-b-512` original 994x1482: the authors' mixed-precision option (bfloat16); upstream wild-image resize (~1024 tokens), 3 Euler steps; authors bf16 autocast
 - `pointdit-l-512` original (fp32) 994x1482: upstream wild-image resize (~1024 tokens), 3 Euler steps
 - `pointdit-l-512` original 994x1482: the authors' mixed-precision option (bfloat16); upstream wild-image resize (~1024 tokens), 3 Euler steps; authors bf16 autocast
-- `pointdit-b-512` load / first call: original 2.57 s / 0.111 s, portable 0.65 s / 0.289 s (518x770), kernels 0.56 s / 0.167 s (518x770)
-- `pointdit-l-512` load / first call: original 9.47 s / 0.119 s, portable 0.92 s / 0.27 s (518x770), kernels 0.94 s / 0.251 s (518x770)
+- `pointdit-b-512` load / first call: original 2.57 s / 0.111 s, portable 1.67 s / 0.184 s (518x770), kernels 1.74 s / 0.155 s (518x770)
+- `pointdit-l-512` load / first call: original 9.47 s / 0.119 s, portable 3.96 s / 0.247 s (518x770), kernels 3.91 s / 0.234 s (518x770)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -1339,7 +1338,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `video-depth-anything-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile | 11626<br>1434<br>1284<br>1314 | 8263 / 11890<br>8201 / 8652<br>8204 / 8782<br>7762 / 8530 |
+| `video-depth-anything-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile | 11626<br>202<br>200<br>1314 | 8263 / 11890<br>1962 / 2204<br>1967 / 2226<br>7762 / 8530 |
 | `video-depth-anything-metric-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels | 10776<br>2005<br>200 | 8264 / 11916<br>8203 / 8848<br>1967 / 2206 |
 
 <details><summary>Details</summary>
@@ -1362,10 +1361,10 @@ Commercial use: yes.
 - `video-depth-anything-s` original 1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
 - `video-depth-anything-s` portable 1080x1920, kernels 1080x1920: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out
 - `video-depth-anything-metric-s` original 1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
-- `video-depth-anything-s` load / first call: original 0.26 s / 14.043 s (1080x1920), portable 0.18 s / 1.455 s (1080x1920), kernels 0.12† s / 1.301 s (1080x1920)
+- `video-depth-anything-s` load / first call: original 0.26 s / 14.043 s (1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
 - `video-depth-anything-metric-s` load / first call: original 3.85 s / 17.094 s (1080x1920), portable 0.51 s / 2.325 s (1080x1920), kernels 0.3 s / 0.434 s (480x640)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
-- Protocol, one video per call (4 windows of 32 frames), first call, 1 warm-up, peak reset, median of 3; ms per video
+- Protocol, `video-depth-anything-s`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+- Protocol, `video-depth-anything-metric-s`: one video per call (4 windows of 32 frames), first call, 1 warm-up, peak reset, median of 3; ms per video
 
 ### Measured
 

@@ -16,10 +16,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`dwpose-l-384`](#rtmpose) | yes | 12.5, 15.5x | 424, 0.52x |
 | [`dwpose-m`](#rtmpose) | yes | 4.86, 33.8x | 220, 0.28x |
 | [`dwpose-s`](#rtmpose) | yes | 3.30, 52.3x | 198, 0.23x |
-| [`dwpose-t`](#rtmpose) | yes | 3.15, 50.8x | 192, 0.22x |
+| [`dwpose-t`](#rtmpose) | yes | 3.17, 50.6x | 174, 0.2x |
 | [`hrnet-w32`](#hrnet) | yes | 9.79, 18.0x | 262, 0.81x |
 | [`hrnet-w32-384`](#hrnet) | yes | 19.4, 9.8x | 380, 0.5x |
-| [`hrnet-w48`](#hrnet) | yes | 15.5, 12.9x | 398, 0.86x |
+| [`hrnet-w48`](#hrnet) | yes | 15.5, 12.9x | 378, 0.82x |
 | [`hrnet-w48-384`](#hrnet) | yes | 33.9, 7.2x | 498, 0.54x |
 | [`retinaface-mobilenet0.25`](#retinaface) | yes | 2.74, 27.7x | 128, 1.2x |
 | [`retinaface-resnet50`](#retinaface) | yes | 11.7, 6.8x | 464, 0.95x |
@@ -40,15 +40,15 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`rtmpose-m-halpe26-384`](#rtmpose) | yes | 9.01, 21.3x | 340, 0.45x |
 | [`rtmpose-m-hand5`](#rtmpose) | yes | 5.44, 35.3x | 240, 0.51x |
 | [`rtmpose-s`](#rtmpose) | yes | 3.01, 53.4x | 178, 0.37x |
-| [`rtmpose-s-face6`](#rtmpose) | yes | 3.75, 63.2x | 222, 0.41x |
+| [`rtmpose-s-face6`](#rtmpose) | yes | 3.74, 63.4x | 202, 0.37x |
 | [`rtmpose-s-halpe26`](#rtmpose) | yes | 3.04, 56.5x | 198, 0.99x |
 | [`rtmpose-t`](#rtmpose) | yes | 2.90, 52.0x | 176, 0.36x |
-| [`rtmpose-t-face6`](#rtmpose) | yes | 3.63, 51.8x | 220, 0.47x |
-| [`rtmpose-t-halpe26`](#rtmpose) | yes | 2.90, 59.1x | 196, 1.4x |
+| [`rtmpose-t-face6`](#rtmpose) | yes | 3.61, 52.1x | 180, 0.39x |
+| [`rtmpose-t-halpe26`](#rtmpose) | yes | 2.90, 59.2x | 156, 1.1x |
 | [`rtmpose-x-halpe26-384`](#rtmpose) | yes | 18.7, 11.6x | 470, 0.85x |
 | [`rtmw-l`](#rtmpose) | yes | 10.2, 19.8x | 336, 0.47x |
 | [`rtmw-l-384`](#rtmpose) | yes | 20.2, 13.6x | 476, 0.47x |
-| [`rtmw-m`](#rtmpose) | yes | 7.54, 22.5x | 268, 0.82x |
+| [`rtmw-m`](#rtmpose) | yes | 7.54, 22.5x | 266, 0.81x |
 | [`rtmw-x`](#rtmpose) | yes | 14.3, 14.5x | 394, 0.62x |
 | [`rtmw-x-384`](#rtmpose) | yes | 50.9, 5.7x | 632, 0.35x |
 | [`vitpose-base`](#vitpose) | yes | 12.0, 8.8x | 364, 0.6x |
@@ -76,17 +76,17 @@ Commercial use: yes.
 | `rtmpose-l` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 161<br>176<br>8.94<br>5.63<br>5.32<br>3.20 (network on person crops only) | 1076 / 1114<br>1105 / 1154<br>211 / 236<br>175 / 264<br>185 / 194<br>230 / 266 |
 | `rtmpose-m-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 174<br>167<br>13.1<br>8.97<br>7.09<br>4.33 (network on person crops only) | 585 / 666<br>505 / 582<br>243 / 352<br>202 / 340<br>190 / 212<br>212 / 242 |
 | `rtmpose-l-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 192<br>171<br>19.3<br>11.2<br>10.7<br>7.08 (network on person crops only) | 1485 / 1538<br>366 / 410<br>340 / 436<br>229 / 406<br>242 / 274<br>297 / 322 |
-| `dwpose-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 160<br>174<br>4.47<br>3.15<br>1.96<br>0.940 (network on person crops only) | 841 / 874<br>832 / 858<br>124 / 152<br>133 / 192<br>129 / 148<br>136 / 160 |
+| `dwpose-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 160<br>174<br>4.60<br>3.17<br>1.96<br>0.940 (network on person crops only) | 841 / 874<br>832 / 858<br>104 / 132<br>109 / 174<br>129 / 148<br>136 / 160 |
 | `dwpose-s` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 173<br>180<br>5.03<br>3.30<br>2.27<br>1.17 (network on person crops only) | 807 / 860<br>806 / 848<br>129 / 174<br>138 / 198<br>135 / 150<br>149 / 170 |
 | `dwpose-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 169<br>164<br>7.25<br>4.86<br>3.80<br>2.13 (network on person crops only) | 746 / 802<br>756 / 792<br>162 / 196<br>157 / 220<br>156 / 174<br>203 / 228 |
 | `dwpose-l` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 178<br>184<br>10.2<br>6.20<br>5.75<br>3.33 (network on person crops only) | 341 / 388<br>393 / 428<br>222 / 280<br>186 / 306<br>197 / 216<br>277 / 294 |
 | `dwpose-l-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 194<br>203<br>21.2<br>12.5<br>11.9<br>7.46 (network on person crops only) | 796 / 832<br>773 / 816<br>351 / 460<br>240 / 424<br>253 / 296<br>347 / 370 |
-| `rtmw-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 169<br>205<br>11.2<br>7.54<br>6.23<br>3.34 (network on person crops only) | 288 / 328<br>379 / 410<br>189 / 224<br>184 / 268<br>183 / 202<br>231 / 256 |
+| `rtmw-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 169<br>205<br>10.9<br>7.54<br>6.23<br>3.34 (network on person crops only) | 288 / 328<br>379 / 410<br>181 / 244<br>164 / 266<br>183 / 202<br>231 / 256 |
 | `rtmw-l` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 213<br>203<br>15.1<br>10.2<br>9.34<br>5.17 (network on person crops only) | 679 / 708<br>865 / 908<br>267 / 308<br>232 / 336<br>242 / 264<br>354 / 396 |
 | `rtmw-x` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>207<br>23.9<br>14.3<br>15.3<br>8.47 (network on person crops only) | 1307 / 1360<br>604 / 636<br>342 / 392<br>298 / 394<br>320 / 328<br>497 / 514 |
 | `rtmw-l-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 274<br>275<br>31.5<br>20.2<br>19.5<br>11.2 (network on person crops only) | 982 / 1018<br>1094 / 1144<br>396 / 508<br>286 / 476<br>298 / 344<br>424 / 452 |
 | `rtmw-x-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 306<br>291<br>50.6<br>50.9<br>34.0<br>19.3 (network on person crops only) | 1705 / 1812<br>1874 / 1940<br>466 / 632<br>496 / 632<br>361 / 388<br>581 / 624 |
-| `rtmpose-t-halpe26` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 181<br>172<br>4.48<br>2.90<br>1.94<br>0.871 (network on person crops only) | 119 / 158<br>103 / 144<br>120 / 150<br>129 / 196<br>125 / 128<br>128 / 164 |
+| `rtmpose-t-halpe26` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 181<br>172<br>4.61<br>2.90<br>1.94<br>0.871 (network on person crops only) | 119 / 158<br>103 / 144<br>100 / 130<br>105 / 156<br>125 / 128<br>128 / 164 |
 | `rtmpose-s-halpe26` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>173<br>4.98<br>3.04<br>2.11<br>1.07 (network on person crops only) | 174 / 212<br>162 / 200<br>124 / 172<br>133 / 198<br>130 / 150<br>138 / 170 |
 | `rtmpose-m-halpe26` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 179<br>181<br>6.35<br>4.46<br>3.44<br>2.02 (network on person crops only) | 288 / 328<br>283 / 318<br>154 / 192<br>149 / 220<br>148 / 172<br>160 / 180 |
 | `rtmpose-l-halpe26` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 180<br>164<br>9.06<br>5.65<br>5.34<br>3.20 (network on person crops only) | 498 / 532<br>529 / 572<br>212 / 276<br>176 / 264<br>186 / 194<br>231 / 266 |
@@ -94,8 +94,8 @@ Commercial use: yes.
 | `rtmpose-l-halpe26-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 206<br>206<br>19.3<br>11.2<br>10.6<br>7.08 (network on person crops only) | 1019 / 1054<br>975 / 1038<br>341 / 436<br>230 / 406<br>243 / 276<br>299 / 322 |
 | `rtmpose-x-halpe26-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 247<br>217<br>33.5<br>18.7<br>21.1<br>13.3 (network on person crops only) | 1470 / 1588<br>470 / 556<br>401 / 498<br>280 / 470<br>262 / 298<br>430 / 456 |
 | `rtmpose-m-hand5` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 192<br>195<br>8.04<br>5.44<br>4.51<br>2.58 (network on person crops only) | 451 / 504<br>425 / 472<br>178 / 234<br>163 / 240<br>176 / 192<br>174 / 192 |
-| `rtmpose-t-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 188<br>204<br>4.58<br>3.63<br>2.23<br>1.00 (network on person crops only) | 444 / 498<br>424 / 464<br>134 / 152<br>146 / 220<br>159 / 168<br>145 / 168 |
-| `rtmpose-s-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 258<br>237<br>5.03<br>3.75<br>2.69<br>1.28 (network on person crops only) | 519 / 572<br>504 / 540<br>147 / 174<br>151 / 222<br>164 / 190<br>158 / 178 |
+| `rtmpose-t-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 188<br>204<br>4.53<br>3.61<br>2.23<br>1.00 (network on person crops only) | 444 / 498<br>424 / 464<br>116 / 152<br>123 / 180<br>159 / 168<br>145 / 168 |
+| `rtmpose-s-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 258<br>237<br>5.04<br>3.74<br>2.69<br>1.28 (network on person crops only) | 519 / 572<br>504 / 540<br>140 / 174<br>128 / 202<br>164 / 190<br>158 / 178 |
 | `rtmpose-m-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 198<br>207<br>8.69<br>5.78<br>4.79<br>2.67 (network on person crops only) | 666 / 728<br>652 / 698<br>184 / 256<br>169 / 242<br>182 / 192<br>216 / 240 |
 | `rtmpose-m-ap10k` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>186<br>7.98<br>5.41<br>4.54<br>2.57 (network on person crops only) | 783 / 846<br>757 / 814<br>177 / 234<br>163 / 220<br>176 / 192<br>172 / 188 |
 
@@ -226,17 +226,17 @@ Commercial use: yes.
 - `rtmpose-l` load / first call: original 0.38 s / 0.179 s, portable 0.94 s / 0.858 s, kernels 1.6 s / 0.29 s
 - `rtmpose-m-384` load / first call: original 0.23 s / 0.349 s, portable 0.2 s / 1.245 s, kernels 1.48 s / 0.29 s
 - `rtmpose-l-384` load / first call: original 0.58 s / 0.165 s, portable 0.41 s / 1.0 s, kernels 1.56 s / 0.291 s
-- `dwpose-t` load / first call: original 0.16 s / 0.326 s, portable 0.08 s / 0.887 s, kernels 1.42 s / 0.29 s
+- `dwpose-t` load / first call: original 0.16 s / 0.326 s, portable 0.17 s / 1.243 s, kernels 0.69 s / 0.29 s
 - `dwpose-s` load / first call: original 0.19 s / 0.47 s, portable 0.12 s / 1.022 s, kernels 1.48 s / 0.29 s
 - `dwpose-m` load / first call: original 0.26 s / 0.596 s, portable 0.24 s / 1.099 s, kernels 1.51 s / 0.292 s
 - `dwpose-l` load / first call: original 0.5 s / 1.143 s, portable 0.88 s / 1.831 s, kernels 1.64 s / 0.28 s
 - `dwpose-l-384` load / first call: original 0.42 s / 0.425 s, portable 0.58 s / 1.102 s, kernels 1.67 s / 0.285 s
-- `rtmw-m` load / first call: original 0.54 s / 1.213 s, portable 0.35 s / 1.196 s, kernels 1.64 s / 0.289 s
+- `rtmw-m` load / first call: original 0.54 s / 1.213 s, portable 0.32 s / 0.896 s, kernels 1.02 s / 0.301 s
 - `rtmw-l` load / first call: original 0.76 s / 0.632 s, portable 0.39 s / 1.032 s, kernels 1.72 s / 0.306 s
 - `rtmw-x` load / first call: original 1.23 s / 0.64 s, portable 1.35 s / 0.833 s, kernels 2.1 s / 0.283 s
 - `rtmw-l-384` load / first call: original 0.75 s / 0.56 s, portable 0.34 s / 1.198 s, kernels 1.69 s / 0.279 s
 - `rtmw-x-384` load / first call: original 1.05 s / 0.419 s, portable 0.92 s / 0.97 s, kernels 1.36 s / 0.329 s
-- `rtmpose-t-halpe26` load / first call: original 0.18 s / 0.707 s, portable 0.05 s / 0.806 s, kernels 1.48 s / 0.293 s
+- `rtmpose-t-halpe26` load / first call: original 0.18 s / 0.707 s, portable 0.16 s / 0.872 s, kernels 0.73 s / 0.292 s
 - `rtmpose-s-halpe26` load / first call: original 0.19 s / 0.614 s, portable 0.07 s / 0.943 s, kernels 1.46 s / 0.296 s
 - `rtmpose-m-halpe26` load / first call: original 0.25 s / 0.445 s, portable 0.14 s / 1.037 s, kernels 1.51 s / 0.297 s
 - `rtmpose-l-halpe26` load / first call: original 0.37 s / 0.451 s, portable 0.25 s / 1.128 s, kernels 1.55 s / 0.292 s
@@ -244,8 +244,8 @@ Commercial use: yes.
 - `rtmpose-l-halpe26-384` load / first call: original 0.41 s / 0.382 s, portable 0.26 s / 1.239 s, kernels 1.57 s / 0.29 s
 - `rtmpose-x-halpe26-384` load / first call: original 0.89 s / 0.938 s, portable 0.41 s / 1.17 s, kernels 1.76 s / 0.276 s
 - `rtmpose-m-hand5` load / first call: original 0.23 s / 0.219 s, portable 0.13 s / 1.134 s, kernels 1.49 s / 0.289 s
-- `rtmpose-t-face6` load / first call: original 0.18 s / 0.339 s, portable 0.06 s / 1.287 s, kernels 1.45 s / 0.293 s
-- `rtmpose-s-face6` load / first call: original 0.31 s / 0.354 s, portable 0.08 s / 1.178 s, kernels 1.43 s / 0.292 s
+- `rtmpose-t-face6` load / first call: original 0.18 s / 0.339 s, portable 0.16 s / 1.295 s, kernels 0.71 s / 0.292 s
+- `rtmpose-s-face6` load / first call: original 0.31 s / 0.354 s, portable 0.17 s / 1.11 s, kernels 0.69 s / 0.296 s
 - `rtmpose-m-face6` load / first call: original 0.29 s / 0.203 s, portable 0.15 s / 1.146 s, kernels 1.49 s / 0.289 s
 - `rtmpose-m-ap10k` load / first call: original 0.23 s / 0.19 s, portable 0.13 s / 1.139 s, kernels 1.48 s / 0.291 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -334,7 +334,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `hrnet-w32` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 176<br>190<br>20.3<br>9.79<br>9.94<br>5.18 (network on person crops only) | 270 / 324<br>336 / 398<br>195 / 258<br>210 / 262<br>178 / 214<br>216 / 254 |
 | `hrnet-w32-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 216<br>190<br>38.8<br>19.4<br>19.6<br>10.7 (network on person crops only) | 682 / 762<br>653 / 760<br>341 / 434<br>305 / 380<br>211 / 234<br>296 / 320 |
-| `hrnet-w48` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 200<br>206<br>32.0<br>15.5<br>21.2<br>9.46 (network on person crops only) | 879 / 1022<br>440 / 462<br>262 / 322<br>343 / 398<br>245 / 282<br>346 / 388 |
+| `hrnet-w48` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 200<br>206<br>32.0<br>15.5<br>21.2<br>9.46 (network on person crops only) | 879 / 1022<br>440 / 462<br>262 / 302<br>343 / 378<br>245 / 282<br>346 / 388 |
 | `hrnet-w48-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 276<br>245<br>70.5<br>33.9<br>46.0<br>22.3 (network on person crops only) | 841 / 928<br>1014 / 1082<br>408 / 498<br>438 / 498<br>278 / 300<br>427 / 454 |
 
 <details><summary>Details</summary>
@@ -366,7 +366,7 @@ Commercial use: yes.
 - `hrnet-w48-384` original 1080x1920: torch.autocast(float16) around the call; mmpose 1.3.2 inference_topdown (CPU cv2 crop, network, heatmap decode; flip_test off), all in the timed call
 - `hrnet-w32` load / first call: original 0.45 s / 0.383 s, portable 0.25 s / 0.564 s, kernels 2.53 s / 0.285 s
 - `hrnet-w32-384` load / first call: original 0.42 s / 0.225 s, portable 0.25 s / 0.567 s, kernels 2.04 s / 0.254 s
-- `hrnet-w48` load / first call: original 0.72 s / 0.225 s, portable 0.4 s / 0.34 s, kernels 2.1 s / 0.147 s
+- `hrnet-w48` load / first call: original 0.72 s / 0.225 s, portable 0.72 s / 0.351 s, kernels 1.76 s / 0.199 s
 - `hrnet-w48-384` load / first call: original 0.53 s / 0.242 s, portable 0.39 s / 0.355 s, kernels 2.16 s / 0.212 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -650,7 +650,7 @@ Commercial use: yes.
 - `vitpose-plus-huge` original (fp32) 1080x1920: transformers 4.57.1 VitPoseImageProcessor (CPU crop) + VitPoseForPoseEstimation + post_process_pose_estimation, all in the timed call
 - `vitpose-plus-huge` original 1080x1920: torch.autocast(fp16) around the call; transformers 4.57.1 VitPoseImageProcessor (CPU crop) + VitPoseForPoseEstimation + post_process_pose_estimation, all in the timed call
 - `vitpose-base-simple` load / first call: original 0.15 s / 0.17 s, portable 0.4 s / 0.408 s, kernels 1.04 s / 0.41 s
-- `vitpose-base` load / first call: original 0.16 s / 0.328 s, portable 1.16 s / 0.351 s, kernels 0.34 s / 0.388 s
+- `vitpose-base` load / first call: original 0.16 s / 0.328 s, portable 0.73 s / 0.369 s, kernels 0.71 s / 0.346 s
 - `vitpose-plus-small` load / first call: original 0.15 s / 0.119 s, portable 0.81 s / 0.461 s, kernels 1.09 s / 0.503 s
 - `vitpose-plus-base` load / first call: original 0.19 s / 0.121 s, portable 0.65 s / 0.345 s, kernels 1.1 s / 0.343 s
 - `vitpose-plus-large` load / first call: original 0.41 s / 0.166 s, portable 1.5 s / 0.412 s, kernels 1.63 s / 0.407 s
