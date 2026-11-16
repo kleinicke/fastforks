@@ -141,6 +141,7 @@ def test_metric3d_depth_scales_with_fx():
 
 @pytest.mark.slow
 @pytest.mark.model
+@pytest.mark.filterwarnings("ignore:.*without intrinsics")
 @pytest.mark.parametrize("ref", ["metric3d-vit-large", "midas-dpt-beit-large-512"])
 def test_odd_size(ref):
     out = _map(_load(ref)(image(97, 131)))
@@ -239,6 +240,7 @@ def _fit(ratio: torch.Tensor) -> tuple[float, float]:
 
 @pytest.mark.slow
 @pytest.mark.model
+@pytest.mark.filterwarnings("ignore:.*without intrinsics")
 def test_da3_metric_focal_at_network_size():
     model = _load("da3metric-large")
     x = image()

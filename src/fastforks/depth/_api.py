@@ -322,6 +322,12 @@ class DepthModel(core.Model):
             if use == "required":
                 msg = f"{self.variant.ref} needs the camera intrinsics (intrinsics=[3, 3] pixel matrix)"
                 raise InputError(msg)
+            if use == "optional" and self._runner.assumed_camera:
+                warnings.warn(
+                    f"{self.variant.ref} was called without intrinsics: its metres assume "
+                    f"{self._runner.assumed_camera}, wrong for a real camera; pass intrinsics=K (3 x 3, pixels)",
+                    stacklevel=5,
+                )
             return None
         if use == "unused":
             msg = f"{self.variant.ref} does not use camera intrinsics; call it without them"

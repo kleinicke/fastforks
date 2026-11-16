@@ -327,6 +327,7 @@ class Portable(Runner):
         super().__init__(ctx)
         self.arch: Arch = ctx.params.arch
         self.intrinsics = self.input_use(ctx.params)["intrinsics"]  # ty: ignore[invalid-attribute-access] - per variant
+        self.assumed_camera = "a 300 px focal length" if self.intrinsics == "optional" else ""  # ty: ignore[invalid-attribute-access]
         self.net = _net(ctx)
         for br in self._branches():
             rope: Any = br.backbone.pretrained.rope
@@ -626,6 +627,7 @@ class Kernels(Runner):
         super().__init__(ctx)
         self.arch: Arch = ctx.params.arch
         self.intrinsics = self.input_use(ctx.params)["intrinsics"]  # ty: ignore[invalid-attribute-access] - per variant
+        self.assumed_camera = "a 300 px focal length" if self.intrinsics == "optional" else ""  # ty: ignore[invalid-attribute-access]
         k = load_dpt_fused(ctx.device)
         net = _net(ctx, "cpu")  # converted on the CPU: the GPU holds only the fp16 network
         self.parts = []

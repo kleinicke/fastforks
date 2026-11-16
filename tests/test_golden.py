@@ -21,6 +21,7 @@ import gc
 import hashlib
 import os
 import re
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -295,7 +296,9 @@ def forward(m: Any, ref: str, want: dict[str, np.ndarray] | None) -> tuple[dict[
         r = m(*pair(*size(m.variant.io.min_size)))
         maps = {"disparity": r.disparity, "confidence": r.confidence, **r.extras}
     elif task == "depth":
-        r = m(img, **prompt_kwargs(m))
+        with warnings.catch_warnings():  # metric3d / da3metric without intrinsics: the golden is the assumed camera
+            warnings.filterwarnings("ignore", message=".*without intrinsics")
+            r = m(img, **prompt_kwargs(m))
         maps = {**{k: getattr(r, k) for k in spec("depth").standard}, **r.extras}
     elif task == "multiview":
         r, maps = _scene(m)
