@@ -3,7 +3,7 @@ name = "WAFT"
 summary = "WAFT (Wang & Deng 2025), version a1: optical flow without a cost volume. A frozen Depth Anything V2 Small and a ResNet18 encoder give half-resolution features; each of 5 iterations warps the second image's features by the current flow and a small ViT-S (patch 8) refines the flow, which is convex-upsampled to full resolution. The authors' released weights; the network is ported from princeton-vl/WAFT. `waft-a1` is the general checkpoint the authors recommend for downstream use (TartanAir, FlyingChairs, FlyingThings3D); `-kitti` and `-sintel` are their benchmark fine-tunes."
 tier = "experimental"
 outputs = ["flow"]
-uses = ["depth_anything_v2", "timm_blocks"]  # fastforks.shared modules this family imports (DINOv2 ViT-S + DPT head, the timm ViT and ResNet blocks)
+uses = ["cnn_kernels", "depth_anything_v2", "timm_blocks"]  # fastforks.shared modules this family imports (DINOv2 ViT-S + DPT head, the timm ViT and ResNet blocks)
 
 [upstream]
 repo = "https://github.com/princeton-vl/WAFT"

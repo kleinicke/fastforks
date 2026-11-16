@@ -80,6 +80,8 @@ CROSS_FAMILY_IMPORTS |= {
     f"multiview/models/resplat/{file}.py": "fastforks.multiview.models.depthsplat"
     for file in ("model", "net/mv_unimatch")
 }
+# YuNet reuses RetinaFace's greedy NMS (same face-detection decode).
+CROSS_FAMILY_IMPORTS["pose/models/yunet/model.py"] = "fastforks.pose.models.retinaface.model"
 TORCH_LOAD = {"depth/models/midas/model.py", "depth/models/zoedepth/model.py"}  # per-family checkpoint loaders
 UNDOCUMENTED_CONSTANTS = {
     ("depth/models/depth_anything_3/model.py", "PATCH"),

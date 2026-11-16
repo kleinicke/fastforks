@@ -4,6 +4,7 @@ summary = "CodeFormer (Zhou et al., NeurIPS 2022): blind face restoration with a
 tier = "experimental"
 outputs = ["image"]
 limitations = ["No accuracy measurement: blind face restoration is scored on CelebA-Test / LFW / WebPhoto (FID, NIQE, identity distance), which are not part of the evaluation data here; tiers are compared by output parity and speed only."]
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports (fp16-accumulate conv / epilogue kernels)
 
 [upstream]
 repo = "https://github.com/sczhou/CodeFormer"
