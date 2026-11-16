@@ -363,6 +363,7 @@ def fastforks.volume._api.VolumeSession.reset(self) -> 'None'
 def fastforks.volume.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.volume.load(model: 'str | os.PathLike[str]', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, folds: 'Sequence[int] | None' = None, step: 'float | None' = None, mirror: 'bool | None' = None, checkpoint: 'str | None' = None, **options: 'object') -> fastforks.volume._api.VolumeModel
 def fastforks.volume.model_card(model: 'str') -> 'ModelCard'
+def fastforks.volume.read_dicom(path: 'str | os.PathLike[str]') -> 'tuple[np.ndarray, VolumeMeta]'
 def fastforks.volume.read_nifti(path: 'str | os.PathLike[str]') -> 'tuple[np.ndarray, VolumeMeta]'
 def fastforks.volume.write_nifti(path: 'str | os.PathLike[str]', labels: 'np.ndarray | torch.Tensor', meta: 'VolumeMeta') -> 'None'
 field fastforks._core.cards.ModelCard.family: str
