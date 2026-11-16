@@ -144,7 +144,14 @@ class RestorationModel(core.Model):
         m = self._mask(mask, x)
         if m is not None:
             x = torch.cat([x, m], 1)
-        maps = unbatch(self._batched(functools.partial(self._run, tile=tile), x), image)
+        try:
+            maps = unbatch(self._batched(functools.partial(self._run, tile=tile), x), image)
+        except torch.OutOfMemoryError as e:
+            if tile is not None:
+                raise
+            h, w = x.shape[-2:]
+            msg = f"out of GPU memory for a {w}x{h} input in one pass: pass a smaller input or tile=512 (tiles of 512 px, blended)"
+            raise torch.OutOfMemoryError(f"{msg}; {e}") from e
         return RestorationResult(maps["image"], self.variant.ref, self.backend, self.options)
 
     def _mask(self, mask: ImageLike | None, x: torch.Tensor) -> torch.Tensor | None:
