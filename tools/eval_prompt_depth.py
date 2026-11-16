@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -26,7 +27,7 @@ from scipy.ndimage import distance_transform_edt
 
 from eval_stereo_depth import depth_items
 
-UP = Path("/home/florian/projects/experiments/017-fastforks-lib/upstream/PromptDA")
+UP = Path(os.environ.get("PROMPTDA_REPO", "upstream/PromptDA"))
 CKPT = {"prompt-depth-anything-l": ("vitl", "prompt_depth_anything_vitl.ckpt"), "prompt-depth-anything-s": ("vits", "prompt_depth_anything_vits.ckpt")}
 SETS = {"nyu": "nyu-prompt-every{}", "ibims": "ibims-prompt"}
 
@@ -57,7 +58,7 @@ class Tier:
             from promptda.promptda import PromptDA  # noqa: PLC0415
 
             enc, ck = CKPT[ref]
-            self.orig = PromptDA(encoder=enc, ckpt_path=f"/home/florian/projects/data/ff-weights/prompt-da/{ck}").eval().cuda()
+            self.orig = PromptDA(encoder=enc, ckpt_path=str(Path(os.environ.get("FF_WEIGHTS", "data/ff-weights")) / "prompt-da" / ck)).eval().cuda()
             self.mode, self.dtype = tier, "float16" if tier == "upstream-fp16" else "float32"
         else:
             from fastforks import depth  # noqa: PLC0415

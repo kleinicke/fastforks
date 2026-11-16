@@ -4,7 +4,7 @@
 
 One process loads the refs one after the other (model deleted and `empty_cache` between them), per ref and mode
 (portable, kernels) it records `alloc_mb`, `reserved_mb` and `frag_mb` right after `load` (nothing run). Failures
-become `error` rows. Run under `gpulock-low` in a capped unit.
+become `error` rows. Run it as a GPU job in a capped unit.
 """
 
 from __future__ import annotations
