@@ -98,7 +98,16 @@ features.load("dinov2-vitb14")("cat.jpg").pooler_output  # image embedding; .las
 import torch
 
 from fastforks import (
-    calibration, detection, edges, flow, matting, multiview, ocr, pose, promptable_segmentation, retrieval,
+    calibration,
+    detection,
+    edges,
+    flow,
+    matting,
+    multiview,
+    ocr,
+    pose,
+    promptable_segmentation,
+    retrieval,
 )
 
 det = detection.load("faster-rcnn-r50-fpn-3x-coco")
@@ -148,6 +157,7 @@ The input must be a CT in Hounsfield units (air about -1000, soft tissue 0 to 10
 
 ```python
 import numpy as np
+
 ml = float(np.prod(meta.spacing)) / 1000  # mL per voxel
 labels = seg.labels.cpu().numpy()
 volumes = {name: round(float((labels == i).sum()) * ml) for i, name in seg.class_names.items() if (labels == i).any()}
@@ -167,10 +177,15 @@ result = det(image, score_threshold=0.5)  # the default 0.05 keeps up to 100 mos
 draw = ImageDraw.Draw(image)
 for d in result.to_list():  # box = (x0, y0, x1, y1) pixels; label = index into det.class_names (not a COCO category id)
     draw.rectangle(d["box"], outline="red", width=2)
-    draw.text(d["box"][:2], f'{d["class_name"]} {d["score"]:.2f}', fill="red")
+    draw.text(d["box"][:2], f"{d['class_name']} {d['score']:.2f}", fill="red")
 image.save("detections.png")
 coco = [  # COCO results format: bbox = [x, y, width, height]; category_id: look the name up in your annotation file
-    {"image_id": 1, "category_name": d["class_name"], "score": d["score"], "bbox": [d["box"][0], d["box"][1], d["box"][2] - d["box"][0], d["box"][3] - d["box"][1]]}
+    {
+        "image_id": 1,
+        "category_name": d["class_name"],
+        "score": d["score"],
+        "bbox": [d["box"][0], d["box"][1], d["box"][2] - d["box"][0], d["box"][3] - d["box"][1]],
+    }
     for d in result.to_list()
 ]
 ```
@@ -726,7 +741,9 @@ Or keep the high-level API and compile in place (`kernels` raises `BackendUnavai
 ```python
 model.compile()  # every task call now runs compiled; again with other arguments replaces it
 model.export_onnx("m.onnx", 384, 1248)
-model.export_tensorrt("m.engine", 384, 1248)  # on the target GPU; then fastforks.TensorRTEngine("m.engine")(left, right)
+model.export_tensorrt(
+    "m.engine", 384, 1248
+)  # on the target GPU; then fastforks.TensorRTEngine("m.engine")(left, right)
 ```
 
 ```

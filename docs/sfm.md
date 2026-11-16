@@ -15,8 +15,8 @@ fastforks sfm scene/images scene/out --reconstruct --matcher aliked-lightglue   
 from fastforks.matching import sfm
 
 stats = sfm.colmap_database("scene/images", "scene/database.db", k=30)  # the default matcher, loma-b
-print(stats.verified, stats.seconds)        # per stage: retrieval, matching (incl. verification), database
-rec = sfm.reconstruct("scene/images", "scene/out", k=30)   # + pycolmap's mapper; rec.model = scene/out/sparse/0
+print(stats.verified, stats.seconds)  # per stage: retrieval, matching (incl. verification), database
+rec = sfm.reconstruct("scene/images", "scene/out", k=30)  # + pycolmap's mapper; rec.model = scene/out/sparse/0
 print(rec.registered, rec.points, rec.seconds)
 ```
 
