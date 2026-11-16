@@ -50,9 +50,16 @@ _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export capture
     "loma-b@1": "sparse matching: the match count is data-dependent (nonzero; card limitation)",
     "alltracker-tiny@1": "point tracking: the track set is data-dependent (unique; card limitation)",
     "track-on-r@1": "point tracking: a data-dependent scalar read per step (card limitation)",
-    "geocalib-pinhole@1": "the Levenberg-Marquardt loop branches and logs on its convergence: 35 graph breaks (card limitation)",
-    "resplat-small-dl3dv@1": "the portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (card limitation)",
-    "cotracker3-online@1": "point tracking: the online window loop is data-dependent (6 graph breaks; export guards on data; card limitation)",
+    "geocalib-pinhole@1": (
+        "the Levenberg-Marquardt loop branches and logs on its convergence: 35 graph breaks (card limitation)"
+    ),
+    "resplat-small-dl3dv@1": (
+        "the portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (card limitation)"
+    ),
+    "cotracker3-online@1": (
+        "point tracking: the online window loop is data-dependent "
+        "(6 graph breaks; export guards on data; card limitation)"
+    ),
     "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
 }
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
@@ -60,7 +67,9 @@ _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.
     " antialiased bicubic gradients; non-strict torch.export still captures this fixed-shape inference",
     "rf-detr-seg-n-coco@1": "pinned upstream disables Dynamo for positional interpolation (as RF-DETR keypoint);"
     " non-strict torch.export still captures this fixed-shape inference",
-    "grounding-dino-tiny@1": "transformers' torch_compilable_check calls Tensor.item() (15 graph breaks); torch.export captures",
+    "grounding-dino-tiny@1": (
+        "transformers' torch_compilable_check calls Tensor.item() (15 graph breaks); torch.export captures"
+    ),
     "zoedepth-nk@1": "the NK model routes each image to the NYU or KITTI head by the argmax of its domain logits"
     " (.item(); the export runs both heads and selects)",
 }
@@ -131,7 +140,8 @@ _NATIVE_SIZE = {  # nets that need one size (position embeddings, top-k over the
 
 
 def _shape(model: Any) -> tuple[int, ...]:
-    native = _NATIVE_SIZE.get(model.variant.id) or model.size_range().native  # a net fixed to one size (position embeddings)
+    # a net fixed to one size (position embeddings)
+    native = _NATIVE_SIZE.get(model.variant.id) or model.size_range().native
     if native:
         return (*SHAPE[:2], *native)
     return (*SHAPE[:2], *size(model.size_range().min_size, *SHAPE[2:]))
@@ -222,7 +232,7 @@ def _check_export_names(ref: str, model: Any, module: torch.nn.Module, out: Any)
 @pytest.mark.filterwarnings("ignore:The .grad attribute of a Tensor that is not a leaf")  # dynamo reads .grad
 @pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric3d / da3metric: the assumed camera is fine here
 @pytest.mark.parametrize("ref", SMALLEST)
-def test_module_compile_export(ref):  # noqa: C901, PLR0912 - one branch per task
+def test_module_compile_export(ref):  # noqa: C901, PLR0912, PLR0915 - one branch per task
     _skip_without_module(ref)
     if ref in _NOT_TRACEABLE:
         pytest.xfail(_NOT_TRACEABLE[ref])
@@ -615,7 +625,8 @@ def test_model_compile_equals_eager(ref):
         assert type(model._runner) is not runner_type
         got = model(*args, **kwargs)
         for name, w in _tensors(want).items():
-            atol = 2e-2 if TASK[ref] == "tracking" else 2e-3  # a few track points sit on near-ties of the cost-volume argmax
+            # a few track points sit on near-ties of the cost-volume argmax
+            atol = 2e-2 if TASK[ref] == "tracking" else 2e-3
             torch.testing.assert_close(_tensors(got)[name].float(), w.float(), rtol=1e-3, atol=atol)
         assert model.compile(backend="eager") is model  # a repeat compile replaces the first
         assert type(model._runner).__bases__ == (runner_type,)

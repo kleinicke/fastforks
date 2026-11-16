@@ -49,8 +49,8 @@ from fastforks._core.files import stamped
 from fastforks._core.kernels import begin_call, checked, cuda_device
 from fastforks._core.runner import Context, Runner
 from fastforks._core.sizes import SizeRange, size_range
-from fastforks.shared.arena import compact_runner
 from fastforks._core.tasks import spec
+from fastforks.shared.arena import compact_runner
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator, Sequence
@@ -852,7 +852,7 @@ def load_model(  # noqa: PLR0913 - the arguments of every task's `load`
     )
 
 
-def load_variant(  # noqa: PLR0913 - the arguments of `load_model`
+def load_variant(  # noqa: C901, PLR0913 - the arguments of `load_model`
     task: str,
     card: ModelCard,
     variant: Variant,

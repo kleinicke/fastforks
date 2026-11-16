@@ -30,7 +30,7 @@ def _maps(result: object) -> dict[str, torch.Tensor]:
 @pytest.mark.model
 @pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric3d / da3metric: the assumed camera is fine here
 @pytest.mark.parametrize("ref", SMALLEST)
-def test_batch_equals_singles(ref):
+def test_batch_equals_singles(ref):  # noqa: C901 - one branch per task family
     task = TASK[ref]
     if task == "promptable_segmentation":
         pytest.skip("one image per call with prompts (batched prompts: tests/test_tasks.py)")

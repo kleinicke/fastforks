@@ -53,7 +53,7 @@ def DropPath(drop_prob: float) -> nn.Module:  # noqa: N802 - the timm class name
     return nn.Identity()
 
 
-def shift_mask(
+def shift_mask(  # noqa: PLR0913 - window geometry
     h: int, w: int, window: int, shift: int, device: torch.device, *, dtype: torch.dtype = torch.float32
 ) -> torch.Tensor:
     """The cached `_shift_mask` (dynamo cannot trace through lru_cache; the compiled graph holds the mask anyway)."""
