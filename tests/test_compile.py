@@ -129,7 +129,8 @@ class Scene(_Net, MultiViewRunner):
 def test_multiview_scene_is_compiled(monkeypatch):
     m = _load(monkeypatch, multiview, "patchmatchnet", Scene)
     images = torch.rand(3, 3, 32, 32)
-    k, c2w, rng = torch.eye(3).expand(3, 3, 3), torch.eye(4).expand(3, 4, 4), (0.5, 4.0)
+    k = torch.tensor([[32.0, 0, 16], [0, 32, 16], [0, 0, 1]]).expand(3, 3, 3)  # pixel intrinsics of a 32 x 32 view
+    c2w, rng = torch.eye(4).expand(3, 4, 4), (0.5, 4.0)
     want = m(images, intrinsics=k, cam_to_world=c2w, depth_range=rng, reference=[0, 2]).depth
     graphs = Graphs()
     m.compile(backend=graphs)
