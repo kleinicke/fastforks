@@ -51,6 +51,7 @@ _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export capture
     "alltracker-tiny@1": "point tracking: the track set is data-dependent (unique; card limitation)",
     "track-on-r@1": "point tracking: a data-dependent scalar read per step (card limitation)",
     "geocalib-pinhole@1": "the Levenberg-Marquardt loop branches and logs on its convergence: 35 graph breaks (card limitation)",
+    "resplat-small-dl3dv@1": "the portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (card limitation)",
     "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
 }
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
@@ -147,6 +148,8 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
         return model.example_inputs(*_shape(model)[2:], batch=2)
     if TASK[ref] in {"stereo", "flow", "matching", "interpolation"}:
         return pair
+    if TASK[ref] == "restoration" and model._runner.mask == "required":  # inpainting: the image and its mask
+        return model.example_inputs(*pair[0].shape[2:])
     if hasattr(model._runner, "condition"):  # CLIPSeg: the image, then the projected text embedding
         return (pair[0], model._runner.condition("a cat"))
     extra = prompt_kwargs(model)  # depth: the image, then the prompt [1, 1, h, w] of a model that requires one
@@ -243,7 +246,8 @@ def test_module_compile_export(ref):  # noqa: C901, PLR0912 - one branch per tas
         assert torch.equal(want[0], model(*(x[0] for x in inputs)).frame)
     elif TASK[ref] == "restoration":  # [B, 3, H, W] in [0, 1] -> [B, 3, sH, sW], as the model call
         assert want.shape == (1, 3, *(model.scale * n for n in inputs[0].shape[2:]))
-        assert torch.equal(want[0], model(inputs[0][0]).image)
+        kw = {"mask": inputs[1][0, 0]} if len(inputs) > 1 else {}  # inpainting: the mask of the image
+        assert torch.equal(want[0], model(inputs[0][0], **kw).image)
     elif TASK[ref] == "features":  # -> last_hidden_state [B, N, C], as the model call with the default size
         assert torch.equal(want[0], model(inputs[0][0]).last_hidden_state)
     elif TASK[ref] == "classification":  # transformed images -> logits, as the model call on the raw image
