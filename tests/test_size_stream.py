@@ -122,7 +122,10 @@ def _call(m: Any, task: str, hw: tuple[int, int]) -> dict[str, torch.Tensor]:
         r = m(list(s["images"]), **{k: s[k] for k in ("intrinsics", "cam_to_world", "depth_range")
                                      if getattr(m._runner, k) == "required"})  # fmt: skip
     elif task == "promptable_segmentation":
-        r = m(image(*hw), text="coin") if "text" in m.prompts else m(image(*hw), **prompts()[""])
+        if "reference" in m.prompts:  # in-context models take a reference image and mask, not points
+            r = m(*(b := bench_inputs(m, BenchSize(*size(16, *hw), 4)))[0], **b[1])
+        else:
+            r = m(image(*hw), text="coin") if "text" in m.prompts else m(image(*hw), **prompts()[""])
     elif task == "segmentation":
         r = m(image(*hw), logits=True)
     elif task in BENCH_TASKS:  # inputs the family needs beyond an image (prompt depth, intrinsics, boxes, trimap, mask)
