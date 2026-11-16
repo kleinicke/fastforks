@@ -348,16 +348,24 @@ class _KernelsNet:
     def _resblock(
         self,
         x: torch.Tensor,
-        r: torch.Tensor,
+        r: list[torch.Tensor],
         prm: tuple,
         res2: torch.Tensor | None = None,
-        y2: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        """`x + conv2(relu(conv1(r)))` for `r = relu(x)` (+ `res2`; `y2` gets relu(result))."""
+        *,
+        relu_out: bool = False,
+        inplace: bool = False,
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        """`x + conv2(relu(conv1(r))) (+ res2)` for `r = [relu(x)]` -> (result, [relu(result)] if `relu_out`).
+
+        `r` is consumed (freed right after conv1) and the relu output is allocated after that; with `inplace` the
+        result overwrites `x` (the 768x768 maps are 288 MiB each: the peak was six of them, now four).
+        """
         (w1, b1, _, _), (w2, b2, _, _) = prm
         k = self.k
-        t = k.conv(r, w1, b1, padding=1, act=ACT_RELU)
-        return k.conv(t, w2, b2, padding=1, res=x, res2=res2, y2=y2)
+        t = k.conv(r.pop(), w1, b1, padding=1, act=ACT_RELU)
+        y2 = torch.empty_like(t) if relu_out else None
+        y = k.conv(t, w2, b2, padding=1, res=x, res2=res2, y2=y2, out=x if inplace else None)
+        return y, [y2] if relu_out else []
 
     def _encode(self, x: torch.Tensor, *, with_fov: bool) -> tuple[list[torch.Tensor], torch.Tensor | None]:
         """Pyramid, the three ViTs and the encoder projections -> (encodings, FOV tokens or None).
@@ -418,7 +426,7 @@ class _KernelsNet:
         r = torch.empty((1, 48, 48, DEC), device=self.device, dtype=torch.float16)
         feat = k.conv(encs.pop(), self.convs[4][0], padding=1, y2=r)  # ty: ignore[not-subscriptable]
         lowres = feat
-        feat = k.gemm(self._resblock(feat, r, self.res[4][1]), *self.fdec[3], shuffle=(48, 48, 2, 2))
+        feat = k.gemm(self._resblock(feat, [r], self.res[4][1])[0], *self.fdec[3], shuffle=(48, 48, 2, 2))
         for i in (3, 2, 1, 0):  # references dropped early: the 768x768 maps are 302 MB each
             if i:
                 r = torch.empty_like(feat)
@@ -426,11 +434,12 @@ class _KernelsNet:
             else:  # convs[0] = identity
                 v = self.up_l0(k, encs.pop(), 96, 96)
                 r = torch.relu(v)
-            r2 = torch.empty_like(feat)
-            s = self._resblock(v, r, self.res[i][0], res2=feat, y2=r2)
-            del v, r, feat
-            x = self._resblock(s, r2, self.res[i][1])
-            del s, r2
+            rr = [r]
+            del r
+            s, rr = self._resblock(v, rr, self.res[i][0], res2=feat, relu_out=True, inplace=True)
+            del v, feat
+            x, _ = self._resblock(s, rr, self.res[i][1], inplace=True)
+            del s
             hh, ww = x.shape[1:3]
             feat = k.gemm(x, *self.fdec[i - 1], shuffle=(hh, ww, 2, 2)) if i else k.gemm(x, *self.out0)
             del x
