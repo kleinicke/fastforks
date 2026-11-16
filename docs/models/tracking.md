@@ -89,6 +89,7 @@ CPU, float32: max |diff| <= 2.3e-05 vs the original. GPU, float16 (the default),
 - Tracks are sampled bilinearly at the query position; upstream's evaluation rounds the query to the nearest pixel.
 - One video per call; all queries of a call share the video.
 - Kernels hold packed conv weights next to the originals the call reads (+31 MiB) and fragment the allocator: peak reserved is ~70 MiB above portable.
+- No exportable module: the track set is data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
 
 </details>
 
@@ -217,6 +218,7 @@ CPU, float32: max |diff| <= 6e-05 vs the original. GPU, float16 (the default), p
 - cotracker3-offline holds the features of every frame (about 4 MB per frame in float16); cotracker3-online processes 16-frame windows and only keeps the tracks.
 - Visibility is upstream's score, rescaled so that 0.5 is upstream's threshold: the offline predictor's visibility > 0.9, the online predictor's visibility x confidence > 0.6.
 - One video per call; all queries of a call share the video.
+- cotracker3-online: the online window loop is data-dependent (6 graph breaks; `torch.export` guards on data), so no ONNX / TensorRT export; cotracker3-offline exports.
 
 </details>
 
@@ -409,6 +411,7 @@ CPU, float32: max |diff| <= 1.8e-05 vs the original. GPU, float16 (the default),
 - Online: a query only sees the frames from its own frame on; frames before it return the query position with visibility 0.
 - One video per call; all queries of a call share the video.
 - Track-On2 peaks 1423 MB, 20 MB (1.4 %) above the fp16 original (1403 MB), and runs 15 % faster. The 1236 MB original variant is the fp32 one, which is 2.4x slower.
+- No exportable module: every step reads a data-dependent scalar (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
 
 </details>
 

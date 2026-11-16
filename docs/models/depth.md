@@ -869,6 +869,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 |---|---|---|---|
 | `metric3d-vit-large` | 0.00139 / 0.00198 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
+### Limitations
+
+- metric3d-vit-large: the kernels runner prepares its buffers at load, so the model right after load holds more than portable; the run peak is within 2 % of portable's.
+
 </details>
 
 <a id="midas"></a>

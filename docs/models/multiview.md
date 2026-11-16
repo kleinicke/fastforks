@@ -507,6 +507,7 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 - No accuracy measurement: a metric model at RealEstate10K / DL3DV scale; the only multi-view eval set here (DTU, millimetre scale) is out of its range, and the original could not run here (its gsplat rasteriser module is not installable), so no tier has a published-protocol score.
 - Portable runs upstream's two CUDA extensions (kNN, gsplat rasteriser) as PyTorch ops: 2.8x (base) / 3.5x (small) slower than the bf16 original at 480x640. Slow: kNN topk ~28 %, compositing cumprod/pow ~30 % of GPU time. Kernels: 2.0x / 1.4x faster.
+- The portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (`torch.compile` runs with breaks, no `torch.export`).
 
 </details>
 

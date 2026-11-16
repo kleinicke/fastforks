@@ -218,6 +218,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | `bridgedepth-sf` | 0.00036 / 0.00123 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
 | `bridgedepth-rvc-pretrain` | 0.00053 / 0.00327 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
 
+### Limitations
+
+- ONNX Runtime resolves top-k ties differently from PyTorch on noise pairs: bridgedepth-sf differs by up to 0.010 px (mean 0.001) on a synthetic textured pair.
+
 </details>
 
 <a id="c_foundationstereo"></a>
@@ -1401,6 +1405,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | `monster-sceneflow` | 0.00079 / 0.00303 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
 | `monster-mix-all` | 0.00095 / 0.00547 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
 
+### Limitations
+
+- ONNX Runtime differs from PyTorch at a few pixels: monster-mix-all differs at 7 of 12288 pixels by up to 0.3 px on the test pair.
+
 </details>
 
 <a id="monster_plusplus"></a>
@@ -1504,6 +1512,10 @@ CPU, float32: max |diff| <= 0.05 vs the original. GPU, float16 (the default), po
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `nmrf-sceneflow` | 0.00236 / 0.03745 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+
+### Limitations
+
+- ONNX Runtime resolves top-k ties differently from PyTorch on noise pairs: nmrf-sceneflow differs by up to 0.56 px (mean 0.006) on a synthetic textured pair.
 
 </details>
 

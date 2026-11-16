@@ -4,6 +4,9 @@ summary = "GeoCalib (Veicht et al., ECCV 2024): single-image camera calibration.
 tier = "experimental"
 outputs = ["intrinsics", "gravity", "roll", "pitch", "vfov"]
 uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+limitations = [
+  "The Levenberg-Marquardt loop branches and logs on its convergence (35 graph breaks: `torch.compile` runs with breaks, no `torch.export`); its damping, singularity check and early stop are batch-wide, as upstream, so a batch is one problem and an image's result can depend on its batch mates.",
+]
 
 [upstream]
 repo = "https://github.com/cvg/GeoCalib"

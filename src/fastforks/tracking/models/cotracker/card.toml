@@ -9,6 +9,7 @@ limitations = [
   "cotracker3-offline holds the features of every frame (about 4 MB per frame in float16); cotracker3-online processes 16-frame windows and only keeps the tracks.",
   "Visibility is upstream's score, rescaled so that 0.5 is upstream's threshold: the offline predictor's visibility > 0.9, the online predictor's visibility x confidence > 0.6.",
   "One video per call; all queries of a call share the video.",
+  "cotracker3-online: the online window loop is data-dependent (6 graph breaks; `torch.export` guards on data), so no ONNX / TensorRT export; cotracker3-offline exports.",
 ]
 
 [upstream]

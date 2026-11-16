@@ -123,6 +123,10 @@ CPU, float32: max |diff| <= 0.0032 vs the original. GPU, float16 (the default), 
 |---|---|---|---|
 | `geocalib-pinhole` | 0.05777 / 0.25995 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 
+### Limitations
+
+- The Levenberg-Marquardt loop branches and logs on its convergence (35 graph breaks: `torch.compile` runs with breaks, no `torch.export`); its damping, singularity check and early stop are batch-wide, as upstream, so a batch is one problem and an image's result can depend on its batch mates.
+
 </details>
 
 ## All models

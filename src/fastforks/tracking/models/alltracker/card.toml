@@ -10,6 +10,7 @@ limitations = [
   "Tracks are sampled bilinearly at the query position; upstream's evaluation rounds the query to the nearest pixel.",
   "One video per call; all queries of a call share the video.",
   "Kernels hold packed conv weights next to the originals the call reads (+31 MiB) and fragment the allocator: peak reserved is ~70 MiB above portable.",
+  "No exportable module: the track set is data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
 ]
 
 [upstream]
