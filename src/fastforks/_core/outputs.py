@@ -24,6 +24,27 @@ def _array(t: torch.Tensor) -> np.ndarray:
     return (t.float() if t.dtype is torch.bfloat16 else t).numpy()  # numpy has no bfloat16
 
 
+def _short(v: object) -> str:
+    """Tensors as `Tensor[shape dtype device]`, containers of them recursively, anything else as `repr`."""
+    if isinstance(v, torch.Tensor):
+        return f"Tensor[{', '.join(map(str, v.shape))}; {str(v.dtype).removeprefix('torch.')}; {v.device}]"
+    if isinstance(v, tuple | list) and any(isinstance(x, torch.Tensor) for x in v):
+        return f"({', '.join(_short(x) for x in v)})"
+    if isinstance(v, Mapping) and any(isinstance(x, torch.Tensor) for x in v.values()):
+        return "{" + ", ".join(f"{k!r}: {_short(x)}" for k, x in v.items()) + "}"
+    if dataclasses.is_dataclass(v) and not isinstance(v, type):
+        return short_repr(v)
+    return repr(v)
+
+
+def short_repr(self: object) -> str:
+    """`__repr__` of the results: the shapes of the tensors instead of their values."""
+    fields = ", ".join(
+        f"{f.name}={_short(getattr(self, f.name))}" for f in dataclasses.fields(cast("Any", self)) if f.repr
+    )
+    return f"{type(self).__name__}({fields})"
+
+
 class NumpyOutputs:
     """Mixin of the result dataclasses: their tensors as NumPy arrays."""
 
@@ -31,6 +52,8 @@ class NumpyOutputs:
         """Allow `torch.load(path)` (`weights_only=True`) of a `torch.save`d result: its class holds only tensors."""
         super().__init_subclass__(**kwargs)
         torch.serialization.add_safe_globals([cls])
+        if "__repr__" not in cls.__dict__:  # in the class dict, so the dataclass decorator keeps it
+            cls.__repr__ = short_repr  # type: ignore[assignment, method-assign]
 
     def numpy(self) -> dict[str, Any]:
         """The tensor outputs as NumPy arrays by field name.

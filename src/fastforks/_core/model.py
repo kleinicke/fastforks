@@ -883,7 +883,8 @@ def load_variant(  # noqa: PLR0913 - the arguments of `load_model`
     if fp32 and mode == "kernels" and card.kernels_dtype_on(dev) != "float32":
         msg = "kernels runs reduced-precision kernels here; use mode='portable' with dtype='float32'"
         raise OptionsError(msg)
-    if mode == "auto":
+    auto = mode == "auto"
+    if auto:
         reason = _no_auto_kernels(card, variant, dev, fp32=fp32, want=want)
         if reason is None:
             try:
@@ -907,9 +908,16 @@ def load_variant(  # noqa: PLR0913 - the arguments of `load_model`
         if mode == "kernels" and card.no_kernels_reason:
             msg += f": {card.no_kernels_reason}"
         raise BackendUnavailableError(msg)
-    return _build(
-        cls, card, variant, mode=mode, device=dev, options=opts, fp32=fp32, want=want, weights=files, state=state
-    )
+    try:
+        return _build(
+            cls, card, variant, mode=mode, device=dev, options=opts, fp32=fp32, want=want, weights=files, state=state
+        )
+    except OptionsError as e:
+        if not (auto and want is not None and "cannot compute in" in str(e)):
+            raise
+        have = card.kernels_dtype_on(dev) if "kernels" in card.modes else "none"
+        msg = f"{e} (mode='auto' found no backend for {want} on {dev.type}: the kernels backend computes in {have})"
+        raise OptionsError(msg) from e
 
 
 def user_weights(variant: Variant, path: str | os.PathLike[str], log: logging.Logger | None = None) -> tuple[Path, ...]:
