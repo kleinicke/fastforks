@@ -130,7 +130,7 @@ cam.intrinsics, cam.roll, cam.pitch, cam.vfov  # [3, 3] (pixels of the input), r
 checkpoint via `volume.load(path, folds=..., step=..., mirror=...)`:
 
 ```python
-# read_nifti / write_nifti need: pip install "fastforks-core[nifti]"
+# read_nifti / write_nifti need: pip install "fastforks-core[nifti]" (read_dicom: [dicom])
 from fastforks import volume
 
 ct, meta = volume.read_nifti("ct.nii.gz")  # [D, H, W] float32 (RAS-canonical), meta.spacing in mm
@@ -149,18 +149,9 @@ labels = seg.labels.cpu().numpy()
 volumes = {name: round(float((labels == i).sum()) * ml) for i, name in seg.class_names.items() if (labels == i).any()}
 ```
 
-DICOM series: `read_nifti` only reads NIfTI. Read the slices with pydicom, then pass the array and `spacing=`:
-
-```python
-import glob, numpy as np, pydicom
-ds = sorted((pydicom.dcmread(f) for f in glob.glob("series/*.dcm")), key=lambda d: float(d.ImagePositionPatient[2]))
-ct = np.stack([d.pixel_array * float(d.RescaleSlope) + float(d.RescaleIntercept) for d in ds]).astype(np.float32)  # HU
-dz = abs(float(ds[1].ImagePositionPatient[2]) - float(ds[0].ImagePositionPatient[2]))
-seg = volume.load("totalsegmentator-total-3mm")(ct, spacing=(dz, *map(float, ds[0].PixelSpacing)))
-```
-
-DICOM rows run anterior to posterior and columns right to left (LPS), the opposite of the RAS array `read_nifti` returns.
-The model needs RAS-like orientation, so flip first (`ct[:, ::-1, ::-1]`); the labels then use the flipped grid.
+DICOM series: `volume.read_dicom("series_folder")` (needs `pip install "fastforks-core[dicom]"`) returns the same
+`(ct, meta)` as `read_nifti`: slices sorted by position, Hounsfield units, RAS-canonical `[D, H, W]` (no flipping),
+spacing and affine from the tags; `model(ct, meta=meta)` and `write_nifti` work as above. Give a folder with one series.
 
 Dense matching of two photos ([models](models/matching.md), [API](api/matching.md)): warp, matches, geometry and a plot (PIL only):
 

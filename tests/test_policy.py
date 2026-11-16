@@ -43,6 +43,7 @@ OPTIONAL = {
     "lazrs": {"stereo/geometry/ply.py"},
     "pycolmap": {"matching/sfm.py"},  # `sfm.reconstruct` (the `sfm` extra)
     "nibabel": {"volume/_nifti.py"},  # `read_nifti` / `write_nifti` (the `nifti` extra)
+    "pydicom": {"volume/_nifti.py"},  # `read_dicom` (the `dicom` extra)
 }
 # Files allowed to import computed module names: the registry imports `fastforks.<task>.models.<family>.model`, the
 # task package its own `<task>` spec modules, the top level the module of each lazily re-exported name.

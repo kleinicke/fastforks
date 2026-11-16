@@ -321,6 +321,43 @@ def test_nifti_round_trip(tmp_path: Path) -> None:
         volume.write_nifti(tmp_path / "bad.nii.gz", vol[:2], meta)
 
 
+def test_read_dicom_matches_nifti_convention(tmp_path: Path) -> None:
+    """A synthetic LPS DICOM series (files in shuffled name order) reads as the RAS-canonical HU array of read_nifti."""
+    pydicom = pytest.importorskip("pydicom")
+    pytest.importorskip("nibabel")
+    from pydicom.dataset import FileDataset, FileMetaDataset  # noqa: PLC0415
+    from pydicom.uid import ExplicitVRLittleEndian, generate_uid  # noqa: PLC0415
+
+    rng = np.random.default_rng(0)
+    hu = rng.integers(-1000, 1000, (4, 5, 6)).astype(np.int16)  # [slice, row, col] in HU
+    series = tmp_path / "series"
+    series.mkdir()
+    (series / "README.txt").write_text("not dicom")
+    order = [2, 0, 3, 1]  # file name order differs from position order
+    for k in range(4):
+        meta = FileMetaDataset()
+        meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        meta.MediaStorageSOPInstanceUID = generate_uid()
+        ds = FileDataset(None, {}, file_meta=meta, preamble=b"\0" * 128)
+        ds.Rows, ds.Columns, ds.SamplesPerPixel = 5, 6, 1
+        ds.PhotometricInterpretation, ds.BitsAllocated, ds.BitsStored, ds.HighBit = "MONOCHROME2", 16, 16, 15
+        ds.PixelRepresentation, ds.PixelSpacing = 0, [0.5, 0.75]
+        ds.ImageOrientationPatient = [1, 0, 0, 0, 1, 0]  # standard axial LPS
+        ds.ImagePositionPatient = [10.0, 20.0, 100.0 + 2.5 * k]
+        ds.RescaleSlope, ds.RescaleIntercept = 1, -1024
+        ds.PixelData = (hu[k].astype(np.int32) + 1024).astype(np.uint16).tobytes()
+        ds.save_as(series / f"f{order[k]}.dcm", enforce_file_format=True)
+    vol, meta = volume.read_dicom(series)
+    assert meta.spacing == (2.5, 0.5, 0.75)
+    assert meta.shape == (4, 5, 6)
+    # LPS -> RAS: rows (y) and columns (x) are flipped, the slice axis (z, superior) keeps its order
+    assert np.array_equal(vol, hu[:, ::-1, ::-1].astype(np.float32))
+    assert np.allclose(meta.affine @ [0, 0, 0, 1], [-10.0, -20.0, 100.0, 1.0])
+    with pytest.raises(InputError, match="no DICOM"):
+        volume.read_dicom(tmp_path / "series" / "README.txt")
+
+
 def test_unsupported_networks() -> None:
     """Other architectures, norms and labels fail at load with a clear message."""
     plans = _plans()
@@ -371,7 +408,7 @@ def test_volume_path_input_names_read_nifti(bad: object) -> None:
 
 
 def test_bad_spacing_nan_and_dicom_dir_give_clear_errors(folder: Path, tmp_path: Path) -> None:
-    """Spacing in metres / 10x too large and NaN input are InputErrors; DICOM paths point at pydicom; reprs are short."""
+    """Spacing in metres / 10x too large and NaN input are InputErrors; DICOM paths point at read_dicom; reprs are short."""
     pytest.importorskip("nibabel")
     model = volume.load(folder, device="cpu", mirror=False, folds=[0])
     ct = np.random.default_rng(3).normal(0, 400, (12, 14, 10)).astype(np.float32)
@@ -383,9 +420,9 @@ def test_bad_spacing_nan_and_dicom_dir_give_clear_errors(folder: Path, tmp_path:
     bad[0, 0, 0] = np.nan
     with pytest.raises(InputError, match="NaN"):
         model(bad, spacing=(1.0, 1.0, 1.0))
-    with pytest.raises(InputError, match="pydicom"):
+    with pytest.raises(InputError, match="read_dicom"):
         volume.read_nifti(tmp_path)
-    with pytest.raises(InputError, match="pydicom"):
+    with pytest.raises(InputError, match="read_dicom"):
         volume.read_nifti(tmp_path / "a.dcm")
     _, meta = volume.read_nifti(_write_nifti(tmp_path, ct))
     assert len(repr(meta)) < 300
