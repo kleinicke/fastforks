@@ -73,8 +73,11 @@ HF_ENDPOINT_ENV = "FASTFORKS_HF_ENDPOINT"
 OFFLINE_ENV = "FASTFORKS_OFFLINE"
 READ_CACHES_ENV = "FASTFORKS_READ_CACHES"
 _OUR_HF = re.compile(r"https://huggingface\.co/((?:datasets/)?fastforks/.+)")
-MIRROR_URL = "https://huggingface.co/fastforks/mirrors/resolve/main/{group}/{name}"  # `mirror = true`: no card uses it since 2026-11-15 (the legacy repo `fastforks/mirrors` is private; weights whose licence is only assumed are not hosted)
-# `mirror = "<repo>"`: a weights repo as fallback host (no card uses it since 2026-11-15: only converted weights get a repo, cards point at it by `url`)
+# `mirror = true`: no card uses it since 2026-11-15 (the legacy repo `fastforks/mirrors` is private; weights whose
+# licence is only assumed are not hosted)
+MIRROR_URL = "https://huggingface.co/fastforks/mirrors/resolve/main/{group}/{name}"
+# `mirror = "<repo>"`: a weights repo as fallback host (no card uses it since 2026-11-15: only converted weights get a
+# repo, cards point at it by `url`)
 WEIGHTS_REPO_URL = "https://huggingface.co/fastforks/{repo}/resolve/main/{name}"
 _HF_FILE = re.compile(r"https://huggingface\.co/(?P<repo>[^/]+/[^/]+)/resolve/(?P<rev>[^/]+)/(?P<file>.+)")
 

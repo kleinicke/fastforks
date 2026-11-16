@@ -24,7 +24,7 @@ def _array(t: torch.Tensor) -> np.ndarray:
     return (t.float() if t.dtype is torch.bfloat16 else t).numpy()  # numpy has no bfloat16
 
 
-def _short(v: object) -> str:
+def _short(v: object) -> str:  # noqa: PLR0911 - one return per kind of value
     """Tensors as `Tensor[shape dtype device]`, containers of them recursively, anything else as `repr`."""
     if isinstance(v, torch.Tensor):
         return f"Tensor[{', '.join(map(str, v.shape))}; {str(v.dtype).removeprefix('torch.')}; {v.device}]"

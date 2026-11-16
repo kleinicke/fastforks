@@ -441,8 +441,8 @@ class MultiViewModel(core.Model):
         if bool(((cx < 0.1 * w) | (cx > 0.9 * w) | (cy < 0.1 * h) | (cy > 0.9 * h)).any()):
             msg = (
                 f"intrinsics: the principal point (K[0, 2], K[1, 2]) must lie inside the image (here {w} x {h} px), "
-                "not near a corner: intrinsics are OpenCV pixel matrices, e.g. [[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]], "
-                "not normalised ones or the identity"
+                "not near a corner: intrinsics are OpenCV pixel matrices, "
+                "e.g. [[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]], not normalised ones or the identity"
             )
             raise InputError(msg)
 

@@ -236,15 +236,20 @@ list_models, model_card, load = task_api(TASK, TrackingModel)
 
 
 def _check_in_image(q: torch.Tensor, size: tuple[int, int]) -> None:
-    """Queries are `(t, x, y)` in pixels: raise for a point outside the frame (x and y swapped), warn for 0..1 fractions.
+    """Queries are `(t, x, y)` in pixels: raise for a point outside the frame (x, y swapped), warn for 0..1 fractions.
 
     Raises:
         InputError: A query position outside the `H x W` frame.
     """
     h, w = size
     x, y = q[:, 1], q[:, 2]
-    if bool((x < -0.5).any() or (x > w - 0.5).any() or (y < -0.5).any() or (y > h - 0.5).any()):
-        msg = f"queries are (t, x, y) with x, y in pixels of the {w}x{h} (WxH) frames; got a point outside them (x and y swapped?)"
+    if bool((x < -0.5).any() or (x > w - 0.5).any() or (y < -0.5).any() or (y > h - 0.5).any()):  # noqa: PLR2004
+        msg = (
+            f"queries are (t, x, y) with x, y in pixels of the {w}x{h} (WxH) frames; "
+            "got a point outside them (x and y swapped?)"
+        )
         raise InputError(msg)
-    if min(h, w) >= 32 and bool((x <= 1).all() and (y <= 1).all()):
-        warnings.warn("all query positions are <= 1 pixel: queries are (t, x, y) in pixels, not fractions", stacklevel=3)
+    if min(h, w) >= 32 and bool((x <= 1).all() and (y <= 1).all()):  # noqa: PLR2004 - not tiny test frames
+        warnings.warn(
+            "all query positions are <= 1 pixel: queries are (t, x, y) in pixels, not fractions", stacklevel=3
+        )

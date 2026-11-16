@@ -10,25 +10,26 @@ _ALIGN = 512  # bytes: every tensor starts aligned (kernels load 16-byte vectors
 
 
 def _room(device: torch.device) -> int:
-    """Bytes a new allocation can use on `device`: the free device memory (less a 10 % margin) plus the cached free blocks."""
+    """Bytes a new allocation can use on `device`: the free device memory (less 10 %) plus the cached free blocks."""
     free, _ = torch.cuda.mem_get_info(device)
     return int(free * 0.9) + torch.cuda.memory_reserved(device) - torch.cuda.memory_allocated(device)
 
 
-def compact(module: nn.Module, min_bytes: int | None = None) -> nn.Module:
-    """Move the storages of the parameters and buffers of `module` on a CUDA device into one arena per device (a device's tensors of any dtype share it).
+def compact(module: nn.Module, min_bytes: int | None = None) -> nn.Module:  # noqa: C901, PLR0912 - one pass, three phases
+    """Move the CUDA parameters and buffers of `module` into one arena per device (tensors of any dtype share it).
 
     A build that casts, folds or packs tensors frees blocks between the live weights; the caching allocator cannot
     return a segment that still holds a live tensor, so the freed holes stay in the *reserved* memory for the life of
     the model (DINOv3 ViT-L: +160 MB over its 616 MB). The copies here leave the old storages unreferenced: the
-    allocator's `empty_cache` after the build (done by `load`) frees their segments. A storage is moved whole, so tensors
+    allocator's `empty_cache` after the build (done by `load`) frees their segments. A storage is moved whole: tensors
     viewing one storage (tied weights, packed qkv) stay views of one storage; values, dtypes, shapes, strides and
-    storage offsets are unchanged. Skipped: networks under `min_bytes` (64 MB), storages with a tensor of another dtype than the rest, and a device where the
-    old weights and the arena do not fit at once.
+    storage offsets are unchanged. Skipped: networks under `min_bytes` (64 MB), storages with a tensor of another dtype
+    than the rest, and a device where the old weights and the arena do not fit at once.
 
     Args:
         module: The network; its tensors are replaced in place (`Parameter.data`, buffer entries).
-        min_bytes: Networks with fewer weight bytes are left alone (default: the module threshold; 0: always compact, as DINOv3 does).
+        min_bytes: Networks with fewer weight bytes are left alone (default: the module threshold; 0: always compact,
+            as DINOv3 does).
 
     Returns:
         `module`.
@@ -48,7 +49,7 @@ def compact(module: nn.Module, min_bytes: int | None = None) -> nn.Module:
         storage = t.untyped_storage()
         nbytes = storage.nbytes()
         if torch._C._storage_Use_Count(storage._cdata) - 1 != len({id(i[2]) for i in items}):  # noqa: SLF001
-            continue  # a tensor outside the registries (a plain attribute, a kernel's cache) views it: moving would copy it
+            continue  # a tensor outside the registries (an attribute, a kernel's cache) views it: moving would copy it
         if all(i[2].element_size() == t.element_size() and nbytes % t.element_size() == 0 for i in items):
             by_device.setdefault(t.device, []).append(items)
     with torch.no_grad():
@@ -84,8 +85,11 @@ def compact(module: nn.Module, min_bytes: int | None = None) -> nn.Module:
 
 
 def compact_runner(runner: object) -> None:
-    """`compact` every network of a built runner: `runner.networks()`, else (kernels runners have no exportable module)
-    the `nn.Module`s its attributes hold, directly or in a list / tuple / dict."""
+    """`compact` every network of a built runner.
+
+    That is `runner.networks()`, else (kernels runners have no exportable module) the `nn.Module`s its attributes hold,
+    directly or in a list / tuple / dict.
+    """
     try:
         nets = list(runner.networks())  # type: ignore[attr-defined]
     except NotImplementedError:

@@ -326,7 +326,9 @@ def instance_stats(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     # statistics are per channel, so channel slices (a bounded fp32 temporary) give the same result
     c = x.shape[1]
     step = max(1, c * _STATS_CHUNK_BYTES // (x.numel() * 4))
-    parts = [torch.var_mean(x[:, i : i + step].float(), dim=dims, keepdim=True, unbiased=False) for i in range(0, c, step)]
+    parts = [
+        torch.var_mean(x[:, i : i + step].float(), dim=dims, keepdim=True, unbiased=False) for i in range(0, c, step)
+    ]
     return torch.cat([m for _, m in parts], 1), torch.cat([v for v, _ in parts], 1)
 
 

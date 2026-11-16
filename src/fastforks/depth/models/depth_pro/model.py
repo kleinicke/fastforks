@@ -345,7 +345,7 @@ class _KernelsNet:
     def _fov(self, cols2: torch.Tensor) -> torch.Tensor:
         return self.fov_linear(self._vit(self.fvit, cols2).float())  # [576, 128]
 
-    def _resblock(
+    def _resblock(  # noqa: PLR0913 - the block's tensors and its three switches
         self,
         x: torch.Tensor,
         r: list[torch.Tensor],

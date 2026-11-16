@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -95,7 +96,7 @@ def read_dicom(path: str | os.PathLike[str]) -> tuple[np.ndarray, VolumeMeta]:
         msg = "reading DICOM needs pydicom: pip install 'fastforks-core[dicom]'"
         raise MissingDependencyError(msg) from e
     root = os.fspath(path)
-    files = sorted(os.path.join(root, f) for f in os.listdir(root)) if os.path.isdir(root) else [root]  # noqa: PTH112, PTH118
+    files = sorted(str(f) for f in Path(root).iterdir()) if os.path.isdir(root) else [root]  # noqa: PTH112
     ds = []
     for f in files:
         try:
@@ -120,7 +121,11 @@ def read_dicom(path: str | os.PathLike[str]) -> tuple[np.ndarray, VolumeMeta]:
         msg = f"{root}: two slices share one position (several series in one folder?); give a folder with one series"
         raise InputError(msg)
     arr = np.stack(
-        [d.pixel_array.astype(np.float32) * float(getattr(d, "RescaleSlope", 1)) + float(getattr(d, "RescaleIntercept", 0)) for d in ds]
+        [
+            d.pixel_array.astype(np.float32) * float(getattr(d, "RescaleSlope", 1))
+            + float(getattr(d, "RescaleIntercept", 0))
+            for d in ds
+        ]
     ).astype(np.float32)
     dr, dc = (float(v) for v in ds[0].PixelSpacing)  # row spacing (between rows), column spacing
     dz = float(np.diff(pos).mean()) if len(ds) > 1 else float(getattr(ds[0], "SliceThickness", 1.0))

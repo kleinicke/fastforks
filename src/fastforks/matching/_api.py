@@ -58,8 +58,8 @@ class VerifiedMatches:
 
     `geometry.ok` only says that a model with enough inliers was found: a fundamental matrix fits some matches of ANY
     two images (the epipolar constraint is one equation per match), so unrelated photos give `ok=True` with a few
-    percent inliers. Judge a pair by `inlier_ratio` (332 of 5000 matches, 7 %, for two unrelated photos; overlapping views
-    reach far higher) and by the inliers among the confident matches (`inliers & (scores > 0.5)`).
+    percent inliers. Judge a pair by `inlier_ratio` (332 of 5000 matches, 7 %, for two unrelated photos; overlapping
+    views reach far higher) and by the inliers among the confident matches (`inliers & (scores > 0.5)`).
     """
 
     points1: torch.Tensor
