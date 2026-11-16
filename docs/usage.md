@@ -77,6 +77,10 @@ models differ in the camera: `metric3d-vit-large` and `da3metric-large` need the
 too small for a real camera), `unidepth-v2-vitl14`, `unik3d-vitl`, `depth-pro` and MoGe estimate the camera (given
 `intrinsics=` replace `fx`) and return it as `result.intrinsics`, `zoedepth-nk` takes none. `fastforks info MODEL` shows `kind`.
 
+Video depth: `depth.load("video-depth-anything-s").video(frames)` takes the frames of one clip (a list of images or a `[T, H, W, 3]` array)
+and returns `[T, H, W]` maps that are consistent over time. Calling the model itself with a list or batch treats every
+frame as an independent image (flicker; the call warns for a video model).
+
 Other tasks work the same way (families built on timm, torchvision or transformers need that extra):
 
 ```python

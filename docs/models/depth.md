@@ -1332,7 +1332,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ## Video Depth Anything
 
-Video Depth Anything (ByteDance): depth of a whole video, consistent from frame to frame, in windows of 32 frames on the Depth Anything V2 Small encoder; relative and metric. Apache-2.0 code and weights (Small only).
+Video Depth Anything (ByteDance): depth of a whole clip via `model.video(frames)` (a plain call treats frames as independent), consistent over time; relative and metric. Apache-2.0 code and weights (Small only).
 
 Commercial use: yes.
 
