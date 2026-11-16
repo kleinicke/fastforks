@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numbers
+import warnings
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
@@ -375,6 +376,7 @@ class PromptableSegmentationModel(core.Model):
             raise InputError(msg)
         prompts, batched = self._prompts(given)
         emb = self._embedding(image)
+        _check_points_in_image(prompts, emb.image_size)
         p = next(iter(prompts.values())).shape[0]
         if p == 0:  # an empty prompt batch (e.g. a detector found nothing): an empty result, no model run
             return self._no_masks(emb, multimask_output)
@@ -849,6 +851,34 @@ def _exemplar_labels(labels: PromptLike, n: int) -> torch.Tensor:
         msg = "input_boxes_labels must be 1 (positive) or 0 (negative); pass only real boxes (no padding)"
         raise InputError(msg)
     return lab.long()
+
+
+def _check_points_in_image(prompts: dict[str, torch.Tensor], size: tuple[int, int]) -> None:
+    """Point prompts are (x, y) pixels of the image: raise for a point outside it, warn for normalised 0..1 points.
+
+    Raises:
+        InputError: A real point (label other than -1) outside the `H x W` image, e.g. x and y swapped.
+    """
+    pts, labels = prompts.get("input_points"), prompts.get("input_labels")
+    if pts is None or labels is None or not pts.numel():
+        return
+    h, w = size
+    real = pts[labels != -1]
+    if not real.numel():
+        return
+    x, y = real[:, 0], real[:, 1]
+    if bool((x < 0).any() or (x > w).any() or (y < 0).any() or (y > h).any()):
+        i = int(((x < 0) | (x > w) | (y < 0) | (y > h)).nonzero()[0])
+        msg = (
+            f"input_points are (x, y) in pixels of the {w} x {h} image (x right, y down); point "
+            f"{real[i].tolist()} is outside it (x and y swapped?)"
+        )
+        raise InputError(msg)
+    if min(h, w) >= 32 and bool((real <= 1).all()):  # noqa: PLR2004 - normalised coordinates
+        warnings.warn(
+            "all input_points are <= 1: they are pixels of the image, not fractions (multiply by the width / height)",
+            stacklevel=4,
+        )
 
 
 def _check_point_labels(value: PromptLike) -> None:

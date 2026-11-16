@@ -440,6 +440,19 @@ def test_promptable_segmentation_bad_prompts(fake, kwargs, match):
         promptable_segmentation.load("fake", device="cpu")(np.zeros((8, 12, 3), np.uint8), **kwargs)
 
 
+def test_promptable_segmentation_points_must_be_pixels_in_the_image(fake):
+    """A point outside the image (x / y swapped) raises; padding points are exempt; 0..1 fractions warn."""
+    fake("promptable_segmentation", Prompt, ["pred_masks", "iou_scores"], {})
+    m = promptable_segmentation.load("fake", device="cpu")
+    img = np.zeros((8, 12, 3), np.uint8)
+    with pytest.raises(InputError, match="outside"):
+        m(img, input_points=[[2.0, 11.0]], input_labels=[1])
+    assert m(img, input_points=[[[6.0, 2.0], [-10.0, -10.0]]], input_labels=[[1, -1]]).masks.shape[-2:] == (8, 12)
+    big = np.zeros((64, 64, 3), np.uint8)
+    with pytest.warns(UserWarning, match="not fractions"):
+        m(big, input_points=[[0.5, 0.5]], input_labels=[1])
+
+
 def test_promptable_segmentation_rejects_foreign_embeddings_and_batches(fake):
     fake("promptable_segmentation", Prompt, ["pred_masks", "iou_scores"], {})
     m = promptable_segmentation.load("fake", device="cpu")
