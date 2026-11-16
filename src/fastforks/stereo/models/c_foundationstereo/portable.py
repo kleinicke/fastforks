@@ -16,9 +16,7 @@ from .net.fast_foundation_stereo.fast_foundation_stereo import _FFSPostForwardHe
 from .net.foundation_stereo.convolution_helper import Conv
 from .net.foundation_stereo.submodule import CostVolumeDisparityAttention, FeatureAtt
 
-CHUNK = (
-    1 << 13
-)  # sequences per chunk: memory bound (Q, K, V, out of one chunk are ~200 MB at 375x1242); flash SDPA takes < 65536; the result does not depend on it
+CHUNK = 1 << 13  # sequences per chunk: memory bound (Q, K, V, out of one chunk are ~200 MB at 375x1242); flash SDPA takes < 65536; the result does not depend on it
 
 
 def _chunked(
