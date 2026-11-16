@@ -235,6 +235,8 @@ def _code_needs(source: str, package: list[str]) -> tuple[set[str], bool]:  # no
             needs.add("transformers")
         if mod == "fastforks.shared" and "seginfer" in names:
             needs.add("transformers")
+        if (mod + ".").startswith("fastforks.shared.rfdetr.") or (mod == "fastforks.shared" and "rfdetr" in names):
+            needs.update(("torchvision", "transformers"))  # the vendored RF-DETR net imports both
         if (mod == "fastforks.detection._ops" and "ops" in names) or (mod == "fastforks.detection" and "_ops" in names):
             needs.add("torchvision")
 
@@ -289,6 +291,7 @@ def test_requires_matches_family_code(task, family):
         ("import importlib\nimportlib.import_module('fastforks.shared.seginfer')", {"transformers"}, False),
         ("from fastforks.detection._ops import ops", {"torchvision"}, False),
         ("from fastforks.shared.seginfer import resize", set(), False),
+        ("from fastforks.shared.rfdetr.net import models", {"torchvision", "transformers"}, False),
         ("import numpy", set(), False),
     ],
 )
