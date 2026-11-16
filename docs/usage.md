@@ -175,6 +175,33 @@ coco = [  # COCO results format: bbox = [x, y, width, height]; category_id: look
 ]
 ```
 
+Background removal to a transparent PNG (`alpha.save` writes float maps as .tif / .npy only, a .png holds integer maps):
+
+```python
+from PIL import Image
+from fastforks import matting
+
+image = Image.open("photo.jpg").convert("RGB")
+alpha = matting.load("birefnet-lite")(image).alpha  # [H, W] in [0, 1]
+cutout = image.copy()
+cutout.putalpha(Image.fromarray((alpha.cpu().numpy() * 255).round().astype("uint8")))
+cutout.save("cutout.png")
+```
+
+Keypoints to a picture (`people` from the pose example above; `people.skeleton` lists the limbs as index pairs):
+
+```python
+from PIL import Image, ImageDraw
+
+image = Image.open("street.jpg").convert("RGB")
+draw = ImageDraw.Draw(image)
+for kp, sc in zip(people.keypoints.cpu().tolist(), people.keypoint_scores.cpu().tolist()):
+    for a, b in people.skeleton:
+        if sc[a] > 0.3 and sc[b] > 0.3:
+            draw.line([*kp[a], *kp[b]], fill="lime", width=2)
+image.save("pose.png")
+```
+
 Dense matching of two photos ([models](models/matching.md), [API](api/matching.md)): warp, matches, geometry and a plot (PIL only):
 
 ```python
