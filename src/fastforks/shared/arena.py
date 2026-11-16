@@ -15,7 +15,7 @@ def _room(device: torch.device) -> int:
     return int(free * 0.9) + torch.cuda.memory_reserved(device) - torch.cuda.memory_allocated(device)
 
 
-def compact(module: nn.Module, min_bytes: int = _MIN_BYTES) -> nn.Module:
+def compact(module: nn.Module, min_bytes: int | None = None) -> nn.Module:
     """Move the storages of the parameters and buffers of `module` on a CUDA device into one arena per device (a device's tensors of any dtype share it).
 
     A build that casts, folds or packs tensors frees blocks between the live weights; the caching allocator cannot
@@ -28,11 +28,12 @@ def compact(module: nn.Module, min_bytes: int = _MIN_BYTES) -> nn.Module:
 
     Args:
         module: The network; its tensors are replaced in place (`Parameter.data`, buffer entries).
-        min_bytes: Networks with fewer weight bytes are left alone (0: always compact, as DINOv3 does).
+        min_bytes: Networks with fewer weight bytes are left alone (default: the module threshold; 0: always compact, as DINOv3 does).
 
     Returns:
         `module`.
     """
+    min_bytes = _MIN_BYTES if min_bytes is None else min_bytes
     users: dict[int, list[tuple[nn.Module, str, torch.Tensor, bool]]] = {}  # storage pointer -> the tensors viewing it
     seen: set[int] = set()
     for mod in module.modules():
