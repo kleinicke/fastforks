@@ -116,7 +116,7 @@ def estimate_fundamental(
     """Fundamental-matrix RANSAC (7-point solver) of pixel matches with unknown intrinsics, one pair or a batch.
 
     Args:
-        points1: Pixel keypoints in image 1, `[N, 2]` or `[P, N, 2]` (float; any device).
+        points1: Pixel keypoints in image 1, `[N, 2]` or `[P, N, 2]` (float; tensor, numpy array or list; any device).
         points2: The matching keypoints in image 2, same shape.
         threshold: Inlier threshold in pixels (Sampson distance).
         mask: `[N]` / `[P, N]` bool, the matches to use.
@@ -158,10 +158,24 @@ def _hartley(f: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
     return k
 
 
+def _tensor(x: object, name: str, device: torch.device | None = None) -> torch.Tensor:
+    """`x` (tensor, numpy array or nested list) as a tensor, moved to `device` when given."""
+    try:
+        t = x if isinstance(x, torch.Tensor) else torch.as_tensor(x)
+    except (TypeError, ValueError, RuntimeError) as e:
+        msg = f"{name} must be a tensor, numpy array or nested list of numbers, got {type(x).__name__}"
+        raise InputError(msg) from e
+    return t if device is None else t.to(device)
+
+
 def _check(
     points1: torch.Tensor, points2: torch.Tensor, threshold: float, mask: torch.Tensor | None, minimum: int
 ) -> tuple[bool, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Shape checks shared by the estimators: `(batched, p1, p2, valid)`, the points `[P, N, 2]` float32."""
+    points1 = _tensor(points1, "points1")
+    points2 = _tensor(points2, "points2", points1.device)
+    if mask is not None:
+        mask = _tensor(mask, "mask", points1.device)
     batched = points1.dim() == 3  # noqa: PLR2004 - [P, N, 2]
     p1, p2 = (p.reshape(-1, *p.shape[-2:]).to(torch.float32) for p in (points1, points2))
     if points1.shape != points2.shape or p1.shape[-1] != 2 or p1.dim() != 3:  # noqa: PLR2004
@@ -196,7 +210,7 @@ def estimate_pose(  # noqa: PLR0913 - the matches, the two intrinsics and the op
     """Essential-matrix RANSAC + `recoverPose` of pixel matches, one pair or a batch of pairs at once.
 
     Args:
-        points1: Pixel keypoints in image 1, `[N, 2]` or `[P, N, 2]` (float; any device, the pose is computed there).
+        points1: Pixel keypoints in image 1, `[N, 2]` or `[P, N, 2]` (float; tensor, numpy array or list; the pose is computed on the points' device, intrinsics and mask follow).
         points2: The matching keypoints in image 2, same shape.
         k1: Intrinsics of camera 1, `[3, 3]` or `[P, 3, 3]`.
         k2: Intrinsics of camera 2, same.
@@ -214,12 +228,21 @@ def estimate_pose(  # noqa: PLR0913 - the matches, the two intrinsics and the op
         KernelUnavailableError: `mode="kernels"` without a usable kernel binary / CUDA device.
     """
     batched, p1, p2, valid = _check(points1, points2, threshold, mask, MIN_MATCHES)
-    k1, k2 = (k.reshape(-1, 3, 3).to(torch.float32).expand(p1.shape[0], 3, 3) for k in (k1, k2))
+    k1, k2 = (_intrinsics(k, name, p1) for k, name in ((k1, "k1"), (k2, "k2")))
     solver = _solver(mode, p1.device)
     pose = _estimate(p1, p2, k1, k2, valid, threshold, solver, MIN_MATCHES)
     if batched:
         return pose
     return RelativePose(pose.R[0], pose.t[0], pose.E[0], pose.inliers[0], pose.ok[0])
+
+
+def _intrinsics(k: object, name: str, like: torch.Tensor) -> torch.Tensor:
+    """Intrinsics `[3, 3]` or `[P, 3, 3]` (tensor, numpy or list, any device) as `[P, 3, 3]` float32 on `like`."""
+    t = _tensor(k, name, like.device)
+    if t.shape[-2:] != (3, 3) or t.dim() not in (2, 3) or (t.dim() == 3 and t.shape[0] not in (1, like.shape[0])):  # noqa: PLR2004
+        msg = f"{name} must be [3, 3] or [P, 3, 3] with P = {like.shape[0]} pairs, got {tuple(t.shape)}"
+        raise InputError(msg)
+    return t.reshape(-1, 3, 3).to(torch.float32).expand(like.shape[0], 3, 3)
 
 
 def _solver(mode: str, device: torch.device) -> CubinModule | None:

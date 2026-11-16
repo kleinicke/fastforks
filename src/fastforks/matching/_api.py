@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numbers
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -126,6 +127,9 @@ class MatchingResult(NumpyOutputs):
             Points in the first and in the second image, `[n, 2]` float32 `(x, y)` pixels (`[B, n, 2]` for batches),
             on the warp's device.
         """
+        if isinstance(n, bool) or not isinstance(n, numbers.Integral) or n < 1:
+            msg = f"n must be a positive integer (the number of matches to sample), got {n!r}"
+            raise InputError(msg)
         warp = self.warp.unsqueeze(0) if self.warp.dim() == 3 else self.warp  # noqa: PLR2004 - [2, H, W]
         b, _, h, w = warp.shape
         if self.certainty is None:
