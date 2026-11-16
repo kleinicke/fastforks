@@ -50,7 +50,7 @@ def _cpu_net(ctx: Context, *, fold: bool) -> torch.nn.Module:
     return net.eval()
 
 
-_TINY = 1e-8  # floor of the normalisation divisors (a constant image or map)
+_TINY = 1e-8  # fixed: our floor of the normalisation divisors (constant image / map: not 0 / 0)
 
 
 class _Matting(Runner):
