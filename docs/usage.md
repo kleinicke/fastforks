@@ -202,6 +202,17 @@ for kp, sc in zip(people.keypoints.cpu().tolist(), people.keypoint_scores.cpu().
 image.save("pose.png")
 ```
 
+Surface normals as a normal-map picture (`lotus-normal-d-v1-1`; MoGe returns normals only with `depth.load("moge-2-vitb-normal", normals=True)`;
+`result.save` writes depth maps, not normals):
+
+```python
+from PIL import Image
+from fastforks import depth
+
+normals = depth.load("lotus-normal-d-v1-1")("photo.jpg").normals  # [H, W, 3] unit vectors, x right, y down, z forward
+Image.fromarray(((normals.cpu().numpy() + 1) * 127.5).round().astype("uint8")).save("normals.png")
+```
+
 Dense matching of two photos ([models](models/matching.md), [API](api/matching.md)): warp, matches, geometry and a plot (PIL only):
 
 ```python
