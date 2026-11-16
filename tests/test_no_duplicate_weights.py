@@ -60,8 +60,6 @@ def test_patched_blocks_hold_no_second_weight_copy(case, mode):
 MIB = 2**20
 # load-time exceptions with the reason (results/2026-11-15_consistency_fixes.md); run peaks: docs/data/speed.jsonl
 LOAD_KNOWN = {
-    "cotracker3-online@1": "open: kernels keeps merged fp16 qkv / head copies next to the weights (+43 MiB)",
-    "tapnext@1": "open: the kernels closures keep merged fp16 ffw-up / qkv copies next to the weights (+93 MiB peak)",
     "metric3d-vit-large@1": "load-time only: kernels prepares its buffers at load, the run peak is within 2 % of portable's",
     "selective-igev-eth3d-finetune@1": "tiny weights; the kernels run peak is below portable's (363 vs 416 MiB)",
 }

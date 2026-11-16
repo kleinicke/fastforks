@@ -89,3 +89,18 @@ def test_graph_pool_adds_only_the_intermediates(forward):
     pages = -(-inter // _PAGE) * _PAGE + 2 * 2**20  # large pages + one small segment
     assert torch.cuda.max_memory_reserved() <= eager + pages, (inter, eager, torch.cuda.max_memory_reserved())
     cache.release()
+
+
+def test_a_much_larger_shape_frees_the_small_graphs():
+    """A GPU-bound shape must not run next to the pool of a small shape's graph (kernels reserved memory)."""
+    cache = GraphCache(lambda x: x * 2)
+    small = torch.ones(64, device="cuda")
+    cache.run("s", small)
+    assert cache.run("s", small) is not None
+    assert len(cache.graphs) == 1
+    assert cache.run("same size", small) is None  # not larger: the graph stays
+    assert len(cache.graphs) == 1
+    assert cache.run("large", torch.ones(256, device="cuda")) is None  # eager, and the small graph is released
+    assert not cache.graphs
+    cache.run("s", small)  # a returning shape captures again on its repeat
+    assert cache.run("s", small) is not None

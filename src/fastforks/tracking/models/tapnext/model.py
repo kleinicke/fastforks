@@ -160,6 +160,7 @@ def _mlp(m: MLPBlock) -> Callable[[torch.Tensor], torch.Tensor]:
     w = _t(m.ffw_up.w).detach()  # [2, C, 4C]
     wu, bu = _w4(torch.cat([w[0], w[1]], 1).T), _t(m.ffw_up.b).detach().flatten().half()
     wd, bd = _w4(m.ffw_down.weight), _t(m.ffw_down.bias)
+    cast("torch.nn.Parameter", m.ffw_up.w).data = w.new_empty(0)  # the merged filter replaces it
 
     def forward(x: torch.Tensor) -> torch.Tensor:
         gate, up = lin(x.half(), wu, bu).chunk(2, -1)

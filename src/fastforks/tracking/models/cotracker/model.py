@@ -461,6 +461,8 @@ class Kernels(Portable):
         core.in_pad = (-core.net.input_dim) % 8  # 1110 -> 1112
         core.temb.clear()
         core.updateformer = _updateformer(core.net.updateformer, core.in_pad)
+        for p in core.net.updateformer.parameters():  # the closures hold the fp16 filters: no 2nd copy
+            p.data = p.data.new_empty(0)
         w1, w2 = _w4(core.c1w), _w4(core.c2w)
 
         def mlp(x: torch.Tensor) -> torch.Tensor:
