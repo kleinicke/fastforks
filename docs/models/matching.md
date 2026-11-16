@@ -58,6 +58,16 @@ Commercial use: yes.
 - `aliked-flexglue` load / first call: original 4.5 s / 1.661 s, portable 0.92 s / 1.199 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | note |
+|---|---|---|---|---|
+| `aliked-flexglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 50.8 / 68.2 / 80.4 | 53.3 / 70.1 / 82.0 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.0052 and p99 <= 0.012 (absolute error of the output `keypoints1`).
@@ -181,11 +191,11 @@ Commercial use: yes.
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp16 | portable | note |
-|---|---|---|---|---|
-| `dedode-v2-b` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 57.3 / 71.5 / 82.5 | 54.6 / 71.8 / 83.1 |  |
+| variant | dataset | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `dedode-v2-b` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 57.3 / 71.5 / 82.5 | 54.6 / 71.8 / 83.1 | 57.8 / 74.3 / 84.2 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 
@@ -246,12 +256,12 @@ Commercial use: yes.
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | note |
-|---|---|---|---|---|
-| `loftr-outdoor` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees | 50.1 / 67.5 / 80.3 | 50.6 / 67.6 / 80.3 |  |
-| `loftr-outdoor` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 53.8 / 71.8 / 83.7 | 52.1 / 71.0 / 83.3 |  |
+| variant | dataset | original fp32 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `loftr-outdoor` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees | 50.1 / 67.5 / 80.3 | 50.6 / 67.6 / 80.3 |  |  |
+| `loftr-outdoor` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 53.8 / 71.8 / 83.7 | 52.1 / 71.0 / 83.3 | 57.1 / 74.2 / 85.0 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565, 2026-11-13 to 2026-11-15.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565, 2026-11-13 to 2026-11-15; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 
@@ -303,6 +313,16 @@ Commercial use: yes.
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
 - `loma-b` load / first call: original 8.52 s / 1.373 s, portable 2.53 s / 1.269 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | note |
+|---|---|---|---|---|
+| `loma-b` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.5 / 71.6 / 83.7 | 56.2 / 72.6 / 83.9 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 

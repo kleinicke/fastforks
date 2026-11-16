@@ -434,6 +434,16 @@ Commercial use: yes.
 - `retinaface-mobilenet0.25` load / first call: original 0.13 s / 1.369 s, portable 0.71 s / 0.677 s, kernels 1.49 s / 0.064 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+Each image at its own size, score threshold 0.02 and NMS IoU 0.45 (the authors' evaluation settings), the official toolkit's AP at IoU 0.5 over the subset's faces. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `retinaface-resnet50` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.954 / 0.939 / 0.841 | 0.954 / 0.939 / 0.840 | 0.954 / 0.939 / 0.840 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.001 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.016 and p99 <= 0.04 (absolute error of the output `keypoints`).

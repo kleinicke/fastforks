@@ -87,6 +87,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
+- No accuracy measurement: inpainting is scored on Places / CelebA-HQ with the authors' random masks, which are not part of the evaluation data here; tiers are compared by output parity and speed only.
 - Fills the masked region from the surrounding image; it does not take a text prompt. The authors' refinement step (`refine=True`, an iterative multi-scale optimisation) is not implemented.
 - Any nonzero mask pixel is a hole (upstream binarises with `mask > 0`): anti-aliased or JPEG masks grow; threshold them first.
 
@@ -130,6 +131,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `codeformer` | 0.0017 / 0.01817 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+
+### Limitations
+
+- No accuracy measurement: blind face restoration is scored on CelebA-Test / LFW / WebPhoto (FID, NIQE, identity distance), which are not part of the evaluation data here; tiers are compared by output parity and speed only.
 
 </details>
 
@@ -290,6 +295,10 @@ CPU, float32: max |diff| <= 6.3e-06 vs the original. GPU, float16 (the default),
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `gfpgan-v1.4` | 0.00034 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+
+### Limitations
+
+- No accuracy measurement: blind face restoration is scored on CelebA-Test / LFW / WebPhoto (FID, NIQE, identity distance), which are not part of the evaluation data here; tiers are compared by output parity and speed only.
 
 </details>
 

@@ -98,6 +98,17 @@ Commercial use: yes.
 - `any2full-l` load / first call: original 9.41 s / 0.475 s, portable 1.45 s / 0.298 s, kernels 1.5 s / 0.275 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `any2full-b` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 | 0.0044 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |
+| `any2full-b` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0074 / 0.9962 | 0.0077 / 0.9962 | 0.0071 / 0.9964 | 0.0071 / 0.9964 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 1.5 % and p99 <= 5 % of the reference's median |value| (absolute error of the output `depth`).
@@ -472,6 +483,17 @@ Commercial use: yes.
 - `depthfm-v1` load / first call: portable 3.58 s / 6.004 s, kernels 4.59 s / 3.734 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `depthfm-v1` | iBims-1, AbsRel / delta1 | 0.0652 / 0.9540 | 0.0652 / 0.9540 | 0.0650 / 0.9543 | 0.0650 / 0.9543 |  |
+| `depthfm-v1` | NYUv2 test (first 100 images), AbsRel / delta1 | 0.0735 / 0.9489 | 0.0731 / 0.9492 | 0.0732 / 0.9493 | 0.0732 / 0.9493 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 1 % and p99 <= 3 % of the reference's median |value| (absolute error of the output `depth`).
@@ -522,6 +544,17 @@ Commercial use: yes.
 - `lingbot-depth` load / first call: original 4.81 s / 1.377 s, portable 1.38 s / 0.531 s, kernels 1.36 s / 0.332 s
 - `lingbot-depth-dc` load / first call: original 7.54 s / 1.364 s, portable 1.29 s / 0.532 s, kernels 1.33 s / 0.343 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
+|---|---|---|---|---|---|---|
+| `lingbot-depth` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0053 / 1.0000 | 0.0056 / 1.0000 | 0.0053 / 1.0000 | 0.0053 / 1.0000 |  |
+| `lingbot-depth` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0089 / 0.9951 | 0.0092 / 0.9950 | 0.0089 / 0.9951 | 0.0089 / 0.9951 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 
@@ -757,10 +790,10 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | portable | kernels | note |
-|---|---|---|---|---|
-| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |
-| `marigold-v2-depth` | iBims-1, AbsRel / delta1 | 0.0291 / 0.9877 | 0.0291 / 0.9877 |  |
+| variant | dataset | original fp32 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |
+| `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14.
 
@@ -1011,6 +1044,17 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `omni-dc` original 994x1482: upstream OGNIDC.forward (demo.sh arguments), float32, 16-padded
 - `omni-dc` load / first call: original 9.52 s / 2.035 s, portable 2.47 s / 1.062 s, kernels 2.44 s / 0.936 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `omni-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0231 / 0.9966 | 0.0231 / 0.9966 | 0.0232 / 0.9966 |  |
+| `omni-dc` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0253 / 0.9910 | 0.0254 / 0.9910 | 0.0254 / 0.9910 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 

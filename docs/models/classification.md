@@ -1075,6 +1075,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
+- No accuracy measurement: the weights' training set (Falconsai's private labelled NSFW images) is not published and no public labelled NSFW test set is part of the evaluation data here; tiers are compared by output parity and speed only.
 - The image is stretched to 224 x 224 without keeping its aspect ratio, as the original processor does.
 
 </details>

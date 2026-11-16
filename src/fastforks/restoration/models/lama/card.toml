@@ -5,6 +5,7 @@ tier = "experimental"
 outputs = ["image"]
 uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 limitations = [
+  "No accuracy measurement: inpainting is scored on Places / CelebA-HQ with the authors' random masks, which are not part of the evaluation data here; tiers are compared by output parity and speed only.",
   "Fills the masked region from the surrounding image; it does not take a text prompt. The authors' refinement step (`refine=True`, an iterative multi-scale optimisation) is not implemented.",
   "Any nonzero mask pixel is a hole (upstream binarises with `mask > 0`): anti-aliased or JPEG masks grow; threshold them first.",
 ]

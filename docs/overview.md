@@ -629,9 +629,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 43 models; size 1080x1920.
 
 - Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.2 ms).
-- Most accurate: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.315).
+- Most accurate: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.367).
 - Fastest commercially usable: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.2 ms).
-- Most accurate commercially usable: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.315).
+- Most accurate commercially usable: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.367).
 
 | model | commercial use | KITTI 2015 train EPE (px) | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
@@ -660,7 +660,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 427.4 | 1.2x vs original (1080x1920) | 1301 |
 | [`waft-a1-sintel`](models/flow.md#waft) | yes | – | 1532.7 (1080x1920) | 790.5 | 518.5 | 3.0x vs original (1080x1920) | 1851 |
 | [`waft-a1-kitti`](models/flow.md#waft) | yes | – | 1533.3 (1080x1920) | 790.8 | 518.6 | 3.0x vs original (1080x1920) | 1851 |
-| [`waft-a1`](models/flow.md#waft) | yes | 2.315 | 1533.1 (1080x1920) | 790.8 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
+| [`waft-a1`](models/flow.md#waft) | yes | 2.367 | 1533.1 (1080x1920) | 790.8 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 555.9 | – | – | – |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 556.1 | – | – | – |
 | [`megaflow`](models/flow.md#megaflow) | yes | 1.714 † | 1588.5 (1080x1920) | 1109.0 | 733.5 | 2.2x vs original (1080x1920) | 2866 |

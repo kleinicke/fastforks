@@ -166,6 +166,16 @@ Commercial use: yes.
 - `lingbot-map` load / first call: original 131.28 s / 4.645 s (480x640), portable 6.58 s / 1.077 s (480x640), kernels 5.69 s / 0.843 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | kernels | note |
+|---|---|---|---|---|---|
+| `lingbot-map` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0304 / 97.30 | 0.0305 / 97.28 | 0.0304 / 97.33 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.25 (absolute error of the output `depth`).
@@ -495,6 +505,7 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
+- No accuracy measurement: a metric model at RealEstate10K / DL3DV scale; the only multi-view eval set here (DTU, millimetre scale) is out of its range, and the original could not run here (its gsplat rasteriser module is not installable), so no tier has a published-protocol score.
 - Portable runs upstream's two CUDA extensions (kNN, gsplat rasteriser) as PyTorch ops: 2.8x (base) / 3.5x (small) slower than the bf16 original at 480x640. Slow: kNN topk ~28 %, compositing cumprod/pow ~30 % of GPU time. Kernels: 2.0x / 1.4x faster.
 
 </details>

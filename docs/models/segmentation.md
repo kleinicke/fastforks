@@ -76,6 +76,10 @@ CPU, float32: max |diff| <= 2.6e-05 vs the original. GPU, float16 (the default),
 |---|---|---|---|
 | `bisenet-face-parsing` | no kernels backend | - | - |
 
+### Limitations
+
+- No accuracy measurement: face parsing is scored on CelebAMask-HQ, which is not part of the evaluation data here (no public mirror with a clear licence); tiers are compared by output parity and speed only.
+
 </details>
 
 <a id="mmseg"></a>
