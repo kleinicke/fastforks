@@ -456,7 +456,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 493<br>1723<br>362<br>deferred (build >5 min)<br>planned for 0.2.1 | 5148 / 5376<br>4995 / 5180<br>4981 / 5148<br>–<br>– |
-| `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels | 2521<br>7085<br>1280 | 10139 / 12684<br>6951 / 8634<br>6944 / 8706 |
+| `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels | 2521<br>7086<br>1280 | 10139 / 12684<br>6951 / 8736<br>6944 / 8706 |
 
 <details><summary>Details</summary>
 

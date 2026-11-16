@@ -16,7 +16,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`ema-vfi-small`](#ema_vfi) | yes | 84.4, 1.4x | 1914, 0.8x |
 | [`ema-vfi-small-t`](#ema_vfi) | yes | 84.3, 1.4x | 1914, 0.8x |
 | [`ema-vfi-t`](#ema_vfi) | yes | 207, 1.4x | 3566, 0.83x |
-| [`film`](#film) | yes | 333, 1.4x | 3060, 0.86x |
+| [`film`](#film) | yes | 332, 1.4x | 3080, 0.87x |
 | [`gimm-vfi-r`](#gimm_vfi) | no | 1629 | 5362 |
 | [`gimm-vfi-r-p`](#gimm_vfi) | no | 1628 | 5282 |
 | [`rife-4.25`](#rife) | yes | 21.4, 1.1x | 916, 0.79x |
@@ -106,7 +106,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `film` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 464<br>417<br>333<br>332<br>planned for 0.2.1 | 2953 / 3556<br>2856 / 3080<br>2856 / 3060<br>2666 / 3192<br>– |
+| `film` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 464<br>417<br>332<br>332<br>planned for 0.2.1 | 2953 / 3556<br>2856 / 3080<br>2856 / 3080<br>2666 / 3192<br>– |
 
 <details><summary>Details</summary>
 

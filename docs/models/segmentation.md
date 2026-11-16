@@ -27,14 +27,14 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.9, 1.9x | 394, 0.19x |
 | [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.6, 1.9x | 1762, 0.65x |
 | [`sapiens-seg-1b-goliath`](#sapiens) | no | 185, 1.9x | 3382, 0.57x |
-| [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.48, 5.0x | 238, 0.15x |
+| [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.49, 4.9x | 178, 0.11x |
 | [`segformer-b2-clothes`](#segformer) (resize 512x512) | no | 3.61, 3.9x (512x512) | 170, 0.35x |
-| [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.3, 2.8x | 534, 0.21x |
+| [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.4, 2.8x | 432, 0.17x |
 | [`segformer-b5-face-parsing`](#segformer) (resize 512x512) | no | 9.21, 3.7x (512x512) | 294, 0.39x |
-| [`segnext-mscan-b-ade20k`](#segnext) | yes | 12.2, 2.8x | 332, 0.19x |
-| [`segnext-mscan-l-ade20k`](#segnext) | yes | 20.6, 2.5x | 428, 0.24x |
-| [`segnext-mscan-s-ade20k`](#segnext) | yes | 8.04, 2.9x | 290, 0.17x |
-| [`segnext-mscan-t-ade20k`](#segnext) | yes | 8.99, 2.3x | 206, 0.13x |
+| [`segnext-mscan-b-ade20k`](#segnext) | yes | 12.1, 2.8x | 226, 0.13x |
+| [`segnext-mscan-l-ade20k`](#segnext) | yes | 20.7, 2.5x | 320, 0.18x |
+| [`segnext-mscan-s-ade20k`](#segnext) | yes | 8.04, 2.9x | 202, 0.12x |
+| [`segnext-mscan-t-ade20k`](#segnext) | yes | 9.02, 2.3x | 158, 0.097x |
 
 <a id="bisenet"></a>
 
@@ -454,8 +454,8 @@ Commercial use: `segformer-b0-ade20k`, `segformer-b5-ade20k`, `segformer-b2-clot
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `segformer-b0-ade20k` (resize 2048x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.2<br>17.4<br>11.4<br>3.48<br>9.27<br>5.51 | 1583 / 1638<br>1590 / 1766<br>339 / 376<br>148 / 238<br>336 / 356<br>1480 / 1522 |
-| `segformer-b5-ade20k` (resize 2048x640) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>72.0<br>38.7<br>25.3<br>31.4<br>22.8 | 2529 / 2538<br>2531 / 2620<br>546 / 590<br>407 / 534<br>543 / 630<br>2069 / 2110 |
+| `segformer-b0-ade20k` (resize 2048x512) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.2<br>17.4<br>11.4<br>3.49<br>9.27<br>5.51 | 1583 / 1638<br>1590 / 1766<br>339 / 376<br>105 / 178<br>336 / 356<br>1480 / 1522 |
+| `segformer-b5-ade20k` (resize 2048x640) | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 132<br>72.0<br>38.7<br>25.4<br>31.4<br>22.8 | 2529 / 2538<br>2531 / 2620<br>546 / 590<br>294 / 432<br>543 / 630<br>2069 / 2110 |
 | `segformer-b2-clothes` (resize 512x512) | synthetic (512x512) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.9<br>14.1<br>8.13<br>3.61<br>4.38<br>2.68 | 829 / 902<br>425 / 488<br>156 / 168<br>133 / 170<br>182 / 228<br>312 / 328 |
 | `segformer-b5-face-parsing` (resize 512x512) | synthetic (512x512) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.8<br>34.2<br>21.9<br>9.21<br>14.1<br>deferred (build >5 min) | 1163 / 1284<br>647 / 758<br>278 / 292<br>257 / 294<br>305 / 352<br>– |
 
@@ -527,10 +527,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `segnext-mscan-t-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.1<br>23.8<br>15.9<br>8.99<br>16.6<br>16.0 | 1585 / 1622<br>1593 / 1648<br>332 / 378<br>147 / 206<br>446 / 480<br>1476 / 1498 |
-| `segnext-mscan-s-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 28.6<br>23.3<br>18.5<br>8.04<br>24.9<br>18.0 | 1622 / 1672<br>1649 / 1700<br>350 / 402<br>202 / 290<br>465 / 482<br>1493 / 1544 |
-| `segnext-mscan-b-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.8<br>33.9<br>28.3<br>12.2<br>40.7<br>23.3 | 1674 / 1728<br>1727 / 1838<br>376 / 424<br>229 / 332<br>491 / 526<br>1553 / 1622 |
-| `segnext-mscan-l-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 69.7<br>52.2<br>43.1<br>20.6<br>63.6<br>32.3 | 1756 / 1810<br>1849 / 1894<br>417 / 458<br>314 / 428<br>532 / 578<br>1634 / 1694 |
+| `segnext-mscan-t-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.1<br>23.8<br>15.9<br>9.02<br>16.6<br>16.0 | 1585 / 1622<br>1593 / 1648<br>332 / 378<br>110 / 158<br>446 / 480<br>1476 / 1498 |
+| `segnext-mscan-s-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 28.6<br>23.3<br>18.5<br>8.04<br>24.9<br>18.0 | 1622 / 1672<br>1649 / 1700<br>350 / 402<br>164 / 202<br>465 / 482<br>1493 / 1544 |
+| `segnext-mscan-b-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.8<br>33.9<br>28.3<br>12.1<br>40.7<br>23.3 | 1674 / 1728<br>1727 / 1838<br>376 / 424<br>192 / 226<br>491 / 526<br>1553 / 1622 |
+| `segnext-mscan-l-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 69.7<br>52.2<br>43.1<br>20.7<br>63.6<br>32.3 | 1756 / 1810<br>1849 / 1894<br>417 / 458<br>277 / 320<br>532 / 578<br>1634 / 1694 |
 
 <details><summary>Details</summary>
 

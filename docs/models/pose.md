@@ -17,10 +17,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`dwpose-m`](#rtmpose) | yes | 4.86, 33.8x | 220, 0.28x |
 | [`dwpose-s`](#rtmpose) | yes | 3.30, 52.3x | 198, 0.23x |
 | [`dwpose-t`](#rtmpose) | yes | 3.17, 50.6x | 174, 0.2x |
-| [`hrnet-w32`](#hrnet) | yes | 9.79, 18.0x | 262, 0.81x |
-| [`hrnet-w32-384`](#hrnet) | yes | 19.4, 9.8x | 380, 0.5x |
-| [`hrnet-w48`](#hrnet) | yes | 15.5, 12.9x | 378, 0.82x |
-| [`hrnet-w48-384`](#hrnet) | yes | 33.9, 7.2x | 498, 0.54x |
+| [`hrnet-w32`](#hrnet) | yes | 9.75, 18.0x | 194, 0.6x |
+| [`hrnet-w32-384`](#hrnet) | yes | 19.7, 9.7x | 294, 0.39x |
+| [`hrnet-w48`](#hrnet) | yes | 15.6, 12.8x | 262, 0.57x |
+| [`hrnet-w48-384`](#hrnet) | yes | 34.2, 7.1x | 360, 0.39x |
 | [`retinaface-mobilenet0.25`](#retinaface) | yes | 2.74, 27.7x | 128, 1.2x |
 | [`retinaface-resnet50`](#retinaface) | yes | 11.7, 6.8x | 464, 0.95x |
 | [`rf-detr-keypoint-preview`](#rfdetr_keypoint) | yes | 9.48, 2.0x | 224, 0.92x |
@@ -332,10 +332,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hrnet-w32` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 176<br>190<br>20.3<br>9.79<br>9.94<br>5.18 (network on person crops only) | 270 / 324<br>336 / 398<br>195 / 258<br>210 / 262<br>178 / 214<br>216 / 254 |
-| `hrnet-w32-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 216<br>190<br>38.8<br>19.4<br>19.6<br>10.7 (network on person crops only) | 682 / 762<br>653 / 760<br>341 / 434<br>305 / 380<br>211 / 234<br>296 / 320 |
-| `hrnet-w48` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 200<br>206<br>32.0<br>15.5<br>21.2<br>9.46 (network on person crops only) | 879 / 1022<br>440 / 462<br>262 / 302<br>343 / 378<br>245 / 282<br>346 / 388 |
-| `hrnet-w48-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 276<br>245<br>70.5<br>33.9<br>46.0<br>22.3 (network on person crops only) | 841 / 928<br>1014 / 1082<br>408 / 498<br>438 / 498<br>278 / 300<br>427 / 454 |
+| `hrnet-w32` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 176<br>190<br>20.3<br>9.75<br>9.94<br>5.18 (network on person crops only) | 270 / 324<br>336 / 398<br>195 / 258<br>155 / 194<br>178 / 214<br>216 / 254 |
+| `hrnet-w32-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 216<br>190<br>38.8<br>19.7<br>19.6<br>10.7 (network on person crops only) | 682 / 762<br>653 / 760<br>341 / 434<br>250 / 294<br>211 / 234<br>296 / 320 |
+| `hrnet-w48` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 200<br>206<br>32.0<br>15.6<br>21.2<br>9.46 (network on person crops only) | 879 / 1022<br>440 / 462<br>262 / 302<br>222 / 262<br>245 / 282<br>346 / 388 |
+| `hrnet-w48-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 276<br>245<br>70.5<br>34.2<br>46.0<br>22.3 (network on person crops only) | 841 / 928<br>1014 / 1082<br>408 / 498<br>317 / 360<br>278 / 300<br>427 / 454 |
 
 <details><summary>Details</summary>
 

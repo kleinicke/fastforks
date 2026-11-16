@@ -15,8 +15,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`alltracker`](#alltracker) | yes | 221, 2.2x | 1288, 0.56x |
 | [`alltracker-tiny`](#alltracker) | yes | 217, 2.0x | 1166, 0.53x |
 | [`bootstapir`](#tapir) | yes | 192, 1.3x | 628, 0.81x |
-| [`cotracker3-offline`](#cotracker) | no | 154, 1.6x | 916, 0.37x |
-| [`cotracker3-online`](#cotracker) | no | 176, 1.9x | 922, 0.49x |
+| [`cotracker3-offline`](#cotracker) | no | 154, 1.6x | 882, 0.36x |
+| [`cotracker3-online`](#cotracker) | no | 176, 1.9x | 888, 0.47x |
 | [`locotrack-b`](#locotrack) | yes | 173, 1.2x | 660, 0.84x |
 | [`locotrack-s`](#locotrack) | yes | 151, 1.3x | 642, 0.79x |
 | [`tapir`](#tapir) | yes | 141, 1.3x | 548, 0.95x |
@@ -166,8 +166,8 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `cotracker3-offline` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>162<br>154<br>135<br>25.9 | 2221 / 2480<br>755 / 882<br>799 / 916<br>755 / 902<br>519 / 586 |
-| `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 328<br>184<br>176<br>159<br>planned for 0.2.1 | 1659 / 1886<br>755 / 906<br>798 / 922<br>701 / 846<br>– |
+| `cotracker3-offline` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>162<br>154<br>135<br>25.9 | 2221 / 2480<br>755 / 882<br>757 / 882<br>755 / 902<br>519 / 586 |
+| `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 328<br>184<br>176<br>159<br>planned for 0.2.1 | 1659 / 1886<br>755 / 906<br>757 / 888<br>701 / 846<br>– |
 
 <details><summary>Details</summary>
 
