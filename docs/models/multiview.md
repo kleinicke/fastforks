@@ -76,6 +76,10 @@ CPU, float32: max |diff| <= 1.3e-05 vs the original. GPU, float16 (the default),
 |---|---|---|---|
 | `anysplat` | 0.00082 / 0.00214 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
 
+### Limitations
+
+- Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv output (257 MiB in the DPT head) fragments the allocator: peak reserved is ~260 MiB above portable.
+
 </details>
 
 <a id="depthsplat"></a>
@@ -489,7 +493,7 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
-- Portable runs upstream's two CUDA extensions (point-transformer kNN, gsplat rasteriser) as plain PyTorch ops: 2.8x (base) and 3.5x (small) slower than the original at 480x640 (bfloat16 original). Kernels replaces them and is 2.0x (base) and 1.4x (small) faster than the original.
+- Portable runs upstream's two CUDA extensions (kNN, gsplat rasteriser) as PyTorch ops: 2.8x (base) / 3.5x (small) slower than the bf16 original at 480x640. Slow: kNN topk ~28 %, compositing cumprod/pow ~30 % of GPU time. Kernels: 2.0x / 1.4x faster.
 
 </details>
 

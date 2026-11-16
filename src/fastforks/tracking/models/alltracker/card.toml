@@ -9,6 +9,7 @@ limitations = [
   "Frames are resized to 384 x 512 (upstream's default evaluation size), whatever their size and aspect ratio. Upstream reports higher accuracy at larger sizes (TAP-Vid DAVIS AJ 65.9 at 448 x 768, 67.2 at 768 x 1024); the size is a card parameter.",
   "Tracks are sampled bilinearly at the query position; upstream's evaluation rounds the query to the nearest pixel.",
   "One video per call; all queries of a call share the video.",
+  "Kernels hold packed conv weights next to the originals the call reads (+31 MiB) and fragment the allocator: peak reserved is ~70 MiB above portable.",
 ]
 
 [upstream]

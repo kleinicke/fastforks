@@ -5,6 +5,10 @@ tier = "experimental"
 uses = ["swin_sr"]  # fastforks.shared modules this family imports
 outputs = ["image"]
 
+limitations = [
+  "Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv maps fragments the allocator: peak reserved is ~80 MiB above portable.",
+]
+
 [upstream]
 repo = "https://github.com/mv-lab/swin2sr"
 commit = "6f25d7689813f7dd12c5a212b638066fa71bc9e6"  # models/network_swin2sr.py; the call is main_test_swin2sr.py (mirror padding, model(lq), no tile)

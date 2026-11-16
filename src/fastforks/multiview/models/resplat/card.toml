@@ -6,7 +6,7 @@ uses = ["depth_anything_v2"]  # shared modules imported directly by this family 
 outputs = ["depth", "confidence", "gaussians"]  # confidence: largest match probability over the depth candidates; gaussians: MultiViewResult.gaussians (not a map)
 
 limitations = [
-  "Portable runs upstream's two CUDA extensions (point-transformer kNN, gsplat rasteriser) as plain PyTorch ops: 2.8x (base) and 3.5x (small) slower than the original at 480x640 (bfloat16 original). Kernels replaces them and is 2.0x (base) and 1.4x (small) faster than the original.",
+  "Portable runs upstream's two CUDA extensions (kNN, gsplat rasteriser) as PyTorch ops: 2.8x (base) / 3.5x (small) slower than the bf16 original at 480x640. Slow: kNN topk ~28 %, compositing cumprod/pow ~30 % of GPU time. Kernels: 2.0x / 1.4x faster.",
 ]
 licence_notes = [
   "Code and checkpoints are MIT. The Base RealEstate10K checkpoint's monocular branch is initialised from Depth Anything V2 Base (CC-BY-NC-4.0) and is labelled non-commercial; the Small DL3DV checkpoint builds on Depth Anything V2 Small (Apache-2.0).",

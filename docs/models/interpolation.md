@@ -90,6 +90,10 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 | `ema-vfi-t` | 0.0002 / 0.00082 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 | `ema-vfi-small-t` | 0.00019 / 0.00065 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 
+### Limitations
+
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~670 (480x854) / 3200 (1080x1920) MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+
 </details>
 
 <a id="film"></a>

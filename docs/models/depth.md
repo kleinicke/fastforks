@@ -1094,6 +1094,7 @@ CPU, float32: max |diff| <= 1.5e-06 vs the original. GPU, float16 (the default),
 
 - Affine-invariant output: points up to an unknown scale and 3-D shift, depth (their z) up to scale and shift; align before use.
 - Trained at 512 x 512: inputs are resized to about `tokens` 16-pixel patches at their aspect ratio (bilinear) and the point map is resized back with nearest, as the original's wild-image path.
+- Kernels mode captures CUDA graphs: the graph's private memory pool and static outputs stay reserved after the call, so peak reserved is above portable by ~85 MiB (b), more for l (peak allocated is equal or lower); `cuda_graphs=false` or `release_graphs()` frees it at the cost of launch overhead.
 
 </details>
 

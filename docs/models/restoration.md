@@ -825,6 +825,10 @@ CPU, float32: max |diff| <= 1.4e-05 vs the original. GPU, float16 (the default),
 | `swin2sr-x2` | 0.00063 / 0.00232 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 | `swin2sr-x4-real` | 0.00037 / 0.00138 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 
+### Limitations
+
+- Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv maps fragments the allocator: peak reserved is ~80 MiB above portable.
+
 </details>
 
 <a id="swinir"></a>

@@ -74,6 +74,10 @@ CPU, float32: max |diff| <= 1.8e-06 vs the original. GPU, float16 (the default),
 | `nnfoundation-cnn` | 0.00067 / 0.00463 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@44036d4da567:sm_120` |
 | `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@44036d4da567:sm_120` |
 
+### Limitations
+
+- Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv maps (1.4 GiB and 0.3 GiB workspaces) fragments the allocator: peak reserved is ~580 MiB above portable.
+
 </details>
 
 <a id="nninteractive"></a>

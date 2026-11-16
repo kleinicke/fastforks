@@ -4,6 +4,10 @@ summary = "nnFoundation (Harsy et al. 2026): DKFZ's self-supervised 3D radiology
 tier = "experimental"
 outputs = ["features"]
 
+limitations = [
+  "Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv maps (1.4 GiB and 0.3 GiB workspaces) fragments the allocator: peak reserved is ~580 MiB above portable.",
+]
+
 [upstream]
 repo = "https://github.com/MIC-DKFZ/nnssl"
 commit = "3d774e942256bd70e5e264c6b94fa38e25f7ed74"  # nnFoundation branch; the networks are dynamic_network_architectures 0.4.4 (ResidualEncoderUNet's encoder, Primus; Apache-2.0) with timm 1.0.22's Eva blocks (Apache-2.0), z-score normalisation of nnU-Net v2.8.1 (Apache-2.0)

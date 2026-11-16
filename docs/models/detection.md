@@ -534,6 +534,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 - Text queries are used as given (no prompt templates or prompt ensembling as in the paper's COCO / LVIS numbers); each is cut to 16 tokens as the transformers processor does.
 - No objectness scores and no image-guided (one-shot) detection.
 - One box per patch token (3600 for B/16, 5184 for L/14) without NMS, as the original post-processing; overlapping boxes of the same object are common at low thresholds.
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~120 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
@@ -638,6 +639,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 - Requires the optional transformers and torchvision libraries.
 - Only the Apache-2.0 checkpoints are included; the PML-1.0 detection variants (A / F / P / XL / 2XL) are not.
 - torch.compile uses upstream positional-interpolation graph breaks; fullgraph=True is unsupported.
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~130 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
@@ -718,6 +720,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | `rtdetrv2-ms-coco` | 0.06765 / 0.17406 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 | `rtdetrv2-l-coco` | 0.04387 / 0.1019 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
 | `rtdetrv2-x-coco` | 0.05571 / 0.2201 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+
+### Limitations
+
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~110 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
@@ -820,6 +826,7 @@ CPU, float32: max |diff| <= 0.0037 vs the original. GPU, float16 (the default), 
 - The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what mmdetection calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.
 - Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.
 - The person detectors' released config names COCO only; the training config stored in the checkpoints (and the file name) also lists Objects365.
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~65 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
@@ -901,6 +908,7 @@ CPU, float32: max |diff| <= 0.00037 vs the original. GPU, float16 (the default),
 - The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what the reference calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.
 - Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.
 - One label per box (the cell's best class), as upstream: a cell does not report a second class.
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~45 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
