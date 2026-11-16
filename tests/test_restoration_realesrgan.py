@@ -81,9 +81,12 @@ def test_bad_tile_is_rejected(anime: restoration.RestorationModel, tile: object)
         anime(synthetic_image(8, 8, torch.device("cpu")), tile=tile)
 
 
-def test_out_of_memory_in_one_pass_suggests_tile(anime: restoration.RestorationModel, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_out_of_memory_in_one_pass_suggests_tile(
+    anime: restoration.RestorationModel, monkeypatch: pytest.MonkeyPatch
+) -> None:
     def oom(*_a: object, **_k: object) -> None:
-        raise torch.OutOfMemoryError("CUDA out of memory")
+        msg = "CUDA out of memory"
+        raise torch.OutOfMemoryError(msg)
 
     monkeypatch.setattr(anime, "_run", oom)
     img = synthetic_image(64, 64, torch.device("cpu"))

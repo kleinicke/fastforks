@@ -12,4 +12,3 @@ def test_weights_family_and_fixed_names_are_disjoint():
                        (families, fixed, "family vs fixed")):  # fmt: skip
         assert not a & b, (what, sorted(a & b))
     assert fixed <= stage_hf.RESERVED_REPOS
-

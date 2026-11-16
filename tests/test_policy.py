@@ -593,7 +593,8 @@ def test_weights_repos_are_named_after_the_weights_and_used_by_every_card_with_t
         assert repo not in stage_hf.RESERVED_REPOS, repo
         assert repo not in families, f"{repo}: a family card repo"
         assert "converted" in meta, f"{repo}: weights repos only for weights we changed (user, 2026-11-15)"
-        assert meta.get("precision") and meta.get("script"), f"{repo}: README states precision and script"
+        assert meta.get("precision"), f"{repo}: README states precision"
+        assert meta.get("script"), f"{repo}: README states script"
         assert stage_hf._HF_LICENCES.get(meta["licence"]), f"{repo}: no hub licence id"
         assert licence_class(meta["licence"]) == "permissive", repo
         for published in meta["licence_files"].values():

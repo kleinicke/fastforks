@@ -172,7 +172,7 @@ def test_create_repos_is_resumable_and_backs_off():
     existing, made, waits = {"fastforks/a"}, [], []
     calls = {"n": 0}
 
-    class Rate(Exception):
+    class Rate(Exception):  # noqa: N818
         code = 429
 
     def create(r):
@@ -187,5 +187,5 @@ def test_create_repos_is_resumable_and_backs_off():
     )
     assert got == made == ids[1:]  # `a` exists; the first create hit a 429 and was retried
     assert waits == [1, 1]  # backoff 1 s after the 429, then the pause before round two
-    assert stage_hf.create_repos(ids, exists=lambda r: True, create=create, dry_run=False) == []
-    assert stage_hf.create_repos(ids, exists=lambda r: False, create=create, dry_run=True) == ids
+    assert stage_hf.create_repos(ids, exists=lambda _r: True, create=create, dry_run=False) == []
+    assert stage_hf.create_repos(ids, exists=lambda _r: False, create=create, dry_run=True) == ids

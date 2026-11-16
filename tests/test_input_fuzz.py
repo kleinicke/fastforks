@@ -209,8 +209,10 @@ def test_tiny_and_odd_sizes(ref, monkeypatch):
             main = r.flow
             assert main.shape == (2, h, w), (h, w)
         else:
-            main = r.disparity if task == "stereo" else next(
-                x for x in (r.depth, r.inverse_depth, r.normals) if x is not None
+            main = (
+                r.disparity
+                if task == "stereo"
+                else next(x for x in (r.depth, r.inverse_depth, r.normals) if x is not None)
             )  # normal-estimation models give normals only
             assert main.shape[:2] == (h, w), (h, w)
         assert torch.isfinite(main).all(), (h, w)

@@ -52,8 +52,8 @@ def test_explicit_kernels_mode_ignores_the_list(monkeypatch):
 
 @pytest.mark.skipif(not __import__("torch").cuda.is_available(), reason="needs CUDA")
 def test_auto_dtype_error_names_the_modes():
-    from fastforks import matching
-    from fastforks._core.errors import OptionsError
+    from fastforks import matching  # noqa: PLC0415
+    from fastforks._core.errors import OptionsError  # noqa: PLC0415
 
     with pytest.raises(OptionsError, match="mode='auto' found no backend for float16"):
         matching.load("romav2", device="cuda", dtype="float16")

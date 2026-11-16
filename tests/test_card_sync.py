@@ -56,19 +56,19 @@ def test_stage_hf_maps_cover_every_task():
 
 
 def test_fetch_live_reports_unauthorized_and_missing_repos_as_none(monkeypatch):
-    import urllib.error
+    import urllib.error  # noqa: PLC0415
 
     for code in (401, 404):
 
         def boom(*_a, _c=code, **_k):
-            raise urllib.error.HTTPError("u", _c, "x", None, None)  # type: ignore[arg-type]
+            raise urllib.error.HTTPError("u", _c, "x", None, None)  # type: ignore[arg-type]  # noqa: EM101
 
         monkeypatch.setattr(stage_hf.urllib.request, "urlopen", boom)
         assert stage_hf.fetch_live("fastforks/nope") is None
 
 
 def test_find_golden_takes_the_first_source_with_the_recorded_hash(tmp_path):
-    import hashlib
+    import hashlib  # noqa: PLC0415
 
     a, b = tmp_path / "a", tmp_path / "b"
     a.mkdir(), b.mkdir()

@@ -29,7 +29,7 @@ def test_locotrack_join_releases_the_chunks(n: int) -> None:
 @pytest.mark.filterwarnings("ignore:Initializing zero-element")  # upstream network, built here directly
 @pytest.mark.filterwarnings("ignore:torch.meshgrid")
 @pytest.mark.parametrize(("h", "w", "pads"), [(16, 16, False), (13, 16, True)])
-def test_dat_spatial_block_pads_only_when_needed(monkeypatch: pytest.MonkeyPatch, h: int, w: int, pads: bool) -> None:
+def test_dat_spatial_block_pads_only_when_needed(monkeypatch: pytest.MonkeyPatch, h: int, w: int, pads: bool) -> None:  # noqa: FBT001
     torch.manual_seed(0)
     m = Adaptive_Spatial_Attention(dim=16, num_heads=2, split_size=[8, 8], shift_size=[1, 2], qkv_bias=True).eval()
     x = torch.randn(1, h * w, 16)
@@ -37,7 +37,7 @@ def test_dat_spatial_block_pads_only_when_needed(monkeypatch: pytest.MonkeyPatch
     real = F.pad
     monkeypatch.setattr(F, "pad", lambda *a, **k: (calls.append(1), real(*a, **k))[1])
     with torch.no_grad():
-        got = dat_model._spatial_block(m, x, h, w)  # noqa: SLF001 - the helper under test
+        got = dat_model._spatial_block(m, x, h, w)
         made = bool(calls)
         want = m(x, h, w)
     assert made is pads  # a divisible size makes no padded copy of q, k, v in the helper

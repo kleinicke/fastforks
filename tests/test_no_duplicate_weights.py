@@ -60,7 +60,7 @@ def test_patched_blocks_hold_no_second_weight_copy(case, mode):
 MIB = 2**20
 # load-time exceptions with the reason; run peaks: docs/data/speed.jsonl
 LOAD_KNOWN = {
-    "metric3d-vit-large@1": "load-time only: kernels prepares its buffers at load, the run peak is within 2 % of portable's",
+    "metric3d-vit-large@1": "load-time only: kernels prepares its buffers at load, run peak within 2 % of portable's",
     "selective-igev-eth3d-finetune@1": "tiny weights; the kernels run peak is below portable's (363 vs 416 MiB)",
 }
 

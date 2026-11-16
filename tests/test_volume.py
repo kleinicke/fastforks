@@ -323,7 +323,7 @@ def test_nifti_round_trip(tmp_path: Path) -> None:
 
 def test_read_dicom_matches_nifti_convention(tmp_path: Path) -> None:
     """A synthetic LPS DICOM series (files in shuffled name order) reads as the RAS-canonical HU array of read_nifti."""
-    pydicom = pytest.importorskip("pydicom")
+    pytest.importorskip("pydicom")
     pytest.importorskip("nibabel")
     from pydicom.dataset import FileDataset, FileMetaDataset  # noqa: PLC0415
     from pydicom.uid import ExplicitVRLittleEndian, generate_uid  # noqa: PLC0415
@@ -408,7 +408,7 @@ def test_volume_path_input_names_read_nifti(bad: object) -> None:
 
 
 def test_bad_spacing_nan_and_dicom_dir_give_clear_errors(folder: Path, tmp_path: Path) -> None:
-    """Spacing in metres / 10x too large and NaN input are InputErrors; DICOM paths point at read_dicom; reprs are short."""
+    """Spacing in metres / 10x too large and NaN input are InputErrors; DICOM paths point at read_dicom; short reprs."""
     pytest.importorskip("nibabel")
     model = volume.load(folder, device="cpu", mirror=False, folds=[0])
     ct = np.random.default_rng(3).normal(0, 400, (12, 14, 10)).astype(np.float32)
@@ -430,7 +430,7 @@ def test_bad_spacing_nan_and_dicom_dir_give_clear_errors(folder: Path, tmp_path:
 
 
 def _write_nifti(tmp_path: Path, ct: np.ndarray) -> Path:
-    import nibabel as nib
+    import nibabel as nib  # noqa: PLC0415
 
     nib.save(nib.Nifti1Image(ct.transpose(2, 1, 0), np.eye(4)), tmp_path / "w.nii.gz")
     return tmp_path / "w.nii.gz"
