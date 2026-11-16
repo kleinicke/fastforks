@@ -50,6 +50,9 @@ def _cpu_net(ctx: Context, *, fold: bool) -> torch.nn.Module:
     return net.eval()
 
 
+_TINY = 1e-8  # floor of the normalisation divisors (a constant image or map)
+
+
 class _Matting(Runner):
     """Resize, normalise, network (`d1`), resize back, min-max."""
 
@@ -67,7 +70,7 @@ class _Matting(Runner):
         y = self._net(scale(x, self.ctx.io).to(self.dtype)).float()
         y = F.interpolate(y, image.shape[-2:], mode="bilinear", align_corners=False)[:, 0]
         lo, hi = y.amin((1, 2), keepdim=True), y.amax((1, 2), keepdim=True)
-        return {"alpha": (y - lo) / (hi - lo)}
+        return {"alpha": (y - lo) / (hi - lo).clamp_min(_TINY)}
 
     def module(self) -> torch.nn.Module:
         """The network with its pre- and post-processing: `[B, 3, H, W]` in `[0, 1]` -> alpha `[B, H, W]`."""
