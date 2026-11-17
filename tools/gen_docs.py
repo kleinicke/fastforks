@@ -202,7 +202,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
     "volume": ((("dice", "{:.4f}", ""),), "n", "cases"),
     ("volume", "totalseg-nninteractive-prompts-96"): (
-        (("dice", "{:.4f}", ""), ("agree", "{:.4f}", " / agreement with the original")),
+        (
+            ("dice", "{:.4f}", ""),
+            ("agree", "{:.4f}", " / agreement with the original"),
+            ("portable_agree", "{:.4f}", " / agreement with portable FP16"),
+        ),
         "n",
         "prompted runs",
     ),
@@ -351,8 +355,7 @@ _PROTOCOL = {
     "is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. ",
     ("volume", "totalseg-nninteractive-prompts-96"): "nnInteractive: per case 12 simulated prompts (point, box, "
     "scribble, point + box on 3 organs), one interaction each; Dice of the predicted mask against the ground-truth "
-    "organ mask, mean over the runs; agreement = Dice of the mask against the original's mask. Original = the "
-    "authors' code, fp16 autocast. ",
+    "organ mask, mean over the runs. Agreement is Dice against the original FP16 or portable FP16 mask as labelled. ",
     ("volume", "totalseg-featparity-8"): "Encoder models have no task head, so they are judged by their output: the "
     "encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean "
     "over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error "

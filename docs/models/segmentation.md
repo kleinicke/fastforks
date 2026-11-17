@@ -131,7 +131,7 @@ Each image at its own size, argmax of the logits. Original = the original code n
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `fcn-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 39.40 / 79.09 | 39.40 / 79.10 | 39.39 / 79.10 | 39.40 / 79.10 | 39.39 / 79.09 |  |
-| `pspnet-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.44 / 80.97 | 44.44 / 80.97 | 44.43 / 80.97 |  | 44.44 / 80.97 |  |
+| `pspnet-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.44 / 80.97 | 44.44 / 80.97 | 44.43 / 80.97 | 44.44 / 80.97 | 44.44 / 80.97 |  |
 | `deeplabv3-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 43.62 / 80.80 | 43.62 / 80.80 | 43.61 / 80.80 | 43.62 / 80.80 | 43.62 / 80.80 |  |
 | `deeplabv3plus-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.36 / 81.01 | 44.36 / 81.01 | 44.35 / 81.01 | 44.36 / 81.01 | 44.36 / 81.01 |  |
 | `hrnet-w48-fcn-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 40.11 / 79.34 | 40.11 / 79.35 | 40.10 / 79.35 | 40.11 / 79.34 | 40.11 / 79.34 |  |

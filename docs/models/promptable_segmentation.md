@@ -139,7 +139,7 @@ One point per ground-truth instance (the interior point farthest from the border
 | `efficientvit-sam-l0` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 54.45 / 50.57 | 54.60 / 50.50 | 54.58 / 50.54 | 54.62 / 50.57 | 54.59 / 50.52 |  |
 | `efficientvit-sam-l1` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 55.48 / 51.26 | 55.38 / 51.06 | 55.37 / 51.01 | 55.44 / 51.22 | 55.42 / 51.08 |  |
 | `efficientvit-sam-l2` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 56.50 / 52.23 | 56.58 / 52.29 | 56.44 / 52.25 | 56.33 / 52.20 | 56.34 / 52.22 |  |
-| `efficientvit-sam-xl0` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 59.00 / 54.47 | 58.90 / 54.48 | 58.99 / 54.51 |  | 58.90 / 54.51 |  |
+| `efficientvit-sam-xl0` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 59.00 / 54.47 | 58.90 / 54.48 | 58.99 / 54.51 | 59.01 / 54.48 | 58.90 / 54.51 |  |
 | `efficientvit-sam-xl1` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 59.38 / 54.84 | 59.33 / 54.84 | 59.40 / 54.85 |  | 59.43 / 54.85 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10.
