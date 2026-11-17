@@ -872,6 +872,7 @@ def fetch_live(repo_id: str) -> str | None:
             return r.read().decode()
     except urllib.error.HTTPError as e:
         if e.code in (HTTPStatus.NOT_FOUND, HTTPStatus.UNAUTHORIZED):
+            e.close()  # python 3.14 warns about the response body's temp file otherwise
             return None
         raise
 
