@@ -21,25 +21,25 @@ OBJECTS = "f91db411c50efee93d8db7aeb323885650f6f722"
 
 def body(snapshot: Path, image: np.ndarray) -> dict[str, np.ndarray]:
     """One full-frame person using the original body, hand and MHR weights."""
-    from sam_3d_body import SAM3DBodyEstimator, load_sam_3d_body  # noqa: PLC0415 - upstream Body environment
+    from fastforks.sam3d import load_body  # noqa: PLC0415 - run in Meta's environment
 
-    model, config = load_sam_3d_body(
-        str(snapshot / "model.ckpt"), device="cuda", mhr_path=str(snapshot / "assets" / "mhr_model.pt")
-    )
-    estimator = SAM3DBodyEstimator(sam_3d_body_model=model, model_cfg=config)
+    estimator = load_body(snapshot)
     (person,) = estimator.process_one_image(image)
     return {"faces": estimator.faces, **{key: value for key, value in person.items() if value is not None}}
 
 
-def objects(snapshot: Path, image: np.ndarray, mask_path: Path, seed: int) -> dict[str, np.ndarray]:
+def objects(checkout: Path, snapshot: Path, image: np.ndarray, mask_path: Path, seed: int) -> dict[str, np.ndarray]:
     """One masked object with mesh, Gaussian centers and pose from the same seeded sample."""
-    from inference import Inference, load_mask  # noqa: PLC0415 - official Objects notebook inference module
+    from fastforks.sam3d import load_objects  # noqa: PLC0415 - run in Meta's environment
 
-    mask = load_mask(str(mask_path))
+    with Image.open(mask_path) as source:
+        mask = np.asarray(source) > 0
+    if mask.ndim == 3:  # noqa: PLR2004 - upstream uses the final channel for RGB / RGBA masks
+        mask = mask[..., -1]
     if mask.shape != image.shape[:2] or not mask.any():
         msg = "Expected a nonempty foreground mask matching the input image dimensions"
         raise ValueError(msg)
-    model = Inference(str(snapshot / "checkpoints" / "pipeline.yaml"), compile=False)
+    model = load_objects(snapshot / "checkpoints" / "pipeline.yaml", checkout=checkout)
     output = model(image, mask, seed=seed)
     mesh = output["glb"]
     return {
@@ -72,8 +72,7 @@ def main() -> None:
     with Image.open(args.image) as source:
         image = np.array(source.convert("RGB"))
     if args.model == "objects":
-        sys.path.insert(0, str(checkout / "notebook"))
-        maps = objects(snapshot, image, args.mask, args.seed)
+        maps = objects(checkout, snapshot, image, args.mask, args.seed)
     else:
         maps = body(snapshot, image)
     if any(np.asarray(value).dtype.hasobject for value in maps.values()):

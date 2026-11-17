@@ -22,6 +22,7 @@ SRC = Path(__file__).parents[1] / "src" / "fastforks"
 # Runtime dependency allowlist (pyproject `dependencies`); optional extras in one module each.
 ALLOWED = {"torch", "numpy", "PIL", "platformdirs", "safetensors", "isal", "fastforks"}
 OPTIONAL = {
+    "sam_3d_body": {"sam3d.py"},  # explicitly loaded in Meta's upstream Body environment
     "huggingface_hub": {"_core/files.py"},  # gated weights download through it when installed
     "tensorrt": {"_core/export.py"},
     "onnx_ir": {"_core/export.py"},  # comes with onnxscript (the onnx extra)

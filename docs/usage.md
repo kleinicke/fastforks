@@ -921,3 +921,22 @@ emulated, so models that use it compute in float32 there.
 - `CUDA out of memory`: use a smaller input, `mode="portable"` (often less memory), or `release_graphs()` on models
   that replay CUDA graphs. `fastforks info MODEL` shows the largest size tested.
 - A model fails in `load` naming a missing package: install the extra it names, for example `fastforks-core[transformers]`.
+
+### SAM 3D Body and Objects
+
+Use `fastforks.sam3d` inside the corresponding Meta environment with your authorized original checkpoint. Each loader returns Meta's inference object, so the upstream options and output types are available. For Body, both the ViT-H and DINOv3 snapshot layouts include `model.ckpt`, `model_config.yaml` and `assets/mhr_model.pt`.
+
+```python
+from fastforks.sam3d import load_body, load_objects
+
+body = load_body(body_snapshot)
+people = body.process_one_image(rgb_image, bboxes=person_boxes)
+faces = body.faces
+
+# In the SAM 3D Objects environment, with Meta's checkout installed
+objects = load_objects(pipeline_yaml, checkout=objects_checkout)
+result = objects(rgb_image, foreground_mask, seed=42)
+mesh = result["glb"]
+```
+
+These adapters run upstream inference. Checkpoint-backed parity and performance measurements are pending for both. See the upstream installation instructions for [Body](https://github.com/facebookresearch/sam-3d-body/blob/main/INSTALL.md) and [Objects](https://github.com/facebookresearch/sam-3d-objects/blob/main/doc/setup.md).

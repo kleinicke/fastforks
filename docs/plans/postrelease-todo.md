@@ -40,7 +40,7 @@ restore those assets from their original location or explicitly regenerate them 
 A public HTTP check on 2026-11-17 found 174 output WebPs and 17 input WebPs returning 404 among the generated site's
 asset references. A retry confirmed that `crestereo-eth3d.webp` returns a WebP. The missing Marigold v2 depth example
 was regenerated with the portable BF16 backend. The archive at
-`results/2026-11-17_fastforks_missing_live_assets.zip` in the experiment workspace now contains all 191 missing WebPs
+`2026-11-17_fastforks_missing_live_assets.zip` in the experiment workspace’s results directory now contains all 191 missing WebPs
 and the new example assets, along with their SHA-256 hashes. Each WebP was decoded successfully before packaging.
 
 On 2026-11-17 the missing `span-x2` and `span-x4` examples were generated and visually checked; their metadata is in
