@@ -167,6 +167,8 @@ DICOM series: `volume.read_dicom("series_folder")` (needs `pip install "fastfork
 `(ct, meta)` as `read_nifti`: slices sorted by position, Hounsfield units, RAS-canonical `[D, H, W]` (no flipping),
 spacing and affine from the tags; `model(ct, meta=meta)` and `write_nifti` work as above. Give a folder with one series.
 
+The upstream TotalSegmentator aorta report accepts named binary NIfTI masks. The [mask export example](plans/totalsegmentator-coverage.md#using-fastforks-masks-with-the-upstream-report) shows how to supply its general-anatomy inputs from a FastForks CT segmentation.
+
 Detections to a picture and to COCO-style records (`det` as above; one image):
 
 ```python

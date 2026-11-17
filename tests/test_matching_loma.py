@@ -13,10 +13,15 @@ from fastforks.matching.models.loma.net.loma import LoMaNet, filter_matches
 
 def test_card() -> None:
     cards = {v.id: (c, v) for c, v in registry.cards("matching").values() if c.family == "loma"}
-    assert sorted(cards) == ["loma-b"]
+    assert sorted(cards) == ["loma-b", "loma-b128", "loma-b64", "loma-g", "loma-l", "loma-r"]
     card, variant = cards["loma-b"]
     assert dict(card.options) == {"max_keypoints": 2048, "long_side": 1024, "size": 784}  # upstream Cfg, DaD
-    assert dict(card.params) == {"threshold": 0.1}
+    assert dict(card.params) == {
+        "threshold": 0.1,
+        "input_dim": 256,
+        "descriptor": "dedode_g",
+        "normalize_descriptor": False,
+    }
     assert dict(variant.params) == {"dim": 256, "heads": 4, "layers": 9}
     assert set(card.outputs) == {"keypoints1", "keypoints2", "pairs", "scores"}
     assert [w.name for w in variant.weights] == ["loma_B.pt"]

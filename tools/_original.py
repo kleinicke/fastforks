@@ -2538,7 +2538,7 @@ def _loma(a: Any, full: str) -> Any:  # noqa: ANN401 - adapter signature
     card, variant = registry.resolve("matching", full)
     sys.path.insert(0, str(g.reference_tree(Path(os.environ["FF_LOMA_REPO"]), g.REF_COMMIT) / "src"))
     params = dict(card.params) | dict(variant.params) | dict(card.options)
-    a.note = f"upstream LoMa(LoMaB(mp=False)), float32, {params['max_keypoints']} keypoints"
+    a.note = f"upstream {variant.id} (mp=False), float32, {params['max_keypoints']} keypoints"
     run = g.build(registry.weights(card, variant, allow_download=False), params, device="cuda")
 
     def call(img1: Any, img2: Any) -> Any:  # noqa: ANN401 - uint8 CUDA CHW images

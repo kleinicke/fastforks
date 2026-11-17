@@ -1,6 +1,6 @@
 schema = 2
 name = "LoMa"
-summary = "LoMa (Nordström, Edstedt et al. 2026): local feature matching with a light transformer. DaD (a VGG11 detector trained by distillation, Edstedt et al. 2025) finds 2048 keypoints per image, the DeDoDe-G descriptor (VGG19 + a frozen DINOv2 ViT-L/14) describes them, and nine LightGlue-style transformer layers (rotary self-attention, cross-attention) refine the descriptions before a dual-softmax assignment. Returns both keypoint sets, the index pairs of the matches and their scores."
+summary = "LoMa (Nordström, Edstedt et al. 2026): local feature matching with a light transformer. DaD (a VGG11 detector trained by distillation, Edstedt et al. 2025) finds 2048 keypoints per image, a DeDoDe descriptor (VGG for B64/B128, VGG plus DINOv2 for B/L/G/R) describes them, and nine LightGlue-style transformer layers (rotary self-attention, cross-attention) refine the descriptions before a dual-softmax assignment. Returns both keypoint sets, the index pairs of the matches and their scores."
 tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
 uses = ["dedode", "depth_anything_v2", "lightglue"]  # fastforks.shared modules this family imports (the DaD / DeDoDe nets; the DINOv2 ViT-L/14; the transformer blocks)
@@ -9,23 +9,23 @@ limitations = [
   "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
   "No exportable module: the match counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
   "Two resizes per image as upstream: the detector sees a long side of `long_side` (aspect kept), the descriptor a `size` x `size` square whatever the aspect ratio.",
-  "Upright only: the released weights are not trained for in-plane rotations.",
+  "LoMa-R uses rotation augmentation. The other variants are trained for upright images.",
 ]
 
 [upstream]
 repo = "https://github.com/davnords/loma"
-commit = "415caedde23a9ed479172ed174fe4ff7b4514d4b"  # loma/loma.py (matcher, match), loma/detector/{dad,utils}.py (DaD; Parskatt/dad 41b9e86a), loma/descriptor/dedode.py (DeDoDe-G); the nets are fastforks.shared.dedode's, the DINOv2 fastforks.shared.depth_anything_v2's, the transformer blocks fastforks.shared.lightglue's
+commit = "ecc947d44ddc9d50387e887bbedc743d65ffac00"  # loma/loma.py (matcher, match), loma/detector/{dad,utils}.py (DaD; Parskatt/dad 41b9e86a), loma/descriptor/dedode.py (DeDoDe descriptors); the nets are fastforks.shared.dedode's, the DINOv2 fastforks.shared.depth_anything_v2's, the transformer blocks fastforks.shared.lightglue's
 
 [licence]
-code = "MIT"  # LICENSE (LoMa); DaD: MIT, LICENSE-DAD; DeDoDe: MIT, LICENSE-DEDODE; DINOv2: Apache-2.0, LICENSE-DINOv2
-weights = "MIT"  # LoMa README "License: MIT"; the checkpoint bundles the DaD (MIT), DeDoDe-G (MIT) and DINOv2 (Apache-2.0) weights
+code = "MIT AND Apache-2.0"  # LoMa (MIT) and its LightGlue matcher (Apache-2.0); DaD: MIT, LICENSE-DAD; DeDoDe: MIT, LICENSE-DEDODE; DINOv2: Apache-2.0, LICENSE-DINOv2
+weights = "assumed from code"  # The authors specify code licenses but no separate terms for these checkpoints.
 files = ["LICENSE", "LICENSE-DAD", "LICENSE-DEDODE", "LICENSE-DINOv2"]
 training_data = ["megadepth"]
-training_note = "Matcher: MegaDepth (paper); DaD: MegaDepth-based distillation (DaD paper); DeDoDe-G descriptor: MegaDepth; DINOv2 (frozen): LVD-142M (Meta)."
-evidence = "https://github.com/davnords/loma/blob/415caedde23a9ed479172ed174fe4ff7b4514d4b/LICENSE ; https://github.com/Parskatt/dad/blob/41b9e86a1a3ae52128485cc1094aa4952ef489ba/LICENSE ; https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/README.md#license"
+training_note = "Matcher: MegaDepth (paper); DaD: MegaDepth-based distillation (DaD paper); DeDoDe-G descriptor: MegaDepth; B, L, G and R include frozen DINOv2 (LVD-142M). B64 and B128 use VGG descriptors."
+evidence = "https://github.com/davnords/loma/blob/ecc947d44ddc9d50387e887bbedc743d65ffac00/README.md#license ; https://github.com/Parskatt/dad/blob/41b9e86a1a3ae52128485cc1094aa4952ef489ba/LICENSE ; https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/README.md#license"
 
 [io]
-input = "0-1"  # resized twice by the runner (detector: ImageNet-normalised; descriptor: not, as upstream)
+input = "0-1"  # resized twice by the runner (detector: ImageNet-normalised; descriptor: ImageNet-normalised for B64)
 min_size = 16
 
 [options]
@@ -34,6 +34,9 @@ long_side = { default = 1024, min = 16 }  # the detector's image: long side, asp
 size = { default = 784, min = 56 }  # the descriptor's image: side of the square (upstream `read_image`; 784 = 56 x 14)
 
 [params]
+input_dim = 256
+descriptor = "dedode_g"
+normalize_descriptor = false
 threshold = 0.1  # match score (product of the row and column softmaxes) a match needs (upstream `Cfg.filter_threshold`)
 
 [modes.portable]
@@ -42,7 +45,7 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 status = "none"
-reason = "not implemented: data-dependent keypoint and match counts. Portable is 307.9 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1790 vs 1843 MB (reserved 2562 vs 3398), matches 1030 vs 1038-1039"
+reason = "not implemented: data-dependent keypoint and match counts. LoMa-B portable is 307.9 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1790 vs 1843 MB (reserved 2562 vs 3398), matches 1030 vs 1038-1039"
 
 [[papers]]
 title = "LoMa: Local Feature Matching Revisited"
@@ -57,4 +60,44 @@ revision = 1
 params = { dim = 256, heads = 4, layers = 9 }
 weights = [
   { name = "loma_B.pt", size = 757888113, sha256 = "3a38824391e22b33bb3e10377c7736243fd8a2fbf1561446e7e133e497c35758", url = "https://github.com/davnords/storage/releases/download/loma/loma_B.pt" },
+]
+
+[[variants]]
+id = "loma-b64"
+revision = 1
+params = { dim = 256, heads = 4, layers = 9, input_dim = 64, descriptor = "dedode_b_vgg11", normalize_descriptor = true }
+weights = [
+  { name = "loma_B64.pth", size = 51514446, sha256 = "bd977b672e9ae92f7acbc346acb93c6d71a0ca73dad6a29a2680f8bd28cb5cc5", url = "https://github.com/davnords/storage/releases/download/loma/loma_B64.pth" },
+]
+
+[[variants]]
+id = "loma-b128"
+revision = 1
+params = { dim = 256, heads = 4, layers = 9, input_dim = 128, descriptor = "dedode_b" }
+weights = [
+  { name = "loma_B128.pth", size = 127498077, sha256 = "b509cb295b543e6eae37dea76185e805c4e87ff7e35e0a84cad301be1b5984fc", url = "https://github.com/davnords/storage/releases/download/loma/loma_B128.pth" },
+]
+
+[[variants]]
+id = "loma-l"
+revision = 1
+params = { dim = 512, heads = 8, layers = 9 }
+weights = [
+  { name = "loma_L.pth", size = 900193437, sha256 = "d0ae981176d935c5fec0dabe48334fb841c7d6348ae609560d1aae79628e12b9", url = "https://github.com/davnords/storage/releases/download/loma/loma_L.pth" },
+]
+
+[[variants]]
+id = "loma-g"
+revision = 1
+params = { dim = 1024, heads = 16, layers = 9 }
+weights = [
+  { name = "loma_G.pth", size = 1467366125, sha256 = "9d925dc9861fb8e52489a1d2d2354780d5d38e34cbe0c6b10830d0ebe6055941", url = "https://github.com/davnords/storage/releases/download/loma/loma_G.pth" },
+]
+
+[[variants]]
+id = "loma-r"
+revision = 1
+params = { dim = 256, heads = 4, layers = 9 }
+weights = [
+  { name = "loma_R.pth", size = 757905869, sha256 = "ade1379fb52143da65c36730f24b69eaa49618bb277890c6d2a0fb1630d33d67", url = "https://github.com/davnords/storage/releases/download/loma/loma_R.pth" },
 ]

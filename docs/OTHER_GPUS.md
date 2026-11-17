@@ -66,6 +66,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | anycalib, ben2, cotracker, dedode, efficientvit_sam, memflow, memfof, nninteractive, owlv2, resplat, romav1, track_on, unidepth_v2 | fp16 | fp16 | fp32 | - |
 | raft, sea_raft | fp16 | fp16 | fp32/fp16 | flow_metal fp16 |
 | perception_encoder | fp16 | fp16 | fp32/fp16 | vit_metal fp16 |
+| loma | bf16 | - | fp32 | - |
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 |
 | grounding_dino | fp16 | - | fp32 | - |
 | moge | fp16 | fp16 | fp32/fp16 | sparse_metal fp32 |
@@ -73,7 +74,6 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | flowformer | fp32 | - | fp32/fp16 | - |
 | xfeat | fp32 | - | fp32 | - |
 | lightglue | fp32 | fp16 | fp32 | - |
-| loma | bf16 | - | fp32 | - |
 | romav2 | bf16 | bf16 | fp32 | - |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
 | vggt | fp16 | fp16 | fp32/fp16 | vggt_metal fp32 |

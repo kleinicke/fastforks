@@ -13,7 +13,32 @@ gpu_p99 = 0.6
 gpu_min_recall = 0.96
 gpu_min_match = 0.93
 
+[refs."loma-b128@1"]
+sha256 = "0e5b82eddac20e5fa9b055fb6b4c86c3d8a87072c8fbc2d871fe82c6d4ac2354"
+upstream = "https://github.com/davnords/loma@ecc947d44ddc9d50387e887bbedc743d65ffac00"
+settings = "CPU float32, upstream LoMa(mp=False) with loma_B128.pth, DaD detect on a long side of 1024 + dedode_b describe on 784x784 (torch bicubic antialias), 2048 keypoints, filter_matches threshold 0.1, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.10.0+cu130"
+
+[refs."loma-b64@1"]
+sha256 = "3ba8a426cc63cdd243b406e43c8c228e28db14079e460be1e805bef4dbce4a6b"
+upstream = "https://github.com/davnords/loma@ecc947d44ddc9d50387e887bbedc743d65ffac00"
+settings = "CPU float32, upstream LoMa(mp=False) with loma_B64.pth, DaD detect on a long side of 1024 + dedode_b_vgg11 describe on 784x784 (torch bicubic antialias), 2048 keypoints, filter_matches threshold 0.1, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.10.0+cu130"
+
 [refs."loma-b@1"]
 sha256 = "a44f0696d87eaf2291e69bdc879a2f6c8a9b03522d33512a25b82c302c6a0adc"
 upstream = "https://github.com/davnords/loma@415caedde23a9ed479172ed174fe4ff7b4514d4b"
 settings = "CPU float32, upstream LoMa(LoMaB(mp=False)) with loma_B.pt, DaD detect on a long side of 1024 + DeDoDe-G describe on 784x784 (torch bicubic antialias), 2048 keypoints, filter_matches threshold 0.1, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."loma-g@1"]
+sha256 = "a56b093ae8912fa0a2c196c42009f8553c394755299648550cf9b0eb9f457591"
+upstream = "https://github.com/davnords/loma@ecc947d44ddc9d50387e887bbedc743d65ffac00"
+settings = "CPU float32, upstream LoMa(mp=False) with loma_G.pth, DaD detect on a long side of 1024 + dedode_g describe on 784x784 (torch bicubic antialias), 2048 keypoints, filter_matches threshold 0.1, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.10.0+cu130"
+
+[refs."loma-l@1"]
+sha256 = "e338c9f2a425361e1a078898e4046a09954296f60e6db6cafb40cb0403320513"
+upstream = "https://github.com/davnords/loma@ecc947d44ddc9d50387e887bbedc743d65ffac00"
+settings = "CPU float32, upstream LoMa(mp=False) with loma_L.pth, DaD detect on a long side of 1024 + dedode_g describe on 784x784 (torch bicubic antialias), 2048 keypoints, filter_matches threshold 0.1, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.10.0+cu130"
+
+[refs."loma-r@1"]
+sha256 = "fe4f536f129d382b531e00e37a0a0f21ca8bcb8652de15cacb8cd711f5bac69d"
+upstream = "https://github.com/davnords/loma@ecc947d44ddc9d50387e887bbedc743d65ffac00"
+settings = "CPU float32, upstream LoMa(mp=False) with loma_R.pth, DaD detect on a long side of 1024 + dedode_g describe on 784x784 (torch bicubic antialias), 2048 keypoints, filter_matches threshold 0.1, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.10.0+cu130"

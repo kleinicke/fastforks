@@ -1,14 +1,14 @@
-"""LoMa runners: the single checkpoint -> DaD detector, DeDoDe-G descriptor and the matcher, and the portable forward.
+"""Portable LoMa runners for the DaD detector, DeDoDe descriptors and LightGlue-style matcher.
 
 As upstream's `LoMa.match` on image paths (its MegaDepth / ScanNet benchmarks): the DaD detector sees the image
 resized to a long side of `long_side` (aspect kept, both sides floored to a multiple of 8; bicubic, antialiased,
 clamped to [0, 1]: PIL's `resize` of upstream's `load_image` without its rounding to uint8), ImageNet-normalised; its
 logits give a softmax over all pixels, non-maximum-suppressed in 3 x 3 windows, and the `max_keypoints` best pixels,
-refined to sub-pixel by the softmax of their 3 x 3 logits, are the keypoints. The DeDoDe-G descriptor (VGG19 + a
-frozen DINOv2 ViT-L/14) sees the image resized to a `size` x `size` square, not normalised (upstream's
-`read_image`), and samples a 256-d description at each keypoint (bilinear). Nine LightGlue-style transformer layers
-(rotary self-attention, cross-attention) refine the descriptions of both images, and the matches are the mutual
-maxima of the row-times-column softmax of their projected similarity above `threshold`, scored by that product.
+refined to sub-pixel by the softmax of their 3 x 3 logits, are the keypoints. The descriptor samples the square-
+resized image at these keypoints. B, L, G and R use VGG19 and DINOv2 ViT-L/14. B128 uses VGG19 and B64 uses VGG11
+with ImageNet normalisation. Nine LightGlue-style transformer layers (rotary self-attention, cross-attention)
+refine the descriptions of both images, and the matches are the mutual maxima of the row-times-column softmax of
+their projected similarity above `threshold`, scored by that product.
 Keypoints are mapped back to input pixels (pixel centres at integers: upstream's `to_pixel_coords` minus 0.5).
 
 On CUDA the validated dtype is bfloat16 as upstream on Ampere and newer (float16 where upstream falls back to it):
@@ -30,10 +30,13 @@ from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared.dedode import (
+    DESCRIPTOR_B,
     DETECTOR_S,
     VGG,
     VGG11_BN,
+    VGG19_BN,
     ConvRefiner,
+    Decoder,
     Descriptor,
     Detector,
     VGGDINOv2,
@@ -53,6 +56,7 @@ SUBPIXEL_TEMP = 0.5  # fixed: upstream `DaD.Cfg.subpixel_temp`
 STRIDE = 8  # fixed: upstream `load_image` floors both sides to a multiple of 8
 PREFIXES = {  # checkpoint prefix -> (submodule, the prefix it keeps)
     "_detector.": "detector",
+    "_descriptor.encoder.layers.": "descriptor.encoder.layers",
     "_descriptor.encoder.vgg.": "descriptor.encoder.vgg",
     "_descriptor.encoder.frozen_dinov2.dinov2_vitl14.": "dinov2",
     "_descriptor.decoder.": "descriptor.decoder",
@@ -63,7 +67,10 @@ PREFIXES = {  # checkpoint prefix -> (submodule, the prefix it keeps)
 class Params:
     """Variant parameters and load options."""
 
-    dim: int  # description and embedding width (loma-b: 256)
+    dim: int  # matcher embedding width
+    input_dim: int  # descriptor output width
+    descriptor: str  # dedode_g, dedode_b or dedode_b_vgg11
+    normalize_descriptor: bool
     heads: int  # attention heads (loma-b: 4)
     layers: int  # transformer layers (loma-b: 9)
     threshold: float  # match score (product of the two softmaxes) a match needs (upstream 0.1)
@@ -85,6 +92,16 @@ def fold_batch_norms(net: nn.Module) -> None:
                 seq[i], seq[i + 1] = fuse_conv_bn_eval(conv, bn), nn.Identity()
 
 
+class SmallDescriptor(Descriptor):
+    """Upstream LoMa's DeDoDe-B with configurable output width and VGG encoder."""
+
+    def __init__(self, params: Params) -> None:
+        """Build the descriptor using the shared DeDoDe layers."""
+        nn.Module.__init__(self)
+        self.encoder = VGG({"dedode_b_vgg11": VGG11_BN, "dedode_b": VGG19_BN}[params.descriptor])
+        self.decoder = Decoder(*DESCRIPTOR_B, num_prototypes=params.input_dim)
+
+
 class Matcher(nn.Module):
     """LoMa on an RGB pair: `[1, 3, H1, W1]`, `[1, 3, H2, W2]` in `[0, 1]` -> keypoints, index pairs, scores."""
 
@@ -96,9 +113,9 @@ class Matcher(nn.Module):
         super().__init__()
         self.params = params
         self.detector = Detector(DETECTOR_S, VGG11_BN)
-        self.dinov2 = DINOv2("vitl")
-        self.descriptor = Descriptor(self.dinov2)
-        self.matcher = LoMaNet(params.dim, params.dim, params.heads, params.layers)
+        self.dinov2 = DINOv2("vitl") if params.descriptor == "dedode_g" else None
+        self.descriptor = Descriptor(self.dinov2) if self.dinov2 is not None else SmallDescriptor(params)
+        self.matcher = LoMaNet(params.input_dim, params.dim, params.heads, params.layers)
         self.amp: torch.dtype | None = None
         self.register_buffer("mean", torch.tensor(MEAN).view(1, 3, 1, 1), persistent=False)
         self.register_buffer("std", torch.tensor(STD).view(1, 3, 1, 1), persistent=False)
@@ -122,7 +139,10 @@ class Matcher(nn.Module):
         """Keypoints (normalised coordinates) and their descriptions of one image."""
         p = self.params
         keypoints = self._detect(image)  # the detector's input and logits are freed before the descriptor runs
-        grid = self.descriptor(self._resize(image, (p.size, p.size)))
+        resized = self._resize(image, (p.size, p.size))
+        if p.normalize_descriptor:
+            resized = (resized - self.mean) / self.std
+        grid = self.descriptor(resized)
         return keypoints, describe_keypoints(grid, keypoints)
 
     def _detect(self, image: torch.Tensor) -> torch.Tensor:
@@ -179,11 +199,15 @@ def load_matcher(ctx: Context) -> Matcher:
     net = Matcher(p)
     parts = split_checkpoint(ctx.state_dict(0))
     for name, sd in parts.items():
+        if not sd and name not in dict(net.named_modules()):
+            continue
         net.get_submodule(name).load_state_dict(sd, strict=True)
     net.eval().requires_grad_(requires_grad=False).to(ctx.device)
-    sdpa_attention(net.dinov2)  # upstream's DINOv2 attention is `scaled_dot_product_attention`
+    if net.dinov2 is not None:
+        sdpa_attention(net.dinov2)
     if ctx.device.type == "cuda":  # not on CPU: the float32 reference parity
-        fold_layer_scale(net.dinov2)
+        if net.dinov2 is not None:
+            fold_layer_scale(net.dinov2)
         fold_batch_norms(net)
         for m in net.modules():
             if isinstance(m, ConvRefiner):

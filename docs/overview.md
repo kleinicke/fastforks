@@ -685,7 +685,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Matching
 
-12 models; size 768x1024.
+17 models; size 768x1024.
 
 - Fastest: [`xfeat`](models/matching.md#xfeat) (7.2 ms).
 - Fastest commercially usable: [`xfeat`](models/matching.md#xfeat) (7.2 ms).
@@ -704,6 +704,11 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 592.5 | 331.9 | 2.0x vs original (768x1024) | 1787 |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 353.6 | 2.1x vs original (768x1024) | 1909 |
 | [`romav1`](models/matching.md#roma) | yes | 385.8 (768x1024) | 376.9 | 356.1 | 1.1x vs original (768x1024) | 1720 |
+| [`loma-b128`](models/matching.md#loma) | yes | – | – | – | – | – |
+| [`loma-b64`](models/matching.md#loma) | yes | – | – | – | – | – |
+| [`loma-g`](models/matching.md#loma) | yes | – | – | – | – | – |
+| [`loma-l`](models/matching.md#loma) | yes | – | – | – | – | – |
+| [`loma-r`](models/matching.md#loma) | yes | – | – | – | – | – |
 
 ## Tracking
 
