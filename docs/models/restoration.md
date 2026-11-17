@@ -55,7 +55,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `big-lama` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.0<br>26.0<br>21.2<br>23.4<br>planned for 0.2.1 | 239 / 286<br>219 / 242<br>219 / 284<br>312 / 342<br>– |
+| `big-lama` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.0<br>26.0<br>21.2<br>23.4<br>33.9 | 239 / 286<br>219 / 242<br>219 / 284<br>312 / 342<br>386 / 406 |
 
 <details><summary>Details</summary>
 
@@ -67,14 +67,23 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `big-lama`
-- Not in this release (planned for 0.2.1): `big-lama` TensorRT export: the TensorRT ONNX parser has no DFT (FFT convolution)
 - Outputs: image
 - Input size: any H x W >= 16, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `big-lama` 3000x4000 (5.1 GiB peak allocated, 6.8 reserved)
-- `big-lama` 512x512, first call: portable + torch.compile 26 s (cold Inductor cache).
+- `big-lama` 512x512, first call: portable + torch.compile 26 s (cold Inductor cache), TensorRT fp16 110 s (ONNX + engine).
 - `big-lama` original 512x512: .half() on 1 modules, fp16 inputs; advimman/lama@786f5936b27f FFCResNetGenerator, predict.py padding / masking / paste-back
 - `big-lama` load / first call: original 0.52 s / 0.327 s, portable 0.81 s / 0.246 s, kernels 0.72 s / 0.15 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | portable | portable fp32 | TensorRT | note |
+|---|---|---|---|---|---|
+| `big-lama` | DIV2K validation, 25 centre crops with two masks each, masked RGB PSNR (dB) | 17.8946 | 17.8950 | 17.8854 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a7fe3731, 2026-11-17.
 
 ### Parity
 

@@ -99,6 +99,7 @@ _DATASETS = {
     },
     "interpolation": {"davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM"},
     "restoration": {
+        "div2k-val-inpainting-mask50": "DIV2K validation, 25 centre crops with two masks each, masked RGB PSNR (dB)",
         "div2k-val-x4": "DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
@@ -203,6 +204,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     ),
     ("volume", "totalseg-featparity-8"): ((("cos_min", "{:.5f}", ""), ("rel_l2", "{:.4f}", "")), "n", "cases"),
     "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
+    ("restoration", "div2k-val-inpainting-mask50"): ((("psnr", "{:.4f}", ""),), "n", "masks"),
     **{
         ("restoration", d): (
             (("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", ""), ("psnr_orig", "{:.2f}", "")),
@@ -383,12 +385,13 @@ _ORIGINAL_IS = {
     "sam3": "original = transformers `Sam3Model`, the port this code follows",
 }
 _MODES = ("upstream", "upstream-default", "portable", "kernels")
-_EVAL_MODES = ("upstream", "upstream-fp16", "upstreamhalf", "portable", "portable32", "kernels")
+_EVAL_MODES = ("upstream", "upstream-fp16", "upstreamhalf", "portable", "portable32", "kernels", "tensorrt")
 _EVAL_LABEL = {
     "upstream": "original fp32",
     "upstream-fp16": "original fp16",
     "upstreamhalf": "original half",
     "portable32": "portable fp32",
+    "tensorrt": "TensorRT",
 }
 _PROTO = "Original = the original code named under Details, same checkpoint and protocol."
 

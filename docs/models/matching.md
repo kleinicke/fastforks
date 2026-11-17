@@ -293,7 +293,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1036<br>308<br>no kernels<br>285<br>planned for 0.2.1 | 4176 / 4390<br>1767 / 1878<br>no kernels<br>2870 / 3216<br>– |
-| `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels | –<br>129<br>no kernels | –<br>854 / 962<br>no kernels |
+| `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>129<br>no kernels<br>101<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>854 / 962<br>no kernels<br>1230 / 1356<br>– |
 
 <details><summary>Details</summary>
 
@@ -311,6 +311,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loma-b` 3000x4000 (2.4 GiB peak allocated, 3.6 reserved); `loma-b64` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-b128` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-l` 3000x4000 (2.1 GiB peak allocated, 2.8 reserved); `loma-g` 3000x4000 (2.6 GiB peak allocated, 3.3 reserved); `loma-r` 3000x4000 (2.0 GiB peak allocated, 2.7 reserved)
 - no kernels: not implemented: data-dependent keypoint and match counts. LoMa-B portable is 307.9 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1790 vs 1843 MB (reserved 2562 vs 3398), matches 1030 vs 1038-1039.
 - `loma-b` 768x1024, first call: portable + torch.compile 104 s (cold Inductor cache).
+- `loma-b64` 768x1024, first call: portable + torch.compile 66 s (cold Inductor cache).
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
 - `loma-b` load / first call: original 8.52 s / 1.373 s, portable 2.53 s / 1.269 s
 - `loma-b64` load / first call: portable 0.28 s / 0.759 s

@@ -1170,8 +1170,8 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `prompt-depth-anything-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) |  |  |  | 0.0158 / 0.9943 |  |  |
-| `prompt-depth-anything-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) |  |  |  | 0.0163 / 0.9937 |  |  |
+| `prompt-depth-anything-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0167 / 0.9938 |  |  | 0.0158 / 0.9943 |  |  |
+| `prompt-depth-anything-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0169 / 0.9934 |  |  | 0.0163 / 0.9937 |  |  |
 | `prompt-depth-anything-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0217 / 0.9876 | 0.0217 / 0.9876 | 0.0208 / 0.9883 |  | 0.0208 / 0.9883 |  |
 | `prompt-depth-anything-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0150 / 0.9930 | 0.0151 / 0.9930 | 0.0147 / 0.9932 |  | 0.0147 / 0.9932 |  |
 
