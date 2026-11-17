@@ -788,7 +788,7 @@ pycocotools COCOeval of the top 100 detections per image. Original = the origina
 | `rtmdet-l-coco` | COCO val2017, every 10th image, box mAP | 52.37 | 52.39 | 52.37 | 52.38 | 52.41 |  |
 | `rtmdet-x-coco` | COCO val2017, every 10th image, box mAP | 52.79 | 52.79 | 52.79 | 52.77 | 52.85 |  |
 | `rtmdet-nano-person` | COCO val2017, every 10th image, box AP of the person class | 36.86 | 36.79 | 36.91 | 36.86 | 36.94 |  |
-| `rtmdet-m-person` | COCO val2017, every 10th image, box AP of the person class | 60.20 | 60.21 | 60.20 |  | 60.21 |  |
+| `rtmdet-m-person` | COCO val2017, every 10th image, box AP of the person class | 60.20 | 60.21 | 60.20 | 60.21 | 60.21 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10.
 

@@ -294,7 +294,7 @@ Commercial use: yes.
 | `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1036<br>308<br>–<br>285<br>planned for 0.2.1 | 4176 / 4390<br>1767 / 1878<br>–<br>2870 / 3216<br>– |
 | `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>129<br>–<br>101<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>854 / 962<br>–<br>1230 / 1356<br>– |
 | `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>150<br>–<br>122<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>878 / 984<br>–<br>1398 / 1760<br>– |
-| `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels | –<br>319<br>– | –<br>1903 / 2012<br>– |
+| `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>319<br>–<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>1903 / 2012<br>–<br>– |
 
 <details><summary>Details</summary>
 

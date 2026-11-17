@@ -2636,6 +2636,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | loma-b | 768x1024 | 308 ms | 285 ms | planned for 0.2.1 | – | 104 s | – | 1767 / 1878 | 2870 / 3216 | – | – |
 | loma-b128 | 768x1024 | 150 ms | 122 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 66.5 s | – | 878 / 984 | 1398 / 1760 | – | – |
 | loma-b64 | 768x1024 | 129 ms | 101 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 65.6 s | – | 854 / 962 | 1230 / 1356 | – | – |
+| loma-l | 768x1024 | 319 ms | – | fails: RuntimeError: Trying to create tensor with negative dimensio | – | – | – | 1903 / 2012 | – | – | – |
 | romav1 | 768x1024 | 377 ms | 247 ms | planned for 0.2.1 | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 354 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2300 | 6694 / 6740 |
 | xfeat | 768x1024 | 7.17 ms | 5.65 ms | planned for 0.2.1 | – | 30.8 s | – | 122 / 154 | 186 / 212 | – | – |
@@ -2696,7 +2697,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | swinir-m-x4-real | 512x512 | 1242 ms | 807 ms | 733 ms | 584 ms | 59.6 s | 109 s | 2387 / 3034 | 1683 / 1796 | 1353 / 1814 | 5427 / 5506 |
 | nnfoundation-cnn | 200x200 | 226 ms | 170 ms | 255 ms (encoder on a normalized, padded volume only; memory estimated) | 211 ms | 19.8 s | 49.0 s | 3011 / 3130 | 5067 / 5110 | 2985 / 3710 | 3374 / 3398 |
 | nnfoundation-vit | 192x192 | 1848 ms | 1440 ms | planned for 0.2.1 | 1732 ms | 69.5 s | – | 1669 / 1884 | 1406 / 1484 | 1669 / 1884 | – |
-| nninteractive | 200x200 | 215 ms | 162 ms | planned for 0.2.1 | 201 ms | 18.0 s | – | 3075 / 3492 | 3643 / 3832 | 2643 / 3072 | – |
+| nninteractive | 200x200 | 215 ms | 162 ms | – | 201 ms | 18.0 s | – | 3075 / 3492 | 3643 / 3832 | 2643 / 3072 | – |
+| nninteractive | 192x192 | – | – | 262 ms (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | – | – | 58.0 s | – | – | – | unknown |
 | totalsegmentator-total | 200x200 | 1927 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 1740 ms | – | – | 2605 / 2944 | – | 2349 / 2704 | – |
 | totalsegmentator-total-3mm | 200x200 | 67.1 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 63.5 ms | – | – | 1092 / 1508 | – | 1037 / 1410 | – |
 <!-- compile:end -->

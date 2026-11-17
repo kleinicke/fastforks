@@ -68,6 +68,7 @@ _DATASETS = {
     "promptable_segmentation": {
         "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
         "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
+        "coco-val2017-every10-class-mask": "COCO val2017, every 10th image, class masks, class / prompt mIoU %",
         "coco-val2017-oneshot-k3": "COCO val2017, one-shot episodes (3 per class), class mIoU %",
         "davis2017-val-every3": "DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F %",
         "davis2017-val-every1": "DAVIS 2017 val, video tracking, J&F / J / F %",
@@ -172,6 +173,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "promptable_segmentation": ((("miou_best", "{:.2f}", ""), ("miou_single", "{:.2f}", "")), "n", "images"),
     ("promptable_segmentation", "coco-val2017-every10-text"): (
         (("box_map", "{:.2f}", ""), ("mask_map", "{:.2f}", "")),
+        "n",
+        "images",
+    ),
+    ("promptable_segmentation", "coco-val2017-every10-class-mask"): (
+        (("miou_class", "{:.2f}", ""), ("miou_prompt", "{:.2f}", "")),
         "n",
         "images",
     ),
@@ -294,6 +300,9 @@ _PROTOCOL = {
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
     "image; the top 100 instances go to pycocotools COCOeval. ",
+    ("promptable_segmentation", "coco-val2017-every10-class-mask"): "One text prompt per present COCO class. The "
+    "label is the union of the class's non-crowd masks. Scores average pixel IoU aggregated per class, and IoU per "
+    "image and prompt. ",
     ("promptable_segmentation", "coco-val2017-oneshot-k3"): "In-context: per COCO class 3 (reference, target) pairs "
     "drawn with seed 0 from the images whose class covers >= 2 %, the class's non-crowd instances as one mask; "
     "foreground IoU summed per class, mean over the 80 classes. ",
@@ -554,6 +563,7 @@ _ENGINE_PART = {
     "retinaface": "network",  # face detectors: the whole image, decoding and NMS outside
     "yunet": "network",
     "nnfoundation": "encoder on a normalized, padded volume; memory estimated",
+    "nninteractive": "U-Net on one prepared 8-channel, 192³ patch; memory estimated",
     "anyline": "full line map; memory estimated",
     "locotrack": "8 frames with 16 queries",
 }  # task / family: `module()`
@@ -581,6 +591,15 @@ def _compile_rows() -> dict[tuple[str, str], dict]:
             rows[ref, mode] = {**r, "fails": PLANNED}  # gated in this release: no time from an older build
             rows[ref, mode].pop("ms", None)
     return rows
+
+
+def _compiled_inputs(model_id: str) -> set[str]:
+    """Inputs with a successful compile or TensorRT measurement, including backend-specific sizes."""
+    return {
+        row["input"]
+        for mode in _COMPILE_LABEL
+        if (row := _compile_rows().get((model_id, mode))) and not row.get("fails") and row.get("ms") is not None
+    }
 
 
 def _setup_seconds(row: dict | None) -> float | None:
@@ -789,7 +808,8 @@ def _env_note(rows: dict[str, list[dict]]) -> str:
 def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], list[str]]:
     """Speed and peak memory: (the table, the notes); one table row per variant and input, backends as cell lines."""
     oom_at = {v.id: {size for ref, _, size in _oom() if ref == v.id} for v in card.variants}
-    measured = [v for v in card.variants if v.id in rows or oom_at[v.id]]  # out of memory in every mode is a result
+    compiled = {v.id: _compiled_inputs(v.id) for v in card.variants}
+    measured = [v for v in card.variants if v.id in rows or oom_at[v.id] or compiled[v.id]]
     if not measured:
         return [f"Speed and memory {NM} for: {_ids_of([v.id for v in card.variants])}."], []
     lines = [
@@ -815,7 +835,9 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
             continue
         sizes = sorted({r["input"] for r in rows[v.id]} if v.id in rows else oom_at[v.id], key=_pixels)
         std = _std_input(card.task, {})
-        for size in [std] if std in sizes else sizes[-1:] if std != _OWN else sizes:
+        preferred = [std] if std in sizes else sizes[-1:] if std != _OWN else sizes
+        extra_sizes = sorted(compiled[v.id] - set(preferred), key=_pixels)
+        for size in [*preferred, *extra_sizes]:
             by = {r["mode"]: r for r in rows.get(v.id, []) if r["input"] == size}
             oom = {m for m in _SPEED_MODES if (v.id, m, size) in _oom()}
             modes = [m for m in _SPEED_MODES if m in by or m in oom or m in ("upstream", "portable", "kernels")]
@@ -1856,26 +1878,27 @@ def _compile_block() -> str:
         return "\n".join([*out, "not measured yet", _COMPILE_END])
     out += [head, "|" + "---|" * (head.count("|") - 1)]
     for ref in sorted({k[0] for k in latest}, key=lambda i: (order.get(tasks.get(i, ""), 99), i)):
-        comp, trt = latest.get((ref, "compile")), latest.get((ref, "tensorrt"))
-        size = next(r["input"] for r in (comp, trt) if r)
-        at = {r["mode"]: r for r in speed.get(ref, []) if r["input"] == size}
-        compile_s, engine_setup_s = _setup_seconds(comp), _setup_seconds(trt)
-        ms = {m: f"{_ms_str(at[m]['ms'])} ms" if m in at else DASH for m in ("portable", "kernels")}
-        cells = [
-            ref,
-            size,
-            ms["portable"],
-            _compile_ms(comp),
-            _compile_ms(trt),
-            ms["kernels"],
-            DASH if compile_s is None else f"{_ms_str(compile_s)} s",
-            DASH if engine_setup_s is None else f"{_ms_str(engine_setup_s)} s",
-            _peak(at.get("portable")),
-            _peak(comp) if comp and "fails" not in comp else DASH,
-            _peak(at.get("kernels")),
-            _trt_peak(trt),
-        ]
-        out.append("| " + " | ".join(cells) + " |")
+        entries = latest.get((ref, "compile")), latest.get((ref, "tensorrt"))
+        for size in dict.fromkeys(r["input"] for r in entries if r):
+            comp, trt = (r if r and r["input"] == size else None for r in entries)
+            at = {r["mode"]: r for r in speed.get(ref, []) if r["input"] == size}
+            compile_s, engine_setup_s = _setup_seconds(comp), _setup_seconds(trt)
+            ms = {m: f"{_ms_str(at[m]['ms'])} ms" if m in at else DASH for m in ("portable", "kernels")}
+            cells = [
+                ref,
+                size,
+                ms["portable"],
+                _compile_ms(comp),
+                _compile_ms(trt),
+                ms["kernels"],
+                DASH if compile_s is None else f"{_ms_str(compile_s)} s",
+                DASH if engine_setup_s is None else f"{_ms_str(engine_setup_s)} s",
+                _peak(at.get("portable")),
+                _peak(comp) if comp and "fails" not in comp else DASH,
+                _peak(at.get("kernels")),
+                _trt_peak(trt),
+            ]
+            out.append("| " + " | ".join(cells) + " |")
     return "\n".join([*out, _COMPILE_END])
 
 

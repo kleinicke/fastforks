@@ -410,12 +410,12 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 Any body part counts as person; ground truth = the COCO person masks. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `sapiens-seg-0.3b-goliath` | COCO val2017 persons, every 10th image, person IoU % | 32.60 | 32.61 | 32.61 | 32.62 |  |
-| `sapiens-seg-1b-goliath` | COCO val2017 persons, every 10th image, person IoU % | 54.22 | 54.22 | 54.22 | 54.19 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `sapiens-seg-0.3b-goliath` | COCO val2017 persons, every 10th image, person IoU % | 32.60 | 32.61 | 32.61 | 32.60 | 32.62 |  |
+| `sapiens-seg-1b-goliath` | COCO val2017 persons, every 10th image, person IoU % | 54.22 | 54.22 | 54.22 |  | 54.19 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

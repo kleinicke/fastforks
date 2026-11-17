@@ -142,7 +142,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]]) -> dict[str, Any
     """Reference-GPU rows of one variant: per input, the four modes plus torch.compile / TensorRT."""
     rows = speed.get(v.id, [])
     std = g._std_input(task, {})  # noqa: SLF001
-    inputs = sorted({r["input"] for r in rows}, key=g._pixels)  # noqa: SLF001
+    inputs = sorted({r["input"] for r in rows} | g._compiled_inputs(v.id), key=g._pixels)  # noqa: SLF001
     out = []
     for size in inputs:
         by = {_SPEED_KEY[r["mode"]]: _speed_row(r) for r in rows if r["input"] == size and r["mode"] in _SPEED_KEY}

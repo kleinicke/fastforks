@@ -435,7 +435,7 @@ Each image at its own size, score threshold 0.02 and NMS IoU 0.45 (the authors' 
 | variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|
 | `retinaface-resnet50` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.954 / 0.939 / 0.841 | 0.954 / 0.939 / 0.840 |  | 0.954 / 0.939 / 0.840 |  |
-| `retinaface-mobilenet0.25` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard |  |  | 0.905 / 0.882 / 0.741 |  |  |
+| `retinaface-mobilenet0.25` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.905 / 0.882 / 0.741 |  | 0.905 / 0.882 / 0.741 |  |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
@@ -566,18 +566,18 @@ Commercial use: yes.
 
 Bottom-up on all 5,000 validation images, no ground-truth boxes; people ranked by their predicted person score, after model-specific decoding; pycocotools OKS AP. Bottom-up on the same every-tenth-image subset for all modes, ranked by predicted person score after model-specific decoding; pycocotools OKS AP. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `rtmo-t` | COCO val2017, predicted people, keypoint AP | 57.4 | 57.4 | 57.4 | 57.4 |  |
-| `rtmo-t` | COCO val2017, every 10th image, predicted people, keypoint AP | 59.4 | 59.4 | 59.3 | 59.3 |  |
-| `rtmo-s` | COCO val2017, predicted people, keypoint AP | 68.6 | 68.6 | 68.5 | 68.5 |  |
-| `rtmo-s` | COCO val2017, every 10th image, predicted people, keypoint AP | 71.1 | 71.2 | 71.2 | 71.2 |  |
-| `rtmo-m` | COCO val2017, predicted people, keypoint AP | 72.6 | 72.6 | 72.6 | 72.6 |  |
-| `rtmo-m` | COCO val2017, every 10th image, predicted people, keypoint AP | 74.2 | 74.2 | 74.2 | 74.2 |  |
-| `rtmo-l` | COCO val2017, predicted people, keypoint AP | 74.8 | 74.8 | 74.8 | 74.8 |  |
-| `rtmo-l` | COCO val2017, every 10th image, predicted people, keypoint AP | 76.1 | 76.0 | 76.0 | 76.0 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `rtmo-t` | COCO val2017, predicted people, keypoint AP | 57.4 | 57.4 | 57.4 |  | 57.4 |  |
+| `rtmo-t` | COCO val2017, every 10th image, predicted people, keypoint AP | 59.4 | 59.4 | 59.3 | 59.3 | 59.3 |  |
+| `rtmo-s` | COCO val2017, predicted people, keypoint AP | 68.6 | 68.6 | 68.5 |  | 68.5 |  |
+| `rtmo-s` | COCO val2017, every 10th image, predicted people, keypoint AP | 71.1 | 71.2 | 71.2 | 71.2 | 71.2 |  |
+| `rtmo-m` | COCO val2017, predicted people, keypoint AP | 72.6 | 72.6 | 72.6 |  | 72.6 |  |
+| `rtmo-m` | COCO val2017, every 10th image, predicted people, keypoint AP | 74.2 | 74.2 | 74.2 |  | 74.2 |  |
+| `rtmo-l` | COCO val2017, predicted people, keypoint AP | 74.8 | 74.8 | 74.8 |  | 74.8 |  |
+| `rtmo-l` | COCO val2017, every 10th image, predicted people, keypoint AP | 76.1 | 76.0 | 76.0 |  | 76.0 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks be54b8b0, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks be54b8b0, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks be54b8b0, 2026-11-11.
 
 ### Parity
 

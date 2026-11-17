@@ -88,7 +88,8 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 705<br>460<br>215<br>201<br>162<br>planned for 0.2.1 | 7156 / 8408<br>4076 / 4636<br>3075 / 3492<br>2643 / 3072<br>3643 / 3832<br>– |
+| `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 705<br>460<br>215<br>201<br>162 | 7156 / 8408<br>4076 / 4636<br>3075 / 3492<br>2643 / 3072<br>3643 / 3832 |
+| `nninteractive` | 192x192 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>262 (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | –<br>–<br>–<br>unknown |
 
 <details><summary>Details</summary>
 
@@ -99,11 +100,11 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 - Training data: 120+ volumetric 3D datasets (CT, MRI, PET, 3D microscopy; readme) with simulated prompts.
 - Kernel libraries: `vol_norm`
 - Variants: `nninteractive`
-- Not in this release (planned for 0.2.1): `nninteractive` TensorRT export: the TensorRT patch engine needs full interactive-session accuracy validation
 - Outputs: mask
 - Input size: any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nninteractive` 512x512x512 voxels (5.7 GiB peak allocated, 6.1 reserved)
 - `nninteractive` 200x200, first call: portable + torch.compile 18 s (cold Inductor cache).
+- `nninteractive` 192x192, first call: TensorRT fp16 58 s (ONNX + engine).
 - `nninteractive` load / first call: original 3.23 s / 1.038 s, portable 1.09 s / 0.482 s, kernels 0.65 s / 0.403 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

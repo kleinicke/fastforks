@@ -62,6 +62,16 @@ Commercial use: yes.
 - `clipseg` load / first call: original 3.05 s / 0.021 s, portable 4.93 s / 0.287 s, kernels 4.54 s / 0.236 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+One text prompt per present COCO class. The label is the union of the class's non-crowd masks. Scores average pixel IoU aggregated per class, and IoU per image and prompt. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | portable | note |
+|---|---|---|---|
+| `clipseg` | COCO val2017, every 10th image, class masks, class / prompt mIoU % | 55.00 / 38.37 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-17.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.0005 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.1 and p99 <= 0.5 (absolute error of the output `boxes`).
@@ -140,7 +150,7 @@ One point per ground-truth instance (the interior point farthest from the border
 | `efficientvit-sam-l1` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 55.48 / 51.26 | 55.38 / 51.06 | 55.37 / 51.01 | 55.44 / 51.22 | 55.42 / 51.08 |  |
 | `efficientvit-sam-l2` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 56.50 / 52.23 | 56.58 / 52.29 | 56.44 / 52.25 | 56.33 / 52.20 | 56.34 / 52.22 |  |
 | `efficientvit-sam-xl0` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 59.00 / 54.47 | 58.90 / 54.48 | 58.99 / 54.51 | 59.01 / 54.48 | 58.90 / 54.51 |  |
-| `efficientvit-sam-xl1` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 59.38 / 54.84 | 59.33 / 54.84 | 59.40 / 54.85 |  | 59.43 / 54.85 |  |
+| `efficientvit-sam-xl1` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 59.38 / 54.84 | 59.33 / 54.84 | 59.40 / 54.85 | 59.45 / 54.84 | 59.43 / 54.85 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-10.
 
@@ -247,11 +257,11 @@ Commercial use: yes.
 
 One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `mobile-sam` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 51.53 / 49.90 | 51.48 / 49.91 | 51.53 / 49.91 | 51.53 / 49.91 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `mobile-sam` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 51.53 / 49.90 | 51.48 / 49.91 | 51.53 / 49.91 | 51.51 / 49.90 | 51.53 / 49.91 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5eafe838+dirty, 2026-11-10.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5eafe838+dirty, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5eafe838+dirty, 2026-11-10.
 
 ### Parity
 

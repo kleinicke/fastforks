@@ -264,7 +264,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 - Options: `long_side` = 640 (>= 64), `refinement_steps` = 1 (>= 0)
 - Kernel libraries: `fastbb`, `igev`, `cutlass_conv`, `cudnn_hacc`, `mvsanywhere`, `dpt_fused`
 - Variants: `mvsanywhere`
-- Not in this release (planned for 0.2.1): `mvsanywhere` TensorRT export: the fp16 engine outputs all NaN (fp16 overflow, needs an fp32 island)
+- Not in this release (planned for 0.2.1): `mvsanywhere` TensorRT export: TensorRT produces all-NaN depth and sky maps in both FP16 and FP32
 - Outputs: depth, mask, sky (in `extras`), depth_range (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsanywhere` 3000x4000 (3.0 GiB peak allocated, 4.2 reserved)
@@ -538,11 +538,11 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `vggt-1b` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0026 / 99.94 | 0.0027 / 99.94 | 0.0026 / 99.94 | 0.0026 / 99.94 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `vggt-1b` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0026 / 99.94 | 0.0027 / 99.94 | 0.0026 / 99.94 | 0.0026 / 99.94 | 0.0026 / 99.94 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-06.
 
 ### Parity
 

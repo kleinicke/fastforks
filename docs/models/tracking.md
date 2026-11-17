@@ -67,7 +67,7 @@ Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before t
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `alltracker` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 67.45 / 78.66 / 90.82 | 67.41 / 78.65 / 90.69 | 67.42 / 78.71 / 90.70 | 67.42 / 78.66 / 90.79 | 67.38 / 78.63 / 90.65 |  |
-| `alltracker` | TAP-Vid DAVIS (query first), AJ / delta_avg / OA % | 64.17 / 77.00 / 89.49 |  | 64.14 / 77.04 / 89.44 |  | 64.15 / 77.04 / 89.44 |  |
+| `alltracker` | TAP-Vid DAVIS (query first), AJ / delta_avg / OA % | 64.17 / 77.00 / 89.49 |  | 64.14 / 77.04 / 89.44 | 64.15 / 77.02 / 89.46 | 64.15 / 77.04 / 89.44 |  |
 | `alltracker-tiny` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 65.33 / 76.69 / 88.14 |  | 65.36 / 76.66 / 88.14 | 65.38 / 76.69 / 88.17 | 65.34 / 76.66 / 88.10 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8d5bccf, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bb4e8b64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8d5bccf, 2026-11-13.

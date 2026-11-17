@@ -37,7 +37,6 @@ venue = "arXiv 2025"
 
 [[variants]]
 id = "nninteractive"
-planned = { tensorrt = "the TensorRT patch engine needs full interactive-session accuracy validation" }
 revision = 1
 weights = [
   { name = "nnInteractive_v1.0/plans.json", size = 6287, sha256 = "64a30a430438302a692a3edadd345a207b3428bea2e5cdc125298757da21f4d4", url = "https://huggingface.co/MIC-DKFZ/nnInteractive/resolve/3f308d751c00644e4fde6f09c600264b393b21b5/nnInteractive_v1.0/plans.json" },

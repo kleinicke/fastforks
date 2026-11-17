@@ -105,8 +105,8 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 |---|---|---|---|---|---|---|---|
 | `any2full-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0040 / 1.0000 |  |  | 0.0038 / 1.0000 |  |  |
 | `any2full-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0081 / 0.9958 |  |  | 0.0079 / 0.9960 |  |  |
-| `any2full-b` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 | 0.0044 / 1.0000 | 0.0034 / 1.0000 |  | 0.0034 / 1.0000 |  |
-| `any2full-b` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0074 / 0.9962 | 0.0077 / 0.9962 | 0.0071 / 0.9964 |  | 0.0071 / 0.9964 |  |
+| `any2full-b` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 | 0.0044 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |
+| `any2full-b` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0074 / 0.9962 | 0.0077 / 0.9962 | 0.0071 / 0.9964 | 0.0071 / 0.9964 | 0.0071 / 0.9964 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
@@ -1372,7 +1372,9 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `video-depth-anything-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels | 11626<br>202<br>200 | 8263 / 11890<br>1962 / 2204<br>1967 / 2226 |
+| `video-depth-anything-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3786<br>148<br>146<br>100<br>60.3 | 4780 / 6794<br>1461 / 1646<br>1465 / 1666<br>1143 / 1344<br>886 / 914 |
 | `video-depth-anything-metric-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels | 10776<br>202<br>200 | 8264 / 11916<br>1962 / 2224<br>1967 / 2226 |
+| `video-depth-anything-metric-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4012<br>148<br>147<br>101<br>60.2 | 4780 / 6806<br>1461 / 1666<br>1465 / 1646<br>1143 / 1464<br>886 / 914 |
 
 <details><summary>Details</summary>
 
@@ -1389,9 +1391,11 @@ Commercial use: yes.
 - Outputs: inverse_depth, depth; kind: `affine_invariant_inverse`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `video-depth-anything-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved); `video-depth-anything-metric-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved)
-- `video-depth-anything-s` original 1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
-- `video-depth-anything-s` portable 1080x1920, kernels 1080x1920: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out
-- `video-depth-anything-metric-s` original 1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
+- `video-depth-anything-s` 480x640, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 103 s (ONNX + engine).
+- `video-depth-anything-metric-s` 480x640, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
+- `video-depth-anything-s` original 1080x1920, original 480x640: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
+- `video-depth-anything-s` portable 1080x1920, kernels 1080x1920, portable 480x640, kernels 480x640: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out
+- `video-depth-anything-metric-s` original 1080x1920, original 480x640: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
 - `video-depth-anything-s` load / first call: original 0.26 s / 14.043 s (1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
 - `video-depth-anything-metric-s` load / first call: original 3.85 s / 17.094 s (1080x1920), portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

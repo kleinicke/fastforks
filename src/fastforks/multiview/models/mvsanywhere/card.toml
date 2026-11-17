@@ -47,6 +47,6 @@ venue = "CVPR 2025"
 
 [[variants]]
 id = "mvsanywhere"
-planned = { tensorrt = "the fp16 engine outputs all NaN (fp16 overflow, needs an fp32 island)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "TensorRT produces all-NaN depth and sky maps in both FP16 and FP32" }  # docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "mvsanywhere_hero.ckpt", size = 2420601860, sha256 = "00878bab903b1d384cd6bb9ea092e247a9036d429cb8bcc3d6dcbb81f67e556d", url = "https://storage.googleapis.com/niantic-lon-static/research/mvsanywhere/mvsanywhere_hero.ckpt" }]
