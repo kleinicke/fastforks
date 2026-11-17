@@ -20,9 +20,15 @@ def sample_keypoints(logits: torch.Tensor, num_samples: int, nms_size: int, temp
     probs = logits.reshape(1, h * w).softmax(dim=-1).reshape(1, h, w)
     probs = probs * (probs == F.max_pool2d(probs, nms_size, stride=1, padding=nms_size // 2))
     inds = torch.topk(probs.reshape(h * w), k=num_samples).indices
-    kpts = get_grid(h, w, logits.device)[inds]
+    # FastForks: select from the same linspace axes without materializing the full pixel grid.
+    y, x = inds // w, inds % w
+    xs = torch.linspace(-1 + 1 / w, 1 - 1 / w, w, device=logits.device)
+    ys = torch.linspace(-1 + 1 / h, 1 - 1 / h, h, device=logits.device)
+    kpts = torch.stack((xs[x], ys[y]), dim=-1)
     # upstream `extract_patches_from_inds`: the patch's logits, in the unfold's row-major order
-    patches = F.unfold(logits, nms_size, padding=nms_size // 2)[0, :, inds]  # [k*k, N]
+    # Tensor.unfold is a view: gather only selected patches, including the zero border.
+    padded = F.pad(logits[0, 0], (nms_size // 2,) * 4)
+    patches = padded.unfold(0, nms_size, 1).unfold(1, nms_size, 1)[y, x].flatten(1).mT.contiguous()
     weights = (patches / temp).softmax(dim=0)
     offsets = get_grid(nms_size, nms_size, logits.device) * nms_size  # upstream: the k x k grid times k / size
     offsets = offsets / torch.tensor([w, h], device=logits.device, dtype=offsets.dtype)

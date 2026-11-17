@@ -256,3 +256,19 @@ Variants: `xfeat`, `xfeat-lighterglue`.
 
 Recorded reason: not implemented: data-dependent keypoint counts (NMS, top-k, match filtering); the extractor is a small CNN.
 
+
+## LoMa and RoMa v2 follow-up, November 18
+
+RTX 5060 Ti 16 GB, PyTorch 2.10.0+cu130. Each row compares the kernels runner in `36a20781` with the revised runner on the same device. The input was a seeded pair of 768 × 1024 RGB images on CUDA, with the model’s default preprocessing and keypoint budget. Each timing is the median of seven synchronized calls after two warmups. Memory is peak allocated by PyTorch.
+
+| Model | Before (ms) | After (ms) | Before (MiB) | After (MiB) |
+|---|---:|---:|---:|---:|
+| LoMa-B | 300.2 | 280.0 | 1729 | 1433 |
+| LoMa-B64 | 122.5 | 117.2 | 824 | 823 |
+| LoMa-B128 | 138.9 | 127.8 | 838 | 836 |
+| LoMa-L | 310.4 | 289.7 | 1868 | 1572 |
+| LoMa-G | 347.9 | 327.1 | 2406 | 2109 |
+| LoMa-R | 299.9 | 279.8 | 1729 | 1433 |
+| RoMa v2 | 343.8 | 342.0 | 1913 | 1911 |
+
+LoMa now projects the finest descriptor at the four neighbours of each detected keypoint and samples the preceding scale at those locations. RoMa v2 reuses rotary frequencies within each transformer forward and reuses the forward cosine similarities for reverse matching. All seven kernels runners passed their existing GPU reference checks. The RoMa latency difference was about 0.5% on this workload.

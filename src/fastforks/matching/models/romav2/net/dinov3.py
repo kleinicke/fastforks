@@ -68,9 +68,9 @@ class DinoVisionTransformer(nn.Module):
         with autocast(x, self.amp):
             x, (H, W) = self.prepare_tokens_with_masks(x)
             output = []
+            rope_sincos = None if self.rope_embed.training else self.rope_embed(H=H, W=W)  # FastForks: shared eval grid.
             for i, blk in enumerate(self.blocks):
-                rope_sincos = self.rope_embed(H=H, W=W)
-                x = blk(x, rope_sincos)
+                x = blk(x, self.rope_embed(H=H, W=W) if rope_sincos is None else rope_sincos)
                 if i in self.layers:
                     output.append(x)
             outputs = [self.norm(out)[:, self.n_storage_tokens + 1 :] for out in output]

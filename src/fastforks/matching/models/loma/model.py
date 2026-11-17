@@ -28,6 +28,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.patch import override
 from fastforks.matching._dedode_kernels import prepare
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared.dedode import (
@@ -45,6 +46,7 @@ from fastforks.shared.dedode import (
 )
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, sdpa_attention
 
+from . import _sparse
 from .net.dad import sample_keypoints
 from .net.loma import LoMaNet, filter_matches
 
@@ -143,8 +145,10 @@ class Matcher(nn.Module):
         resized = self._resize(image, (p.size, p.size))
         if p.normalize_descriptor:
             resized = (resized - self.mean) / self.std
-        grid = self.descriptor(resized)
-        return keypoints, describe_keypoints(grid, keypoints)
+        return keypoints, self._descriptions(resized, keypoints)
+
+    def _descriptions(self, image: torch.Tensor, keypoints: torch.Tensor) -> torch.Tensor:
+        return describe_keypoints(self.descriptor(image), keypoints)
 
     def _detect(self, image: torch.Tensor) -> torch.Tensor:
         p = self.params
@@ -256,6 +260,11 @@ class Kernels(Portable):
         """Prepare the loaded descriptor for CUDA."""
         super().__init__(ctx)
         prepare(self.net.descriptor, ctx.device)
+        override(self.net, _sample_descriptor, "_descriptions")
+
+
+def _sample_descriptor(net: Matcher, image: torch.Tensor, keypoints: torch.Tensor) -> torch.Tensor:
+    return _sparse.sample(net.descriptor, image, keypoints)
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}

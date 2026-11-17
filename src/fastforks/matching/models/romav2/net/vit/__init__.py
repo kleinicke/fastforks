@@ -200,11 +200,11 @@ class MatchTransformer(nn.Module):
         t2_x, hw_tuple = self.prepare_tokens(x)
         x = t2_x
         H, W = hw_tuple
+        # FastForks: the image grid and rotary frequencies are constant throughout inference.
+        rope_sincos = self.rope_embed(H=H, W=W) if self.rope_embed is not None and not self.rope_embed.training else None
         for idx, blk in enumerate(self.blocks):
-            if self.rope_embed is not None:
-                rope_sincos: tuple[Tensor, Tensor] = self.rope_embed(H=H, W=W)
-            else:
-                rope_sincos = None
+            if self.rope_embed is not None and self.rope_embed.training:
+                rope_sincos = self.rope_embed(H=H, W=W)
             if self.multiview and self.mv_attention_mode == "alternating":
                 # every kth block run only self attention
                 if idx % 2 == 1:

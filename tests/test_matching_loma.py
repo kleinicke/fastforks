@@ -6,9 +6,11 @@ import torch
 
 from fastforks import matching
 from fastforks._core import registry
+from fastforks.matching.models.loma import _sparse
 from fastforks.matching.models.loma.model import PREFIXES, split_checkpoint
 from fastforks.matching.models.loma.net.dad import sample_keypoints
 from fastforks.matching.models.loma.net.loma import LoMaNet, filter_matches
+from fastforks.shared.dedode import Descriptor, describe_keypoints
 
 
 def test_card() -> None:
@@ -81,3 +83,34 @@ def test_split_checkpoint_and_shapes() -> None:
     assert scores.shape == (1, 5, 7)
     assert (scores >= 0).all()
     assert (scores <= 1).all()
+
+
+def test_subpixel_patches_include_zero_padding() -> None:
+    """The sparse gather matches the original full unfold at corners and edges of a rectangular image."""
+    h, w = 7, 11
+    logits = torch.randn(1, 1, h, w, generator=torch.Generator().manual_seed(13))
+    probs = logits.flatten().softmax(0).view(1, h, w)
+    peaks = probs * (probs == torch.nn.functional.max_pool2d(probs, 3, stride=1, padding=1))
+    indices = peaks.flatten().topk(h * w).indices  # exercise every position, including all four corners
+    y, x = torch.meshgrid(
+        torch.linspace(-1 + 1 / h, 1 - 1 / h, h), torch.linspace(-1 + 1 / w, 1 - 1 / w, w), indexing="ij"
+    )
+    centers = torch.stack((x, y), dim=-1).view(-1, 2)[indices]
+    patches = torch.nn.functional.unfold(logits, 3, padding=1)[0, :, indices]
+    axis = torch.linspace(-1 + 1 / 3, 1 - 1 / 3, 3)
+    dy, dx = torch.meshgrid(axis, axis, indexing="ij")
+    offsets = torch.stack((dx, dy), dim=-1).view(-1, 2) * 3 / torch.tensor([w, h])
+    expected = centers + (patches / 0.5).softmax(0).mT @ offsets
+    torch.testing.assert_close(sample_keypoints(logits, h * w, 3, 0.5), expected, rtol=0, atol=0)
+
+
+def test_sparse_descriptor_matches_dense_at_edges() -> None:
+    """Odd feature sizes cover the non-integer coarse resize and zero-padded boundary samples."""
+    with torch.random.fork_rng(devices=[]), torch.inference_mode():
+        torch.manual_seed(37)
+        descriptor = Descriptor().eval().half()
+        image = torch.rand(1, 3, 33, 43).half()
+        points = torch.tensor([[-1.0, 1.0], [1.0, 1.0], [-1.02, -0.99], [0.3, -0.8], [0.0, 0.0]])
+        expected = describe_keypoints(descriptor(image), points)
+        actual = _sparse.sample(descriptor, image, points)
+        torch.testing.assert_close(actual, expected, atol=5e-4, rtol=1e-3)
