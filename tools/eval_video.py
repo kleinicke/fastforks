@@ -112,7 +112,8 @@ class Ours:
     def __init__(self, ref: str, tier: str) -> None:  # noqa: D107
         import fastforks.promptable_segmentation as seg  # noqa: PLC0415
 
-        self.model = seg.load(ref, mode=tier, device="cuda")
+        mode, dtype = ("portable", "float32") if tier == "portable32" else (tier, None)
+        self.model = seg.load(ref, mode=mode, dtype=dtype, device="cuda")
         self.backend = self.model.backend
 
     def __call__(self, jpgs: list[Path], frames: list[np.ndarray], first: np.ndarray, ids: list[int]) -> np.ndarray:
@@ -247,7 +248,8 @@ def _summarize(a: argparse.Namespace) -> None:
             continue
         last = recs[-1]
         every = last["every"]
-        if {r["seq"] for r in recs} != set(sequences(every)):
+        expected = sequences(every)
+        if len(recs) != len(expected) or {r["seq"] for r in recs} != set(expected):
             print(f"# incomplete: {path.name}")
             continue
         j = [x for r in recs for x in r["j"]]

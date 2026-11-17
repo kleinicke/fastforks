@@ -87,8 +87,9 @@ class Tier:
         else:
             from fastforks import depth  # noqa: PLC0415
 
-            self.orig, self.model = None, depth.load(ref, mode=tier, device="cuda")
-            self.mode, self.dtype = tier, str(self.model.backend.dtype).removeprefix("torch.")
+            mode, dtype = ("portable", "float32") if tier == "portable32" else (tier, None)
+            self.orig, self.model = None, depth.load(ref, mode=mode, dtype=dtype, device="cuda")
+            self.mode, self.dtype = mode, str(self.model.backend.dtype).removeprefix("torch.")
 
     def __call__(self, img: np.ndarray, prompt: np.ndarray) -> torch.Tensor:  # noqa: D102
         p = torch.from_numpy(prompt).cuda()
