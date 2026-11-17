@@ -64,6 +64,15 @@ def auc(errors: np.ndarray, t: float, min_error: float = 1.0) -> float:
     return round(float(np.trapezoid(r, x=x) / t) * 100, 2)
 
 
+def available_angles(errors: np.ndarray) -> list[int]:
+    """Allow unsupported all-NaN angles, but reject invalid predictions for every reported angle."""
+    given = [i for i in range(len(ANGLES)) if not np.isnan(errors[:, i]).all()]
+    if ANGLES.index("vfov") not in given or not np.isfinite(errors[:, given]).all():
+        msg = "non-finite calibration predictions; refusing to aggregate accuracy"
+        raise ValueError(msg)
+    return given
+
+
 def read(p: Path) -> np.ndarray:
     """RGB uint8."""
     return np.ascontiguousarray(cv2.imread(str(p))[..., ::-1])
@@ -146,7 +155,7 @@ def main() -> None:
             torch.cuda.reset_peak_memory_stats()
             times: list[float] = []
             err = np.degrees(np.abs(predict(fn, paths, times) - gt))
-            given = [i for i in range(len(ANGLES)) if not np.isnan(err[:, i]).all()]  # a model without roll / pitch
+            given = available_angles(err)  # models may omit roll / pitch, but reported values must be finite
             metrics = {f"{ANGLES[i]}_auc{t}": auc(err[:, i], t) for i in given for t in THRESHOLDS}
             row = {
                 "ref": ref, "task": "calibration", "tier": tier, "mode": mode, "dtype": dtype, "how": how,
