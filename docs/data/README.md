@@ -158,13 +158,14 @@ its steps, each timed on its own with the device synchronised before and after: 
 as notes under the speed rows and adds crop + rest to the TensorRT engine time (which covers the network only) as an
 estimated full call; the docs tables do not show them.
 
-## Non-default options: `speed_options.jsonl`
+## Load option measurements: `speed_options.jsonl`
 
-Speed and peak memory of a model loaded with a non-default option (`options`, e.g. `{"long_side": 1008}` of Depth
+Speed and peak memory of a model loaded with a specific option (`options`, e.g. `{"long_side": 1008}` of Depth
 Anything 3; the original runs with the same `process_res`). Rows as in `speed_compile.jsonl` (`side` = `lib`: modes
 `portable`, `kernels`, `compile`, `tensorrt`; `side` = `upstream`: `upstream-default` = fp32, `upstream` = the
-authors' autocast), same protocol, `net_input` = the network resolution where recorded. The docs tables do not show
-these rows.
+authors' autocast), same protocol, `net_input` = the network resolution where recorded. The model pages show paired weight-streaming rows with explicit `stream=false` and
+`stream=true` values. The resident controls for the November 14 comparisons come from the original survey in
+`56bdbcaa^:docs/data/speed.jsonl`, measured before these families switched to streaming by default.
 
 ## Resolution experiments: `experiments_resolution.jsonl`
 

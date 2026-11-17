@@ -661,6 +661,15 @@ Commercial use: yes.
 | `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2296<br>1941<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>5237 / 8144<br>– |
 | `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2712<br>2713<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | –<br>6402 / 7034<br>6402 / 7034<br>–<br>– |
 
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| seedvr2-3b | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | 2,281 ms / 15,348 MiB | 2,294 ms / 8,876 MiB |
+| seedvr2-7b | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | Out of memory | 2,715 ms / 8,880 MiB |
+
 <details><summary>Details</summary>
 
 - Original code: <https://github.com/ByteDance-Seed/SeedVR> at `e4de8c24441a`

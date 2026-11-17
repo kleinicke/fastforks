@@ -760,6 +760,17 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5093<br>3886<br>fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile <br>planned for 0.2.1 | –<br>1408 / 1698<br>1498 / 1780<br>–<br>– |
 
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| marigold-v2-depth | kernels | 518x770 | RTX 5060 Ti | 2.14.1+cu130 | 1,071 ms / 9,482 MiB | 1,087 ms / 1,238 MiB |
+| marigold-v2-depth | kernels | 994x1482 | RTX 5060 Ti | 2.14.1+cu130 | 3,868 ms / 10,548 MiB | 3,887 ms / 2,106 MiB |
+| marigold-v2-depth | portable | 518x770 | RTX 5060 Ti | 2.14.1+cu130 | 1,666 ms / 9,582 MiB | 1,683 ms / 1,190 MiB |
+| marigold-v2-depth | portable | 994x1482 | RTX 5060 Ti | 2.14.1+cu130 | 5,071 ms / 10,250 MiB | 5,092 ms / 2,106 MiB |
+
 <details><summary>Details</summary>
 
 - Original code: <https://github.com/huawei-bayerlab/marigold-v2> at `main`

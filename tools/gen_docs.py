@@ -703,6 +703,44 @@ def _md_table(head: list[str], rows: list[list[str]], keep: int = 2) -> list[str
     return lines + ["| " + " | ".join(r[i] for i in use) + " |" for r in rows]
 
 
+def _stream_table(card: ModelCard) -> list[str]:
+    """Compare explicit stream settings from the same model build, workload and environment."""
+    if "stream" not in card.options:
+        return []
+    refs = {v.id for v in card.variants}
+    pairs: dict[tuple[str, ...], dict[bool, str]] = {}
+    for row in map(json.loads, (ROOT / "docs/data/speed_options.jsonl").read_text().splitlines()):
+        options = row.get("options", {})
+        if row["ref"] not in refs or set(options) != {"stream"}:
+            continue
+        key = tuple(row[k] for k in ("ref", "mode", "input", "gpu", "torch", "scene", "commit", "protocol"))
+        if row.get("status") == "oom":
+            cell = "Out of memory"
+        else:
+            cell = f"{row['ms']:,.0f} ms / {row['peak_reserved_mb']:,} MiB"
+        pairs.setdefault(key, {})[options["stream"]] = cell
+    rows = [
+        [name, mode, size, gpu.removeprefix("NVIDIA GeForce "), torch, pair[False], pair[True]]
+        for (name, mode, size, gpu, torch, *_), pair in sorted(pairs.items())
+        if pair.keys() == {False, True}
+    ]
+    if not rows:
+        return []
+    return [
+        "",
+        "### Weight streaming",
+        "",
+        (
+            "Warm inference time and peak reserved GPU memory for the same input with both settings. "
+            "Streamed weights use pinned host memory."
+        ),
+        "",
+        *_md_table(
+            ["Model", "Mode", "Input", "GPU", "PyTorch", "Resident (`stream=False`)", "Streamed (`stream=True`)"], rows
+        ),
+    ]
+
+
 def _scene(scene: str) -> str:
     """Short scene name of a speed row: 'KITTI 2015', 'Middlebury 2014 half', 'synthetic'."""
     if scene.startswith("KITTI 2015"):
@@ -1346,6 +1384,7 @@ def render(task: str) -> str:
             _licence_line(card),
             "",
             *table,
+            *_stream_table(card),
             "",
             "<details><summary>Details</summary>",
             "",
