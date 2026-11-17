@@ -15,9 +15,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | no kernels | no kernels |
 | [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | no kernels | no kernels |
 | [`flowformer-small-things`](#flowformer) | yes | 6.884 | no kernels | no kernels |
-| [`flowseek-t`](#flowseek) | yes | 1.348 † | no kernels | no kernels |
-| [`flowseek-t-things`](#flowseek) | yes | 4.143 | no kernels | no kernels |
-| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | no kernels | no kernels |
+| [`flowseek-t`](#flowseek) | yes | 1.348 † | 327, 1.4x | 2192, 0.22x |
+| [`flowseek-t-things`](#flowseek) | yes | 4.143 | 327, 1.4x | 2192, 0.22x |
+| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | 328, 1.4x | 2192, 0.22x |
 | [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | no kernels | no kernels |
 | [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | no kernels | no kernels |
 | [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | no kernels | no kernels |
@@ -146,9 +146,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `flowseek-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>457<br>395<br>no kernels<br>258<br>168 | 9902 / 10052<br>8693 / 9880<br>8671 / 8712<br>no kernels<br>6126 / 6212<br>11328 / 11350 |
-| `flowseek-t-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>458<br>395<br>no kernels<br>258<br>168 | 9902 / 10012<br>8693 / 9820<br>8671 / 8712<br>no kernels<br>6126 / 6212<br>11330 / 11352 |
-| `flowseek-t-things-notartan` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 651<br>458<br>396<br>no kernels<br>258<br>168 | 9902 / 10052<br>8693 / 9820<br>8671 / 8712<br>no kernels<br>6126 / 6212<br>11328 / 11350 |
+| `flowseek-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>457<br>395<br>327<br>258<br>168 | 9902 / 10052<br>8693 / 9880<br>8671 / 8712<br>2027 / 2192<br>6126 / 6212<br>11328 / 11350 |
+| `flowseek-t-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>458<br>395<br>327<br>258<br>168 | 9902 / 10012<br>8693 / 9820<br>8671 / 8712<br>2027 / 2192<br>6126 / 6212<br>11330 / 11352 |
+| `flowseek-t-things-notartan` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 651<br>458<br>396<br>328<br>258<br>168 | 9902 / 10052<br>8693 / 9820<br>8671 / 8712<br>2027 / 2192<br>6126 / 6212<br>11328 / 11350 |
 
 <details><summary>Details</summary>
 
@@ -160,24 +160,26 @@ Commercial use: yes.
   - `flowseek-t-things`: TartanAir, FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa) (TartanAir, FlyingChairs, then FlyingThings3D (part of SceneFlow))
   - `flowseek-t-things-notartan`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa) (FlyingChairs, then FlyingThings3D (part of SceneFlow))
 - Options: `iters` = 4 (>= 1)
-- Kernel libraries: none (no kernels mode was built for it; SEA-RAFT's engine and the Depth Anything kernels would fit and could be combined)
+- Kernel libraries: `raft_flow`
 - Variants: `flowseek-t`, `flowseek-t-things`, `flowseek-t-things-notartan`
 - Outputs: flow
 - Input size: any H x W >= 128, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `flowseek-t` 1024x2048 (8.6 GiB peak allocated, 10.2 reserved); `flowseek-t-things` 1024x2048 (8.6 GiB peak allocated, 10.2 reserved); `flowseek-t-things-notartan` 1024x2048 (8.6 GiB peak allocated, 10.2 reserved)
-- no kernels: no kernels mode was built for it; SEA-RAFT's engine and the Depth Anything kernels would fit and could be combined.
 - `flowseek-t` 1080x1920, first call: portable + torch.compile 54 s (cold Inductor cache), TensorRT fp16 107 s (ONNX + engine).
 - `flowseek-t-things` 1080x1920, first call: portable + torch.compile 55 s (cold Inductor cache), TensorRT fp16 102 s (ONNX + engine).
 - `flowseek-t-things-notartan` 1080x1920, first call: portable + torch.compile 54 s (cold Inductor cache), TensorRT fp16 98 s (ONNX + engine).
 - `flowseek-t` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
+- `flowseek-t` kernels 1080x1920: on-demand correlation; code snapshot was measured before a style-only constant rename; 1080p improves speed and memory, KITTI-sized runtime is similar to portable
 - `flowseek-t-things` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t-things` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
+- `flowseek-t-things` kernels 1080x1920: on-demand correlation; code snapshot was measured before a style-only constant rename; 1080p improves speed and memory, KITTI-sized runtime is similar to portable
 - `flowseek-t-things-notartan` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t-things-notartan` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
-- `flowseek-t` load / first call: original 0.87 s / 0.629 s, portable 0.18 s / 0.458 s (375x1242)
-- `flowseek-t-things` load / first call: original 0.78 s / 0.459 s, portable 0.18 s / 0.469 s (375x1242)
-- `flowseek-t-things-notartan` load / first call: original 0.81 s / 0.459 s, portable 0.18 s / 0.46 s (375x1242)
+- `flowseek-t-things-notartan` kernels 1080x1920: on-demand correlation; code snapshot was measured before a style-only constant rename; 1080p improves speed and memory, KITTI-sized runtime is similar to portable
+- `flowseek-t` load / first call: original 0.87 s / 0.629 s, portable 0.18 s / 0.458 s (375x1242), kernels 0.28 s / 0.382 s (375x1242)
+- `flowseek-t-things` load / first call: original 0.78 s / 0.459 s, portable 0.18 s / 0.469 s (375x1242), kernels 0.67 s / 0.404 s (375x1242)
+- `flowseek-t-things-notartan` load / first call: original 0.81 s / 0.459 s, portable 0.18 s / 0.46 s (375x1242), kernels 0.37 s / 0.383 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -198,9 +200,9 @@ CPU, float32: max |diff| <= 0.001 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `flowseek-t` | no kernels backend | - | - |
-| `flowseek-t-things` | no kernels backend | - | - |
-| `flowseek-t-things-notartan` | no kernels backend | - | - |
+| `flowseek-t` | 0.00508 / 0.0272 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
+| `flowseek-t-things` | 0.00427 / 0.0176 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
+| `flowseek-t-things-notartan` | 0.00227 / 0.01045 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
 
 </details>
 
@@ -901,9 +903,9 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`flowformer-small-chairs`](#flowformer) | portable | Apache-2.0 AND BSD-3-Clause AND WTFPL | Apache-2.0 AND BSD-3-Clause AND WTFPL (assumed from code) | flyingchairs | yes | flow |
 | [`flowformer-small-sintel`](#flowformer) | portable | Apache-2.0 AND BSD-3-Clause AND WTFPL | Apache-2.0 AND BSD-3-Clause AND WTFPL (assumed from code) | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 | [`flowformer-small-things`](#flowformer) | portable | Apache-2.0 AND BSD-3-Clause AND WTFPL | Apache-2.0 AND BSD-3-Clause AND WTFPL (assumed from code) | flyingchairs, sceneflow | yes | flow |
-| [`flowseek-t`](#flowseek) | portable | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
-| [`flowseek-t-things`](#flowseek) | portable | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow | yes | flow |
-| [`flowseek-t-things-notartan`](#flowseek) | portable | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
+| [`flowseek-t`](#flowseek) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
+| [`flowseek-t-things`](#flowseek) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow | yes | flow |
+| [`flowseek-t-things-notartan`](#flowseek) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
 | [`gmflow-scale1-mixdata`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | unstated | yes | flow |
 | [`gmflow-scale1-things`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
 | [`gmflow-scale2-mixdata`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | unstated | yes | flow |

@@ -1361,9 +1361,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | flowformer-small-chairs | 375x1242 | 352 | 303 | 337 | – | – | – | 2382 / 2970 | 1404 / 1698 | – |
 | flowformer-small-sintel | 375x1242 | 352 | 303 | 336 | – | – | – | 2382 / 2990 | 1404 / 1698 | – |
 | flowformer-small-things | 375x1242 | 352 | 303 | 337 | – | – | – | 2382 / 3010 | 1404 / 1698 | – |
-| flowseek-t | 1080x1920 | 650 | 457 | 395 | – | – | – | 8693 / 9880 | 8671 / 8712 | – |
-| flowseek-t-things | 1080x1920 | 650 | 458 | 395 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
-| flowseek-t-things-notartan | 1080x1920 | 651 | 458 | 396 | – | – | – | 8693 / 9820 | 8671 / 8712 | – |
+| flowseek-t | 1080x1920 | 650 | 457 | 395 | 327 | 1.4x | 1.2x | 8693 / 9880 | 8671 / 8712 | 2027 / 2192 |
+| flowseek-t-things | 1080x1920 | 650 | 458 | 395 | 327 | 1.4x | 1.2x | 8693 / 9820 | 8671 / 8712 | 2027 / 2192 |
+| flowseek-t-things-notartan | 1080x1920 | 651 | 458 | 396 | 328 | 1.4x | 1.2x | 8693 / 9820 | 8671 / 8712 | 2027 / 2192 |
 | gmflow-scale1-mixdata | 1080x1920 | 1246 | 750 | 556 | – | – | – | 8360 / 8448 | 4496 / 4642 | – |
 | gmflow-scale1-things | 1080x1920 | 1245 | 750 | 556 | – | – | – | 8360 / 8468 | 4496 / 4642 | – |
 | gmflow-scale2-mixdata | 1080x1920 | 2544 | 1608 | 1139 | – | – | – | 8425 / 8572 | 6017 / 6224 | – |
@@ -1975,9 +1975,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | flowformer-small-chairs | 0.16 (375x1242) | 1.59 (375x1242) | – | 0.37 (375x1242) | 0.56 (375x1242) | – |
 | flowformer-small-sintel | 0.15 (375x1242) | 1.56 (375x1242) | – | 0.30 (375x1242) | 0.58 (375x1242) | – |
 | flowformer-small-things | 0.15 (375x1242) | 1.42 (375x1242) | – | 0.30 (375x1242) | 0.56 (375x1242) | – |
-| flowseek-t | 0.87 | 0.18 (375x1242) | – | 0.63 | 0.46 (375x1242) | – |
-| flowseek-t-things | 0.78 | 0.18 (375x1242) | – | 0.46 | 0.47 (375x1242) | – |
-| flowseek-t-things-notartan | 0.81 | 0.18 (375x1242) | – | 0.46 | 0.46 (375x1242) | – |
+| flowseek-t | 0.87 | 0.18 (375x1242) | 0.28 (375x1242) | 0.63 | 0.46 (375x1242) | 0.38 (375x1242) |
+| flowseek-t-things | 0.78 | 0.18 (375x1242) | 0.67 (375x1242) | 0.46 | 0.47 (375x1242) | 0.40 (375x1242) |
+| flowseek-t-things-notartan | 0.81 | 0.18 (375x1242) | 0.37 (375x1242) | 0.46 | 0.46 (375x1242) | 0.38 (375x1242) |
 | gmflow-scale1-mixdata | 0.13 | 0.16 | – | 0.76 | 0.56 | – |
 | gmflow-scale1-things | 0.14 | 0.16 | – | 0.94 | 0.56 | – |
 | gmflow-scale2-mixdata | 0.13 | 0.16 | – | 1.62 | 1.14 | – |
@@ -2564,9 +2564,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | flowformer-small-chairs | 375x1242 | 337 ms | 250 ms | 202 ms | – | 98.7 s | 118 s | 1404 / 1698 | 2438 / 3196 | – | 2087 / 2138 |
 | flowformer-small-sintel | 375x1242 | 336 ms | 250 ms | 202 ms | – | 98.9 s | 117 s | 1404 / 1698 | 2438 / 3196 | – | 2087 / 2138 |
 | flowformer-small-things | 375x1242 | 337 ms | 250 ms | 202 ms | – | 99.3 s | 118 s | 1404 / 1698 | 2438 / 3196 | – | 2087 / 2138 |
-| flowseek-t | 1080x1920 | 395 ms | 258 ms | 168 ms | – | 54.2 s | 107 s | 8671 / 8712 | 6126 / 6212 | – | 11328 / 11350 |
-| flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | – | 54.6 s | 102 s | 8671 / 8712 | 6126 / 6212 | – | 11330 / 11352 |
-| flowseek-t-things-notartan | 1080x1920 | 396 ms | 258 ms | 168 ms | – | 54.3 s | 97.5 s | 8671 / 8712 | 6126 / 6212 | – | 11328 / 11350 |
+| flowseek-t | 1080x1920 | 395 ms | 258 ms | 168 ms | 327 ms | 54.2 s | 107 s | 8671 / 8712 | 6126 / 6212 | 2027 / 2192 | 11328 / 11350 |
+| flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | 327 ms | 54.6 s | 102 s | 8671 / 8712 | 6126 / 6212 | 2027 / 2192 | 11330 / 11352 |
+| flowseek-t-things-notartan | 1080x1920 | 396 ms | 258 ms | 168 ms | 328 ms | 54.3 s | 97.5 s | 8671 / 8712 | 6126 / 6212 | 2027 / 2192 | 11328 / 11350 |
 | gmflow-scale1-mixdata | 1080x1920 | 556 ms | 382 ms | 187 ms | – | 29.1 s | 67.3 s | 4496 / 4642 | 4293 / 4558 | – | 4333 / 4390 |
 | gmflow-scale1-things | 1080x1920 | 556 ms | 382 ms | 187 ms | – | 35.3 s | 69.3 s | 4496 / 4642 | 4293 / 4558 | – | 4333 / 4390 |
 | gmflow-scale2-mixdata | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
