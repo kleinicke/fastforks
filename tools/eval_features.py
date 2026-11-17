@@ -214,6 +214,21 @@ def _part(stem: Path, s0: int, chunk: int, n: int) -> Path:
     return Path(f"{stem}__{s0:05d}-{min(s0 + chunk, n):05d}.npz")
 
 
+def _score_parts(  # noqa: PLR0913 - data, split and scoring options
+    parts: list[Any], labels: torch.Tensor, ntr: int, k: int, *, weighted: bool, device: str
+) -> float:
+    """Score complete cached chunks only when every output is finite."""
+    nonfinite = sum(int(p["nonfinite"]) for p in parts)
+    values = np.concatenate([p["feat"] for p in parts])
+    if nonfinite or not np.isfinite(values).all():
+        msg = f"non-finite features in cached chunks (reported {nonfinite} images)"
+        raise ValueError(msg)
+    feats = torch.from_numpy(values).float().to(device)
+    feats = torch.nn.functional.normalize(feats, dim=1)
+    lab = labels.to(device)
+    return knn(feats[:ntr], lab[:ntr], feats[ntr:], lab[ntr:], k, weighted=weighted)
+
+
 def _tiers(a: argparse.Namespace) -> int:  # noqa: C901, PLR0912, PLR0915 - resumable chunk loop
     """Tier mode: chunks of features per model / tier, then one kNN record each; 3 = budget hit."""
     t0 = time.perf_counter()
@@ -276,18 +291,17 @@ def _tiers(a: argparse.Namespace) -> int:  # noqa: C901, PLR0912, PLR0915 - resu
                                    "k": a.k, "weighted": a.weighted}  # fmt: skip
             if err is None:
                 parts = [np.load(_part(stem, s0, a.chunk, len(imgs))) for s0 in range(0, len(imgs), a.chunk)]
-                feats = torch.from_numpy(np.concatenate([p["feat"] for p in parts])).float().cuda()
-                feats = torch.nn.functional.normalize(feats.nan_to_num(), dim=1)
-                ntr = len(tr)
-                lab = labels.cuda()
-                top1 = knn(feats[:ntr], lab[:ntr], feats[ntr:], lab[ntr:], a.k, weighted=bool(a.weighted))
                 meta = json.loads(str(parts[0]["meta"]))
                 rec |= meta | {
-                    "top1": round(top1, 3),
                     "img_s": round(sum(int(p["n"]) for p in parts) / sum(float(p["t_run"]) for p in parts), 1),
                     "alloc_mb": max(int(p["alloc"]) for p in parts), "res_mb": max(int(p["res"]) for p in parts),
                     "nonfinite": sum(int(p["nonfinite"]) for p in parts),
                 }  # fmt: skip
+                try:
+                    top1 = _score_parts(parts, labels, len(tr), a.k, weighted=bool(a.weighted), device="cuda")
+                    rec["top1"] = round(top1, 3)
+                except ValueError as e:
+                    rec["error"] = str(e)
             else:
                 rec["error"] = err
             rec |= {"gpu": torch.cuda.get_device_name(), "torch": torch.__version__, "commit": _commit(),
