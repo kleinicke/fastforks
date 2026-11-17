@@ -1,0 +1,7 @@
+# D-FINE TensorRT investigation, 2026-11-17
+
+The [TensorRT issue discussion](https://github.com/NVIDIA/TensorRT/issues/4813#issuecomment-6902929321) reports that expressing deformable bilinear sampling as four gathers avoids wrong TensorRT results in another D-FINE implementation. Our earlier `dfine-x-coco` FP16 engine returned only NaNs on RTX 5060 Ti / TensorRT 11.4, while its eager output was finite.
+
+An experiment in local worktree `wt-dfine-trt-gather`, commit `ed500452`, replaces `GridSample` during ONNX export with gather-based zero-padded bilinear sampling. On random sampling values, including out-of-bounds locations, it agreed with PyTorch to max absolute error 1.08e-6. The first export produced an invalid ONNX `Clip` node; replacing the clamp with `where` produced a valid ONNX graph with zero GridSample nodes. A 640x640 FP16 engine built and both outputs were finite. The raw query-index differences were large (mean absolute logit 0.230 and box coordinate 0.200); query order can change, so these differences alone do not establish detection accuracy. A matched real-image COCO evaluation is queued. No released code or website performance row has been changed; the workaround is not yet validated.
+
+Raw scripts, engine and logs: experiment workspace `results/raw/2026-11-17_dfine_gather/`. The experiment affects shared detection attention export, so any production change also needs targeted checks of the other affected families, sizes and export formats.
