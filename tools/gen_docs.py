@@ -532,6 +532,7 @@ _ENGINE_PART = {
     "pose": "network on person crops",
     "retinaface": "network",  # face detectors: the whole image, decoding and NMS outside
     "yunet": "network",
+    "nnfoundation": "encoder on a normalized, padded volume; memory estimated",
 }  # task / family: `module()`
 
 
@@ -541,7 +542,8 @@ def _engine_part(model_id: str) -> str:
     for task in registry.TASKS:
         for card, v in registry.cards(task).values():
             if v.id == model_id and (part := _ENGINE_PART.get(card.family) or _ENGINE_PART.get(task)):
-                return f" ({part} only)"
+                subject, separator, qualifier = part.partition("; ")
+                return f" ({subject} only{separator}{qualifier})"
     return ""
 
 

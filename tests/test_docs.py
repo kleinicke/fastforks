@@ -60,6 +60,12 @@ def test_overview_prefers_default_portable_to_portable32():
     assert next(r["error"] for r in overview if r["id"] == "gmflow-scale1-things") == 1.0
 
 
+def test_nnfoundation_engine_labels_preprocessing_scope():
+    assert (
+        gen_docs._engine_part("nnfoundation-cnn") == " (encoder on a normalized, padded volume only; memory estimated)"
+    )
+
+
 def test_public_functions_document_their_args():
     """Every public function and method of `fastforks` / `.stereo` / `.stereo.geometry` with parameters has `Args:`."""
     missing = []

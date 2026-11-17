@@ -28,7 +28,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nnfoundation-cnn` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>274<br>226<br>211<br>170<br>planned for 0.2.1 | 7247 / 8734<br>3818 / 4628<br>3011 / 3130<br>2985 / 3710<br>5067 / 5110<br>– |
+| `nnfoundation-cnn` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>274<br>226<br>211<br>170<br>255 (encoder on a normalized, padded volume only; memory estimated) | 7247 / 8734<br>3818 / 4628<br>3011 / 3130<br>2985 / 3710<br>5067 / 5110<br>3374 / 3398 |
 | `nnfoundation-vit` | synthetic (192x192) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>1930<br>1848<br>1732<br>1440<br>planned for 0.2.1 | –<br>3930 / 4298<br>1669 / 1884<br>1669 / 1884<br>1406 / 1484<br>– |
 
 <details><summary>Details</summary>
@@ -40,11 +40,11 @@ Commercial use: yes.
 - Training data: 2.1 million CT, MRI and PET volumes from 125 institutional and public datasets (Human Radiome Project); the dataset list is not published with the weights. Share-alike: models fine-tuned from these weights are adapted material under CC-BY-SA-4.0.
 - Kernel libraries: `vol_norm`
 - Variants: `nnfoundation-cnn`, `nnfoundation-vit`
-- Not in this release (planned for 0.2.1): `nnfoundation-cnn` ONNX / TensorRT export: the export example does not match the 3-D input layout (channels_last_3d needs rank 5); `nnfoundation-vit` ONNX / TensorRT export: the export example is smaller than the 3-D patch kernel (8x8x8)
+- Not in this release (planned for 0.2.1): `nnfoundation-vit` ONNX / TensorRT export: the export example is smaller than the 3-D patch kernel (8x8x8)
 - Outputs: features
 - Input size: any D x H x W volume, no resampling, one encoder pass (a fixed-grid ViT: each side up to its grid)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nnfoundation-cnn` 384x384x384 voxels (14.2 GiB peak allocated, 14.8 reserved); `nnfoundation-vit` 192x192x192 voxels (1.6 GiB peak allocated, 1.8 reserved)
-- `nnfoundation-cnn` 200x200, first call: portable + torch.compile 20 s (cold Inductor cache).
+- `nnfoundation-cnn` 200x200, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 49 s (ONNX + engine).
 - `nnfoundation-vit` 192x192, first call: portable + torch.compile 69 s (cold Inductor cache).
 - `nnfoundation-cnn` original (fp32) 200x200, original 200x200: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
 - `nnfoundation-vit` original 192x192: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
