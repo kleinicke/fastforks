@@ -71,6 +71,20 @@ INPUTS: dict[str, tuple[str, str, str, str, str]] = {
 _SK = "https://scikit-image.org/docs/stable/api/skimage.data.html"
 _SKCRED = "scikit-image sample image"
 INPUTS |= {
+    "astronaut-lowres-2x": (
+        "astronaut",
+        "Astronaut, 2x downscaled with blur and noise",
+        "NASA",
+        "public domain",
+        "https://flic.kr/p/r9qvLn",
+    ),
+    "astronaut-lowres-4x": (
+        "astronaut",
+        "Astronaut, 4x downscaled with blur and noise",
+        "NASA",
+        "public domain",
+        "https://flic.kr/p/r9qvLn",
+    ),
     "astronaut-face": (
         "astronaut",
         "Astronaut Eileen Collins, face crop",
@@ -589,6 +603,8 @@ def _restoration(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[s
     ref = model.variant.id
     face = any(k in ref for k in ("gfpgan", "codeformer"))
     _clean, low, name, kw = _degrade(ref, model.scale, face)
+    if name == "astronaut-lowres" and model.scale in (2, 4):
+        name = f"astronaut-lowres-{model.scale}x"
     r = model(low, **kw)
     out = (np.clip(_np(r.image), 0, 1).transpose(1, 2, 0) * 255).round().astype(np.uint8)
     inp = _up(low, out.shape[0] / low.shape[0], Image.Resampling.NEAREST)

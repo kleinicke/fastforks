@@ -809,7 +809,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | `sea-raft-m-spring` | KITTI 2015 train, EPE / Fl-all % | 6.779 / 23.75 | 6.775 / 23.74 | 6.775 / 23.74 | 6.779 / 23.75 | 6.783 / 23.74 | trained on this dataset's public images; not a zero-shot result |
 | `sea-raft-m-things` | KITTI 2015 train, EPE / Fl-all % | 4.293 / 14.31 | 4.290 / 14.32 | 4.289 / 14.32 | 4.295 / 14.31 | 4.307 / 14.32 |  |
 | `sea-raft-s` | KITTI 2015 train, EPE / Fl-all % | 1.054 / 3.13 | 1.054 / 3.13 | 1.054 / 3.13 | 1.054 / 3.13 | 1.054 / 3.14 | trained on this dataset's public images; not a zero-shot result |
-| `sea-raft-s-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.936 / 2.66 | 0.936 / 2.66 | 0.936 / 2.66 |  | 0.935 / 2.65 | trained on this dataset's public images; not a zero-shot result |
+| `sea-raft-s-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.936 / 2.66 | 0.936 / 2.66 | 0.936 / 2.66 | 0.935 / 2.66 | 0.935 / 2.65 | trained on this dataset's public images; not a zero-shot result |
 | `sea-raft-s-spring` | KITTI 2015 train, EPE / Fl-all % | 7.758 / 26.52 | 7.758 / 26.52 | 7.758 / 26.52 |  | 7.757 / 26.51 | trained on this dataset's public images; not a zero-shot result |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f2992269+uncommitted, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f2992269+uncommitted, 2026-11-10.

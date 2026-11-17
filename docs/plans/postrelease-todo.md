@@ -36,3 +36,7 @@ may already exist on the live site, so these figures are not a count of broken w
 inventory is `results/2026-11-17_missing_site_examples.tsv` in the experiment workspace.
 The generator's `_done()` currently skips successful metadata rows even if the corresponding local file is missing;
 restore those assets from their original location or explicitly regenerate them rather than relying on the default skip.
+
+On 2026-11-17 the missing `span-x2` and `span-x4` examples were generated and visually checked; their metadata is in
+`docs/data/examples.jsonl`. The two rendered images and distinct 2x/4x input images are in the local asset directory
+above and still need to be supplied to the website. Generation now gives those two degraded inputs different names.
