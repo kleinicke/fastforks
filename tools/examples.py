@@ -196,6 +196,18 @@ INPUT_OF = {
     "parseq": "page-line",
     "parseq-tiny": "page-line",
 }
+for name, caption in (
+    ("ct-s0013-features", "axial crop for encoder features"),
+    ("ct-s0013-interactive", "axial and coronal slices for interactive segmentation"),
+):
+    loader, _title, credit, licence, source = INPUTS["ct-s0013"]
+    INPUTS[name] = (
+        loader,
+        f"CT case s0013 of TotalSegmentator v3.0.0 (test split), {caption}",
+        credit,
+        licence,
+        source,
+    )
 FACE = (150, 20, 350, 220)  # the astronaut's face (x0, y0, x1, y1)
 OPEN_VOCAB = ["person", "flag", "helmet"]  # open-vocabulary detectors' queries on the astronaut
 VOLUME = DATA / "totalsegmentator_subset" / "s0013" / "ct.nii.gz"
@@ -365,7 +377,13 @@ def _depth(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, An
     if r.depth is None and r.inverse_depth is None and r.normals is not None:  # normal estimators: normals as colour
         n = _np(r.normals)
         return ((np.clip(n, -1, 1) * 0.5 + 0.5) * 255).astype(np.uint8), {"kind": "normals"}
-    inv = _np(r.inverse_depth) if r.inverse_depth is not None else 1 / np.maximum(_np(r.depth), 1e-6)
+    if r.inverse_depth is not None:
+        inv = _np(r.inverse_depth)
+    elif r.kind in {"affine_invariant", "affine_invariant_log"}:
+        # A relative depth may have an arbitrary offset, including negative values.
+        inv = -_np(r.depth)
+    else:
+        inv = 1 / np.maximum(_np(r.depth), 1e-6)
     valid = _np(r.mask) > 0 if r.mask is not None else None
     out = turbo(_normalise(inv, valid))
     if valid is not None:
@@ -491,7 +509,10 @@ def _detection(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str
 
 
 def _promptable(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401
-    if "text" in getattr(model, "prompts", ()):
+    prompts = getattr(model, "prompts", ())
+    if "reference" in prompts:
+        return _reference_prompt(model, imgs[0])
+    if "text" in prompts:
         r = model(imgs[0], text=CONCEPT)
         out, objects = _instances(imgs[0], r, _np(r.scores) >= SCORE, CONCEPT)
         return out, {"prompt": f'text "{CONCEPT}"', "objects": objects}
@@ -503,6 +524,38 @@ def _promptable(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[st
     x, y = POINT
     draw.ellipse((x - 7, y - 7, x + 7, y + 7), fill=(255, 220, 0), outline=(0, 0, 0), width=2)
     return np.asarray(pil), {"prompt": "one foreground point", "iou": round(float(r.iou_scores[best]), 3)}
+
+
+def _reference_prompt(model: Any, img: np.ndarray) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401
+    """Show the reference mask on a flipped crop of the coffee photo alongside the target result."""
+    crop = (160, 90, 470, 330)
+    mask = Image.new("L", (img.shape[1], img.shape[0]))
+    ImageDraw.Draw(mask).polygon(
+        [
+            (207, 156),
+            (265, 130),
+            (339, 145),
+            (387, 183),
+            (411, 230),
+            (380, 258),
+            (347, 250),
+            (290, 280),
+            (233, 258),
+            (209, 222),
+        ],
+        fill=255,
+    )
+    reference = np.asarray(Image.fromarray(img).crop(crop).transpose(Image.Transpose.FLIP_LEFT_RIGHT))
+    foreground = np.asarray(mask.crop(crop).transpose(Image.Transpose.FLIP_LEFT_RIGHT)) > 0
+    result = model(img, reference_images=reference, reference_masks=foreground)
+    blue = (64, 160, 255)
+    panel = Image.new("RGB", (img.shape[1] + reference.shape[1], img.shape[0]), (28, 28, 28))
+    panel.paste(Image.fromarray(_blend(reference, foreground, blue)), (0, 20))
+    panel.paste(Image.fromarray(_blend(img, _np(result.masks) > 0, blue)), (reference.shape[1], 0))
+    draw = ImageDraw.Draw(panel)
+    _label(draw, (4, 2), "Reference mask", blue)
+    _label(draw, (reference.shape[1] + 4, 2), "Predicted mask", blue)
+    return np.asarray(panel), {"prompt": "cup mask on a flipped crop of the same photo", "layout": "reference | target"}
 
 
 PEOPLE = 0.5  # pose: person score a bottom-up model's detection needs to be drawn
@@ -725,13 +778,49 @@ def _slice_rgb(ct: np.ndarray, lab: np.ndarray, spacing: tuple[float, float]) ->
     return np.asarray(Image.fromarray(img).resize((w, h), Image.Resampling.NEAREST))
 
 
+def _volume_features(model: Any, vol: np.ndarray, sp: tuple[float, float, float]) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401
+    """Display the first three principal components of one axial feature slice as RGB."""
+    crop = tuple(slice(max(0, (n - 96) // 2), min(n, (n + 96) // 2)) for n in vol.shape)
+    roi = vol[crop]
+    r = model(np.ascontiguousarray(roi))
+    feat = r.features[0]
+    axial = feat[:, feat.shape[1] // 2].float()
+    h, w = axial.shape[1:]
+    tokens = axial.flatten(1).T
+    tokens = tokens - tokens.mean(0)
+    _, _, basis = torch.linalg.svd(tokens, full_matrices=False)
+    components = _np(tokens @ basis[:3].T).reshape(h, w, 3)
+    rgb = np.stack([_normalise(channel) for channel in components.transpose(2, 0, 1)], -1)
+    ct = roi[roi.shape[0] // 2]
+    plain = _slice_rgb(ct, np.zeros_like(ct), (sp[1], sp[2]))
+    overlay = Image.fromarray((rgb * 255).astype(np.uint8))
+    out = np.asarray(overlay.resize((plain.shape[1], plain.shape[0]), Image.Resampling.BICUBIC))
+    return out, {
+        "input": "ct-s0013-features",
+        "_inputs": [plain],
+        "layout": "axial encoder features (three PCA channels)",
+    }
+
+
 def _volume(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, Any]]:  # noqa: ANN401, ARG001 - the CT is read from disk
-    from fastforks.volume import read_nifti  # noqa: PLC0415
+    from fastforks.volume import VolumeEncoder, VolumeInteractive, read_nifti  # noqa: PLC0415
 
     vol, meta = read_nifti(VOLUME)
-    r = model(vol, meta=meta)
-    lab = _np(r.labels).astype(np.int64)
     sp = tuple(float(s) for s in meta.spacing)  # (d, h, w) mm
+    if isinstance(model, VolumeEncoder):
+        return _volume_features(model, vol, sp)
+    extra: dict[str, Any] = {}
+    if isinstance(model, VolumeInteractive):
+        organ, _ = read_nifti(VOLUME.with_name("segmentations") / "spleen.nii.gz")
+        points = np.argwhere(organ > 0)
+        point = points[np.argmin(((points - points.mean(0)) ** 2).sum(1))].tolist()
+        lab = _np(model(vol, point=point).mask).astype(np.int64)
+        names = {1: "predicted foreground"}
+        extra = {"input": "ct-s0013-interactive", "prompt": "one foreground point inside the spleen"}
+    else:
+        r = model(vol, meta=meta)
+        lab = _np(r.labels).astype(np.int64)
+        names = r.class_names
     z = int(np.argmax((lab > 0).sum((1, 2))))
     y = int(np.argmax((lab > 0).sum((0, 2))))
     axial = _slice_rgb(vol[z], lab[z], (sp[1], sp[2]))
@@ -748,10 +837,11 @@ def _volume(model: Any, imgs: list[np.ndarray]) -> tuple[np.ndarray, dict[str, A
     )
     ids, counts = np.unique(lab[lab > 0], return_counts=True)
     top = [
-        [r.class_names.get(int(i), str(i)), round(float(c) * float(np.prod(sp)) / 1e6, 2), palette(int(i))]
+        [names.get(int(i), str(i)), round(float(c) * float(np.prod(sp)) / 1e6, 2), palette(int(i))]
         for i, c in sorted(zip(ids, counts, strict=True), key=lambda t: -t[1])[:6]
     ]
     return out, {
+        **extra,
         "_inputs": [plain],
         "classes_litres": top,
         "labels_found": len(ids),
