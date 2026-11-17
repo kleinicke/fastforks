@@ -12,7 +12,8 @@ Local generated site data on 2026-11-17 (573 variants; a snapshot, not the live 
   (`clipseg`). A recorded time is not evidence that task accuracy was validated.
 - [ ] 73 variants belong to families without a kernels mode. All have a stated family-level reason, but some reasons
   merely say the implementation has not been built; review and develop candidates, and measure speed, memory, and
-  correctness before considering them complete.
+  correctness before considering them complete. The user is handling kernel development in parallel; see
+  [the family and variant list](missing-kernel-modes-0.2.1.md).
 
 Counts use the generated site's per-variant quality and speed entries; multiple evaluation datasets or resolutions
 per variant can have additional gaps. Preserve the existing comparison protocols when filling them.
