@@ -2672,7 +2672,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | swinir-m-x4-real | 512x512 | 1242 ms | 807 ms | 733 ms | 584 ms | 59.6 s | 109 s | 2387 / 3034 | 1683 / 1796 | 1353 / 1814 | 5427 / 5506 |
 | nnfoundation-cnn | 200x200 | 226 ms | 170 ms | planned for 0.2.1 | 211 ms | 19.8 s | – | 3011 / 3130 | 5067 / 5110 | 2985 / 3710 | – |
 | nnfoundation-vit | 192x192 | 1848 ms | 1440 ms | planned for 0.2.1 | 1732 ms | 69.5 s | – | 1669 / 1884 | 1406 / 1484 | 1669 / 1884 | – |
-| nninteractive | 200x200 | 215 ms | planned for 0.2.1 | planned for 0.2.1 | 201 ms | – | – | 3075 / 3492 | – | 2643 / 3072 | – |
+| nninteractive | 200x200 | 215 ms | 162 ms | planned for 0.2.1 | 201 ms | 18.0 s | – | 3075 / 3492 | 3643 / 3832 | 2643 / 3072 | – |
 | totalsegmentator-total | 200x200 | 1927 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 1740 ms | – | – | 2605 / 2944 | – | 2349 / 2704 | – |
 | totalsegmentator-total-3mm | 200x200 | 67.1 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 63.5 ms | – | – | 1092 / 1508 | – | 1037 / 1410 | – |
 <!-- compile:end -->
