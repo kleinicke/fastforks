@@ -145,20 +145,20 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `dfine-n-coco` | COCO val2017, every 10th image, box mAP | 42.94 | 42.91 | 42.91 | 42.97 |  |
-| `dfine-s-coco` | COCO val2017, every 10th image, box mAP | 49.84 | 49.83 | 49.88 | 49.89 |  |
-| `dfine-m-coco` | COCO val2017, every 10th image, box mAP | 51.92 | 51.95 | 52.03 | 52.00 |  |
-| `dfine-l-coco` | COCO val2017, every 10th image, box mAP | 54.17 | 54.18 | 54.14 | 54.17 |  |
-| `dfine-x-coco` | COCO val2017, every 10th image, box mAP | 56.40 | 56.38 | 56.30 | 56.32 |  |
-| `deim-n-coco` | COCO val2017, every 10th image, box mAP | 44.38 | 44.37 | 44.40 | 44.38 |  |
-| `deim-s-coco` | COCO val2017, every 10th image, box mAP | 49.46 | 49.45 | 49.50 | 49.52 |  |
-| `deim-m-coco` | COCO val2017, every 10th image, box mAP | 52.38 | 52.43 | 52.43 | 52.43 |  |
-| `deim-l-coco` | COCO val2017, every 10th image, box mAP | 54.67 | 54.65 | 54.67 | 54.67 |  |
-| `deim-x-coco` | COCO val2017, every 10th image, box mAP | 56.87 | 56.91 | 56.86 | 56.90 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `dfine-n-coco` | COCO val2017, every 10th image, box mAP | 42.94 | 42.91 | 42.91 | 42.98 | 42.97 |  |
+| `dfine-s-coco` | COCO val2017, every 10th image, box mAP | 49.84 | 49.83 | 49.88 | 49.84 | 49.89 |  |
+| `dfine-m-coco` | COCO val2017, every 10th image, box mAP | 51.92 | 51.95 | 52.03 |  | 52.00 |  |
+| `dfine-l-coco` | COCO val2017, every 10th image, box mAP | 54.17 | 54.18 | 54.14 |  | 54.17 |  |
+| `dfine-x-coco` | COCO val2017, every 10th image, box mAP | 56.40 | 56.38 | 56.30 |  | 56.32 |  |
+| `deim-n-coco` | COCO val2017, every 10th image, box mAP | 44.38 | 44.37 | 44.40 |  | 44.38 |  |
+| `deim-s-coco` | COCO val2017, every 10th image, box mAP | 49.46 | 49.45 | 49.50 |  | 49.52 |  |
+| `deim-m-coco` | COCO val2017, every 10th image, box mAP | 52.38 | 52.43 | 52.43 |  | 52.43 |  |
+| `deim-l-coco` | COCO val2017, every 10th image, box mAP | 54.67 | 54.65 | 54.67 |  | 54.67 |  |
+| `deim-x-coco` | COCO val2017, every 10th image, box mAP | 56.87 | 56.91 | 56.86 |  | 56.90 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 675d6e93 / a981ff86, 2026-11-11 to 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 675d6e93 / a981ff86, 2026-11-11 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 675d6e93 / a981ff86, 2026-11-11 to 2026-11-12.
 
 ### Parity
 
@@ -225,12 +225,12 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `detr-r50-coco` | COCO val2017, every 10th image, box mAP | 43.59 | 43.53 | 43.59 | 43.62 |  |
-| `detr-r101-coco` | COCO val2017, every 10th image, box mAP | 44.04 | 44.00 | 44.11 | 44.05 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `detr-r50-coco` | COCO val2017, every 10th image, box mAP | 43.59 | 43.53 | 43.59 | 43.56 | 43.62 |  |
+| `detr-r101-coco` | COCO val2017, every 10th image, box mAP | 44.04 | 44.00 | 44.11 | 44.05 | 44.05 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
