@@ -24,6 +24,28 @@ _PATCH = (16, 16, 16)
 _DNA = "dynamic_network_architectures.architectures.unet"
 
 
+def test_encoder_example_inputs_are_3d_volumes() -> None:
+    """The export input has the encoder's channels and all three spatial dimensions."""
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    encoder = SimpleNamespace(
+        channels=2, device=torch.device("cpu"), max_size=None, _runner=SimpleNamespace(multiple=8)
+    )
+    (x,) = volume.VolumeEncoder.example_inputs(encoder, 12, 20, batch=3)
+    assert x.shape == (3, 2, 16, 24, 24)
+    assert x.dtype == torch.float32
+    assert torch.count_nonzero(x[:, :, 12:]) == 0
+    assert torch.count_nonzero(x[:, :, :, 20:]) == 0
+    assert torch.count_nonzero(x[:, :, :, :, 20:]) == 0
+    encoder.max_size = 32
+    encoder._runner.arch = "vit"
+    (x,) = volume.VolumeEncoder.example_inputs(encoder, 12, 20)
+    assert x.shape == (1, 2, 32, 32, 32)
+    encoder.variant = SimpleNamespace(ref="test-encoder")
+    with pytest.raises(InputError, match="up to 32"):
+        volume.VolumeEncoder.example_inputs(encoder, 33, 20)
+
+
 def _plans(scheme: str = "CTNormalization") -> dict:
     arch = {
         "network_class_name": f"{_DNA}.PlainConvUNet",

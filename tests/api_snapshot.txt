@@ -350,6 +350,7 @@ def fastforks.tracking.list_models(filter: 'str | Sequence[str]' = '*', *, exclu
 def fastforks.tracking.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.tracking._api.TrackingModel
 def fastforks.tracking.model_card(model: 'str') -> 'ModelCard'
 def fastforks.volume._api.VolumeEncoder.__call__(self, volume: 'np.ndarray | torch.Tensor') -> 'VolumeFeatures'
+def fastforks.volume._api.VolumeEncoder.example_inputs(self, height: 'int | None' = None, width: 'int | None' = None, *, batch: 'int' = 1) -> 'tuple[torch.Tensor, ...]'
 def fastforks.volume._api.VolumeInteractive.__call__(self, volume: 'np.ndarray | torch.Tensor', *, point: 'Sequence[float] | None' = None, box: 'Sequence[Sequence[float]] | None' = None, scribble: 'np.ndarray | torch.Tensor | None' = None, positive: 'bool' = True) -> 'VolumeMask'
 def fastforks.volume._api.VolumeInteractive.session(self, volume: 'np.ndarray | torch.Tensor') -> 'VolumeSession'
 def fastforks.volume._api.VolumeModel.__call__(self, volume: 'np.ndarray | torch.Tensor', *, spacing: 'Sequence[float] | None' = None, meta: 'VolumeMeta | None' = None) -> 'VolumeResult'

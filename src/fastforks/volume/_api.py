@@ -258,6 +258,40 @@ class VolumeEncoder(core.Model):
         self.widths = tuple(runner.widths)
         self.max_size = runner.max_size
 
+    def example_inputs(
+        self, height: int | None = None, width: int | None = None, *, batch: int = 1
+    ) -> tuple[torch.Tensor, ...]:
+        """Return a normalised, padded 3D example for the encoder's `module()`.
+
+        Args:
+            height: Volume depth; default: the task's export size.
+            width: Volume height and width.
+            batch: Number of volumes.
+
+        Returns:
+            One `[batch, channels, depth, height, width]` tensor on the model's device, padded as the encoder needs.
+
+        Raises:
+            InputError: A requested side exceeds the encoder's maximum size.
+        """
+        from fastforks._core.export import resolve_size  # noqa: PLC0415
+
+        height, width = resolve_size(self, height, width)
+        original_height, original_width = height, width
+        if self.max_size is not None and max(height, width) > self.max_size:
+            msg = f"{self.variant.ref} takes sides up to {self.max_size} voxels, got {height}x{width}x{width}"
+            raise InputError(msg)
+        if self.max_size is not None and getattr(self._runner, "arch", None) == "vit":
+            height = width = self.max_size
+        else:
+            multiple = getattr(self._runner, "multiple", 1)
+            height = -(-height // multiple) * multiple
+            width = -(-width // multiple) * multiple
+        generator = torch.Generator().manual_seed(0)
+        x = torch.randn(batch, self.channels, original_height, original_width, original_width, generator=generator)
+        padding = (0, width - original_width, 0, width - original_width, 0, height - original_height)
+        return (torch.nn.functional.pad(x, padding).to(self.device),)
+
     def __call__(self, volume: np.ndarray | torch.Tensor) -> VolumeFeatures:
         """Encode a volume (no resampling: pass it at the spacing the model card names).
 

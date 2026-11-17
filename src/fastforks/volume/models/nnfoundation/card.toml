@@ -45,7 +45,6 @@ variants = ["nnfoundation-vit"]
 
 [[variants]]
 id = "nnfoundation-cnn"
-planned = { onnx = "the export example does not match the 3-D input layout (channels_last_3d needs rank 5)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { arch = "cnn" }
 weights = [{ name = "nnFoundationCNN/checkpoint_final.pth", size = 409579442, sha256 = "ac262d3e8c226c79f9567fddc34d38e011284730ddf2294b5c6c319ce2f22bbd", url = "https://huggingface.co/MIC-DKFZ/nnFoundationCNN/resolve/f443c09319988e833b3d9589bf95909e4443d7b2/checkpoint_final.pth" }]
