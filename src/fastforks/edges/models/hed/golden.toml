@@ -13,3 +13,12 @@ gpu_p99 = 0.25
 sha256 = "7241aa837b04a960a4eddf318a95648a56a080ad831d75628b25fac6d79ee6cf"
 upstream = "https://github.com/huggingface/controlnet_aux@b1aac318b15c4e65a21bc516dc236ad4bf593d46"
 settings = "CPU float32, controlnet_aux hed in float (cv2 resize_image, no 8-bit rounding), resolution 512, coffee.png, torch 2.14.1+cu130"
+
+[validated."hed@1"]
+kernels = ["cudnn_hacc@cudnn91501", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 6e-05
+p99_px = 0.00102

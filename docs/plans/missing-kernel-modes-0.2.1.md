@@ -2,6 +2,18 @@
 
 Snapshot of generated local website data on 2026-11-17: 25 families, 73 variants. These are family-level reasons from the model cards, not new independent validation of the claims. The list describes absent modes, not missing individual kernels inside existing modes.
 
+## RTX 5060 Ti follow-up
+
+Three variants from the snapshot now have a kernels mode. The table shows warm end-to-end latency on a 1920 × 1080 CUDA uint8 input (batch one, five warm-ups, median of 15 synchronized calls). Memory is peak allocated CUDA tensor memory during the timed calls. The portable and kernels modes passed the repository's upstream golden checks.
+
+| Variant | Portable | Kernels | Speedup | Peak MiB, portable → kernels |
+|---|---:|---:|---:|---:|
+| HED | 10.87 ms | 8.16 ms | 1.33× | 194 → 200 |
+| Lineart | 19.89 ms | 17.63 ms | 1.13× | 228 → 224 |
+| Lineart Coarse | 19.90 ms | 17.63 ms | 1.13× | 228 → 224 |
+
+At 512 × 512, HED improved from 5.52 to 4.15 ms. The two Lineart variants gained about 0.24 ms each at that size. The experimental Lineart Anime path regressed from 3.33 to 4.10 ms at 512 × 512, so that variant retains its portable implementation.
+
 ## anyline (1)
 
 Variants: `anyline`.

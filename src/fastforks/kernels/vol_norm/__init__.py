@@ -47,3 +47,40 @@ def norm_act_(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor, eps: fl
     total = n * s * c8
     lib.launch("in_apply_h", *kernels.linear(total), x, stats, total, s, c, float(slope))
     return x
+
+
+class ImageNorm(torch.nn.Module):
+    """Evaluate an unaffined image instance norm and optional ReLU on a dense channels-last image."""
+
+    ones: torch.Tensor
+    zeros: torch.Tensor
+
+    def __init__(self, norm: torch.nn.InstanceNorm2d, device: torch.device, *, relu: bool) -> None:
+        """Create unit scale and zero bias for the upstream normalization."""
+        super().__init__()
+        self.eps = norm.eps
+        self.slope = 0.0 if relu else 1.0
+        self.register_buffer("ones", torch.ones(norm.num_features, device=device, dtype=torch.float16))
+        self.register_buffer("zeros", torch.zeros_like(self.ones))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """View H x W as a depth-one volume; normalize the convolution output in place."""
+        volume = x.contiguous(memory_format=torch.channels_last).unsqueeze(2)
+        return norm_act_(volume, self.ones, self.zeros, self.eps, self.slope).squeeze(2)
+
+
+def prepare_image_norms(net: torch.nn.Module, device: torch.device) -> None:
+    """Fuse instance norm and an adjacent ReLU in sequential convolution blocks."""
+    load(device)
+    net.to(memory_format=torch.channels_last)
+    for seq in list(net.modules()):
+        if isinstance(seq, torch.nn.Sequential):
+            for i, child in enumerate(seq):
+                if isinstance(child, torch.nn.InstanceNorm2d):
+                    if child.affine or child.track_running_stats or child.num_features % _V8:
+                        msg = "ImageNorm requires unaffined instance norm with a multiple of eight channels"
+                        raise ValueError(msg)
+                    relu = i + 1 < len(seq) and isinstance(seq[i + 1], torch.nn.ReLU)
+                    seq[i] = ImageNorm(child, device, relu=relu)
+                    if relu:
+                        seq[i + 1] = torch.nn.Identity()

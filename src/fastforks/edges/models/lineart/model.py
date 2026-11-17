@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING
 import torch
 
 from fastforks.edges._runner import Forward, Runner, to_detect, to_input
+from fastforks.kernels.vol_norm import prepare_image_norms
+from fastforks.shared import cnn_kernels
 
 from .net import Generator
 
@@ -58,4 +60,17 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image: self(image)["edges"])
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Channels-last convolutions with fused instance normalization."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Fuse the image instance norms and their adjacent ReLUs."""
+        super().__init__(ctx)
+        prepare_image_norms(self.net, ctx.device)
+        cnn_kernels.load(ctx.device)
+        cnn_kernels.prepare_convs(self.net)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

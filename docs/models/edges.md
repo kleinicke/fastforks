@@ -13,10 +13,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`anyline`](#anyline) | yes | no kernels | no kernels |
-| [`hed`](#hed) | yes | no kernels | no kernels |
-| [`lineart`](#lineart) | yes | no kernels | no kernels |
+| [`hed`](#hed) | yes | – | – |
+| [`lineart`](#lineart) | yes | – | – |
 | [`lineart-anime`](#lineart_anime) | yes | no kernels | no kernels |
-| [`lineart-coarse`](#lineart) | yes | no kernels | no kernels |
+| [`lineart-coarse`](#lineart) | yes | – | – |
 | [`mlsd`](#mlsd) | yes | no kernels | no kernels |
 | [`pidinet`](#pidinet) | no | no kernels | no kernels |
 | [`teed`](#teed) | yes | no kernels | no kernels |
@@ -76,7 +76,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hed` | synthetic (1080x1920) | original<br>portable<br>kernels | 38.5<br>11.3<br>no kernels | 300 / 324<br>187 / 224<br>no kernels |
+| `hed` | synthetic (1080x1920) | original<br>portable<br>kernels | 38.5<br>11.3<br>– | 300 / 324<br>187 / 224<br>– |
 
 <details><summary>Details</summary>
 
@@ -86,12 +86,11 @@ Commercial use: yes.
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/hed/__init__.py ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1); HED (Xie and Tu) trains on BSDS500; this re-trained model states no data.
 - Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `safe` = False
-- Kernel libraries: none (a VGG-style CNN: cuDNN convolutions are the whole time; no custom kernel measured to pay off)
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `hed`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hed` 1080x1920 (0.2 GiB peak allocated, 0.2 reserved)
-- no kernels: a VGG-style CNN: cuDNN convolutions are the whole time; no custom kernel measured to pay off.
 - `hed` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c hed, host OpenCV resize, float post-processing
 - `hed` load / first call: original 0.24 s / 0.057 s, portable 0.18 s / 0.012 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -102,7 +101,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `hed` | no kernels backend | - | - |
+| `hed` | 6e-05 / 0.00102 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 </details>
 
@@ -116,8 +115,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lineart` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.8<br>18.3<br>no kernels | 221 / 264<br>222 / 284<br>no kernels |
-| `lineart-coarse` | synthetic (1080x1920) | original<br>portable<br>kernels | 30.4<br>18.3<br>no kernels | 221 / 264<br>222 / 284<br>no kernels |
+| `lineart` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.8<br>18.3<br>– | 221 / 264<br>222 / 284<br>– |
+| `lineart-coarse` | synthetic (1080x1920) | original<br>portable<br>kernels | 30.4<br>18.3<br>– | 221 / 264<br>222 / 284<br>– |
 
 <details><summary>Details</summary>
 
@@ -127,12 +126,11 @@ Commercial use: yes.
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/lineart/LICENSE ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1); informative-drawings trains on unpaired photographs and line drawings.
 - Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`)
-- Kernel libraries: none (a small conv generator: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off)
+- Kernel libraries: `vol_norm`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `lineart`, `lineart-coarse`
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lineart` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved); `lineart-coarse` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved)
-- no kernels: a small conv generator: cuDNN convolutions and instance norm are the whole time; no custom kernel measured to pay off.
 - `lineart` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
 - `lineart-coarse` original 1080x1920: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
 - `lineart` load / first call: original 0.65 s / 0.049 s, portable 0.16 s / 0.019 s
@@ -145,8 +143,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `lineart` | no kernels backend | - | - |
-| `lineart-coarse` | no kernels backend | - | - |
+| `lineart` | 0.00011 / 0.00078 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `vol_norm@44036d4da567:sm_120` |
+| `lineart-coarse` | 0.00013 / 0.00103 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `vol_norm@44036d4da567:sm_120` |
 
 </details>
 
@@ -320,10 +318,10 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
 | [`anyline`](#anyline) | portable | MIT | LicenseRef-CreativeML-OpenRAIL-PlusPlus-M | unstated | yes | edges |
-| [`hed`](#hed) | portable | Apache-2.0 | Apache-2.0 | unstated | yes | edges |
-| [`lineart`](#lineart) | portable | MIT | MIT (assumed from code) | unstated | yes | edges |
+| [`hed`](#hed) | portable, kernels | Apache-2.0 | Apache-2.0 | unstated | yes | edges |
+| [`lineart`](#lineart) | portable, kernels | MIT | MIT (assumed from code) | unstated | yes | edges |
 | [`lineart-anime`](#lineart_anime) | portable | MIT | MIT (assumed from code) | unstated | yes | edges |
-| [`lineart-coarse`](#lineart) | portable | MIT | MIT (assumed from code) | unstated | yes | edges |
+| [`lineart-coarse`](#lineart) | portable, kernels | MIT | MIT (assumed from code) | unstated | yes | edges |
 | [`mlsd`](#mlsd) | portable | Apache-2.0 | Apache-2.0 | unstated | yes | edges, lines |
 | [`pidinet`](#pidinet) | portable | LicenseRef-research-only | LicenseRef-research-only (assumed from code) | unstated | **no** (code: LicenseRef-research-only (noncommercial); weights: LicenseRef-research-only (assumed from code)) | edges |
 | [`teed`](#teed) | portable | MIT | MIT | biped | yes | edges |
