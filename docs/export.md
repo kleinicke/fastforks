@@ -35,7 +35,7 @@ fastforks export s2m2-s --format trt --size 384x1248 --fp16       # the model's 
 | depth | `image`: RGB in `[0, 1]` | the model's main output (`depth`, `inverse_depth`, ...) at the input size | any H x W >= the minimum; the net resizes or pads inside; no default, `--size` is required |
 | classification | `image`: the transformed crop (resized, cropped, normalised; see `model.data_config`) | `logits` `[B, classes]` | fixed: the model's crop, e.g. 224 x 224 (the default; 224 is the eval crop, `--size` takes another fixed size) |
 | segmentation | `image`: RGB in `[0, 1]` | the model's main output | per model, see `model.size_range()`; no default, `--size` is required |
-| promptable segmentation | `image`: RGB in `[0, 1]` (image encoder only) | SAM / SAM 2: `image_embeddings` `[1, 256, 64, 64]`; SAM 3: the FPN levels `fpn0`, `fpn1`, `fpn2` | any H x W, resized inside to the fixed encoder input (SAM / SAM 2: 1024, SAM 3: 1008), which is also the default export size |
+| promptable segmentation | SAM families: `image`, RGB in `[0, 1]` (image encoder only); CLIPSeg: normalized `image` and projected text `condition` | SAM / SAM 2: `image_embeddings` `[1, 256, 64, 64]`; SAM 3: FPN levels `fpn0`, `fpn1`, `fpn2`; CLIPSeg: `logits` `[B, 352, 352]` | SAM families resize inside to the fixed encoder input (SAM / SAM 2: 1024, SAM 3: 1008); CLIPSeg's module takes the fixed 352 x 352 network input |
 | detection | `image`: RGB in `[0, 1]` at the network size (normalised inside; R-CNN and DETR also pad inside, RT-DETRv2 takes multiples of 32 only, `InputError` otherwise) | R-CNN: the feature pyramid (backbone + FPN) `p2` .. `p6`; DETR / RT-DETR: `logits`, `boxes` | any H x W >= the minimum (RT-DETRv2: multiples of 32; COCO inference uses shortest edge 800, e.g. 800x1344); no default, `--size` is required |
 | features | `image`: RGB in `[0, 1]` (resized inside to a multiple of the patch stride) | `last_hidden_state` `[B, N, C]` | any H x W; default 224 x 224 |
 | multi-view depth | `images` `[V, 3, H, W]`: the V views of one scene, RGB in `[0, 1]`; then the cameras the model requires (`intrinsics` `[V, 3, 3]`, `cam_to_world` `[V, 4, 4]`, `depth_range` `[2]`) | the model's main output (`depth`, ...); a model returning several outputs keeps their names (PatchmatchNet: `depth`, `confidence`) | one fixed size per export (no size range); no default, `--size` is required |
@@ -49,6 +49,12 @@ segmentation: the encoder side) and `None` otherwise; stereo, depth, segmentatio
 [models](models/stereo.md) print the same range, and the largest size we measured (portable
 fp16 on one RTX 5060 Ti 16 GB; "not measured" where no size run exists). Resizing to a family's processing size, padding and cropping are inside
 `module()`, so a depth engine built at 518x770 takes a 518 x 770 image and returns maps at 518 x 770.
+
+CLIPSeg is an exception to the raw-image convention: its exported graph takes an image already resized to 352 x 352
+and normalized with the model's mean and standard deviation, plus a `[B, 512]` text embedding projected by the
+matching CLIPSeg text encoder. The graph does not include the tokenizer or text encoder; `example_inputs()` supplies
+a synthetic image and the condition for "object" for testing. Use the same checkpoint's text encoder to prepare other
+prompts. The output is logits at 352 x 352; resizing to the original image is outside the exported graph.
 
 Rules for every task:
 

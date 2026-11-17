@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 CAP = (3000, 4000)
 """Largest size of the size-table queue: a model that ran there has no limit below it."""
 
-ENCODER_SIDE = {"sam3": 1008}
+ENCODER_SIDE = {"sam3": 1008, "clipseg": 352}
 """Encoder input side of the promptable-segmentation families that fix it in code, not in `[params] image_size`."""
 
 PATCH = {

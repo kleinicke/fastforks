@@ -271,6 +271,19 @@ def export_onnx(  # noqa: PLR0913 - the size, the batch and the optional dynamic
     return _export_onnx(model, path, height, width, batch=batch, size_range=size_range, run=True)
 
 
+def _input_names(model: Model, inputs: tuple[torch.Tensor, ...]) -> list[str]:
+    """Name the module inputs, including CLIPSeg's projected text condition."""
+    if model.card.family == "clipseg":
+        return ["image", "condition"]
+    return list(spec(model.card.task).inputs)[: len(inputs)]  # multiview: required cameras only
+
+
+def _check_clipseg_bounds(model: Model, size_range: SizeBounds | None) -> None:
+    if model.card.family == "clipseg" and size_range is not None:
+        msg = "CLIPSeg's exported network input has fixed size 352x352; omit size_range"
+        raise InputError(msg)
+
+
 def _export_onnx(  # noqa: PLR0913 - export_onnx's arguments plus the check switch
     model: Model,
     path: str | Path,
@@ -284,6 +297,7 @@ def _export_onnx(  # noqa: PLR0913 - export_onnx's arguments plus the check swit
     """`export_onnx`; `run=False` skips the onnxruntime run of a dynamic file (TensorRT runs its own check)."""
     height, width = resolve_size(model, height, width)
     check_exportable(model, height, width, batch)
+    _check_clipseg_bounds(model, size_range)
     _bounds(model, height, width, size_range, batch)
     for lib in ("onnx", "onnxscript"):  # torch.onnx's dynamo exporter imports both
         if importlib.util.find_spec(lib) is None:
@@ -318,7 +332,7 @@ def _export_onnx(  # noqa: PLR0913 - export_onnx's arguments plus the check swit
                 inputs,
                 dynamic_shapes=dynamic,
                 dynamo=True,
-                input_names=list(spec(model.card.task).inputs)[: len(inputs)],  # multiview: required cameras only
+                input_names=_input_names(model, inputs),
                 output_names=output_names(model, module, out),
                 verbose=False,
             )

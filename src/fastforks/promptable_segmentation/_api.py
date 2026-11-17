@@ -684,6 +684,19 @@ class ConceptSegmentationModel(PromptableSegmentationModel):
     The same model as `PromptableSegmentationModel` with calls typed as `ConceptSegmentationResult`.
     """
 
+    def example_inputs(
+        self, height: int | None = None, width: int | None = None, *, batch: int = 1
+    ) -> tuple[torch.Tensor, ...]:
+        """Example inputs for the module, including CLIPSeg's projected text condition."""
+        images = super().example_inputs(height, width, batch=batch)
+        if self.card.family != "clipseg":
+            return images
+        if images[0].shape[-2:] != (352, 352):
+            msg = "CLIPSeg's exported image input is the normalized 352x352 network input; export at 352x352"
+            raise InputError(msg)
+        runner = cast("Any", self._runner)  # CLIPSeg's runner supplies image preprocessing and text projection.
+        return runner.pixels(images[0]), runner.condition("object").expand(batch, -1).contiguous()
+
     @overload
     def __call__(
         self,

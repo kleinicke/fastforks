@@ -576,7 +576,8 @@ class Model:
         float32 as `module()` takes them; the output is named after the variant's main output (`disparity`,
         `inverse_depth`, `logits`, ...). Multi-view: `images` `[batch = views, 3, height, width]` plus the camera inputs
         the model requires, in `TaskSpec.inputs` order; one output per map of `module()`, named as its keys (fixed size
-        only). The graph keeps this model's compute dtype (`load(dtype=...)`); export on the device you will run on.
+        only). CLIPSeg takes a normalized `image` at 352x352 and a projected text `condition` `[batch, 512]`.
+        The graph keeps this model's compute dtype (`load(dtype=...)`); export on the device you will run on.
         Graphs above 2 GB keep their weights in `<path>.data` next to the file.
 
         Args:
