@@ -32,6 +32,7 @@ from fastforks._core.patch import base_type, override
 from fastforks._core.runner import host
 from fastforks.detection._attention import deformable_sample
 from fastforks.detection._runner import Forward, Runner
+from fastforks.kernels import msda
 from fastforks.shared.bert_tokenizer import BertTokenizer
 from fastforks.shared.seginfer import pretrained
 
@@ -383,4 +384,18 @@ def _float_copy(mod: torch.nn.Module) -> torch.nn.Module:
     return copy.deepcopy(mod).float()
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Fuse all levels of bilinear sampling and the weighted reduction in one CUDA launch."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the portable network and replace its multi-scale sampler."""
+        super().__init__(ctx)
+        msda.load(ctx.device)
+        for mod in self.net.modules():
+            if type(mod).__name__ == "MultiScaleDeformableAttention":
+                mod.forward = msda.sample
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

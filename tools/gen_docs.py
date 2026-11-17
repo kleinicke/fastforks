@@ -895,7 +895,7 @@ def _parity(card: ModelCard) -> list[str]:
     ]
     for v in card.variants:
         rec = store["validated"].get(v.ref)
-        if "kernels" not in card.modes:
+        if "kernels" not in card.modes or planned_reason(v, "kernels"):
             lines.append(f"| `{v.id}` | no kernels backend | - | - |")
         elif rec is None or "mean_px" not in rec:
             lines.append(f"| `{v.id}` | {NM} | - | - |")
@@ -1161,7 +1161,7 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
         elif isinstance(cell, tuple):
             ms, mem = cell[0], cell[2]
         else:
-            ms, mem = (_NOK, _NOK) if "kernels" not in card.modes else (_DASH, _DASH)
+            ms, mem = (_NOK, _NOK) if "kernels" not in card.modes or planned_reason(v, "kernels") else (_DASH, _DASH)
         speedup = f", {orig['ms'] / mx['ms']:.1f}x" if mx and orig else ""
         mem = f"{mem}{_mem_ratio(mem, by.get('upstream'), by.get('upstream-default'))}"
         cells = [

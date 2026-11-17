@@ -3,18 +3,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.patch import override
 from fastforks.flow._runner import Forward, Runner
+from fastforks.kernels import flow_upsample
 from fastforks.shared import libnet
 
 if TYPE_CHECKING:
     from collections.abc import KeysView
 
     from fastforks.flow._runner import Context
+
+    from .net.FlowFormer.LatentCostFormer.gru import SepConvGRU
 
 
 @dataclass(frozen=True)
@@ -98,4 +102,34 @@ class Portable(Runner):
         return Forward(self.net, lambda net, a, b: _forward(net, a, b, fp16=fp16))
 
 
-RUNNERS = {"portable": Portable}
+def _gru_fp32_state(gru: SepConvGRU, h: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    """Compute convolution gates in fp16, and update recurrent state in float32."""
+    for gate_name, candidate in (("convzr1", gru.convq1), ("convzr2", gru.convq2)):
+        gate = cast("torch.nn.Conv2d", getattr(gru, gate_name))
+        gates = gate(torch.cat((h, x), 1).half()).float()
+        z, r = gates.sigmoid().chunk(2, dim=1)
+        q = candidate(torch.cat((r * h, x), 1).half()).float().tanh()
+        h = (1 - z) * h + z * q
+    return h
+
+
+def _upsample(_decoder: torch.nn.Module, flow: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    return flow_upsample.convex(flow, mask)
+
+
+class Kernels(Portable):
+    """Use fused convex upsampling for the final prediction."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Keep the original FP32 aggregation and fuse the last prediction's upsampling."""
+        super().__init__(ctx)
+        gru = self.net.get_submodule("memory_decoder.update_block.gru")
+        for name in ("convzr1", "convq1", "convzr2", "convq2"):
+            gru.get_submodule(name).half().to(memory_format=torch.channels_last)
+        override(gru, _gru_fp32_state)
+        override(self.net.memory_decoder, _upsample, "upsample_flow")
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

@@ -3,7 +3,7 @@ name = "GMFlow"
 summary = "GMFlow (Xu, Zhang, Cai, Rezatofighi & Tao 2022) in its UniMatch release (Xu et al. 2023): optical flow as global matching. A CNN gives features at 1/8 resolution, a Transformer with self- and cross-attention (shifted windows) makes the two images' features aware of each other, the flow is the expected position of the best match over the whole image, and a self-attention layer spreads it into occluded areas. `scale2` variants repeat this at 1/4 resolution with local matching; `regrefine6` variants add 6 RAFT-like local refinements."
 tier = "experimental"
 outputs = ["flow"]
-limitations = ["No custom kernels backend is implemented.", "TensorRT builds at 1080x1920 fail for scale2 variants with a Myelin CHECK(is_const()) error on RTX 5060 Ti; scale1 variants build."]
+limitations = ["TensorRT builds at 1080x1920 fail for scale2 variants with a Myelin CHECK(is_const()) error on RTX 5060 Ti; scale1 variants build."]
 uses = []  # fastforks.shared modules this family imports
 
 [upstream]
@@ -43,8 +43,7 @@ cuda_dtype = "float16"  # autocast for the CNN, the Transformer, the upsampling 
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "after the fused attention portable is faster than the original and uses less memory at every tested size (e.g. scale1 1080x1920 556 vs 750 ms, 4496 vs 8360 MiB); the rest is the attention itself (55 % of the CUDA time at 1080p, already the memory-efficient / flash SDPA kernels) and float32 elementwise ops, and the convolutions are a small share, so no library in the manifests (cudnn_hacc speeds up convolutions) would change the total (measured 2026-11-15)"
+kernels = ["flow_upsample"]
 
 [[papers]]
 title = "GMFlow: Learning Optical Flow via Global Matching"

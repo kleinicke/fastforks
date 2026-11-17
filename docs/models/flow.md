@@ -12,21 +12,21 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | KITTI 2015 train EPE (px) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | no kernels | no kernels |
-| [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | no kernels | no kernels |
-| [`flowformer-small-things`](#flowformer) | yes | 6.884 | no kernels | no kernels |
+| [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | – | – |
+| [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | – | – |
+| [`flowformer-small-things`](#flowformer) | yes | 6.884 | – | – |
 | [`flowseek-t`](#flowseek) | yes | 1.348 † | 327, 1.4x | 2192, 0.22x |
 | [`flowseek-t-things`](#flowseek) | yes | 4.143 | 327, 1.4x | 2192, 0.22x |
 | [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | 328, 1.4x | 2192, 0.22x |
-| [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | no kernels | no kernels |
-| [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | no kernels | no kernels |
-| [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | no kernels | no kernels |
-| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | no kernels | no kernels |
-| [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | yes | 1.315 ? | no kernels | no kernels |
-| [`gmflow-scale2-regrefine6-sintelft`](#gmflow) | yes | 1.154 † | no kernels | no kernels |
-| [`gmflow-scale2-regrefine6-things`](#gmflow) | yes | 4.917 | no kernels | no kernels |
-| [`gmflow-scale2-sintel`](#gmflow) | yes | 1.975 † | no kernels | no kernels |
-| [`gmflow-scale2-things`](#gmflow) | yes | 6.747 | no kernels | no kernels |
+| [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | – | – |
+| [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | – | – |
+| [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | – | – |
+| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | – | – |
+| [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | yes | 1.315 ? | – | – |
+| [`gmflow-scale2-regrefine6-sintelft`](#gmflow) | yes | 1.154 † | – | – |
+| [`gmflow-scale2-regrefine6-things`](#gmflow) | yes | 4.917 | – | – |
+| [`gmflow-scale2-sintel`](#gmflow) | yes | 1.975 † | – | – |
+| [`gmflow-scale2-things`](#gmflow) | yes | 6.747 | – | – |
 | [`megaflow`](#megaflow) | yes | 1.714 † | 734, 2.2x | 3066, 0.35x |
 | [`memflow`](#memflow) | yes | 4.103 | 865, 3.6x | 1022, 0.066x |
 | [`memflow-kitti`](#memflow) | yes | 0.600 † | 865, 3.8x | 1022, 0.066x |
@@ -70,9 +70,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>no kernels<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>1404 / 1698<br>no kernels<br>2438 / 3196<br>2087 / 2138 |
-| `flowformer-small-things` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>no kernels<br>250<br>202 | 3122 / 3678<br>2382 / 3010<br>1404 / 1698<br>no kernels<br>2438 / 3196<br>2087 / 2138 |
-| `flowformer-small-sintel` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>336<br>no kernels<br>250<br>202 | 3122 / 3718<br>2382 / 2990<br>1404 / 1698<br>no kernels<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>–<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>1404 / 1698<br>–<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-things` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>–<br>250<br>202 | 3122 / 3678<br>2382 / 3010<br>1404 / 1698<br>–<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-sintel` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>336<br>–<br>250<br>202 | 3122 / 3718<br>2382 / 2990<br>1404 / 1698<br>–<br>2438 / 3196<br>2087 / 2138 |
 
 <details><summary>Details</summary>
 
@@ -85,12 +85,11 @@ Commercial use: yes.
   - `flowformer-small-things`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
   - `flowformer-small-sintel`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark
 - Options: `iters` = 32 (>= 1)
-- Kernel libraries: none (Measured 2026-11-15: time is cuDNN TF32 convolutions plus the float32 aggregation matmul; fp16 aggregation (NaN at scale 1024, worse EPE) and SDPA (slower, EPE changed) were tried and dropped.)
+- Kernel libraries: `flow_upsample`
 - Variants: `flowformer-small-chairs`, `flowformer-small-things`, `flowformer-small-sintel`
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `flowformer-small-chairs` 1024x1024 (11.2 GiB peak allocated, 12.3 reserved); `flowformer-small-things` 1024x1024 (11.2 GiB peak allocated, 12.3 reserved); `flowformer-small-sintel` 1024x1024 (11.2 GiB peak allocated, 12.3 reserved)
-- no kernels: Measured 2026-11-15: time is cuDNN TF32 convolutions plus the float32 aggregation matmul; fp16 aggregation (NaN at scale 1024, worse EPE) and SDPA (slower, EPE changed) were tried and dropped.
 - `flowformer-small-chairs` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 118 s (ONNX + engine).
 - `flowformer-small-things` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 118 s (ONNX + engine).
 - `flowformer-small-sintel` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 117 s (ONNX + engine).
@@ -119,18 +118,17 @@ Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a6ea0725+d
 
 ### Parity
 
-CPU, float32: max |diff| <= 0.0001 vs the original. GPU, portable float32 and kernels float16 (the defaults): mean |diff| <= 0.0021 and p99 <= 0.013 (absolute error of the output `flow`).
+CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float32 (the default), portable and kernels: mean |diff| <= 0.0021 and p99 <= 0.013 (absolute error of the output `flow`).
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `flowformer-small-chairs` | no kernels backend | - | - |
-| `flowformer-small-things` | no kernels backend | - | - |
-| `flowformer-small-sintel` | no kernels backend | - | - |
+| `flowformer-small-chairs` | 0.00039 / 0.00146 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `flowformer-small-things` | 0.00037 / 0.00168 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `flowformer-small-sintel` | 0.00031 / 0.00148 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
 
 ### Limitations
 
 - Only the Small architecture is included.
-- No custom kernels backend: the time is in cuDNN TF32 convolutions and the float32 aggregation matmul, and lowering precision changes EPE.
 - Portable runs float32 (the validated dtype): 338 ms and 1410 MB at 375x1242 against 303 ms and 2382 MB for the fp16-autocast original (EPE identical to the float32 original); switching the default to fp16 needs a full accuracy re-validation.
 - Full-frame cost memory grows quadratically with input area; upstream tiled evaluation is not included. Full-frame 1080p exceeded the RTX 5060 Ti 16GB memory in portable and original fp32/fp16 runs.
 
@@ -216,15 +214,15 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>556<br>no kernels<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>4496 / 4642<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
-| `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>556<br>no kernels<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>4496 / 4642<br>no kernels<br>4293 / 4558<br>4333 / 4390 |
-| `gmflow-scale2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2537<br>1599<br>1139<br>no kernels<br>765<br>planned for 0.2.1 | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
-| `gmflow-scale2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2541<br>1607<br>1139<br>no kernels<br>765<br>planned for 0.2.1 | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
-| `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>1139<br>no kernels<br>765<br>planned for 0.2.1 | 8512 / 8722<br>8425 / 8572<br>6017 / 6224<br>no kernels<br>10865 / 10904<br>– |
-| `gmflow-scale2-regrefine6-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3230<br>2175<br>1665<br>no kernels<br>1116<br>planned for 0.2.1 | 8522 / 8730<br>8537 / 8822<br>6080 / 6230<br>no kernels<br>10875 / 10972<br>– |
-| `gmflow-scale2-regrefine6-sintelft` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2184<br>1674<br>no kernels<br>1116<br>planned for 0.2.1 | 8522 / 8730<br>8537 / 8822<br>6080 / 6250<br>no kernels<br>10875 / 10972<br>– |
-| `gmflow-scale2-regrefine6-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2188<br>1678<br>no kernels<br>1116<br>planned for 0.2.1 | 8522 / 8710<br>8537 / 8822<br>6080 / 6230<br>no kernels<br>10875 / 10972<br>– |
-| `gmflow-scale2-regrefine6-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3254<br>2188<br>1675<br>no kernels<br>1116<br>planned for 0.2.1 | 8522 / 8710<br>8537 / 8822<br>6080 / 6250<br>no kernels<br>10875 / 10972<br>– |
+| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>556<br>–<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>4496 / 4642<br>–<br>4293 / 4558<br>4333 / 4390 |
+| `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>556<br>–<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>4496 / 4642<br>–<br>4293 / 4558<br>4333 / 4390 |
+| `gmflow-scale2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2537<br>1599<br>1139<br>–<br>765<br>planned for 0.2.1 | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>–<br>10865 / 10904<br>– |
+| `gmflow-scale2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2541<br>1607<br>1139<br>–<br>765<br>planned for 0.2.1 | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>–<br>10865 / 10904<br>– |
+| `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>1139<br>–<br>765<br>planned for 0.2.1 | 8512 / 8722<br>8425 / 8572<br>6017 / 6224<br>–<br>10865 / 10904<br>– |
+| `gmflow-scale2-regrefine6-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3230<br>2175<br>1665<br>–<br>1116<br>planned for 0.2.1 | 8522 / 8730<br>8537 / 8822<br>6080 / 6230<br>–<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-sintelft` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2184<br>1674<br>–<br>1116<br>planned for 0.2.1 | 8522 / 8730<br>8537 / 8822<br>6080 / 6250<br>–<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2188<br>1678<br>–<br>1116<br>planned for 0.2.1 | 8522 / 8710<br>8537 / 8822<br>6080 / 6230<br>–<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3254<br>2188<br>1675<br>–<br>1116<br>planned for 0.2.1 | 8522 / 8710<br>8537 / 8822<br>6080 / 6250<br>–<br>10875 / 10972<br>– |
 
 <details><summary>Details</summary>
 
@@ -239,7 +237,7 @@ Commercial use: yes.
   - `gmflow-scale2-regrefine6-sintelft`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (FlyingChairs, FlyingThings3D, the 'sintel' stage (Sintel, KITTI 2015, HD1K, FlyingThings3D), then fine-tuned on Sintel)
   - `gmflow-scale2-regrefine6-kitti`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015, not stated by the authors (FlyingChairs, FlyingThings3D, Virtual KITTI 2 (no dataset entry here yet, hence 'unstated'), then KITTI 2012 + 2015 (upstream scripts/gmflow_scale2_regrefine6_train.sh, stages vkitti2 and kitti_mix))
   - `gmflow-scale2-regrefine6-mixdata`: MODEL_ZOO.md: "trained on several mixed public datasets" (not listed)
-- Kernel libraries: none (after the fused attention portable is faster than the original and uses less memory at every tested size (e.g. scale1 1080x1920 556 vs 750 ms, 4496 vs 8360 MiB); the rest is the attention itself (55 % of the CUDA time at 1080p, already the memory-efficient / flash SDPA kernels) and float32 elementwise ops, and the convolutions are a small share, so no library in the manifests (cudnn_hacc speeds up convolutions) would change the total (measured 2026-11-15))
+- Kernel libraries: `flow_upsample`
 - Variants: `gmflow-scale1-things`, `gmflow-scale1-mixdata`, `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata`
 - Not in this release (planned for 0.2.1): `gmflow-scale2-things` TensorRT export: the TensorRT 10 engine build fails (Myelin error on the attention graph); `gmflow-scale2-sintel` TensorRT export: the TensorRT 10 engine build fails (Myelin error on the attention graph); `gmflow-scale2-mixdata` TensorRT export: the TensorRT 10 engine build fails (Myelin error on the attention graph); `gmflow-scale2-regrefine6-things` TensorRT export: the TensorRT 10 engine build fails (Myelin error on the attention graph); `gmflow-scale2-regrefine6-sintelft` TensorRT export: the TensorRT 10 engine build fails (Myelin error on the attention graph); `gmflow-scale2-regrefine6-kitti` TensorRT export: the TensorRT 10 engine build fails (Myelin error on the attention graph); `gmflow-scale2-regrefine6-mixdata` TensorRT export: the TensorRT 10 engine build fails (Myelin error on the attention graph)
 - Outputs: flow
@@ -247,7 +245,6 @@ Commercial use: yes.
   - `gmflow-scale1-things`, `gmflow-scale1-mixdata`: any H x W >= 64, padded to a multiple of 16
   - `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata`: any H x W >= 64, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gmflow-scale1-things` 1024x2048 (5.4 GiB peak allocated, 6.0 reserved); `gmflow-scale1-mixdata` 1024x2048 (5.4 GiB peak allocated, 6.0 reserved); `gmflow-scale2-things` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-sintel` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-mixdata` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-things` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-sintelft` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-kitti` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved); `gmflow-scale2-regrefine6-mixdata` 1024x2048 (6.3 GiB peak allocated, 13.1 reserved)
-- no kernels: after the fused attention portable is faster than the original and uses less memory at every tested size (e.g. scale1 1080x1920 556 vs 750 ms, 4496 vs 8360 MiB); the rest is the attention itself (55 % of the CUDA time at 1080p, already the memory-efficient / flash SDPA kernels) and float32 elementwise ops, and the convolutions are a small share, so no library in the manifests (cudnn_hacc speeds up convolutions) would change the total (measured 2026-11-15).
 - `gmflow-scale1-things` 1080x1920, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 69 s (ONNX + engine).
 - `gmflow-scale1-mixdata` 1080x1920, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 67 s (ONNX + engine).
 - `gmflow-scale2-things` 1080x1920, first call: portable + torch.compile 47 s (cold Inductor cache).
@@ -310,19 +307,18 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `gmflow-scale1-things` | no kernels backend | - | - |
-| `gmflow-scale1-mixdata` | no kernels backend | - | - |
-| `gmflow-scale2-things` | no kernels backend | - | - |
-| `gmflow-scale2-sintel` | no kernels backend | - | - |
-| `gmflow-scale2-mixdata` | no kernels backend | - | - |
-| `gmflow-scale2-regrefine6-things` | no kernels backend | - | - |
-| `gmflow-scale2-regrefine6-sintelft` | no kernels backend | - | - |
-| `gmflow-scale2-regrefine6-kitti` | no kernels backend | - | - |
-| `gmflow-scale2-regrefine6-mixdata` | no kernels backend | - | - |
+| `gmflow-scale1-things` | 0.00198 / 0.00808 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `gmflow-scale1-mixdata` | 0.002 / 0.00938 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `gmflow-scale2-things` | 0.00128 / 0.00537 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `gmflow-scale2-sintel` | 0.00134 / 0.00653 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `gmflow-scale2-mixdata` | 0.00145 / 0.00581 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `gmflow-scale2-regrefine6-things` | 0.00098 / 0.00504 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `gmflow-scale2-regrefine6-sintelft` | 0.00112 / 0.00836 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `gmflow-scale2-regrefine6-kitti` | 0.00175 / 0.01264 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
+| `gmflow-scale2-regrefine6-mixdata` | 0.00098 / 0.00564 | RTX 5060 Ti, torch 2.10.0+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120` |
 
 ### Limitations
 
-- No custom kernels backend is implemented.
 - TensorRT builds at 1080x1920 fail for scale2 variants with a Myelin CHECK(is_const()) error on RTX 5060 Ti; scale1 variants build.
 
 </details>
@@ -900,21 +896,21 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
-| [`flowformer-small-chairs`](#flowformer) | portable | Apache-2.0 AND BSD-3-Clause AND WTFPL | Apache-2.0 AND BSD-3-Clause AND WTFPL (assumed from code) | flyingchairs | yes | flow |
-| [`flowformer-small-sintel`](#flowformer) | portable | Apache-2.0 AND BSD-3-Clause AND WTFPL | Apache-2.0 AND BSD-3-Clause AND WTFPL (assumed from code) | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
-| [`flowformer-small-things`](#flowformer) | portable | Apache-2.0 AND BSD-3-Clause AND WTFPL | Apache-2.0 AND BSD-3-Clause AND WTFPL (assumed from code) | flyingchairs, sceneflow | yes | flow |
+| [`flowformer-small-chairs`](#flowformer) | portable, kernels | Apache-2.0 AND BSD-3-Clause AND WTFPL | Apache-2.0 AND BSD-3-Clause AND WTFPL (assumed from code) | flyingchairs | yes | flow |
+| [`flowformer-small-sintel`](#flowformer) | portable, kernels | Apache-2.0 AND BSD-3-Clause AND WTFPL | Apache-2.0 AND BSD-3-Clause AND WTFPL (assumed from code) | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
+| [`flowformer-small-things`](#flowformer) | portable, kernels | Apache-2.0 AND BSD-3-Clause AND WTFPL | Apache-2.0 AND BSD-3-Clause AND WTFPL (assumed from code) | flyingchairs, sceneflow | yes | flow |
 | [`flowseek-t`](#flowseek) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 | [`flowseek-t-things`](#flowseek) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause (assumed from code) | tartanair, flyingchairs, sceneflow | yes | flow |
 | [`flowseek-t-things-notartan`](#flowseek) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
-| [`gmflow-scale1-mixdata`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | unstated | yes | flow |
-| [`gmflow-scale1-things`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
-| [`gmflow-scale2-mixdata`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | unstated | yes | flow |
-| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, kitti, unstated | yes | flow |
-| [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | unstated | yes | flow |
-| [`gmflow-scale2-regrefine6-sintelft`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
-| [`gmflow-scale2-regrefine6-things`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
-| [`gmflow-scale2-sintel`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
-| [`gmflow-scale2-things`](#gmflow) | portable | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
+| [`gmflow-scale1-mixdata`](#gmflow) | portable, kernels | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | unstated | yes | flow |
+| [`gmflow-scale1-things`](#gmflow) | portable, kernels | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
+| [`gmflow-scale2-mixdata`](#gmflow) | portable, kernels | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | unstated | yes | flow |
+| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | portable, kernels | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, kitti, unstated | yes | flow |
+| [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | portable, kernels | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | unstated | yes | flow |
+| [`gmflow-scale2-regrefine6-sintelft`](#gmflow) | portable, kernels | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
+| [`gmflow-scale2-regrefine6-things`](#gmflow) | portable, kernels | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
+| [`gmflow-scale2-sintel`](#gmflow) | portable, kernels | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
+| [`gmflow-scale2-things`](#gmflow) | portable, kernels | MIT AND Apache-2.0 AND BSD-3-Clause | MIT AND Apache-2.0 AND BSD-3-Clause (assumed from code) | flyingchairs, sceneflow | yes | flow |
 | [`megaflow`](#megaflow) | portable, kernels | Apache-2.0 | Apache-2.0 | flyingchairs, tartanair, sceneflow, sintel-flow, kitti, hd1k | yes | flow |
 | [`memflow`](#memflow) | portable, kernels | Apache-2.0 | Apache-2.0 | flyingchairs, sceneflow | yes | flow |
 | [`memflow-kitti`](#memflow) | portable, kernels | Apache-2.0 | Apache-2.0 | flyingchairs, sceneflow, sintel-flow, kitti, hd1k | yes | flow |

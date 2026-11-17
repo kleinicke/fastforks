@@ -7,6 +7,7 @@ from .utils import generate_shift_window_attn_mask, generate_shift_window_attn_m
 
 
 class TransformerLayer(nn.Module):
+    window_options: dict  # fastforks: optional per-runner attention implementation
     def __init__(self,
                  d_model=128,
                  nhead=1,
@@ -66,6 +67,7 @@ class TransformerLayer(nn.Module):
                 raise NotImplementedError
             else:
                 message = single_head_split_window_attention(query, key, value,
+                                                             **getattr(self, "window_options", {}),  # fastforks: per-runner attention
                                                              num_splits=attn_num_splits,
                                                              with_shift=with_shift,
                                                              h=height,

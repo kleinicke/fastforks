@@ -1,4 +1,4 @@
-from turtle import forward
+# fastforks: omit the unused turtle.forward import, which requires Tk on a headless host.
 import torch
 from torch import nn
 import torch.nn.functional as F

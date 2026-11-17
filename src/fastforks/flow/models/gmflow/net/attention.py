@@ -82,6 +82,7 @@ def single_head_split_window_attention(q, k, v,
                                        h=None,
                                        w=None,
                                        attn_mask=None,
+                                       attention=sdpa,  # fastforks: per-runner CUDA attention layout
                                        ):
     # ref: https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py
     # q, k, v: [B, L, C]
@@ -117,7 +118,7 @@ def single_head_split_window_attention(q, k, v,
     v = split_feature(v, num_splits=num_splits, channel_last=True)
 
     mask = attn_mask.repeat(b, 1, 1) if with_shift else None  # [B*K*K, H/K*W/K, H/K*W/K]
-    out = sdpa(q.view(b_new, -1, c), k.view(b_new, -1, c), v.view(b_new, -1, c), mask)  # [B*K*K, H/K*W/K, C]
+    out = attention(q.view(b_new, -1, c), k.view(b_new, -1, c), v.view(b_new, -1, c), mask)  # [B*K*K, H/K*W/K, C]
 
     out = merge_splits(out.view(b_new, h // num_splits, w // num_splits, c),
                        num_splits=num_splits, channel_last=True)  # [B, H, W, C]

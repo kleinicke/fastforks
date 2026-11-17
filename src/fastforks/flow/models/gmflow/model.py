@@ -20,10 +20,12 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
+from fastforks.kernels import flow_upsample
 
 from .net.attention import sdpa
 from .net.geometry import coords_grid, flow_warp
 from .net.matching import local_correlation_softmax, local_correlation_with_flow
+from .net.transformer import TransformerLayer
 from .net.unimatch import UniMatch
 from .net.utils import feature_add_position, upsample_flow_with_mask
 
@@ -50,8 +52,20 @@ def attend(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch
     return sdpa(query, key, value)
 
 
-def forward(net: UniMatch, image1: torch.Tensor, image2: torch.Tensor, params: Params, *, fp16: bool) -> torch.Tensor:
+def _headed(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
+    channels = v.shape[-1]
+    v = F.pad(v, (0, -channels % 8))
+    q, k, v = (x.contiguous().unsqueeze(1) for x in (q, k, v))
+    bias = None if mask is None else mask.to(q.dtype).unsqueeze(1)
+    return F.scaled_dot_product_attention(q, k, v, attn_mask=bias).squeeze(1)[..., :channels]
+
+
+def forward(  # noqa: PLR0913 - network, image pair and inference options
+    net: UniMatch, image1: torch.Tensor, image2: torch.Tensor, params: Params, *, fp16: bool, fused: bool = False
+) -> torch.Tensor:
     """Flow `[B, 2, H, W]` of an ImageNet-normalised pair (H, W multiples of the card's padding)."""
+    attention = _headed if fused else attend
+    upsample = flow_upsample.convex if fused else upsample_flow_with_mask
     amp = torch.autocast(image1.device.type, torch.float16) if fp16 else contextlib.nullcontext()
     with amp:
         features1, features2 = net.extract_feature(image1, image2)  # low to high resolution
@@ -70,7 +84,7 @@ def forward(net: UniMatch, image1: torch.Tensor, image2: torch.Tensor, params: P
         tokens1 = feature1.flatten(2).transpose(1, 2)  # [B, H*W, C]
         if corr_radius == -1:  # global matching: the expected position of the match
             grid = coords_grid(b, h, w, device=feature1.device)
-            match = attend(tokens1, feature2.flatten(2).transpose(1, 2), grid.flatten(2).transpose(1, 2))
+            match = attention(tokens1, feature2.flatten(2).transpose(1, 2), grid.flatten(2).transpose(1, 2))
             predicted = match.transpose(1, 2).reshape(b, 2, h, w) - grid
         else:
             predicted = local_correlation_softmax(feature1, feature2, corr_radius)[0]
@@ -81,12 +95,14 @@ def forward(net: UniMatch, image1: torch.Tensor, image2: torch.Tensor, params: P
         else:  # global propagation; upstream projects the key from the projected query (its own note)
             query = attn.q_proj(tokens1)
             flow = (
-                attend(query, attn.k_proj(query), flow.flatten(2).transpose(1, 2)).transpose(1, 2).reshape(b, 2, h, w)
+                attention(query, attn.k_proj(query), flow.flatten(2).transpose(1, 2))
+                .transpose(1, 2)
+                .reshape(b, 2, h, w)
             )
     if not params.refine:
         with amp:
             mask = net.upsampler(torch.cat((flow, feature1), dim=1))
-        return upsample_flow_with_mask(flow, mask.float(), upsample_factor=net.upsample_factor)
+        return upsample(flow, mask.float(), upsample_factor=net.upsample_factor)
     with amp:
         hidden, context = torch.chunk(net.refine_proj(feature1), chunks=2, dim=1)
         hidden, context = torch.tanh(hidden), torch.relu(context)
@@ -96,13 +112,14 @@ def forward(net: UniMatch, image1: torch.Tensor, image2: torch.Tensor, params: P
         with amp:
             _, mask, residual = net.refine(hidden, context, correlation, flow.clone())
         flow = flow + residual.float()
-    return upsample_flow_with_mask(flow, mask.float(), upsample_factor=net.upsample_factor)
+    return upsample(flow, mask.float(), upsample_factor=net.upsample_factor)
 
 
 class Portable(Runner):
     """Plain PyTorch; see the module docstring for what runs in fp16 on CUDA."""
 
     dtypes = ("float32", "float16")
+    fused_upsample = False
     Params = Params
 
     def __init__(self, ctx: Context) -> None:
@@ -121,7 +138,7 @@ class Portable(Runner):
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
-        return {"flow": forward(self.net, image1, image2, self.ctx.params, fp16=self.fp16)}
+        return {"flow": forward(self.net, image1, image2, self.ctx.params, fp16=self.fp16, fused=self.fused_upsample)}
 
     def module(self) -> torch.nn.Module:
         """The network; returns the flow."""
@@ -129,4 +146,18 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: forward(net, image1, image2, params, fp16=fp16))
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Use explicit attention heads for fused SDPA and fuse the final convex upsampling."""
+
+    module = Runner.module
+    fused_upsample = True
+
+    def __init__(self, ctx: Context) -> None:
+        """Select the CUDA attention layout for this model instance."""
+        super().__init__(ctx)
+        for layer in self.net.transformer.modules():
+            if isinstance(layer, TransformerLayer):
+                layer.window_options = {"attention": _headed}
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

@@ -49,8 +49,7 @@ cuda_dtype = "float16"  # backbone, encoder and decoder; the text tower (once pe
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-status = "none"
-reason = "not built: the portable model now samples per level without copying (deformable attention: grid_sample 11 % of the time, 2.4 ms/call of cat/stack copies removed, portable -20 % time and -26 % peak memory); the remaining cost is the grid_sample gather itself, and a fused multi-scale deformable-attention cubin (Triton prototype 12.85 -> 0.84 ms per call) is the next step but is not built; fp16-accumulate GEMMs gain nothing (tiny 112.5 vs 112.5 ms, base 127.6 vs 131.3 ms at 480x640)"
+kernels = ["msda"]
 
 [output]
 label_set = "coco-80"  # the default queries; `text=` replaces them per call
@@ -81,7 +80,7 @@ weights = [
 
 [[variants]]
 id = "grounding-dino-base"
-planned = { onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { kernels = "the pinned upstream CPU model and portable runner both exceed the existing Base box tolerance", onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 licence = { evidence = "https://huggingface.co/IDEA-Research/grounding-dino-base/blob/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/README.md", training_data = ["coco", "objects365"], training_note = "Grounding DINO-B: COCO, Objects365, GoldG (Flickr30k Entities + GQA / Visual Genome images), Cap4M (web image-caption pairs with pseudo-boxes), OpenImages, ODinW-35 and RefCOCO; only COCO and Objects365 have dataset ids here (the authors' model table, github.com/IDEA-Research/GroundingDINO README)." }
 weights = [

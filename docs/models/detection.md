@@ -26,15 +26,15 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`dfine-x-coco`](#dfine) | yes | 9.59, 4.7x | 298, 0.61x |
 | [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.5, 2.1x | 450, 0.64x |
 | [`grounding-dino-base`](#grounding_dino) | yes | no kernels | no kernels |
-| [`grounding-dino-tiny`](#grounding_dino) | yes | no kernels | no kernels |
+| [`grounding-dino-tiny`](#grounding_dino) | yes | – | – |
 | [`lw-detr-large-coco`](#lwdetr) | yes | 5.64, 4.0x | 254, 0.66x |
 | [`lw-detr-medium-coco`](#lwdetr) | yes | 3.78, 6.2x | 178, 0.65x |
 | [`lw-detr-small-coco`](#lwdetr) | yes | 2.80, 7.1x | 140, 0.84x |
 | [`lw-detr-tiny-coco`](#lwdetr) | yes | 2.20, 7.5x | 134, 1.0x |
 | [`lw-detr-xlarge-coco`](#lwdetr) | yes | 9.39, 2.7x | 382, 0.45x |
 | [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 21.0, 2.1x | 400, 0.62x |
-| [`mm-grounding-dino-base`](#grounding_dino) | yes | no kernels | no kernels |
-| [`mm-grounding-dino-tiny`](#grounding_dino) | yes | no kernels | no kernels |
+| [`mm-grounding-dino-base`](#grounding_dino) | yes | – | – |
+| [`mm-grounding-dino-tiny`](#grounding_dino) | yes | – | – |
 | [`owlv2-b16`](#owlv2) | yes | 23.7, 3.9x | 612, 0.64x |
 | [`owlv2-l14`](#owlv2) | yes | 110, 1.9x | 1184, 0.45x |
 | [`rf-detr-l-coco`](#rfdetr) | yes | 5.30, 2.2x | 206, 0.86x |
@@ -311,10 +311,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>no kernels<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1404 / 1468<br>no kernels<br>2550 / 2664<br>– |
-| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 230<br>160<br>no kernels<br>131<br>planned for 0.2.1 | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |
-| `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 202<br>138<br>no kernels<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1405 / 1470<br>no kernels<br>2555 / 2666<br>– |
-| `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 232<br>160<br>no kernels<br>132<br>planned for 0.2.1 | 2895 / 3094<br>1525 / 1624<br>no kernels<br>2669 / 2800<br>– |
+| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>–<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1404 / 1468<br>–<br>2550 / 2664<br>– |
+| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 230<br>160<br>–<br>131<br>planned for 0.2.1 | 2895 / 3094<br>1525 / 1624<br>–<br>2669 / 2800<br>– |
+| `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 202<br>138<br>–<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1405 / 1470<br>–<br>2555 / 2666<br>– |
+| `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 232<br>160<br>–<br>132<br>planned for 0.2.1 | 2895 / 3094<br>1525 / 1624<br>–<br>2669 / 2800<br>– |
 
 <details><summary>Details</summary>
 
@@ -327,13 +327,12 @@ Commercial use: yes.
   - `mm-grounding-dino-tiny`: Objects365 (train, box annotations) (MM-Grounding-DINO-T (o365v1_goldg_v3det): Objects365 v1, GoldG (Flickr30k Entities + GQA / Visual Genome images) and V3Det; no COCO, so its COCO numbers are zero-shot (mmdetection configs/mm_grounding_dino README; paper arXiv:2401.02361).)
   - `mm-grounding-dino-base`: Objects365 (train, box annotations) (MM-Grounding-DINO-B (o365v1_goldg_v3det): Objects365 v1, GoldG (Flickr30k Entities + GQA / Visual Genome images) and V3Det; no COCO, so its COCO numbers are zero-shot (mmdetection configs/mm_grounding_dino README; paper arXiv:2401.02361).)
 - Options: `score_threshold` = 0.25 (0.0 to 1.0), `max_detections` = 100 (>= 1)
-- Kernel libraries: none (not built: the portable model now samples per level without copying (deformable attention: grid_sample 11 % of the time, 2.4 ms/call of cat/stack copies removed, portable -20 % time and -26 % peak memory); the remaining cost is the grid_sample gather itself, and a fused multi-scale deformable-attention cubin (Triton prototype 12.85 -> 0.84 ms per call) is the next step but is not built; fp16-accumulate GEMMs gain nothing (tiny 112.5 vs 112.5 ms, base 127.6 vs 131.3 ms at 480x640))
+- Kernel libraries: `msda`
 - Variants: `grounding-dino-tiny`, `grounding-dino-base`, `mm-grounding-dino-tiny`, `mm-grounding-dino-base`
-- Not in this release (planned for 0.2.1): `grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true
+- Not in this release (planned for 0.2.1): `grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `grounding-dino-base` kernels: the pinned upstream CPU model and portable runner both exceed the existing Base box tolerance; `grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved); `mm-grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `mm-grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved)
-- no kernels: not built: the portable model now samples per level without copying (deformable attention: grid_sample 11 % of the time, 2.4 ms/call of cat/stack copies removed, portable -20 % time and -26 % peak memory); the remaining cost is the grid_sample gather itself, and a fused multi-scale deformable-attention cubin (Triton prototype 12.85 -> 0.84 ms per call) is the next step but is not built; fp16-accumulate GEMMs gain nothing (tiny 112.5 vs 112.5 ms, base 127.6 vs 131.3 ms at 480x640).
 - `grounding-dino-tiny` 800x1344, first call: portable + torch.compile 73 s (cold Inductor cache).
 - `grounding-dino-base` 800x1344, first call: portable + torch.compile 98 s (cold Inductor cache).
 - `mm-grounding-dino-tiny` 800x1344, first call: portable + torch.compile 71 s (cold Inductor cache).
@@ -370,10 +369,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `grounding-dino-tiny` | no kernels backend | - | - |
+| `grounding-dino-tiny` | 0.12884 / 0.53156 | RTX 5060 Ti, torch 2.10.0+cu130 | `msda@7db8a6f4e515:sm_120` |
 | `grounding-dino-base` | no kernels backend | - | - |
-| `mm-grounding-dino-tiny` | no kernels backend | - | - |
-| `mm-grounding-dino-base` | no kernels backend | - | - |
+| `mm-grounding-dino-tiny` | 0.08186 / 0.19259 | RTX 5060 Ti, torch 2.10.0+cu130 | `msda@7db8a6f4e515:sm_120` |
+| `mm-grounding-dino-base` | 0.08714 / 0.23686 | RTX 5060 Ti, torch 2.10.0+cu130 | `msda@7db8a6f4e515:sm_120` |
 
 ### Limitations
 
@@ -917,16 +916,16 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`dfine-s-coco`](#dfine) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, imagenet-1k | yes | boxes, scores, labels |
 | [`dfine-x-coco`](#dfine) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, imagenet-1k | yes | boxes, scores, labels |
 | [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | portable, kernels | Apache-2.0 | CC-BY-SA-3.0 | coco | yes | boxes, scores, labels, masks |
-| [`grounding-dino-base`](#grounding_dino) | portable | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
-| [`grounding-dino-tiny`](#grounding_dino) | portable | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
+| [`grounding-dino-base`](#grounding_dino) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
+| [`grounding-dino-tiny`](#grounding_dino) | portable, kernels | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
 | [`lw-detr-large-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`lw-detr-medium-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`lw-detr-small-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`lw-detr-tiny-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`lw-detr-xlarge-coco`](#lwdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365 | yes | boxes, scores, labels |
 | [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | portable, kernels | Apache-2.0 | CC-BY-SA-3.0 | coco | yes | boxes, scores, labels, masks |
-| [`mm-grounding-dino-base`](#grounding_dino) | portable | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
-| [`mm-grounding-dino-tiny`](#grounding_dino) | portable | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
+| [`mm-grounding-dino-base`](#grounding_dino) | portable, kernels | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
+| [`mm-grounding-dino-tiny`](#grounding_dino) | portable, kernels | Apache-2.0 | Apache-2.0 | objects365 | yes | boxes, scores, labels |
 | [`owlv2-b16`](#owlv2) | portable, kernels | Apache-2.0 | Apache-2.0 | webli, objects365 | yes | boxes, scores, labels |
 | [`owlv2-l14`](#owlv2) | portable, kernels | Apache-2.0 | Apache-2.0 | webli, objects365 | yes | boxes, scores, labels |
 | [`rf-detr-l-coco`](#rfdetr) | portable, kernels | Apache-2.0 | Apache-2.0 | coco, objects365, lvd-142m | yes | boxes, scores, labels, masks |

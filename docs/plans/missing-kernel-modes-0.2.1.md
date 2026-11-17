@@ -4,7 +4,9 @@ Snapshot of generated local website data on 2026-11-17: 25 families, 73 variants
 
 ## RTX 5060 Ti follow-up
 
-Three variants from the snapshot now have a kernels mode. The table shows warm end-to-end latency on a 1920 × 1080 CUDA uint8 input (batch one, five warm-ups, median of 15 synchronized calls). Memory is peak allocated CUDA tensor memory during the timed calls. The portable and kernels modes passed the repository's upstream golden checks.
+Kernel modes passed the upstream reference checks for 72 of the original 73 variants and all five additional LoMa variants. Standard Grounding DINO Base remains pending.
+
+The first three edge variants were measured separately. The table shows warm end-to-end latency on a 1920 × 1080 CUDA uint8 input (batch one, five warm-ups, median of 15 synchronized calls). Memory is peak allocated CUDA tensor memory during the timed calls. The portable and kernels modes passed the repository's upstream golden checks.
 
 | Variant | Portable | Kernels | Speedup | Peak MiB, portable → kernels |
 |---|---:|---:|---:|---:|
@@ -73,6 +75,30 @@ The following runs used the public inference API, 768 × 1024 inputs, three warm
 | loma-r | 321.16 | 308.96 | 1.04× |
 
 The LoMa variants share DeDoDe descriptor kernels. MatAnyone reuses the first frame's encoder features during recurrent warm-up. Lineart Anime and PiDiNet use fused OpenCV-compatible preprocessing. XFeat retains float32 convolution precision for keypoint selection. Build new CUDA libraries with `python tools/build_kernels.py LIBRARY` and point `FASTFORKS_KERNEL_PATH` at the resulting local `build/kernels` directory.
+
+### Optical flow and open-vocabulary detection
+
+At 768 × 1024, all nine GMFlow configurations gained from supplying the head dimension explicitly to CUDA scaled dot-product attention. GMFlow Scale 1 Things peak allocation fell from 1443 to 760 MiB. FlowFormer Small keeps the recurrent state and motion aggregation in float32 and runs the four recurrent gate convolutions in float16. The following medians use the same nine-call protocol as the dense prediction runs.
+
+| Variant | Portable (ms) | Kernels (ms) | Speedup |
+|---|---:|---:|---:|
+| gmflow-scale1-things | 224.73 | 97.97 | 2.29× |
+| gmflow-scale1-mixdata | 224.46 | 98.22 | 2.29× |
+| gmflow-scale2-things | 504.25 | 246.20 | 2.05× |
+| gmflow-scale2-sintel | 506.04 | 247.09 | 2.05× |
+| gmflow-scale2-mixdata | 504.46 | 247.22 | 2.04× |
+| gmflow-scale2-regrefine6-things | 674.88 | 419.74 | 1.61× |
+| gmflow-scale2-regrefine6-sintelft | 676.99 | 419.76 | 1.61× |
+| gmflow-scale2-regrefine6-kitti | 677.40 | 418.11 | 1.62× |
+| gmflow-scale2-regrefine6-mixdata | 676.22 | 419.54 | 1.61× |
+| flowformer-small-chairs | 680.77 | 659.14 | 1.03× |
+| flowformer-small-things | 682.60 | 659.71 | 1.03× |
+| flowformer-small-sintel | 682.72 | 676.71 | 1.01× |
+| grounding-dino-tiny | 100.28 | 80.68 | 1.24× |
+| mm-grounding-dino-tiny | 100.38 | 80.01 | 1.25× |
+| mm-grounding-dino-base | 115.19 | 96.90 | 1.19× |
+
+Grounding DINO uses one CUDA launch to sample the feature levels and accumulate their attention weights. Both MM checkpoints and standard Tiny passed. Standard Base remains portable-only. On the coffee fixture, the CUDA candidate exceeded the 0.25 px mean box tolerance, and the pinned upstream CPU network also failed to reproduce the stored boxes with PyTorch 2.14.1 and transformers 5.19.0. The fixture and its tolerance are unchanged.
 
 ## Original snapshot
 

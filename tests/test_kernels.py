@@ -454,3 +454,36 @@ def test_pil_cuda_integer_resampling(size):
     resize = importlib.import_module("fastforks.shared.pil_resize")
     image = torch.randint(256, (2, 3, 17, 23), dtype=torch.uint8, device="cuda")
     torch.testing.assert_close(resize.pil_bicubic_cuda(image, size), resize.pil_bicubic(image, size), atol=0, rtol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("factor", [4, 8])
+def test_convex_flow_upsampling(factor):
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    module = importlib.import_module("fastforks.kernels.flow_upsample")
+    utils = importlib.import_module("fastforks.flow.models.gmflow.net.utils")
+    flow = torch.randn(2, 2, 5, 11, device="cuda")
+    mask = torch.randn(2, 9 * factor**2, 5, 11, device="cuda")
+    want = utils.upsample_flow_with_mask(flow, mask, upsample_factor=factor)
+    torch.testing.assert_close(module.convex(flow, mask, factor), want, atol=4e-6, rtol=2e-6)
+
+
+@pytest.mark.gpu
+def test_multiscale_deformable_sampling():
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    module = importlib.import_module("fastforks.kernels.msda")
+    portable = importlib.import_module("fastforks.detection._attention")
+    levels = [(9, 12), (5, 6), (2, 3)]
+    shapes = torch.tensor(levels, device="cuda")
+    sizes = shapes.prod(1)
+    starts = torch.cat((sizes.new_zeros(1), sizes.cumsum(0)[:-1]))
+    args = {"dtype": torch.float16, "device": "cuda"}
+    value = torch.randn(2, sum(h * w for h, w in levels), 4, 16, **args)
+    locations = torch.rand(2, 19, 4, len(levels), 4, 2, **args) * 1.2 - 0.1
+    weights = torch.randn(2, 19, 4, len(levels), 4, **args)
+    weights = weights.flatten(-2).softmax(-1).reshape_as(weights)
+    want = portable.deformable_sample(value, locations.flatten(3, 4), weights.flatten(3), levels, 4)
+    got = module.sample(value, shapes, levels, starts, locations, weights, 0)
+    torch.testing.assert_close(got, want, atol=0, rtol=0)

@@ -287,8 +287,18 @@ def resolve_any(model: str) -> tuple[ModelCard, Variant]:
 
 def variant_card(card: ModelCard, variant: Variant) -> ModelCard:
     """`card` with the variant's own `io`, `outputs` and `output_info`, and `variant_ref` set (`model_card(id)`)."""
+    reason = variant.planned.get("kernels", "")
+    modes = tuple(mode for mode in card.modes if mode != "kernels" or not reason)
     return dataclasses.replace(
-        card, io=variant.io, outputs=variant.outputs, output_info=variant.output_info, variant_ref=variant.ref
+        card,
+        io=variant.io,
+        outputs=variant.outputs,
+        output_info=variant.output_info,
+        variant_ref=variant.ref,
+        modes=modes,
+        kernel_libs=() if reason else card.kernel_libs,
+        mps_kernel_libs=() if reason else card.mps_kernel_libs,
+        no_kernels_reason=reason or card.no_kernels_reason,
     )
 
 
