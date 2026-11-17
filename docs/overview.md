@@ -521,14 +521,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 |---|---|---|---|---|---|---|
 | [`pe-spatial-t16-512`](models/features.md#perception-encoder) | yes | 6.6 (224x224) | 4.5 | 0.7 | 9.8x vs original (224x224) | 53 |
 | [`pe-core-t16-384`](models/features.md#perception-encoder) | yes | 6.7 (224x224) | 4.7 | 0.7 | 9.9x vs original (224x224) | 53 |
-| [`dinov3-vits16`](models/features.md#dinov3-vit) | yes | 6.5 (224x224) | 3.4 | 0.8 | 8.2x vs original (224x224) | 44 |
+| [`dinov3-vits16`](models/features.md#dinov3-vit) | yes | 6.5 (224x224) | 3.4 | 0.8 | 8.1x vs original (224x224) | 44 |
 | [`dinov2-vits14`](models/features.md#dinov2) | yes | 3.3 (224x224) | 3.0 | 0.8 | 4.0x vs original (224x224) | 80 |
 | [`dinov2-vits14-reg`](models/features.md#dinov2) | yes | 4.1 (224x224) | 3.0 | 0.8 | 4.9x vs original (224x224) | 80 |
 | [`pe-spatial-s16-512`](models/features.md#perception-encoder) | yes | 6.7 (224x224) | 4.5 | 0.9 | 7.3x vs original (224x224) | 78 |
 | [`pe-core-s16-384`](models/features.md#perception-encoder) | yes | 7.0 (224x224) | 4.8 | 1.0 | 7.3x vs original (224x224) | 82 |
 | [`convnext_tiny.fb_in22k`](models/features.md#convnext) | yes | 3.9 (224x224) | 3.3 | 1.1 | 3.5x vs original (224x224) | 88 |
 | [`dinov3-convnext-tiny`](models/features.md#dinov3-convnext) | yes | 3.0 (224x224) | 3.0 | 1.2 | 2.4x vs original (224x224) | 59 |
-| [`dinov3-vitb16`](models/features.md#dinov3-vit) | yes | 7.0 (224x224) | 3.6 | 1.3 | 5.5x vs original (224x224) | 168 |
+| [`dinov3-vitb16`](models/features.md#dinov3-vit) | yes | 6.7 (224x224) | 3.6 | 1.3 | 5.3x vs original (224x224) | 168 |
 | [`clip-b16-laion2b`](models/features.md#clip) | yes | 5.3 (224x224) | 3.1 | 1.4 | 3.9x vs original (224x224) | 203 |
 | [`clip-b16-openai`](models/features.md#clip) | yes | 5.7 (224x224) | 3.4 | 1.4 | 4.2x vs original (224x224) | 203 |
 | [`c-radio-v3-b`](models/features.md#c-radiov3--v4) | yes | 5.8 (224x224) | 3.0 | 1.4 | 4.2x vs original (224x224) | 214 |
