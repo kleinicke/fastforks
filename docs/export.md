@@ -55,6 +55,10 @@ and normalized with the model's mean and standard deviation, plus a `[B, 512]` t
 matching CLIPSeg text encoder. The graph does not include the tokenizer or text encoder; `example_inputs()` supplies
 a synthetic image and the condition for "object" for testing. Use the same checkpoint's text encoder to prepare other
 prompts. The output is logits at 352 x 352; resizing to the original image is outside the exported graph.
+On an RTX 5060 Ti, the fp16 module took 3.746 ms portable and 1.749 ms TensorRT (CUDA-event median of 30 after five
+warmups, same preprocessed image and text condition). These timings exclude preprocessing, text encoding,
+postprocessing and host overhead, so they are not full-call benchmark numbers. On five COCO images with three prompts
+each, thresholded TensorRT masks had IoU at least 0.982 against portable; this is a small parity check.
 
 Rules for every task:
 
