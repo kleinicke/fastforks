@@ -48,6 +48,5 @@ venue = "WACV 2022"
 
 [[variants]]
 id = "big-lama"
-planned = { tensorrt = "the TensorRT ONNX parser has no DFT (FFT convolution)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "big-lama.ckpt", size = 410046389, sha256 = "fccb7adffd53ec0974ee5503c3731c2c2f1e7e07856fd9228cdcc0b46fd5d423", url = "https://huggingface.co/smartywu/big-lama/resolve/05cb2be7f8dbe6ca7c6e78f4fc827a4b2baaa4a9/big-lama.zip", member = "big-lama/models/best.ckpt", archive = { size = 381428720, sha256 = "f1b358ca24093b93a106183b98a3dea6e8ed09f3b43ea7251eb2c81e7b4575f6" } }]

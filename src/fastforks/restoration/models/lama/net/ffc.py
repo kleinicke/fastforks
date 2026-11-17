@@ -8,6 +8,10 @@
 import torch
 import torch.nn as nn
 
+from fastforks._core.tracing import in_onnx_export
+
+from ._export import inverse_real_dft2, real_dft2
+
 
 def reflect_pad(x, p):
     """`F.pad(x, (p, p, p, p), mode="reflect")` that keeps `x`'s memory format (slice copies into one buffer)."""
@@ -47,13 +51,19 @@ class FourierUnit(nn.Module):
     def forward(self, x):
         b, c, h, w = x.shape
         dtype = x.dtype
-        nhwc = x.permute(0, 2, 3, 1).float()  # a view on channels-last input
-        ffted = torch.view_as_real(torch.fft.rfftn(nhwc, dim=(1, 2), norm="ortho"))  # (b, h, w/2+1, c, 2)
+        exporting = in_onnx_export()
+        if exporting:
+            ffted = real_dft2(x.float()).permute(0, 2, 3, 1, 4)
+        else:
+            nhwc = x.permute(0, 2, 3, 1).float()  # a view on channels-last input
+            ffted = torch.view_as_real(torch.fft.rfftn(nhwc, dim=(1, 2), norm="ortho"))  # (b, h, w/2+1, c, 2)
         ffted = ffted.reshape(b, h, -1, 2 * c).permute(0, 3, 1, 2)  # channels c * 2 + real / imag, as upstream
         conv = self.conv_layer
         ffted = nn.functional.conv2d(ffted, conv.weight.float(), None if conv.bias is None else conv.bias.float())
         ffted = self.relu(self.bn(ffted))
         ffted = ffted.permute(0, 2, 3, 1).reshape(b, h, -1, c, 2).contiguous()
+        if exporting:
+            return inverse_real_dft2(ffted.permute(0, 3, 1, 2, 4), w).to(dtype)
         output = torch.fft.irfftn(torch.view_as_complex(ffted), s=(h, w), dim=(1, 2), norm="ortho")
         return output.permute(0, 3, 1, 2).to(dtype)
 
