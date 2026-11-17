@@ -407,7 +407,7 @@ class _Fast(_Base):
     def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         """Fast aggregator, fp32 camera head, fp16 depth and Gaussian heads."""
         net = self.net
-        with torch.autocast("cuda", enabled=False), _fp16_accumulate(on=self.gacc):
+        with torch.autocast("cuda", enabled=False), _fp16_accumulate(on=self._use_fp16_gemm()):
             toks, psi = self.aggregate(x)
         last = toks[-1]
         if last is None:
@@ -423,6 +423,10 @@ class _Fast(_Base):
             "depth_conf": depth_conf,
             "gs": net.gaussian_param_head(toks, xh, psi),
         }
+
+    def _use_fp16_gemm(self) -> bool:
+        """Whether to use the optional half-accumulating GEMMs in the aggregator."""
+        return self.gacc
 
 
 class Portable(_Fast):
@@ -530,6 +534,10 @@ class Kernels(_Fast):
     def patch_tokens(self, x: torch.Tensor) -> torch.Tensor:
         """The shared fast DINOv2 (`FastViT`) on the aggregator's patch embed weights."""
         return self.patch_embed.get_intermediate_layers(x, 1)[0]
+
+    def _use_fp16_gemm(self) -> bool:
+        """Use wider matrix accumulation for retries once either attention launcher reaches its widest variant."""
+        return self.flash.variant != "ff" and self.patch_embed.attn.variant != "ff"
 
     def attention(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, scale: float) -> torch.Tensor:
         """`fastbb` flash64 (fp16 in / out, fp16 P.V accumulation) on strided `[B, N, heads, 64]` views."""
