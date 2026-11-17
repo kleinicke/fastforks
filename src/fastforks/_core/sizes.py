@@ -146,6 +146,8 @@ def size_range(variant: Variant, card: ModelCard | None = None) -> SizeRange:
     export = spec(card.task).export_size if card else None
     if encoder or (side and card and card.task == "classification"):
         export = (encoder or side, encoder or side)
+    if card and card.family == "nninteractive":
+        export = (192, 192)  # the interactive model exports its prepared 192-cubed network patch
     return SizeRange(
         min_size=max(hard, multiple),
         reject_below=hard,

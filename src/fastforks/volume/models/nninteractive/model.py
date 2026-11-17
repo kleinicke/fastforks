@@ -272,7 +272,7 @@ class Portable(InteractiveRunner):
 
     def module(self) -> torch.nn.Module:
         """The U-Net: `[1, 8, 192, 192, 192]` (image, previous mask, six prompt maps) -> logits `[1, 2, ...]`."""
-        return Forward(self.net, lambda net, x: net(x))
+        return Forward(self.net, lambda net, x: net(x), output_names=("logits",))
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
         """The mask (argmax, uint8) of one network input `[8, *patch]`."""

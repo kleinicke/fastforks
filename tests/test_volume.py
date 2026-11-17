@@ -46,6 +46,19 @@ def test_encoder_example_inputs_are_3d_volumes() -> None:
         volume.VolumeEncoder.example_inputs(encoder, 33, 20)
 
 
+def test_interactive_example_is_a_prepared_patch() -> None:
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    model = SimpleNamespace(device=torch.device("cpu"), _runner=SimpleNamespace(_dtype=torch.float16))
+    (x,) = volume.VolumeInteractive.example_inputs(model, 192, 192)
+    assert x.shape == (1, 8, 192, 192, 192)
+    assert x.dtype == torch.float16
+    assert x[0, 4, 96, 96, 96] == 1
+    assert x[0, 1].count_nonzero() == 0
+    with pytest.raises(InputError, match="192x192x192"):
+        volume.VolumeInteractive.example_inputs(model, 128, 128)
+
+
 def _plans(scheme: str = "CTNormalization") -> dict:
     arch = {
         "network_class_name": f"{_DNA}.PlainConvUNet",

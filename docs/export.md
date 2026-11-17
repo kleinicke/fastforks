@@ -39,6 +39,7 @@ fastforks export s2m2-s --format trt --size 384x1248 --fp16       # the model's 
 | detection | `image`: RGB in `[0, 1]` at the network size (normalised inside; R-CNN and DETR also pad inside, RT-DETRv2 takes multiples of 32 only, `InputError` otherwise) | R-CNN: the feature pyramid (backbone + FPN) `p2` .. `p6`; DETR / RT-DETR: `logits`, `boxes` | any H x W >= the minimum (RT-DETRv2: multiples of 32; COCO inference uses shortest edge 800, e.g. 800x1344); no default, `--size` is required |
 | features | `image`: RGB in `[0, 1]` (resized inside to a multiple of the patch stride) | `last_hidden_state` `[B, N, C]` | any H x W; default 224 x 224 |
 | multi-view depth | `images` `[V, 3, H, W]`: the V views of one scene, RGB in `[0, 1]`; then the cameras the model requires (`intrinsics` `[V, 3, 3]`, `cam_to_world` `[V, 4, 4]`, `depth_range` `[2]`) | the model's main output (`depth`, ...); a model returning several outputs keeps their names (PatchmatchNet: `depth`, `confidence`) | one fixed size per export (no size range); no default, `--size` is required |
+| interactive volume (nnInteractive) | `volume` `[B, 8, 192, 192, 192]`: normalized image, previous mask, and positive/negative box, point and scribble maps | `logits` `[B, 2, 192, 192, 192]` | fixed 192-cubed patch (the default); the session constructs the input and assembles results outside the graph |
 
 `model.example_inputs(H, W)` gives synthetic inputs of exactly this form (what the export traces and checks with);
 `model.size_range().export_size` is the default size where the task has one (classification: the crop; features: 224; promptable
@@ -59,6 +60,13 @@ On an RTX 5060 Ti, the fp16 module took 3.746 ms portable and 1.749 ms TensorRT 
 warmups, same preprocessed image and text condition). These timings exclude preprocessing, text encoding,
 postprocessing and host overhead, so they are not full-call benchmark numbers. On five COCO images with three prompts
 each, thresholded TensorRT masks had IoU at least 0.982 against portable; this is a small parity check.
+
+nnInteractive's ONNX graph exports only its 192-cubed network patch, not the complete session. Its eight channels
+are the normalized image, previous mask, positive/negative box, positive/negative point and positive/negative
+scribble maps. Crop, normalization, prompt-map generation, autozoom and mask assembly remain outside the graph.
+The fixed-size FP16 graph was checked with ONNX Runtime on a synthetic patch (identical argmax mask) and the first
+patch from one real CT golden (831 of 7,077,888 voxels differed from portable, mask IoU 0.9973). TensorRT remains
+gated pending full-session accuracy validation.
 
 Rules for every task:
 

@@ -422,6 +422,22 @@ class VolumeInteractive(core.Model):
         super().__init__(runner, backend, options)
         self.channels = runner.channels
 
+    def example_inputs(
+        self, height: int | None = None, width: int | None = None, *, batch: int = 1
+    ) -> tuple[torch.Tensor, ...]:
+        """A prepared network patch: image, previous mask and six prompt channels."""
+        from fastforks._core.export import resolve_size  # noqa: PLC0415
+
+        height, width = resolve_size(self, height, width)
+        if (height, width) != (192, 192):
+            msg = "nnInteractive exports its fixed 192x192x192 network patch; use size 192x192"
+            raise InputError(msg)
+        runner = cast("Any", self._runner)
+        x = torch.zeros((batch, 8, 192, 192, 192), device=self.device, dtype=runner._dtype)  # noqa: SLF001
+        x[:, 0] = torch.linspace(-1, 1, 192, device=self.device, dtype=x.dtype).view(1, 1, 1, 192)
+        x[:, 4, 96, 96, 96] = 1
+        return (x,)
+
     def session(self, volume: np.ndarray | torch.Tensor) -> VolumeSession:
         """Start a session on a volume (raw intensities, any spacing; the model z-scores its nonzero region).
 
