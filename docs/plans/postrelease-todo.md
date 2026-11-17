@@ -16,3 +16,5 @@ Local inventory on 2026-11-17: the generated site data contains 573 variants. Fo
 local asset directory. The older batch's output directory was not found during the 2026-11-15 survey, and images
 may already exist on the live site, so these figures are not a count of broken website pages. The per-variant local
 inventory is `results/2026-11-17_missing_site_examples.tsv` in the experiment workspace.
+The generator's `_done()` currently skips successful metadata rows even if the corresponding local file is missing;
+restore those assets from their original location or explicitly regenerate them rather than relying on the default skip.
