@@ -30,7 +30,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`sam2.1-hiera-large`](#sam2) | yes | 49.1, 1.8x | 808, 0.53x |
 | [`sam2.1-hiera-small`](#sam2) | yes | 15.6, 2.7x | 386, 0.58x |
 | [`sam2.1-hiera-tiny`](#sam2) | yes | 13.9, 2.7x | 362, 0.57x |
-| [`sam3`](#sam3) | yes | 117, 2.4x | 2264, 0.58x |
+| [`sam3`](#sam3) | yes | 117, 2.2x | 2264, 1.1x |
 
 <a id="clipseg"></a>
 
@@ -483,7 +483,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>281<br>179<br>117<br>168<br>89.5 (image encoder only) | 3865 / 3934<br>5255 / 5334<br>1910 / 1984<br>1974 / 2264<br>1910 / 2004<br>2926 / 2944 |
+| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>254<br>179<br>117<br>168<br>89.5 (image encoder only) | 3865 / 3934<br>2052 / 2124<br>1910 / 1984<br>1974 / 2264<br>1910 / 2004<br>2926 / 2944 |
 
 <details><summary>Details</summary>
 
@@ -499,17 +499,17 @@ Commercial use: yes.
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 1008x1008 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam3` 1080x1920 (1.9 GiB peak allocated, 2.1 reserved)
 - `sam3` 1024x1024, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
-- `sam3` original 1024x1024: torch.autocast(fp16) around the forward
-- `sam3` load / first call: original 1.12 s / 0.957 s (840x1297), portable 3.85 s / 0.18 s (840x1297), kernels 4.03 s / 0.116 s (840x1297)
+- `sam3` original 1024x1024: Transformers FP16 weights, FP16 inputs; original adapter casting hooks; 500-image COCO accuracy checked
+- `sam3` load / first call: original 1.35 s / 0.256 s, portable 3.85 s / 0.18 s (840x1297), kernels 4.03 s / 0.116 s (840x1297)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 One text prompt (the COCO class name) per class in the image; the top 100 instances go to pycocotools COCOeval. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `sam3` | COCO val2017, every 10th image, class-name prompts, box / mask mAP | 52.54 / 44.56 | 52.54 / 44.54 | 52.79 / 45.13 | 52.83 / 45.14 | original = transformers `Sam3Model`, the port this code follows |
+| variant | dataset | original fp32 | original fp16 | original half | portable | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `sam3` | COCO val2017, every 10th image, class-name prompts, box / mask mAP | 52.54 / 44.56 | 52.54 / 44.54 | 52.38 / 44.54 | 52.79 / 45.13 | 52.83 / 45.14 | original = transformers `Sam3Model`, the port this code follows |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
