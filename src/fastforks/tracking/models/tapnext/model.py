@@ -62,6 +62,12 @@ def cast_gemm_weights(net: TAPNext, dtype: torch.dtype) -> None:
                 p.data = p.data.to(dtype)
 
 
+@torch.compiler.disable
+def _read_frame(frames: Callable[[int], torch.Tensor], index: int) -> torch.Tensor:
+    """Read and validate a public video frame outside Dynamo's tensor-only network graph."""
+    return frames(index)
+
+
 def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the autocast dtype
     net: TAPNext,
     frames: Callable[[int], torch.Tensor],
@@ -69,6 +75,8 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
     size: tuple[int, int],
     queries: torch.Tensor,
     amp: torch.dtype | None,
+    *,
+    eager_frames: bool = False,
 ) -> dict[str, torch.Tensor]:
     """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`."""
     h, w = size
@@ -80,7 +88,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
         point = net.query_embedding(((queries[:, 1:] + 0.5) * scale).flip(-1))
         state = None
         for t in range(n):
-            video = frames(t)
+            video = _read_frame(frames, t) if eager_frames else frames(t)
             if video.shape[-2:] != (SIZE, SIZE):
                 video = F.interpolate(video, (SIZE, SIZE), mode="bilinear", align_corners=False, antialias=True)
             yx, logit, _, state = net(video * 2 - 1, qt, point, t, state)
@@ -112,7 +120,8 @@ class Portable(Runner):
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         """Tracks and visibility of the queries."""
-        return track(self.net, frames, n, size, queries, self.amp)
+        # A public video can hold numpy or PIL frames: keep conversion outside Dynamo while compiling the network.
+        return track(self.net, frames, n, size, queries, self.amp, eager_frames=torch.compiler.is_compiling())
 
     def module(self) -> torch.nn.Module:
         """The network with the resizing and the frame loop; `forward(video [T, 3, H, W], queries [Q, 3])`."""
