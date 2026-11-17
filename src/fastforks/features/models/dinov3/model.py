@@ -18,6 +18,7 @@ import torch.nn.functional as F
 from fastforks._core import kernels
 from fastforks._core.errors import BackendUnavailableError, InputError
 from fastforks.features._runner import Forward, Runner
+from fastforks.kernels import swiglu
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.kernels.fastbb import load as load_kernels
@@ -121,6 +122,7 @@ _KERNELS_ATTN = {"vits16": "fh", "vitb16": "fh", "vitl16": "hh", "vith16plus": "
 # CUDA graphs (`-graph`): one per input shape and layer set while the call is CPU launch bound, i.e. up to this
 # many activations B * N * C (every ViT up to 512 px, ViT-S up to 1024 px);
 # larger calls are GPU bound and run eagerly (the same kernels)
+_SWIGLU_TOKENS = 1024  # fixed: measured crossover for the dense SwiGLU activation on the RTX 5060 Ti
 _GRAPH_WORK = 1 << 21  # fixed: launch-bound threshold, measured
 # graphs kept per model: at most this many, each with at most `_GRAPH_BYTES / _GRAPHS` of outputs (last_hidden_state +
 # the requested hidden states, fp16; the intermediates share one memory pool, not counted). A shape is captured on its
@@ -140,8 +142,8 @@ class Kernels(Runner):
 
     The block GEMMs are `dpt_fused` fp16-accumulate GEMMs with their epilogues fused: qkv + bias, projection + bias
     with LayerScale and the residual, up + bias + GELU, down + bias with LayerScale and the residual added in place
-    (ViT-H+: one gate / up GEMM, the SiLU gate in place; `DEEP_K` down GEMMs: cuBLAS + `addcmul_`); the patch
-    embedding is a GEMM on the unfolded patches.
+    (ViT-H+: one gate / up GEMM, a dense fused gate for long sequences; `DEEP_K` down GEMMs: cuBLAS + `addcmul_`).
+    The patch embedding is a GEMM on the unfolded patches.
     RoPE is one fastbb kernel in place on the packed q / k (patch tokens; q also takes the softmax scale 2^-3, so the
     attention runs with scale 1); LayerNorm runs in PyTorch fp16; stream scale 8 for ViT-B / L / H+. Outputs float32.
 
@@ -170,6 +172,7 @@ class Kernels(Runner):
         ]
         self.net = _network(ctx, s, torch.float16, sd)  # built in fp16: no float32 copy of the network
         self.blocks = self.net.blocks()
+        self.swiglu = swiglu.load(ctx.device) if cfg.gated else None
         self.cfg, self.attn = cfg, Flash64(_KERNELS_ATTN[arch])
         self.kernels = load_kernels(ctx.device)
         self.k = DptFused(ctx.device)
@@ -200,11 +203,20 @@ class Kernels(Runner):
         self.kernels.launch("rope_qk_h", *rope[0], qkv, cs, n, n - cs.shape[0], h, rope[1], HEAD_DIM**-0.5)
         o = _flash(qkv, 1.0, self.attn)
         x = k.gemm(o, a.o_proj.weight, a.o_proj.bias, scale=s1, res=x)
+        del qkv, o  # release attention buffers before the larger MLP allocations
         y = blk.norm2(x)
-        if hasattr(m, "gate_up_weight"):  # SwiGLU (ViT-H+): the gate in place, the down GEMM reads the strided half
+        if self.swiglu is not None:  # SwiGLU (ViT-H+)
             w, bias = cast("torch.Tensor", m.gate_up_weight), cast("torch.Tensor", m.gate_up_bias)
-            g, u = k.gemm(y, w, bias).chunk(2, -1)
-            hid = F.silu(g, inplace=True).mul_(u)
+            packed = k.gemm(y, w, bias)
+            if b * n >= _SWIGLU_TOKENS:
+                width = packed.shape[-1] // 2
+                hid = packed.new_empty((b, n, width))
+                pairs = hid.numel() // 2
+                self.swiglu.launch("swiglu", *kernels.linear(pairs), packed, hid, width // 2, pairs)
+                del packed  # the down projection only needs the dense activation
+            else:
+                g, u = packed.chunk(2, -1)
+                hid = F.silu(g, inplace=True).mul_(u)
         else:
             hid = k.gemm(y, m.up_proj.weight, m.up_proj.bias, act=k.gelu)
         if m.down_proj.in_features >= DEEP_K:

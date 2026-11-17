@@ -413,3 +413,20 @@ def test_in_memory_images_do_not_alias():
     second = kernels._load_image(found[1].read_bytes(), "second")
     assert first.cos
     assert second.zlibVersion  # the bug returned libm's handle again: AttributeError
+
+
+@pytest.mark.gpu
+def test_swiglu_long_sequence():
+    """Check the ViT-H+ activation at 512 px, above the golden fixture's sequence length."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    mod = importlib.import_module("fastforks.kernels.swiglu")
+    device = torch.device("cuda")
+    generator = torch.Generator(device=device).manual_seed(13)
+    packed = torch.randn((1029, 10240), dtype=torch.float16, device=device, generator=generator)
+    gate, up = packed.chunk(2, dim=-1)
+    expected = torch.nn.functional.silu(gate) * up
+    result = torch.empty_like(expected)
+    pairs = result.numel() // 2
+    mod.load(device).launch("swiglu", *kernels.linear(pairs), packed, result, result.shape[-1] // 2, pairs)
+    torch.testing.assert_close(result, expected, atol=2e-5, rtol=2e-3)

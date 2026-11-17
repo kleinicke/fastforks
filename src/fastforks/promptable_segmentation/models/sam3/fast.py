@@ -2,8 +2,8 @@
 
 - trunk: q / k / v packed into one GEMM, the residual stream kept in window order (9 windows of 24 x 24 tokens)
   between the global layers, RoPE as one in-place complex multiplication (torch), fastbb flash attention (`hh`: fp16
-  scores and accumulation), every GEMM with fp16 accumulation, fc1 + GELU as one cuBLASLt bias + GELU epilogue
-  (tanh GELU, as upstream's perflib; transformers uses the exact one)
+  scores and accumulation), dpt_fused GEMMs with fp16 accumulation, fused residuals and a bias + GELU epilogue
+  (the GELU implementation follows the existing dpt_fused device policy)
 - neck: the transposed and plain convolutions channels-last on `cudnn_hacc` (fp16 accumulation)
 
 Input: the normalised `[1, 3, 1008, 1008]` image; output: the three neck levels in float16 (channels-last).
@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.half import fp16_accumulate
 from fastforks.kernels import cudnn_hacc, fastbb
+from fastforks.kernels.dpt_fused import DptFused
 
 from .net.sam3 import GRID, HEAD, rope_tables
 
@@ -68,6 +69,7 @@ class FastEncoder:
         fastbb.load(device)
         cudnn_hacc.load(device)
         self.device, self.dim, self.heads, self.window = device, dim, heads, window
+        self.fused = DptFused(device)
         self.flash = fastbb.Flash64("hh")
         self.layers = [self._layer(layer, device) for layer in layers]
         self.patch = vit.embeddings.patch_embeddings.projection.weight.detach().half().to(device)
@@ -93,7 +95,7 @@ class FastEncoder:
             "qkv_b": h(torch.cat([a.q_proj.bias, a.k_proj.bias, a.v_proj.bias])),
             "o_w": h(a.o_proj.weight),
             "o_b": h(a.o_proj.bias),
-            "fc1_wt": h(m.fc1.weight).t(),  # [C, hidden] view: addmm's mat2
+            "fc1_w": h(m.fc1.weight),
             "fc1_b": h(m.fc1.bias),
             "fc2_w": h(m.fc2.weight),
             "fc2_b": h(m.fc2.bias),
@@ -118,13 +120,13 @@ class FastEncoder:
         """One layer on `[B, N, C]` fp16 (windows: `B` = 9, `N` = 576; global: `B` = 1, `N` = 5184)."""
         b, n, c = x.shape
         y = F.layer_norm(x, (c,), *p["ln1"])
-        qkv = F.linear(y, p["qkv_w"], p["qkv_b"]).view(b, n, 3, self.heads, HEAD)
+        qkv = self.fused.gemm(y, p["qkv_w"], p["qkv_b"]).view(b, n, 3, self.heads, HEAD)
         self.ropes[p["window"]](qkv)
         o = self.flash(*qkv.unbind(2), HEAD**-0.5).view(b, n, c)
-        x = F.linear(o, p["o_w"], p["o_b"]).add_(x)
+        x = self.fused.gemm(o, p["o_w"], p["o_b"], res=x, out=x)
         y = F.layer_norm(x, (c,), *p["ln2"]).view(b * n, c)
-        hid = torch._addmm_activation(p["fc1_b"], y, p["fc1_wt"], use_gelu=True)  # noqa: SLF001 - cuBLASLt GELU epilogue
-        return F.linear(hid, p["fc2_w"], p["fc2_b"]).view(b, n, c).add_(x)
+        hid = self.fused.gemm(y, p["fc1_w"], p["fc1_b"], act=self.fused.gelu)
+        return self.fused.gemm(hid.view(b, n, -1), p["fc2_w"], p["fc2_b"], res=x, out=x)
 
     def trunk(self, image: torch.Tensor) -> torch.Tensor:
         """Normalised `[1, 3, 1008, 1008]` -> `[1, 72, 72, C]` fp16."""

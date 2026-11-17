@@ -14,6 +14,23 @@ Three variants from the snapshot now have a kernels mode. The table shows warm e
 
 At 512 × 512, HED improved from 5.52 to 4.15 ms. The two Lineart variants gained about 0.24 ms each at that size. The experimental Lineart Anime path regressed from 3.33 to 4.10 ms at 512 × 512, so that variant retains its portable implementation.
 
+### SAM 3 and DINOv3
+
+These two families already had kernels modes. The table compares them before and after the change on the same RTX 5060 Ti, using the original weights, PyTorch 2.10.0+cu130, batch one, six warm-ups and the median of 17 synchronized API calls. The SAM 3 input was the reference coin photograph with the prompt `coin`. All three modes returned 24 masks. The DINOv3 inputs were seeded square uint8 images at the specified evaluation size.
+
+| Model and input | Portable | Previous kernels | New kernels |
+|---|---:|---:|---:|
+| SAM 3, 303 × 384 photo | 194.95 ms | 125.32 ms | 116.98 ms |
+| DINOv3 ViT-H+, 224 × 224 | 13.97 ms | 8.63 ms | 8.58 ms |
+| DINOv3 ViT-H+, 512 × 512 | 55.83 ms | 34.44 ms | 33.60 ms |
+| DINOv3 ViT-H+, 1024 × 1024 | 262.70 ms | 159.44 ms | 150.15 ms |
+
+SAM 3 fuses the residual additions and MLP activation into existing encoder GEMMs. On a synthetic 1008 × 1008 input its peak allocation fell from 1957 to 1928 MiB. The repository's reference-image checks cover text, exemplar boxes and combined prompts.
+
+DINOv3 ViT-H+ fuses SwiGLU for 1024 or more token rows. The short-sequence path keeps its original activation. At 1024 px, peak allocation fell from 1814 to 1806 MiB. The final hidden states matched the previous kernels exactly on the 224 and 1024 px test inputs. At 512 px the mean absolute difference from previous kernels was 0.00055 and the maximum was 0.01782. Against portable fp16 the mean absolute difference at that size was 0.00057.
+
+For evaluation, set `FASTFORKS_KERNEL_PATH` to the local `build/kernels` directory containing `swiglu/`, or run `python tools/build_kernels.py swiglu` on the CUDA build host first. The new binary is staged locally. The five new LoMa references are available through `FASTFORKS_GOLDEN_PATH` pointing to the local `build/goldens` directory.
+
 ## anyline (1)
 
 Variants: `anyline`.
