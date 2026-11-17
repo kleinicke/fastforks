@@ -290,7 +290,9 @@ class DeformableAttention(nn.Module):
         weights = F.softmax(self.attention_weights(query).reshape(b, q, HEADS, n), dim=-1)
         scale = self.num_points_scale.to(query.dtype).unsqueeze(-1)  # ty: ignore[call-non-callable]
         loc = ref[:, :, None, :, :2] + offsets * scale * ref[:, :, None, :, 2:] * OFFSET_SCALE
-        return sample_maps(maps, loc, weights, self.points)
+        # Explicit bilinear gathers avoid incorrect GridSample results in some TensorRT engines.
+        # https://github.com/NVIDIA/TensorRT/issues/4813#issuecomment-6902929321
+        return sample_maps(maps, loc, weights, self.points, export_with_gather=True)
 
 
 class Gate(nn.Module):
