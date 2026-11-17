@@ -938,6 +938,39 @@ def test_sincos_einsum_has_one_input_dtype(module):
     torch.testing.assert_close(ep.module()(pos), M()(pos), rtol=1e-6, atol=1e-6)
 
 
+@pytest.mark.gpu
+def test_tensorrt_scatter_plugin_survives_fresh_process(tmp_path):
+    """Standard plugins must be available for both parsing and fresh-process engine loading."""
+    import subprocess  # noqa: PLC0415
+    import sys  # noqa: PLC0415
+
+    if not torch.cuda.is_available() or importlib.util.find_spec("tensorrt") is None:
+        pytest.skip("needs CUDA and tensorrt")
+    pytest.importorskip("onnxscript")
+    from fastforks._core.export import build_tensorrt  # noqa: PLC0415
+
+    class Scatter(torch.nn.Module):
+        def forward(self, values, index):
+            return torch.zeros_like(values).scatter_add(1, index, values)
+
+    values = torch.arange(8, dtype=torch.float32).reshape(1, 8)
+    index = torch.tensor([[0, 1, 1, 3, 4, 4, 6, 7]], dtype=torch.int64)
+    program = torch.onnx.export(Scatter().eval(), (values, index), dynamo=True, verbose=False)
+    assert program is not None
+    path = tmp_path / "scatter.onnx"
+    program.save(str(path))
+    engine = build_tensorrt(path, tmp_path / "scatter.engine")
+    code = """
+import sys, torch
+from fastforks._core.export import TensorRTEngine
+x = torch.arange(8, dtype=torch.float32, device='cuda').reshape(1, 8)
+i = torch.tensor([[0, 1, 1, 3, 4, 4, 6, 7]], dtype=torch.int64, device='cuda')
+actual = TensorRTEngine(sys.argv[1])(x, i)
+torch.testing.assert_close(actual, torch.zeros_like(x).scatter_add(1, i, x), rtol=0, atol=0)
+"""
+    subprocess.run([sys.executable, "-c", code, str(engine)], check=True, timeout=60)
+
+
 def test_failed_tensorrt_build_is_one_clear_error(monkeypatch, tmp_path):
     """A failing engine build raises BackendUnavailableError naming TensorRT's first error and a way out."""
     from types import SimpleNamespace  # noqa: PLC0415
@@ -957,6 +990,7 @@ def test_failed_tensorrt_build_is_one_clear_error(monkeypatch, tmp_path):
         build_serialized_network=build,
     )
     trt = SimpleNamespace(
+        init_libnvinfer_plugins=lambda *_: True,
         Builder=lambda _: builder,
         OnnxParser=lambda *_: SimpleNamespace(parse_from_file=lambda _: True),
         NetworkDefinitionCreationFlag=SimpleNamespace(STRONGLY_TYPED=0),

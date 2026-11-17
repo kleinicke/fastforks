@@ -606,6 +606,7 @@ def build_tensorrt(
     """
     trt = _tensorrt()
     logger = _trt_logger()
+    trt.init_libnvinfer_plugins(logger, "")
     builder = trt.Builder(logger)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.STRONGLY_TYPED))
     parser = trt.OnnxParser(network, logger)
@@ -770,6 +771,7 @@ class TensorRTEngine:
         trt = _tensorrt()
         self.device = _cuda_device(device)
         with torch.cuda.device(self.device):
+            trt.init_libnvinfer_plugins(_trt_logger(), "")
             self._runtime = trt.Runtime(_trt_logger())
             self._engine = self._runtime.deserialize_cuda_engine(Path(path).read_bytes())
             if self._engine is None:
