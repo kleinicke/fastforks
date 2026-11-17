@@ -27,6 +27,7 @@ gpu_p99_kernels = 0.0069
 sha256 = "6e35425204c0c914062607e88bc22e73ed39164d8a4355673a6dfd940880fe7f"
 upstream = "https://github.com/pytorch/vision@1f1a920d685d46dfbe187934b785b7ecb7a182f2"
 settings = "CPU float32, torchvision 0.29.1 raft_large num_flow_updates=12, skimage astronaut.png 384x512 crop + affine warp (1.5 deg, x1.02, shift (3.4, -2.1)), torch 2.14.1"
+cpu_extra = [["flow", 0.00016]]  # pinned torchvision matches the port exactly; both differ from the NPZ by up to 0.00015843 px on the release host
 gpu_mean_kernels = 0.0016
 gpu_p99_kernels = 0.0069
 
