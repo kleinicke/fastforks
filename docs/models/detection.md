@@ -685,15 +685,15 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `rtdetrv2-s-coco` | COCO val2017, every 10th image, box mAP | 49.29 | 49.26 | 49.29 | 49.31 |  |
-| `rtdetrv2-m-coco` | COCO val2017, every 10th image, box mAP | 49.83 | 49.81 | 49.84 | 49.79 |  |
-| `rtdetrv2-ms-coco` | COCO val2017, every 10th image, box mAP | 51.97 | 51.98 | 51.95 | 51.96 |  |
-| `rtdetrv2-l-coco` | COCO val2017, every 10th image, box mAP | 54.52 | 54.57 | 54.51 | 54.49 |  |
-| `rtdetrv2-x-coco` | COCO val2017, every 10th image, box mAP | 55.51 | 55.54 | 55.51 | 55.49 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `rtdetrv2-s-coco` | COCO val2017, every 10th image, box mAP | 49.29 | 49.26 | 49.29 | 49.30 | 49.31 |  |
+| `rtdetrv2-m-coco` | COCO val2017, every 10th image, box mAP | 49.83 | 49.81 | 49.84 | 49.83 | 49.79 |  |
+| `rtdetrv2-ms-coco` | COCO val2017, every 10th image, box mAP | 51.97 | 51.98 | 51.95 | 51.96 | 51.96 |  |
+| `rtdetrv2-l-coco` | COCO val2017, every 10th image, box mAP | 54.52 | 54.57 | 54.51 | 54.55 | 54.49 |  |
+| `rtdetrv2-x-coco` | COCO val2017, every 10th image, box mAP | 55.51 | 55.54 | 55.51 | 55.56 | 55.49 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

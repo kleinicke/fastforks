@@ -258,7 +258,7 @@ Each image at its own size, argmax of the logits. Original = the original code n
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `eomt-l-dinov2-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 57.31 / 86.44 | 57.31 / 86.44 | 57.34 / 86.44 | 57.31 / 86.44 | 57.37 / 86.43 |  |
-| `eomt-l-dinov3-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 57.62 / 86.60 | 57.62 / 86.60 | 57.62 / 86.60 |  | 57.60 / 86.59 |  |
+| `eomt-l-dinov3-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 57.62 / 86.60 | 57.62 / 86.60 | 57.62 / 86.60 | 57.62 / 86.60 | 57.60 / 86.59 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
