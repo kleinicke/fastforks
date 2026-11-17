@@ -51,6 +51,15 @@ def test_measured_table_keeps_portable_precisions_separate():
     assert gen_docs._eval_mode({"mode": "upstream", "dtype": "float16"}) == "upstream-fp16"
 
 
+def test_overview_prefers_default_portable_to_portable32():
+    rows = [
+        {"mode": "portable", "dataset": "kitti2015-train", "epe": 1.0},
+        {"mode": "portable", "tier": "portable32", "dataset": "kitti2015-train", "epe": 2.0},
+    ]
+    overview = gen_docs._overview_rows("flow", {}, {}, {"gmflow-scale1-things": rows})
+    assert next(r["error"] for r in overview if r["id"] == "gmflow-scale1-things") == 1.0
+
+
 def test_public_functions_document_their_args():
     """Every public function and method of `fastforks` / `.stereo` / `.stereo.geometry` with parameters has `Args:`."""
     missing = []

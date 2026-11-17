@@ -1490,8 +1490,8 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
                 speedup = (pt[0] / mx[0], "portable")
             else:
                 speedup = None
-            a = {r["mode"]: r for r in acc.get(v.id, []) if r["dataset"] == dataset}
-            a_row = a.get("kernels") or a.get("portable")
+            a = {_eval_mode(r): r for r in acc.get(v.id, []) if r["dataset"] == dataset}
+            a_row = a.get("kernels") or a.get("portable") or a.get("portable32")
             mark = _overlap(card, v, dataset) if a_row and dataset else ""
             best = mx if isinstance(mx, tuple) else pt if isinstance(pt, tuple) else None
             rows.append(

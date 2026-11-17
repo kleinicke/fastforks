@@ -15,11 +15,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | no kernels | no kernels |
 | [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | no kernels | no kernels |
 | [`flowformer-small-things`](#flowformer) | yes | 6.884 | no kernels | no kernels |
-| [`flowseek-t`](#flowseek) | yes | 1.259 † | no kernels | no kernels |
-| [`flowseek-t-things`](#flowseek) | yes | 4.098 | no kernels | no kernels |
-| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.925 | no kernels | no kernels |
+| [`flowseek-t`](#flowseek) | yes | 1.348 † | no kernels | no kernels |
+| [`flowseek-t-things`](#flowseek) | yes | 4.143 | no kernels | no kernels |
+| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | no kernels | no kernels |
 | [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | no kernels | no kernels |
-| [`gmflow-scale1-things`](#gmflow) | yes | 10.347 | no kernels | no kernels |
+| [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | no kernels | no kernels |
 | [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | no kernels | no kernels |
 | [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | no kernels | no kernels |
 | [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | yes | 1.315 ? | no kernels | no kernels |
@@ -291,9 +291,9 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
 |---|---|---|---|---|---|---|
 | `gmflow-scale1-things` | KITTI 2015 train, EPE / Fl-all % | 10.347 / 34.31 | 10.347 / 34.30 | 10.346 / 34.30 | 10.347 / 34.30 |  |
-| `gmflow-scale1-mixdata` | KITTI 2015 train, EPE / Fl-all % | 3.698 / 17.60 | 3.698 / 17.61 | 3.697 / 17.61 |  | possibly in the training data |
-| `gmflow-scale2-things` | KITTI 2015 train, EPE / Fl-all % | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 |  |  |
-| `gmflow-scale2-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.975 / 7.88 | 1.976 / 7.88 | 1.975 / 7.88 |  | trained on this dataset's public images; not a zero-shot result |
+| `gmflow-scale1-mixdata` | KITTI 2015 train, EPE / Fl-all % | 3.698 / 17.60 | 3.698 / 17.61 | 3.697 / 17.61 | 3.698 / 17.60 | possibly in the training data |
+| `gmflow-scale2-things` | KITTI 2015 train, EPE / Fl-all % | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 |  |
+| `gmflow-scale2-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.975 / 7.88 | 1.976 / 7.88 | 1.975 / 7.88 | 1.975 / 7.88 | trained on this dataset's public images; not a zero-shot result |
 | `gmflow-scale2-mixdata` | KITTI 2015 train, EPE / Fl-all % | 2.390 / 10.10 | 2.390 / 10.10 | 2.389 / 10.10 |  | possibly in the training data |
 | `gmflow-scale2-regrefine6-things` | KITTI 2015 train, EPE / Fl-all % | 4.918 / 16.33 | 4.918 / 16.32 | 4.917 / 16.32 |  |  |
 | `gmflow-scale2-regrefine6-sintelft` | KITTI 2015 train, EPE / Fl-all % | 1.153 / 3.92 | 1.154 / 3.92 | 1.154 / 3.92 |  | trained on this dataset's public images; not a zero-shot result |
