@@ -1100,10 +1100,10 @@ fastforks: the model's own resize / crop on the GPU; original: the library's pre
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `fastvit_sa24.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.78 / 96.48 | 83.80 / 96.46 | 83.78 / 96.44 | 83.78 / 96.44 | 83.80 / 96.42 |  |
-| `fastvit_t8.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.76 / 93.38 | 78.68 / 93.32 | 78.66 / 93.34 |  | 78.66 / 93.38 |  |
+| `fastvit_t8.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.76 / 93.38 | 78.68 / 93.32 | 78.66 / 93.34 | 78.76 / 93.36 | 78.66 / 93.38 |  |
 | `fastvit_t12.apple_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.12 / 94.98 | 81.08 / 94.92 | 81.02 / 94.96 |  | 81.08 / 94.96 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993 / 95e72cc0, 2026-10-31 to 2026-11-11; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8 / d4cb0d31, 2026-11-06 to 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / 7c91993 / 95e72cc0, 2026-10-31 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8 / d4cb0d31, 2026-11-06 to 2026-11-11.
 
 ### Parity
 
