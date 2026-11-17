@@ -773,14 +773,14 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `efficientformerv2_s0.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 77.04 / 92.94 | 77.00 / 92.76 | 77.34 / 92.82 |  |
-| `efficientformerv2_s1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.80 / 95.00 | 81.02 / 94.88 | 80.88 / 95.00 |  |
-| `efficientformerv2_s2.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.22 / 96.28 | 83.10 / 96.34 | 83.18 / 96.30 |  |
-| `efficientformerv2_l.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.88 / 96.58 | 83.96 / 96.58 | 84.02 / 96.50 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
+|---|---|---|---|---|---|---|
+| `efficientformerv2_s0.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 77.04 / 92.94 | 77.00 / 92.76 | 77.34 / 92.82 | 77.02 / 92.88 |  |
+| `efficientformerv2_s1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.80 / 95.00 | 81.02 / 94.88 | 80.88 / 95.00 | 80.84 / 95.06 |  |
+| `efficientformerv2_s2.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.22 / 96.28 | 83.10 / 96.34 | 83.18 / 96.30 |  |  |
+| `efficientformerv2_l.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.88 / 96.58 | 83.96 / 96.58 | 84.02 / 96.50 |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / 7ba7307f, 2026-11-11 to 2026-11-17.
 
 ### Parity
 

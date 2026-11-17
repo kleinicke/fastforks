@@ -198,7 +198,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `da3-giant-1.1` | iBims-1, AbsRel / delta1 | 0.0318 / 0.9819 | 0.0317 / 0.9820 | 0.0318 / 0.9820 | 0.0318 / 0.9819 | 0.0318 / 0.9819 |  |
 | `da3-giant-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0705 / 0.9416 | 0.0704 / 0.9415 | 0.0704 / 0.9415 | 0.0705 / 0.9416 | 0.0704 / 0.9420 | possibly in the training data |
 | `da3-giant-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | possibly in the training data |
-| `da3nested-giant-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0387 / 0.9809 | 0.0387 / 0.9810 | 0.0387 / 0.9809 |  | 0.0387 / 0.9809 |  |
+| `da3nested-giant-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0387 / 0.9809 | 0.0387 / 0.9810 | 0.0387 / 0.9809 | 0.0387 / 0.9809 | 0.0387 / 0.9809 |  |
 | `da3nested-giant-large-1.1` | iBims-1, AbsRel / delta1 | 0.0320 / 0.9825 | 0.0320 / 0.9826 | 0.0320 / 0.9824 | 0.0320 / 0.9825 | 0.0320 / 0.9825 |  |
 | `da3nested-giant-large-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0761 / 0.9361 | 0.0762 / 0.9346 | 0.0761 / 0.9362 |  | 0.0760 / 0.9362 | possibly in the training data |
 | `da3nested-giant-large-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0298 / 0.9925 | 0.0299 / 0.9925 | 0.0298 / 0.9925 |  | 0.0298 / 0.9925 | possibly in the training data |
@@ -353,16 +353,16 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `depth-anything-v2-metric-vkitti-l` | iBims-1, AbsRel / delta1 | 0.0783 / 0.9399 | 0.0783 / 0.9399 | 0.0784 / 0.9399 | 0.0783 / 0.9399 | 0.0783 / 0.9399 |  |
 | `depth-anything-v2-metric-vkitti-l` | ETH3D two-view train left, AbsRel / delta1 | 0.1081 / 0.8993 | 0.1081 / 0.8992 | 0.1081 / 0.8992 |  | 0.1082 / 0.8991 | possibly in the training data |
 | `depth-anything-v2-metric-vkitti-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0551 / 0.9836 | 0.0551 / 0.9836 | 0.0551 / 0.9837 |  | 0.0551 / 0.9837 | possibly in the training data |
-| `distill-any-depth-s` | NYUv2 test, AbsRel / delta1 | 0.0529 / 0.9764 | 0.0529 / 0.9764 | 0.0529 / 0.9764 |  | 0.0529 / 0.9764 |  |
-| `distill-any-depth-s` | iBims-1, AbsRel / delta1 | 0.0476 / 0.9701 | 0.0476 / 0.9701 | 0.0476 / 0.9701 |  | 0.0476 / 0.9701 |  |
+| `distill-any-depth-s` | NYUv2 test, AbsRel / delta1 | 0.0529 / 0.9764 | 0.0529 / 0.9764 | 0.0529 / 0.9764 | 0.0529 / 0.9764 | 0.0529 / 0.9764 |  |
+| `distill-any-depth-s` | iBims-1, AbsRel / delta1 | 0.0476 / 0.9701 | 0.0476 / 0.9701 | 0.0476 / 0.9701 | 0.0476 / 0.9701 | 0.0476 / 0.9701 |  |
 | `distill-any-depth-s` | ETH3D two-view train left, AbsRel / delta1 | 0.0854 / 0.9094 | 0.0855 / 0.9092 | 0.0855 / 0.9093 |  | 0.0855 / 0.9093 | possibly in the training data |
 | `distill-any-depth-s` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0335 / 0.9947 | 0.0335 / 0.9947 | 0.0336 / 0.9947 |  | 0.0335 / 0.9947 | possibly in the training data |
-| `distill-any-depth-b` | NYUv2 test, AbsRel / delta1 | 0.0470 / 0.9803 | 0.0470 / 0.9803 | 0.0470 / 0.9803 |  | 0.0470 / 0.9803 |  |
-| `distill-any-depth-b` | iBims-1, AbsRel / delta1 | 0.0392 / 0.9817 | 0.0392 / 0.9816 | 0.0392 / 0.9817 |  | 0.0392 / 0.9817 |  |
+| `distill-any-depth-b` | NYUv2 test, AbsRel / delta1 | 0.0470 / 0.9803 | 0.0470 / 0.9803 | 0.0470 / 0.9803 | 0.0470 / 0.9803 | 0.0470 / 0.9803 |  |
+| `distill-any-depth-b` | iBims-1, AbsRel / delta1 | 0.0392 / 0.9817 | 0.0392 / 0.9816 | 0.0392 / 0.9817 | 0.0392 / 0.9817 | 0.0392 / 0.9817 |  |
 | `distill-any-depth-b` | ETH3D two-view train left, AbsRel / delta1 | 0.0695 / 0.9386 | 0.0696 / 0.9382 | 0.0695 / 0.9386 |  | 0.0695 / 0.9386 | possibly in the training data |
 | `distill-any-depth-b` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0312 / 0.9963 | 0.0312 / 0.9963 | 0.0312 / 0.9963 |  | 0.0312 / 0.9963 | possibly in the training data |
-| `distill-any-depth-l` | NYUv2 test, AbsRel / delta1 | 0.0444 / 0.9818 | 0.0444 / 0.9817 | 0.0444 / 0.9817 |  | 0.0444 / 0.9817 |  |
-| `distill-any-depth-l` | iBims-1, AbsRel / delta1 | 0.0375 / 0.9832 | 0.0375 / 0.9832 | 0.0375 / 0.9832 |  | 0.0375 / 0.9832 |  |
+| `distill-any-depth-l` | NYUv2 test, AbsRel / delta1 | 0.0444 / 0.9818 | 0.0444 / 0.9817 | 0.0444 / 0.9817 | 0.0444 / 0.9818 | 0.0444 / 0.9817 |  |
+| `distill-any-depth-l` | iBims-1, AbsRel / delta1 | 0.0375 / 0.9832 | 0.0375 / 0.9832 | 0.0375 / 0.9832 | 0.0375 / 0.9832 | 0.0375 / 0.9832 |  |
 | `distill-any-depth-l` | ETH3D two-view train left, AbsRel / delta1 | 0.0640 / 0.9537 | 0.0640 / 0.9537 | 0.0640 / 0.9537 |  | 0.0639 / 0.9537 | possibly in the training data |
 | `distill-any-depth-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0303 / 0.9962 | 0.0303 / 0.9962 | 0.0303 / 0.9962 |  | 0.0303 / 0.9962 | possibly in the training data |
 
@@ -428,14 +428,14 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `depth-pro` | NYUv2 test, AbsRel / delta1 | 0.0425 / 0.9810 | 0.0425 / 0.9810 | 0.0425 / 0.9810 | 0.0425 / 0.9810 |  |
-| `depth-pro` | iBims-1, AbsRel / delta1 | 0.0353 / 0.9827 | 0.0353 / 0.9826 | 0.0353 / 0.9826 | 0.0353 / 0.9827 |  |
-| `depth-pro` | ETH3D two-view train left, AbsRel / delta1 | 0.0651 / 0.9642 | 0.0652 / 0.9642 | 0.0652 / 0.9642 | 0.0656 / 0.9638 | possibly in the training data |
-| `depth-pro` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0295 / 0.9966 | 0.0295 / 0.9966 | 0.0295 / 0.9966 | 0.0295 / 0.9966 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `depth-pro` | NYUv2 test, AbsRel / delta1 | 0.0425 / 0.9810 | 0.0425 / 0.9810 | 0.0425 / 0.9810 | 0.0425 / 0.9810 | 0.0425 / 0.9810 |  |
+| `depth-pro` | iBims-1, AbsRel / delta1 | 0.0353 / 0.9827 | 0.0353 / 0.9826 | 0.0353 / 0.9826 | 0.0353 / 0.9827 | 0.0353 / 0.9827 |  |
+| `depth-pro` | ETH3D two-view train left, AbsRel / delta1 | 0.0651 / 0.9642 | 0.0652 / 0.9642 | 0.0652 / 0.9642 |  | 0.0656 / 0.9638 | possibly in the training data |
+| `depth-pro` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0295 / 0.9966 | 0.0295 / 0.9966 | 0.0295 / 0.9966 |  | 0.0295 / 0.9966 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -481,12 +481,12 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `depthfm-v1` | iBims-1, AbsRel / delta1 | 0.0652 / 0.9540 | 0.0652 / 0.9540 | 0.0650 / 0.9543 | 0.0650 / 0.9543 |  |
-| `depthfm-v1` | NYUv2 test (first 100 images), AbsRel / delta1 | 0.0735 / 0.9489 | 0.0731 / 0.9492 | 0.0732 / 0.9493 | 0.0732 / 0.9493 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `depthfm-v1` | iBims-1, AbsRel / delta1 | 0.0652 / 0.9540 | 0.0652 / 0.9540 | 0.0650 / 0.9543 | 0.0650 / 0.9543 | 0.0650 / 0.9543 |  |
+| `depthfm-v1` | NYUv2 test (first 100 images), AbsRel / delta1 | 0.0735 / 0.9489 | 0.0731 / 0.9492 | 0.0732 / 0.9493 |  | 0.0732 / 0.9493 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345 / 6d3bab64, 2026-11-16 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 
@@ -662,14 +662,14 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `marigold-depth-v1-1` | NYUv2 test, AbsRel / delta1 | 0.0561 / 0.9703 | 0.0561 / 0.9703 | 0.0561 / 0.9703 | 0.0561 / 0.9703 |  |
-| `marigold-depth-v1-1` | iBims-1, AbsRel / delta1 | 0.0499 / 0.9721 | 0.0499 / 0.9721 | 0.0499 / 0.9722 | 0.0499 / 0.9721 |  |
-| `marigold-depth-v1-1` | ETH3D two-view train left, AbsRel / delta1 | 0.1141 / 0.8715 | 0.1141 / 0.8715 | 0.1141 / 0.8715 | 0.1141 / 0.8716 | possibly in the training data |
-| `marigold-depth-v1-1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `marigold-depth-v1-1` | NYUv2 test, AbsRel / delta1 | 0.0561 / 0.9703 | 0.0561 / 0.9703 | 0.0561 / 0.9703 |  | 0.0561 / 0.9703 |  |
+| `marigold-depth-v1-1` | iBims-1, AbsRel / delta1 | 0.0499 / 0.9721 | 0.0499 / 0.9721 | 0.0499 / 0.9722 | 0.0499 / 0.9721 | 0.0499 / 0.9721 |  |
+| `marigold-depth-v1-1` | ETH3D two-view train left, AbsRel / delta1 | 0.1141 / 0.8715 | 0.1141 / 0.8715 | 0.1141 / 0.8715 |  | 0.1141 / 0.8716 | possibly in the training data |
+| `marigold-depth-v1-1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | 0.0413 / 0.9899 |  | 0.0413 / 0.9899 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 491e248a / 939adfe8, 2026-11-06 to 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 491e248a / 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 491e248a / 939adfe8, 2026-11-06 to 2026-11-11.
 
 ### Parity
 
