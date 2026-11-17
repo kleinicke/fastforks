@@ -99,7 +99,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 - Training data: 120+ volumetric 3D datasets (CT, MRI, PET, 3D microscopy; readme) with simulated prompts.
 - Kernel libraries: `vol_norm`
 - Variants: `nninteractive`
-- Not in this release (planned for 0.2.1): `nninteractive` ONNX / TensorRT export: the export wrapper passes no interaction prompts (TypeError on None)
+- Not in this release (planned for 0.2.1): `nninteractive` TensorRT export: the TensorRT patch engine needs full interactive-session accuracy validation
 - Outputs: mask
 - Input size: any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nninteractive` 512x512x512 voxels (5.7 GiB peak allocated, 6.1 reserved)
