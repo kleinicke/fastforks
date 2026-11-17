@@ -28,6 +28,11 @@ For example, RAFT-small recorded 36 copies with shape `[96, 242, 3, 3]` and WAFT
 to runtime. Exact profiler output and commands are retained locally in
 `results/raw/2026-11-17_autocast_audit/profile.log` and `results/2026-11-17_autocast_audit.py`.
 
+A follow-up Python `TorchDispatchMode` attempt observed zero `_to_copy` calls at all on RAFT-small, despite the
+profiler recording 379. That tracer therefore cannot distinguish parameter copies in this path; its zero matches
+are not evidence that weight casts are absent. The per-parameter conversion count and performance impact remain
+unmeasured (`results/raw/2026-11-17_autocast_audit/trace_diagnostic.log`).
+
 ## Already pre-cast or intentionally mixed
 
 TAPNext explicitly stores selected GEMM weights in FP16 while retaining autocast and FP32 components. MoGe,
