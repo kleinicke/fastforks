@@ -15,11 +15,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`ben2`](#ben2) | yes | 0.0403 | 104, 1.9x | 1698, 0.61x |
 | [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1916, 0.99x |
 | [`birefnet-lite`](#birefnet) | yes | – | 48.1, 1.6x | 960, 0.99x |
-| [`inspyrenet`](#inspyrenet) | yes | – | no kernels | no kernels |
-| [`inspyrenet-fast`](#inspyrenet) | yes | – | no kernels | no kernels |
+| [`inspyrenet`](#inspyrenet) | yes | – | – | – |
+| [`inspyrenet-fast`](#inspyrenet) | yes | – | – | – |
 | [`isnet`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
 | [`isnet-general-use`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
-| [`matanyone`](#matanyone) | no | – | no kernels | no kernels |
+| [`matanyone`](#matanyone) | no | – | – | – |
 | [`rmbg-2.0`](#birefnet) | no | – | 121, 1.2x | 1936, 0.97x |
 | [`u2net`](#u2net) | yes | – | 8.83, 1.8x | 260, 0.52x |
 | [`u2net-human-seg`](#u2net) | yes | – | 9.05, 1.8x | 260, 0.52x |
@@ -151,8 +151,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>109<br>no kernels<br>85.8<br>51.1 | 3240 / 3262<br>1649 / 1848<br>no kernels<br>913 / 1018<br>1181 / 1252 |
-| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>41.7<br>no kernels<br>17.7<br>6.99 | 810 / 836<br>432 / 488<br>no kernels<br>345 / 376<br>561 / 600 |
+| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>109<br>–<br>85.8<br>51.1 | 3240 / 3262<br>1649 / 1848<br>–<br>913 / 1018<br>1181 / 1252 |
+| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>41.7<br>–<br>17.7<br>6.99 | 810 / 836<br>432 / 488<br>–<br>345 / 376<br>561 / 600 |
 
 <details><summary>Details</summary>
 
@@ -161,12 +161,11 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/plemeri/transparent-background/blob/f0fa91701a98cfc8e955c554e84522f365ec6da3/LICENSE ; https://github.com/plemeri/transparent-background/releases/tag/1.2.12 ; https://github.com/plemeri/InSPyReNet/blob/692ad8a5774cf95ef615a730d5070aad18f6b160/docs/model_zoo.md
 - Training data: DUTS (salient object detection), HRSOD (high-resolution salient object detection), UHRSD (ultra-high-resolution salient object detection), DIS5K (dichotomous image segmentation) (plemeri/InSPyReNet docs/model_zoo.md, Plus_Ultra(_LR): DUTS-TR/TE, HRSOD-TR/TE, UHRSD-TR/TE, DIS-TR/VD/TE1-4, DUT-OMRON, ECSSD, HKU-IS, PASCAL-S, DAVIS-S, FSS-1000, MSRA-10K (all test sets included, so benchmark numbers on them are not held out). Swin-B backbone from ImageNet-22k -> 1k.)
-- Kernel libraries: none (measured slower: cudnn_hacc convolutions 189.9 ms vs 159.4 ms portable (1080x1920, size 1024; upstream views their outputs, so channels-last needs copies); fp16-accumulate GEMMs alone 3 %)
+- Kernel libraries: `image_normalize`
 - Variants: `inspyrenet`, `inspyrenet-fast`
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `inspyrenet` 3000x4000 (2.0 GiB peak allocated, 2.4 reserved); `inspyrenet-fast` 3000x4000 (0.9 GiB peak allocated, 1.0 reserved)
-- no kernels: measured slower: cudnn_hacc convolutions 189.9 ms vs 159.4 ms portable (1080x1920, size 1024; upstream views their outputs, so channels-last needs copies); fp16-accumulate GEMMs alone 3 %.
 - `inspyrenet` 1080x1920, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp16 133 s (ONNX + engine).
 - `inspyrenet-fast` 1080x1920, first call: portable + torch.compile 77 s (cold Inductor cache), TensorRT fp16 138 s (ONNX + engine).
 - `inspyrenet` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing
@@ -192,8 +191,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `inspyrenet` | no kernels backend | - | - |
-| `inspyrenet-fast` | no kernels backend | - | - |
+| `inspyrenet` | 3e-05 / 0.00067 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
+| `inspyrenet-fast` | 1e-05 / 0.00029 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
 
 </details>
 
@@ -262,7 +261,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>1205<br>no kernels<br>fails: load: BackendUnavailableError: matanyone@1 (portable) has no<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2719 / 2908<br>no kernels<br>–<br>– |
+| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>1205<br>–<br>fails: load: BackendUnavailableError: matanyone@1 (portable) has no<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2719 / 2908<br>–<br>–<br>– |
 
 <details><summary>Details</summary>
 
@@ -272,12 +271,11 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/LICENSE ; https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/README.md (weights: https://github.com/pq-yang/MatAnyone/releases/tag/v1.0.0)
 - Training data: VM800 (MatAnyone video matting foregrounds), Composition-1k (Adobe Deep Image Matting), Distinctions-646 (image matting), BG-20k (background images), DVM background set (video backgrounds), COCO 2017 (train, instance annotations), YouTube-VIS 2021 (video instance segmentation), Supervisely Person Dataset (human segmentation) (doc/TRAIN.md: matting on VM800 (not released) and ImageMatte (Distinctions-646 + Adobe Image Matting), backgrounds from BG-20k and DVM, segmentation on COCO, YouTube-VIS 2021 and Supervisely Person.)
 - Options: `warmup` = 10 (>= 0; also `n_warmup`), `dilate` = 10 (>= 0; also `r_dilate`), `erode` = 10 (>= 0; also `r_erode`)
-- Kernel libraries: none (not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable runs 1.2 % faster than the original fp16 at 1080x1920 (1205 vs 1220 ms) with 9 % lower peak allocated memory (2719 vs 2978 MB) and identical task accuracy (YouTubeMatte MAD 2.636 both); against the original fp32 at 512x288 portable fp16 is 5 % slower per frame (20.5 vs 19.4 ms) with 24 % less memory, so the speed bar holds at 1080p and against fp16 only)
+- Kernel libraries: `image_normalize`
 - Variants: `matanyone`
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `matanyone` 3000x4000 (14.5 GiB peak allocated, 15.1 reserved)
-- no kernels: not implemented: ResNet encoders plus a memory readout and small object transformer per frame; portable runs 1.2 % faster than the original fp16 at 1080x1920 (1205 vs 1220 ms) with 9 % lower peak allocated memory (2719 vs 2978 MB) and identical task accuracy (YouTubeMatte MAD 2.636 both); against the original fp32 at 512x288 portable fp16 is 5 % slower per frame (20.5 vs 19.4 ms) with 24 % less memory, so the speed bar holds at 1080p and against fp16 only.
 - `matanyone` original 1080x1920: the authors' mixed-precision option (float16); pq-yang/MatAnyone@e5ddc534c1ff process_video loop on frames in memory, cv2 mask closing
 - `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -298,7 +296,7 @@ CPU, float32: max |diff| <= 1e-06 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `matanyone` | no kernels backend | - | - |
+| `matanyone` | 5e-05 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
 
 </details>
 
@@ -431,11 +429,11 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`ben2`](#ben2) | portable, kernels | MIT | MIT | dis5k, prama-internal | yes | alpha |
 | [`birefnet`](#birefnet) | portable, kernels | MIT | MIT | dis5k, duts, hrsod, uhrsd, hrs10k, p3m-10k | yes | alpha |
 | [`birefnet-lite`](#birefnet) | portable, kernels | MIT | MIT | dis5k, duts, hrsod, uhrsd, hrs10k, p3m-10k | yes | alpha |
-| [`inspyrenet`](#inspyrenet) | portable | MIT | MIT | duts, hrsod, uhrsd, dis5k | yes | alpha |
-| [`inspyrenet-fast`](#inspyrenet) | portable | MIT | MIT | duts, hrsod, uhrsd, dis5k | yes | alpha |
+| [`inspyrenet`](#inspyrenet) | portable, kernels | MIT | MIT | duts, hrsod, uhrsd, dis5k | yes | alpha |
+| [`inspyrenet-fast`](#inspyrenet) | portable, kernels | MIT | MIT | duts, hrsod, uhrsd, dis5k | yes | alpha |
 | [`isnet`](#isnet) | portable, kernels | Apache-2.0 | Apache-2.0 | dis5k | yes | alpha |
 | [`isnet-general-use`](#isnet) | portable, kernels | Apache-2.0 | Apache-2.0 | dis5k | yes | alpha |
-| [`matanyone`](#matanyone) | portable | LicenseRef-noncommercial | LicenseRef-noncommercial | vm800, composition-1k, distinctions-646, bg20k, dvm-background, coco, youtube-vis-2021, supervisely-person | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial) | alpha |
+| [`matanyone`](#matanyone) | portable, kernels | LicenseRef-noncommercial | LicenseRef-noncommercial | vm800, composition-1k, distinctions-646, bg20k, dvm-background, coco, youtube-vis-2021, supervisely-person | **no** (code: LicenseRef-noncommercial (noncommercial); weights: LicenseRef-noncommercial) | alpha |
 | [`rmbg-2.0`](#birefnet) | portable, kernels | MIT | CC-BY-NC-4.0 | bria-internal | **no** (weights: CC-BY-NC-4.0) | alpha |
 | [`u2net`](#u2net) | portable, kernels | Apache-2.0 | Apache-2.0 | duts | yes | alpha |
 | [`u2net-human-seg`](#u2net) | portable, kernels | Apache-2.0 | Apache-2.0 | supervisely-person | yes | alpha |

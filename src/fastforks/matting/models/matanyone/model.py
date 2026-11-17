@@ -28,6 +28,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.patch import override
 from fastforks._core.runner import host
+from fastforks.kernels import image_normalize
 from fastforks.matting._runner import Runner
 
 from .net.inference.inference_core import InferenceCore
@@ -236,6 +237,8 @@ class Portable(Runner):
         """The one network (device adaptations, e.g. Apple MPS)."""
         return (self.net,)
 
+    reuse_first = False
+
     def _autocast(self) -> contextlib.AbstractContextManager[Any]:
         if self.ctx.dtype == "float32":
             return contextlib.nullcontext()
@@ -252,10 +255,12 @@ class Portable(Runner):
             for ti in range(p.warmup + n):
                 image = first if ti <= p.warmup else frames(ti - p.warmup)[0]
                 if ti == 0:
-                    core.step(image, closed, objects=[1])
-                    prob = core.step(image, first_frame_pred=True)
+                    core.step(image, closed, objects=[1], delete_buffer=not self.reuse_first)
+                    prob = core.step(image, first_frame_pred=True, delete_buffer=not self.reuse_first or p.warmup == 0)
                 else:
-                    prob = core.step(image, first_frame_pred=ti <= p.warmup)
+                    prob = core.step(
+                        image, first_frame_pred=ti <= p.warmup, delete_buffer=not self.reuse_first or ti >= p.warmup
+                    )
                 if ti >= p.warmup:
                     yield core.output_prob_to_mask(prob).float()
 
@@ -279,4 +284,27 @@ class Portable(Runner):
         return {"alpha": out}
 
 
-RUNNERS = {"portable": Portable}
+def _cuda_encode(
+    m: MatAnyone,
+    image: torch.Tensor,
+    seq_length: int | None = None,
+    last_feats: Any = None,  # noqa: ANN401, ARG001 - upstream signature
+) -> tuple[list[torch.Tensor], torch.Tensor]:
+    x = image_normalize.normalize(image, m.pixel_mean, m.pixel_std)
+    features = m.pixel_encoder(x, seq_length)
+    return features, m.pix_feat_proj(features[0])
+
+
+class Kernels(Portable):
+    """Reuse the first frame's image features throughout recurrent warm-up."""
+
+    reuse_first = True
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the accelerated inference path on the model device."""
+        super().__init__(ctx)
+        override(self.net, _cuda_encode, "encode_image")
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

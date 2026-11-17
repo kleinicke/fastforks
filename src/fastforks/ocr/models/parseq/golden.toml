@@ -20,3 +20,21 @@ settings = "CPU float32, read.py transform (PIL bicubic), refine 1, demo_images/
 sha256 = "5087e34266bb6cafc7a4fcc078d91f65a00efdef3219c8e072d084a76c0a5144"
 upstream = "https://github.com/baudm/parseq@1902db043c029a7e03a3818c616c06600af574be"
 settings = "CPU float32, read.py transform (PIL bicubic), refine 1, demo_images/art-01107.jpg, torch 2.14.1+cu130"
+
+[validated."parseq-tiny@1"]
+kernels = ["pil_resample@a432ef0451fe:sm_120"]
+symbols = {"pil_resample" = {"resample_u8" = "8faf3417450dca7a"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 0.0
+p99_px = 0.0
+
+[validated."parseq@1"]
+kernels = ["pil_resample@a432ef0451fe:sm_120"]
+symbols = {"pil_resample" = {"resample_u8" = "8faf3417450dca7a"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 0.0
+p99_px = 0.0

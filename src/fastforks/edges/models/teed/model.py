@@ -16,7 +16,9 @@ from typing import TYPE_CHECKING
 import torch
 
 from fastforks.edges._runner import Forward, Runner, safe_step, to_detect, to_input
+from fastforks.kernels import smish
 from fastforks.shared.teed import TED, edge_map
+from fastforks.shared.teed.net.Xsmish import Smish
 
 if TYPE_CHECKING:
     from fastforks.edges._runner import Context
@@ -63,4 +65,17 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image: self(image)["edges"])
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Run TED's Smish activations as fused CUDA operations."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Replace module Smish calls while preserving the original graph's tensor lifetimes."""
+        super().__init__(ctx)
+        for name, module in list(self.net.named_modules(remove_duplicate=False)):
+            if isinstance(module, Smish):
+                self.net.set_submodule(name, smish.Activation(ctx.device))
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

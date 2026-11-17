@@ -19,7 +19,10 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.patch import override
+from fastforks.kernels import keypoint_nms
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared.cuda_graphs import CapturedModule
 from fastforks.shared.lightglue import LightGlue, resize_long
 
 from .net.model import BasicLayer
@@ -145,4 +148,51 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2))
 
 
-RUNNERS = {"portable": Portable}
+def _precise_conv(layer: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+    # XFeat's score threshold changes keypoint membership at TF32 convolution precision.
+    return torch.ops.aten._convolution.default(  # noqa: SLF001 - per-call precision control
+        x,
+        layer.weight,
+        layer.bias,
+        layer.stride,
+        layer.padding,
+        layer.dilation,
+        transposed=False,
+        output_padding=[0, 0],
+        groups=layer.groups,
+        benchmark=False,
+        deterministic=False,
+        cudnn_enabled=True,
+        allow_tf32=False,
+    )
+
+
+def _maxima(_extractor: XFeat, x: torch.Tensor, threshold: float = 0.05, kernel_size: int = 5) -> torch.Tensor:
+    peaks = keypoint_nms.maxima(x, threshold, kernel_size // 2)
+    positions = [plane[0].nonzero().flip(-1) for plane in peaks]
+    return nn.utils.rnn.pad_sequence(positions, batch_first=True)
+
+
+class Kernels(Portable):
+    """Capture the fixed-shape dense extractor and fuse thresholding with local maxima."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Keep descriptors and scores in the original float32 precision."""
+        super().__init__(ctx)
+        extractor = self.net.xfeat
+        for layer in extractor.net.modules():
+            if isinstance(layer, nn.Conv2d):
+                override(layer, _precise_conv)
+        dense = CapturedModule(extractor.net, pixels=2**20)
+        extractor.set_submodule("net", dense)
+        self.graphs = dense.graphs
+        override(extractor, _maxima, name="NMS")
+
+    def release_graphs(self) -> None:
+        """Release captured extractor graphs."""
+        self.graphs.release()
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

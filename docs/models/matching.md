@@ -12,23 +12,23 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`aliked-flexglue`](#flexglue) | yes | no kernels | no kernels |
+| [`aliked-flexglue`](#flexglue) | yes | – | – |
 | [`aliked-lightglue`](#lightglue) | yes | 35.1, 1.2x | 1324, 0.97x |
 | [`dedode-v2-b`](#dedode) | yes | 189, 1.7x | 1246, 0.63x |
 | [`dedode-v2-g`](#dedode) | yes | 332, 2.0x | 1984, 0.8x |
 | [`disk-lightglue`](#lightglue) | yes | 52.1, 2.2x | 778, 0.32x |
 | [`loftr-indoor`](#loftr) | yes | 96.2, 2.5x | 886, 0.46x |
 | [`loftr-outdoor`](#loftr) | yes | 95.9, 2.5x | 886, 0.47x |
-| [`loma-b`](#loma) | yes | no kernels | no kernels |
-| [`loma-b128`](#loma) | yes | no kernels | no kernels |
-| [`loma-b64`](#loma) | yes | no kernels | no kernels |
-| [`loma-g`](#loma) | yes | no kernels | no kernels |
-| [`loma-l`](#loma) | yes | no kernels | no kernels |
-| [`loma-r`](#loma) | yes | no kernels | no kernels |
+| [`loma-b`](#loma) | yes | – | – |
+| [`loma-b128`](#loma) | yes | – | – |
+| [`loma-b64`](#loma) | yes | – | – |
+| [`loma-g`](#loma) | yes | – | – |
+| [`loma-l`](#loma) | yes | – | – |
+| [`loma-r`](#loma) | yes | – | – |
 | [`romav1`](#romav1) | yes | 356, 1.1x | 1860, 0.45x |
 | [`romav2`](#romav2) | yes | 354, 2.1x | 2300, 0.23x |
-| [`xfeat`](#xfeat) | yes | no kernels | no kernels |
-| [`xfeat-lighterglue`](#xfeat) | yes | no kernels | no kernels |
+| [`xfeat`](#xfeat) | yes | – | – |
+| [`xfeat-lighterglue`](#xfeat) | yes | – | – |
 
 <a id="flexglue"></a>
 
@@ -40,7 +40,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aliked-flexglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 348<br>129<br>no kernels<br>96.1<br>fails: ONNX export: torch.export failed | 1801 / 1892<br>1775 / 1886<br>no kernels<br>1762 / 1826<br>– |
+| `aliked-flexglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 348<br>129<br>–<br>96.1<br>fails: ONNX export: torch.export failed | 1801 / 1892<br>1775 / 1886<br>–<br>1762 / 1826<br>– |
 
 <details><summary>Details</summary>
 
@@ -51,12 +51,11 @@ Commercial use: yes.
 - Training data: FlexGlue: the README states no training data and the training code is not released (see the paper). The DINOv3 ConvNeXt-B backbone was pretrained on LVD-1689M (Meta, not released); ALIKED was trained on MegaDepth.
 - Licence note: The checkpoint includes the DINOv3 ConvNeXt-B backbone weights (`extractor.backbone.*`): the DINOv3 License (Meta: attribution and conditions apply) covers them; read it before commercial use.
 - Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 0), `size` = 512 (>= 32)
-- Kernel libraries: none (not implemented: data-dependent keypoint and match counts. Portable at 768x1024, 2048 keypoints, MegaDepth pair: 129.6 ms against 152.9 ms for the original with its float16 option (1.18x), peak allocated 1799 vs 1801 MB (reserved 1962 vs 1950), 760 vs 759 matches)
+- Kernel libraries: `image_normalize`
 - Variants: `aliked-flexglue`
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-flexglue` 3000x4000 (2.0 GiB peak allocated, 2.5 reserved)
-- no kernels: not implemented: data-dependent keypoint and match counts. Portable at 768x1024, 2048 keypoints, MegaDepth pair: 129.6 ms against 152.9 ms for the original with its float16 option (1.18x), peak allocated 1799 vs 1801 MB (reserved 1962 vs 1950), 760 vs 759 matches.
 - `aliked-flexglue` 768x1024, first call: portable + torch.compile 79 s (cold Inductor cache).
 - `aliked-flexglue` original 768x1024: upstream FlexGlue(mp=None).match_pair(sparse=True) + ALIKED(origin=corner), 2048 keypoints
 - `aliked-flexglue` load / first call: original 4.5 s / 1.661 s, portable 0.92 s / 1.199 s
@@ -78,7 +77,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `aliked-flexglue` | no kernels backend | - | - |
+| `aliked-flexglue` | 0.00118 / 0.00319 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
 
 ### Limitations
 
@@ -292,9 +291,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1036<br>308<br>no kernels<br>285<br>planned for 0.2.1 | 4176 / 4390<br>1767 / 1878<br>no kernels<br>2870 / 3216<br>– |
-| `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>129<br>no kernels<br>101<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>854 / 962<br>no kernels<br>1230 / 1356<br>– |
-| `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels | –<br>150<br>no kernels | –<br>878 / 984<br>no kernels |
+| `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1036<br>308<br>–<br>285<br>planned for 0.2.1 | 4176 / 4390<br>1767 / 1878<br>–<br>2870 / 3216<br>– |
+| `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>129<br>–<br>101<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>854 / 962<br>–<br>1230 / 1356<br>– |
+| `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels | –<br>150<br>– | –<br>878 / 984<br>– |
 
 <details><summary>Details</summary>
 
@@ -304,13 +303,12 @@ Commercial use: yes.
 - Licence evidence: https://github.com/davnords/loma/blob/ecc947d44ddc9d50387e887bbedc743d65ffac00/README.md#license ; https://github.com/Parskatt/dad/blob/41b9e86a1a3ae52128485cc1094aa4952ef489ba/LICENSE ; https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/README.md#license
 - Training data: MegaDepth (Internet photo collections with SfM / MVS depth) (Matcher: MegaDepth (paper); DaD: MegaDepth-based distillation (DaD paper); DeDoDe-G descriptor: MegaDepth; B, L, G and R include frozen DINOv2 (LVD-142M). B64 and B128 use VGG descriptors.)
 - Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 16), `size` = 784 (>= 56)
-- Kernel libraries: none (not implemented: data-dependent keypoint and match counts. LoMa-B portable is 307.9 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1790 vs 1843 MB (reserved 2562 vs 3398), matches 1030 vs 1038-1039)
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `loma-b`, `loma-b64`, `loma-b128`, `loma-l`, `loma-g`, `loma-r`
 - Not in this release (planned for 0.2.1): `loma-b` ONNX / TensorRT export: the export fails in the network call (negative tensor dimension -1)
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loma-b` 3000x4000 (2.4 GiB peak allocated, 3.6 reserved); `loma-b64` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-b128` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-l` 3000x4000 (2.1 GiB peak allocated, 2.8 reserved); `loma-g` 3000x4000 (2.6 GiB peak allocated, 3.3 reserved); `loma-r` 3000x4000 (2.0 GiB peak allocated, 2.7 reserved)
-- no kernels: not implemented: data-dependent keypoint and match counts. LoMa-B portable is 307.9 ms against 382.8 ms for the original fp16 (1.24x) and 409.1 ms fp32, peak allocated 1790 vs 1843 MB (reserved 2562 vs 3398), matches 1030 vs 1038-1039.
 - `loma-b` 768x1024, first call: portable + torch.compile 104 s (cold Inductor cache).
 - `loma-b64` 768x1024, first call: portable + torch.compile 66 s (cold Inductor cache).
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
@@ -336,12 +334,12 @@ CPU, float32: max |diff| <= 0.011 vs the original. GPU, portable bfloat16 and ke
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `loma-b` | no kernels backend | - | - |
-| `loma-b64` | no kernels backend | - | - |
-| `loma-b128` | no kernels backend | - | - |
-| `loma-l` | no kernels backend | - | - |
-| `loma-g` | no kernels backend | - | - |
-| `loma-r` | no kernels backend | - | - |
+| `loma-b` | 0.00775 / 0.40228 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `loma-b64` | 0.00718 / 0.39541 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `loma-b128` | 0.00775 / 0.40228 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `loma-l` | 0.00775 / 0.40228 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `loma-g` | 0.00775 / 0.40228 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `loma-r` | 0.00775 / 0.40228 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 
@@ -479,8 +477,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.89<br>7.17<br>no kernels<br>5.65<br>planned for 0.2.1 | 128 / 174<br>122 / 154<br>no kernels<br>186 / 212<br>– |
-| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>no kernels<br>16.2<br>planned for 0.2.1 | 448 / 478<br>445 / 476<br>no kernels<br>262 / 278<br>– |
+| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.89<br>7.17<br>–<br>5.65<br>planned for 0.2.1 | 128 / 174<br>122 / 154<br>–<br>186 / 212<br>– |
+| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>–<br>16.2<br>planned for 0.2.1 | 448 / 478<br>445 / 476<br>–<br>262 / 278<br>– |
 
 <details><summary>Details</summary>
 
@@ -490,13 +488,12 @@ Commercial use: yes.
 - Licence evidence: https://github.com/verlab/accelerated_features/blob/e92685f57f8318b18725c5c8c0bd28c7fe188d9a/LICENSE ; https://github.com/verlab/accelerated_features/blob/e92685f57f8318b18725c5c8c0bd28c7fe188d9a/README.md#license
 - Training data: MegaDepth (Internet photo collections with SfM / MVS depth), COCO 2017 (train, instance annotations) (XFeat: MegaDepth and synthetic warps of a 20k-image COCO 2017 subset (README training section). LighterGlue: trained with GlueFactory (README; MegaDepth, data not otherwise stated).)
 - Options: `max_keypoints` = 4096 (>= 1), `long_side` = 0 (>= 0)
-- Kernel libraries: none (not implemented: data-dependent keypoint counts (NMS, top-k, match filtering); the extractor is a small CNN)
+- Kernel libraries: `keypoint_nms`
 - Variants: `xfeat`, `xfeat-lighterglue`
 - Not in this release (planned for 0.2.1): `xfeat` ONNX / TensorRT export: torch.export stops at a data-dependent branch (NMS / keypoint selection); `xfeat-lighterglue` ONNX / TensorRT export: torch.export stops at a data-dependent branch (NMS / keypoint selection)
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `xfeat` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved); `xfeat-lighterglue` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved)
-- no kernels: not implemented: data-dependent keypoint counts (NMS, top-k, match filtering); the extractor is a small CNN.
 - `xfeat` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache).
 - `xfeat-lighterglue` 768x1024, first call: portable + torch.compile 40 s (cold Inductor cache).
 - `xfeat` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + mnn, top_k 4096
@@ -520,12 +517,12 @@ Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec7b1307+p
 
 ### Parity
 
-CPU, float32: max |diff| <= 3e-05 vs the original. GPU, portable float32 and kernels float16 (the defaults): mean |diff| <= 0.0001 and p99 <= 0.001 (absolute error of the output `keypoints1`).
+CPU, float32: max |diff| <= 3e-05 vs the original. GPU, float32 (the default), portable and kernels: mean |diff| <= 0.0001 and p99 <= 0.001 (absolute error of the output `keypoints1`).
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `xfeat` | no kernels backend | - | - |
-| `xfeat-lighterglue` | no kernels backend | - | - |
+| `xfeat` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `keypoint_nms@3cfcd62bc9a5:sm_120` |
+| `xfeat-lighterglue` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `keypoint_nms@3cfcd62bc9a5:sm_120` |
 
 ### Limitations
 
@@ -544,23 +541,23 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
-| [`aliked-flexglue`](#flexglue) | portable | MIT AND BSD-3-Clause | MIT AND LicenseRef-DINOv3-License AND BSD-3-Clause | unstated | yes | keypoints1, keypoints2, pairs, scores |
+| [`aliked-flexglue`](#flexglue) | portable, kernels | MIT AND BSD-3-Clause | MIT AND LicenseRef-DINOv3-License AND BSD-3-Clause | unstated | yes | keypoints1, keypoints2, pairs, scores |
 | [`aliked-lightglue`](#lightglue) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`dedode-v2-b`](#dedode) | portable, kernels | MIT | MIT | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`dedode-v2-g`](#dedode) | portable, kernels | MIT | MIT | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`disk-lightglue`](#lightglue) | portable, kernels | Apache-2.0 AND BSD-3-Clause | Apache-2.0 AND BSD-3-Clause | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`loftr-indoor`](#loftr) | portable, kernels | Apache-2.0 | Apache-2.0 | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`loftr-outdoor`](#loftr) | portable, kernels | Apache-2.0 | Apache-2.0 | megadepth | yes | keypoints1, keypoints2, pairs, scores |
-| [`loma-b`](#loma) | portable | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
-| [`loma-b128`](#loma) | portable | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
-| [`loma-b64`](#loma) | portable | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
-| [`loma-g`](#loma) | portable | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
-| [`loma-l`](#loma) | portable | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
-| [`loma-r`](#loma) | portable | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`loma-b`](#loma) | portable, kernels | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`loma-b128`](#loma) | portable, kernels | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`loma-b64`](#loma) | portable, kernels | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`loma-g`](#loma) | portable, kernels | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`loma-l`](#loma) | portable, kernels | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
+| [`loma-r`](#loma) | portable, kernels | MIT AND Apache-2.0 | MIT AND Apache-2.0 (assumed from code) | megadepth | yes | keypoints1, keypoints2, pairs, scores |
 | [`romav1`](#romav1) | portable, kernels | MIT | MIT AND Apache-2.0 | megadepth | yes | warp, certainty |
 | [`romav2`](#romav2) | portable, kernels | MIT AND LicenseRef-DINOv3-License | MIT AND LicenseRef-DINOv3-License | unstated | yes | warp, certainty |
-| [`xfeat`](#xfeat) | portable | Apache-2.0 | Apache-2.0 | megadepth, coco | yes | keypoints1, keypoints2, pairs, scores |
-| [`xfeat-lighterglue`](#xfeat) | portable | Apache-2.0 | Apache-2.0 | megadepth, coco | yes | keypoints1, keypoints2, pairs, scores |
+| [`xfeat`](#xfeat) | portable, kernels | Apache-2.0 | Apache-2.0 | megadepth, coco | yes | keypoints1, keypoints2, pairs, scores |
+| [`xfeat-lighterglue`](#xfeat) | portable, kernels | Apache-2.0 | Apache-2.0 | megadepth, coco | yes | keypoints1, keypoints2, pairs, scores |
 
 </details>
 

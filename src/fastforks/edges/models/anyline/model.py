@@ -22,6 +22,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks.edges._runner import Forward, Runner, safe_step, to_detect, to_input
+from fastforks.kernels import edge_components
 from fastforks.shared.quantile import kth_smallest
 from fastforks.shared.teed import TED, edge_map
 
@@ -102,25 +103,27 @@ def remove_small(fg: torch.Tensor, min_pixels: int = MIN_PIXELS) -> torch.Tensor
     return fg & (count[li] >= min_pixels)
 
 
-def line_art(x: torch.Tensor) -> torch.Tensor:
+def line_art(x: torch.Tensor, *, fused: bool = False) -> torch.Tensor:
     """controlnet_aux `lineart_standard` levels of `[B, 3, h, w]` 0..255 floats with the specks removed, in `[0, 1]`."""
     x = x.float()
     intensity = (gaussian_blur(x) - x).amin(1).clamp_(0, 255)
     med = median_above(intensity.flatten(1), THRESHOLD).nan_to_num(16).clamp(min=16)
     lin = (intensity / med[:, None, None] * 127).clamp_(0, 255).floor_()
-    return torch.where(remove_small(lin > 0), lin / 255, 0)
+    mask = edge_components.keep_twelve(lin > 0) if fused else remove_small(lin > 0)
+    return torch.where(mask, lin / 255, 0)
 
 
-def anyline(outputs: list[torch.Tensor], x: torch.Tensor) -> torch.Tensor:
+def anyline(outputs: list[torch.Tensor], x: torch.Tensor, *, fused: bool = False) -> torch.Tensor:
     """MTEED outputs + the detect-size input `x` (0..255) -> the AnyLine map `[B, h, w]` in `[0, 1]`."""
     base = safe_step(edge_map(outputs), 2)
-    top = line_art(x)
+    top = line_art(x, fused=fused)
     return torch.where(top > 0, 1 - (1 - top) * (1 - base), base)
 
 
 class Portable(Runner):
     """Upstream's network in plain PyTorch, float32 or float16 (NCHW); the line art in float32."""
 
+    fused_components = False
     Params = Params
     dtypes = ("float32", "float16")
 
@@ -136,11 +139,18 @@ class Portable(Runner):
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """AnyLine map `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
         x = to_detect(image, self.ctx.params.short_side)
-        return {"edges": to_input(anyline(self.net(x.to(self.dtype)), x), image)}
+        return {"edges": to_input(anyline(self.net(x.to(self.dtype)), x, fused=self.fused_components), image)}
 
     def module(self) -> torch.nn.Module:
         """The network with its pre- and post-processing: `[B, 3, H, W]` in `[0, 1]` -> edges `[B, H, W]`."""
         return Forward(self.net, lambda _net, image: self(image)["edges"])
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Apply the bounded foreground-component kernel to the original network output."""
+
+    fused_components = True
+    module = Runner.module
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

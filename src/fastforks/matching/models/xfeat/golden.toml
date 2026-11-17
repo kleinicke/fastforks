@@ -25,3 +25,21 @@ settings = "CPU float32, upstream XFeat.detectAndCompute top_k 4096 + kornia Lig
 sha256 = "93fc5c7bd03bf71df085f372a9d882c3243bbe5aa8dd87134f4667042464f39e"
 upstream = "https://github.com/verlab/accelerated_features@e92685f57f8318b18725c5c8c0bd28c7fe188d9a"
 settings = "CPU float32, upstream XFeat.detectAndCompute top_k 4096 + match(min_cossim=-1), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[validated."xfeat-lighterglue@1"]
+kernels = ["keypoint_nms@3cfcd62bc9a5:sm_120"]
+symbols = {"keypoint_nms" = {"maxima" = "502850cd6edd2fc6"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 0.0
+p99_px = 0.0
+
+[validated."xfeat@1"]
+kernels = ["keypoint_nms@3cfcd62bc9a5:sm_120"]
+symbols = {"keypoint_nms" = {"maxima" = "502850cd6edd2fc6"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 0.0
+p99_px = 0.0

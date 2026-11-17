@@ -20,7 +20,10 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.patch import override
+from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
+from fastforks.kernels import image_normalize
 from fastforks.matting._runner import Forward, Runner, scale
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import InSPyReNet_SwinB
 from .net.modules.attention_module import SICA
@@ -91,6 +94,9 @@ class Portable(Runner):
         self.dtype = getattr(torch, ctx.dtype)
         self.net = _net(ctx, self.dtype)
 
+    def _normalize(self, x: torch.Tensor) -> torch.Tensor:
+        return scale(x, self.ctx.io)
+
     def _net(self, x: torch.Tensor) -> torch.Tensor:
         return self.net.forward_inspyre(x)["saliency"][3]  # ty: ignore[call-non-callable] - the upstream class
 
@@ -98,7 +104,7 @@ class Portable(Runner):
         """Alpha `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
         s = self.ctx.params.size
         x = F.interpolate(image, (s, s), mode="bilinear", align_corners=False, antialias=True)
-        y = torch.sigmoid(self._net(scale(x, self.ctx.io).to(self.dtype)).float())
+        y = torch.sigmoid(self._net(self._normalize(x).to(self.dtype)).float())
         lo, hi = y.amin((1, 2, 3), keepdim=True), y.amax((1, 2, 3), keepdim=True)
         y = (y - lo) / (hi - lo + 1e-8)
         return {"alpha": F.interpolate(y, image.shape[-2:], mode="bilinear", align_corners=True)[:, 0]}
@@ -108,4 +114,27 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image: self(image, None)["alpha"])
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Fuse input normalization and capture the fixed-size Swin network."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the accelerated inference path on the model device."""
+        super().__init__(ctx)
+        self.mean = torch.tensor(IMAGENET_MEAN, device=ctx.device)
+        self.std = torch.tensor(IMAGENET_STD, device=ctx.device)
+        self.graphs = SmallShapeGraphs(super()._net, pixels=2**21)
+
+    def _normalize(self, x: torch.Tensor) -> torch.Tensor:
+        return image_normalize.normalize(x, self.mean, self.std)
+
+    def _net(self, x: torch.Tensor) -> torch.Tensor:
+        return self.graphs(x)
+
+    def release_graphs(self) -> None:
+        """Release captured activation buffers."""
+        self.graphs.release()
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

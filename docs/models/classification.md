@@ -13,16 +13,16 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`alexnet`](#alexnet) | yes | 0.604, 1.9x | 228, 0.8x |
-| [`coatnet_0_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_1_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_2_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_nano_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_1_rw2_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_1_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_2_rw_224`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | no kernels | no kernels |
-| [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | no kernels | no kernels |
+| [`coatnet_0_rw_224`](#coatnet) | yes | – | – |
+| [`coatnet_1_rw_224`](#coatnet) | yes | – | – |
+| [`coatnet_2_rw_224`](#coatnet) | yes | – | – |
+| [`coatnet_nano_rw_224`](#coatnet) | yes | – | – |
+| [`coatnet_rmlp_1_rw2_224`](#coatnet) | yes | – | – |
+| [`coatnet_rmlp_1_rw_224`](#coatnet) | yes | – | – |
+| [`coatnet_rmlp_2_rw_224`](#coatnet) | yes | – | – |
+| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | – | – |
+| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | – | – |
+| [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | – | – |
 | [`convnext_base.fb_in1k`](#convnext) | yes | 2.00, 3.9x | 236, 0.59x |
 | [`convnext_base`](#convnext) | yes | 2.01, 3.9x | 236, 0.59x |
 | [`convnext_base.fb_in22k_ft_in1k_384`](#convnext) | yes | 3.05, 3.7x | 232, 0.53x |
@@ -36,19 +36,19 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`convnext_tiny.fb_in22k_ft_in1k`](#convnext) | yes | 1.15, 3.6x | 110, 0.64x |
 | [`convnext_tiny.fb_in22k_ft_in1k_384`](#convnext) | yes | 1.56, 2.9x | 110, 0.52x |
 | [`convnextv2_base`](#convnextv2) | no | 2.96, 3.6x | 238, 0.57x |
-| [`davit_base`](#davit) | yes | no kernels | no kernels |
-| [`davit_small`](#davit) | yes | no kernels | no kernels |
-| [`davit_tiny`](#davit) | yes | no kernels | no kernels |
+| [`davit_base`](#davit) | yes | – | – |
+| [`davit_small`](#davit) | yes | – | – |
+| [`davit_tiny`](#davit) | yes | – | – |
 | [`deit_base_patch16_224`](#deit) | yes | 1.66, 3.3x | 248, 0.64x |
 | [`densenet121`](#densenet) | yes | 1.29, 8.3x | 92, 1.0x |
 | [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.95, 2.2x | 672, 0.55x |
-| [`efficientformer_l1`](#efficientformer) | yes | no kernels | no kernels |
-| [`efficientformer_l3`](#efficientformer) | yes | no kernels | no kernels |
-| [`efficientformer_l7`](#efficientformer) | yes | no kernels | no kernels |
-| [`efficientformerv2_l`](#efficientformerv2) | yes | no kernels | no kernels |
-| [`efficientformerv2_s0`](#efficientformerv2) | yes | no kernels | no kernels |
-| [`efficientformerv2_s1`](#efficientformerv2) | yes | no kernels | no kernels |
-| [`efficientformerv2_s2`](#efficientformerv2) | yes | no kernels | no kernels |
+| [`efficientformer_l1`](#efficientformer) | yes | – | – |
+| [`efficientformer_l3`](#efficientformer) | yes | – | – |
+| [`efficientformer_l7`](#efficientformer) | yes | – | – |
+| [`efficientformerv2_l`](#efficientformerv2) | yes | – | – |
+| [`efficientformerv2_s0`](#efficientformerv2) | yes | – | – |
+| [`efficientformerv2_s1`](#efficientformerv2) | yes | – | – |
+| [`efficientformerv2_s2`](#efficientformerv2) | yes | – | – |
 | [`efficientnet_b0`](#efficientnet) | yes | 0.769, 7.3x | 118, 1.5x |
 | [`efficientnet_b4`](#efficientnet) | yes | 2.02, 5.5x | 118, 0.68x |
 | [`efficientnet_v2_s`](#efficientnetv2) | yes | 1.91, 6.4x | 128, 0.81x |
@@ -58,19 +58,19 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`fastvit_sa24`](#fastvit) | yes | 1.41, 5.0x (256x256) | 132, 0.93x |
 | [`fastvit_t12.apple_dist_in1k`](#fastvit) | yes | 0.781, 4.6x (256x256) | 76, 0.95x |
 | [`fastvit_t8.apple_dist_in1k`](#fastvit) | yes | 0.709, 4.3x (256x256) | 76, 1.1x |
-| [`focalnet_base_lrf`](#focalnet) | yes | no kernels | no kernels |
-| [`focalnet_base_srf`](#focalnet) | yes | no kernels | no kernels |
-| [`focalnet_small_lrf`](#focalnet) | yes | no kernels | no kernels |
-| [`focalnet_small_srf`](#focalnet) | yes | no kernels | no kernels |
-| [`focalnet_tiny_lrf`](#focalnet) | yes | no kernels | no kernels |
-| [`focalnet_tiny_srf`](#focalnet) | yes | no kernels | no kernels |
-| [`hgnetv2_b0`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b1`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b2`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b3`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b4`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b5`](#hgnetv2) | yes | no kernels | no kernels |
-| [`hgnetv2_b6`](#hgnetv2) | yes | no kernels | no kernels |
+| [`focalnet_base_lrf`](#focalnet) | yes | – | – |
+| [`focalnet_base_srf`](#focalnet) | yes | – | – |
+| [`focalnet_small_lrf`](#focalnet) | yes | – | – |
+| [`focalnet_small_srf`](#focalnet) | yes | – | – |
+| [`focalnet_tiny_lrf`](#focalnet) | yes | – | – |
+| [`focalnet_tiny_srf`](#focalnet) | yes | – | – |
+| [`hgnetv2_b0`](#hgnetv2) | yes | – | – |
+| [`hgnetv2_b1`](#hgnetv2) | yes | – | – |
+| [`hgnetv2_b2`](#hgnetv2) | yes | – | – |
+| [`hgnetv2_b3`](#hgnetv2) | yes | – | – |
+| [`hgnetv2_b4`](#hgnetv2) | yes | – | – |
+| [`hgnetv2_b5`](#hgnetv2) | yes | – | – |
+| [`hgnetv2_b6`](#hgnetv2) | yes | – | – |
 | [`inception_v3`](#inception_v3) | yes | 1.31, 6.0x | 208, 1.2x |
 | [`mobilenet_v2`](#mobilenetv2) | yes | 0.439, 8.2x | 92, 1.3x |
 | [`mobilenet_v3_large`](#mobilenetv3) | yes | 0.545, 7.9x | 114, 1.5x |
@@ -91,10 +91,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`resnet18`](#resnet) | yes | 0.472, 4.0x | 110, 0.85x |
 | [`resnet50`](#resnet) | yes | 0.826, 5.7x | 162, 1.0x |
 | [`shufflenet_v2_x1_0`](#shufflenetv2) | yes | 0.804, 6.0x | 76, 1.6x |
-| [`shvit_s1`](#shvit) | yes | no kernels | no kernels |
-| [`shvit_s2`](#shvit) | yes | no kernels | no kernels |
-| [`shvit_s3`](#shvit) | yes | no kernels | no kernels |
-| [`shvit_s4`](#shvit) | yes | no kernels | no kernels |
+| [`shvit_s1`](#shvit) | yes | – | – |
+| [`shvit_s2`](#shvit) | yes | – | – |
+| [`shvit_s3`](#shvit) | yes | – | – |
+| [`shvit_s4`](#shvit) | yes | – | – |
 | [`squeezenet1_1`](#squeezenet) | yes | 0.376, 4.6x | 12, 0.43x |
 | [`starnet_s1`](#starnet) | yes | 0.683, 6.7x | 56, 0.97x |
 | [`starnet_s2`](#starnet) | yes | 0.578, 6.3x | 58, 0.91x |
@@ -173,16 +173,16 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `coatnet_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.88<br>10.6<br>7.23<br>no kernels<br>4.71<br>0.709 | 105 / 114<br>124 / 146<br>74 / 86<br>no kernels<br>96 / 126<br>102 / 124 |
-| `coatnet_rmlp_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.95<br>12.1<br>8.09<br>no kernels<br>9.89<br>0.868 | 121 / 154<br>124 / 146<br>78 / 106<br>no kernels<br>110 / 126<br>122 / 144 |
-| `coatnet_0_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.64<br>9.59<br>6.49<br>no kernels<br>3.59<br>0.849 | 156 / 180<br>194 / 210<br>102 / 124<br>no kernels<br>120 / 142<br>158 / 170 |
-| `coatnet_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.7<br>10.7<br>no kernels<br>5.58<br>1.38 | 225 / 254<br>277 / 294<br>132 / 158<br>no kernels<br>149 / 176<br>231 / 250 |
-| `coatnet_rmlp_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.0<br>18.4<br>12.4<br>no kernels<br>6.54<br>1.47 | 213 / 234<br>278 / 296<br>131 / 156<br>no kernels<br>155 / 176<br>243 / 262 |
-| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.9<br>18.3<br>12.3<br>no kernels<br>6.63<br>1.55 | 226 / 254<br>278 / 296<br>132 / 158<br>no kernels<br>162 / 176<br>257 / 276 |
-| `coatnet_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>15.7<br>11.9<br>no kernels<br>5.53<br>1.73 | 376 / 410<br>466 / 470<br>207 / 240<br>no kernels<br>211 / 240<br>374 / 416 |
-| `coatnet_rmlp_2_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>15.1<br>no kernels<br>6.34<br>1.92 | 376 / 410<br>466 / 472<br>207 / 240<br>no kernels<br>238 / 260<br>404 / 446 |
-| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>12.8<br>no kernels<br>6.52<br>1.87 | 376 / 410<br>466 / 470<br>207 / 240<br>no kernels<br>238 / 260<br>402 / 444 |
-| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 27.9<br>17.9<br>13.9<br>no kernels<br>6.92<br>3.69 | 520 / 566<br>516 / 528<br>296 / 330<br>no kernels<br>326 / 370<br>464 / 500 |
+| `coatnet_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.88<br>10.6<br>7.23<br>–<br>4.71<br>0.709 | 105 / 114<br>124 / 146<br>74 / 86<br>–<br>96 / 126<br>102 / 124 |
+| `coatnet_rmlp_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.95<br>12.1<br>8.09<br>–<br>9.89<br>0.868 | 121 / 154<br>124 / 146<br>78 / 106<br>–<br>110 / 126<br>122 / 144 |
+| `coatnet_0_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.64<br>9.59<br>6.49<br>–<br>3.59<br>0.849 | 156 / 180<br>194 / 210<br>102 / 124<br>–<br>120 / 142<br>158 / 170 |
+| `coatnet_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.7<br>10.7<br>–<br>5.58<br>1.38 | 225 / 254<br>277 / 294<br>132 / 158<br>–<br>149 / 176<br>231 / 250 |
+| `coatnet_rmlp_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.0<br>18.4<br>12.4<br>–<br>6.54<br>1.47 | 213 / 234<br>278 / 296<br>131 / 156<br>–<br>155 / 176<br>243 / 262 |
+| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.9<br>18.3<br>12.3<br>–<br>6.63<br>1.55 | 226 / 254<br>278 / 296<br>132 / 158<br>–<br>162 / 176<br>257 / 276 |
+| `coatnet_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>15.7<br>11.9<br>–<br>5.53<br>1.73 | 376 / 410<br>466 / 470<br>207 / 240<br>–<br>211 / 240<br>374 / 416 |
+| `coatnet_rmlp_2_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>15.1<br>–<br>6.34<br>1.92 | 376 / 410<br>466 / 472<br>207 / 240<br>–<br>238 / 260<br>404 / 446 |
+| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>12.8<br>–<br>6.52<br>1.87 | 376 / 410<br>466 / 470<br>207 / 240<br>–<br>238 / 260<br>402 / 444 |
+| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 27.9<br>17.9<br>13.9<br>–<br>6.92<br>3.69 | 520 / 566<br>516 / 528<br>296 / 330<br>–<br>326 / 370<br>464 / 500 |
 
 <details><summary>Details</summary>
 
@@ -195,7 +195,7 @@ Commercial use: yes.
   - `coatnet_2_rw_224.sw_in12k_ft_in1k`: ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release), ImageNet-1k (ILSVRC 2012 classification)
   - `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`: ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release), ImageNet-1k (ILSVRC 2012 classification)
   - `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k`: ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release), ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not implemented: MBConv stages plus attention with a relative position bias: needs its own runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `coatnet_nano_rw_224.sw_in1k` (default of `coatnet_nano_rw_224`), `coatnet_rmlp_nano_rw_224.sw_in1k` (default of `coatnet_rmlp_nano_rw_224`), `coatnet_0_rw_224.sw_in1k` (default of `coatnet_0_rw_224`), `coatnet_1_rw_224.sw_in1k` (default of `coatnet_1_rw_224`), `coatnet_rmlp_1_rw_224.sw_in1k` (default of `coatnet_rmlp_1_rw_224`), `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` (default of `coatnet_rmlp_1_rw2_224`), `coatnet_2_rw_224.sw_in12k_ft_in1k` (default of `coatnet_2_rw_224`), `coatnet_rmlp_2_rw_224.sw_in1k`, `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` (default of `coatnet_rmlp_2_rw_224`), `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` (default of `coatnet_rmlp_2_rw_384`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size:
@@ -203,7 +203,6 @@ Commercial use: yes.
   - `coatnet_0_rw_224.sw_in1k`, `coatnet_1_rw_224.sw_in1k`, `coatnet_rmlp_1_rw_224.sw_in1k`, `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k`, `coatnet_2_rw_224.sw_in12k_ft_in1k`, `coatnet_rmlp_2_rw_224.sw_in1k`, `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k`: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
   - `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k`: fixed 384x384: the input is resized (short side 384) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `coatnet_nano_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `coatnet_rmlp_nano_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `coatnet_0_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `coatnet_1_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_1_rw_224.sw_in1k` 224x224 (0.1 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.2 reserved); `coatnet_2_rw_224.sw_in12k_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_2_rw_224.sw_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` 384x384 (0.3 GiB peak allocated, 0.3 reserved)
-- no kernels: not implemented: MBConv stages plus attention with a relative position bias: needs its own runner.
 - `coatnet_nano_rw_224.sw_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 32 s (ONNX + engine).
 - `coatnet_rmlp_nano_rw_224.sw_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `coatnet_0_rw_224.sw_in1k` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 38 s (ONNX + engine).
@@ -261,16 +260,16 @@ CPU, float32: max |diff| <= 8.6e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `coatnet_nano_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_nano_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_0_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_1_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_1_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | no kernels backend | - | - |
-| `coatnet_2_rw_224.sw_in12k_ft_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_2_rw_224.sw_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | no kernels backend | - | - |
-| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | no kernels backend | - | - |
+| `coatnet_nano_rw_224.sw_in1k` | 0.00121 / 0.0057 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_nano_rw_224.sw_in1k` | 0.00112 / 0.00488 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_0_rw_224.sw_in1k` | 0.00169 / 0.00689 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_1_rw_224.sw_in1k` | 0.00075 / 0.00309 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_1_rw_224.sw_in1k` | 0.00159 / 0.00642 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | 0.00143 / 0.00522 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_2_rw_224.sw_in12k_ft_in1k` | 0.00148 / 0.00543 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_2_rw_224.sw_in1k` | 0.00134 / 0.00632 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | 0.00144 / 0.0055 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | 0.00128 / 0.00505 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -466,9 +465,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `davit_tiny.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.93<br>9.88<br>6.33<br>no kernels<br>3.10<br>1.03 | 158 / 174<br>196 / 204<br>96 / 116<br>no kernels<br>125 / 136<br>159 / 166 |
-| `davit_small.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>18.8<br>12.8<br>no kernels<br>5.54<br>1.92 | 239 / 262<br>319 / 324<br>136 / 150<br>no kernels<br>166 / 190<br>234 / 254 |
-| `davit_base.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.4<br>20.0<br>11.7<br>no kernels<br>5.48<br>2.28 | 390 / 416<br>537 / 548<br>212 / 224<br>no kernels<br>242 / 262<br>403 / 422 |
+| `davit_tiny.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.93<br>9.88<br>6.33<br>–<br>3.10<br>1.03 | 158 / 174<br>196 / 204<br>96 / 116<br>–<br>125 / 136<br>159 / 166 |
+| `davit_small.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>18.8<br>12.8<br>–<br>5.54<br>1.92 | 239 / 262<br>319 / 324<br>136 / 150<br>–<br>166 / 190<br>234 / 254 |
+| `davit_base.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.4<br>20.0<br>11.7<br>–<br>5.48<br>2.28 | 390 / 416<br>537 / 548<br>212 / 224<br>–<br>242 / 262<br>403 / 422 |
 
 <details><summary>Details</summary>
 
@@ -477,12 +476,11 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/davit_tiny.msft_in1k/blob/982f32c73d98f9966df4a7178b32b820bed3c1b1/README.md>
 - Training data: ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not implemented: window attention and channel attention with depthwise position convolutions: needs its own runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `davit_tiny.msft_in1k` (default of `davit_tiny`), `davit_small.msft_in1k` (default of `davit_small`), `davit_base.msft_in1k` (default of `davit_base`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `davit_tiny.msft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `davit_small.msft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `davit_base.msft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved)
-- no kernels: not implemented: window attention and channel attention with depthwise position convolutions: needs its own runner.
 - `davit_tiny.msft_in1k` 224x224, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `davit_small.msft_in1k` 224x224, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
 - `davit_base.msft_in1k` 224x224, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 71 s (ONNX + engine).
@@ -512,9 +510,9 @@ CPU, float32: max |diff| <= 3.3e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `davit_tiny.msft_in1k` | no kernels backend | - | - |
-| `davit_small.msft_in1k` | no kernels backend | - | - |
-| `davit_base.msft_in1k` | no kernels backend | - | - |
+| `davit_tiny.msft_in1k` | 0.00196 / 0.00753 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `davit_small.msft_in1k` | 0.00171 / 0.00613 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `davit_base.msft_in1k` | 0.00125 / 0.00535 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -675,9 +673,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientformer_l1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.87<br>6.40<br>3.72<br>no kernels<br>1.69<br>0.335 | 87 / 98<br>104 / 124<br>93 / 104<br>no kernels<br>125 / 144<br>128 / 142 |
-| `efficientformer_l3.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>11.0<br>6.37<br>no kernels<br>2.57<br>0.750 | 164 / 172<br>214 / 236<br>161 / 216<br>no kernels<br>193 / 216<br>227 / 286 |
-| `efficientformer_l7.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.9<br>9.65<br>no kernels<br>3.69<br>1.40 | 363 / 378<br>505 / 522<br>300 / 324<br>no kernels<br>332 / 364<br>460 / 490 |
+| `efficientformer_l1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.87<br>6.40<br>3.72<br>–<br>1.69<br>0.335 | 87 / 98<br>104 / 124<br>93 / 104<br>–<br>125 / 144<br>128 / 142 |
+| `efficientformer_l3.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>11.0<br>6.37<br>–<br>2.57<br>0.750 | 164 / 172<br>214 / 236<br>161 / 216<br>–<br>193 / 216<br>227 / 286 |
+| `efficientformer_l7.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.9<br>9.65<br>–<br>3.69<br>1.40 | 363 / 378<br>505 / 522<br>300 / 324<br>–<br>332 / 364<br>460 / 490 |
 
 <details><summary>Details</summary>
 
@@ -686,12 +684,11 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/efficientformer_l1.snap_dist_in1k/blob/8738a58190800aaf5995f453b05f643df453a565/README.md>
 - Training data: ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not built yet: pooling blocks with Conv-BN MLPs and LayerNorm transformer blocks with learned attention bias tables need a dedicated kernels runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `efficientformer_l1.snap_dist_in1k` (default of `efficientformer_l1`), `efficientformer_l3.snap_dist_in1k` (default of `efficientformer_l3`), `efficientformer_l7.snap_dist_in1k` (default of `efficientformer_l7`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientformer_l1.snap_dist_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `efficientformer_l3.snap_dist_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `efficientformer_l7.snap_dist_in1k` 224x224 (0.3 GiB peak allocated, 0.3 reserved)
-- no kernels: not built yet: pooling blocks with Conv-BN MLPs and LayerNorm transformer blocks with learned attention bias tables need a dedicated kernels runner.
 - `efficientformer_l1.snap_dist_in1k` 224x224, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
 - `efficientformer_l3.snap_dist_in1k` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
 - `efficientformer_l7.snap_dist_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
@@ -721,9 +718,9 @@ CPU, float32: max |diff| <= 1.3e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `efficientformer_l1.snap_dist_in1k` | no kernels backend | - | - |
-| `efficientformer_l3.snap_dist_in1k` | no kernels backend | - | - |
-| `efficientformer_l7.snap_dist_in1k` | no kernels backend | - | - |
+| `efficientformer_l1.snap_dist_in1k` | 0.00293 / 0.01165 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `efficientformer_l3.snap_dist_in1k` | 0.00344 / 0.01248 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `efficientformer_l7.snap_dist_in1k` | 0.00193 / 0.00768 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -737,10 +734,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientformerv2_s0.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.16<br>11.8<br>7.62<br>no kernels<br>3.34<br>0.550 | 55 / 62<br>55 / 64<br>44 / 64<br>no kernels<br>76 / 104<br>78 / 100 |
-| `efficientformerv2_s1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.1<br>14.9<br>8.91<br>no kernels<br>3.91<br>0.632 | 65 / 72<br>70 / 80<br>50 / 88<br>no kernels<br>82 / 108<br>86 / 126 |
-| `efficientformerv2_s2.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.2<br>21.8<br>13.9<br>no kernels<br>5.55<br>0.919 | 91 / 116<br>108 / 116<br>64 / 104<br>no kernels<br>96 / 124<br>100 / 142 |
-| `efficientformerv2_l.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.9<br>29.0<br>17.1<br>no kernels<br>7.32<br>1.20 | 145 / 168<br>186 / 198<br>93 / 144<br>no kernels<br>125 / 184<br>161 / 214 |
+| `efficientformerv2_s0.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.16<br>11.8<br>7.62<br>–<br>3.34<br>0.550 | 55 / 62<br>55 / 64<br>44 / 64<br>–<br>76 / 104<br>78 / 100 |
+| `efficientformerv2_s1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.1<br>14.9<br>8.91<br>–<br>3.91<br>0.632 | 65 / 72<br>70 / 80<br>50 / 88<br>–<br>82 / 108<br>86 / 126 |
+| `efficientformerv2_s2.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.2<br>21.8<br>13.9<br>–<br>5.55<br>0.919 | 91 / 116<br>108 / 116<br>64 / 104<br>–<br>96 / 124<br>100 / 142 |
+| `efficientformerv2_l.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.9<br>29.0<br>17.1<br>–<br>7.32<br>1.20 | 145 / 168<br>186 / 198<br>93 / 144<br>–<br>125 / 184<br>161 / 214 |
 
 <details><summary>Details</summary>
 
@@ -749,12 +746,11 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/efficientformerv2_s0.snap_dist_in1k/blob/aa226e91a076e760bc7957e5990f19f6ae322c5f/README.md>
 - Training data: ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not built yet: Conv-BN blocks with depthwise 3x3, feature-map attention with learned bias tables and strided depthwise convolutions need a dedicated kernels runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `efficientformerv2_s0.snap_dist_in1k` (default of `efficientformerv2_s0`), `efficientformerv2_s1.snap_dist_in1k` (default of `efficientformerv2_s1`), `efficientformerv2_s2.snap_dist_in1k` (default of `efficientformerv2_s2`), `efficientformerv2_l.snap_dist_in1k` (default of `efficientformerv2_l`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 235) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `efficientformerv2_s0.snap_dist_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `efficientformerv2_s1.snap_dist_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `efficientformerv2_s2.snap_dist_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `efficientformerv2_l.snap_dist_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved)
-- no kernels: not built yet: Conv-BN blocks with depthwise 3x3, feature-map attention with learned bias tables and strided depthwise convolutions need a dedicated kernels runner.
 - `efficientformerv2_s0.snap_dist_in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
 - `efficientformerv2_s1.snap_dist_in1k` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `efficientformerv2_s2.snap_dist_in1k` 224x224, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
@@ -788,10 +784,10 @@ CPU, float32: max |diff| <= 4.7e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `efficientformerv2_s0.snap_dist_in1k` | no kernels backend | - | - |
-| `efficientformerv2_s1.snap_dist_in1k` | no kernels backend | - | - |
-| `efficientformerv2_s2.snap_dist_in1k` | no kernels backend | - | - |
-| `efficientformerv2_l.snap_dist_in1k` | no kernels backend | - | - |
+| `efficientformerv2_s0.snap_dist_in1k` | 0.04356 / 0.13661 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `efficientformerv2_s1.snap_dist_in1k` | 0.02079 / 0.06618 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `efficientformerv2_s2.snap_dist_in1k` | 0.0744 / 0.27361 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `efficientformerv2_l.snap_dist_in1k` | 0.01908 / 0.07145 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -1127,12 +1123,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `focalnet_tiny_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>10.4<br>7.36<br>no kernels<br>3.72<br>0.864 | 157 / 178<br>197 / 206<br>95 / 118<br>no kernels<br>120 / 136<br>159 / 188 |
-| `focalnet_small_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>20.1<br>14.0<br>no kernels<br>6.90<br>1.49 | 239 / 252<br>320 / 336<br>136 / 152<br>no kernels<br>161 / 190<br>234 / 256 |
-| `focalnet_base_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>20.0<br>14.2<br>no kernels<br>6.94<br>1.74 | 390 / 414<br>542 / 558<br>211 / 234<br>no kernels<br>234 / 272<br>401 / 430 |
-| `focalnet_tiny_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.92<br>11.4<br>8.07<br>no kernels<br>3.94<br>0.952 | 158 / 180<br>199 / 208<br>95 / 118<br>no kernels<br>120 / 138<br>158 / 186 |
-| `focalnet_small_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.8<br>22.0<br>15.8<br>no kernels<br>7.28<br>1.70 | 241 / 254<br>323 / 338<br>136 / 152<br>no kernels<br>162 / 192<br>265 / 286 |
-| `focalnet_base_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.0<br>22.1<br>15.5<br>no kernels<br>7.47<br>2.08 | 393 / 416<br>546 / 560<br>212 / 234<br>no kernels<br>235 / 274<br>404 / 432 |
+| `focalnet_tiny_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>10.4<br>7.36<br>–<br>3.72<br>0.864 | 157 / 178<br>197 / 206<br>95 / 118<br>–<br>120 / 136<br>159 / 188 |
+| `focalnet_small_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>20.1<br>14.0<br>–<br>6.90<br>1.49 | 239 / 252<br>320 / 336<br>136 / 152<br>–<br>161 / 190<br>234 / 256 |
+| `focalnet_base_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>20.0<br>14.2<br>–<br>6.94<br>1.74 | 390 / 414<br>542 / 558<br>211 / 234<br>–<br>234 / 272<br>401 / 430 |
+| `focalnet_tiny_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.92<br>11.4<br>8.07<br>–<br>3.94<br>0.952 | 158 / 180<br>199 / 208<br>95 / 118<br>–<br>120 / 138<br>158 / 186 |
+| `focalnet_small_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.8<br>22.0<br>15.8<br>–<br>7.28<br>1.70 | 241 / 254<br>323 / 338<br>136 / 152<br>–<br>162 / 192<br>265 / 286 |
+| `focalnet_base_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.0<br>22.1<br>15.5<br>–<br>7.47<br>2.08 | 393 / 416<br>546 / 560<br>212 / 234<br>–<br>235 / 274<br>404 / 432 |
 
 <details><summary>Details</summary>
 
@@ -1141,12 +1137,11 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/timm/focalnet_tiny_srf.ms_in1k/blob/de75c3a73e9ed84fee554a7138d4bac119751645/README.md>
 - Training data: ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not implemented: LayerNorm blocks with depthwise convolutions and gated sums: needs its own runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `focalnet_tiny_srf.ms_in1k` (default of `focalnet_tiny_srf`), `focalnet_small_srf.ms_in1k` (default of `focalnet_small_srf`), `focalnet_base_srf.ms_in1k` (default of `focalnet_base_srf`), `focalnet_tiny_lrf.ms_in1k` (default of `focalnet_tiny_lrf`), `focalnet_small_lrf.ms_in1k` (default of `focalnet_small_lrf`), `focalnet_base_lrf.ms_in1k` (default of `focalnet_base_lrf`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 248) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `focalnet_tiny_srf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_small_srf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_base_srf.ms_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved); `focalnet_tiny_lrf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_small_lrf.ms_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `focalnet_base_lrf.ms_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved)
-- no kernels: not implemented: LayerNorm blocks with depthwise convolutions and gated sums: needs its own runner.
 - `focalnet_tiny_srf.ms_in1k` 224x224, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
 - `focalnet_small_srf.ms_in1k` 224x224, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 65 s (ONNX + engine).
 - `focalnet_base_srf.ms_in1k` 224x224, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 64 s (ONNX + engine).
@@ -1188,12 +1183,12 @@ CPU, float32: max |diff| <= 2.9e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `focalnet_tiny_srf.ms_in1k` | no kernels backend | - | - |
-| `focalnet_small_srf.ms_in1k` | no kernels backend | - | - |
-| `focalnet_base_srf.ms_in1k` | no kernels backend | - | - |
-| `focalnet_tiny_lrf.ms_in1k` | no kernels backend | - | - |
-| `focalnet_small_lrf.ms_in1k` | no kernels backend | - | - |
-| `focalnet_base_lrf.ms_in1k` | no kernels backend | - | - |
+| `focalnet_tiny_srf.ms_in1k` | 0.00167 / 0.00581 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `focalnet_small_srf.ms_in1k` | 0.00124 / 0.00466 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `focalnet_base_srf.ms_in1k` | 0.00131 / 0.00626 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `focalnet_tiny_lrf.ms_in1k` | 0.00128 / 0.00548 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `focalnet_small_lrf.ms_in1k` | 0.00179 / 0.00799 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `focalnet_base_lrf.ms_in1k` | 0.00106 / 0.0054 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -1207,13 +1202,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hgnetv2_b0.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.45<br>5.89<br>3.46<br>no kernels<br>1.78<br>0.334 | 65 / 70<br>68 / 72<br>48 / 70<br>no kernels<br>78 / 110<br>77 / 100 |
-| `hgnetv2_b1.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.57<br>6.17<br>3.47<br>no kernels<br>1.84<br>0.307 | 66 / 94<br>70 / 92<br>50 / 68<br>no kernels<br>80 / 108<br>81 / 104 |
-| `hgnetv2_b2.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.25<br>7.98<br>4.55<br>no kernels<br>2.33<br>0.383 | 89 / 114<br>98 / 118<br>59 / 94<br>no kernels<br>89 / 134<br>91 / 128 |
-| `hgnetv2_b3.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.16<br>9.30<br>5.22<br>no kernels<br>2.55<br>0.436 | 112 / 134<br>127 / 140<br>76 / 114<br>no kernels<br>99 / 152<br>100 / 150 |
-| `hgnetv2_b4.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.06<br>8.41<br>4.53<br>no kernels<br>2.66<br>0.463 | 131 / 140<br>147 / 166<br>82 / 116<br>no kernels<br>107 / 134<br>139 / 182 |
-| `hgnetv2_b5.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.4<br>13.8<br>7.04<br>no kernels<br>4.13<br>0.758 | 213 / 222<br>260 / 280<br>114 / 150<br>no kernels<br>146 / 190<br>209 / 250 |
-| `hgnetv2_b6.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.5<br>17.9<br>9.44<br>no kernels<br>5.44<br>1.42 | 354 / 376<br>465 / 490<br>198 / 224<br>no kernels<br>217 / 264<br>347 / 394 |
+| `hgnetv2_b0.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.45<br>5.89<br>3.46<br>–<br>1.78<br>0.334 | 65 / 70<br>68 / 72<br>48 / 70<br>–<br>78 / 110<br>77 / 100 |
+| `hgnetv2_b1.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.57<br>6.17<br>3.47<br>–<br>1.84<br>0.307 | 66 / 94<br>70 / 92<br>50 / 68<br>–<br>80 / 108<br>81 / 104 |
+| `hgnetv2_b2.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.25<br>7.98<br>4.55<br>–<br>2.33<br>0.383 | 89 / 114<br>98 / 118<br>59 / 94<br>–<br>89 / 134<br>91 / 128 |
+| `hgnetv2_b3.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.16<br>9.30<br>5.22<br>–<br>2.55<br>0.436 | 112 / 134<br>127 / 140<br>76 / 114<br>–<br>99 / 152<br>100 / 150 |
+| `hgnetv2_b4.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.06<br>8.41<br>4.53<br>–<br>2.66<br>0.463 | 131 / 140<br>147 / 166<br>82 / 116<br>–<br>107 / 134<br>139 / 182 |
+| `hgnetv2_b5.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.4<br>13.8<br>7.04<br>–<br>4.13<br>0.758 | 213 / 222<br>260 / 280<br>114 / 150<br>–<br>146 / 190<br>209 / 250 |
+| `hgnetv2_b6.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.5<br>17.9<br>9.44<br>–<br>5.44<br>1.42 | 354 / 376<br>465 / 490<br>198 / 224<br>–<br>217 / 264<br>347 / 394 |
 
 <details><summary>Details</summary>
 
@@ -1222,12 +1217,11 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/hgnetv2_b0.ssld_stage2_ft_in1k/blob/9e0a904b210d65e4fcd6582f8ca6e0921fac2650/README.md>
 - Training data: ImageNet-21k / ImageNet-22k (full ImageNet, fall 2011 release), ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not built yet: the portable CNN path is validated; HGNetV2 aggregation blocks need a dedicated kernels runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `hgnetv2_b0.ssld_stage2_ft_in1k` (default of `hgnetv2_b0`), `hgnetv2_b1.ssld_stage2_ft_in1k` (default of `hgnetv2_b1`), `hgnetv2_b2.ssld_stage2_ft_in1k` (default of `hgnetv2_b2`), `hgnetv2_b3.ssld_stage2_ft_in1k` (default of `hgnetv2_b3`), `hgnetv2_b4.ssld_stage2_ft_in1k` (default of `hgnetv2_b4`), `hgnetv2_b5.ssld_stage2_ft_in1k` (default of `hgnetv2_b5`), `hgnetv2_b6.ssld_stage2_ft_in1k` (default of `hgnetv2_b6`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size: fixed 224x224: the input is resized (short side 232) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hgnetv2_b0.ssld_stage2_ft_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `hgnetv2_b1.ssld_stage2_ft_in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `hgnetv2_b2.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b3.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b4.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b5.ssld_stage2_ft_in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `hgnetv2_b6.ssld_stage2_ft_in1k` 224x224 (0.2 GiB peak allocated, 0.2 reserved)
-- no kernels: not built yet: the portable CNN path is validated; HGNetV2 aggregation blocks need a dedicated kernels runner.
 - `hgnetv2_b0.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 21 s (ONNX + engine).
 - `hgnetv2_b1.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 7 s (cold Inductor cache), TensorRT fp16 20 s (ONNX + engine).
 - `hgnetv2_b2.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 23 s (ONNX + engine).
@@ -1273,13 +1267,13 @@ CPU, float32: max |diff| <= 1.8e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `hgnetv2_b0.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b1.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b2.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b3.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b4.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b5.ssld_stage2_ft_in1k` | no kernels backend | - | - |
-| `hgnetv2_b6.ssld_stage2_ft_in1k` | no kernels backend | - | - |
+| `hgnetv2_b0.ssld_stage2_ft_in1k` | 0.0054 / 0.02154 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b1.ssld_stage2_ft_in1k` | 0.00362 / 0.01274 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b2.ssld_stage2_ft_in1k` | 0.00244 / 0.01084 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b3.ssld_stage2_ft_in1k` | 0.00242 / 0.01019 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b4.ssld_stage2_ft_in1k` | 0.00152 / 0.00782 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b5.ssld_stage2_ft_in1k` | 0.00146 / 0.00686 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hgnetv2_b6.ssld_stage2_ft_in1k` | 0.00201 / 0.00906 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -1811,10 +1805,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `shvit_s1.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.41<br>11.1<br>6.75<br>no kernels<br>3.11<br>0.510 | 60 / 66<br>70 / 76<br>47 / 58<br>no kernels<br>78 / 98<br>77 / 90 |
-| `shvit_s2.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.37<br>11.1<br>6.76<br>no kernels<br>3.90<br>0.533 | 80 / 102<br>99 / 120<br>56 / 88<br>no kernels<br>88 / 128<br>87 / 120 |
-| `shvit_s3.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.40<br>12.5<br>8.11<br>no kernels<br>3.64<br>0.575 | 92 / 110<br>115 / 134<br>62 / 112<br>no kernels<br>94 / 132<br>92 / 144 |
-| `shvit_s4.in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>14.6<br>9.31<br>no kernels<br>4.11<br>0.658 | 103 / 118<br>129 / 146<br>67 / 118<br>no kernels<br>99 / 138<br>101 / 154 |
+| `shvit_s1.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.41<br>11.1<br>6.75<br>–<br>3.11<br>0.510 | 60 / 66<br>70 / 76<br>47 / 58<br>–<br>78 / 98<br>77 / 90 |
+| `shvit_s2.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.37<br>11.1<br>6.76<br>–<br>3.90<br>0.533 | 80 / 102<br>99 / 120<br>56 / 88<br>–<br>88 / 128<br>87 / 120 |
+| `shvit_s3.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.40<br>12.5<br>8.11<br>–<br>3.64<br>0.575 | 92 / 110<br>115 / 134<br>62 / 112<br>–<br>94 / 132<br>92 / 144 |
+| `shvit_s4.in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>14.6<br>9.31<br>–<br>4.11<br>0.658 | 103 / 118<br>129 / 146<br>67 / 118<br>–<br>99 / 138<br>101 / 154 |
 
 <details><summary>Details</summary>
 
@@ -1823,14 +1817,13 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: <https://huggingface.co/timm/shvit_s1.in1k/blob/d5c0c27b0d05c630284a3946882590e4054f1108/README.md>
 - Training data: ImageNet-1k (ILSVRC 2012 classification)
-- Kernel libraries: none (not built yet: convolutions with BatchNorm plus single-head attention on feature maps need a dedicated kernels runner)
+- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `shvit_s1.in1k` (default of `shvit_s1`), `shvit_s2.in1k` (default of `shvit_s2`), `shvit_s3.in1k` (default of `shvit_s3`), `shvit_s4.in1k` (default of `shvit_s4`)
 - Outputs: logits; label_set: `imagenet-1k`
 - Input size:
   - `shvit_s1.in1k`, `shvit_s2.in1k`, `shvit_s3.in1k`: fixed 224x224: the input is resized (short side 256) and centre-cropped to it
   - `shvit_s4.in1k`: fixed 256x256: the input is resized (short side 292) and centre-cropped to it
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `shvit_s1.in1k` 224x224 (0.0 GiB peak allocated, 0.1 reserved); `shvit_s2.in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `shvit_s3.in1k` 224x224 (0.1 GiB peak allocated, 0.1 reserved); `shvit_s4.in1k` 256x256 (0.1 GiB peak allocated, 0.1 reserved)
-- no kernels: not built yet: convolutions with BatchNorm plus single-head attention on feature maps need a dedicated kernels runner.
 - `shvit_s1.in1k` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 23 s (ONNX + engine).
 - `shvit_s2.in1k` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 24 s (ONNX + engine).
 - `shvit_s3.in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
@@ -1864,10 +1857,10 @@ CPU, float32: max |diff| <= 1.8e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `shvit_s1.in1k` | no kernels backend | - | - |
-| `shvit_s2.in1k` | no kernels backend | - | - |
-| `shvit_s3.in1k` | no kernels backend | - | - |
-| `shvit_s4.in1k` | no kernels backend | - | - |
+| `shvit_s1.in1k` | 0.00575 / 0.0216 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `shvit_s2.in1k` | 0.00341 / 0.01293 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `shvit_s3.in1k` | 0.00396 / 0.01611 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `shvit_s4.in1k` | 0.00337 / 0.01262 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 </details>
 
@@ -2344,16 +2337,16 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
 | [`alexnet`](#alexnet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
-| [`coatnet_0_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`coatnet_1_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`coatnet_2_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`coatnet_nano_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`coatnet_rmlp_1_rw2_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`coatnet_rmlp_1_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`coatnet_rmlp_2_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`coatnet_rmlp_2_rw_384`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`coatnet_rmlp_nano_rw_224`](#coatnet) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_0_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_1_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_2_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`coatnet_nano_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_rmlp_1_rw2_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`coatnet_rmlp_1_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_rmlp_2_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`coatnet_rmlp_2_rw_384`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`coatnet_rmlp_nano_rw_224`](#coatnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`convnext_base.fb_in1k`](#convnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`convnext_base`](#convnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`convnext_base.fb_in22k_ft_in1k_384`](#convnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
@@ -2367,19 +2360,19 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`convnext_tiny.fb_in22k_ft_in1k`](#convnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`convnext_tiny.fb_in22k_ft_in1k_384`](#convnext) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`convnextv2_base`](#convnextv2) | portable, kernels | Apache-2.0 | CC-BY-NC-4.0 | imagenet-21k, imagenet-1k | **no** (weights: CC-BY-NC-4.0) | logits |
-| [`davit_base`](#davit) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`davit_small`](#davit) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`davit_tiny`](#davit) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`davit_base`](#davit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`davit_small`](#davit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`davit_tiny`](#davit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`deit_base_patch16_224`](#deit) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`densenet121`](#densenet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`dinov2_vitl14_lc`](#dinov2_linear_cls) | portable, kernels | Apache-2.0 | Apache-2.0 | lvd-142m, imagenet-1k | yes | logits |
-| [`efficientformer_l1`](#efficientformer) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformer_l3`](#efficientformer) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformer_l7`](#efficientformer) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformerv2_l`](#efficientformerv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformerv2_s0`](#efficientformerv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformerv2_s1`](#efficientformerv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
-| [`efficientformerv2_s2`](#efficientformerv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformer_l1`](#efficientformer) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformer_l3`](#efficientformer) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformer_l7`](#efficientformer) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformerv2_l`](#efficientformerv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformerv2_s0`](#efficientformerv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformerv2_s1`](#efficientformerv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
+| [`efficientformerv2_s2`](#efficientformerv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`efficientnet_b0`](#efficientnet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`efficientnet_b4`](#efficientnet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`efficientnet_v2_s`](#efficientnetv2) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
@@ -2389,19 +2382,19 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`fastvit_sa24`](#fastvit) | portable, kernels | Apache-2.0 | LicenseRef-Apple-Sample-Code | imagenet-1k | yes | logits |
 | [`fastvit_t12.apple_dist_in1k`](#fastvit) | portable, kernels | Apache-2.0 | LicenseRef-Apple-Sample-Code | imagenet-1k | yes | logits |
 | [`fastvit_t8.apple_dist_in1k`](#fastvit) | portable, kernels | Apache-2.0 | LicenseRef-Apple-Sample-Code | imagenet-1k | yes | logits |
-| [`focalnet_base_lrf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`focalnet_base_srf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`focalnet_small_lrf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`focalnet_small_srf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`focalnet_tiny_lrf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`focalnet_tiny_srf`](#focalnet) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`hgnetv2_b0`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b1`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b2`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b3`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b4`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b5`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
-| [`hgnetv2_b6`](#hgnetv2) | portable | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`focalnet_base_lrf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`focalnet_base_srf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`focalnet_small_lrf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`focalnet_small_srf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`focalnet_tiny_lrf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`focalnet_tiny_srf`](#focalnet) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`hgnetv2_b0`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b1`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b2`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b3`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b4`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b5`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
+| [`hgnetv2_b6`](#hgnetv2) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-21k, imagenet-1k | yes | logits |
 | [`inception_v3`](#inception_v3) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`mobilenet_v2`](#mobilenetv2) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`mobilenet_v3_large`](#mobilenetv3) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
@@ -2422,10 +2415,10 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 | [`resnet18`](#resnet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`resnet50`](#resnet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`shufflenet_v2_x1_0`](#shufflenetv2) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
-| [`shvit_s1`](#shvit) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`shvit_s2`](#shvit) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`shvit_s3`](#shvit) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
-| [`shvit_s4`](#shvit) | portable | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`shvit_s1`](#shvit) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`shvit_s2`](#shvit) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`shvit_s3`](#shvit) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
+| [`shvit_s4`](#shvit) | portable, kernels | Apache-2.0 | MIT | imagenet-1k | yes | logits |
 | [`squeezenet1_1`](#squeezenet) | portable, kernels | BSD-3-Clause | BSD-3-Clause (assumed from code) | imagenet-1k | yes | logits |
 | [`starnet_s1`](#starnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |
 | [`starnet_s2`](#starnet) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k | yes | logits |

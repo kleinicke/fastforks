@@ -3,7 +3,7 @@ name = "PP-OCRv5 (server / mobile)"
 summary = "PP-OCRv5 (PaddleOCR 3, Baidu 2025): a DB text detector (PP-HGNetV2 + LKPAN for server, PP-LCNetV3 + RSE-FPN for mobile) finds text lines of any orientation as quads; each line is cut out with a perspective warp and read by a CTC recogniser (PP-HGNetV2 / PP-LCNetV3 with an SVTR neck) over 18 383 characters (simplified and traditional Chinese, English, Japanese, pinyin). Inference as PaddleX's OCR pipeline without the document unwarping and the text-line orientation classifier. The portable `module()` is the detector with its normalisation."
 tier = "experimental"
 outputs = ["boxes", "texts", "scores"]
-uses = []
+uses = ["cnn_kernels", "cuda_graphs"]
 limitations = [
   "No document orientation / unwarping and no text-line orientation classifier (upside-down lines are read as they are).",
   "The DB post-processing runs on the CPU (OpenCV-exact geometry); hole contours of the binary map are not boxed (upstream boxes them too; they rarely pass `box_threshold`).",
@@ -36,8 +36,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "cuDNN convolutions are the networks; the time outside them is the per-line crop / resize and the CPU box geometry"
+kernels = ["ocr_levels", "igev", "cutlass_conv", "cudnn_hacc"]
 
 [[papers]]
 title = "PaddleOCR 3.0 Technical Report"

@@ -357,6 +357,7 @@ def optimize(  # noqa: C901, PLR0913 - the one entry point: argument checks, the
     fp16: bool = True,
     auto: bool = False,
     family: str | None = None,
+    fuse_convs: bool = True,
 ) -> FastModel:
     """Optimize a timm / torchvision / HF transformers classifier in place (the engine behind `patch`).
 
@@ -416,7 +417,17 @@ def optimize(  # noqa: C901, PLR0913 - the one entry point: argument checks, the
             fast = FastModel(small, model, mode, report, big=big)
             fast._shuffle_big = big
             return fast
-        return _optimize(model, mode, family, names, dev, report, half=fp16 and dev.type in {"cuda", "mps"}, auto=auto)
+        return _optimize(
+            model,
+            mode,
+            family,
+            names,
+            dev,
+            report,
+            half=fp16 and dev.type in {"cuda", "mps"},
+            auto=auto,
+            fuse_convs=fuse_convs,
+        )
 
 
 def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipeline
@@ -428,6 +439,7 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
     report: dict[str, Any],
     *,
     half: bool,
+    fuse_convs: bool = True,
     auto: bool = False,
 ) -> FastModel:
     from . import blocks, fold, transformer  # noqa: PLC0415
@@ -488,7 +500,13 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
     if is_kernels and family == "cnn":
         nfused = 0
         if isinstance(net, fx.GraphModule):
-            nfused = _fuse_cnn(net, names, report)
+            if fuse_convs:
+                nfused = _fuse_cnn(net, names, report)
+            else:
+                from . import cnn  # noqa: PLC0415 - CUDA graph rewrites
+
+                nfused = cnn.replace_maxpool(net) + cnn.replace_avgpool(net)
+                report["npool"] = nfused
         report["fused_convs"] = nfused
         if not nfused:  # untraceable / nothing fused: fp16-accumulate cuDNN convs for big inputs instead
             from fastforks.kernels import cudnn_hacc  # noqa: PLC0415

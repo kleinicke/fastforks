@@ -33,8 +33,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "measured slower: cudnn_hacc convolutions 189.9 ms vs 159.4 ms portable (1080x1920, size 1024; upstream views their outputs, so channels-last needs copies); fp16-accumulate GEMMs alone 3 %"
+kernels = ["image_normalize"]
 
 [[papers]]
 title = "Revisiting Image Pyramid Structure for High Resolution Salient Object Detection"

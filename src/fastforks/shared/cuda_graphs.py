@@ -267,3 +267,17 @@ class SmallShapeGraphs:
         """Free the graphs and their memory pool (no-op when graphs are off)."""
         if self.cache is not None:
             self.cache.release()
+
+
+class CapturedModule(torch.nn.Module):
+    """A dense inference submodule with a bounded per-shape CUDA graph cache."""
+
+    def __init__(self, network: torch.nn.Module, *, pixels: int) -> None:
+        """Keep the underlying module registered so its parameters remain visible."""
+        super().__init__()
+        self.network = network
+        self.graphs = SmallShapeGraphs(network, pixels=pixels)
+
+    def forward(self, *inputs: torch.Tensor) -> Any:  # noqa: ANN401 - preserve tensor or tuple module outputs
+        """Replay the complete dense output for a recurring shape."""
+        return self.graphs(*inputs)

@@ -21,6 +21,8 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks.segmentation._runner import Forward, Runner, scale
 from fastforks.segmentation.models.bisenet.net import BiSeNet
+from fastforks.shared.cnn_kernels import prepare_generic
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.seginfer import resize, target_size, upsample, upsample_argmax
 
 if TYPE_CHECKING:
@@ -94,11 +96,14 @@ class Portable(Runner):
         self.fmt = torch.channels_last if ctx.device.type == "cuda" else torch.contiguous_format
         self.net = self.net.to(memory_format=self.fmt)
 
+    def _network(self, x: torch.Tensor) -> torch.Tensor:
+        return _main_head(self.net, x)
+
     def _scores(self, image: torch.Tensor) -> tuple[torch.Tensor, tuple[tuple[int, int], ...]]:
         """Logits at the network size (NCHW) and the resize step to the image size."""
         size = target_size(*image.shape[-2:], self.ctx.params.resize)
         x = scale(resize(image, size, pil=True), self.ctx.io).contiguous(memory_format=self.fmt)
-        s = _main_head(self.net, x.to(next(self.net.parameters()).dtype)).contiguous()
+        s = self._network(x.to(next(self.net.parameters()).dtype)).contiguous()
         return s, ((image.shape[-2], image.shape[-1]),)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -114,4 +119,23 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image: self(image)["logits"])
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Run the convolution blocks with fused CUDA kernels."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the convolution blocks for inference."""
+        super().__init__(ctx)
+        prepare_generic(self.net, ctx.device)
+        self.graphs = SmallShapeGraphs(super()._network, pixels=2**20)
+
+    def _network(self, x: torch.Tensor) -> torch.Tensor:
+        return self.graphs(x)
+
+    def release_graphs(self) -> None:
+        """Release captured CUDA graphs and their activation buffers."""
+        self.graphs.release()
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

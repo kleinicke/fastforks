@@ -10,12 +10,12 @@ Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` 
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
-| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
-|---|---|---|---|
-| [`parseq`](#parseq) | yes | no kernels | no kernels |
-| [`parseq-tiny`](#parseq) | yes | no kernels | no kernels |
-| [`ppocrv5-mobile`](#ppocrv5) | yes | no kernels | no kernels |
-| [`ppocrv5-server`](#ppocrv5) | yes | no kernels | no kernels |
+| model | commercial |
+|---|---|
+| [`parseq`](#parseq) | yes |
+| [`parseq-tiny`](#parseq) | yes |
+| [`ppocrv5-mobile`](#ppocrv5) | yes |
+| [`ppocrv5-server`](#ppocrv5) | yes |
 
 <a id="parseq"></a>
 
@@ -27,8 +27,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `parseq` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>19.6<br>3.62<br>no kernels<br>8.80<br>1.67 | 125 / 144<br>126 / 144<br>79 / 100<br>no kernels<br>111 / 118<br>148 / 168 |
-| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.10<br>no kernels<br>1.54<br>1.67 | 56 / 58<br>56 / 58<br>44 / 54<br>no kernels<br>76 / 94<br>82 / 90 |
+| `parseq` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>19.6<br>3.62<br>–<br>8.80<br>1.67 | 125 / 144<br>126 / 144<br>79 / 100<br>–<br>111 / 118<br>148 / 168 |
+| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.10<br>–<br>1.54<br>1.67 | 56 / 58<br>56 / 58<br>44 / 54<br>–<br>76 / 94<br>82 / 90 |
 
 <details><summary>Details</summary>
 
@@ -38,12 +38,11 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/baudm/parseq/blob/1902db043c029a7e03a3818c616c06600af574be/LICENSE>
 - Training data: The README does not say which data the released checkpoints were trained on; the paper's best models use its real-data union (COCO-Text, RCTW17, Uber-Text, ArT, LSVT, MLT19, ReCTS, TextOCR, OpenVINO; Datasets.md).
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: none (the 26-step decoding loop is launch-bound, not kernel-bound, and portable already replays it as one CUDA graph (`cuda_graphs`, exports unchanged: `module()` is the plain network): 12.6 -> 3.6 ms (parseq) and 11.6 -> 2.1 ms (parseq-tiny) vs the original 19.6 / 18.0 ms fp16, same logits and memory; SDPA / cuBLAS are already the compute and no library in the manifests helps, so a kernels mode would only repeat the graph (measured 2026-11-15))
+- Kernel libraries: `pil_resample`
 - Variants: `parseq`, `parseq-tiny`
 - Outputs: boxes, texts, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `parseq` 3000x4000 (0.3 GiB peak allocated, 0.3 reserved); `parseq-tiny` 3000x4000 (0.3 GiB peak allocated, 0.3 reserved)
-- no kernels: the 26-step decoding loop is launch-bound, not kernel-bound, and portable already replays it as one CUDA graph (`cuda_graphs`, exports unchanged: `module()` is the plain network): 12.6 -> 3.6 ms (parseq) and 11.6 -> 2.1 ms (parseq-tiny) vs the original 19.6 / 18.0 ms fp16, same logits and memory; SDPA / cuBLAS are already the compute and no library in the manifests helps, so a kernels mode would only repeat the graph (measured 2026-11-15).
 - `parseq` 32x128, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 114 s (ONNX + engine).
 - `parseq-tiny` 32x128, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 102 s (ONNX + engine).
 - `parseq` original (fp32) 32x128, original 32x128: baudm/parseq902db043c02 strhub PARSeq + read.py transform (PIL bicubic) + Tokenizer.decode
@@ -58,8 +57,8 @@ CPU, float32: max |diff| <= 0.001 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `parseq` | no kernels backend | - | - |
-| `parseq-tiny` | no kernels backend | - | - |
+| `parseq` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `pil_resample@a432ef0451fe:sm_120` |
+| `parseq-tiny` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `pil_resample@a432ef0451fe:sm_120` |
 
 </details>
 
@@ -73,8 +72,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ppocrv5-server` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 762<br>277<br>no kernels<br>277<br>25.1 | 2355 / 2901<br>1357 / 1452<br>no kernels<br>958 / 1132<br>1131 / 1146 |
-| `ppocrv5-mobile` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 619<br>418<br>153<br>no kernels<br>115<br>2.68 | 476 / 1094<br>393 / 1005<br>289 / 448<br>no kernels<br>292 / 448<br>241 / 268 |
+| `ppocrv5-server` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 762<br>277<br>–<br>277<br>25.1 | 2355 / 2901<br>1357 / 1452<br>–<br>958 / 1132<br>1131 / 1146 |
+| `ppocrv5-mobile` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 619<br>418<br>153<br>–<br>115<br>2.68 | 476 / 1094<br>393 / 1005<br>289 / 448<br>–<br>292 / 448<br>241 / 268 |
 
 <details><summary>Details</summary>
 
@@ -84,12 +83,11 @@ Commercial use: yes.
 - Licence evidence: https://github.com/PaddlePaddle/PaddleOCR/blob/dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf/LICENSE ; https://huggingface.co/PaddlePaddle/PP-OCRv5_server_det
 - Training data: The PP-OCRv5 technical report describes public and synthetic text data plus Baidu's own data; the exact sets are not listed.
 - Options: `box_threshold` = 0.6 (0.0 to 1.0; also `text_det_box_thresh`), `unclip_ratio` = 1.5 (>= 0.1; also `text_det_unclip_ratio`)
-- Kernel libraries: none (cuDNN convolutions are the networks; the time outside them is the per-line crop / resize and the CPU box geometry)
+- Kernel libraries: `ocr_levels`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `ppocrv5-server`, `ppocrv5-mobile`
 - Outputs: boxes, texts, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `ppocrv5-server` 3000x4000 (7.1 GiB peak allocated, 9.8 reserved); `ppocrv5-mobile` 3000x4000 (1.4 GiB peak allocated, 2.3 reserved)
-- no kernels: cuDNN convolutions are the networks; the time outside them is the per-line crop / resize and the CPU box geometry.
 - `ppocrv5-server` 1080x1920, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `ppocrv5-mobile` 1080x1920, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 156 s (ONNX + engine).
 - `ppocrv5-server` original 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle']), no orientation / unwarping / text-line classifier; fp32 only: PaddleOCR's float16 needs TensorRT, and Paddle Inference float16 reads no text (detector overflow)
@@ -105,8 +103,8 @@ CPU, float32: max |diff| <= 0.001 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `ppocrv5-server` | no kernels backend | - | - |
-| `ppocrv5-mobile` | no kernels backend | - | - |
+| `ppocrv5-server` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `ocr_levels@3187ecc54497:sm_120` |
+| `ppocrv5-mobile` | 0.0625 / 1.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `ocr_levels@3187ecc54497:sm_120` |
 
 ### Limitations
 
@@ -123,10 +121,10 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
-| [`parseq`](#parseq) | portable | Apache-2.0 | Apache-2.0 (assumed from code) | unstated | yes | boxes, texts, scores |
-| [`parseq-tiny`](#parseq) | portable | Apache-2.0 | Apache-2.0 (assumed from code) | unstated | yes | boxes, texts, scores |
-| [`ppocrv5-mobile`](#ppocrv5) | portable | Apache-2.0 | Apache-2.0 | unstated | yes | boxes, texts, scores |
-| [`ppocrv5-server`](#ppocrv5) | portable | Apache-2.0 | Apache-2.0 | unstated | yes | boxes, texts, scores |
+| [`parseq`](#parseq) | portable, kernels | Apache-2.0 | Apache-2.0 (assumed from code) | unstated | yes | boxes, texts, scores |
+| [`parseq-tiny`](#parseq) | portable, kernels | Apache-2.0 | Apache-2.0 (assumed from code) | unstated | yes | boxes, texts, scores |
+| [`ppocrv5-mobile`](#ppocrv5) | portable, kernels | Apache-2.0 | Apache-2.0 | unstated | yes | boxes, texts, scores |
+| [`ppocrv5-server`](#ppocrv5) | portable, kernels | Apache-2.0 | Apache-2.0 | unstated | yes | boxes, texts, scores |
 
 </details>
 

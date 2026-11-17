@@ -29,8 +29,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "a 58 k-parameter CNN that runs in a few ms; no custom kernel measured to pay off"
+kernels = ["smish"]
 
 [[papers]]
 title = "Tiny and Efficient Model for The Edge Detection Generalization"

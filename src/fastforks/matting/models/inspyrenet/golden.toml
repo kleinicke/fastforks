@@ -18,3 +18,21 @@ settings = "CPU float32, InSPyReNet_SwinB threshold None, 384x384 antialiased bi
 sha256 = "0550185bd6457612358e8eb05dfc12f56c63bc199b813cd91207dab67f1c28df"
 upstream = "https://github.com/plemeri/transparent-background@f0fa91701a98cfc8e955c554e84522f365ec6da3"
 settings = "CPU float32, InSPyReNet_SwinB threshold None, 1024x1024 antialiased bilinear, ImageNet, sigmoid min-max, bilinear back (align_corners), coffee.png, torch 2.14.1+cu130"
+
+[validated."inspyrenet-fast@1"]
+kernels = ["image_normalize@592f5511307a:sm_120"]
+symbols = {"image_normalize" = {"normalize" = "2cc4987178cb44b2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 1e-05
+p99_px = 0.00029
+
+[validated."inspyrenet@1"]
+kernels = ["image_normalize@592f5511307a:sm_120"]
+symbols = {"image_normalize" = {"normalize" = "2cc4987178cb44b2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.10.0+cu130"
+date = "2026-11-17"
+mean_px = 3e-05
+p99_px = 0.00067

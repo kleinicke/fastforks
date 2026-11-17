@@ -21,6 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.runner import host
 from fastforks.edges._runner import Forward, Runner, to_detect, to_input
+from fastforks.shared.cnn_kernels import prepare_generic
 
 from .net import MobileV2_MLSD_Large
 
@@ -192,4 +193,15 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image: self._edges_and_segments(image)[0])
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Run the convolution blocks with fused CUDA kernels."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the convolution blocks for inference."""
+        super().__init__(ctx)
+        prepare_generic(self.net, ctx.device)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

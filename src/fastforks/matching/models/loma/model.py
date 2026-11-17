@@ -42,6 +42,7 @@ from fastforks.shared.dedode import (
     VGGDINOv2,
     describe_keypoints,
 )
+from fastforks.shared.dedode.kernels import prepare
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, sdpa_attention
 
 from .net.dad import sample_keypoints
@@ -246,4 +247,15 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2))
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Accelerate the DeDoDe descriptor convolutions while preserving detector precision."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the loaded descriptor for CUDA."""
+        super().__init__(ctx)
+        prepare(self.net.descriptor, ctx.device)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

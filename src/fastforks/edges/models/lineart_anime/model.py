@@ -18,7 +18,8 @@ from typing import TYPE_CHECKING
 import torch
 from torch import nn
 
-from fastforks.edges._runner import Forward, Runner, to_detect, to_input
+from fastforks.edges._runner import Forward, Runner, to_detect, to_detect_cuda, to_input
+from fastforks.kernels import cv_resample
 from fastforks.shared.cv2_resize import cv2_resize
 
 from .net import UnetGenerator
@@ -43,6 +44,8 @@ class Params:
 class Portable(Runner):
     """Upstream's U-Net in plain PyTorch, float32 or float16."""
 
+    _detect = staticmethod(to_detect)
+    _resize = staticmethod(cv2_resize)
     Params = Params
     dtypes = ("float32", "float16")
 
@@ -57,15 +60,15 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Line map `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
-        x = to_detect(image, self.ctx.params.short_side)
+        x = self._detect(image, self.ctx.params.short_side)
         h, w = x.shape[-2:]
         hn, wn = PAD * math.ceil(h / PAD), PAD * math.ceil(w / PAD)
         if (hn, wn) != (h, w):
-            x = cv2_resize(x, hn, wn, "cubic")
+            x = self._resize(x, hn, wn, "cubic")
         x = x / 127.5 - 1
         y = self.net(x.to(self.dtype))[:, :1].float() * 127.5 + 127.5
         if (hn, wn) != (h, w):
-            y = cv2_resize(y, h, w, "cubic", levels=False)
+            y = self._resize(y, h, w, "cubic", levels=False)
         return {"edges": to_input(1 - y[:, 0].clamp(0, 255) / 255, image)}
 
     def module(self) -> torch.nn.Module:
@@ -73,4 +76,13 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image: self(image)["edges"])
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Use fused OpenCV-compatible edge preprocessing on CUDA."""
+
+    module = Runner.module
+    _resize = staticmethod(cv_resample.resize)
+
+    _detect = staticmethod(to_detect_cuda)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

@@ -26,8 +26,11 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.patch import override
+from fastforks.kernels import image_normalize
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared.aliked import ALIKED
+from fastforks.shared.cuda_graphs import CapturedModule
 from fastforks.shared.deform_conv import modulated_deform_conv
 from fastforks.shared.lightglue import resize_long
 
@@ -192,4 +195,28 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2))
 
 
-RUNNERS = {"portable": Portable}
+def _descriptor_forward(descriptor: Descriptor, image: torch.Tensor) -> torch.Tensor:
+    x = image_normalize.normalize(image, descriptor.mean, descriptor.std).contiguous(memory_format=torch.channels_last)
+    return descriptor.head(descriptor.backbone(x)).contiguous()
+
+
+class Kernels(Portable):
+    """Fuse the descriptor input normalization and capture repeated feature grids."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the accelerated inference path on the model device."""
+        super().__init__(ctx)
+        descriptor = self.net.descriptor
+        override(descriptor, _descriptor_forward)
+        dense = CapturedModule(self.net.descriptor, pixels=2**21)
+        self.net.set_submodule("descriptor", dense)
+        self.graphs = dense.graphs
+
+    def release_graphs(self) -> None:
+        """Release captured activation buffers."""
+        self.graphs.release()
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

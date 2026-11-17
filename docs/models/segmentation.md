@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`bisenet-face-parsing`](#bisenet) | yes | no kernels | no kernels |
+| [`bisenet-face-parsing`](#bisenet) | yes | – | – |
 | [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.5, 2.7x | 414, 0.19x |
 | [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 17.9, 3.0x | 436, 0.22x |
 | [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 20.1, 2.0x | 884, 0.4x |
@@ -46,7 +46,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `bisenet-face-parsing` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.94<br>2.41<br>no kernels<br>1.34<br>0.678 | 69 / 94<br>51 / 72<br>no kernels<br>76 / 110<br>85 / 110 |
+| `bisenet-face-parsing` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.94<br>2.41<br>–<br>1.34<br>0.678 | 69 / 94<br>51 / 72<br>–<br>76 / 110<br>85 / 110 |
 
 <details><summary>Details</summary>
 
@@ -55,12 +55,11 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/zllrunning/face-parsing.PyTorch/blob/d2e684cf1588b46145635e8fe7bcc29544e5537e/LICENSE ; https://github.com/xinntao/facexlib/blob/260620ae93990a300f4b16448df9bb459f1caba9/LICENSE ; https://github.com/xinntao/facexlib/blob/260620ae93990a300f4b16448df9bb459f1caba9/facexlib/parsing/__init__.py
 - Training data: ImageNet-1k (ILSVRC 2012 classification), CelebAMask-HQ (30 000 CelebA-HQ faces, 19 face-part masks) (face-parsing.PyTorch train.py: CelebAMask-HQ (non-commercial research only), ResNet-18 initialised from torchvision's ImageNet weights.)
-- Kernel libraries: none (measured slower: cudnn_hacc fp16-accumulate convolutions 2.77 ms vs 2.41 ms portable (512x512))
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `bisenet-face-parsing`
 - Outputs: logits; label_set: `celebamask-hq-19-bisenet`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `bisenet-face-parsing` 512x512 (0.0 GiB peak allocated, 0.1 reserved)
-- no kernels: measured slower: cudnn_hacc fp16-accumulate convolutions 2.77 ms vs 2.41 ms portable (512x512).
 - `bisenet-face-parsing` 512x512, first call: portable + torch.compile 6 s (cold Inductor cache), TensorRT fp16 13 s (ONNX + engine).
 - `bisenet-face-parsing` original 512x512: .half() on 1 modules, fp16 inputs; face-parsing.PyTorch test.py: PIL resize 512 x 512 on the CPU, Normalize, net(x)[0], float32
 - `bisenet-face-parsing` load / first call: original 0.31 s / 0.405 s (512x512), portable 0.2 s / 0.275 s (512x512)
@@ -72,7 +71,7 @@ CPU, float32: max |diff| <= 2.6e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `bisenet-face-parsing` | no kernels backend | - | - |
+| `bisenet-face-parsing` | 0.00292 / 0.01313 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 
@@ -579,7 +578,7 @@ Commercial status per variant: `yes` if the code and the weights licence both al
 
 | model | modes | code licence | weights licence | training data | commercial | outputs |
 |---|---|---|---|---|---|---|
-| [`bisenet-face-parsing`](#bisenet) | portable | MIT | MIT | imagenet-1k, celebamask-hq | yes | logits |
+| [`bisenet-face-parsing`](#bisenet) | portable, kernels | MIT | MIT | imagenet-1k, celebamask-hq | yes | logits |
 | [`deeplabv3-r101-d8-ade20k`](#mmseg) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k, ade20k | yes | logits |
 | [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | portable, kernels | Apache-2.0 | Apache-2.0 | imagenet-1k, ade20k | yes | logits |
 | [`dinov2-b-linear-ade20k`](#dinov2_linear) | portable, kernels | Apache-2.0 | Apache-2.0 | lvd-142m, ade20k | yes | logits |

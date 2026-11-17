@@ -7,6 +7,8 @@ import math
 
 import torch
 
+from fastforks.kernels import pil_resample
+
 PIL_BITS = 22  # fixed: Pillow `PRECISION_BITS` of the 8-bit resampling (32 - 8 - 2)
 
 
@@ -74,4 +76,18 @@ def _pil_resize(x: torch.Tensor, size: tuple[int, int], *, cubic: bool) -> torch
         for j in range(1, idx.shape[1]):
             acc.addcmul_(x.index_select(dim, idx[:, j]), k[:, j])
         x = acc.div_(1 << PIL_BITS, rounding_mode="floor").clamp_(0, 255)
+    return x.float()
+
+
+def pil_bicubic_cuda(x: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+    """Pillow's two fixed-point passes with a single CUDA launch per resized axis."""
+    h, w = x.shape[-2:]
+    nh, nw = size
+    passes = [(False, w, nw), (True, h, nh)]
+    if h - nh > max(0, 2 * (w - nw)):
+        passes.reverse()
+    for vertical, n_in, n_out in passes:
+        if n_in != n_out:
+            indices, weights = _pil_taps(n_in, n_out, x.device, cubic=True)
+            x = pil_resample.axis(x, indices, weights, vertical=vertical)
     return x.float()

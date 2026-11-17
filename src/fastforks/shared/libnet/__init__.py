@@ -123,6 +123,8 @@ def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # no
 class _LibRunner(Runner):
     """Shared part of `Portable` and `Kernels`: build `network(ctx)` and optimise it for `ctx.mode` on `ctx.device`."""
 
+    family: str | None = None
+    fuse_convs = True
     batch = None  # any batch size
     Params = Params
 
@@ -130,7 +132,14 @@ class _LibRunner(Runner):
         """Build the network and optimise it."""
         super().__init__(ctx)
         net = self.network(ctx)
-        self.net: FastModel = optimize(net, mode=ctx.mode, device=ctx.device, fp16=ctx.dtype == "float16")
+        self.net: FastModel = optimize(
+            net,
+            mode=ctx.mode,
+            device=ctx.device,
+            fp16=ctx.dtype == "float16",
+            family=self.family,
+            fuse_convs=self.fuse_convs,
+        )
         if ctx.device.type == "cuda":  # the fp32 weights and the BatchNorm-fold probe stay cached otherwise
             torch.cuda.empty_cache()
 
@@ -185,3 +194,15 @@ class Kernels(_LibRunner):
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Logits `[B, classes]` of a transformed batch (a CUDA graph replay for small repeated batches)."""
         return {"logits": self._graphs(image)}
+
+
+class CNNKernels(Kernels):
+    """Apply convolution rewrites to a registry network with a validated CNN kernels mode."""
+
+    family = "cnn"
+
+
+class PoolKernels(CNNKernels):
+    """Fuse pooling while preserving native convolutions for sensitive classifiers."""
+
+    fuse_convs = False

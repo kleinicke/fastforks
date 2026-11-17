@@ -3,7 +3,7 @@ name = "M-LSD line segments"
 summary = "Mobile line segment detector (Gu et al., AAAI 2022; controlnet_aux `MLSDdetector`, ComfyUI's \"M-LSD Lines\"): a MobileNetV2 network that predicts segment centers and end-point displacements; returns the straight segments and the 1-pixel line map ControlNet's MLSD model takes."
 tier = "experimental"
 outputs = ["edges", "lines"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/controlnet_aux"
@@ -30,8 +30,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "a MobileNetV2 CNN (cuDNN); decoding is a few small ops; no custom kernel measured to pay off"
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 
 [[papers]]
 title = "Towards Light-weight and Real-time Line Segment Detection"

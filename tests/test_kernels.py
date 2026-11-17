@@ -430,3 +430,27 @@ def test_swiglu_long_sequence():
     pairs = result.numel() // 2
     mod.load(device).launch("swiglu", *kernels.linear(pairs), packed, result, result.shape[-1] // 2, pairs)
     torch.testing.assert_close(result, expected, atol=2e-5, rtol=2e-3)
+
+
+@pytest.mark.gpu
+def test_edge_component_threshold():
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    components = importlib.import_module("fastforks.kernels.edge_components")
+    mask = torch.zeros((2, 20, 20), dtype=torch.bool, device="cuda")
+    mask[0, 2, 1:12] = True
+    mask[0, 3, 12] = True  # Diagonal contact does not join components.
+    mask[1, 2, 1:13] = True
+    expected = torch.zeros_like(mask)
+    expected[1] = mask[1]
+    torch.testing.assert_close(components.keep_twelve(mask), expected)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("size", [(13, 7), (4, 19), (32, 37), (17, 23)])
+def test_pil_cuda_integer_resampling(size):
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    resize = importlib.import_module("fastforks.shared.pil_resize")
+    image = torch.randint(256, (2, 3, 17, 23), dtype=torch.uint8, device="cuda")
+    torch.testing.assert_close(resize.pil_bicubic_cuda(image, size), resize.pil_bicubic(image, size), atol=0, rtol=0)

@@ -12,7 +12,7 @@ Three variants from the snapshot now have a kernels mode. The table shows warm e
 | Lineart | 19.89 ms | 17.63 ms | 1.13× | 228 → 224 |
 | Lineart Coarse | 19.90 ms | 17.63 ms | 1.13× | 228 → 224 |
 
-At 512 × 512, HED improved from 5.52 to 4.15 ms. The two Lineart variants gained about 0.24 ms each at that size. The experimental Lineart Anime path regressed from 3.33 to 4.10 ms at 512 × 512, so that variant retains its portable implementation.
+At 512 × 512, HED improved from 5.52 to 4.15 ms. The two Lineart variants gained about 0.24 ms each at that size. The experimental Lineart Anime path regressed from 3.33 to 4.10 ms at 512 × 512, in the convolution experiment. The subsequent resampling results appear below.
 
 ### SAM 3 and DINOv3
 
@@ -30,6 +30,51 @@ SAM 3 fuses the residual additions and MLP activation into existing encoder GEMM
 DINOv3 ViT-H+ fuses SwiGLU for 1024 or more token rows. The short-sequence path keeps its original activation. At 1024 px, peak allocation fell from 1814 to 1806 MiB. The final hidden states matched the previous kernels exactly on the 224 and 1024 px test inputs. At 512 px the mean absolute difference from previous kernels was 0.00055 and the maximum was 0.01782. Against portable fp16 the mean absolute difference at that size was 0.00057.
 
 For evaluation, set `FASTFORKS_KERNEL_PATH` to the local `build/kernels` directory containing `swiglu/`, or run `python tools/build_kernels.py swiglu` on the CUDA build host first. The new binary is staged locally. The five new LoMa references are available through `FASTFORKS_GOLDEN_PATH` pointing to the local `build/goldens` directory.
+
+### Classification and dense prediction
+
+The classification runs used one 480 × 640 input, each model's own resize and crop, six warm-ups and the median of 21 synchronized calls. All 37 variants passed the upstream reference checks. CUDA graph replay accounts for much of the batch-one speedup on repeated shapes. CoAtNet and SHViT retain their original convolutions.
+
+| Family | Variants | Warm speedup range |
+|---|---:|---:|
+| coatnet | 10 | 1.54–6.59× |
+| davit | 3 | 6.91–8.59× |
+| efficientformer | 3 | 5.60–6.82× |
+| efficientformerv2 | 4 | 6.61–8.11× |
+| focalnet | 6 | 4.72–5.52× |
+| hgnetv2 | 7 | 6.28–8.35× |
+| shvit | 4 | 9.08–11.15× |
+
+The following runs used the public inference API, 768 × 1024 inputs, three warm-ups and nine synchronized calls on the RTX 5060 Ti. Fixed-resolution models resize internally. Each variant passed its existing GPU golden thresholds. These medians measure repeated-shape latency. For example, PP-OCRv5 Mobile uses more memory when replaying captured graphs.
+
+| Variant | Portable (ms) | Kernels (ms) | Speedup |
+|---|---:|---:|---:|
+| anyline | 35.03 | 25.75 | 1.36× |
+| bisenet-face-parsing | 3.63 | 1.92 | 1.89× |
+| mlsd | 11.53 | 10.68 | 1.08× |
+| teed | 3.75 | 3.42 | 1.10× |
+| parseq | 9.40 | 4.31 | 2.18× |
+| parseq-tiny | 7.87 | 2.53 | 3.11× |
+| lineart-anime | 6.10 | 4.82 | 1.26× |
+| pidinet | 9.72 | 9.46 | 1.03× |
+| inspyrenet | 105.55 | 103.56 | 1.02× |
+| inspyrenet-fast | 51.37 | 15.02 | 3.42× |
+| matanyone | 467.85 | 396.53 | 1.18× |
+| aliked-flexglue | 136.01 | 128.55 | 1.06× |
+| xfeat | 9.54 | 9.18 | 1.04× |
+| xfeat-lighterglue | 28.23 | 27.95 | 1.01× |
+| ppocrv5-mobile | 103.70 | 100.28 | 1.03× |
+| ppocrv5-server | 181.98 | 164.56 | 1.11× |
+| loma-b | 321.53 | 308.01 | 1.04× |
+| loma-b64 | 134.11 | 124.31 | 1.08× |
+| loma-b128 | 155.20 | 141.12 | 1.10× |
+| loma-g | 369.91 | 360.07 | 1.03× |
+| loma-l | 330.57 | 318.46 | 1.04× |
+| loma-r | 321.16 | 308.96 | 1.04× |
+
+The LoMa variants share DeDoDe descriptor kernels. MatAnyone reuses the first frame's encoder features during recurrent warm-up. Lineart Anime and PiDiNet use fused OpenCV-compatible preprocessing. XFeat retains float32 convolution precision for keypoint selection. Build new CUDA libraries with `python tools/build_kernels.py LIBRARY` and point `FASTFORKS_KERNEL_PATH` at the resulting local `build/kernels` directory.
+
+## Original snapshot
 
 ## anyline (1)
 

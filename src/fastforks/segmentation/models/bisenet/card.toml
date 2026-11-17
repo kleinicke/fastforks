@@ -4,7 +4,7 @@ summary = "BiSeNet (Yu et al. 2018) face parsing from face-parsing.PyTorch: a Re
 tier = "experimental"
 outputs = ["logits"]
 limitations = ["No accuracy measurement: face parsing is scored on CelebAMask-HQ, which is not part of the evaluation data here (no public mirror with a clear licence); tiers are compared by output parity and speed only."]
-uses = ["seginfer"]  # fastforks.shared modules this family imports
+uses = ["seginfer", "cnn_kernels", "cuda_graphs"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/xinntao/facexlib"
@@ -36,8 +36,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "measured slower: cudnn_hacc fp16-accumulate convolutions 2.77 ms vs 2.41 ms portable (512x512)"
+kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 
 [output]
 label_set = "celebamask-hq-19-bisenet"

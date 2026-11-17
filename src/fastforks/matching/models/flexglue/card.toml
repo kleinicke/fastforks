@@ -3,7 +3,7 @@ name = "FlexGlue"
 summary = "FlexGlue (Lindenberger, Sarlin, Miksik and Pollefeys 2026): sparse feature matching from dense features. ALIKED finds up to 2048 keypoints per image at a 1024-pixel long side, a DINOv3 ConvNeXt-B describes each image at 512 x 512, nine transformer layers (rotary self-attention, cross-attention) relate both feature maps, and a head predicts where each keypoint lands in the other image; mutual nearest neighbours of keypoints and predictions are the matches. Returns both keypoint sets, the index pairs of the matches and their confidence."
 tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
-uses = ["aliked", "deform_conv", "lightglue"]  # fastforks.shared modules this family imports (ALIKED + its deformable conv op; LightGlue's long-side resize)
+uses = ["cuda_graphs", "aliked", "deform_conv", "lightglue"]  # fastforks.shared modules this family imports (ALIKED + its deformable conv op; LightGlue's long-side resize)
 limitations = [
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.",
@@ -45,8 +45,7 @@ cuda_dtype = "float16"  # upstream `mp="float16"` (transformer layers) plus the 
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "not implemented: data-dependent keypoint and match counts. Portable at 768x1024, 2048 keypoints, MegaDepth pair: 129.6 ms against 152.9 ms for the original with its float16 option (1.18x), peak allocated 1799 vs 1801 MB (reserved 1962 vs 1950), 760 vs 759 matches"
+kernels = ["image_normalize"]
 
 [[papers]]
 title = "FlexGlue: Sparse-to-Dense Feature Matching and Visual Disambiguation"

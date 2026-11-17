@@ -22,6 +22,7 @@ import torch
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.runner import host
+from fastforks.kernels import ocr_levels
 from fastforks.ocr._runner import (
     DET_MEAN,
     DET_STD,
@@ -34,6 +35,8 @@ from fastforks.ocr._runner import (
     rec_batches,
     text_boxes,
 )
+from fastforks.shared.cnn_kernels import prepare_generic
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from . import convert
 from .net import build
@@ -75,6 +78,7 @@ class Portable(Runner):
 
     Params = Params
     dtypes = ("float32", "float16")
+    _levels = staticmethod(levels)
     compiled_methods = ("_detect", "_recognise")  # the networks; boxes, crops and decoding stay eager
 
     def __init__(self, ctx: Context) -> None:
@@ -96,7 +100,7 @@ class Portable(Runner):
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[str]]:
         """Text lines of a `[1, 3, H, W]` RGB image."""
         p = self.ctx.params
-        bgr = levels(image)
+        bgr = self._levels(image)
         pred = self._detect(det_input(bgr))
         quads = text_boxes(
             pred, (bgr.shape[-2], bgr.shape[-1]), box_threshold=p.box_threshold, unclip_ratio=p.unclip_ratio
@@ -134,4 +138,32 @@ class Portable(Runner):
         return Forward(self.det, forward)
 
 
-RUNNERS = {"portable": Portable}
+class Kernels(Portable):
+    """Run the convolution blocks with fused CUDA kernels."""
+
+    module = Runner.module
+
+    def __init__(self, ctx: Context) -> None:
+        """Prepare the convolution blocks for inference."""
+        super().__init__(ctx)
+        if ctx.params.server:
+            prepare_generic(self.det, ctx.device)
+            prepare_generic(self.rec, ctx.device)
+        self.det_graphs = SmallShapeGraphs(super()._detect, pixels=2**22)
+        self.rec_graphs = SmallShapeGraphs(super()._recognise, pixels=2**22)
+
+    _levels = staticmethod(ocr_levels.levels)
+
+    def _detect(self, x: torch.Tensor) -> torch.Tensor:
+        return self.det_graphs(x)
+
+    def _recognise(self, x: torch.Tensor) -> torch.Tensor:
+        return self.rec_graphs(x)
+
+    def release_graphs(self) -> None:
+        """Release captured activation buffers."""
+        self.det_graphs.release()
+        self.rec_graphs.release()
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}
