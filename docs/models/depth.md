@@ -780,7 +780,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 
 | variant | dataset | original half | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|
-| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 |  | 0.0386 / 0.9840 |  |
+| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |
 | `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 | 0.0291 / 0.9877 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519 / 6d3bab64, 2026-11-14 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14.
@@ -839,14 +839,14 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `metric3d-vit-large` | NYUv2 test, AbsRel / delta1 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0547 / 0.9673 |  | 0.0546 / 0.9673 |  |
-| `metric3d-vit-large` | iBims-1, AbsRel / delta1 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 |  | 0.0334 / 0.9855 |  |
+| `metric3d-vit-large` | NYUv2 test, AbsRel / delta1 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0546 / 0.9673 |  |
+| `metric3d-vit-large` | iBims-1, AbsRel / delta1 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 |  |
 | `metric3d-vit-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0740 / 0.9411 | 0.0740 / 0.9411 | 0.0740 / 0.9411 |  | 0.0741 / 0.9410 | possibly in the training data |
 | `metric3d-vit-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | 0.0247 / 0.9961 |  | 0.0247 / 0.9961 | possibly in the training data |
 | `metric3d-vit-large` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 13.72 / 7.27 / 65.43 / 87.44 | 13.72 / 7.27 / 65.43 / 87.44 | 13.71 / 7.27 / 65.44 / 87.45 |  |
 | `metric3d-vit-large` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.47 / 5.84 / 71.33 / 85.85 | 14.47 / 5.84 / 71.33 / 85.85 | 14.47 / 5.84 / 71.33 / 85.85 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12.
 
 ### Parity
 
@@ -897,14 +897,14 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `midas-dpt-beit-large-512` | NYUv2 test, AbsRel / delta1 | 0.0487 / 0.9789 | 0.0487 / 0.9789 | 0.0487 / 0.9789 | 0.0487 / 0.9789 |  |
-| `midas-dpt-beit-large-512` | iBims-1, AbsRel / delta1 | 0.0477 / 0.9727 | 0.0478 / 0.9727 | 0.0477 / 0.9727 | 0.0478 / 0.9726 |  |
-| `midas-dpt-beit-large-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0904 / 0.8978 | 0.0906 / 0.8977 | 0.0903 / 0.8979 | 0.0906 / 0.8974 | possibly in the training data |
-| `midas-dpt-beit-large-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0425 / 0.9906 | 0.0424 / 0.9906 | 0.0425 / 0.9906 | 0.0426 / 0.9907 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `midas-dpt-beit-large-512` | NYUv2 test, AbsRel / delta1 | 0.0487 / 0.9789 | 0.0487 / 0.9789 | 0.0487 / 0.9789 |  | 0.0487 / 0.9789 |  |
+| `midas-dpt-beit-large-512` | iBims-1, AbsRel / delta1 | 0.0477 / 0.9727 | 0.0478 / 0.9727 | 0.0477 / 0.9727 | 0.0477 / 0.9727 | 0.0478 / 0.9726 |  |
+| `midas-dpt-beit-large-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0904 / 0.8978 | 0.0906 / 0.8977 | 0.0903 / 0.8979 |  | 0.0906 / 0.8974 | possibly in the training data |
+| `midas-dpt-beit-large-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0425 / 0.9906 | 0.0424 / 0.9906 | 0.0425 / 0.9906 |  | 0.0426 / 0.9907 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
