@@ -16,6 +16,9 @@ dB. The maximum per-channel pixel difference was 0.3213 on `classic-car`: 0.0236
 differed by more than 0.1. On that clip the exported PyTorch graph matched eager exactly; the difference appeared
 in TensorRT. A 128×128 ONNX Runtime CPU comparison on the same clip had mean/max absolute differences of
 0.000134/0.001128 versus CUDA portable. These results do not establish an accepted pixel-error tolerance.
+For context, on that same 1080p clip the existing portable FP32 and FP16 modes differed by 0.000464 on average,
+with 0.000514% of channel values over 0.1; the TensorRT-versus-portable-FP16 comparison differed by 0.000937 on
+average, with 0.0236% over 0.1. Different comparisons do not by themselves establish a pass threshold.
 
 The dataset manifest hashes the 270 relative filenames and file sizes to
 `8e4453b508a2371f2ae662c2ee450b159042bc852e2c5c5999895867fe55acac`; image contents were not independently hashed.
