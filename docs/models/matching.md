@@ -294,6 +294,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1036<br>308<br>no kernels<br>285<br>planned for 0.2.1 | 4176 / 4390<br>1767 / 1878<br>no kernels<br>2870 / 3216<br>– |
 | `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>129<br>no kernels<br>101<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>854 / 962<br>no kernels<br>1230 / 1356<br>– |
+| `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels | –<br>150<br>no kernels | –<br>878 / 984<br>no kernels |
 
 <details><summary>Details</summary>
 
@@ -315,8 +316,9 @@ Commercial use: yes.
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
 - `loma-b` load / first call: original 8.52 s / 1.373 s, portable 2.53 s / 1.269 s
 - `loma-b64` load / first call: portable 0.28 s / 0.759 s
+- `loma-b128` load / first call: portable 0.52 s / 0.636 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
-- Speed and memory not measured for: `loma-b128`, `loma-l`, `loma-g`, `loma-r`.
+- Speed and memory not measured for: `loma-l`, `loma-g`, `loma-r`.
 
 ### Measured
 

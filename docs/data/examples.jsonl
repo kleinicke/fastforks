@@ -588,3 +588,4 @@
 {"ref": "loma-b128", "task": "matching", "input": "motorcycle", "date": "2026-11-17", "mode": "portable", "dtype": "bfloat16", "device": "NVIDIA GeForce RTX 5060 Ti"}
 {"ref": "loma-l", "task": "matching", "input": "motorcycle", "date": "2026-11-17", "mode": "portable", "dtype": "bfloat16", "device": "NVIDIA GeForce RTX 5060 Ti"}
 {"ref": "loma-g", "task": "matching", "input": "motorcycle", "date": "2026-11-17", "mode": "portable", "dtype": "bfloat16", "device": "NVIDIA GeForce RTX 5060 Ti"}
+{"ref": "loma-r", "task": "matching", "input": "motorcycle", "date": "2026-11-17", "mode": "portable", "dtype": "bfloat16", "device": "NVIDIA GeForce RTX 5060 Ti"}

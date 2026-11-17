@@ -315,13 +315,13 @@ Commercial use: yes.
 
 TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the original frames, resized by the model), one query per track at its first visible point, tracked online (TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg (< 1, 2, 4, 8, 16 px at 256 x 256) and occlusion accuracy averaged over the videos. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `tapnext` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 71.01 / 82.01 / 95.18 | 71.02 / 82.02 / 95.19 | 71.02 / 82.02 / 95.19 | 71.02 / 82.03 / 95.23 |  |
-| `tapnext` | TAP-Vid DAVIS (query first), AJ / delta_avg / OA % | 66.55 / 79.48 / 92.16 | 66.55 / 79.49 / 92.17 | 66.55 / 79.49 / 92.17 | 66.56 / 79.50 / 92.18 |  |
-| `tapnext-pp` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 71.48 / 82.43 / 94.96 | 71.50 / 82.43 / 94.96 | 71.50 / 82.43 / 94.96 | 71.47 / 82.41 / 94.98 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `tapnext` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 71.01 / 82.01 / 95.18 | 71.02 / 82.02 / 95.19 | 71.02 / 82.02 / 95.19 | 71.01 / 82.01 / 95.18 | 71.02 / 82.03 / 95.23 |  |
+| `tapnext` | TAP-Vid DAVIS (query first), AJ / delta_avg / OA % | 66.55 / 79.48 / 92.16 | 66.55 / 79.49 / 92.17 | 66.55 / 79.49 / 92.17 |  | 66.56 / 79.50 / 92.18 |  |
+| `tapnext-pp` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 71.48 / 82.43 / 94.96 | 71.50 / 82.43 / 94.96 | 71.50 / 82.43 / 94.96 | 71.48 / 82.43 / 94.96 | 71.47 / 82.41 / 94.98 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bb4e8b64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, 2026-11-12.
 
 ### Parity
 
