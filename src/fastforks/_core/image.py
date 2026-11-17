@@ -127,6 +127,8 @@ def _download(url: str) -> bytes:
         with urllib.request.urlopen(url, timeout=_URL_TIMEOUT_S) as r:  # noqa: S310 - http(s) only, checked by is_url
             data = r.read(_URL_MAX_BYTES + 1)
     except (OSError, ValueError, urllib.error.URLError) as e:  # HTTPError is a URLError; timeouts are OSError
+        if isinstance(e, urllib.error.HTTPError):
+            e.close()  # python 3.14 warns about the response body's temp file otherwise
         msg = f"cannot download image {url!r}: {e}"
         raise InputError(msg) from e
     if len(data) > _URL_MAX_BYTES:

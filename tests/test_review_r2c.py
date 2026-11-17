@@ -238,7 +238,8 @@ def test_python_m_fastforks(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Capt
 )
 def test_load_return_annotation(task: str, cls: str) -> None:
     mod = importlib.import_module(f"fastforks.{task}")
-    assert mod.load.__annotations__["return"] is getattr(mod, cls)
+    ann = mod.load.__annotations__["return"]
+    assert ann is getattr(mod, cls) or ann == cls  # a string under `from __future__ import annotations`
 
 
 def test_ms_rounding() -> None:
