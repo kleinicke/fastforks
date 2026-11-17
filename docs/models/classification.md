@@ -1650,8 +1650,8 @@ fastforks: the model's own resize / crop on the GPU; original: the library's pre
 |---|---|---|---|---|---|---|---|
 | `repvit_m0_9.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 79.44 / 94.20 | 79.48 / 94.16 | 79.44 / 94.08 | 79.42 / 94.08 | 79.42 / 94.08 |  |
 | `repvit_m0_9.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 79.52 / 94.22 | 79.56 / 94.26 | 79.52 / 94.24 | 79.48 / 94.26 | 79.52 / 94.24 |  |
-| `repvit_m1_0.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.12 / 94.78 | 81.12 / 94.76 | 81.10 / 94.74 |  | 81.10 / 94.80 |  |
-| `repvit_m1_0.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.10 / 94.86 | 81.10 / 94.88 | 81.16 / 94.90 |  | 81.14 / 94.92 |  |
+| `repvit_m1_0.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.12 / 94.78 | 81.12 / 94.76 | 81.10 / 94.74 | 81.12 / 94.74 | 81.10 / 94.80 |  |
+| `repvit_m1_0.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.10 / 94.86 | 81.10 / 94.88 | 81.16 / 94.90 | 81.12 / 94.96 | 81.14 / 94.92 |  |
 | `repvit_m1_1.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.40 / 95.10 | 81.40 / 95.10 | 81.32 / 95.02 |  | 81.34 / 95.02 |  |
 | `repvit_m1_1.dist_450e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.32 / 95.70 | 82.28 / 95.72 | 82.18 / 95.66 |  | 82.18 / 95.62 |  |
 | `repvit_m1_5.dist_300e_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.94 / 96.22 | 82.98 / 96.24 | 82.96 / 96.24 |  | 83.00 / 96.26 |  |
