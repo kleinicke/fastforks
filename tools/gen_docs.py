@@ -533,6 +533,7 @@ _ENGINE_PART = {
     "retinaface": "network",  # face detectors: the whole image, decoding and NMS outside
     "yunet": "network",
     "nnfoundation": "encoder on a normalized, padded volume; memory estimated",
+    "anyline": "full line map; memory estimated",
 }  # task / family: `module()`
 
 

@@ -44,7 +44,6 @@ Commercial use: yes.
 - Options: `short_side` = 1280 (>= 64; also `resolution`; also `detect_resolution`)
 - Kernel libraries: none (the MTEED CNN plus a GPU blend, a few ms; no custom kernel measured to pay off)
 - Variants: `anyline`
-- Not in this release (planned for 0.2.1): `anyline` TensorRT export: the TensorRT ONNX parser rejects an Expand node
 - Outputs: edges
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anyline` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved)

@@ -66,6 +66,10 @@ def test_nnfoundation_engine_labels_preprocessing_scope():
     )
 
 
+def test_anyline_engine_labels_memory_estimate():
+    assert gen_docs._engine_part("anyline") == " (full line map only; memory estimated)"
+
+
 def test_public_functions_document_their_args():
     """Every public function and method of `fastforks` / `.stereo` / `.stereo.geometry` with parameters has `Args:`."""
     missing = []
