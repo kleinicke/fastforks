@@ -120,7 +120,8 @@ class Ours:
     def __init__(self, ref: str, tier: str) -> None:  # noqa: D107
         from fastforks import tracking  # noqa: PLC0415
 
-        self.model = tracking.load(ref, mode=tier, device="cuda")
+        mode, dtype = ("portable", "float32") if tier == "portable32" else (tier, None)
+        self.model = tracking.load(ref, mode=mode, dtype=dtype, device="cuda")
         self.backend = self.model.backend
 
     def __call__(self, frames: np.ndarray, queries: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
