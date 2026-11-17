@@ -133,7 +133,7 @@ TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (Al
 |---|---|---|---|---|---|---|---|
 | `bootstapir` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 65.49 / 76.75 / 92.56 | 65.53 / 76.72 / 92.55 | 65.56 / 76.78 / 92.44 | 65.49 / 76.76 / 92.58 | 65.51 / 76.72 / 92.51 |  |
 | `bootstapir` | TAP-Vid DAVIS (query first), AJ / delta_avg / OA % | 62.27 / 74.62 / 89.67 |  | 62.29 / 74.61 / 89.66 |  | 62.27 / 74.61 / 89.64 |  |
-| `tapir` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 62.63 / 74.54 / 90.14 | 62.62 / 74.60 / 90.18 | 62.74 / 74.59 / 90.11 |  | 62.73 / 74.55 / 90.21 |  |
+| `tapir` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 62.63 / 74.54 / 90.14 | 62.62 / 74.60 / 90.18 | 62.74 / 74.59 / 90.11 | 62.62 / 74.51 / 90.14 | 62.73 / 74.55 / 90.21 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8d5bccf, 2026-11-12 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bb4e8b64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8d5bccf, 2026-11-12 to 2026-11-13.
 
@@ -228,8 +228,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>188<br>173<br>82.6<br>planned for 0.2.1 | 719 / 784<br>603 / 656<br>614 / 660<br>1117 / 1140<br>– |
-| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>planned for 0.2.1 | 706 / 812<br>759 / 842<br>596 / 642<br>1000 / 1034<br>– |
+| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>188<br>173<br>82.6<br>6.12 (8 frames with 16 queries only) | 719 / 784<br>603 / 656<br>614 / 660<br>1117 / 1140<br>233 / 242 |
+| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>5.66 (8 frames with 16 queries only) | 706 / 812<br>759 / 842<br>596 / 642<br>1000 / 1034<br>251 / 256 |
 
 <details><summary>Details</summary>
 
@@ -240,12 +240,11 @@ Commercial use: yes.
 - Training data: Upstream README: trained on the panning Kubric MOVi-E sequences (synthetic, released as hamacojr/LocoTrack-panning-MOVi-E). No dataset entry here yet.
 - Kernel libraries: `fvm_conv`
 - Variants: `locotrack-b`, `locotrack-s`
-- Not in this release (planned for 0.2.1): `locotrack-b` ONNX / TensorRT export: the export fails in the network call (ValueError: expected 4 values, got 2); `locotrack-s` ONNX / TensorRT export: the export fails in the network call (ValueError: expected 4 values, got 2)
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `locotrack-b` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `locotrack-s` 3000x4000 (5.4 GiB peak allocated, 5.8 reserved)
 - `locotrack-b` 480x854, first call: portable + torch.compile 146 s (cold Inductor cache).
-- `locotrack-s` 480x854, first call: portable + torch.compile 140 s (cold Inductor cache).
+- `locotrack-s` 480x854, first call: portable + torch.compile 140 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
 - `locotrack-b` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
 - `locotrack-s` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
 - `locotrack-b` load / first call: original 0.79 s / 1.058 s, portable 0.35 s / 0.718 s, kernels 0.18 s / 0.872 s

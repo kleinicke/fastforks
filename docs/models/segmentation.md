@@ -135,7 +135,7 @@ Each image at its own size, argmax of the logits. Original = the original code n
 | `pspnet-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.44 / 80.97 | 44.44 / 80.97 | 44.43 / 80.97 |  | 44.44 / 80.97 |  |
 | `deeplabv3-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 43.62 / 80.80 | 43.62 / 80.80 | 43.61 / 80.80 | 43.62 / 80.80 | 43.62 / 80.80 |  |
 | `deeplabv3plus-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.36 / 81.01 | 44.36 / 81.01 | 44.35 / 81.01 | 44.36 / 81.01 | 44.36 / 81.01 |  |
-| `hrnet-w48-fcn-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 40.11 / 79.34 | 40.11 / 79.35 | 40.10 / 79.35 |  | 40.11 / 79.34 |  |
+| `hrnet-w48-fcn-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 40.11 / 79.34 | 40.11 / 79.35 | 40.10 / 79.35 | 40.11 / 79.34 | 40.11 / 79.34 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 

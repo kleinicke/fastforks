@@ -78,6 +78,12 @@ def test_anyline_engine_labels_memory_estimate():
     assert gen_docs._engine_part("anyline") == " (full line map only; memory estimated)"
 
 
+def test_tensorrt_setup_requires_both_timings():
+    row = {"mode": "tensorrt", "engine_build_s": 3.5}
+    assert gen_docs._setup_seconds(row) is None
+    assert gen_docs._setup_seconds({**row, "onnx_export_s": 2.0}) == 5.5
+
+
 def test_public_functions_document_their_args():
     """Every public function and method of `fastforks` / `.stereo` / `.stereo.geometry` with parameters has `Args:`."""
     missing = []

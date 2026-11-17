@@ -161,9 +161,7 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]]) -> dict[str, Any
                 "device_mb": c.get("device_mb"),
                 "engine_dtype": c.get("engine_dtype", "float16") if mode == "tensorrt" else None,
                 "part": g._engine_part(v.id).strip(" ()") if mode == "tensorrt" else "",  # noqa: SLF001
-                "setup_s": c.get("compile_s")
-                if mode == "compile"
-                else c.get("onnx_export_s", 0) + c.get("engine_build_s", 0),
+                "setup_s": g._setup_seconds(c),  # noqa: SLF001 - shared docs helper
                 "date": c.get("date"),
             }
         extra |= _pose_parts(v, size)

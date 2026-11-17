@@ -510,7 +510,7 @@ DIV2K validation HR images and the official bicubic LR images (x4 or x2, the mod
 |---|---|---|---|---|---|---|---|
 | `realesrgan-x4plus` | DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.64 / 0.7580 | 26.64 / 0.7580 | 26.64 / 0.7580 | 26.64 / 0.7580 | 26.64 / 0.7580 |  |
 | `realesrgan-x2plus` | DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 30.03 / 0.8592 | 30.03 / 0.8592 | 30.03 / 0.8592 | 30.03 / 0.8592 | 30.03 / 0.8591 |  |
-| `realesrgan-x4plus-anime-6b` | DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 25.66 / 0.7357 | 25.66 / 0.7357 | 25.66 / 0.7357 |  | 25.66 / 0.7356 |  |
+| `realesrgan-x4plus-anime-6b` | DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 25.66 / 0.7357 | 25.66 / 0.7357 | 25.66 / 0.7357 | 25.66 / 0.7357 | 25.66 / 0.7356 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 

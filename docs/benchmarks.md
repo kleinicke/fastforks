@@ -2639,8 +2639,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | bootstapir | 480x854 | 234 ms | 183 ms | 13.2 ms | 192 ms | 207 s | 65.0 s | 508 / 628 | 758 / 832 | 508 / 628 | 492 / 532 |
 | cotracker3-offline | 480x854 | 162 ms | 135 ms | 25.9 ms | 154 ms | 36.5 s | 157 s | 755 / 882 | 755 / 902 | 757 / 882 | 519 / 586 |
 | cotracker3-online | 480x854 | 184 ms | 159 ms | planned for 0.2.1 | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |
-| locotrack-b | 480x854 | 188 ms | 82.6 ms | planned for 0.2.1 | 173 ms | 146 s | – | 603 / 656 | 1117 / 1140 | 614 / 660 | – |
-| locotrack-s | 480x854 | 180 ms | 74.1 ms | planned for 0.2.1 | 151 ms | 140 s | – | 759 / 842 | 1000 / 1034 | 596 / 642 | – |
+| locotrack-b | 480x854 | 188 ms | 82.6 ms | 6.12 ms (8 frames with 16 queries only) | 173 ms | 146 s | – | 603 / 656 | 1117 / 1140 | 614 / 660 | 233 / 242 |
+| locotrack-s | 480x854 | 180 ms | 74.1 ms | 5.66 ms (8 frames with 16 queries only) | 151 ms | 140 s | 51.4 s | 759 / 842 | 1000 / 1034 | 596 / 642 | 251 / 256 |
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
 | tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 381 ms | 34.1 s | 362 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |

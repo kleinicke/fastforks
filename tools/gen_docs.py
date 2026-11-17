@@ -535,6 +535,7 @@ _ENGINE_PART = {
     "yunet": "network",
     "nnfoundation": "encoder on a normalized, padded volume; memory estimated",
     "anyline": "full line map; memory estimated",
+    "locotrack": "8 frames with 16 queries",
 }  # task / family: `module()`
 
 
@@ -562,6 +563,17 @@ def _compile_rows() -> dict[tuple[str, str], dict]:
     return rows
 
 
+def _setup_seconds(row: dict | None) -> float | None:
+    """Return the measured setup duration when all required timings were collected."""
+    if row is None or "fails" in row:
+        return None
+    if row["mode"] == "compile":
+        return row.get("compile_s")
+    export = row.get("onnx_export_s")
+    build = row.get("engine_build_s")
+    return export + build if export is not None and build is not None else None
+
+
 def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]], list[str]]:
     """The compile / TensorRT cell lines (label, time, memory) of one variant and input, and their one-time setup."""
     lines, setup = [], []
@@ -575,8 +587,10 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
         name = "TensorRT fp32" if r.get("engine_dtype") == "float32" else label
         ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
         lines.append((name, ms, _trt_peak(r) if mode == "tensorrt" else _peak(r)))
-        first = r["compile_s"] if mode == "compile" else r["onnx_export_s"] + r["engine_build_s"]
-        setup.append(f"{name} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
+        first = _setup_seconds(r)
+        if first is not None:
+            steps = "cold Inductor cache" if mode == "compile" else "ONNX + engine"
+            setup.append(f"{name} {first:.0f} s ({steps})")
     return lines, setup
 
 
@@ -1825,7 +1839,7 @@ def _compile_block() -> str:
         comp, trt = latest.get((ref, "compile")), latest.get((ref, "tensorrt"))
         size = next(r["input"] for r in (comp, trt) if r)
         at = {r["mode"]: r for r in speed.get(ref, []) if r["input"] == size}
-        built = trt is not None and "fails" not in trt
+        compile_s, engine_setup_s = _setup_seconds(comp), _setup_seconds(trt)
         ms = {m: f"{_ms_str(at[m]['ms'])} ms" if m in at else DASH for m in ("portable", "kernels")}
         cells = [
             ref,
@@ -1834,8 +1848,8 @@ def _compile_block() -> str:
             _compile_ms(comp),
             _compile_ms(trt),
             ms["kernels"],
-            DASH if comp is None or "fails" in comp else f"{_ms_str(comp['compile_s'])} s",
-            f"{_ms_str(trt['onnx_export_s'] + trt['engine_build_s'])} s" if built else DASH,
+            DASH if compile_s is None else f"{_ms_str(compile_s)} s",
+            DASH if engine_setup_s is None else f"{_ms_str(engine_setup_s)} s",
             _peak(at.get("portable")),
             _peak(comp) if comp and "fails" not in comp else DASH,
             _peak(at.get("kernels")),
