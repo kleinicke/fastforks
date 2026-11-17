@@ -51,6 +51,31 @@ def test_bfloat16_original_does_not_claim_float32(monkeypatch):
     assert set(modes) == {"original16"}
 
 
+def test_explicit_bf16_original_keeps_autocast_row(monkeypatch):
+    monkeypatch.setattr(site_data.g, "_overlap", lambda *_: None)
+    monkeypatch.setattr(site_data, "eval_version", lambda *_: "test")
+    rows = [
+        {
+            "dataset": "nyu",
+            "mode": "upstream",
+            "tier": "upstream16",
+            "dtype": "float16",
+            "metrics": {"rel_absrel": 0.1},
+        },
+        {
+            "dataset": "nyu",
+            "mode": "upstream",
+            "tier": "upstreambf16",
+            "dtype": "bfloat16",
+            "metrics": {"rel_absrel": 0.2},
+        },
+    ]
+    modes = site_data._quality(SimpleNamespace(task="depth"), SimpleNamespace(id="model"), {"model": rows})[0]["modes"]
+    assert modes["original16"]["metrics"]["rel_absrel"] == 0.1
+    assert modes["originalhalf"]["metrics"]["rel_absrel"] == 0.2
+    assert modes["originalhalf"]["dtype"] == "bfloat16"
+
+
 def test_task_without_accuracy_protocol_has_no_quality_rows():
     assert site_data._quality(SimpleNamespace(task="edges"), SimpleNamespace(id="model"), {}) == []
 

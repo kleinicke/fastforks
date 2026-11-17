@@ -45,8 +45,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.98, 3.0x | 132, 0.48x |
 | [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.22, 2.4x | 110, 0.68x |
 | [`dinov3-vitb16`](#dinov3) | yes | 1.26, 5.3x | 210, 1.0x |
-| [`dinov3-vith16plus`](#dinov3) | yes | 8.45, 3.1x | 1672, 0.51x |
-| [`dinov3-vitl16`](#dinov3) | yes | 3.04, 5.8x | 650, 0.54x |
+| [`dinov3-vith16plus`](#dinov3) | yes | 8.45, 1.9x | 1672, 0.92x |
+| [`dinov3-vitl16`](#dinov3) | yes | 3.04, 3.7x | 650, 1.0x |
 | [`dinov3-vits16`](#dinov3) | yes | 0.793, 8.1x | 68, 0.58x |
 | [`pe-core-b16-224`](#perception_encoder) | yes | 1.47, 4.9x | 268, 0.61x |
 | [`pe-core-g14-448`](#perception_encoder) | yes | 17.0, 3.1x | 3696, 0.49x |
@@ -544,8 +544,8 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `dinov3-vits16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.47<br>6.45<br>3.40<br>0.793<br>2.18<br>0.564 | 119 / 132<br>76 / 118<br>76 / 104<br>44 / 68<br>109 / 138<br>107 / 120 |
 | `dinov3-vitb16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.95<br>6.72<br>3.59<br>1.26<br>2.35<br>1.14 | 367 / 390<br>200 / 206<br>200 / 226<br>168 / 210<br>236 / 306<br>393 / 480 |
-| `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.2<br>17.7<br>6.52<br>3.04<br>4.91<br>2.98 | 1199 / 1212<br>1772 / 1812<br>616 / 646<br>616 / 650<br>655 / 846<br>1226 / 1418 |
-| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.0<br>25.9<br>12.5<br>8.45<br>11.6<br>7.86 | 3255 / 3276<br>4849 / 4876<br>1646 / 1666<br>1645 / 1672<br>1699 / 2008<br>3280 / 3628 |
+| `dinov3-vitl16` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.2<br>11.2<br>6.52<br>3.04<br>4.91<br>2.98 | 1199 / 1212<br>617 / 640<br>616 / 646<br>616 / 650<br>655 / 846<br>1226 / 1418 |
+| `dinov3-vith16plus` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 48.0<br>16.0<br>12.5<br>8.45<br>11.6<br>7.86 | 3255 / 3276<br>1645 / 1816<br>1646 / 1666<br>1645 / 1672<br>1699 / 2008<br>3280 / 3628 |
 
 <details><summary>Details</summary>
 
@@ -567,8 +567,8 @@ Commercial use: yes.
 - `dinov3-vith16plus` 224x224, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 99 s (ONNX + engine).
 - `dinov3-vits16` original 224x224: Transformers FP16 weights, FP16 inputs; original adapter casting hooks; full kNN accuracy checked
 - `dinov3-vitb16` original 224x224: Transformers FP16 weights, FP16 inputs; original adapter casting hooks; full kNN accuracy checked
-- `dinov3-vitl16` original 224x224: torch.autocast(fp16) around the forward
-- `dinov3-vith16plus` original 224x224: torch.autocast(fp16) around the forward
+- `dinov3-vitl16` original 224x224: Transformers BF16 weights and inputs (not IEEE FP16); full kNN accuracy checked; timing uses direct load without adapter hooks
+- `dinov3-vith16plus` original 224x224: Transformers BF16 weights and inputs (not IEEE FP16); full kNN accuracy checked; timing uses direct load without adapter hooks
 - `dinov3-vits16` load / first call: original 0.48 s / 0.947 s, portable 0.07 s / 0.271 s, kernels 0.06 s / 0.259 s
 - `dinov3-vitb16` load / first call: original 0.68 s / 0.012 s, portable 0.38 s / 0.198 s, kernels 0.16 s / 0.291 s
 - `dinov3-vitl16` load / first call: original 2.37 s / 0.023 s, portable 0.54 s / 0.18 s, kernels 0.52 s / 0.246 s
@@ -583,8 +583,8 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 |---|---|---|---|---|---|---|---|---|
 | `dinov3-vits16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 55.38 | 55.42 | 55.42 | 55.42 | 55.36 | 55.36 |  |
 | `dinov3-vitb16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.54 | 66.54 | 66.50 | 66.52 | 66.54 | 66.54 |  |
-| `dinov3-vitl16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.94 | 75.92 |  | 75.80 | 75.94 | 75.88 |  |
-| `dinov3-vith16plus` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 79.50 | 79.50 |  | 79.52 | 79.50 | 79.52 |  |
+| `dinov3-vitl16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.94 | 75.92 | 75.78 | 75.80 | 75.94 | 75.88 |  |
+| `dinov3-vith16plus` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 79.50 | 79.50 | 79.54 | 79.52 | 79.50 | 79.52 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993 / 939adfe8, 2026-10-31 to 2026-11-06; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 

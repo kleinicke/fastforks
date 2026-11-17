@@ -543,7 +543,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`convnext_base.fb_in22k`](models/features.md#convnext) | yes | 7.7 (224x224) | 5.8 | 2.0 | 3.9x vs original (224x224) | 204 |
 | [`dinov3-convnext-small`](models/features.md#dinov3-convnext) | yes | 6.0 (224x224) | 5.4 | 2.0 | 3.0x vs original (224x224) | 100 |
 | [`dinov3-convnext-base`](models/features.md#dinov3-convnext) | yes | 7.4 (224x224) | 5.7 | 2.2 | 3.4x vs original (224x224) | 174 |
-| [`dinov3-vitl16`](models/features.md#dinov3-vit) | yes | 17.7 (224x224) | 6.5 | 3.0 | 5.8x vs original (224x224) | 616 |
+| [`dinov3-vitl16`](models/features.md#dinov3-vit) | yes | 11.2 (224x224) | 6.5 | 3.0 | 3.7x vs original (224x224) | 616 |
 | [`convnext_large.fb_in22k`](models/features.md#convnext) | yes | 10.5 (224x224) | 5.8 | 3.2 | 3.3x vs original (224x224) | 413 |
 | [`c-radio-v3-l`](models/features.md#c-radiov3--v4) | yes | 10.7 (224x224) | 5.5 | 3.3 | 3.3x vs original (224x224) | 645 |
 | [`siglip2-l16-512`](models/features.md#siglip-2) | yes | 11.1 (224x224) | 5.7 | 3.4 | 3.3x vs original (224x224) | 644 |
@@ -568,7 +568,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`c-radio-v3-h`](models/features.md#c-radiov3--v4) | yes | 17.0 (224x224) | 8.9 | 7.4 | 2.3x vs original (224x224) | 1286 |
 | [`clip-h14-378-dfn5b`](models/features.md#clip) | no | 19.5 (224x224) | 11.4 | 8.2 | 2.4x vs original (224x224) | 1251 |
 | [`clip-h14-laion2b`](models/features.md#clip) | yes | 19.3 (224x224) | 11.2 | 8.3 | 2.3x vs original (224x224) | 1250 |
-| [`dinov3-vith16plus`](models/features.md#dinov3-vit) | yes | 25.9 (224x224) | 12.5 | 8.5 | 3.1x vs original (224x224) | 1645 |
+| [`dinov3-vith16plus`](models/features.md#dinov3-vit) | yes | 16.0 (224x224) | 12.5 | 8.5 | 1.9x vs original (224x224) | 1645 |
 | [`clip-h14-dfn5b`](models/features.md#clip) | no | 19.4 (224x224) | 11.4 | 8.5 | 2.3x vs original (224x224) | 1250 |
 | [`c-radio-v3-g`](models/features.md#c-radiov3--v4) | yes | 29.5 (224x224) | 14.6 | 10.7 | 2.8x vs original (224x224) | 2263 |
 | [`siglip2-g16-384`](models/features.md#siglip-2) | yes | 31.0 (224x224) | 14.7 | 10.7 | 2.9x vs original (224x224) | 2263 |

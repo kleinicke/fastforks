@@ -262,7 +262,7 @@ def _quality(card: ModelCard, v: Variant, rows: dict[str, list[dict]]) -> list[d
             if r["mode"] == "portable" and r.get("tier") == "portable32":
                 key = "portable32"
             elif r["mode"] == "upstream":
-                if r.get("tier") == "upstreamhalf":
+                if r.get("tier") in ("upstreamhalf", "upstreambf16"):
                     key = "originalhalf"
                 elif r.get("tier") == "upstream16" or r.get("dtype") in ("float16", "bfloat16"):
                     key = "original16"
