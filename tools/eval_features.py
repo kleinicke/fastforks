@@ -136,7 +136,7 @@ def _original(ref: str, tier: str) -> tuple[Any, dict[str, Any]]:  # noqa: C901,
         pooled: Any = timm.create_model(full.split("@")[0], pretrained=True, num_classes=0).cuda().eval()
         net = feat = pooled  # head norm of the mean stage-4 map (`forward_head(pre_logits=True)`)
 
-    elif "arch" in {**card.params, **variant.params}:  # CLIP / SigLIP 2 / Perception Encoder: timm by name
+    elif card.family in {"clip", "siglip2", "perception_encoder"}:  # timm by name
         import timm  # noqa: PLC0415
 
         from fastforks._core import registry  # noqa: PLC0415
