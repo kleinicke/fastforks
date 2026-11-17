@@ -46,3 +46,29 @@ def test_only_takes_model_ids_and_rejects_unknown_names():
     assert speed_check._floor_refs(["mvsplat-re10k@1"]) == {"mvsplat-re10k"}
     with pytest.raises(SystemExit, match="no-such-model"):
         speed_check._floor_refs(["no-such-model"])
+
+
+def test_full_measurement_prepares_input_without_core_capture(monkeypatch, tmp_path):
+    """Interactive sessions have no safely replayable runner call, but still get a full speed measurement."""
+    import torch  # noqa: PLC0415
+
+    calls, rows = [], []
+
+    def full(*, prepare=False):
+        calls.append("prepare" if prepare else "call")
+
+    monkeypatch.setattr(speed_check, "measure", lambda fn: (fn(), {"ms": 1.0})[1])
+    monkeypatch.setattr(speed_check, "_append", lambda _out, row: rows.append(row.copy()))
+    monkeypatch.setattr(torch.cuda, "empty_cache", lambda: None)
+    spec = {
+        "task": "volume",
+        "side": "lib",
+        "mode": "compile",
+        "inputs": [{"label": "200x200", "scene": ""}],
+        "no_profile": True,
+    }
+    speed_check.speed_step(None, spec, {}, [("200x200", full, None)], tmp_path / "rows.jsonl")
+    assert calls == ["prepare", "call"]
+    assert rows[0]["ms"] == 1.0
+    assert "core_ms" not in rows[0]
+    assert "fails" not in rows[0]

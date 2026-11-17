@@ -17,7 +17,7 @@ median of the round medians, peaks = max over the first and the timed calls. Eac
 process (`cold`): `torch_import_s`, `cuda_init_s`, `import_s` (the fastforks task module), `load_s` (the load call until
 the model is on the GPU; fork side: the fork's own imports included), per input `first_call_s` and its peak
 (`peak_first_*_mb`; `first_call_cold` on the job's first input, later inputs are a new shape in the warm process). Each
-row also records the time of the task runner alone on the tensors the full call passed it (`core_ms`) and a short
+row also records the task runner's time on the tensors the full call passed it (`core_ms`, when captured) and a short
 profile of the full call on one input per task (CUDA time share of layout copies / casts, other elementwise kernels,
 host syncs per call, top kernels). `export` turns the library rows into floor rows (the fields of
 docs/data/speed.jsonl).
@@ -420,7 +420,10 @@ def _lib_job(
             with torch.inference_mode():
                 return fn(*ca, **ck)
 
-        calls.append((inp["label"], full, core))
+        # Interactive volumes call session methods on the runner; those methods invoke the network on the original
+        # runner instance, not this proxy. Replaying a session method would mutate its state, so omit the core timing.
+        interactive = spec["task"] == "volume" and isinstance(m, task.VolumeInteractive)
+        calls.append((inp["label"], full, None if interactive else core))
     info["_model"] = m
     return info, calls
 
@@ -445,7 +448,7 @@ def speed_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: 
                 from fastforks._core import kernels  # noqa: PLC0415
 
                 kernels.reset_fallbacks()
-            if core is not None:
+            if spec["side"] == "lib":
                 full(prepare=True)  # this input only (lib side)
             row |= measure(full)
             if core is not None:
