@@ -733,7 +733,11 @@ def _declared_launches(ref: str, declared: set[str], observed: set[str]) -> None
 
 # The MPS run covers one variant per family by default (the card's first, the cross-device subset of the speed survey)
 # so the whole run fits in about an hour; FASTFORKS_MPS_FULL=1 runs every variant.
-MPS_REFS = sorted(GOLDEN) if os.environ.get("FASTFORKS_MPS_FULL") else sorted({next(iter(fam["refs"])) for fam in FAMILIES.values() if fam["refs"]})
+MPS_REFS = (
+    sorted(GOLDEN)
+    if os.environ.get("FASTFORKS_MPS_FULL")
+    else sorted({next(iter(fam["refs"])) for fam in FAMILIES.values() if fam["refs"]})
+)
 
 
 @pytest.mark.model

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 import torch
 
+from fastforks import CheckpointMismatchError
 from fastforks.pose.models.hrnet import model as hrnet
 from fastforks.pose.models.hrnet.net import BN_EPS, STRIDE, Arch, HRNet, convert
 
@@ -64,7 +65,7 @@ def test_convert_folds_every_batchnorm_and_rejects_other_entries():
     got = convert(dict(sd))
     assert got.keys() == ours.keys()
     assert all(torch.allclose(got[k], ours[k], rtol=1e-5, atol=1e-6) for k in ours)
-    with pytest.raises(KeyError, match="unexpected"):
+    with pytest.raises(CheckpointMismatchError, match="unexpected"):
         convert(sd | {"neck.weight": torch.zeros(1)})
 
 

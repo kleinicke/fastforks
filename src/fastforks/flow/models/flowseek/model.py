@@ -100,8 +100,6 @@ def _lookup(k: CubinModule, f1: torch.Tensor, f2: torch.Tensor) -> Callable[[tor
 class Kernels(Portable):
     """Portable FP16 network with on-demand correlation windows (`raft_flow`) instead of all-pairs volumes."""
 
-    dtypes = ("float16",)
-
     def __init__(self, ctx: Context) -> None:
         """Build the network and load the CUDA correlation kernel."""
         super().__init__(ctx)

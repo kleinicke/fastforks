@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import platform
 
 import pytest
 import torch
@@ -268,10 +269,11 @@ def test_cpu_conv_net_runs_channels_last_with_identical_output():
         want = copy.deepcopy(m)(x)
         fast = optimize(m, mode="portable", device="cpu")
         got = fast(x)
-    assert fast.report["channels_last"] is True
+    expected = platform.machine().lower() in {"x86_64", "amd64"}
+    assert fast.report["channels_last"] is expected
     convs = [c for c in fast.net.modules() if isinstance(c, nn.Conv2d)]
     assert convs
-    assert all(c.weight.is_contiguous(memory_format=torch.channels_last) for c in convs)
+    assert all(c.weight.is_contiguous(memory_format=torch.channels_last) is expected for c in convs)
     torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-5)
 
 

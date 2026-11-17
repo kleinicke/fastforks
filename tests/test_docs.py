@@ -443,14 +443,25 @@ def test_a_failing_original_is_a_cell_and_a_failing_fastforks_tier_is_not():
 def test_original_eval_cells_come_from_their_tier():
     """The row a docs cell shows (the last per model, mode and dataset): original fp32 from the fp32 tier, original
     fp16 from an fp16 tier (an fp16 row labelled `upstream` overwrote the fp32 cell of moge-2-vitb-normal)."""
-    want = {"upstream": ("upstream",), "upstream-fp16": ("upstream16", "upstreamac")}
+    want = {
+        "upstream": ("upstream",),
+        "upstream-fp16": ("upstream16", "upstreamac"),
+        "upstreamhalf": ("upstreamhalf", "upstreambf16"),
+    }
     for path in (ROOT / "docs" / "data").glob("*_eval.jsonl"):
         last = {}
         for line in path.read_text().splitlines():
             r = json.loads(line)
-            if r.get("mode") in want:
-                last[r["ref"], r["mode"], r.get("dataset")] = r
-        bad = [(*k, r.get("tier")) for k, r in last.items() if "tier" in r and r["tier"] not in want[k[1]]]
+            mode = gen_docs._eval_mode(r) if "mode" in r else None
+            if mode in want:
+                last[r["ref"], mode, r.get("dataset")] = r
+        bad = []
+        for key, row in last.items():
+            tiers = want[key[1]]
+            if key[1] == "upstreamhalf" and row.get("dtype") == "bfloat16":
+                tiers = (*tiers, "upstream")  # some originals use BF16 by default
+            if "tier" in row and row["tier"] not in tiers:
+                bad.append((*key, row["tier"]))
         assert not bad, f"{path.name}: {bad}"
 
 
