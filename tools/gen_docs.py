@@ -1262,7 +1262,8 @@ TASK_IO = {
     "volume": (
         "Input: a CT volume `[D, H, W]` in Hounsfield units and its voxel spacing in mm (`volume.read_nifti` reads "
         "both from a NIfTI file). Output: a class index per voxel `[D, H, W]` on the input grid (0 = background). "
-        "Encoder models (nnFoundation) take a CT or MRI volume and give its encoder feature maps."
+        "Encoder models (nnFoundation) take a CT or MRI volume and give its encoder feature maps. "
+        "For a trained nnU-Net v2 folder or checkpoint, see the [nnU-Net v2 loader](../api/volume.md#nnu-net-v2)."
     ),
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",
     "multiview": (

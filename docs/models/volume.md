@@ -4,7 +4,7 @@
 
 5 volume models. Each section says what the model is, whether it may be used commercially and how fast it is; licences and checks are under Details.
 
-Input: a CT volume `[D, H, W]` in Hounsfield units and its voxel spacing in mm (`volume.read_nifti` reads both from a NIfTI file). Output: a class index per voxel `[D, H, W]` on the input grid (0 = background). Encoder models (nnFoundation) take a CT or MRI volume and give its encoder feature maps.
+Input: a CT volume `[D, H, W]` in Hounsfield units and its voxel spacing in mm (`volume.read_nifti` reads both from a NIfTI file). Output: a class index per voxel `[D, H, W]` on the input grid (0 = background). Encoder models (nnFoundation) take a CT or MRI volume and give its encoder feature maps. For a trained nnU-Net v2 folder or checkpoint, see the [nnU-Net v2 loader](../api/volume.md#nnu-net-v2).
 
 Measured on RTX 5060 Ti, torch 2.10.0+cu130, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` measures yours. The summary uses one input, 200x200: kernels time with its speed-up over the faster original run, and kernels peak reserved memory with its ratio to the smaller original one. Where measured (one variant per family), a variant's table also lists portable under `torch.compile` and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory + torch's peak). – = not measured; no kernels = the family has no kernels backend (reason under its table). Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few percent to some tens of percent more than portable at the same allocated peak.
 
