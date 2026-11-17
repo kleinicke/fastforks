@@ -383,8 +383,13 @@ _ORIGINAL_IS = {
     "sam3": "original = transformers `Sam3Model`, the port this code follows",
 }
 _MODES = ("upstream", "upstream-default", "portable", "kernels")
-_EVAL_MODES = ("upstream", "upstream-fp16", "portable", "kernels")
-_EVAL_LABEL = {"upstream": "original fp32", "upstream-fp16": "original fp16"}
+_EVAL_MODES = ("upstream", "upstream-fp16", "upstreamhalf", "portable", "portable32", "kernels")
+_EVAL_LABEL = {
+    "upstream": "original fp32",
+    "upstream-fp16": "original fp16",
+    "upstreamhalf": "original half",
+    "portable32": "portable fp32",
+}
 _PROTO = "Original = the original code named under Details, same checkpoint and protocol."
 
 
@@ -952,6 +957,19 @@ def _suffixes(task: str, dataset: str, rows: list[dict]) -> list[str]:
     return [opt for k, _, opt in metrics if opt not in ("", "dash") and any(k in (r.get("metrics") or r) for r in rows)]
 
 
+def _eval_mode(row: dict) -> str:
+    """Keep precision-specific evaluation tiers separate when collectors store a generic mode."""
+    mode = row["mode"]
+    if mode == "portable" and row.get("tier") == "portable32":
+        return "portable32"
+    if mode == "upstream":
+        if row.get("tier") == "upstreamhalf" or row.get("dtype") == "bfloat16":
+            return "upstreamhalf"
+        if row.get("tier") == "upstream16" or row.get("dtype") == "float16":
+            return "upstream-fp16"
+    return mode
+
+
 def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[str]:
     """Accuracy (original fp32 / fp16, portable, kernels) of the measured variants (speed: the speed tables)."""
     measured = [v for v in card.variants if v.id in rows]
@@ -980,7 +998,7 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
         where = _where(*next(iter(per_mode.values()))) + ". " if per_mode else ""
     else:  # e.g. a kernels backend re-measured after a kernel change
         where = "; ".join(f"{mode}: {_where(*per_mode[mode])}" for mode in _MODES if mode in per_mode) + ". "
-    shown = [m for m in _EVAL_MODES if any(r["mode"] == m for r in mine)]
+    shown = [m for m in _EVAL_MODES if any(_eval_mode(r) == m for r in mine)]
     lines = [
         "",
         "### Measured",
@@ -991,7 +1009,7 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
         f"|---|---|{'---|' * len(shown)}---|",
     ]
     for v in measured:
-        by = {(r["mode"], r["dataset"]): r for r in rows[v.id]}
+        by = {(_eval_mode(r), r["dataset"]): r for r in rows[v.id]}
         for d in sets:
             if not any(k[1] == d for k in by):
                 continue

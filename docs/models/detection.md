@@ -352,15 +352,17 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `grounding-dino-tiny` | COCO val2017, every 10th image, box mAP | 51.08 | 51.16 | 51.14 |  |
-| `grounding-dino-tiny` | COCO val2017, all 5000 images, box mAP | 48.25 |  | 48.25 |  |
-| `grounding-dino-base` | COCO val2017, every 10th image, box mAP | 55.67 | 55.73 | 55.72 |  |
-| `mm-grounding-dino-tiny` | COCO val2017, every 20th image, box mAP | 55.18 |  | 54.92 |  |
-| `mm-grounding-dino-base` | COCO val2017, every 20th image, box mAP | 57.11 |  | 56.94 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
+|---|---|---|---|---|---|---|
+| `grounding-dino-tiny` | COCO val2017, every 10th image, box mAP | 51.08 | 51.16 | 51.14 | 51.12 |  |
+| `grounding-dino-tiny` | COCO val2017, all 5000 images, box mAP | 48.25 |  | 48.25 |  |  |
+| `grounding-dino-base` | COCO val2017, every 10th image, box mAP | 55.67 | 55.73 | 55.72 | 57.13 |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 10th image, box mAP |  |  |  | 51.49 |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 20th image, box mAP | 55.18 |  | 54.92 |  |  |
+| `mm-grounding-dino-base` | COCO val2017, every 10th image, box mAP |  |  |  | 53.01 |  |
+| `mm-grounding-dino-base` | COCO val2017, every 20th image, box mAP | 57.11 |  | 56.94 |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / a981ff86 / aee4b565, 2026-11-12 to 2026-11-13.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / 9e3ff83d+dirty / a981ff86 / aee4b565, 2026-11-12 to 2026-11-17.
 
 ### Parity
 
@@ -863,13 +865,13 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `yolox-tiny` | COCO val2017, every 25th image (200), box mAP | 38.16 | 38.20 | 38.21 | 38.29 |  |
-| `yolox-s` | COCO val2017, every 25th image (200), box mAP | 44.67 | 44.75 | 44.67 | 44.73 |  |
-| `yolox-m` | COCO val2017, every 25th image (200), box mAP | 50.34 | 50.28 | 50.29 | 50.38 |  |
-| `yolox-l` | COCO val2017, every 25th image (200), box mAP | 54.13 | 54.11 | 54.13 | 54.19 |  |
-| `yolox-x` | COCO val2017, every 25th image (200), box mAP | 54.64 | 54.61 | 54.64 | 54.60 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `yolox-tiny` | COCO val2017, every 25th image (200), box mAP | 38.16 | 38.20 | 38.29 | 38.21 | 38.29 |  |
+| `yolox-s` | COCO val2017, every 25th image (200), box mAP | 44.67 | 44.75 | 44.72 | 44.67 | 44.73 |  |
+| `yolox-m` | COCO val2017, every 25th image (200), box mAP | 50.34 | 50.28 | 50.39 | 50.29 | 50.38 |  |
+| `yolox-l` | COCO val2017, every 25th image (200), box mAP | 54.13 | 54.11 | 54.14 | 54.13 | 54.19 |  |
+| `yolox-x` | COCO val2017, every 25th image (200), box mAP | 54.64 | 54.61 | 54.62 | 54.64 | 54.60 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13.
 

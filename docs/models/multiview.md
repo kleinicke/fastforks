@@ -61,9 +61,9 @@ Commercial use: yes.
 
 640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `anysplat` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0108 / 99.93 | 0.0108 / 99.93 | 0.0109 / 99.93 | 0.0108 / 99.93 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `anysplat` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0108 / 99.93 | 0.0108 / 99.93 | 0.0109 / 99.93 | 0.0108 / 99.93 | 0.0108 / 99.93 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 62af007c, 2026-11-12.
 
@@ -116,9 +116,9 @@ Commercial use: yes.
 
 640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `depthsplat-small-re10k` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm | 0.0992 / 98.72 / 66.52 | 0.0974 / 98.69 / 65.37 | 0.0974 / 98.70 / 65.36 | 0.0974 / 98.69 / 65.34 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `depthsplat-small-re10k` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm | 0.0992 / 98.72 / 66.52 | 0.0974 / 98.69 / 65.37 | 0.0974 / 98.70 / 65.36 | 0.0992 / 98.72 / 66.52 | 0.0974 / 98.69 / 65.34 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 62af007c, 2026-11-12.
 
@@ -277,9 +277,9 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 
 640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `mvsanywhere` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm | 0.0077 / 99.82 / 5.57 | 0.0110 / 99.84 / 7.85 | 0.0078 / 99.82 / 5.60 | 0.0077 / 99.82 / 5.59 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `mvsanywhere` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm | 0.0077 / 99.82 / 5.57 | 0.0110 / 99.84 / 7.85 | 0.0078 / 99.82 / 5.60 | 0.0077 / 99.82 / 5.57 | 0.0077 / 99.82 / 5.59 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79, 2026-11-06.
 
@@ -316,7 +316,7 @@ Commercial use: yes.
 - Options: `long_side` = 256 (>= 16)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `mvsplat-re10k`
-- Not in this release (planned for 0.2.1): `mvsplat-re10k` ONNX / TensorRT export: the ONNX converter fails on the exported program (ConversionError, step 3/3)
+- Not in this release (planned for 0.2.1): `mvsplat-re10k` TensorRT export: the TensorRT engine has not yet been validated against the portable model
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsplat-re10k` 3000x4000 (3.2 GiB peak allocated, 4.4 reserved)

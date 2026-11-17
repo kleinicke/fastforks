@@ -28,6 +28,29 @@ def test_model_pages_current():
     subprocess.run([sys.executable, ROOT / "tools" / "gen_docs.py", "--check"], check=True)
 
 
+def test_measured_table_keeps_portable_precisions_separate():
+    card, variant = registry.resolve("detection", "grounding-dino-tiny")
+    common = {
+        "ref": variant.id,
+        "dataset": "coco-val2017-every10",
+        "mode": "portable",
+        "gpu": "test GPU",
+        "torch": "test torch",
+        "commit": "test",
+        "date": "2026-11-17",
+        "n": 500,
+    }
+    rows = [
+        {**common, "tier": "portable", "dtype": "float16", "metrics": {"box_map": 51.02}},
+        {**common, "tier": "portable32", "dtype": "float32", "metrics": {"box_map": 51.12}},
+    ]
+    table = "\n".join(gen_docs._measured("detection", card, {variant.id: rows}))
+    assert "| portable | portable fp32 |" in table
+    assert "| 51.02 | 51.12 |" in table
+    assert gen_docs._eval_mode({"mode": "upstream", "tier": "upstreamhalf"}) == "upstreamhalf"
+    assert gen_docs._eval_mode({"mode": "upstream", "dtype": "float16"}) == "upstream-fp16"
+
+
 def test_public_functions_document_their_args():
     """Every public function and method of `fastforks` / `.stereo` / `.stereo.geometry` with parameters has `Args:`."""
     missing = []

@@ -724,10 +724,10 @@ Commercial use: yes.
 
 Each image at its own size, score threshold 0.02 and NMS IoU 0.45 (the authors' evaluation settings), the official toolkit's AP at IoU 0.5 over the subset's faces. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `yunet-n` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.894 / 0.883 / 0.810 | 0.893 / 0.883 / 0.810 | 0.894 / 0.883 / 0.810 |  |
-| `yunet-s` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.885 / 0.868 / 0.764 | 0.885 / 0.868 / 0.764 | 0.885 / 0.868 / 0.764 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `yunet-n` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.894 / 0.883 / 0.810 | 0.893 / 0.883 / 0.810 | 0.894 / 0.883 / 0.810 | 0.894 / 0.883 / 0.810 |  |
+| `yunet-s` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.885 / 0.868 / 0.764 | 0.885 / 0.868 / 0.764 | 0.885 / 0.868 / 0.764 | 0.885 / 0.868 / 0.764 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f104019b, 2026-11-14.
 

@@ -179,11 +179,11 @@ Commercial use: yes.
 
 DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `dat-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.03 / 0.8498 | 31.03 / 0.8498 | 31.01 / 0.8498 |  |
-| `dat-2-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.99 / 0.8492 | 30.99 / 0.8493 | 30.97 / 0.8492 |  |
-| `dat-light-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.48 / 0.8379 | 30.48 / 0.8379 | 30.46 / 0.8375 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `dat-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.03 / 0.8498 | 31.03 / 0.8498 | 31.03 / 0.8498 | 31.01 / 0.8498 |  |
+| `dat-2-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.99 / 0.8492 | 30.99 / 0.8493 | 30.99 / 0.8492 | 30.97 / 0.8492 |  |
+| `dat-light-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.48 / 0.8379 | 30.48 / 0.8379 | 30.48 / 0.8379 | 30.46 / 0.8375 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f33b2772, 2026-11-13.
 
@@ -236,10 +236,10 @@ Commercial use: yes.
 
 DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `drct-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.76 / 0.8388 | 30.76 / 0.8388 | 30.76 / 0.8388 |  |
-| `drct-l-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.00 / 0.8434 | 31.00 / 0.8434 | 31.00 / 0.8434 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `drct-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.76 / 0.8388 | 30.76 / 0.8388 | 30.76 / 0.8388 | 30.76 / 0.8388 |  |
+| `drct-l-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.00 / 0.8434 | 31.00 / 0.8434 | 31.00 / 0.8434 | 31.00 / 0.8434 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 706c6828, 2026-11-14.
 
@@ -340,11 +340,11 @@ Commercial use: yes.
 
 DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `hat-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.01 / 0.8498 | 31.01 / 0.8498 | 31.01 / 0.8498 |  |
-| `hat-s-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.91 / 0.8476 | 30.91 / 0.8476 | 30.90 / 0.8476 |  |
-| `real-hat-gan-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 27.13 / 0.7633 | 27.13 / 0.7633 | 27.13 / 0.7632 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `hat-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.01 / 0.8498 | 31.01 / 0.8498 | 31.01 / 0.8498 | 31.01 / 0.8498 |  |
+| `hat-s-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.91 / 0.8476 | 30.91 / 0.8476 | 30.91 / 0.8476 | 30.90 / 0.8476 |  |
+| `real-hat-gan-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 27.13 / 0.7633 | 27.13 / 0.7633 | 27.13 / 0.7633 | 27.13 / 0.7632 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f33b2772, 2026-11-13.
 
@@ -398,10 +398,10 @@ Commercial use: yes.
 
 Each degraded image at its own size, one pass without tiles (the model pads internally); PSNR and SSIM of the output rounded to uint8 on RGB, no border crop, averaged over the images (the authors' test scripts). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `nafnet-gopro` | GoPro test (every 4th: 278 frames), deblurring, PSNR / SSIM (RGB) | 33.73 / 0.9468 | 33.73 / 0.9468 | 33.73 / 0.9468 |  |
-| `nafnet-sidd` | SIDD validation (1280 crops), denoising, PSNR / SSIM (RGB) | 40.21 / 0.9243 | 40.21 / 0.9243 | 40.21 / 0.9243 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `nafnet-gopro` | GoPro test (every 4th: 278 frames), deblurring, PSNR / SSIM (RGB) | 33.73 / 0.9468 | 33.73 / 0.9468 | 33.73 / 0.9468 | 33.73 / 0.9468 |  |
+| `nafnet-sidd` | SIDD validation (1280 crops), denoising, PSNR / SSIM (RGB) | 40.21 / 0.9243 | 40.21 / 0.9243 | 40.21 / 0.9243 | 40.21 / 0.9243 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f104019b, 2026-11-14.
 
@@ -449,9 +449,9 @@ Commercial use: yes.
 
 DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `realesr-general-x4v3` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.70 / 0.7701 | 26.70 / 0.7701 | 26.70 / 0.7701 | 26.70 / 0.7701 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `realesr-general-x4v3` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.70 / 0.7701 | 26.70 / 0.7701 | 26.70 / 0.7701 | 26.70 / 0.7701 | 26.70 / 0.7701 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 60534e1d, 2026-11-14.
 
@@ -559,9 +559,9 @@ Commercial use: yes.
 
 DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `realplksr-nomoswebphoto-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.99 / 0.7481 | 26.99 / 0.7481 | 26.99 / 0.7481 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `realplksr-nomoswebphoto-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.99 / 0.7481 | 26.99 / 0.7481 | 26.99 / 0.7481 | 26.99 / 0.7481 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 60534e1d, 2026-11-14.
 
@@ -618,12 +618,12 @@ Commercial use: yes.
 
 Each degraded image at its own size, one pass without tiles (the model pads internally); PSNR and SSIM of the output rounded to uint8 on RGB, no border crop, averaged over the images (the authors' test scripts). Each rainy image at its own size, one pass without tiles; PSNR and SSIM of the output rounded to uint8 on the Y channel (BT.601), no border crop, averaged over the images (Restormer's MATLAB evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `restormer-deblur` | GoPro test (every 15th: 75 frames), deblurring, PSNR / SSIM (RGB) | 32.85 / 0.9405 | 32.85 / 0.9405 | 32.85 / 0.9405 |  |
-| `restormer-derain` | Rain100L test (100 images), deraining, PSNR / SSIM (Y) | 39.08 / 0.9785 | 39.08 / 0.9785 | 39.08 / 0.9785 |  |
-| `restormer-derain` | Rain100H test (100 images), deraining, PSNR / SSIM (Y) | 31.48 / 0.9054 | 31.48 / 0.9053 | 31.48 / 0.9054 |  |
-| `restormer-sidd` | SIDD validation (every 2nd: 640 crops), denoising, PSNR / SSIM (RGB) | 39.98 / 0.9226 | 39.98 / 0.9226 | 39.98 / 0.9226 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `restormer-deblur` | GoPro test (every 15th: 75 frames), deblurring, PSNR / SSIM (RGB) | 32.85 / 0.9405 | 32.85 / 0.9405 | 32.85 / 0.9405 | 32.85 / 0.9405 |  |
+| `restormer-derain` | Rain100L test (100 images), deraining, PSNR / SSIM (Y) | 39.08 / 0.9785 | 39.08 / 0.9785 | 39.08 / 0.9785 | 39.08 / 0.9785 |  |
+| `restormer-derain` | Rain100H test (100 images), deraining, PSNR / SSIM (Y) | 31.48 / 0.9054 | 31.48 / 0.9053 | 31.48 / 0.9053 | 31.48 / 0.9054 |  |
+| `restormer-sidd` | SIDD validation (every 2nd: 640 crops), denoising, PSNR / SSIM (RGB) | 39.98 / 0.9226 | 39.98 / 0.9226 | 39.98 / 0.9226 | 39.98 / 0.9226 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f104019b, 2026-11-14.
 
@@ -743,10 +743,10 @@ Commercial use: yes.
 
 DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `span-x4` | DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.47 / 0.8382 | 30.47 / 0.8382 | 30.47 / 0.8382 |  |
-| `span-x2` | DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.20 / 0.9460 | 36.20 / 0.9460 | 36.20 / 0.9460 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `span-x4` | DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.47 / 0.8382 | 30.47 / 0.8382 | 30.47 / 0.8382 | 30.47 / 0.8382 |  |
+| `span-x2` | DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.20 / 0.9460 | 36.20 / 0.9460 | 36.20 / 0.9460 | 36.20 / 0.9460 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
@@ -802,11 +802,11 @@ Commercial use: yes.
 
 DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `swin2sr-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.89 / 0.8420 | 30.89 / 0.8420 | 30.88 / 0.8420 |  |
-| `swin2sr-x2` | DIV2K validation (every 4th: 25 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.43 / 0.9423 | 36.43 / 0.9423 | 36.43 / 0.9423 |  |
-| `swin2sr-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 29.04 / 0.8021 | 29.04 / 0.8021 | 29.05 / 0.8021 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `swin2sr-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.89 / 0.8420 | 30.89 / 0.8420 | 30.89 / 0.8420 | 30.88 / 0.8420 |  |
+| `swin2sr-x2` | DIV2K validation (every 4th: 25 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.43 / 0.9423 | 36.43 / 0.9423 | 36.43 / 0.9423 | 36.43 / 0.9423 |  |
+| `swin2sr-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 29.04 / 0.8021 | 29.04 / 0.8021 | 29.04 / 0.8021 | 29.05 / 0.8021 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f104019b, 2026-11-14.
 
@@ -873,11 +873,11 @@ Commercial use: yes.
 
 DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `swinir-m-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.90 / 0.8423 | 30.90 / 0.8423 | 30.89 / 0.8422 |  |
-| `swinir-m-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.71 / 0.7516 | 26.71 / 0.7516 | 26.71 / 0.7515 |  |
-| `swinir-l-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 27.04 / 0.7628 | 27.04 / 0.7628 | 27.05 / 0.7628 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `swinir-m-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.90 / 0.8423 | 30.90 / 0.8423 | 30.90 / 0.8423 | 30.89 / 0.8422 |  |
+| `swinir-m-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.71 / 0.7516 | 26.71 / 0.7516 | 26.71 / 0.7516 | 26.71 / 0.7515 |  |
+| `swinir-l-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 27.04 / 0.7628 | 27.04 / 0.7628 | 27.04 / 0.7628 | 27.05 / 0.7628 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 

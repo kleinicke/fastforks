@@ -198,9 +198,9 @@ Commercial use: yes.
 
 In-context: per COCO class 3 (reference, target) pairs drawn with seed 0 from the images whose class covers >= 2 %, the class's non-crowd instances as one mask; foreground IoU summed per class, mean over the 80 classes. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `insid3-vitl16` | COCO val2017, one-shot episodes (3 per class), class mIoU % | 57.61 | 57.56 | 57.28 | 57.21 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `insid3-vitl16` | COCO val2017, one-shot episodes (3 per class), class mIoU % | 57.61 | 57.56 | 57.28 | 57.61 | 57.21 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7f5b4581+insid3, 2026-11-13.
 

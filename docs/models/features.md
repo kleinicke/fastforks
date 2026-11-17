@@ -438,18 +438,18 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `dinov2-vits14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.20 | 59.22 | 59.26 | 59.16 |  |
-| `dinov2-vits14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.98 | 60.00 | 59.96 | 59.96 |  |
-| `dinov2-vitb14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.80 | 67.76 | 67.74 | 67.78 |  |
-| `dinov2-vitb14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.14 | 69.18 | 69.14 | 69.18 |  |
-| `dinov2-vitl14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 72.12 | 72.16 | 72.18 | 72.14 |  |
-| `dinov2-vitl14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.08 | 73.08 | 73.06 | 73.08 |  |
-| `dinov2-vitg14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.64 | 70.66 | 70.64 | 70.68 |  |
-| `dinov2-vitg14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 72.60 | 72.58 | 72.60 | 72.64 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `dinov2-vits14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.20 | 59.22 | 59.26 | 59.22 | 59.16 |  |
+| `dinov2-vits14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.98 | 60.00 | 59.96 | 59.98 | 59.96 |  |
+| `dinov2-vitb14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.80 | 67.76 | 67.74 | 67.80 | 67.78 |  |
+| `dinov2-vitb14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.14 | 69.18 | 69.14 | 69.14 | 69.18 |  |
+| `dinov2-vitl14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 72.12 | 72.16 | 72.18 | 72.12 | 72.14 |  |
+| `dinov2-vitl14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.08 | 73.08 | 73.06 | 73.08 | 73.08 |  |
+| `dinov2-vitg14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.64 | 70.66 | 70.64 | 70.64 | 70.68 |  |
+| `dinov2-vitg14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 72.60 | 72.58 | 72.60 | 72.60 | 72.64 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993 / 939adfe8, 2026-10-31 to 2026-11-06; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -510,14 +510,14 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `dinov3-convnext-tiny` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.50 | 62.50 | 62.50 | 62.44 |  |
-| `dinov3-convnext-small` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.14 | 67.16 |  |
-| `dinov3-convnext-base` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.84 | 69.88 | 69.84 | 69.88 |  |
-| `dinov3-convnext-large` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.30 | 73.32 | 73.30 | 73.28 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `dinov3-convnext-tiny` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.50 | 62.50 | 62.50 | 62.52 | 62.44 |  |
+| `dinov3-convnext-small` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.14 | 67.16 | 67.16 |  |
+| `dinov3-convnext-base` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.84 | 69.88 | 69.84 | 69.84 | 69.88 |  |
+| `dinov3-convnext-large` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.30 | 73.32 | 73.30 | 73.30 | 73.28 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993 / 939adfe8, 2026-10-31 to 2026-11-06; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -579,14 +579,14 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `dinov3-vits16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 55.38 | 55.42 | 55.42 | 55.36 |  |
-| `dinov3-vitb16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.54 | 66.54 | 66.52 | 66.54 |  |
-| `dinov3-vitl16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.94 | 75.92 | 75.80 | 75.88 |  |
-| `dinov3-vith16plus` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 79.50 | 79.50 | 79.52 | 79.52 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `dinov3-vits16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 55.38 | 55.42 | 55.42 | 55.36 | 55.36 |  |
+| `dinov3-vitb16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.54 | 66.54 | 66.52 | 66.54 | 66.54 |  |
+| `dinov3-vitl16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.94 | 75.92 | 75.80 | 75.94 | 75.88 |  |
+| `dinov3-vith16plus` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 79.50 | 79.50 | 79.52 | 79.50 | 79.52 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993 / 939adfe8, 2026-10-31 to 2026-11-06; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

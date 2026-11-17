@@ -549,12 +549,12 @@ Commercial use: yes.
 
 Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `segnext-mscan-t-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 39.88 / 79.20 | 39.88 / 79.20 | 39.86 / 79.18 | 39.86 / 79.18 |  |
-| `segnext-mscan-s-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 42.81 / 80.65 | 42.81 / 80.65 | 42.82 / 80.65 | 42.82 / 80.64 |  |
-| `segnext-mscan-b-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 46.96 / 82.22 | 46.95 / 82.21 | 46.98 / 82.22 | 46.98 / 82.22 |  |
-| `segnext-mscan-l-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.88 / 83.23 | 48.87 / 83.23 | 48.89 / 83.23 | 48.88 / 83.23 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `segnext-mscan-t-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 39.88 / 79.20 | 39.88 / 79.20 | 39.86 / 79.18 | 39.88 / 79.20 | 39.86 / 79.18 |  |
+| `segnext-mscan-s-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 42.81 / 80.65 | 42.81 / 80.65 | 42.82 / 80.65 | 42.81 / 80.65 | 42.82 / 80.64 |  |
+| `segnext-mscan-b-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 46.96 / 82.22 | 46.95 / 82.21 | 46.98 / 82.22 | 46.96 / 82.21 | 46.98 / 82.22 |  |
+| `segnext-mscan-l-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.88 / 83.23 | 48.87 / 83.23 | 48.89 / 83.23 | 48.88 / 83.23 | 48.88 / 83.23 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 95e72cc0, 2026-11-11.
 

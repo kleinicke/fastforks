@@ -60,10 +60,10 @@ Commercial use: yes.
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `ben2` | DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta |  |  |  | 0.0403 / 0.9000 |  |
-| `ben2` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0421 / 0.8919 | 0.0421 / 0.8919 | 0.0421 / 0.8919 | 0.0421 / 0.8919 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `ben2` | DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta |  |  |  |  | 0.0403 / 0.9000 |  |
+| `ben2` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0421 / 0.8919 | 0.0421 / 0.8919 | 0.0421 / 0.8919 | 0.0421 / 0.8919 | 0.0421 / 0.8919 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a49aaba7, 2026-11-12.
 
@@ -120,12 +120,12 @@ Commercial use: `birefnet`, `birefnet-lite`: yes; `rmbg-2.0`: **no** (weights: C
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `birefnet` | DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta |  |  |  | 0.0325 / 0.9074 |  |
-| `birefnet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0338 / 0.9037 | 0.0338 / 0.9037 | 0.0338 / 0.9037 | 0.0338 / 0.9037 |  |
-| `birefnet-lite` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0446 / 0.8620 | 0.0446 / 0.8619 | 0.0446 / 0.8620 | 0.0446 / 0.8620 |  |
-| `rmbg-2.0` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0205 / 0.9324 | 0.0206 / 0.9324 | 0.0205 / 0.9326 | 0.0205 / 0.9326 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `birefnet` | DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta |  |  |  |  | 0.0325 / 0.9074 |  |
+| `birefnet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0338 / 0.9037 | 0.0338 / 0.9037 | 0.0338 / 0.9037 | 0.0338 / 0.9037 | 0.0338 / 0.9037 |  |
+| `birefnet-lite` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0446 / 0.8620 | 0.0446 / 0.8619 | 0.0446 / 0.8620 | 0.0446 / 0.8620 | 0.0446 / 0.8620 |  |
+| `rmbg-2.0` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0205 / 0.9324 | 0.0206 / 0.9324 | 0.0205 / 0.9326 |  | 0.0205 / 0.9326 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45b1fe90 / a49aaba7, 2026-11-12 to 2026-11-14.
 
@@ -179,10 +179,10 @@ Commercial use: yes.
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | note |
-|---|---|---|---|---|
-| `inspyrenet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0129 / 0.9699 | 0.0129 / 0.9699 |  |
-| `inspyrenet-fast` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0420 / 0.8952 | 0.0420 / 0.8952 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | note |
+|---|---|---|---|---|---|
+| `inspyrenet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0129 / 0.9699 | 0.0129 / 0.9699 | 0.0129 / 0.9699 |  |
+| `inspyrenet-fast` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0420 / 0.8952 | 0.0420 / 0.8952 | 0.0420 / 0.8952 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
@@ -234,10 +234,10 @@ Commercial use: yes.
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `isnet-general-use` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0157 / 0.9624 | 0.0157 / 0.9624 | 0.0157 / 0.9624 |  |
-| `isnet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0768 / 0.7820 | 0.0768 / 0.7821 | 0.0768 / 0.7821 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `isnet-general-use` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0157 / 0.9624 | 0.0157 / 0.9624 | 0.0157 / 0.9624 | 0.0157 / 0.9624 |  |
+| `isnet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0768 / 0.7820 | 0.0768 / 0.7821 | 0.0768 / 0.7820 | 0.0768 / 0.7821 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
@@ -286,9 +286,9 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 Video matting, YouTubeMatte (MatAnyone's benchmark): each clip at 512 x 288 with the authors' first-frame mask, the authors' evaluation settings (1 warm-up step, mask closing 4 px); 8-bit alpha against the ground truth: mean absolute and squared difference and the temporal coherence error dtSSD (lower is better), averaged over frames, then clips. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
+|---|---|---|---|---|---|---|
+| `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.65 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14.
 
@@ -344,11 +344,11 @@ Commercial use: yes.
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `u2net` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1484 / 0.5278 | 0.1485 / 0.5270 | 0.1485 / 0.5273 |  |
-| `u2netp` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1533 / 0.5374 | 0.1531 / 0.5391 | 0.1531 / 0.5405 |  |
-| `u2net-human-seg` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1717 / 0.3264 | 0.1717 / 0.3265 | 0.1717 / 0.3266 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `u2net` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1484 / 0.5278 | 0.1485 / 0.5270 | 0.1484 / 0.5278 | 0.1485 / 0.5273 |  |
+| `u2netp` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1533 / 0.5374 | 0.1531 / 0.5391 | 0.1533 / 0.5374 | 0.1531 / 0.5405 |  |
+| `u2net-human-seg` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.1717 / 0.3264 | 0.1717 / 0.3265 | 0.1717 / 0.3264 | 0.1717 / 0.3266 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
@@ -401,11 +401,11 @@ Commercial use: yes.
 
 Trimap-guided models, AIM-500: each image at its own size with a trimap made from its alpha (alpha 255 / 0 eroded by a 21 px ellipse = foreground / background, the rest unknown); SAD / 1000 and MSE of the 8-bit alpha in the unknown region (ViTMatte's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `vitmatte-s` | AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region) | 13.86 / 11.727 | 13.85 / 11.727 | 13.85 / 11.726 | 13.85 / 11.723 |  |
-| `vitmatte-b` | AIM-500, all 500 images, generated trimaps, SAD / MSE x 1000 (unknown region) |  |  |  | 13.72 / 12.180 |  |
-| `vitmatte-b` | AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region) | 16.39 / 13.937 | 16.40 / 13.936 | 16.40 / 13.936 | 16.39 / 13.938 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `vitmatte-s` | AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region) | 13.86 / 11.727 | 13.85 / 11.727 | 13.85 / 11.726 | 13.86 / 11.727 | 13.85 / 11.723 |  |
+| `vitmatte-b` | AIM-500, all 500 images, generated trimaps, SAD / MSE x 1000 (unknown region) |  |  |  |  | 13.72 / 12.180 |  |
+| `vitmatte-b` | AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region) | 16.39 / 13.937 | 16.40 / 13.936 | 16.40 / 13.936 | 16.39 / 13.937 | 16.39 / 13.938 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4068530d, 2026-11-12.
 

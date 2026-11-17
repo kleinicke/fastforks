@@ -130,12 +130,12 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `aanet-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 14.64 / 0.697 | 14.63 / 0.697 | 14.63 / 0.697 | 14.64 / 0.698 |  |
-| `aanet-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 32.15 / 6.305 | 32.15 / 6.301 | 32.16 / 6.301 | 32.16 / 6.303 |  |
-| `aanet-plus-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 18.48 / 0.811 | 18.50 / 0.812 | 18.50 / 0.811 | 18.50 / 0.812 |  |
-| `aanet-plus-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 29.84 / 6.237 | 29.85 / 6.236 | 29.86 / 6.237 | 29.86 / 6.232 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `aanet-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 14.64 / 0.697 | 14.63 / 0.697 | 14.61 / 0.698 | 14.63 / 0.697 | 14.64 / 0.698 | 14.64 / 0.698 |  |
+| `aanet-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 32.15 / 6.305 | 32.15 / 6.301 | 32.13 / 6.301 | 32.16 / 6.301 | 32.15 / 6.306 | 32.16 / 6.303 |  |
+| `aanet-plus-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 18.48 / 0.811 | 18.50 / 0.812 | 18.71 / 0.820 | 18.50 / 0.811 | 18.48 / 0.811 | 18.50 / 0.812 |  |
+| `aanet-plus-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 29.84 / 6.237 | 29.85 / 6.236 | 29.86 / 6.297 | 29.86 / 6.237 | 29.84 / 6.237 | 29.86 / 6.232 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -198,12 +198,12 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `bridgedepth-sf` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.230 | 1.25 / 0.229 | 1.24 / 0.229 | 1.24 / 0.229 |  |
-| `bridgedepth-sf` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 9.97 / 2.111 | 9.99 / 2.109 | 10.00 / 2.111 | 10.00 / 2.109 |  |
-| `bridgedepth-rvc-pretrain` | ETH3D two-view train, bad > 1 px % / EPE | 1.22 / 0.191 | 1.22 / 0.192 | 1.22 / 0.191 | 1.22 / 0.191 | possibly in the training data |
-| `bridgedepth-rvc-pretrain` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 6.35 / 0.950 | 6.35 / 0.948 | 6.38 / 0.953 | 6.37 / 0.952 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `bridgedepth-sf` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.230 | 1.25 / 0.229 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 1.24 / 0.229 | 1.25 / 0.230 | 1.24 / 0.229 |  |
+| `bridgedepth-sf` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 9.97 / 2.111 | 9.99 / 2.109 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 10.00 / 2.111 | 9.97 / 2.112 | 10.00 / 2.109 |  |
+| `bridgedepth-rvc-pretrain` | ETH3D two-view train, bad > 1 px % / EPE | 1.22 / 0.191 | 1.22 / 0.192 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 1.22 / 0.191 | 1.22 / 0.191 | 1.22 / 0.191 | possibly in the training data |
+| `bridgedepth-rvc-pretrain` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 6.35 / 0.950 | 6.35 / 0.948 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 6.38 / 0.953 | 6.35 / 0.950 | 6.37 / 0.952 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -271,14 +271,14 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `c-foundationstereo-s` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.202 | 1.25 / 0.201 | 1.25 / 0.201 | 1.24 / 0.202 |  |
-| `c-foundationstereo-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | out of memory | out of memory | 3.87 / 0.747 | 3.87 / 0.748 |  |
-| `c-fast-foundationstereo` | ETH3D two-view train, bad > 1 px % / EPE | 2.20 / 0.255 | 2.21 / 0.254 | 2.20 / 0.254 | 2.20 / 0.256 |  |
-| `c-fast-foundationstereo` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.82 / 1.861 | 7.82 / 1.858 | 7.81 / 1.853 | 7.82 / 1.856 |  |
-| `fast-foundationstereo` | ETH3D two-view train, bad > 1 px % / EPE | 1.72 / 0.249 | 1.72 / 0.248 | 1.72 / 0.248 | 1.72 / 0.249 |  |
-| `fast-foundationstereo` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.16 / 1.609 | 7.16 / 1.608 | 7.16 / 1.608 | 7.17 / 1.606 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `c-foundationstereo-s` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.202 | 1.25 / 0.201 | 1.25 / 0.201 | 1.25 / 0.201 | 1.24 / 0.202 |  |
+| `c-foundationstereo-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | out of memory | out of memory | 3.87 / 0.747 | out of memory | 3.87 / 0.748 |  |
+| `c-fast-foundationstereo` | ETH3D two-view train, bad > 1 px % / EPE | 2.20 / 0.255 | 2.21 / 0.254 | 2.20 / 0.254 | 2.20 / 0.254 | 2.20 / 0.256 |  |
+| `c-fast-foundationstereo` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.82 / 1.861 | 7.82 / 1.858 | 7.81 / 1.853 | 7.82 / 1.863 | 7.82 / 1.856 |  |
+| `fast-foundationstereo` | ETH3D two-view train, bad > 1 px % / EPE | 1.72 / 0.249 | 1.72 / 0.248 | 1.72 / 0.248 | 1.72 / 0.249 | 1.72 / 0.249 |  |
+| `fast-foundationstereo` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.16 / 1.609 | 7.16 / 1.608 | 7.16 / 1.608 | 7.16 / 1.609 | 7.17 / 1.606 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -338,12 +338,12 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `cas-gwcnet-gc-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 8.08 / 0.821 | 99.90 / 13.127 (NaN / inf output) | 8.08 / 0.823 | 8.09 / 0.823 |  |
-| `cas-gwcnet-gc-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 23.83 / 6.541 | 99.80 / 70.838 (NaN / inf output) | 23.84 / 6.547 | 23.83 / 6.541 |  |
-| `cas-gwcnet-c-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 7.85 / 0.512 | 7.83 / 0.513 | 7.84 / 0.512 | 7.85 / 0.513 |  |
-| `cas-gwcnet-c-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 30.07 / 8.568 | 29.90 / 8.490 | 30.07 / 8.569 | 30.07 / 8.574 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `cas-gwcnet-gc-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 8.08 / 0.821 | 99.90 / 13.127 (NaN / inf output) | 99.92 / 13.131 (NaN / inf output) | 8.08 / 0.823 | 8.08 / 0.822 | 8.09 / 0.823 |  |
+| `cas-gwcnet-gc-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 23.83 / 6.541 | 99.80 / 70.838 (NaN / inf output) | 99.99 / 71.114 (NaN / inf output) | 23.84 / 6.547 | 23.84 / 6.548 | 23.83 / 6.541 |  |
+| `cas-gwcnet-c-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 7.85 / 0.512 | 7.83 / 0.513 | 7.84 / 0.514 | 7.84 / 0.512 | 7.85 / 0.512 | 7.85 / 0.513 |  |
+| `cas-gwcnet-c-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 30.07 / 8.568 | 29.90 / 8.490 | 29.95 / 8.520 | 30.07 / 8.569 | 30.07 / 8.568 | 30.07 / 8.574 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -391,10 +391,10 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `cfnet-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 5.59 / 0.417 | 99.92 / 13.132 (NaN / inf output) | 5.59 / 0.417 | 5.60 / 0.416 |  |
-| `cfnet-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 21.31 / 6.445 | 100.00 / 71.272 (NaN / inf output) | 21.32 / 6.447 | 21.32 / 6.444 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `cfnet-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 5.59 / 0.417 | 99.92 / 13.132 (NaN / inf output) | 99.92 / 13.132 (NaN / inf output) | 5.59 / 0.417 | 5.60 / 0.417 | 5.60 / 0.416 |  |
+| `cfnet-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 21.31 / 6.445 | 100.00 / 71.272 (NaN / inf output) | 100.00 / 71.272 (NaN / inf output) | 21.32 / 6.447 | 21.32 / 6.447 | 21.32 / 6.444 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -443,10 +443,10 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `coex-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 33.43 / 16.021 | 33.46 / 15.995 | 33.46 / 15.989 | 33.46 / 16.000 |  |
-| `coex-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 32.25 / 7.417 | 32.24 / 7.418 | 32.32 / 7.428 | 32.31 / 7.421 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `coex-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 33.43 / 16.021 | 33.46 / 15.995 | 33.46 / 15.987 | 33.46 / 15.989 | 33.43 / 16.017 | 33.46 / 16.000 |  |
+| `coex-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 32.25 / 7.417 | 32.24 / 7.418 | 32.21 / 7.423 | 32.32 / 7.428 | 32.31 / 7.416 | 32.31 / 7.421 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -501,10 +501,10 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `crestereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 1.40 / 0.185 | 1.39 / 0.185 | 1.39 / 0.184 | 1.39 / 0.184 | trained on this dataset's public images; not a zero-shot result; original = the community PyTorch port (MegEngine 1.13 has no sm_120 build) |
-| `crestereo-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 4.89 / 0.693 | 4.86 / 0.693 | 4.84 / 0.699 | 4.86 / 0.693 | trained on this dataset's public images; not a zero-shot result; original = the community PyTorch port (MegEngine 1.13 has no sm_120 build) |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `crestereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 1.40 / 0.185 | 1.39 / 0.185 | 1.39 / 0.184 | 1.40 / 0.185 | 1.39 / 0.184 | trained on this dataset's public images; not a zero-shot result; original = the community PyTorch port (MegEngine 1.13 has no sm_120 build) |
+| `crestereo-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 4.89 / 0.693 | 4.86 / 0.693 | 4.84 / 0.699 | 5.05 / 0.717 | 4.86 / 0.693 | trained on this dataset's public images; not a zero-shot result; original = the community PyTorch port (MegEngine 1.13 has no sm_120 build) |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -559,10 +559,10 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `defom-stereo-vitl-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 2.40 / 0.337 | 99.92 / 13.132 (NaN / inf output) | 2.37 / 0.356 | 2.44 / 0.341 |  |
-| `defom-stereo-vitl-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 6.03 / 0.837 | 100.00 / 71.272 (NaN / inf output) | 6.15 / 0.845 | 6.02 / 0.834 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `defom-stereo-vitl-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 2.40 / 0.337 | 99.92 / 13.132 (NaN / inf output) | 2.37 / 0.356 | 2.34 / 0.328 | 2.44 / 0.341 |  |
+| `defom-stereo-vitl-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 6.03 / 0.837 | 100.00 / 71.272 (NaN / inf output) | 6.15 / 0.845 | 6.02 / 0.837 | 6.02 / 0.834 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -618,12 +618,12 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `dlnr-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 30.26 / 5.931 | 30.27 / 5.924 | 30.26 / 5.935 | 30.27 / 5.944 |  |
-| `dlnr-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.42 / 1.650 | 11.43 / 1.650 | 11.42 / 1.651 | 11.42 / 1.650 |  |
-| `dlnr-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 34.41 / 5.845 | 34.41 / 5.853 | 34.40 / 5.848 | 34.38 / 5.868 |  |
-| `dlnr-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.17 / 0.989 | 7.18 / 0.988 | 7.18 / 0.988 | 7.18 / 0.992 | trained on this dataset's public images; not a zero-shot result |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `dlnr-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 30.26 / 5.931 | 30.27 / 5.924 | 30.26 / 5.935 | 30.26 / 5.940 | 30.27 / 5.944 |  |
+| `dlnr-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.42 / 1.650 | 11.43 / 1.650 | 11.42 / 1.651 | 11.43 / 1.650 | 11.42 / 1.650 |  |
+| `dlnr-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 34.41 / 5.845 | 34.41 / 5.853 | 34.40 / 5.848 | 34.38 / 5.835 | 34.38 / 5.868 |  |
+| `dlnr-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.17 / 0.989 | 7.18 / 0.988 | 7.18 / 0.988 | 7.18 / 0.988 | 7.18 / 0.992 | trained on this dataset's public images; not a zero-shot result |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -716,24 +716,24 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `fast-acvnet-generalization` | ETH3D two-view train, bad > 1 px % / EPE | 6.50 / 0.775 | 6.51 / 0.778 | 6.50 / 0.776 | 6.51 / 0.776 |  |
-| `fast-acvnet-generalization` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 18.57 / 4.203 | 18.62 / 4.216 | 18.61 / 4.224 | 18.60 / 4.220 |  |
-| `fast-acvnet-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 8.40 / 0.654 | 8.44 / 0.659 | 8.40 / 0.657 | 8.43 / 0.657 |  |
-| `fast-acvnet-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 25.53 / 7.667 | 25.55 / 7.686 | 25.53 / 7.676 | 25.55 / 7.690 |  |
-| `fast-acvnet-kitti12` | ETH3D two-view train, bad > 1 px % / EPE | 19.07 / 0.825 | 19.06 / 0.825 | 19.06 / 0.826 | 19.06 / 0.825 |  |
-| `fast-acvnet-kitti12` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 28.20 / 6.892 | 28.23 / 6.888 | 28.21 / 6.880 | 28.21 / 6.886 |  |
-| `fast-acvnet-kitti15` | ETH3D two-view train, bad > 1 px % / EPE | 17.58 / 0.774 | 17.58 / 0.772 | 17.61 / 0.772 | 17.59 / 0.772 |  |
-| `fast-acvnet-kitti15` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 28.67 / 6.920 | 28.71 / 6.918 | 28.67 / 6.918 | 28.69 / 6.928 |  |
-| `fast-acvnet-plus-generalization` | ETH3D two-view train, bad > 1 px % / EPE | 6.19 / 0.638 | 6.19 / 0.640 | 6.23 / 0.640 | 6.20 / 0.637 |  |
-| `fast-acvnet-plus-generalization` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 18.68 / 4.225 | 18.70 / 4.227 | 18.69 / 4.229 | 18.69 / 4.229 |  |
-| `fast-acvnet-plus-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 12.64 / 3.063 | 12.61 / 3.061 | 12.61 / 3.059 | 12.62 / 3.065 |  |
-| `fast-acvnet-plus-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 33.29 / 9.716 | 33.28 / 9.701 | 33.27 / 9.689 | 33.29 / 9.705 |  |
-| `fast-acvnet-plus-kitti12` | ETH3D two-view train, bad > 1 px % / EPE | 21.63 / 0.821 | 21.64 / 0.821 | 21.61 / 0.821 | 21.62 / 0.821 |  |
-| `fast-acvnet-plus-kitti12` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 29.87 / 7.098 | 29.88 / 7.104 | 29.87 / 7.103 | 29.87 / 7.105 |  |
-| `fast-acvnet-plus-kitti15` | ETH3D two-view train, bad > 1 px % / EPE | 21.62 / 0.822 | 21.63 / 0.822 | 21.61 / 0.822 | 21.63 / 0.822 |  |
-| `fast-acvnet-plus-kitti15` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 28.09 / 6.656 | 28.10 / 6.664 | 28.09 / 6.663 | 28.09 / 6.662 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `fast-acvnet-generalization` | ETH3D two-view train, bad > 1 px % / EPE | 6.50 / 0.775 | 6.51 / 0.778 | fails (RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same) | 6.50 / 0.776 | 6.50 / 0.776 | 6.51 / 0.776 |  |
+| `fast-acvnet-generalization` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 18.57 / 4.203 | 18.62 / 4.216 | fails (RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same) | 18.61 / 4.224 | 18.57 / 4.202 | 18.60 / 4.220 |  |
+| `fast-acvnet-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 8.40 / 0.654 | 8.44 / 0.659 | fails (RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same) | 8.40 / 0.657 | 8.41 / 0.655 | 8.43 / 0.657 |  |
+| `fast-acvnet-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 25.53 / 7.667 | 25.55 / 7.686 | fails (RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same) | 25.53 / 7.676 | 25.53 / 7.670 | 25.55 / 7.690 |  |
+| `fast-acvnet-kitti12` | ETH3D two-view train, bad > 1 px % / EPE | 19.07 / 0.825 | 19.06 / 0.825 | fails (RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same) | 19.06 / 0.826 | 19.06 / 0.825 | 19.06 / 0.825 |  |
+| `fast-acvnet-kitti12` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 28.20 / 6.892 | 28.23 / 6.888 | fails (RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same) | 28.21 / 6.880 | 28.21 / 6.887 | 28.21 / 6.886 |  |
+| `fast-acvnet-kitti15` | ETH3D two-view train, bad > 1 px % / EPE | 17.58 / 0.774 | 17.58 / 0.772 | fails (RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same) | 17.61 / 0.772 | 17.58 / 0.773 | 17.59 / 0.772 |  |
+| `fast-acvnet-kitti15` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 28.67 / 6.920 | 28.71 / 6.918 | fails (RuntimeError: Input type (torch.cuda.HalfTensor) and weight type (torch.cuda.FloatTensor) should be the same) | 28.67 / 6.918 | 28.68 / 6.919 | 28.69 / 6.928 |  |
+| `fast-acvnet-plus-generalization` | ETH3D two-view train, bad > 1 px % / EPE | 6.19 / 0.638 | 6.19 / 0.640 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 6.23 / 0.640 | 6.20 / 0.640 | 6.20 / 0.637 |  |
+| `fast-acvnet-plus-generalization` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 18.68 / 4.225 | 18.70 / 4.227 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 18.69 / 4.229 | 18.68 / 4.227 | 18.69 / 4.229 |  |
+| `fast-acvnet-plus-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 12.64 / 3.063 | 12.61 / 3.061 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 12.61 / 3.059 | 12.64 / 3.071 | 12.62 / 3.065 |  |
+| `fast-acvnet-plus-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 33.29 / 9.716 | 33.28 / 9.701 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 33.27 / 9.689 | 33.30 / 9.720 | 33.29 / 9.705 |  |
+| `fast-acvnet-plus-kitti12` | ETH3D two-view train, bad > 1 px % / EPE | 21.63 / 0.821 | 21.64 / 0.821 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 21.61 / 0.821 | 21.64 / 0.821 | 21.62 / 0.821 |  |
+| `fast-acvnet-plus-kitti12` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 29.87 / 7.098 | 29.88 / 7.104 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 29.87 / 7.103 | 29.88 / 7.097 | 29.87 / 7.105 |  |
+| `fast-acvnet-plus-kitti15` | ETH3D two-view train, bad > 1 px % / EPE | 21.62 / 0.822 | 21.63 / 0.822 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 21.61 / 0.822 | 21.63 / 0.822 | 21.63 / 0.822 |  |
+| `fast-acvnet-plus-kitti15` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 28.09 / 6.656 | 28.10 / 6.664 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 28.09 / 6.663 | 28.10 / 6.657 | 28.09 / 6.662 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
@@ -796,12 +796,12 @@ Commercial use: **no** (code: LicenseRef-NVIDIA-Source-Code-License-NC AND Apach
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `foundationstereo-vit-l` | ETH3D two-view train, bad > 1 px % / EPE | 0.65 / 0.168 | 0.65 / 0.168 | 0.65 / 0.168 | 0.65 / 0.168 | possibly in the training data |
-| `foundationstereo-vit-l` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 2.48 / 0.562 | 2.48 / 0.561 | 2.47 / 0.561 | 2.48 / 0.561 | possibly in the training data |
-| `foundationstereo-vit-s` | ETH3D two-view train, bad > 1 px % / EPE | 1.10 / 0.202 | 1.10 / 0.202 | 1.10 / 0.202 | 1.10 / 0.202 | possibly in the training data |
-| `foundationstereo-vit-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 3.32 / 0.679 | 3.32 / 0.681 | 3.32 / 0.680 | 3.30 / 0.680 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `foundationstereo-vit-l` | ETH3D two-view train, bad > 1 px % / EPE | 0.65 / 0.168 | 0.65 / 0.168 | 0.65 / 0.168 | 0.65 / 0.168 | 0.65 / 0.168 | possibly in the training data |
+| `foundationstereo-vit-l` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 2.48 / 0.562 | 2.48 / 0.561 | 2.47 / 0.561 | 2.49 / 0.562 | 2.48 / 0.561 | possibly in the training data |
+| `foundationstereo-vit-s` | ETH3D two-view train, bad > 1 px % / EPE | 1.10 / 0.202 | 1.10 / 0.202 | 1.10 / 0.202 | 1.10 / 0.202 | 1.10 / 0.202 | possibly in the training data |
+| `foundationstereo-vit-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 3.32 / 0.679 | 3.32 / 0.681 | 3.32 / 0.680 | 3.32 / 0.679 | 3.30 / 0.680 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -868,16 +868,16 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `great-igev-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 4.48 / 0.364 | 4.41 / 0.363 | 4.43 / 0.364 | 4.44 / 0.364 |  |
-| `great-igev-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.22 / 2.710 | 11.19 / 2.698 | 11.14 / 2.687 | 11.16 / 2.691 |  |
-| `great-igev-kitti` | ETH3D two-view train, bad > 1 px % / EPE | 23.35 / 3.115 | 23.36 / 3.116 | 23.37 / 3.113 | 23.36 / 3.121 |  |
-| `great-igev-kitti` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.99 / 4.677 | 18.00 / 4.679 | 17.98 / 4.670 | 18.00 / 4.676 |  |
-| `great-igev-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.49 / 0.116 | 0.49 / 0.117 | 0.49 / 0.118 | 0.49 / 0.118 | trained on this dataset's public images; not a zero-shot result |
-| `great-igev-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.20 / 2.894 | 11.21 / 2.903 | 11.19 / 2.946 | 11.21 / 2.883 | possibly in the training data |
-| `great-igev-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 27.42 / 1.133 | 27.43 / 1.134 | 27.44 / 1.131 | 27.53 / 1.135 | possibly in the training data |
-| `great-igev-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | out of memory | out of memory | 4.14 / 0.707 | 4.14 / 0.708 | trained on this dataset's public images; not a zero-shot result |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `great-igev-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 4.48 / 0.364 | 4.41 / 0.363 | 4.43 / 0.364 | 4.45 / 0.364 | 4.44 / 0.364 |  |
+| `great-igev-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.22 / 2.710 | 11.19 / 2.698 | 11.14 / 2.687 | 11.20 / 2.706 | 11.16 / 2.691 |  |
+| `great-igev-kitti` | ETH3D two-view train, bad > 1 px % / EPE | 23.35 / 3.115 | 23.36 / 3.116 | 23.37 / 3.113 | 23.37 / 3.120 | 23.36 / 3.121 |  |
+| `great-igev-kitti` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.99 / 4.677 | 18.00 / 4.679 | 17.98 / 4.670 | 17.99 / 4.679 | 18.00 / 4.676 |  |
+| `great-igev-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.49 / 0.116 | 0.49 / 0.117 | 0.49 / 0.118 | 0.50 / 0.116 | 0.49 / 0.118 | trained on this dataset's public images; not a zero-shot result |
+| `great-igev-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.20 / 2.894 | 11.21 / 2.903 | 11.19 / 2.946 | 11.19 / 2.923 | 11.21 / 2.883 | possibly in the training data |
+| `great-igev-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 27.42 / 1.133 | 27.43 / 1.134 | 27.44 / 1.131 | 27.40 / 1.132 | 27.53 / 1.135 | possibly in the training data |
+| `great-igev-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | out of memory | out of memory | 4.14 / 0.707 | 4.11 / 0.707 | 4.14 / 0.708 | trained on this dataset's public images; not a zero-shot result |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -932,12 +932,12 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `gwcnet-gc-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 10.97 / 1.794 | 10.97 / 1.794 | 10.95 / 1.787 | 10.96 / 1.793 |  |
-| `gwcnet-gc-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 25.63 / 6.967 | 25.63 / 6.970 | 25.63 / 6.968 | 25.63 / 6.974 |  |
-| `gwcnet-g-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 9.60 / 0.620 | 9.60 / 0.622 | 9.60 / 0.624 | 9.59 / 0.621 |  |
-| `gwcnet-g-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 25.84 / 6.712 | 25.84 / 6.714 | 25.84 / 6.713 | 25.84 / 6.713 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `gwcnet-gc-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 10.97 / 1.794 | 10.97 / 1.794 | 10.95 / 1.787 | 10.95 / 1.787 | 10.97 / 1.794 | 10.96 / 1.793 |  |
+| `gwcnet-gc-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 25.63 / 6.967 | 25.63 / 6.970 | 25.61 / 6.968 | 25.63 / 6.968 | 25.63 / 6.971 | 25.63 / 6.974 |  |
+| `gwcnet-g-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 9.60 / 0.620 | 9.60 / 0.622 | 9.60 / 0.624 | 9.60 / 0.624 | 9.59 / 0.622 | 9.59 / 0.621 |  |
+| `gwcnet-g-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 25.84 / 6.712 | 25.84 / 6.714 | 25.82 / 6.713 | 25.84 / 6.713 | 25.84 / 6.714 | 25.84 / 6.713 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1000,12 +1000,12 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `hitnet-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.94 / 0.164 | 0.93 / 0.165 | 0.93 / 0.164 | 0.93 / 0.164 | trained on this dataset's public images; not a zero-shot result |
-| `hitnet-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.26 / 8.332 | 17.30 / 8.356 | 17.25 / 8.340 | 17.27 / 8.297 |  |
-| `hitnet-middlebury-d400` | ETH3D two-view train, bad > 1 px % / EPE | 7.02 / 0.885 | 7.00 / 0.880 | 7.01 / 0.899 | 7.07 / 0.875 |  |
-| `hitnet-middlebury-d400` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.50 / 1.180 | 7.51 / 1.185 | 7.54 / 1.187 | 7.51 / 1.168 | trained on this dataset's public images; not a zero-shot result |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `hitnet-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.94 / 0.164 | 0.93 / 0.165 | 0.93 / 0.164 | 0.93 / 0.164 | 0.93 / 0.164 | trained on this dataset's public images; not a zero-shot result |
+| `hitnet-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.26 / 8.332 | 17.30 / 8.356 | 17.25 / 8.340 | 17.28 / 8.348 | 17.27 / 8.297 |  |
+| `hitnet-middlebury-d400` | ETH3D two-view train, bad > 1 px % / EPE | 7.02 / 0.885 | 7.00 / 0.880 | 7.01 / 0.899 | 7.03 / 0.882 | 7.07 / 0.875 |  |
+| `hitnet-middlebury-d400` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.50 / 1.180 | 7.51 / 1.185 | 7.54 / 1.187 | 7.50 / 1.186 | 7.51 / 1.168 | trained on this dataset's public images; not a zero-shot result |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1079,18 +1079,18 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `igev-plusplus-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 4.66 / 0.356 | 4.66 / 0.355 | 4.65 / 0.355 | 4.66 / 0.356 |  |
-| `igev-plusplus-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 10.57 / 3.120 | 10.58 / 3.120 | 10.55 / 3.128 | 10.56 / 3.153 |  |
-| `igev-plusplus-kitti12` | ETH3D two-view train, bad > 1 px % / EPE | 26.75 / 1.968 | 26.77 / 1.966 | 26.73 / 1.969 | 26.78 / 1.963 |  |
-| `igev-plusplus-kitti12` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 21.25 / 4.995 | 21.25 / 4.990 | 21.25 / 4.996 | 21.25 / 4.976 |  |
-| `igev-plusplus-kitti15` | ETH3D two-view train, bad > 1 px % / EPE | 25.52 / 1.896 | 25.51 / 1.893 | 25.47 / 1.888 | 25.50 / 1.890 |  |
-| `igev-plusplus-kitti15` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 20.69 / 4.856 | 20.70 / 4.861 | 20.71 / 4.851 | 20.69 / 4.859 |  |
-| `igev-plusplus-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 18.40 / 0.779 | 18.31 / 0.778 | 18.47 / 0.780 | 18.46 / 0.782 | possibly in the training data |
-| `igev-plusplus-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 4.70 / 0.703 | 4.66 / 0.703 | 4.76 / 0.707 | 4.79 / 0.708 | trained on this dataset's public images; not a zero-shot result |
-| `igev-plusplus-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.50 / 0.093 | 0.50 / 0.094 | 0.50 / 0.093 | 0.50 / 0.094 | trained on this dataset's public images; not a zero-shot result |
-| `igev-plusplus-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 10.61 / 2.709 | 10.62 / 2.649 | 10.58 / 2.713 | 10.60 / 2.734 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `igev-plusplus-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 4.66 / 0.356 | 4.66 / 0.355 | 4.65 / 0.355 | 4.66 / 0.355 | 4.66 / 0.356 |  |
+| `igev-plusplus-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 10.57 / 3.120 | 10.58 / 3.120 | 10.55 / 3.128 | 10.57 / 3.119 | 10.56 / 3.153 |  |
+| `igev-plusplus-kitti12` | ETH3D two-view train, bad > 1 px % / EPE | 26.75 / 1.968 | 26.77 / 1.966 | 26.73 / 1.969 | 26.74 / 1.967 | 26.78 / 1.963 |  |
+| `igev-plusplus-kitti12` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 21.25 / 4.995 | 21.25 / 4.990 | 21.25 / 4.996 | 21.25 / 4.991 | 21.25 / 4.976 |  |
+| `igev-plusplus-kitti15` | ETH3D two-view train, bad > 1 px % / EPE | 25.52 / 1.896 | 25.51 / 1.893 | 25.47 / 1.888 | 25.52 / 1.893 | 25.50 / 1.890 |  |
+| `igev-plusplus-kitti15` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 20.69 / 4.856 | 20.70 / 4.861 | 20.71 / 4.851 | 20.70 / 4.848 | 20.69 / 4.859 |  |
+| `igev-plusplus-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 18.40 / 0.779 | 18.31 / 0.778 | 18.47 / 0.780 | 18.38 / 0.780 | 18.46 / 0.782 | possibly in the training data |
+| `igev-plusplus-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 4.70 / 0.703 | 4.66 / 0.703 | 4.76 / 0.707 | 4.71 / 0.705 | 4.79 / 0.708 | trained on this dataset's public images; not a zero-shot result |
+| `igev-plusplus-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.50 / 0.093 | 0.50 / 0.094 | 0.50 / 0.093 | 0.50 / 0.094 | 0.50 / 0.094 | trained on this dataset's public images; not a zero-shot result |
+| `igev-plusplus-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 10.61 / 2.709 | 10.62 / 2.649 | 10.58 / 2.713 | 10.60 / 2.657 | 10.60 / 2.734 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
@@ -1157,18 +1157,18 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `igev-stereo-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 4.05 / 0.333 | 4.04 / 0.333 | 4.06 / 0.333 | 4.04 / 0.333 |  |
-| `igev-stereo-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.92 / 2.635 | 11.89 / 2.631 | 11.89 / 2.631 | 11.93 / 2.637 |  |
-| `igev-stereo-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 19.81 / 0.796 | 19.81 / 0.797 | 19.81 / 0.796 | 19.80 / 0.797 | possibly in the training data |
-| `igev-stereo-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 5.44 / 0.869 | 5.45 / 0.866 | 5.45 / 0.870 | 5.48 / 0.871 | trained on this dataset's public images; not a zero-shot result |
-| `igev-stereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.56 / 0.128 | 0.57 / 0.128 | 0.55 / 0.128 | 0.56 / 0.128 | trained on this dataset's public images; not a zero-shot result |
-| `igev-stereo-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.86 / 3.019 | 11.86 / 3.040 | 11.88 / 3.046 | 11.90 / 3.036 | possibly in the training data |
-| `igev-stereo-kitti12` | ETH3D two-view train, bad > 1 px % / EPE | 26.02 / 1.701 | 26.04 / 1.728 | 26.07 / 1.733 | 26.02 / 1.735 |  |
-| `igev-stereo-kitti12` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.30 / 4.653 | 17.33 / 4.636 | 17.28 / 4.638 | 17.33 / 4.648 |  |
-| `igev-stereo-kitti15` | ETH3D two-view train, bad > 1 px % / EPE | 24.64 / 1.722 | 24.64 / 1.726 | 24.63 / 1.740 | 24.63 / 1.734 |  |
-| `igev-stereo-kitti15` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 19.32 / 4.395 | 19.29 / 4.400 | 19.35 / 4.401 | 19.32 / 4.407 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `igev-stereo-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 4.05 / 0.333 | 4.04 / 0.333 | 4.06 / 0.333 | 4.05 / 0.333 | 4.04 / 0.333 |  |
+| `igev-stereo-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.92 / 2.635 | 11.89 / 2.631 | 11.89 / 2.631 | 11.93 / 2.634 | 11.93 / 2.637 |  |
+| `igev-stereo-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 19.81 / 0.796 | 19.81 / 0.797 | 19.81 / 0.796 | 19.79 / 0.796 | 19.80 / 0.797 | possibly in the training data |
+| `igev-stereo-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 5.44 / 0.869 | 5.45 / 0.866 | 5.45 / 0.870 | 5.42 / 0.865 | 5.48 / 0.871 | trained on this dataset's public images; not a zero-shot result |
+| `igev-stereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.56 / 0.128 | 0.57 / 0.128 | 0.55 / 0.128 | 0.57 / 0.128 | 0.56 / 0.128 | trained on this dataset's public images; not a zero-shot result |
+| `igev-stereo-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.86 / 3.019 | 11.86 / 3.040 | 11.88 / 3.046 | 11.85 / 3.040 | 11.90 / 3.036 | possibly in the training data |
+| `igev-stereo-kitti12` | ETH3D two-view train, bad > 1 px % / EPE | 26.02 / 1.701 | 26.04 / 1.728 | 26.07 / 1.733 | 26.03 / 1.711 | 26.02 / 1.735 |  |
+| `igev-stereo-kitti12` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.30 / 4.653 | 17.33 / 4.636 | 17.28 / 4.638 | 17.28 / 4.640 | 17.33 / 4.648 |  |
+| `igev-stereo-kitti15` | ETH3D two-view train, bad > 1 px % / EPE | 24.64 / 1.722 | 24.64 / 1.726 | 24.63 / 1.740 | 24.65 / 1.726 | 24.63 / 1.734 |  |
+| `igev-stereo-kitti15` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 19.32 / 4.395 | 19.29 / 4.400 | 19.35 / 4.401 | 19.38 / 4.403 | 19.32 / 4.407 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1239,16 +1239,16 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `las2-s` | ETH3D two-view train, bad > 1 px % / EPE | 4.10 / 0.382 | 4.10 / 0.382 | 4.10 / 0.382 | 4.10 / 0.383 | possibly in the training data |
-| `las2-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 16.19 / 3.464 | 16.18 / 3.460 | 16.18 / 3.460 | 16.18 / 3.461 | possibly in the training data |
-| `las2-m` | ETH3D two-view train, bad > 1 px % / EPE | 2.97 / 0.310 | 2.97 / 0.310 | 2.97 / 0.310 | 2.98 / 0.310 | possibly in the training data |
-| `las2-m` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.24 / 2.324 | 11.23 / 2.324 | 11.23 / 2.324 | 11.24 / 2.324 | possibly in the training data |
-| `las2-l` | ETH3D two-view train, bad > 1 px % / EPE | 2.24 / 0.268 | 2.24 / 0.268 | 2.24 / 0.268 | 2.24 / 0.268 | possibly in the training data |
-| `las2-l` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.87 / 2.615 | 11.85 / 2.614 | 11.85 / 2.614 | 11.85 / 2.614 | possibly in the training data |
-| `las2-h` | ETH3D two-view train, bad > 1 px % / EPE | 2.14 / 0.258 | 2.14 / 0.258 | 2.13 / 0.258 | 2.14 / 0.258 | possibly in the training data |
-| `las2-h` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 9.27 / 2.141 | 9.28 / 2.141 | 9.27 / 2.141 | 9.27 / 2.141 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `las2-s` | ETH3D two-view train, bad > 1 px % / EPE | 4.10 / 0.382 | 4.10 / 0.382 | 4.10 / 0.383 | 4.10 / 0.382 | 4.10 / 0.382 | 4.10 / 0.383 | possibly in the training data |
+| `las2-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 16.19 / 3.464 | 16.18 / 3.460 | 16.19 / 3.462 | 16.18 / 3.460 | 16.19 / 3.464 | 16.18 / 3.461 | possibly in the training data |
+| `las2-m` | ETH3D two-view train, bad > 1 px % / EPE | 2.97 / 0.310 | 2.97 / 0.310 | 2.97 / 0.310 | 2.97 / 0.310 | 2.98 / 0.310 | 2.98 / 0.310 | possibly in the training data |
+| `las2-m` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.24 / 2.324 | 11.23 / 2.324 | 11.26 / 2.325 | 11.23 / 2.324 | 11.24 / 2.324 | 11.24 / 2.324 | possibly in the training data |
+| `las2-l` | ETH3D two-view train, bad > 1 px % / EPE | 2.24 / 0.268 | 2.24 / 0.268 | 4.57 / 0.389 | 2.24 / 0.268 | 2.24 / 0.268 | 2.24 / 0.268 | possibly in the training data |
+| `las2-l` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.87 / 2.615 | 11.85 / 2.614 | 17.75 / 3.202 | 11.85 / 2.614 | 11.87 / 2.615 | 11.85 / 2.614 | possibly in the training data |
+| `las2-h` | ETH3D two-view train, bad > 1 px % / EPE | 2.14 / 0.258 | 2.14 / 0.258 | 5.54 / 0.338 | 2.13 / 0.258 | 2.14 / 0.258 | 2.14 / 0.258 | possibly in the training data |
+| `las2-h` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 9.27 / 2.141 | 9.28 / 2.141 | 12.62 / 2.546 | 9.27 / 2.141 | 9.27 / 2.141 | 9.27 / 2.141 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1307,12 +1307,12 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `mocha-v1-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 4.35 / 1.087 | 4.35 / 1.084 | 4.35 / 1.085 | 4.35 / 1.088 |  |
-| `mocha-v1-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 9.56 / 2.584 | 9.57 / 2.582 | 9.57 / 2.588 | 9.56 / 2.588 |  |
-| `mocha-v2-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 3.84 / 0.892 | 3.83 / 0.885 | 3.83 / 0.887 | 3.82 / 0.886 |  |
-| `mocha-v2-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 10.76 / 2.838 | 10.78 / 2.843 | 10.73 / 2.844 | 10.77 / 2.833 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `mocha-v1-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 4.35 / 1.087 | 4.35 / 1.084 | 4.35 / 1.085 | 4.35 / 1.087 | 4.35 / 1.088 |  |
+| `mocha-v1-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 9.56 / 2.584 | 9.57 / 2.582 | 9.57 / 2.588 | 9.57 / 2.586 | 9.56 / 2.588 |  |
+| `mocha-v2-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 3.84 / 0.892 | 3.83 / 0.885 | 3.83 / 0.887 | 3.82 / 0.886 | 3.82 / 0.886 |  |
+| `mocha-v2-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 10.76 / 2.838 | 10.78 / 2.843 | 10.73 / 2.844 | 10.80 / 2.852 | 10.77 / 2.833 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1365,12 +1365,12 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `monster-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 1.34 / 0.222 | 1.33 / 0.221 | 1.34 / 0.223 | 1.34 / 0.220 |  |
-| `monster-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 10.20 / 1.922 | 10.20 / 1.922 | 10.18 / 1.921 | 10.16 / 1.920 |  |
-| `monster-mix-all` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.186 | 1.26 / 0.186 | 1.24 / 0.186 | 1.25 / 0.186 | trained on this dataset's public images; not a zero-shot result |
-| `monster-mix-all` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.82 / 2.402 | 7.82 / 2.398 | 7.85 / 2.395 | 7.84 / 2.402 | trained on this dataset's public images; not a zero-shot result |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `monster-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 1.34 / 0.222 | 1.33 / 0.221 | 1.34 / 0.223 | 1.33 / 0.223 | 1.34 / 0.220 |  |
+| `monster-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 10.20 / 1.922 | 10.20 / 1.922 | 10.18 / 1.921 | 10.21 / 1.923 | 10.16 / 1.920 |  |
+| `monster-mix-all` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.186 | 1.26 / 0.186 | 1.24 / 0.186 | 1.25 / 0.186 | 1.25 / 0.186 | trained on this dataset's public images; not a zero-shot result |
+| `monster-mix-all` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.82 / 2.402 | 7.82 / 2.398 | 7.85 / 2.395 | 7.81 / 2.401 | 7.84 / 2.402 | trained on this dataset's public images; not a zero-shot result |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1423,10 +1423,10 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `monster-plusplus-mix-all` | ETH3D two-view train, bad > 1 px % / EPE | 1.08 / 0.175 | 1.08 / 0.175 | 1.08 / 0.175 | 1.08 / 0.175 | possibly in the training data |
-| `monster-plusplus-mix-all` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 3.77 / 0.630 | 3.78 / 0.630 | 3.75 / 0.630 | 3.75 / 0.630 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `monster-plusplus-mix-all` | ETH3D two-view train, bad > 1 px % / EPE | 1.08 / 0.175 | 1.08 / 0.175 | 1.08 / 0.175 | 1.08 / 0.175 | 1.08 / 0.175 | possibly in the training data |
+| `monster-plusplus-mix-all` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 3.77 / 0.630 | 3.78 / 0.630 | 3.75 / 0.630 | 3.78 / 0.631 | 3.75 / 0.630 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1474,10 +1474,10 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `nmrf-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 3.78 / 0.311 | 3.81 / 0.312 | 3.81 / 0.311 | 3.81 / 0.311 |  |
-| `nmrf-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 13.36 / 2.920 | 13.35 / 2.914 | 13.35 / 2.915 | 13.35 / 2.915 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `nmrf-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 3.78 / 0.311 | 3.81 / 0.312 | fails (RuntimeError: expected scalar type Float but found Half) | 3.81 / 0.311 | 3.78 / 0.311 | 3.81 / 0.311 |  |
+| `nmrf-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 13.36 / 2.920 | 13.35 / 2.914 | fails (RuntimeError: expected scalar type Float but found Half) | 13.35 / 2.915 | 13.36 / 2.921 | 13.35 / 2.915 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1528,10 +1528,10 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `psmnet-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 15.14 / 2.152 | 15.13 / 2.152 | 15.11 / 2.154 | 15.13 / 2.148 |  |
-| `psmnet-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 36.06 / 11.482 | 36.06 / 11.484 | 36.06 / 11.484 | 36.07 / 11.482 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `psmnet-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 15.14 / 2.152 | 15.13 / 2.152 | 15.11 / 2.154 | 15.11 / 2.154 | 15.12 / 2.151 | 15.13 / 2.148 |  |
+| `psmnet-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 36.06 / 11.482 | 36.06 / 11.484 | 36.06 / 11.484 | 36.06 / 11.484 | 36.07 / 11.484 | 36.07 / 11.482 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1592,14 +1592,14 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `raft-stereo-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 2.77 / 0.287 | 2.77 / 0.289 | 2.77 / 0.289 | 2.79 / 0.289 |  |
-| `raft-stereo-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.20 / 1.069 | 7.19 / 1.069 | 7.20 / 1.069 | 7.21 / 1.071 | trained on this dataset's public images; not a zero-shot result |
-| `raft-stereo-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 2.61 / 0.266 | 2.61 / 0.267 | 2.60 / 0.267 | 2.60 / 0.267 |  |
-| `raft-stereo-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.22 / 1.436 | 11.21 / 1.439 | 11.23 / 1.438 | 11.23 / 1.452 |  |
-| `raft-stereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 2.61 / 0.274 | 2.60 / 0.274 | 2.60 / 0.274 | 2.61 / 0.274 | trained on this dataset's public images; not a zero-shot result |
-| `raft-stereo-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.95 / 1.635 | 11.99 / 1.634 | 12.00 / 1.635 | 11.98 / 1.635 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `raft-stereo-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 2.77 / 0.287 | 2.77 / 0.289 | 2.77 / 0.289 | 2.77 / 0.287 | 2.79 / 0.289 |  |
+| `raft-stereo-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.20 / 1.069 | 7.19 / 1.069 | 7.20 / 1.069 | 7.20 / 1.068 | 7.21 / 1.071 | trained on this dataset's public images; not a zero-shot result |
+| `raft-stereo-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 2.61 / 0.266 | 2.61 / 0.267 | 2.60 / 0.267 | 2.61 / 0.267 | 2.60 / 0.267 |  |
+| `raft-stereo-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.22 / 1.436 | 11.21 / 1.439 | 11.23 / 1.438 | 11.21 / 1.439 | 11.23 / 1.452 |  |
+| `raft-stereo-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 2.61 / 0.274 | 2.60 / 0.274 | 2.60 / 0.274 | 2.60 / 0.274 | 2.61 / 0.274 | trained on this dataset's public images; not a zero-shot result |
+| `raft-stereo-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.95 / 1.635 | 11.99 / 1.634 | 12.00 / 1.635 | 11.98 / 1.636 | 11.98 / 1.635 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1652,10 +1652,10 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `rt-monster-plusplus-mix-all` | ETH3D two-view train, bad > 1 px % / EPE | 2.05 / 0.226 | 2.05 / 0.226 | 2.05 / 0.226 | 2.05 / 0.226 | possibly in the training data |
-| `rt-monster-plusplus-mix-all` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.01 / 1.988 | 11.01 / 1.988 | 11.00 / 1.989 | 11.02 / 1.998 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `rt-monster-plusplus-mix-all` | ETH3D two-view train, bad > 1 px % / EPE | 2.05 / 0.226 | 2.05 / 0.226 | 2.05 / 0.226 | 2.05 / 0.226 | 2.05 / 0.226 | possibly in the training data |
+| `rt-monster-plusplus-mix-all` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.01 / 1.988 | 11.01 / 1.988 | 11.00 / 1.989 | 11.01 / 1.989 | 11.02 / 1.998 | possibly in the training data |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
@@ -1719,16 +1719,16 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `s2m2-s` | ETH3D two-view train, bad > 1 px % / EPE | 1.10 / 0.193 | 1.07 / 0.198 | 1.12 / 0.193 | 1.10 / 0.193 | possibly in the training data |
-| `s2m2-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 3.23 / 0.652 | 3.23 / 0.657 | 3.24 / 0.652 | 3.24 / 0.652 | possibly in the training data |
-| `s2m2-m` | ETH3D two-view train, bad > 1 px % / EPE | 0.94 / 0.178 | 0.94 / 0.188 | 0.95 / 0.178 | 0.95 / 0.178 | possibly in the training data |
-| `s2m2-m` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 3.28 / 0.651 | 3.28 / 0.656 | 3.29 / 0.651 | 3.28 / 0.651 | possibly in the training data |
-| `s2m2-l` | ETH3D two-view train, bad > 1 px % / EPE | 0.84 / 0.169 | 0.85 / 0.182 | 0.84 / 0.169 | 0.82 / 0.169 | possibly in the training data |
-| `s2m2-l` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 2.88 / 0.542 | 2.84 / 0.551 | 2.84 / 0.542 | 2.85 / 0.542 | possibly in the training data |
-| `s2m2-xl` | ETH3D two-view train, bad > 1 px % / EPE | 0.53 / 0.147 | 0.52 / 0.157 | 0.53 / 0.147 | 0.52 / 0.149 | possibly in the training data |
-| `s2m2-xl` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 2.34 / 0.498 | 2.33 / 0.504 | 2.33 / 0.498 | 2.33 / 0.499 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `s2m2-s` | ETH3D two-view train, bad > 1 px % / EPE | 1.10 / 0.193 | 1.07 / 0.198 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 1.12 / 0.193 | 1.10 / 0.193 | 1.10 / 0.193 | possibly in the training data |
+| `s2m2-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 3.23 / 0.652 | 3.23 / 0.657 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 3.24 / 0.652 | 3.23 / 0.652 | 3.24 / 0.652 | possibly in the training data |
+| `s2m2-m` | ETH3D two-view train, bad > 1 px % / EPE | 0.94 / 0.178 | 0.94 / 0.188 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 0.95 / 0.178 | 0.94 / 0.178 | 0.95 / 0.178 | possibly in the training data |
+| `s2m2-m` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 3.28 / 0.651 | 3.28 / 0.656 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 3.29 / 0.651 | 3.28 / 0.651 | 3.28 / 0.651 | possibly in the training data |
+| `s2m2-l` | ETH3D two-view train, bad > 1 px % / EPE | 0.84 / 0.169 | 0.85 / 0.182 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 0.84 / 0.169 | 0.83 / 0.169 | 0.82 / 0.169 | possibly in the training data |
+| `s2m2-l` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 2.88 / 0.542 | 2.84 / 0.551 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 2.84 / 0.542 | 2.88 / 0.542 | 2.85 / 0.542 | possibly in the training data |
+| `s2m2-xl` | ETH3D two-view train, bad > 1 px % / EPE | 0.53 / 0.147 | 0.52 / 0.157 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 0.53 / 0.147 | 0.53 / 0.147 | 0.52 / 0.149 | possibly in the training data |
+| `s2m2-xl` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 2.34 / 0.498 | 2.33 / 0.504 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 2.33 / 0.498 | 2.34 / 0.498 | 2.33 / 0.499 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1801,22 +1801,22 @@ Commercial use: yes.
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `selective-igev-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 6.08 / 1.426 | 6.06 / 1.405 | 6.05 / 1.401 | 6.06 / 1.410 |  |
-| `selective-igev-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.78 / 2.584 | 11.77 / 2.571 | 11.81 / 2.591 | 11.80 / 2.591 |  |
-| `selective-igev-kitti12` | ETH3D two-view train, bad > 1 px % / EPE | 24.09 / 3.655 | 24.07 / 3.663 | 24.07 / 3.649 | 24.07 / 3.662 |  |
-| `selective-igev-kitti12` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 20.09 / 4.854 | 20.09 / 4.862 | 20.08 / 4.845 | 20.09 / 4.862 |  |
-| `selective-igev-kitti15` | ETH3D two-view train, bad > 1 px % / EPE | 24.25 / 2.449 | 24.26 / 2.445 | 24.26 / 2.445 | 24.26 / 2.456 |  |
-| `selective-igev-kitti15` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 19.64 / 4.949 | 19.64 / 4.952 | 19.65 / 4.956 | 19.64 / 4.941 |  |
-| `selective-igev-middlebury-finetune` | ETH3D two-view train, bad > 1 px % / EPE | 24.24 / 0.995 | 24.24 / 0.994 | 24.27 / 0.995 | 24.24 / 0.995 |  |
-| `selective-igev-middlebury-finetune` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 5.65 / 1.192 | 5.66 / 1.192 | 5.66 / 1.208 | 5.67 / 1.194 | trained on this dataset's public images; not a zero-shot result |
-| `selective-igev-middlebury-train` | ETH3D two-view train, bad > 1 px % / EPE | 10.28 / 0.434 | 10.24 / 0.433 | 10.24 / 0.433 | 10.25 / 0.433 |  |
-| `selective-igev-middlebury-train` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 5.95 / 1.437 | 5.96 / 1.433 | 5.97 / 1.435 | 5.99 / 1.437 | trained on this dataset's public images; not a zero-shot result |
-| `selective-igev-eth3d-finetune` | ETH3D two-view train, bad > 1 px % / EPE | 0.32 / 0.082 | 0.32 / 0.082 | 0.32 / 0.082 | 0.32 / 0.082 | trained on this dataset's public images; not a zero-shot result |
-| `selective-igev-eth3d-finetune` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 12.33 / 2.813 | 12.33 / 2.808 | 12.33 / 2.807 | 12.34 / 2.811 |  |
-| `selective-igev-eth3d-train` | ETH3D two-view train, bad > 1 px % / EPE | 0.78 / 0.137 | 0.78 / 0.137 | 0.78 / 0.137 | 0.78 / 0.137 | trained on this dataset's public images; not a zero-shot result |
-| `selective-igev-eth3d-train` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.96 / 2.158 | 7.97 / 2.153 | 7.99 / 2.161 | 8.01 / 2.158 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `selective-igev-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 6.08 / 1.426 | 6.06 / 1.405 | 6.05 / 1.401 | 6.07 / 1.407 | 6.06 / 1.410 |  |
+| `selective-igev-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.78 / 2.584 | 11.77 / 2.571 | 11.81 / 2.591 | 11.79 / 2.582 | 11.80 / 2.591 |  |
+| `selective-igev-kitti12` | ETH3D two-view train, bad > 1 px % / EPE | 24.09 / 3.655 | 24.07 / 3.663 | 24.07 / 3.649 | 24.09 / 3.656 | 24.07 / 3.662 |  |
+| `selective-igev-kitti12` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 20.09 / 4.854 | 20.09 / 4.862 | 20.08 / 4.845 | 20.09 / 4.857 | 20.09 / 4.862 |  |
+| `selective-igev-kitti15` | ETH3D two-view train, bad > 1 px % / EPE | 24.25 / 2.449 | 24.26 / 2.445 | 24.26 / 2.445 | 24.26 / 2.456 | 24.26 / 2.456 |  |
+| `selective-igev-kitti15` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 19.64 / 4.949 | 19.64 / 4.952 | 19.65 / 4.956 | 19.64 / 4.954 | 19.64 / 4.941 |  |
+| `selective-igev-middlebury-finetune` | ETH3D two-view train, bad > 1 px % / EPE | 24.24 / 0.995 | 24.24 / 0.994 | 24.27 / 0.995 | 24.22 / 0.995 | 24.24 / 0.995 |  |
+| `selective-igev-middlebury-finetune` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 5.65 / 1.192 | 5.66 / 1.192 | 5.66 / 1.208 | 5.65 / 1.191 | 5.67 / 1.194 | trained on this dataset's public images; not a zero-shot result |
+| `selective-igev-middlebury-train` | ETH3D two-view train, bad > 1 px % / EPE | 10.28 / 0.434 | 10.24 / 0.433 | 10.24 / 0.433 | 10.25 / 0.433 | 10.25 / 0.433 |  |
+| `selective-igev-middlebury-train` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 5.95 / 1.437 | 5.96 / 1.433 | 5.97 / 1.435 | 5.94 / 1.436 | 5.99 / 1.437 | trained on this dataset's public images; not a zero-shot result |
+| `selective-igev-eth3d-finetune` | ETH3D two-view train, bad > 1 px % / EPE | 0.32 / 0.082 | 0.32 / 0.082 | 0.32 / 0.082 | 0.32 / 0.082 | 0.32 / 0.082 | trained on this dataset's public images; not a zero-shot result |
+| `selective-igev-eth3d-finetune` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 12.33 / 2.813 | 12.33 / 2.808 | 12.33 / 2.807 | 12.33 / 2.811 | 12.34 / 2.811 |  |
+| `selective-igev-eth3d-train` | ETH3D two-view train, bad > 1 px % / EPE | 0.78 / 0.137 | 0.78 / 0.137 | 0.78 / 0.137 | 0.78 / 0.137 | 0.78 / 0.137 | trained on this dataset's public images; not a zero-shot result |
+| `selective-igev-eth3d-train` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.96 / 2.158 | 7.97 / 2.153 | 7.99 / 2.161 | 7.96 / 2.150 | 8.01 / 2.158 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 
@@ -1882,12 +1882,12 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 
 Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `waft-stereo-s` | ETH3D two-view train, bad > 1 px % / EPE | 0.95 / 0.177 | 0.95 / 0.177 | 0.95 / 0.177 | 0.95 / 0.177 | possibly in the training data |
-| `waft-stereo-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 4.75 / 0.895 | 4.74 / 0.895 | 4.75 / 0.895 | 4.77 / 0.897 | possibly in the training data |
-| `waft-stereo-b` | ETH3D two-view train, bad > 1 px % / EPE | 0.74 / 0.163 | 0.74 / 0.163 | 0.74 / 0.163 | 0.74 / 0.163 | possibly in the training data |
-| `waft-stereo-b` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 3.38 / 0.728 | 3.39 / 0.728 | 3.38 / 0.729 | 3.38 / 0.728 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `waft-stereo-s` | ETH3D two-view train, bad > 1 px % / EPE | 0.95 / 0.177 | 0.95 / 0.177 | 0.95 / 0.178 | 0.95 / 0.177 | 0.95 / 0.177 | 0.95 / 0.177 | possibly in the training data |
+| `waft-stereo-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 4.75 / 0.895 | 4.74 / 0.895 | 4.73 / 0.896 | 4.75 / 0.895 | 4.75 / 0.895 | 4.77 / 0.897 | possibly in the training data |
+| `waft-stereo-b` | ETH3D two-view train, bad > 1 px % / EPE | 0.74 / 0.163 | 0.74 / 0.163 | 0.76 / 0.165 | 0.74 / 0.163 | 0.74 / 0.163 | 0.74 / 0.163 | possibly in the training data |
+| `waft-stereo-b` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 3.38 / 0.728 | 3.39 / 0.728 | 3.37 / 0.732 | 3.38 / 0.729 | 3.39 / 0.728 | 3.38 / 0.728 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
 

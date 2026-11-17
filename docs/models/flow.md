@@ -15,11 +15,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | no kernels | no kernels |
 | [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | no kernels | no kernels |
 | [`flowformer-small-things`](#flowformer) | yes | 6.884 | no kernels | no kernels |
-| [`flowseek-t`](#flowseek) | yes | 1.348 † | no kernels | no kernels |
-| [`flowseek-t-things`](#flowseek) | yes | 4.143 | no kernels | no kernels |
-| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | no kernels | no kernels |
+| [`flowseek-t`](#flowseek) | yes | 1.259 † | no kernels | no kernels |
+| [`flowseek-t-things`](#flowseek) | yes | 4.098 | no kernels | no kernels |
+| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.925 | no kernels | no kernels |
 | [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | no kernels | no kernels |
-| [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | no kernels | no kernels |
+| [`gmflow-scale1-things`](#gmflow) | yes | 10.347 | no kernels | no kernels |
 | [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | no kernels | no kernels |
 | [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | no kernels | no kernels |
 | [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | yes | 1.315 ? | no kernels | no kernels |
@@ -184,13 +184,13 @@ Commercial use: yes.
 
 Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `flowseek-t` | KITTI 2015 train, EPE / Fl-all % | 1.260 / 3.88 | 1.360 / 4.35 | 1.348 / 4.33 | trained on this dataset's public images; not a zero-shot result |
-| `flowseek-t-things` | KITTI 2015 train, EPE / Fl-all % | 4.121 / 12.35 | 4.153 / 12.25 | 4.143 / 12.27 |  |
-| `flowseek-t-things-notartan` | KITTI 2015 train, EPE / Fl-all % | 3.923 / 12.83 | 3.904 / 12.97 | 3.933 / 12.97 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
+|---|---|---|---|---|---|---|
+| `flowseek-t` | KITTI 2015 train, EPE / Fl-all % | 1.260 / 3.88 | 1.360 / 4.35 | 1.348 / 4.33 | 1.259 / 3.88 | trained on this dataset's public images; not a zero-shot result |
+| `flowseek-t-things` | KITTI 2015 train, EPE / Fl-all % | 4.121 / 12.35 | 4.153 / 12.25 | 4.143 / 12.27 | 4.098 / 12.34 |  |
+| `flowseek-t-things-notartan` | KITTI 2015 train, EPE / Fl-all % | 3.923 / 12.83 | 3.904 / 12.97 | 3.933 / 12.97 | 3.925 / 12.81 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / c4a67979, 2026-11-11 to 2026-11-17.
 
 ### Parity
 
@@ -288,19 +288,19 @@ Commercial use: yes.
 
 Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `gmflow-scale1-things` | KITTI 2015 train, EPE / Fl-all % | 10.347 / 34.31 | 10.347 / 34.30 | 10.346 / 34.30 |  |
-| `gmflow-scale1-mixdata` | KITTI 2015 train, EPE / Fl-all % | 3.698 / 17.60 | 3.698 / 17.61 | 3.697 / 17.61 | possibly in the training data |
-| `gmflow-scale2-things` | KITTI 2015 train, EPE / Fl-all % | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 |  |
-| `gmflow-scale2-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.975 / 7.88 | 1.976 / 7.88 | 1.975 / 7.88 | trained on this dataset's public images; not a zero-shot result |
-| `gmflow-scale2-mixdata` | KITTI 2015 train, EPE / Fl-all % | 2.390 / 10.10 | 2.390 / 10.10 | 2.389 / 10.10 | possibly in the training data |
-| `gmflow-scale2-regrefine6-things` | KITTI 2015 train, EPE / Fl-all % | 4.918 / 16.33 | 4.918 / 16.32 | 4.917 / 16.32 |  |
-| `gmflow-scale2-regrefine6-sintelft` | KITTI 2015 train, EPE / Fl-all % | 1.153 / 3.92 | 1.154 / 3.92 | 1.154 / 3.92 | trained on this dataset's public images; not a zero-shot result |
-| `gmflow-scale2-regrefine6-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.570 / 1.15 | 0.570 / 1.15 | 0.570 / 1.15 | trained on this dataset's public images; not a zero-shot result |
-| `gmflow-scale2-regrefine6-mixdata` | KITTI 2015 train, EPE / Fl-all % | 1.315 / 4.64 | 1.315 / 4.63 | 1.315 / 4.64 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
+|---|---|---|---|---|---|---|
+| `gmflow-scale1-things` | KITTI 2015 train, EPE / Fl-all % | 10.347 / 34.31 | 10.347 / 34.30 | 10.346 / 34.30 | 10.347 / 34.30 |  |
+| `gmflow-scale1-mixdata` | KITTI 2015 train, EPE / Fl-all % | 3.698 / 17.60 | 3.698 / 17.61 | 3.697 / 17.61 |  | possibly in the training data |
+| `gmflow-scale2-things` | KITTI 2015 train, EPE / Fl-all % | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 |  |  |
+| `gmflow-scale2-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.975 / 7.88 | 1.976 / 7.88 | 1.975 / 7.88 |  | trained on this dataset's public images; not a zero-shot result |
+| `gmflow-scale2-mixdata` | KITTI 2015 train, EPE / Fl-all % | 2.390 / 10.10 | 2.390 / 10.10 | 2.389 / 10.10 |  | possibly in the training data |
+| `gmflow-scale2-regrefine6-things` | KITTI 2015 train, EPE / Fl-all % | 4.918 / 16.33 | 4.918 / 16.32 | 4.917 / 16.32 |  |  |
+| `gmflow-scale2-regrefine6-sintelft` | KITTI 2015 train, EPE / Fl-all % | 1.153 / 3.92 | 1.154 / 3.92 | 1.154 / 3.92 |  | trained on this dataset's public images; not a zero-shot result |
+| `gmflow-scale2-regrefine6-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.570 / 1.15 | 0.570 / 1.15 | 0.570 / 1.15 |  | trained on this dataset's public images; not a zero-shot result |
+| `gmflow-scale2-regrefine6-mixdata` | KITTI 2015 train, EPE / Fl-all % | 1.315 / 4.64 | 1.315 / 4.63 | 1.315 / 4.64 |  | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / c4a67979, 2026-11-11 to 2026-11-17.
 
 ### Parity
 

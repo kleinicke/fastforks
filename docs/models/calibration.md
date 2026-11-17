@@ -50,10 +50,10 @@ Commercial use: yes.
 
 Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `anycalib-pinhole` | LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees % | – / – / 51.6 |  | – / – / 51.6 | – / – / 51.5 |  |
-| `anycalib-pinhole` | LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees % | – / – / 48.5 | – / – / 48.5 | – / – / 48.4 | – / – / 48.4 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `anycalib-pinhole` | LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees % | – / – / 51.6 |  | – / – / 51.6 |  | – / – / 51.5 |  |
+| `anycalib-pinhole` | LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees % | – / – / 48.5 | – / – / 48.5 | – / – / 48.4 | – / – / 48.5 | – / – / 48.4 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13.
 
@@ -106,10 +106,10 @@ Commercial use: yes.
 
 Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `geocalib-pinhole` | LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees % | 92.6 / 76.8 / 41.6 |  | 92.6 / 76.8 / 41.6 | 92.6 / 76.8 / 41.6 |  |
-| `geocalib-pinhole` | LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees % | 90.2 / 76.7 / 44.0 | 90.2 / 76.5 / 44.0 | 90.2 / 76.6 / 44.0 | 90.2 / 76.6 / 44.0 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `geocalib-pinhole` | LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees % | 92.6 / 76.8 / 41.6 |  | 92.6 / 76.8 / 41.6 |  | 92.6 / 76.8 / 41.6 |  |
+| `geocalib-pinhole` | LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees % | 90.2 / 76.7 / 44.0 | 90.2 / 76.5 / 44.0 | 90.2 / 76.6 / 44.0 | 90.2 / 76.7 / 44.0 | 90.2 / 76.6 / 44.0 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13.
 

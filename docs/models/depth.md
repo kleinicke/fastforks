@@ -180,28 +180,28 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `da3mono-large` | NYUv2 test, AbsRel / delta1 | 0.0402 / 0.9821 | 0.0402 / 0.9820 | 0.0402 / 0.9821 | 0.0402 / 0.9821 |  |
-| `da3mono-large` | iBims-1, AbsRel / delta1 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9873 |  |
-| `da3mono-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0631 / 0.9567 | 0.0629 / 0.9583 | 0.0630 / 0.9568 | 0.0631 / 0.9567 | possibly in the training data |
-| `da3mono-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0254 / 0.9954 | 0.0253 / 0.9954 | 0.0254 / 0.9954 | 0.0254 / 0.9954 | possibly in the training data |
-| `da3metric-large` | NYUv2 test, AbsRel / delta1 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 |  |
-| `da3metric-large` | iBims-1, AbsRel / delta1 | 0.0328 / 0.9864 | 0.0328 / 0.9863 | 0.0328 / 0.9864 | 0.0328 / 0.9864 |  |
-| `da3metric-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0716 / 0.9343 | 0.0716 / 0.9343 | 0.0716 / 0.9342 | 0.0717 / 0.9342 | possibly in the training data |
-| `da3metric-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0274 / 0.9949 | 0.0275 / 0.9949 | 0.0274 / 0.9949 | 0.0274 / 0.9949 | possibly in the training data |
-| `da3-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 |  |
-| `da3-large-1.1` | iBims-1, AbsRel / delta1 | 0.0413 / 0.9763 | 0.0413 / 0.9764 | 0.0413 / 0.9763 | 0.0413 / 0.9764 |  |
-| `da3-large-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0867 / 0.9177 | 0.0869 / 0.9176 | 0.0868 / 0.9177 | 0.0867 / 0.9177 | possibly in the training data |
-| `da3-large-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0418 / 0.9901 | 0.0419 / 0.9899 | 0.0418 / 0.9901 | 0.0419 / 0.9900 | possibly in the training data |
-| `da3-giant-1.1` | NYUv2 test, AbsRel / delta1 | 0.0397 / 0.9794 | 0.0397 / 0.9794 | 0.0397 / 0.9794 | 0.0397 / 0.9794 |  |
-| `da3-giant-1.1` | iBims-1, AbsRel / delta1 | 0.0318 / 0.9819 | 0.0317 / 0.9820 | 0.0318 / 0.9820 | 0.0318 / 0.9819 |  |
-| `da3-giant-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0705 / 0.9416 | 0.0704 / 0.9415 | 0.0704 / 0.9415 | 0.0704 / 0.9420 | possibly in the training data |
-| `da3-giant-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | possibly in the training data |
-| `da3nested-giant-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0387 / 0.9809 | 0.0387 / 0.9810 | 0.0387 / 0.9809 | 0.0387 / 0.9809 |  |
-| `da3nested-giant-large-1.1` | iBims-1, AbsRel / delta1 | 0.0320 / 0.9825 | 0.0320 / 0.9826 | 0.0320 / 0.9824 | 0.0320 / 0.9825 |  |
-| `da3nested-giant-large-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0761 / 0.9361 | 0.0762 / 0.9346 | 0.0761 / 0.9362 | 0.0760 / 0.9362 | possibly in the training data |
-| `da3nested-giant-large-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0298 / 0.9925 | 0.0299 / 0.9925 | 0.0298 / 0.9925 | 0.0298 / 0.9925 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `da3mono-large` | NYUv2 test, AbsRel / delta1 | 0.0402 / 0.9821 | 0.0402 / 0.9820 | 0.0402 / 0.9821 |  | 0.0402 / 0.9821 |  |
+| `da3mono-large` | iBims-1, AbsRel / delta1 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9872 |  | 0.0311 / 0.9873 |  |
+| `da3mono-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0631 / 0.9567 | 0.0629 / 0.9583 | 0.0630 / 0.9568 |  | 0.0631 / 0.9567 | possibly in the training data |
+| `da3mono-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0254 / 0.9954 | 0.0253 / 0.9954 | 0.0254 / 0.9954 |  | 0.0254 / 0.9954 | possibly in the training data |
+| `da3metric-large` | NYUv2 test, AbsRel / delta1 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 |  | 0.0398 / 0.9820 |  |
+| `da3metric-large` | iBims-1, AbsRel / delta1 | 0.0328 / 0.9864 | 0.0328 / 0.9863 | 0.0328 / 0.9864 |  | 0.0328 / 0.9864 |  |
+| `da3metric-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0716 / 0.9343 | 0.0716 / 0.9343 | 0.0716 / 0.9342 |  | 0.0717 / 0.9342 | possibly in the training data |
+| `da3metric-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0274 / 0.9949 | 0.0275 / 0.9949 | 0.0274 / 0.9949 |  | 0.0274 / 0.9949 | possibly in the training data |
+| `da3-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 |  |
+| `da3-large-1.1` | iBims-1, AbsRel / delta1 | 0.0413 / 0.9763 | 0.0413 / 0.9764 | 0.0413 / 0.9763 | 0.0413 / 0.9763 | 0.0413 / 0.9764 |  |
+| `da3-large-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0867 / 0.9177 | 0.0869 / 0.9176 | 0.0868 / 0.9177 | 0.0867 / 0.9177 | 0.0867 / 0.9177 | possibly in the training data |
+| `da3-large-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0418 / 0.9901 | 0.0419 / 0.9899 | 0.0418 / 0.9901 | 0.0418 / 0.9901 | 0.0419 / 0.9900 | possibly in the training data |
+| `da3-giant-1.1` | NYUv2 test, AbsRel / delta1 | 0.0397 / 0.9794 | 0.0397 / 0.9794 | 0.0397 / 0.9794 | 0.0397 / 0.9794 | 0.0397 / 0.9794 |  |
+| `da3-giant-1.1` | iBims-1, AbsRel / delta1 | 0.0318 / 0.9819 | 0.0317 / 0.9820 | 0.0318 / 0.9820 | 0.0318 / 0.9819 | 0.0318 / 0.9819 |  |
+| `da3-giant-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0705 / 0.9416 | 0.0704 / 0.9415 | 0.0704 / 0.9415 | 0.0705 / 0.9416 | 0.0704 / 0.9420 | possibly in the training data |
+| `da3-giant-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | possibly in the training data |
+| `da3nested-giant-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0387 / 0.9809 | 0.0387 / 0.9810 | 0.0387 / 0.9809 |  | 0.0387 / 0.9809 |  |
+| `da3nested-giant-large-1.1` | iBims-1, AbsRel / delta1 | 0.0320 / 0.9825 | 0.0320 / 0.9826 | 0.0320 / 0.9824 |  | 0.0320 / 0.9825 |  |
+| `da3nested-giant-large-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0761 / 0.9361 | 0.0762 / 0.9346 | 0.0761 / 0.9362 |  | 0.0760 / 0.9362 | possibly in the training data |
+| `da3nested-giant-large-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0298 / 0.9925 | 0.0299 / 0.9925 | 0.0298 / 0.9925 |  | 0.0298 / 0.9925 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05 to 2026-11-06.
 
@@ -602,11 +602,11 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `lotus-normal-g-v1-1` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  |  | 16.61 / 8.98 / 59.73 / 83.32 |  |
-| `lotus-normal-g-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.73 / 7.10 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.28 | 16.73 / 7.11 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.27 |  |
-| `lotus-normal-d-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.70 / 7.28 / 67.21 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `lotus-normal-g-v1-1` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  |  |  | 16.61 / 8.98 / 59.73 / 83.32 |  |
+| `lotus-normal-g-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.73 / 7.10 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.28 | 16.73 / 7.11 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.27 | 16.73 / 7.10 / 67.51 / 83.27 |  |
+| `lotus-normal-d-v1-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 16.70 / 7.28 / 67.21 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 | 16.70 / 7.28 / 67.21 / 83.52 | 16.70 / 7.28 / 67.22 / 83.52 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 11209576, 2026-11-12.
 
@@ -721,10 +721,10 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `marigold-normals-lcm-v0-1` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg | 18.45 / 10.22 / 55.53 / 80.76 | 18.46 / 10.22 / 55.52 / 80.76 | 18.45 / 10.22 / 55.53 / 80.76 | 18.46 / 10.22 / 55.52 / 80.76 |  |
-| `marigold-normals-lcm-v0-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 17.21 / 7.33 / 66.82 / 82.84 | 17.20 / 7.33 / 66.81 / 82.85 | 17.21 / 7.33 / 66.82 / 82.84 | 17.21 / 7.33 / 66.81 / 82.84 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `marigold-normals-lcm-v0-1` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg | 18.45 / 10.22 / 55.53 / 80.76 | 18.46 / 10.22 / 55.52 / 80.76 | 18.46 / 10.22 / 55.52 / 80.76 | 18.45 / 10.22 / 55.53 / 80.76 | 18.46 / 10.22 / 55.52 / 80.76 |  |
+| `marigold-normals-lcm-v0-1` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 17.21 / 7.33 / 66.82 / 82.84 | 17.20 / 7.33 / 66.81 / 82.85 | 17.21 / 7.33 / 66.81 / 82.84 | 17.21 / 7.33 / 66.82 / 82.84 | 17.21 / 7.33 / 66.81 / 82.84 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12.
 
@@ -778,7 +778,7 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
+| variant | dataset | original half | portable | kernels | note |
 |---|---|---|---|---|---|
 | `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |
 | `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 |  |
@@ -837,14 +837,14 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `metric3d-vit-large` | NYUv2 test, AbsRel / delta1 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0546 / 0.9673 |  |
-| `metric3d-vit-large` | iBims-1, AbsRel / delta1 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 |  |
-| `metric3d-vit-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0740 / 0.9411 | 0.0740 / 0.9411 | 0.0740 / 0.9411 | 0.0741 / 0.9410 | possibly in the training data |
-| `metric3d-vit-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | possibly in the training data |
-| `metric3d-vit-large` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 13.72 / 7.27 / 65.43 / 87.44 | 13.71 / 7.27 / 65.44 / 87.45 |  |
-| `metric3d-vit-large` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.47 / 5.84 / 71.33 / 85.85 | 14.47 / 5.84 / 71.33 / 85.85 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `metric3d-vit-large` | NYUv2 test, AbsRel / delta1 | 0.0547 / 0.9673 | 0.0547 / 0.9673 | 0.0547 / 0.9673 |  | 0.0546 / 0.9673 |  |
+| `metric3d-vit-large` | iBims-1, AbsRel / delta1 | 0.0334 / 0.9855 | 0.0334 / 0.9855 | 0.0334 / 0.9855 |  | 0.0334 / 0.9855 |  |
+| `metric3d-vit-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0740 / 0.9411 | 0.0740 / 0.9411 | 0.0740 / 0.9411 |  | 0.0741 / 0.9410 | possibly in the training data |
+| `metric3d-vit-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0247 / 0.9961 | 0.0247 / 0.9961 | 0.0247 / 0.9961 |  | 0.0247 / 0.9961 | possibly in the training data |
+| `metric3d-vit-large` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 13.72 / 7.27 / 65.43 / 87.44 | 13.72 / 7.27 / 65.43 / 87.44 | 13.71 / 7.27 / 65.44 / 87.45 |  |
+| `metric3d-vit-large` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.47 / 5.84 / 71.33 / 85.85 | 14.47 / 5.84 / 71.33 / 85.85 | 14.47 / 5.84 / 71.33 / 85.85 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12.
 
@@ -962,30 +962,30 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `moge-2-vits-normal` | NYUv2 test, AbsRel / delta1 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 |  |
-| `moge-2-vits-normal` | iBims-1, AbsRel / delta1 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 |  |
-| `moge-2-vits-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0700 / 0.9412 | 0.0700 / 0.9411 | 0.0700 / 0.9411 | 0.0701 / 0.9412 | possibly in the training data |
-| `moge-2-vits-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | possibly in the training data |
-| `moge-2-vits-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.87 / 9.25 / 58.32 / 83.97 | 15.87 / 9.25 / 58.32 / 83.97 |  |
-| `moge-2-vits-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.95 / 7.19 / 66.56 / 83.74 | 15.95 / 7.19 / 66.56 / 83.74 |  |
-| `moge-2-vitb-normal` | NYUv2 test, AbsRel / delta1 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 |  |
-| `moge-2-vitb-normal` | iBims-1, AbsRel / delta1 | 0.0337 / 0.9855 | 0.0337 / 0.9854 | 0.0337 / 0.9854 | 0.0337 / 0.9854 |  |
-| `moge-2-vitb-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0667 / 0.9492 | 0.0667 / 0.9492 | 0.0667 / 0.9492 | 0.0663 / 0.9496 | possibly in the training data |
-| `moge-2-vitb-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0260 / 0.9962 | 0.0260 / 0.9962 | 0.0260 / 0.9962 | 0.0261 / 0.9962 | possibly in the training data |
-| `moge-2-vitb-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.25 / 8.61 / 60.32 / 84.90 | 15.25 / 8.61 / 60.33 / 84.90 |  |
-| `moge-2-vitb-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.28 / 6.98 / 68.57 / 85.01 | 15.28 / 6.98 / 68.56 / 85.01 |  |
-| `moge-2-vitl-normal` | NYUv2 test, AbsRel / delta1 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 |  |
-| `moge-2-vitl-normal` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 |  |
-| `moge-2-vitl-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0518 / 0.9789 | 0.0518 / 0.9789 | 0.0519 / 0.9789 | 0.0518 / 0.9790 | possibly in the training data |
-| `moge-2-vitl-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | possibly in the training data |
-| `moge-2-vitl-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.55 |  |
-| `moge-2-vitl-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.70 / 6.49 / 70.49 / 85.80 | 14.69 / 6.49 / 70.49 / 85.80 |  |
-| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 |  | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  |
-| `moge-3-vitl` | iBims-1, AbsRel / delta1 |  | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9883 |  |
-| `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 |  | 0.0496 / 0.9847 | 0.0496 / 0.9847 | 0.0496 / 0.9847 | possibly in the training data |
-| `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 |  | 0.0235 / 0.9970 | 0.0235 / 0.9970 | 0.0235 / 0.9970 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `moge-2-vits-normal` | NYUv2 test, AbsRel / delta1 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 |  | 0.0484 / 0.9757 |  |
+| `moge-2-vits-normal` | iBims-1, AbsRel / delta1 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 |  | 0.0430 / 0.9793 |  |
+| `moge-2-vits-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0700 / 0.9412 | 0.0700 / 0.9411 | 0.0700 / 0.9411 |  | 0.0701 / 0.9412 | possibly in the training data |
+| `moge-2-vits-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | 0.0356 / 0.9947 |  | 0.0356 / 0.9947 | possibly in the training data |
+| `moge-2-vits-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.87 / 9.25 / 58.32 / 83.97 | 15.87 / 9.25 / 58.32 / 83.97 | 15.87 / 9.25 / 58.32 / 83.97 |  |
+| `moge-2-vits-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.95 / 7.19 / 66.56 / 83.74 | 15.95 / 7.19 / 66.56 / 83.74 | 15.95 / 7.19 / 66.56 / 83.74 |  |
+| `moge-2-vitb-normal` | NYUv2 test, AbsRel / delta1 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 |  | 0.0404 / 0.9812 |  |
+| `moge-2-vitb-normal` | iBims-1, AbsRel / delta1 | 0.0337 / 0.9855 | 0.0337 / 0.9854 | 0.0337 / 0.9854 |  | 0.0337 / 0.9854 |  |
+| `moge-2-vitb-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0667 / 0.9492 | 0.0667 / 0.9492 | 0.0667 / 0.9492 |  | 0.0663 / 0.9496 | possibly in the training data |
+| `moge-2-vitb-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0260 / 0.9962 | 0.0260 / 0.9962 | 0.0260 / 0.9962 |  | 0.0261 / 0.9962 | possibly in the training data |
+| `moge-2-vitb-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.25 / 8.61 / 60.32 / 84.90 | 15.25 / 8.61 / 60.32 / 84.90 | 15.25 / 8.61 / 60.33 / 84.90 |  |
+| `moge-2-vitb-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.28 / 6.98 / 68.57 / 85.01 | 15.28 / 6.97 / 68.57 / 85.01 | 15.28 / 6.98 / 68.56 / 85.01 |  |
+| `moge-2-vitl-normal` | NYUv2 test, AbsRel / delta1 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 |  | 0.0357 / 0.9836 |  |
+| `moge-2-vitl-normal` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 |  | 0.0261 / 0.9892 |  |
+| `moge-2-vitl-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0518 / 0.9789 | 0.0518 / 0.9789 | 0.0519 / 0.9789 |  | 0.0518 / 0.9790 | possibly in the training data |
+| `moge-2-vitl-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 |  | 0.0235 / 0.9972 | possibly in the training data |
+| `moge-2-vitl-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.55 |  |
+| `moge-2-vitl-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.70 / 6.49 / 70.49 / 85.80 | 14.70 / 6.49 / 70.49 / 85.80 | 14.69 / 6.49 / 70.49 / 85.80 |  |
+| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 |  | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  | 0.0356 / 0.9836 |  |
+| `moge-3-vitl` | iBims-1, AbsRel / delta1 |  | 0.0261 / 0.9884 | 0.0261 / 0.9884 |  | 0.0261 / 0.9883 |  |
+| `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 |  | 0.0496 / 0.9847 | 0.0496 / 0.9847 |  | 0.0496 / 0.9847 | possibly in the training data |
+| `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 |  | 0.0235 / 0.9970 | 0.0235 / 0.9970 |  | 0.0235 / 0.9970 | possibly in the training data |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 3d00db1d / 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3d00db1d / 4e890760 / 939adfe8 / f3195fb2, 2026-11-06 to 2026-11-12.
 
@@ -1100,16 +1100,16 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `pointdit-b-512` | NYUv2 test, AbsRel / delta1 | 0.0453 / 0.9773 | 0.0454 / 0.9773 | 0.0453 / 0.9773 | 0.0453 / 0.9773 |  |
-| `pointdit-b-512` | iBims-1, AbsRel / delta1 | 0.0374 / 0.9821 | 0.0374 / 0.9820 | 0.0374 / 0.9821 | 0.0374 / 0.9821 |  |
-| `pointdit-b-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0896 / 0.9085 | 0.0896 / 0.9086 | 0.0896 / 0.9086 | 0.0896 / 0.9085 | possibly in the training data |
-| `pointdit-b-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0313 / 0.9948 | 0.0313 / 0.9948 | 0.0313 / 0.9948 | 0.0313 / 0.9948 | possibly in the training data |
-| `pointdit-l-512` | NYUv2 test, AbsRel / delta1 | 0.0410 / 0.9800 | 0.0411 / 0.9800 | 0.0410 / 0.9800 | 0.0410 / 0.9800 |  |
-| `pointdit-l-512` | iBims-1, AbsRel / delta1 | 0.0313 / 0.9848 | 0.0313 / 0.9847 | 0.0313 / 0.9848 | 0.0313 / 0.9848 |  |
-| `pointdit-l-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0748 / 0.9264 | 0.0748 / 0.9278 | 0.0748 / 0.9265 | 0.0748 / 0.9261 | possibly in the training data |
-| `pointdit-l-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0230 / 0.9952 | 0.0230 / 0.9951 | 0.0230 / 0.9952 | 0.0230 / 0.9952 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `pointdit-b-512` | NYUv2 test, AbsRel / delta1 | 0.0453 / 0.9773 | 0.0454 / 0.9773 | 0.0453 / 0.9773 | 0.0453 / 0.9773 | 0.0453 / 0.9773 |  |
+| `pointdit-b-512` | iBims-1, AbsRel / delta1 | 0.0374 / 0.9821 | 0.0374 / 0.9820 | 0.0374 / 0.9821 | 0.0374 / 0.9821 | 0.0374 / 0.9821 |  |
+| `pointdit-b-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0896 / 0.9085 | 0.0896 / 0.9086 | 0.0896 / 0.9086 |  | 0.0896 / 0.9085 | possibly in the training data |
+| `pointdit-b-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0313 / 0.9948 | 0.0313 / 0.9948 | 0.0313 / 0.9948 |  | 0.0313 / 0.9948 | possibly in the training data |
+| `pointdit-l-512` | NYUv2 test, AbsRel / delta1 | 0.0410 / 0.9800 | 0.0411 / 0.9800 | 0.0410 / 0.9800 | 0.0410 / 0.9800 | 0.0410 / 0.9800 |  |
+| `pointdit-l-512` | iBims-1, AbsRel / delta1 | 0.0313 / 0.9848 | 0.0313 / 0.9847 | 0.0313 / 0.9848 | 0.0313 / 0.9848 | 0.0313 / 0.9848 |  |
+| `pointdit-l-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0748 / 0.9264 | 0.0748 / 0.9278 | 0.0748 / 0.9265 |  | 0.0748 / 0.9261 | possibly in the training data |
+| `pointdit-l-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0230 / 0.9952 | 0.0230 / 0.9951 | 0.0230 / 0.9952 |  | 0.0230 / 0.9952 | possibly in the training data |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2fb984b3, 2026-11-15.
 
@@ -1224,9 +1224,9 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `stablenormal-turbo` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 17.46 / 8.26 / 63.83 / 82.71 | 17.46 / 8.26 / 63.83 / 82.70 | 17.46 / 8.26 / 63.83 / 82.71 | 17.46 / 8.26 / 63.83 / 82.71 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `stablenormal-turbo` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg | 17.46 / 8.26 / 63.83 / 82.71 | 17.46 / 8.26 / 63.83 / 82.70 | 17.46 / 8.26 / 63.83 / 82.71 | 17.46 / 8.26 / 63.83 / 82.71 | 17.46 / 8.26 / 63.83 / 82.71 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13.
 
@@ -1396,12 +1396,12 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Video: one call per sequence, one scale + shift per sequence, AbsRel / delta1 over all its pixels with Kinect depth, mean over sequences. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `video-depth-anything-s` | TUM RGB-D video (3 sequences, first 110 frames each), AbsRel / delta1 | 0.0549 / 0.9802 | 0.0549 / 0.9802 | 0.0550 / 0.9802 | 0.0549 / 0.9802 |  |
-| `video-depth-anything-s` | TUM RGB-D video (3 sequences, first 1000 frames each), AbsRel / delta1 |  |  |  | 0.1120 / 0.8716 |  |
-| `video-depth-anything-metric-s` | TUM RGB-D video (3 sequences, first 110 frames each), AbsRel / delta1 | 0.0786 / 0.9769 | 0.0785 / 0.9769 | 0.0786 / 0.9769 | 0.0785 / 0.9769 |  |
-| `video-depth-anything-metric-s` | TUM RGB-D video (3 sequences, first 1000 frames each), AbsRel / delta1 |  |  |  | 0.1214 / 0.8883 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `video-depth-anything-s` | TUM RGB-D video (3 sequences, first 110 frames each), AbsRel / delta1 | 0.0549 / 0.9802 | 0.0549 / 0.9802 | 0.0550 / 0.9802 | 0.0549 / 0.9802 | 0.0549 / 0.9802 |  |
+| `video-depth-anything-s` | TUM RGB-D video (3 sequences, first 1000 frames each), AbsRel / delta1 |  |  |  |  | 0.1120 / 0.8716 |  |
+| `video-depth-anything-metric-s` | TUM RGB-D video (3 sequences, first 110 frames each), AbsRel / delta1 | 0.0786 / 0.9769 | 0.0785 / 0.9769 | 0.0786 / 0.9769 | 0.0786 / 0.9769 | 0.0785 / 0.9769 |  |
+| `video-depth-anything-metric-s` | TUM RGB-D video (3 sequences, first 1000 frames each), AbsRel / delta1 |  |  |  |  | 0.1214 / 0.8883 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a49aaba7, 2026-11-12.
 

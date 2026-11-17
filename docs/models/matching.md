@@ -252,10 +252,10 @@ Commercial use: yes.
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `loftr-outdoor` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees | 50.1 / 67.5 / 80.3 | 50.6 / 67.6 / 80.3 |  |  |
-| `loftr-outdoor` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 53.8 / 71.8 / 83.7 | 52.1 / 71.0 / 83.3 | 57.1 / 74.2 / 85.0 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `loftr-outdoor` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees | 50.1 / 67.5 / 80.3 | 50.6 / 67.6 / 80.3 | 50.8 / 67.8 / 80.2 |  |  |
+| `loftr-outdoor` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 53.8 / 71.8 / 83.7 | 52.1 / 71.0 / 83.3 |  | 57.1 / 74.2 / 85.0 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565, 2026-11-13 to 2026-11-15; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
@@ -373,10 +373,10 @@ Commercial use: yes.
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `romav1` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  | 62.6 / 76.6 / 86.3 | 62.6 / 76.6 / 86.4 | 62.4 / 76.4 / 86.2 |  |
-| `romav1` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 67.6 / 80.1 / 88.2 | 66.4 / 79.5 / 88.1 | 68.2 / 80.8 / 88.8 | 67.5 / 80.0 / 88.2 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `romav1` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  | 62.6 / 76.6 / 86.3 | 62.6 / 76.6 / 86.4 |  | 62.4 / 76.4 / 86.2 |  |
+| `romav1` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 67.6 / 80.1 / 88.2 | 66.4 / 79.5 / 88.1 | 68.2 / 80.8 / 88.8 | 66.5 / 79.7 / 88.0 | 67.5 / 80.0 / 88.2 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f218aa9d, 2026-11-13.
 
@@ -431,10 +431,10 @@ Commercial use: yes.
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `romav2` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  | 63.2 / 77.1 / 86.7 | 63.0 / 76.9 / 86.5 | 62.9 / 76.9 / 86.4 |  |
-| `romav2` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 64.6 / 78.0 / 87.1 | 64.7 / 78.2 / 87.3 | 64.7 / 78.3 / 87.3 | 64.4 / 77.9 / 86.9 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `romav2` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  | 63.2 / 77.1 / 86.7 | 63.0 / 76.9 / 86.5 |  | 62.9 / 76.9 / 86.4 |  |
+| `romav2` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 64.6 / 78.0 / 87.1 | 64.7 / 78.2 / 87.3 | 64.7 / 78.3 / 87.3 | 64.3 / 78.0 / 87.0 | 64.4 / 77.9 / 86.9 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 011e320c, 2026-11-11 to 2026-11-12; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 011e320c, 2026-11-12.
 
