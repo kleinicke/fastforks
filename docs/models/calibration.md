@@ -37,7 +37,7 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`, `cudnn_hacc`
 - Variants: `anycalib-pinhole`
-- Not in this release (planned for 0.2.1): `anycalib-pinhole` ONNX / TensorRT export: the ONNX converter cannot decompose the exported graph (ConversionError, step 2/3)
+- Not in this release (planned for 0.2.1): `anycalib-pinhole` TensorRT export: the engine builds but a dataset-level camera accuracy acceptance threshold is not yet established
 - Outputs: intrinsics, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anycalib-pinhole` 3000x4000 (1.0 GiB peak allocated, 1.1 reserved)

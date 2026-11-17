@@ -100,6 +100,10 @@ TensorRT engine for all but these four (each a TensorRT bug; run their ONNX file
   graphs take only the image, no camera intrinsics: Metric3D's exported metric depth assumes its canonical camera
   (focal length 1000 px at the input size); rescale it yourself by `fx * s / 1000` (`fx` your focal length in px,
   `s` the resize factor to the export size). UniDepth's export uses its own predicted camera.
+- AnyCalib ONNX was checked at 480 x 640 on one synthetic and three real images; ONNX Runtime intrinsics differed from
+  CUDA portable by at most 0.023% relative. TensorRT remains gated pending an established dataset-level acceptance
+  threshold: on 200 LaMAR images resized to this fixed size its mean vertical field-of-view difference from portable
+  was 0.030 degrees, with a maximum of 0.467 degrees. This resized protocol differs from the standard site evaluation.
 
 The CPU suite (`tests/test_export.py`) runs compile (`fullgraph`, zero graph breaks), export and ONNX + onnxruntime
 for the smallest variant of every family and compares each with eager.
