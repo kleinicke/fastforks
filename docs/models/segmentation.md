@@ -196,9 +196,9 @@ Each image at its own size, argmax of the logits. Original = the original code n
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `dinov2-s-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 42.39 / 79.40 | 42.38 / 79.40 | 42.38 / 79.39 |  | 42.37 / 79.39 |  |
+| `dinov2-s-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 42.39 / 79.40 | 42.38 / 79.40 | 42.38 / 79.39 | 42.39 / 79.40 | 42.37 / 79.39 |  |
 | `dinov2-b-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 45.12 / 80.29 | 45.12 / 80.29 | 45.12 / 80.28 | 45.12 / 80.29 | 45.12 / 80.28 |  |
-| `dinov2-l-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 45.08 / 80.13 | 45.09 / 80.13 | 45.08 / 80.13 |  | 45.08 / 80.13 |  |
+| `dinov2-l-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 45.08 / 80.13 | 45.09 / 80.13 | 45.08 / 80.13 | 45.08 / 80.13 | 45.08 / 80.13 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 

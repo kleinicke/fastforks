@@ -495,7 +495,7 @@ def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int
 
     if model.card.family == "clipseg":
         # The engine starts after image resize and takes a separately prepared text embedding.
-        height, width = model.export_size()
+        height, width = model.size_range().export_size
         return 1, height, width
 
     seen: list[torch.Size] = []

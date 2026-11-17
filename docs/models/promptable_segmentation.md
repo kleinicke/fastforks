@@ -42,7 +42,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile | 15.3<br>4.46<br>2.76<br>3.19 | 346 / 404<br>328 / 356<br>335 / 362<br>348 / 374 |
+| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>4.46<br>2.76<br>3.19<br>1.75 (segmentation network on a normalized 352x352 image and precomputed text embedding only) | 346 / 404<br>328 / 356<br>335 / 362<br>348 / 374<br>464 / 480 |
 
 <details><summary>Details</summary>
 
@@ -57,7 +57,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, masks
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 352x352 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `clipseg` 3000x4000 (0.7 GiB peak allocated, 0.9 reserved)
-- `clipseg` 1024x1024, first call: portable + torch.compile 10 s (cold Inductor cache).
+- `clipseg` 1024x1024, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `clipseg` original 1024x1024: .half() on 1 modules, fp16 inputs; transformers CLIPSegProcessor (CPU) + CLIPSegForImageSegmentation, text tower per call, masks at logits > 0
 - `clipseg` load / first call: original 3.05 s / 0.021 s, portable 4.93 s / 0.287 s, kernels 4.54 s / 0.236 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
